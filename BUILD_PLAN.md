@@ -250,38 +250,38 @@ _The run-the-channel layer (post-scripting)._
 
 ### Production Pipeline  `PIPE`  (0 Must / 6 total)
 
-- [ ] [Should] `FR-PIPE-01` — Promote any script/idea into a Content Project with a Status lifecycle: Idea → Research/Writing → Recording → Editing → Scheduled → Published.
-- [ ] [Should] `FR-PIPE-02` — Writer’s Room view: filter to projects in Research/Writing, with due-soon indicators and per-assignee filtering.
-- [ ] [Should] `FR-PIPE-03` — Film Queue view: filter to projects in Recording; group by shoot day; surface each project’s shot list.
-- [ ] [Should] `FR-PIPE-04` — Edit Bay: a kanban board keyed on an Edit Status property — Assembly, Rough cut, VFX, Sound & music, Color grading — for post-production tracking.
-- [ ] [Should] `FR-PIPE-05` — Assign one or more members to a project/role; provide a ‘my work’ filter across all pipeline views.
-- [ ] [Should] `FR-PIPE-06` — A configurable board/Production Board view of all content by status, with drag-to-advance between stages.
+- [x] [Should] `FR-PIPE-01` — Promote any script/idea into a Content Project with a Status lifecycle: Idea → Research/Writing → Recording → Editing → Scheduled → Published.
+- [x] [Should] `FR-PIPE-02` — Writer’s Room view: filter to projects in Research/Writing, with due-soon indicators and per-assignee filtering.
+- [x] [Should] `FR-PIPE-03` — Film Queue view: filter to projects in Recording; group by shoot day; surface each project’s shot list.
+- [x] [Should] `FR-PIPE-04` — Edit Bay: a kanban board keyed on an Edit Status property — Assembly, Rough cut, VFX, Sound & music, Color grading — for post-production tracking.
+- [x] [Should] `FR-PIPE-05` — Assign one or more members to a project/role; provide a ‘my work’ filter across all pipeline views.
+- [x] [Should] `FR-PIPE-06` — A configurable board/Production Board view of all content by status, with drag-to-advance between stages. _(click-to-advance shipped; drag-and-drop deferred)_
 
 ### Tasks  `TASK`  (0 Must / 2 total)
 
-- [ ] [Should] `FR-TASK-01` — Create tasks with assignee, due date, status and optional link to a Content Project; show a per-user task list.
+- [x] [Should] `FR-TASK-01` — Create tasks with assignee, due date, status and optional link to a Content Project; show a per-user task list.
 - [ ] _[Could]_ `FR-TASK-02` — Group tasks under projects; show task progress on the related content project.
 
 ### Content Calendar  `CAL`  (0 Must / 2 total)
 
-- [ ] [Should] `FR-CAL-01` — Content Calendar: month/week views of content by target publish date, color-coded by status/channel.
-- [ ] [Should] `FR-CAL-02` — Set a publish date per project; surface upcoming and overdue content on the Dashboard.
+- [x] [Should] `FR-CAL-01` — Content Calendar: month/week views of content by target publish date, color-coded by status/channel.
+- [x] [Should] `FR-CAL-02` — Set a publish date per project; surface upcoming and overdue content on the Dashboard.
 
 ### Assets (B-roll)  `ASSET`  (0 Must / 3 total)
 
-- [ ] [Should] `FR-ASSET-01` — A single, centralized B-roll/shotlist library (not one per project); items can be linked to one or more Content Projects and scoped to a Channel.
-- [ ] [Should] `FR-ASSET-03` — Favorite reusable B-roll items; store either uploaded assets or links to cloud storage; filter/search the library.
+- [x] [Should] `FR-ASSET-01` — A single, centralized B-roll/shotlist library (not one per project); items can be linked to one or more Content Projects and scoped to a Channel.
+- [x] [Should] `FR-ASSET-03` — Favorite reusable B-roll items; store either uploaded assets or links to cloud storage; filter/search the library.
 - [ ] _[Could]_ `FR-ASSET-02` — Import shot lists / markers from external tools (e.g. Premiere Pro markers, Frame.io comments via file/CSV) and attach to a project.
 
 ### Swipes (Inspiration)  `SWIPE`  (0 Must / 3 total)
 
-- [ ] [Should] `FR-SWIPE-01` — A visual Swipe File library for inspiration (thumbnails, set/studio design, landing pages) with image previews, tags and source URL.
+- [x] [Should] `FR-SWIPE-01` — A visual Swipe File library for inspiration (thumbnails, set/studio design, landing pages) with image previews, tags and source URL.
 - [ ] _[Could]_ `FR-SWIPE-02` — Capture inspiration via web link (auto-extract image, title, source URL) or direct upload; one-click save from a browser clipper.
 - [ ] _[Could]_ `FR-SWIPE-03` — Auto-capture YouTube thumbnails to Swipes with title and URL pre-filled; reference Swipes from the Thumbnail Studio.
 
 ### Knowledge Base & SOPs  `WIKI`  (0 Must / 3 total)
 
-- [ ] [Should] `FR-WIKI-01` — A Wiki of process docs, SOPs and reference guides, browsable in one place.
+- [x] [Should] `FR-WIKI-01` — A Wiki of process docs, SOPs and reference guides, browsable in one place.
 - [ ] _[Could]_ `FR-WIKI-02` — Scope wiki pages to a Channel; show a channel’s related docs (e.g. its publishing checklist) on the channel page.
 - [ ] _[Could]_ `FR-WIKI-03` — Reusable checklists (e.g. pre-publish QA) attachable to content projects.
 

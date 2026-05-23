@@ -65,6 +65,7 @@ model User {
   authoredChats Chat[]
   authoredScripts Script[]
   assignedTasks Task[]        @relation("TaskAssignee")
+  projectAssignments ProjectAssignee[]
 }
 
 model Membership {
@@ -163,6 +164,8 @@ model Channel {
   submissions        AudienceSubmission[]
   channelStats       ChannelStat[]
   thumbnails         Thumbnail[]
+  assets             Asset[]
+  wikiDocs           WikiDoc[]
 }
 
 model VoiceProfile {
@@ -494,6 +497,7 @@ model ProjectAssignee {
   role            String?  // writer | host | editor
 
   contentProject  ContentProject @relation(fields: [contentProjectId], references: [id], onDelete: Cascade)
+  user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([contentProjectId, userId, role])
 }
@@ -527,6 +531,7 @@ model Asset {
   source      String?  // "premiere_marker" | "frameio" | "upload"
   createdAt   DateTime @default(now())
 
+  channel     Channel? @relation(fields: [channelId], references: [id], onDelete: Cascade)
   links       AssetLink[]
 }
 
@@ -566,6 +571,7 @@ model WikiDoc {
   updatedAt   DateTime @updatedAt
 
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  channel     Channel?  @relation(fields: [channelId], references: [id], onDelete: Cascade)
 }
 
 // ──────────────────────────────────────────────────────────────────────────

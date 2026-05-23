@@ -10,6 +10,7 @@ import { ScriptEditor } from "./ScriptEditor";
 import { StartOverButton } from "./StartOverButton";
 import { AgentPanel } from "./AgentPanel";
 import { launchAgentAction } from "@/app/actions/agent";
+import { promoteScriptAction } from "@/app/actions/production";
 import {
   savePlanQuestionsAction,
   generateOutlineAction,
@@ -104,6 +105,11 @@ export default async function CanvasPage({
                 Publish →
               </Link>
             )}
+            {/* FR-PIPE-01 — promote into a tracked Content Project */}
+            <form action={promoteScriptAction}>
+              <input type="hidden" name="scriptId" value={script.id} />
+              <button type="submit" className="btn sm" title="Track this script in the production pipeline">Track in production →</button>
+            </form>
             {/* FR-CANV-12 — Start Over with warning */}
             <StartOverButton scriptId={script.id} hasBody={!!script.body} />
           </div>

@@ -1,6 +1,96 @@
+import Link from "next/link";
+import { ArrowRight, Plus } from "lucide-react";
 import { requireMembership } from "@/lib/acl";
-import { Placeholder } from "@/components/Placeholder";
-export default async function ProductionPage() {
-  await requireMembership();
-  return <Placeholder title="Production Pipeline" tag="Phase 5 · FR-PIPE / FR-TASK / FR-CAL" />;
+import { db } from "@/lib/db";
+import { setProjectStatusAction, createProjectAction } from "@/app/actions/production";
+
+// FR-PIPE-06 — Configurable Production Board: all content by status, with click-to-advance.
+// Drag-and-drop is omitted v1; the forward arrow is the supported way to advance a stage.
+
+const STATUSES = [
+  { key: "idea", label: "Idea", color: "#D97706", soft: "#FBEED5" },
+  { key: "research_writing", label: "Research/Writing", color: "#2563EB", soft: "#E5EDFD" },
+  { key: "recording", label: "Recording", color: "#6D28D9", soft: "#EDE7FB" },
+  { key: "editing", label: "Editing", color: "#4F46E5", soft: "#E7E6FB" },
+  { key: "scheduled", label: "Scheduled", color: "#0D9488", soft: "#D7F1ED" },
+  { key: "published", label: "Published", color: "#15924B", soft: "#E0F2E8" },
+] as const;
+
+export default async function ProductionBoardPage() {
+  const { workspace } = await requireMembership();
+  const [projects, channels] = await Promise.all([
+    db.contentProject.findMany({
+      where: { channel: { workspaceId: workspace.id } },
+      include: { channel: { select: { id: true, name: true, accentColor: true } }, script: { select: { id: true, wordCount: true } } },
+      orderBy: { updatedAt: "desc" },
+    }),
+    db.channel.findMany({ where: { workspaceId: workspace.id }, orderBy: { createdAt: "asc" } }),
+  ]);
+
+  return (
+    <div>
+      {/* Quick-add */}
+      {channels.length > 0 && (
+        <form action={createProjectAction} className="card flex items-end gap-2 mb-4 max-w-2xl">
+          <label className="flex-1 flex flex-col gap-1">
+            <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">New project</span>
+            <input name="title" required placeholder="Working title" className="border border-[var(--line-2)] rounded-lg p-2 text-sm" />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">Channel</span>
+            <select name="channelId" className="border border-[var(--line-2)] rounded-lg p-2 text-sm">
+              {channels.map((c) => (<option key={c.id} value={c.id}>{c.name}</option>))}
+            </select>
+          </label>
+          <button type="submit" className="btn primary sm flex items-center gap-1"><Plus className="w-3.5 h-3.5" /> Add</button>
+        </form>
+      )}
+
+      {/* Kanban */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 min-h-[400px]">
+        {STATUSES.map((s) => {
+          const items = projects.filter((p) => p.status === s.key);
+          return (
+            <section key={s.key} className="card" style={{ background: s.soft + "55" }}>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="w-2 h-2 rounded-full" style={{ background: s.color }} />
+                <h2 className="font-mono font-bold text-xs uppercase tracking-wider" style={{ color: s.color }}>{s.label}</h2>
+                <span className="text-xs text-[var(--mute)]">({items.length})</span>
+              </div>
+              <ul className="m-0 p-0 flex flex-col gap-2">
+                {items.length === 0 && <li className="text-[11px] text-[var(--mute)] py-3 text-center">—</li>}
+                {items.map((p) => (
+                  <li key={p.id} className="bg-white border border-[var(--line)] rounded-lg p-2.5">
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <span className="w-6 h-6 rounded-md text-white grid place-items-center text-[10px] font-mono font-bold" style={{ background: p.channel.accentColor ?? "var(--accent)" }}>{p.channel.name.slice(0, 2).toUpperCase()}</span>
+                      <span className="flex-1" />
+                      {/* Advance */}
+                      {(() => {
+                        const idx = STATUSES.findIndex((x) => x.key === p.status);
+                        const next = STATUSES[idx + 1];
+                        if (!next) return null;
+                        return (
+                          <form action={setProjectStatusAction} title={`Move to ${next.label}`}>
+                            <input type="hidden" name="id" value={p.id} />
+                            <input type="hidden" name="status" value={next.key} />
+                            <button type="submit" className="w-6 h-6 rounded-md grid place-items-center hover:bg-[var(--zebra)]"><ArrowRight className="w-3.5 h-3.5" style={{ color: next.color }} /></button>
+                          </form>
+                        );
+                      })()}
+                    </div>
+                    {p.script ? (
+                      <Link href={`/scripts/${p.script.id}`} className="font-semibold text-sm leading-tight hover:text-[var(--accent)]">{p.title}</Link>
+                    ) : (
+                      <div className="font-semibold text-sm leading-tight">{p.title}</div>
+                    )}
+                    <div className="text-[11px] text-[var(--mute)] mt-1">{p.channel.name}{p.script ? ` · ${p.script.wordCount}w` : ""}</div>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
