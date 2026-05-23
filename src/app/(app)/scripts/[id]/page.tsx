@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowLeft, PenLine, FileText, MessageCircle, History, ListTree, Type } from "lucide-react";
+import { ArrowLeft, PenLine, FileText, MessageCircle, History, ListTree, Type, Bot } from "lucide-react";
 import { notFound } from "next/navigation";
 import { requireMembership } from "@/lib/acl";
 import { db } from "@/lib/db";
@@ -8,6 +8,8 @@ import { MODELS } from "@/lib/llm/models";
 import { formatDuration } from "@/lib/canvas/duration";
 import { ScriptEditor } from "./ScriptEditor";
 import { StartOverButton } from "./StartOverButton";
+import { AgentPanel } from "./AgentPanel";
+import { launchAgentAction } from "@/app/actions/agent";
 import {
   savePlanQuestionsAction,
   generateOutlineAction,
@@ -31,7 +33,14 @@ export default async function CanvasPage({
 
   const script = await db.script.findFirst({
     where: { id, channel: { workspaceId: workspace.id } },
-    include: { channel: true, idea: true, template: true, chat: { include: { messages: { orderBy: { createdAt: "asc" }, take: 12 } } }, versions: { orderBy: { createdAt: "desc" }, take: 8 } },
+    include: {
+      channel: true,
+      idea: true,
+      template: true,
+      chat: { include: { messages: { orderBy: { createdAt: "asc" }, take: 12 } } },
+      versions: { orderBy: { createdAt: "desc" }, take: 8 },
+      agentRuns: { orderBy: { startedAt: "desc" }, take: 1 },
+    },
   });
   if (!script) notFound();
 
@@ -76,6 +85,20 @@ export default async function CanvasPage({
           <div className="flex items-center gap-3">
             <Link href={`/channels/${script.channelId}/scripts`} className="text-xs font-mono text-[var(--mute)] hover:text-[var(--accent)] flex items-center gap-1"><ArrowLeft className="w-3 h-3" /> {script.channel.name}</Link>
             <span className="flex-1" />
+            {/* FR-AGENT-01 — Launch agent. Disabled while a run is in flight. */}
+            {(() => {
+              const latest = script.agentRuns[0];
+              const inFlight = latest && (latest.status === "queued" || latest.status === "running");
+              if (inFlight) return null;
+              return (
+                <form action={launchAgentAction}>
+                  <input type="hidden" name="scriptId" value={script.id} />
+                  <button type="submit" className="btn sm flex items-center gap-1.5" style={{ background: "var(--accent-soft)", color: "var(--accent)", borderColor: "var(--accent)" }} title="Run the automated research+outline+script+QA pipeline">
+                    <Bot className="w-3.5 h-3.5" /> {script.body ? "Re-run Agent" : "Run Agent"}
+                  </button>
+                </form>
+              );
+            })()}
             {script.body && (
               <Link href={`/scripts/${script.id}/publish`} className="btn sm flex items-center gap-1.5" title="Export, teleprompter, promo assets">
                 Publish →
@@ -127,6 +150,13 @@ export default async function CanvasPage({
 
         {/* Content */}
         <div className="flex-1 overflow-auto p-5">
+          {script.agentRuns[0] && (
+            <AgentPanel
+              scriptId={script.id}
+              runId={script.agentRuns[0].id}
+              initialStatus={script.agentRuns[0].status}
+            />
+          )}
           {activeTab === "plan" ? (
             <PlanTab script={{ id: script.id, outline }} />
           ) : (

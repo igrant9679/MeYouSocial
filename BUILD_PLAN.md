@@ -212,11 +212,11 @@ _The core writing experience._
 
 ### Agent Mode & Pipeline  `AGENT`  (0 Must / 6 total)
 
-- [ ] [Should] `FR-AGENT-01` — Launch from Canvas; run an automated pipeline: Research → Outline → Script → Quality checks (retention optimization, humanization, repetition cleanup) → Voiceover preparation.
-- [ ] [Should] `FR-AGENT-02` — Run in the background (5–15 min typical) with a live progress panel; user may close the tab and is emailed on completion.
-- [ ] [Should] `FR-AGENT-03` — Use the channel’s voice/audience and any attached research context; output appears in the Script tab with an outline in the Plan tab.
-- [ ] [Should] `FR-AGENT-04` — Retries on the same script are free and automatic on failure; cancellation is immediate. (No credits are involved.)
-- [ ] [Should] `FR-AGENT-06` — Output integrates with all standard editing tools (highlight-and-improve, Humanize, chat) for post-run refinement.
+- [x] [Should] `FR-AGENT-01` — Launch from Canvas; run an automated pipeline: Research → Outline → Script → Quality checks (retention optimization, humanization, repetition cleanup) → Voiceover preparation.
+- [x] [Should] `FR-AGENT-02` — Run in the background (5–15 min typical) with a live progress panel; user may close the tab and is emailed on completion.
+- [x] [Should] `FR-AGENT-03` — Use the channel’s voice/audience and any attached research context; output appears in the Script tab with an outline in the Plan tab.
+- [x] [Should] `FR-AGENT-04` — Retries on the same script are free and automatic on failure; cancellation is immediate. (No credits are involved.)
+- [x] [Should] `FR-AGENT-06` — Output integrates with all standard editing tools (highlight-and-improve, Humanize, chat) for post-run refinement.
 - [ ] _[Could]_ `FR-AGENT-05` — Optional, channel-enabled video production: AI voiceover from the script, presenter avatar video, shot-list planning and rendering, tracked in the same progress panel.
 
 ---
