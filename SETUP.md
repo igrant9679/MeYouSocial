@@ -2,6 +2,14 @@
 
 The app boots and is fully demoable with **zero** real keys (all `USE_MOCK_*` flags are on). When you want to turn a feature from mock to real, you'll need the values below. Provide them by editing `.env` (local) or by pasting into Railway → Variables (production).
 
+## Railway gotchas (from first deploy)
+
+If you ever rebuild the Railway project from scratch, two non-obvious things bit us on the first attempt:
+
+1. **Node version.** Railway/Nixpacks defaults to Node 18; Next.js 16 needs ≥20.9. We pin `engines.node = ">=20.11.0"` in `package.json` so the right version is auto-selected.
+2. **devDependencies.** With `NODE_ENV=production` in Variables, npm skips devDependencies — but `@tailwindcss/postcss`, `tailwindcss`, `tsx`, `@types/*` are needed at build time. Set `NPM_CONFIG_PRODUCTION=false` in Railway Variables so devDeps install.
+3. **Public domain port.** Next.js's `next start` listens on `PORT` (Railway sets it to `8080`). When you generate the public domain, set its target port to **8080** — not 3000.
+
 ## 0. Already set for you
 
 - `BOOTSTRAP_ADMIN_EMAIL=idris.grant@communityforce.com` — first account to sign in with this email becomes the workspace Admin.
