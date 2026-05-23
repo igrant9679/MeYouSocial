@@ -114,14 +114,14 @@ _Find what works and turn it into validated ideas._
 
 ### Intel (Research Database)  `INTEL`  (8 Must / 13 total)
 
-- [ ] **[Must]** `FR-INTEL-01` — Search channels and videos via natural language; keywords like ‘channel’/‘niche’ bias toward channel results, otherwise video results.
-- [ ] **[Must]** `FR-INTEL-02` — Support advanced query syntax for subscriber ranges, velocity (e.g. ‘velocity > 2’), engagement (views/sub), creation date, video count, performance (views, outlier score), timeframe and format (shorts/longs), in combination.
-- [ ] **[Must]** `FR-INTEL-03` — Provide explicit filters: subscriber min/max, velocity score, language, content type (long/shorts/both).
-- [ ] **[Must]** `FR-INTEL-04` — Compute and display Velocity Score (momentum) and tag fast-growing channels.
-- [ ] **[Must]** `FR-INTEL-05` — Compute Outlier Score = video views ÷ average views of up to 10 surrounding videos on the same channel; display with severity bands (≥5x exceptional, 2–5x strong, 1–2x average, <1x under).
-- [ ] **[Must]** `FR-INTEL-07` — Channel detail view: subscriber/growth trends, total & average views, upload frequency/consistency, top videos (sortable by views/outlier), and outlier videos.
-- [ ] **[Must]** `FR-INTEL-08` — Video detail view: views/engagement, outlier score, views/sub, title and thumbnail.
-- [ ] **[Must]** `FR-INTEL-11` — Bookmark channels/videos with tags and notes; bookmarks are team-shared and have a dedicated page.
+- [x] **[Must]** `FR-INTEL-01` — Search channels and videos via natural language; keywords like ‘channel’/‘niche’ bias toward channel results, otherwise video results.
+- [ ] **[Must]** `FR-INTEL-02` — Support advanced query syntax for subscriber ranges, velocity (e.g. ‘velocity > 2’), engagement (views/sub), creation date, video count, performance (views, outlier score), timeframe and format (shorts/longs), in combination. _(explicit filters work; free-form query syntax not yet parsed)_
+- [x] **[Must]** `FR-INTEL-03` — Provide explicit filters: subscriber min/max, velocity score, language, content type (long/shorts/both).
+- [x] **[Must]** `FR-INTEL-04` — Compute and display Velocity Score (momentum) and tag fast-growing channels.
+- [x] **[Must]** `FR-INTEL-05` — Compute Outlier Score = video views ÷ average views of up to 10 surrounding videos on the same channel; display with severity bands (≥5x exceptional, 2–5x strong, 1–2x average, <1x under).
+- [x] **[Must]** `FR-INTEL-07` — Channel detail view: subscriber/growth trends, total & average views, upload frequency/consistency, top videos (sortable by views/outlier), and outlier videos.
+- [x] **[Must]** `FR-INTEL-08` — Video detail view: views/engagement, outlier score, views/sub, title and thumbnail.
+- [x] **[Must]** `FR-INTEL-11` — Bookmark channels/videos with tags and notes; bookmarks are team-shared and have a dedicated page.
 - [ ] [Should] `FR-INTEL-06` — Compute and display Views/Sub ratio with a High indicator for strong beyond-subscriber reach.
 - [ ] [Should] `FR-INTEL-09` — Find Similar Channels for any channel.
 - [ ] [Should] `FR-INTEL-10` — Chat with Channel / Chat with Video: open an AI conversation scoped to that entity.
@@ -130,11 +130,11 @@ _Find what works and turn it into validated ideas._
 
 ### Ideas (Outlier Generation)  `IDEA`  (5 Must / 9 total)
 
-- [ ] **[Must]** `FR-IDEA-01` — Generate sets of (default 10) ideas by identifying outlier videos across the channel’s niche AND deliberately selected adjacent niches (based on category/keywords/competitors).
-- [ ] **[Must]** `FR-IDEA-02` — Each idea includes: Title (hook-bearing working title), Topic, Strategy (the psychological hook / why it works), Source video (with views & outlier score), and Suggested length.
-- [ ] **[Must]** `FR-IDEA-03` — Maintain an Ideas Library with sort (newest, highest outlier score) and filters (status, source).
-- [ ] **[Must]** `FR-IDEA-07` — Write action opens the Canvas with the idea’s context (title, topic, strategy, source) pre-loaded.
-- [ ] **[Must]** `FR-IDEA-09` — On-demand regeneration to refresh the pipeline against the latest outlier data.
+- [x] **[Must]** `FR-IDEA-01` — Generate sets of (default 10) ideas by identifying outlier videos across the channel’s niche AND deliberately selected adjacent niches (based on category/keywords/competitors).
+- [x] **[Must]** `FR-IDEA-02` — Each idea includes: Title (hook-bearing working title), Topic, Strategy (the psychological hook / why it works), Source video (with views & outlier score), and Suggested length.
+- [x] **[Must]** `FR-IDEA-03` — Maintain an Ideas Library with sort (newest, highest outlier score) and filters (status, source).
+- [x] **[Must]** `FR-IDEA-07` — Write action opens the Canvas with the idea’s context (title, topic, strategy, source) pre-loaded.
+- [x] **[Must]** `FR-IDEA-09` — On-demand regeneration to refresh the pipeline against the latest outlier data.
 - [ ] [Should] `FR-IDEA-04` — Change Topic: preserve an idea’s proven hook structure while redirecting it to a new subject.
 - [ ] [Should] `FR-IDEA-05` — Generate Titles: produce title variations/angles for an idea.
 - [ ] [Should] `FR-IDEA-06` — Generate thumbnail concepts for an idea (links to Thumbnails module).
@@ -142,12 +142,12 @@ _Find what works and turn it into validated ideas._
 
 ### Ideation Chat  `CHAT`  (6 Must / 12 total)
 
-- [ ] **[Must]** `FR-CHAT-01` — Chat is channel-scoped: the selected channel’s voice and audience condition all responses; require a channel selection before chatting.
-- [ ] **[Must]** `FR-CHAT-02` — Accept plain-language questions, pasted YouTube video/channel URLs, and document uploads as context.
-- [ ] **[Must]** `FR-CHAT-03` — Analyze pasted YouTube videos (fetch metadata, transcript, structure) and channels (content strategy, top videos, outliers, posting patterns); support remixing into new angles.
-- [ ] **[Must]** `FR-CHAT-07` — Upload files as context — PDF, Word (.doc/.docx), text (.txt/.md/.json/.csv) and images (.jpg/.png/.gif/.webp), up to 10MB each.
-- [ ] **[Must]** `FR-CHAT-10` — Intent like ‘turn this into a script’ creates a script project and opens the Canvas with context carried over.
-- [ ] **[Must]** `FR-CHAT-11` — Maintain full-conversation context awareness; chat is rate-limited (not credit-metered) with clear back-off messaging.
+- [x] **[Must]** `FR-CHAT-01` — Chat is channel-scoped: the selected channel’s voice and audience condition all responses; require a channel selection before chatting.
+- [x] **[Must]** `FR-CHAT-02` — Accept plain-language questions, pasted YouTube video/channel URLs, and document uploads as context.
+- [x] **[Must]** `FR-CHAT-03` — Analyze pasted YouTube videos (fetch metadata, transcript, structure) and channels (content strategy, top videos, outliers, posting patterns); support remixing into new angles.
+- [ ] **[Must]** `FR-CHAT-07` — Upload files as context — PDF, Word (.doc/.docx), text (.txt/.md/.json/.csv) and images (.jpg/.png/.gif/.webp), up to 10MB each. _(URL + pasted-text context done; file upload pending in Phase 3 alongside Canvas FR-CANV-08)_
+- [x] **[Must]** `FR-CHAT-10` — Intent like ‘turn this into a script’ creates a script project and opens the Canvas with context carried over.
+- [x] **[Must]** `FR-CHAT-11` — Maintain full-conversation context awareness; chat is rate-limited (not credit-metered) with clear back-off messaging.
 - [ ] [Should] `FR-CHAT-04` — Answer in-chat outlier requests with filters (e.g. ‘long-form outliers only’, ‘last 6 months’, ‘top 10 about <topic>’).
 - [ ] [Should] `FR-CHAT-05` — Perform quick web search for current information within the conversation.
 - [ ] [Should] `FR-CHAT-06` — AI Research: a deep, multi-source research tool (separate from quick search) that synthesizes findings into a saved, referenceable report in the research library.
