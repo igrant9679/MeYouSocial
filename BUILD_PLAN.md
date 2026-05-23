@@ -84,7 +84,7 @@ _A configured channel with trained voice and audience._
 - [x] **[Must]** `FR-CHAN-04` — Channel Settings include details, linked YouTube channel, and Script Defaults (default template, default Draft Writing Model, default language).
 - [x] **[Must]** `FR-CHAN-07` — Competitors: add/search/remove tracked competitor channels post-setup; competitors feed idea generation and research.
 - [ ] [Should] `FR-CHAN-05` — Users can relink/change the linked YouTube channel, which re-analyzes content and updates voice & audience.
-- [ ] [Should] `FR-CHAN-06` — Channel Memory: users store durable facts/preferences that the AI automatically applies across scripts in that channel; memory is viewable/editable.
+- [x] [Should] `FR-CHAN-06` — Channel Memory: users store durable facts/preferences that the AI automatically applies across scripts in that channel; memory is viewable/editable.
 - [ ] _[Could]_ `FR-CHAN-08` — Business/brand channels are supported (channels representing a company/product rather than a person).
 
 ### Voice Profiles  `VOICE`  (5 Must / 8 total)
@@ -94,9 +94,9 @@ _A configured channel with trained voice and audience._
 - [x] **[Must]** `FR-VOICE-03` — Simple mode: refine the voice with natural-language instructions (e.g. ‘more casual’, ‘shorter sentences’); generate a preview and iterate on feedback.
 - [x] **[Must]** `FR-VOICE-04` — Advanced mode: expose and edit all parameters across Speaker Archetype (age vibe, profession archetype, temperament, authority posture), Delivery Recipe (cadence, energy, pacing/emphasis), Rhetorical Toolkit (hooks, transitions, CTAs, analogy/evidence, humor/empathy), Diction & Syntax (vocabulary level, sentence shape, preferred constructions, words to avoid), and Additional Settings (phrase kit, jargon policy, formatting directives, do/don’t rules).
 - [x] **[Must]** `FR-VOICE-08` — Generate Preview produces a short voice sample instantly and for free.
-- [ ] [Should] `FR-VOICE-05` — Add writing samples (up to 50,000 characters each: transcripts, blogs, threads, scripts) to enhance training.
-- [ ] [Should] `FR-VOICE-06` — Borrow a voice: train a profile from another public YouTube channel’s transcripts and apply it to the user’s topics.
-- [ ] [Should] `FR-VOICE-07` — Support multiple voice profiles per channel; set a channel default and override per script.
+- [x] [Should] `FR-VOICE-05` — Add writing samples (up to 50,000 characters each: transcripts, blogs, threads, scripts) to enhance training.
+- [x] [Should] `FR-VOICE-06` — Borrow a voice: train a profile from another public YouTube channel’s transcripts and apply it to the user’s topics.
+- [x] [Should] `FR-VOICE-07` — Support multiple voice profiles per channel; set a channel default and override per script.
 
 ### Audience Avatar  `AUD`  (4 Must / 5 total)
 
@@ -151,7 +151,7 @@ _Find what works and turn it into validated ideas._
 - [ ] [Should] `FR-CHAT-04` — Answer in-chat outlier requests with filters (e.g. ‘long-form outliers only’, ‘last 6 months’, ‘top 10 about <topic>’).
 - [ ] [Should] `FR-CHAT-05` — Perform quick web search for current information within the conversation.
 - [ ] [Should] `FR-CHAT-06` — AI Research: a deep, multi-source research tool (separate from quick search) that synthesizes findings into a saved, referenceable report in the research library.
-- [ ] [Should] `FR-CHAT-08` — Prompt Library: categorized, ready-made prompts insertable into chat and editing; openable via keyboard shortcut.
+- [x] [Should] `FR-CHAT-08` — Prompt Library: categorized, ready-made prompts insertable into chat and editing; openable via keyboard shortcut.
 - [ ] [Should] `FR-CHAT-09` — Research sidebar auto-collects AI-generated research; items can be starred (persist across all scripts) or deleted.
 - [ ] [Should] `FR-CHAT-12` — Maintain chat history grouped by recency (This Week / Last Week / older), searchable, scoped to channel.
 
@@ -206,9 +206,9 @@ _The core writing experience._
 
 - [ ] **[Must]** `FR-TMPL-01` — Ship built-in long-form templates: Flexible, Educational (WHY-WHAT-HOW), Documentary (3-act), Explainer, Commentary (Observation-Insight-Evidence), Review (Context-Finding-Verdict), Compilation, Fictional Story (3-act), VSL (Problem-Agitation-Solution), Listicle, Essay (thesis-driven), News (inverted pyramid), Experiment, Challenge.
 - [ ] [Should] `FR-TMPL-02` — Ship shorts templates: Shorts Educational, Shorts Review, Shorts Story, Shorts Viral, Shorts Ad.
-- [ ] [Should] `FR-TMPL-03` — Custom template by cloning a single video — capture section breakdown, pacing/timing, structural flow and transition patterns.
+- [x] [Should] `FR-TMPL-03` — Custom template by cloning a single video — capture section breakdown, pacing/timing, structural flow and transition patterns.
 - [ ] [Should] `FR-TMPL-05` — Provide guidance mapping content type → recommended template; templates are switchable mid-script.
-- [ ] _[Could]_ `FR-TMPL-04` — Combine 2–3 videos into one synthesized custom template; allow fine-tuning.
+- [x] _[Could]_ `FR-TMPL-04` — Combine 2–3 videos into one synthesized custom template; allow fine-tuning.
 
 ### Agent Mode & Pipeline  `AGENT`  (0 Must / 6 total)
 

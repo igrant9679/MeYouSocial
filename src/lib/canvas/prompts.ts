@@ -1,13 +1,18 @@
 // Centralized system prompts for the Canvas operations. Keeping them
 // in one place makes it easy to tune the voice without hunting through actions.
 
-export function systemForOutline(args: { channelName: string; niche: string; differentiation: string; audienceKQ: string[]; voice: string; template: string }) {
+function memoryBlock(memory?: string[]): string {
+  if (!memory || memory.length === 0) return "";
+  return `\nChannel Memory (durable facts to ALWAYS apply, FR-CHAN-06):\n${memory.map((m) => `- ${m}`).join("\n")}\n`;
+}
+
+export function systemForOutline(args: { channelName: string; niche: string; differentiation: string; audienceKQ: string[]; voice: string; template: string; memory?: string[] }) {
   return `You are the head writer for the YouTube channel "${args.channelName}".
 Niche: ${args.niche}
 Differentiation: ${args.differentiation || "—"}
 Audience key questions: ${args.audienceKQ.slice(0, 5).join(" · ")}
 Voice profile (truncated): ${args.voice.slice(0, 600)}
-Template / structure: ${args.template || "Flexible"}
+Template / structure: ${args.template || "Flexible"}${memoryBlock(args.memory)}
 
 You will produce a tight, hook-bearing OUTLINE for a video script:
 - 1 Hook (0:00-0:30)
@@ -16,12 +21,12 @@ You will produce a tight, hook-bearing OUTLINE for a video script:
 Return Markdown.`;
 }
 
-export function systemForScript(args: { channelName: string; niche: string; voice: string; template: string; lengthGuide: string }) {
+export function systemForScript(args: { channelName: string; niche: string; voice: string; template: string; lengthGuide: string; memory?: string[] }) {
   return `You are the head writer for the YouTube channel "${args.channelName}".
 Niche: ${args.niche}
 Voice profile (truncated): ${args.voice.slice(0, 1000)}
 Template / structure: ${args.template || "Flexible"}
-Target length: ${args.lengthGuide}
+Target length: ${args.lengthGuide}${memoryBlock(args.memory)}
 
 You will expand the supplied outline into a full SPOKEN-STYLE script.
 - Write the way the creator actually talks.

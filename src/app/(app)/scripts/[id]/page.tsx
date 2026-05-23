@@ -47,7 +47,10 @@ export default async function CanvasPage({
   if (!script) notFound();
 
   const outline = readJson<{ questions?: Record<string, string>; markdown?: string }>(script.outline ?? null, {});
-  const templates = await db.template.findMany({ where: { OR: [{ channelId: script.channelId }, { channelId: null }] }, orderBy: { name: "asc" } });
+  const [templates, voiceProfiles] = await Promise.all([
+    db.template.findMany({ where: { OR: [{ channelId: script.channelId }, { channelId: null }] }, orderBy: { name: "asc" } }),
+    db.voiceProfile.findMany({ where: { channelId: script.channelId }, orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }] }),
+  ]);
   const activeTab = (tab === "script" ? "script" : "plan") as "plan" | "script";
 
   return (
@@ -137,6 +140,15 @@ export default async function CanvasPage({
                 <option value="">None</option>
                 {templates.map((t) => (
                   <option key={t.id} value={t.id}>{t.name}</option>
+                ))}
+              </select>
+            </label>
+            <label className="flex items-center gap-1 text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">
+              Voice
+              <select name="voiceProfileId" defaultValue={script.voiceProfileId ?? ""} className="border border-[var(--line-2)] rounded-md p-1 text-xs font-mono">
+                <option value="">Channel default</option>
+                {voiceProfiles.map((v) => (
+                  <option key={v.id} value={v.id}>{v.label}{v.isDefault ? " (default)" : ""}</option>
                 ))}
               </select>
             </label>

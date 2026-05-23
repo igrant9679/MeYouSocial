@@ -15,7 +15,7 @@ async function load(scriptId: string) {
   const script = await db.script.findFirst({
     where: { id: scriptId, channel: { workspaceId: workspace.id } },
     include: {
-      channel: { include: { voiceProfiles: { where: { isDefault: true } }, audience: true } },
+      channel: { include: { voiceProfiles: true, audience: true, memory: { orderBy: { createdAt: "asc" } } } },
       template: true,
     },
   });
@@ -23,10 +23,13 @@ async function load(scriptId: string) {
   return { script, workspace, user };
 }
 
-function voiceText(script: { channel: { voiceProfiles: { data: string }[] } }): string {
-  const v = script.channel.voiceProfiles[0];
-  if (!v) return "Default warm-curious voice; spoken-style YouTube long-form.";
-  try { return JSON.stringify(JSON.parse(v.data)); } catch { return v.data; }
+/** Resolve the active voice profile for a script: explicit override → channel default. */
+function voiceText(script: { voiceProfileId: string | null; channel: { voiceProfiles: { id: string; isDefault: boolean; data: string }[] } }): string {
+  const chosen = script.voiceProfileId
+    ? script.channel.voiceProfiles.find((v) => v.id === script.voiceProfileId)
+    : script.channel.voiceProfiles.find((v) => v.isDefault) ?? script.channel.voiceProfiles[0];
+  if (!chosen) return "Default warm-curious voice; spoken-style YouTube long-form.";
+  try { return JSON.stringify(JSON.parse(chosen.data)); } catch { return chosen.data; }
 }
 
 function templateName(script: { template: { name: string; structure: string } | null }): string {
@@ -83,6 +86,7 @@ export async function generateOutlineAction(formData: FormData) {
       audienceKQ,
       voice: voiceText(script),
       template: templateName(script),
+      memory: script.channel.memory.map((m) => m.body),
     }),
     messages: [
       { role: "user", content: [
@@ -142,6 +146,7 @@ export async function generateScriptAction(formData: FormData) {
       voice: voiceText(script),
       template: templateName(script),
       lengthGuide: "8-12 minutes (~1500-2400 words)",
+      memory: script.channel.memory.map((m) => m.body),
     }),
     messages: [{ role: "user", content: `Outline:\n\n${outline.markdown}\n\nExpand into a full script.` }],
   });
@@ -267,15 +272,17 @@ const settingsSchema = z.object({
   title: z.string().min(1).max(200),
   model: z.string().max(80).optional(),
   templateId: z.string().max(80).optional(),
+  voiceProfileId: z.string().max(80).optional(),
 });
 
-/** FR-CANV-06/07 — Title + model + template (switchable mid-script). */
+/** FR-CANV-06/07 + FR-VOICE-07 — Title + model + template + voice (switchable mid-script). */
 export async function updateScriptSettingsAction(formData: FormData) {
   const parsed = settingsSchema.safeParse({
     scriptId: formData.get("scriptId"),
     title: formData.get("title"),
     model: formData.get("model") || undefined,
     templateId: formData.get("templateId") || undefined,
+    voiceProfileId: formData.get("voiceProfileId") || undefined,
   });
   if (!parsed.success) return;
   const { script } = await load(parsed.data.scriptId);
@@ -285,6 +292,7 @@ export async function updateScriptSettingsAction(formData: FormData) {
       title: parsed.data.title,
       model: parsed.data.model || null,
       templateId: parsed.data.templateId || null,
+      voiceProfileId: parsed.data.voiceProfileId || null,
     },
   });
   revalidatePath(`/scripts/${script.id}`);

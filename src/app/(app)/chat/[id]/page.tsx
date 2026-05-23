@@ -5,6 +5,7 @@ import { requireMembership } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { postMessageAction, addChatContextAction } from "@/app/actions/chat";
 import { UploadButton } from "@/components/UploadButton";
+import { PromptLibrary } from "@/components/PromptLibrary";
 
 // Chat thread (MU-07). FR-CHAT-02/03/11 — messages with channel context.
 
@@ -69,15 +70,19 @@ export default async function ChatThreadPage({ params }: { params: Promise<{ id:
         <form action={postMessageAction} className="border-t border-[var(--line)] p-3 flex items-end gap-2">
           <input type="hidden" name="chatId" value={chat.id} />
           <textarea
+            id="composer-textarea"
             name="content"
             required
             rows={2}
             placeholder='Ask, paste a URL, or say "turn this into a script"…'
             className="flex-1 border border-[var(--line-2)] rounded-lg p-2.5 text-sm resize-none"
           />
-          <button type="submit" className="btn primary flex items-center gap-1.5 self-stretch">
-            <Send className="w-4 h-4" /> Send
-          </button>
+          <div className="flex flex-col gap-1 self-stretch">
+            <PromptLibrary targetId="composer-textarea" />
+            <button type="submit" className="btn primary flex items-center gap-1.5 flex-1">
+              <Send className="w-4 h-4" /> Send
+            </button>
+          </div>
         </form>
       </main>
 
