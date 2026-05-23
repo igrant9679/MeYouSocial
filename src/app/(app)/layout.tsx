@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { requireMembership } from "@/lib/acl";
 import { signOut } from "@/auth";
+import { getActiveChannel } from "@/lib/channel";
+import { setActiveChannelAction } from "@/app/actions/channel";
 
 const NAV = [
   { href: "/dashboard", label: "Home", icon: "⌂" },
@@ -19,7 +20,7 @@ async function signOutAction() {
 }
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
-  const { user, workspace, membership } = await requireMembership();
+  const { user, workspace, membership, channels, active } = await getActiveChannel();
   const initials = (user.name ?? user.email).slice(0, 2).toUpperCase();
 
   return (
@@ -39,6 +40,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <div className="flex-1 min-w-0 flex flex-col">
         <header className="min-h-[55px] border-b border-[var(--line)] bg-white flex items-center gap-3 px-5 py-2 flex-shrink-0">
           <div className="font-mono font-semibold text-[15px]">{workspace.name}</div>
+          {active && (
+            <form action={setActiveChannelAction}>
+              <ChannelSelect channels={channels} activeId={active.id} />
+            </form>
+          )}
+          <Link href="/onboarding/channel/new" className="btn sm" title="Create a new channel">+ Channel</Link>
           <div className="flex-1" />
           <span className="font-mono text-xs text-[var(--mute)]">{membership.role}</span>
           <span className="font-mono text-xs text-[var(--mute)]">·</span>
@@ -48,5 +55,21 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <main className="flex-1 overflow-auto bg-[var(--panel)] p-5">{children}</main>
       </div>
     </div>
+  );
+}
+
+function ChannelSelect({ channels, activeId }: { channels: { id: string; name: string; accentColor: string | null }[]; activeId: string }) {
+  return (
+    <label className="flex items-center gap-2 font-mono text-[13px] font-semibold px-2.5 py-1 rounded-full border border-[var(--line-2)]">
+      <span className="w-5 h-5 rounded-full text-white grid place-items-center text-[10px] font-bold" style={{ background: channels.find((c) => c.id === activeId)?.accentColor ?? "var(--accent)" }}>
+        {(channels.find((c) => c.id === activeId)?.name ?? "?").slice(0, 1).toUpperCase()}
+      </span>
+      <select name="channelId" defaultValue={activeId} className="bg-transparent border-0 focus:outline-none">
+        {channels.map((c) => (
+          <option key={c.id} value={c.id}>{c.name}</option>
+        ))}
+      </select>
+      <button type="submit" className="text-[10px] uppercase tracking-wider text-[var(--mute)] hover:text-[var(--accent)]">switch</button>
+    </label>
   );
 }

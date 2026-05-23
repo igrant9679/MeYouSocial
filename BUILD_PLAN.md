@@ -65,45 +65,45 @@ _A configured channel with trained voice and audience._
 
 ### Onboarding Wizard  `ONB`  (10 Must / 10 total)
 
-- [ ] **[Must]** `FR-ONB-01` — Step 1 — capture a free-text description of the creator’s content/niche.
-- [ ] **[Must]** `FR-ONB-02` — Step 2 — choose presentation style: Personality (on-camera) or Faceless (topic/visual/voiceover).
-- [ ] **[Must]** `FR-ONB-03` — Step 3 — choose path: link an existing YouTube channel, or start a new (custom) channel.
-- [ ] **[Must]** `FR-ONB-04` — Step 4 (YouTube path) — find a channel by URL/@handle with no YouTube login; show subscriber count and video library for confirmation. If <3 videos, prompt for a channel description.
-- [ ] **[Must]** `FR-ONB-05` — Step 4 (Custom path) — capture channel name and a detailed niche/audience description.
-- [ ] **[Must]** `FR-ONB-06` — Step 5 — select competitors: AI-suggests channels by niche; user can add suggested, search by URL/@handle, or remove. Step is optional (skippable).
-- [ ] **[Must]** `FR-ONB-07` — Step 6 — capture differentiation statement (min 20 chars).
-- [ ] **[Must]** `FR-ONB-08` — Step 7 — show generated Audience Avatar preview and a stream of up to 10 starter Ideas; allow Write (open canvas) or Skip for Now.
-- [ ] **[Must]** `FR-ONB-09` — Background jobs generate Voice (from top videos ≥3 min), Audience Avatar, and Ideas; the wizard shows progress/checkmarks and continues even after the user leaves.
-- [ ] **[Must]** `FR-ONB-10` — Users can start scripting immediately while generation completes asynchronously (target minutes; up to ~1 hour under load).
+- [x] **[Must]** `FR-ONB-01` — Step 1 — capture a free-text description of the creator’s content/niche.
+- [x] **[Must]** `FR-ONB-02` — Step 2 — choose presentation style: Personality (on-camera) or Faceless (topic/visual/voiceover).
+- [x] **[Must]** `FR-ONB-03` — Step 3 — choose path: link an existing YouTube channel, or start a new (custom) channel.
+- [x] **[Must]** `FR-ONB-04` — Step 4 (YouTube path) — find a channel by URL/@handle with no YouTube login; show subscriber count and video library for confirmation. If <3 videos, prompt for a channel description.
+- [x] **[Must]** `FR-ONB-05` — Step 4 (Custom path) — capture channel name and a detailed niche/audience description.
+- [x] **[Must]** `FR-ONB-06` — Step 5 — select competitors: AI-suggests channels by niche; user can add suggested, search by URL/@handle, or remove. Step is optional (skippable).
+- [x] **[Must]** `FR-ONB-07` — Step 6 — capture differentiation statement (min 20 chars).
+- [x] **[Must]** `FR-ONB-08` — Step 7 — show generated Audience Avatar preview and a stream of up to 10 starter Ideas; allow Write (open canvas) or Skip for Now.
+- [x] **[Must]** `FR-ONB-09` — Background jobs generate Voice (from top videos ≥3 min), Audience Avatar, and Ideas; the wizard shows progress/checkmarks and continues even after the user leaves.
+- [x] **[Must]** `FR-ONB-10` — Users can start scripting immediately while generation completes asynchronously (target minutes; up to ~1 hour under load).
 
 ### Channels & Settings  `CHAN`  (5 Must / 8 total)
 
-- [ ] **[Must]** `FR-CHAN-01` — Users can create multiple channels (subject to any optional admin limit) and switch the active channel via a selector visible across the app.
-- [ ] **[Must]** `FR-CHAN-02` — Each channel stores its own voice profile(s), audience avatar, competitors, scripts, ideas, research, templates and settings.
-- [ ] **[Must]** `FR-CHAN-03` — Channel navigation exposes: Ideas, Scripts, Audience, Competitors, plus a Settings menu (Channel Settings, Voice, Templates, Research).
-- [ ] **[Must]** `FR-CHAN-04` — Channel Settings include details, linked YouTube channel, and Script Defaults (default template, default Draft Writing Model, default language).
-- [ ] **[Must]** `FR-CHAN-07` — Competitors: add/search/remove tracked competitor channels post-setup; competitors feed idea generation and research.
+- [x] **[Must]** `FR-CHAN-01` — Users can create multiple channels (subject to any optional admin limit) and switch the active channel via a selector visible across the app.
+- [x] **[Must]** `FR-CHAN-02` — Each channel stores its own voice profile(s), audience avatar, competitors, scripts, ideas, research, templates and settings.
+- [x] **[Must]** `FR-CHAN-03` — Channel navigation exposes: Ideas, Scripts, Audience, Competitors, plus a Settings menu (Channel Settings, Voice, Templates, Research).
+- [x] **[Must]** `FR-CHAN-04` — Channel Settings include details, linked YouTube channel, and Script Defaults (default template, default Draft Writing Model, default language).
+- [x] **[Must]** `FR-CHAN-07` — Competitors: add/search/remove tracked competitor channels post-setup; competitors feed idea generation and research.
 - [ ] [Should] `FR-CHAN-05` — Users can relink/change the linked YouTube channel, which re-analyzes content and updates voice & audience.
 - [ ] [Should] `FR-CHAN-06` — Channel Memory: users store durable facts/preferences that the AI automatically applies across scripts in that channel; memory is viewable/editable.
 - [ ] _[Could]_ `FR-CHAN-08` — Business/brand channels are supported (channels representing a company/product rather than a person).
 
 ### Voice Profiles  `VOICE`  (5 Must / 8 total)
 
-- [ ] **[Must]** `FR-VOICE-01` — Auto-train a voice profile during onboarding from the channel’s top 10 videos (5 most-viewed + 5 most-recent), using only videos ≥3 minutes with sufficient transcript.
-- [ ] **[Must]** `FR-VOICE-02` — When insufficient long videos exist, generate a baseline voice from available content/description and improve automatically as more videos publish.
-- [ ] **[Must]** `FR-VOICE-03` — Simple mode: refine the voice with natural-language instructions (e.g. ‘more casual’, ‘shorter sentences’); generate a preview and iterate on feedback.
-- [ ] **[Must]** `FR-VOICE-04` — Advanced mode: expose and edit all parameters across Speaker Archetype (age vibe, profession archetype, temperament, authority posture), Delivery Recipe (cadence, energy, pacing/emphasis), Rhetorical Toolkit (hooks, transitions, CTAs, analogy/evidence, humor/empathy), Diction & Syntax (vocabulary level, sentence shape, preferred constructions, words to avoid), and Additional Settings (phrase kit, jargon policy, formatting directives, do/don’t rules).
-- [ ] **[Must]** `FR-VOICE-08` — Generate Preview produces a short voice sample instantly and for free.
+- [x] **[Must]** `FR-VOICE-01` — Auto-train a voice profile during onboarding from the channel’s top 10 videos (5 most-viewed + 5 most-recent), using only videos ≥3 minutes with sufficient transcript.
+- [x] **[Must]** `FR-VOICE-02` — When insufficient long videos exist, generate a baseline voice from available content/description and improve automatically as more videos publish.
+- [x] **[Must]** `FR-VOICE-03` — Simple mode: refine the voice with natural-language instructions (e.g. ‘more casual’, ‘shorter sentences’); generate a preview and iterate on feedback.
+- [x] **[Must]** `FR-VOICE-04` — Advanced mode: expose and edit all parameters across Speaker Archetype (age vibe, profession archetype, temperament, authority posture), Delivery Recipe (cadence, energy, pacing/emphasis), Rhetorical Toolkit (hooks, transitions, CTAs, analogy/evidence, humor/empathy), Diction & Syntax (vocabulary level, sentence shape, preferred constructions, words to avoid), and Additional Settings (phrase kit, jargon policy, formatting directives, do/don’t rules).
+- [x] **[Must]** `FR-VOICE-08` — Generate Preview produces a short voice sample instantly and for free.
 - [ ] [Should] `FR-VOICE-05` — Add writing samples (up to 50,000 characters each: transcripts, blogs, threads, scripts) to enhance training.
 - [ ] [Should] `FR-VOICE-06` — Borrow a voice: train a profile from another public YouTube channel’s transcripts and apply it to the user’s topics.
 - [ ] [Should] `FR-VOICE-07` — Support multiple voice profiles per channel; set a channel default and override per script.
 
 ### Audience Avatar  `AUD`  (4 Must / 5 total)
 
-- [ ] **[Must]** `FR-AUD-01` — Auto-generate an avatar during onboarding from the top 5 videos by views (linked) or the user’s description (custom).
-- [ ] **[Must]** `FR-AUD-02` — Avatar contains Demographics, Psychographics, Online Behavior, Offline Behavior and Key Questions.
-- [ ] **[Must]** `FR-AUD-04` — Edit any section manually, or fully refresh the avatar from latest YouTube data (overwriting customizations, with confirmation).
-- [ ] **[Must]** `FR-AUD-05` — Audience context is injected into idea generation, chat and script writing.
+- [x] **[Must]** `FR-AUD-01` — Auto-generate an avatar during onboarding from the top 5 videos by views (linked) or the user’s description (custom).
+- [x] **[Must]** `FR-AUD-02` — Avatar contains Demographics, Psychographics, Online Behavior, Offline Behavior and Key Questions.
+- [x] **[Must]** `FR-AUD-04` — Edit any section manually, or fully refresh the avatar from latest YouTube data (overwriting customizations, with confirmation).
+- [x] **[Must]** `FR-AUD-05` — Audience context is injected into idea generation, chat and script writing.
 - [ ] [Should] `FR-AUD-03` — Generate a representative AI audience photo with a refresh control for an alternate image.
 
 ---
