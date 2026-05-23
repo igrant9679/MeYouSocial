@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { env } from "@/lib/env";
 import { signIn } from "@/auth";
+import { requestVerificationForUser } from "@/app/actions/auth-flows";
 
 const schema = z.object({
   name: z.string().min(1).max(80),
@@ -49,6 +50,9 @@ async function signupAction(formData: FormData) {
   await db.membership.create({
     data: { userId: user.id, workspaceId: personal.id, role: "ADMIN" },
   });
+
+  // FR-AUTH-09 — send verification email on signup
+  await requestVerificationForUser(user.id, user.email);
 
   await signIn("credentials", { email: parsed.data.email, password: parsed.data.password, redirectTo: "/dashboard" });
 }

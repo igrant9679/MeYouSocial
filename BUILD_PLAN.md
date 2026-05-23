@@ -21,7 +21,7 @@ _Stand these up first; everything depends on them._
 - [x] **[Must]** `FR-AUTH-05` — Channels, scripts, research and bookmarks are shared and accessible to all members of the owning workspace, subject to role.
 - [x] **[Must]** `FR-AUTH-06` — There is no billing or credit system. The platform is free to all invited users; AI usage is unmetered except for optional admin-set soft limits (FR-ADMIN-03).
 - [x] **[Must]** `FR-AUTH-08` — Admins can change roles and revoke members; revoked members immediately lose access.
-- [ ] **[Must]** `FR-AUTH-09` — Support password reset, email verification, secure session management, and per-user activity attribution. _(session mgmt + activity tracking done; password reset + email verification pending)_
+- [x] **[Must]** `FR-AUTH-09` — Support password reset, email verification, secure session management, and per-user activity attribution.
 - [ ] [Should] `FR-AUTH-07` — Chat threads are per-user but referenceable by teammates.
 
 ### Workspace Administration  `ADMIN`  (2 Must / 6 total)
@@ -189,18 +189,18 @@ _The core writing experience._
 
 ### Script Builder (Classic)  `SB`  (0 Must / 12 total)
 
-- [ ] [Should] `FR-SB-01` — Provide a 10-step builder with a left step sidebar: (1) Research, (2) Frame, (3) Title, (4) Thumbnail, (5) Hook, (6) Payoffs, (7) Draft, (8) Edit, (9) Export, (10) Publish, plus a Summary overview.
-- [ ] [Should] `FR-SB-02` — Research step: add documents (PDF/Word/text/images ≤10MB), links (URL extraction), YouTube videos (transcripts), and items from starred research; show research-depth Level with word budget — Basic 5,000 / Intermediate 15,000 / Comprehensive 45,000 / Exhaustive 90,000.
-- [ ] [Should] `FR-SB-03` — Frame step: choose a narrative framework (templates), define the specific angle, and set learning/emotional goals for viewers.
-- [ ] [Should] `FR-SB-04` — Title step: review AI title suggestions (from research + frame) or write a custom title.
-- [ ] [Should] `FR-SB-05` — Thumbnail step: review suggested thumbnail concepts that complement the title (links to Thumbnails module).
-- [ ] [Should] `FR-SB-06` — Hook step: review/select/customize an opening hook that delivers on the title’s promise.
-- [ ] [Should] `FR-SB-07` — Payoffs step: select and prioritize the key information payoffs the video will deliver, aligned to title and hook.
-- [ ] [Should] `FR-SB-08` — Draft step: generate the full script section-by-section using the voice profile; show each section’s plan and content; regenerate any individual section without affecting the others.
-- [ ] [Should] `FR-SB-09` — Edit step: AI-suggested edits for flow/engagement plus manual editing (shares the writing/Humanize tools).
-- [ ] [Should] `FR-SB-10` — Export step: copy to clipboard, download as a document, and optionally export research notes separately.
-- [ ] [Should] `FR-SB-11` — Publish step: generate YouTube tags, description and finalized metadata.
-- [ ] [Should] `FR-SB-12` — Navigation: Continue advances steps; clicking a completed step in the sidebar returns to it (later steps may flag for regeneration). Progress autosaves; multiple builder scripts can run simultaneously and appear in the channel scripts list.
+- [x] [Should] `FR-SB-01` — Provide a 10-step builder with a left step sidebar: (1) Research, (2) Frame, (3) Title, (4) Thumbnail, (5) Hook, (6) Payoffs, (7) Draft, (8) Edit, (9) Export, (10) Publish, plus a Summary overview.
+- [x] [Should] `FR-SB-02` — Research step: add documents (PDF/Word/text/images ≤10MB), links (URL extraction), YouTube videos (transcripts), and items from starred research; show research-depth Level with word budget — Basic 5,000 / Intermediate 15,000 / Comprehensive 45,000 / Exhaustive 90,000.
+- [x] [Should] `FR-SB-03` — Frame step: choose a narrative framework (templates), define the specific angle, and set learning/emotional goals for viewers.
+- [x] [Should] `FR-SB-04` — Title step: review AI title suggestions (from research + frame) or write a custom title.
+- [x] [Should] `FR-SB-05` — Thumbnail step: review suggested thumbnail concepts that complement the title (links to Thumbnails module).
+- [x] [Should] `FR-SB-06` — Hook step: review/select/customize an opening hook that delivers on the title’s promise.
+- [x] [Should] `FR-SB-07` — Payoffs step: select and prioritize the key information payoffs the video will deliver, aligned to title and hook.
+- [x] [Should] `FR-SB-08` — Draft step: generate the full script section-by-section using the voice profile; show each section’s plan and content; regenerate any individual section without affecting the others.
+- [x] [Should] `FR-SB-09` — Edit step: AI-suggested edits for flow/engagement plus manual editing (shares the writing/Humanize tools).
+- [x] [Should] `FR-SB-10` — Export step: copy to clipboard, download as a document, and optionally export research notes separately.
+- [x] [Should] `FR-SB-11` — Publish step: generate YouTube tags, description and finalized metadata.
+- [x] [Should] `FR-SB-12` — Navigation: Continue advances steps; clicking a completed step in the sidebar returns to it (later steps may flag for regeneration). Progress autosaves; multiple builder scripts can run simultaneously and appear in the channel scripts list.
 
 ### Templates  `TMPL`  (1 Must / 5 total)
 

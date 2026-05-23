@@ -9,6 +9,7 @@ import { formatDuration } from "@/lib/canvas/duration";
 import { ScriptEditor } from "./ScriptEditor";
 import { StartOverButton } from "./StartOverButton";
 import { AgentPanel } from "./AgentPanel";
+import { StreamButton } from "./StreamButton";
 import { launchAgentAction } from "@/app/actions/agent";
 import { promoteScriptAction } from "@/app/actions/production";
 import {
@@ -85,6 +86,7 @@ export default async function CanvasPage({
         <div className="px-5 py-3 border-b border-[var(--line)] flex flex-col gap-2">
           <div className="flex items-center gap-3">
             <Link href={`/channels/${script.channelId}/scripts`} className="text-xs font-mono text-[var(--mute)] hover:text-[var(--accent)] flex items-center gap-1"><ArrowLeft className="w-3 h-3" /> {script.channel.name}</Link>
+            <Link href={`/scripts/${script.id}/builder`} className="text-xs font-mono text-[var(--mute)] hover:text-[var(--accent)] flex items-center gap-1" title="Switch to the 10-step Script Builder (FR-SB)">Builder mode →</Link>
             <span className="flex-1" />
             {/* FR-AGENT-01 — Launch agent. Disabled while a run is in flight. */}
             {(() => {
@@ -227,8 +229,9 @@ function PlanTab({ script }: { script: { id: string; outline: { questions?: Reco
           <span className="flex-1" />
           <form action={generateOutlineAction}>
             <input type="hidden" name="scriptId" value={script.id} />
-            <button type="submit" className="btn primary sm">{script.outline.markdown ? "Regenerate" : "Generate outline"}</button>
+            <button type="submit" className="btn sm">{script.outline.markdown ? "Regenerate" : "Generate outline"}</button>
           </form>
+          <StreamButton scriptId={script.id} stage="outline" label="Stream outline" />
         </div>
 
         {script.outline.markdown ? (
@@ -251,8 +254,11 @@ function PlanTab({ script }: { script: { id: string; outline: { questions?: Reco
               <input type="hidden" name="scriptId" value={script.id} />
               <p className="text-xs text-[var(--mute)] flex-1">Approve the outline and expand into the full script.</p>
               <Link href={`/scripts/${script.id}?tab=script`} className="btn sm">View script tab</Link>
-              <button type="submit" className="btn primary sm">Approve & write</button>
+              <button type="submit" className="btn sm">Approve & write</button>
             </form>
+            <div className="mt-2">
+              <StreamButton scriptId={script.id} stage="script" label="Stream full script" />
+            </div>
           </>
         ) : (
           <p className="text-sm text-[var(--mute)] text-center py-6">No outline yet. Answer the planning questions and click <b>Generate outline</b>.</p>

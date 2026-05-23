@@ -1,22 +1,37 @@
 import { env } from "@/lib/env";
 import type { LLMProvider, LLMRequest, LLMResponse } from "./types";
 import { mockProvider } from "./mock";
+import { createAnthropicProvider } from "./anthropic";
 import { MODELS, getModel } from "./models";
 
-// Routing layer (FR-MODEL-04). The rest of the app uses `llm.complete()` /
-// `llm.stream()` and never imports a specific provider.
-//
-// In mock mode (or for unknown models), the mock provider is used.
-// Real providers will be added behind this same interface; turning one on
-// requires only flipping `USE_MOCK_LLM=false` and supplying a key — no UI changes.
+// Routing layer (FR-MODEL-04). Application code uses llm.complete() / llm.stream()
+// and never imports a concrete provider. Adding a new provider = add an entry
+// in MODELS + an implementation file + one branch below.
+
+// Lazy provider singletons keyed by id so we only instantiate the SDKs once per
+// process when actually used.
+const providerCache = new Map<string, LLMProvider>();
+function getProvider(id: string): LLMProvider {
+  if (providerCache.has(id)) return providerCache.get(id)!;
+  let provider: LLMProvider;
+  switch (id) {
+    case "anthropic":
+      if (!env.ANTHROPIC_API_KEY) return mockProvider;
+      provider = createAnthropicProvider(env.ANTHROPIC_API_KEY);
+      break;
+    // Other providers go here as we wire them up (openai, google, deepseek, xai, moonshot, minimax).
+    default:
+      provider = mockProvider;
+  }
+  providerCache.set(id, provider);
+  return provider;
+}
 
 function selectProvider(model: string): LLMProvider {
   if (env.USE_MOCK_LLM) return mockProvider;
   const descriptor = getModel(model);
   if (!descriptor) return mockProvider;
-  // Future: load real providers based on descriptor.provider here.
-  // For now everything routes to mock until at least one real key is wired up.
-  return mockProvider;
+  return getProvider(descriptor.provider);
 }
 
 export const llm = {
