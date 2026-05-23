@@ -4,6 +4,7 @@ import { requireMembership } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { searchIntel, outlierBand, isFastGrowing, formatNum } from "@/lib/intel";
 import { toggleBookmarkAction } from "@/app/actions/bookmarks";
+import { autoIndexHandleAction } from "@/app/actions/intel";
 
 // MU-02 — Intel dashboard. Implements:
 //   FR-INTEL-01 NL search · FR-INTEL-03 explicit filters · FR-INTEL-04 velocity tag
@@ -22,7 +23,7 @@ export default async function IntelPage({ searchParams }: { searchParams: Promis
     format: (sp.format === "short" || sp.format === "long" ? sp.format : "") as "" | "short" | "long",
   };
 
-  const [{ channels, videos, biasChannels }, bookmarked, trending] = await Promise.all([
+  const [{ channels, videos, biasChannels }, bookmarked, trending, hotChannels, byCategory] = await Promise.all([
     searchIntel(params),
     db.bookmark.findMany({ where: { workspaceId: workspace.id }, select: { intelChannelId: true, intelVideoId: true } }),
     db.intelVideo.findMany({
@@ -30,6 +31,19 @@ export default async function IntelPage({ searchParams }: { searchParams: Promis
       orderBy: { outlierScore: "desc" },
       take: 6,
       include: { intelChannel: true },
+    }),
+    // FR-INTEL-13 — Hot new channels (high velocity, smaller subs)
+    db.intelChannel.findMany({
+      where: { velocityScore: { gte: 5 } },
+      orderBy: { velocityScore: "desc" },
+      take: 4,
+    }),
+    // FR-INTEL-13 — Trending niches (category counts)
+    db.intelChannel.groupBy({
+      by: ["category"],
+      _count: { _all: true },
+      orderBy: { _count: { id: "desc" } },
+      take: 6,
     }),
   ]);
 
@@ -75,25 +89,64 @@ export default async function IntelPage({ searchParams }: { searchParams: Promis
         <button type="submit" className="btn primary">Search</button>
       </form>
 
-      {/* Curated trending strip (FR-INTEL-13) */}
-      {!params.q && trending.length > 0 && (
-        <section className="card mb-5">
-          <h2 className="font-mono text-[14px] font-bold mb-3 flex items-center gap-2">
-            <TrendingUp className="w-4 h-4" style={{ color: "#E5482F" }} /> Outlier videos this week
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-            {trending.map((v) => (
-              <Link key={v.id} href={`/intel/videos/${v.id}`} className="card border hover:border-[var(--accent)] hover:shadow-md transition">
-                <div className="flex items-center gap-2 mb-2">
-                  <OutlierBadge score={v.outlierScore ?? 0} />
-                  <span className="text-xs text-[var(--mute)] font-mono">{v.format}</span>
-                </div>
-                <div className="font-semibold text-sm leading-snug mb-2 line-clamp-2">{v.title}</div>
-                <div className="text-xs text-[var(--mute)]">{v.intelChannel.name} · {formatNum(v.views)} views</div>
-              </Link>
-            ))}
+      {/* Curated dashboard modules (FR-INTEL-13) */}
+      {!params.q && (
+        <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-4 mb-5">
+          {trending.length > 0 && (
+            <section className="card">
+              <h2 className="font-mono text-[14px] font-bold mb-3 flex items-center gap-2">
+                <TrendingUp className="w-4 h-4" style={{ color: "#E5482F" }} /> Outlier videos this week
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {trending.map((v) => (
+                  <Link key={v.id} href={`/intel/videos/${v.id}`} className="card border hover:border-[var(--accent)] hover:shadow-md transition">
+                    <div className="flex items-center gap-2 mb-2">
+                      <OutlierBadge score={v.outlierScore ?? 0} />
+                      <span className="text-xs text-[var(--mute)] font-mono">{v.format}</span>
+                    </div>
+                    <div className="font-semibold text-sm leading-snug mb-2 line-clamp-2">{v.title}</div>
+                    <div className="text-xs text-[var(--mute)]">{v.intelChannel.name} · {formatNum(v.views)} views</div>
+                  </Link>
+                ))}
+              </div>
+            </section>
+          )}
+
+          <div className="flex flex-col gap-3">
+            {hotChannels.length > 0 && (
+              <section className="card">
+                <h2 className="font-mono text-[13px] font-bold mb-2 flex items-center gap-2">
+                  <TrendingUp className="w-3.5 h-3.5" style={{ color: "#E5482F" }} /> Hot new channels
+                </h2>
+                <ul className="m-0 p-0">
+                  {hotChannels.map((c) => (
+                    <li key={c.id} className="border-t border-[var(--line)] first:border-t-0 py-2 flex items-center gap-2 text-xs">
+                      <span className="font-mono font-bold text-[10px] px-1.5 py-0.5 rounded" style={{ background: "#FDE7E1", color: "#E5482F" }}>{c.velocityScore?.toFixed(1)}</span>
+                      <Link href={`/intel/channels/${c.id}`} className="flex-1 truncate hover:text-[var(--accent)]">{c.name}</Link>
+                      <span className="text-[var(--mute)]">{formatNum(c.subscribers)}</span>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
+
+            {byCategory.length > 0 && (
+              <section className="card">
+                <h2 className="font-mono text-[13px] font-bold mb-2 flex items-center gap-2">
+                  <Sparkles className="w-3.5 h-3.5" style={{ color: "#6D28D9" }} /> Trending niches
+                </h2>
+                <ul className="m-0 p-0">
+                  {byCategory.filter((c) => c.category).map((c) => (
+                    <li key={c.category ?? "—"} className="border-t border-[var(--line)] first:border-t-0 py-1.5 flex items-center gap-2 text-xs">
+                      <Link href={`/intel?q=${encodeURIComponent(c.category ?? "")}`} className="flex-1 hover:text-[var(--accent)]">{c.category}</Link>
+                      <span className="text-[var(--mute)]">{c._count._all} ch</span>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
           </div>
-        </section>
+        </div>
       )}
 
       {/* Results — Channels */}
@@ -160,7 +213,13 @@ export default async function IntelPage({ searchParams }: { searchParams: Promis
 
       {channels.length === 0 && videos.length === 0 && (
         <div className="card text-center py-12">
-          <p className="text-sm text-[var(--mute)]">No matches. Try a broader search or relax your filters.</p>
+          <p className="text-sm text-[var(--mute)] mb-3">No matches. Try a broader search or relax your filters.</p>
+          {params.q?.trim().startsWith("@") && (
+            <form action={autoIndexHandleAction} className="flex items-center gap-2 justify-center">
+              <input type="hidden" name="handle" value={params.q} />
+              <button type="submit" className="btn primary sm">Auto-index <code className="font-mono">{params.q}</code> now (FR-INTEL-12)</button>
+            </form>
+          )}
         </div>
       )}
     </div>

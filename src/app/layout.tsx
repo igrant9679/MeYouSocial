@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { IBM_Plex_Sans, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
+import { getTheme } from "@/app/actions/theme";
 
 const plexSans = IBM_Plex_Sans({
   weight: ["400", "500", "600", "700"],
@@ -19,9 +20,16 @@ export const metadata: Metadata = {
   description: "AI-powered YouTube research & scriptwriting",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  // FR-SET-01 — Light/Dark/Auto theme. The cookie-set value drives a class on <html>;
+  // CSS handles the actual palette swap in globals.css.
+  const theme = await getTheme();
   return (
-    <html lang="en" className={`${plexSans.variable} ${plexMono.variable} h-full antialiased`}>
+    <html
+      lang="en"
+      data-theme={theme}
+      className={`${plexSans.variable} ${plexMono.variable} h-full antialiased`}
+    >
       <body className="min-h-full flex flex-col">{children}</body>
     </html>
   );

@@ -43,7 +43,18 @@ export async function postMessageAction(formData: FormData) {
 
   const chat = await db.chat.findFirst({
     where: { id: parsed.data.chatId, channel: { workspaceId: workspace.id } },
-    include: { channel: { include: { voiceProfiles: { where: { isDefault: true } }, audience: true, memory: { orderBy: { createdAt: "asc" } } } }, messages: { orderBy: { createdAt: "asc" }, take: 30 }, contextItems: true },
+    include: {
+      channel: {
+        include: {
+          voiceProfiles: { where: { isDefault: true } },
+          audience: true,
+          memory: { orderBy: { createdAt: "asc" } },
+          research: { where: { starred: true }, take: 6, orderBy: { createdAt: "desc" } },
+        },
+      },
+      messages: { orderBy: { createdAt: "asc" }, take: 30 },
+      contextItems: true,
+    },
   });
   if (!chat) return;
 
@@ -61,11 +72,15 @@ export async function postMessageAction(formData: FormData) {
   const contextLines = chat.contextItems.map((c) => `[${c.kind}] ${c.ref}`).join("\n");
 
   const memoryLines = chat.channel.memory.map((m) => `- ${m.body}`).join("\n");
+  const starredResearch = chat.channel.research
+    .map((r) => `### ${r.title ?? r.ref}\n${(r.content ?? "").slice(0, 600)}`)
+    .join("\n\n");
   const system = `You are an editor for the YouTube channel "${chat.channel.name}" (niche: ${chat.channel.nicheDescription}).
 Differentiation: ${chat.channel.differentiation ?? "—"}
 Audience key questions: ${audienceKQ.slice(0, 5).join(" · ")}
 Voice profile (truncated): ${(voice?.data ?? "").slice(0, 600)}
 ${memoryLines ? `\nChannel Memory (durable facts — ALWAYS respect these):\n${memoryLines}\n` : ""}
+${starredResearch ? `\nStarred research (persisted across all scripts, FR-CHAT-09):\n${starredResearch}\n` : ""}
 Attached context items:
 ${contextLines || "(none)"}`;
 

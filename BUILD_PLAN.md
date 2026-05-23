@@ -28,10 +28,10 @@ _Stand these up first; everything depends on them._
 
 - [x] **[Must]** `FR-ADMIN-01` — Admin Users page: list members with role, status and last activity; add (invite), edit role, deactivate and remove users.
 - [x] **[Must]** `FR-ADMIN-06` — All AI features (chat, ideas, research, scripts, thumbnails, agent mode) are available to every member at no cost, subject only to role and optional soft limits.
-- [ ] [Should] `FR-ADMIN-02` — Workspace settings: name, default channel, default AI model/language, and theme defaults.
-- [ ] [Should] `FR-ADMIN-03` — Optional soft usage limits set by an admin (e.g. monthly script generations and thumbnail generations per user or per workspace) to manage shared infrastructure cost — disabled by default, never tied to payment.
-- [ ] [Should] `FR-ADMIN-04` — Usage dashboard: generations, active users, scripts created, and (if enabled) progress against soft limits.
-- [ ] [Should] `FR-ADMIN-05` — Channels, scripts, research and bookmarks are visible to all members per role; admins can reassign channel ownership.
+- [x] [Should] `FR-ADMIN-02` — Workspace settings: name, default channel, default AI model/language, and theme defaults.
+- [x] [Should] `FR-ADMIN-03` — Optional soft usage limits set by an admin (e.g. monthly script generations and thumbnail generations per user or per workspace) to manage shared infrastructure cost — disabled by default, never tied to payment.
+- [x] [Should] `FR-ADMIN-04` — Usage dashboard: generations, active users, scripts created, and (if enabled) progress against soft limits.
+- [x] [Should] `FR-ADMIN-05` — Channels, scripts, research and bookmarks are visible to all members per role; admins can reassign channel ownership.
 
 ### AI Models & Provider Routing  `MODEL`  (4 Must / 6 total)
 
@@ -44,10 +44,10 @@ _Stand these up first; everything depends on them._
 
 ### Settings & Preferences  `SET`  (0 Must / 4 total)
 
-- [ ] [Should] `FR-SET-01` — Light/Dark/Auto theme.
-- [ ] [Should] `FR-SET-03` — User Guide / Help center and contextual help (‘?’) accessible in-app.
-- [ ] _[Could]_ `FR-SET-02` — Keyboard shortcuts for common actions (e.g. open Prompt Library, navigate canvas).
-- [ ] _[Could]_ `FR-SET-04` — A Production Board (kanban) to track videos through stages (idea → scripting → packaging → ready), surfacing scripts, ideas and thumbnails.
+- [x] [Should] `FR-SET-01` — Light/Dark/Auto theme.
+- [x] [Should] `FR-SET-03` — User Guide / Help center and contextual help (‘?’) accessible in-app.
+- [x] _[Could]_ `FR-SET-02` — Keyboard shortcuts for common actions (e.g. open Prompt Library, navigate canvas).
+- [x] _[Could]_ `FR-SET-04` — A Production Board (kanban) to track videos through stages (idea → scripting → packaging → ready), surfacing scripts, ideas and thumbnails.
 
 ### Platform / API  `PLAT`  (0 Must / 1 total)
 
@@ -115,18 +115,18 @@ _Find what works and turn it into validated ideas._
 ### Intel (Research Database)  `INTEL`  (8 Must / 13 total)
 
 - [x] **[Must]** `FR-INTEL-01` — Search channels and videos via natural language; keywords like ‘channel’/‘niche’ bias toward channel results, otherwise video results.
-- [ ] **[Must]** `FR-INTEL-02` — Support advanced query syntax for subscriber ranges, velocity (e.g. ‘velocity > 2’), engagement (views/sub), creation date, video count, performance (views, outlier score), timeframe and format (shorts/longs), in combination. _(explicit filters work; free-form query syntax not yet parsed)_
+- [x] **[Must]** `FR-INTEL-02` — Support advanced query syntax for subscriber ranges, velocity (e.g. ‘velocity > 2’), engagement (views/sub), creation date, video count, performance (views, outlier score), timeframe and format (shorts/longs), in combination.
 - [x] **[Must]** `FR-INTEL-03` — Provide explicit filters: subscriber min/max, velocity score, language, content type (long/shorts/both).
 - [x] **[Must]** `FR-INTEL-04` — Compute and display Velocity Score (momentum) and tag fast-growing channels.
 - [x] **[Must]** `FR-INTEL-05` — Compute Outlier Score = video views ÷ average views of up to 10 surrounding videos on the same channel; display with severity bands (≥5x exceptional, 2–5x strong, 1–2x average, <1x under).
 - [x] **[Must]** `FR-INTEL-07` — Channel detail view: subscriber/growth trends, total & average views, upload frequency/consistency, top videos (sortable by views/outlier), and outlier videos.
 - [x] **[Must]** `FR-INTEL-08` — Video detail view: views/engagement, outlier score, views/sub, title and thumbnail.
 - [x] **[Must]** `FR-INTEL-11` — Bookmark channels/videos with tags and notes; bookmarks are team-shared and have a dedicated page.
-- [ ] [Should] `FR-INTEL-06` — Compute and display Views/Sub ratio with a High indicator for strong beyond-subscriber reach.
-- [ ] [Should] `FR-INTEL-09` — Find Similar Channels for any channel.
-- [ ] [Should] `FR-INTEL-10` — Chat with Channel / Chat with Video: open an AI conversation scoped to that entity.
-- [ ] [Should] `FR-INTEL-12` — Searching an unindexed channel by @handle auto-queues it for indexing and adds it for all users.
-- [ ] [Should] `FR-INTEL-13` — Intel dashboard surfaces curated modules: Trending niches, Outlier videos this week, Hot new channels (with Velocity Score), and Growth insights.
+- [x] [Should] `FR-INTEL-06` — Compute and display Views/Sub ratio with a High indicator for strong beyond-subscriber reach.
+- [x] [Should] `FR-INTEL-09` — Find Similar Channels for any channel.
+- [x] [Should] `FR-INTEL-10` — Chat with Channel / Chat with Video: open an AI conversation scoped to that entity.
+- [x] [Should] `FR-INTEL-12` — Searching an unindexed channel by @handle auto-queues it for indexing and adds it for all users.
+- [x] [Should] `FR-INTEL-13` — Intel dashboard surfaces curated modules: Trending niches, Outlier videos this week, Hot new channels (with Velocity Score), and Growth insights.
 
 ### Ideas (Outlier Generation)  `IDEA`  (5 Must / 9 total)
 
@@ -150,18 +150,18 @@ _Find what works and turn it into validated ideas._
 - [x] **[Must]** `FR-CHAT-11` — Maintain full-conversation context awareness; chat is rate-limited (not credit-metered) with clear back-off messaging.
 - [ ] [Should] `FR-CHAT-04` — Answer in-chat outlier requests with filters (e.g. ‘long-form outliers only’, ‘last 6 months’, ‘top 10 about <topic>’).
 - [ ] [Should] `FR-CHAT-05` — Perform quick web search for current information within the conversation.
-- [ ] [Should] `FR-CHAT-06` — AI Research: a deep, multi-source research tool (separate from quick search) that synthesizes findings into a saved, referenceable report in the research library.
+- [x] [Should] `FR-CHAT-06` — AI Research: a deep, multi-source research tool (separate from quick search) that synthesizes findings into a saved, referenceable report in the research library.
 - [x] [Should] `FR-CHAT-08` — Prompt Library: categorized, ready-made prompts insertable into chat and editing; openable via keyboard shortcut.
-- [ ] [Should] `FR-CHAT-09` — Research sidebar auto-collects AI-generated research; items can be starred (persist across all scripts) or deleted.
+- [x] [Should] `FR-CHAT-09` — Research sidebar auto-collects AI-generated research; items can be starred (persist across all scripts) or deleted.
 - [ ] [Should] `FR-CHAT-12` — Maintain chat history grouped by recency (This Week / Last Week / older), searchable, scoped to channel.
 
 ### Research & Sources  `RES`  (2 Must / 5 total)
 
 - [ ] **[Must]** `FR-RES-01` — Add research from YouTube URLs (transcripts), web articles, uploaded PDFs/Word/text/image files (≤10MB each), and pasted text.
 - [ ] **[Must]** `FR-RES-05` — Research is referenceable by the AI during planning, writing and fact-checking.
-- [ ] [Should] `FR-RES-02` — Provide a deep AI Research tool that explores multiple sources, synthesizes a detailed report, and saves it to the research library for reuse.
-- [ ] [Should] `FR-RES-03` — Apply a configurable research-depth word budget (e.g. Basic/Intermediate/Comprehensive/Exhaustive); all research is free (no credits/metering beyond optional admin limits).
-- [ ] [Should] `FR-RES-04` — Starred research persists and is available across all scripts in the channel, not just the current thread; irrelevant items can be deleted.
+- [x] [Should] `FR-RES-02` — Provide a deep AI Research tool that explores multiple sources, synthesizes a detailed report, and saves it to the research library for reuse.
+- [x] [Should] `FR-RES-03` — Apply a configurable research-depth word budget (e.g. Basic/Intermediate/Comprehensive/Exhaustive); all research is free (no credits/metering beyond optional admin limits).
+- [x] [Should] `FR-RES-04` — Starred research persists and is available across all scripts in the channel, not just the current thread; irrelevant items can be deleted.
 
 ---
 

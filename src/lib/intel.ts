@@ -32,9 +32,61 @@ export type IntelSearchParams = {
   format?: "short" | "long" | "";
 };
 
-// FR-INTEL-01 — natural-language-ish search. Keywords 'channel'/'niche' bias toward
-// channel results; otherwise we surface videos.
+/**
+ * FR-INTEL-02 — Parse advanced query syntax embedded in the free-text q:
+ *   subs:>100k  subs:<1m  velocity:>5  engagement:>0.05  views:>1m
+ *   format:short  format:long  lang:en
+ * Returns the cleaned text (with the tokens stripped) plus the extracted filters.
+ */
+export function parseAdvancedQuery(raw: string): { cleaned: string; extra: Partial<IntelSearchParams & { engagementMin: number; viewsMin: number }> } {
+  const extra: Partial<IntelSearchParams & { engagementMin: number; viewsMin: number }> = {};
+  let cleaned = raw;
+  function num(s: string): number {
+    const m = s.trim().toLowerCase();
+    if (m.endsWith("m")) return Number(m.slice(0, -1)) * 1_000_000;
+    if (m.endsWith("k")) return Number(m.slice(0, -1)) * 1_000;
+    return Number(m);
+  }
+  const tokenRE = /\b(\w+)\s*:\s*([<>]?=?)\s*([^\s]+)/g;
+  cleaned = cleaned.replace(tokenRE, (match, key: string, op: string, valRaw: string) => {
+    const v = num(valRaw);
+    switch (key.toLowerCase()) {
+      case "subs":     case "subscribers":
+        if (op.startsWith(">")) extra.subsMin = Number.isFinite(v) ? v : undefined;
+        else if (op.startsWith("<")) extra.subsMax = Number.isFinite(v) ? v : undefined;
+        return "";
+      case "velocity":
+        if (op.startsWith(">") && Number.isFinite(v)) extra.velocityMin = v;
+        return "";
+      case "engagement":
+        if (op.startsWith(">") && Number.isFinite(v)) extra.engagementMin = v;
+        return "";
+      case "views":
+        if (op.startsWith(">") && Number.isFinite(v)) extra.viewsMin = v;
+        return "";
+      case "format":
+        if (valRaw === "short" || valRaw === "long") extra.format = valRaw;
+        return "";
+      case "lang":     case "language":
+        extra.language = valRaw;
+        return "";
+      default:
+        return match; // unknown, keep as-is in cleaned
+    }
+  });
+  return { cleaned: cleaned.replace(/\s+/g, " ").trim(), extra };
+}
+
+// FR-INTEL-01/02 — natural-language search. Free text + parsed advanced tokens combine.
+// Keywords 'channel'/'niche' bias toward channel results; otherwise videos.
 export async function searchIntel(params: IntelSearchParams) {
+  // Apply advanced-syntax tokens lifted from q
+  const parsed = parseAdvancedQuery(params.q ?? "");
+  const merged = { ...params, ...parsed.extra, q: parsed.cleaned } as IntelSearchParams;
+  return searchIntelRaw(merged);
+}
+
+async function searchIntelRaw(params: IntelSearchParams) {
   const q = (params.q ?? "").trim();
   const biasChannels = /\b(channel|niche|creator|account)s?\b/i.test(q);
 

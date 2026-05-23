@@ -12,6 +12,7 @@ const SUBNAV = [
   { href: "/voice", label: "Voice" },
   { href: "/templates", label: "Templates" },
   { href: "/memory", label: "Memory" },
+  { href: "/research", label: "Research" },
   { href: "/submissions", label: "Submissions" },
   { href: "/settings", label: "Settings" },
 ];

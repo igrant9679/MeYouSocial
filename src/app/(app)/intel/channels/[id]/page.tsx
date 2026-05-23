@@ -5,6 +5,8 @@ import { requireMembership } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { outlierBand, isFastGrowing, formatNum } from "@/lib/intel";
 import { toggleBookmarkAction } from "@/app/actions/bookmarks";
+import { findSimilarChannelsAction, chatWithEntityAction } from "@/app/actions/intel";
+import { MessageCircle, GitBranch } from "lucide-react";
 
 // FR-INTEL-07 — Channel detail view: subscriber/growth trends, total & average views,
 // upload frequency/consistency, top videos sortable by views/outlier, and outlier list.
@@ -49,13 +51,28 @@ export default async function IntelChannelPage({ params, searchParams }: { param
           </h1>
           <div className="text-sm text-[var(--mute)]">{channel.handle} · {channel.category}{channel.language ? " · " + channel.language : ""}</div>
         </div>
-        <form action={toggleBookmarkAction}>
-          <input type="hidden" name="intelChannelId" value={channel.id} />
-          <button type="submit" className="btn flex items-center gap-2">
-            <Bookmark className="w-4 h-4" fill={bookmarked ? "currentColor" : "none"} />
-            {bookmarked ? "Bookmarked" : "Bookmark"}
-          </button>
-        </form>
+        <div className="flex items-center gap-2 flex-wrap">
+          <form action={toggleBookmarkAction}>
+            <input type="hidden" name="intelChannelId" value={channel.id} />
+            <button type="submit" className="btn flex items-center gap-2">
+              <Bookmark className="w-4 h-4" fill={bookmarked ? "currentColor" : "none"} />
+              {bookmarked ? "Bookmarked" : "Bookmark"}
+            </button>
+          </form>
+          <form action={chatWithEntityAction}>
+            <input type="hidden" name="kind" value="channel" />
+            <input type="hidden" name="entityId" value={channel.id} />
+            <button type="submit" className="btn flex items-center gap-2" title="Open a chat scoped to this channel (FR-INTEL-10)">
+              <MessageCircle className="w-4 h-4" /> Chat with channel
+            </button>
+          </form>
+          <form action={findSimilarChannelsAction}>
+            <input type="hidden" name="intelChannelId" value={channel.id} />
+            <button type="submit" className="btn flex items-center gap-2" title="Find similar channels in this niche (FR-INTEL-09)">
+              <GitBranch className="w-4 h-4" /> Find similar
+            </button>
+          </form>
+        </div>
       </div>
 
       {/* Stats */}

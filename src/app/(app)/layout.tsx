@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Home, Telescope, Sparkles, PenLine, MessageCircle, Image as ImageIcon, KanbanSquare, Settings, LogOut } from "lucide-react";
+import { Home, Telescope, Sparkles, PenLine, MessageCircle, Image as ImageIcon, KanbanSquare, Settings, LogOut, HelpCircle } from "lucide-react";
 import { signOut } from "@/auth";
 import { getActiveChannel } from "@/lib/channel";
 import { setActiveChannelAction } from "@/app/actions/channel";
@@ -14,6 +14,7 @@ const NAV = [
   { href: "/chat",        label: "Chat",        icon: MessageCircle, color: "#6D28D9", soft: "#EDE7FB" },
   { href: "/thumbnails",  label: "Thumbnails",  icon: ImageIcon,    color: "#DB2777", soft: "#FBE2EF" },
   { href: "/production",  label: "Production",  icon: KanbanSquare, color: "#0D9488", soft: "#D7F1ED" },
+  { href: "/help",        label: "Help",        icon: HelpCircle,   color: "#7C3AED", soft: "#EEE7FC" },
   { href: "/admin",       label: "Admin",       icon: Settings,     color: "#4F46E5", soft: "#E7E6FB", adminOnly: true },
 ];
 

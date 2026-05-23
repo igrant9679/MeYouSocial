@@ -5,6 +5,8 @@ import { requireMembership } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { outlierBand, viewsPerSubBand, formatNum } from "@/lib/intel";
 import { toggleBookmarkAction } from "@/app/actions/bookmarks";
+import { chatWithEntityAction } from "@/app/actions/intel";
+import { MessageCircle } from "lucide-react";
 
 // FR-INTEL-08 — Video detail view: views/engagement, outlier, views/sub, title, thumbnail.
 
@@ -82,6 +84,13 @@ export default async function IntelVideoPage({ params }: { params: Promise<{ id:
             <button type="submit" className="btn w-full flex items-center justify-center gap-2">
               <Bookmark className="w-4 h-4" fill={bookmarked ? "currentColor" : "none"} />
               {bookmarked ? "Bookmarked" : "Bookmark"}
+            </button>
+          </form>
+          <form action={chatWithEntityAction}>
+            <input type="hidden" name="kind" value="video" />
+            <input type="hidden" name="entityId" value={video.id} />
+            <button type="submit" className="btn w-full flex items-center justify-center gap-2" title="Open a chat scoped to this video (FR-INTEL-10)">
+              <MessageCircle className="w-4 h-4" /> Chat with video
             </button>
           </form>
         </aside>
