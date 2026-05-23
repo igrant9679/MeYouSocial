@@ -5,6 +5,8 @@ import { requireMembership } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { readJson } from "@/lib/db/json";
 import { renderThumbnailAction } from "@/app/actions/thumbnails";
+import { scoreThumbnailAction } from "@/app/actions/final-pass";
+import { Gauge } from "lucide-react";
 
 // MU-08 — Thumbnail detail. Pick one of the 4 concepts to render at full resolution
 // (FR-THUMB-02), or download the existing render.
@@ -18,7 +20,9 @@ export default async function ThumbnailDetailPage({ params }: { params: Promise<
   });
   if (!thumb) notFound();
 
-  const concepts = readJson<{ id: string; label: string; description: string; url: string }[]>(thumb.concepts, []);
+  const conceptsBlob = readJson<{ id: string; label: string; description: string; url: string }[] | { items: { id: string; label: string; description: string; url: string }[]; critique?: string }>(thumb.concepts, []);
+  const concepts = Array.isArray(conceptsBlob) ? conceptsBlob : conceptsBlob.items;
+  const critique = Array.isArray(conceptsBlob) ? undefined : conceptsBlob.critique;
 
   return (
     <div>
@@ -39,8 +43,21 @@ export default async function ThumbnailDetailPage({ params }: { params: Promise<
             <div className="flex flex-col gap-2">
               <a href={thumb.renderUrl} download className="btn primary flex items-center gap-2"><Download className="w-4 h-4" /> Download</a>
               <a href={thumb.renderUrl} target="_blank" rel="noopener noreferrer" className="btn">Open full size</a>
+              <form action={scoreThumbnailAction}>
+                <input type="hidden" name="thumbnailId" value={thumb.id} />
+                <button type="submit" className="btn w-full flex items-center justify-center gap-2"><Gauge className="w-4 h-4" /> {thumb.ctrScore ? "Re-score CTR" : "Score CTR (FR-THUMB-04)"}</button>
+              </form>
+              {thumb.ctrScore != null && (
+                <div className="text-center mt-1">
+                  <div className="font-mono font-bold text-3xl" style={{ color: thumb.ctrScore >= 75 ? "var(--green)" : thumb.ctrScore >= 50 ? "var(--amber)" : "var(--brand)" }}>{Math.round(thumb.ctrScore)}</div>
+                  <div className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">CTR score</div>
+                </div>
+              )}
             </div>
           </div>
+          {critique && (
+            <div className="mt-3 text-xs font-mono bg-[var(--zebra)] rounded-md p-3 whitespace-pre-wrap">{critique}</div>
+          )}
         </section>
       ) : null}
 

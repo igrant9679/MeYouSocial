@@ -3,7 +3,9 @@ import { db } from "@/lib/db";
 import { MODELS } from "@/lib/llm/models";
 import { updateChannelSettingsAction } from "@/app/actions/channel-settings";
 import { relinkYoutubeAction, setBusinessChannelAction } from "@/app/actions/channel-extras";
+import { updateThumbnailConfigAction } from "@/app/actions/final-pass";
 import { ModelChip } from "@/components/ModelChip";
+import { readJson } from "@/lib/db/json";
 
 // FR-CHAN-04 — Channel Settings: details, linked YouTube, Script Defaults.
 
@@ -80,6 +82,24 @@ export default async function ChannelSettingsPage({ params }: { params: Promise<
         </div>
         <button type="submit" className="btn">{channel.presentationStyle === "business" ? "Switch to personality" : "Mark as business"}</button>
       </form>
+
+      {/* FR-THUMB-06/07 — Thumbnail brand assets + soft limit */}
+      {(() => {
+        const cfg = readJson<{ palette?: string; typography?: string; facePosition?: string; styleNotes?: string; logoUrl?: string }>(channel.thumbnailConfig ?? null, {});
+        return (
+          <form action={updateThumbnailConfigAction} className="card flex flex-col gap-3 mt-4">
+            <h2 className="font-mono font-bold text-[14px]">Thumbnail brand & limits (FR-THUMB-06/07)</h2>
+            <input type="hidden" name="channelId" value={id} />
+            <Field name="palette" label="Palette (hex / names)" defaultValue={cfg.palette ?? ""} placeholder="e.g. #E5482F, off-white, charcoal" />
+            <Field name="typography" label="Typography" defaultValue={cfg.typography ?? ""} placeholder="e.g. Bold sans, max 4 words, all-caps last word" />
+            <Field name="facePosition" label="Face position / composition" defaultValue={cfg.facePosition ?? ""} placeholder="e.g. tight crop, eyes upper-third" />
+            <Field name="logoUrl" label="Brand logo URL" defaultValue={cfg.logoUrl ?? ""} placeholder="https://…" />
+            <TextArea name="styleNotes" label="Other style notes" defaultValue={cfg.styleNotes ?? ""} />
+            <Field name="limitThumbnailsPerMonth" label="Max thumbnails per month (0 = unlimited)" defaultValue={String(channel.limitThumbnailsPerMonth ?? "")} placeholder="0" />
+            <div className="flex justify-end"><button type="submit" className="btn primary sm">Save thumbnail config</button></div>
+          </form>
+        );
+      })()}
     </div>
   );
 }

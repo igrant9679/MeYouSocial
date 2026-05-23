@@ -1,7 +1,8 @@
-import { Film, Star, Link2 } from "lucide-react";
+import { Film, Star, Link2, Upload } from "lucide-react";
 import { requireMembership } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { createAssetAction, toggleAssetFavoriteAction } from "@/app/actions/production";
+import { importMarkersAction } from "@/app/actions/final-pass";
 
 // FR-ASSET-01/03 — centralized B-roll/shot list library; favorites; channel scope.
 
@@ -47,6 +48,35 @@ export default async function AssetsPage({ searchParams }: { searchParams: Promi
         </label>
         <button type="submit" className="btn sm">Filter</button>
       </form>
+
+      {/* FR-ASSET-02 — import markers from external tools */}
+      <details className="card mb-3">
+        <summary className="text-sm font-mono uppercase tracking-wider text-[var(--mute)] cursor-pointer flex items-center gap-2"><Upload className="w-3.5 h-3.5" /> Import shot list / markers (FR-ASSET-02)</summary>
+        <form action={importMarkersAction} className="flex flex-col gap-2 mt-3">
+          <div className="flex items-end gap-2">
+            <label className="flex flex-col gap-1">
+              <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">Source</span>
+              <select name="source" className="border border-[var(--line-2)] rounded-lg p-2 text-sm">
+                <option value="premiere_marker">Premiere Pro markers</option>
+                <option value="frameio">Frame.io comments</option>
+                <option value="csv">Generic CSV</option>
+              </select>
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">Channel scope (optional)</span>
+              <select name="channelId" className="border border-[var(--line-2)] rounded-lg p-2 text-sm">
+                <option value="">All channels</option>
+                {channels.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            </label>
+          </div>
+          <label className="flex flex-col gap-1">
+            <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">Paste markers (one per line, optional comma-separated `timecode, name, note`)</span>
+            <textarea name="raw" required rows={6} placeholder={"00:01:23, Establishing wide, Cold open\n00:04:05, B-roll laptop close-up"} className="border border-[var(--line-2)] rounded-lg p-2 text-xs font-mono" />
+          </label>
+          <div className="flex justify-end"><button type="submit" className="btn primary sm">Import as assets</button></div>
+        </form>
+      </details>
 
       <form action={createAssetAction} className="card flex flex-wrap items-end gap-2 mb-5">
         <label className="flex flex-col gap-1">

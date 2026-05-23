@@ -217,7 +217,7 @@ _The core writing experience._
 - [x] [Should] `FR-AGENT-03` — Use the channel’s voice/audience and any attached research context; output appears in the Script tab with an outline in the Plan tab.
 - [x] [Should] `FR-AGENT-04` — Retries on the same script are free and automatic on failure; cancellation is immediate. (No credits are involved.)
 - [x] [Should] `FR-AGENT-06` — Output integrates with all standard editing tools (highlight-and-improve, Humanize, chat) for post-run refinement.
-- [ ] _[Could]_ `FR-AGENT-05` — Optional, channel-enabled video production: AI voiceover from the script, presenter avatar video, shot-list planning and rendering, tracked in the same progress panel.
+- [x] _[Could]_ `FR-AGENT-05` — Optional, channel-enabled video production: AI voiceover from the script, presenter avatar video, shot-list planning and rendering, tracked in the same progress panel. _(launch button + same AgentRun panel; real TTS/avatar/render wires in when USE_MOCK_PRODUCTION=false + provider keys are set)_
 
 ---
 
@@ -231,9 +231,9 @@ _Titles, thumbnails, export, promo._
 - [x] [Should] `FR-THUMB-02` — Render a full-resolution, publish-ready thumbnail from a selected concept.
 - [x] [Should] `FR-THUMB-03` — Clone/Remix mode: accept a reference via YouTube URL or image upload, analyze its style (colors, typography, composition, lighting), and render a new thumbnail in that style; goes directly to final render.
 - [x] [Should] `FR-THUMB-05` — Maintain thumbnail history; allow re-download of any prior thumbnail at high resolution.
-- [ ] _[Could]_ `FR-THUMB-04` — Score each thumbnail against CTR principles (contrast, readability) and offer one-click fixes for weak spots.
-- [ ] _[Could]_ `FR-THUMB-06` — Thumbnail Settings: default brand assets and style preferences per channel.
-- [ ] _[Could]_ `FR-THUMB-07` — Thumbnail generation is free; an admin may optionally set a soft monthly generation limit per user/workspace (no paid packs).
+- [x] _[Could]_ `FR-THUMB-04` — Score each thumbnail against CTR principles (contrast, readability) and offer one-click fixes for weak spots.
+- [x] _[Could]_ `FR-THUMB-06` — Thumbnail Settings: default brand assets and style preferences per channel.
+- [x] _[Could]_ `FR-THUMB-07` — Thumbnail generation is free; an admin may optionally set a soft monthly generation limit per user/workspace (no paid packs).
 
 ### Publishing, Promotion & Export  `PUB`  (1 Must / 4 total)
 
@@ -271,19 +271,19 @@ _The run-the-channel layer (post-scripting)._
 
 - [x] [Should] `FR-ASSET-01` — A single, centralized B-roll/shotlist library (not one per project); items can be linked to one or more Content Projects and scoped to a Channel.
 - [x] [Should] `FR-ASSET-03` — Favorite reusable B-roll items; store either uploaded assets or links to cloud storage; filter/search the library.
-- [ ] _[Could]_ `FR-ASSET-02` — Import shot lists / markers from external tools (e.g. Premiere Pro markers, Frame.io comments via file/CSV) and attach to a project.
+- [x] _[Could]_ `FR-ASSET-02` — Import shot lists / markers from external tools (e.g. Premiere Pro markers, Frame.io comments via file/CSV) and attach to a project.
 
 ### Swipes (Inspiration)  `SWIPE`  (0 Must / 3 total)
 
 - [x] [Should] `FR-SWIPE-01` — A visual Swipe File library for inspiration (thumbnails, set/studio design, landing pages) with image previews, tags and source URL.
-- [ ] _[Could]_ `FR-SWIPE-02` — Capture inspiration via web link (auto-extract image, title, source URL) or direct upload; one-click save from a browser clipper.
-- [ ] _[Could]_ `FR-SWIPE-03` — Auto-capture YouTube thumbnails to Swipes with title and URL pre-filled; reference Swipes from the Thumbnail Studio.
+- [x] _[Could]_ `FR-SWIPE-02` — Capture inspiration via web link (auto-extract image, title, source URL) or direct upload; one-click save from a browser clipper.
+- [x] _[Could]_ `FR-SWIPE-03` — Auto-capture YouTube thumbnails to Swipes with title and URL pre-filled; reference Swipes from the Thumbnail Studio.
 
 ### Knowledge Base & SOPs  `WIKI`  (0 Must / 3 total)
 
 - [x] [Should] `FR-WIKI-01` — A Wiki of process docs, SOPs and reference guides, browsable in one place.
-- [ ] _[Could]_ `FR-WIKI-02` — Scope wiki pages to a Channel; show a channel’s related docs (e.g. its publishing checklist) on the channel page.
-- [ ] _[Could]_ `FR-WIKI-03` — Reusable checklists (e.g. pre-publish QA) attachable to content projects.
+- [x] _[Could]_ `FR-WIKI-02` — Scope wiki pages to a Channel; show a channel’s related docs (e.g. its publishing checklist) on the channel page.
+- [x] _[Could]_ `FR-WIKI-03` — Reusable checklists (e.g. pre-publish QA) attachable to content projects.
 
 ---
 
@@ -294,7 +294,7 @@ _Close the loop and refine._
 ### Performance / Stats Sync  `PERF`  (0 Must / 2 total)
 
 - [x] [Should] `FR-PERF-01` — Sync the workspace’s own published YouTube video stats (views, retention proxies, engagement) into each Content Project, with periodic refresh. _(manual sync done; periodic cron deferred — wire to BullMQ when JOB_BACKEND=redis)_
-- [ ] _[Could]_ `FR-PERF-02` — Surface own-channel performance trends and feed them into idea generation and voice/audience refinement.
+- [x] _[Could]_ `FR-PERF-02` — Surface own-channel performance trends and feed them into idea generation and voice/audience refinement.
 
 ### Audience Submissions  `SUB`  (0 Must / 1 total)
 

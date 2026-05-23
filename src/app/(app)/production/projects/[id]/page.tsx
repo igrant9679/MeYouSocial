@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowLeft, BarChart3, RefreshCw, Tag, Hash, GitBranch, FileText } from "lucide-react";
+import { ArrowLeft, BarChart3, RefreshCw, Tag, Hash, GitBranch, FileText, BookOpen } from "lucide-react";
 import { notFound } from "next/navigation";
 import { requireMembership } from "@/lib/acl";
 import { db } from "@/lib/db";
@@ -12,6 +12,7 @@ import {
   repurposeProjectAction,
 } from "@/app/actions/growth";
 import { setProjectStatusAction, setProjectPublishDateAction } from "@/app/actions/production";
+import { attachChecklistAction } from "@/app/actions/final-pass";
 
 const STATUS_LABEL: Record<string, string> = {
   idea: "Idea", research_writing: "Research/Writing", recording: "Recording", editing: "Editing", scheduled: "Scheduled", published: "Published",
@@ -39,11 +40,18 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
   });
   if (!project) notFound();
 
-  const stats = await db.channelStat.findMany({
-    where: { channelId: project.channelId, videoYoutubeId: project.scriptId ?? undefined },
-    orderBy: { capturedAt: "desc" },
-    take: 1,
-  });
+  const [stats, wikiDocs] = await Promise.all([
+    db.channelStat.findMany({
+      where: { channelId: project.channelId, videoYoutubeId: project.scriptId ?? undefined },
+      orderBy: { capturedAt: "desc" },
+      take: 1,
+    }),
+    db.wikiDoc.findMany({
+      where: { workspaceId: workspace.id, OR: [{ channelId: null }, { channelId: project.channelId }] },
+      orderBy: { updatedAt: "desc" },
+      select: { id: true, title: true, checklist: true },
+    }),
+  ]);
   const stat = stats[0];
 
   const keywords = readJson<string[]>(project.keywords, []);
@@ -175,6 +183,24 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
                 </li>
               ))}
             </ul>
+          </section>
+        )}
+
+        {/* FR-WIKI-03 — Attach an SOP checklist as project tasks */}
+        {wikiDocs.length > 0 && (
+          <section className="card">
+            <h2 className="font-mono font-bold text-[14px] mb-3 flex items-center gap-2"><BookOpen className="w-4 h-4" style={{ color: "#4F46E5" }} /> Attach SOP checklist (FR-WIKI-03)</h2>
+            <form action={attachChecklistAction} className="flex items-end gap-2">
+              <input type="hidden" name="contentProjectId" value={project.id} />
+              <label className="flex flex-col gap-1 flex-1">
+                <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">Wiki page</span>
+                <select name="wikiDocId" className="border border-[var(--line-2)] rounded-lg p-2 text-sm">
+                  {wikiDocs.map((d) => <option key={d.id} value={d.id}>{d.title}</option>)}
+                </select>
+              </label>
+              <button type="submit" className="btn primary sm">Attach as tasks</button>
+            </form>
+            <p className="text-[11px] text-[var(--mute)] mt-2">Converts the wiki page's checklist (or `- ` bullets in the body) into assigned tasks on this project.</p>
           </section>
         )}
 

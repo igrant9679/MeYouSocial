@@ -147,6 +147,8 @@ model Channel {
   defaultLanguage    String   @default("en")
   defaultTemplateId  String?
   accentColor        String?  // matches mockup per-module accent
+  thumbnailConfig    String?  // FR-THUMB-06 — brand assets + style prefs (JSON)
+  limitThumbnailsPerMonth Int? // FR-THUMB-07 — optional per-channel cap
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 

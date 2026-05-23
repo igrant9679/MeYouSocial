@@ -11,6 +11,7 @@ import { StartOverButton } from "./StartOverButton";
 import { AgentPanel } from "./AgentPanel";
 import { StreamButton } from "./StreamButton";
 import { launchAgentAction } from "@/app/actions/agent";
+import { launchVideoProductionAction } from "@/app/actions/final-pass";
 import { promoteScriptAction } from "@/app/actions/production";
 import {
   savePlanQuestionsAction,
@@ -109,6 +110,13 @@ export default async function CanvasPage({
               <Link href={`/scripts/${script.id}/publish`} className="btn sm flex items-center gap-1.5" title="Export, teleprompter, promo assets">
                 Publish →
               </Link>
+            )}
+            {/* FR-AGENT-05 — Optional video production add-on (TTS/avatar/render). Mock until provider keys are wired. */}
+            {script.body && (
+              <form action={launchVideoProductionAction} title="Optional video production pipeline (TTS + avatar + render)">
+                <input type="hidden" name="scriptId" value={script.id} />
+                <button type="submit" className="btn sm">▶ Produce video</button>
+              </form>
             )}
             {/* FR-PIPE-01 — promote into a tracked Content Project */}
             <form action={promoteScriptAction}>

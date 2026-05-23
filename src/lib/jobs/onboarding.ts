@@ -121,9 +121,17 @@ export function registerOnboardingJobs() {
     await ctx.progress(0.1);
     const channel = await db.channel.findUnique({
       where: { id: channelId },
-      include: { competitors: true },
+      include: { competitors: true, channelStats: { orderBy: { capturedAt: "desc" }, take: 20 } },
     });
     if (!channel) return;
+
+    // FR-PERF-02 — surface own-channel perf trends into idea generation.
+    let perfHint = "";
+    if (channel.channelStats.length > 0) {
+      const top = channel.channelStats.slice(0, 5);
+      const avgRet = top.reduce((a, s) => a + (s.retentionProxy ?? 0), 0) / top.length;
+      perfHint = `\nOwn-channel performance hint: avg retention ${(avgRet * 100).toFixed(0)}% across the last ${top.length} tracked uploads. Bias new ideas toward formats that hold attention.`;
+    }
 
     // Pull recent videos from each competitor and grab the strongest outlier.
     const candidates: { title: string; outlier: number; source: string }[] = [];
@@ -149,7 +157,7 @@ export function registerOnboardingJobs() {
       model: "claude-sonnet",
       system: "You convert outlier video titles into 10 fresh idea titles for a creator in a related niche, preserving each one's hook structure.",
       messages: [
-        { role: "user", content: `Creator niche: ${channel.nicheDescription}\nDifferentiation: ${channel.differentiation}\nOutlier seeds:\n${seed.map((s, i) => `${i + 1}. (${s.outlier.toFixed(1)}x) ${s.title}`).join("\n")}\n\nReturn one idea per line: "title — strategy".` },
+        { role: "user", content: `Creator niche: ${channel.nicheDescription}\nDifferentiation: ${channel.differentiation}${perfHint}\nOutlier seeds:\n${seed.map((s, i) => `${i + 1}. (${s.outlier.toFixed(1)}x) ${s.title}`).join("\n")}\n\nReturn one idea per line: "title — strategy".` },
       ],
     });
 
