@@ -18,6 +18,14 @@ const plexMono = IBM_Plex_Mono({
 export const metadata: Metadata = {
   title: "CreateUp",
   description: "AI-powered YouTube research & scriptwriting",
+  // Drives the iOS Home Screen label + standalone (fullscreen) display when
+  // someone uses Safari → Share → Add to Home Screen. The actual icon comes
+  // from src/app/apple-icon.tsx.
+  appleWebApp: {
+    capable: true,
+    title: "CreateUp",
+    statusBarStyle: "black-translucent",
+  },
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
