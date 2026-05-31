@@ -7,7 +7,7 @@ import {
   Menu, X, LogOut, User,
   Home, Layers, Telescope, Sparkles, PenLine, MessageCircle, Image as ImageIcon, KanbanSquare, Settings, HelpCircle,
 } from "lucide-react";
-import type { LeftRailItem } from "@/components/LeftRailNav";
+import { isNavActive, type LeftRailItem } from "@/components/LeftRailNav";
 
 // Mobile slide-in drawer that mirrors the desktop left rail, but with visible
 // labels (icon-only nav is fine on hover-capable desktop, not on touch).
@@ -68,9 +68,7 @@ export function MobileNav({
             <div className="flex flex-col gap-1 overflow-y-auto">
               {items.map((n) => {
                 const Icon = ICONS[n.icon];
-                const isActive = n.href === "/dashboard"
-                  ? pathname === "/dashboard" || pathname === "/"
-                  : pathname === n.href || pathname.startsWith(n.href + "/");
+                const isActive = isNavActive(n.href, pathname);
                 return (
                   <Link
                     key={n.href}

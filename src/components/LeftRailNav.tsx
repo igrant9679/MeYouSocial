@@ -20,17 +20,26 @@ export type LeftRailItem = {
   soft: string;
 };
 
+// Active-route matcher for the rail. Match exact route OR any nested route under it
+// (e.g. /channels/abc → /channels). Special cases:
+//  - /dashboard so "/" doesn't match everything.
+//  - The "Ideas"/"Scripts" entries point at /ideas|/scripts, but those redirect into
+//    /channels/[id]/ideas|scripts. Without this, the /channels prefix would light up
+//    "Channels" on those pages. So channel-scoped ideas/scripts win over Channels.
+export function isNavActive(href: string, pathname: string): boolean {
+  const channelSub = pathname.match(/^\/channels\/[^/]+\/(ideas|scripts)(?:\/|$)/);
+  if (channelSub) return href === `/${channelSub[1]}`;
+  if (href === "/dashboard") return pathname === "/dashboard" || pathname === "/";
+  return pathname === href || pathname.startsWith(href + "/");
+}
+
 export function LeftRailNav({ items }: { items: LeftRailItem[] }) {
   const pathname = usePathname() ?? "";
   return (
     <>
       {items.map((n) => {
         const Icon = ICONS[n.icon];
-        // Match exact route OR any nested route under it (e.g. /channels/abc → /channels is active).
-        // Special-case /dashboard so "/" doesn't accidentally match everything.
-        const isActive = n.href === "/dashboard"
-          ? pathname === "/dashboard" || pathname === "/"
-          : pathname === n.href || pathname.startsWith(n.href + "/");
+        const isActive = isNavActive(n.href, pathname);
         return (
           <Link
             key={n.href}
