@@ -32,16 +32,17 @@ Railway runs `prisma migrate deploy` on boot.
 - **Settings storage** — generic `Setting` table (key/value). Backs in-app API keys + SMTP config.
 - **Icons/PWA** — `src/app/icon.tsx`, `apple-icon.tsx`, `manifest.ts` generate favicon, iOS
   home-screen icon, and web manifest.
-- **Left nav** `src/components/LeftRailNav.tsx` (client) — highlights the active route via the
-  shared `isNavActive()` (also used by `MobileNav`); channel-scoped `ideas`/`scripts` URLs light up
-  those rail entries, not Channels.
+- **Left nav** `src/components/LeftRailNav.tsx` (client) — labeled sidebar (≥md, 240px; icon +
+  always-visible label, colored active row). Active route via the shared `isNavActive()` (also used
+  by `MobileNav`); channel-scoped `ideas`/`scripts` URLs light up those entries, not Channels.
 - **Theming/colors** `src/app/globals.css` — light/dark via `data-theme` on `<html>`. Per-hue tokens:
   `--<hue>` (solid, e.g. nav chips with white text), `--<hue>-soft` (chip background), `--<hue>-on`
   (chip foreground). Dark mode auto-derives `-soft`/`-on` via `color-mix`, so **use these tokens for
   colored chips/badges instead of raw hex** or they won't adapt. `.btn.primary` uses `--accent-strong`
   for AA contrast. Fonts come from next/font via `--font-plex-sans/-mono`.
 - **Shared UI helpers** `src/components/`: `SubmitButton` (form pending spinner via `useFormStatus`),
-  `MobileNav` (hamburger drawer <md), `ChannelSwitcher` (auto-submitting channel select).
+  `MobileNav` (hamburger drawer <md), `ChannelSwitcher` (auto-submitting channel select),
+  `ValidatedInput` (on-blur per-field validation via native constraints; use for form inputs).
 
 ## Admin surfaces (sidebar → Admin)
 Users · Workspace · Soft limits · Usage · Channels · **API keys** (`/admin/api-keys`) ·
