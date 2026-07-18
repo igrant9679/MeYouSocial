@@ -64,9 +64,15 @@ async function seedDemoData() {
   const adminEmail = (process.env.BOOTSTRAP_ADMIN_EMAIL ?? "you@example.com").toLowerCase();
   const passwordHash = await bcrypt.hash(process.env.SEED_ADMIN_PASSWORD ?? "createup-dev", 10);
 
+  // Account recovery. The seed runs on every boot, so it must NOT rewrite the
+  // password by default — that would silently undo any in-app password change.
+  // Set RESET_ADMIN=true (plus SEED_ADMIN_PASSWORD) for exactly one deploy to
+  // recover a locked-out owner, then remove the flag.
+  const resetRequested = process.env.RESET_ADMIN === "true";
+
   const user = await db.user.upsert({
     where: { email: adminEmail },
-    update: {},
+    update: resetRequested ? { passwordHash } : {},
     create: { email: adminEmail, name: "CreateUp Admin", passwordHash },
   });
 
@@ -81,6 +87,21 @@ async function seedDemoData() {
     update: { role: "ADMIN" },
     create: { userId: user.id, workspaceId: workspace.id, role: "ADMIN" },
   });
+
+  // On an explicit recovery, make sure the owner is an active ADMIN of EVERY
+  // workspace — role checks are workspace-scoped, so ADMIN on the demo
+  // workspace alone wouldn't unlock real channels living elsewhere.
+  if (resetRequested) {
+    const all = await db.workspace.findMany({ select: { id: true } });
+    for (const w of all) {
+      await db.membership.upsert({
+        where: { userId_workspaceId: { userId: user.id, workspaceId: w.id } },
+        update: { role: "ADMIN", status: "active" },
+        create: { userId: user.id, workspaceId: w.id, role: "ADMIN", status: "active" },
+      });
+    }
+    console.log(`↻ RESET_ADMIN: reset password + granted ADMIN on ${all.length} workspace(s) for ${adminEmail}`);
+  }
 
   const channel = await db.channel.upsert({
     where: { id: "demo-channel" },
@@ -248,6 +269,10 @@ async function main() {
     console.log("✓ Seed complete. Admin email:", adminEmail, "(password set via SEED_ADMIN_PASSWORD — not logged)");
   } else {
     console.log("✓ Seed complete. Admin email:", adminEmail, "  password: createup-dev (default — set SEED_ADMIN_PASSWORD to change)");
+  }
+  if (process.env.RESET_ADMIN === "true") {
+    console.log("⚠ RESET_ADMIN is still set — the admin password is rewritten on EVERY deploy.");
+    console.log("  Remove RESET_ADMIN from Railway Variables now that you're back in.");
   }
 }
 
