@@ -42,6 +42,9 @@ yarn-error.log*
 # transient test artifacts (cookie jars, request bodies)
 /.test-*
 
+# local-only session handoff (contains Railway infra IDs; this repo is public)
+/SESSION-HANDOFF.md
+
 # vercel
 .vercel
 
