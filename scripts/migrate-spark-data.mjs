@@ -66,7 +66,7 @@ async function main() {
 
   // --- org profile ------------------------------------------------------------
   const [org] = await oldDb.$queryRawUnsafe(
-    `SELECT description, industry, audience_notes FROM org_profiles WHERE workspace_id = $1 LIMIT 1`,
+    `SELECT description, industry, audiences AS audience_notes FROM org_profiles WHERE workspace_id = $1 LIMIT 1`,
     ws.id,
   ).catch(async () => {
     // audience column name differs across Spark revisions — fall back.
@@ -95,7 +95,7 @@ async function main() {
   const articles = await oldDb.$queryRawUnsafe(
     `SELECT a.id, a.title, a.state, a.body, a.audience, a.published_url, a.protected_from_rewrite,
             a.created_at, a.updated_at,
-            s.slug AS seo_slug, s.seo_title, s.meta_description, s.focus_keyword
+            s.slug AS seo_slug, s.title AS seo_title, s.meta AS meta_description, s.focus_keyword
      FROM articles a
      LEFT JOIN seo_outputs s ON s.article_id = a.id
      WHERE a.workspace_id = $1
@@ -140,7 +140,7 @@ async function main() {
   let citations = [];
   try {
     citations = await oldDb.$queryRawUnsafe(
-      `SELECT article_id, claim, source_url, verified FROM citations
+      `SELECT article_id, claim_text AS claim, source_url, verified FROM citations
        WHERE article_id = ANY($1::uuid[])`,
       [...postIdMap.keys()],
     );
