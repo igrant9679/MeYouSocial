@@ -58,17 +58,19 @@ export default async function BlogPage() {
         <span className="w-12 h-12 rounded-2xl grid place-items-center" style={{ background: "var(--rose-soft)", color: "var(--rose-on)" }}>
           <FileText className="w-6 h-6" strokeWidth={2.25} />
         </span>
-        <div className="flex-1">
+        <div className="min-w-40">
           <h1 className="font-mono font-bold text-2xl leading-tight">Blog</h1>
           <p className="text-xs text-[var(--mute)]">
             Idea → grounded draft → gates → publish. Drafts are grounded in your organization profile.
           </p>
         </div>
+      </div>
+      <div className="flex flex-wrap gap-2 mb-5">
         <Link href="/blog/board" className="btn">Board</Link>
         <Link href="/blog/calendar" className="btn">Calendar</Link>
         <Link href="/blog/analytics" className="btn">Analytics</Link>
         <Link href="/blog/automation" className="btn">Automation</Link>
-        <Link href="/blog/organization" className="btn">Organization profile</Link>
+        <Link href="/blog/organization" className="btn">Organization</Link>
         <Link href="/blog/settings" className="btn">Settings</Link>
       </div>
 

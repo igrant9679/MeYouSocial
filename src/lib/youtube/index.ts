@@ -105,4 +105,102 @@ const mock: YouTubeProvider = {
 // ── Real implementation: not wired yet; flip env.USE_MOCK_YOUTUBE=false and
 // a real adapter (using process.env.YOUTUBE_API_KEY) will go here.
 
-export const youtube: YouTubeProvider = env.USE_MOCK_YOUTUBE ? mock : mock;
+// ── Real implementation (YouTube Data API v3, key-based) ────────────────────
+// Read-only surface: search/channels/playlistItems/videos. getTranscript stays
+// null — caption download needs OAuth, not an API key; the callers already
+// handle null transcripts gracefully.
+
+const YT = "https://www.googleapis.com/youtube/v3";
+
+async function ytGet<T>(path: string, params: Record<string, string>): Promise<T> {
+  const qs = new URLSearchParams({ ...params, key: env.YOUTUBE_API_KEY });
+  const res = await fetch(`${YT}/${path}?${qs}`, { signal: AbortSignal.timeout(15000) });
+  if (!res.ok) throw new Error(`YouTube API ${path} HTTP ${res.status}`);
+  return (await res.json()) as T;
+}
+
+function parseDuration(iso: string): number {
+  const m = iso.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+  if (!m) return 0;
+  return (parseInt(m[1] ?? "0", 10) * 3600) + (parseInt(m[2] ?? "0", 10) * 60) + parseInt(m[3] ?? "0", 10);
+}
+
+type YtChannelItem = {
+  id: string;
+  snippet?: { title?: string; description?: string; customUrl?: string; thumbnails?: { default?: { url?: string } }; defaultLanguage?: string };
+  statistics?: { subscriberCount?: string; videoCount?: string; viewCount?: string };
+  contentDetails?: { relatedPlaylists?: { uploads?: string } };
+};
+
+function toChannelSummary(c: YtChannelItem): YTChannelSummary {
+  return {
+    id: c.id,
+    handle: c.snippet?.customUrl,
+    name: c.snippet?.title ?? "Unknown channel",
+    description: c.snippet?.description,
+    subscribers: parseInt(c.statistics?.subscriberCount ?? "0", 10),
+    videoCount: parseInt(c.statistics?.videoCount ?? "0", 10),
+    totalViews: parseInt(c.statistics?.viewCount ?? "0", 10),
+    thumbnailUrl: c.snippet?.thumbnails?.default?.url,
+    language: c.snippet?.defaultLanguage,
+  };
+}
+
+const real: YouTubeProvider = {
+  async searchChannels(query, limit = 5) {
+    const search = await ytGet<{ items?: Array<{ id?: { channelId?: string } }> }>("search", {
+      part: "snippet", type: "channel", q: query, maxResults: String(Math.min(limit, 10)),
+    });
+    const ids = (search.items ?? []).map((i) => i.id?.channelId).filter((x): x is string => !!x);
+    if (!ids.length) return [];
+    const channels = await ytGet<{ items?: YtChannelItem[] }>("channels", {
+      part: "snippet,statistics", id: ids.join(","),
+    });
+    return (channels.items ?? []).map(toChannelSummary);
+  },
+  async findChannel(query) {
+    const list = await real.searchChannels(query, 1);
+    return list[0] ?? null;
+  },
+  async listVideos(channelId, limit = 20) {
+    const ch = await ytGet<{ items?: YtChannelItem[] }>("channels", {
+      part: "contentDetails", id: channelId,
+    });
+    const uploads = ch.items?.[0]?.contentDetails?.relatedPlaylists?.uploads;
+    if (!uploads) return [];
+    const pl = await ytGet<{ items?: Array<{ contentDetails?: { videoId?: string } }> }>("playlistItems", {
+      part: "contentDetails", playlistId: uploads, maxResults: String(Math.min(limit, 50)),
+    });
+    const ids = (pl.items ?? []).map((i) => i.contentDetails?.videoId).filter((x): x is string => !!x);
+    if (!ids.length) return [];
+    const vids = await ytGet<{
+      items?: Array<{
+        id: string;
+        snippet?: { title?: string; description?: string; publishedAt?: string; thumbnails?: { medium?: { url?: string } } };
+        statistics?: { viewCount?: string; likeCount?: string };
+        contentDetails?: { duration?: string };
+      }>;
+    }>("videos", { part: "snippet,statistics,contentDetails", id: ids.join(",") });
+    return (vids.items ?? []).map((v) => {
+      const seconds = parseDuration(v.contentDetails?.duration ?? "");
+      return {
+        id: v.id,
+        channelId,
+        title: v.snippet?.title ?? "Untitled",
+        description: v.snippet?.description,
+        publishedAt: v.snippet?.publishedAt ?? new Date().toISOString(),
+        durationSeconds: seconds,
+        views: parseInt(v.statistics?.viewCount ?? "0", 10),
+        likes: v.statistics?.likeCount ? parseInt(v.statistics.likeCount, 10) : undefined,
+        thumbnailUrl: v.snippet?.thumbnails?.medium?.url,
+        format: seconds > 0 && seconds <= 90 ? ("short" as const) : ("long" as const),
+      };
+    });
+  },
+  async getTranscript() {
+    return null; // caption download needs OAuth; callers handle null.
+  },
+};
+
+export const youtube: YouTubeProvider =
+  env.USE_MOCK_YOUTUBE || !env.YOUTUBE_API_KEY ? mock : real;

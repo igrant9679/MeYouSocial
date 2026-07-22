@@ -20,6 +20,7 @@ import {
   generateSocialVariantsAction,
   setSocialVariantStatusAction,
 } from "@/app/actions/blog-social";
+import { createVideoPackageAction } from "@/app/actions/videos";
 
 // Blog post editor (Spark port, slice 1): SEO metadata + HTML body + grounded
 // AI draft + the review-state machine. Publishing is an ADMIN act (human gate).
@@ -270,6 +271,22 @@ export default async function BlogPostPage({ params }: { params: Promise<{ id: s
           </div>
         )}
       </form>
+
+      {/* Video package (Phase 4) — once the post reaches approval/published */}
+      {(post.status === "final_approval" || post.status === "published") && editor && (
+        <div className="card mt-4 flex flex-wrap items-center gap-2 text-sm">
+          <b>Video:</b>
+          <span className="text-xs text-[var(--mute)] flex-1">
+            Package this post into a short-form video (8s vertical) — queued on the <Link href="/videos" className="underline">Videos</Link> page.
+          </span>
+          <form action={createVideoPackageAction}>
+            <input type="hidden" name="blogPostId" value={post.id} />
+            <SubmitButton className="btn" pendingText="Packaging…">
+              <Sparkles className="w-4 h-4" /> Create video package
+            </SubmitButton>
+          </form>
+        </div>
+      )}
 
       {/* Social variants (FR-12) — once the post reaches approval/published */}
       {(post.status === "final_approval" || post.status === "published") && (

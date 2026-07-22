@@ -178,6 +178,30 @@ model AutomationState {
   updatedAt   DateTime @updatedAt
 }
 
+// Phase 4 — a rendered (or queued) short-form video derived from content.
+// Renders are queued by packaging (manual or autopilot) and processed by the
+// video provider (mock by default; Veo when configured). costEstimate is a
+// pre-render ceiling in USD, recorded so spend is visible before it happens.
+model VideoRender {
+  id           String   @id @default(cuid())
+  workspaceId  String
+  blogPostId   String?
+  scriptId     String?
+  title        String
+  prompt       String   // the scene/visual prompt sent to the provider
+  status       String   @default("queued") // queued | rendering | done | failed
+  provider     String   @default("mock")
+  seconds      Int      @default(8)
+  aspect       String   @default("9:16") // short-form first
+  outputUrl    String?
+  error        String?
+  costEstimate Float    @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([workspaceId, status])
+}
+
 model AuditLog {
   id          String   @id @default(cuid())
   workspaceId String

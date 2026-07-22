@@ -1,9 +1,11 @@
 import { db } from "@/lib/db";
+import { env } from "@/lib/env";
 import { llm } from "@/lib/llm";
 import { runBlogChecks, requiredChecksPass } from "@/lib/blog-checks";
 import { decryptSecret, type Encrypted } from "@/lib/blog-crypto";
 import { wpCreatePost, type WpCredentials } from "@/lib/wordpress";
 import { getModes, isGloballyPaused, writeAudit } from "@/lib/governance";
+import { getVideoProvider, estimateCostUsd } from "@/lib/video";
 
 /**
  * Autopilot cores + the Phase-3 scheduler cycle. Every function here is
@@ -258,6 +260,114 @@ export async function publishCore(workspaceId: string, postId: string): Promise<
   return true;
 }
 
+// ---- Video (Phase 4) ---------------------------------------------------------
+
+/**
+ * Package a blog post into a queued short-form video: an LLM turns the article
+ * into a single-scene visual prompt + hook, stored as a VideoRender awaiting
+ * the rendering step. No video API cost at packaging time.
+ */
+export async function packageVideoCore(workspaceId: string, blogPostId: string): Promise<string | null> {
+  if (await isGloballyPaused(workspaceId)) return null;
+  const post = await db.blogPost.findFirst({ where: { id: blogPostId, workspaceId } });
+  if (!post || !post.body) return null;
+  const workspace = await db.workspace.findUnique({ where: { id: workspaceId } });
+  if (!workspace) return null;
+
+  const summary = post.body.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").slice(0, 1200);
+  const system =
+    "You write prompts for an AI video generator producing short-form vertical videos (8 seconds). " +
+    'Respond ONLY with a JSON object: {"title": string, "prompt": string}. ' +
+    "The prompt describes ONE visually concrete scene (subject, setting, camera movement, mood, on-screen text hook ≤6 words) " +
+    "that teases the article's core idea. No statistics, no invented claims, no brand logos.";
+  const res = await llm.complete({
+    model: workspace.defaultModel ?? llm.defaultModel,
+    system,
+    messages: [{ role: "user", content: `Article title: "${post.title}"\n\nArticle summary: ${summary}` }],
+    maxTokens: 500,
+  });
+  let parsed: { title?: string; prompt?: string } = {};
+  try {
+    const match = res.content.match(/\{[\s\S]*\}/);
+    parsed = match ? JSON.parse(match[0]) : {};
+  } catch {
+    parsed = {};
+  }
+  if (!parsed.prompt) return null;
+
+  const seconds = env.VIDEO_MAX_SECONDS;
+  const render = await db.videoRender.create({
+    data: {
+      workspaceId,
+      blogPostId: post.id,
+      title: (parsed.title ?? post.title).slice(0, 200),
+      prompt: parsed.prompt.slice(0, 2000),
+      seconds,
+      aspect: "9:16",
+      costEstimate: estimateCostUsd(seconds),
+    },
+  });
+  await writeAudit({
+    workspaceId,
+    action: "video.packaged",
+    entityType: "video_render",
+    entityId: render.id,
+    meta: { blogPostId: post.id, seconds, costEstimate: render.costEstimate },
+  });
+  return render.id;
+}
+
+async function rendersToday(workspaceId: string): Promise<number> {
+  const dayStart = new Date();
+  dayStart.setHours(0, 0, 0, 0);
+  return db.videoRender.count({
+    where: { workspaceId, status: { in: ["rendering", "done"] }, updatedAt: { gte: dayStart } },
+  });
+}
+
+/** Process one queued render through the provider. Minutes-long — background only. */
+export async function processRenderCore(workspaceId: string, renderId: string): Promise<boolean> {
+  if (await isGloballyPaused(workspaceId)) return false;
+  const render = await db.videoRender.findFirst({ where: { id: renderId, workspaceId, status: "queued" } });
+  if (!render) return false;
+  if ((await rendersToday(workspaceId)) >= env.VIDEO_DAILY_RENDER_CAP) return false;
+
+  const provider = await getVideoProvider();
+  await db.videoRender.update({ where: { id: render.id }, data: { status: "rendering", provider: provider.name } });
+  try {
+    const out = await provider.render({
+      prompt: render.prompt,
+      seconds: render.seconds,
+      aspect: render.aspect as "9:16" | "16:9" | "1:1",
+    });
+    await db.videoRender.update({
+      where: { id: render.id },
+      data: { status: "done", outputUrl: out.url, provider: out.provider, seconds: out.seconds },
+    });
+    await writeAudit({
+      workspaceId,
+      action: "video.rendered",
+      entityType: "video_render",
+      entityId: render.id,
+      meta: { provider: out.provider, seconds: out.seconds },
+    });
+    return true;
+  } catch (e) {
+    await db.videoRender.update({
+      where: { id: render.id },
+      data: { status: "failed", error: e instanceof Error ? e.message.slice(0, 500) : "render failed" },
+    });
+    await writeAudit({
+      workspaceId,
+      action: "video.render_failed",
+      entityType: "video_render",
+      entityId: render.id,
+      meta: { provider: provider.name },
+    });
+    return false;
+  }
+}
+
 // ---- The scheduler cycle ------------------------------------------------------
 
 async function generationsToday(workspaceId: string): Promise<number> {
@@ -275,10 +385,20 @@ export type CycleReport = {
   drafted: number;
   variantPosts: number;
   published: number;
+  videosPackaged: number;
+  videosRendered: number;
 };
 
 export async function runAutopilotCycle(workspaceId: string): Promise<CycleReport> {
-  const report: CycleReport = { workspaceId, ideasCreated: 0, drafted: 0, variantPosts: 0, published: 0 };
+  const report: CycleReport = {
+    workspaceId,
+    ideasCreated: 0,
+    drafted: 0,
+    variantPosts: 0,
+    published: 0,
+    videosPackaged: 0,
+    videosRendered: 0,
+  };
 
   if (await isGloballyPaused(workspaceId)) {
     report.skipped = "paused";
@@ -349,7 +469,34 @@ export async function runAutopilotCycle(workspaceId: string): Promise<CycleRepor
     }
   }
 
-  const activity = report.ideasCreated + report.drafted + report.variantPosts + report.published;
+  // 5. Video packaging: turn published posts without a package into queued renders.
+  if (unattended("video_packaging")) {
+    const unpackaged = await db.blogPost.findMany({
+      where: { workspaceId, status: "published" },
+      select: { id: true },
+      take: 5,
+    });
+    for (const p of unpackaged) {
+      const has = await db.videoRender.count({ where: { workspaceId, blogPostId: p.id } });
+      if (has > 0) continue;
+      const id = await packageVideoCore(workspaceId, p.id);
+      if (id) report.videosPackaged++;
+      break; // one package per cycle
+    }
+  }
+
+  // 6. Video rendering: process one queued render per cycle (daily cap inside).
+  if (unattended("video_rendering")) {
+    const queued = await db.videoRender.findFirst({
+      where: { workspaceId, status: "queued" },
+      orderBy: { createdAt: "asc" },
+    });
+    if (queued && (await processRenderCore(workspaceId, queued.id))) report.videosRendered++;
+  }
+
+  const activity =
+    report.ideasCreated + report.drafted + report.variantPosts + report.published +
+    report.videosPackaged + report.videosRendered;
   if (activity > 0) {
     await writeAudit({
       workspaceId,

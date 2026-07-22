@@ -43,6 +43,14 @@ export const env = {
   USE_MOCK_EMAIL: bool(process.env.USE_MOCK_EMAIL, true),
   USE_MOCK_PRODUCTION: bool(process.env.USE_MOCK_PRODUCTION, true),
 
+  // Phase 4 — video. Mock by default like every other provider; Veo activates
+  // with USE_MOCK_VIDEO=false + a Google key (DB Setting or GOOGLE_GENAI_API_KEY).
+  USE_MOCK_VIDEO: bool(process.env.USE_MOCK_VIDEO, true),
+  YOUTUBE_API_KEY: str(process.env.YOUTUBE_API_KEY),
+  VIDEO_MAX_SECONDS: num(process.env.VIDEO_MAX_SECONDS) ?? 8, // short-form first
+  VIDEO_COST_PER_SECOND: num(process.env.VIDEO_COST_PER_SECOND) ?? 0.75, // rough Veo estimate, USD
+  VIDEO_DAILY_RENDER_CAP: num(process.env.VIDEO_DAILY_RENDER_CAP) ?? 3,
+
   STORAGE_BACKEND: str(process.env.STORAGE_BACKEND, "local") as "local" | "s3" | "gdrive",
   STORAGE_LOCAL_DIR: str(process.env.STORAGE_LOCAL_DIR, "./.data/uploads"),
 
