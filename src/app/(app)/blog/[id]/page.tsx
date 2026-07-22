@@ -1,14 +1,18 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, ChevronLeft, ChevronRight, Sparkles, Trash2 } from "lucide-react";
+import { ArrowLeft, Check, ChevronLeft, ChevronRight, CircleAlert, ShieldCheck, Sparkles, Trash2, X } from "lucide-react";
 import { requireMembership, canEdit, canAdmin } from "@/lib/acl";
 import { db } from "@/lib/db";
+import { runBlogChecks, requiredChecksPass } from "@/lib/blog-checks";
 import { SubmitButton } from "@/components/SubmitButton";
 import {
+  addCitationAction,
   advanceBlogStatusAction,
   deleteBlogPostAction,
+  deleteCitationAction,
   generateBlogDraftAction,
   updateBlogPostAction,
+  verifyCitationAction,
 } from "@/app/actions/blog";
 
 // Blog post editor (Spark port, slice 1): SEO metadata + HTML body + grounded
@@ -25,14 +29,19 @@ const FLOW_LABELS: Record<(typeof FLOW)[number], string> = {
 export default async function BlogPostPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { workspace, membership } = await requireMembership();
-  const post = await db.blogPost.findFirst({ where: { id, workspaceId: workspace.id } });
+  const post = await db.blogPost.findFirst({
+    where: { id, workspaceId: workspace.id },
+    include: { citations: { orderBy: { createdAt: "asc" } } },
+  });
   if (!post) notFound();
 
   const editor = canEdit(membership.role);
   const admin = canAdmin(membership.role);
   const idx = FLOW.indexOf(post.status as (typeof FLOW)[number]);
   const nextIsPublish = FLOW[idx + 1] === "published";
-  const needsSource = (post.body?.match(/\[NEEDS SOURCE\]/g) ?? []).length;
+  const unverified = post.citations.filter((c) => !c.verified).length;
+  const checks = runBlogChecks(post, unverified);
+  const gatesPass = requiredChecksPass(checks);
 
   return (
     <main className="p-6 max-w-4xl mx-auto w-full">
@@ -76,11 +85,92 @@ export default async function BlogPostPage({ params }: { params: Promise<{ id: s
         )}
       </div>
 
-      {needsSource > 0 && (
-        <div className="card mb-4 text-sm" style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }}>
-          <b>{needsSource} unverified claim{needsSource === 1 ? "" : "s"}</b> flagged <span className="font-mono">[NEEDS SOURCE]</span> in the draft — verify or remove them before publishing.
-        </div>
-      )}
+      {/* Pre-publish checks (Spark gates — server-enforced on advance) */}
+      <details className="card mb-4" open={!gatesPass}>
+        <summary className="cursor-pointer select-none text-sm font-semibold flex items-center gap-2">
+          <ShieldCheck className="w-4 h-4" style={{ color: gatesPass ? "var(--green-on)" : "var(--amber-on)" }} />
+          Publish gates: {checks.filter((c) => c.required && c.pass).length}/{checks.filter((c) => c.required).length} required checks pass
+          {!gatesPass && <span className="text-xs font-normal text-[var(--mute)]">— advancing to approval/publish is blocked</span>}
+        </summary>
+        <ul className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+          {checks.map((c) => (
+            <li key={c.id} className="flex items-start gap-2 text-xs">
+              {c.pass ? (
+                <Check className="w-3.5 h-3.5 mt-0.5 shrink-0" style={{ color: "var(--green-on)" }} />
+              ) : c.required ? (
+                <X className="w-3.5 h-3.5 mt-0.5 shrink-0" style={{ color: "var(--rose-on)" }} />
+              ) : (
+                <CircleAlert className="w-3.5 h-3.5 mt-0.5 shrink-0" style={{ color: "var(--amber-on)" }} />
+              )}
+              <span>
+                {c.label}
+                {c.detail ? <span className="text-[var(--mute)]"> · {c.detail}</span> : null}
+                {!c.required && <span className="text-[var(--mute)]"> (advisory)</span>}
+              </span>
+            </li>
+          ))}
+        </ul>
+      </details>
+
+      {/* Citations (truthfulness dossier) */}
+      <div className="card mb-4">
+        <h2 className="text-sm font-semibold mb-2">
+          Citations{" "}
+          <span className="font-mono text-xs text-[var(--mute)]">
+            {post.citations.length - unverified}/{post.citations.length} verified
+          </span>
+        </h2>
+        {post.citations.length === 0 ? (
+          <p className="text-xs text-[var(--mute)]">
+            No claims to verify. AI drafts add a row here for every <span className="font-mono">[NEEDS SOURCE]</span> marker.
+          </p>
+        ) : (
+          <ul className="flex flex-col gap-2 mb-3">
+            {post.citations.map((c) => (
+              <li key={c.id} className="flex items-start gap-2 text-xs border-b border-[var(--line)] pb-2 last:border-0">
+                <span
+                  className="font-mono px-1.5 py-0.5 rounded-full shrink-0"
+                  style={c.verified ? { background: "var(--green-soft)", color: "var(--green-on)" } : { background: "var(--amber-soft)", color: "var(--amber-on)" }}
+                >
+                  {c.verified ? "verified" : "unverified"}
+                </span>
+                <span className="flex-1 min-w-0">
+                  {c.claim}
+                  {c.sourceUrl && (
+                    <>
+                      {" "}
+                      <a href={c.sourceUrl} target="_blank" rel="noreferrer" className="underline text-[var(--blue-on)] break-all">
+                        {c.sourceUrl}
+                      </a>
+                    </>
+                  )}
+                </span>
+                {editor && !c.verified && (
+                  <form action={verifyCitationAction} className="flex items-center gap-1 shrink-0">
+                    <input type="hidden" name="id" value={c.id} />
+                    <input name="sourceUrl" placeholder="source URL" defaultValue={c.sourceUrl ?? ""} className="w-40 text-xs" />
+                    <button className="btn" title="Mark verified (needs a source URL)"><Check className="w-3.5 h-3.5" /></button>
+                  </form>
+                )}
+                {editor && (
+                  <form action={deleteCitationAction} className="shrink-0">
+                    <input type="hidden" name="id" value={c.id} />
+                    <button className="btn" title="Remove claim"><Trash2 className="w-3.5 h-3.5" /></button>
+                  </form>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+        {editor && (
+          <form action={addCitationAction} className="flex flex-wrap items-center gap-2">
+            <input type="hidden" name="postId" value={post.id} />
+            <input name="claim" required placeholder="Add a claim to verify…" className="flex-1 min-w-48 text-xs" />
+            <input name="sourceUrl" placeholder="source URL (optional)" className="w-48 text-xs" />
+            <button className="btn">Add</button>
+          </form>
+        )}
+      </div>
 
       <form action={updateBlogPostAction} className="card flex flex-col gap-4">
         <input type="hidden" name="id" value={post.id} />

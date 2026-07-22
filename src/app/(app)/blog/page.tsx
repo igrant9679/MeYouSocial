@@ -41,12 +41,13 @@ export default async function BlogPage() {
         <span className="w-12 h-12 rounded-2xl grid place-items-center" style={{ background: "var(--rose-soft)", color: "var(--rose-on)" }}>
           <FileText className="w-6 h-6" strokeWidth={2.25} />
         </span>
-        <div>
+        <div className="flex-1">
           <h1 className="font-mono font-bold text-2xl leading-tight">Blog</h1>
           <p className="text-xs text-[var(--mute)]">
-            Idea → grounded draft → review → publish. Ported from Spark; SEO gates and WordPress publish land next.
+            Idea → grounded draft → gates → publish. Drafts are grounded in your organization profile.
           </p>
         </div>
+        <Link href="/blog/organization" className="btn">Organization profile</Link>
       </div>
 
       {editor && (

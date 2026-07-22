@@ -61,13 +61,134 @@ model BlogPost {
   wordCountTarget Int?
   publishedUrl    String?
   publishedAt     DateTime?
+  // Spark FR-14: shield a high performer from disruptive regeneration.
+  protectedFromRewrite Boolean @default(false)
   createdById     String?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
-  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspace Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  citations BlogCitation[]
+  variants  SocialVariant[]
+  snapshots BlogSnapshot[]
 
   @@index([workspaceId, status])
+}
+
+// Spark's org profile — "what this client does"; grounds every generation.
+model OrgProfile {
+  id          String   @id @default(cuid())
+  workspaceId String   @unique
+  description String?  // what they do, for whom, differentiation
+  industry    String?
+  services    String   @default("[]") // JSON array of strings
+  audience    String?
+  updatedAt   DateTime @updatedAt
+}
+
+// Truthfulness: [NEEDS SOURCE] claims become citation rows; publish is blocked
+// while any are unverified (Spark hard constraint).
+model BlogCitation {
+  id        String   @id @default(cuid())
+  postId    String
+  claim     String
+  sourceUrl String?
+  verified  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  post BlogPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([postId])
+}
+
+// Blog idea engine (Spark FR-5): discovered → approved/rejected → drafted.
+model BlogIdea {
+  id        String   @id @default(cuid())
+  workspaceId String
+  title     String
+  angle     String?  // the hook / why it works
+  keyword   String?
+  status    String   @default("discovered") // discovered | approved | rejected | drafted
+  source    String   @default("manual") // manual | ai
+  postId    String?  // set when drafted
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([workspaceId, status])
+}
+
+// WordPress connection (Spark FR-11); appPassword stored AES-GCM encrypted.
+model WordPressConnection {
+  id             String   @id @default(cuid())
+  workspaceId    String   @unique
+  baseUrl        String
+  username       String
+  encAppPassword String   // JSON {iv,tag,data} AES-256-GCM
+  status         String   @default("connected") // connected | error
+  updatedAt      DateTime @updatedAt
+}
+
+// Per-platform social copy for a published post (Spark FR-12).
+model SocialVariant {
+  id        String   @id @default(cuid())
+  postId    String
+  platform  String   // linkedin | x | instagram | facebook
+  content   String
+  status    String   @default("draft") // draft | approved | posted
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  post BlogPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([postId])
+}
+
+// Manual analytics snapshots (Spark FR-14) until GSC/GA4 connectors land.
+model BlogSnapshot {
+  id          String   @id @default(cuid())
+  postId      String
+  capturedAt  DateTime @default(now())
+  impressions Int?
+  clicks      Int?
+  position    Float?
+  sessions    Int?
+  conversions Int?
+
+  post BlogPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([postId])
+}
+
+// The three-mode autonomy dial: one row per governed function per workspace.
+model FunctionMode {
+  id          String   @id @default(cuid())
+  workspaceId String
+  function    String   // ideation | blog_drafting | video_packaging | video_rendering | publishing | social
+  mode        String   @default("manual") // manual | assisted | auto
+  updatedAt   DateTime @updatedAt
+
+  @@unique([workspaceId, function])
+}
+
+// Workspace-level automation kill switch + audit trail (Spark NFR auditability).
+model AutomationState {
+  id          String  @id @default(cuid())
+  workspaceId String  @unique
+  globalPause Boolean @default(false)
+  updatedAt   DateTime @updatedAt
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  workspaceId String
+  actorId     String?  // null = system/AI
+  action      String
+  entityType  String
+  entityId    String?
+  meta        String   @default("{}") // JSON
+  createdAt   DateTime @default(now())
+
+  @@index([workspaceId, createdAt])
 }
 
 enum Role {
