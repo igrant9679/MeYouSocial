@@ -66,12 +66,12 @@ async function main() {
 
   // --- org profile ------------------------------------------------------------
   const [org] = await oldDb.$queryRawUnsafe(
-    `SELECT description, industry, audiences AS audience_notes FROM org_profiles WHERE workspace_id = $1 LIMIT 1`,
+    `SELECT description, industry, audiences AS audience_notes FROM org_profiles WHERE workspace_id = $1::uuid LIMIT 1`,
     ws.id,
   ).catch(async () => {
     // audience column name differs across Spark revisions — fall back.
     return oldDb.$queryRawUnsafe(
-      `SELECT description, industry, NULL AS audience_notes FROM org_profiles WHERE workspace_id = $1 LIMIT 1`,
+      `SELECT description, industry, NULL AS audience_notes FROM org_profiles WHERE workspace_id = $1::uuid LIMIT 1`,
       ws.id,
     );
   });
@@ -98,7 +98,7 @@ async function main() {
             s.slug AS seo_slug, s.title AS seo_title, s.meta AS meta_description, s.focus_keyword
      FROM articles a
      LEFT JOIN seo_outputs s ON s.article_id = a.id
-     WHERE a.workspace_id = $1
+     WHERE a.workspace_id = $1::uuid
      ORDER BY a.created_at ASC`,
     ws.id,
   ).catch(async () => {
@@ -107,7 +107,7 @@ async function main() {
       `SELECT id, title, state, body, audience, published_url, protected_from_rewrite,
               created_at, updated_at,
               NULL AS seo_slug, NULL AS seo_title, NULL AS meta_description, NULL AS focus_keyword
-       FROM articles WHERE workspace_id = $1 ORDER BY created_at ASC`,
+       FROM articles WHERE workspace_id = $1::uuid ORDER BY created_at ASC`,
       ws.id,
     );
   });
@@ -162,7 +162,7 @@ async function main() {
   let ideas = [];
   try {
     ideas = await oldDb.$queryRawUnsafe(
-      `SELECT title, status, source, created_at FROM ideas WHERE workspace_id = $1`,
+      `SELECT title, status, source, created_at FROM ideas WHERE workspace_id = $1::uuid`,
       ws.id,
     );
   } catch {
@@ -189,7 +189,7 @@ async function main() {
   try {
     snaps = await oldDb.$queryRawUnsafe(
       `SELECT article_id, captured_at, impressions, clicks, position, sessions, conversions
-       FROM analytics_snapshots WHERE workspace_id = $1`,
+       FROM analytics_snapshots WHERE workspace_id = $1::uuid`,
       ws.id,
     );
   } catch {
