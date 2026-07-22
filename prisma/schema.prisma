@@ -40,6 +40,34 @@ model Workspace {
   tasks           Task[]
   swipes          Swipe[]
   wikiDocs        WikiDoc[]
+  blogPosts       BlogPost[]
+}
+
+// ---- Blog (ported from Spark's article pipeline; slice 1) --------------------
+// Workspace-scoped blog posts with Spark's review-state machine and SEO fields.
+// Later slices add citations, WCAG/SEO gates, WordPress publish, analytics.
+model BlogPost {
+  id              String    @id @default(cuid())
+  workspaceId     String
+  title           String
+  // drafting | draft_review | final_approval | published (scheduled comes with WP publish)
+  status          String    @default("drafting")
+  body            String?   // HTML draft
+  slug            String?
+  metaTitle       String?
+  metaDescription String?
+  focusKeyword    String?
+  audience        String?
+  wordCountTarget Int?
+  publishedUrl    String?
+  publishedAt     DateTime?
+  createdById     String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, status])
 }
 
 enum Role {

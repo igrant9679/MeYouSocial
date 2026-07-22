@@ -2,13 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Layers, Telescope, Sparkles, PenLine, MessageCircle, Image as ImageIcon, KanbanSquare, Settings, HelpCircle } from "lucide-react";
+import { Home, Layers, Telescope, Sparkles, PenLine, MessageCircle, Image as ImageIcon, KanbanSquare, Settings, HelpCircle, FileText } from "lucide-react";
 
 // Client-side left-rail nav. Renders the chip strip and highlights the active
 // route via usePathname. Kept tiny so the rest of the app shell can stay server-rendered.
 
 const ICONS = {
-  Home, Layers, Telescope, Sparkles, PenLine, MessageCircle, ImageIcon, KanbanSquare, Settings, HelpCircle,
+  Home, Layers, Telescope, Sparkles, PenLine, MessageCircle, ImageIcon, KanbanSquare, Settings, HelpCircle, FileText,
 } as const;
 type IconKey = keyof typeof ICONS;
 
