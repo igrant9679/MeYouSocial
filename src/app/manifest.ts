@@ -6,9 +6,9 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "CreateUp",
-    short_name: "CreateUp",
-    description: "AI-powered YouTube research & scriptwriting",
+    name: "MeYouSocial",
+    short_name: "MeYouSocial",
+    description: "AI-powered blog & video content platform",
     start_url: "/",
     display: "standalone",
     background_color: "#0F1218",

@@ -218,7 +218,7 @@ export const HELP_CATEGORIES: FaqCategory[] = [
       },
       {
         q: "Is there a cost?",
-        a: "No. CreateUp has no billing, no credits, no payments. AI usage is unmetered for invited members. Admins can optionally set soft monthly limits per user (under Admin → Soft limits) to bound shared infrastructure cost.",
+        a: "No. MeYouSocial has no billing, no credits, no payments. AI usage is unmetered for invited members. Admins can optionally set soft monthly limits per user (under Admin → Soft limits) to bound shared infrastructure cost.",
         tags: ["cost", "billing", "limits"],
       },
       {

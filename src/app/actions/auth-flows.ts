@@ -42,7 +42,7 @@ export async function requestPasswordResetAction(formData: FormData) {
     const origin = await getPublicUrl();
     await email.send({
       to: parsed.data.email,
-      subject: "Reset your CreateUp password",
+      subject: "Reset your MeYouSocial password",
       html: `<p>Click below to reset your password (the link expires in 1 hour):</p>
              <p><a href="${origin}/reset/${token}">${origin}/reset/${token}</a></p>
              <p>If you didn't request this, you can ignore the message.</p>`,
@@ -100,7 +100,7 @@ export async function requestVerificationForUser(userId: string, userEmail: stri
   const origin = await getPublicUrl();
   await email.send({
     to: userEmail,
-    subject: "Verify your CreateUp email",
+    subject: "Verify your MeYouSocial email",
     html: `<p>Welcome! Confirm your email to unlock all features:</p>
            <p><a href="${origin}/verify/${token}">${origin}/verify/${token}</a></p>`,
   });

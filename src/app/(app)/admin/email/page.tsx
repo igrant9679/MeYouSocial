@@ -47,7 +47,7 @@ export default async function EmailSettingsPage({ searchParams }: { searchParams
 
       {/* IMAP note — we only need SMTP for outbound. */}
       <div className="card mb-4 text-xs text-[var(--mute)] leading-relaxed">
-        <p className="mb-1"><strong>Why no IMAP field?</strong> IMAP is for <em>reading</em> mail; CreateUp only sends. The same email account you'd configure in your mail client will work — paste its SMTP settings here.</p>
+        <p className="mb-1"><strong>Why no IMAP field?</strong> IMAP is for <em>reading</em> mail; MeYouSocial only sends. The same email account you'd configure in your mail client will work — paste its SMTP settings here.</p>
         <p>For Gmail & iCloud you must generate an <strong>app-specific password</strong> in your account's security settings (the normal password won't work).</p>
       </div>
 
@@ -80,7 +80,7 @@ export default async function EmailSettingsPage({ searchParams }: { searchParams
           <Field name="user"      label="Username"                            defaultValue={cfg?.user ?? ""}      placeholder="you@example.com" />
           <Field name="pass"      label={cfg ? "Password (leave empty to keep existing)" : "Password"} type="password" defaultValue="" placeholder="app password or API key" />
           <Field name="fromEmail" label="From address"               required defaultValue={cfg?.fromEmail ?? ""} placeholder="no-reply@yourdomain.com" />
-          <Field name="fromName"  label="From name (optional)"                defaultValue={cfg?.fromName ?? ""}  placeholder="CreateUp" />
+          <Field name="fromName"  label="From name (optional)"                defaultValue={cfg?.fromName ?? ""}  placeholder="MeYouSocial" />
           <label className="flex items-center gap-2 mt-2 md:col-span-2 cursor-pointer">
             <input type="checkbox" name="secure" defaultChecked={cfg?.secure ?? false} />
             <span className="text-xs text-[var(--mute)]">Use implicit TLS (port 465). Leave off for STARTTLS on 587.</span>

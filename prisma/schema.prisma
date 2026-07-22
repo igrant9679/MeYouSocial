@@ -1,4 +1,4 @@
-// CreateUp — data model. Mirrors §10 "Conceptual Data Model" of the spec.
+// MeYouSocial — data model. Mirrors §10 "Conceptual Data Model" of the spec.
 //
 // PostgreSQL for both local dev and Railway prod (see DECISIONS.md §1).
 // JSON-shaped fields remain String (serialized JSON) so the data model is

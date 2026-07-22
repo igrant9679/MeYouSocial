@@ -239,7 +239,7 @@ function RefreshScript({ ready }: { ready: boolean }) {
         __html: `
           (function(){
             try {
-              const KEY = 'createup_onboard_refresh_start';
+              const KEY = 'meyousocial_onboard_refresh_start';
               let start = sessionStorage.getItem(KEY);
               if (!start) { start = String(Date.now()); sessionStorage.setItem(KEY, start); }
               if (Date.now() - Number(start) < 90000) {

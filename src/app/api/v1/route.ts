@@ -2,16 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 
 // Minimal API surface so external clients (incl. MCP servers) can drive
-// CreateUp. v1 is read-only and exposes channels/scripts/ideas for the authenticated workspace.
+// MeYouSocial. v1 is read-only and exposes channels/scripts/ideas for the authenticated workspace.
 // Authentication: pass `?token=<inviteToken>` where the token is bound to an admin invitation
 // of the workspace, OR rely on the session cookie when called from a browser.
 //
 // Discovery: GET /api/v1 returns the catalog of endpoints.
 
 const CATALOG = {
-  name: "CreateUp API",
+  name: "MeYouSocial API",
   version: "1.0",
-  authentication: "session cookie (browser) or per-workspace token (header X-CreateUp-Token).",
+  authentication: "session cookie (browser) or per-workspace token (header X-MeYouSocial-Token).",
   endpoints: [
     { method: "GET", path: "/api/v1/channels",     description: "List channels in the caller's workspace." },
     { method: "GET", path: "/api/v1/scripts",      description: "List scripts (optional ?channelId)." },

@@ -42,7 +42,7 @@ export default async function InvitationPage({ params }: { params: Promise<{ tok
     <div className="flex-1 grid place-items-center p-6">
       <div className="card max-w-md text-center">
         <h1 className="font-mono font-bold text-xl mb-2">You&apos;re invited</h1>
-        <p className="text-sm text-[var(--mute)] mb-1">to <b>{invite.workspace.name}</b> on CreateUp</p>
+        <p className="text-sm text-[var(--mute)] mb-1">to <b>{invite.workspace.name}</b> on MeYouSocial</p>
         <p className="text-xs font-mono text-[var(--mute)] mb-4">Role: {invite.role}</p>
         <form action={acceptAction.bind(null, token)}>
           <SubmitButton className="btn primary">Accept invitation</SubmitButton>

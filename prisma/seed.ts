@@ -62,7 +62,7 @@ async function seedTemplates() {
 
 async function seedDemoData() {
   const adminEmail = (process.env.BOOTSTRAP_ADMIN_EMAIL ?? "you@example.com").toLowerCase();
-  const passwordHash = await bcrypt.hash(process.env.SEED_ADMIN_PASSWORD ?? "createup-dev", 10);
+  const passwordHash = await bcrypt.hash(process.env.SEED_ADMIN_PASSWORD ?? "meyousocial-dev", 10);
 
   // Account recovery. The seed runs on every boot, so it must NOT rewrite the
   // password by default — that would silently undo any in-app password change.
@@ -73,7 +73,7 @@ async function seedDemoData() {
   const user = await db.user.upsert({
     where: { email: adminEmail },
     update: resetRequested ? { passwordHash } : {},
-    create: { email: adminEmail, name: "CreateUp Admin", passwordHash },
+    create: { email: adminEmail, name: "MeYouSocial Admin", passwordHash },
   });
 
   const workspace = await db.workspace.upsert({
@@ -268,7 +268,7 @@ async function main() {
   if (process.env.SEED_ADMIN_PASSWORD) {
     console.log("✓ Seed complete. Admin email:", adminEmail, "(password set via SEED_ADMIN_PASSWORD — not logged)");
   } else {
-    console.log("✓ Seed complete. Admin email:", adminEmail, "  password: createup-dev (default — set SEED_ADMIN_PASSWORD to change)");
+    console.log("✓ Seed complete. Admin email:", adminEmail, "  password: meyousocial-dev (default — set SEED_ADMIN_PASSWORD to change)");
   }
   if (process.env.RESET_ADMIN === "true") {
     console.log("⚠ RESET_ADMIN is still set — the admin password is rewritten on EVERY deploy.");

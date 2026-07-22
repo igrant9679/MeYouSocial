@@ -53,7 +53,7 @@ export function MobileNav({
               >
                 ▲
               </span>
-              <span className="font-mono font-bold text-[15px]">CreateUp</span>
+              <span className="font-mono font-bold text-[15px]">MeYouSocial</span>
               <span className="flex-1" />
               <button
                 type="button"

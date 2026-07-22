@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { requireMembership } from "@/lib/acl";
 
-export const CHANNEL_COOKIE = "createup_channel";
+export const CHANNEL_COOKIE = "meyousocial_channel";
 
 /** Resolve the active channel for the current request, defaulting to the cookie-selected one. */
 export async function getActiveChannel() {

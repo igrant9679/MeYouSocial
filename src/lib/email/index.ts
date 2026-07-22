@@ -108,7 +108,7 @@ export async function sendTestEmail(opts: {
     const info = await transport.sendMail({
       from: opts.fromName ? `"${opts.fromName}" <${opts.fromEmail}>` : opts.fromEmail,
       to: opts.to,
-      subject: "CreateUp SMTP test ✓",
+      subject: "MeYouSocial SMTP test ✓",
       html: `<p>If you're reading this, SMTP is working.</p>
              <p style="color:#888;font-size:12px;font-family:monospace">Sent from ${opts.host}:${opts.port}${opts.secure ? " (TLS)" : ""}</p>`,
     });

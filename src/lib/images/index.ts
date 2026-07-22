@@ -24,7 +24,7 @@ export interface ImageProvider {
 function placeholder(prompt: string, aspect: string): string {
   // Deterministic data-uri-free placeholder via picsum (no key needed).
   const dims = aspect === "1:1" ? "640/640" : aspect === "9:16" ? "405/720" : "1280/720";
-  const seed = encodeURIComponent(prompt.slice(0, 32) || "createup");
+  const seed = encodeURIComponent(prompt.slice(0, 32) || "meyousocial");
   return `https://picsum.photos/seed/${seed}/${dims}`;
 }
 

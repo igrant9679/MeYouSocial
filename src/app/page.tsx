@@ -11,9 +11,9 @@ export default async function Home() {
       <div className="card max-w-lg w-full text-center">
         <div className="font-mono text-2xl font-bold tracking-tight mb-2 flex items-center justify-center gap-3">
           <span className="inline-block w-9 h-9 rounded-[10px] text-white grid place-items-center" style={{ background: "linear-gradient(150deg,#F0623F,#C53A22)" }}>▲</span>
-          CreateUp
+          MeYouSocial
         </div>
-        <p className="text-sm text-[var(--mute)] mb-6">AI-powered YouTube research &amp; scriptwriting.</p>
+        <p className="text-sm text-[var(--mute)] mb-6">AI-powered blog &amp; video content — mostly on autopilot.</p>
         <div className="flex gap-3 justify-center">
           <Link href="/signin" className="btn primary">Sign in</Link>
           <Link href="/signup" className="btn">Create account</Link>

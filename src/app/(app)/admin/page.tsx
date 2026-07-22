@@ -40,7 +40,7 @@ async function inviteAction(formData: FormData) {
   const origin = await getPublicUrl();
   await emailProvider.send({
     to: parsed.data.email,
-    subject: `You've been invited to ${workspace.name} on CreateUp`,
+    subject: `You've been invited to ${workspace.name} on MeYouSocial`,
     html: `<p>You've been invited to join <b>${workspace.name}</b> as a <b>${parsed.data.role}</b>.</p>
            <p><a href="${origin}/invitations/${token}">Accept the invitation</a></p>`,
   });

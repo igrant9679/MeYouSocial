@@ -38,7 +38,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <Link
           href="/dashboard"
           className="flex items-center gap-2.5 px-2 py-1.5 mb-2 rounded-xl"
-          title="CreateUp · Home"
+          title="MeYouSocial · Home"
         >
           <span
             className="w-9 h-9 rounded-xl text-white grid place-items-center font-mono font-bold text-lg shadow-lg shadow-[#E5482F]/30 flex-shrink-0"
@@ -46,7 +46,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           >
             ▲
           </span>
-          <span className="font-mono font-bold text-[16px] tracking-tight">CreateUp</span>
+          <span className="font-mono font-bold text-[16px] tracking-tight">MeYouSocial</span>
         </Link>
 
         <LeftRailNav items={navItems} />

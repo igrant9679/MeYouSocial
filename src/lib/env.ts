@@ -16,7 +16,7 @@ function num(v: string | undefined): number | undefined {
 export const env = {
   NODE_ENV: str(process.env.NODE_ENV, "development"),
   APP_URL: str(process.env.APP_URL, "http://localhost:3000"),
-  APP_NAME: str(process.env.APP_NAME, "CreateUp"),
+  APP_NAME: str(process.env.APP_NAME, "MeYouSocial"),
   BOOTSTRAP_ADMIN_EMAIL: str(process.env.BOOTSTRAP_ADMIN_EMAIL).toLowerCase(),
 
   DATABASE_URL: str(process.env.DATABASE_URL),
@@ -49,7 +49,7 @@ export const env = {
   JOB_BACKEND: str(process.env.JOB_BACKEND, "memory") as "memory" | "redis",
   REDIS_URL: str(process.env.REDIS_URL),
 
-  EMAIL_FROM: str(process.env.EMAIL_FROM, "CreateUp <no-reply@example.com>"),
+  EMAIL_FROM: str(process.env.EMAIL_FROM, "MeYouSocial <no-reply@example.com>"),
 
   LOG_LEVEL: str(process.env.LOG_LEVEL, "info"),
   RATE_LIMIT_PER_MINUTE: num(process.env.RATE_LIMIT_PER_MINUTE) ?? 60,

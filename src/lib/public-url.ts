@@ -1,7 +1,7 @@
 import { headers } from "next/headers";
 import { env } from "@/lib/env";
 
-// Resolves the canonical public origin (e.g. "https://createup.example.com").
+// Resolves the canonical public origin (e.g. "https://meyousocial.example.com").
 //
 // Priority:
 //   1. The current request's Host / X-Forwarded-Host header — true source of

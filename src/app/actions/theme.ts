@@ -4,7 +4,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 
-const THEME_COOKIE = "createup_theme";
+const THEME_COOKIE = "meyousocial_theme";
 export type Theme = "light" | "dark" | "auto";
 
 export async function setThemeAction(formData: FormData) {
