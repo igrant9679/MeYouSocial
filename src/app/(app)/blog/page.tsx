@@ -64,6 +64,7 @@ export default async function BlogPage() {
             Idea → grounded draft → gates → publish. Drafts are grounded in your organization profile.
           </p>
         </div>
+        <Link href="/blog/analytics" className="btn">Analytics</Link>
         <Link href="/blog/organization" className="btn">Organization profile</Link>
         <Link href="/blog/settings" className="btn">Settings</Link>
       </div>
