@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { llm } from "@/lib/llm";
+import { isGloballyPaused, writeAudit } from "@/lib/governance";
 import { generateBlogDraftAction } from "@/app/actions/blog";
 
 /**
@@ -31,6 +32,7 @@ export async function addBlogIdeaAction(formData: FormData) {
 
 export async function discoverBlogIdeasAction() {
   const { workspace } = await requireRole("EDITOR");
+  if (await isGloballyPaused(workspace.id)) return;
   const org = await db.orgProfile.findUnique({ where: { workspaceId: workspace.id } });
   const existing = await db.blogIdea.findMany({
     where: { workspaceId: workspace.id },
@@ -80,6 +82,12 @@ export async function discoverBlogIdeasAction() {
       source: "ai",
     }));
   if (rows.length) await db.blogIdea.createMany({ data: rows });
+  await writeAudit({
+    workspaceId: workspace.id,
+    action: "ideas.ai_discovery",
+    entityType: "blog_idea",
+    meta: { created: rows.length },
+  });
   revalidatePath("/blog");
 }
 
@@ -119,6 +127,7 @@ export async function draftFromIdeaAction(formData: FormData) {
 /** Auto-draft up to 2 approved ideas per run (Spark's pipeline cap). */
 export async function autoDraftApprovedAction() {
   const { user, workspace } = await requireRole("EDITOR");
+  if (await isGloballyPaused(workspace.id)) return;
   const approved = await db.blogIdea.findMany({
     where: { workspaceId: workspace.id, status: "approved" },
     orderBy: { createdAt: "asc" },

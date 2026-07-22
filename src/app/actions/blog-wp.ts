@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { encryptSecret, decryptSecret, type Encrypted } from "@/lib/blog-crypto";
 import { wpTestConnection, wpCreatePost, type WpCredentials } from "@/lib/wordpress";
 import { runBlogChecks, requiredChecksPass } from "@/lib/blog-checks";
+import { writeAudit } from "@/lib/governance";
 
 /**
  * WordPress publishing (Spark FR-11 port). The application password is stored
@@ -99,6 +100,13 @@ export async function publishToWordPressAction(formData: FormData) {
   await db.blogPost.update({
     where: { id: post.id },
     data: { status: "published", publishedAt: new Date(), publishedUrl: created.link },
+  });
+  await writeAudit({
+    workspaceId: workspace.id,
+    action: "blog.published_wordpress",
+    entityType: "blog_post",
+    entityId: post.id,
+    meta: { wpPostId: created.id, link: created.link },
   });
   revalidatePath(`/blog/${post.id}`);
   revalidatePath("/blog");

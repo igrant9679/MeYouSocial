@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { llm } from "@/lib/llm";
+import { isGloballyPaused, writeAudit } from "@/lib/governance";
 
 /**
  * Social variants (Spark FR-12 port): per-platform copy for a post, generated
@@ -20,6 +21,7 @@ export async function generateSocialVariantsAction(formData: FormData) {
   const { workspace } = await requireRole("EDITOR");
   const post = await db.blogPost.findFirst({ where: { id: postId, workspaceId: workspace.id } });
   if (!post || !post.body) return;
+  if (await isGloballyPaused(workspace.id)) return;
 
   const org = await db.orgProfile.findUnique({ where: { workspaceId: workspace.id } });
   const summary = post.body.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").slice(0, 1500);
@@ -62,6 +64,13 @@ export async function generateSocialVariantsAction(formData: FormData) {
       content: (parsed[p] as string).trim().slice(0, 3000),
     }));
   if (rows.length) await db.socialVariant.createMany({ data: rows });
+  await writeAudit({
+    workspaceId: workspace.id,
+    action: "social.variants_generated",
+    entityType: "blog_post",
+    entityId: post.id,
+    meta: { platforms: rows.map((r) => r.platform) },
+  });
   revalidatePath(`/blog/${post.id}`);
 }
 

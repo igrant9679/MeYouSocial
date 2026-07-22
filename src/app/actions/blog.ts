@@ -6,6 +6,7 @@ import { requireRole } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { llm } from "@/lib/llm";
 import { runBlogChecks, requiredChecksPass } from "@/lib/blog-checks";
+import { isGloballyPaused, writeAudit } from "@/lib/governance";
 
 /**
  * Blog module (ported from Spark's article pipeline — slice 1).
@@ -73,7 +74,7 @@ export async function advanceBlogStatusAction(formData: FormData) {
   const id = String(formData.get("id"));
   const dir = String(formData.get("dir")) === "back" ? -1 : 1;
   // Final approval → published is an approval act: ADMIN. Everything else: EDITOR.
-  const { workspace, membership } = await requireRole("EDITOR");
+  const { user, workspace, membership } = await requireRole("EDITOR");
   const post = await db.blogPost.findFirst({ where: { id, workspaceId: workspace.id } });
   if (!post || !isStatus(post.status)) return;
 
@@ -93,6 +94,13 @@ export async function advanceBlogStatusAction(formData: FormData) {
       status: next,
       publishedAt: next === "published" ? new Date() : null,
     },
+  });
+  await writeAudit({
+    workspaceId: workspace.id,
+    actorId: user.id,
+    action: next === "published" ? "blog.published" : `blog.status_${next}`,
+    entityType: "blog_post",
+    entityId: post.id,
   });
   revalidatePath(`/blog/${post.id}`);
   revalidatePath("/blog");
@@ -118,6 +126,7 @@ export async function generateBlogDraftAction(formData: FormData) {
   if (!post) return;
 
   if (post.protectedFromRewrite) return; // FR-14: protected posts don't get regenerated
+  if (await isGloballyPaused(workspace.id)) return; // kill switch blocks all AI generation
 
   // Grounding: org profile (what the client does) + channel voice + audience.
   const [org, channel] = await Promise.all([
@@ -179,6 +188,13 @@ export async function generateBlogDraftAction(formData: FormData) {
       data: claims.map((claim) => ({ postId: post.id, claim })),
     });
   }
+  await writeAudit({
+    workspaceId: workspace.id,
+    action: "blog.draft_generated",
+    entityType: "blog_post",
+    entityId: post.id,
+    meta: { model: res.model, claimsFlagged: claims.length },
+  });
   revalidatePath(`/blog/${post.id}`);
 }
 
