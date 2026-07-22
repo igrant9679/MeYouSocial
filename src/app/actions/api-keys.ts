@@ -21,6 +21,27 @@ const SETTING_KEY: Record<KeyProvider, string> = {
   minimax:   "api_key:minimax",
 };
 
+const SEARCH_VENDORS = ["tavily", "serper"] as const;
+
+/** Admin-only: save / clear a search provider key (same DB-first pattern). */
+export async function saveSearchKeyAction(formData: FormData) {
+  await requireRole("ADMIN");
+  const vendor = String(formData.get("vendor") ?? "");
+  if (!(SEARCH_VENDORS as readonly string[]).includes(vendor)) return;
+  const value = String(formData.get("value") ?? "").trim();
+  const key = `api_key:${vendor}`;
+
+  if (!value) {
+    await db.setting.deleteMany({ where: { key } });
+  } else {
+    await db.setting.upsert({ where: { key }, update: { value }, create: { key, value } });
+  }
+  const { invalidateSearchKeyCache } = await import("@/lib/search");
+  invalidateSearchKeyCache();
+  revalidatePath("/admin/api-keys");
+  redirect(`/admin/api-keys?ok=${vendor}`);
+}
+
 export async function saveApiKeyAction(formData: FormData) {
   await requireRole("ADMIN");
   const provider = String(formData.get("provider") ?? "") as KeyProvider;

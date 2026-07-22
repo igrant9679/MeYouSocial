@@ -3,9 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/acl";
 import { db } from "@/lib/db";
-import { env } from "@/lib/env";
 import { llm } from "@/lib/llm";
-import { search } from "@/lib/search";
+import { getSearchProvider } from "@/lib/search";
 import { isGloballyPaused, writeAudit } from "@/lib/governance";
 
 /**
@@ -276,7 +275,8 @@ export async function contentGapAction(formData: FormData) {
   const post = await db.blogPost.findFirst({ where: { id, workspaceId: workspace.id } });
   if (!post) return;
 
-  if (env.USE_MOCK_SEARCH) {
+  const { provider, real, vendor } = await getSearchProvider();
+  if (!real) {
     // Honesty: no real SERP data — say so instead of inventing competitors.
     await db.setting.upsert({
       where: { key: `blog:gaps:${post.id}` },
@@ -288,7 +288,7 @@ export async function contentGapAction(formData: FormData) {
   }
 
   const query = post.focusKeyword ?? post.title;
-  const results = await search.search(query, 6);
+  const results = await provider.search(query, 6);
   const res = await llm.complete({
     model: post.model ?? workspace.defaultModel ?? llm.defaultModel,
     system:
@@ -313,6 +313,6 @@ export async function contentGapAction(formData: FormData) {
     update: { value: JSON.stringify(gaps) },
     create: { key: `blog:gaps:${post.id}`, value: JSON.stringify(gaps) },
   });
-  await writeAudit({ workspaceId: workspace.id, action: "blog.content_gap_analyzed", entityType: "blog_post", entityId: post.id });
+  await writeAudit({ workspaceId: workspace.id, action: "blog.content_gap_analyzed", entityType: "blog_post", entityId: post.id, meta: { vendor } });
   revalidatePath(`/blog/${id}`);
 }

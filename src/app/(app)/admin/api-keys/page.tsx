@@ -3,7 +3,7 @@ import { KeyRound, CheckCircle2, ExternalLink } from "lucide-react";
 import { requireRole } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { env } from "@/lib/env";
-import { saveApiKeyAction } from "@/app/actions/api-keys";
+import { saveApiKeyAction, saveSearchKeyAction } from "@/app/actions/api-keys";
 import { SubmitButton } from "@/components/SubmitButton";
 
 // In-app API key management. Admins can paste provider keys here
@@ -74,6 +74,62 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
         return (
           <form key={row.provider} action={saveApiKeyAction} className="card mb-3">
             <input type="hidden" name="provider" value={row.provider} />
+            <div className="flex items-start gap-3 mb-2">
+              <div className="flex-1">
+                <div className="font-mono font-bold text-sm flex items-center gap-2">
+                  {row.label}
+                  {hasKey && (
+                    <span className="text-[10px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded flex items-center gap-1" style={{ background: "var(--green-soft)", color: "var(--green-on)" }}>
+                      <CheckCircle2 className="w-3 h-3" /> active
+                    </span>
+                  )}
+                </div>
+                <div className="text-[11px] text-[var(--mute)] font-mono mt-0.5">{row.envVar}</div>
+                {resolved && <div className="text-[11px] font-mono text-[var(--mute)] mt-0.5">Current: {mask(resolved)}</div>}
+                <Link href={row.helpUrl} target="_blank" rel="noopener noreferrer" className="text-[11px] inline-flex items-center gap-1 mt-1" style={{ color: "var(--accent)" }}>
+                  Get a key from {row.helpText} <ExternalLink className="w-3 h-3" />
+                </Link>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <input
+                name="value"
+                type="password"
+                placeholder={dbVal ? "Paste a new key to replace, or leave empty to clear DB value" : "Paste your API key here"}
+                className="flex-1 border border-[var(--line-2)] rounded-lg p-2 text-sm font-mono"
+                autoComplete="off"
+              />
+              <SubmitButton className="btn primary sm" pendingText="Saving…">Save</SubmitButton>
+            </div>
+          </form>
+        );
+      })}
+
+      {/* Search providers — power content-gap analysis, SERP outlines, and web research. */}
+      <div className="flex items-center gap-3 mb-2 mt-8">
+        <span className="w-10 h-10 rounded-xl grid place-items-center" style={{ background: "var(--blue-soft)", color: "var(--blue-on)" }}>
+          <KeyRound className="w-5 h-5" strokeWidth={2.25} />
+        </span>
+        <div>
+          <h1 className="font-mono font-bold text-lg leading-tight">Search API keys</h1>
+          <p className="text-xs text-[var(--mute)]">
+            One key turns on real web search: content-gap analysis, competitor comparison, research.
+            Tavily is checked first, then Serper. No env changes needed — takes effect within ~30s.
+          </p>
+        </div>
+      </div>
+      {(
+        [
+          { vendor: "tavily", label: "Tavily", envVar: "TAVILY_API_KEY", envValue: env.TAVILY_API_KEY, helpUrl: "https://app.tavily.com", helpText: "app.tavily.com (free tier available)" },
+          { vendor: "serper", label: "Serper (Google results)", envVar: "SERPER_API_KEY", envValue: env.SERPER_API_KEY, helpUrl: "https://serper.dev", helpText: "serper.dev (free tier available)" },
+        ] as const
+      ).map((row) => {
+        const dbVal = byKey.get(`api_key:${row.vendor}`) ?? "";
+        const resolved = dbVal || row.envValue;
+        const hasKey = Boolean(resolved);
+        return (
+          <form key={row.vendor} action={saveSearchKeyAction} className="card mb-3">
+            <input type="hidden" name="vendor" value={row.vendor} />
             <div className="flex items-start gap-3 mb-2">
               <div className="flex-1">
                 <div className="font-mono font-bold text-sm flex items-center gap-2">

@@ -39,7 +39,11 @@ export const env = {
 
   USE_MOCK_IMAGES: bool(process.env.USE_MOCK_IMAGES, true),
   USE_MOCK_YOUTUBE: bool(process.env.USE_MOCK_YOUTUBE, true),
-  USE_MOCK_SEARCH: bool(process.env.USE_MOCK_SEARCH, true),
+  // Search activates on key presence (Admin → API keys); default false so an
+  // in-app key is sufficient. Set USE_MOCK_SEARCH=true to force the mock.
+  USE_MOCK_SEARCH: bool(process.env.USE_MOCK_SEARCH, false),
+  TAVILY_API_KEY: str(process.env.TAVILY_API_KEY),
+  SERPER_API_KEY: str(process.env.SERPER_API_KEY),
   USE_MOCK_EMAIL: bool(process.env.USE_MOCK_EMAIL, true),
   USE_MOCK_PRODUCTION: bool(process.env.USE_MOCK_PRODUCTION, true),
 

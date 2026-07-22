@@ -534,7 +534,7 @@ export default async function BlogPostPage({ params }: { params: Promise<{ id: s
 
           {gaps?.needsKey && (
             <p className="text-xs text-[var(--mute)]">
-              Content-gap analysis needs real search data — the search provider is in mock mode. Add a search API key and set USE_MOCK_SEARCH=false.
+              Content-gap analysis needs real search data. Add a Tavily or Serper key under <Link href="/admin/api-keys" className="underline">Admin → API keys</Link> — it takes effect within ~30 seconds, then run this again.
             </p>
           )}
           {entities && (
