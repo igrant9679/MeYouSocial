@@ -63,6 +63,15 @@ model BlogPost {
   publishedAt     DateTime?
   // Spark FR-14: shield a high performer from disruptive regeneration.
   protectedFromRewrite Boolean @default(false)
+  // Wave A′ SEO fields
+  secondaryKeywords String  @default("[]") // JSON array of phrases
+  outline         String?   // JSON [{heading, points[]}] — outline-first drafting
+  tone            String?   // professional | friendly | authoritative | conversational
+  readingLevel    String?   // simple | standard | advanced
+  scheduledAt     DateTime? // publish-at time; setting it at final_approval is the human approval
+  templateKey     String?   // blog structure template (listicle, how-to, ...)
+  model           String?   // per-post model override (multi-model drafting)
+  eeatReview      String?   // JSON — last E-E-A-T review findings
   createdById     String?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
@@ -71,8 +80,53 @@ model BlogPost {
   citations BlogCitation[]
   variants  SocialVariant[]
   snapshots BlogSnapshot[]
+  versions  BlogPostVersion[]
 
   @@index([workspaceId, status])
+}
+
+// Version history — snapshot on every generation and manual save.
+model BlogPostVersion {
+  id        String   @id @default(cuid())
+  postId    String
+  label     String   // "generated", "saved", "restored from ..."
+  body      String?
+  createdAt DateTime @default(now())
+
+  post BlogPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([postId, createdAt])
+}
+
+// Keyword strategy (Spark's 4-tier table, extended with clusters + intent).
+// Volume/difficulty are NOT stored — we have no search-data source; intent and
+// clusters are LLM-classified and labeled as such in the UI.
+model Keyword {
+  id          String   @id @default(cuid())
+  workspaceId String
+  phrase      String
+  tier        Int      @default(3) // 1 = head ... 4 = long-tail
+  intent      String?  // informational | commercial | transactional | navigational
+  cluster     String?  // topical cluster name
+  notes       String?
+  status      String   @default("active") // active | paused
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([workspaceId, phrase])
+  @@index([workspaceId, cluster])
+}
+
+// Site page inventory for internal-link suggestions (Spark's link graph seed).
+model SitePage {
+  id          String   @id @default(cuid())
+  workspaceId String
+  url         String
+  title       String
+  topic       String?  // short description of what the page covers
+  createdAt   DateTime @default(now())
+
+  @@unique([workspaceId, url])
 }
 
 // Spark's org profile — "what this client does"; grounds every generation.

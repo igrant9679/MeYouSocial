@@ -453,10 +453,20 @@ export async function runAutopilotCycle(workspaceId: string): Promise<CycleRepor
     }
   }
 
-  // 4. Publishing: auto mode only — and only gate-passing posts can go out.
-  if (modes.publishing === "auto") {
+  // 4. Publishing. Auto mode: any gate-passing final_approval post whose
+  // scheduledAt is unset or due. Assisted mode: ONLY due scheduled posts —
+  // an admin setting the time was the human approval. Manual: nothing.
+  if (modes.publishing === "auto" || modes.publishing === "assisted") {
+    const now = new Date();
     const ready = await db.blogPost.findMany({
-      where: { workspaceId, status: "final_approval" },
+      where:
+        modes.publishing === "auto"
+          ? {
+              workspaceId,
+              status: "final_approval",
+              OR: [{ scheduledAt: null }, { scheduledAt: { lte: now } }],
+            }
+          : { workspaceId, status: "final_approval", scheduledAt: { lte: now } },
       orderBy: { updatedAt: "asc" },
       take: 2,
     });

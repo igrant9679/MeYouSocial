@@ -11,6 +11,7 @@ import {
   deleteBlogPostAction,
   deleteCitationAction,
   generateBlogDraftAction,
+  scheduleBlogPostAction,
   updateBlogPostAction,
   verifyCitationAction,
 } from "@/app/actions/blog";
@@ -95,6 +96,39 @@ export default async function BlogPostPage({ params }: { params: Promise<{ id: s
           <span className="text-xs text-[var(--mute)]">Publishing needs an admin</span>
         )}
       </div>
+
+      {/* Scheduled publishing — setting a time at final approval IS the human
+          approval; autopilot (assisted or auto) publishes when due. */}
+      {post.status === "final_approval" && admin && (
+        <div className="card mb-4 flex flex-wrap items-center gap-2 text-sm">
+          <b>Schedule:</b>
+          {post.scheduledAt ? (
+            <span className="font-mono text-xs px-2 py-0.5 rounded-full" style={{ background: "var(--blue-soft)", color: "var(--blue-on)" }}>
+              publishes {post.scheduledAt.toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
+            </span>
+          ) : (
+            <span className="text-xs text-[var(--mute)]">not scheduled</span>
+          )}
+          <span className="flex-1" />
+          <form action={scheduleBlogPostAction} className="flex items-center gap-2">
+            <input type="hidden" name="id" value={post.id} />
+            <input
+              type="datetime-local"
+              name="scheduledAt"
+              defaultValue={post.scheduledAt ? new Date(post.scheduledAt.getTime() - post.scheduledAt.getTimezoneOffset() * 60000).toISOString().slice(0, 16) : ""}
+              className="text-xs font-mono"
+            />
+            <button className="btn">Set</button>
+          </form>
+          {post.scheduledAt && (
+            <form action={scheduleBlogPostAction}>
+              <input type="hidden" name="id" value={post.id} />
+              <input type="hidden" name="scheduledAt" value="" />
+              <button className="btn">Clear</button>
+            </form>
+          )}
+        </div>
+      )}
 
       {/* WordPress publish (FR-11) — appears from final approval onward */}
       {(post.status === "final_approval" || post.status === "published") && (

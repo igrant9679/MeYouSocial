@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Sparkles, PenLine, Telescope, MessageCircle, Image as ImageIcon, ArrowRight } from "lucide-react";
+import { Sparkles, PenLine, Telescope, MessageCircle, Image as ImageIcon, ArrowRight, FileText, Bot } from "lucide-react";
 import { requireMembership } from "@/lib/acl";
 import { db } from "@/lib/db";
 
@@ -7,6 +7,18 @@ import { db } from "@/lib/db";
 
 export default async function DashboardPage() {
   const { workspace, user } = await requireMembership();
+
+  const [blogByStatus, blogIdeasOpen, lastAutopilot] = await Promise.all([
+    db.blogPost.groupBy({ by: ["status"], where: { workspaceId: workspace.id }, _count: { _all: true } }),
+    db.blogIdea.count({ where: { workspaceId: workspace.id, status: { in: ["discovered", "approved"] } } }),
+    db.auditLog.findFirst({
+      where: { workspaceId: workspace.id, action: { in: ["autopilot.cycle", "autopilot.manual_run"] } },
+      orderBy: { createdAt: "desc" },
+    }),
+  ]);
+  const blogCount = (s: string) => blogByStatus.find((b) => b.status === s)?._count._all ?? 0;
+  const blogTotal = blogByStatus.reduce((a, b) => a + b._count._all, 0);
+  const blogNeedsYou = blogCount("draft_review") + blogCount("final_approval");
 
   const [channelCount, scriptCount, ideaCount, recentScripts, recentIdeas, channels] = await Promise.all([
     db.channel.count({ where: { workspaceId: workspace.id } }),
@@ -49,7 +61,8 @@ export default async function DashboardPage() {
         <div className="absolute right-6 top-6 flex gap-2 z-10">
           <PillStat label="channels" value={channelCount} />
           <PillStat label="scripts" value={scriptCount} />
-          <PillStat label="ideas" value={ideaCount} />
+          <PillStat label="posts" value={blogTotal} />
+          <PillStat label="ideas" value={ideaCount + blogIdeasOpen} />
         </div>
       </div>
 
@@ -60,6 +73,48 @@ export default async function DashboardPage() {
         <QuickTile href="/intel" label="Explore Intel" icon={Telescope} color="var(--blue-on)" soft="var(--blue-soft)" />
         <QuickTile href="/chat" label="Brainstorm chat" icon={MessageCircle} color="var(--violet-on)" soft="var(--violet-soft)" />
       </div>
+
+      {/* Blog pipeline (Wave A′ — the blog side is first-class on Home now) */}
+      <section className="card mb-6">
+        <div className="flex items-center mb-3">
+          <h2 className="font-mono text-[15px] font-bold flex items-center gap-2">
+            <span className="w-7 h-7 rounded-lg grid place-items-center" style={{ background: "var(--rose-soft)", color: "var(--rose-on)" }}>
+              <FileText className="w-4 h-4" strokeWidth={2.5} />
+            </span>
+            Blog pipeline
+          </h2>
+          <span className="flex-1" />
+          <Link href="/blog" className="text-xs font-mono text-[var(--accent)] font-semibold hover:underline">open blog →</Link>
+        </div>
+        <div className="flex flex-wrap items-center gap-2 mb-2">
+          {[
+            { label: "drafting", n: blogCount("drafting"), hue: "amber" },
+            { label: "in review", n: blogCount("draft_review"), hue: "blue" },
+            { label: "approval", n: blogCount("final_approval"), hue: "violet" },
+            { label: "published", n: blogCount("published"), hue: "green" },
+            { label: "open ideas", n: blogIdeasOpen, hue: "cyan" },
+          ].map((s) => (
+            <span key={s.label} className="font-mono text-xs px-2.5 py-1 rounded-full" style={{ background: `var(--${s.hue}-soft)`, color: `var(--${s.hue}-on)` }}>
+              {s.label} <b>{s.n}</b>
+            </span>
+          ))}
+        </div>
+        <div className="flex flex-wrap items-center gap-3 text-xs text-[var(--mute)]">
+          {blogNeedsYou > 0 ? (
+            <Link href="/blog/board" className="underline" style={{ color: "var(--amber-on)" }}>
+              {blogNeedsYou} post{blogNeedsYou === 1 ? "" : "s"} waiting on you
+            </Link>
+          ) : (
+            <span>Nothing waiting on review.</span>
+          )}
+          <span className="flex items-center gap-1">
+            <Bot className="w-3.5 h-3.5" />
+            {lastAutopilot
+              ? `autopilot: last activity ${lastAutopilot.createdAt.toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}`
+              : "autopilot idle — set modes under Blog → Automation"}
+          </span>
+        </div>
+      </section>
 
       {/* Channels strip */}
       {channels.length > 0 && (

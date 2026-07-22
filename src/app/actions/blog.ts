@@ -128,6 +128,32 @@ export async function generateBlogDraftAction(formData: FormData) {
   revalidatePath(`/blog/${id}`);
 }
 
+/**
+ * Schedule (or unschedule) publishing. ADMIN act at final_approval — setting a
+ * time is the human approval that lets the autopilot publish when it's due,
+ * even in assisted mode. Gates still re-verify at the moment of publish.
+ */
+export async function scheduleBlogPostAction(formData: FormData) {
+  const id = String(formData.get("id"));
+  const when = String(formData.get("scheduledAt") ?? "").trim();
+  const { user, workspace } = await requireRole("ADMIN");
+  const post = await db.blogPost.findFirst({ where: { id, workspaceId: workspace.id } });
+  if (!post || post.status !== "final_approval") return;
+
+  const date = when ? new Date(when) : null;
+  if (date && Number.isNaN(date.getTime())) return;
+  await db.blogPost.update({ where: { id: post.id }, data: { scheduledAt: date } });
+  await writeAudit({
+    workspaceId: workspace.id,
+    actorId: user.id,
+    action: date ? "blog.scheduled" : "blog.unscheduled",
+    entityType: "blog_post",
+    entityId: post.id,
+    meta: date ? { scheduledAt: date.toISOString() } : {},
+  });
+  revalidatePath(`/blog/${post.id}`);
+}
+
 // ---- Citations ---------------------------------------------------------------
 
 export async function addCitationAction(formData: FormData) {
