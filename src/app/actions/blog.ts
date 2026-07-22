@@ -53,6 +53,14 @@ export async function updateBlogPostAction(formData: FormData) {
   const str = (v: FormDataEntryValue | null) => String(v ?? "").trim() || null;
 
   const newBody = str(formData.get("body"));
+  const pick = (k: string, allowed: string[]) => {
+    const v = str(formData.get(k));
+    return v && allowed.includes(v) ? v : null;
+  };
+  const secondaryRaw = str(formData.get("secondaryKeywords"));
+  const secondary = secondaryRaw
+    ? JSON.stringify(secondaryRaw.split(",").map((s) => s.trim().toLowerCase()).filter(Boolean).slice(0, 8))
+    : "[]";
   await db.blogPost.update({
     where: { id: post.id },
     data: {
@@ -63,6 +71,11 @@ export async function updateBlogPostAction(formData: FormData) {
       focusKeyword: str(formData.get("focusKeyword")),
       audience: str(formData.get("audience")),
       wordCountTarget: num(formData.get("wordCountTarget")),
+      tone: pick("tone", ["professional", "friendly", "authoritative", "conversational"]),
+      readingLevel: pick("readingLevel", ["simple", "standard", "advanced"]),
+      templateKey: str(formData.get("templateKey")),
+      model: str(formData.get("model")),
+      secondaryKeywords: secondary,
       body: newBody,
     },
   });

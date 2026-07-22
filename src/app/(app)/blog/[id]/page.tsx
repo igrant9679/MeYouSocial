@@ -4,6 +4,18 @@ import { ArrowLeft, Check, ChevronLeft, ChevronRight, CircleAlert, ShieldCheck, 
 import { requireMembership, canEdit, canAdmin } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { runBlogChecks, requiredChecksPass } from "@/lib/blog-checks";
+import { contentScore } from "@/lib/blog-score";
+import { BLOG_TEMPLATES } from "@/lib/blog-templates";
+import { llm } from "@/lib/llm";
+import {
+  applyTitleAction,
+  generateAltTextAction,
+  generateMetaAction,
+  generateOutlineAction,
+  generateTitlesAction,
+  regenerateSectionAction,
+  saveOutlineAction,
+} from "@/app/actions/blog-craft";
 import { SubmitButton } from "@/components/SubmitButton";
 import { BlogBodyEditor } from "@/components/BlogBodyEditor";
 import {
@@ -57,6 +69,14 @@ export default async function BlogPostPage({ params }: { params: Promise<{ id: s
   const unverified = post.citations.filter((c) => !c.verified).length;
   const checks = runBlogChecks(post, unverified);
   const gatesPass = requiredChecksPass(checks);
+  const score = contentScore(post, checks);
+  const titlesSetting = await db.setting.findUnique({ where: { key: `blog:titles:${post.id}` } });
+  let titleVariants: string[] = [];
+  try { titleVariants = titlesSetting ? (JSON.parse(titlesSetting.value) as string[]) : []; } catch { titleVariants = []; }
+  let outline: Array<{ heading: string; points: string[] }> = [];
+  try { outline = post.outline ? JSON.parse(post.outline) : []; } catch { outline = []; }
+  let secondaryKw: string[] = [];
+  try { secondaryKw = JSON.parse(post.secondaryKeywords) as string[]; } catch { secondaryKw = []; }
 
   return (
     <main className="p-6 max-w-4xl mx-auto w-full">
@@ -171,11 +191,32 @@ export default async function BlogPostPage({ params }: { params: Promise<{ id: s
 
       {/* Pre-publish checks (Spark gates — server-enforced on advance) */}
       <details className="card mb-4" open={!gatesPass}>
-        <summary className="cursor-pointer select-none text-sm font-semibold flex items-center gap-2">
+        <summary className="cursor-pointer select-none text-sm font-semibold flex items-center gap-2 flex-wrap">
           <ShieldCheck className="w-4 h-4" style={{ color: gatesPass ? "var(--green-on)" : "var(--amber-on)" }} />
           Publish gates: {checks.filter((c) => c.required && c.pass).length}/{checks.filter((c) => c.required).length} required checks pass
+          <span
+            className="font-mono text-xs px-2 py-0.5 rounded-full"
+            style={
+              score.total >= 75
+                ? { background: "var(--green-soft)", color: "var(--green-on)" }
+                : score.total >= 50
+                  ? { background: "var(--amber-soft)", color: "var(--amber-on)" }
+                  : { background: "var(--rose-soft)", color: "var(--rose-on)" }
+            }
+            title={score.parts.map((p) => `${p.label} ${p.score}/${p.max}${p.detail ? ` (${p.detail})` : ""}`).join(" · ")}
+          >
+            content score {score.total}/100
+          </span>
           {!gatesPass && <span className="text-xs font-normal text-[var(--mute)]">— advancing to approval/publish is blocked</span>}
         </summary>
+        <div className="mt-2 flex flex-wrap gap-1.5 text-[10px] font-mono">
+          {score.parts.map((p) => (
+            <span key={p.label} className="px-1.5 py-0.5 rounded-full" style={{ background: "var(--panel)", color: "var(--mute)" }} title={p.detail}>
+              {p.label} {p.score}/{p.max}
+            </span>
+          ))}
+          <span className="px-1.5 py-0.5 text-[var(--mute)]">not SERP-comparative — needs a search-data provider</span>
+        </div>
         <ul className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-1.5">
           {checks.map((c) => (
             <li key={c.id} className="flex items-start gap-2 text-xs">
@@ -281,6 +322,38 @@ export default async function BlogPostPage({ params }: { params: Promise<{ id: s
             <input name="wordCountTarget" type="number" min={100} defaultValue={post.wordCountTarget ?? ""} placeholder="900" className="w-full font-mono" disabled={!editor} />
           </label>
           <label className="text-sm">
+            <span className="block text-xs text-[var(--mute)] mb-1">Secondary keywords (comma-separated)</span>
+            <input name="secondaryKeywords" defaultValue={secondaryKw.join(", ")} placeholder="grant software, nonprofit tools" className="w-full text-xs" disabled={!editor} />
+          </label>
+          <label className="text-sm">
+            <span className="block text-xs text-[var(--mute)] mb-1">Template</span>
+            <select name="templateKey" defaultValue={post.templateKey ?? ""} className="w-full text-xs" disabled={!editor}>
+              <option value="">none</option>
+              {BLOG_TEMPLATES.map((t) => <option key={t.key} value={t.key}>{t.name}</option>)}
+            </select>
+          </label>
+          <label className="text-sm">
+            <span className="block text-xs text-[var(--mute)] mb-1">Tone</span>
+            <select name="tone" defaultValue={post.tone ?? ""} className="w-full text-xs" disabled={!editor}>
+              <option value="">default</option>
+              {["professional", "friendly", "authoritative", "conversational"].map((t) => <option key={t} value={t}>{t}</option>)}
+            </select>
+          </label>
+          <label className="text-sm">
+            <span className="block text-xs text-[var(--mute)] mb-1">Reading level</span>
+            <select name="readingLevel" defaultValue={post.readingLevel ?? ""} className="w-full text-xs" disabled={!editor}>
+              <option value="">default</option>
+              {["simple", "standard", "advanced"].map((t) => <option key={t} value={t}>{t}</option>)}
+            </select>
+          </label>
+          <label className="text-sm">
+            <span className="block text-xs text-[var(--mute)] mb-1">Model (this post)</span>
+            <select name="model" defaultValue={post.model ?? ""} className="w-full text-xs font-mono" disabled={!editor}>
+              <option value="">workspace default</option>
+              {llm.models.map((m) => <option key={m.id} value={m.id}>{m.label ?? m.id}</option>)}
+            </select>
+          </label>
+          <label className="text-sm">
             <span className="block text-xs text-[var(--mute)] mb-1">Meta title <span className="font-mono">({(post.metaTitle ?? "").length}/60)</span></span>
             <input name="metaTitle" defaultValue={post.metaTitle ?? ""} maxLength={60} className="w-full" disabled={!editor} />
           </label>
@@ -298,6 +371,77 @@ export default async function BlogPostPage({ params }: { params: Promise<{ id: s
           </div>
         )}
       </form>
+
+      {/* Craft & optimize (Wave A′) */}
+      {editor && (
+        <div className="card mt-4">
+          <h2 className="text-sm font-semibold mb-2">Craft and optimize</h2>
+          <div className="flex flex-wrap items-center gap-2 mb-3">
+            <form action={generateOutlineAction}>
+              <input type="hidden" name="id" value={post.id} />
+              <SubmitButton className="btn" pendingText="Outlining…"><Sparkles className="w-3.5 h-3.5" /> {outline.length ? "Regenerate outline" : "Generate outline"}</SubmitButton>
+            </form>
+            <form action={generateTitlesAction}>
+              <input type="hidden" name="id" value={post.id} />
+              <SubmitButton className="btn" pendingText="Titling…">A/B titles</SubmitButton>
+            </form>
+            <form action={generateMetaAction}>
+              <input type="hidden" name="id" value={post.id} />
+              <SubmitButton className="btn" pendingText="Writing meta…">Generate meta tags</SubmitButton>
+            </form>
+            <form action={generateAltTextAction}>
+              <input type="hidden" name="id" value={post.id} />
+              <SubmitButton className="btn" pendingText="Describing…">Fix image alt text</SubmitButton>
+            </form>
+          </div>
+
+          {outline.length > 0 && (
+            <div className="mb-3">
+              <p className="text-xs text-[var(--mute)] mb-1">
+                Outline — drafts follow it exactly. Regenerate a single section without touching the rest:
+              </p>
+              <ul className="text-xs flex flex-col gap-1 mb-2">
+                {outline.map((s) => (
+                  <li key={s.heading} className="flex items-start gap-2">
+                    <form action={regenerateSectionAction} className="shrink-0">
+                      <input type="hidden" name="id" value={post.id} />
+                      <input type="hidden" name="heading" value={s.heading} />
+                      <SubmitButton className="btn" pendingText="…" title="Rewrite just this section in the draft">↻</SubmitButton>
+                    </form>
+                    <span><b>{s.heading}</b>{s.points.length ? <span className="text-[var(--mute)]"> — {s.points.join("; ")}</span> : null}</span>
+                  </li>
+                ))}
+              </ul>
+              <details>
+                <summary className="text-xs text-[var(--mute)] cursor-pointer">Edit outline as JSON</summary>
+                <form action={saveOutlineAction} className="mt-1 flex flex-col gap-1">
+                  <input type="hidden" name="id" value={post.id} />
+                  <textarea name="outline" rows={5} defaultValue={JSON.stringify(outline, null, 1)} className="w-full font-mono text-[10px]" />
+                  <button className="btn self-start">Save outline</button>
+                </form>
+              </details>
+            </div>
+          )}
+
+          {titleVariants.length > 0 && (
+            <div>
+              <p className="text-xs text-[var(--mute)] mb-1">Title variants (CTR-focused):</p>
+              <ul className="text-xs flex flex-col gap-1">
+                {titleVariants.map((t) => (
+                  <li key={t} className="flex items-center gap-2">
+                    <form action={applyTitleAction} className="shrink-0">
+                      <input type="hidden" name="id" value={post.id} />
+                      <input type="hidden" name="title" value={t} />
+                      <button className="btn">Use</button>
+                    </form>
+                    <span className={t === post.title ? "font-semibold" : ""}>{t}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Video package (Phase 4) — once the post reaches approval/published */}
       {(post.status === "final_approval" || post.status === "published") && editor && (

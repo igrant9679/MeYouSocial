@@ -6,6 +6,7 @@ import { decryptSecret, type Encrypted } from "@/lib/blog-crypto";
 import { wpCreatePost, type WpCredentials } from "@/lib/wordpress";
 import { getModes, isGloballyPaused, writeAudit } from "@/lib/governance";
 import { getVideoProvider, estimateCostUsd } from "@/lib/video";
+import { templateGuidance } from "@/lib/blog-templates";
 
 /**
  * Autopilot cores + the Phase-3 scheduler cycle. Every function here is
@@ -95,6 +96,51 @@ export async function discoverIdeasCore(workspaceId: string): Promise<number> {
   return rows.length;
 }
 
+/** Generate (or regenerate) the outline as JSON [{heading, points[]}]. */
+export async function generateOutlineCore(workspaceId: string, postId: string): Promise<boolean> {
+  const post = await db.blogPost.findFirst({ where: { id: postId, workspaceId } });
+  if (!post) return false;
+  if (await isGloballyPaused(workspaceId)) return false;
+  const workspace = await db.workspace.findUnique({ where: { id: workspaceId } });
+  if (!workspace) return false;
+  const org = await db.orgProfile.findUnique({ where: { workspaceId } });
+  let secondary: string[] = [];
+  try { secondary = JSON.parse(post.secondaryKeywords) as string[]; } catch { secondary = []; }
+
+  const system =
+    "You are an SEO content strategist. Respond ONLY with a JSON array: " +
+    '[{"heading": string, "points": string[]}] — 4 to 7 h2 sections with 2-4 bullet points each. ' +
+    "No invented statistics in points. Headings should be specific, and at least one should naturally contain the focus keyword when one is given.";
+  const prompt = [
+    `Outline a blog post titled: "${post.title}".`,
+    org?.description ? `Organization context: ${org.description.slice(0, 500)}` : null,
+    post.focusKeyword ? `Focus keyword: "${post.focusKeyword}".` : null,
+    secondary.length ? `Secondary keywords to cover: ${secondary.join(", ")}.` : null,
+    templateGuidance(post.templateKey) ? `Structure: ${templateGuidance(post.templateKey)}` : null,
+    post.audience ? `Audience: ${post.audience}.` : null,
+  ].filter(Boolean).join("\n");
+
+  const res = await llm.complete({
+    model: post.model ?? workspace.defaultModel ?? llm.defaultModel,
+    system,
+    messages: [{ role: "user", content: prompt }],
+    maxTokens: 1200,
+  });
+  let outline: Array<{ heading?: string; points?: string[] }> = [];
+  try {
+    const m = res.content.match(/\[[\s\S]*\]/);
+    outline = m ? JSON.parse(m[0]) : [];
+  } catch { outline = []; }
+  const clean = outline
+    .filter((s) => typeof s.heading === "string" && s.heading.trim())
+    .slice(0, 8)
+    .map((s) => ({ heading: s.heading!.trim().slice(0, 150), points: (s.points ?? []).filter((p) => typeof p === "string").slice(0, 5) }));
+  if (!clean.length) return false;
+  await db.blogPost.update({ where: { id: post.id }, data: { outline: JSON.stringify(clean) } });
+  await writeAudit({ workspaceId, action: "blog.outline_generated", entityType: "blog_post", entityId: post.id, meta: { sections: clean.length } });
+  return true;
+}
+
 export async function generateDraftCore(workspaceId: string, postId: string): Promise<boolean> {
   const post = await db.blogPost.findFirst({ where: { id: postId, workspaceId } });
   if (!post || post.protectedFromRewrite) return false;
@@ -126,20 +172,42 @@ export async function generateDraftCore(workspaceId: string, postId: string): Pr
     .join("\n\n");
 
   const target = post.wordCountTarget ?? 900;
+  let outline: Array<{ heading: string; points: string[] }> = [];
+  try { outline = post.outline ? JSON.parse(post.outline) : []; } catch { outline = []; }
+  let secondary: string[] = [];
+  try { secondary = JSON.parse(post.secondaryKeywords) as string[]; } catch { secondary = []; }
+  const TONE_HINT: Record<string, string> = {
+    professional: "professional and precise",
+    friendly: "warm, friendly, first-person plural",
+    authoritative: "confident and authoritative, no hedging",
+    conversational: "conversational, short sentences, direct address",
+  };
+  const LEVEL_HINT: Record<string, string> = {
+    simple: "8th-grade reading level — short sentences, common words",
+    standard: "general adult reading level",
+    advanced: "expert reading level — technical vocabulary is fine",
+  };
+
   const prompt = [
     `Write a blog post draft titled: "${post.title}".`,
     post.audience ? `Intended audience: ${post.audience}.` : null,
     post.focusKeyword
       ? `Primary SEO keyword: "${post.focusKeyword}" — use it naturally in the opening paragraph and at least one heading.`
       : null,
-    `Length: about ${target} words.`,
-    "Structure: strong opening hook, 3–5 h2 sections, actionable close. HTML only.",
+    secondary.length ? `Work these secondary keywords in naturally (no stuffing): ${secondary.join(", ")}.` : null,
+    post.tone && TONE_HINT[post.tone] ? `Tone: ${TONE_HINT[post.tone]}.` : null,
+    post.readingLevel && LEVEL_HINT[post.readingLevel] ? `Reading level: ${LEVEL_HINT[post.readingLevel]}.` : null,
+    templateGuidance(post.templateKey) ? `Structure template: ${templateGuidance(post.templateKey)}` : null,
+    outline.length
+      ? `Follow this approved outline exactly (h2 per section):\n${outline.map((s) => `- ${s.heading}${s.points.length ? ` (${s.points.join("; ")})` : ""}`).join("\n")}`
+      : "Structure: strong opening hook, 3–5 h2 sections, actionable close.",
+    `Length: about ${target} words. HTML only.`,
   ]
     .filter(Boolean)
     .join("\n");
 
   const res = await llm.complete({
-    model: workspace.defaultModel ?? llm.defaultModel,
+    model: post.model ?? workspace.defaultModel ?? llm.defaultModel,
     system,
     messages: [{ role: "user", content: prompt }],
     maxTokens: 4000,
