@@ -5,12 +5,14 @@ import { requireMembership, canEdit, canAdmin } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { runBlogChecks, requiredChecksPass } from "@/lib/blog-checks";
 import { SubmitButton } from "@/components/SubmitButton";
+import { BlogBodyEditor } from "@/components/BlogBodyEditor";
 import {
   addCitationAction,
   advanceBlogStatusAction,
   deleteBlogPostAction,
   deleteCitationAction,
   generateBlogDraftAction,
+  restoreBlogVersionAction,
   scheduleBlogPostAction,
   updateBlogPostAction,
   verifyCitationAction,
@@ -42,6 +44,7 @@ export default async function BlogPostPage({ params }: { params: Promise<{ id: s
     include: {
       citations: { orderBy: { createdAt: "asc" } },
       variants: { orderBy: { platform: "asc" } },
+      versions: { orderBy: { createdAt: "desc" }, take: 20 },
     },
   });
   if (!post) notFound();
@@ -287,17 +290,7 @@ export default async function BlogPostPage({ params }: { params: Promise<{ id: s
           </label>
         </div>
 
-        <label className="text-sm">
-          <span className="block text-xs text-[var(--mute)] mb-1">Body (HTML)</span>
-          <textarea
-            name="body"
-            defaultValue={post.body ?? ""}
-            rows={18}
-            placeholder="Write here, or generate a grounded AI draft below."
-            className="w-full font-mono text-xs leading-relaxed"
-            disabled={!editor}
-          />
-        </label>
+        <BlogBodyEditor postId={post.id} initialBody={post.body ?? ""} disabled={!editor} />
 
         {editor && (
           <div className="flex items-center gap-2">
@@ -393,6 +386,34 @@ export default async function BlogPostPage({ params }: { params: Promise<{ id: s
             </ul>
           )}
         </div>
+      )}
+
+      {/* Version history */}
+      {post.versions.length > 0 && (
+        <details className="card mt-4">
+          <summary className="cursor-pointer select-none text-sm font-semibold">
+            Version history <span className="font-mono text-xs text-[var(--mute)]">({post.versions.length})</span>
+          </summary>
+          <ul className="mt-2 flex flex-col gap-1">
+            {post.versions.map((v) => (
+              <li key={v.id} className="flex items-center gap-2 text-xs border-b border-[var(--line)] pb-1 last:border-0">
+                <span className="font-mono text-[var(--mute)] shrink-0">
+                  {v.createdAt.toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
+                </span>
+                <span className="font-semibold">{v.label}</span>
+                <span className="text-[var(--mute)] flex-1 truncate">
+                  {(v.body ?? "").replace(/<[^>]+>/g, " ").trim().slice(0, 80) || "(empty)"}
+                </span>
+                {editor && (
+                  <form action={restoreBlogVersionAction}>
+                    <input type="hidden" name="versionId" value={v.id} />
+                    <button className="btn" title="Restore this version (current body is snapshotted first)">Restore</button>
+                  </form>
+                )}
+              </li>
+            ))}
+          </ul>
+        </details>
       )}
 
       {editor && (

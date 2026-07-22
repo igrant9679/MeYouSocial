@@ -145,6 +145,12 @@ export async function generateDraftCore(workspaceId: string, postId: string): Pr
     maxTokens: 4000,
   });
 
+  // Version history: preserve what generation is about to overwrite.
+  if (post.body) {
+    await db.blogPostVersion.create({
+      data: { postId: post.id, label: "before generation", body: post.body },
+    });
+  }
   await db.blogPost.update({ where: { id: post.id }, data: { body: res.content } });
   await db.blogCitation.deleteMany({ where: { postId: post.id, verified: false } });
   const text = res.content.replace(/<[^>]+>/g, " ");

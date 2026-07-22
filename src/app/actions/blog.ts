@@ -52,6 +52,7 @@ export async function updateBlogPostAction(formData: FormData) {
   };
   const str = (v: FormDataEntryValue | null) => String(v ?? "").trim() || null;
 
+  const newBody = str(formData.get("body"));
   await db.blogPost.update({
     where: { id: post.id },
     data: {
@@ -62,9 +63,10 @@ export async function updateBlogPostAction(formData: FormData) {
       focusKeyword: str(formData.get("focusKeyword")),
       audience: str(formData.get("audience")),
       wordCountTarget: num(formData.get("wordCountTarget")),
-      body: str(formData.get("body")),
+      body: newBody,
     },
   });
+  if (newBody !== post.body) await snapshotVersion(post.id, "saved", newBody);
   revalidatePath(`/blog/${post.id}`);
   revalidatePath("/blog");
 }
@@ -126,6 +128,44 @@ export async function generateBlogDraftAction(formData: FormData) {
   // extraction live in the core — shared with the autopilot scheduler.
   await generateDraftCore(workspace.id, id);
   revalidatePath(`/blog/${id}`);
+}
+
+/** Debounced autosave from the editor — body only, no version churn. */
+export async function autosaveBlogBodyAction(formData: FormData) {
+  const id = String(formData.get("id"));
+  const body = String(formData.get("body") ?? "");
+  const { workspace } = await requireRole("EDITOR");
+  await db.blogPost.updateMany({
+    where: { id, workspaceId: workspace.id },
+    data: { body: body || null },
+  });
+}
+
+/** Keep the last 20 versions per post. */
+async function snapshotVersion(postId: string, label: string, body: string | null) {
+  await db.blogPostVersion.create({ data: { postId, label, body } });
+  const excess = await db.blogPostVersion.findMany({
+    where: { postId },
+    orderBy: { createdAt: "desc" },
+    skip: 20,
+    select: { id: true },
+  });
+  if (excess.length) {
+    await db.blogPostVersion.deleteMany({ where: { id: { in: excess.map((v) => v.id) } } });
+  }
+}
+
+export async function restoreBlogVersionAction(formData: FormData) {
+  const versionId = String(formData.get("versionId"));
+  const { workspace } = await requireRole("EDITOR");
+  const version = await db.blogPostVersion.findFirst({
+    where: { id: versionId, post: { workspaceId: workspace.id } },
+    include: { post: { select: { id: true, body: true } } },
+  });
+  if (!version) return;
+  await snapshotVersion(version.post.id, "before restore", version.post.body);
+  await db.blogPost.update({ where: { id: version.post.id }, data: { body: version.body } });
+  revalidatePath(`/blog/${version.post.id}`);
 }
 
 /**
