@@ -15,6 +15,11 @@ import {
   verifyCitationAction,
 } from "@/app/actions/blog";
 import { publishToWordPressAction } from "@/app/actions/blog-wp";
+import {
+  deleteSocialVariantAction,
+  generateSocialVariantsAction,
+  setSocialVariantStatusAction,
+} from "@/app/actions/blog-social";
 
 // Blog post editor (Spark port, slice 1): SEO metadata + HTML body + grounded
 // AI draft + the review-state machine. Publishing is an ADMIN act (human gate).
@@ -32,7 +37,10 @@ export default async function BlogPostPage({ params }: { params: Promise<{ id: s
   const { workspace, membership } = await requireMembership();
   const post = await db.blogPost.findFirst({
     where: { id, workspaceId: workspace.id },
-    include: { citations: { orderBy: { createdAt: "asc" } } },
+    include: {
+      citations: { orderBy: { createdAt: "asc" } },
+      variants: { orderBy: { platform: "asc" } },
+    },
   });
   if (!post) notFound();
   const wpConn = await db.wordPressConnection.findUnique({ where: { workspaceId: workspace.id } });
@@ -262,6 +270,79 @@ export default async function BlogPostPage({ params }: { params: Promise<{ id: s
           </div>
         )}
       </form>
+
+      {/* Social variants (FR-12) — once the post reaches approval/published */}
+      {(post.status === "final_approval" || post.status === "published") && (
+        <div className="card mt-4">
+          <div className="flex items-center gap-2 mb-2">
+            <h2 className="text-sm font-semibold flex-1">
+              Social variants{" "}
+              <span className="font-mono text-xs text-[var(--mute)]">
+                {post.variants.filter((v) => v.status === "posted").length}/{post.variants.length} posted
+              </span>
+            </h2>
+            {editor && (
+              <form action={generateSocialVariantsAction}>
+                <input type="hidden" name="postId" value={post.id} />
+                <SubmitButton className="btn" pendingText="Writing…">
+                  <Sparkles className="w-4 h-4" /> {post.variants.length ? "Regenerate" : "Generate"} variants
+                </SubmitButton>
+              </form>
+            )}
+          </div>
+          {post.variants.length === 0 ? (
+            <p className="text-xs text-[var(--mute)]">
+              Generate LinkedIn / X / Instagram / Facebook copy from the article. {"{{URL}}"} becomes the published link.
+            </p>
+          ) : (
+            <ul className="flex flex-col gap-2">
+              {post.variants.map((v) => (
+                <li key={v.id} className="border-b border-[var(--line)] pb-2 last:border-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="font-mono text-xs font-semibold uppercase">{v.platform}</span>
+                    <span
+                      className="font-mono text-[10px] px-1.5 py-0.5 rounded-full"
+                      style={
+                        v.status === "posted"
+                          ? { background: "var(--green-soft)", color: "var(--green-on)" }
+                          : v.status === "approved"
+                            ? { background: "var(--blue-soft)", color: "var(--blue-on)" }
+                            : { background: "var(--panel)", color: "var(--mute)" }
+                      }
+                    >
+                      {v.status}
+                    </span>
+                    <span className="flex-1" />
+                    {editor && v.status === "draft" && (
+                      <form action={setSocialVariantStatusAction}>
+                        <input type="hidden" name="id" value={v.id} />
+                        <input type="hidden" name="status" value="approved" />
+                        <button className="btn">Approve</button>
+                      </form>
+                    )}
+                    {editor && v.status === "approved" && (
+                      <form action={setSocialVariantStatusAction}>
+                        <input type="hidden" name="id" value={v.id} />
+                        <input type="hidden" name="status" value="posted" />
+                        <button className="btn primary">Mark posted</button>
+                      </form>
+                    )}
+                    {editor && v.status !== "posted" && (
+                      <form action={deleteSocialVariantAction}>
+                        <input type="hidden" name="id" value={v.id} />
+                        <button className="btn" title="Delete"><Trash2 className="w-3.5 h-3.5" /></button>
+                      </form>
+                    )}
+                  </div>
+                  <p className="text-xs whitespace-pre-wrap text-[var(--slate)]">
+                    {v.content.replaceAll("{{URL}}", post.publishedUrl ?? "{{URL}}")}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
 
       {editor && (
         <div className="flex items-center gap-2 mt-4">
