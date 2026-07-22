@@ -65,6 +65,7 @@ export default async function BlogPage() {
           </p>
         </div>
         <Link href="/blog/organization" className="btn">Organization profile</Link>
+        <Link href="/blog/settings" className="btn">Settings</Link>
       </div>
 
       {editor && (

@@ -14,6 +14,7 @@ import {
   updateBlogPostAction,
   verifyCitationAction,
 } from "@/app/actions/blog";
+import { publishToWordPressAction } from "@/app/actions/blog-wp";
 
 // Blog post editor (Spark port, slice 1): SEO metadata + HTML body + grounded
 // AI draft + the review-state machine. Publishing is an ADMIN act (human gate).
@@ -34,6 +35,7 @@ export default async function BlogPostPage({ params }: { params: Promise<{ id: s
     include: { citations: { orderBy: { createdAt: "asc" } } },
   });
   if (!post) notFound();
+  const wpConn = await db.wordPressConnection.findUnique({ where: { workspaceId: workspace.id } });
 
   const editor = canEdit(membership.role);
   const admin = canAdmin(membership.role);
@@ -84,6 +86,42 @@ export default async function BlogPostPage({ params }: { params: Promise<{ id: s
           <span className="text-xs text-[var(--mute)]">Publishing needs an admin</span>
         )}
       </div>
+
+      {/* WordPress publish (FR-11) — appears from final approval onward */}
+      {(post.status === "final_approval" || post.status === "published") && (
+        <div className="card mb-4 flex flex-wrap items-center gap-2 text-sm">
+          <b>WordPress:</b>
+          {post.publishedUrl ? (
+            <a href={post.publishedUrl} target="_blank" rel="noreferrer" className="underline text-[var(--blue-on)] break-all">
+              {post.publishedUrl}
+            </a>
+          ) : wpConn ? (
+            <>
+              <span className="font-mono text-xs px-2 py-0.5 rounded-full" style={wpConn.status === "connected" ? { background: "var(--green-soft)", color: "var(--green-on)" } : { background: "var(--rose-soft)", color: "var(--rose-on)" }}>
+                {wpConn.status}
+              </span>
+              <span className="flex-1" />
+              {admin && (
+                <>
+                  <form action={publishToWordPressAction}>
+                    <input type="hidden" name="postId" value={post.id} />
+                    <input type="hidden" name="dryRun" value="1" />
+                    <SubmitButton className="btn" pendingText="Testing…">Dry run</SubmitButton>
+                  </form>
+                  <form action={publishToWordPressAction}>
+                    <input type="hidden" name="postId" value={post.id} />
+                    <SubmitButton className="btn primary" pendingText="Publishing…">Publish to WordPress</SubmitButton>
+                  </form>
+                </>
+              )}
+            </>
+          ) : (
+            <span className="text-xs text-[var(--mute)]">
+              No site connected — <Link href="/blog/settings" className="underline">connect WordPress</Link> to publish directly.
+            </span>
+          )}
+        </div>
+      )}
 
       {/* Pre-publish checks (Spark gates — server-enforced on advance) */}
       <details className="card mb-4" open={!gatesPass}>
