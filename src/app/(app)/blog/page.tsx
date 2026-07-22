@@ -66,6 +66,7 @@ export default async function BlogPage() {
         </div>
       </div>
       <div className="flex flex-wrap gap-2 mb-5">
+        <Link href="/blog/keywords" className="btn">Keywords</Link>
         <Link href="/blog/board" className="btn">Board</Link>
         <Link href="/blog/calendar" className="btn">Calendar</Link>
         <Link href="/blog/analytics" className="btn">Analytics</Link>
