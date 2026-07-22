@@ -1,8 +1,16 @@
 import Link from "next/link";
-import { FileText, Plus } from "lucide-react";
+import { FileText, Lightbulb, Plus, Sparkles, Zap } from "lucide-react";
 import { requireMembership, canEdit } from "@/lib/acl";
 import { db } from "@/lib/db";
+import { SubmitButton } from "@/components/SubmitButton";
 import { createBlogPostAction } from "@/app/actions/blog";
+import {
+  addBlogIdeaAction,
+  autoDraftApprovedAction,
+  discoverBlogIdeasAction,
+  draftFromIdeaAction,
+  setBlogIdeaStatusAction,
+} from "@/app/actions/blog-ideas";
 
 // Blog list (ported from Spark's article pipeline — slice 1). Workspace-scoped
 // posts grouped by review state; the chip colors use the hue tokens so they
@@ -29,11 +37,20 @@ function StatusChip({ status }: { status: string }) {
 
 export default async function BlogPage() {
   const { workspace, membership } = await requireMembership();
-  const posts = await db.blogPost.findMany({
-    where: { workspaceId: workspace.id },
-    orderBy: { updatedAt: "desc" },
-  });
+  const [posts, ideas] = await Promise.all([
+    db.blogPost.findMany({
+      where: { workspaceId: workspace.id },
+      orderBy: { updatedAt: "desc" },
+    }),
+    db.blogIdea.findMany({
+      where: { workspaceId: workspace.id, status: { in: ["discovered", "approved"] } },
+      orderBy: { createdAt: "desc" },
+      take: 24,
+    }),
+  ]);
   const editor = canEdit(membership.role);
+  const discovered = ideas.filter((i) => i.status === "discovered");
+  const approved = ideas.filter((i) => i.status === "approved");
 
   return (
     <main className="p-6 max-w-4xl mx-auto w-full">
@@ -64,6 +81,85 @@ export default async function BlogPage() {
             <Plus className="w-4 h-4" /> Create
           </button>
         </form>
+      )}
+
+      {/* Idea engine (Spark FR-5) */}
+      {editor && (
+        <div className="card mb-5">
+          <div className="flex flex-wrap items-center gap-2 mb-3">
+            <span className="w-8 h-8 rounded-xl grid place-items-center" style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }}>
+              <Lightbulb className="w-4 h-4" />
+            </span>
+            <h2 className="text-sm font-semibold flex-1">
+              Idea engine{" "}
+              <span className="font-mono text-xs text-[var(--mute)]">{discovered.length} discovered · {approved.length} approved</span>
+            </h2>
+            <form action={discoverBlogIdeasAction}>
+              <SubmitButton className="btn" pendingText="Discovering…">
+                <Sparkles className="w-4 h-4" /> Discover ideas (AI)
+              </SubmitButton>
+            </form>
+            {approved.length > 0 && (
+              <form action={autoDraftApprovedAction}>
+                <SubmitButton className="btn primary" pendingText="Drafting…">
+                  <Zap className="w-4 h-4" /> Auto-draft approved (max 2)
+                </SubmitButton>
+              </form>
+            )}
+          </div>
+
+          <form action={addBlogIdeaAction} className="flex flex-wrap items-center gap-2 mb-3">
+            <input name="title" required placeholder="Add an idea manually…" className="flex-1 min-w-48 text-xs" />
+            <input name="keyword" placeholder="keyword (optional)" className="w-40 text-xs" />
+            <button className="btn"><Plus className="w-3.5 h-3.5" /> Add</button>
+          </form>
+
+          {ideas.length === 0 ? (
+            <p className="text-xs text-[var(--mute)]">
+              No open ideas. Discover some with AI — grounded in your organization profile.
+            </p>
+          ) : (
+            <ul className="flex flex-col gap-1.5">
+              {ideas.map((i) => (
+                <li key={i.id} className="flex items-start gap-2 text-xs border-b border-[var(--line)] pb-1.5 last:border-0">
+                  <span
+                    className="font-mono px-1.5 py-0.5 rounded-full shrink-0"
+                    style={
+                      i.status === "approved"
+                        ? { background: "var(--green-soft)", color: "var(--green-on)" }
+                        : { background: "var(--blue-soft)", color: "var(--blue-on)" }
+                    }
+                  >
+                    {i.status}
+                  </span>
+                  <span className="flex-1 min-w-0">
+                    <b>{i.title}</b>
+                    {i.keyword ? <span className="text-[var(--mute)]"> · kw: {i.keyword}</span> : null}
+                    {i.angle ? <span className="block text-[var(--mute)] mt-0.5">{i.angle}</span> : null}
+                  </span>
+                  <span className="flex items-center gap-1 shrink-0">
+                    {i.status === "discovered" && (
+                      <form action={setBlogIdeaStatusAction}>
+                        <input type="hidden" name="id" value={i.id} />
+                        <input type="hidden" name="status" value="approved" />
+                        <button className="btn" title="Approve for the auto-draft queue">Approve</button>
+                      </form>
+                    )}
+                    <form action={draftFromIdeaAction}>
+                      <input type="hidden" name="id" value={i.id} />
+                      <SubmitButton className="btn" pendingText="Drafting…">Draft now</SubmitButton>
+                    </form>
+                    <form action={setBlogIdeaStatusAction}>
+                      <input type="hidden" name="id" value={i.id} />
+                      <input type="hidden" name="status" value="rejected" />
+                      <button className="btn" title="Reject">✕</button>
+                    </form>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       )}
 
       {posts.length === 0 ? (
