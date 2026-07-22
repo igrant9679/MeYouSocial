@@ -1,16 +1,21 @@
 import Link from "next/link";
 import { ArrowLeft, Plug } from "lucide-react";
-import { requireMembership, canAdmin } from "@/lib/acl";
+import { requireMembership, canAdmin, canEdit } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { SubmitButton } from "@/components/SubmitButton";
 import { connectWordPressAction, disconnectWordPressAction } from "@/app/actions/blog-wp";
+import { addSitePageAction, deleteSitePageAction, importPublishedAsPagesAction } from "@/app/actions/blog-optimize";
+import { SubmitButton as SB } from "@/components/SubmitButton";
 
 // Blog settings: WordPress connection (Spark FR-11). App password is write-only
 // — stored encrypted, never displayed.
 
 export default async function BlogSettingsPage() {
   const { workspace, membership } = await requireMembership();
-  const conn = await db.wordPressConnection.findUnique({ where: { workspaceId: workspace.id } });
+  const [conn, pages] = await Promise.all([
+    db.wordPressConnection.findUnique({ where: { workspaceId: workspace.id } }),
+    db.sitePage.findMany({ where: { workspaceId: workspace.id }, orderBy: { title: "asc" }, take: 100 }),
+  ]);
   const admin = canAdmin(membership.role);
 
   return (
@@ -83,6 +88,50 @@ export default async function BlogSettingsPage() {
               </form>
             )}
           </>
+        )}
+      </div>
+
+      {/* Site page inventory — fuels internal-link suggestions (Wave B′). */}
+      <div className="card mt-5">
+        <div className="flex items-center gap-2 mb-2">
+          <h2 className="text-sm font-semibold flex-1">
+            Site pages <span className="font-mono text-xs text-[var(--mute)]">({pages.length})</span>
+          </h2>
+          {canEdit(membership.role) && (
+            <form action={importPublishedAsPagesAction}>
+              <SB className="btn" pendingText="Importing…">Import published posts</SB>
+            </form>
+          )}
+        </div>
+        <p className="text-xs text-[var(--mute)] mb-2">
+          Pages on your site the AI can suggest as internal links from drafts.
+        </p>
+        {canEdit(membership.role) && (
+          <form action={addSitePageAction} className="flex flex-wrap items-center gap-2 mb-2">
+            <input name="url" type="url" required placeholder="https://…" className="text-xs font-mono flex-1 min-w-48" />
+            <input name="title" required placeholder="page title" className="text-xs w-40" />
+            <input name="topic" placeholder="topic (optional)" className="text-xs w-32" />
+            <button className="btn">Add</button>
+          </form>
+        )}
+        {pages.length === 0 ? (
+          <p className="text-xs text-[var(--mute)]">No pages yet — add key pages or import your published posts.</p>
+        ) : (
+          <ul className="text-xs flex flex-col gap-1">
+            {pages.map((p) => (
+              <li key={p.id} className="flex items-center gap-2 border-b border-[var(--line)] pb-1 last:border-0">
+                <span className="font-semibold shrink-0">{p.title}</span>
+                <span className="font-mono text-[10px] text-[var(--mute)] truncate flex-1">{p.url}</span>
+                {p.topic && <span className="text-[var(--mute)] shrink-0">{p.topic}</span>}
+                {canEdit(membership.role) && (
+                  <form action={deleteSitePageAction} className="shrink-0">
+                    <input type="hidden" name="id" value={p.id} />
+                    <button className="btn">✕</button>
+                  </form>
+                )}
+              </li>
+            ))}
+          </ul>
         )}
       </div>
     </main>

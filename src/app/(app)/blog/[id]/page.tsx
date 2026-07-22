@@ -16,6 +16,14 @@ import {
   regenerateSectionAction,
   saveOutlineAction,
 } from "@/app/actions/blog-craft";
+import {
+  addFaqSectionAction,
+  addKeyTakeawaysAction,
+  applyInternalLinkAction,
+  contentGapAction,
+  eeatReviewAction,
+  suggestInternalLinksAction,
+} from "@/app/actions/blog-optimize";
 import { SubmitButton } from "@/components/SubmitButton";
 import { BlogBodyEditor } from "@/components/BlogBodyEditor";
 import {
@@ -70,9 +78,19 @@ export default async function BlogPostPage({ params }: { params: Promise<{ id: s
   const checks = runBlogChecks(post, unverified);
   const gatesPass = requiredChecksPass(checks);
   const score = contentScore(post, checks);
-  const titlesSetting = await db.setting.findUnique({ where: { key: `blog:titles:${post.id}` } });
+  const [titlesSetting, linksSetting, gapsSetting] = await Promise.all([
+    db.setting.findUnique({ where: { key: `blog:titles:${post.id}` } }),
+    db.setting.findUnique({ where: { key: `blog:links:${post.id}` } }),
+    db.setting.findUnique({ where: { key: `blog:gaps:${post.id}` } }),
+  ]);
   let titleVariants: string[] = [];
   try { titleVariants = titlesSetting ? (JSON.parse(titlesSetting.value) as string[]) : []; } catch { titleVariants = []; }
+  let linkSuggestions: Array<{ url: string; anchorText: string }> = [];
+  try { linkSuggestions = linksSetting ? JSON.parse(linksSetting.value) : []; } catch { linkSuggestions = []; }
+  let gaps: { needsKey?: boolean; missing?: Array<{ subtopic: string; why: string }> } | null = null;
+  try { gaps = gapsSetting ? JSON.parse(gapsSetting.value) : null; } catch { gaps = null; }
+  let eeat: { summary?: string; findings?: Array<{ dimension: string; finding: string; suggestion: string }> } | null = null;
+  try { eeat = post.eeatReview ? JSON.parse(post.eeatReview) : null; } catch { eeat = null; }
   let outline: Array<{ heading: string; points: string[] }> = [];
   try { outline = post.outline ? JSON.parse(post.outline) : []; } catch { outline = []; }
   let secondaryKw: string[] = [];
@@ -436,6 +454,87 @@ export default async function BlogPostPage({ params }: { params: Promise<{ id: s
                     </form>
                     <span className={t === post.title ? "font-semibold" : ""}>{t}</span>
                   </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Optimize (Wave B′): E-E-A-T, snippet blocks, internal links, gaps */}
+      {editor && post.body && (
+        <div className="card mt-4">
+          <h2 className="text-sm font-semibold mb-2">Optimize</h2>
+          <div className="flex flex-wrap items-center gap-2 mb-3">
+            <form action={eeatReviewAction}>
+              <input type="hidden" name="id" value={post.id} />
+              <SubmitButton className="btn" pendingText="Reviewing…">E-E-A-T review</SubmitButton>
+            </form>
+            <form action={addFaqSectionAction}>
+              <input type="hidden" name="id" value={post.id} />
+              <SubmitButton className="btn" pendingText="Writing FAQ…">Add FAQ section</SubmitButton>
+            </form>
+            <form action={addKeyTakeawaysAction}>
+              <input type="hidden" name="id" value={post.id} />
+              <SubmitButton className="btn" pendingText="Summarizing…">Add key takeaways</SubmitButton>
+            </form>
+            <form action={suggestInternalLinksAction}>
+              <input type="hidden" name="id" value={post.id} />
+              <SubmitButton className="btn" pendingText="Matching…">Suggest internal links</SubmitButton>
+            </form>
+            <form action={contentGapAction}>
+              <input type="hidden" name="id" value={post.id} />
+              <SubmitButton className="btn" pendingText="Analyzing…">Content gaps</SubmitButton>
+            </form>
+          </div>
+
+          {eeat && (
+            <details className="mb-2" open>
+              <summary className="text-xs font-semibold cursor-pointer">E-E-A-T findings ({eeat.findings?.length ?? 0})</summary>
+              {eeat.summary && <p className="text-xs text-[var(--slate)] my-1">{eeat.summary}</p>}
+              <ul className="text-xs flex flex-col gap-1">
+                {(eeat.findings ?? []).map((f, i) => (
+                  <li key={i}>
+                    <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full mr-1" style={{ background: "var(--violet-soft)", color: "var(--violet-on)" }}>
+                      {f.dimension}
+                    </span>
+                    {f.finding} <span className="text-[var(--mute)]">→ {f.suggestion}</span>
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )}
+
+          {linkSuggestions.length > 0 && (
+            <div className="mb-2">
+              <p className="text-xs font-semibold mb-1">Internal link suggestions:</p>
+              <ul className="text-xs flex flex-col gap-1">
+                {linkSuggestions.map((l) => (
+                  <li key={l.url} className="flex items-center gap-2">
+                    <form action={applyInternalLinkAction} className="shrink-0">
+                      <input type="hidden" name="id" value={post.id} />
+                      <input type="hidden" name="url" value={l.url} />
+                      <input type="hidden" name="anchorText" value={l.anchorText} />
+                      <button className="btn" title="Link the first free occurrence of the anchor text">Link it</button>
+                    </form>
+                    <span>&ldquo;{l.anchorText}&rdquo; → <span className="font-mono text-[10px] break-all">{l.url}</span></span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {gaps?.needsKey && (
+            <p className="text-xs text-[var(--mute)]">
+              Content-gap analysis needs real search data — the search provider is in mock mode. Add a search API key and set USE_MOCK_SEARCH=false.
+            </p>
+          )}
+          {gaps?.missing && gaps.missing.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold mb-1">Subtopics competitors cover that this post doesn&apos;t:</p>
+              <ul className="text-xs list-disc pl-4 flex flex-col gap-0.5">
+                {gaps.missing.map((g) => (
+                  <li key={g.subtopic}><b>{g.subtopic}</b> <span className="text-[var(--mute)]">— {g.why}</span></li>
                 ))}
               </ul>
             </div>

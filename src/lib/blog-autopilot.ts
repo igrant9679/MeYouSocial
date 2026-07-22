@@ -7,6 +7,7 @@ import { wpCreatePost, type WpCredentials } from "@/lib/wordpress";
 import { getModes, isGloballyPaused, writeAudit } from "@/lib/governance";
 import { getVideoProvider, estimateCostUsd } from "@/lib/video";
 import { templateGuidance } from "@/lib/blog-templates";
+import { buildJsonLd } from "@/lib/blog-jsonld";
 
 /**
  * Autopilot cores + the Phase-3 scheduler cycle. Every function here is
@@ -313,10 +314,13 @@ export async function publishCore(workspaceId: string, postId: string): Promise<
     return false;
   }
 
+  // Structured data rides inside the content (works on any WP theme/plugin).
+  const workspace = await db.workspace.findUnique({ where: { id: workspaceId } });
+  const jsonLd = `\n<script type="application/ld+json">${buildJsonLd(post, workspace?.name ?? "MeYouSocial")}</script>`;
   const created = await wpCreatePost(creds, {
     title: post.metaTitle ?? post.title,
     slug: post.slug,
-    content: post.body,
+    content: post.body + jsonLd,
     excerpt: post.metaDescription,
     status: "publish",
   });
