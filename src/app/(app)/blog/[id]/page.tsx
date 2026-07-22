@@ -22,6 +22,7 @@ import {
   applyInternalLinkAction,
   contentGapAction,
   eeatReviewAction,
+  entityCoverageAction,
   suggestInternalLinksAction,
 } from "@/app/actions/blog-optimize";
 import { SubmitButton } from "@/components/SubmitButton";
@@ -89,6 +90,9 @@ export default async function BlogPostPage({ params }: { params: Promise<{ id: s
   try { linkSuggestions = linksSetting ? JSON.parse(linksSetting.value) : []; } catch { linkSuggestions = []; }
   let gaps: { needsKey?: boolean; missing?: Array<{ subtopic: string; why: string }> } | null = null;
   try { gaps = gapsSetting ? JSON.parse(gapsSetting.value) : null; } catch { gaps = null; }
+  const entitiesSetting = await db.setting.findUnique({ where: { key: `blog:entities:${post.id}` } });
+  let entities: { covered?: string[]; missing?: string[] } | null = null;
+  try { entities = entitiesSetting ? JSON.parse(entitiesSetting.value) : null; } catch { entities = null; }
   let eeat: { summary?: string; findings?: Array<{ dimension: string; finding: string; suggestion: string }> } | null = null;
   try { eeat = post.eeatReview ? JSON.parse(post.eeatReview) : null; } catch { eeat = null; }
   let outline: Array<{ heading: string; points: string[] }> = [];
@@ -486,6 +490,10 @@ export default async function BlogPostPage({ params }: { params: Promise<{ id: s
               <input type="hidden" name="id" value={post.id} />
               <SubmitButton className="btn" pendingText="Analyzing…">Content gaps</SubmitButton>
             </form>
+            <form action={entityCoverageAction}>
+              <input type="hidden" name="id" value={post.id} />
+              <SubmitButton className="btn" pendingText="Mapping…">Entity coverage</SubmitButton>
+            </form>
           </div>
 
           {eeat && (
@@ -529,6 +537,20 @@ export default async function BlogPostPage({ params }: { params: Promise<{ id: s
               Content-gap analysis needs real search data — the search provider is in mock mode. Add a search API key and set USE_MOCK_SEARCH=false.
             </p>
           )}
+          {entities && (
+            <div className="mb-2">
+              <p className="text-xs font-semibold mb-1">Entity coverage <span className="font-normal text-[var(--mute)]">(AI-derived)</span>:</p>
+              <div className="flex flex-wrap gap-1">
+                {(entities.covered ?? []).map((e) => (
+                  <span key={e} className="font-mono text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "var(--green-soft)", color: "var(--green-on)" }}>✓ {e}</span>
+                ))}
+                {(entities.missing ?? []).map((e) => (
+                  <span key={e} className="font-mono text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }}>+ {e}</span>
+                ))}
+              </div>
+            </div>
+          )}
+
           {gaps?.missing && gaps.missing.length > 0 && (
             <div>
               <p className="text-xs font-semibold mb-1">Subtopics competitors cover that this post doesn&apos;t:</p>

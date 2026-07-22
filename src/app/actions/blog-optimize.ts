@@ -232,6 +232,41 @@ export async function applyInternalLinkAction(formData: FormData) {
   revalidatePath(`/blog/${id}`);
 }
 
+// ---- Entity coverage (Wave C′; LLM-derived, labeled as such) -----------------
+
+export async function entityCoverageAction(formData: FormData) {
+  const id = String(formData.get("id"));
+  const { workspace } = await requireRole("EDITOR");
+  if (await isGloballyPaused(workspace.id)) return;
+  const post = await db.blogPost.findFirst({ where: { id, workspaceId: workspace.id } });
+  if (!post?.body) return;
+
+  const res = await llm.complete({
+    model: post.model ?? workspace.defaultModel ?? llm.defaultModel,
+    system:
+      "Analyze topical entity coverage for SEO. List key entities (concepts, tools, standards, named things — not statistics) an authoritative article on this topic should mention. " +
+      'Respond ONLY with JSON: {"covered": string[], "missing": string[]} — max 10 each, based on the article text vs the topic.',
+    messages: [
+      { role: "user", content: `Topic: ${post.focusKeyword ?? post.title}\n\nArticle:\n${post.body.replace(/<[^>]+>/g, " ").slice(0, 3000)}` },
+    ],
+    maxTokens: 600,
+  });
+  let entities: unknown = null;
+  try {
+    const m = res.content.match(/\{[\s\S]*\}/);
+    entities = m ? JSON.parse(m[0]) : null;
+  } catch {
+    entities = null;
+  }
+  if (!entities) return;
+  await db.setting.upsert({
+    where: { key: `blog:entities:${post.id}` },
+    update: { value: JSON.stringify(entities) },
+    create: { key: `blog:entities:${post.id}`, value: JSON.stringify(entities) },
+  });
+  revalidatePath(`/blog/${id}`);
+}
+
 // ---- Content gap (search-data-gated) ----------------------------------------
 
 export async function contentGapAction(formData: FormData) {

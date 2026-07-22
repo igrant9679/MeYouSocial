@@ -496,6 +496,32 @@ export async function runAutopilotCycle(workspaceId: string): Promise<CycleRepor
       where: { workspaceId, status: { in: ["discovered", "approved"] } },
     });
     if (open < 3) report.ideasCreated = await discoverIdeasCore(workspaceId);
+
+    // Wave C′ refresh loop: published posts ranking past position 10 become
+    // refresh ideas (once per post; protected posts excluded).
+    const published = await db.blogPost.findMany({
+      where: { workspaceId, status: "published", protectedFromRewrite: false },
+      include: { snapshots: { orderBy: { capturedAt: "desc" }, take: 1 } },
+      take: 20,
+    });
+    for (const p of published) {
+      const pos = p.snapshots[0]?.position;
+      if (pos == null || pos <= 10) continue;
+      const title = `Refresh: ${p.title}`;
+      const exists = await db.blogIdea.count({ where: { workspaceId, title } });
+      if (exists) continue;
+      await db.blogIdea.create({
+        data: {
+          workspaceId,
+          title,
+          angle: `Ranking at position ${pos.toFixed(1)} — update and expand to recover.`,
+          keyword: p.focusKeyword,
+          source: "refresh",
+          postId: p.id,
+        },
+      });
+      report.ideasCreated++;
+    }
   }
 
   // 2. Drafting: draft approved ideas, park at the draft_review checkpoint.
