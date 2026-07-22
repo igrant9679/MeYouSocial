@@ -4,9 +4,9 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/acl";
 import { db } from "@/lib/db";
-import { llm } from "@/lib/llm";
 import { runBlogChecks, requiredChecksPass } from "@/lib/blog-checks";
-import { isGloballyPaused, writeAudit } from "@/lib/governance";
+import { writeAudit } from "@/lib/governance";
+import { generateDraftCore } from "@/lib/blog-autopilot";
 
 /**
  * Blog module (ported from Spark's article pipeline — slice 1).
@@ -122,80 +122,10 @@ export async function deleteBlogPostAction(formData: FormData) {
 export async function generateBlogDraftAction(formData: FormData) {
   const id = String(formData.get("id"));
   const { workspace } = await requireRole("EDITOR");
-  const post = await db.blogPost.findFirst({ where: { id, workspaceId: workspace.id } });
-  if (!post) return;
-
-  if (post.protectedFromRewrite) return; // FR-14: protected posts don't get regenerated
-  if (await isGloballyPaused(workspace.id)) return; // kill switch blocks all AI generation
-
-  // Grounding: org profile (what the client does) + channel voice + audience.
-  const [org, channel] = await Promise.all([
-    db.orgProfile.findUnique({ where: { workspaceId: workspace.id } }),
-    db.channel.findFirst({
-      where: { workspaceId: workspace.id },
-      include: { voiceProfiles: { take: 1 }, audience: true },
-    }),
-  ]);
-  const voice = channel?.voiceProfiles[0];
-  const clip = (s: string | null | undefined, n = 600) => (s && s !== "{}" && s !== "[]" ? s.slice(0, n) : null);
-
-  const system = [
-    "You are a senior content writer producing an SEO blog post draft as clean HTML (h2/h3, p, ul/li — no <html>/<body> wrapper).",
-    "Truthfulness rules (hard requirements): never invent statistics, quotes, prices, or named studies. Where a factual claim would need verification, write [NEEDS SOURCE] immediately after it. Do not fabricate customer stories.",
-    org?.description
-      ? `About the organization this blog belongs to (ground every claim in this): ${org.description}${org.industry ? ` Industry: ${org.industry}.` : ""}${org.audience ? ` Primary audience: ${org.audience}.` : ""}`
-      : null,
-    voice ? `Write in the brand voice "${voice.label}". Voice profile (JSON): ${clip(voice.data) ?? "n/a"}` : null,
-    channel?.audience
-      ? `Audience profile (JSON): demographics ${clip(channel.audience.demographics) ?? "n/a"}; psychographics ${clip(channel.audience.psychographics) ?? "n/a"}`
-      : null,
-  ]
-    .filter(Boolean)
-    .join("\n\n");
-
-  const target = post.wordCountTarget ?? 900;
-  const prompt = [
-    `Write a blog post draft titled: "${post.title}".`,
-    post.audience ? `Intended audience: ${post.audience}.` : null,
-    post.focusKeyword
-      ? `Primary SEO keyword: "${post.focusKeyword}" — use it naturally in the opening paragraph and at least one heading.`
-      : null,
-    `Length: about ${target} words.`,
-    "Structure: strong opening hook, 3–5 h2 sections, actionable close. HTML only.",
-  ]
-    .filter(Boolean)
-    .join("\n");
-
-  const res = await llm.complete({
-    model: workspace.defaultModel ?? llm.defaultModel,
-    system,
-    messages: [{ role: "user", content: prompt }],
-    maxTokens: 4000,
-  });
-
-  await db.blogPost.update({ where: { id: post.id }, data: { body: res.content } });
-
-  // Truthfulness: each [NEEDS SOURCE] marker becomes an unverified citation row.
-  // The sentence preceding the marker is the claim to verify.
-  await db.blogCitation.deleteMany({ where: { postId: post.id, verified: false } });
-  const text = res.content.replace(/<[^>]+>/g, " ");
-  const claims = [...text.matchAll(/([^.!?]*[.!?]?)\s*\[NEEDS SOURCE\]/g)]
-    .map((m) => m[1].trim().slice(-300))
-    .filter((c) => c.length > 8)
-    .slice(0, 20);
-  if (claims.length) {
-    await db.blogCitation.createMany({
-      data: claims.map((claim) => ({ postId: post.id, claim })),
-    });
-  }
-  await writeAudit({
-    workspaceId: workspace.id,
-    action: "blog.draft_generated",
-    entityType: "blog_post",
-    entityId: post.id,
-    meta: { model: res.model, claimsFlagged: claims.length },
-  });
-  revalidatePath(`/blog/${post.id}`);
+  // Guardrails (global pause, protect-from-rewrite), grounding, and citation
+  // extraction live in the core — shared with the autopilot scheduler.
+  await generateDraftCore(workspace.id, id);
+  revalidatePath(`/blog/${id}`);
 }
 
 // ---- Citations ---------------------------------------------------------------

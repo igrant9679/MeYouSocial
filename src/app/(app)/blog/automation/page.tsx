@@ -1,9 +1,10 @@
 import Link from "next/link";
-import { ArrowLeft, OctagonPause, Play, SlidersHorizontal } from "lucide-react";
+import { ArrowLeft, Bot, OctagonPause, Play, SlidersHorizontal } from "lucide-react";
 import { requireMembership, canAdmin } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { GOVERNED_FUNCTIONS, FUNCTION_LABELS, MODES, getModes, isGloballyPaused } from "@/lib/governance";
-import { setFunctionModeAction, toggleGlobalPauseAction } from "@/app/actions/blog-governance";
+import { SubmitButton } from "@/components/SubmitButton";
+import { runAutopilotNowAction, setFunctionModeAction, toggleGlobalPauseAction } from "@/app/actions/blog-governance";
 
 // The three-mode autonomy dial + kill switch. Admin-writable; visible to all.
 
@@ -16,7 +17,7 @@ const MODE_HELP: Record<(typeof MODES)[number], string> = {
 export default async function AutomationPage() {
   const { workspace, membership } = await requireMembership();
   const admin = canAdmin(membership.role);
-  const [modes, paused, recentAudit] = await Promise.all([
+  const [modes, paused, recentAudit, lastCycle] = await Promise.all([
     getModes(workspace.id),
     isGloballyPaused(workspace.id),
     db.auditLog.findMany({
@@ -24,7 +25,13 @@ export default async function AutomationPage() {
       orderBy: { createdAt: "desc" },
       take: 20,
     }),
+    db.auditLog.findFirst({
+      where: { workspaceId: workspace.id, action: { in: ["autopilot.cycle", "autopilot.manual_run"] } },
+      orderBy: { createdAt: "desc" },
+    }),
   ]);
+  const intervalMin = Math.max(5, parseInt(process.env.AUTOPILOT_INTERVAL_MIN ?? "30", 10) || 30);
+  const autopilotOff = process.env.AUTOPILOT === "off";
 
   return (
     <main className="p-6 max-w-4xl mx-auto w-full">
@@ -62,6 +69,26 @@ export default async function AutomationPage() {
             <button className={paused ? "btn primary" : "btn"}>
               {paused ? <><Play className="w-4 h-4" /> Resume automation</> : <><OctagonPause className="w-4 h-4" /> Pause everything</>}
             </button>
+          </form>
+        )}
+      </div>
+
+      {/* Autopilot scheduler status */}
+      <div className="card mb-5 flex flex-wrap items-center gap-3">
+        <Bot className="w-5 h-5" style={{ color: autopilotOff ? "var(--mute)" : "var(--teal-on)" }} />
+        <div className="flex-1 min-w-48">
+          <div className="text-sm font-semibold">
+            Autopilot {autopilotOff ? "— disabled (AUTOPILOT=off)" : `— sweeps every ${intervalMin} min`}
+          </div>
+          <div className="text-xs text-[var(--mute)]">
+            {lastCycle
+              ? `Last activity ${lastCycle.createdAt.toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}: ${lastCycle.meta}`
+              : "No autopilot activity yet — it acts only when a function is in assisted or auto mode and there is due work."}
+          </div>
+        </div>
+        {admin && !autopilotOff && (
+          <form action={runAutopilotNowAction}>
+            <SubmitButton className="btn" pendingText="Running cycle…">Run cycle now</SubmitButton>
           </form>
         )}
       </div>

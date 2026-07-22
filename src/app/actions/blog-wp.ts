@@ -4,9 +4,8 @@ import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { encryptSecret, decryptSecret, type Encrypted } from "@/lib/blog-crypto";
-import { wpTestConnection, wpCreatePost, type WpCredentials } from "@/lib/wordpress";
-import { runBlogChecks, requiredChecksPass } from "@/lib/blog-checks";
-import { writeAudit } from "@/lib/governance";
+import { wpTestConnection, type WpCredentials } from "@/lib/wordpress";
+import { publishCore } from "@/lib/blog-autopilot";
 
 /**
  * WordPress publishing (Spark FR-11 port). The application password is stored
@@ -66,48 +65,23 @@ export async function publishToWordPressAction(formData: FormData) {
   const postId = String(formData.get("postId"));
   const dryRun = String(formData.get("dryRun")) === "1";
   const { workspace } = await requireRole("ADMIN");
-  const post = await db.blogPost.findFirst({
-    where: { id: postId, workspaceId: workspace.id },
-  });
-  if (!post || !post.body) return;
-  if (post.status !== "final_approval" && post.status !== "published") return;
-
-  // Re-verify the gates at the moment of publish (server is the authority).
-  const unverified = await db.blogCitation.count({ where: { postId: post.id, verified: false } });
-  if (!requiredChecksPass(runBlogChecks(post, unverified))) return;
-
-  const creds = await credentialsFor(workspace.id);
-  if (!creds) return;
 
   if (dryRun) {
     // Record the dry-run outcome on the connection status line (no post created).
+    const creds = await credentialsFor(workspace.id);
+    if (!creds) return;
     const test = await wpTestConnection(creds);
     await db.wordPressConnection.update({
       where: { workspaceId: workspace.id },
       data: { status: test.ok ? "connected" : "error" },
     });
-    revalidatePath(`/blog/${post.id}`);
+    revalidatePath(`/blog/${postId}`);
     return;
   }
 
-  const created = await wpCreatePost(creds, {
-    title: post.metaTitle ?? post.title,
-    slug: post.slug,
-    content: post.body,
-    excerpt: post.metaDescription,
-    status: "publish",
-  });
-  await db.blogPost.update({
-    where: { id: post.id },
-    data: { status: "published", publishedAt: new Date(), publishedUrl: created.link },
-  });
-  await writeAudit({
-    workspaceId: workspace.id,
-    action: "blog.published_wordpress",
-    entityType: "blog_post",
-    entityId: post.id,
-    meta: { wpPostId: created.id, link: created.link },
-  });
-  revalidatePath(`/blog/${post.id}`);
+  // Status check, publish gates, credential decryption, WP call, and audit all
+  // live in the shared core (also used by the autopilot scheduler).
+  await publishCore(workspace.id, postId);
+  revalidatePath(`/blog/${postId}`);
   revalidatePath("/blog");
 }

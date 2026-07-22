@@ -4,6 +4,21 @@ import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { GOVERNED_FUNCTIONS, MODES, writeAudit } from "@/lib/governance";
+import { runAutopilotCycle } from "@/lib/blog-autopilot";
+
+/** Admin: run this workspace's autopilot cycle immediately (testing / catch-up). */
+export async function runAutopilotNowAction() {
+  const { user, workspace } = await requireRole("ADMIN");
+  const report = await runAutopilotCycle(workspace.id);
+  await writeAudit({
+    workspaceId: workspace.id,
+    actorId: user.id,
+    action: "autopilot.manual_run",
+    entityType: "workspace",
+    meta: report as unknown as Record<string, unknown>,
+  });
+  revalidatePath("/blog/automation");
+}
 
 export async function setFunctionModeAction(formData: FormData) {
   const fn = String(formData.get("function"));
