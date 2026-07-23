@@ -3,15 +3,25 @@ import { env } from "@/lib/env";
 import { llm } from "@/lib/llm";
 import { runBlogChecks, requiredChecksPass } from "@/lib/blog-checks";
 import { decryptSecret, type Encrypted } from "@/lib/blog-crypto";
-import { wpCreatePost, type WpCredentials } from "@/lib/wordpress";
+import {
+  wpCreatePost,
+  wpReadPost,
+  wpResolveAuthor,
+  wpResolveTerms,
+  wpUploadMedia,
+  type WpCredentials,
+} from "@/lib/wordpress";
+import { buildSeoMeta, effectiveFieldMap, isSeoPlugin, verifySeoMeta } from "@/lib/seo-plugins";
+import { renderForPublish } from "@/lib/blog-render";
 import { getModes, isGloballyPaused, writeAudit } from "@/lib/governance";
 import { getVideoProvider, estimateCostUsd } from "@/lib/video";
-import { templateGuidance } from "@/lib/blog-templates";
+import { templateGuidance, trackLabel, trackWordTarget } from "@/lib/blog-templates";
 import { buildJsonLd } from "@/lib/blog-jsonld";
 import { loadAssetGate } from "@/lib/blog-images";
 import {
   brandGuardrailBlock,
   ensureMotifDirectives,
+  getBrandKit,
   getPlatformMotifs,
   motifBlockShort,
   motifPromptFor,
@@ -195,7 +205,8 @@ export async function generateDraftCore(workspaceId: string, postId: string): Pr
     .filter(Boolean)
     .join("\n\n");
 
-  const target = post.wordCountTarget ?? 900;
+  // FR-6: an explicit target wins; otherwise the content tier's track length.
+  const target = post.wordCountTarget ?? trackWordTarget(post.contentTier);
   let outline: Array<{ heading: string; points: string[] }> = [];
   try { outline = post.outline ? JSON.parse(post.outline) : []; } catch { outline = []; }
   let secondary: string[] = [];
@@ -218,6 +229,7 @@ export async function generateDraftCore(workspaceId: string, postId: string): Pr
     outline.length
       ? `Follow this approved outline exactly (h2 per section):\n${outline.map((s) => `- ${s.heading}${s.points.length ? ` (${s.points.join("; ")})` : ""}`).join("\n")}`
       : "Structure: strong opening hook, 3–5 h2 sections, actionable close.",
+    trackLabel(post.contentTier) ? `This is a ${trackLabel(post.contentTier)} piece.` : null,
     `Length: about ${target} words. HTML only.`,
   ]
     .filter(Boolean)
@@ -323,6 +335,9 @@ export async function publishCore(workspaceId: string, postId: string): Promise<
   const post = await db.blogPost.findFirst({ where: { id: postId, workspaceId } });
   if (!post || !post.body) return false;
   if (post.status !== "final_approval" && post.status !== "published") return false;
+  // Already handed off as a WordPress draft — creating a second one on the next
+  // scheduler cycle (or a double-click) would duplicate the post over there.
+  if (post.wpPostId != null && post.status !== "published") return false;
 
   const unverified = await db.blogCitation.count({ where: { postId: post.id, verified: false } });
   const assets = await loadAssetGate(workspaceId, post.id);
@@ -341,28 +356,111 @@ export async function publishCore(workspaceId: string, postId: string): Promise<
     return false;
   }
 
-  // Structured data rides inside the content (works on any WP theme/plugin).
   const workspace = await db.workspace.findUnique({ where: { id: workspaceId } });
+  const brand = await getBrandKit(workspaceId);
+  const images = await db.blogImage.findMany({ where: { postId: post.id } });
+  const featured = images.find((i) => i.role === "featured");
+  const ogImage = images.find((i) => i.role === "og");
+
+  // Featured image goes into the media library rather than being hotlinked.
+  const media = featured ? await wpUploadMedia(creds, featured.url, featured.altText) : null;
+
+  // Taxonomy: the post's own terms, falling back to the connection defaults.
+  const postCategories = parseStringArray(post.categories);
+  const postTags = parseStringArray(post.tags);
+  const categoryNames = postCategories.length ? postCategories : parseStringArray(conn.defaultCategories);
+  const tagNames = postTags.length ? postTags : parseStringArray(conn.defaultTags);
+  const [cats, tags] = await Promise.all([
+    categoryNames.length ? wpResolveTerms(creds, "categories", categoryNames) : Promise.resolve({ ids: [], missed: [] }),
+    tagNames.length ? wpResolveTerms(creds, "tags", tagNames) : Promise.resolve({ ids: [], missed: [] }),
+  ]);
+  const authorId = conn.defaultAuthor ? await wpResolveAuthor(creds, conn.defaultAuthor) : null;
+
+  // SEO plugin fields, mapped to this install's meta keys.
+  const plugin = isSeoPlugin(conn.seoPlugin) ? conn.seoPlugin : "none";
+  const fieldMap = effectiveFieldMap(plugin, conn.seoFieldMap);
+  const seoValues = {
+    title: post.metaTitle ?? post.title,
+    description: post.metaDescription ?? undefined,
+    focusKeyword: post.focusKeyword ?? undefined,
+    canonical: post.canonicalUrl ?? undefined,
+    ogTitle: post.ogTitle ?? post.metaTitle ?? post.title,
+    ogDescription: post.ogDescription ?? post.metaDescription ?? undefined,
+    ogImage: ogImage?.url ?? undefined,
+  };
+  const meta = buildSeoMeta(fieldMap, seoValues);
+
+  // Structured data rides inside the content (works on any WP theme/plugin).
   const jsonLd = `\n<script type="application/ld+json">${buildJsonLd(post, workspace?.name ?? "MeYouSocial")}</script>`;
+  const content =
+    renderForPublish(post.body, { headingSpec: brand.headingSpec, footerCredit: brand.footerCredit }) + jsonLd;
+
+  const status = conn.publishAsDraft ? "draft" : "publish";
   const created = await wpCreatePost(creds, {
     title: post.metaTitle ?? post.title,
     slug: post.slug,
-    content: post.body + jsonLd,
+    content,
     excerpt: post.metaDescription,
-    status: "publish",
+    status,
+    meta,
+    categories: cats.ids,
+    tags: tags.ids,
+    author: authorId ?? undefined,
+    featuredMedia: media?.id,
   });
+
+  // "Sent" is not "stored": WordPress drops meta keys that aren't registered
+  // for REST. Read the post back and report what actually landed.
+  const readBack = await wpReadPost(creds, created.id);
+  const seoOutcomes = verifySeoMeta(fieldMap, seoValues, readBack?.meta ?? null);
+  const report = {
+    at: new Date().toISOString(),
+    wpPostId: created.id,
+    status,
+    plugin,
+    seo: seoOutcomes,
+    seoUnverified: readBack ? false : true,
+    featuredMedia: media ? { id: media.id, applied: readBack ? readBack.featuredMedia === media.id : null } : null,
+    featuredUploadFailed: !!featured && !media,
+    categories: { requested: categoryNames, applied: readBack?.categories.length ?? cats.ids.length, missed: cats.missed },
+    tags: { requested: tagNames, applied: readBack?.tags.length ?? tags.ids.length, missed: tags.missed },
+    author: conn.defaultAuthor ? { requested: conn.defaultAuthor, resolved: authorId } : null,
+  };
+
   await db.blogPost.update({
     where: { id: post.id },
-    data: { status: "published", publishedAt: new Date(), publishedUrl: created.link },
+    data: {
+      // A draft handoff hasn't gone live — don't claim it has.
+      status: status === "publish" ? "published" : post.status,
+      publishedAt: status === "publish" ? new Date() : null,
+      publishedUrl: created.link,
+      wpPostId: created.id,
+      publishReport: JSON.stringify(report),
+    },
   });
   await writeAudit({
     workspaceId,
-    action: "blog.published_wordpress",
+    action: status === "publish" ? "blog.published_wordpress" : "blog.drafted_to_wordpress",
     entityType: "blog_post",
     entityId: post.id,
-    meta: { wpPostId: created.id, link: created.link },
+    meta: {
+      wpPostId: created.id,
+      link: created.link,
+      seoAccepted: seoOutcomes.filter((o) => o.accepted).length,
+      seoSent: seoOutcomes.length,
+    },
   });
   return true;
+}
+
+function parseStringArray(json: string | null | undefined): string[] {
+  if (!json) return [];
+  try {
+    const raw = JSON.parse(json);
+    return Array.isArray(raw) ? raw.filter((s): s is string => typeof s === "string" && !!s.trim()).map((s) => s.trim()) : [];
+  } catch {
+    return [];
+  }
 }
 
 // ---- Video (Phase 4) ---------------------------------------------------------
@@ -612,9 +710,10 @@ export async function runAutopilotCycle(workspaceId: string): Promise<CycleRepor
           ? {
               workspaceId,
               status: "final_approval",
+              wpPostId: null,
               OR: [{ scheduledAt: null }, { scheduledAt: { lte: now } }],
             }
-          : { workspaceId, status: "final_approval", scheduledAt: { lte: now } },
+          : { workspaceId, status: "final_approval", wpPostId: null, scheduledAt: { lte: now } },
       orderBy: { updatedAt: "asc" },
       take: 2,
     });

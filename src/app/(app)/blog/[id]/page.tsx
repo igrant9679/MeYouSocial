@@ -22,6 +22,12 @@ import {
   loadAssetGate,
   specFor,
 } from "@/lib/blog-images";
+import { applySlugConvention, parseSlugRules, slugMatchesConvention } from "@/lib/seo-plugins";
+import {
+  applySlugConventionAction,
+  generatePublisherNotesAction,
+  suggestExternalLinkAction,
+} from "@/app/actions/blog-publish-prep";
 import {
   approveBlogImageAction,
   attachBlogImageAction,
@@ -73,6 +79,15 @@ import { createVideoPackageAction } from "@/app/actions/videos";
 
 // Blog post editor (Spark port, slice 1): SEO metadata + HTML body + grounded
 // AI draft + the review-state machine. Publishing is an ADMIN act (human gate).
+
+function parseCsvJson(json: string): string[] {
+  try {
+    const raw = JSON.parse(json);
+    return Array.isArray(raw) ? raw.filter((s): s is string => typeof s === "string") : [];
+  } catch {
+    return [];
+  }
+}
 
 const FLOW = ["drafting", "draft_review", "final_approval", "published"] as const;
 const FLOW_LABELS: Record<(typeof FLOW)[number], string> = {
@@ -132,6 +147,35 @@ export default async function BlogPostPage({ params }: { params: Promise<{ id: s
   let secondaryKw: string[] = [];
   try { secondaryKw = JSON.parse(post.secondaryKeywords) as string[]; } catch { secondaryKw = []; }
   // Motif voice (FR-2): the post's own blend, plus what it would inherit.
+  // FR-7 publish prep: slug convention, external sources, last publish report.
+  const slugRules = parseSlugRules(wpConn?.slugRules);
+  const conventionalSlug = applySlugConvention(post.slug || post.metaTitle || post.title, slugRules);
+  const slugOk = slugMatchesConvention(post.slug, slugRules);
+  const externalSetting = await db.setting.findUnique({ where: { key: `blog:external:${post.id}` } });
+  let externalLinks: { real: boolean; results: Array<{ title: string; url: string; snippet: string }> } = {
+    real: false,
+    results: [],
+  };
+  try {
+    if (externalSetting) externalLinks = JSON.parse(externalSetting.value);
+  } catch {
+    externalLinks = { real: false, results: [] };
+  }
+  let publishReport: {
+    status: string;
+    seo: Array<{ key: string; accepted: boolean; stored: string | null }>;
+    seoUnverified: boolean;
+    featuredUploadFailed: boolean;
+    categories: { missed: string[] };
+    tags: { missed: string[] };
+  } | null = null;
+  try {
+    publishReport = post.publishReport ? JSON.parse(post.publishReport) : null;
+  } catch {
+    publishReport = null;
+  }
+  const categories = parseCsvJson(post.categories);
+  const tags = parseCsvJson(post.tags);
   const postMotifs = parseMotifs(post.motifs);
   const [directives, effectiveMotifs] = await Promise.all([
     ensureMotifDirectives(workspace.id),
@@ -296,6 +340,112 @@ export default async function BlogPostPage({ params }: { params: Promise<{ id: s
           ))}
         </ul>
       </details>
+
+      {/* Publish prep (FR-7): slug rule, external source, publisher notes, and
+          the read-back of what WordPress actually stored last time. */}
+      {editor && (
+        <div className="card mb-4">
+          <h2 className="text-sm font-semibold mb-2">Publish prep</h2>
+          <div className="flex flex-wrap items-center gap-2 mb-3">
+            <form action={applySlugConventionAction}>
+              <input type="hidden" name="id" value={post.id} />
+              <SubmitButton className="btn" pendingText="Applying…">
+                Apply slug rule{conventionalSlug ? ` → ${conventionalSlug}` : ""}
+              </SubmitButton>
+            </form>
+            <form action={suggestExternalLinkAction}>
+              <input type="hidden" name="id" value={post.id} />
+              <SubmitButton className="btn" pendingText="Searching…">Suggest external source</SubmitButton>
+            </form>
+            <form action={generatePublisherNotesAction}>
+              <input type="hidden" name="id" value={post.id} />
+              <SubmitButton className="btn" pendingText="Assembling…">
+                {post.publisherNotes ? "Refresh publisher notes" : "Generate publisher notes"}
+              </SubmitButton>
+            </form>
+            {!slugOk && post.slug && (
+              <span className="font-mono text-[10px] px-2 py-0.5 rounded-full" style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }}>
+                slug is off-convention
+              </span>
+            )}
+          </div>
+
+          {externalLinks.results.length > 0 && (
+            <div className="mb-3">
+              <h3 className="text-xs font-semibold mb-1">
+                External source candidates{" "}
+                {!externalLinks.real && (
+                  <span className="font-mono text-[10px] text-[var(--mute)]">mock results — add a search key</span>
+                )}
+              </h3>
+              <ul className="text-xs flex flex-col gap-1">
+                {externalLinks.results.map((r) => (
+                  <li key={r.url} className="border-b border-[var(--line)] pb-1 last:border-0">
+                    <a href={r.url} target="_blank" rel="noreferrer noopener" className="underline">{r.title}</a>
+                    <span className="text-[var(--mute)]"> · {r.snippet.slice(0, 120)}</span>
+                  </li>
+                ))}
+              </ul>
+              <p className="text-[11px] text-[var(--mute)] mt-1">
+                Suggestions only — a link is an editorial endorsement, so place it yourself.
+              </p>
+            </div>
+          )}
+
+          {post.publisherNotes && (
+            <div className="mb-3">
+              <h3 className="text-xs font-semibold mb-1">Notes for the publisher</h3>
+              <pre className="text-xs whitespace-pre-wrap font-sans">{post.publisherNotes}</pre>
+            </div>
+          )}
+
+          {publishReport && (
+            <details className="text-xs">
+              <summary className="cursor-pointer font-semibold">
+                Last publish report{" "}
+                <span className="font-mono text-[10px] text-[var(--mute)]">
+                  {publishReport.status} · {publishReport.seo.filter((s) => s.accepted).length}/{publishReport.seo.length} SEO fields stored
+                </span>
+              </summary>
+              <ul className="mt-1 flex flex-col gap-1">
+                {publishReport.seo.map((s) => (
+                  <li key={s.key} className="flex items-start gap-2">
+                    {s.accepted ? (
+                      <Check className="w-3.5 h-3.5 mt-0.5 shrink-0" style={{ color: "var(--green-on)" }} />
+                    ) : (
+                      <X className="w-3.5 h-3.5 mt-0.5 shrink-0" style={{ color: "var(--rose-on)" }} />
+                    )}
+                    <span>
+                      <span className="font-mono">{s.key}</span>
+                      <span className="text-[var(--mute)]">
+                        {" "}
+                        · {s.accepted ? "stored" : s.stored === null ? "not stored (key may not be REST-registered)" : `stored a different value`}
+                      </span>
+                    </span>
+                  </li>
+                ))}
+                {publishReport.seo.length === 0 && (
+                  <li className="text-[var(--mute)]">No SEO plugin mapped — only the post content was sent.</li>
+                )}
+                {publishReport.featuredUploadFailed && (
+                  <li style={{ color: "var(--rose-on)" }}>Featured image upload to the media library failed.</li>
+                )}
+                {publishReport.categories.missed.length > 0 && (
+                  <li style={{ color: "var(--amber-on)" }}>Categories not applied: {publishReport.categories.missed.join(", ")}</li>
+                )}
+                {publishReport.tags.missed.length > 0 && (
+                  <li style={{ color: "var(--amber-on)" }}>Tags not applied: {publishReport.tags.missed.join(", ")}</li>
+                )}
+                {publishReport.seoUnverified && (
+                  <li style={{ color: "var(--amber-on)" }}>
+                    Could not read the post back — the results above are what we sent, not what WordPress stored.
+                  </li>
+                )}
+              </ul>
+            </details>
+          )}
+        </div>
+      )}
 
       {/* Images (FR-8): featured + branded OG, at the workspace's dimensions. */}
       <div className="card mb-4">
@@ -569,6 +719,27 @@ export default async function BlogPostPage({ params }: { params: Promise<{ id: s
           <label className="text-sm">
             <span className="block text-xs text-[var(--mute)] mb-1">Meta description <span className="font-mono">({(post.metaDescription ?? "").length}/155)</span></span>
             <input name="metaDescription" defaultValue={post.metaDescription ?? ""} maxLength={155} className="w-full" disabled={!editor} />
+          </label>
+          {/* FR-7: canonical + OG overrides. Blank OG fields fall back to the meta pair. */}
+          <label className="text-sm">
+            <span className="block text-xs text-[var(--mute)] mb-1">Canonical URL</span>
+            <input name="canonicalUrl" type="url" defaultValue={post.canonicalUrl ?? ""} placeholder="leave blank to self-canonicalise" className="w-full font-mono text-xs" disabled={!editor} />
+          </label>
+          <label className="text-sm">
+            <span className="block text-xs text-[var(--mute)] mb-1">OG title <span className="font-mono">(defaults to meta title)</span></span>
+            <input name="ogTitle" defaultValue={post.ogTitle ?? ""} maxLength={95} className="w-full text-xs" disabled={!editor} />
+          </label>
+          <label className="text-sm">
+            <span className="block text-xs text-[var(--mute)] mb-1">OG description <span className="font-mono">(defaults to meta description)</span></span>
+            <input name="ogDescription" defaultValue={post.ogDescription ?? ""} maxLength={200} className="w-full text-xs" disabled={!editor} />
+          </label>
+          <label className="text-sm">
+            <span className="block text-xs text-[var(--mute)] mb-1">WP categories (comma-separated)</span>
+            <input name="categories" defaultValue={categories.join(", ")} placeholder="connection default" className="w-full text-xs" disabled={!editor} />
+          </label>
+          <label className="text-sm">
+            <span className="block text-xs text-[var(--mute)] mb-1">WP tags (comma-separated)</span>
+            <input name="tags" defaultValue={tags.join(", ")} placeholder="connection default" className="w-full text-xs" disabled={!editor} />
           </label>
         </div>
 

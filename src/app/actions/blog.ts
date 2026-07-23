@@ -59,6 +59,14 @@ export async function updateBlogPostAction(formData: FormData) {
     const v = str(formData.get(k));
     return v && allowed.includes(v) ? v : null;
   };
+  const csvJson = (v: FormDataEntryValue | null) =>
+    JSON.stringify(
+      String(v ?? "")
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .slice(0, 20),
+    );
   const tierRaw = parseInt(String(formData.get("contentTier") ?? ""), 10);
   const tier = Number.isFinite(tierRaw) && tierRaw >= 1 && tierRaw <= 4 ? tierRaw : null;
   const secondaryRaw = str(formData.get("secondaryKeywords"));
@@ -82,6 +90,12 @@ export async function updateBlogPostAction(formData: FormData) {
       templateKey: str(formData.get("templateKey")),
       model: str(formData.get("model")),
       secondaryKeywords: secondary,
+      // FR-7 publish fidelity
+      canonicalUrl: str(formData.get("canonicalUrl")),
+      ogTitle: str(formData.get("ogTitle")),
+      ogDescription: str(formData.get("ogDescription")),
+      categories: csvJson(formData.get("categories")),
+      tags: csvJson(formData.get("tags")),
       body: newBody,
     },
   });

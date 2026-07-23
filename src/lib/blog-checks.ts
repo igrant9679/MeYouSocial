@@ -1,3 +1,5 @@
+import { trackLabel, trackWordTarget } from "@/lib/blog-templates";
+
 // Blog pre-publish checks — ported from Spark's lib/checks.ts. Deterministic,
 // no LLM: SEO metadata rules, WCAG-flavored content checks on the HTML body,
 // and Flesch reading ease. The publish gate (actions/blog.ts) requires all
@@ -19,6 +21,7 @@ type PostLike = {
   metaDescription: string | null;
   focusKeyword: string | null;
   wordCountTarget: number | null;
+  contentTier?: number | null;
 };
 
 const stripTags = (html: string) => html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
@@ -183,10 +186,11 @@ export function runBlogChecks(post: PostLike, unverifiedCitations: number, asset
   });
 
   // --- Length + readability (advisory) ----------------------------------------
-  const target = post.wordCountTarget ?? 900;
+  const target = post.wordCountTarget ?? trackWordTarget(post.contentTier);
+  const track = trackLabel(post.contentTier);
   checks.push({
     id: "length",
-    label: `Length near target (~${target} words)`,
+    label: `Length near target (~${target} words${track ? `, ${track}` : ""})`,
     pass: words >= target * 0.7,
     required: false,
     detail: `${words} words`,

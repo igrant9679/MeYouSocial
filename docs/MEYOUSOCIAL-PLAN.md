@@ -97,16 +97,30 @@ User approved autonomous gap closure in this order:
    featured/OG image dimensions. Admin UI at `/blog/brand`.
    _Not yet applied:_ the heading spec is stored but only rendered at publish in
    step 3; image dimensions are enforced by the step-2 asset gate.
-2. **Asset pipeline + gate (FR-8)** — featured + branded OG image required
-   before publish (workspace dimensions, validation, crop/resize warning),
-   image briefs, optional AI generation via ImageProvider behind human review,
-   alt-text (exists).
-3. **Publish fidelity (FR-7/FR-11/FR-6)** — Squirrly/RankMath/Yoast field
-   mapping, canonical + OG fields, slug conventions, external-link suggestion,
-   publisher notes; WP categories/tags/author, featured-image upload,
-   draft-in-WP handoff, heading-spec styling; LSI house template
-   (question-reframe intro, mindset-shift takeaway, CTA) + track-based length
-   defaults (cornerstone 2000+, supporting 1200–1800).
+2. **Asset pipeline + gate (FR-8)** — ✅ **shipped 2026-07-23.** `BlogImage`
+   (featured + og per post) with dimensions *measured* from the file header
+   (PNG/GIF/JPEG/WebP) rather than typed; mismatch warnings name the fix.
+   Briefs grounded in the brand kit + motif with anti-stock guidance; AI
+   generation behind a workspace toggle, landing `pending` until a human
+   approves. Checks joined the shared gate, governed by
+   `BrandKit.requireImagesToPublish` (default **on**).
+   _Debt:_ no server-side image processing (no `sharp`), so the spec's
+   "offer crop/resize" is a precise warning instead.
+3. **Publish fidelity (FR-7/FR-11/FR-6)** — ✅ **shipped 2026-07-23.** SEO
+   plugin field map (`src/lib/seo-plugins.ts`) with built-in Yoast + Rank Math
+   keys and per-install overrides; **every publish reads the post back and
+   reports which meta WordPress actually stored** (`BlogPost.publishReport`) —
+   WP silently drops meta keys not registered `show_in_rest`, and Squirrly
+   keeps SEO in its own tables, so its map ships empty on purpose. Canonical +
+   OG overrides, categories/tags (resolve-or-create by name), author lookup,
+   featured-image upload into the media library, draft-in-WP handoff (guarded
+   against duplicate hand-offs via `wpPostId`), heading spec applied as inline
+   styles + footer credit at publish, canonical slug rule with an apply action,
+   external-source suggestions (search-key gated, never auto-inserted),
+   deterministic publisher notes, the house template, and tier→track length
+   defaults.
+   _Not done:_ update-in-place for an already-published post (create-only),
+   Nifty sync, and the FR-18 design-system rendering profile.
 4. **SME profiles (FR-3)** + idea-engine depth (FR-5: priority scoring,
    auto-tagging, dedupe-vs-published, merge, kanban board, seasonal hooks).
 5. **Notifications (FR-16 in-app + email via existing SMTP)** + check depth

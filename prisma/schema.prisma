@@ -76,6 +76,18 @@ model BlogPost {
   templateKey     String?   // blog structure template (listicle, how-to, ...)
   model           String?   // per-post model override (multi-model drafting)
   eeatReview      String?   // JSON — last E-E-A-T review findings
+  // FR-7 publish fidelity: canonical + explicit OG overrides (OG image is the
+  // BlogImage row with role="og"). Empty OG fields fall back to the meta pair.
+  canonicalUrl    String?
+  ogTitle         String?
+  ogDescription   String?
+  categories      String    @default("[]") // JSON array of WP category names
+  tags            String    @default("[]") // JSON array of WP tag names
+  publisherNotes  String?   // FR-7 "notes for the publisher"
+  wpPostId        Int?      // set on publish; lets a later slice update in place
+  // JSON — what WordPress actually accepted on the last publish, read back from
+  // the API. We report the truth rather than assuming the payload landed.
+  publishReport   String?
   createdById     String?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
@@ -297,6 +309,14 @@ model WordPressConnection {
   username       String
   encAppPassword String   // JSON {iv,tag,data} AES-256-GCM
   status         String   @default("connected") // connected | error
+  // FR-7/FR-11 publish fidelity
+  seoPlugin      String   @default("none") // none | yoast | rankmath | squirrly
+  seoFieldMap    String   @default("{}")   // per-install overrides of the built-in key map
+  defaultCategories String @default("[]")  // JSON array of category names
+  defaultTags       String @default("[]")
+  defaultAuthor  String?  // WP username or numeric id; blank = the connection's own user
+  publishAsDraft Boolean  @default(false)  // draft-in-WP handoff instead of going live
+  slugRules      String   @default("{}")   // JSON {maxWords, stripStopWords, prefix}
   updatedAt      DateTime @updatedAt
 }
 

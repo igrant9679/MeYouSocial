@@ -5,6 +5,15 @@ export type BlogTemplate = { key: string; name: string; guidance: string };
 
 export const BLOG_TEMPLATES: BlogTemplate[] = [
   {
+    key: "house",
+    name: "House article",
+    guidance:
+      "The house structure: open by reframing the reader's question into the better question they should be asking; " +
+      "a sectioned body of h2s that each answer one part of it; a 'mindset shift' takeaway section that names what " +
+      "the reader should now think differently about; and a closing call to action. Where the piece makes claims that " +
+      "need evidence, end with a sources list of the verified links.",
+  },
+  {
     key: "guide",
     name: "Complete guide",
     guidance: "Definitive guide: intro framing the problem, 4-6 h2 sections building from basics to advanced, actionable conclusion.",
@@ -38,4 +47,30 @@ export const BLOG_TEMPLATES: BlogTemplate[] = [
 
 export function templateGuidance(key: string | null | undefined): string | null {
   return BLOG_TEMPLATES.find((t) => t.key === key)?.guidance ?? null;
+}
+
+/**
+ * FR-6 track-based length targets: cornerstone pieces run 2,000+ words,
+ * service-supporting pieces 1,200–1,800. Tier 1–2 are the cornerstone tracks;
+ * 3–4 supporting. No tier set keeps the old generic default.
+ */
+export function trackWordTarget(contentTier: number | null | undefined): number {
+  switch (contentTier) {
+    case 1:
+      return 2200;
+    case 2:
+      return 2000;
+    case 3:
+      return 1600;
+    case 4:
+      return 1200;
+    default:
+      return 900;
+  }
+}
+
+export function trackLabel(contentTier: number | null | undefined): string | null {
+  if (contentTier === 1 || contentTier === 2) return "cornerstone";
+  if (contentTier === 3 || contentTier === 4) return "service-supporting";
+  return null;
 }

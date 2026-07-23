@@ -3,12 +3,30 @@ import { ArrowLeft, Plug } from "lucide-react";
 import { requireMembership, canAdmin, canEdit } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { SubmitButton } from "@/components/SubmitButton";
-import { connectWordPressAction, disconnectWordPressAction } from "@/app/actions/blog-wp";
+import { connectWordPressAction, disconnectWordPressAction, savePublishSettingsAction } from "@/app/actions/blog-wp";
+import {
+  SEO_FIELDS,
+  SEO_FIELD_LABELS,
+  SEO_PLUGINS,
+  SEO_PLUGIN_LABELS,
+  effectiveFieldMap,
+  isSeoPlugin,
+  parseSlugRules,
+} from "@/lib/seo-plugins";
 import { addSitePageAction, deleteSitePageAction, importPublishedAsPagesAction } from "@/app/actions/blog-optimize";
 import { SubmitButton as SB } from "@/components/SubmitButton";
 
 // Blog settings: WordPress connection (Spark FR-11). App password is write-only
 // — stored encrypted, never displayed.
+
+function parseList(json: string): string[] {
+  try {
+    const raw = JSON.parse(json);
+    return Array.isArray(raw) ? raw.filter((s): s is string => typeof s === "string") : [];
+  } catch {
+    return [];
+  }
+}
 
 export default async function BlogSettingsPage() {
   const { workspace, membership } = await requireMembership();
@@ -17,6 +35,9 @@ export default async function BlogSettingsPage() {
     db.sitePage.findMany({ where: { workspaceId: workspace.id }, orderBy: { title: "asc" }, take: 100 }),
   ]);
   const admin = canAdmin(membership.role);
+  const plugin = conn && isSeoPlugin(conn.seoPlugin) ? conn.seoPlugin : "none";
+  const activeMap = effectiveFieldMap(plugin, conn?.seoFieldMap);
+  const slugRules = parseSlugRules(conn?.slugRules);
 
   return (
     <main className="p-6 max-w-3xl mx-auto w-full">
@@ -90,6 +111,97 @@ export default async function BlogSettingsPage() {
           </>
         )}
       </div>
+
+      {/* Publish fidelity (FR-7/FR-11): SEO plugin mapping, taxonomy, slug rule. */}
+      {conn && (
+        <form action={savePublishSettingsAction} className="card mt-5 flex flex-col gap-4">
+          <div>
+            <h2 className="text-sm font-semibold">Publishing</h2>
+            <p className="text-xs text-[var(--mute)]">
+              How posts land on the connected site: which SEO plugin gets the metadata, default taxonomy and author,
+              and the one canonical slug rule.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <label className="text-sm">
+              <span className="block text-xs text-[var(--mute)] mb-1">SEO plugin</span>
+              <select name="seoPlugin" defaultValue={conn.seoPlugin} className="w-full text-xs" disabled={!admin}>
+                {SEO_PLUGINS.map((p) => (
+                  <option key={p} value={p}>{SEO_PLUGIN_LABELS[p]}</option>
+                ))}
+              </select>
+            </label>
+            <label className="text-sm">
+              <span className="block text-xs text-[var(--mute)] mb-1">Default author (WP username or id)</span>
+              <input name="defaultAuthor" defaultValue={conn.defaultAuthor ?? ""} placeholder="blank = the connected user" className="w-full text-xs" disabled={!admin} />
+            </label>
+            <label className="text-sm">
+              <span className="block text-xs text-[var(--mute)] mb-1">Default categories (comma-separated)</span>
+              <input name="defaultCategories" defaultValue={parseList(conn.defaultCategories).join(", ")} className="w-full text-xs" disabled={!admin} />
+            </label>
+            <label className="text-sm">
+              <span className="block text-xs text-[var(--mute)] mb-1">Default tags (comma-separated)</span>
+              <input name="defaultTags" defaultValue={parseList(conn.defaultTags).join(", ")} className="w-full text-xs" disabled={!admin} />
+            </label>
+          </div>
+          <p className="text-xs text-[var(--mute)]">
+            Categories and tags are matched by name and created if they don&apos;t exist. A post&apos;s own terms
+            override these defaults.
+          </p>
+
+          <label className="flex items-start gap-2 text-xs">
+            <input type="checkbox" name="publishAsDraft" defaultChecked={conn.publishAsDraft} disabled={!admin} className="mt-0.5" />
+            <span>
+              <b>Hand off as a WordPress draft</b> instead of publishing live. The post stays at final approval here
+              until someone publishes it on the site.
+            </span>
+          </label>
+
+          <div>
+            <h3 className="text-xs font-semibold mb-1">SEO meta keys</h3>
+            <p className="text-xs text-[var(--mute)] mb-2">
+              WordPress only stores <span className="font-mono">meta</span> for keys registered with{" "}
+              <span className="font-mono">show_in_rest</span>. Yoast and Rank Math register theirs; Squirrly keeps its
+              data in its own tables, so its keys must be filled in per install. Every publish reads the post back and
+              reports which fields actually landed — trust that report, not this form.
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {SEO_FIELDS.map((f) => (
+                <label key={f} className="text-sm">
+                  <span className="block text-[11px] text-[var(--mute)] mb-1">{SEO_FIELD_LABELS[f]}</span>
+                  <input
+                    name={`seo_${f}`}
+                    defaultValue={activeMap[f] ?? ""}
+                    placeholder="not mapped"
+                    className="w-full font-mono text-xs"
+                    disabled={!admin}
+                  />
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <h3 className="text-xs font-semibold mb-1">Slug convention</h3>
+            <div className="flex flex-wrap items-end gap-3">
+              <label className="text-sm">
+                <span className="block text-[11px] text-[var(--mute)] mb-1">Max words</span>
+                <input name="slugMaxWords" type="number" min={1} max={15} defaultValue={slugRules.maxWords} className="w-20 font-mono text-xs" disabled={!admin} />
+              </label>
+              <label className="text-sm">
+                <span className="block text-[11px] text-[var(--mute)] mb-1">Prefix</span>
+                <input name="slugPrefix" defaultValue={slugRules.prefix ?? ""} placeholder="none" className="w-32 font-mono text-xs" disabled={!admin} />
+              </label>
+              <label className="flex items-center gap-1 text-xs pb-1.5">
+                <input type="checkbox" name="slugStripStopWords" defaultChecked={slugRules.stripStopWords} disabled={!admin} /> strip stop words
+              </label>
+            </div>
+          </div>
+
+          {admin && <div><SubmitButton className="btn primary">Save publishing settings</SubmitButton></div>}
+        </form>
+      )}
 
       {/* Site page inventory — fuels internal-link suggestions (Wave B′). */}
       <div className="card mt-5">
