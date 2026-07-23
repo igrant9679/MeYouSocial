@@ -140,6 +140,32 @@ export default async function BrandPage() {
             </label>
           </div>
         </div>
+
+        <div>
+          <h3 className="text-xs font-semibold mb-1">Asset policy</h3>
+          <div className="flex flex-col gap-1.5">
+            <label className="flex items-start gap-2 text-xs">
+              <input type="checkbox" name="requireImagesToPublish" defaultChecked={brand.requireImagesToPublish} disabled={!admin} className="mt-0.5" />
+              <span>
+                <b>Block publishing without both images.</b> A featured image and a branded OG image must exist at the
+                dimensions above, each with alt text. Turning this off makes the image checks advisory.
+              </span>
+            </label>
+            <label className="flex items-start gap-2 text-xs">
+              <input type="checkbox" name="aiImagesEnabled" defaultChecked={brand.aiImagesEnabled} disabled={!admin} className="mt-0.5" />
+              <span>
+                <b>Allow AI image generation.</b> Generated images always land awaiting human review — they never
+                satisfy the publish gate on their own.
+              </span>
+            </label>
+            <label className="flex items-start gap-2 text-xs">
+              <input type="checkbox" name="brandInBodyImages" defaultChecked={brand.brandInBodyImages} disabled={!admin} className="mt-0.5" />
+              <span>
+                <b>Brand the featured and in-body images too.</b> The OG image is always branded regardless.
+              </span>
+            </label>
+          </div>
+        </div>
         {admin && <div><SubmitButton className="btn primary">Save brand kit</SubmitButton></div>}
       </form>
 

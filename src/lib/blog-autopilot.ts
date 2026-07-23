@@ -8,6 +8,7 @@ import { getModes, isGloballyPaused, writeAudit } from "@/lib/governance";
 import { getVideoProvider, estimateCostUsd } from "@/lib/video";
 import { templateGuidance } from "@/lib/blog-templates";
 import { buildJsonLd } from "@/lib/blog-jsonld";
+import { loadAssetGate } from "@/lib/blog-images";
 import {
   brandGuardrailBlock,
   ensureMotifDirectives,
@@ -324,7 +325,8 @@ export async function publishCore(workspaceId: string, postId: string): Promise<
   if (post.status !== "final_approval" && post.status !== "published") return false;
 
   const unverified = await db.blogCitation.count({ where: { postId: post.id, verified: false } });
-  if (!requiredChecksPass(runBlogChecks(post, unverified))) return false;
+  const assets = await loadAssetGate(workspaceId, post.id);
+  if (!requiredChecksPass(runBlogChecks(post, unverified, assets))) return false;
 
   const conn = await db.wordPressConnection.findUnique({ where: { workspaceId } });
   if (!conn) return false;

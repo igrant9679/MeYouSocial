@@ -8,11 +8,29 @@ import { contentScore } from "@/lib/blog-score";
 import { BLOG_TEMPLATES } from "@/lib/blog-templates";
 import {
   ensureMotifDirectives,
+  getBrandKit,
   motifHue,
   motifSummaryLabel,
   parseMotifs,
   resolveMotifs,
 } from "@/lib/motifs";
+import {
+  IMAGE_ROLES,
+  ROLE_LABELS,
+  dimensionVerdict,
+  getImageBriefs,
+  loadAssetGate,
+  specFor,
+} from "@/lib/blog-images";
+import {
+  approveBlogImageAction,
+  attachBlogImageAction,
+  deleteBlogImageAction,
+  generateBlogImageAction,
+  generateImageBriefsAction,
+  remeasureBlogImageAction,
+  saveImageAltAction,
+} from "@/app/actions/blog-images";
 import { llm } from "@/lib/llm";
 import {
   applyTitleAction,
@@ -71,6 +89,7 @@ export default async function BlogPostPage({ params }: { params: Promise<{ id: s
     where: { id, workspaceId: workspace.id },
     include: {
       citations: { orderBy: { createdAt: "asc" } },
+      images: true,
       variants: { orderBy: { platform: "asc" } },
       versions: { orderBy: { createdAt: "desc" }, take: 20 },
     },
@@ -83,7 +102,13 @@ export default async function BlogPostPage({ params }: { params: Promise<{ id: s
   const idx = FLOW.indexOf(post.status as (typeof FLOW)[number]);
   const nextIsPublish = FLOW[idx + 1] === "published";
   const unverified = post.citations.filter((c) => !c.verified).length;
-  const checks = runBlogChecks(post, unverified);
+  // FR-8: the asset gate rides in the same checks list the publish flow uses.
+  const [assets, brand, briefs] = await Promise.all([
+    loadAssetGate(workspace.id, post.id),
+    getBrandKit(workspace.id),
+    getImageBriefs(post.id),
+  ]);
+  const checks = runBlogChecks(post, unverified, assets);
   const gatesPass = requiredChecksPass(checks);
   const score = contentScore(post, checks);
   const [titlesSetting, linksSetting, gapsSetting] = await Promise.all([
@@ -271,6 +296,155 @@ export default async function BlogPostPage({ params }: { params: Promise<{ id: s
           ))}
         </ul>
       </details>
+
+      {/* Images (FR-8): featured + branded OG, at the workspace's dimensions. */}
+      <div className="card mb-4">
+        <div className="flex flex-wrap items-center gap-2 mb-2">
+          <h2 className="text-sm font-semibold flex-1">
+            Images{" "}
+            <span className="font-mono text-xs text-[var(--mute)]">
+              {post.images.filter((i) => i.status === "approved").length}/2 ready
+            </span>
+          </h2>
+          {!brand.requireImagesToPublish && (
+            <span className="font-mono text-[10px] px-2 py-0.5 rounded-full" style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }}>
+              gate off — advisory only
+            </span>
+          )}
+          {editor && (
+            <form action={generateImageBriefsAction}>
+              <input type="hidden" name="id" value={post.id} />
+              <SubmitButton className="btn" pendingText="Briefing…">
+                <Sparkles className="w-3.5 h-3.5" /> {briefs.featured || briefs.og ? "Regenerate briefs" : "Generate image briefs"}
+              </SubmitButton>
+            </form>
+          )}
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {IMAGE_ROLES.map((role) => {
+            const img = post.images.find((i) => i.role === role);
+            const spec = specFor(role, brand);
+            const brief = role === "featured" ? briefs.featured : briefs.og;
+            const verdict = img ? dimensionVerdict(img, spec) : null;
+            const hue = verdict?.state === "ok" ? "green" : verdict?.state === "mismatch" ? "rose" : "amber";
+            return (
+              <div key={role} className="rounded-xl border border-[var(--line)] p-3 flex flex-col gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-semibold flex-1">{ROLE_LABELS[role]}</span>
+                  <span className="font-mono text-[10px] text-[var(--mute)]">{spec.width}×{spec.height}</span>
+                </div>
+
+                {img ? (
+                  <>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={img.url} alt={img.altText ?? ""} className="w-full rounded-lg border border-[var(--line)] object-cover max-h-40" />
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: `var(--${hue}-soft)`, color: `var(--${hue}-on)` }}>
+                        {verdict?.detail}
+                      </span>
+                      <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "var(--panel)", color: "var(--mute)" }}>
+                        {img.source}
+                      </span>
+                      {img.status === "pending" && (
+                        <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }}>
+                          awaiting review
+                        </span>
+                      )}
+                      {img.branded && (
+                        <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "var(--indigo-soft)", color: "var(--indigo-on)" }}>
+                          branded
+                        </span>
+                      )}
+                    </div>
+                    {editor && (
+                      <>
+                        <form action={saveImageAltAction} className="flex flex-wrap items-end gap-2">
+                          <input type="hidden" name="id" value={img.id} />
+                          <label className="flex-1 min-w-32 text-sm">
+                            <span className="block text-[11px] text-[var(--mute)] mb-1">Alt text</span>
+                            <input name="altText" defaultValue={img.altText ?? ""} placeholder="describe the image" className="w-full text-xs" />
+                          </label>
+                          {role === "featured" && (
+                            <label className="flex items-center gap-1 text-[11px] pb-1.5">
+                              <input type="checkbox" name="branded" defaultChecked={img.branded} /> branded
+                            </label>
+                          )}
+                          <SubmitButton className="btn">Save</SubmitButton>
+                        </form>
+                        <div className="flex flex-wrap items-center gap-2">
+                          {img.status === "pending" && (
+                            <form action={approveBlogImageAction}>
+                              <input type="hidden" name="id" value={img.id} />
+                              <SubmitButton className="btn primary" pendingText="Approving…">
+                                <ShieldCheck className="w-3.5 h-3.5" /> Approve
+                              </SubmitButton>
+                            </form>
+                          )}
+                          <form action={remeasureBlogImageAction}>
+                            <input type="hidden" name="id" value={img.id} />
+                            <SubmitButton className="btn" pendingText="Measuring…">Re-measure</SubmitButton>
+                          </form>
+                          <form action={deleteBlogImageAction}>
+                            <input type="hidden" name="id" value={img.id} />
+                            <button className="btn" title="Remove image"><Trash2 className="w-3.5 h-3.5" /></button>
+                          </form>
+                        </div>
+                      </>
+                    )}
+                  </>
+                ) : (
+                  <p className="text-xs text-[var(--mute)]">
+                    Not attached.{" "}
+                    {role === "og"
+                      ? "The OG image is the social and search preview — it is always branded."
+                      : "Sits at the top of the article."}
+                  </p>
+                )}
+
+                {brief && (
+                  <details className="text-xs">
+                    <summary className="cursor-pointer text-[var(--mute)]">Image brief</summary>
+                    <p className="mt-1 whitespace-pre-wrap">{brief}</p>
+                  </details>
+                )}
+
+                {editor && (
+                  <form action={attachBlogImageAction} className="flex flex-col gap-2 border-t border-[var(--line)] pt-2">
+                    <input type="hidden" name="postId" value={post.id} />
+                    <input type="hidden" name="role" value={role} />
+                    <input name="url" type="url" required placeholder="https://…/image.jpg" className="w-full font-mono text-xs" />
+                    <input name="altText" placeholder="alt text" className="w-full text-xs" />
+                    <div className="flex flex-wrap items-center gap-2">
+                      {role === "featured" && (
+                        <label className="flex items-center gap-1 text-[11px]">
+                          <input type="checkbox" name="branded" defaultChecked={brand.brandInBodyImages} /> branded
+                        </label>
+                      )}
+                      <SubmitButton className="btn" pendingText="Measuring…">{img ? "Replace" : "Attach"}</SubmitButton>
+                    </div>
+                  </form>
+                )}
+
+                {/* Its own form — the attach form requires a URL, which would
+                    block this button's submit. */}
+                {editor && brand.aiImagesEnabled && brief && (
+                  <form action={generateBlogImageAction}>
+                    <input type="hidden" name="postId" value={post.id} />
+                    <input type="hidden" name="role" value={role} />
+                    <SubmitButton className="btn" pendingText="Generating…">
+                      <Sparkles className="w-3.5 h-3.5" /> Generate with AI (needs review)
+                    </SubmitButton>
+                  </form>
+                )}
+              </div>
+            );
+          })}
+        </div>
+        <p className="text-[11px] text-[var(--mute)] mt-2">
+          Dimensions are measured from the file itself, not typed. There is no server-side image processing here — a
+          mismatch tells you exactly what to re-export or crop to.
+        </p>
+      </div>
 
       {/* Citations (truthfulness dossier) */}
       <div className="card mb-4">

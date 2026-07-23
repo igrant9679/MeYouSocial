@@ -465,6 +465,10 @@ export type BrandKitView = {
   featuredImageHeight: number;
   ogImageWidth: number;
   ogImageHeight: number;
+  /** FR-8 asset policy. */
+  requireImagesToPublish: boolean;
+  aiImagesEnabled: boolean;
+  brandInBodyImages: boolean;
   /** false when no row exists yet — the page shows the defaults as placeholders. */
   configured: boolean;
 };
@@ -474,6 +478,9 @@ const BRAND_DEFAULTS = {
   featuredImageHeight: 1080,
   ogImageWidth: 1200,
   ogImageHeight: 630,
+  requireImagesToPublish: true,
+  aiImagesEnabled: false,
+  brandInBodyImages: false,
 };
 
 /** Never writes — an unconfigured workspace reads as sensible defaults. */
@@ -508,6 +515,9 @@ export async function getBrandKit(workspaceId: string): Promise<BrandKitView> {
     featuredImageHeight: row.featuredImageHeight,
     ogImageWidth: row.ogImageWidth,
     ogImageHeight: row.ogImageHeight,
+    requireImagesToPublish: row.requireImagesToPublish,
+    aiImagesEnabled: row.aiImagesEnabled,
+    brandInBodyImages: row.brandInBodyImages,
     configured: true,
   };
 }

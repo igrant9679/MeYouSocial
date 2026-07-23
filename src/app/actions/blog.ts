@@ -8,6 +8,7 @@ import { runBlogChecks, requiredChecksPass } from "@/lib/blog-checks";
 import { writeAudit } from "@/lib/governance";
 import { generateDraftCore } from "@/lib/blog-autopilot";
 import { readMotifWeights, serializeMotifs } from "@/lib/motifs";
+import { loadAssetGate } from "@/lib/blog-images";
 
 /**
  * Blog module (ported from Spark's article pipeline — slice 1).
@@ -106,7 +107,8 @@ export async function advanceBlogStatusAction(formData: FormData) {
     // Spark gate: checks must pass and citations must be verified to advance
     // into approval/publish. Server-enforced — the UI banner is advisory only.
     const unverified = await db.blogCitation.count({ where: { postId: post.id, verified: false } });
-    if (!requiredChecksPass(runBlogChecks(post, unverified))) return;
+    const assets = await loadAssetGate(workspace.id, post.id);
+    if (!requiredChecksPass(runBlogChecks(post, unverified, assets))) return;
   }
   await db.blogPost.update({
     where: { id: post.id },

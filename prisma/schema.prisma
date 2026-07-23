@@ -82,6 +82,7 @@ model BlogPost {
 
   workspace Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   citations BlogCitation[]
+  images    BlogImage[]
   variants  SocialVariant[]
   snapshots BlogSnapshot[]
   versions  BlogPostVersion[]
@@ -165,7 +166,35 @@ model BrandKit {
   featuredImageHeight Int @default(1080)
   ogImageWidth        Int @default(1200)
   ogImageHeight       Int @default(630)
+  // FR-8 asset policy
+  requireImagesToPublish Boolean @default(true)  // featured + OG required before publish
+  aiImagesEnabled        Boolean @default(false) // AI generation, always human-reviewed
+  brandInBodyImages      Boolean @default(false) // OG is always branded; opt in for the rest
   updatedAt      DateTime @updatedAt
+}
+
+// FR-8: an article needs a featured image and a branded Open Graph image, both
+// at the workspace's pixel dimensions, both with alt text. AI-generated images
+// stay `pending` until a human approves them — they never satisfy the gate on
+// their own.
+model BlogImage {
+  id        String   @id @default(cuid())
+  postId    String
+  role      String   // featured | og
+  url       String
+  altText   String?
+  width     Int?     // measured from the file, not typed by hand
+  height    Int?
+  source    String   @default("url") // url | upload | ai
+  status    String   @default("approved") // pending | approved
+  branded   Boolean  @default(false)
+  brief     String?  // the image brief this asset was produced against
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  post BlogPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, role])
 }
 
 // The 7 Motifs as editable, versioned style directives (never hard-coded prompt

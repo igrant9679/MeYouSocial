@@ -36,7 +36,63 @@ export function fleschReadingEase(text: string): number | null {
   return Math.round(Math.max(0, Math.min(100, score)));
 }
 
-export function runBlogChecks(post: PostLike, unverifiedCitations: number): CheckResult[] {
+/**
+ * FR-8 asset gate input. Omitted (e.g. in advisory scoring) means "don't judge
+ * the assets" — the publish paths always pass it.
+ */
+export type AssetGate = {
+  /** Workspace policy: when false the image checks render advisory, not blocking. */
+  required: boolean;
+  images: Array<{
+    role: string;
+    altText: string | null;
+    width: number | null;
+    height: number | null;
+    status: string;
+    branded: boolean;
+  }>;
+  spec: { featured: { width: number; height: number }; og: { width: number; height: number } };
+};
+
+function assetChecks(gate: AssetGate): CheckResult[] {
+  const out: CheckResult[] = [];
+  for (const role of ["featured", "og"] as const) {
+    const label = role === "featured" ? "Featured image" : "Branded OG image";
+    const img = gate.images.find((i) => i.role === role);
+    const spec = gate.spec[role];
+    if (!img) {
+      out.push({
+        id: `img-${role}`,
+        label: `${label} attached (${spec.width}×${spec.height})`,
+        pass: false,
+        required: gate.required,
+        detail: "missing",
+      });
+      continue;
+    }
+    // An AI-generated image is not an asset until a human says it is.
+    const reviewed = img.status === "approved";
+    const sized = img.width === spec.width && img.height === spec.height;
+    const hasAlt = !!img.altText?.trim();
+    const brandedOk = role !== "og" || img.branded;
+    const problems = [
+      reviewed ? null : "awaiting human review",
+      sized ? null : img.width && img.height ? `${img.width}×${img.height}, needs ${spec.width}×${spec.height}` : "size unknown",
+      hasAlt ? null : "no alt text",
+      brandedOk ? null : "not marked as branded",
+    ].filter(Boolean);
+    out.push({
+      id: `img-${role}`,
+      label: `${label} attached (${spec.width}×${spec.height})`,
+      pass: problems.length === 0,
+      required: gate.required,
+      detail: problems.length ? problems.join("; ") : `${img.width}×${img.height}, alt set`,
+    });
+  }
+  return out;
+}
+
+export function runBlogChecks(post: PostLike, unverifiedCitations: number, assets?: AssetGate): CheckResult[] {
   const body = post.body ?? "";
   const text = stripTags(body);
   const words = text ? text.split(/\s+/).length : 0;
@@ -105,6 +161,9 @@ export function runBlogChecks(post: PostLike, unverifiedCitations: number): Chec
     required: false,
     detail: headings.length ? `levels: ${headings.join(",")}` : "no headings",
   });
+
+  // --- Assets (FR-8: featured + branded OG required before publish) -----------
+  if (assets) checks.push(...assetChecks(assets));
 
   // --- Truthfulness (required — Spark hard constraint) ------------------------
   const markers = (body.match(/\[NEEDS SOURCE\]/g) ?? []).length;

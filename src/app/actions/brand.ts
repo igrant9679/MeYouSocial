@@ -50,6 +50,10 @@ export async function saveBrandKitAction(formData: FormData) {
     featuredImageHeight: intField(formData, "featuredImageHeight", 1080, 200, 6000),
     ogImageWidth: intField(formData, "ogImageWidth", 1200, 200, 6000),
     ogImageHeight: intField(formData, "ogImageHeight", 630, 200, 6000),
+    // FR-8 asset policy
+    requireImagesToPublish: formData.get("requireImagesToPublish") === "on",
+    aiImagesEnabled: formData.get("aiImagesEnabled") === "on",
+    brandInBodyImages: formData.get("brandInBodyImages") === "on",
   };
   await db.brandKit.upsert({
     where: { workspaceId: workspace.id },
