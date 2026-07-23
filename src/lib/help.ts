@@ -260,6 +260,12 @@ export const HELP_CATEGORIES: FaqCategory[] = [
         tags: ["voiceover", "tts", "elevenlabs", "audio"],
       },
       {
+        q: "Where are uploads, voiceovers and renders stored?",
+        a: "Admin → **API keys** → *Storage*. **Local disk** is the dev default, but on Railway the disk is wiped on every redeploy — files don't survive. **Google Drive** keeps them durably: create a service account, share a Drive folder with it as Editor, paste both in, and the app runs a real write test before switching. Files stay private — they're streamed only to signed-in members, never public-by-link. Note: on a free personal Drive, uploads count against the *service account's own* 15 GB quota (shown live on the Storage card); a Workspace Shared Drive pools quota instead.",
+        links: [{ label: "Admin → API keys →", href: "/admin/api-keys" }],
+        tags: ["storage", "gdrive", "google drive", "uploads", "railway", "persistence"],
+      },
+      {
         q: "A render failed — now what?",
         a: "The error is shown on the render (quota, key, or provider issues are the usual causes). Hit **Retry** to re-queue it — the daily cap still applies. Scenes that completed before a mid-storyboard failure are kept.",
         tags: ["retry", "failed", "render"],

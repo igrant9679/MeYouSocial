@@ -62,6 +62,62 @@ export async function saveSearchKeyAction(formData: FormData) {
   redirect(`/admin/api-keys?ok=${vendor}`);
 }
 
+/**
+ * Storage settings (backend switch, Drive service account, Drive folder).
+ * Validation is live: switching to Drive — or changing the folder while Drive
+ * is configured — runs a write-then-delete probe so a misconfigured folder or
+ * exhausted quota fails HERE with a message, not silently at upload time.
+ */
+export async function saveStorageSettingAction(formData: FormData) {
+  await requireRole("ADMIN");
+  const setting = String(formData.get("setting") ?? "");
+  const value = String(formData.get("value") ?? "").trim();
+  const { invalidateStorageCache } = await import("@/lib/storage");
+  const { invalidateGdriveCache, parseServiceAccount, extractFolderId, getGdriveConfig, gdriveProbeWrite } = await import("@/lib/storage/gdrive");
+
+  const fail = (msg: string) => redirect(`/admin/api-keys?err=${encodeURIComponent(msg)}#storage`);
+
+  if (setting === "storage:backend") {
+    if (value !== "local" && value !== "gdrive") return;
+    if (value === "gdrive") {
+      invalidateGdriveCache();
+      if (!(await getGdriveConfig())) fail("Add the service account JSON and folder below before switching to Google Drive.");
+      const probe = await gdriveProbeWrite();
+      if (!probe.ok) fail(`Drive write test failed: ${probe.error}`);
+    }
+    await db.setting.upsert({ where: { key: setting }, update: { value }, create: { key: setting, value } });
+  } else if (setting === "gdrive:service_account") {
+    if (value && !parseServiceAccount(value)) {
+      fail("That doesn't look like a service account JSON key (needs client_email + private_key). Google Cloud Console → IAM → Service Accounts → Keys → Add key (JSON).");
+    }
+    if (value) {
+      await db.setting.upsert({ where: { key: setting }, update: { value }, create: { key: setting, value } });
+    } else {
+      await db.setting.deleteMany({ where: { key: setting } });
+    }
+  } else if (setting === "gdrive:folder_id") {
+    const id = value ? extractFolderId(value) : null;
+    if (value && !id) fail("Couldn't read a folder id from that — paste the folder's URL or its id.");
+    if (id) {
+      await db.setting.upsert({ where: { key: setting }, update: { value: id }, create: { key: setting, value: id } });
+      invalidateGdriveCache();
+      if (await getGdriveConfig()) {
+        const probe = await gdriveProbeWrite();
+        if (!probe.ok) fail(`Saved, but the write test failed: ${probe.error}`);
+      }
+    } else {
+      await db.setting.deleteMany({ where: { key: setting } });
+    }
+  } else {
+    return;
+  }
+
+  invalidateGdriveCache();
+  invalidateStorageCache();
+  revalidatePath("/admin/api-keys");
+  redirect(`/admin/api-keys?ok=${encodeURIComponent(setting)}#storage`);
+}
+
 export async function saveApiKeyAction(formData: FormData) {
   await requireRole("ADMIN");
   const provider = String(formData.get("provider") ?? "") as KeyProvider;

@@ -217,5 +217,32 @@ board/auto-tasks/calendar, ticker, content size, nav/logo).
 file (seam exists, mock = per-scene playback); YouTube *upload* (needs OAuth,
 not just the Data API key); ⌘K palette + version-diff view (blog polish);
 Slack notifications; DnD for the blog kanban (production board has it, blog
-home cards are links); localStorage-backed local uploads are ephemeral on
-Railway redeploys (STORAGE_BACKEND=s3 adapter still unwired).
+home cards are links).
+
+---
+
+## Storage: Google Drive backend (shipped 2026-07-23)
+
+Closes the "uploads are ephemeral on Railway" debt. `src/lib/storage/` now
+dispatches per-key: new files go to the backend selected by Setting
+`storage:backend` (DB-first, env fallback — same pattern as `video:provider`);
+reads route on the key prefix (`gdrive:<fileId>` vs legacy bare local keys), so
+switching backends never breaks existing URLs. The Drive adapter
+(`src/lib/storage/gdrive.ts`) is dependency-free: service-account JWT via
+node:crypto, Drive v3 REST multipart upload into one shared folder,
+`supportsAllDrives` throughout.
+
+Serving is **private-by-default**: `/api/files/<key>` streams Drive files to
+signed-in members with Range passthrough (video seeking works); the public
+uc?id= hotlink route was rejected — unreliable for embeds (virus-scan
+interstitials) and it would make every render public. Bonus fix: `/uploads/<key>`
+now has a real serving route — local StoredFile URLs previously pointed at
+nothing and 404'd everywhere.
+
+Admin → API keys → **Storage**: backend switch (blocked until configured),
+service-account JSON + folder (URL or id) settings, and a live connection
+banner showing the SA's real quota usage. Saving the folder / switching to
+Drive runs a **write-then-delete probe** so misconfiguration or exhausted quota
+fails at save time with a plain message. Honest limits stated in-app: SA-owned
+files consume the SA's own 15 GB on personal Drives (Shared Drives pool);
+existing local files are not migrated (ephemeral anyway).

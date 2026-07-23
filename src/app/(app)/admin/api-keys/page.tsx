@@ -1,10 +1,12 @@
 import Link from "next/link";
-import { KeyRound, CheckCircle2, ExternalLink } from "lucide-react";
+import { KeyRound, CheckCircle2, ExternalLink, HardDrive, AlertTriangle } from "lucide-react";
 import { requireRole } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { env } from "@/lib/env";
-import { saveApiKeyAction, saveSearchKeyAction, saveMediaSettingAction } from "@/app/actions/api-keys";
+import { saveApiKeyAction, saveSearchKeyAction, saveMediaSettingAction, saveStorageSettingAction } from "@/app/actions/api-keys";
 import { getVideoProviderSetting } from "@/lib/video";
+import { getStorageBackendSetting } from "@/lib/storage";
+import { gdriveStatus, parseServiceAccount } from "@/lib/storage/gdrive";
 import { SubmitButton } from "@/components/SubmitButton";
 
 // In-app API key management. Admins can paste provider keys here
@@ -41,16 +43,22 @@ function mask(s: string): string {
   return `${s.slice(0, 4)}${"•".repeat(Math.max(4, s.length - 8))}${s.slice(-4)}`;
 }
 
-export default async function ApiKeysPage({ searchParams }: { searchParams: Promise<{ ok?: string }> }) {
+export default async function ApiKeysPage({ searchParams }: { searchParams: Promise<{ ok?: string; err?: string }> }) {
   await requireRole("ADMIN");
-  const { ok } = await searchParams;
+  const { ok, err } = await searchParams;
 
   const settings = await db.setting.findMany({
-    where: { OR: [{ key: { startsWith: "api_key:" } }, { key: { in: ["video:provider", "tts:provider"] } }] },
+    where: { OR: [{ key: { startsWith: "api_key:" } }, { key: { in: ["video:provider", "tts:provider", "storage:backend", "gdrive:service_account", "gdrive:folder_id"] } }] },
   });
   const byKey = new Map(settings.map((s) => [s.key, s.value] as const));
   const videoProvider = await getVideoProviderSetting();
   const ttsProvider = byKey.get("tts:provider") === "elevenlabs" ? "elevenlabs" : "mock";
+  const storageBackend = await getStorageBackendSetting();
+  const gdriveSa = parseServiceAccount(byKey.get("gdrive:service_account") ?? process.env.GDRIVE_SERVICE_ACCOUNT_JSON ?? "");
+  const gdriveFolder = byKey.get("gdrive:folder_id") ?? process.env.GDRIVE_FOLDER_ID ?? "";
+  const gdriveConfigured = Boolean(gdriveSa && gdriveFolder);
+  // Live check only when it can possibly succeed — keeps the page fast otherwise.
+  const drive = gdriveConfigured ? await gdriveStatus() : null;
 
   return (
     <div className="max-w-3xl">
@@ -67,7 +75,13 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
       {ok && (
         <div className="card mb-4 flex items-center gap-2" style={{ background: "var(--green-soft)", borderColor: "var(--green)" }}>
           <CheckCircle2 className="w-4 h-4" style={{ color: "var(--green)" }} />
-          <span className="text-sm">Saved {ok} key. New requests will use it within ~30s.</span>
+          <span className="text-sm">Saved {ok}{ok.includes(":") ? "" : " key"}. New requests will use it within ~30s.</span>
+        </div>
+      )}
+      {err && (
+        <div className="card mb-4 flex items-center gap-2" style={{ background: "var(--rose-soft)", borderColor: "var(--rose)" }}>
+          <AlertTriangle className="w-4 h-4 shrink-0" style={{ color: "var(--rose-on)" }} />
+          <span className="text-sm">{err}</span>
         </div>
       )}
 
@@ -265,6 +279,127 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
           </form>
         );
       })}
+
+      {/* Storage — where uploads, voiceovers and persisted renders live. */}
+      <div id="storage" className="flex items-center gap-3 mb-2 mt-8">
+        <span className="w-10 h-10 rounded-xl grid place-items-center" style={{ background: "var(--teal-soft)", color: "var(--teal-on)" }}>
+          <HardDrive className="w-5 h-5" strokeWidth={2.25} />
+        </span>
+        <div>
+          <h1 className="font-mono font-bold text-lg leading-tight">Storage</h1>
+          <p className="text-xs text-[var(--mute)]">
+            Where uploads, voiceovers and saved video renders are kept. <b>Local</b> disk is wiped on every
+            Railway redeploy — Google Drive makes files survive.
+          </p>
+        </div>
+      </div>
+
+      <div className="card mb-3">
+        <div className="font-mono font-bold text-sm mb-1">Backend</div>
+        <p className="text-[11px] text-[var(--mute)] mb-2">
+          <b>Local</b> writes to the server disk (fine in dev; <b>ephemeral on Railway</b> — files vanish on redeploy).
+          <b> Google Drive</b> stores files durably in the folder below. Switching only affects <em>new</em> files;
+          existing files keep working from wherever they were stored.
+        </p>
+        <div className="flex gap-2 mb-2">
+          {(["local", "gdrive"] as const).map((v) => (
+            <form key={v} action={saveStorageSettingAction} className="flex-1">
+              <input type="hidden" name="setting" value="storage:backend" />
+              <input type="hidden" name="value" value={v} />
+              <button
+                className="card w-full text-center cursor-pointer text-sm !p-2.5"
+                style={storageBackend === v ? { borderColor: "var(--accent)", background: "var(--accent-soft)", color: "var(--accent-on)", fontWeight: 600 } : undefined}
+              >
+                {v === "local" ? "Local disk" : "Google Drive"}{storageBackend === v ? " ✓" : ""}
+              </button>
+            </form>
+          ))}
+        </div>
+        {storageBackend === "gdrive" && !gdriveConfigured && (
+          <div className="text-[11px] rounded-lg p-2 flex items-center gap-2" style={{ background: "var(--rose-soft)", color: "var(--rose-on)" }}>
+            <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+            Drive is selected but not configured — uploads will fail until the service account and folder below are set.
+          </div>
+        )}
+        {drive && (
+          <div className="text-[11px] font-mono rounded-lg p-2" style={{ background: drive.ok ? "var(--green-soft)" : "var(--rose-soft)", color: drive.ok ? "var(--green-on)" : "var(--rose-on)" }}>
+            {drive.ok ? (
+              <>
+                Connected as {drive.email}
+                {drive.folderName ? <> · folder “{drive.folderName}”</> : null}
+                {typeof drive.usedBytes === "number" && typeof drive.limitBytes === "number" && drive.limitBytes > 0 ? (
+                  <> · {(drive.usedBytes / 1e9).toFixed(2)} / {(drive.limitBytes / 1e9).toFixed(0)} GB used</>
+                ) : null}
+              </>
+            ) : (
+              <>Drive check failed: {drive.error}</>
+            )}
+          </div>
+        )}
+      </div>
+
+      <form action={saveStorageSettingAction} className="card mb-3">
+        <input type="hidden" name="setting" value="gdrive:service_account" />
+        <div className="font-mono font-bold text-sm flex items-center gap-2 mb-1">
+          Service account key (JSON)
+          {gdriveSa && (
+            <span className="text-[10px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded flex items-center gap-1" style={{ background: "var(--green-soft)", color: "var(--green-on)" }}>
+              <CheckCircle2 className="w-3 h-3" /> configured
+            </span>
+          )}
+        </div>
+        {gdriveSa && <div className="text-[11px] font-mono text-[var(--mute)] mb-1 break-all">{gdriveSa.client_email}</div>}
+        <p className="text-[11px] text-[var(--mute)] mb-2">
+          Google Cloud Console → IAM &amp; Admin → Service Accounts → create one (no roles needed) → Keys →
+          Add key → JSON. Enable the <b>Google Drive API</b> on the project. Paste the whole file here — it&apos;s
+          stored in the database, never in git.
+        </p>
+        <div className="flex flex-col gap-2">
+          <textarea
+            name="value"
+            rows={3}
+            placeholder={gdriveSa ? "Paste a new JSON key to replace, or save empty to clear" : '{ "type": "service_account", "client_email": "…", "private_key": "…", … }'}
+            className="w-full border border-[var(--line-2)] rounded-lg p-2 text-xs font-mono"
+            autoComplete="off"
+            spellCheck={false}
+          />
+          <SubmitButton className="btn primary sm self-end" pendingText="Saving…">Save</SubmitButton>
+        </div>
+      </form>
+
+      <form action={saveStorageSettingAction} className="card mb-3">
+        <input type="hidden" name="setting" value="gdrive:folder_id" />
+        <div className="font-mono font-bold text-sm flex items-center gap-2 mb-1">
+          Drive folder
+          {gdriveFolder && (
+            <span className="text-[10px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded flex items-center gap-1" style={{ background: "var(--green-soft)", color: "var(--green-on)" }}>
+              <CheckCircle2 className="w-3 h-3" /> configured
+            </span>
+          )}
+        </div>
+        {gdriveFolder && <div className="text-[11px] font-mono text-[var(--mute)] mb-1 break-all">{gdriveFolder}</div>}
+        <p className="text-[11px] text-[var(--mute)] mb-2">
+          Create a folder in Drive and share it with the service account&apos;s email as <b>Editor</b>, then paste the
+          folder&apos;s URL (or id) here. Saving runs a real write test into the folder and reports any problem.
+        </p>
+        <div className="flex gap-2">
+          <input
+            name="value"
+            type="text"
+            placeholder={gdriveFolder ? "Paste a new folder URL/id to replace, or save empty to clear" : "https://drive.google.com/drive/folders/…"}
+            className="flex-1 border border-[var(--line-2)] rounded-lg p-2 text-sm font-mono"
+            autoComplete="off"
+          />
+          <SubmitButton className="btn primary sm" pendingText="Testing…">Save</SubmitButton>
+        </div>
+      </form>
+
+      <div className="card mb-3 text-xs text-[var(--mute)] leading-relaxed">
+        <p className="mb-1"><strong>Honest tradeoffs:</strong></p>
+        <p className="mb-1">· Files stay <b>private</b> in Drive — the app streams them to signed-in members via <code className="font-mono px-1 rounded" style={{ background: "var(--zebra)" }}>/api/files</code>. Nothing is public-by-link, but every view passes through this server.</p>
+        <p className="mb-1">· On a personal (free) Drive, uploaded files are owned by the service account and count against <b>its own 15&nbsp;GB quota</b> — not yours. The connection banner above shows real usage. A Google Workspace <b>Shared Drive</b> pools quota instead; both work here.</p>
+        <p>· Existing locally-stored files are <b>not migrated</b> (on Railway they don&apos;t survive a redeploy anyway). Switching backends only routes new files.</p>
+      </div>
     </div>
   );
 }
