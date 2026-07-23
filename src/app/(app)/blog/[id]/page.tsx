@@ -6,6 +6,13 @@ import { db } from "@/lib/db";
 import { runBlogChecks, requiredChecksPass } from "@/lib/blog-checks";
 import { contentScore } from "@/lib/blog-score";
 import { BLOG_TEMPLATES } from "@/lib/blog-templates";
+import {
+  ensureMotifDirectives,
+  motifHue,
+  motifSummaryLabel,
+  parseMotifs,
+  resolveMotifs,
+} from "@/lib/motifs";
 import { llm } from "@/lib/llm";
 import {
   applyTitleAction,
@@ -99,6 +106,12 @@ export default async function BlogPostPage({ params }: { params: Promise<{ id: s
   try { outline = post.outline ? JSON.parse(post.outline) : []; } catch { outline = []; }
   let secondaryKw: string[] = [];
   try { secondaryKw = JSON.parse(post.secondaryKeywords) as string[]; } catch { secondaryKw = []; }
+  // Motif voice (FR-2): the post's own blend, plus what it would inherit.
+  const postMotifs = parseMotifs(post.motifs);
+  const [directives, effectiveMotifs] = await Promise.all([
+    ensureMotifDirectives(workspace.id),
+    resolveMotifs(workspace.id, post),
+  ]);
 
   return (
     <main className="p-6 max-w-4xl mx-auto w-full">
@@ -355,10 +368,10 @@ export default async function BlogPostPage({ params }: { params: Promise<{ id: s
             </select>
           </label>
           <label className="text-sm">
-            <span className="block text-xs text-[var(--mute)] mb-1">Tone</span>
-            <select name="tone" defaultValue={post.tone ?? ""} className="w-full text-xs" disabled={!editor}>
-              <option value="">default</option>
-              {["professional", "friendly", "authoritative", "conversational"].map((t) => <option key={t} value={t}>{t}</option>)}
+            <span className="block text-xs text-[var(--mute)] mb-1">Content tier</span>
+            <select name="contentTier" defaultValue={post.contentTier?.toString() ?? ""} className="w-full text-xs" disabled={!editor}>
+              <option value="">unset</option>
+              {[1, 2, 3, 4].map((t) => <option key={t} value={t}>Tier {t}</option>)}
             </select>
           </label>
           <label className="text-sm">
@@ -383,6 +396,49 @@ export default async function BlogPostPage({ params }: { params: Promise<{ id: s
             <span className="block text-xs text-[var(--mute)] mb-1">Meta description <span className="font-mono">({(post.metaDescription ?? "").length}/155)</span></span>
             <input name="metaDescription" defaultValue={post.metaDescription ?? ""} maxLength={155} className="w-full" disabled={!editor} />
           </label>
+        </div>
+
+        {/* FR-2: motif voice — single or weighted blend. Blank = inherit the
+            workspace default for this tier/audience. */}
+        <div>
+          <div className="flex flex-wrap items-baseline gap-2 mb-1">
+            <span className="text-xs text-[var(--mute)]">Motif voice</span>
+            <span className="text-[11px] text-[var(--mute)]">
+              {postMotifs.length
+                ? "Highest weight is dominant — it sets structure and voice; the rest colour the intro and CTA."
+                : `Inheriting: ${effectiveMotifs.length ? motifSummaryLabel(effectiveMotifs) : "no workspace default set"}`}
+            </span>
+            <Link href="/blog/brand" className="text-[11px] text-[var(--mute)] underline ml-auto">Edit motifs</Link>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {directives.map((d) => {
+              const hue = motifHue(d.key);
+              const weight = postMotifs.find((m) => m.key === d.key)?.weight;
+              return (
+                <label key={d.key} className="text-sm" title={d.summary}>
+                  <span
+                    className="block text-[11px] font-mono font-semibold px-1.5 py-0.5 rounded-full mb-1 w-fit"
+                    style={{ background: `var(--${hue}-soft)`, color: `var(--${hue}-on)` }}
+                  >
+                    {d.label}
+                  </span>
+                  <input
+                    name={`motif_${d.key}`}
+                    type="number"
+                    min={0}
+                    max={100}
+                    defaultValue={weight ?? ""}
+                    placeholder="0"
+                    className="w-full font-mono text-xs"
+                    disabled={!editor}
+                  />
+                </label>
+              );
+            })}
+          </div>
+          <p className="text-[11px] text-[var(--mute)] mt-1">
+            Weights are relative and normalised to 100% on save (up to 3 motifs). Leave every field blank to inherit.
+          </p>
         </div>
 
         <BlogBodyEditor postId={post.id} initialBody={post.body ?? ""} disabled={!editor} />

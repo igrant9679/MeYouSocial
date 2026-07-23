@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { llm } from "@/lib/llm";
 import { isGloballyPaused, writeAudit } from "@/lib/governance";
 import { generateOutlineCore } from "@/lib/blog-autopilot";
+import { brandGuardrailBlock, motifPromptFor } from "@/lib/motifs";
 
 /**
  * Craft actions (Wave A′): outline, per-section regenerate, A/B titles,
@@ -90,6 +91,7 @@ export async function generateTitlesAction(formData: FormData) {
   if (await isGloballyPaused(workspace.id)) return;
   const post = await db.blogPost.findFirst({ where: { id, workspaceId: workspace.id } });
   if (!post) return;
+  const motifs = await motifPromptFor(workspace.id, post, "short");
   const res = await llm.complete({
     model: post.model ?? workspace.defaultModel ?? llm.defaultModel,
     system:
@@ -97,7 +99,7 @@ export async function generateTitlesAction(formData: FormData) {
     messages: [
       {
         role: "user",
-        content: `Current title: "${post.title}"${post.focusKeyword ? `\nFocus keyword (include naturally): ${post.focusKeyword}` : ""}${post.body ? `\nContent summary: ${post.body.replace(/<[^>]+>/g, " ").slice(0, 600)}` : ""}`,
+        content: `Current title: "${post.title}"${motifs ? `\n${motifs}` : ""}${post.focusKeyword ? `\nFocus keyword (include naturally): ${post.focusKeyword}` : ""}${post.body ? `\nContent summary: ${post.body.replace(/<[^>]+>/g, " ").slice(0, 600)}` : ""}`,
       },
     ],
     maxTokens: 500,
@@ -139,6 +141,10 @@ export async function generateMetaAction(formData: FormData) {
   if (await isGloballyPaused(workspace.id)) return;
   const post = await db.blogPost.findFirst({ where: { id, workspaceId: workspace.id } });
   if (!post) return;
+  const [motifs, guardrails] = await Promise.all([
+    motifPromptFor(workspace.id, post, "short"),
+    brandGuardrailBlock(workspace.id),
+  ]);
   const res = await llm.complete({
     model: post.model ?? workspace.defaultModel ?? llm.defaultModel,
     system:
@@ -146,7 +152,15 @@ export async function generateMetaAction(formData: FormData) {
     messages: [
       {
         role: "user",
-        content: `Title: "${post.title}"${post.focusKeyword ? `\nFocus keyword (must appear in metaTitle and slug): ${post.focusKeyword}` : ""}${post.body ? `\nContent: ${post.body.replace(/<[^>]+>/g, " ").slice(0, 800)}` : ""}`,
+        content: [
+          `Title: "${post.title}"`,
+          motifs,
+          guardrails,
+          post.focusKeyword ? `Focus keyword (must appear in metaTitle and slug): ${post.focusKeyword}` : null,
+          post.body ? `Content: ${post.body.replace(/<[^>]+>/g, " ").slice(0, 800)}` : null,
+        ]
+          .filter(Boolean)
+          .join("\n"),
       },
     ],
     maxTokens: 300,

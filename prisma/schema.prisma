@@ -66,7 +66,11 @@ model BlogPost {
   // Wave A′ SEO fields
   secondaryKeywords String  @default("[]") // JSON array of phrases
   outline         String?   // JSON [{heading, points[]}] — outline-first drafting
-  tone            String?   // professional | friendly | authoritative | conversational
+  tone            String?   // DEPRECATED — superseded by `motifs` (FR-2); kept so old rows keep their value
+  // FR-2: weighted motif selection — JSON [{key, weight}] summing to 100.
+  // Empty array = fall back to the workspace motif defaults for this tier/audience.
+  motifs          String    @default("[]")
+  contentTier     Int?      // 1 = head … 4 = long-tail; drives the motif default lookup
   readingLevel    String?   // simple | standard | advanced
   scheduledAt     DateTime? // publish-at time; setting it at final_approval is the human approval
   templateKey     String?   // blog structure template (listicle, how-to, ...)
@@ -138,6 +142,91 @@ model OrgProfile {
   services    String   @default("[]") // JSON array of strings
   audience    String?
   updatedAt   DateTime @updatedAt
+}
+
+// ---- FR-2: brand kit, typography & the 7 Motifs tone engine ------------------
+
+// Per-workspace brand kit. Heading spec + image dimensions are article-scoped
+// visual settings, deliberately independent of the connected site's theme.
+model BrandKit {
+  id             String  @id @default(cuid())
+  workspaceId    String  @unique
+  primaryColor   String? // hex — the workspace's own brand, not the app's hue tokens
+  secondaryColor String?
+  accentColor    String?
+  headingFont    String?
+  bodyFont       String?
+  logoUrl        String?
+  footerCredit   String?
+  toneGuardrails String? // "never say X", house style notes — injected into every generation
+  // JSON {h1..h6: {px, marginTop, marginBottom, weight?, lineHeight?, color?}}
+  headingSpec    String  @default("{}")
+  featuredImageWidth  Int @default(1920)
+  featuredImageHeight Int @default(1080)
+  ogImageWidth        Int @default(1200)
+  ogImageHeight       Int @default(630)
+  updatedAt      DateTime @updatedAt
+}
+
+// The 7 Motifs as editable, versioned style directives (never hard-coded prompt
+// text). Seeded per workspace from the LSI framework defaults on first use.
+model MotifDirective {
+  id          String   @id @default(cuid())
+  workspaceId String
+  key         String   // visionary | competitive | succinct | sincere | exclusive | social | informative
+  label       String
+  summary     String   // one-line description shown in the picker
+  voice       String   // voice signature
+  rhythm      String   // sentence rhythm / structure
+  evidence    String   // what counts as evidence in this motif
+  cta         String   // CTA pattern
+  version     Int      @default(1)
+  updatedAt   DateTime @updatedAt
+
+  versions MotifDirectiveVersion[]
+
+  @@unique([workspaceId, key])
+}
+
+// Prior text of a directive, written before every edit.
+model MotifDirectiveVersion {
+  id          String   @id @default(cuid())
+  directiveId String
+  version     Int
+  label       String   // voice/rhythm/evidence/cta snapshot label
+  data        String   // JSON {label, summary, voice, rhythm, evidence, cta}
+  editedById  String?
+  createdAt   DateTime @default(now())
+
+  directive MotifDirective @relation(fields: [directiveId], references: [id], onDelete: Cascade)
+
+  @@index([directiveId, version])
+}
+
+// Workspace motif defaults by content tier and/or audience. The most specific
+// match wins (tier+audience > tier > audience > catch-all).
+model MotifDefault {
+  id          String   @id @default(cuid())
+  workspaceId String
+  tier        Int?     // 1..4, null = any
+  audience    String?  // free text, matched case-insensitively; null = any
+  motifs      String   @default("[]") // JSON [{key, weight}]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([workspaceId])
+}
+
+// Per-channel motif mapping: the article may be Informative while its LinkedIn
+// variant leans Social (the framework already shifts "Social" onto social).
+model PlatformMotif {
+  id          String   @id @default(cuid())
+  workspaceId String
+  platform    String   // linkedin | x | instagram | facebook | video
+  motifKey    String
+  updatedAt   DateTime @updatedAt
+
+  @@unique([workspaceId, platform])
 }
 
 // Truthfulness: [NEEDS SOURCE] claims become citation rows; publish is blocked

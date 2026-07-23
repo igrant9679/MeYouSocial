@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import { runBlogChecks, requiredChecksPass } from "@/lib/blog-checks";
 import { writeAudit } from "@/lib/governance";
 import { generateDraftCore } from "@/lib/blog-autopilot";
+import { readMotifWeights, serializeMotifs } from "@/lib/motifs";
 
 /**
  * Blog module (ported from Spark's article pipeline — slice 1).
@@ -57,6 +58,8 @@ export async function updateBlogPostAction(formData: FormData) {
     const v = str(formData.get(k));
     return v && allowed.includes(v) ? v : null;
   };
+  const tierRaw = parseInt(String(formData.get("contentTier") ?? ""), 10);
+  const tier = Number.isFinite(tierRaw) && tierRaw >= 1 && tierRaw <= 4 ? tierRaw : null;
   const secondaryRaw = str(formData.get("secondaryKeywords"));
   const secondary = secondaryRaw
     ? JSON.stringify(secondaryRaw.split(",").map((s) => s.trim().toLowerCase()).filter(Boolean).slice(0, 8))
@@ -71,7 +74,9 @@ export async function updateBlogPostAction(formData: FormData) {
       focusKeyword: str(formData.get("focusKeyword")),
       audience: str(formData.get("audience")),
       wordCountTarget: num(formData.get("wordCountTarget")),
-      tone: pick("tone", ["professional", "friendly", "authoritative", "conversational"]),
+      // FR-2: the motif blend replaces the old 4-option tone select.
+      motifs: serializeMotifs(readMotifWeights(formData)),
+      contentTier: tier,
       readingLevel: pick("readingLevel", ["simple", "standard", "advanced"]),
       templateKey: str(formData.get("templateKey")),
       model: str(formData.get("model")),

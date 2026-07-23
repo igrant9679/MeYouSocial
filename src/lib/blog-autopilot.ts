@@ -8,6 +8,16 @@ import { getModes, isGloballyPaused, writeAudit } from "@/lib/governance";
 import { getVideoProvider, estimateCostUsd } from "@/lib/video";
 import { templateGuidance } from "@/lib/blog-templates";
 import { buildJsonLd } from "@/lib/blog-jsonld";
+import {
+  brandGuardrailBlock,
+  ensureMotifDirectives,
+  getPlatformMotifs,
+  motifBlockShort,
+  motifPromptFor,
+  platformMotifBlock,
+  platformMotifWeights,
+  resolveMotifs,
+} from "@/lib/motifs";
 
 /**
  * Autopilot cores + the Phase-3 scheduler cycle. Every function here is
@@ -112,8 +122,12 @@ export async function generateOutlineCore(workspaceId: string, postId: string): 
     "You are an SEO content strategist. Respond ONLY with a JSON array: " +
     '[{"heading": string, "points": string[]}] — 4 to 7 h2 sections with 2-4 bullet points each. ' +
     "No invented statistics in points. Headings should be specific, and at least one should naturally contain the focus keyword when one is given.";
+  // The dominant motif decides the shape of the outline, not just the prose.
+  const motifs = await motifPromptFor(workspaceId, post, "short");
+
   const prompt = [
     `Outline a blog post titled: "${post.title}".`,
+    motifs,
     org?.description ? `Organization context: ${org.description.slice(0, 500)}` : null,
     post.focusKeyword ? `Focus keyword: "${post.focusKeyword}".` : null,
     secondary.length ? `Secondary keywords to cover: ${secondary.join(", ")}.` : null,
@@ -157,6 +171,12 @@ export async function generateDraftCore(workspaceId: string, postId: string): Pr
     }),
   ]);
   const voice = channel?.voiceProfiles[0];
+  // FR-2: the motif blend (post selection, else the workspace default for this
+  // tier/audience) is the tone engine — it replaced the old 4-option tone field.
+  const [motifs, guardrails] = await Promise.all([
+    motifPromptFor(workspaceId, post),
+    brandGuardrailBlock(workspaceId),
+  ]);
 
   const system = [
     "You are a senior content writer producing an SEO blog post draft as clean HTML (h2/h3, p, ul/li — no <html>/<body> wrapper).",
@@ -165,9 +185,11 @@ export async function generateDraftCore(workspaceId: string, postId: string): Pr
       ? `About the organization this blog belongs to (ground every claim in this): ${org.description}${org.industry ? ` Industry: ${org.industry}.` : ""}${org.audience ? ` Primary audience: ${org.audience}.` : ""}`
       : null,
     voice ? `Write in the brand voice "${voice.label}". Voice profile (JSON): ${clip(voice.data) ?? "n/a"}` : null,
+    motifs,
     channel?.audience
       ? `Audience profile (JSON): demographics ${clip(channel.audience.demographics) ?? "n/a"}; psychographics ${clip(channel.audience.psychographics) ?? "n/a"}`
       : null,
+    guardrails,
   ]
     .filter(Boolean)
     .join("\n\n");
@@ -177,12 +199,6 @@ export async function generateDraftCore(workspaceId: string, postId: string): Pr
   try { outline = post.outline ? JSON.parse(post.outline) : []; } catch { outline = []; }
   let secondary: string[] = [];
   try { secondary = JSON.parse(post.secondaryKeywords) as string[]; } catch { secondary = []; }
-  const TONE_HINT: Record<string, string> = {
-    professional: "professional and precise",
-    friendly: "warm, friendly, first-person plural",
-    authoritative: "confident and authoritative, no hedging",
-    conversational: "conversational, short sentences, direct address",
-  };
   const LEVEL_HINT: Record<string, string> = {
     simple: "8th-grade reading level — short sentences, common words",
     standard: "general adult reading level",
@@ -196,7 +212,6 @@ export async function generateDraftCore(workspaceId: string, postId: string): Pr
       ? `Primary SEO keyword: "${post.focusKeyword}" — use it naturally in the opening paragraph and at least one heading.`
       : null,
     secondary.length ? `Work these secondary keywords in naturally (no stuffing): ${secondary.join(", ")}.` : null,
-    post.tone && TONE_HINT[post.tone] ? `Tone: ${TONE_HINT[post.tone]}.` : null,
     post.readingLevel && LEVEL_HINT[post.readingLevel] ? `Reading level: ${LEVEL_HINT[post.readingLevel]}.` : null,
     templateGuidance(post.templateKey) ? `Structure template: ${templateGuidance(post.templateKey)}` : null,
     outline.length
@@ -255,9 +270,19 @@ export async function generateVariantsCore(workspaceId: string, postId: string):
     "Use {{URL}} where the post link belongs. Platform conventions: linkedin = professional, 2-3 short paragraphs; " +
     "x = under 260 chars, punchy; instagram = conversational with line breaks, no link in body (say 'link in bio' + {{URL}} on its own line); " +
     "facebook = friendly, 1-2 paragraphs. Never invent statistics or quotes not present in the article.";
+  // FR-2 per-channel motif mapping: each variant is written in its channel's
+  // mapped motif, falling back to the article's own blend when unmapped.
+  const articleWeights = await resolveMotifs(workspaceId, post);
+  const [channelMotifs, guardrails] = await Promise.all([
+    platformMotifBlock(workspaceId, ["linkedin", "x", "instagram", "facebook"], articleWeights),
+    brandGuardrailBlock(workspaceId),
+  ]);
+
   const prompt = [
     `Blog post title: "${post.title}"`,
     org?.description ? `The organization: ${org.description.slice(0, 400)}` : null,
+    channelMotifs,
+    guardrails,
     `Article summary: ${summary}`,
   ]
     .filter(Boolean)
@@ -353,6 +378,16 @@ export async function packageVideoCore(workspaceId: string, blogPostId: string):
   if (!workspace) return null;
 
   const summary = post.body.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").slice(0, 1200);
+  // The video channel's mapped motif shapes the hook's mood and text.
+  const [articleWeights, platformMap] = await Promise.all([
+    resolveMotifs(workspaceId, post),
+    getPlatformMotifs(workspaceId),
+  ]);
+  const videoWeights = platformMotifWeights(platformMap.video, articleWeights);
+  const motifLine = videoWeights.length
+    ? motifBlockShort(await ensureMotifDirectives(workspaceId), videoWeights)
+    : null;
+
   const system =
     "You write prompts for an AI video generator producing short-form vertical videos (8 seconds). " +
     'Respond ONLY with a JSON object: {"title": string, "prompt": string}. ' +
@@ -361,7 +396,14 @@ export async function packageVideoCore(workspaceId: string, blogPostId: string):
   const res = await llm.complete({
     model: workspace.defaultModel ?? llm.defaultModel,
     system,
-    messages: [{ role: "user", content: `Article title: "${post.title}"\n\nArticle summary: ${summary}` }],
+    messages: [
+      {
+        role: "user",
+        content: [`Article title: "${post.title}"`, motifLine, `Article summary: ${summary}`]
+          .filter(Boolean)
+          .join("\n\n"),
+      },
+    ],
     maxTokens: 500,
   });
   let parsed: { title?: string; prompt?: string } = {};

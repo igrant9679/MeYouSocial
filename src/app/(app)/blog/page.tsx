@@ -72,6 +72,7 @@ export default async function BlogPage() {
         <Link href="/blog/analytics" className="btn">Analytics</Link>
         <Link href="/blog/automation" className="btn">Automation</Link>
         <Link href="/blog/organization" className="btn">Organization</Link>
+        <Link href="/blog/brand" className="btn">Brand &amp; motifs</Link>
         <Link href="/blog/settings" className="btn">Settings</Link>
       </div>
 
