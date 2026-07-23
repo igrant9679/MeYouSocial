@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="520" height="520" viewBox="0 0 520 520" role="img" aria-label="MeYouSocial">
+  <!-- MeYouSocial — the folded-broadsheet M. Ink badge #15181D, white left fold, coral #E5482F right fold. -->
+  <rect width="520" height="520" rx="110" fill="#15181D"/>
+  <path d="M90 410 V140 L225 320 L270 255 V410 Z" fill="#FFFFFF"/>
+  <path d="M270 255 L315 320 L430 140 V410 H345 V280 Z" fill="#E5482F"/>
+</svg>
