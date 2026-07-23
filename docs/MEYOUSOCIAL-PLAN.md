@@ -246,3 +246,38 @@ Drive runs a **write-then-delete probe** so misconfiguration or exhausted quota
 fails at save time with a plain message. Honest limits stated in-app: SA-owned
 files consume the SA's own 15 GB on personal Drives (Shared Drives pool);
 existing local files are not migrated (ephemeral anyway).
+
+**Activation is user-gated:** create a Google Cloud service account (Drive API
+enabled) → JSON key → share a Drive folder with it as Editor → paste both under
+Admin → API keys → Storage → switch backend to Google Drive. Until then new
+files keep landing on local disk (ephemeral on Railway).
+
+---
+
+## Responsive width pass (shipped + verified live 2026-07-23)
+
+Root cause found: the content-size setting applies `zoom` to `<body>`, which
+shrinks *effective* layout width ~18% at XL while viewport media queries stand
+still. Fix: the app shell and `<main>` are CSS **@containers**; the affected
+chrome and page grids use Tailwind v4 container variants, which measure the
+zoomed space. Verified on production at 1280/1024/768/375 and under simulated
+XL zoom (`body.style.zoom=1.22`).
+
+- Left rail auto-collapses to a 68px icon rail below 72rem effective width
+  (labels become tooltips; MobileNav below md unchanged, labels intact).
+- Header sheds in priority order (ticker narrows → email, "Manage channels"
+  drop → "+ Channel" drops → role chip hides on phones). Bonus bug from live
+  verify: unlayered `.btn` CSS beat the layered `hidden` utility, so the two
+  channel buttons had been visible at every width since the header shipped —
+  now `!hidden`-marked.
+- Blog editor: gates grid/aside breakpoints unified (was lg: grid + xl: aside
+  = phantom empty column at 1024–1280); below the threshold a compact gates
+  strip (pass count, blocking chip, score → Review) shows on every tab. Under
+  XL zoom on wide screens the collapsed rail frees enough width that the full
+  sidebar *stays* — measured, not hoped.
+- BlogSubNav: honest scroll-edge fades (only while more tabs exist in that
+  direction) + active tab auto-centers into view.
+- Week ribbon: horizontal scroll track below ~42rem effective (was 7×50px).
+- Reports hub 1/2/3 cols, customize aside, TaskBoard 1→3 cols, Videos
+  storyboard 1/2/3/4 cols — all container-based now. Storyboard grid is
+  code-verified only (no renders existed in prod to click through).
