@@ -52,3 +52,4 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 .admin-credentials.local.txt
+*.local.md
