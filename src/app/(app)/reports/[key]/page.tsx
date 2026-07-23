@@ -75,7 +75,7 @@ export default async function ReportPage({
         )}
       </div>
 
-      <div className={customizing ? "grid grid-cols-1 lg:grid-cols-[1fr_260px] gap-4 items-start" : ""}>
+      <div className={customizing ? "grid grid-cols-1 @4xl:grid-cols-[1fr_260px] gap-4 items-start" : ""}>
         <div className="flex flex-col gap-3 min-w-0">
           {report.blocks.length === 0 ? (
             <div className="card text-center text-sm text-[var(--mute)] py-10">

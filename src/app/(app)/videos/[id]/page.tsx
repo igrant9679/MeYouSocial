@@ -107,7 +107,10 @@ export default async function StoryboardPage({ params }: { params: Promise<{ id:
       </div>
 
       {/* Scenes */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+      {/* Container-based columns: scene cards hold editable forms, which need
+          ~280px each — viewport breakpoints overshot once the rail and the XL
+          content-size ate into the real space. */}
+      <div className="grid grid-cols-1 @xl:grid-cols-2 @4xl:grid-cols-3 @6xl:grid-cols-4 gap-3 mb-4">
         {scenes.map((scene, i) => (
           <div key={i} className="card !p-0 overflow-hidden flex flex-col">
             <div className="h-16 grid place-items-center text-white font-mono font-bold text-xs" style={{ background: SCENE_GRADIENTS[i % SCENE_GRADIENTS.length] }}>

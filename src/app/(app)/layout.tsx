@@ -134,7 +134,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <span className="hidden @6xl:inline text-[13px] text-[var(--mute)] truncate max-w-[24ch]">{user.email}</span>
         </header>
 
-        <main className="flex-1 overflow-auto bg-[var(--panel)] p-6">{children}</main>
+        {/* Also a @container: page components size against the CONTENT area
+            (shell minus rail), the width that actually constrains them. */}
+        <main className="flex-1 overflow-auto bg-[var(--panel)] p-6 @container">{children}</main>
       </div>
     </div>
   );

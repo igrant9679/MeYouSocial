@@ -29,7 +29,7 @@ export default async function ReportsHubPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 @xl:grid-cols-2 @4xl:grid-cols-3 gap-3">
         {reports.map((r) => (
           <Link key={r.key} href={`/reports/${r.key}`} className="card lift block">
             <div className="flex items-center gap-2 mb-1.5">

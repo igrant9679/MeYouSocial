@@ -41,7 +41,9 @@ export function TaskBoard({ tasks: initial, wipLimit }: { tasks: BoardTask[]; wi
   };
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+    // 3 columns only when each gets ≥~215px of real width (container query =
+    // zoom-aware) — md: viewport used to force 3×150px columns beside the rail.
+    <div className="grid grid-cols-1 @2xl:grid-cols-3 gap-3">
       {COLUMNS.map((col) => {
         const items = tasks.filter((t) => t.status === col.key);
         const overWip = col.key === "in_progress" && items.length > wipLimit;

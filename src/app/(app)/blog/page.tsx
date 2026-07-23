@@ -173,7 +173,9 @@ export default async function BlogPage() {
           <h2 className="font-mono text-[13px] font-bold flex-1">This week</h2>
           <Link href="/blog/calendar" className="text-xs font-mono text-[var(--accent)] font-semibold hover:underline">full calendar →</Link>
         </div>
-        <div className="grid grid-cols-7 gap-1.5">
+        {/* 7 columns are unreadable on phones — below ~42rem effective width
+            the week becomes a horizontal scroll track instead of 50px slivers. */}
+        <div className="grid grid-flow-col auto-cols-[minmax(92px,1fr)] overflow-x-auto @2xl:grid-flow-row @2xl:auto-cols-auto @2xl:grid-cols-7 @2xl:overflow-visible gap-1.5 pb-1 @2xl:pb-0">
           {days.map((d, i) => (
             <div key={i} className="rounded-lg border border-[var(--line)] p-1.5 min-h-[54px]" style={i === 0 ? { background: "var(--zebra)" } : undefined}>
               <div className="font-mono text-[9px] text-[var(--mute)] font-bold mb-1">

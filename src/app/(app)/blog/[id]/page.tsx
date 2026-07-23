@@ -329,7 +329,7 @@ export default async function BlogPostPage({
           stays one glance away instead of vanishing into the Review tab. */}
       <Link
         href={`/blog/${post.id}?tab=review`}
-        className="@6xl:hidden card !p-2.5 mb-4 flex items-center gap-2 text-[12px] font-semibold hover:border-[var(--accent)] transition-colors"
+        className="@4xl:hidden card !p-2.5 mb-4 flex items-center gap-2 text-[12px] font-semibold hover:border-[var(--accent)] transition-colors"
         title="Open the Review tab for gate details"
       >
         <ShieldCheck className="w-4 h-4 shrink-0" style={{ color: gatesPass ? "var(--green-on)" : "var(--amber-on)" }} />
@@ -351,7 +351,7 @@ export default async function BlogPostPage({
       {/* Sidebar breakpoint matches the aside below — previously the grid
           reserved its 270px column from lg while the aside only appeared at
           xl, leaving a phantom empty column between the two. */}
-      <div className="grid grid-cols-1 @6xl:grid-cols-[1fr_270px] gap-4 items-start">
+      <div className="grid grid-cols-1 @4xl:grid-cols-[1fr_270px] gap-4 items-start">
       <div className="min-w-0">
 
       {is("distribute") && (<>
@@ -1365,7 +1365,7 @@ export default async function BlogPostPage({
       </div>
 
       {/* Gates sidebar — the publish contract, visible from every tab. */}
-      <aside className="hidden @6xl:block sticky top-14">
+      <aside className="hidden @4xl:block sticky top-14">
         <div className="card !p-3.5">
           <div className="flex items-center gap-2 mb-2">
             <ShieldCheck className="w-4 h-4" style={{ color: gatesPass ? "var(--green-on)" : "var(--amber-on)" }} />
