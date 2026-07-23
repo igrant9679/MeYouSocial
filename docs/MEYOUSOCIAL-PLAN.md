@@ -179,3 +179,43 @@ User approved autonomous gap closure in this order:
 Conventions unchanged: dual-push (origin + deploy), tsc exit-checked + build
 before push, offline migrations via `prisma migrate diff`, mock-first seams,
 truthfulness rules on every new generation surface.
+
+---
+
+## UI/UX build-out (user-approved from round-4 mockups — ALL 5 SLICES SHIPPED 2026-07-23)
+
+Commits 65521ea → 088bbfa, each deployed + verified live:
+
+1. **Blog workspace** — sticky sub-nav with live badges on every /blog page
+   (`blog/layout.tsx` + `BlogSubNav`), full-width kanban home, editor split
+   into Write/Optimize/Assets/Distribute/Review tabs (URL param, no form spans
+   tabs) with the Gates sidebar visible from every tab.
+2. **Reports hub** — `/reports` nav module: 10 stock reports + custom builder,
+   15-block library (`report-defs.ts` + `ReportBlocks.tsx`), per-workspace
+   `ReportConfig` overrides (stock reports without a row track code defaults),
+   PDF export via pdfkit (`serverExternalPackages` — it reads .afm from disk).
+3. **Motion pass** — LIVE audit-log ticker in the header (server-seeded,
+   60s client refresh via /api/ticker), shimmer `loading.tsx` on 8 routes,
+   page-enter template, nav-icon lift, button press, one-shot badge pop; all
+   reduced-motion-safe.
+4. **Videos** — 3–4 scene storyboards (editable until rendering), scene-by-
+   scene rendering with progress persistence, provider output downloaded to
+   storage (Veo URIs expire ~2d), deterministic SRT from scene durations,
+   honest-mock TTS seam (ElevenLabs activates in-app). Admin → API keys gained
+   *Media & video*: renderer switch (auto/mock/veo), TTS switch, YouTube +
+   ElevenLabs keys; YouTube lib resolves keys DB-first per call.
+5. **Production** — DnD task kanban (native HTML5, select fallback per card),
+   workspace WIP limit, stale/overdue flags, per-person capacity, auto-created
+   tasks from pipeline events (review parked / images missing / render failed;
+   deduped; rules + WIP editable in-app on the Tasks page), unified calendar
+   (blog scheduledAt joins project publish dates).
+
+Help page updated throughout (Blog workspace, Reports, Videos, production
+board/auto-tasks/calendar, ticker, content size, nav/logo).
+
+**Honest debts from the build-out:** ffmpeg assembly of scene clips into one
+file (seam exists, mock = per-scene playback); YouTube *upload* (needs OAuth,
+not just the Data API key); ⌘K palette + version-diff view (blog polish);
+Slack notifications; DnD for the blog kanban (production board has it, blog
+home cards are links); localStorage-backed local uploads are ephemeral on
+Railway redeploys (STORAGE_BACKEND=s3 adapter still unwired).
