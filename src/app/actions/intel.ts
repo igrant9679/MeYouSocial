@@ -4,17 +4,17 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireMembership, requireRole } from "@/lib/acl";
 import { db } from "@/lib/db";
-import { youtube } from "@/lib/youtube";
+import { youtubeFor } from "@/lib/youtube";
 
 // Find Similar Channels: searches for channels sharing the same category
 // (with the youtube provider, since IntelChannel doesn't have semantic tags).
 export async function findSimilarChannelsAction(formData: FormData) {
-  await requireMembership();
+  const { workspace } = await requireMembership();
   const intelChannelId = String(formData.get("intelChannelId"));
   const source = await db.intelChannel.findUnique({ where: { id: intelChannelId } });
   if (!source) return;
   // Try to find more channels via the youtube provider — this auto-indexes new ones.
-  const candidates = await youtube.searchChannels(source.category ?? source.name ?? "creator", 6);
+  const candidates = await youtubeFor(workspace.id).searchChannels(source.category ?? source.name ?? "creator", 6);
   for (const c of candidates) {
     await db.intelChannel.upsert({
       where: { youtubeId: c.id },
@@ -38,10 +38,10 @@ export async function findSimilarChannelsAction(formData: FormData) {
 // Auto-index unindexed @handles. Called from the Intel search box when a
 // query looks like a handle and yields no matches.
 export async function autoIndexHandleAction(formData: FormData) {
-  await requireMembership();
+  const { workspace } = await requireMembership();
   const handle = String(formData.get("handle") ?? "").trim();
   if (!handle) return;
-  const source = await youtube.findChannel(handle);
+  const source = await youtubeFor(workspace.id).findChannel(handle);
   if (!source) return;
   const upserted = await db.intelChannel.upsert({
     where: { youtubeId: source.id },
@@ -59,7 +59,7 @@ export async function autoIndexHandleAction(formData: FormData) {
     },
   });
   // Also fetch a handful of videos so the detail page has content.
-  const videos = await youtube.listVideos(source.id, 8);
+  const videos = await youtubeFor(workspace.id).listVideos(source.id, 8);
   const avg = videos.reduce((a, v) => a + v.views, 0) / Math.max(1, videos.length);
   for (const v of videos) {
     await db.intelVideo.upsert({

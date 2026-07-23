@@ -115,6 +115,7 @@ export async function discoverIdeasCore(workspaceId: string): Promise<number> {
     system,
     messages: [{ role: "user", content: prompt }],
     maxTokens: 1500,
+    workspaceId,
   });
 
   type RawIdea = {
@@ -206,6 +207,7 @@ export async function generateOutlineCore(workspaceId: string, postId: string): 
     system,
     messages: [{ role: "user", content: prompt }],
     maxTokens: 1200,
+    workspaceId,
   });
   let outline: Array<{ heading?: string; points?: string[] }> = [];
   try {
@@ -297,6 +299,7 @@ export async function generateDraftCore(workspaceId: string, postId: string): Pr
     system,
     messages: [{ role: "user", content: prompt }],
     maxTokens: 4000,
+    workspaceId,
   });
 
   // Version history: preserve what generation is about to overwrite.
@@ -363,6 +366,7 @@ export async function generateVariantsCore(workspaceId: string, postId: string):
     system,
     messages: [{ role: "user", content: prompt }],
     maxTokens: 1500,
+    workspaceId,
   });
 
   let parsed: Record<string, unknown> = {};
@@ -575,6 +579,7 @@ export async function packageVideoCore(workspaceId: string, blogPostId: string):
       },
     ],
     maxTokens: 900,
+    workspaceId,
   });
   let parsed: { title?: string; prompt?: string; scenes?: unknown } = {};
   try {
@@ -655,7 +660,7 @@ export async function processRenderCore(workspaceId: string, renderId: string): 
   if (!render) return false;
   if ((await rendersToday(workspaceId)) >= env.VIDEO_DAILY_RENDER_CAP) return false;
 
-  const provider = await getVideoProvider();
+  const provider = await getVideoProvider(workspaceId);
   await db.videoRender.update({ where: { id: render.id }, data: { status: "rendering", provider: provider.name } });
   const scenes = parseScenes(render.scenes);
   try {
@@ -667,6 +672,7 @@ export async function processRenderCore(workspaceId: string, renderId: string): 
           prompt: scenes[i].prompt,
           seconds: scenes[i].seconds,
           aspect: render.aspect as "9:16" | "16:9" | "1:1",
+          workspaceId,
         });
         const durable = await persistRenderOutput(out.url, out.provider);
         scenes[i] = { ...scenes[i], outputUrl: durable ?? out.url, status: "done" };
@@ -687,6 +693,7 @@ export async function processRenderCore(workspaceId: string, renderId: string): 
         prompt: render.prompt,
         seconds: render.seconds,
         aspect: render.aspect as "9:16" | "16:9" | "1:1",
+        workspaceId,
       });
       const durable = await persistRenderOutput(out.url, out.provider);
       await db.videoRender.update({

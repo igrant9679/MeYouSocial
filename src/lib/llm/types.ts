@@ -13,6 +13,9 @@ export type LLMRequest = {
   maxTokens?: number;
   /** Optional system prompt; merged with messages by the provider. */
   system?: string;
+  /** Multi-tenant: resolve the provider key for THIS workspace (its own key
+   *  wins over the platform's). Omitted = platform/global key. */
+  workspaceId?: string;
 };
 
 export type LLMResponse = {

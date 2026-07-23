@@ -17,9 +17,9 @@ import { getApiKey, invalidateKeyCache } from "./keys";
 
 const providerCache = new Map<string, LLMProvider>();
 
-async function getProvider(providerId: string): Promise<LLMProvider> {
+async function getProvider(providerId: string, workspaceId?: string): Promise<LLMProvider> {
   const key = (providerId === "anthropic" || providerId === "google")
-    ? await getApiKey(providerId)
+    ? await getApiKey(providerId, workspaceId)
     : "";
   const cacheKey = `${providerId}:${key ? hash(key) : "none"}`;
   const cached = providerCache.get(cacheKey);
@@ -92,22 +92,22 @@ function wrapWithFallback(real: LLMProvider, providerId: string): LLMProvider {
   };
 }
 
-async function selectProvider(model: string): Promise<LLMProvider> {
+async function selectProvider(model: string, workspaceId?: string): Promise<LLMProvider> {
   if (env.USE_MOCK_LLM) return mockProvider;
   const descriptor = getModel(model);
   if (!descriptor) return mockProvider;
-  return getProvider(descriptor.provider);
+  return getProvider(descriptor.provider, workspaceId);
 }
 
 export const llm = {
   models: MODELS,
   defaultModel: env.DEFAULT_LLM_MODEL,
   async complete(req: LLMRequest): Promise<LLMResponse> {
-    const p = await selectProvider(req.model);
+    const p = await selectProvider(req.model, req.workspaceId);
     return p.complete(req);
   },
   async *stream(req: LLMRequest): AsyncIterable<string> {
-    const p = await selectProvider(req.model);
+    const p = await selectProvider(req.model, req.workspaceId);
     for await (const chunk of p.stream(req)) yield chunk;
   },
   invalidateKeyCache,

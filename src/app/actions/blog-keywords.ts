@@ -81,6 +81,7 @@ export async function discoverKeywordsAction() {
     system,
     messages: [{ role: "user", content: prompt }],
     maxTokens: 1500,
+    workspaceId: workspace.id,
   });
   let rows: Array<{ phrase?: string; tier?: number; intent?: string; cluster?: string }> = [];
   try {
@@ -130,6 +131,7 @@ export async function classifyIntentsAction() {
       'Classify search intent. Respond ONLY with a JSON object mapping phrase to one of "informational", "commercial", "transactional", "navigational".',
     messages: [{ role: "user", content: missing.map((k) => k.phrase).join("\n") }],
     maxTokens: 800,
+    workspaceId: workspace.id,
   });
   let map: Record<string, string> = {};
   try {

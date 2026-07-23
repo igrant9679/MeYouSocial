@@ -10,6 +10,9 @@ import { setActiveChannelAction } from "@/app/actions/channel";
 import { LeftRailNav, type LeftRailItem } from "@/components/LeftRailNav";
 import { MobileNav } from "@/components/MobileNav";
 import { ChannelSwitcher } from "@/components/ChannelSwitcher";
+import { WorkspaceSwitcher } from "@/components/WorkspaceSwitcher";
+import { setActiveWorkspaceAction } from "@/app/actions/workspace-switch";
+import { storage } from "@/lib/storage";
 
 // Each nav item carries its own brand color so the rail reads as a vibrant chip strip
 // (mirrors the CreateUp_Mockups.html per-module accent palette).
@@ -38,6 +41,43 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const { user, workspace, membership, channels, active } = await getActiveChannel();
   const userLabel = user.name ?? user.email.split("@")[0];
   const navItems = NAV.filter((n) => !n.adminOnly || membership.role === "ADMIN");
+  const workspaceChoices = user.memberships
+    .filter((m) => m.status === "active")
+    .map((m) => ({ id: m.workspaceId, name: m.workspace.name }));
+
+  // Per-company branding (multi-tenant): accent re-tints the chrome via CSS
+  // token overrides; the logo/wordmark swap to the company's own. Hex is
+  // re-validated here — never interpolate an unvalidated DB string into CSS.
+  const accent = workspace.accentColor && /^#[0-9a-fA-F]{6}$/.test(workspace.accentColor) ? workspace.accentColor : null;
+  const logoUrl = workspace.logoKey ? storage.url(workspace.logoKey) : null;
+  const brandName = accent || logoUrl ? workspace.name : "MeYouSocial";
+  // The alias tokens (--accent*, --brand-on…) capture :root's --brand at
+  // definition time, so every derived token must be restated here, per theme.
+  const brandCss = accent ? `
+.ws-brand {
+  --brand: ${accent};
+  --brand-2: color-mix(in srgb, ${accent} 72%, black);
+  --brand-soft: color-mix(in srgb, ${accent} 12%, white);
+  --brand-on: ${accent};
+  --accent: ${accent};
+  --accent-soft: color-mix(in srgb, ${accent} 12%, white);
+  --accent-strong: color-mix(in srgb, ${accent} 72%, black);
+  --accent-on: ${accent};
+}
+html[data-theme="dark"] .ws-brand {
+  --brand-soft: color-mix(in srgb, ${accent} 18%, var(--bg));
+  --accent-soft: color-mix(in srgb, ${accent} 18%, var(--bg));
+  --brand-on: color-mix(in srgb, ${accent} 62%, white);
+  --accent-on: color-mix(in srgb, ${accent} 62%, white);
+}
+@media (prefers-color-scheme: dark) {
+  html[data-theme="auto"] .ws-brand {
+    --brand-soft: color-mix(in srgb, ${accent} 18%, var(--bg));
+    --accent-soft: color-mix(in srgb, ${accent} 18%, var(--bg));
+    --brand-on: color-mix(in srgb, ${accent} 62%, white);
+    --accent-on: color-mix(in srgb, ${accent} 62%, white);
+  }
+}` : null;
   const [unread, ticker] = await Promise.all([
     unreadCount(workspace.id, user.id),
     tickerEvents(workspace.id, 12),
@@ -48,17 +88,23 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     // measure the zoom-scaled space, viewport breakpoints don't — the XL
     // content-size setting shrinks effective width ~18% without moving any
     // media query). Below ~72rem effective the rail collapses to icons.
-    <div className="flex-1 flex min-h-screen @container">
+    <div className={"flex-1 flex min-h-screen @container" + (brandCss ? " ws-brand" : "")}>
+      {brandCss && <style dangerouslySetInnerHTML={{ __html: brandCss }} />}
       <aside className="w-[68px] @6xl:w-64 left-rail border-r border-[var(--line)] hidden md:flex flex-col gap-1 py-4 px-2 @6xl:px-3 flex-shrink-0 relative z-40 transition-[width] duration-200 motion-reduce:transition-none">
         <Link
           href="/dashboard"
           className="flex items-center justify-center @6xl:justify-start gap-2.5 px-0 @6xl:px-2 py-1.5 mb-2 rounded-xl"
-          title="MeYouSocial · Home"
+          title={`${brandName} · Home`}
         >
           <span className="flex-shrink-0 shadow-lg shadow-[#15181D]/25 rounded-xl">
-            <BrandLogo size={38} />
+            {logoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={logoUrl} alt={`${workspace.name} logo`} width={38} height={38} className="w-[38px] h-[38px] rounded-xl object-cover" />
+            ) : (
+              <BrandLogo size={38} />
+            )}
           </span>
-          <span className="font-mono font-bold text-[17px] tracking-tight hidden @6xl:inline">MeYouSocial</span>
+          <span className="font-mono font-bold text-[17px] tracking-tight hidden @6xl:inline truncate max-w-[160px]">{brandName}</span>
         </Link>
 
         <LeftRailNav items={navItems} />
@@ -95,11 +141,18 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <div className="flex-1 min-w-0 flex flex-col">
         <header className="min-h-[60px] border-b border-[var(--line)] app-header flex items-center gap-2 md:gap-3 px-3 md:px-6 py-2 flex-shrink-0 flex-wrap">
           <div className="md:hidden">
-            <MobileNav items={navItems} userLabel={userLabel} signOutAction={signOutAction} />
+            <MobileNav items={navItems} userLabel={userLabel} signOutAction={signOutAction} logoUrl={logoUrl} brandName={brandName} />
           </div>
-          <Link href="/channels" className="font-mono font-bold text-[15px] tracking-tight hover:text-[var(--accent)] transition truncate max-w-[40vw] md:max-w-[200px] @6xl:max-w-none" title="Manage workspace channels">
-            {workspace.name}
-          </Link>
+          {workspaceChoices.length > 1 ? (
+            // Multi-company user: the workspace name becomes a switcher.
+            <form action={setActiveWorkspaceAction} className="min-w-0">
+              <WorkspaceSwitcher workspaces={workspaceChoices} activeId={workspace.id} />
+            </form>
+          ) : (
+            <Link href="/channels" className="font-mono font-bold text-[15px] tracking-tight hover:text-[var(--accent)] transition truncate max-w-[40vw] md:max-w-[200px] @6xl:max-w-none" title="Manage workspace channels">
+              {workspace.name}
+            </Link>
+          )}
           {active && (
             <form action={setActiveChannelAction}>
               <ChannelSelect channels={channels} activeId={active.id} />

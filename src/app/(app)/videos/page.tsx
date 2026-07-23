@@ -32,7 +32,7 @@ export default async function VideosPage() {
     db.videoRender.count({
       where: { workspaceId: workspace.id, status: { in: ["rendering", "done"] }, updatedAt: { gte: dayStart } },
     }),
-    getVideoProviderSetting(),
+    getVideoProviderSetting(workspace.id),
   ]);
   const todaySpend = renders
     .filter((r) => (r.status === "done" || r.status === "rendering") && r.updatedAt >= dayStart)

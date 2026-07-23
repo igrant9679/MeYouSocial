@@ -6,7 +6,7 @@ import { cookies } from "next/headers";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/acl";
-import { youtube } from "@/lib/youtube";
+import { youtubeFor } from "@/lib/youtube";
 import { CHANNEL_COOKIE } from "@/lib/channel";
 import { jobs } from "@/lib/jobs";
 import { registerOnboardingJobs } from "@/lib/jobs/onboarding";
@@ -59,7 +59,7 @@ export async function lookupYoutubeAction(formData: FormData) {
   if (!parsed.success) redirect(`/onboarding/channel/${formData.get("channelId")}?step=2&path=youtube&error=invalid`);
 
   const { channel } = await requireOwn(parsed.data.channelId);
-  const summary = await youtube.findChannel(parsed.data.handle);
+  const summary = await youtubeFor(channel.workspaceId).findChannel(parsed.data.handle);
   if (!summary) redirect(`/onboarding/channel/${channel.id}?step=2&path=youtube&error=notfound`);
 
   await db.channel.update({
@@ -119,7 +119,7 @@ export async function saveCompetitorsAction(formData: FormData) {
 
   await db.competitor.deleteMany({ where: { channelId: channel.id } });
   for (const h of handles) {
-    const found = await youtube.findChannel(h);
+    const found = await youtubeFor(channel.workspaceId).findChannel(h);
     if (!found) continue;
     await db.competitor.create({
       data: {

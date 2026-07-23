@@ -3,7 +3,7 @@ import { SubmitButton } from "@/components/SubmitButton";
 import { db } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { email as emailProvider } from "@/lib/email";
+import { emailFor } from "@/lib/email";
 import { nanoid } from "nanoid";
 import { getPublicUrl } from "@/lib/public-url";
 
@@ -38,7 +38,7 @@ async function inviteAction(formData: FormData) {
     },
   });
   const origin = await getPublicUrl();
-  await emailProvider.send({
+  await emailFor(workspace.id).send({
     to: parsed.data.email,
     subject: `You've been invited to ${workspace.name} on MeYouSocial`,
     html: `<p>You've been invited to join <b>${workspace.name}</b> as a <b>${parsed.data.role}</b>.</p>

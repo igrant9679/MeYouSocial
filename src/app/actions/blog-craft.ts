@@ -74,6 +74,7 @@ export async function regenerateSectionAction(formData: FormData) {
       },
     ],
     maxTokens: 1500,
+    workspaceId: workspace.id,
   });
   const replacement = res.content.trim();
   if (!/^<h2/i.test(replacement)) return; // model went off-format — do nothing
@@ -103,6 +104,7 @@ export async function generateTitlesAction(formData: FormData) {
       },
     ],
     maxTokens: 500,
+    workspaceId: workspace.id,
   });
   let titles: string[] = [];
   try {
@@ -164,6 +166,7 @@ export async function generateMetaAction(formData: FormData) {
       },
     ],
     maxTokens: 300,
+    workspaceId: workspace.id,
   });
   let meta: { metaTitle?: string; metaDescription?: string; slug?: string } = {};
   try {
@@ -203,6 +206,7 @@ export async function generateAltTextAction(formData: FormData) {
       { role: "user", content: `Article: "${post.title}"\nSummary: ${post.body.replace(/<[^>]+>/g, " ").slice(0, 500)}\nImages:\n${srcs.join("\n")}` },
     ],
     maxTokens: 500,
+    workspaceId: workspace.id,
   });
   let alts: string[] = [];
   try {

@@ -43,6 +43,7 @@ export async function eeatReviewAction(formData: FormData) {
       },
     ],
     maxTokens: 1200,
+    workspaceId: workspace.id,
   });
   let review: unknown = null;
   try {
@@ -73,6 +74,7 @@ export async function addFaqSectionAction(formData: FormData) {
       'Generate a FAQ section for a blog post. Respond ONLY with JSON: [{"q": string, "a": string}] — 3 to 5 pairs. Answers are 2-3 sentences, direct, snippet-friendly, and only claim what the article supports. No invented statistics.',
     messages: [{ role: "user", content: `Article "${post.title}":\n${post.body.replace(/<[^>]+>/g, " ").slice(0, 2500)}` }],
     maxTokens: 900,
+    workspaceId: workspace.id,
   });
   let faq: Array<{ q?: string; a?: string }> = [];
   try {
@@ -106,6 +108,7 @@ export async function addKeyTakeawaysAction(formData: FormData) {
       'Generate a key-takeaways list. Respond ONLY with a JSON array of 3-5 short strings (≤120 chars), each a concrete takeaway the article supports. Snippet-friendly, no invented numbers.',
     messages: [{ role: "user", content: `Article "${post.title}":\n${post.body.replace(/<[^>]+>/g, " ").slice(0, 2500)}` }],
     maxTokens: 500,
+    workspaceId: workspace.id,
   });
   let items: string[] = [];
   try {
@@ -189,6 +192,7 @@ export async function suggestInternalLinksAction(formData: FormData) {
       },
     ],
     maxTokens: 600,
+    workspaceId: workspace.id,
   });
   let suggestions: Array<{ url?: string; anchorText?: string }> = [];
   try {
@@ -249,6 +253,7 @@ export async function entityCoverageAction(formData: FormData) {
       { role: "user", content: `Topic: ${post.focusKeyword ?? post.title}\n\nArticle:\n${post.body.replace(/<[^>]+>/g, " ").slice(0, 3000)}` },
     ],
     maxTokens: 600,
+    workspaceId: workspace.id,
   });
   let entities: unknown = null;
   try {
@@ -275,7 +280,7 @@ export async function contentGapAction(formData: FormData) {
   const post = await db.blogPost.findFirst({ where: { id, workspaceId: workspace.id } });
   if (!post) return;
 
-  const { provider, real, vendor } = await getSearchProvider();
+  const { provider, real, vendor } = await getSearchProvider(workspace.id);
   if (!real) {
     // Honesty: no real SERP data — say so instead of inventing competitors.
     await db.setting.upsert({
@@ -300,6 +305,7 @@ export async function contentGapAction(formData: FormData) {
       },
     ],
     maxTokens: 800,
+    workspaceId: workspace.id,
   });
   let gaps: unknown = { missing: [] };
   try {

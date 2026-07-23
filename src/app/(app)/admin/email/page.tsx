@@ -22,9 +22,14 @@ const PRESETS: { label: string; host: string; port: number; secure: boolean; not
 ];
 
 export default async function EmailSettingsPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
-  await requireRole("ADMIN");
+  const { workspace } = await requireRole("ADMIN");
   const { ok, error, msg, to } = await searchParams;
-  const cfg = await getSmtpConfig();
+  // The form edits THIS workspace's own SMTP (multi-tenant); the platform
+  // config/env stays as the fallback for workspaces that never set one.
+  const { getWorkspaceSettingRaw } = await import("@/lib/settings");
+  const ownRaw = await getWorkspaceSettingRaw(workspace.id, "email:smtp");
+  const cfg = ownRaw ? await getSmtpConfig(workspace.id) : null;
+  const inherited = !cfg ? await getSmtpConfig() : null;
 
   return (
     <div className="w-full">
@@ -34,7 +39,10 @@ export default async function EmailSettingsPage({ searchParams }: { searchParams
         </span>
         <div>
           <h1 className="font-mono font-bold text-lg leading-tight">Email (SMTP) settings</h1>
-          <p className="text-xs text-[var(--mute)]">The account the app uses to send invitations, email verification, password resets, and completion notices.</p>
+          <p className="text-xs text-[var(--mute)]">
+            The account <b>{workspace.name}</b> sends its invitations and notification emails from.
+            Saved for this workspace only — other companies on this install never see or use it.
+          </p>
         </div>
       </div>
 
@@ -108,7 +116,15 @@ export default async function EmailSettingsPage({ searchParams }: { searchParams
 
       {!cfg && (
         <div className="card text-xs text-[var(--mute)]">
-          <p>No SMTP config saved. The app is currently using {process.env.SMTP_HOST ? `env-var SMTP (${process.env.SMTP_HOST})` : "the mock provider (emails are logged to the server console, not actually sent)"}.</p>
+          <p>
+            No SMTP saved for this workspace. Its email currently goes out via{" "}
+            {inherited
+              ? `the platform's shared SMTP (${inherited.host})`
+              : process.env.SMTP_HOST
+                ? `env-var SMTP (${process.env.SMTP_HOST})`
+                : "the mock provider (emails are logged to the server console, not actually sent)"}
+            . Password resets and email verification always use the platform sender.
+          </p>
         </div>
       )}
     </div>

@@ -44,21 +44,32 @@ function mask(s: string): string {
 }
 
 export default async function ApiKeysPage({ searchParams }: { searchParams: Promise<{ ok?: string; err?: string }> }) {
-  await requireRole("ADMIN");
+  const { workspace, user } = await requireRole("ADMIN");
   const { ok, err } = await searchParams;
 
-  const settings = await db.setting.findMany({
-    where: { OR: [{ key: { startsWith: "api_key:" } }, { key: { in: ["video:provider", "tts:provider", "storage:backend", "gdrive:service_account", "gdrive:folder_id"] } }] },
-  });
-  const byKey = new Map(settings.map((s) => [s.key, s.value] as const));
-  const videoProvider = await getVideoProviderSetting();
-  const ttsProvider = byKey.get("tts:provider") === "elevenlabs" ? "elevenlabs" : "mock";
+  // Multi-tenant: the page edits THIS workspace's own keys (byKey). Platform
+  // rows/env only inform the "platform key in use" chips — their values are
+  // never displayed to tenant admins, masked or otherwise.
+  const [wsRows, platformRows] = await Promise.all([
+    db.workspaceSetting.findMany({ where: { workspaceId: workspace.id } }),
+    db.setting.findMany({
+      where: { OR: [{ key: { startsWith: "api_key:" } }, { key: { in: ["video:provider", "tts:provider", "storage:backend", "gdrive:service_account", "gdrive:folder_id"] } }] },
+    }),
+  ]);
+  const byKey = new Map(wsRows.map((s) => [s.key, s.value] as const));
+  const platformByKey = new Map(platformRows.map((s) => [s.key, s.value] as const));
+  const videoProvider = await getVideoProviderSetting(workspace.id);
+  const ttsSetting = byKey.get("tts:provider") ?? platformByKey.get("tts:provider");
+  const ttsProvider = ttsSetting === "elevenlabs" ? "elevenlabs" : "mock";
+
+  // Storage is platform infrastructure — card shown only to the platform operator.
+  const isPlatformOperator = Boolean(env.BOOTSTRAP_ADMIN_EMAIL && user.email === env.BOOTSTRAP_ADMIN_EMAIL);
   const storageBackend = await getStorageBackendSetting();
-  const gdriveSa = parseServiceAccount(byKey.get("gdrive:service_account") ?? process.env.GDRIVE_SERVICE_ACCOUNT_JSON ?? "");
-  const gdriveFolder = byKey.get("gdrive:folder_id") ?? process.env.GDRIVE_FOLDER_ID ?? "";
+  const gdriveSa = parseServiceAccount(platformByKey.get("gdrive:service_account") ?? process.env.GDRIVE_SERVICE_ACCOUNT_JSON ?? "");
+  const gdriveFolder = platformByKey.get("gdrive:folder_id") ?? process.env.GDRIVE_FOLDER_ID ?? "";
   const gdriveConfigured = Boolean(gdriveSa && gdriveFolder);
   // Live check only when it can possibly succeed — keeps the page fast otherwise.
-  const drive = gdriveConfigured ? await gdriveStatus() : null;
+  const drive = isPlatformOperator && gdriveConfigured ? await gdriveStatus() : null;
 
   return (
     <div className="w-full">
@@ -68,7 +79,10 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
         </span>
         <div>
           <h1 className="font-mono font-bold text-lg leading-tight">LLM API keys</h1>
-          <p className="text-xs text-[var(--mute)]">Paste a provider key to enable real model calls. DB-stored keys override env vars.</p>
+          <p className="text-xs text-[var(--mute)]">
+            Keys for <b>{workspace.name}</b> — saved per workspace, never visible to other companies on this
+            install. Without your own key, calls fall back to the platform&apos;s shared key where one exists.
+          </p>
         </div>
       </div>
 
@@ -93,8 +107,7 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
 
       {ROWS.map((row) => {
         const dbVal = byKey.get(`api_key:${row.provider}`) ?? "";
-        const resolved = dbVal || row.envValue;
-        const hasKey = Boolean(resolved);
+        const platformHas = Boolean(platformByKey.get(`api_key:${row.provider}`) || row.envValue);
         return (
           <form key={row.provider} action={saveApiKeyAction} className="card mb-3">
             <input type="hidden" name="provider" value={row.provider} />
@@ -102,14 +115,18 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
               <div className="flex-1">
                 <div className="font-mono font-bold text-sm flex items-center gap-2">
                   {row.label}
-                  {hasKey && (
+                  {dbVal ? (
                     <span className="text-[10px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded flex items-center gap-1" style={{ background: "var(--green-soft)", color: "var(--green-on)" }}>
-                      <CheckCircle2 className="w-3 h-3" /> active
+                      <CheckCircle2 className="w-3 h-3" /> your key
                     </span>
-                  )}
+                  ) : platformHas ? (
+                    <span className="text-[10px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: "var(--blue-soft)", color: "var(--blue-on)" }}>
+                      platform key in use
+                    </span>
+                  ) : null}
                 </div>
                 <div className="text-[11px] text-[var(--mute)] font-mono mt-0.5">{row.envVar}</div>
-                {resolved && <div className="text-[11px] font-mono text-[var(--mute)] mt-0.5">Current: {mask(resolved)}</div>}
+                {dbVal && <div className="text-[11px] font-mono text-[var(--mute)] mt-0.5">Current: {mask(dbVal)}</div>}
                 <Link href={row.helpUrl} target="_blank" rel="noopener noreferrer" className="text-[11px] inline-flex items-center gap-1 mt-1" style={{ color: "var(--accent)" }}>
                   Get a key from {row.helpText} <ExternalLink className="w-3 h-3" />
                 </Link>
@@ -149,8 +166,7 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
         ] as const
       ).map((row) => {
         const dbVal = byKey.get(`api_key:${row.vendor}`) ?? "";
-        const resolved = dbVal || row.envValue;
-        const hasKey = Boolean(resolved);
+        const platformHas = Boolean(platformByKey.get(`api_key:${row.vendor}`) || row.envValue);
         return (
           <form key={row.vendor} action={saveSearchKeyAction} className="card mb-3">
             <input type="hidden" name="vendor" value={row.vendor} />
@@ -158,14 +174,18 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
               <div className="flex-1">
                 <div className="font-mono font-bold text-sm flex items-center gap-2">
                   {row.label}
-                  {hasKey && (
+                  {dbVal ? (
                     <span className="text-[10px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded flex items-center gap-1" style={{ background: "var(--green-soft)", color: "var(--green-on)" }}>
-                      <CheckCircle2 className="w-3 h-3" /> active
+                      <CheckCircle2 className="w-3 h-3" /> your key
                     </span>
-                  )}
+                  ) : platformHas ? (
+                    <span className="text-[10px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: "var(--blue-soft)", color: "var(--blue-on)" }}>
+                      platform key in use
+                    </span>
+                  ) : null}
                 </div>
                 <div className="text-[11px] text-[var(--mute)] font-mono mt-0.5">{row.envVar}</div>
-                {resolved && <div className="text-[11px] font-mono text-[var(--mute)] mt-0.5">Current: {mask(resolved)}</div>}
+                {dbVal && <div className="text-[11px] font-mono text-[var(--mute)] mt-0.5">Current: {mask(dbVal)}</div>}
                 <Link href={row.helpUrl} target="_blank" rel="noopener noreferrer" className="text-[11px] inline-flex items-center gap-1 mt-1" style={{ color: "var(--accent)" }}>
                   Get a key from {row.helpText} <ExternalLink className="w-3 h-3" />
                 </Link>
@@ -244,7 +264,7 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
 
       {MEDIA_ROWS.map((row) => {
         const dbVal = byKey.get(`api_key:${row.provider}`) ?? "";
-        const hasKey = Boolean(dbVal || process.env[row.envVar]);
+        const platformHas = Boolean(platformByKey.get(`api_key:${row.provider}`) || process.env[row.envVar]);
         return (
           <form key={row.provider} action={saveApiKeyAction} className="card mb-3">
             <input type="hidden" name="provider" value={row.provider} />
@@ -252,11 +272,15 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
               <div className="flex-1">
                 <div className="font-mono font-bold text-sm flex items-center gap-2">
                   {row.label}
-                  {hasKey && (
+                  {dbVal ? (
                     <span className="text-[10px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded flex items-center gap-1" style={{ background: "var(--green-soft)", color: "var(--green-on)" }}>
-                      <CheckCircle2 className="w-3 h-3" /> active
+                      <CheckCircle2 className="w-3 h-3" /> your key
                     </span>
-                  )}
+                  ) : platformHas ? (
+                    <span className="text-[10px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: "var(--blue-soft)", color: "var(--blue-on)" }}>
+                      platform key in use
+                    </span>
+                  ) : null}
                 </div>
                 <div className="text-[11px] text-[var(--mute)] font-mono mt-0.5">{row.envVar}</div>
                 <div className="text-[11px] text-[var(--mute)] mt-0.5">{row.note}</div>
@@ -280,7 +304,9 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
         );
       })}
 
-      {/* Storage — where uploads, voiceovers and persisted renders live. */}
+      {/* Storage — PLATFORM infrastructure (one store serves every tenant);
+          visible only to the platform operator (BOOTSTRAP_ADMIN_EMAIL). */}
+      {isPlatformOperator && (<>
       <div id="storage" className="flex items-center gap-3 mb-2 mt-8">
         <span className="w-10 h-10 rounded-xl grid place-items-center" style={{ background: "var(--teal-soft)", color: "var(--teal-on)" }}>
           <HardDrive className="w-5 h-5" strokeWidth={2.25} />
@@ -400,6 +426,7 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
         <p className="mb-1">· On a personal (free) Drive, uploaded files are owned by the service account and count against <b>its own 15&nbsp;GB quota</b> — not yours. The connection banner above shows real usage. A Google Workspace <b>Shared Drive</b> pools quota instead; both work here.</p>
         <p>· Existing locally-stored files are <b>not migrated</b> (on Railway they don&apos;t survive a redeploy anyway). Switching backends only routes new files.</p>
       </div>
+      </>)}
     </div>
   );
 }

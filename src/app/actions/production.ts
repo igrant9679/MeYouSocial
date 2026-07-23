@@ -21,7 +21,7 @@ export async function moveTaskAction(taskId: string, status: string) {
 
 /** Admin: the auto-task rules + WIP limit, edited on the Tasks page. */
 export async function saveAutoTaskRulesAction(formData: FormData) {
-  await rr("ADMIN");
+  const { workspace } = await rr("ADMIN");
   const wipRaw = parseInt(String(formData.get("wipLimit")), 10);
   const rules = {
     reviewTask: formData.get("reviewTask") === "on",
@@ -29,11 +29,8 @@ export async function saveAutoTaskRulesAction(formData: FormData) {
     renderFailTask: formData.get("renderFailTask") === "on",
     wipLimit: Number.isFinite(wipRaw) && wipRaw >= 1 && wipRaw <= 20 ? wipRaw : DEFAULT_AUTO_RULES.wipLimit,
   };
-  await prisma.setting.upsert({
-    where: { key: "production:autotasks" },
-    update: { value: JSON.stringify(rules) },
-    create: { key: "production:autotasks", value: JSON.stringify(rules) },
-  });
+  const { setWorkspaceSetting } = await import("@/lib/settings");
+  await setWorkspaceSetting(workspace.id, "production:autotasks", JSON.stringify(rules));
   rp("/production/tasks");
 }
 

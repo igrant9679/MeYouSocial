@@ -112,11 +112,11 @@ const mock: YouTubeProvider = {
 
 const YT = "https://www.googleapis.com/youtube/v3";
 
-async function ytGet<T>(path: string, params: Record<string, string>): Promise<T> {
-  // DB-first key (Admin → API keys → YouTube), env fallback — same pattern as
-  // every other provider, so admins never need Railway access.
+async function ytGet<T>(path: string, params: Record<string, string>, workspaceId?: string): Promise<T> {
+  // Multi-tenant key resolution: the workspace's own key (Admin → API keys →
+  // YouTube) → platform Setting → env — so admins never need Railway access.
   const { getApiKey } = await import("@/lib/llm/keys");
-  const key = (await getApiKey("youtube")) || env.YOUTUBE_API_KEY;
+  const key = (await getApiKey("youtube", workspaceId)) || env.YOUTUBE_API_KEY;
   const qs = new URLSearchParams({ ...params, key });
   const res = await fetch(`${YT}/${path}?${qs}`, { signal: AbortSignal.timeout(15000) });
   if (!res.ok) throw new Error(`YouTube API ${path} HTTP ${res.status}`);
@@ -150,31 +150,31 @@ function toChannelSummary(c: YtChannelItem): YTChannelSummary {
   };
 }
 
-const real: YouTubeProvider = {
+const realFor = (workspaceId?: string): YouTubeProvider => ({
   async searchChannels(query, limit = 5) {
     const search = await ytGet<{ items?: Array<{ id?: { channelId?: string } }> }>("search", {
       part: "snippet", type: "channel", q: query, maxResults: String(Math.min(limit, 10)),
-    });
+    }, workspaceId);
     const ids = (search.items ?? []).map((i) => i.id?.channelId).filter((x): x is string => !!x);
     if (!ids.length) return [];
     const channels = await ytGet<{ items?: YtChannelItem[] }>("channels", {
       part: "snippet,statistics", id: ids.join(","),
-    });
+    }, workspaceId);
     return (channels.items ?? []).map(toChannelSummary);
   },
   async findChannel(query) {
-    const list = await real.searchChannels(query, 1);
+    const list = await this.searchChannels(query, 1);
     return list[0] ?? null;
   },
   async listVideos(channelId, limit = 20) {
     const ch = await ytGet<{ items?: YtChannelItem[] }>("channels", {
       part: "contentDetails", id: channelId,
-    });
+    }, workspaceId);
     const uploads = ch.items?.[0]?.contentDetails?.relatedPlaylists?.uploads;
     if (!uploads) return [];
     const pl = await ytGet<{ items?: Array<{ contentDetails?: { videoId?: string } }> }>("playlistItems", {
       part: "contentDetails", playlistId: uploads, maxResults: String(Math.min(limit, 50)),
-    });
+    }, workspaceId);
     const ids = (pl.items ?? []).map((i) => i.contentDetails?.videoId).filter((x): x is string => !!x);
     if (!ids.length) return [];
     const vids = await ytGet<{
@@ -184,7 +184,7 @@ const real: YouTubeProvider = {
         statistics?: { viewCount?: string; likeCount?: string };
         contentDetails?: { duration?: string };
       }>;
-    }>("videos", { part: "snippet,statistics,contentDetails", id: ids.join(",") });
+    }>("videos", { part: "snippet,statistics,contentDetails", id: ids.join(",") }, workspaceId);
     return (vids.items ?? []).map((v) => {
       const seconds = parseDuration(v.contentDetails?.duration ?? "");
       return {
@@ -204,33 +204,39 @@ const real: YouTubeProvider = {
   async getTranscript() {
     return null; // caption download needs OAuth; callers handle null.
   },
-};
+});
 
 // Provider resolution is per-call: a key pasted in-app activates the real API
 // within ~30s (key cache TTL) with no redeploy. USE_MOCK_YOUTUBE=true forces
 // the mock regardless — the explicit off-switch for testing.
-export const youtube: YouTubeProvider = {
-  async findChannel(query) {
-    return (await pick()).findChannel(query);
-  },
-  async listVideos(channelId, limit) {
-    return (await pick()).listVideos(channelId, limit);
-  },
-  async getTranscript(videoId) {
-    return (await pick()).getTranscript(videoId);
-  },
-  async searchChannels(query, limit) {
-    return (await pick()).searchChannels(query, limit);
-  },
-};
+// Multi-tenant: youtubeFor(workspaceId) resolves the workspace's own key
+// first; the bare `youtube` export keeps legacy platform-key behavior.
+export function youtubeFor(workspaceId?: string): YouTubeProvider {
+  return {
+    async findChannel(query) {
+      return (await pick(workspaceId)).findChannel(query);
+    },
+    async listVideos(channelId, limit) {
+      return (await pick(workspaceId)).listVideos(channelId, limit);
+    },
+    async getTranscript(videoId) {
+      return (await pick(workspaceId)).getTranscript(videoId);
+    },
+    async searchChannels(query, limit) {
+      return (await pick(workspaceId)).searchChannels(query, limit);
+    },
+  };
+}
 
-async function pick(): Promise<YouTubeProvider> {
+export const youtube: YouTubeProvider = youtubeFor();
+
+async function pick(workspaceId?: string): Promise<YouTubeProvider> {
   if (env.USE_MOCK_YOUTUBE) return mock;
   try {
     const { getApiKey } = await import("@/lib/llm/keys");
-    const key = (await getApiKey("youtube")) || env.YOUTUBE_API_KEY;
-    return key ? real : mock;
+    const key = (await getApiKey("youtube", workspaceId)) || env.YOUTUBE_API_KEY;
+    return key ? realFor(workspaceId) : mock;
   } catch {
-    return env.YOUTUBE_API_KEY ? real : mock;
+    return env.YOUTUBE_API_KEY ? realFor(workspaceId) : mock;
   }
 }

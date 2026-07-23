@@ -17,6 +17,8 @@ export type VideoRenderRequest = {
   prompt: string;
   seconds: number; // capped by env.VIDEO_MAX_SECONDS
   aspect: "9:16" | "16:9" | "1:1";
+  /** Multi-tenant: resolve the Google key for THIS workspace first. */
+  workspaceId?: string;
 };
 
 export type VideoRenderResult = {
@@ -58,7 +60,7 @@ const VEO_TIMEOUT_MS = 6 * 60 * 1000;
 const veoProvider: VideoProvider = {
   name: "veo",
   async render(req) {
-    const apiKey = await getApiKey("google");
+    const apiKey = await getApiKey("google", req.workspaceId);
     if (!apiKey) throw new Error("No Google API key configured (Admin → API keys → Google)");
 
     const { GoogleGenAI } = await import("@google/genai");
@@ -96,21 +98,22 @@ const veoProvider: VideoProvider = {
 // the fallback for installs that never touched the setting. "auto" = veo when
 // a Google key resolves, else mock.
 
-export async function getVideoProviderSetting(): Promise<"auto" | "mock" | "veo"> {
+export async function getVideoProviderSetting(workspaceId?: string): Promise<"auto" | "mock" | "veo"> {
   try {
-    const { db } = await import("@/lib/db");
-    const row = await db.setting.findUnique({ where: { key: "video:provider" } });
-    if (row?.value === "mock" || row?.value === "veo" || row?.value === "auto") return row.value;
+    // Multi-tenant: the workspace's own switch wins over the platform's.
+    const { getSetting } = await import("@/lib/settings");
+    const value = await getSetting("video:provider", workspaceId);
+    if (value === "mock" || value === "veo" || value === "auto") return value;
   } catch {
     // fall through to env behavior
   }
   return env.USE_MOCK_VIDEO ? "mock" : "auto";
 }
 
-export async function getVideoProvider(): Promise<VideoProvider> {
-  const setting = await getVideoProviderSetting();
+export async function getVideoProvider(workspaceId?: string): Promise<VideoProvider> {
+  const setting = await getVideoProviderSetting(workspaceId);
   if (setting === "mock") return mockProvider;
-  const key = await getApiKey("google").catch(() => "");
+  const key = await getApiKey("google", workspaceId).catch(() => "");
   if (setting === "veo") {
     if (!key) throw new Error("Video provider is set to Veo but no Google key is configured (Admin → API keys)");
     return veoProvider;

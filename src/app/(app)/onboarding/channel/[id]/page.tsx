@@ -3,7 +3,7 @@ import { SubmitButton } from "@/components/SubmitButton";
 import { redirect } from "next/navigation";
 import { requireChannel } from "@/lib/channel";
 import { db } from "@/lib/db";
-import { youtube } from "@/lib/youtube";
+import { youtubeFor } from "@/lib/youtube";
 import { StepHeader } from "@/components/onboarding/StepHeader";
 import { readJson } from "@/lib/db/json";
 import {
@@ -86,9 +86,9 @@ function StepTwoCustom({ channelId, error }: { channelId: string; error?: string
 }
 
 // ── Step 3 — Competitors ──────────────────────────
-async function StepThreeCompetitors({ channel, path, error }: { channel: { id: string; nicheDescription: string | null }; path: string; error?: string }) {
+async function StepThreeCompetitors({ channel, path, error }: { channel: { id: string; workspaceId: string; nicheDescription: string | null }; path: string; error?: string }) {
   // AI-suggest a couple of competitor handles in the same niche (mock-friendly).
-  const suggestions = await youtube.searchChannels(channel.nicheDescription?.split(/\s+/)[0] ?? "creator", 4);
+  const suggestions = await youtubeFor(channel.workspaceId).searchChannels(channel.nicheDescription?.split(/\s+/)[0] ?? "creator", 4);
   const existing = await db.competitor.findMany({ where: { channelId: channel.id } });
 
   return (

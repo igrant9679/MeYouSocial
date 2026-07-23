@@ -32,6 +32,11 @@ model Workspace {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
+  // Per-company app-chrome branding (multi-tenant): accent hue drives the CSS
+  // token overrides in the app shell; logoKey is a StoredFile key.
+  accentColor     String?
+  logoKey         String?
+
   memberships     Membership[]
   channels        Channel[]
   invitations     Invitation[]
@@ -41,6 +46,7 @@ model Workspace {
   swipes          Swipe[]
   wikiDocs        WikiDoc[]
   blogPosts       BlogPost[]
+  settings        WorkspaceSetting[]
 }
 
 // ---- Blog (ported from Spark's article pipeline; slice 1) --------------------
@@ -576,6 +582,20 @@ model Setting {
   key       String   @id
   value     String
   updatedAt DateTime @updatedAt
+}
+
+// Workspace-scoped settings (API keys, SMTP, provider switches, branding).
+// Resolution everywhere is: WorkspaceSetting → global Setting → env var, so
+// each company can bring its own keys while the platform's keys stay as the
+// fallback for workspaces that haven't configured their own.
+model WorkspaceSetting {
+  workspaceId String
+  key         String
+  value       String
+  updatedAt   DateTime  @updatedAt
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@id([workspaceId, key])
 }
 
 model User {

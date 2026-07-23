@@ -5,7 +5,7 @@ import { z } from "zod";
 import { requireRole } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { llm } from "@/lib/llm";
-import { youtube } from "@/lib/youtube";
+import { youtubeFor } from "@/lib/youtube";
 import { writeJson, readJson } from "@/lib/db/json";
 
 // ── — Sync published-video stats into Content Projects ───────────
@@ -32,7 +32,7 @@ export async function syncStatsAction(formData: FormData) {
   if (!process.env.USE_MOCK_YOUTUBE || process.env.USE_MOCK_YOUTUBE === "true") {
     // mock path
   } else if (project.channel.linkedYoutubeId) {
-    await youtube.listVideos(project.channel.linkedYoutubeId, 1); // placeholder hook
+    await youtubeFor(workspace.id).listVideos(project.channel.linkedYoutubeId, 1); // placeholder hook
   }
 
   await db.channelStat.create({
@@ -105,6 +105,7 @@ export async function generateChapterMarkersAction(formData: FormData) {
     model: script.model ?? script.channel.defaultModel ?? "claude-sonnet",
     system: `Produce YouTube chapter markers for a video script. Output ONLY the timestamps, one per line in the format "MM:SS Chapter title". The first must be "00:00 Introduction" (or similar). Estimate timing at ~150 wpm.`,
     messages: [{ role: "user", content: `Title: ${script.title}\nScript:\n${script.body.slice(0, 10_000)}` }],
+    workspaceId: workspace.id,
   });
 
   const outline = readJson<{ markdown?: string; questions?: unknown; publish?: Record<string, string> }>(script.outline ?? null, {});

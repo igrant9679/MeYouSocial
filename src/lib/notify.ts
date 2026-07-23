@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { email } from "@/lib/email";
+import { emailFor as mailerFor } from "@/lib/email";
 import { getPublicUrl } from "@/lib/public-url";
 
 /**
@@ -128,7 +128,7 @@ export async function notify(input: NotifyInput): Promise<number> {
         users
           .filter((u) => !!u.email)
           .map((u) =>
-            email
+            mailerFor(input.workspaceId)
               .send({
                 to: u.email!,
                 subject: input.title.slice(0, 150),

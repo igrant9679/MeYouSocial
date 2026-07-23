@@ -26,11 +26,14 @@ export const DEFAULT_AUTO_RULES: AutoTaskRules = {
   wipLimit: 5,
 };
 
-export async function getAutoTaskRules(): Promise<AutoTaskRules> {
+export async function getAutoTaskRules(workspaceId?: string): Promise<AutoTaskRules> {
   try {
-    const row = await db.setting.findUnique({ where: { key: "production:autotasks" } });
-    if (!row) return { ...DEFAULT_AUTO_RULES };
-    const raw = JSON.parse(row.value) as Partial<AutoTaskRules>;
+    // Multi-tenant: rules are per-workspace (they were a global singleton once,
+    // which leaked one company's board policy onto every other tenant).
+    const { getSetting } = await import("@/lib/settings");
+    const value = await getSetting("production:autotasks", workspaceId);
+    if (!value) return { ...DEFAULT_AUTO_RULES };
+    const raw = JSON.parse(value) as Partial<AutoTaskRules>;
     const wip = Number(raw.wipLimit);
     return {
       reviewTask: raw.reviewTask !== false,
@@ -90,7 +93,7 @@ async function createUnlessOpen(params: {
 
 /** Post entered draft_review → the reviewer owns reading it. */
 export async function autoTaskForReview(workspaceId: string, post: { id: string; title: string; reviewerId: string | null }) {
-  const rules = await getAutoTaskRules();
+  const rules = await getAutoTaskRules(workspaceId);
   if (!rules.reviewTask) return;
   const assignee = post.reviewerId ?? (await firstAdmin(workspaceId));
   await createUnlessOpen({
@@ -107,7 +110,7 @@ export async function autoTaskForAssets(
   workspaceId: string,
   post: { id: string; title: string; createdById: string | null; reviewerId: string | null },
 ) {
-  const rules = await getAutoTaskRules();
+  const rules = await getAutoTaskRules(workspaceId);
   if (!rules.assetTask) return;
   const assignee = post.createdById ?? post.reviewerId ?? (await firstAdmin(workspaceId));
   await createUnlessOpen({
@@ -121,7 +124,7 @@ export async function autoTaskForAssets(
 
 /** A render failed — someone should look before the retry loop burns budget. */
 export async function autoTaskForRenderFailure(workspaceId: string, render: { id: string; title: string; error?: string | null }) {
-  const rules = await getAutoTaskRules();
+  const rules = await getAutoTaskRules(workspaceId);
   if (!rules.renderFailTask) return;
   await createUnlessOpen({
     workspaceId,

@@ -28,6 +28,7 @@ export async function brainstormThumbnailsAction(formData: FormData) {
 Return EXACTLY 4 numbered lines: "LABEL — short visual brief".
 LABELs should cover 4 proven formats: 1) Face + reaction, 2) Object + tight crop, 3) Big text + arrow, 4) Before/After split.`,
     messages: [{ role: "user", content: `Title: ${title}\nTopic: ${topic}\nNiche: ${channel.nicheDescription}` }],
+    workspaceId: workspace.id,
   });
 
   const lines = completion.content
@@ -122,6 +123,7 @@ export async function cloneThumbnailAction(formData: FormData) {
     model: channel.defaultModel ?? "claude-sonnet",
     system: "Describe the visual style of the supplied reference image/URL: palette, typography, composition, lighting. Be concise.",
     messages: [{ role: "user", content: `Reference: ${parsed.data.referenceUrl}\nVideo title for the new thumbnail: ${parsed.data.title}` }],
+    workspaceId: workspace.id,
   });
 
   const img = await images.generate({

@@ -44,7 +44,7 @@ export async function suggestExternalLinkAction(formData: FormData) {
   const post = await db.blogPost.findFirst({ where: { id, workspaceId: workspace.id } });
   if (!post) return;
 
-  const { provider, real, vendor } = await getSearchProvider();
+  const { provider, real, vendor } = await getSearchProvider(workspace.id);
   const query = [post.focusKeyword || post.title, "research OR standard OR guidance"].join(" ");
   let results: Array<{ title: string; url: string; snippet: string }> = [];
   try {

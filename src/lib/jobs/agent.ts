@@ -101,6 +101,7 @@ export function registerAgentJobs() {
           template: templateName,
         }),
         messages: [{ role: "user", content: `Title: ${script.title}\n\nResearch:\n${researchText}` }],
+        workspaceId: script.channel.workspaceId,
       });
       await db.scriptVersion.create({ data: { scriptId: script.id, label: "agent: outline", outline: outlineRes.content } });
       const outlineJson = readJson<{ markdown?: string; questions?: unknown; publish?: unknown }>(script.outline ?? null, {});
@@ -121,6 +122,7 @@ export function registerAgentJobs() {
           lengthGuide: "8-12 minutes (~1500-2400 words)",
         }),
         messages: [{ role: "user", content: `Outline:\n\n${outlineRes.content}\n\nExpand into a full spoken-style script.` }],
+        workspaceId: script.channel.workspaceId,
       });
       let body = scriptRes.content;
       let wordCount = countWords(body);
@@ -135,6 +137,7 @@ export function registerAgentJobs() {
         model: script.model ?? "claude-sonnet",
         system: "Pass over a YouTube script and improve retention: punch up the hook, add curiosity gaps between sections, ensure every 30s makes a promise or pays one off. PRESERVE voice and structure. Return ONLY the rewritten script.",
         messages: [{ role: "user", content: body }],
+        workspaceId: script.channel.workspaceId,
       });
       body = retention.content;
       wordCount = countWords(body);
@@ -148,6 +151,7 @@ export function registerAgentJobs() {
         model: script.model ?? "claude-sonnet",
         system: HUMANIZE_SYSTEM,
         messages: [{ role: "user", content: `Voice: ${voice}\n\nScript:\n${body}` }],
+        workspaceId: script.channel.workspaceId,
       });
       body = humanized.content;
       wordCount = countWords(body);
@@ -162,6 +166,7 @@ export function registerAgentJobs() {
         model: script.model ?? "claude-sonnet",
         system: "Pass over a YouTube script and remove repeated points, redundant phrasings, and any place where the same idea is restated within two paragraphs. Keep length within 5% of the original. PRESERVE voice. Return ONLY the rewritten script.",
         messages: [{ role: "user", content: body }],
+        workspaceId: script.channel.workspaceId,
       });
       body = dedup.content;
       wordCount = countWords(body);
@@ -175,6 +180,7 @@ export function registerAgentJobs() {
         model: script.model ?? "claude-sonnet",
         system: "Format a script for AI voiceover: 1 sentence per line, no slashes, no parentheticals the narrator would read aloud, no em-dashes (replace with commas), expand 'e.g.'/'i.e.'/etc. Keep section headers as their own lines. Return ONLY the formatted script.",
         messages: [{ role: "user", content: body }],
+        workspaceId: script.channel.workspaceId,
       });
       body = vo.content;
       wordCount = countWords(body);

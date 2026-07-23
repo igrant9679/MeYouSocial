@@ -338,6 +338,23 @@ export const HELP_CATEGORIES: FaqCategory[] = [
         a: "Admin → Soft limits → set caps for scripts/month, thumbnails/month, agent runs/month, channels per workspace. Leave blank or 0 for unlimited. They're operational guards, never a paywall.",
         tags: ["limits", "caps"],
       },
+      {
+        q: "Can several companies share one install?",
+        a: "Yes — each company lives in its own **workspace** with fully separate content, team, API keys, SMTP and branding. Signing up creates your company's workspace (rename it under Admin → Workspace); invite teammates from Admin. Someone invited to your workspace who signs up via the invite link joins **your** workspace directly. People who belong to several companies get a workspace switcher in the header.",
+        tags: ["multi-tenant", "companies", "workspaces", "teams"],
+      },
+      {
+        q: "Whose API keys does my workspace use?",
+        a: "Your own, when you've pasted them: everything under Admin → **API keys** (LLMs, search, YouTube, ElevenLabs, video/TTS switches) is saved **per workspace**. If your workspace hasn't set a key, it falls back to the platform's shared key — the card shows which one is in effect. Same for **SMTP**: your notification and invitation emails go out through the server you configure under Admin → Email, visible only to your workspace.",
+        links: [{ label: "Admin → API keys →", href: "/admin/api-keys" }, { label: "Admin → Email →", href: "/admin/email" }],
+        tags: ["api keys", "smtp", "per-workspace", "tenant"],
+      },
+      {
+        q: "Can we use our own logo and colors?",
+        a: "Admin → **Workspace** → *Branding*: pick an accent color (presets or any hex) and upload a logo. The whole app chrome — buttons, active states, sidebar mark and menu — re-tints for members of your workspace only; other companies keep their own look. Note this styles the **app**; the brand used in generated blog content lives separately under Blog → Brand.",
+        links: [{ label: "Admin → Workspace →", href: "/admin/settings" }],
+        tags: ["branding", "logo", "colors", "accent", "personalization"],
+      },
     ],
   },
   {

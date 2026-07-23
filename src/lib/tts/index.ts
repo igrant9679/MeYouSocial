@@ -1,4 +1,3 @@
-import { db } from "@/lib/db";
 import { storage } from "@/lib/storage";
 import { getApiKey } from "@/lib/llm/keys";
 
@@ -25,7 +24,7 @@ export interface TtsProvider {
 
 const mockTts: TtsProvider = {
   name: "mock",
-  async speak(text) {
+  async speak(text: string) {
     const file = await storage.put(
       "voiceover-script.txt",
       Buffer.from(`[MOCK TTS — no audio generated]\nConfigure ElevenLabs under Admin → API keys to produce real audio.\n\n${text}`, "utf8"),
@@ -37,10 +36,10 @@ const mockTts: TtsProvider = {
 
 const ELEVEN_VOICE = "21m00Tcm4TlvDq8ikWAM"; // "Rachel" — ElevenLabs' default public voice
 
-const elevenLabsTts: TtsProvider = {
+const elevenLabsTts = (workspaceId?: string): TtsProvider => ({
   name: "elevenlabs",
   async speak(text) {
-    const apiKey = await getApiKey("elevenlabs");
+    const apiKey = await getApiKey("elevenlabs", workspaceId);
     if (!apiKey) throw new Error("No ElevenLabs key configured (Admin → API keys)");
     const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${ELEVEN_VOICE}`, {
       method: "POST",
@@ -56,14 +55,16 @@ const elevenLabsTts: TtsProvider = {
     const file = await storage.put("voiceover.mp3", buf, "audio/mpeg");
     return { url: file.url, provider: "elevenlabs", isAudio: true };
   },
-};
+});
 
-export async function getTtsProvider(): Promise<TtsProvider> {
+export async function getTtsProvider(workspaceId?: string): Promise<TtsProvider> {
   try {
-    const row = await db.setting.findUnique({ where: { key: "tts:provider" } });
-    if (row?.value === "elevenlabs") {
-      const key = await getApiKey("elevenlabs");
-      if (key) return elevenLabsTts;
+    // Multi-tenant: the workspace's own switch + key win over the platform's.
+    const { getSetting } = await import("@/lib/settings");
+    const setting = await getSetting("tts:provider", workspaceId);
+    if (setting === "elevenlabs") {
+      const key = await getApiKey("elevenlabs", workspaceId);
+      if (key) return elevenLabsTts(workspaceId);
     }
   } catch {
     // fall through to mock

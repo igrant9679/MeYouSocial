@@ -6,7 +6,7 @@ import { requireRole } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { readJson, writeJson } from "@/lib/db/json";
 import { llm } from "@/lib/llm";
-import { youtube } from "@/lib/youtube";
+import { youtubeFor } from "@/lib/youtube";
 
 // ── — Writing samples ──────────────────────────────────────
 
@@ -58,12 +58,12 @@ export async function borrowVoiceAction(formData: FormData) {
   if (!channel) return;
 
   // Look up the channel + grab its top-video transcripts.
-  const source = await youtube.findChannel(handle);
+  const source = await youtubeFor(workspace.id).findChannel(handle);
   if (!source) redirect(`/channels/${channelId}/voice?error=notfound`);
 
-  const videos = await youtube.listVideos(source!.id, 8);
+  const videos = await youtubeFor(workspace.id).listVideos(source!.id, 8);
   const usable = videos.filter((v) => v.durationSeconds >= 180).slice(0, 5);
-  const transcripts = (await Promise.all(usable.map((v) => youtube.getTranscript(v.id)))).filter(Boolean) as string[];
+  const transcripts = (await Promise.all(usable.map((v) => youtubeFor(workspace.id).getTranscript(v.id)))).filter(Boolean) as string[];
 
   const completion = await llm.complete({
     model: channel.defaultModel ?? "claude-sonnet",
@@ -72,6 +72,7 @@ export async function borrowVoiceAction(formData: FormData) {
       role: "user",
       content: `Source channel: ${source!.handle ?? source!.name}\n\nTranscripts:\n${transcripts.join("\n\n---\n\n").slice(0, 12_000)}\n\nReturn a JSON-ish profile.`,
     }],
+    workspaceId: workspace.id,
   });
 
   const data = {
@@ -182,6 +183,7 @@ export async function refineVoiceSimpleAction(formData: FormData) {
     messages: [
       { role: "user", content: `Instruction: ${instruction}\n\nCurrent profile JSON:\n${JSON.stringify(current, null, 2)}` },
     ],
+    workspaceId: workspace.id,
   });
 
   await db.voiceProfile.update({
@@ -233,6 +235,7 @@ export async function generateVoicePreviewAction(formData: FormData) {
     messages: [
       { role: "user", content: `Niche: ${profile.channel.nicheDescription}\nVoice profile: ${JSON.stringify(current)}\n\nProduce a hook + first beat.` },
     ],
+    workspaceId: workspace.id,
   });
 
   await db.voiceProfile.update({

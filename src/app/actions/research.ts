@@ -4,8 +4,8 @@ import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { llm } from "@/lib/llm";
-import { search } from "@/lib/search";
-import { youtube } from "@/lib/youtube";
+import { getSearchProvider } from "@/lib/search";
+import { youtubeFor } from "@/lib/youtube";
 
 // /..04 — Deep AI Research tool.
 // Multi-source: web search + (optionally) competitor YT channels + LLM synthesis.
@@ -35,7 +35,8 @@ export async function deepResearchAction(formData: FormData) {
   const budget = DEPTH_BUDGETS[depth] ?? DEPTH_BUDGETS.intermediate;
 
   // 1) Quick search for primary sources.
-  const webResults = await search.search(question, depth === "exhaustive" ? 15 : depth === "comprehensive" ? 10 : depth === "intermediate" ? 6 : 4);
+  const { provider: webSearch } = await getSearchProvider(workspace.id);
+  const webResults = await webSearch.search(question, depth === "exhaustive" ? 15 : depth === "comprehensive" ? 10 : depth === "intermediate" ? 6 : 4);
 
   // 2) Optionally pull recent competitor titles for niche context.
   let competitorContext = "";
@@ -43,7 +44,7 @@ export async function deepResearchAction(formData: FormData) {
     const titles: string[] = [];
     for (const c of channel.competitors.slice(0, 3)) {
       if (!c.youtubeId) continue;
-      const videos = await youtube.listVideos(c.youtubeId, 4);
+      const videos = await youtubeFor(workspace.id).listVideos(c.youtubeId, 4);
       titles.push(...videos.map((v) => `- (${c.youtubeHandle ?? c.youtubeId}) ${v.title}`));
     }
     competitorContext = titles.join("\n").slice(0, 4_000);
@@ -71,6 +72,7 @@ Stay within ~${Math.round(budget / 6)} words.`,
         `Web sources:\n${sourceBlock}`,
       ].filter(Boolean).join("\n\n"),
     }],
+    workspaceId: workspace.id,
   });
 
   const research = await db.researchSource.create({

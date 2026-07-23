@@ -64,6 +64,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
           model: script.model ?? script.channel.defaultModel ?? "claude-sonnet",
           system,
           messages: [{ role: "user", content: userContent }],
+          workspaceId: workspace.id,
         })) {
           buffer += chunk;
           // Each SSE frame is `data: <json>\n\n`. We send the cumulative content

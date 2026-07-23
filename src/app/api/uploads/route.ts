@@ -59,6 +59,7 @@ export async function POST(req: NextRequest) {
       model: "claude-sonnet",
       system: "Generate a short caption (1-2 sentences) describing the likely subject of an image attachment, based only on its filename and surrounding context.",
       messages: [{ role: "user", content: `Filename: ${file.name}` }],
+      workspaceId: workspace.id,
     });
     extractedText = captioned.content.slice(0, 600);
   } else {

@@ -1,7 +1,11 @@
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import type { Role } from "@prisma/client";
+
+/** Cookie holding the user's chosen workspace (multi-company users). */
+export const ACTIVE_WS_COOKIE = "meyousocial_ws";
 
 // Per / / N: enforce role + workspace scoping
 // server-side on every endpoint. Helpers below are the only way the app
@@ -27,9 +31,15 @@ export async function requireMembership(workspaceId?: string) {
   const user = await requireUser();
   const memberships = user.memberships.filter((m) => m.status === "active");
   if (memberships.length === 0) redirect("/onboarding/workspace");
-  const target = workspaceId
-    ? memberships.find((m) => m.workspaceId === workspaceId)
-    : memberships[0];
+  let target;
+  if (workspaceId) {
+    target = memberships.find((m) => m.workspaceId === workspaceId);
+  } else {
+    // Multi-company users: honor the workspace they switched to (cookie set by
+    // setActiveWorkspaceAction); an invalid/stale cookie falls back silently.
+    const chosen = (await cookies()).get(ACTIVE_WS_COOKIE)?.value;
+    target = (chosen && memberships.find((m) => m.workspaceId === chosen)) || memberships[0];
+  }
   if (!target) redirect("/forbidden");
   return { user, membership: target, workspace: target.workspace };
 }

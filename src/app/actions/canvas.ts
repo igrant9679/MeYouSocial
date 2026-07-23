@@ -97,6 +97,7 @@ export async function generateOutlineAction(formData: FormData) {
         outline.questions?.action ? `Desired viewer action: ${outline.questions.action}` : "",
       ].filter(Boolean).join("\n") },
     ],
+    workspaceId: script.channel.workspaceId,
   });
 
   // Snapshot to versions
@@ -149,6 +150,7 @@ export async function generateScriptAction(formData: FormData) {
       memory: script.channel.memory.map((m) => m.body),
     }),
     messages: [{ role: "user", content: `Outline:\n\n${outline.markdown}\n\nExpand into a full script.` }],
+    workspaceId: script.channel.workspaceId,
   });
 
   const words = countWords(result.content);
@@ -199,6 +201,7 @@ export async function humanizeAction(formData: FormData) {
     messages: [
       { role: "user", content: `Voice profile: ${voiceText(script)}\n\nScript to humanize:\n\n${script.body}` },
     ],
+    workspaceId: script.channel.workspaceId,
   });
 
   await db.scriptVersion.create({
@@ -234,6 +237,7 @@ export async function improveSelectionAction(formData: FormData) {
     model: script.model ?? script.channel.defaultModel ?? "claude-sonnet",
     system: systemForImprove(instruction),
     messages: [{ role: "user", content: selection }],
+    workspaceId: script.channel.workspaceId,
   });
 
   const newBody = script.body.slice(0, start) + result.content.trim() + script.body.slice(end);

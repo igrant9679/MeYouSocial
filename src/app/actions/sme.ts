@@ -219,6 +219,7 @@ export async function seedSmeFromSourceAction(formData: FormData) {
     system,
     messages: [{ role: "user", content: prompt }],
     maxTokens: 2500,
+    workspaceId: workspace.id,
   });
   let extracted: Record<string, unknown> = {};
   try {

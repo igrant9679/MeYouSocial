@@ -19,36 +19,37 @@ function parseForm(formData: FormData): SmtpConfig {
 }
 
 export async function saveSmtpAction(formData: FormData) {
-  await requireRole("ADMIN");
+  const { workspace } = await requireRole("ADMIN");
   const cfg = parseForm(formData);
   if (!cfg.host || !cfg.port || !cfg.fromEmail) {
     redirect("/admin/email?error=missing");
   }
   // If admin left the password field blank, keep the existing one.
   if (!cfg.pass) {
-    const existing = await getSmtpConfig();
+    const existing = await getSmtpConfig(workspace.id);
     if (existing) cfg.pass = existing.pass;
   }
-  await saveSmtpConfig(cfg);
+  // Multi-tenant: saved for THIS workspace only (its mail goes out through it).
+  await saveSmtpConfig(cfg, workspace.id);
   revalidatePath("/admin/email");
   redirect("/admin/email?ok=saved");
 }
 
 export async function clearSmtpAction() {
-  await requireRole("ADMIN");
-  await clearSmtpConfig();
+  const { workspace } = await requireRole("ADMIN");
+  await clearSmtpConfig(workspace.id);
   revalidatePath("/admin/email");
   redirect("/admin/email?ok=cleared");
 }
 
 export async function testSmtpAction(formData: FormData) {
-  await requireRole("ADMIN");
+  const { workspace } = await requireRole("ADMIN");
   const cfg = parseForm(formData);
   const to = String(formData.get("testTo") ?? "").trim();
   if (!to) redirect("/admin/email?error=notest");
   if (!cfg.pass) {
     // Use saved password if the form's password field is empty.
-    const existing = await getSmtpConfig();
+    const existing = await getSmtpConfig(workspace.id);
     if (existing) cfg.pass = existing.pass;
   }
   const result = await sendTestEmail({ ...cfg, to });

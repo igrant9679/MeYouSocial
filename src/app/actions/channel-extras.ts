@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireRole } from "@/lib/acl";
 import { db } from "@/lib/db";
-import { youtube } from "@/lib/youtube";
+import { youtubeFor } from "@/lib/youtube";
 import { jobs } from "@/lib/jobs";
 import { registerOnboardingJobs } from "@/lib/jobs/onboarding";
 
@@ -19,7 +19,7 @@ export async function relinkYoutubeAction(formData: FormData) {
   const channel = await db.channel.findFirst({ where: { id: channelId, workspaceId: workspace.id } });
   if (!channel) return;
 
-  const found = await youtube.findChannel(handle);
+  const found = await youtubeFor(workspace.id).findChannel(handle);
   if (!found) redirect(`/channels/${channelId}/settings?error=notfound`);
 
   await db.channel.update({

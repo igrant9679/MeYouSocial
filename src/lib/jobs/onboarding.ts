@@ -1,6 +1,6 @@
 import { jobs } from "@/lib/jobs";
 import { db } from "@/lib/db";
-import { youtube } from "@/lib/youtube";
+import { youtubeFor } from "@/lib/youtube";
 import { llm } from "@/lib/llm";
 import { writeJson } from "@/lib/db/json";
 
@@ -42,14 +42,14 @@ export function registerOnboardingJobs() {
     await ctx.progress(0.3);
 
     if (channel.linkedYoutubeId) {
-      const videos = await youtube.listVideos(channel.linkedYoutubeId, 10);
+      const videos = await youtubeFor(channel.workspaceId).listVideos(channel.linkedYoutubeId, 10);
       const usable = videos.filter((v) => v.durationSeconds >= 180);
       ctx.log(`voice: ${usable.length}/${videos.length} videos usable`);
       await ctx.progress(0.4);
 
       if (usable.length >= 3) {
         // Pull transcripts to inform the voice model.
-        const transcripts = (await Promise.all(usable.slice(0, 5).map((v) => youtube.getTranscript(v.id))))
+        const transcripts = (await Promise.all(usable.slice(0, 5).map((v) => youtubeFor(channel.workspaceId).getTranscript(v.id))))
           .filter(Boolean) as string[];
         await ctx.progress(0.7);
 
@@ -60,6 +60,7 @@ export function registerOnboardingJobs() {
             messages: [
               { role: "user", content: `Niche: ${channel.nicheDescription}\n\nStyle: ${channel.presentationStyle}\n\nTranscripts:\n${transcripts.join("\n\n---\n\n").slice(0, 8000)}\n\nReturn a JSON-ish profile of archetype, delivery, rhetoric, diction, and extras.` },
             ],
+            workspaceId: channel.workspaceId,
           });
           voiceData = { ...voiceData, summary: completion.content };
           // Upgrade the baseline with the LLM-enriched profile.
@@ -103,12 +104,13 @@ export function registerOnboardingJobs() {
 
     try {
       const source = channel.linkedYoutubeId
-        ? `Top videos: ${(await youtube.listVideos(channel.linkedYoutubeId, 5)).map((v) => v.title).join("; ")}`
+        ? `Top videos: ${(await youtubeFor(channel.workspaceId).listVideos(channel.linkedYoutubeId, 5)).map((v) => v.title).join("; ")}`
         : `Description: ${channel.nicheDescription}`;
       const completion = await llm.complete({
         model: "claude-sonnet",
         system: "You generate audience avatars with demographics, psychographics, online behavior, offline behavior, and key questions.",
         messages: [{ role: "user", content: `Niche: ${channel.nicheDescription}\n${source}\n\nDifferentiation: ${channel.differentiation}\n\nProduce a JSON object with fields: demographics, psychographics, onlineBehavior, offlineBehavior, keyQuestions (array of 5 strings).` }],
+        workspaceId: channel.workspaceId,
       });
       // Upgrade demographics text with the LLM-enriched version
       await db.audienceAvatar.update({
@@ -141,7 +143,7 @@ export function registerOnboardingJobs() {
     const candidates: { title: string; outlier: number; source: string }[] = [];
     for (const c of channel.competitors) {
       if (!c.youtubeId) continue;
-      const videos = await youtube.listVideos(c.youtubeId, 8);
+      const videos = await youtubeFor(channel.workspaceId).listVideos(c.youtubeId, 8);
       const avgViews = videos.reduce((a, v) => a + v.views, 0) / Math.max(1, videos.length);
       for (const v of videos) {
         candidates.push({
@@ -188,6 +190,7 @@ export function registerOnboardingJobs() {
         messages: [
           { role: "user", content: `Creator niche: ${channel.nicheDescription}\nDifferentiation: ${channel.differentiation}${perfHint}\nOutlier seeds:\n${seed.map((s, i) => `${i + 1}. (${s.outlier.toFixed(1)}x) ${s.title}`).join("\n")}\n\nReturn one idea per line: "title — strategy".` },
         ],
+        workspaceId: channel.workspaceId,
       });
 
       const lines = completion.content

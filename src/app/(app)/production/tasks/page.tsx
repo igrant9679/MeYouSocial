@@ -28,7 +28,7 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
     }),
     db.membership.findMany({ where: { workspaceId: workspace.id, status: "active" }, include: { user: { select: { id: true, email: true, name: true } } } }),
     db.contentProject.findMany({ where: { channel: { workspaceId: workspace.id } }, select: { id: true, title: true }, orderBy: { updatedAt: "desc" }, take: 50 }),
-    getAutoTaskRules(),
+    getAutoTaskRules(workspace.id),
   ]);
 
   // Open (not-done) tasks per assignee — the capacity strip.

@@ -1,7 +1,11 @@
 import { db } from "@/lib/db";
+import { getSetting, setWorkspaceSetting, invalidateSettingsCache } from "@/lib/settings";
 
-// SMTP configuration stored in the Setting table so admins can manage it
-// in-app instead of editing Railway env vars. Same pattern as LLM API keys.
+// SMTP configuration stored in-app instead of Railway env vars. Multi-tenant:
+// each workspace can save its OWN SMTP credentials (WorkspaceSetting
+// "email:smtp"); the global Setting row is the platform fallback, used both by
+// workspaces without their own config and by app-level mail (password reset /
+// verification, which have no workspace context).
 //
 // We DON'T store the password in plaintext beyond what the DB already exposes;
 // treat the DB row as a secret (same trust level as the env vars it replaces).
@@ -17,47 +21,53 @@ export type SmtpConfig = {
 };
 
 const SETTING_KEY = "email:smtp";
-const CACHE_TTL_MS = 30_000;
-let cache: { value: SmtpConfig | null; expires: number } | null = null;
 
-export async function getSmtpConfig(): Promise<SmtpConfig | null> {
-  if (cache && cache.expires > Date.now()) return cache.value;
-  let parsed: SmtpConfig | null = null;
+function parse(value: string): SmtpConfig | null {
   try {
-    const row = await db.setting.findUnique({ where: { key: SETTING_KEY } });
-    if (row?.value) {
-      const obj = JSON.parse(row.value) as Partial<SmtpConfig>;
-      if (obj.host && obj.port && obj.user && obj.fromEmail) {
-        parsed = {
-          host: obj.host,
-          port: Number(obj.port),
-          secure: Boolean(obj.secure),
-          user: obj.user,
-          pass: obj.pass ?? "",
-          fromName: obj.fromName ?? "",
-          fromEmail: obj.fromEmail,
-        };
-      }
+    const obj = JSON.parse(value) as Partial<SmtpConfig>;
+    if (obj.host && obj.port && obj.user && obj.fromEmail) {
+      return {
+        host: obj.host,
+        port: Number(obj.port),
+        secure: Boolean(obj.secure),
+        user: obj.user,
+        pass: obj.pass ?? "",
+        fromName: obj.fromName ?? "",
+        fromEmail: obj.fromEmail,
+      };
     }
   } catch {
-    // DB unreachable — treat as unconfigured.
+    // malformed — treat as unconfigured
   }
-  cache = { value: parsed, expires: Date.now() + CACHE_TTL_MS };
-  return parsed;
+  return null;
 }
 
-export async function saveSmtpConfig(cfg: SmtpConfig): Promise<void> {
+/** Workspace's own config → platform config → null. Cached in the settings layer. */
+export async function getSmtpConfig(workspaceId?: string | null): Promise<SmtpConfig | null> {
+  const value = await getSetting(SETTING_KEY, workspaceId);
+  return value ? parse(value) : null;
+}
+
+export async function saveSmtpConfig(cfg: SmtpConfig, workspaceId?: string | null): Promise<void> {
+  if (workspaceId) {
+    await setWorkspaceSetting(workspaceId, SETTING_KEY, JSON.stringify(cfg));
+    return;
+  }
   await db.setting.upsert({
     where: { key: SETTING_KEY },
     update: { value: JSON.stringify(cfg) },
     create: { key: SETTING_KEY, value: JSON.stringify(cfg) },
   });
-  cache = null;
+  invalidateSettingsCache();
 }
 
-export async function clearSmtpConfig(): Promise<void> {
+export async function clearSmtpConfig(workspaceId?: string | null): Promise<void> {
+  if (workspaceId) {
+    await setWorkspaceSetting(workspaceId, SETTING_KEY, "");
+    return;
+  }
   await db.setting.deleteMany({ where: { key: SETTING_KEY } });
-  cache = null;
+  invalidateSettingsCache();
 }
 
 export function maskPassword(p: string): string {

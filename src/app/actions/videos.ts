@@ -144,7 +144,7 @@ export async function generateVoiceoverAction(formData: FormData) {
   const scenes = parseScenes(render.scenes);
   const narration = scenesToNarration(render.title, scenes);
   if (narration.trim().length < 10) return;
-  const tts = await getTtsProvider();
+  const tts = await getTtsProvider(workspace.id);
   const out = await tts.speak(narration);
   await db.videoRender.update({ where: { id: render.id }, data: { voiceoverUrl: out.url } });
   await writeAudit({

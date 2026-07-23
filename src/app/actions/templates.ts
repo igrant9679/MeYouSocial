@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { llm } from "@/lib/llm";
-import { youtube } from "@/lib/youtube";
+import { youtubeFor } from "@/lib/youtube";
 import { writeJson } from "@/lib/db/json";
 
 // Custom template by cloning a single video.
@@ -29,10 +29,10 @@ export async function cloneTemplateAction(formData: FormData) {
   // Pull transcripts for each reference. Reference can be a YouTube URL/handle.
   const transcripts: { ref: string; transcript: string }[] = [];
   for (const ref of handles) {
-    const ch = await youtube.findChannel(ref);
+    const ch = await youtubeFor(workspace.id).findChannel(ref);
     if (!ch) continue;
-    const videos = await youtube.listVideos(ch.id, 1);
-    const t = videos[0] ? await youtube.getTranscript(videos[0].id) : null;
+    const videos = await youtubeFor(workspace.id).listVideos(ch.id, 1);
+    const t = videos[0] ? await youtubeFor(workspace.id).getTranscript(videos[0].id) : null;
     if (t) transcripts.push({ ref, transcript: t });
   }
 
@@ -47,6 +47,7 @@ ${transcripts.length > 1 ? "Synthesize across all references — extract the com
       role: "user",
       content: transcripts.map((t, i) => `--- Reference ${i + 1} (${t.ref}) ---\n${t.transcript.slice(0, 6_000)}`).join("\n\n"),
     }],
+    workspaceId: workspace.id,
   });
 
   const template = await db.template.create({

@@ -48,6 +48,7 @@ export async function generatePromoAction(formData: FormData) {
     system: `You produce YouTube publishing assets for the channel "${script.channel.name}" (niche: ${script.channel.nicheDescription}).
 Follow the user instruction below and return ONLY the requested asset, no preamble.`,
     messages: [{ role: "user", content: `Instruction: ${PROMPTS[kind]}\n\nVideo title: ${script.title}\n\nScript:\n${(script.body ?? "").slice(0, 6000)}` }],
+    workspaceId: workspace.id,
   });
 
   // Stash the latest assets on the script outline JSON under a publish slot.

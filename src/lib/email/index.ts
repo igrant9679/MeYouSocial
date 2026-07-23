@@ -32,9 +32,9 @@ const mock: EmailProvider = {
   },
 };
 
-async function buildSmtpTransport() {
-  // Prefer DB-stored config.
-  const cfg = await getSmtpConfig();
+async function buildSmtpTransport(workspaceId?: string) {
+  // Prefer the workspace's own config, then the platform's DB config.
+  const cfg = await getSmtpConfig(workspaceId);
   if (cfg) {
     return {
       transport: nodemailer.createTransport({
@@ -64,31 +64,40 @@ async function buildSmtpTransport() {
   return null;
 }
 
-export const email: EmailProvider = {
-  async send(message) {
-    try {
-      const t = await buildSmtpTransport();
-      // If admin configured SMTP in the DB, USE this even when USE_MOCK_EMAIL=true —
-      // explicit in-app config always wins over the global mock flag.
-      if (!t) {
-        if (env.USE_MOCK_EMAIL) return mock.send(message);
+/**
+ * Multi-tenant sender: a workspace's mail (notifications, invitations) goes
+ * out through ITS SMTP credentials when configured, else the platform's.
+ * App-level mail (password reset / verification) uses the bare `email` export.
+ */
+export function emailFor(workspaceId?: string): EmailProvider {
+  return {
+    async send(message) {
+      try {
+        const t = await buildSmtpTransport(workspaceId);
+        // If SMTP is configured in-app, USE it even when USE_MOCK_EMAIL=true —
+        // explicit config always wins over the global mock flag.
+        if (!t) {
+          if (env.USE_MOCK_EMAIL) return mock.send(message);
+          return mock.send(message);
+        }
+        const info = await t.transport.sendMail({
+          from: t.from,
+          to: message.to,
+          subject: message.subject,
+          html: message.html,
+          text: message.text,
+        });
+        return { id: info.messageId };
+      } catch (e) {
+        // eslint-disable-next-line no-console
+        console.warn("[email] SMTP send failed → falling back to mock:", e instanceof Error ? e.message : e);
         return mock.send(message);
       }
-      const info = await t.transport.sendMail({
-        from: t.from,
-        to: message.to,
-        subject: message.subject,
-        html: message.html,
-        text: message.text,
-      });
-      return { id: info.messageId };
-    } catch (e) {
-      // eslint-disable-next-line no-console
-      console.warn("[email] SMTP send failed → falling back to mock:", e instanceof Error ? e.message : e);
-      return mock.send(message);
-    }
-  },
-};
+    },
+  };
+}
+
+export const email: EmailProvider = emailFor();
 
 /**
  * Send a one-shot test email using the given config (does NOT touch the saved one).

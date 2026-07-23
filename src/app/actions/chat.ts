@@ -81,8 +81,9 @@ export async function postMessageAction(formData: FormData) {
   }
   const webMatch = parsed.data.content.match(/\/(search|web)\s+(.+)/i);
   if (webMatch) {
-    const { search } = await import("@/lib/search");
-    const results = await search.search(webMatch[2], 5);
+    const { getSearchProvider } = await import("@/lib/search");
+    const { provider: webSearch } = await getSearchProvider(workspace.id);
+    const results = await webSearch.search(webMatch[2], 5);
     extraContext += "\n[ quick web search]\n" + results.map((r, i) => `${i + 1}. ${r.title} — ${r.url}\n   ${r.snippet}`).join("\n");
   }
 
@@ -109,6 +110,7 @@ ${contextLines || "(none)"}`;
     model: chat.channel.defaultModel ?? "claude-sonnet",
     system,
     messages: [...history, { role: "user", content: parsed.data.content }],
+    workspaceId: workspace.id,
   });
 
   await db.chatMessage.create({
@@ -121,6 +123,7 @@ ${contextLines || "(none)"}`;
       model: chat.channel.defaultModel ?? "claude-sonnet",
       system: "Synthesize the discussion into a working script title.",
       messages: history.concat([{ role: "user", content: parsed.data.content }]),
+      workspaceId: workspace.id,
     });
     const title = synthesis.content.split("\n")[0].slice(0, 120) || "Untitled script";
 

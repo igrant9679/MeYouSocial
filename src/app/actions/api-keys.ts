@@ -7,9 +7,12 @@ import { db } from "@/lib/db";
 import { KEY_PROVIDERS, type KeyProvider } from "@/lib/llm/keys";
 import { llm } from "@/lib/llm";
 
-// Admin-only: save / clear an LLM provider API key. Stored in the Setting table
-// so the in-app value overrides the env var. After save we bust the LLM provider
-// cache so the new key takes effect on the next request without a redeploy.
+// Admin-only: save / clear provider API keys and switches. Multi-tenant: every
+// save below writes a WorkspaceSetting row for the acting admin's workspace —
+// each company brings its own keys; the global Setting/env stays as the
+// platform fallback (managed by the platform operator, not through this UI).
+// After save we bust the settings cache so the new key takes effect within a
+// request, no redeploy.
 
 const SETTING_KEY: Record<KeyProvider, string> = {
   anthropic: "api_key:anthropic",
@@ -28,7 +31,7 @@ const SETTING_KEY: Record<KeyProvider, string> = {
  * change them in-app without touching Railway. Values are validated here.
  */
 export async function saveMediaSettingAction(formData: FormData) {
-  await requireRole("ADMIN");
+  const { workspace } = await requireRole("ADMIN");
   const setting = String(formData.get("setting") ?? "");
   const value = String(formData.get("value") ?? "");
   const ALLOWED: Record<string, string[]> = {
@@ -36,7 +39,8 @@ export async function saveMediaSettingAction(formData: FormData) {
     "tts:provider": ["mock", "elevenlabs"],
   };
   if (!ALLOWED[setting]?.includes(value)) return;
-  await db.setting.upsert({ where: { key: setting }, update: { value }, create: { key: setting, value } });
+  const { setWorkspaceSetting } = await import("@/lib/settings");
+  await setWorkspaceSetting(workspace.id, setting, value);
   revalidatePath("/admin/api-keys");
   redirect(`/admin/api-keys?ok=${encodeURIComponent(setting)}`);
 }
@@ -45,19 +49,12 @@ const SEARCH_VENDORS = ["tavily", "serper"] as const;
 
 /** Admin-only: save / clear a search provider key (same DB-first pattern). */
 export async function saveSearchKeyAction(formData: FormData) {
-  await requireRole("ADMIN");
+  const { workspace } = await requireRole("ADMIN");
   const vendor = String(formData.get("vendor") ?? "");
   if (!(SEARCH_VENDORS as readonly string[]).includes(vendor)) return;
   const value = String(formData.get("value") ?? "").trim();
-  const key = `api_key:${vendor}`;
-
-  if (!value) {
-    await db.setting.deleteMany({ where: { key } });
-  } else {
-    await db.setting.upsert({ where: { key }, update: { value }, create: { key, value } });
-  }
-  const { invalidateSearchKeyCache } = await import("@/lib/search");
-  invalidateSearchKeyCache();
+  const { setWorkspaceSetting } = await import("@/lib/settings");
+  await setWorkspaceSetting(workspace.id, `api_key:${vendor}`, value);
   revalidatePath("/admin/api-keys");
   redirect(`/admin/api-keys?ok=${vendor}`);
 }
@@ -69,7 +66,13 @@ export async function saveSearchKeyAction(formData: FormData) {
  * exhausted quota fails HERE with a message, not silently at upload time.
  */
 export async function saveStorageSettingAction(formData: FormData) {
-  await requireRole("ADMIN");
+  // Storage is PLATFORM infrastructure (one Drive/local store serves every
+  // tenant) — only the platform operator may change it.
+  const { user } = await requireRole("ADMIN");
+  const { env } = await import("@/lib/env");
+  if (!env.BOOTSTRAP_ADMIN_EMAIL || user.email !== env.BOOTSTRAP_ADMIN_EMAIL) {
+    redirect("/admin/api-keys?err=" + encodeURIComponent("Storage is managed by the platform operator."));
+  }
   const setting = String(formData.get("setting") ?? "");
   const value = String(formData.get("value") ?? "").trim();
   const { invalidateStorageCache } = await import("@/lib/storage");
@@ -119,21 +122,12 @@ export async function saveStorageSettingAction(formData: FormData) {
 }
 
 export async function saveApiKeyAction(formData: FormData) {
-  await requireRole("ADMIN");
+  const { workspace } = await requireRole("ADMIN");
   const provider = String(formData.get("provider") ?? "") as KeyProvider;
-  if (!KEY_PROVIDERS.includes(provider)) return;
+  if (!KEY_PROVIDERS.includes(provider) && provider !== "youtube" && provider !== "elevenlabs") return;
   const value = String(formData.get("value") ?? "").trim();
-  const key = SETTING_KEY[provider];
-
-  if (!value) {
-    await db.setting.deleteMany({ where: { key } });
-  } else {
-    await db.setting.upsert({
-      where: { key },
-      update: { value },
-      create: { key, value },
-    });
-  }
+  const { setWorkspaceSetting } = await import("@/lib/settings");
+  await setWorkspaceSetting(workspace.id, SETTING_KEY[provider], value);
   llm.invalidateKeyCache();
   revalidatePath("/admin/api-keys");
   redirect(`/admin/api-keys?ok=${provider}`);

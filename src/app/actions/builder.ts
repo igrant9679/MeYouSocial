@@ -119,6 +119,7 @@ export async function suggestBuilderTitlesAction(formData: FormData) {
     model: script.model ?? script.channel.defaultModel ?? "claude-sonnet",
     system: "Produce 6 YouTube title candidates. Each <= 70 chars, distinct angle. One per line.",
     messages: [{ role: "user", content: `Niche: ${script.channel.nicheDescription}\nFraming: ${JSON.stringify(state.frame)}\nResearch summary: ${state.research.items.map((i) => i.title).join("; ")}\nCurrent working title: ${script.title}` }],
+    workspaceId: script.channel.workspaceId,
   });
   state.titleVariants = completion.content.split("\n").map((s) => s.replace(/^[*\-\d.\s]+/, "").trim()).filter(Boolean).slice(0, 6);
   await save(scriptId, state);
@@ -143,6 +144,7 @@ export async function suggestBuilderHooksAction(formData: FormData) {
     model: script.model ?? script.channel.defaultModel ?? "claude-sonnet",
     system: "Produce 5 distinct opening-hook variations (first 10-15s, spoken). 2-3 sentences each. No preamble. Separated by ---",
     messages: [{ role: "user", content: `Title: ${state.title || script.title}\nNiche: ${script.channel.nicheDescription}\nFraming: ${JSON.stringify(state.frame)}` }],
+    workspaceId: script.channel.workspaceId,
   });
   state.hookVariants = completion.content.split(/---+/).map((s) => s.trim()).filter(Boolean).slice(0, 5);
   await save(scriptId, state);
@@ -196,6 +198,7 @@ export async function generateBuilderDraftAction(formData: FormData) {
       messages: [
         { role: "user", content: `Generate ONLY the section titled "${heading}". \nTitle: ${state.title || script.title}\nHook (already chosen): ${state.hook}\nPayoffs: ${state.payoffs.join("; ")}` },
       ],
+      workspaceId: script.channel.workspaceId,
     });
     sections.push({ title: heading, content: completion.content });
   }
@@ -227,6 +230,7 @@ export async function regenerateBuilderSectionAction(formData: FormData) {
       lengthGuide: "2-3 minutes",
     }),
     messages: [{ role: "user", content: `Rewrite ONLY this section titled "${section.title}". Title: ${state.title}` }],
+    workspaceId: script.channel.workspaceId,
   });
   state.sections[sectionIndex] = { ...section, content: completion.content };
 
@@ -249,6 +253,7 @@ export async function generateBuilderPublishAction(formData: FormData) {
     model: script.model ?? "claude-sonnet",
     system: "Return JSON with three fields: description (plain text, 200-300 words), tags (one comma-separated line), metadata (key:value list of 3-5 lines).",
     messages: [{ role: "user", content: `Title: ${state.title || script.title}\nScript:\n${(script.body ?? "").slice(0, 6000)}` }],
+    workspaceId: script.channel.workspaceId,
   });
   state.publish = { ...(state.publish ?? {}), description: completion.content };
   await save(scriptId, state);

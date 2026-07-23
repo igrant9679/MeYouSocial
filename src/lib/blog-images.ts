@@ -258,6 +258,7 @@ export async function generateImageBriefsCore(workspaceId: string, postId: strin
     system,
     messages: [{ role: "user", content: prompt }],
     maxTokens: 800,
+    workspaceId,
   });
   let parsed: ImageBriefs = {};
   try {

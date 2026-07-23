@@ -22,10 +22,14 @@ export function MobileNav({
   items,
   userLabel,
   signOutAction,
+  logoUrl,
+  brandName = "MeYouSocial",
 }: {
   items: LeftRailItem[];
   userLabel: string;
   signOutAction: () => void;
+  logoUrl?: string | null;
+  brandName?: string;
 }) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname() ?? "";
@@ -47,8 +51,15 @@ export function MobileNav({
           <div className="absolute inset-0 bg-black/50" onClick={() => setOpen(false)} />
           <nav className="absolute left-0 top-0 bottom-0 w-72 max-w-[80vw] bg-[var(--bg)] border-r border-[var(--line)] flex flex-col p-3 shadow-2xl">
             <div className="flex items-center gap-2 px-1 mb-3">
-              <span aria-hidden><BrandLogo size={36} /></span>
-              <span className="font-mono font-bold text-[15px]">MeYouSocial</span>
+              <span aria-hidden>
+                {logoUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={logoUrl} alt="" width={36} height={36} className="w-9 h-9 rounded-xl object-cover" />
+                ) : (
+                  <BrandLogo size={36} />
+                )}
+              </span>
+              <span className="font-mono font-bold text-[15px] truncate">{brandName}</span>
               <span className="flex-1" />
               <button
                 type="button"

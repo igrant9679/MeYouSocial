@@ -1,13 +1,11 @@
-import { db } from "@/lib/db";
 import { env } from "@/lib/env";
+import { getSetting, invalidateSettingsCache } from "@/lib/settings";
 
-// Resolves an API key for a given provider, preferring DB-stored settings
-// (set via /admin/api-keys) over the corresponding env var. This lets an admin
-// paste a key in-app without needing Railway access.
-//
-// We cache the resolved value for 30 seconds so we don't hammer the DB on every
-// LLM request. The admin save action calls invalidateKeyCache() to force a fresh
-// read immediately after an update.
+// Resolves an API key for a given provider. Multi-tenant resolution order:
+// WorkspaceSetting (the company's own key, set via /admin/api-keys) → global
+// Setting row (platform key) → env var. This lets each company bring its own
+// keys while workspaces that haven't configured one keep working on the
+// platform's key. Caching lives in src/lib/settings.ts (30s, workspace-aware).
 
 type Provider =
   | "anthropic" | "openai" | "google" | "deepseek" | "xai" | "moonshot" | "minimax"
@@ -37,26 +35,13 @@ const ENV_KEY: Record<Provider, string> = {
   elevenlabs: process.env.ELEVENLABS_API_KEY ?? "",
 };
 
-const CACHE_TTL_MS = 30_000;
-const cache = new Map<Provider, { value: string; expires: number }>();
-
-export async function getApiKey(provider: Provider): Promise<string> {
-  const cached = cache.get(provider);
-  if (cached && cached.expires > Date.now()) return cached.value;
-  let value = "";
-  try {
-    const row = await db.setting.findUnique({ where: { key: SETTING_KEY[provider] } });
-    value = row?.value ?? "";
-  } catch {
-    // DB unavailable — fall through to env
-  }
-  if (!value) value = ENV_KEY[provider] ?? "";
-  cache.set(provider, { value, expires: Date.now() + CACHE_TTL_MS });
-  return value;
+export async function getApiKey(provider: Provider, workspaceId?: string | null): Promise<string> {
+  const value = await getSetting(SETTING_KEY[provider], workspaceId);
+  return value || (ENV_KEY[provider] ?? "");
 }
 
 export function invalidateKeyCache() {
-  cache.clear();
+  invalidateSettingsCache();
 }
 
 export const KEY_PROVIDERS: Provider[] = ["anthropic", "openai", "google", "deepseek", "xai", "moonshot", "minimax"];

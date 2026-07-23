@@ -1,8 +1,10 @@
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { SubmitButton } from "@/components/SubmitButton";
 import Link from "next/link";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
+import { ACTIVE_WS_COOKIE } from "@/lib/acl";
 
 // invitee accepts and joins the workspace with the role from the invite.
 
@@ -21,6 +23,8 @@ async function acceptAction(token: string) {
     }),
     db.invitation.update({ where: { id: invite.id }, data: { acceptedAt: new Date() } }),
   ]);
+  // Land them in the workspace they just joined, not their first membership.
+  (await cookies()).set(ACTIVE_WS_COOKIE, invite.workspaceId, { httpOnly: true, sameSite: "lax", path: "/", maxAge: 60 * 60 * 24 * 365 });
   redirect("/dashboard");
 }
 

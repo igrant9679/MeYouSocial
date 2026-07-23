@@ -1,5 +1,4 @@
 import { env } from "@/lib/env";
-import { db } from "@/lib/db";
 
 // Web search seam. Real providers: Tavily and Serper (Google results) — active
 // as soon as a key resolves (DB Setting api_key:tavily / api_key:serper first,
@@ -34,24 +33,21 @@ const ENV_KEYS: Record<SearchVendor, string> = {
   serper: env.SERPER_API_KEY,
 };
 
-let cache: { at: number; keys: Record<SearchVendor, string> } | null = null;
-
-async function resolveKeys(): Promise<Record<SearchVendor, string>> {
-  if (cache && Date.now() - cache.at < 30_000) return cache.keys;
-  const rows = await db.setting.findMany({
-    where: { key: { in: ["api_key:tavily", "api_key:serper"] } },
-  });
-  const byKey = new Map(rows.map((r) => [r.key, r.value]));
-  const keys: Record<SearchVendor, string> = {
-    tavily: byKey.get("api_key:tavily") || ENV_KEYS.tavily,
-    serper: byKey.get("api_key:serper") || ENV_KEYS.serper,
-  };
-  cache = { at: Date.now(), keys };
-  return keys;
+async function resolveKeys(workspaceId?: string | null): Promise<Record<SearchVendor, string>> {
+  // Multi-tenant: workspace's own key → platform Setting → env. Caching lives
+  // in the shared settings layer (workspace-aware).
+  const { getSetting } = await import("@/lib/settings");
+  const [tavily, serper] = await Promise.all([
+    getSetting("api_key:tavily", workspaceId),
+    getSetting("api_key:serper", workspaceId),
+  ]);
+  return { tavily: tavily || ENV_KEYS.tavily, serper: serper || ENV_KEYS.serper };
 }
 
 export function invalidateSearchKeyCache(): void {
-  cache = null;
+  // Kept for the admin save action's existing import; the shared settings
+  // cache is the real store now.
+  void import("@/lib/settings").then((m) => m.invalidateSettingsCache());
 }
 
 // ── Real providers ───────────────────────────────────────────────────────────
@@ -98,15 +94,15 @@ function serperProvider(apiKey: string): SearchProvider {
 
 // ── Selection ────────────────────────────────────────────────────────────────
 
-export async function getSearchProvider(): Promise<{ provider: SearchProvider; real: boolean; vendor: string }> {
+export async function getSearchProvider(workspaceId?: string | null): Promise<{ provider: SearchProvider; real: boolean; vendor: string }> {
   if (env.USE_MOCK_SEARCH) return { provider: mock, real: false, vendor: "mock" };
-  const keys = await resolveKeys();
+  const keys = await resolveKeys(workspaceId);
   if (keys.tavily) return { provider: tavilyProvider(keys.tavily), real: true, vendor: "tavily" };
   if (keys.serper) return { provider: serperProvider(keys.serper), real: true, vendor: "serper" };
   return { provider: mock, real: false, vendor: "mock" };
 }
 
-/** Legacy call-site surface — resolves the live provider per call. */
+/** Legacy call-site surface — resolves the live provider per call (platform keys). */
 export const search: SearchProvider = {
   async search(query, limit) {
     const { provider } = await getSearchProvider();

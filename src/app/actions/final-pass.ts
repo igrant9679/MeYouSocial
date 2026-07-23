@@ -30,6 +30,7 @@ score=<0-100>; contrast=<low|medium|high>; readability=<poor|ok|strong>; oneline
       role: "user",
       content: `Title: ${thumb.title}\nMode: ${thumb.mode}\nConcepts: ${(thumb.concepts ?? "").slice(0, 1000)}\nRendered URL: ${thumb.renderUrl ?? "(none)"}`,
     }],
+    workspaceId: workspace.id,
   });
   // Pull the first integer out as the canonical score
   const numMatch = result.content.match(/score\s*=\s*(\d+)/i) ?? result.content.match(/(\d{2,3})/);
