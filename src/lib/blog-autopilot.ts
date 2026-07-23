@@ -13,6 +13,7 @@ import {
 } from "@/lib/wordpress";
 import { buildSeoMeta, effectiveFieldMap, isSeoPlugin, verifySeoMeta } from "@/lib/seo-plugins";
 import { renderForPublish } from "@/lib/blog-render";
+import { isRenderProfile, parseRenderRules } from "@/lib/design-render";
 import { smePromptFor } from "@/lib/sme";
 import { loadEditorialContext } from "@/lib/blog-slop";
 import { notify } from "@/lib/notify";
@@ -448,8 +449,13 @@ export async function publishCore(workspaceId: string, postId: string): Promise<
 
   // Structured data rides inside the content (works on any WP theme/plugin).
   const jsonLd = `\n<script type="application/ld+json">${buildJsonLd(post, workspace?.name ?? "MeYouSocial")}</script>`;
-  const content =
-    renderForPublish(post.body, { headingSpec: brand.headingSpec, footerCredit: brand.footerCredit }) + jsonLd;
+  const rendered = renderForPublish(post.body, {
+    headingSpec: brand.headingSpec,
+    footerCredit: brand.footerCredit,
+    renderProfile: isRenderProfile(brand.renderProfile) ? brand.renderProfile : "html",
+    renderRules: parseRenderRules(brand.renderRules),
+  });
+  const content = rendered.html + jsonLd;
 
   const status = conn.publishAsDraft ? "draft" : "publish";
   const created = await wpCreatePost(creds, {
@@ -474,6 +480,8 @@ export async function publishCore(workspaceId: string, postId: string): Promise<
     wpPostId: created.id,
     status,
     plugin,
+    renderProfile: brand.renderProfile,
+    rendered: rendered.report,
     seo: seoOutcomes,
     seoUnverified: readBack ? false : true,
     featuredMedia: media ? { id: media.id, applied: readBack ? readBack.featuredMedia === media.id : null } : null,

@@ -15,6 +15,7 @@ import {
   serializeMotifs,
   type HeadingStyle,
 } from "@/lib/motifs";
+import { RENDER_PATTERNS, isRenderProfile } from "@/lib/design-render";
 
 /**
  * FR-2 — brand kit, heading/image spec, and the editable 7 Motifs directives.
@@ -50,6 +51,14 @@ export async function saveBrandKitAction(formData: FormData) {
     featuredImageHeight: intField(formData, "featuredImageHeight", 1080, 200, 6000),
     ogImageWidth: intField(formData, "ogImageWidth", 1200, 200, 6000),
     ogImageHeight: intField(formData, "ogImageHeight", 630, 200, 6000),
+    // FR-18 design-system rendering
+    renderProfile: (() => {
+      const p = String(formData.get("renderProfile") ?? "html");
+      return isRenderProfile(p) ? p : "html";
+    })(),
+    renderRules: JSON.stringify(
+      Object.fromEntries(RENDER_PATTERNS.map((p) => [p, formData.get(`render_${p}`) === "on"])),
+    ),
     // FR-8 asset policy
     requireImagesToPublish: formData.get("requireImagesToPublish") === "on",
     aiImagesEnabled: formData.get("aiImagesEnabled") === "on",

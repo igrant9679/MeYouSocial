@@ -25,6 +25,8 @@ import {
 import { applySlugConvention, parseSlugRules, slugMatchesConvention } from "@/lib/seo-plugins";
 import { selectSmeProfile } from "@/lib/sme";
 import { loadEditorialContext } from "@/lib/blog-slop";
+import { renderForPublish } from "@/lib/blog-render";
+import { PROFILE_LABELS, isRenderProfile, parseRenderRules, reportSummary } from "@/lib/design-render";
 import {
   addBlogCommentAction,
   assignReviewerAction,
@@ -184,6 +186,16 @@ export default async function BlogPostPage({ params }: { params: Promise<{ id: s
   } catch {
     publishReport = null;
   }
+  // FR-18: what publishing will actually send, mapped to the site's design system.
+  const renderProfile = isRenderProfile(brand.renderProfile) ? brand.renderProfile : "html";
+  const renderPreview = post.body
+    ? renderForPublish(post.body, {
+        headingSpec: brand.headingSpec,
+        footerCredit: brand.footerCredit,
+        renderProfile,
+        renderRules: parseRenderRules(brand.renderRules),
+      })
+    : { html: "", report: { checklist: 0, callout: 0, quote: 0, faq: 0, cta: 0, separator: 0 } };
   const categories = parseCsvJson(post.categories);
   const tags = parseCsvJson(post.tags);
   // FR-10 review: who can be assigned, and who wrote each comment.
@@ -419,6 +431,25 @@ export default async function BlogPostPage({ params }: { params: Promise<{ id: s
                 Suggestions only — a link is an editorial endorsement, so place it yourself.
               </p>
             </div>
+          )}
+
+          {post.body && (
+            <details className="text-xs mb-3">
+              <summary className="cursor-pointer font-semibold">
+                Rendered output{" "}
+                <span className="font-mono text-[10px] text-[var(--mute)]">
+                  {PROFILE_LABELS[renderProfile]} · {reportSummary(renderPreview.report)}
+                </span>
+              </summary>
+              <p className="text-[11px] text-[var(--mute)] mt-1">
+                What publishing will actually send, after the design-system mapping and the heading spec. The stored
+                draft stays clean HTML.
+              </p>
+              <pre className="mt-1 p-2 rounded-lg overflow-x-auto text-[10px] leading-relaxed" style={{ background: "var(--panel)" }}>
+                {renderPreview.html.slice(0, 4000)}
+                {renderPreview.html.length > 4000 ? "\n…truncated" : ""}
+              </pre>
+            </details>
           )}
 
           {post.publisherNotes && (

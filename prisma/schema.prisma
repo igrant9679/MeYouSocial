@@ -181,6 +181,9 @@ model BrandKit {
   featuredImageHeight Int @default(1080)
   ogImageWidth        Int @default(1200)
   ogImageHeight       Int @default(630)
+  // FR-18 design-system rendering profile
+  renderProfile  String  @default("html") // html | gutenberg | fusion
+  renderRules    String  @default("{}")   // JSON toggles per content pattern
   // FR-8 asset policy
   requireImagesToPublish Boolean @default(true)  // featured + OG required before publish
   aiImagesEnabled        Boolean @default(false) // AI generation, always human-reviewed
@@ -464,6 +467,31 @@ model BlogComment {
   post BlogPost @relation(fields: [postId], references: [id], onDelete: Cascade)
 
   @@index([postId, resolved])
+}
+
+// ---- FR-15: existing-content audit ----------------------------------------------
+// One row per audited URL. Recommendations only — nothing here deletes or
+// rewrites anything, and a retire recommendation always carries redirect advice
+// so ranking history survives.
+model ContentAuditItem {
+  id          String   @id @default(cuid())
+  workspaceId String
+  url         String
+  title       String
+  source      String   @default("wordpress") // wordpress | site_page | blog_post
+  wordCount   Int?
+  slopScore   Int?     // 0-100; higher is worse
+  findings    String   @default("[]") // JSON list of what the detectors caught
+  recommendation String @default("keep") // keep | rewrite | merge | retire
+  reason      String?
+  mergeTargetUrl String?
+  /** Set when the workspace has performance data for this URL. */
+  position    Float?
+  status      String   @default("open") // open | actioned | dismissed
+  auditedAt   DateTime @default(now())
+
+  @@unique([workspaceId, url])
+  @@index([workspaceId, status])
 }
 
 // Workspace-level automation kill switch + audit trail (Spark NFR auditability).

@@ -24,6 +24,15 @@ import {
   motifSummaryLabel,
   parseMotifs,
 } from "@/lib/motifs";
+import {
+  PATTERN_LABELS,
+  PROFILE_LABELS,
+  PROFILE_NOTES,
+  RENDER_PATTERNS,
+  RENDER_PROFILES,
+  isRenderProfile,
+  parseRenderRules,
+} from "@/lib/design-render";
 
 // FR-2 — Brand, typography & the 7 Motifs tone engine. Everything on this page
 // steers generation: the directives are the actual prompt text, not decoration.
@@ -37,6 +46,7 @@ export default async function BrandPage() {
     db.motifDefault.findMany({ where: { workspaceId: workspace.id }, orderBy: [{ tier: "asc" }, { createdAt: "asc" }] }),
     getPlatformMotifs(workspace.id),
   ]);
+  const renderRules = parseRenderRules(brand.renderRules);
   const history = await db.motifDirectiveVersion.findMany({
     where: { directiveId: { in: directives.map((d) => d.id) } },
     orderBy: { version: "desc" },
@@ -138,6 +148,32 @@ export default async function BrandPage() {
               <span className="block text-xs text-[var(--mute)] mb-1">OG height</span>
               <input name="ogImageHeight" type="number" min={200} max={6000} defaultValue={brand.ogImageHeight} className="w-full font-mono text-xs" disabled={!admin} />
             </label>
+          </div>
+        </div>
+
+        <div>
+          <h3 className="text-xs font-semibold mb-1">Design-system rendering</h3>
+          <p className="text-xs text-[var(--mute)] mb-2">
+            How a published article renders on the connected site. The draft is always stored as clean semantic HTML;
+            this maps recognisable patterns onto native components at publish time. Design never overrides semantics —
+            checklists stay real lists and FAQ accordions stay keyboard-operable.
+          </p>
+          <label className="text-sm block mb-2">
+            <span className="block text-xs text-[var(--mute)] mb-1">Profile</span>
+            <select name="renderProfile" defaultValue={brand.renderProfile} className="w-full text-xs" disabled={!admin}>
+              {RENDER_PROFILES.map((p) => <option key={p} value={p}>{PROFILE_LABELS[p]}</option>)}
+            </select>
+          </label>
+          <p className="text-[11px] text-[var(--mute)] mb-2">
+            {PROFILE_NOTES[isRenderProfile(brand.renderProfile) ? brand.renderProfile : "html"]}
+          </p>
+          <div className="flex flex-col gap-1">
+            {RENDER_PATTERNS.map((p) => (
+              <label key={p} className="flex items-center gap-2 text-xs">
+                <input type="checkbox" name={`render_${p}`} defaultChecked={renderRules[p]} disabled={!admin} />
+                <span>{PATTERN_LABELS[p]}</span>
+              </label>
+            ))}
           </div>
         </div>
 

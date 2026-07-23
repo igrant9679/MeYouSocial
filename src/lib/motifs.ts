@@ -465,6 +465,9 @@ export type BrandKitView = {
   featuredImageHeight: number;
   ogImageWidth: number;
   ogImageHeight: number;
+  /** FR-18 design-system rendering. */
+  renderProfile: string;
+  renderRules: string;
   /** FR-8 asset policy. */
   requireImagesToPublish: boolean;
   aiImagesEnabled: boolean;
@@ -478,6 +481,8 @@ const BRAND_DEFAULTS = {
   featuredImageHeight: 1080,
   ogImageWidth: 1200,
   ogImageHeight: 630,
+  renderProfile: "html",
+  renderRules: "{}",
   requireImagesToPublish: true,
   aiImagesEnabled: false,
   brandInBodyImages: false,
@@ -515,6 +520,8 @@ export async function getBrandKit(workspaceId: string): Promise<BrandKitView> {
     featuredImageHeight: row.featuredImageHeight,
     ogImageWidth: row.ogImageWidth,
     ogImageHeight: row.ogImageHeight,
+    renderProfile: row.renderProfile,
+    renderRules: row.renderRules,
     requireImagesToPublish: row.requireImagesToPublish,
     aiImagesEnabled: row.aiImagesEnabled,
     brandInBodyImages: row.brandInBodyImages,

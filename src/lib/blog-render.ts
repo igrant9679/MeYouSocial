@@ -1,4 +1,11 @@
 import { HEADING_LEVELS, type HeadingLevel, type HeadingStyle } from "@/lib/motifs";
+import {
+  DEFAULT_RENDER_RULES,
+  renderDesignSystem,
+  type RenderProfile,
+  type RenderReport,
+  type RenderRules,
+} from "@/lib/design-render";
 
 /**
  * FR-2 + FR-11 — render the stored HTML the way the workspace wants it to look
@@ -56,13 +63,25 @@ export function appendFooterCredit(html: string, credit: string | null | undefin
 }
 
 /**
- * The full publish-time transform: heading spec, footer credit, then whatever
- * structured data the caller appends. Kept separate from the stored body so the
- * editor keeps showing clean HTML.
+ * The full publish-time transform: design-system mapping (FR-18), then the
+ * heading spec, then the footer credit. Order matters — the pattern detectors
+ * read clean semantic markup, so they run before inline styles are attached.
+ * Kept separate from the stored body so the editor keeps showing clean HTML and
+ * the article can be re-rendered if the site's theme changes.
  */
 export function renderForPublish(
   body: string,
-  opts: { headingSpec: Record<HeadingLevel, HeadingStyle>; footerCredit?: string | null },
-): string {
-  return appendFooterCredit(applyHeadingSpec(body, opts.headingSpec), opts.footerCredit);
+  opts: {
+    headingSpec: Record<HeadingLevel, HeadingStyle>;
+    footerCredit?: string | null;
+    renderProfile?: RenderProfile;
+    renderRules?: RenderRules;
+  },
+): { html: string; report: RenderReport } {
+  const { html, report } = renderDesignSystem(
+    body,
+    opts.renderProfile ?? "html",
+    opts.renderRules ?? DEFAULT_RENDER_RULES,
+  );
+  return { html: appendFooterCredit(applyHeadingSpec(html, opts.headingSpec), opts.footerCredit), report };
 }

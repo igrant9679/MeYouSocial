@@ -102,6 +102,56 @@ export async function wpReadPost(
   }
 }
 
+// ---- Crawl (FR-15) -----------------------------------------------------------------
+
+export type WpExistingPost = {
+  id: number;
+  link: string;
+  title: string;
+  content: string;
+  modified: string | null;
+};
+
+/**
+ * Page through the site's published posts. Read-only: the audit never writes,
+ * so a crawl can be run against a live site without risk.
+ */
+export async function wpListPosts(c: WpCredentials, maxPosts = 200): Promise<WpExistingPost[]> {
+  const out: WpExistingPost[] = [];
+  const perPage = 50;
+  for (let page = 1; out.length < maxPosts && page <= 20; page++) {
+    let res: Response;
+    try {
+      res = await fetch(
+        api(c, `/posts?per_page=${perPage}&page=${page}&status=publish&_fields=id,link,title,content,modified`),
+        { headers: { Authorization: authHeader(c) }, signal: AbortSignal.timeout(30000) },
+      );
+    } catch {
+      break;
+    }
+    if (!res.ok) break;
+    const batch = (await res.json().catch(() => [])) as Array<{
+      id: number;
+      link: string;
+      title?: { rendered?: string };
+      content?: { rendered?: string };
+      modified?: string;
+    }>;
+    if (!Array.isArray(batch) || batch.length === 0) break;
+    for (const p of batch) {
+      out.push({
+        id: p.id,
+        link: p.link,
+        title: (p.title?.rendered ?? "").replace(/<[^>]+>/g, "").trim() || p.link,
+        content: p.content?.rendered ?? "",
+        modified: p.modified ?? null,
+      });
+    }
+    if (batch.length < perPage) break;
+  }
+  return out.slice(0, maxPosts);
+}
+
 // ---- Taxonomy --------------------------------------------------------------------
 
 type Taxonomy = "categories" | "tags";

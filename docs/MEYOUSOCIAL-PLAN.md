@@ -153,9 +153,28 @@ User approved autonomous gap closure in this order:
    which later edits would silently invalidate).
    _Not done:_ Slack delivery (needs an app registration + OAuth) and Nifty
    two-way sync.
-6. **Larger / externally gated:** FR-15 content audit (site crawl + slop
-   detection), FR-18 design-system rendering (Gutenberg/Fusion mapping),
-   GSC/GA4 connectors, Uniple, Nifty, Microsoft SSO, MFA.
+6. **Larger / externally gated** — the two buildable items are ✅ **shipped
+   2026-07-23**:
+   - **FR-18 design-system rendering** (`src/lib/design-render.ts`): draft
+     patterns (benefit lists, tip/note/warning callouts, blockquotes, FAQ
+     sections, CTA links, rules) map to Gutenberg blocks, Avada/Fusion
+     shortcodes, or classed semantic HTML, per-pattern toggles, applied at
+     publish only — the stored draft stays clean HTML so it can be re-rendered
+     when the theme changes. Semantics preserved: checklists stay `<ul>`,
+     accordions use `<details>`/core-details. The editor shows the exact
+     rendered output before publishing.
+   - **FR-15 content audit** (`src/lib/content-audit.ts`): read-only crawl of
+     the connected site (page-inventory fallback), scored with the same
+     deterministic detectors as the publish gate, recommending
+     keep/rewrite/merge/retire with the score breakdown shown. **Retire always
+     means redirect, never delete**; findings can be pushed to the idea board.
+     Ranking data only exists for posts this app published — the UI says so
+     rather than implying coverage it doesn't have.
+
+   **Still genuinely gated** (need credentials or a third-party account you'd
+   have to provide): GSC/GA4 connectors (Google OAuth), Uniple, Nifty,
+   Microsoft SSO (Azure app registration). MFA is buildable without anything
+   external but touches the live auth flow, so it wants its own session.
 
 Conventions unchanged: dual-push (origin + deploy), tsc exit-checked + build
 before push, offline migrations via `prisma migrate diff`, mock-first seams,
