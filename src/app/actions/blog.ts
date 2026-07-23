@@ -9,6 +9,8 @@ import { writeAudit } from "@/lib/governance";
 import { generateDraftCore } from "@/lib/blog-autopilot";
 import { readMotifWeights, serializeMotifs } from "@/lib/motifs";
 import { loadAssetGate } from "@/lib/blog-images";
+import { loadEditorialContext } from "@/lib/blog-slop";
+import { notify } from "@/lib/notify";
 
 /**
  * Blog module (ported from Spark's article pipeline — slice 1).
@@ -122,8 +124,11 @@ export async function advanceBlogStatusAction(formData: FormData) {
     // Spark gate: checks must pass and citations must be verified to advance
     // into approval/publish. Server-enforced — the UI banner is advisory only.
     const unverified = await db.blogCitation.count({ where: { postId: post.id, verified: false } });
-    const assets = await loadAssetGate(workspace.id, post.id);
-    if (!requiredChecksPass(runBlogChecks(post, unverified, assets))) return;
+    const [assets, editorial] = await Promise.all([
+      loadAssetGate(workspace.id, post.id),
+      loadEditorialContext(workspace.id, post),
+    ]);
+    if (!requiredChecksPass(runBlogChecks(post, unverified, assets, editorial))) return;
   }
   await db.blogPost.update({
     where: { id: post.id },
@@ -139,6 +144,40 @@ export async function advanceBlogStatusAction(formData: FormData) {
     entityType: "blog_post",
     entityId: post.id,
   });
+  // FR-16: tell whoever has to act next. Never the person who just acted.
+  if (next === "final_approval") {
+    await notify({
+      workspaceId: workspace.id,
+      kind: "approval_needed",
+      title: `"${post.title}" is waiting for final approval`,
+      body: "Gates passed. Publishing is an admin act.",
+      path: `/blog/${post.id}`,
+      entityType: "blog_post",
+      entityId: post.id,
+      excludeUserId: user.id,
+    });
+  } else if (next === "draft_review" && dir > 0) {
+    await notify({
+      workspaceId: workspace.id,
+      kind: "approval_needed",
+      title: `"${post.title}" is ready for draft review`,
+      path: `/blog/${post.id}`,
+      entityType: "blog_post",
+      entityId: post.id,
+      userIds: post.reviewerId ? [post.reviewerId] : undefined,
+      excludeUserId: user.id,
+    });
+  } else if (next === "published") {
+    await notify({
+      workspaceId: workspace.id,
+      kind: "published",
+      title: `"${post.title}" was published`,
+      path: `/blog/${post.id}`,
+      entityType: "blog_post",
+      entityId: post.id,
+      excludeUserId: user.id,
+    });
+  }
   revalidatePath(`/blog/${post.id}`);
   revalidatePath("/blog");
 }
@@ -226,6 +265,18 @@ export async function scheduleBlogPostAction(formData: FormData) {
     entityId: post.id,
     meta: date ? { scheduledAt: date.toISOString() } : {},
   });
+  if (date) {
+    await notify({
+      workspaceId: workspace.id,
+      kind: "scheduled",
+      title: `"${post.title}" is scheduled for ${date.toISOString().slice(0, 16).replace("T", " ")}`,
+      body: "The gates are re-checked at the moment of publish.",
+      path: `/blog/${post.id}`,
+      entityType: "blog_post",
+      entityId: post.id,
+      excludeUserId: user.id,
+    });
+  }
   revalidatePath(`/blog/${post.id}`);
 }
 

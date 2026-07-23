@@ -136,9 +136,23 @@ User approved autonomous gap closure in this order:
    _Not done:_ voice intake for SME profiles (no transcription in-app), and
    FR-5's external discovery sources (People-Also-Ask / community questions /
    competitor gaps) still need real data providers.
-5. **Notifications (FR-16 in-app + email via existing SMTP)** + check depth
-   (FR-9 descriptive-link-text/labels; FR-10 anti-slop tone/filler checks,
-   reviewer assignment, inline comments).
+5. **Notifications (FR-16) + check depth (FR-9/FR-10)** — ✅ **shipped
+   2026-07-23.** `Notification` + per-user, per-kind `NotificationPreference`
+   (in-app always available, email opt-in over the existing SMTP layer, and
+   `notify()` never throws — a notification must not break the publish it
+   reports). Events: approval needed, published, publish failed (the autopilot
+   used to swallow these), scheduled, assigned, comment. Bell + unread badge in
+   the header; inbox and preferences at `/notifications`.
+   Checks gained FR-9 descriptive link text (**required** — WCAG 2.4.4, same
+   treatment as alt text), empty-link and unlabelled-control checks, and FR-10
+   anti-slop: filler-phrase list, unsourced-claim detection at sentence level,
+   literal breaches of the brand guardrails / expert never-say list, and a
+   missing-SME-grounding flag — all deterministic (`src/lib/blog-slop.ts`), so
+   a verdict is reproducible and arguable rather than a model's opinion.
+   Reviewer assignment + inline comments anchored by quoted text (not offsets,
+   which later edits would silently invalidate).
+   _Not done:_ Slack delivery (needs an app registration + OAuth) and Nifty
+   two-way sync.
 6. **Larger / externally gated:** FR-15 content audit (site crawl + slop
    detection), FR-18 design-system rendering (Gutenberg/Fusion mapping),
    GSC/GA4 connectors, Uniple, Nifty, Microsoft SSO, MFA.

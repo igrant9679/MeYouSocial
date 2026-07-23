@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { LogOut, Layers, User } from "lucide-react";
+import { Bell, LogOut, Layers, User } from "lucide-react";
+import { unreadCount } from "@/lib/notify";
 import { signOut } from "@/auth";
 import { getActiveChannel } from "@/lib/channel";
 import { setActiveChannelAction } from "@/app/actions/channel";
@@ -33,6 +34,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const { user, workspace, membership, channels, active } = await getActiveChannel();
   const userLabel = user.name ?? user.email.split("@")[0];
   const navItems = NAV.filter((n) => !n.adminOnly || membership.role === "ADMIN");
+  const unread = await unreadCount(workspace.id, user.id);
 
   return (
     <div className="flex-1 flex min-h-screen">
@@ -99,6 +101,22 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           </Link>
           <Link href="/channels" className="btn sm hidden md:inline-flex" title="Manage all channels">Manage channels</Link>
           <div className="flex-1" />
+          <Link
+            href="/notifications"
+            className="relative inline-flex items-center justify-center w-9 h-9 rounded-xl hover:bg-[var(--zebra)] transition-colors"
+            title={unread ? `${unread} unread notifications` : "Notifications"}
+            aria-label={unread ? `Notifications, ${unread} unread` : "Notifications"}
+          >
+            <Bell className="w-[18px] h-[18px]" strokeWidth={2.25} />
+            {unread > 0 && (
+              <span
+                className="absolute -top-0.5 -right-0.5 min-w-[17px] h-[17px] px-1 rounded-full text-[10px] font-mono font-bold grid place-items-center"
+                style={{ background: "var(--brand, #E5482F)", color: "#fff" }}
+              >
+                {unread > 9 ? "9+" : unread}
+              </span>
+            )}
+          </Link>
           <span className="font-mono text-[11px] uppercase tracking-wider font-bold px-2 py-1 rounded-md" style={{ background: "var(--accent-soft)", color: "var(--accent-on)" }}>{membership.role}</span>
           <span className="hidden md:inline text-[12px] text-[var(--mute)]">{user.email}</span>
         </header>

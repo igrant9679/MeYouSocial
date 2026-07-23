@@ -85,6 +85,7 @@ model BlogPost {
   tags            String    @default("[]") // JSON array of WP tag names
   publisherNotes  String?   // FR-7 "notes for the publisher"
   smeProfileId    String?   // FR-3: the expert this draft speaks as
+  reviewerId      String?   // FR-10: who owns the review of this draft
   wpPostId        Int?      // set on publish; lets a later slice update in place
   // JSON — what WordPress actually accepted on the last publish, read back from
   // the API. We report the truth rather than assuming the payload landed.
@@ -95,6 +96,7 @@ model BlogPost {
 
   workspace Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   citations BlogCitation[]
+  comments  BlogComment[]
   images    BlogImage[]
   variants  SocialVariant[]
   snapshots BlogSnapshot[]
@@ -415,6 +417,53 @@ model FunctionMode {
   updatedAt   DateTime @updatedAt
 
   @@unique([workspaceId, function])
+}
+
+// ---- FR-16: notifications -------------------------------------------------------
+// In-app first; email is opt-in per user per kind and rides the existing SMTP
+// layer. Slack remains a connector, not built here.
+model Notification {
+  id          String    @id @default(cuid())
+  workspaceId String
+  userId      String    // the recipient
+  kind        String    // approval_needed | published | publish_failed | scheduled | assigned | comment
+  title       String
+  body        String?
+  url         String?   // where to go to act on it
+  entityType  String?
+  entityId    String?
+  readAt      DateTime?
+  emailedAt   DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([workspaceId, userId, readAt])
+}
+
+model NotificationPreference {
+  id          String  @id @default(cuid())
+  workspaceId String
+  userId      String
+  kind        String
+  inApp       Boolean @default(true)
+  email       Boolean @default(false)
+  updatedAt   DateTime @updatedAt
+
+  @@unique([workspaceId, userId, kind])
+}
+
+// FR-10: inline review comments, optionally anchored to a passage.
+model BlogComment {
+  id        String   @id @default(cuid())
+  postId    String
+  authorId  String?
+  body      String
+  anchor    String?  // the quoted passage or heading this refers to
+  resolved  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  post BlogPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([postId, resolved])
 }
 
 // Workspace-level automation kill switch + audit trail (Spark NFR auditability).

@@ -24,6 +24,13 @@ import {
 } from "@/lib/blog-images";
 import { applySlugConvention, parseSlugRules, slugMatchesConvention } from "@/lib/seo-plugins";
 import { selectSmeProfile } from "@/lib/sme";
+import { loadEditorialContext } from "@/lib/blog-slop";
+import {
+  addBlogCommentAction,
+  assignReviewerAction,
+  deleteBlogCommentAction,
+  resolveBlogCommentAction,
+} from "@/app/actions/blog-review";
 import {
   applySlugConventionAction,
   generatePublisherNotesAction,
@@ -105,6 +112,7 @@ export default async function BlogPostPage({ params }: { params: Promise<{ id: s
     where: { id, workspaceId: workspace.id },
     include: {
       citations: { orderBy: { createdAt: "asc" } },
+      comments: { orderBy: { createdAt: "asc" } },
       images: true,
       variants: { orderBy: { platform: "asc" } },
       versions: { orderBy: { createdAt: "desc" }, take: 20 },
@@ -119,12 +127,13 @@ export default async function BlogPostPage({ params }: { params: Promise<{ id: s
   const nextIsPublish = FLOW[idx + 1] === "published";
   const unverified = post.citations.filter((c) => !c.verified).length;
   // FR-8: the asset gate rides in the same checks list the publish flow uses.
-  const [assets, brand, briefs] = await Promise.all([
+  const [assets, brand, briefs, editorial] = await Promise.all([
     loadAssetGate(workspace.id, post.id),
     getBrandKit(workspace.id),
     getImageBriefs(post.id),
+    loadEditorialContext(workspace.id, post),
   ]);
-  const checks = runBlogChecks(post, unverified, assets);
+  const checks = runBlogChecks(post, unverified, assets, editorial);
   const gatesPass = requiredChecksPass(checks);
   const score = contentScore(post, checks);
   const [titlesSetting, linksSetting, gapsSetting] = await Promise.all([
@@ -177,6 +186,16 @@ export default async function BlogPostPage({ params }: { params: Promise<{ id: s
   }
   const categories = parseCsvJson(post.categories);
   const tags = parseCsvJson(post.tags);
+  // FR-10 review: who can be assigned, and who wrote each comment.
+  const members = await db.membership.findMany({
+    where: { workspaceId: workspace.id, status: "active" },
+    select: { userId: true, user: { select: { name: true, email: true } } },
+    orderBy: { userId: "asc" },
+  });
+  const memberName = new Map(members.map((m) => [m.userId, m.user.name ?? m.user.email ?? m.userId]));
+  const commentAuthor = (authorId: string | null) => (authorId ? (memberName.get(authorId) ?? "someone") : "system");
+  const openComments = post.comments.filter((c) => !c.resolved).length;
+
   // FR-3: the expert roster, plus who would be auto-matched if none is pinned.
   const [experts, matchedSme] = await Promise.all([
     db.smeProfile.findMany({
@@ -604,6 +623,81 @@ export default async function BlogPostPage({ params }: { params: Promise<{ id: s
           Dimensions are measured from the file itself, not typed. There is no server-side image processing here — a
           mismatch tells you exactly what to re-export or crop to.
         </p>
+      </div>
+
+      {/* Review (FR-10): who owns it, and the conversation about it. */}
+      <div className="card mb-4">
+        <div className="flex flex-wrap items-center gap-2 mb-2">
+          <h2 className="text-sm font-semibold flex-1">
+            Review{" "}
+            <span className="font-mono text-xs text-[var(--mute)]">
+              {openComments} open {openComments === 1 ? "comment" : "comments"}
+            </span>
+          </h2>
+          {editor && (
+            <form action={assignReviewerAction} className="flex items-center gap-2">
+              <input type="hidden" name="id" value={post.id} />
+              <select name="reviewerId" defaultValue={post.reviewerId ?? ""} className="text-xs w-44">
+                <option value="">no reviewer</option>
+                {members.map((m) => (
+                  <option key={m.userId} value={m.userId}>
+                    {m.user.name ?? m.user.email ?? m.userId}
+                  </option>
+                ))}
+              </select>
+              <SubmitButton className="btn">Assign</SubmitButton>
+            </form>
+          )}
+        </div>
+
+        {post.comments.length === 0 ? (
+          <p className="text-xs text-[var(--mute)] mb-2">
+            No comments. Quote the passage you mean in the anchor field so the note survives later edits.
+          </p>
+        ) : (
+          <ul className="flex flex-col gap-2 mb-3">
+            {post.comments.map((c) => (
+              <li
+                key={c.id}
+                className="text-xs border-b border-[var(--line)] pb-2 last:border-0"
+                style={c.resolved ? { opacity: 0.6 } : undefined}
+              >
+                {c.anchor && (
+                  <p className="border-l-2 pl-2 mb-1 text-[var(--mute)]" style={{ borderColor: "var(--line)" }}>
+                    “{c.anchor}”
+                  </p>
+                )}
+                <p className="whitespace-pre-wrap">{c.body}</p>
+                <div className="flex flex-wrap items-center gap-2 mt-1">
+                  <span className="font-mono text-[10px] text-[var(--mute)]">
+                    {commentAuthor(c.authorId)} · {c.createdAt.toISOString().slice(0, 16).replace("T", " ")}
+                  </span>
+                  {editor && (
+                    <>
+                      <form action={resolveBlogCommentAction}>
+                        <input type="hidden" name="id" value={c.id} />
+                        <button className="btn text-[11px]">{c.resolved ? "Reopen" : "Resolve"}</button>
+                      </form>
+                      <form action={deleteBlogCommentAction}>
+                        <input type="hidden" name="id" value={c.id} />
+                        <button className="btn text-[11px]" title="Delete comment"><Trash2 className="w-3 h-3" /></button>
+                      </form>
+                    </>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {editor && (
+          <form action={addBlogCommentAction} className="flex flex-col gap-2">
+            <input type="hidden" name="postId" value={post.id} />
+            <input name="anchor" placeholder="the passage or heading this is about (optional)" className="w-full text-xs" />
+            <textarea name="body" required rows={2} placeholder="Leave a note…" className="w-full text-xs" />
+            <div><SubmitButton className="btn">Comment</SubmitButton></div>
+          </form>
+        )}
       </div>
 
       {/* Citations (truthfulness dossier) */}

@@ -14,6 +14,8 @@ import {
 import { buildSeoMeta, effectiveFieldMap, isSeoPlugin, verifySeoMeta } from "@/lib/seo-plugins";
 import { renderForPublish } from "@/lib/blog-render";
 import { smePromptFor } from "@/lib/sme";
+import { loadEditorialContext } from "@/lib/blog-slop";
+import { notify } from "@/lib/notify";
 import { getModes, isGloballyPaused, writeAudit } from "@/lib/governance";
 import { getVideoProvider, estimateCostUsd } from "@/lib/video";
 import { templateGuidance, trackLabel, trackWordTarget } from "@/lib/blog-templates";
@@ -391,8 +393,11 @@ export async function publishCore(workspaceId: string, postId: string): Promise<
   if (post.wpPostId != null && post.status !== "published") return false;
 
   const unverified = await db.blogCitation.count({ where: { postId: post.id, verified: false } });
-  const assets = await loadAssetGate(workspaceId, post.id);
-  if (!requiredChecksPass(runBlogChecks(post, unverified, assets))) return false;
+  const [assets, editorial] = await Promise.all([
+    loadAssetGate(workspaceId, post.id),
+    loadEditorialContext(workspaceId, post),
+  ]);
+  if (!requiredChecksPass(runBlogChecks(post, unverified, assets, editorial))) return false;
 
   const conn = await db.wordPressConnection.findUnique({ where: { workspaceId } });
   if (!conn) return false;
@@ -772,8 +777,19 @@ export async function runAutopilotCycle(workspaceId: string): Promise<CycleRepor
     for (const p of ready) {
       try {
         if (await publishCore(workspaceId, p.id)) report.published++;
-      } catch {
-        // WP outage or rejection — leave the post at final_approval for the next cycle.
+      } catch (e) {
+        // WP outage or rejection — leave the post at final_approval for the next
+        // cycle, but tell someone. A silent retry loop is how a broken
+        // integration goes unnoticed for a week.
+        await notify({
+          workspaceId,
+          kind: "publish_failed",
+          title: `Publishing "${p.title}" failed`,
+          body: e instanceof Error ? e.message.slice(0, 400) : "WordPress rejected the request.",
+          path: `/blog/${p.id}`,
+          entityType: "blog_post",
+          entityId: p.id,
+        });
       }
     }
   }

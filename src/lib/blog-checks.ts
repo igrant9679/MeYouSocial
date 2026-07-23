@@ -1,4 +1,5 @@
 import { trackLabel, trackWordTarget } from "@/lib/blog-templates";
+import { editorialChecks, type EditorialContext } from "@/lib/blog-slop";
 
 // Blog pre-publish checks — ported from Spark's lib/checks.ts. Deterministic,
 // no LLM: SEO metadata rules, WCAG-flavored content checks on the HTML body,
@@ -95,7 +96,12 @@ function assetChecks(gate: AssetGate): CheckResult[] {
   return out;
 }
 
-export function runBlogChecks(post: PostLike, unverifiedCitations: number, assets?: AssetGate): CheckResult[] {
+export function runBlogChecks(
+  post: PostLike,
+  unverifiedCitations: number,
+  assets?: AssetGate,
+  editorial?: EditorialContext,
+): CheckResult[] {
   const body = post.body ?? "";
   const text = stripTags(body);
   const words = text ? text.split(/\s+/).length : 0;
@@ -167,6 +173,9 @@ export function runBlogChecks(post: PostLike, unverifiedCitations: number, asset
 
   // --- Assets (FR-8: featured + branded OG required before publish) -----------
   if (assets) checks.push(...assetChecks(assets));
+
+  // --- FR-9 link/label depth + FR-10 anti-slop pre-checks ---------------------
+  if (editorial && body) checks.push(...editorialChecks(body, editorial));
 
   // --- Truthfulness (required — Spark hard constraint) ------------------------
   const markers = (body.match(/\[NEEDS SOURCE\]/g) ?? []).length;
