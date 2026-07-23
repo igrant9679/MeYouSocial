@@ -36,7 +36,7 @@ export const HELP_CATEGORIES: FaqCategory[] = [
       },
       {
         q: "What are all the icons on the left bar?",
-        a: "Top to bottom: **▲ Home** (dashboard), **Channels** (manage all your YouTube channels), **Intel** (research outliers), **Ideas**, **Scripts**, **Chat**, **Thumbnails**, **Production** (pipeline + tasks + calendar), **Help** (you are here), **Admin** (workspace settings — admins only). At the bottom: your profile and sign out.",
+        a: "Top to bottom: **Home** (dashboard with KPIs, charts and the content pipeline), **Channels**, **Intel** (research outliers), **Ideas**, **Scripts**, **Blog** (the article workspace), **Videos**, **Chat**, **Thumbnails**, **Production**, **Help** (you are here), **Admin** (admins only). At the bottom: your profile and sign out. The logo is the folded-broadsheet M.",
         tags: ["nav", "rail", "icons"],
       },
     ],
@@ -174,6 +174,36 @@ export const HELP_CATEGORIES: FaqCategory[] = [
         q: "How do I get YouTube chapter timestamps?",
         a: "Publish page → **YouTube chapter markers** section → **Generate chapters**. Returns `MM:SS Title` lines you can paste into your YouTube description.",
         tags: ["chapters", "timestamps"],
+      },
+    ],
+  },
+  {
+    id: "blog",
+    label: "Blog workspace",
+    color: "#E11D48",
+    soft: "#FBDFE6",
+    entries: [
+      {
+        q: "How is the Blog section organized?",
+        a: "Blog is a workspace with its own tab strip: **Posts** (the kanban pipeline — cards open the editor), **Ideas** (scored idea board), **Keywords**, **Experts** (SME profiles), **Audit** (existing-content scan), **Analytics**, **Report** (the client-facing monthly report), **Automation** (the autonomy dial), **Brand** (brand kit + the 7 Motifs), **Organization**, and **Settings** (WordPress + publishing). Badges on the tabs show what needs attention.",
+        links: [{ label: "Open the blog workspace →", href: "/blog" }],
+        tags: ["blog", "workspace", "tabs", "kanban"],
+      },
+      {
+        q: "How does the post editor work now?",
+        a: "The editor is split into five tabs — **Write** (title, motif blend, body, versions), **Optimize** (publish prep, internal links, gaps, E-E-A-T), **Assets** (the featured + OG images the publish gate requires), **Distribute** (schedule, WordPress, social variants, video package), and **Review** (checks, citations, comments, reviewer). The **Gates** sidebar on the right shows the publish contract from every tab — if something is blocking, it tells you where.",
+        tags: ["editor", "tabs", "gates"],
+      },
+      {
+        q: "Why can't I publish a post?",
+        a: "Check the **Gates** sidebar: publishing is blocked until required checks pass — SEO meta present, all citations verified, no [NEEDS SOURCE] markers, descriptive link text, and (by default) an approved featured image + branded OG image at your workspace dimensions. Each failing gate links to the tab where you fix it. Admins can relax the image requirement under Blog → Brand → Asset policy.",
+        tags: ["publish", "blocked", "gates", "images", "citations"],
+      },
+      {
+        q: "What are the 7 Motifs?",
+        a: "The tone engine. Each motif (Visionary, Competitive, Succinct, Sincere, Exclusive, Social, Informative) is an editable, versioned style directive that steers every generation. Pick a single motif or a weighted blend per post — the strongest weight sets structure and voice, the rest color the intro and CTA. Configure directives, defaults by tier/audience, and per-channel mappings under **Blog → Brand**.",
+        links: [{ label: "Brand & motifs →", href: "/blog/brand" }],
+        tags: ["motifs", "tone", "voice", "brand"],
       },
     ],
   },

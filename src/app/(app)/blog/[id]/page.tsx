@@ -107,8 +107,26 @@ const FLOW_LABELS: Record<(typeof FLOW)[number], string> = {
   published: "Published",
 };
 
-export default async function BlogPostPage({ params }: { params: Promise<{ id: string }> }) {
+const TABS = [
+  { key: "write", label: "Write" },
+  { key: "optimize", label: "Optimize" },
+  { key: "assets", label: "Assets" },
+  { key: "distribute", label: "Distribute" },
+  { key: "review", label: "Review" },
+] as const;
+type TabKey = (typeof TABS)[number]["key"];
+
+export default async function BlogPostPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ tab?: string }>;
+}) {
   const { id } = await params;
+  const sp = await searchParams;
+  const tab: TabKey = (TABS.some((t) => t.key === sp.tab) ? sp.tab : "write") as TabKey;
+  const is = (k: TabKey) => tab === k;
   const { workspace, membership } = await requireMembership();
   const post = await db.blogPost.findFirst({
     where: { id, workspaceId: workspace.id },
@@ -223,8 +241,17 @@ export default async function BlogPostPage({ params }: { params: Promise<{ id: s
     resolveMotifs(workspace.id, post),
   ]);
 
+  // Which tab carries a badge worth surfacing?
+  const tabBadges: Partial<Record<TabKey, { n: number; urgent: boolean }>> = {
+    review: { n: unverified + openComments, urgent: unverified > 0 },
+    assets: {
+      n: 2 - ["featured", "og"].filter((r) => post.images.some((i) => i.role === r && i.status === "approved")).length,
+      urgent: true,
+    },
+  };
+
   return (
-    <main className="p-6 max-w-4xl mx-auto w-full">
+    <main className="p-6 w-full max-w-[1400px] mx-auto">
       <Link href="/blog" className="inline-flex items-center gap-1 text-xs text-[var(--mute)] hover:text-[var(--ink)] mb-3">
         <ArrowLeft className="w-3.5 h-3.5" /> All posts
       </Link>
@@ -265,6 +292,42 @@ export default async function BlogPostPage({ params }: { params: Promise<{ id: s
         )}
       </div>
 
+      {/* Editor tabs — each is a focused pane; the gates sidebar stays put. */}
+      <nav aria-label="Editor sections" className="flex items-center gap-0.5 border-b border-[var(--line)] mb-4 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
+        {TABS.map((t) => {
+          const on = tab === t.key;
+          const badge = tabBadges[t.key];
+          return (
+            <Link
+              key={t.key}
+              href={`/blog/${post.id}?tab=${t.key}`}
+              aria-current={on ? "page" : undefined}
+              className="group relative inline-flex items-center gap-1.5 px-3.5 py-2.5 text-[13px] font-semibold whitespace-nowrap"
+              style={{ color: on ? "var(--rose)" : "var(--slate)" }}
+            >
+              {t.label}
+              {badge && badge.n > 0 && (
+                <span
+                  className="font-mono text-[9.5px] font-bold rounded-full px-1.5 py-px"
+                  style={badge.urgent ? { background: "var(--rose-soft)", color: "var(--rose-on)" } : { background: "var(--panel)", color: "var(--mute)" }}
+                >
+                  {badge.n}
+                </span>
+              )}
+              <span
+                aria-hidden
+                className="absolute left-2 right-2 bottom-0 h-[3px] rounded-t transition-transform duration-200 ease-out group-hover:scale-x-100"
+                style={{ background: "var(--rose)", transform: on ? "scaleX(1)" : "scaleX(0)" }}
+              />
+            </Link>
+          );
+        })}
+      </nav>
+
+      <div className="grid grid-cols-1 xl:grid-cols-[1fr_280px] gap-4 items-start">
+      <div className="min-w-0">
+
+      {is("distribute") && (<>
       {/* Scheduled publishing — setting a time at final approval IS the human
           approval; autopilot (assisted or auto) publishes when due. */}
       {post.status === "final_approval" && admin && (
@@ -334,6 +397,9 @@ export default async function BlogPostPage({ params }: { params: Promise<{ id: s
         </div>
       )}
 
+      </>)}
+
+      {is("review") && (<>
       {/* Pre-publish checks (Spark gates — server-enforced on advance) */}
       <details className="card mb-4" open={!gatesPass}>
         <summary className="cursor-pointer select-none text-sm font-semibold flex items-center gap-2 flex-wrap">
@@ -382,6 +448,9 @@ export default async function BlogPostPage({ params }: { params: Promise<{ id: s
         </ul>
       </details>
 
+      </>)}
+
+      {is("optimize") && (<>
       {/* Publish prep (FR-7): slug rule, external source, publisher notes, and
           the read-back of what WordPress actually stored last time. */}
       {editor && (
@@ -507,6 +576,9 @@ export default async function BlogPostPage({ params }: { params: Promise<{ id: s
         </div>
       )}
 
+      </>)}
+
+      {is("assets") && (<>
       {/* Images (FR-8): featured + branded OG, at the workspace's dimensions. */}
       <div className="card mb-4">
         <div className="flex flex-wrap items-center gap-2 mb-2">
@@ -656,6 +728,9 @@ export default async function BlogPostPage({ params }: { params: Promise<{ id: s
         </p>
       </div>
 
+      </>)}
+
+      {is("review") && (<>
       {/* Review (FR-10): who owns it, and the conversation about it. */}
       <div className="card mb-4">
         <div className="flex flex-wrap items-center gap-2 mb-2">
@@ -791,6 +866,9 @@ export default async function BlogPostPage({ params }: { params: Promise<{ id: s
         )}
       </div>
 
+      </>)}
+
+      {is("write") && (<>
       <form action={updateBlogPostAction} className="card flex flex-col gap-4">
         <input type="hidden" name="id" value={post.id} />
         <label className="text-sm">
@@ -1010,6 +1088,9 @@ export default async function BlogPostPage({ params }: { params: Promise<{ id: s
         </div>
       )}
 
+      </>)}
+
+      {is("optimize") && (<>
       {/* Optimize (Wave B′): E-E-A-T, snippet blocks, internal links, gaps */}
       {editor && post.body && (
         <div className="card mt-4">
@@ -1109,6 +1190,9 @@ export default async function BlogPostPage({ params }: { params: Promise<{ id: s
         </div>
       )}
 
+      </>)}
+
+      {is("distribute") && (<>
       {/* Video package (Phase 4) — once the post reaches approval/published */}
       {(post.status === "final_approval" || post.status === "published") && editor && (
         <div className="card mt-4 flex flex-wrap items-center gap-2 text-sm">
@@ -1198,6 +1282,9 @@ export default async function BlogPostPage({ params }: { params: Promise<{ id: s
         </div>
       )}
 
+      </>)}
+
+      {is("write") && (<>
       {/* Version history */}
       {post.versions.length > 0 && (
         <details className="card mt-4">
@@ -1246,6 +1333,46 @@ export default async function BlogPostPage({ params }: { params: Promise<{ id: s
           )}
         </div>
       )}
+      </>)}
+
+      </div>
+
+      {/* Gates sidebar — the publish contract, visible from every tab. */}
+      <aside className="hidden xl:block sticky top-14">
+        <div className="card !p-3.5">
+          <div className="flex items-center gap-2 mb-2">
+            <ShieldCheck className="w-4 h-4" style={{ color: gatesPass ? "var(--green-on)" : "var(--amber-on)" }} />
+            <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-[var(--mute)]">Gates</span>
+            <span className="flex-1" />
+            <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: "var(--panel)", color: "var(--mute)" }}>
+              score {score.total}
+            </span>
+          </div>
+          <ul className="flex flex-col gap-1">
+            {checks.filter((c) => c.required).map((c) => (
+              <li key={c.id} className="flex items-start gap-1.5 text-[11px] leading-snug">
+                {c.pass ? (
+                  <Check className="w-3 h-3 mt-0.5 shrink-0" style={{ color: "var(--green-on)" }} />
+                ) : (
+                  <X className="w-3 h-3 mt-0.5 shrink-0" style={{ color: "var(--rose-on)" }} />
+                )}
+                <span style={c.pass ? { color: "var(--mute)" } : undefined}>{c.label}</span>
+              </li>
+            ))}
+          </ul>
+          <div className="mt-2 pt-2 border-t border-[var(--line)] text-[11px]">
+            {gatesPass ? (
+              <span style={{ color: "var(--green-on)" }} className="font-semibold">All gates pass — ready to advance.</span>
+            ) : (
+              <Link href={`/blog/${post.id}?tab=review`} className="underline" style={{ color: "var(--amber-on)" }}>
+                {checks.filter((c) => c.required && !c.pass).length} blocking — details in Review
+              </Link>
+            )}
+          </div>
+        </div>
+      </aside>
+
+      </div>
     </main>
   );
 }

@@ -1,204 +1,236 @@
 import Link from "next/link";
-import { FileText, Lightbulb, Plus, Sparkles, Zap } from "lucide-react";
+import { CalendarDays, FileText, Plus, Sparkles } from "lucide-react";
 import { requireMembership, canEdit } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { SubmitButton } from "@/components/SubmitButton";
 import { createBlogPostAction } from "@/app/actions/blog";
-import {
-  addBlogIdeaAction,
-  autoDraftApprovedAction,
-  discoverBlogIdeasAction,
-  draftFromIdeaAction,
-  setBlogIdeaStatusAction,
-} from "@/app/actions/blog-ideas";
+import { discoverBlogIdeasAction } from "@/app/actions/blog-ideas";
+import { motifSummaryLabel, parseMotifs } from "@/lib/motifs";
 
-// Blog list (ported from Spark's article pipeline — slice 1). Workspace-scoped
-// posts grouped by review state; the chip colors use the hue tokens so they
-// adapt to dark mode.
+// Blog home — the full-width workspace. Pipeline as a kanban board (cards link
+// into the tabbed editor), a week-ahead calendar ribbon, quick create. The
+// sub-nav above (layout.tsx) replaces the old button row.
 
-const STATUS_META: Record<string, { label: string; hue: string }> = {
-  drafting: { label: "Drafting", hue: "amber" },
-  draft_review: { label: "Draft review", hue: "blue" },
-  final_approval: { label: "Final approval", hue: "violet" },
-  published: { label: "Published", hue: "green" },
-};
-
-function StatusChip({ status }: { status: string }) {
-  const meta = STATUS_META[status] ?? { label: status, hue: "cyan" };
-  return (
-    <span
-      className="text-[11px] font-mono font-semibold px-2 py-0.5 rounded-full"
-      style={{ background: `var(--${meta.hue}-soft)`, color: `var(--${meta.hue}-on)` }}
-    >
-      {meta.label}
-    </span>
-  );
-}
+const COLUMNS = [
+  { status: "drafting", title: "Drafting", hue: "amber" },
+  { status: "draft_review", title: "In review", hue: "blue" },
+  { status: "final_approval", title: "Final approval", hue: "violet" },
+  { status: "published", title: "Published", hue: "green" },
+] as const;
 
 export default async function BlogPage() {
   const { workspace, membership } = await requireMembership();
-  const [posts, ideas] = await Promise.all([
+  const editor = canEdit(membership.role);
+
+  const now = new Date();
+  const weekEnd = new Date(now);
+  weekEnd.setDate(weekEnd.getDate() + 7);
+
+  const [posts, topIdeas, scheduled, renders] = await Promise.all([
     db.blogPost.findMany({
       where: { workspaceId: workspace.id },
       orderBy: { updatedAt: "desc" },
+      include: {
+        citations: { where: { verified: false }, select: { id: true } },
+        images: { select: { role: true, status: true } },
+        comments: { where: { resolved: false }, select: { id: true } },
+        snapshots: { orderBy: { capturedAt: "desc" }, take: 1, select: { position: true, clicks: true } },
+      },
     }),
     db.blogIdea.findMany({
       where: { workspaceId: workspace.id, status: { in: ["discovered", "approved"] } },
-      orderBy: { createdAt: "desc" },
-      take: 24,
+      orderBy: [{ priority: "desc" }, { createdAt: "desc" }],
+      take: 4,
+    }),
+    db.blogPost.findMany({
+      where: { workspaceId: workspace.id, scheduledAt: { gte: now, lte: weekEnd } },
+      select: { id: true, title: true, scheduledAt: true },
+    }),
+    db.videoRender.findMany({
+      where: { workspaceId: workspace.id, status: { in: ["queued", "rendering"] } },
+      select: { id: true, title: true, createdAt: true },
+      take: 6,
     }),
   ]);
-  const editor = canEdit(membership.role);
-  const discovered = ideas.filter((i) => i.status === "discovered");
-  const approved = ideas.filter((i) => i.status === "approved");
+
+  // Week ribbon: next 7 days with scheduled publishes + active renders.
+  const days = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(now);
+    d.setDate(d.getDate() + i);
+    d.setHours(0, 0, 0, 0);
+    const dEnd = new Date(d);
+    dEnd.setDate(dEnd.getDate() + 1);
+    return {
+      date: d,
+      publishes: scheduled.filter((s) => s.scheduledAt && s.scheduledAt >= d && s.scheduledAt < dEnd),
+      renders: i === 0 ? renders : [],
+    };
+  });
+
+  const published = posts.filter((p) => p.status === "published");
 
   return (
-    <main className="p-6 max-w-4xl mx-auto w-full">
-      <div className="flex items-center gap-3 mb-5">
-        <span className="w-12 h-12 rounded-2xl grid place-items-center" style={{ background: "var(--rose-soft)", color: "var(--rose-on)" }}>
-          <FileText className="w-6 h-6" strokeWidth={2.25} />
+    <main className="p-6 w-full">
+      <div className="flex flex-wrap items-center gap-3 mb-4">
+        <span className="w-11 h-11 rounded-2xl grid place-items-center" style={{ background: "var(--rose-soft)", color: "var(--rose-on)" }}>
+          <FileText className="w-5 h-5" strokeWidth={2.25} />
         </span>
-        <div className="min-w-40">
-          <h1 className="font-mono font-bold text-2xl leading-tight">Blog</h1>
-          <p className="text-xs text-[var(--mute)]">
-            Idea → grounded draft → gates → publish. Drafts are grounded in your organization profile.
-          </p>
+        <div className="min-w-40 flex-1">
+          <h1 className="font-mono font-bold text-2xl leading-tight">Posts</h1>
+          <p className="text-xs text-[var(--mute)]">Idea → grounded draft → gates → publish. Cards open the editor.</p>
         </div>
-      </div>
-      <div className="flex flex-wrap gap-2 mb-5">
-        <Link href="/blog/ideas" className="btn">Idea board</Link>
-        <Link href="/blog/keywords" className="btn">Keywords</Link>
-        <Link href="/blog/board" className="btn">Board</Link>
-        <Link href="/blog/calendar" className="btn">Calendar</Link>
-        <Link href="/blog/analytics" className="btn">Analytics</Link>
-        <Link href="/blog/audit" className="btn">Content audit</Link>
-        <Link href="/blog/report" className="btn">Report</Link>
-        <Link href="/blog/automation" className="btn">Automation</Link>
-        <Link href="/blog/organization" className="btn">Organization</Link>
-        <Link href="/blog/brand" className="btn">Brand &amp; motifs</Link>
-        <Link href="/blog/experts" className="btn">Experts</Link>
-        <Link href="/blog/settings" className="btn">Settings</Link>
-      </div>
-
-      {editor && (
-        <form action={createBlogPostAction} className="card mb-5 flex flex-wrap items-end gap-3">
-          <label className="flex-1 min-w-48 text-sm">
-            <span className="block text-xs text-[var(--mute)] mb-1">New post title</span>
-            <input name="title" required placeholder="e.g. Five signs your nonprofit needs a grant-management overhaul" className="w-full" />
-          </label>
-          <label className="text-sm w-40">
-            <span className="block text-xs text-[var(--mute)] mb-1">Focus keyword</span>
-            <input name="focusKeyword" placeholder="optional" className="w-full" />
-          </label>
-          <button className="btn primary" type="submit">
-            <Plus className="w-4 h-4" /> Create
-          </button>
-        </form>
-      )}
-
-      {/* Idea engine (Spark FR-5) */}
-      {editor && (
-        <div className="card mb-5">
-          <div className="flex flex-wrap items-center gap-2 mb-3">
-            <span className="w-8 h-8 rounded-xl grid place-items-center" style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }}>
-              <Lightbulb className="w-4 h-4" />
-            </span>
-            <h2 className="text-sm font-semibold flex-1">
-              Idea engine{" "}
-              <span className="font-mono text-xs text-[var(--mute)]">{discovered.length} discovered · {approved.length} approved</span>
-            </h2>
-            <form action={discoverBlogIdeasAction}>
-              <SubmitButton className="btn" pendingText="Discovering…">
-                <Sparkles className="w-4 h-4" /> Discover ideas (AI)
-              </SubmitButton>
-            </form>
-            {approved.length > 0 && (
-              <form action={autoDraftApprovedAction}>
-                <SubmitButton className="btn primary" pendingText="Drafting…">
-                  <Zap className="w-4 h-4" /> Auto-draft approved (max 2)
-                </SubmitButton>
-              </form>
-            )}
-          </div>
-
-          <form action={addBlogIdeaAction} className="flex flex-wrap items-center gap-2 mb-3">
-            <input name="title" required placeholder="Add an idea manually…" className="flex-1 min-w-48 text-xs" />
-            <input name="keyword" placeholder="keyword (optional)" className="w-40 text-xs" />
-            <button className="btn"><Plus className="w-3.5 h-3.5" /> Add</button>
+        {editor && (
+          <form action={createBlogPostAction} className="flex items-end gap-2">
+            <label className="text-sm">
+              <span className="sr-only">New post title</span>
+              <input name="title" required placeholder="New post title…" className="w-56" />
+            </label>
+            <SubmitButton className="btn primary"><Plus className="w-4 h-4" /> Create</SubmitButton>
           </form>
+        )}
+      </div>
 
-          {ideas.length === 0 ? (
-            <p className="text-xs text-[var(--mute)]">
-              No open ideas. Discover some with AI — grounded in your organization profile.
-            </p>
-          ) : (
-            <ul className="flex flex-col gap-1.5">
-              {ideas.map((i) => (
-                <li key={i.id} className="flex items-start gap-2 text-xs border-b border-[var(--line)] pb-1.5 last:border-0">
-                  <span
-                    className="font-mono px-1.5 py-0.5 rounded-full shrink-0"
-                    style={
-                      i.status === "approved"
-                        ? { background: "var(--green-soft)", color: "var(--green-on)" }
-                        : { background: "var(--blue-soft)", color: "var(--blue-on)" }
-                    }
-                  >
-                    {i.status}
-                  </span>
-                  <span className="flex-1 min-w-0">
-                    <b>{i.title}</b>
-                    {i.keyword ? <span className="text-[var(--mute)]"> · kw: {i.keyword}</span> : null}
-                    {i.angle ? <span className="block text-[var(--mute)] mt-0.5">{i.angle}</span> : null}
-                  </span>
-                  <span className="flex items-center gap-1 shrink-0">
-                    {i.status === "discovered" && (
-                      <form action={setBlogIdeaStatusAction}>
-                        <input type="hidden" name="id" value={i.id} />
-                        <input type="hidden" name="status" value="approved" />
-                        <button className="btn" title="Approve for the auto-draft queue">Approve</button>
-                      </form>
-                    )}
-                    <form action={draftFromIdeaAction}>
-                      <input type="hidden" name="id" value={i.id} />
-                      <SubmitButton className="btn" pendingText="Drafting…">Draft now</SubmitButton>
-                    </form>
-                    <form action={setBlogIdeaStatusAction}>
-                      <input type="hidden" name="id" value={i.id} />
-                      <input type="hidden" name="status" value="rejected" />
-                      <button className="btn" title="Reject">✕</button>
-                    </form>
-                  </span>
-                </li>
+      {/* Kanban — full width */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 mb-4">
+        {COLUMNS.map((col) => {
+          const items = posts.filter((p) => p.status === col.status);
+          const shown = col.status === "published" ? items.slice(0, 6) : items;
+          return (
+            <section key={col.status} className="min-w-0">
+              <h2
+                className="flex items-center justify-between text-[11px] font-mono font-bold uppercase tracking-wider mb-2 px-1"
+                style={{ color: `var(--${col.hue}-on)` }}
+              >
+                {col.title} <span>{items.length}</span>
+              </h2>
+              <div className="flex flex-col gap-2">
+                {shown.length === 0 && (
+                  <div className="card text-center text-xs text-[var(--mute)] py-5">Empty</div>
+                )}
+                {shown.map((p) => {
+                  const missingImages =
+                    !p.images.some((i) => i.role === "featured" && i.status === "approved") ||
+                    !p.images.some((i) => i.role === "og" && i.status === "approved");
+                  const motifs = parseMotifs(p.motifs);
+                  const snap = p.snapshots[0];
+                  return (
+                    <Link
+                      key={p.id}
+                      href={`/blog/${p.id}`}
+                      className="card lift block !p-3"
+                    >
+                      <div className="text-[13px] font-semibold leading-snug mb-1.5">{p.title}</div>
+                      <div className="flex flex-wrap gap-1">
+                        {motifs.length > 0 && (
+                          <span className="font-mono text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: "var(--violet-soft)", color: "var(--violet-on)" }}>
+                            {motifSummaryLabel(motifs).split(" + ")[0]}
+                          </span>
+                        )}
+                        {p.citations.length > 0 && (
+                          <span className="font-mono text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }}>
+                            {p.citations.length} citation{p.citations.length > 1 ? "s" : ""}
+                          </span>
+                        )}
+                        {p.status !== "published" && p.status !== "drafting" && missingImages && (
+                          <span className="font-mono text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: "var(--rose-soft)", color: "var(--rose-on)" }}>
+                            images
+                          </span>
+                        )}
+                        {p.comments.length > 0 && (
+                          <span className="font-mono text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: "var(--blue-soft)", color: "var(--blue-on)" }}>
+                            {p.comments.length} note{p.comments.length > 1 ? "s" : ""}
+                          </span>
+                        )}
+                        {p.status === "published" && snap?.position != null && (
+                          <span className="font-mono text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: "var(--green-soft)", color: "var(--green-on)" }}>
+                            pos {snap.position.toFixed(1)}{snap.clicks != null ? ` · ${snap.clicks}c` : ""}
+                          </span>
+                        )}
+                        {p.scheduledAt && p.status === "final_approval" && (
+                          <span className="font-mono text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: "var(--cyan-soft)", color: "var(--cyan-on)" }}>
+                            {p.scheduledAt.toLocaleDateString("en-GB", { day: "2-digit", month: "short" })}
+                          </span>
+                        )}
+                      </div>
+                    </Link>
+                  );
+                })}
+                {col.status === "published" && items.length > shown.length && (
+                  <Link href="/blog/board" className="text-[11px] text-[var(--mute)] underline px-1">
+                    + {items.length - shown.length} more on the board
+                  </Link>
+                )}
+              </div>
+            </section>
+          );
+        })}
+      </div>
+
+      {/* Week ribbon */}
+      <section className="card mb-4">
+        <div className="flex items-center gap-2 mb-2">
+          <CalendarDays className="w-4 h-4" style={{ color: "var(--cyan-on)" }} />
+          <h2 className="font-mono text-[13px] font-bold flex-1">This week</h2>
+          <Link href="/blog/calendar" className="text-xs font-mono text-[var(--accent)] font-semibold hover:underline">full calendar →</Link>
+        </div>
+        <div className="grid grid-cols-7 gap-1.5">
+          {days.map((d, i) => (
+            <div key={i} className="rounded-lg border border-[var(--line)] p-1.5 min-h-[54px]" style={i === 0 ? { background: "var(--zebra)" } : undefined}>
+              <div className="font-mono text-[9px] text-[var(--mute)] font-bold mb-1">
+                {d.date.toLocaleDateString("en-GB", { weekday: "short", day: "2-digit" }).toUpperCase()}
+              </div>
+              {d.publishes.map((p) => (
+                <Link key={p.id} href={`/blog/${p.id}`} className="block rounded px-1 py-0.5 mb-0.5 text-[9px] font-bold truncate" style={{ background: "var(--green-soft)", color: "var(--green-on)" }}>
+                  {p.title}
+                </Link>
               ))}
-            </ul>
-          )}
-        </div>
-      )}
-
-      {posts.length === 0 ? (
-        <div className="card text-center py-10">
-          <p className="text-sm text-[var(--mute)]">
-            No posts yet. {editor ? "Create the first one above — then generate a grounded AI draft inside it." : "Posts will appear here once an editor creates them."}
-          </p>
-        </div>
-      ) : (
-        <ul className="flex flex-col gap-2">
-          {posts.map((p) => (
-            <li key={p.id}>
-              <Link href={`/blog/${p.id}`} className="card flex items-center gap-3 hover:border-[var(--line-2)] transition-colors">
-                <div className="min-w-0 flex-1">
-                  <div className="font-semibold text-sm truncate">{p.title}</div>
-                  <div className="text-xs text-[var(--mute)] mt-0.5">
-                    {p.focusKeyword ? <>kw: <b>{p.focusKeyword}</b> · </> : null}
-                    updated {p.updatedAt.toLocaleDateString("en-GB", { day: "2-digit", month: "short" })}
-                    {p.body ? ` · ~${p.body.split(/\s+/).length} words` : " · no draft yet"}
-                  </div>
-                </div>
-                <StatusChip status={p.status} />
-              </Link>
-            </li>
+              {d.renders.map((r) => (
+                <Link key={r.id} href="/videos" className="block rounded px-1 py-0.5 mb-0.5 text-[9px] font-bold truncate" style={{ background: "var(--purple-soft)", color: "var(--purple-on)" }}>
+                  🎬 {r.title}
+                </Link>
+              ))}
+            </div>
           ))}
-        </ul>
+        </div>
+      </section>
+
+      {/* Top ideas strip */}
+      <section className="card">
+        <div className="flex items-center gap-2 mb-2">
+          <Sparkles className="w-4 h-4" style={{ color: "var(--amber-on)" }} />
+          <h2 className="font-mono text-[13px] font-bold flex-1">Top ideas</h2>
+          {editor && (
+            <form action={discoverBlogIdeasAction}>
+              <SubmitButton className="btn sm" pendingText="Discovering…">Discover more</SubmitButton>
+            </form>
+          )}
+          <Link href="/blog/ideas" className="text-xs font-mono text-[var(--accent)] font-semibold hover:underline">idea board →</Link>
+        </div>
+        {topIdeas.length === 0 ? (
+          <p className="text-xs text-[var(--mute)]">No open ideas — run discovery or add one on the idea board.</p>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-2">
+            {topIdeas.map((i) => (
+              <div key={i.id} className="rounded-lg border border-[var(--line)] p-2.5">
+                <div className="flex items-start gap-2">
+                  <span className="text-xs font-semibold leading-snug flex-1">{i.title}</span>
+                  {i.priority != null && (
+                    <span className="font-mono text-[9.5px] font-bold px-1.5 py-0.5 rounded-full shrink-0" style={{ background: "var(--panel)", color: "var(--mute)" }} title={i.priorityReason ?? undefined}>
+                      {i.priority}
+                    </span>
+                  )}
+                </div>
+                {i.angle && <p className="text-[10.5px] text-[var(--mute)] mt-1 line-clamp-2">{i.angle}</p>}
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {published.length === 0 && posts.length === 0 && (
+        <p className="text-xs text-[var(--mute)] mt-4 text-center">
+          Nothing here yet — create a post above or approve an idea and let the autopilot draft it.
+        </p>
       )}
     </main>
   );
