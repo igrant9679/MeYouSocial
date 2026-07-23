@@ -388,6 +388,12 @@ Full social posting + scheduling on the Unipile connect flow.
   near their scheduled time. Single-replica (same caveat as autopilot).
 - `createPostViaUnipile` extended for image attachments (multipart).
 - _Needs Unipile active + a connected social account to actually post._
-- _Deferred:_ full drag-calendar (agenda ships), per-network text variants
-  (one shared body today), draft text editing (duplicate/delete workaround),
-  link-preview/first-comment, threads. Single-replica scheduler (no Redis lock).
+- **Per-network text variants (shipped 2026-07-23, commit 34f4887):**
+  `SocialPostTarget.text` (migration `20260723233000`) overrides the base per
+  network; publish uses `target.text ?? post.text`. Composer has a base box plus
+  a Customize toggle per selected network, each with its own live char count
+  against its own limit; queue cards show overrides and mark customized chips;
+  duplicate carries them.
+- _Deferred:_ full drag-calendar (agenda ships), draft text editing
+  (duplicate/delete workaround), link-preview/first-comment, threads.
+  Single-replica scheduler (no Redis lock).
