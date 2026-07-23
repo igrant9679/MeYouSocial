@@ -23,6 +23,38 @@ export interface EmailProvider {
   send(message: EmailMessage): Promise<{ id: string; mocked?: boolean }>;
 }
 
+// Fail fast instead of hanging on a blocked port. Many hosts (Railway included
+// on some plans) block OUTBOUND SMTP on 25/465/587 — without these a bad/blocked
+// connection hangs for minutes and surfaces as a vague timeout.
+const SMTP_TIMEOUTS = {
+  connectionTimeout: 12_000,
+  greetingTimeout: 12_000,
+  socketTimeout: 20_000,
+} as const;
+
+/**
+ * Turn a raw nodemailer/socket error into a human diagnosis. The `.code` on the
+ * error is far more useful than the message — surface it and what it means.
+ */
+export function describeSmtpError(e: unknown): string {
+  const err = e as { code?: string; responseCode?: number; command?: string; message?: string };
+  const code = err?.code ?? "";
+  const base = err?.message ?? String(e);
+  if (code === "ETIMEDOUT" || code === "ESOCKET" || code === "ECONNECTION" || code === "EDNS") {
+    return `Couldn't reach the mail server (${code || "timeout"}). The host is unreachable, the port is wrong, or — most commonly on cloud hosts like Railway — outbound SMTP is blocked. Try port 587 (STARTTLS, TLS off) or 465 (TLS on); if both time out, the platform is blocking SMTP and you'll need an email API provider (Resend/SendGrid/Postmark over HTTPS) instead. [${base}]`;
+  }
+  if (code === "ECONNREFUSED") {
+    return `The server refused the connection (ECONNREFUSED) — usually the wrong port. Use 587 with TLS off (STARTTLS) or 465 with TLS on. [${base}]`;
+  }
+  if (code === "EAUTH" || err?.responseCode === 535) {
+    return `The server rejected the username/password (EAUTH). Check the mailbox credentials — username is usually the full email address. [${base}]`;
+  }
+  if (code === "ENOTFOUND" || code === "EAI_AGAIN") {
+    return `The SMTP host name couldn't be resolved (${code}). Double-check the host (e.g. mail.yourdomain.com). [${base}]`;
+  }
+  return base;
+}
+
 const mock: EmailProvider = {
   async send(message) {
     const id = "mock-" + Math.random().toString(36).slice(2, 10);
@@ -42,6 +74,7 @@ async function buildSmtpTransport(workspaceId?: string) {
         port: cfg.port,
         secure: cfg.secure,
         auth: cfg.user ? { user: cfg.user, pass: cfg.pass } : undefined,
+        ...SMTP_TIMEOUTS,
       }),
       from: cfg.fromName ? `"${cfg.fromName}" <${cfg.fromEmail}>` : cfg.fromEmail,
       source: "db" as const,
@@ -56,6 +89,7 @@ async function buildSmtpTransport(workspaceId?: string) {
         port: Number(process.env.SMTP_PORT ?? 587),
         secure: process.env.SMTP_SECURE === "true",
         auth: process.env.SMTP_USER ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS ?? "" } : undefined,
+        ...SMTP_TIMEOUTS,
       }),
       from: env.EMAIL_FROM,
       source: "env" as const,
@@ -113,6 +147,7 @@ export async function sendTestEmail(opts: {
       port: opts.port,
       secure: opts.secure,
       auth: opts.user ? { user: opts.user, pass: opts.pass } : undefined,
+      ...SMTP_TIMEOUTS,
     });
     const info = await transport.sendMail({
       from: opts.fromName ? `"${opts.fromName}" <${opts.fromEmail}>` : opts.fromEmail,
@@ -123,6 +158,6 @@ export async function sendTestEmail(opts: {
     });
     return { ok: true, messageId: info.messageId };
   } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : String(e) };
+    return { ok: false, error: describeSmtpError(e) };
   }
 }

@@ -11,7 +11,7 @@ import { CountUp } from "@/components/CountUp";
 // pipeline bars, performance table, autopilot feed. All charts read real rows.
 
 export default async function DashboardPage() {
-  const { workspace, user } = await requireMembership();
+  const { workspace } = await requireMembership();
 
   const [blogByStatus, blogIdeasOpen, lastAutopilot, stats, series, perf, feed] = await Promise.all([
     db.blogPost.groupBy({ by: ["status"], where: { workspaceId: workspace.id }, _count: { _all: true } }),
@@ -50,8 +50,6 @@ export default async function DashboardPage() {
     db.channel.findMany({ where: { workspaceId: workspace.id }, orderBy: { createdAt: "asc" } }),
   ]);
 
-  const firstName = (user.name ?? user.email).split(/[\s@]/)[0];
-
   return (
     <div>
       {/* Hero banner */}
@@ -64,7 +62,7 @@ export default async function DashboardPage() {
         {/* Foreground content */}
         <div className="relative z-10">
           <h1 className="font-mono text-[28px] font-bold m-0 flex items-center gap-3 leading-tight">
-            Welcome back, {firstName} <Sparkles className="w-6 h-6" />
+            Welcome back to {workspace.name} <Sparkles className="w-6 h-6" />
           </h1>
           <p className="opacity-90 text-[14px] mt-1.5 max-w-xl">From idea to first draft in about twelve minutes. Pick up where you left off — or start something new.</p>
         </div>
