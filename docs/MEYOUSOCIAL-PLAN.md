@@ -281,3 +281,44 @@ XL zoom (`body.style.zoom=1.22`).
 - Reports hub 1/2/3 cols, customize aside, TaskBoard 1→3 cols, Videos
   storyboard 1/2/3/4 cols — all container-based now. Storyboard grid is
   code-verified only (no renders existed in prod to click through).
+
+---
+
+## Multi-tenancy (shipped + verified live 2026-07-23, commit 2ce3f3f)
+
+Multiple companies share one install without sharing anything else. Row-level
+isolation was already solid (audited); what was global was CONFIG. Now:
+
+- **`WorkspaceSetting` table** (migration `20260723183000`) + `src/lib/settings.ts`
+  resolver: workspace row → platform `Setting` row → env var, 30s cache. Every
+  provider config rides this.
+- **API keys per workspace**: `LLMRequest.workspaceId` threads through the LLM
+  router; search/TTS/video/Veo/YouTube (`youtubeFor(wsId)`) resolve the
+  company's key first. 78 call sites threaded across 28 files — every LLM/
+  provider call in the app carries its workspace. Admin → API keys saves
+  workspace rows; chips show "your key" vs "platform key in use" and platform
+  key material is never displayed to tenant admins. The Storage card (platform
+  infrastructure — one store serves all tenants) is visible/editable only for
+  `BOOTSTRAP_ADMIN_EMAIL`.
+- **SMTP per workspace**: `emailFor(wsId)` — notifications + invitations go out
+  through the company's own server (platform fallback); password reset and
+  verification stay on the platform sender (no workspace context pre-login).
+  IMAP deliberately absent — the app only sends; the page says so.
+- **Teams**: `signup?invite=<token>` joins the inviting company directly (the
+  token used to be ignored — invited users got a stray personal workspace);
+  accepting an invite sets the active-workspace cookie; multi-company users get
+  a header workspace switcher (`requireMembership` honors the cookie).
+- **Branding per workspace**: `Workspace.accentColor` + `logoKey`; Admin →
+  Workspace → Branding (preset swatches + hex, logo upload via storage). The
+  shell injects theme-aware CSS-token overrides — the FULL alias family
+  (`--brand*`, `--accent*`), because custom properties capture their scope at
+  definition; hex is re-validated before touching CSS. Verified live: accent
+  round-trip re-tints chrome incl. the AA-darkened primary button, reset clean.
+- **Leak fixes**: `production:autotasks` was a global singleton (one company's
+  board rules governed every tenant); two legacy search-singleton calls
+  bypassed per-workspace keys. **By-design global**: the Intel index (public
+  YouTube metadata cache, workspace-scoped bookmarks on top) — revisit only if
+  indexed-channel lists are considered sensitive.
+- _Verified live:_ migration applied, per-workspace key chips, scoped email
+  page, branding card, workspace switcher, accent round-trip. _Code-verified
+  only:_ the invite-signup join (needs a second real account to exercise).
