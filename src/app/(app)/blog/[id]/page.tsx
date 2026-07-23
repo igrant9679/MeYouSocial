@@ -23,6 +23,7 @@ import {
   specFor,
 } from "@/lib/blog-images";
 import { applySlugConvention, parseSlugRules, slugMatchesConvention } from "@/lib/seo-plugins";
+import { selectSmeProfile } from "@/lib/sme";
 import {
   applySlugConventionAction,
   generatePublisherNotesAction,
@@ -176,6 +177,15 @@ export default async function BlogPostPage({ params }: { params: Promise<{ id: s
   }
   const categories = parseCsvJson(post.categories);
   const tags = parseCsvJson(post.tags);
+  // FR-3: the expert roster, plus who would be auto-matched if none is pinned.
+  const [experts, matchedSme] = await Promise.all([
+    db.smeProfile.findMany({
+      where: { workspaceId: workspace.id, status: "active" },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true, role: true },
+    }),
+    selectSmeProfile(workspace.id, post),
+  ]);
   const postMotifs = parseMotifs(post.motifs);
   const [directives, effectiveMotifs] = await Promise.all([
     ensureMotifDirectives(workspace.id),
@@ -703,6 +713,15 @@ export default async function BlogPostPage({ params }: { params: Promise<{ id: s
             <select name="readingLevel" defaultValue={post.readingLevel ?? ""} className="w-full text-xs" disabled={!editor}>
               <option value="">default</option>
               {["simple", "standard", "advanced"].map((t) => <option key={t} value={t}>{t}</option>)}
+            </select>
+          </label>
+          <label className="text-sm">
+            <span className="block text-xs text-[var(--mute)] mb-1">
+              Expert <span className="font-mono">{post.smeProfileId ? "" : matchedSme ? `(auto: ${matchedSme.name})` : "(none matched)"}</span>
+            </span>
+            <select name="smeProfileId" defaultValue={post.smeProfileId ?? ""} className="w-full text-xs" disabled={!editor}>
+              <option value="">auto-match by topic</option>
+              {experts.map((e) => <option key={e.id} value={e.id}>{e.name}{e.role ? ` — ${e.role}` : ""}</option>)}
             </select>
           </label>
           <label className="text-sm">

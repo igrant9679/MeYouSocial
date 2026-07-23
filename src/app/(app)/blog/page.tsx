@@ -66,6 +66,7 @@ export default async function BlogPage() {
         </div>
       </div>
       <div className="flex flex-wrap gap-2 mb-5">
+        <Link href="/blog/ideas" className="btn">Idea board</Link>
         <Link href="/blog/keywords" className="btn">Keywords</Link>
         <Link href="/blog/board" className="btn">Board</Link>
         <Link href="/blog/calendar" className="btn">Calendar</Link>
@@ -73,6 +74,7 @@ export default async function BlogPage() {
         <Link href="/blog/automation" className="btn">Automation</Link>
         <Link href="/blog/organization" className="btn">Organization</Link>
         <Link href="/blog/brand" className="btn">Brand &amp; motifs</Link>
+        <Link href="/blog/experts" className="btn">Experts</Link>
         <Link href="/blog/settings" className="btn">Settings</Link>
       </div>
 

@@ -84,6 +84,7 @@ model BlogPost {
   categories      String    @default("[]") // JSON array of WP category names
   tags            String    @default("[]") // JSON array of WP tag names
   publisherNotes  String?   // FR-7 "notes for the publisher"
+  smeProfileId    String?   // FR-3: the expert this draft speaks as
   wpPostId        Int?      // set on publish; lets a later slice update in place
   // JSON — what WordPress actually accepted on the last publish, read back from
   // the API. We report the truth rather than assuming the payload landed.
@@ -285,6 +286,46 @@ model BlogCitation {
   @@index([postId])
 }
 
+// ---- FR-3: SME knowledge profiles ---------------------------------------------
+// The former 10-question expert interview, captured once and reused so drafts
+// answer "as the expert would" instead of as a generic writer.
+model SmeProfile {
+  id          String   @id @default(cuid())
+  workspaceId String
+  name        String
+  role        String?  // job title
+  credentials String?  // certifications, licences, years in the field
+  bio         String?
+  // JSON keyed by the intake question id — see src/lib/sme.ts
+  answers     String   @default("{}")
+  alwaysSay   String?  // house lines this expert always uses
+  neverSay    String?  // hard "never claim this" rules — enforced in prompts
+  topics      String   @default("[]") // JSON array; used to auto-match a post to an expert
+  status      String   @default("active") // active | archived
+  version     Int      @default(1)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  versions SmeProfileVersion[]
+
+  @@index([workspaceId, status])
+}
+
+// Profiles are versioned over time (FR-3) — an expert's view changes and the
+// draft that quoted the old one should stay explainable.
+model SmeProfileVersion {
+  id         String   @id @default(cuid())
+  profileId  String
+  version    Int
+  data       String   // JSON snapshot of the whole profile
+  editedById String?
+  createdAt  DateTime @default(now())
+
+  profile SmeProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId, version])
+}
+
 // Blog idea engine (Spark FR-5): discovered → approved/rejected → drafted.
 model BlogIdea {
   id        String   @id @default(cuid())
@@ -292,9 +333,23 @@ model BlogIdea {
   title     String
   angle     String?  // the hook / why it works
   keyword   String?
-  status    String   @default("discovered") // discovered | approved | rejected | drafted
-  source    String   @default("manual") // manual | ai
+  status    String   @default("discovered") // discovered | approved | rejected | drafted | merged
+  source    String   @default("manual") // manual | ai | refresh | seasonal
   postId    String?  // set when drafted
+  // FR-5 auto-tagging
+  tier         Int?     // 1..4 content tier
+  audience     String?
+  targetPage   String?  // the service page this should support
+  motifs       String   @default("[]") // JSON [{key, weight}] suggested blend
+  seasonalHook String?  // the calendar moment this rides, if any
+  // Deterministic priority: the score plus the breakdown that produced it, so
+  // the ranking can always be explained rather than trusted.
+  priority       Int?
+  priorityReason String?
+  // Dedupe against what's already published
+  dedupeNote     String?  // "close to <published title>"
+  refreshPostId  String?  // set when this should update a post instead of being new
+  mergedIntoId   String?  // set when merged into another idea
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

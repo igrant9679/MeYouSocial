@@ -121,8 +121,21 @@ User approved autonomous gap closure in this order:
    defaults.
    _Not done:_ update-in-place for an already-published post (create-only),
    Nifty sync, and the FR-18 design-system rendering profile.
-4. **SME profiles (FR-3)** + idea-engine depth (FR-5: priority scoring,
-   auto-tagging, dedupe-vs-published, merge, kanban board, seasonal hooks).
+4. **SME profiles (FR-3)** + idea-engine depth (FR-5) — ✅ **shipped
+   2026-07-23.** `SmeProfile` + versions: the ten-question intake captured once
+   per expert, topic-based auto-matching (explicit pin wins; no match returns
+   nobody rather than guessing), always/never-say injected as hard rules, and
+   draft answers seeded from a URL or pasted source without overwriting
+   anything the expert wrote. UI at `/blog/experts`. Ideas now arrive tagged
+   (tier, audience, target page — only pages we actually know, suggested motif
+   blend, seasonal hook) with a **deterministic** priority score computed from
+   the keyword strategy, page map and published archive; the breakdown is
+   stored and shown. Dedupe flags near-duplicates and turns badly-ranking
+   matches into refresh candidates. Merge, edit, approve/reject, send-to-draft
+   on the board at `/blog/ideas`.
+   _Not done:_ voice intake for SME profiles (no transcription in-app), and
+   FR-5's external discovery sources (People-Also-Ask / community questions /
+   competitor gaps) still need real data providers.
 5. **Notifications (FR-16 in-app + email via existing SMTP)** + check depth
    (FR-9 descriptive-link-text/labels; FR-10 anti-slop tone/filler checks,
    reviewer assignment, inline comments).

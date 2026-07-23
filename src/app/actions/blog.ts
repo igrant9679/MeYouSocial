@@ -86,6 +86,7 @@ export async function updateBlogPostAction(formData: FormData) {
       // FR-2: the motif blend replaces the old 4-option tone select.
       motifs: serializeMotifs(readMotifWeights(formData)),
       contentTier: tier,
+      smeProfileId: str(formData.get("smeProfileId")), // blank = auto-match by topic
       readingLevel: pick("readingLevel", ["simple", "standard", "advanced"]),
       templateKey: str(formData.get("templateKey")),
       model: str(formData.get("model")),

@@ -13,6 +13,7 @@ import {
 } from "@/lib/wordpress";
 import { buildSeoMeta, effectiveFieldMap, isSeoPlugin, verifySeoMeta } from "@/lib/seo-plugins";
 import { renderForPublish } from "@/lib/blog-render";
+import { smePromptFor } from "@/lib/sme";
 import { getModes, isGloballyPaused, writeAudit } from "@/lib/governance";
 import { getVideoProvider, estimateCostUsd } from "@/lib/video";
 import { templateGuidance, trackLabel, trackWordTarget } from "@/lib/blog-templates";
@@ -25,10 +26,14 @@ import {
   getPlatformMotifs,
   motifBlockShort,
   motifPromptFor,
+  normalizeMotifs,
+  parseMotifs,
   platformMotifBlock,
   platformMotifWeights,
   resolveMotifs,
+  serializeMotifs,
 } from "@/lib/motifs";
+import { rescoreIdeas } from "@/lib/blog-idea-scoring";
 
 /**
  * Autopilot cores + the Phase-3 scheduler cycle. Every function here is
@@ -69,15 +74,30 @@ export async function discoverIdeasCore(workspaceId: string): Promise<number> {
     take: 30,
   });
 
+  // FR-5: ideas arrive tagged. Tier/audience/target page/motifs come from the
+  // model; the priority score is computed from workspace facts afterwards.
+  const [pages, keywords, motifDirectives] = await Promise.all([
+    db.sitePage.findMany({ where: { workspaceId }, select: { url: true, title: true }, take: 40 }),
+    db.keyword.findMany({ where: { workspaceId, status: "active" }, select: { phrase: true, tier: true }, take: 60 }),
+    ensureMotifDirectives(workspaceId),
+  ]);
+
   const system =
-    "You generate blog topic ideas. Respond ONLY with a JSON array of objects: " +
-    '[{"title": string, "angle": string, "keyword": string}] — no prose, no markdown fences. ' +
-    "Titles must be specific and non-generic. The angle explains why this topic serves the audience. " +
+    "You generate blog topic ideas and tag them. Respond ONLY with a JSON array of objects: " +
+    '[{"title": string, "angle": string, "keyword": string, "tier": 1|2|3|4, "audience": string, ' +
+    '"targetPage": string, "motifs": [{"key": string, "weight": number}], "seasonalHook": string}] — ' +
+    "no prose, no markdown fences. Titles must be specific and non-generic. The angle explains why this topic " +
+    "serves the audience. tier 1 = broad head topic … 4 = long-tail. targetPage must be one of the supplied page " +
+    "URLs or omitted. motifs must use the supplied motif keys and sum to 100. seasonalHook only when the topic " +
+    "genuinely rides a calendar moment — omit it otherwise. " +
     "Never invent statistics or cite studies in the angle.";
   const prompt = [
     org?.description
       ? `The organization: ${org.description}${org.industry ? ` Industry: ${org.industry}.` : ""}${org.audience ? ` Audience: ${org.audience}.` : ""}`
       : "No organization profile is set — generate broadly useful business-content ideas and note that grounding is missing.",
+    `Motif keys available: ${motifDirectives.map((d) => `${d.key} (${d.label})`).join(", ")}.`,
+    keywords.length ? `Keyword strategy (phrase → tier): ${keywords.map((k) => `${k.phrase} → ${k.tier}`).join("; ")}` : null,
+    pages.length ? `Service pages that ideas can support:\n${pages.map((p) => `${p.url} — ${p.title}`).join("\n")}` : null,
     existing.length ? `Avoid duplicating these existing ideas: ${existing.map((i) => i.title).join(" | ")}` : null,
     "Generate 6 blog post ideas.",
   ]
@@ -91,24 +111,48 @@ export async function discoverIdeasCore(workspaceId: string): Promise<number> {
     maxTokens: 1500,
   });
 
-  let ideas: Array<{ title?: string; angle?: string; keyword?: string }> = [];
+  type RawIdea = {
+    title?: string;
+    angle?: string;
+    keyword?: string;
+    tier?: unknown;
+    audience?: string;
+    targetPage?: string;
+    motifs?: unknown;
+    seasonalHook?: string;
+  };
+  let ideas: RawIdea[] = [];
   try {
     const match = res.content.match(/\[[\s\S]*\]/);
     ideas = match ? JSON.parse(match[0]) : [];
   } catch {
     ideas = [];
   }
+  const pageUrls = new Set(pages.map((p) => p.url));
+  const text = (v: unknown, max: number) => (typeof v === "string" && v.trim() ? v.trim().slice(0, max) : null);
   const rows = ideas
     .filter((i) => typeof i.title === "string" && i.title.trim().length > 3)
     .slice(0, 6)
-    .map((i) => ({
-      workspaceId,
-      title: i.title!.trim().slice(0, 200),
-      angle: typeof i.angle === "string" ? i.angle.trim().slice(0, 500) : null,
-      keyword: typeof i.keyword === "string" ? i.keyword.trim().slice(0, 80) : null,
-      source: "ai",
-    }));
+    .map((i) => {
+      const tierNum = Number(i.tier);
+      const targetPage = text(i.targetPage, 500);
+      return {
+        workspaceId,
+        title: i.title!.trim().slice(0, 200),
+        angle: text(i.angle, 500),
+        keyword: text(i.keyword, 80),
+        tier: Number.isFinite(tierNum) && tierNum >= 1 && tierNum <= 4 ? Math.round(tierNum) : null,
+        audience: text(i.audience, 120),
+        // Only keep a target page we actually know about — no invented URLs.
+        targetPage: targetPage && pageUrls.has(targetPage) ? targetPage : null,
+        motifs: serializeMotifs(normalizeMotifs(parseMotifs(JSON.stringify(i.motifs ?? [])))),
+        seasonalHook: text(i.seasonalHook, 120),
+        source: "ai",
+      };
+    });
   if (rows.length) await db.blogIdea.createMany({ data: rows });
+  // Priority + dedupe are computed from workspace facts, never asked of the model.
+  await rescoreIdeas(workspaceId);
   await writeAudit({
     workspaceId,
     action: "ideas.ai_discovery",
@@ -133,12 +177,17 @@ export async function generateOutlineCore(workspaceId: string, postId: string): 
     "You are an SEO content strategist. Respond ONLY with a JSON array: " +
     '[{"heading": string, "points": string[]}] — 4 to 7 h2 sections with 2-4 bullet points each. ' +
     "No invented statistics in points. Headings should be specific, and at least one should naturally contain the focus keyword when one is given.";
-  // The dominant motif decides the shape of the outline, not just the prose.
-  const motifs = await motifPromptFor(workspaceId, post, "short");
+  // The dominant motif decides the shape of the outline, not just the prose;
+  // the expert decides what the sections can credibly claim.
+  const [motifs, sme] = await Promise.all([
+    motifPromptFor(workspaceId, post, "short"),
+    smePromptFor(workspaceId, post, "short"),
+  ]);
 
   const prompt = [
     `Outline a blog post titled: "${post.title}".`,
     motifs,
+    sme,
     org?.description ? `Organization context: ${org.description.slice(0, 500)}` : null,
     post.focusKeyword ? `Focus keyword: "${post.focusKeyword}".` : null,
     secondary.length ? `Secondary keywords to cover: ${secondary.join(", ")}.` : null,
@@ -184,9 +233,10 @@ export async function generateDraftCore(workspaceId: string, postId: string): Pr
   const voice = channel?.voiceProfiles[0];
   // FR-2: the motif blend (post selection, else the workspace default for this
   // tier/audience) is the tone engine — it replaced the old 4-option tone field.
-  const [motifs, guardrails] = await Promise.all([
+  const [motifs, guardrails, sme] = await Promise.all([
     motifPromptFor(workspaceId, post),
     brandGuardrailBlock(workspaceId),
+    smePromptFor(workspaceId, post),
   ]);
 
   const system = [
@@ -196,6 +246,7 @@ export async function generateDraftCore(workspaceId: string, postId: string): Pr
       ? `About the organization this blog belongs to (ground every claim in this): ${org.description}${org.industry ? ` Industry: ${org.industry}.` : ""}${org.audience ? ` Primary audience: ${org.audience}.` : ""}`
       : null,
     voice ? `Write in the brand voice "${voice.label}". Voice profile (JSON): ${clip(voice.data) ?? "n/a"}` : null,
+    sme,
     motifs,
     channel?.audience
       ? `Audience profile (JSON): demographics ${clip(channel.audience.demographics) ?? "n/a"}; psychographics ${clip(channel.audience.psychographics) ?? "n/a"}`
@@ -660,6 +711,7 @@ export async function runAutopilotCycle(workspaceId: string): Promise<CycleRepor
           keyword: p.focusKeyword,
           source: "refresh",
           postId: p.id,
+          refreshPostId: p.id,
         },
       });
       report.ideasCreated++;
