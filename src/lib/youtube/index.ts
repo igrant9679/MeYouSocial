@@ -113,7 +113,11 @@ const mock: YouTubeProvider = {
 const YT = "https://www.googleapis.com/youtube/v3";
 
 async function ytGet<T>(path: string, params: Record<string, string>): Promise<T> {
-  const qs = new URLSearchParams({ ...params, key: env.YOUTUBE_API_KEY });
+  // DB-first key (Admin → API keys → YouTube), env fallback — same pattern as
+  // every other provider, so admins never need Railway access.
+  const { getApiKey } = await import("@/lib/llm/keys");
+  const key = (await getApiKey("youtube")) || env.YOUTUBE_API_KEY;
+  const qs = new URLSearchParams({ ...params, key });
   const res = await fetch(`${YT}/${path}?${qs}`, { signal: AbortSignal.timeout(15000) });
   if (!res.ok) throw new Error(`YouTube API ${path} HTTP ${res.status}`);
   return (await res.json()) as T;
@@ -202,5 +206,31 @@ const real: YouTubeProvider = {
   },
 };
 
-export const youtube: YouTubeProvider =
-  env.USE_MOCK_YOUTUBE || !env.YOUTUBE_API_KEY ? mock : real;
+// Provider resolution is per-call: a key pasted in-app activates the real API
+// within ~30s (key cache TTL) with no redeploy. USE_MOCK_YOUTUBE=true forces
+// the mock regardless — the explicit off-switch for testing.
+export const youtube: YouTubeProvider = {
+  async findChannel(query) {
+    return (await pick()).findChannel(query);
+  },
+  async listVideos(channelId, limit) {
+    return (await pick()).listVideos(channelId, limit);
+  },
+  async getTranscript(videoId) {
+    return (await pick()).getTranscript(videoId);
+  },
+  async searchChannels(query, limit) {
+    return (await pick()).searchChannels(query, limit);
+  },
+};
+
+async function pick(): Promise<YouTubeProvider> {
+  if (env.USE_MOCK_YOUTUBE) return mock;
+  try {
+    const { getApiKey } = await import("@/lib/llm/keys");
+    const key = (await getApiKey("youtube")) || env.YOUTUBE_API_KEY;
+    return key ? real : mock;
+  } catch {
+    return env.YOUTUBE_API_KEY ? real : mock;
+  }
+}

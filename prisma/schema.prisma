@@ -538,6 +538,12 @@ model VideoRender {
   outputUrl    String?
   error        String?
   costEstimate Float    @default(0)
+  // Storyboard (slice 4): multi-scene plan. JSON [{prompt, seconds, text}].
+  // `prompt` above stays the first scene for back-compat with older renders.
+  scenes       String   @default("[]")
+  srt          String?  // generated captions (SRT text)
+  storedUrl    String?  // provider output persisted to StorageProvider (Veo URIs expire ~2d)
+  voiceoverUrl String?  // TTS output, when a TTS provider is configured
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

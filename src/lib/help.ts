@@ -237,6 +237,36 @@ export const HELP_CATEGORIES: FaqCategory[] = [
     ],
   },
   {
+    id: "videos",
+    label: "Videos",
+    color: "#7C3AED",
+    soft: "#EEE7FC",
+    entries: [
+      {
+        q: "How do video storyboards work?",
+        a: "Packaging a published post (its **Distribute** tab, or autopilot) creates a 3-4 scene storyboard: each scene has a visual prompt, a duration, and on-screen text — scene 1 is the hook, the last is the CTA. Open any render on the Videos page to edit scenes before rendering. Rendering processes each scene through the provider; captions (SRT) are timed from the scene durations, so they always match the cut.",
+        links: [{ label: "Videos →", href: "/videos" }],
+        tags: ["storyboard", "scenes", "video"],
+      },
+      {
+        q: "How do I switch from mock video to real (Veo)?",
+        a: "Admin → **API keys** → *Media & video*: paste a Google key and set the **Video renderer** to Auto or Veo. Auto uses Veo whenever a key is present; Mock never spends. Real renders count against the daily cap shown on the Videos page, and outputs are persisted to storage because Veo links expire in ~2 days.",
+        links: [{ label: "Admin → API keys →", href: "/admin/api-keys" }],
+        tags: ["veo", "provider", "mock", "cost"],
+      },
+      {
+        q: "Can it generate a voiceover?",
+        a: "Yes — the **Generate voiceover** button on a storyboard reads the scene texts as a narration script. With the mock TTS it stores that script as clearly-labeled text; paste an ElevenLabs key and switch the TTS provider (Admin → API keys) for real audio.",
+        tags: ["voiceover", "tts", "elevenlabs", "audio"],
+      },
+      {
+        q: "A render failed — now what?",
+        a: "The error is shown on the render (quota, key, or provider issues are the usual causes). Hit **Retry** to re-queue it — the daily cap still applies. Scenes that completed before a mid-storyboard failure are kept.",
+        tags: ["retry", "failed", "render"],
+      },
+    ],
+  },
+  {
     id: "production",
     label: "Production",
     color: "#0D9488",

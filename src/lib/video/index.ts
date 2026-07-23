@@ -91,9 +91,29 @@ const veoProvider: VideoProvider = {
 };
 
 // ── Selection ────────────────────────────────────────────────────────────────
+// DB-first: the admin picks the provider in-app (Setting `video:provider` =
+// auto | mock | veo, set under Admin → API keys). Env USE_MOCK_VIDEO stays as
+// the fallback for installs that never touched the setting. "auto" = veo when
+// a Google key resolves, else mock.
+
+export async function getVideoProviderSetting(): Promise<"auto" | "mock" | "veo"> {
+  try {
+    const { db } = await import("@/lib/db");
+    const row = await db.setting.findUnique({ where: { key: "video:provider" } });
+    if (row?.value === "mock" || row?.value === "veo" || row?.value === "auto") return row.value;
+  } catch {
+    // fall through to env behavior
+  }
+  return env.USE_MOCK_VIDEO ? "mock" : "auto";
+}
 
 export async function getVideoProvider(): Promise<VideoProvider> {
-  if (env.USE_MOCK_VIDEO) return mockProvider;
+  const setting = await getVideoProviderSetting();
+  if (setting === "mock") return mockProvider;
   const key = await getApiKey("google").catch(() => "");
+  if (setting === "veo") {
+    if (!key) throw new Error("Video provider is set to Veo but no Google key is configured (Admin → API keys)");
+    return veoProvider;
+  }
   return key ? veoProvider : mockProvider;
 }

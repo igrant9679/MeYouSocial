@@ -17,6 +17,8 @@ import { isRenderProfile, parseRenderRules } from "@/lib/design-render";
 import { smePromptFor } from "@/lib/sme";
 import { loadEditorialContext } from "@/lib/blog-slop";
 import { notify } from "@/lib/notify";
+import { storage } from "@/lib/storage";
+import { parseScenes, scenesToSrt } from "@/lib/captions";
 import { getModes, isGloballyPaused, writeAudit } from "@/lib/governance";
 import { getVideoProvider, estimateCostUsd } from "@/lib/video";
 import { templateGuidance, trackLabel, trackWordTarget } from "@/lib/blog-templates";
@@ -552,11 +554,14 @@ export async function packageVideoCore(workspaceId: string, blogPostId: string):
     ? motifBlockShort(await ensureMotifDirectives(workspaceId), videoWeights)
     : null;
 
+  // Slice 4: a multi-scene storyboard, not a single clip. Each scene is one
+  // provider render; on-screen text drives captions and the narration script.
   const system =
-    "You write prompts for an AI video generator producing short-form vertical videos (8 seconds). " +
-    'Respond ONLY with a JSON object: {"title": string, "prompt": string}. ' +
-    "The prompt describes ONE visually concrete scene (subject, setting, camera movement, mood, on-screen text hook ≤6 words) " +
-    "that teases the article's core idea. No statistics, no invented claims, no brand logos.";
+    "You write storyboards for an AI video generator producing short-form vertical videos. " +
+    'Respond ONLY with a JSON object: {"title": string, "scenes": [{"prompt": string, "seconds": number, "text": string}]}. ' +
+    "3 to 4 scenes, 4-8 seconds each, ~20 seconds total. Each prompt describes ONE visually concrete scene " +
+    "(subject, setting, camera movement, mood). `text` is that scene's on-screen caption (≤8 words) — scene 1 is the hook, " +
+    "the last scene is the call to action. No statistics, no invented claims, no brand logos.";
   const res = await llm.complete({
     model: workspace.defaultModel ?? llm.defaultModel,
     system,
@@ -568,27 +573,37 @@ export async function packageVideoCore(workspaceId: string, blogPostId: string):
           .join("\n\n"),
       },
     ],
-    maxTokens: 500,
+    maxTokens: 900,
   });
-  let parsed: { title?: string; prompt?: string } = {};
+  let parsed: { title?: string; prompt?: string; scenes?: unknown } = {};
   try {
     const match = res.content.match(/\{[\s\S]*\}/);
     parsed = match ? JSON.parse(match[0]) : {};
   } catch {
     parsed = {};
   }
-  if (!parsed.prompt) return null;
+  const scenes = parseScenes(JSON.stringify(parsed.scenes ?? [])).slice(0, 4).map((s) => ({
+    ...s,
+    seconds: Math.min(s.seconds, env.VIDEO_MAX_SECONDS),
+    status: "planned",
+  }));
+  // Back-compat: a single-prompt response still packages as a one-scene board.
+  if (!scenes.length && typeof parsed.prompt === "string" && parsed.prompt.trim()) {
+    scenes.push({ prompt: parsed.prompt.trim(), seconds: env.VIDEO_MAX_SECONDS, text: null, outputUrl: null, status: "planned" });
+  }
+  if (!scenes.length) return null;
 
-  const seconds = env.VIDEO_MAX_SECONDS;
+  const totalSeconds = scenes.reduce((a, s) => a + s.seconds, 0);
   const render = await db.videoRender.create({
     data: {
       workspaceId,
       blogPostId: post.id,
       title: (parsed.title ?? post.title).slice(0, 200),
-      prompt: parsed.prompt.slice(0, 2000),
-      seconds,
+      prompt: scenes[0].prompt.slice(0, 2000),
+      scenes: JSON.stringify(scenes),
+      seconds: totalSeconds,
       aspect: "9:16",
-      costEstimate: estimateCostUsd(seconds),
+      costEstimate: estimateCostUsd(totalSeconds),
     },
   });
   await writeAudit({
@@ -596,7 +611,7 @@ export async function packageVideoCore(workspaceId: string, blogPostId: string):
     action: "video.packaged",
     entityType: "video_render",
     entityId: render.id,
-    meta: { blogPostId: post.id, seconds, costEstimate: render.costEstimate },
+    meta: { blogPostId: post.id, scenes: scenes.length, seconds: totalSeconds, costEstimate: render.costEstimate },
   });
   return render.id;
 }
@@ -609,7 +624,30 @@ async function rendersToday(workspaceId: string): Promise<number> {
   });
 }
 
-/** Process one queued render through the provider. Minutes-long — background only. */
+/**
+ * Persist a provider's output into StorageProvider so it outlives expiring
+ * URIs (Veo's die in ~2 days). Skipped for the mock's stable sample URL and
+ * for anything over 80MB. Returns the durable URL, or null when not persisted.
+ */
+async function persistRenderOutput(url: string, providerName: string): Promise<string | null> {
+  if (providerName === "mock") return null;
+  try {
+    const res = await fetch(url, { signal: AbortSignal.timeout(120_000), redirect: "follow" });
+    if (!res.ok) return null;
+    const buf = Buffer.from(await res.arrayBuffer());
+    if (!buf.byteLength || buf.byteLength > 80 * 1024 * 1024) return null;
+    const file = await storage.put("render.mp4", buf, res.headers.get("content-type") ?? "video/mp4");
+    return file.url;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Process one queued render through the provider. Renders every scene of the
+ * storyboard (each counts against the daily cap), persists output to storage,
+ * and generates the SRT from scene timings. Minutes-long — background only.
+ */
 export async function processRenderCore(workspaceId: string, renderId: string): Promise<boolean> {
   if (await isGloballyPaused(workspaceId)) return false;
   const render = await db.videoRender.findFirst({ where: { id: renderId, workspaceId, status: "queued" } });
@@ -618,22 +656,56 @@ export async function processRenderCore(workspaceId: string, renderId: string): 
 
   const provider = await getVideoProvider();
   await db.videoRender.update({ where: { id: render.id }, data: { status: "rendering", provider: provider.name } });
+  const scenes = parseScenes(render.scenes);
   try {
-    const out = await provider.render({
-      prompt: render.prompt,
-      seconds: render.seconds,
-      aspect: render.aspect as "9:16" | "16:9" | "1:1",
-    });
-    await db.videoRender.update({
-      where: { id: render.id },
-      data: { status: "done", outputUrl: out.url, provider: out.provider, seconds: out.seconds },
-    });
+    if (scenes.length > 1) {
+      // Storyboard: render scene by scene, recording progress as it happens so
+      // a mid-board failure keeps the completed clips.
+      for (let i = 0; i < scenes.length; i++) {
+        const out = await provider.render({
+          prompt: scenes[i].prompt,
+          seconds: scenes[i].seconds,
+          aspect: render.aspect as "9:16" | "16:9" | "1:1",
+        });
+        const durable = await persistRenderOutput(out.url, out.provider);
+        scenes[i] = { ...scenes[i], outputUrl: durable ?? out.url, status: "done" };
+        await db.videoRender.update({ where: { id: render.id }, data: { scenes: JSON.stringify(scenes) } });
+      }
+      await db.videoRender.update({
+        where: { id: render.id },
+        data: {
+          status: "done",
+          provider: provider.name,
+          outputUrl: scenes[0].outputUrl,
+          storedUrl: scenes[0].outputUrl,
+          srt: scenesToSrt(scenes),
+        },
+      });
+    } else {
+      const out = await provider.render({
+        prompt: render.prompt,
+        seconds: render.seconds,
+        aspect: render.aspect as "9:16" | "16:9" | "1:1",
+      });
+      const durable = await persistRenderOutput(out.url, out.provider);
+      await db.videoRender.update({
+        where: { id: render.id },
+        data: {
+          status: "done",
+          outputUrl: out.url,
+          storedUrl: durable,
+          provider: out.provider,
+          seconds: out.seconds,
+          srt: scenes.length ? scenesToSrt(scenes) : null,
+        },
+      });
+    }
     await writeAudit({
       workspaceId,
       action: "video.rendered",
       entityType: "video_render",
       entityId: render.id,
-      meta: { provider: out.provider, seconds: out.seconds },
+      meta: { provider: provider.name, scenes: Math.max(1, scenes.length) },
     });
     return true;
   } catch (e) {

@@ -19,7 +19,27 @@ const SETTING_KEY: Record<KeyProvider, string> = {
   xai:       "api_key:xai",
   moonshot:  "api_key:moonshot",
   minimax:   "api_key:minimax",
+  youtube:   "api_key:youtube",
+  elevenlabs: "api_key:elevenlabs",
 };
+
+/**
+ * Media provider switches (video renderer, TTS) — stored as Settings so admins
+ * change them in-app without touching Railway. Values are validated here.
+ */
+export async function saveMediaSettingAction(formData: FormData) {
+  await requireRole("ADMIN");
+  const setting = String(formData.get("setting") ?? "");
+  const value = String(formData.get("value") ?? "");
+  const ALLOWED: Record<string, string[]> = {
+    "video:provider": ["auto", "mock", "veo"],
+    "tts:provider": ["mock", "elevenlabs"],
+  };
+  if (!ALLOWED[setting]?.includes(value)) return;
+  await db.setting.upsert({ where: { key: setting }, update: { value }, create: { key: setting, value } });
+  revalidatePath("/admin/api-keys");
+  redirect(`/admin/api-keys?ok=${encodeURIComponent(setting)}`);
+}
 
 const SEARCH_VENDORS = ["tavily", "serper"] as const;
 

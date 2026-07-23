@@ -9,7 +9,9 @@ import { env } from "@/lib/env";
 // LLM request. The admin save action calls invalidateKeyCache() to force a fresh
 // read immediately after an update.
 
-type Provider = "anthropic" | "openai" | "google" | "deepseek" | "xai" | "moonshot" | "minimax";
+type Provider =
+  | "anthropic" | "openai" | "google" | "deepseek" | "xai" | "moonshot" | "minimax"
+  | "youtube" | "elevenlabs";
 
 const SETTING_KEY: Record<Provider, string> = {
   anthropic: "api_key:anthropic",
@@ -19,6 +21,8 @@ const SETTING_KEY: Record<Provider, string> = {
   xai:       "api_key:xai",
   moonshot:  "api_key:moonshot",
   minimax:   "api_key:minimax",
+  youtube:   "api_key:youtube",
+  elevenlabs: "api_key:elevenlabs",
 };
 
 const ENV_KEY: Record<Provider, string> = {
@@ -29,6 +33,8 @@ const ENV_KEY: Record<Provider, string> = {
   xai:       env.XAI_API_KEY,
   moonshot:  env.MOONSHOT_API_KEY,
   minimax:   env.MINIMAX_API_KEY,
+  youtube:   process.env.YOUTUBE_API_KEY ?? "",
+  elevenlabs: process.env.ELEVENLABS_API_KEY ?? "",
 };
 
 const CACHE_TTL_MS = 30_000;
