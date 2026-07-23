@@ -287,6 +287,23 @@ export const HELP_CATEGORIES: FaqCategory[] = [
         a: "Open a Content Project (click any card) → status + dates + roles + assignees can all be set there. Every list view (Writer's Room, Film Queue, etc.) has a **My work** toggle that filters to projects assigned to you.",
         tags: ["assign", "team"],
       },
+      {
+        q: "How does the task board work?",
+        a: "Production → **Tasks** is a drag-and-drop kanban (To do / In progress / Done). Drag cards between columns, or use the dropdown on each card if you're on touch or keyboard. **In progress** carries a WIP limit — going over turns the counter red. Cards untouched for 3+ days get an amber \"stale\" spine, and overdue dates flag red. The capacity strip below shows open tasks per person.",
+        links: [{ label: "Task board →", href: "/production/tasks" }],
+        tags: ["tasks", "kanban", "drag", "wip", "capacity"],
+      },
+      {
+        q: "What are auto-created tasks?",
+        a: "Pipeline events become work items automatically: a draft parking at review creates a task for the reviewer (due in 2 days), a post reaching approval without its images creates one for the author, and a failed video render creates one for an admin. Each rule can be switched off, and duplicates are never created while an open task with the same title exists. Admins edit the rules (and the WIP limit) at the bottom of the Tasks page.",
+        tags: ["auto tasks", "rules", "pipeline"],
+      },
+      {
+        q: "Does the calendar show blog posts too?",
+        a: "Yes — Production → **Calendar** is the unified view: content projects by publish date plus scheduled blog publishes (the ✍ entries, which link straight into the post editor).",
+        links: [{ label: "Calendar →", href: "/production/calendar" }],
+        tags: ["calendar", "unified", "schedule"],
+      },
     ],
   },
   {

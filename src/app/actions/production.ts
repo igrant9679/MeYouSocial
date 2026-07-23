@@ -1,5 +1,42 @@
 "use server";
 
+import { revalidatePath as rp } from "next/cache";
+import { requireRole as rr } from "@/lib/acl";
+import { db as prisma } from "@/lib/db";
+import { DEFAULT_AUTO_RULES } from "@/lib/auto-tasks";
+
+/**
+ * Plain-args action for the drag-and-drop task board (client invokes it
+ * directly, no form). Workspace-scoped like everything else.
+ */
+export async function moveTaskAction(taskId: string, status: string) {
+  if (!["todo", "in_progress", "done"].includes(status)) return;
+  const { workspace } = await rr("EDITOR");
+  await prisma.task.updateMany({
+    where: { id: taskId, workspaceId: workspace.id },
+    data: { status },
+  });
+  rp("/production/tasks");
+}
+
+/** Admin: the auto-task rules + WIP limit, edited on the Tasks page. */
+export async function saveAutoTaskRulesAction(formData: FormData) {
+  await rr("ADMIN");
+  const wipRaw = parseInt(String(formData.get("wipLimit")), 10);
+  const rules = {
+    reviewTask: formData.get("reviewTask") === "on",
+    assetTask: formData.get("assetTask") === "on",
+    renderFailTask: formData.get("renderFailTask") === "on",
+    wipLimit: Number.isFinite(wipRaw) && wipRaw >= 1 && wipRaw <= 20 ? wipRaw : DEFAULT_AUTO_RULES.wipLimit,
+  };
+  await prisma.setting.upsert({
+    where: { key: "production:autotasks" },
+    update: { value: JSON.stringify(rules) },
+    create: { key: "production:autotasks", value: JSON.stringify(rules) },
+  });
+  rp("/production/tasks");
+}
+
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireRole } from "@/lib/acl";

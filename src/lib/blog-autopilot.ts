@@ -19,6 +19,7 @@ import { loadEditorialContext } from "@/lib/blog-slop";
 import { notify } from "@/lib/notify";
 import { storage } from "@/lib/storage";
 import { parseScenes, scenesToSrt } from "@/lib/captions";
+import { autoTaskForRenderFailure } from "@/lib/auto-tasks";
 import { getModes, isGloballyPaused, writeAudit } from "@/lib/governance";
 import { getVideoProvider, estimateCostUsd } from "@/lib/video";
 import { templateGuidance, trackLabel, trackWordTarget } from "@/lib/blog-templates";
@@ -709,9 +710,10 @@ export async function processRenderCore(workspaceId: string, renderId: string): 
     });
     return true;
   } catch (e) {
+    const message = e instanceof Error ? e.message.slice(0, 500) : "render failed";
     await db.videoRender.update({
       where: { id: render.id },
-      data: { status: "failed", error: e instanceof Error ? e.message.slice(0, 500) : "render failed" },
+      data: { status: "failed", error: message },
     });
     await writeAudit({
       workspaceId,
@@ -720,6 +722,8 @@ export async function processRenderCore(workspaceId: string, renderId: string): 
       entityId: render.id,
       meta: { provider: provider.name },
     });
+    // Someone should look before a retry loop burns budget.
+    await autoTaskForRenderFailure(workspaceId, { id: render.id, title: render.title, error: message });
     return false;
   }
 }

@@ -23,14 +23,23 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
   const first = new Date(y, m, 1);
   const last = new Date(y, m + 1, 0);
 
-  const projects = await db.contentProject.findMany({
-    where: {
-      channel: { workspaceId: workspace.id },
-      publishDate: { gte: first, lte: new Date(y, m + 1, 0, 23, 59, 59) },
-    },
-    include: { channel: { select: { name: true, accentColor: true } } },
-    orderBy: { publishDate: "asc" },
-  });
+  const monthEnd = new Date(y, m + 1, 0, 23, 59, 59);
+  const [projects, blogPosts] = await Promise.all([
+    db.contentProject.findMany({
+      where: {
+        channel: { workspaceId: workspace.id },
+        publishDate: { gte: first, lte: monthEnd },
+      },
+      include: { channel: { select: { name: true, accentColor: true } } },
+      orderBy: { publishDate: "asc" },
+    }),
+    // Unified view: scheduled blog publishes land on the same grid.
+    db.blogPost.findMany({
+      where: { workspaceId: workspace.id, scheduledAt: { gte: first, lte: monthEnd } },
+      select: { id: true, title: true, scheduledAt: true, status: true },
+      orderBy: { scheduledAt: "asc" },
+    }),
+  ]);
 
   // Build day grid (Sunday-start)
   const startWeekday = first.getDay(); // 0 = Sun
@@ -41,6 +50,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
   while (cells.length % 7 !== 0) cells.push({ date: null });
 
   const projectsForDay = (date: Date) => projects.filter((p) => p.publishDate && new Date(p.publishDate).toDateString() === date.toDateString());
+  const postsForDay = (date: Date) => blogPosts.filter((p) => p.scheduledAt && new Date(p.scheduledAt).toDateString() === date.toDateString());
 
   const prevM = m === 0 ? 11 : m - 1;
   const prevY = m === 0 ? y - 1 : y;
@@ -77,6 +87,11 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
                     {p.title}
                   </Link>
                 ))}
+                {cell.date && postsForDay(cell.date).map((p) => (
+                  <Link key={p.id} href={`/blog/${p.id}`} className="block text-[10px] font-mono px-1.5 py-0.5 rounded truncate hover:opacity-80" style={{ background: "var(--rose-soft)", color: "var(--rose-on)" }}>
+                    ✍ {p.title}
+                  </Link>
+                ))}
               </div>
             );
           })}
@@ -88,6 +103,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
         {Object.entries(STATUS_COLOR).map(([s, c]) => (
           <span key={s} className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full" style={{ background: c }} />{s.replace("_", " ")}</span>
         ))}
+        <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full" style={{ background: "var(--rose)" }} />✍ blog publish (scheduled)</span>
       </div>
     </div>
   );

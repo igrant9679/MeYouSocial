@@ -11,6 +11,7 @@ import { readMotifWeights, serializeMotifs } from "@/lib/motifs";
 import { loadAssetGate } from "@/lib/blog-images";
 import { loadEditorialContext } from "@/lib/blog-slop";
 import { notify } from "@/lib/notify";
+import { autoTaskForAssets, autoTaskForReview } from "@/lib/auto-tasks";
 
 /**
  * Blog module (ported from Spark's article pipeline — slice 1).
@@ -144,6 +145,18 @@ export async function advanceBlogStatusAction(formData: FormData) {
     entityType: "blog_post",
     entityId: post.id,
   });
+  // Production auto-tasks: pipeline events become work items (rules on the
+  // Tasks page). Review task when a draft parks at review; asset task when a
+  // post reaches approval still missing its images.
+  if (dir > 0 && next === "draft_review") {
+    await autoTaskForReview(workspace.id, post);
+  }
+  if (dir > 0 && next === "final_approval") {
+    const images = await db.blogImage.findMany({ where: { postId: post.id }, select: { role: true, status: true } });
+    const ok = (role: string) => images.some((i) => i.role === role && i.status === "approved");
+    if (!ok("featured") || !ok("og")) await autoTaskForAssets(workspace.id, post);
+  }
+
   // FR-16: tell whoever has to act next. Never the person who just acted.
   if (next === "final_approval") {
     await notify({
