@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
+import { BrandLogo } from "@/components/BrandLogo";
 
 export default async function Home() {
   const session = await auth();
@@ -10,7 +11,7 @@ export default async function Home() {
     <div className="flex-1 grid place-items-center p-6">
       <div className="card max-w-lg w-full text-center">
         <div className="font-mono text-2xl font-bold tracking-tight mb-2 flex items-center justify-center gap-3">
-          <span className="inline-block w-9 h-9 rounded-[10px] text-white grid place-items-center" style={{ background: "linear-gradient(150deg,#F0623F,#C53A22)" }}>▲</span>
+          <BrandLogo size={36} />
           MeYouSocial
         </div>
         <p className="text-sm text-[var(--mute)] mb-6">AI-powered blog &amp; video content — mostly on autopilot.</p>

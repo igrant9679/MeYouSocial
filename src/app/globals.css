@@ -185,6 +185,25 @@ html[data-theme="dark"] .btn.primary { background-color: var(--accent) !importan
 .tag { font-size: 11px; font-family: var(--font-plex-mono), 'IBM Plex Mono', monospace; padding: 2px 8px; border-radius: 6px; background: var(--accent-soft); color: var(--accent-on); font-weight: 600; }
 .pill { font-family: var(--font-plex-mono), 'IBM Plex Mono', monospace; font-size: 10.5px; font-weight: 700; padding: 3px 9px; border-radius: 999px; display: inline-flex; align-items: center; gap: 5px; }
 
+/* --- Dashboard/report motion (transform+opacity only; killed by reduced-motion) --- */
+.anim-rise { opacity: 0; transform: translateY(10px); animation: mys-rise 0.45s ease-out forwards; }
+.anim-rise.ad-1 { animation-delay: 0.05s; } .anim-rise.ad-2 { animation-delay: 0.12s; }
+.anim-rise.ad-3 { animation-delay: 0.19s; } .anim-rise.ad-4 { animation-delay: 0.26s; }
+.anim-rise.ad-5 { animation-delay: 0.34s; } .anim-rise.ad-6 { animation-delay: 0.42s; }
+@keyframes mys-rise { to { opacity: 1; transform: translateY(0); } }
+.anim-grow { transform-origin: left center; transform: scaleX(0); animation: mys-grow 0.55s cubic-bezier(0.2, 0.8, 0.3, 1) forwards; }
+@keyframes mys-grow { to { transform: scaleX(1); } }
+.anim-draw { stroke-dasharray: 1; stroke-dashoffset: 1; animation: mys-draw 0.9s ease-out 0.3s forwards; }
+@keyframes mys-draw { to { stroke-dashoffset: 0; } }
+/* per-point hover layer on server-rendered SVG charts */
+.chart-pt .chart-dot, .chart-pt .chart-tip { opacity: 0; transition: opacity 0.12s; pointer-events: none; }
+.chart-pt:hover .chart-dot, .chart-pt:hover .chart-tip { opacity: 1; }
+@media (prefers-reduced-motion: reduce) {
+  .anim-rise { opacity: 1; transform: none; animation: none; }
+  .anim-grow { transform: scaleX(1); animation: none; }
+  .anim-draw { stroke-dashoffset: 0; animation: none; }
+}
+
 /* --- Accessibility: visible keyboard focus + reduced-motion (P0) --- */
 :where(a, button, input, select, textarea, [tabindex]):focus-visible {
   outline: 2px solid var(--accent);

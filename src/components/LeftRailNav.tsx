@@ -46,13 +46,13 @@ export function LeftRailNav({ items }: { items: LeftRailItem[] }) {
             href={n.href}
             aria-current={isActive ? "page" : undefined}
             className={
-              "flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-semibold min-h-[44px] transition-colors " +
+              "flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-[15px] font-semibold min-h-[48px] transition-colors " +
               (isActive ? "text-white" : "text-[var(--slate)] hover:bg-[var(--zebra)]")
             }
             style={isActive ? { background: n.color, boxShadow: `0 4px 12px ${n.color}44` } : undefined}
           >
             <Icon
-              className="w-5 h-5 flex-shrink-0"
+              className="w-[22px] h-[22px] flex-shrink-0"
               strokeWidth={2.25}
               style={{ color: isActive ? "#ffffff" : n.color }}
             />

@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { IBM_Plex_Sans, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
-import { getTheme } from "@/app/actions/theme";
+import { getContentSize, getTheme } from "@/app/actions/theme";
+import { SIZE_ZOOM } from "@/lib/ui-size";
 
 const plexSans = IBM_Plex_Sans({
   weight: ["400", "500", "600", "700"],
@@ -31,14 +32,19 @@ export const metadata: Metadata = {
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   // Light/Dark/Auto theme. The cookie-set value drives a class on <html>;
   // CSS handles the actual palette swap in globals.css.
-  const theme = await getTheme();
+  const [theme, size] = await Promise.all([getTheme(), getContentSize()]);
+  const zoom = SIZE_ZOOM[size];
   return (
     <html
       lang="en"
       data-theme={theme}
       className={`${plexSans.variable} ${plexMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      {/* Content-size setting: zoom scales px-based utilities too, which a root
+          font-size change would miss. 1 renders as no-op. */}
+      <body className="min-h-full flex flex-col" style={zoom !== 1 ? ({ zoom } as React.CSSProperties) : undefined}>
+        {children}
+      </body>
     </html>
   );
 }

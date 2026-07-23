@@ -2,7 +2,8 @@ import Link from "next/link";
 import { User, Mail, Lock, Palette, ShieldCheck } from "lucide-react";
 import { requireUser } from "@/lib/acl";
 import { db } from "@/lib/db";
-import { setThemeAction, getTheme } from "@/app/actions/theme";
+import { setThemeAction, getTheme, setContentSizeAction, getContentSize } from "@/app/actions/theme";
+import { CONTENT_SIZES, SIZE_LABELS } from "@/lib/ui-size";
 import { updateProfileAction, changePasswordAction } from "@/app/actions/profile";
 import { resendVerificationAction } from "@/app/actions/auth-flows";
 import { SubmitButton } from "@/components/SubmitButton";
@@ -14,7 +15,7 @@ import { ValidatedInput } from "@/components/ValidatedInput";
 export default async function UserSettingsPage({ searchParams }: { searchParams: Promise<{ error?: string; ok?: string }> }) {
   const user = await requireUser();
   const { error, ok } = await searchParams;
-  const theme = await getTheme();
+  const [theme, size] = await Promise.all([getTheme(), getContentSize()]);
   const memberships = await db.membership.findMany({
     where: { userId: user.id, status: "active" },
     include: { workspace: { select: { name: true } } },
@@ -104,6 +105,31 @@ export default async function UserSettingsPage({ searchParams }: { searchParams:
                   style={active ? { borderColor: "var(--accent)", background: "var(--accent-soft)", color: "var(--accent-on)", fontWeight: 600 } : undefined}
                 >
                   <span className="capitalize">{t}</span>
+                  {active && <span className="ml-2 text-[10px] font-mono uppercase tracking-wider">✓ active</span>}
+                </button>
+              </form>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* Content size — whole-UI scale, three levels, instant apply. */}
+      <section className="card mb-4">
+        <h2 className="font-mono font-bold text-[14px] mb-3 flex items-center gap-2"><Palette className="w-4 h-4" style={{ color: "var(--teal-on)" }} /> Content size</h2>
+        <p className="text-xs text-[var(--mute)] mb-3">Scales everything on screen — text, buttons, charts. Applies instantly.</p>
+        <div className="flex gap-2">
+          {CONTENT_SIZES.map((s) => {
+            const active = size === s;
+            return (
+              <form key={s} action={setContentSizeAction} className="flex-1">
+                <input type="hidden" name="size" value={s} />
+                <input type="hidden" name="return" value="/settings" />
+                <button
+                  type="submit"
+                  className="card w-full text-center cursor-pointer transition-colors"
+                  style={active ? { borderColor: "var(--accent)", background: "var(--accent-soft)", color: "var(--accent-on)", fontWeight: 600 } : undefined}
+                >
+                  <span className={s === "standard" ? "text-sm" : s === "large" ? "text-base" : "text-lg"}>{SIZE_LABELS[s]}</span>
                   {active && <span className="ml-2 text-[10px] font-mono uppercase tracking-wider">✓ active</span>}
                 </button>
               </form>

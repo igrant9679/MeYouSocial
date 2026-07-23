@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Bell, LogOut, Layers, User } from "lucide-react";
 import { unreadCount } from "@/lib/notify";
+import { BrandLogo } from "@/components/BrandLogo";
 import { signOut } from "@/auth";
 import { getActiveChannel } from "@/lib/channel";
 import { setActiveChannelAction } from "@/app/actions/channel";
@@ -38,19 +39,16 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="flex-1 flex min-h-screen">
-      <aside className="w-60 left-rail border-r border-[var(--line)] hidden md:flex flex-col gap-1 py-4 px-3 flex-shrink-0 relative z-40">
+      <aside className="w-64 left-rail border-r border-[var(--line)] hidden md:flex flex-col gap-1 py-4 px-3 flex-shrink-0 relative z-40">
         <Link
           href="/dashboard"
           className="flex items-center gap-2.5 px-2 py-1.5 mb-2 rounded-xl"
           title="MeYouSocial · Home"
         >
-          <span
-            className="w-9 h-9 rounded-xl text-white grid place-items-center font-mono font-bold text-lg shadow-lg shadow-[#E5482F]/30 flex-shrink-0"
-            style={{ background: "linear-gradient(150deg,#F0623F,#C53A22)" }}
-          >
-            ▲
+          <span className="flex-shrink-0 shadow-lg shadow-[#15181D]/25 rounded-xl">
+            <BrandLogo size={38} />
           </span>
-          <span className="font-mono font-bold text-[16px] tracking-tight">MeYouSocial</span>
+          <span className="font-mono font-bold text-[17px] tracking-tight">MeYouSocial</span>
         </Link>
 
         <LeftRailNav items={navItems} />
@@ -96,18 +94,18 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               <ChannelSelect channels={channels} activeId={active.id} />
             </form>
           )}
-          <Link href="/onboarding/channel/new" className="btn sm hidden md:inline-flex items-center gap-1" title="Create a new YouTube channel">
-            <Layers className="w-3.5 h-3.5" /> + Channel
+          <Link href="/onboarding/channel/new" className="btn hidden md:inline-flex items-center gap-1.5" title="Create a new YouTube channel">
+            <Layers className="w-4 h-4" /> + Channel
           </Link>
-          <Link href="/channels" className="btn sm hidden md:inline-flex" title="Manage all channels">Manage channels</Link>
+          <Link href="/channels" className="btn hidden md:inline-flex" title="Manage all channels">Manage channels</Link>
           <div className="flex-1" />
           <Link
             href="/notifications"
-            className="relative inline-flex items-center justify-center w-9 h-9 rounded-xl hover:bg-[var(--zebra)] transition-colors"
+            className="relative inline-flex items-center justify-center w-11 h-11 rounded-xl hover:bg-[var(--zebra)] transition-colors"
             title={unread ? `${unread} unread notifications` : "Notifications"}
             aria-label={unread ? `Notifications, ${unread} unread` : "Notifications"}
           >
-            <Bell className="w-[18px] h-[18px]" strokeWidth={2.25} />
+            <Bell className="w-[21px] h-[21px]" strokeWidth={2.25} />
             {unread > 0 && (
               <span
                 className="absolute -top-0.5 -right-0.5 min-w-[17px] h-[17px] px-1 rounded-full text-[10px] font-mono font-bold grid place-items-center"
@@ -117,8 +115,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               </span>
             )}
           </Link>
-          <span className="font-mono text-[11px] uppercase tracking-wider font-bold px-2 py-1 rounded-md" style={{ background: "var(--accent-soft)", color: "var(--accent-on)" }}>{membership.role}</span>
-          <span className="hidden md:inline text-[12px] text-[var(--mute)]">{user.email}</span>
+          <span className="font-mono text-[12px] uppercase tracking-wider font-bold px-2.5 py-1.5 rounded-lg" style={{ background: "var(--accent-soft)", color: "var(--accent-on)" }}>{membership.role}</span>
+          <span className="hidden md:inline text-[13px] text-[var(--mute)]">{user.email}</span>
         </header>
 
         <main className="flex-1 overflow-auto bg-[var(--panel)] p-6">{children}</main>

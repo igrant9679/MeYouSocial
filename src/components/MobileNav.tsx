@@ -8,6 +8,7 @@ import {
   Home, Layers, Telescope, Sparkles, PenLine, MessageCircle, Image as ImageIcon, KanbanSquare, Settings, HelpCircle, FileText, Clapperboard,
 } from "lucide-react";
 import { isNavActive, type LeftRailItem } from "@/components/LeftRailNav";
+import { BrandLogo } from "@/components/BrandLogo";
 
 // Mobile slide-in drawer that mirrors the desktop left rail, but with visible
 // labels (icon-only nav is fine on hover-capable desktop, not on touch).
@@ -46,13 +47,7 @@ export function MobileNav({
           <div className="absolute inset-0 bg-black/50" onClick={() => setOpen(false)} />
           <nav className="absolute left-0 top-0 bottom-0 w-72 max-w-[80vw] bg-[var(--bg)] border-r border-[var(--line)] flex flex-col p-3 shadow-2xl">
             <div className="flex items-center gap-2 px-1 mb-3">
-              <span
-                className="w-9 h-9 rounded-xl text-white grid place-items-center font-mono font-bold"
-                style={{ background: "linear-gradient(150deg,#F0623F,#C53A22)" }}
-                aria-hidden
-              >
-                ▲
-              </span>
+              <span aria-hidden><BrandLogo size={36} /></span>
               <span className="font-mono font-bold text-[15px]">MeYouSocial</span>
               <span className="flex-1" />
               <button

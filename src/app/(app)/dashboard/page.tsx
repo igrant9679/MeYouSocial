@@ -1,21 +1,32 @@
 import Link from "next/link";
-import { Sparkles, PenLine, Telescope, MessageCircle, Image as ImageIcon, ArrowRight, FileText, Bot } from "lucide-react";
+import { Sparkles, PenLine, Telescope, MessageCircle, Image as ImageIcon, ArrowRight, FileText, Bot, TrendingUp } from "lucide-react";
 import { requireMembership } from "@/lib/acl";
 import { db } from "@/lib/db";
+import { autopilotFeed, hasSeriesData, homeStats, postPerformance, weeklySeries } from "@/lib/dashboard-data";
+import { AreaChart, HBars, Sparkline } from "@/components/charts";
+import { CountUp } from "@/components/CountUp";
 
-// MU-01 — Dashboard home. Vibrant, color-keyed surfaces matching the mockup palette.
+// MU-01 — Dashboard home. Vibrant, color-keyed surfaces matching the mockup palette,
+// now with the analytics layer: KPI count-ups, sparklines, impressions chart,
+// pipeline bars, performance table, autopilot feed. All charts read real rows.
 
 export default async function DashboardPage() {
   const { workspace, user } = await requireMembership();
 
-  const [blogByStatus, blogIdeasOpen, lastAutopilot] = await Promise.all([
+  const [blogByStatus, blogIdeasOpen, lastAutopilot, stats, series, perf, feed] = await Promise.all([
     db.blogPost.groupBy({ by: ["status"], where: { workspaceId: workspace.id }, _count: { _all: true } }),
     db.blogIdea.count({ where: { workspaceId: workspace.id, status: { in: ["discovered", "approved"] } } }),
     db.auditLog.findFirst({
       where: { workspaceId: workspace.id, action: { in: ["autopilot.cycle", "autopilot.manual_run"] } },
       orderBy: { createdAt: "desc" },
     }),
+    homeStats(workspace.id),
+    weeklySeries(workspace.id, 8),
+    postPerformance(workspace.id, 6),
+    autopilotFeed(workspace.id, 5),
   ]);
+  const hasAnalytics = hasSeriesData(series);
+  const publishedDelta = stats.publishedThisMonth - stats.publishedLastMonth;
   const blogCount = (s: string) => blogByStatus.find((b) => b.status === s)?._count._all ?? 0;
   const blogTotal = blogByStatus.reduce((a, b) => a + b._count._all, 0);
   const blogNeedsYou = blogCount("draft_review") + blogCount("final_approval");
@@ -73,6 +84,155 @@ export default async function DashboardPage() {
         <QuickTile href="/intel" label="Explore Intel" icon={Telescope} color="var(--blue-on)" soft="var(--blue-soft)" />
         <QuickTile href="/chat" label="Brainstorm chat" icon={MessageCircle} color="var(--violet-on)" soft="var(--violet-soft)" />
       </div>
+
+      {/* KPI band — count-ups + sparklines, all from real rows */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+        <div className="card anim-rise ad-1">
+          <div className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)] font-bold">Published this month</div>
+          <div className="font-mono font-bold text-[26px] leading-tight tabular-nums"><CountUp value={stats.publishedThisMonth} /></div>
+          <div className="text-[11px] font-semibold" style={{ color: publishedDelta >= 0 ? "var(--green-on)" : "var(--rose-on)" }}>
+            {publishedDelta >= 0 ? "▲" : "▼"} {publishedDelta >= 0 ? "+" : ""}{publishedDelta} vs last month
+          </div>
+        </div>
+        <div className="card anim-rise ad-2">
+          <div className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)] font-bold">Clicks this week</div>
+          <div className="font-mono font-bold text-[26px] leading-tight tabular-nums"><CountUp value={stats.clicksThisWeek} /></div>
+          {hasAnalytics ? (
+            <Sparkline points={series.map((p) => p.clicks)} color="var(--teal)" />
+          ) : (
+            <div className="text-[11px] text-[var(--mute)]">no snapshots yet</div>
+          )}
+        </div>
+        <div className="card anim-rise ad-3">
+          <div className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)] font-bold">Avg position</div>
+          <div className="font-mono font-bold text-[26px] leading-tight tabular-nums">
+            {stats.avgPosition != null ? <CountUp value={stats.avgPosition} decimals={1} /> : "—"}
+          </div>
+          <div className="text-[11px] text-[var(--mute)]">{stats.avgPosition != null ? "lower is better" : "add snapshots under Blog → Analytics"}</div>
+        </div>
+        <div className="card anim-rise ad-4">
+          <div className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)] font-bold">Waiting on you</div>
+          <div className="font-mono font-bold text-[26px] leading-tight tabular-nums" style={blogNeedsYou > 0 ? { color: "var(--amber-on)" } : undefined}>
+            <CountUp value={blogNeedsYou} />
+          </div>
+          <div className="flex flex-wrap gap-1 mt-1">
+            {stats.unverifiedCitations > 0 && (
+              <span className="font-mono text-[9.5px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }}>
+                {stats.unverifiedCitations} citations
+              </span>
+            )}
+            {stats.postsMissingAssets > 0 && (
+              <span className="font-mono text-[9.5px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: "var(--rose-soft)", color: "var(--rose-on)" }}>
+                {stats.postsMissingAssets} missing images
+              </span>
+            )}
+            {stats.unverifiedCitations === 0 && stats.postsMissingAssets === 0 && (
+              <span className="text-[11px] text-[var(--mute)]">no blockers</span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Analytics band: impressions chart + pipeline & autopilot */}
+      <div className="grid grid-cols-1 lg:grid-cols-[1.55fr_1fr] gap-3 mb-4">
+        <section className="card anim-rise ad-3">
+          <div className="flex items-center mb-2">
+            <h2 className="font-mono text-[15px] font-bold flex items-center gap-2">
+              <span className="w-7 h-7 rounded-lg grid place-items-center" style={{ background: "var(--blue-soft)", color: "var(--blue-on)" }}>
+                <TrendingUp className="w-4 h-4" strokeWidth={2.5} />
+              </span>
+              Impressions — last 8 weeks
+            </h2>
+            <span className="flex-1" />
+            <Link href="/blog/analytics" className="text-xs font-mono text-[var(--accent)] font-semibold hover:underline">analytics →</Link>
+          </div>
+          {hasAnalytics ? (
+            <AreaChart points={series.map((p) => ({ label: p.label, value: p.impressions }))} color="var(--blue)" title="Impressions" />
+          ) : (
+            <p className="text-sm text-[var(--mute)] py-10 text-center">
+              No analytics snapshots yet. Add weekly numbers under <Link href="/blog/analytics" className="underline">Blog → Analytics</Link> —
+              charts light up from real data, never invented curves.
+            </p>
+          )}
+        </section>
+        <div className="flex flex-col gap-3">
+          <section className="card anim-rise ad-4">
+            <h2 className="font-mono text-[13px] font-bold mb-2">Pipeline</h2>
+            <HBars
+              rows={[
+                { label: "Ideas open", value: blogIdeasOpen, color: "var(--cyan)" },
+                { label: "Drafting", value: blogCount("drafting"), color: "var(--amber)" },
+                { label: "In review", value: blogCount("draft_review"), color: "var(--blue)" },
+                { label: "Approval", value: blogCount("final_approval"), color: "var(--violet)" },
+                { label: "Published", value: blogCount("published"), color: "var(--green)" },
+              ]}
+            />
+          </section>
+          <section className="card anim-rise ad-5 flex-1">
+            <h2 className="font-mono text-[13px] font-bold mb-2 flex items-center gap-1.5"><Bot className="w-4 h-4" style={{ color: "var(--violet-on)" }} /> Autopilot activity</h2>
+            {feed.length === 0 ? (
+              <p className="text-xs text-[var(--mute)]">Idle — set modes under <Link href="/blog/automation" className="underline">Blog → Automation</Link>.</p>
+            ) : (
+              <ul className="m-0 p-0 text-xs">
+                {feed.map((e, i) => (
+                  <li key={i} className="border-t border-[var(--line)] first:border-t-0 py-1.5 flex items-baseline gap-2">
+                    <span className="font-mono text-[9.5px] text-[var(--mute)] w-9 shrink-0">
+                      {e.at.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
+                    </span>
+                    <span className="flex-1">{e.label}</span>
+                    {e.tone === "warn" && <span className="font-mono text-[9px] font-bold px-1.5 rounded-full" style={{ background: "var(--rose-soft)", color: "var(--rose-on)" }}>!</span>}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        </div>
+      </div>
+
+      {/* Content performance table */}
+      <section className="card mb-6 anim-rise ad-5">
+        <div className="flex items-center mb-2">
+          <h2 className="font-mono text-[15px] font-bold">Content performance</h2>
+          <span className="flex-1" />
+          <Link href="/blog/report" className="text-xs font-mono text-[var(--accent)] font-semibold hover:underline">full report →</Link>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs border-collapse">
+            <thead>
+              <tr className="text-left text-[var(--mute)]">
+                <th className="py-1.5 px-2 font-mono text-[9px] uppercase tracking-wider border-b-2 border-[var(--line)]">Post</th>
+                <th className="py-1.5 px-2 font-mono text-[9px] uppercase tracking-wider border-b-2 border-[var(--line)]">Stage</th>
+                <th className="py-1.5 px-2 font-mono text-[9px] uppercase tracking-wider border-b-2 border-[var(--line)] text-right">Pos</th>
+                <th className="py-1.5 px-2 font-mono text-[9px] uppercase tracking-wider border-b-2 border-[var(--line)] text-right">Δ</th>
+                <th className="py-1.5 px-2 font-mono text-[9px] uppercase tracking-wider border-b-2 border-[var(--line)] text-right">Clicks</th>
+              </tr>
+            </thead>
+            <tbody>
+              {perf.map((p) => {
+                const delta = p.position != null && p.prevPosition != null ? p.prevPosition - p.position : null;
+                const meta = STAGE_META[p.status] ?? { label: p.status, hue: "cyan" };
+                return (
+                  <tr key={p.id} className="odd:bg-[var(--zebra)] hover:bg-[var(--blue-soft)] transition-colors">
+                    <td className="py-1.5 px-2 border-b border-[var(--line)]">
+                      <Link href={`/blog/${p.id}`} className="font-semibold hover:underline">{p.title}</Link>
+                    </td>
+                    <td className="py-1.5 px-2 border-b border-[var(--line)]">
+                      <span className="font-mono text-[9.5px] font-bold px-2 py-0.5 rounded-full" style={{ background: `var(--${meta.hue}-soft)`, color: `var(--${meta.hue}-on)` }}>
+                        {meta.label}
+                      </span>
+                    </td>
+                    <td className="py-1.5 px-2 border-b border-[var(--line)] text-right font-mono tabular-nums">{p.position?.toFixed(1) ?? "—"}</td>
+                    <td className="py-1.5 px-2 border-b border-[var(--line)] text-right font-mono tabular-nums font-bold" style={{ color: delta == null ? "var(--mute)" : delta >= 0 ? "var(--green-on)" : "var(--rose-on)" }}>
+                      {delta == null ? "—" : `${delta >= 0 ? "▲" : "▼"} ${Math.abs(delta).toFixed(1)}`}
+                    </td>
+                    <td className="py-1.5 px-2 border-b border-[var(--line)] text-right font-mono tabular-nums">{p.clicks ?? "—"}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </section>
 
       {/* Blog pipeline (Wave A′ — the blog side is first-class on Home now) */}
       <section className="card mb-6">
@@ -187,6 +347,13 @@ export default async function DashboardPage() {
     </div>
   );
 }
+
+const STAGE_META: Record<string, { label: string; hue: string }> = {
+  drafting: { label: "Drafting", hue: "amber" },
+  draft_review: { label: "Review", hue: "blue" },
+  final_approval: { label: "Approval", hue: "violet" },
+  published: { label: "Published", hue: "green" },
+};
 
 function PillStat({ label, value }: { label: string; value: number }) {
   return (
