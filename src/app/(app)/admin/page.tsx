@@ -89,7 +89,7 @@ export default async function AdminUsersPage() {
   ]);
 
   return (
-    <div className="max-w-4xl">
+    <div className="w-full">
       <h1 className="font-mono font-bold text-xl mb-1">Users & Roles</h1>
       <p className="text-sm text-[var(--mute)] mb-5">Workspace: <b>{workspace.name}</b></p>
 

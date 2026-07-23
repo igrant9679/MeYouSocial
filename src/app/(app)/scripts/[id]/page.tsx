@@ -227,7 +227,7 @@ function TabLink({ href, active, icon, children }: { href: string; active: boole
 
 function PlanTab({ script }: { script: { id: string; outline: { questions?: Record<string, string>; markdown?: string } } }) {
   return (
-    <div className="flex flex-col gap-4 max-w-3xl">
+    <div className="flex flex-col gap-4">
       {/* Planning questions */}
       <form action={savePlanQuestionsAction} className="card">
         <h3 className="font-mono font-bold text-[15px] mb-3 flex items-center gap-2"><ListTree className="w-4 h-4" style={{ color: "var(--accent)" }} /> Planning questions</h3>

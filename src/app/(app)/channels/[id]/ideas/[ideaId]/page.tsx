@@ -23,7 +23,7 @@ export default async function IdeaDetailPage({ params }: { params: Promise<{ id:
   const band = outlierBand(idea.outlierScore);
 
   return (
-    <div className="max-w-3xl">
+    <div className="w-full">
       <Link href={`/channels/${id}/ideas`} className="text-xs font-mono text-[var(--mute)] hover:text-[var(--accent)] flex items-center gap-1 mb-3"><ArrowLeft className="w-3 h-3" /> Back to Ideas</Link>
 
       <div className="card mb-4">

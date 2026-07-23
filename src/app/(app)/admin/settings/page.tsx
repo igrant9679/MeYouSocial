@@ -14,7 +14,7 @@ export default async function AdminSettingsPage() {
   const channels = await db.channel.findMany({ where: { workspaceId: workspace.id }, orderBy: { createdAt: "asc" } });
 
   return (
-    <div className="max-w-2xl">
+    <div className="w-full">
       <div className="flex items-center gap-3 mb-4">
         <span className="w-10 h-10 rounded-xl grid place-items-center" style={{ background: "#E5EDFD", color: "#2563EB" }}>
           <Settings className="w-5 h-5" strokeWidth={2.25} />

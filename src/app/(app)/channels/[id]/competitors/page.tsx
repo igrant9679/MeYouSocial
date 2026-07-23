@@ -15,7 +15,7 @@ export default async function ChannelCompetitorsPage({ params }: { params: Promi
   });
 
   return (
-    <div className="max-w-3xl">
+    <div className="w-full">
       <h1 className="font-mono text-xl font-bold mb-3">Competitors</h1>
       <form action={addCompetitorAction} className="card flex gap-2 items-end mb-4">
         <input type="hidden" name="channelId" value={id} />

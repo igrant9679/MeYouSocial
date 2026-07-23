@@ -22,7 +22,7 @@ export default async function UserSettingsPage({ searchParams }: { searchParams:
   });
 
   return (
-    <div className="max-w-2xl">
+    <div className="w-full">
       <div className="flex items-center gap-3 mb-5">
         <span className="w-12 h-12 rounded-2xl text-white grid place-items-center font-mono font-bold text-lg" style={{ background: "linear-gradient(135deg,#E5482F,#6D28D9)" }}>
           {(user.name ?? user.email).slice(0, 2).toUpperCase()}

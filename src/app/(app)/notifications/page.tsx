@@ -37,7 +37,7 @@ export default async function NotificationsPage() {
   const unread = items.filter((i) => !i.readAt).length;
 
   return (
-    <main className="p-6 max-w-3xl mx-auto w-full">
+    <main className="w-full">
       <div className="flex items-center gap-3 mb-5">
         <span className="w-12 h-12 rounded-2xl grid place-items-center" style={{ background: "var(--blue-soft)", color: "var(--blue-on)" }}>
           <Bell className="w-6 h-6" strokeWidth={2.25} />

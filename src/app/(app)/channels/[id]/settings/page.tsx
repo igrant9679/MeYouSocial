@@ -24,7 +24,7 @@ export default async function ChannelSettingsPage({ params }: { params: Promise<
   if (!channel) return null;
 
   return (
-    <div className="max-w-2xl">
+    <div className="w-full">
       <h1 className="font-mono text-xl font-bold mb-3">Channel settings</h1>
       <form action={updateChannelSettingsAction} className="card flex flex-col gap-4">
         <input type="hidden" name="channelId" value={id} />

@@ -61,7 +61,7 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
   const drive = gdriveConfigured ? await gdriveStatus() : null;
 
   return (
-    <div className="max-w-3xl">
+    <div className="w-full">
       <div className="flex items-center gap-3 mb-2">
         <span className="w-10 h-10 rounded-xl grid place-items-center" style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }}>
           <KeyRound className="w-5 h-5" strokeWidth={2.25} />

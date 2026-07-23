@@ -73,7 +73,7 @@ export default async function BlogReportPage() {
     .slice(0, 8);
 
   return (
-    <main className="p-6 max-w-5xl mx-auto w-full">
+    <main className="p-6 w-full">
       <Link href="/blog" className="inline-flex items-center gap-1 text-xs text-[var(--mute)] hover:text-[var(--ink)] mb-3">
         <ArrowLeft className="w-3.5 h-3.5" /> Blog
       </Link>
