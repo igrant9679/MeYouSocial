@@ -39,7 +39,7 @@ export default async function ChatListPage() {
   };
 
   return (
-    <div className="max-w-3xl">
+    <div className="w-full">
       <div className="flex items-center gap-3 mb-5">
         <span className="w-12 h-12 rounded-2xl grid place-items-center" style={{ background: "#EDE7FB", color: "#6D28D9" }}>
           <MessageCircle className="w-6 h-6" strokeWidth={2.25} />

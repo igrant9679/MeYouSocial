@@ -51,7 +51,7 @@ export default async function StoryboardPage({ params }: { params: Promise<{ id:
     : null;
 
   return (
-    <main className="p-6 w-full max-w-4xl mx-auto">
+    <main className="w-full">
       <Link href="/videos" className="inline-flex items-center gap-1 text-xs text-[var(--mute)] hover:text-[var(--ink)] mb-3">
         <ArrowLeft className="w-3.5 h-3.5" /> Videos
       </Link>

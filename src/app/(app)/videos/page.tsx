@@ -47,7 +47,9 @@ export default async function VideosPage() {
   );
 
   return (
-    <main className="p-6 max-w-4xl mx-auto w-full">
+    // Full width like the rest of the app (the shell main already pads 24px —
+    // the old p-6 here double-padded on top of it).
+    <main className="w-full">
       <div className="flex items-center gap-3 mb-1.5">
         <span className="w-12 h-12 rounded-2xl grid place-items-center" style={{ background: "var(--violet-soft)", color: "var(--violet-on)" }}>
           <Clapperboard className="w-6 h-6" strokeWidth={2.25} />

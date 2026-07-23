@@ -24,7 +24,9 @@ export default async function ChatThreadPage({ params }: { params: Promise<{ id:
   if (!chat) notFound();
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-4 max-w-[1100px]">
+    // Full width; context sidebar appears when the CONTENT area (container
+    // query, zoom-aware) fits it — not at a viewport width that ignores the rail.
+    <div className="grid grid-cols-1 @4xl:grid-cols-[1fr_320px] gap-4">
       <main className="card flex flex-col p-0 overflow-hidden">
         {/* Header */}
         <div className="px-5 py-3 border-b border-[var(--line)] flex items-center gap-2">

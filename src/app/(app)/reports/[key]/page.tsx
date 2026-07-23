@@ -36,7 +36,7 @@ export default async function ReportPage({
   const available = BLOCK_KEYS.filter((b) => !report.blocks.includes(b));
 
   return (
-    <main className="w-full max-w-5xl mx-auto">
+    <main className="w-full">
       <Link href="/reports" className="inline-flex items-center gap-1 text-xs text-[var(--mute)] hover:text-[var(--ink)] mb-3">
         <ArrowLeft className="w-3.5 h-3.5" /> Reports
       </Link>

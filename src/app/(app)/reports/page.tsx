@@ -15,7 +15,7 @@ export default async function ReportsHubPage() {
   const editor = canEdit(membership.role);
 
   return (
-    <main className="w-full max-w-5xl mx-auto">
+    <main className="w-full">
       <div className="flex items-center gap-3 mb-5">
         <span className="w-12 h-12 rounded-2xl grid place-items-center" style={{ background: "var(--indigo-soft)", color: "var(--indigo-on)" }}>
           <FileBarChart className="w-6 h-6" strokeWidth={2.25} />
@@ -29,7 +29,7 @@ export default async function ReportsHubPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 @xl:grid-cols-2 @4xl:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 @xl:grid-cols-2 @4xl:grid-cols-3 @6xl:grid-cols-4 gap-3">
         {reports.map((r) => (
           <Link key={r.key} href={`/reports/${r.key}`} className="card lift block">
             <div className="flex items-center gap-2 mb-1.5">
