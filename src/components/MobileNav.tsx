@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Menu, X, LogOut, User,
-  Home, Layers, Telescope, Sparkles, PenLine, MessageCircle, Image as ImageIcon, KanbanSquare, Settings, HelpCircle, FileText, Clapperboard, FileBarChart,
+  Home, Layers, Telescope, Sparkles, PenLine, MessageCircle, Image as ImageIcon, KanbanSquare, Settings, HelpCircle, FileText, Clapperboard, FileBarChart, Share2,
 } from "lucide-react";
 import { isNavActive, type LeftRailItem } from "@/components/LeftRailNav";
 import { BrandLogo } from "@/components/BrandLogo";
@@ -15,7 +15,7 @@ import { BrandLogo } from "@/components/BrandLogo";
 // Shown only below md; the desktop rail is hidden there.
 
 const ICONS = {
-  Home, Layers, Telescope, Sparkles, PenLine, MessageCircle, ImageIcon, KanbanSquare, Settings, HelpCircle, FileText, Clapperboard, FileBarChart,
+  Home, Layers, Telescope, Sparkles, PenLine, MessageCircle, ImageIcon, KanbanSquare, Settings, HelpCircle, FileText, Clapperboard, FileBarChart, Share2,
 } as const;
 
 export function MobileNav({

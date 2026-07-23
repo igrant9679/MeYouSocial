@@ -322,3 +322,43 @@ isolation was already solid (audited); what was global was CONFIG. Now:
 - _Verified live:_ migration applied, per-workspace key chips, scoped email
   page, branding card, workspace switcher, accent round-trip. _Code-verified
   only:_ the invite-signup join (needs a second real account to exercise).
+
+---
+
+## Unipile: email delivery + social posting (shipped 2026-07-23, commit 75e6aba)
+
+**Why:** Railway blocks all outbound SMTP (587/465/2525 all ETIMEDOUT vs
+known-good servers — proven via the test-send). Unipile is a unified HTTPS API
+that connects end-users' mailboxes/social profiles and sends on their behalf
+over :443, which is never blocked. It's now the primary email path.
+
+- **`src/lib/unipile/`** — dependency-free client. DSN (host:port from the
+  Unipile dashboard) + `X-API-KEY`; endpoints under `/api/v1`. `hostedAuthLink`
+  (wizard), `sendEmailViaUnipile` (POST /emails, HTML body, multipart),
+  `createPostViaUnipile` (POST /posts), `getUnipileAccount`/`listUnipileAccounts`
+  + `classifyAccount`. `accounts.ts` resolves a workspace's default email/social
+  account from the DB.
+- **Config is PLATFORM-level** (one Unipile account serves all tenants):
+  Settings `unipile:dsn` / `unipile:api_key`, operator-set via Admin →
+  Connections (gated to `BOOTSTRAP_ADMIN_EMAIL`), env fallback
+  `UNIPILE_DSN`/`UNIPILE_API_KEY`. `setPlatformSetting()` added to settings lib.
+- **Per-workspace connected accounts**: `UnipileAccount` model (migration
+  `20260723210000`) — one row per mailbox/profile, `{workspaceId, accountId,
+  kind:email|social, provider, name, isDefault, status}`.
+- **Connect flow**: `/admin/connections` → connect buttons build a hosted-auth
+  wizard link (name=workspaceId) and redirect. On success Unipile POSTs
+  `/api/unipile/webhook` `{status:CREATION_SUCCESS, account_id, name}` → we
+  **re-fetch the account against our own key** (forged payloads can't attach a
+  bogus account) → upsert the row. Page lists accounts with default/disconnect.
+- **Email**: `emailFor(workspaceId)` prefers a connected Unipile mailbox → SMTP
+  (still there but blocked here) → mock. Admin → Email now flags the SMTP block
+  and points to Connections.
+- **Social**: blog social variants gained **Post now** (Distribute tab) →
+  `postSocialVariantAction` publishes the copy (`{{URL}}` substituted) via the
+  workspace's connected account for that network, then marks posted; manual
+  "Mark posted" kept.
+- _User action to activate:_ operator pastes the Unipile DSN + API key
+  (dashboard.unipile.com), then each workspace connects its mailbox/profiles.
+  Until then email falls back (mock) and Post now reports "no account connected".
+- _Fixed en route:_ `SubmitButton` now merges a caller-passed `disabled` with
+  the pending state (was overridable, would have re-enabled pending buttons).

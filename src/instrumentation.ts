@@ -11,7 +11,10 @@ export async function register() {
     return;
   }
 
-  const globals = globalThis as unknown as { __autopilotTimer?: ReturnType<typeof setInterval> };
+  const globals = globalThis as unknown as {
+    __autopilotTimer?: ReturnType<typeof setInterval>;
+    __socialTimer?: ReturnType<typeof setInterval>;
+  };
   if (globals.__autopilotTimer) return; // HMR / double-register guard
 
   const intervalMin = Math.max(5, parseInt(process.env.AUTOPILOT_INTERVAL_MIN ?? "30", 10) || 30);
@@ -29,4 +32,19 @@ export async function register() {
   setTimeout(sweep, 2 * 60 * 1000);
   globals.__autopilotTimer = setInterval(sweep, intervalMin * 60 * 1000);
   console.log(`[autopilot] scheduler armed — every ${intervalMin} min`);
+
+  // Social scheduler runs on its own tighter cadence so scheduled posts publish
+  // close to their time (the autopilot's 30-min cadence would be too coarse).
+  const socialSec = Math.max(30, parseInt(process.env.SOCIAL_SWEEP_SEC ?? "60", 10) || 60);
+  const socialSweep = async () => {
+    try {
+      const { publishDueSocialPosts } = await import("@/lib/social/publish");
+      const n = await publishDueSocialPosts();
+      if (n > 0) console.log(`[social] published ${n} due post(s)`);
+    } catch (e) {
+      console.error("[social] sweep failed:", e instanceof Error ? e.message : e);
+    }
+  };
+  globals.__socialTimer = setInterval(socialSweep, socialSec * 1000);
+  console.log(`[social] scheduler armed — every ${socialSec}s`);
 }

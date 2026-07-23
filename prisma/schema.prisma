@@ -48,6 +48,7 @@ model Workspace {
   blogPosts       BlogPost[]
   settings        WorkspaceSetting[]
   unipileAccounts UnipileAccount[]
+  socialPosts     SocialPost[]
 }
 
 // ---- Blog (ported from Spark's article pipeline; slice 1) --------------------
@@ -1176,4 +1177,44 @@ model UnipileAccount {
 
   @@unique([workspaceId, accountId])
   @@index([workspaceId, kind])
+}
+
+// ---- Social scheduler (Hootsuite/Buffer-style) ------------------------------
+// A composed post fanned out to one or more connected social accounts, publish
+// now or scheduled. Publishing goes through Unipile; each target carries its own
+// status so a 3-network post records exactly which legs succeeded.
+model SocialPost {
+  id          String   @id @default(cuid())
+  workspaceId String
+  createdById String?
+  text        String
+  mediaKeys   String   @default("[]") // JSON array of StorageProvider keys
+  scheduledAt DateTime?               // null = draft / post-now
+  // draft | scheduled | publishing | posted | partial | failed
+  status      String   @default("draft")
+  publishedAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace   Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  targets     SocialPostTarget[]
+
+  @@index([workspaceId, status])
+  @@index([status, scheduledAt])
+}
+
+model SocialPostTarget {
+  id              String    @id @default(cuid())
+  postId          String
+  provider        String    // LINKEDIN | X | INSTAGRAM | ...
+  unipileAccountId String   // Unipile account id (resolved at publish)
+  accountName     String?
+  status          String    @default("pending") // pending | posted | failed
+  providerPostId  String?
+  error           String?
+  postedAt        DateTime?
+
+  post SocialPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([postId])
 }

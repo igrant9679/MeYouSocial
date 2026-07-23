@@ -185,14 +185,21 @@ export async function sendEmailViaUnipile(opts: {
 
 // ── Social posting ───────────────────────────────────────────────────────────
 
-/** Publish a text post from a connected social account. Returns the post id. */
+export type PostAttachment = { bytes: Uint8Array; filename: string; contentType?: string };
+
+/** Publish a post (optional media) from a connected social account. Returns the post id. */
 export async function createPostViaUnipile(opts: {
   accountId: string;
   text: string;
+  attachments?: PostAttachment[];
 }): Promise<string> {
   const form = new FormData();
   form.append("account_id", opts.accountId);
   form.append("text", opts.text);
+  for (const a of opts.attachments ?? []) {
+    // Copy into a fresh ArrayBuffer-backed view so the Blob part type is exact.
+    form.append("attachments", new Blob([new Uint8Array(a.bytes)], { type: a.contentType || "application/octet-stream" }), a.filename);
+  }
   const res = await unipileFetch("/api/v1/posts", { method: "POST", body: form });
   if (!res.ok) {
     const detail = await res.text().catch(() => "");

@@ -350,6 +350,12 @@ export const HELP_CATEGORIES: FaqCategory[] = [
         tags: ["api keys", "smtp", "per-workspace", "tenant"],
       },
       {
+        q: "How do I schedule social posts (like Buffer/Hootsuite)?",
+        a: "Open **Social** in the sidebar. Pick which connected accounts to post to, write once (a live counter warns when you exceed the tightest network's limit), optionally attach images, then **Post now** or **Schedule** for a future date/time. Scheduled posts publish automatically within about a minute of their time. The queue below the composer shows what's scheduled (grouped by day), your drafts, and history — each post shows per-network status, so if one network fails you can **Retry** just that leg, or **Duplicate** to repost. Connect accounts first under Admin → Connections.",
+        links: [{ label: "Open Social →", href: "/social" }, { label: "Admin → Connections →", href: "/admin/connections" }],
+        tags: ["social", "schedule", "buffer", "hootsuite", "posting", "queue", "calendar"],
+      },
+      {
         q: "How do we send email and post to social?",
         a: "Admin → **Connections**. Connect your workspace's own mailbox (Gmail, Outlook, or any IMAP) and social profiles (LinkedIn, Instagram, X) through a guided pop-up — no passwords are stored in the app. Email notifications then send from your connected mailbox over HTTPS (this is the reliable path — the server blocks direct SMTP), and blog social variants gain a **Post now** button on the Distribute tab that publishes to the matching connected profile. Each company connects its own accounts; nothing is shared. A default account per type is used when you have more than one.",
         links: [{ label: "Admin → Connections →", href: "/admin/connections" }],
