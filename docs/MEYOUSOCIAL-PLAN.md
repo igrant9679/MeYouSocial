@@ -362,3 +362,32 @@ over :443, which is never blocked. It's now the primary email path.
   Until then email falls back (mock) and Post now reports "no account connected".
 - _Fixed en route:_ `SubmitButton` now merges a caller-passed `disabled` with
   the pending state (was overridable, would have re-enabled pending buttons).
+
+---
+
+## Social scheduler — Buffer/Hootsuite-style (shipped 2026-07-23, commit 200c359)
+
+Full social posting + scheduling on the Unipile connect flow.
+
+- **Schema** (migration `20260723223000`): `SocialPost` (text, mediaKeys JSON,
+  scheduledAt, status draft|scheduled|publishing|posted|partial|failed) +
+  `SocialPostTarget` (provider, unipileAccountId, per-leg status/providerPostId/
+  error). One post fans out to N accounts; each leg's status is independent.
+- **`/social`** (new nav module): `SocialComposer` (client) — multi-account
+  picker, live char counter vs the tightest selected network's limit
+  (`src/lib/social/networks.ts`: LinkedIn 3000 / X 280 / Instagram 2200,
+  IG requires media), image attachments, Post now / Schedule. Queue: Scheduled
+  grouped by day (agenda), Drafts, History — per-network status chips + Retry
+  (re-sends only non-posted legs) / Duplicate / Cancel (→draft) / Delete.
+- **Publish** (`src/lib/social/publish.ts`): `publishSocialPost` posts each
+  pending target via Unipile (media read back from storage), rolls status up.
+  `publishDueSocialPosts` atomically claims due rows (scheduled→publishing) so
+  concurrent sweeps can't double-send.
+- **Scheduler**: `instrumentation.ts` arms a dedicated social sweep (default
+  60s, `SOCIAL_SWEEP_SEC`) — tighter than the 30-min autopilot so posts fire
+  near their scheduled time. Single-replica (same caveat as autopilot).
+- `createPostViaUnipile` extended for image attachments (multipart).
+- _Needs Unipile active + a connected social account to actually post._
+- _Deferred:_ full drag-calendar (agenda ships), per-network text variants
+  (one shared body today), draft text editing (duplicate/delete workaround),
+  link-preview/first-comment, threads. Single-replica scheduler (no Redis lock).
