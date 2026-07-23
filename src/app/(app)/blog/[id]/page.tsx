@@ -324,7 +324,7 @@ export default async function BlogPostPage({
         })}
       </nav>
 
-      <div className="grid grid-cols-1 xl:grid-cols-[1fr_280px] gap-4 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_270px] gap-4 items-start">
       <div className="min-w-0">
 
       {is("distribute") && (<>

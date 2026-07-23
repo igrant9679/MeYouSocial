@@ -494,6 +494,24 @@ model ContentAuditItem {
   @@index([workspaceId, status])
 }
 
+// ---- Reports hub -------------------------------------------------------------
+// One row per (workspace, report). Stock reports exist implicitly from their
+// code-side defaults; a row appears only once someone customizes (or creates a
+// custom report), so stock defaults can keep improving without stale copies.
+model ReportConfig {
+  id            String   @id @default(cuid())
+  workspaceId   String
+  key           String   // stock key (traffic, content, …) or custom-<cuid>
+  name          String
+  description   String?
+  blocks        String   @default("[]") // JSON ordered array of block keys
+  dateRangeDays Int      @default(56)
+  isCustom      Boolean  @default(false)
+  updatedAt     DateTime @updatedAt
+
+  @@unique([workspaceId, key])
+}
+
 // Workspace-level automation kill switch + audit trail (Spark NFR auditability).
 model AutomationState {
   id          String  @id @default(cuid())

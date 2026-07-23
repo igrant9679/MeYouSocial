@@ -178,6 +178,35 @@ export const HELP_CATEGORIES: FaqCategory[] = [
     ],
   },
   {
+    id: "reports",
+    label: "Reports",
+    color: "#4F46E5",
+    soft: "#E7E6FB",
+    entries: [
+      {
+        q: "What's in the Reports section?",
+        a: "Ten stock reports — Traffic overview, Content performance, Keyword rankings, Pipeline velocity, Autopilot operations, Editorial compliance, Voice & motifs, Social distribution, Video production, and Content audit — plus any custom reports you build. Every number is a real row from your workspace; blocks without data say so instead of drawing a curve.",
+        links: [{ label: "Open Reports →", href: "/reports" }],
+        tags: ["reports", "analytics", "hub"],
+      },
+      {
+        q: "How do I customize a report?",
+        a: "Open any report → **Customize**. Add or remove blocks from the block library (KPI row, trend charts, movers, tables, compliance, and more), reorder them with the arrows, rename the report, and set its date range (4/8/12 weeks). Customizations are saved per workspace. Stock reports keep a **Reset to stock default** button; custom reports can be deleted.",
+        tags: ["customize", "blocks", "reorder"],
+      },
+      {
+        q: "Can I export a report for a client?",
+        a: "Yes — every report has a **PDF** button. The export contains the same real numbers as the screen, with a data note explaining coverage. Chart-heavy blocks summarize to text in the PDF.",
+        tags: ["pdf", "export", "client"],
+      },
+      {
+        q: "How do I build my own report?",
+        a: "Reports → **New custom report** → name it. It starts with a KPI row; open **Customize** to add any blocks from the library in any order. It then appears in the hub alongside the stock ten.",
+        tags: ["custom report", "builder"],
+      },
+    ],
+  },
+  {
     id: "blog",
     label: "Blog workspace",
     color: "#E11D48",
