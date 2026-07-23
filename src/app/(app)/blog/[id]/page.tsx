@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Check, ChevronLeft, ChevronRight, CircleAlert, ShieldCheck, Sparkles, Trash2, X } from "lucide-react";
+import { ArrowLeft, Check, ChevronLeft, ChevronRight, CircleAlert, ShieldCheck, Sparkles, Trash2, X, Send } from "lucide-react";
 import { requireMembership, canEdit, canAdmin } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { runBlogChecks, requiredChecksPass } from "@/lib/blog-checks";
@@ -84,6 +84,7 @@ import {
   deleteSocialVariantAction,
   generateSocialVariantsAction,
   setSocialVariantStatusAction,
+  postSocialVariantAction,
 } from "@/app/actions/blog-social";
 import { createVideoPackageAction } from "@/app/actions/videos";
 
@@ -121,7 +122,7 @@ export default async function BlogPostPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ tab?: string }>;
+  searchParams: Promise<{ tab?: string; social_ok?: string; social_err?: string }>;
 }) {
   const { id } = await params;
   const sp = await searchParams;
@@ -355,6 +356,16 @@ export default async function BlogPostPage({
       <div className="min-w-0">
 
       {is("distribute") && (<>
+      {sp.social_ok && (
+        <div className="card mb-4 flex items-center gap-2 text-sm" style={{ background: "var(--green-soft)", borderColor: "var(--green)" }}>
+          <Check className="w-4 h-4" style={{ color: "var(--green-on)" }} /> Posted to the connected account.
+        </div>
+      )}
+      {sp.social_err && (
+        <div className="card mb-4 flex items-center gap-2 text-sm" style={{ background: "var(--rose-soft)", borderColor: "var(--rose)" }}>
+          <CircleAlert className="w-4 h-4 shrink-0" style={{ color: "var(--rose-on)" }} /> {sp.social_err}
+        </div>
+      )}
       {/* Scheduled publishing — setting a time at final approval IS the human
           approval; autopilot (assisted or auto) publishes when due. */}
       {post.status === "final_approval" && admin && (
@@ -1286,11 +1297,17 @@ export default async function BlogPostPage({
                       </form>
                     )}
                     {editor && v.status === "approved" && (
-                      <form action={setSocialVariantStatusAction}>
-                        <input type="hidden" name="id" value={v.id} />
-                        <input type="hidden" name="status" value="posted" />
-                        <button className="btn primary">Mark posted</button>
-                      </form>
+                      <>
+                        <form action={postSocialVariantAction}>
+                          <input type="hidden" name="id" value={v.id} />
+                          <SubmitButton className="btn primary" pendingText="Posting…"><Send className="w-3.5 h-3.5" /> Post now</SubmitButton>
+                        </form>
+                        <form action={setSocialVariantStatusAction}>
+                          <input type="hidden" name="id" value={v.id} />
+                          <input type="hidden" name="status" value="posted" />
+                          <button className="btn" title="Mark posted without publishing through a connected account">Mark posted</button>
+                        </form>
+                      </>
                     )}
                     {editor && v.status !== "posted" && (
                       <form action={deleteSocialVariantAction}>

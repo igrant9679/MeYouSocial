@@ -99,21 +99,47 @@ async function buildSmtpTransport(workspaceId?: string) {
 }
 
 /**
- * Multi-tenant sender: a workspace's mail (notifications, invitations) goes
- * out through ITS SMTP credentials when configured, else the platform's.
- * App-level mail (password reset / verification) uses the bare `email` export.
+ * Multi-tenant sender. Delivery order for a workspace's mail (notifications,
+ * invitations):
+ *   1. Unipile — a connected mailbox for this workspace, sent over HTTPS. This
+ *      is the ONLY path that actually delivers on Railway (SMTP egress blocked).
+ *   2. SMTP — the workspace's own creds, else the platform's (works only where
+ *      the host permits outbound SMTP).
+ *   3. Mock — console log.
+ * App-level mail (password reset / verification) has no workspace, so it skips
+ * Unipile and uses SMTP/mock via the bare `email` export.
  */
 export function emailFor(workspaceId?: string): EmailProvider {
   return {
     async send(message) {
+      // 1) Unipile-connected mailbox (preferred; HTTPS, not blocked).
+      if (workspaceId) {
+        try {
+          const [{ unipileConfigured, sendEmailViaUnipile }, { resolveEmailSender }] = await Promise.all([
+            import("@/lib/unipile"),
+            import("@/lib/unipile/accounts"),
+          ]);
+          if (await unipileConfigured()) {
+            const sender = await resolveEmailSender(workspaceId);
+            if (sender) {
+              const id = await sendEmailViaUnipile({
+                accountId: sender.accountId,
+                to: [{ identifier: message.to }],
+                subject: message.subject,
+                html: message.html,
+              });
+              return { id };
+            }
+          }
+        } catch (e) {
+          // eslint-disable-next-line no-console
+          console.warn("[email] Unipile send failed → trying SMTP/mock:", e instanceof Error ? e.message : e);
+        }
+      }
+      // 2) SMTP (mostly a no-op on Railway) → 3) mock.
       try {
         const t = await buildSmtpTransport(workspaceId);
-        // If SMTP is configured in-app, USE it even when USE_MOCK_EMAIL=true —
-        // explicit config always wins over the global mock flag.
-        if (!t) {
-          if (env.USE_MOCK_EMAIL) return mock.send(message);
-          return mock.send(message);
-        }
+        if (!t) return mock.send(message);
         const info = await t.transport.sendMail({
           from: t.from,
           to: message.to,

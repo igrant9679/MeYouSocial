@@ -54,10 +54,11 @@ export default async function EmailSettingsPage({ searchParams }: { searchParams
       {error === "notest"  && <Banner kind="err" text="Enter a recipient address before sending a test." />}
       {error === "send"    && <Banner kind="err" text={`Test send failed: ${msg ?? "(no error message)"}.`} />}
 
-      {/* IMAP note — we only need SMTP for outbound. */}
-      <div className="card mb-4 text-xs text-[var(--mute)] leading-relaxed">
-        <p className="mb-1"><strong>Standard SMTP/IMAP mailboxes work here.</strong> Paste the mailbox&apos;s <em>SMTP</em> settings (the sending half — usually the same host your mail client uses, username = the full email address). The IMAP half isn&apos;t needed: IMAP is for <em>reading</em> mail, and MeYouSocial only sends.</p>
-        <p>Only Gmail &amp; iCloud need an <strong>app-specific password</strong>; a normal hosted mailbox uses its regular password.</p>
+      {/* Delivery reality: this host blocks outbound SMTP. Point admins at the
+          Unipile path (Admin → Connections), which sends over HTTPS. */}
+      <div className="card mb-4 text-xs leading-relaxed" style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }}>
+        <p className="mb-1"><strong>Heads-up: this server blocks outbound SMTP.</strong> Direct SMTP sends time out here regardless of the mailbox. The reliable way to send your workspace&apos;s email is to <strong>connect a mailbox under <a href="/admin/connections" className="underline">Admin → Connections</a></strong> — it sends over HTTPS (Gmail, Outlook, or any IMAP mailbox).</p>
+        <p>The SMTP form below still works if you later host somewhere that permits outbound SMTP. IMAP isn&apos;t needed — the app only sends.</p>
       </div>
 
       {/* Presets */}

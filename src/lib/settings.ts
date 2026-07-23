@@ -65,6 +65,17 @@ export async function setWorkspaceSetting(workspaceId: string, key: string, valu
   invalidateSettingsCache();
 }
 
+/** Platform-level (global) Setting write — for operator-managed infra config
+ *  (storage, Unipile) that is shared across every tenant. Empty value clears. */
+export async function setPlatformSetting(key: string, value: string): Promise<void> {
+  if (!value) {
+    await db.setting.deleteMany({ where: { key } });
+  } else {
+    await db.setting.upsert({ where: { key }, update: { value }, create: { key, value } });
+  }
+  invalidateSettingsCache();
+}
+
 export function invalidateSettingsCache() {
   cache.clear();
 }

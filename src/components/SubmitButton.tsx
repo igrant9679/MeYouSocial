@@ -10,6 +10,7 @@ export function SubmitButton({
   children,
   className = "btn primary",
   pendingText,
+  disabled,
   ...rest
 }: {
   children: React.ReactNode;
@@ -20,7 +21,9 @@ export function SubmitButton({
   return (
     <button
       type="submit"
-      disabled={pending}
+      // Disable while the action runs OR when the caller disables it — merged so
+      // a passed `disabled={false}` can't re-enable a pending button.
+      disabled={pending || Boolean(disabled)}
       aria-busy={pending}
       className={className}
       {...rest}

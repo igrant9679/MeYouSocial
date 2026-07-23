@@ -350,6 +350,12 @@ export const HELP_CATEGORIES: FaqCategory[] = [
         tags: ["api keys", "smtp", "per-workspace", "tenant"],
       },
       {
+        q: "How do we send email and post to social?",
+        a: "Admin → **Connections**. Connect your workspace's own mailbox (Gmail, Outlook, or any IMAP) and social profiles (LinkedIn, Instagram, X) through a guided pop-up — no passwords are stored in the app. Email notifications then send from your connected mailbox over HTTPS (this is the reliable path — the server blocks direct SMTP), and blog social variants gain a **Post now** button on the Distribute tab that publishes to the matching connected profile. Each company connects its own accounts; nothing is shared. A default account per type is used when you have more than one.",
+        links: [{ label: "Admin → Connections →", href: "/admin/connections" }],
+        tags: ["email", "smtp", "social", "posting", "unipile", "connections", "linkedin"],
+      },
+      {
         q: "Can we use our own logo and colors?",
         a: "Admin → **Workspace** → *Branding*: pick an accent color (presets or any hex) and upload a logo. The whole app chrome — buttons, active states, sidebar mark and menu — re-tints for members of your workspace only; other companies keep their own look. Note this styles the **app**; the brand used in generated blog content lives separately under Blog → Brand.",
         links: [{ label: "Admin → Workspace →", href: "/admin/settings" }],

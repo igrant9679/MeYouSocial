@@ -47,6 +47,7 @@ model Workspace {
   wikiDocs        WikiDoc[]
   blogPosts       BlogPost[]
   settings        WorkspaceSetting[]
+  unipileAccounts UnipileAccount[]
 }
 
 // ---- Blog (ported from Spark's article pipeline; slice 1) --------------------
@@ -1152,4 +1153,27 @@ model ChannelStat {
   capturedAt  DateTime @default(now())
 
   channel     Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
+}
+
+// Unipile-connected accounts (email + social), one row per connected mailbox or
+// social profile, scoped to the workspace that connected it. The account_id is
+// Unipile's; sending email / posting resolves the workspace's account here.
+// Platform holds ONE Unipile API key/DSN (Settings unipile:api_key / unipile:dsn)
+// under which every tenant's accounts are connected — the multi-tenant fit.
+model UnipileAccount {
+  id            String   @id @default(cuid())
+  workspaceId   String
+  accountId     String   // Unipile account id
+  kind          String   // email | social
+  provider      String   // GOOGLE | OUTLOOK | IMAP | MAIL | LINKEDIN | INSTAGRAM | X | ...
+  name          String?  // email address or social profile name (display)
+  isDefault     Boolean  @default(false) // default sender for its kind+provider
+  status        String   @default("connected") // connected | error | disconnected
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  workspace     Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, accountId])
+  @@index([workspaceId, kind])
 }
