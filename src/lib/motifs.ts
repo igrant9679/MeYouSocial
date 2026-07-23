@@ -367,10 +367,16 @@ export async function platformMotifBlock(
   articleWeights: MotifWeight[],
 ): Promise<string | null> {
   const map = await getPlatformMotifs(workspaceId);
-  const relevant = platforms.filter((p) => map[p]);
-  if (!relevant.length && !articleWeights.length) return null;
+  const mappedCount = platforms.filter((p) => map[p]).length;
+  if (!mappedCount && !articleWeights.length) return null;
   const directives = await ensureMotifDirectives(workspaceId);
   const byKey = new Map(directives.map((d) => [d.key, d]));
+  // Nothing mapped: one voice for all variants — say so plainly rather than
+  // repeating the same blend four times as if the channels differed.
+  if (!mappedCount) {
+    const line = motifBlockShort(directives, articleWeights);
+    return line ? `${line}\nWrite every variant in this voice.` : null;
+  }
   const lines = platforms
     .map((p) => {
       const weights = platformMotifWeights(map[p], articleWeights);

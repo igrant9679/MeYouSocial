@@ -1,4 +1,4 @@
-﻿-- AlterTable
+-- AlterTable
 ALTER TABLE "BlogPost" ADD COLUMN     "contentTier" INTEGER,
 ADD COLUMN     "motifs" TEXT NOT NULL DEFAULT '[]';
 
@@ -95,4 +95,3 @@ CREATE UNIQUE INDEX "PlatformMotif_workspaceId_platform_key" ON "PlatformMotif"(
 
 -- AddForeignKey
 ALTER TABLE "MotifDirectiveVersion" ADD CONSTRAINT "MotifDirectiveVersion_directiveId_fkey" FOREIGN KEY ("directiveId") REFERENCES "MotifDirective"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-

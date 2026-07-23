@@ -85,12 +85,18 @@ Audited against `docs/spark-capability-requirements_2.html` (FR-1→FR-18).
 Scorecard: 3 mostly-done (FR-1, FR-6, FR-13) · 10 partial · 5 missing.
 User approved autonomous gap closure in this order:
 
-1. **7 Motifs system (FR-2)** — editable versioned style directives, single or
-   weighted multi-select per post, per-channel mapping for social variants,
-   workspace defaults by tier/audience; wired into EVERY generation (drafts,
-   social, video packaging). Replaces the 4-option tone select. Plus brand kit
-   (colors/fonts/logo/footer credit), H1–H6 px/margin heading spec, editable
-   featured/OG image dimensions.
+1. **7 Motifs system (FR-2)** — ✅ **shipped 2026-07-22.** Editable versioned
+   directives (`MotifDirective` + `MotifDirectiveVersion`, seeded per workspace
+   from the framework, restorable/resettable), weighted multi-select per post
+   (dominant sets structure + voice, secondaries colour intro + CTA),
+   `PlatformMotif` per-channel mapping, `MotifDefault` by tier/audience with
+   most-specific-match resolution. Wired into drafting, outlining, social
+   variants, video packaging, A/B titles and meta. Replaced the 4-option tone
+   select (column kept, unused). `BrandKit` adds colours/fonts/logo/footer
+   credit/tone guardrails, the H1–H6 px + margin spec, and editable
+   featured/OG image dimensions. Admin UI at `/blog/brand`.
+   _Not yet applied:_ the heading spec is stored but only rendered at publish in
+   step 3; image dimensions are enforced by the step-2 asset gate.
 2. **Asset pipeline + gate (FR-8)** — featured + branded OG image required
    before publish (workspace dimensions, validation, crop/resize warning),
    image briefs, optional AI generation via ImageProvider behind human review,

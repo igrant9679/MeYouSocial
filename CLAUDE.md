@@ -17,6 +17,11 @@ Railway runs `prisma migrate deploy` on boot.
   `node node_modules\typescript\bin\tsc --noEmit` directly. `python`/`python3` and `uv`/`uvx`
   are installed (real Python 3.12.10).
 - Before committing: `tsc --noEmit` clean, then `npm run build`. Commit + push only when asked.
+- **Never write migration SQL with PowerShell `Out-File`/`>`** — Windows PowerShell 5.1 emits a
+  UTF-8 BOM and Postgres fails the migration with `syntax error at or near "﻿"` (cost a failed
+  deploy on 2026-07-22; recovery is `prisma migrate resolve --rolled-back <name>` against
+  `DATABASE_PUBLIC_URL` of the `Postgres-Qsxl` service, then redeploy). Use
+  `[System.IO.File]::WriteAllText(path, $sql, (New-Object System.Text.UTF8Encoding $false))`.
 - No billing/credits/payments anywhere in the app (per spec). Access = roles + optional soft limits.
 
 ## Architecture quick map
@@ -29,6 +34,11 @@ Railway runs `prisma migrate deploy` on boot.
 - **Public URL** `src/lib/public-url.ts` — `getPublicUrl()` derives the origin from the request
   host (falls back to `env.APP_URL` in background jobs). Auth.js has `trustHost: true`. This means
   **custom domains need no env changes**.
+- **Motif tone engine** `src/lib/motifs.ts` (FR-2) — the 7 Motifs are DB rows per workspace
+  (`MotifDirective`, versioned), not hard-coded prompt text. `motifPromptFor()` resolves a post's
+  weighted blend (explicit selection → `MotifDefault` by tier/audience) and renders the prompt
+  block; `platformMotifBlock()` does the per-channel mapping for social variants. Every new
+  generation surface should inject it, plus `brandGuardrailBlock()`. Admin UI: `/blog/brand`.
 - **Settings storage** — generic `Setting` table (key/value). Backs in-app API keys + SMTP config.
 - **Icons/PWA** — `src/app/icon.tsx`, `apple-icon.tsx`, `manifest.ts` generate favicon, iOS
   home-screen icon, and web manifest.
