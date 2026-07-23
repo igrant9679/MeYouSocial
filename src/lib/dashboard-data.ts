@@ -148,7 +148,7 @@ export async function homeStats(workspaceId: string): Promise<HomeStats> {
   };
 }
 
-export type FeedEvent = { at: Date; label: string; tone: "ok" | "warn" | "info" };
+export type FeedEvent = { at: Date; label: string; tone: "ok" | "warn" | "info"; href: string | null };
 
 const FEED_LABELS: Record<string, { label: string; tone: FeedEvent["tone"] }> = {
   "blog.draft_generated": { label: "Drafted a post", tone: "info" },
@@ -173,5 +173,43 @@ export async function autopilotFeed(workspaceId: string, take = 5): Promise<Feed
     at: r.createdAt,
     label: FEED_LABELS[r.action]?.label ?? r.action,
     tone: FEED_LABELS[r.action]?.tone ?? "info",
+    href: r.entityType === "blog_post" && r.entityId ? `/blog/${r.entityId}` : r.entityType === "video_render" ? "/videos" : null,
   }));
+}
+
+/**
+ * The header ticker's feed: system activity plus the human publish/approval
+ * moments, newest first. Titles are resolved so the ticker reads like news,
+ * not like log lines.
+ */
+export async function tickerEvents(workspaceId: string, take = 12): Promise<Array<{ label: string; tone: FeedEvent["tone"]; href: string | null; at: string }>> {
+  const ACTIONS: Record<string, { verb: string; tone: FeedEvent["tone"] }> = {
+    "blog.draft_generated": { verb: "AUTOPILOT drafted", tone: "info" },
+    "blog.published_wordpress": { verb: "PUBLISHED", tone: "ok" },
+    "blog.drafted_to_wordpress": { verb: "WP DRAFT", tone: "info" },
+    "blog.published": { verb: "PUBLISHED", tone: "ok" },
+    "blog.status_final_approval": { verb: "AT APPROVAL", tone: "info" },
+    "ideas.ai_discovery": { verb: "IDEAS discovered", tone: "info" },
+    "social.variants_generated": { verb: "SOCIAL queued", tone: "info" },
+    "video.rendered": { verb: "RENDERED", tone: "ok" },
+    "video.render_failed": { verb: "RENDER FAILED", tone: "warn" },
+  };
+  const rows = await db.auditLog.findMany({
+    where: { workspaceId, action: { in: Object.keys(ACTIONS) } },
+    orderBy: { createdAt: "desc" },
+    take,
+  });
+  const postIds = [...new Set(rows.filter((r) => r.entityType === "blog_post" && r.entityId).map((r) => r.entityId!))];
+  const posts = await db.blogPost.findMany({ where: { id: { in: postIds } }, select: { id: true, title: true } });
+  const titleOf = new Map(posts.map((p) => [p.id, p.title]));
+  return rows.map((r) => {
+    const meta = ACTIONS[r.action]!;
+    const title = r.entityType === "blog_post" && r.entityId ? titleOf.get(r.entityId) : undefined;
+    return {
+      label: title ? `${meta.verb} “${title.slice(0, 60)}”` : meta.verb,
+      tone: meta.tone,
+      href: r.entityType === "blog_post" && r.entityId ? `/blog/${r.entityId}` : r.entityType === "video_render" ? "/videos" : null,
+      at: r.createdAt.toISOString(),
+    };
+  });
 }

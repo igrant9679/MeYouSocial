@@ -210,6 +210,36 @@ html[data-theme="dark"] .btn.primary { background-color: var(--accent) !importan
   .anim-draw { stroke-dashoffset: 0; animation: none; }
 }
 
+/* --- Live ticker (header) --- */
+.ticker-clip { overflow: hidden; white-space: nowrap; mask-image: linear-gradient(90deg, transparent, #000 5%, #000 95%, transparent); }
+.ticker-track { display: inline-block; padding: 5px 0; animation: mys-tick 40s linear infinite; }
+.ticker-clip:hover .ticker-track { animation-play-state: paused; }
+@keyframes mys-tick { to { transform: translateX(-50%); } }
+
+/* --- Skeleton shimmer for route loading states --- */
+.shimmer { border-radius: 8px; background: linear-gradient(90deg, var(--line) 25%, var(--zebra) 50%, var(--line) 75%); background-size: 200% 100%; animation: mys-shim 1.3s linear infinite; }
+@keyframes mys-shim { to { background-position: -200% 0; } }
+
+/* --- Route-change entrance (template.tsx remounts per navigation) --- */
+.page-enter { animation: mys-page 0.18s ease-out; }
+@keyframes mys-page { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: none; } }
+
+/* --- One-shot badge pop when a count is present on mount --- */
+.badge-pop { animation: mys-pop 0.4s cubic-bezier(0.3, 1.6, 0.4, 1); }
+@keyframes mys-pop { 0% { transform: scale(0.7); } 60% { transform: scale(1.2); } 100% { transform: scale(1); } }
+
+/* Buttons settle under the pointer */
+.btn:active { transform: scale(0.97); }
+
+@media (prefers-reduced-motion: reduce) {
+  .ticker-track { animation: none; }
+  .shimmer { animation: none; }
+  .page-enter { animation: none; }
+  .badge-pop { animation: none; }
+  .btn:active { transform: none; }
+  .lift, .lift:hover, .lift:active { transform: none; transition: none; }
+}
+
 /* --- Accessibility: visible keyboard focus + reduced-motion (P0) --- */
 :where(a, button, input, select, textarea, [tabindex]):focus-visible {
   outline: 2px solid var(--accent);

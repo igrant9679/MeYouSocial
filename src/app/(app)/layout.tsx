@@ -2,6 +2,8 @@ import Link from "next/link";
 import { Bell, LogOut, Layers, User } from "lucide-react";
 import { unreadCount } from "@/lib/notify";
 import { BrandLogo } from "@/components/BrandLogo";
+import { LiveTicker } from "@/components/LiveTicker";
+import { tickerEvents } from "@/lib/dashboard-data";
 import { signOut } from "@/auth";
 import { getActiveChannel } from "@/lib/channel";
 import { setActiveChannelAction } from "@/app/actions/channel";
@@ -36,7 +38,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const { user, workspace, membership, channels, active } = await getActiveChannel();
   const userLabel = user.name ?? user.email.split("@")[0];
   const navItems = NAV.filter((n) => !n.adminOnly || membership.role === "ADMIN");
-  const unread = await unreadCount(workspace.id, user.id);
+  const [unread, ticker] = await Promise.all([
+    unreadCount(workspace.id, user.id),
+    tickerEvents(workspace.id, 12),
+  ]);
 
   return (
     <div className="flex-1 flex min-h-screen">
@@ -99,6 +104,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             <Layers className="w-4 h-4" /> + Channel
           </Link>
           <Link href="/channels" className="btn hidden md:inline-flex" title="Manage all channels">Manage channels</Link>
+          <LiveTicker initial={ticker} />
           <div className="flex-1" />
           <Link
             href="/notifications"
@@ -109,7 +115,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             <Bell className="w-[21px] h-[21px]" strokeWidth={2.25} />
             {unread > 0 && (
               <span
-                className="absolute -top-0.5 -right-0.5 min-w-[17px] h-[17px] px-1 rounded-full text-[10px] font-mono font-bold grid place-items-center"
+                className="badge-pop absolute -top-0.5 -right-0.5 min-w-[17px] h-[17px] px-1 rounded-full text-[10px] font-mono font-bold grid place-items-center"
                 style={{ background: "var(--brand, #E5482F)", color: "#fff" }}
               >
                 {unread > 9 ? "9+" : unread}

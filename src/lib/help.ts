@@ -299,6 +299,16 @@ export const HELP_CATEGORIES: FaqCategory[] = [
         tags: ["theme", "dark mode", "light mode"],
       },
       {
+        q: "What's the LIVE ticker in the header?",
+        a: "Real activity from your workspace — autopilot drafts, publishes, queued social variants, render results — scrolling in the top bar. Hover to pause it; click any item to jump to that post. It refreshes every minute and only ever shows events that actually happened. Under reduced-motion it holds still with the newest event visible.",
+        tags: ["ticker", "live", "activity", "header"],
+      },
+      {
+        q: "How do I make everything on screen bigger?",
+        a: "Profile → Settings → **Content size** — Standard, Large, or Extra large. It scales the whole interface (text, buttons, charts) instantly.",
+        tags: ["size", "zoom", "accessibility", "large text"],
+      },
+      {
         q: "What keyboard shortcuts exist?",
         a: "**Ctrl/⌘+/** — Open the Prompt Library in chat.\n**Esc** — Close any modal (Prompt Library, Improve dialog).\nForm fields support Tab and Shift+Tab as expected.",
         tags: ["shortcuts", "keyboard"],
