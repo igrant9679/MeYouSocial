@@ -324,7 +324,34 @@ export default async function BlogPostPage({
         })}
       </nav>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_270px] gap-4 items-start">
+      {/* Collapsed gates strip — when the sidebar doesn't fit (narrow viewport
+          OR XL content-size shrinking effective width), the publish contract
+          stays one glance away instead of vanishing into the Review tab. */}
+      <Link
+        href={`/blog/${post.id}?tab=review`}
+        className="@6xl:hidden card !p-2.5 mb-4 flex items-center gap-2 text-[12px] font-semibold hover:border-[var(--accent)] transition-colors"
+        title="Open the Review tab for gate details"
+      >
+        <ShieldCheck className="w-4 h-4 shrink-0" style={{ color: gatesPass ? "var(--green-on)" : "var(--amber-on)" }} />
+        <span className="font-mono uppercase tracking-wider text-[var(--mute)] text-[11px]">Gates</span>
+        <span className="font-mono text-[11px]" style={{ color: gatesPass ? "var(--green-on)" : undefined }}>
+          {checks.filter((c) => c.required && c.pass).length}/{checks.filter((c) => c.required).length} pass
+        </span>
+        <span className="flex-1" />
+        {gatesPass ? (
+          <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: "var(--green-soft)", color: "var(--green-on)" }}>ready</span>
+        ) : (
+          <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: "var(--rose-soft)", color: "var(--rose-on)" }}>
+            {checks.filter((c) => c.required && !c.pass).length} blocking
+          </span>
+        )}
+        <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "var(--panel)", color: "var(--mute)" }}>score {score.total}</span>
+      </Link>
+
+      {/* Sidebar breakpoint matches the aside below — previously the grid
+          reserved its 270px column from lg while the aside only appeared at
+          xl, leaving a phantom empty column between the two. */}
+      <div className="grid grid-cols-1 @6xl:grid-cols-[1fr_270px] gap-4 items-start">
       <div className="min-w-0">
 
       {is("distribute") && (<>
@@ -1338,7 +1365,7 @@ export default async function BlogPostPage({
       </div>
 
       {/* Gates sidebar — the publish contract, visible from every tab. */}
-      <aside className="hidden xl:block sticky top-14">
+      <aside className="hidden @6xl:block sticky top-14">
         <div className="card !p-3.5">
           <div className="flex items-center gap-2 mb-2">
             <ShieldCheck className="w-4 h-4" style={{ color: gatesPass ? "var(--green-on)" : "var(--amber-on)" }} />

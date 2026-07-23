@@ -44,17 +44,21 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   ]);
 
   return (
-    <div className="flex-1 flex min-h-screen">
-      <aside className="w-64 left-rail border-r border-[var(--line)] hidden md:flex flex-col gap-1 py-4 px-3 flex-shrink-0 relative z-40">
+    // @container: the rail + header adapt to EFFECTIVE width (container queries
+    // measure the zoom-scaled space, viewport breakpoints don't — the XL
+    // content-size setting shrinks effective width ~18% without moving any
+    // media query). Below ~72rem effective the rail collapses to icons.
+    <div className="flex-1 flex min-h-screen @container">
+      <aside className="w-[68px] @6xl:w-64 left-rail border-r border-[var(--line)] hidden md:flex flex-col gap-1 py-4 px-2 @6xl:px-3 flex-shrink-0 relative z-40 transition-[width] duration-200 motion-reduce:transition-none">
         <Link
           href="/dashboard"
-          className="flex items-center gap-2.5 px-2 py-1.5 mb-2 rounded-xl"
+          className="flex items-center justify-center @6xl:justify-start gap-2.5 px-0 @6xl:px-2 py-1.5 mb-2 rounded-xl"
           title="MeYouSocial · Home"
         >
           <span className="flex-shrink-0 shadow-lg shadow-[#15181D]/25 rounded-xl">
             <BrandLogo size={38} />
           </span>
-          <span className="font-mono font-bold text-[17px] tracking-tight">MeYouSocial</span>
+          <span className="font-mono font-bold text-[17px] tracking-tight hidden @6xl:inline">MeYouSocial</span>
         </Link>
 
         <LeftRailNav items={navItems} />
@@ -63,8 +67,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <div className="mt-auto flex flex-col gap-1 pt-2 border-t border-[var(--line)]">
           <Link
             href="/settings"
-            className="flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-semibold min-h-[44px] text-[var(--slate)] hover:bg-[var(--zebra)] transition-colors"
+            className="flex items-center justify-center @6xl:justify-start gap-3 px-0 @6xl:px-3 py-2 rounded-xl text-sm font-semibold min-h-[44px] text-[var(--slate)] hover:bg-[var(--zebra)] transition-colors"
             aria-label={`Open ${userLabel}'s settings`}
+            title={`${userLabel} · Settings`}
           >
             <span
               className="w-7 h-7 rounded-lg text-white grid place-items-center flex-shrink-0"
@@ -73,15 +78,15 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             >
               <User className="w-[16px] h-[16px]" strokeWidth={2.25} />
             </span>
-            <span className="truncate">{userLabel}</span>
+            <span className="truncate hidden @6xl:inline">{userLabel}</span>
           </Link>
           <form action={signOutAction}>
             <button
               title="Sign out"
-              className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-semibold min-h-[44px] text-[var(--mute)] hover:text-[var(--brand)] hover:bg-[var(--brand-soft)] transition-colors"
+              className="w-full flex items-center justify-center @6xl:justify-start gap-3 px-0 @6xl:px-3 py-2 rounded-xl text-sm font-semibold min-h-[44px] text-[var(--mute)] hover:text-[var(--brand)] hover:bg-[var(--brand-soft)] transition-colors"
             >
               <LogOut className="w-[18px] h-[18px] flex-shrink-0" strokeWidth={2.25} />
-              Sign out
+              <span className="hidden @6xl:inline">Sign out</span>
             </button>
           </form>
         </div>
@@ -92,7 +97,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <div className="md:hidden">
             <MobileNav items={navItems} userLabel={userLabel} signOutAction={signOutAction} />
           </div>
-          <Link href="/channels" className="font-mono font-bold text-[15px] tracking-tight hover:text-[var(--accent)] transition truncate max-w-[40vw] md:max-w-none" title="Manage workspace channels">
+          <Link href="/channels" className="font-mono font-bold text-[15px] tracking-tight hover:text-[var(--accent)] transition truncate max-w-[40vw] md:max-w-[200px] @6xl:max-w-none" title="Manage workspace channels">
             {workspace.name}
           </Link>
           {active && (
@@ -100,10 +105,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               <ChannelSelect channels={channels} activeId={active.id} />
             </form>
           )}
-          <Link href="/onboarding/channel/new" className="btn hidden md:inline-flex items-center gap-1.5" title="Create a new YouTube channel">
+          {/* Priority order under shrinking effective width: ticker and email
+              drop first, then the redundant buttons ("Manage channels" repeats
+              the workspace-name link; "+ Channel" lives on /channels too). */}
+          <Link href="/onboarding/channel/new" className="btn hidden @4xl:inline-flex items-center gap-1.5" title="Create a new YouTube channel">
             <Layers className="w-4 h-4" /> + Channel
           </Link>
-          <Link href="/channels" className="btn hidden md:inline-flex" title="Manage all channels">Manage channels</Link>
+          <Link href="/channels" className="btn hidden @6xl:inline-flex" title="Manage all channels">Manage channels</Link>
           <LiveTicker initial={ticker} />
           <div className="flex-1" />
           <Link
@@ -122,8 +130,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               </span>
             )}
           </Link>
-          <span className="font-mono text-[12px] uppercase tracking-wider font-bold px-2.5 py-1.5 rounded-lg" style={{ background: "var(--accent-soft)", color: "var(--accent-on)" }}>{membership.role}</span>
-          <span className="hidden md:inline text-[13px] text-[var(--mute)]">{user.email}</span>
+          <span className="hidden @md:inline-block font-mono text-[12px] uppercase tracking-wider font-bold px-2.5 py-1.5 rounded-lg" style={{ background: "var(--accent-soft)", color: "var(--accent-on)" }}>{membership.role}</span>
+          <span className="hidden @6xl:inline text-[13px] text-[var(--mute)] truncate max-w-[24ch]">{user.email}</span>
         </header>
 
         <main className="flex-1 overflow-auto bg-[var(--panel)] p-6">{children}</main>
