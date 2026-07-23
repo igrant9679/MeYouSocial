@@ -22,6 +22,9 @@ Railway runs `prisma migrate deploy` on boot.
   deploy on 2026-07-22; recovery is `prisma migrate resolve --rolled-back <name>` against
   `DATABASE_PUBLIC_URL` of the `Postgres-Qsxl` service, then redeploy). Use
   `[System.IO.File]::WriteAllText(path, $sql, (New-Object System.Text.UTF8Encoding $false))`.
+- **Commit messages with quotes need `git commit -F <file>`** — a PowerShell 5.1 here-string
+  (`@'…'@`) passed to `git commit -m` breaks on double quotes in the body and git reads the
+  remainder as a pathspec. Write the message to a scratch file and use `-F`.
 - No billing/credits/payments anywhere in the app (per spec). Access = roles + optional soft limits.
 
 ## Architecture quick map
