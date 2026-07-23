@@ -76,3 +76,40 @@ for colored chips); no billing/payments; DB-first key resolution; mock fallback
 means "it works" ≠ "key is live"; `tsc --noEmit` + `npm run build` before every
 commit. Spark's truthfulness + human-gate guardrails apply to all ported and new
 generation surfaces.
+
+---
+
+## FR gap-closure plan (added 2026-07-22 — NEXT MANDATE)
+
+Audited against `docs/spark-capability-requirements_2.html` (FR-1→FR-18).
+Scorecard: 3 mostly-done (FR-1, FR-6, FR-13) · 10 partial · 5 missing.
+User approved autonomous gap closure in this order:
+
+1. **7 Motifs system (FR-2)** — editable versioned style directives, single or
+   weighted multi-select per post, per-channel mapping for social variants,
+   workspace defaults by tier/audience; wired into EVERY generation (drafts,
+   social, video packaging). Replaces the 4-option tone select. Plus brand kit
+   (colors/fonts/logo/footer credit), H1–H6 px/margin heading spec, editable
+   featured/OG image dimensions.
+2. **Asset pipeline + gate (FR-8)** — featured + branded OG image required
+   before publish (workspace dimensions, validation, crop/resize warning),
+   image briefs, optional AI generation via ImageProvider behind human review,
+   alt-text (exists).
+3. **Publish fidelity (FR-7/FR-11/FR-6)** — Squirrly/RankMath/Yoast field
+   mapping, canonical + OG fields, slug conventions, external-link suggestion,
+   publisher notes; WP categories/tags/author, featured-image upload,
+   draft-in-WP handoff, heading-spec styling; LSI house template
+   (question-reframe intro, mindset-shift takeaway, CTA) + track-based length
+   defaults (cornerstone 2000+, supporting 1200–1800).
+4. **SME profiles (FR-3)** + idea-engine depth (FR-5: priority scoring,
+   auto-tagging, dedupe-vs-published, merge, kanban board, seasonal hooks).
+5. **Notifications (FR-16 in-app + email via existing SMTP)** + check depth
+   (FR-9 descriptive-link-text/labels; FR-10 anti-slop tone/filler checks,
+   reviewer assignment, inline comments).
+6. **Larger / externally gated:** FR-15 content audit (site crawl + slop
+   detection), FR-18 design-system rendering (Gutenberg/Fusion mapping),
+   GSC/GA4 connectors, Uniple, Nifty, Microsoft SSO, MFA.
+
+Conventions unchanged: dual-push (origin + deploy), tsc exit-checked + build
+before push, offline migrations via `prisma migrate diff`, mock-first seams,
+truthfulness rules on every new generation surface.

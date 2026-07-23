@@ -1,0 +1,1073 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spark — Capability Requirements | LSI Media</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#343433;          /* primary gray */
+  --ink-2:#4A4A47;
+  --nav:#0A3A56;          /* deep brand blue (dark surfaces) */
+  --nav-2:#072B40;
+  --blue:#0D5A84;         /* primary blue */
+  --blue-bright:#1A7AAB;
+  --cyan:#B1D4E0;         /* brand light blue accent */
+  --cyan-deep:#0D5A84;
+  --spark:#C4571C;        /* brand orange accent / CTA */
+  --spark-soft:#E6A877;
+  --yellow:#F8CF40;       /* brand yellow */
+  --lightblue:#B1D4E0;
+  --paper:#EFF3FA;        /* brand light surface */
+  --paper-2:#E2EAF4;
+  --card:#FFFFFF;
+  --line:#D6E0EC;
+  --line-2:#C2CFDF;
+  --muted:#6B6F74;
+  --muted-2:#9AA3AD;
+  --white:#fff;
+  --ok:#0D5A84;           /* success -> primary blue (no green in brand) */
+  --warn:#C4571C;         /* warn -> orange */
+  --shadow:0 1px 2px rgba(52,52,51,.05),0 8px 28px rgba(13,90,132,.08);
+  --shadow-lg:0 18px 60px rgba(13,90,132,.16);
+  --radius:16px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  font-family:'Quicksand',system-ui,sans-serif;
+  color:var(--ink);
+  background:var(--paper);
+  line-height:1.62;
+  -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3,h4{font-family:'Kollektif','Quicksand',sans-serif;line-height:1.15;letter-spacing:-.02em;color:var(--ink)}
+.mono{font-family:'Quicksand',monospace}
+a{color:var(--blue)}
+
+/* ---------- Layout ---------- */
+.wrap{display:grid;grid-template-columns:264px 1fr;max-width:1340px;margin:0 auto;align-items:start}
+@media(max-width:980px){.wrap{grid-template-columns:1fr}.sidenav{display:none}}
+
+/* ---------- Side nav ---------- */
+.sidenav{position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--line);background:linear-gradient(180deg,#0A3A56,#072B40);padding:26px 18px 40px}
+.brandmark{display:flex;align-items:center;gap:10px;margin-bottom:22px;padding:0 6px}
+.spark-dot{width:30px;height:30px;border-radius:9px;background:conic-gradient(from 210deg,#C4571C,#F8CF40,#0D5A84,#B1D4E0,#C4571C);box-shadow:0 0 0 1px rgba(255,255,255,.14),0 6px 18px rgba(196,87,28,.35);position:relative;flex:none}
+.spark-dot::after{content:"";position:absolute;inset:7px;background:var(--nav);border-radius:4px}
+.brandmark .nm{color:#fff;font-family:'Kollektif','Quicksand';font-weight:700;font-size:1.12rem;letter-spacing:-.02em}
+.brandmark .sub{color:var(--cyan);font-size:.62rem;letter-spacing:.22em;text-transform:uppercase;font-family:'Quicksand'}
+.sidenav .navlabel{color:var(--muted-2);font-size:.62rem;letter-spacing:.2em;text-transform:uppercase;margin:18px 8px 8px;font-family:'Quicksand'}
+.sidenav a{display:block;color:#c7d6ea;text-decoration:none;font-size:.86rem;padding:7px 10px;border-radius:8px;transition:.16s}
+.sidenav a:hover{background:rgba(255,255,255,.06);color:#fff}
+.sidenav a .n{color:var(--cyan);font-family:'Quicksand';font-size:.72rem;margin-right:8px}
+
+/* ---------- Main ---------- */
+main{min-width:0;padding:0 0 90px}
+.section{padding:46px 54px;border-bottom:1px solid var(--line);scroll-margin-top:10px}
+@media(max-width:980px){.section{padding:34px 22px}}
+.section:nth-child(even){background:var(--paper)}
+.kicker{font-family:'Quicksand';font-size:.7rem;letter-spacing:.22em;text-transform:uppercase;color:var(--cyan-deep);font-weight:600;margin-bottom:10px;display:flex;align-items:center;gap:10px}
+.kicker::before{content:"";width:26px;height:2px;background:var(--spark);display:inline-block}
+h2.sec{font-size:1.95rem;margin-bottom:6px}
+.section .lead{color:var(--muted);font-size:1.04rem;max-width:760px;margin-bottom:8px}
+p{margin:12px 0;max-width:880px}
+.section h3{font-size:1.2rem;margin:30px 0 8px}
+.section h4{font-size:1rem;margin:18px 0 4px}
+ul,ol{margin:10px 0 10px 4px;padding-left:22px;max-width:880px}
+li{margin:5px 0}
+
+/* ---------- Cover ---------- */
+.cover{background:radial-gradient(1100px 560px at 78% -8%,rgba(177,212,224,.22),transparent 60%),radial-gradient(800px 500px at -5% 110%,rgba(196,87,28,.20),transparent 55%),linear-gradient(160deg,#0A3A56,#072B40 100%);background-color:#0A3A56;color:#eaf1fb;padding:66px 54px 56px;border-bottom:none;position:relative;overflow:hidden}
+.cover::before{content:"";position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.05) 1px,transparent 1px);background-size:42px 42px;mask-image:radial-gradient(700px 380px at 80% 0,#000,transparent 75%);opacity:.5}
+.cover>*{position:relative;z-index:1}
+.cover .tag{display:inline-flex;gap:8px;align-items:center;font-family:'Quicksand';font-size:.7rem;letter-spacing:.2em;text-transform:uppercase;color:var(--cyan);border:1px solid rgba(16,190,207,.4);padding:6px 14px;border-radius:30px;margin-bottom:24px}
+.cover h1{color:#fff;font-size:3.5rem;font-weight:800;line-height:1.02;margin-bottom:8px}
+@media(max-width:980px){.cover h1{font-size:2.3rem}.cover{padding:46px 22px}}
+.cover h1 .grad{background:linear-gradient(100deg,var(--cyan),var(--spark-soft));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.cover .deck{color:#b9c9de;font-size:1.18rem;max-width:680px;margin:14px 0 30px}
+.cover .meta{display:flex;flex-wrap:wrap;gap:14px 34px;border-top:1px solid rgba(255,255,255,.13);padding-top:22px;margin-top:6px}
+.cover .meta div{min-width:120px}
+.cover .meta .k{font-family:'Quicksand';font-size:.64rem;letter-spacing:.16em;text-transform:uppercase;color:var(--muted-2)}
+.cover .meta .v{color:#fff;font-weight:600;font-size:.94rem;margin-top:3px}
+.pipeline-strip{display:flex;flex-wrap:wrap;gap:8px;margin-top:30px}
+.pipeline-strip span{font-family:'Quicksand';font-size:.72rem;color:#cfe0f2;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);padding:7px 12px;border-radius:8px}
+.pipeline-strip span b{color:var(--cyan);font-weight:600}
+
+/* ---------- Components ---------- */
+.grid{display:grid;gap:16px}
+.cols-2{grid-template-columns:1fr 1fr}
+.cols-3{grid-template-columns:repeat(3,1fr)}
+.cols-4{grid-template-columns:repeat(4,1fr)}
+@media(max-width:880px){.cols-2,.cols-3,.cols-4{grid-template-columns:1fr}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:20px 22px;box-shadow:var(--shadow)}
+.card h4{margin-top:0}
+.card .ico{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;font-family:'Quicksand';font-weight:600;color:#fff;background:linear-gradient(135deg,var(--blue),var(--blue-bright));margin-bottom:10px;font-size:.9rem}
+.pill{display:inline-block;font-family:'Quicksand';font-size:.68rem;letter-spacing:.04em;padding:3px 9px;border-radius:20px;border:1px solid var(--line-2);color:var(--muted);background:var(--paper-2)}
+.pill.spark{color:#a3471a;background:#fff1e7;border-color:#ffd2b3}
+.pill.cyan{color:#0D5A84;background:#E7F1F6;border-color:#CDE2EA}
+.pill.blue{color:var(--blue);background:#E7F0F7;border-color:#C2D6E8}
+.pill.ok{color:#7A5E00;background:#FDF3CF;border-color:#F3E08F}
+
+table{width:100%;border-collapse:collapse;margin:16px 0;font-size:.9rem;background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+th{background:var(--ink);color:#fff;text-align:left;padding:11px 14px;font-family:'Kollektif','Quicksand';font-weight:600;font-size:.82rem;letter-spacing:.01em}
+td{padding:11px 14px;border-top:1px solid var(--line);vertical-align:top}
+tr:nth-child(even) td{background:var(--paper-2)}
+td .mono{font-size:.82rem;color:var(--ink-2)}
+
+.note{border-left:3px solid var(--spark);background:#fff7f1;padding:14px 18px;border-radius:0 10px 10px 0;margin:18px 0;font-size:.93rem}
+.note b{color:#a3471a}
+.note.blue{border-color:var(--blue);background:#EAF2F7}
+.note.blue b{color:var(--cyan-deep)}
+
+.fr{border:1px solid var(--line);border-radius:14px;padding:18px 20px;margin:14px 0;background:var(--card);box-shadow:var(--shadow)}
+.fr .frhead{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:8px}
+.fr .frid{font-family:'Quicksand';font-weight:600;color:#fff;background:var(--blue);padding:4px 10px;border-radius:7px;font-size:.78rem;flex:none}
+.fr .frtitle{font-family:'Kollektif','Quicksand';font-weight:600;font-size:1.06rem}
+.fr ul{margin-top:6px}
+
+.story{border:1px solid var(--line);border-left:4px solid var(--cyan);border-radius:10px;padding:14px 18px;margin:12px 0;background:var(--card)}
+.story .who{font-family:'Quicksand';font-size:.72rem;text-transform:uppercase;letter-spacing:.1em;color:var(--cyan-deep);margin-bottom:4px}
+.story .txt{font-size:.96rem}
+.story .ac{font-size:.84rem;color:var(--muted);margin-top:7px;border-top:1px dashed var(--line-2);padding-top:7px}
+.story .ac b{color:var(--ink)}
+
+/* ---------- Motif chips ---------- */
+.motif-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-top:16px}
+.motif{border-radius:14px;padding:16px 16px 15px;color:#fff;position:relative;overflow:hidden;min-height:120px;box-shadow:var(--shadow)}
+.motif h4{color:#fff;font-size:1.04rem;margin-bottom:3px}
+.motif p{color:rgba(255,255,255,.9);font-size:.82rem;margin:4px 0 0;max-width:none}
+.motif .num{position:absolute;top:10px;right:14px;font-family:'Quicksand';font-size:1.4rem;font-weight:600;opacity:.32}
+.m1{background:linear-gradient(135deg,#0A3A56,#0D5A84)}
+.m2{background:linear-gradient(135deg,#9C4416,#C4571C)}
+.m3{background:linear-gradient(135deg,#B1D4E0,#8FBED0)}
+.m4{background:linear-gradient(135deg,#343433,#4A4A47)}
+.m5{background:linear-gradient(135deg,#0D5A84,#343433)}
+.m6{background:linear-gradient(135deg,#F8CF40,#EBBE1F)}
+.m7{background:linear-gradient(135deg,#13688F,#0D5A84)}
+.motif.lt h4{color:#343433}.motif.lt p{color:rgba(52,52,51,.82)}.motif.lt .num{color:#343433;opacity:.3}
+
+/* ---------- Mockups ---------- */
+.mockwrap{margin:22px 0 10px}
+.mockcap{font-family:'Quicksand';font-size:.74rem;letter-spacing:.06em;color:var(--muted);margin:0 0 10px;text-transform:uppercase}
+.mockcap b{color:var(--spark);}
+.screen{border:1px solid var(--line-2);border-radius:16px;overflow:hidden;box-shadow:var(--shadow-lg);background:#fff}
+.s-top{display:flex;align-items:center;gap:8px;background:var(--ink);padding:10px 14px}
+.s-top .dot{width:10px;height:10px;border-radius:50%}
+.s-top .r{background:#ff5f56}.s-top .y{background:#ffbd2e}.s-top .g{background:#27c93f}
+.s-top .url{margin-left:12px;font-family:'Quicksand';font-size:.72rem;color:#9fb3cc;background:rgba(255,255,255,.07);padding:4px 12px;border-radius:6px;flex:1}
+.s-body{display:flex;min-height:300px;background:var(--paper)}
+.s-side{width:188px;background:#0A3A56;color:#cdddf0;padding:16px 12px;flex:none}
+.s-side .ws{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);border-radius:9px;padding:8px 10px;margin-bottom:16px;font-size:.78rem;font-weight:600;color:#fff}
+.s-side .ws .av{width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--spark),var(--cyan));flex:none}
+.s-side .nav i{display:block;font-style:normal;font-size:.8rem;padding:7px 10px;border-radius:7px;margin-bottom:2px;color:#aebfd6}
+.s-side .nav i.on{background:rgba(177,212,224,.20);color:#fff;border:1px solid rgba(177,212,224,.42)}
+.s-main{flex:1;padding:18px 20px;min-width:0}
+.s-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;gap:10px;flex-wrap:wrap}
+.s-h h5{font-family:'Kollektif','Quicksand';font-size:1.1rem;font-weight:700}
+.s-btn{font-family:'Kollektif','Quicksand';font-size:.76rem;font-weight:600;color:#fff;background:var(--spark);border:none;padding:8px 14px;border-radius:8px}
+.s-btn.ghost{background:transparent;color:var(--blue);border:1px solid var(--line-2)}
+.s-btn.blue{background:var(--blue)}
+.kanban{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.kcol{background:var(--paper-2);border:1px solid var(--line);border-radius:10px;padding:9px}
+.kcol .kt{font-family:'Quicksand';font-size:.66rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:8px;display:flex;justify-content:space-between}
+.kcard{background:#fff;border:1px solid var(--line);border-radius:8px;padding:9px 10px;margin-bottom:8px;box-shadow:0 1px 2px rgba(10,26,51,.05)}
+.kcard .kti{font-size:.76rem;font-weight:600;line-height:1.3;margin-bottom:6px}
+.kcard .ktags{display:flex;gap:4px;flex-wrap:wrap}
+.tg{font-family:'Quicksand';font-size:.6rem;padding:2px 6px;border-radius:5px;background:var(--paper-2);border:1px solid var(--line-2);color:var(--muted)}
+.tg.t4{background:#fff1e7;color:#a3471a;border-color:#ffd2b3}
+.tg.np{background:#E7F1F6;color:#0D5A84;border-color:#CDE2EA}
+.tg.sc{font-weight:600;background:#E7F0F7;color:var(--blue);border-color:#C2D6E8}
+.editor{display:grid;grid-template-columns:1fr 230px;gap:14px}
+@media(max-width:680px){.editor{grid-template-columns:1fr}.kanban{grid-template-columns:1fr 1fr}.s-side{display:none}}
+.doc{background:#fff;border:1px solid var(--line);border-radius:10px;padding:16px 18px}
+.doc .h1l{height:13px;width:75%;background:var(--ink);border-radius:4px;margin-bottom:5px;opacity:.85}
+.doc .ln{height:7px;background:#dde7f2;border-radius:4px;margin:6px 0}
+.doc .ln.s{width:90%}.doc .ln.m{width:97%}.doc .ln.x{width:60%}
+.doc .h2l{height:9px;width:42%;background:var(--blue);border-radius:4px;margin:16px 0 8px;opacity:.8}
+.panel{background:var(--paper-2);border:1px solid var(--line);border-radius:10px;padding:12px}
+.panel .pt{font-family:'Quicksand';font-size:.64rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.panel .pt::before{content:"";width:8px;height:8px;border-radius:2px;background:var(--cyan)}
+.field{background:#fff;border:1px solid var(--line);border-radius:7px;padding:6px 9px;margin-bottom:7px;font-size:.7rem}
+.field .fl{font-family:'Quicksand';font-size:.58rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.field .fv{font-size:.74rem;color:var(--ink);font-weight:500}
+.meter{height:6px;border-radius:4px;background:#e1e9f3;overflow:hidden;margin-top:3px}
+.meter b{display:block;height:100%;background:linear-gradient(90deg,var(--cyan),var(--ok));border-radius:4px}
+.motchips{display:flex;gap:5px;flex-wrap:wrap;margin-top:4px}
+.motchips .mc{font-family:'Quicksand';font-size:.6rem;padding:3px 8px;border-radius:20px;border:1px solid var(--line-2);color:var(--muted);background:#fff}
+.motchips .mc.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.motchips .mc.on.sp{background:var(--spark);border-color:var(--spark)}
+.statline{display:flex;gap:8px;align-items:center;font-size:.72rem;color:var(--muted);margin-top:8px}
+.check{color:var(--ok);font-weight:700}
+.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}
+.metric{background:#fff;border:1px solid var(--line);border-radius:10px;padding:11px 13px}
+.metric .mv{font-family:'Kollektif','Quicksand';font-size:1.4rem;font-weight:700;color:var(--ink)}
+.metric .ml{font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-family:'Quicksand'}
+.metric .md{font-size:.66rem;font-weight:600;margin-top:2px}
+.metric .md.up{color:var(--ok)}
+.bars{display:flex;align-items:flex-end;gap:10px;height:120px;padding:12px;background:#fff;border:1px solid var(--line);border-radius:10px}
+.bars .bar{flex:1;background:linear-gradient(180deg,var(--cyan),var(--blue));border-radius:5px 5px 0 0;position:relative}
+.bars .bar span{position:absolute;bottom:-18px;left:0;right:0;text-align:center;font-size:.58rem;color:var(--muted);font-family:'Quicksand'}
+.soc{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.soc .scard{background:#fff;border:1px solid var(--line);border-radius:10px;padding:11px}
+.soc .sh{display:flex;align-items:center;gap:7px;font-size:.74rem;font-weight:600;margin-bottom:7px}
+.soc .si{width:20px;height:20px;border-radius:5px;flex:none}
+.soc .li{background:#0a66c2}.soc .x{background:#111}.soc .ig{background:linear-gradient(135deg,#f58529,#dd2a7b,#8134af)}
+.soc .stext{font-size:.66rem;color:var(--muted);line-height:1.5}
+.soc .smeta{font-family:'Quicksand';font-size:.58rem;color:var(--cyan-deep);margin-top:7px}
+
+.flow{display:flex;flex-wrap:wrap;gap:0;align-items:stretch;margin:18px 0;counter-reset:fl}
+.flow .step{flex:1;min-width:130px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;position:relative;margin:6px}
+.flow .step .sn{font-family:'Quicksand';font-size:.66rem;color:var(--cyan-deep);font-weight:600}
+.flow .step h4{font-size:.92rem;margin:4px 0 3px}
+.flow .step p{font-size:.78rem;color:var(--muted);margin:0;max-width:none}
+.statediag{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:16px 0}
+.state{font-family:'Quicksand';font-size:.74rem;padding:8px 12px;border-radius:9px;background:var(--card);border:1px solid var(--line-2);font-weight:500}
+.state.idea{border-color:#C2D6E8;background:#E7F0F7;color:var(--blue)}
+.state.draft{border-color:#CDE2EA;background:#EAF2F7;color:#0D5A84}
+.state.review{border-color:#ffd2b3;background:#fff1e7;color:#a3471a}
+.state.live{border-color:#F3E08F;background:#FDF3CF;color:#7A5E00}
+.arrow{color:var(--muted-2);font-weight:700}
+.modes{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:14px}
+@media(max-width:760px){.modes{grid-template-columns:1fr}.metrics{grid-template-columns:1fr 1fr}.kanban{grid-template-columns:1fr 1fr}.soc{grid-template-columns:1fr}}
+.mode{border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--card);box-shadow:var(--shadow)}
+.mode .mh{padding:12px 16px;color:#fff;font-family:'Kollektif','Quicksand';font-weight:600;display:flex;align-items:center;gap:9px}
+.mode.man .mh{background:var(--ink-2)}
+.mode.sch .mh{background:var(--blue)}
+.mode.aut .mh{background:linear-gradient(120deg,var(--spark),#9C4416)}
+.mode .mb{padding:14px 16px;font-size:.86rem}
+.mode .mb b{color:var(--ink)}
+
+.footer{padding:34px 54px;color:var(--muted);font-size:.82rem;text-align:center}
+.footer .spark-dot{display:inline-block;vertical-align:middle;margin-right:8px}
+.legend{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0}
+.swatch{display:flex;align-items:center;gap:7px;font-family:'Quicksand';font-size:.7rem;color:var(--muted);border:1px solid var(--line);padding:5px 10px;border-radius:8px;background:#fff}
+.swatch i{width:16px;height:16px;border-radius:4px;display:block}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- ============ SIDE NAV ============ -->
+<nav class="sidenav">
+  <div class="brandmark">
+    <div class="spark-dot"></div>
+    <div>
+      <div class="nm">Spark</div>
+      <div class="sub">LSI Media</div>
+    </div>
+  </div>
+  <div class="navlabel">Document</div>
+  <a href="#summary"><span class="n">01</span>Executive Summary</a>
+  <a href="#scope"><span class="n">02</span>Scope &amp; Pipeline</a>
+  <a href="#motifs"><span class="n">03</span>7 Motifs Tone Engine</a>
+  <a href="#tenancy"><span class="n">04</span>Workspaces &amp; Access</a>
+  <div class="navlabel">Requirements</div>
+  <a href="#functional"><span class="n">05</span>Functional Requirements</a>
+  <a href="#stories"><span class="n">06</span>User Stories</a>
+  <a href="#workflow"><span class="n">07</span>Workflow &amp; Approvals</a>
+  <div class="navlabel">Design</div>
+  <a href="#mockups"><span class="n">08</span>Screen Mockups</a>
+  <a href="#ideas"><span class="n">09</span>Ideas &amp; Enhancements</a>
+  <div class="navlabel">Delivery</div>
+  <a href="#nfr"><span class="n">10</span>Non-Functional</a>
+  <a href="#integrations"><span class="n">11</span>Integrations</a>
+  <a href="#decisions"><span class="n">12</span>Open Decisions</a>
+  <a href="#roadmap"><span class="n">13</span>Phased Roadmap</a>
+</nav>
+
+<main>
+
+<!-- ============ COVER ============ -->
+<header class="cover">
+  <div class="tag">◆ Capability Requirements · v0.1 Draft</div>
+  <h1>Spark<br><span class="grad">Content &amp; SEO Engine</span></h1>
+  <p class="deck">An end-to-end, multi-workspace platform for AI-assisted blog ideation, motif-driven writing, SEO optimization, accessibility, WordPress publishing, and social distribution — built to run manually, on a schedule, or autonomously.</p>
+  <div class="pipeline-strip">
+    <span><b>Ideate</b></span><span><b>Personalize</b></span><span><b>Generate</b></span><span><b>Optimize</b></span><span><b>Assets</b></span><span><b>Review</b></span><span><b>Publish</b></span><span><b>Distribute</b></span><span><b>Analyze</b></span>
+  </div>
+  <div class="meta">
+    <div><div class="k">Prepared for</div><div class="v">LSI Media LLC</div></div>
+    <div><div class="k">Stakeholders</div><div class="v">Idris &amp; Sabine Grant</div></div>
+    <div><div class="k">Date</div><div class="v">May 31, 2026</div></div>
+    <div><div class="k">Status</div><div class="v">Requirements Draft</div></div>
+    <div><div class="k">Tone Engine</div><div class="v">7 Motifs™</div></div>
+  </div>
+</header>
+
+<!-- ============ 01 SUMMARY ============ -->
+<section class="section" id="summary">
+  <div class="kicker">01 · Executive Summary</div>
+  <h2 class="sec">A content engine that sounds like LSI Media — at scale</h2>
+  <p class="lead">Spark turns the agency's manual, interview-driven article process into a repeatable system that produces highly personalized, expert-level content — never generic AI filler — and carries it all the way from idea to published post to social distribution.</p>
+
+  <p>Today, producing one strong article requires a founder to sit through a 10-question voice interview so the writing reflects real expertise. That produces excellent results but cannot be delegated or scaled. Spark solves this by capturing each subject-matter expert's knowledge <b>once</b> into a reusable profile, grounding every draft in the agency's real credentials, case studies, and keyword strategy, and shaping the voice through the proprietary <b>7 Motifs™</b> framework.</p>
+
+  <p>The platform is multi-tenant from day one: LSI Media runs as the first workspace, and the same engine can be offered to clients as a managed service, each with isolated branding, strategy, keyword data, and connected sites.</p>
+
+  <div class="grid cols-3" style="margin-top:18px">
+    <div class="card"><div class="ico">SME</div><h4>Personalized, not generic</h4><p style="font-size:.9rem;color:var(--muted)">SME profiles + real credentials (DHS Trusted Tester, PMP, MBE, Adobe Partner) ground every draft in defensible expertise.</p></div>
+    <div class="card"><div class="ico">7M</div><h4>Motif-driven voice</h4><p style="font-size:.9rem;color:var(--muted)">Select from the 7 Motifs to dictate tone — Visionary, Sincere, Competitive, and more — per article and per channel.</p></div>
+    <div class="card"><div class="ico">⟳</div><h4>Manual → Autonomous</h4><p style="font-size:.9rem;color:var(--muted)">Run a single piece by hand, schedule a monthly cadence, or let Spark operate the full pipeline with approval gates.</p></div>
+  </div>
+
+  <h3>Primary objectives</h3>
+  <ul>
+    <li><b>Eliminate the bottleneck</b> — replace the per-article interview with stored SME knowledge that answers "as the expert would."</li>
+    <li><b>Protect brand authority</b> — enforce a hard "never fabricate a statistic, study, or citation" rule; cite only verified, retrieved sources.</li>
+    <li><b>Operationalize the SEO strategy</b> — the four-tier keyword model and page-mapping workbook become the app's living configuration, not a static file.</li>
+    <li><b>Close the loop to publishing</b> — generate the article, the Squirrly/Rank Math/Yoast SEO fields, accessible markup, image specs, and push to WordPress.</li>
+    <li><b>Distribute, don't stop at publish</b> — auto-derive motif-aligned social variants for LinkedIn, X, Instagram and Facebook.</li>
+    <li><b>Measure and feed back</b> — pull GSC/GA4 performance to prioritize the next ideas and flag underperformers, while shielding posts that already rank.</li>
+  </ul>
+
+  <h3>Explicit non-goals (for v1)</h3>
+  <ul>
+    <li>Not a replacement for Google Search Console as the source of truth for rankings/indexation.</li>
+    <li>Not a full DAM or video editor — it briefs and slots assets, it doesn't replace creative production.</li>
+    <li>Not a paid-ads manager — organic content and organic social only.</li>
+    <li>Not an autonomous publisher <em>without</em> approval gates unless a workspace explicitly opts in per content type.</li>
+  </ul>
+</section>
+
+<!-- ============ 02 SCOPE ============ -->
+<section class="section" id="scope">
+  <div class="kicker">02 · Scope &amp; Pipeline</div>
+  <h2 class="sec">Nine stages, one continuous loop</h2>
+  <p class="lead">Every piece of content flows through the same pipeline. Each stage can be automated, assisted, or fully manual, and each can require human approval before the next begins.</p>
+
+  <div class="flow">
+    <div class="step"><div class="sn">STAGE 1</div><h4>Ideate</h4><p>Mine customer questions, keywords, gaps &amp; trends into a scored idea board.</p></div>
+    <div class="step"><div class="sn">STAGE 2</div><h4>Personalize</h4><p>Pull the relevant SME profile, case studies &amp; credentials for the topic.</p></div>
+    <div class="step"><div class="sn">STAGE 3</div><h4>Generate</h4><p>Draft in the chosen motif voice with correct heading structure.</p></div>
+    <div class="step"><div class="sn">STAGE 4</div><h4>Optimize</h4><p>Produce SEO fields for the selected plugin; build internal links from page mapping.</p></div>
+    <div class="step"><div class="sn">STAGE 5</div><h4>Assets</h4><p>Brief/generate OG + featured images at correct dimensions; alt text.</p></div>
+    <div class="step"><div class="sn">STAGE 6</div><h4>Review</h4><p>Anti-slop &amp; accessibility checks; human approval gates by role.</p></div>
+    <div class="step"><div class="sn">STAGE 7</div><h4>Publish</h4><p>Push to WordPress with schema, canonical, accessible markup.</p></div>
+    <div class="step"><div class="sn">STAGE 8</div><h4>Distribute</h4><p>Motif-aligned social variants, scheduled per platform.</p></div>
+    <div class="step"><div class="sn">STAGE 9</div><h4>Analyze</h4><p>GSC/GA4 performance feeds the next round of ideas.</p></div>
+  </div>
+
+  <div class="note blue"><b>Design principle (from the brand):</b> "Marketing first, design second, technology third." Spark enforces this order — strategy and motif drive the content; SEO and accessibility shape its structure; publishing mechanics come last.</div>
+</section>
+
+<!-- ============ 03 MOTIFS ============ -->
+<section class="section" id="motifs">
+  <div class="kicker">03 · The 7 Motifs™ Tone Engine</div>
+  <h2 class="sec">Motif selection dictates voice &amp; tone</h2>
+  <p class="lead">LSI Media's 7 Motifs™ framework maps emotional and rational appeals into communications to "ignite the spark" between a brand and its customers. In Spark, the chosen motif(s) directly steer the writing voice, the angle, the calls-to-action, and the social copy.</p>
+
+  <div class="motif-grid">
+    <div class="motif m1"><span class="num">01</span><h4>Visionary</h4><p>Thought leadership &amp; forward-thinking ideas that position the brand as a game changer.</p></div>
+    <div class="motif m2"><span class="num">02</span><h4>Competitive</h4><p>Creates urgency by showing how the brand beats alternatives on price, benefits &amp; features.</p></div>
+    <div class="motif m3 lt"><span class="num">03</span><h4>Succinct</h4><p>Directness — essential information upfront so the reader never has to hunt for it.</p></div>
+    <div class="motif m4"><span class="num">04</span><h4>Sincere</h4><p>Authenticity — focused on solving real pain points rather than simply selling.</p></div>
+    <div class="motif m5"><span class="num">05</span><h4>Exclusive</h4><p>Makes the reader feel significant and special through a VIP, insider tone.</p></div>
+    <div class="motif m6 lt"><span class="num">06</span><h4>Social</h4><p>Builds community around shared values and invites the reader to "join" a cause.</p></div>
+    <div class="motif m7"><span class="num">07</span><h4>Informative</h4><p>Positions the brand as a consultative knowledge resource that educates.</p></div>
+  </div>
+
+  <h3>How motifs operate inside Spark</h3>
+  <ul>
+    <li><b>Multi-select with weighting</b> — a piece can blend motifs (e.g. 70% Informative + 30% Visionary). The dominant motif sets structure; secondary motifs color the CTA and intro.</li>
+    <li><b>Per-channel motif mapping</b> — the article may be Informative while its social variants lean Social, mirroring how the framework already shifts the "Social" motif onto social media.</li>
+    <li><b>Workspace defaults + per-idea override</b> — each workspace sets default motifs by content tier/audience; authors override per article.</li>
+    <li><b>Prompt translation</b> — each motif maps to a concrete, versioned style directive (voice, sentence rhythm, evidence type, CTA pattern) injected into the generation prompt — editable by admins, not hard-coded.</li>
+    <li><b>Motif A/B testing</b> — optionally generate two motif treatments of the same idea and compare downstream engagement (see Ideas).</li>
+  </ul>
+
+  <table>
+    <tr><th>Motif</th><th>Voice signature</th><th>Best-fit content</th><th>Typical CTA</th></tr>
+    <tr><td><b>Visionary</b></td><td>Bold, future-facing, big-picture</td><td>Trend pieces, AI-search/GEO, "state of" articles</td><td>"See what's next / book a strategy call"</td></tr>
+    <tr><td><b>Competitive</b></td><td>Direct, comparative, confident</td><td>"Why choose / vs." buyer guides</td><td>"Compare us / get a quote"</td></tr>
+    <tr><td><b>Succinct</b></td><td>Tight, scannable, answer-first</td><td>How-to, checklists, FAQs</td><td>"Get the checklist"</td></tr>
+    <tr><td><b>Sincere</b></td><td>Warm, candid, problem-led</td><td>Nonprofit content, pain-point explainers</td><td>"Let's talk through it"</td></tr>
+    <tr><td><b>Exclusive</b></td><td>Insider, premium</td><td>Case studies, gated guides</td><td>"Request access"</td></tr>
+    <tr><td><b>Social</b></td><td>Inclusive, values-driven</td><td>Community, mission, association content</td><td>"Join the conversation"</td></tr>
+    <tr><td><b>Informative</b></td><td>Consultative, evidence-based</td><td>Cornerstone guides, Section 508 / WCAG, capability statements</td><td>"See our services"</td></tr>
+  </table>
+</section>
+
+<!-- ============ 04 TENANCY ============ -->
+<section class="section" id="tenancy">
+  <div class="kicker">04 · Workspaces &amp; Access</div>
+  <h2 class="sec">Multiple companies, isolated by workspace</h2>
+  <p class="lead">Each company/website is a workspace with its own brand kit, motif defaults, keyword strategy, SME profiles, connected WordPress site, and social accounts. Users sign in once and switch between the workspaces they're entitled to.</p>
+
+  <h3>Roles &amp; permissions</h3>
+  <table>
+    <tr><th>Role</th><th>Can do</th><th>Cannot do</th></tr>
+    <tr><td><b>Owner / Admin</b></td><td>Everything: workspace settings, integrations, motif/prompt config, publish, approve, manage users</td><td>—</td></tr>
+    <tr><td><b>Strategist</b></td><td>Manage keyword strategy, ideas, schedule, approve drafts &amp; SEO</td><td>Manage billing/users, edit integrations</td></tr>
+    <tr><td><b>Editor / Author</b></td><td>Create &amp; edit drafts, run generation, request approval</td><td>Final publish approval, change integrations</td></tr>
+    <tr><td><b>SME / Contributor</b></td><td>Maintain own knowledge profile, answer prompts, comment</td><td>Publish, edit strategy</td></tr>
+    <tr><td><b>Client Reviewer</b></td><td>Review &amp; approve/reject assigned items, comment</td><td>Edit content, see other workspaces</td></tr>
+    <tr><td><b>Viewer</b></td><td>Read content &amp; analytics</td><td>Any write action</td></tr>
+  </table>
+
+  <div class="note"><b>Security guardrails:</b> account creation, password entry, and granting third-party access are performed by the user, not automated by Spark. OAuth connections to WordPress, Google (GSC/GA4) and social platforms are initiated by an Owner/Admin and stored as scoped, revocable tokens per workspace.</div>
+
+  <h3>Per-workspace configuration</h3>
+  <div class="grid cols-3">
+    <div class="card"><h4>Brand kit</h4><p style="font-size:.88rem;color:var(--muted)">Logo, color tokens, fonts, OG/featured image dimensions, footer credit, tone guardrails.</p></div>
+    <div class="card"><h4>Motif defaults</h4><p style="font-size:.88rem;color:var(--muted)">Default motif mix per content tier &amp; audience; editable motif→prompt directives.</p></div>
+    <div class="card"><h4>Keyword strategy</h4><p style="font-size:.88rem;color:var(--muted)">The 4-tier model, master keyword list, page mapping &amp; internal-link graph.</p></div>
+    <div class="card"><h4>SME profiles</h4><p style="font-size:.88rem;color:var(--muted)">Per-expert knowledge, credentials, opinions, case studies, do/don't list.</p></div>
+    <div class="card"><h4>Connected site</h4><p style="font-size:.88rem;color:var(--muted)">WordPress endpoint, SEO plugin choice, URL/slug rules, page inventory.</p></div>
+    <div class="card"><h4>Channels &amp; PM</h4><p style="font-size:.88rem;color:var(--muted)">Social accounts, Nifty project, notification routing, schedules.</p></div>
+  </div>
+</section>
+
+<!-- ============ 05 FUNCTIONAL ============ -->
+<section class="section" id="functional">
+  <div class="kicker">05 · Functional Requirements</div>
+  <h2 class="sec">What the system must do</h2>
+  <p class="lead">Grouped by module. Each requirement is testable; IDs are stable references for build tickets.</p>
+
+  <div class="fr"><div class="frhead"><span class="frid">FR-1</span><span class="frtitle">Authentication &amp; Workspaces</span></div>
+  <ul>
+    <li>Secure login with email/password + optional SSO (Google/Microsoft) and MFA.</li>
+    <li>A user may belong to many workspaces with different roles; a workspace switcher is always available.</li>
+    <li>Strict data isolation between workspaces; no cross-workspace data leakage in search, generation, or analytics.</li>
+    <li>Admins invite users by email and assign roles; account creation/passwords handled by the invitee.</li>
+  </ul></div>
+
+  <div class="fr"><div class="frhead"><span class="frid">FR-2</span><span class="frtitle">Brand, Typography &amp; Motif Configuration</span></div>
+  <ul>
+    <li>Store a brand kit per workspace (colors, fonts, logo, footer credit).</li>
+    <li><b>Heading / title style spec</b> — per workspace, define each heading level (H1–H6) with: font <b>pixel size</b>, <b>top margin (px)</b>, and <b>bottom margin (px)</b> (and optionally font family, weight, line-height, color). These are <em>article-scoped</em> visual styles, set independently of the theme's site-wide heading sizes (which are often oversized for heroes), so articles read correctly while the semantic H-tag order is always preserved.</li>
+    <li><b>Editable image dimensions</b> — per workspace, enter the pixel dimensions for the <b>featured image</b> (e.g. 1920×1080) and the <b>Open Graph image</b> (default 1200×630); both are editable fields, not fixed.</li>
+    <li><b>Design-system rendering profile</b> — choose how content renders on the connected site: Avada/Fusion Builder elements, Gutenberg blocks, or clean semantic HTML (see FR-18).</li>
+    <li>Manage the 7 Motifs as editable style directives; set workspace defaults by tier &amp; audience.</li>
+    <li>Allow per-article motif selection (single or weighted multi-select) and per-channel motif mapping.</li>
+  </ul></div>
+
+  <div class="fr"><div class="frhead"><span class="frid">FR-3</span><span class="frtitle">SME Knowledge Profiles</span></div>
+  <ul>
+    <li>One-time structured intake per expert (the former 10-question interview) capturing experience, expertise, opinions, case studies, examples, and "things we always/never say."</li>
+    <li>Support voice and text intake; version profiles over time.</li>
+    <li>Ingest existing sources to seed knowledge: website content, services agreement, portfolio, prior articles.</li>
+    <li>At generation time, select the relevant SME profile(s) so drafts answer "as the expert would."</li>
+  </ul></div>
+
+  <div class="fr"><div class="frhead"><span class="frid">FR-4</span><span class="frtitle">Keyword &amp; Strategy Workbook</span></div>
+  <ul>
+    <li>Hold the 4-tier keyword model, master keyword list, page mapping, and blog content ideas as living data (import existing workbook).</li>
+    <li>Each keyword carries tier, service, audience, intent, and target page; volume/difficulty fields populated only from real research integrations — never invented.</li>
+    <li>On-demand keyword research and scheduled list refresh (add/swap on a set interval) covering primary &amp; secondary phrases.</li>
+    <li>Maintain the internal-link graph derived from page mapping for use during optimization.</li>
+  </ul></div>
+
+  <div class="fr"><div class="frhead"><span class="frid">FR-5</span><span class="frtitle">Idea Engine</span></div>
+  <ul>
+    <li>Discover ideas from: customer-question sources (People-Also-Ask, AlsoAsked-style, community questions), the keyword workbook gaps, competitor gaps, calendar/seasonal hooks, and analytics signals.</li>
+    <li>Auto-tag each idea with tier, audience, target service page, suggested motif(s), and a priority score.</li>
+    <li>De-duplicate against existing published posts; flag refresh candidates instead of net-new where appropriate.</li>
+    <li>Present ideas on a board; allow manual add, edit, merge, approve, reject, and "send to draft."</li>
+  </ul></div>
+
+  <div class="fr"><div class="frhead"><span class="frid">FR-6</span><span class="frtitle">Content Generation</span></div>
+  <ul>
+    <li>Generate long-form drafts following the house template: question-reframing intro, sectioned body, "mindset shift" takeaway, CTA, and (where claims exist) a verified sources list.</li>
+    <li>Enforce correct semantic heading hierarchy (one H1, ordered H2/H3) independent of visual styling.</li>
+    <li>Apply the selected motif voice and ground content in the SME profile + workspace facts.</li>
+    <li>Respect track-based length targets (cornerstone 2,000+, service-supporting 1,200–1,800).</li>
+    <li><b>Hard rule:</b> never fabricate statistics, studies, quotes, or citations. Claims requiring evidence must be backed by a retrieved, linkable source or flagged for human sourcing.</li>
+  </ul></div>
+
+  <div class="fr"><div class="frhead"><span class="frid">FR-7</span><span class="frtitle">SEO Optimization</span></div>
+  <ul>
+    <li>Produce the full SEO field set: URL slug, title (primary + fallback, ≤60 ch), meta description (≤155 ch), focus keyword, secondary keywords, canonical, OG title/description/image spec.</li>
+    <li>Output mapped to the workspace's chosen plugin: <b>Squirrly</b>, <b>Rank Math</b>, or <b>Yoast</b> (field-name translation per plugin).</li>
+    <li>Apply slug convention rules per content type (blog vs service page) from one canonical setting.</li>
+    <li>Suggest 2–3 internal links (with anchor text) from the page-mapping graph + one credible external link.</li>
+    <li>Generate "Notes for the publisher": focus-keyword rationale, content tier, internal-link targets, cornerstone guidance.</li>
+  </ul></div>
+
+  <div class="fr"><div class="frhead"><span class="frid">FR-8</span><span class="frtitle">Asset Generation &amp; Image Requirements</span></div>
+  <ul>
+    <li><b>Every article requires two images: a featured image and a branded Open Graph image.</b> Publishing is blocked until both exist at the workspace-defined pixel dimensions, each with alt text.</li>
+    <li>Produce an image brief for the OG image (workspace-set dimensions, default 1200×630, branded, anti-stock guidance) and the featured image (workspace-set dimensions, e.g. 1920×1080) — dimensions are pulled from the editable fields in FR-2.</li>
+    <li>The OG image is always branded (logo/lockup) for social/search previews; in-body and featured images stay clean unless the workspace opts into branding them.</li>
+    <li>Validate that supplied/generated images match the required pixel dimensions; warn on mismatch and offer crop/resize to spec.</li>
+    <li>Optional AI image generation behind a per-workspace toggle, always routed through human review (quality concern documented).</li>
+    <li>Generate descriptive alt text for every meaningful image; mark decorative images with empty alt.</li>
+  </ul></div>
+
+  <div class="fr"><div class="frhead"><span class="frid">FR-9</span><span class="frtitle">Accessibility (WCAG 2.1 AA)</span></div>
+  <ul>
+    <li>Validate heading order, descriptive link text (no "click here"), alt-text presence, and labeled elements before publish.</li>
+    <li>Flag color-contrast and structure issues; integrate with the workspace accessibility checker (e.g. Equalize Digital) where connected.</li>
+    <li>Block or warn on publish when AA checks fail, per workspace policy.</li>
+  </ul></div>
+
+  <div class="fr"><div class="frhead"><span class="frid">FR-10</span><span class="frtitle">Review &amp; Approval Workflow</span></div>
+  <ul>
+    <li>Configurable multi-stage approval (draft → SEO → assets → final) with role-based gates and reviewer assignment.</li>
+    <li>Automated "anti-slop" pre-checks: unsupported claims, generic filler, off-brand tone, missing SME grounding, accessibility failures.</li>
+    <li>Inline comments, change requests, version history, and audit trail of who approved what and when.</li>
+    <li>Two-way status sync with Nifty (Planned → Doing/In&nbsp;Process → For&nbsp;Review → Done) via its API.</li>
+  </ul></div>
+
+  <div class="fr"><div class="frhead"><span class="frid">FR-11</span><span class="frtitle">WordPress Publishing</span></div>
+  <ul>
+    <li>Publish/schedule posts via the WordPress REST API to the workspace's connected site.</li>
+    <li><b>Apply correct semantic heading hierarchy</b> — one H1, ordered H2/H3/H4 — and style each level using the workspace heading spec (px size + top/bottom margins from FR-2), so article headings render at article-appropriate sizes while keeping accessible, SEO-valid tag order.</li>
+    <li><b>Render with the workspace's design-system elements</b> — checklists with checkmarks, content/callout boxes, styled quotes, alerts, FAQ toggles, buttons and separators rather than flat text (see FR-18).</li>
+    <li>Write SEO plugin fields, canonical, schema, and OG tags; set the featured image and branded OG image (FR-8).</li>
+    <li>Set categories, tags, author, and publish date; support draft-in-WP handoff.</li>
+    <li>Respect existing URL/redirect rules; never overwrite a higher-performing existing post without explicit confirmation.</li>
+  </ul></div>
+
+  <div class="fr"><div class="frhead"><span class="frid">FR-12</span><span class="frtitle">Social Distribution (via Uniple)</span></div>
+  <ul>
+    <li>Auto-derive platform-specific variants (LinkedIn, X, Instagram, Facebook) from the published article, in the channel's mapped motif.</li>
+    <li>Respect per-platform length, hashtag, and link conventions; attach the correct image size per network.</li>
+    <li><b>Publish &amp; schedule through Uniple</b> — Spark owns variant generation, motif mapping, per-platform formatting, and approval; <b>Uniple</b> is the integration layer that handles the actual scheduling and posting to each network and manages the per-network account connections/tokens. Spark holds a single Uniple connection per workspace instead of four separate network integrations.</li>
+    <li>On approval, push the scheduled variants to Uniple; reflect post status back into the workflow (→ Distributed) and, where Uniple exposes it, pull basic engagement back into analytics.</li>
+    <li>Fallback: queue for manual posting or export if a network/asset type isn't supported by Uniple.</li>
+  </ul>
+  <div class="note" style="margin:10px 0 0"><b>To confirm:</b> Uniple's exact supported networks, scheduling API, media/asset constraints, and whether it returns post status &amp; engagement — these drive the connector spec and shouldn't be assumed.</div></div>
+
+  <div class="fr"><div class="frhead"><span class="frid">FR-13</span><span class="frtitle">Automation &amp; Scheduling</span></div>
+  <ul>
+    <li>Three run modes per content type: <b>Manual</b>, <b>Scheduled</b>, and <b>Autonomous</b>.</li>
+    <li>Editorial calendar with cadence rules (e.g. one cornerstone + two supporting per month).</li>
+    <li>Guardrails: spend caps, max auto-publishes per period, mandatory human gate toggles, and a global pause/kill switch.</li>
+  </ul></div>
+
+  <div class="fr"><div class="frhead"><span class="frid">FR-14</span><span class="frtitle">Analytics &amp; Feedback Loop</span></div>
+  <ul>
+    <li>Connect GSC &amp; GA4; show clicks, impressions, position, organic sessions, and conversions per post.</li>
+    <li>Track rankings for priority keywords; surface movers and underperformers.</li>
+    <li>Feed performance back into the Idea Engine to prioritize topics and identify refresh candidates.</li>
+    <li>Flag and protect top-performing existing posts from disruptive rewrites.</li>
+  </ul></div>
+
+  <div class="fr"><div class="frhead"><span class="frid">FR-15</span><span class="frtitle">Existing-Content Audit</span></div>
+  <ul>
+    <li>Crawl the connected site and cross-reference GSC to inventory existing posts by performance.</li>
+    <li>Detect low-quality / "AI slop" content and propose rewrite, merge, or retire — never auto-deleting.</li>
+    <li>Preserve URLs and ranking history; recommend redirects rather than breaking links.</li>
+  </ul></div>
+
+  <div class="fr"><div class="frhead"><span class="frid">FR-16</span><span class="frtitle">Notifications &amp; Integrations</span></div>
+  <ul>
+    <li>Configurable notifications (in-app, email, Slack) for approvals, publishes, failures, and schedule events.</li>
+    <li>Nifty task creation/updates throughout the workflow; GSC/GA4, WordPress, social, and keyword-research connectors.</li>
+  </ul></div>
+
+  <div class="fr"><div class="frhead"><span class="frid">FR-17</span><span class="frtitle">YouTube &amp; Competitor Intelligence</span><span class="pill spark">Idea source</span></div>
+  <ul>
+    <li><b>Trend &amp; topic research</b> — surface demand signals from YouTube: trending and fast-rising videos in the workspace's niche, video titles/tags/descriptions, YouTube search autocomplete, and "suggested/also-watched" clusters, all mined into draftable blog topics.</li>
+    <li><b>Question mining from comments</b> — extract recurring questions and pain points from comments on high-performing videos in the niche, as aggregate themes (no harvesting or profiling of individual commenters).</li>
+    <li><b>Competitor channel tracking</b> — register competitor channels and monitor their most-viewed and most-recent videos, upload cadence, and topic mix to read what themes they're investing in.</li>
+    <li><b>Gap analysis</b> — flag topics competitors cover (or that are trending) where the workspace has no equivalent content, scored as content opportunities.</li>
+    <li><b>Velocity signal</b> — contribute a "trend velocity" factor to the idea score, treated as a <em>leading</em> indicator that must be validated against real search data before commitment (never invented).</li>
+    <li><b>Cross-purpose output</b> — because the workspace may also produce video, YouTube-sourced ideas can be tagged for blog, video, or both, and flow into the repurposing pipeline (article ↔ video).</li>
+    <li><b>Compliance</b> — use the official YouTube Data API within quota; no scraping that violates platform terms; deeper historical/competitor metrics may require an approved third-party provider (flagged, not faked).</li>
+  </ul></div>
+
+  <div class="fr"><div class="frhead"><span class="frid">FR-18</span><span class="frtitle">Design-System Rendering Profile</span><span class="pill spark">High value</span></div>
+  <ul>
+    <li>Published articles must look hand-built in the site's design system — not pasted as flat text. Spark maps content patterns in the draft to native theme components.</li>
+    <li><b>Avada / Fusion Builder element library</b> (when the workspace uses Avada): render lists of benefits/steps as <b>checklists with checkmark icons</b>; tips/notes/callouts as <b>content boxes</b> or alerts; key statements as <b>styled quotes / pullquotes</b>; FAQ sections as <b>toggles (accordions)</b>; CTAs as <b>Avada buttons</b>; and section breaks as <b>separators</b>.</li>
+    <li><b>Configurable mapping rules</b> per workspace — which content pattern maps to which element, with sensible defaults, editable by an admin.</li>
+    <li><b>Theme abstraction</b> — the same article renders as Fusion elements for an Avada site, Gutenberg blocks for a block-theme site, or clean semantic HTML elsewhere, selected by the workspace's rendering profile (FR-2).</li>
+    <li><b>Accessibility preserved</b> — design elements never override semantic structure: checkmark lists remain real lists, toggles remain keyboard-operable, and heading order stays valid regardless of visual styling.</li>
+    <li>Apply the workspace heading style spec (px sizes + top/bottom margins) to the rendered output so typography matches the brand within the article context.</li>
+  </ul></div>
+</section>
+
+<!-- ============ 06 STORIES ============ -->
+<section class="section" id="stories">
+  <div class="kicker">06 · User Stories</div>
+  <h2 class="sec">Told from each role's point of view</h2>
+
+  <h3>Strategist / Owner (Sabine)</h3>
+  <div class="story"><div class="who">As a strategist</div><div class="txt">I want to set default motifs by audience and tier so that every generated article already sounds right before I touch it.</div><div class="ac"><b>Accepts when:</b> a Tier-4 nonprofit idea auto-selects Sincere + Informative, and I can override per article.</div></div>
+  <div class="story"><div class="who">As a strategist</div><div class="txt">I want the keyword workbook to live inside the app so that ideas, pages, and internal links all draw from one current source.</div><div class="ac"><b>Accepts when:</b> editing a keyword's target page updates the internal-link suggestions in new drafts.</div></div>
+  <div class="story"><div class="who">As an owner</div><div class="txt">I want a hard rule against invented stats so that nothing under our name fabricates a study or number.</div><div class="ac"><b>Accepts when:</b> a claim without a retrieved source is blocked and flagged for sourcing, not published.</div></div>
+
+  <h3>SME / Founder (Idris)</h3>
+  <div class="story"><div class="who">As an SME</div><div class="txt">I want to record my expertise once so that I'm not re-interviewed for every article.</div><div class="ac"><b>Accepts when:</b> after completing my profile, drafts on my topics reflect my opinions and DR/cloud examples without new questions.</div></div>
+  <div class="story"><div class="who">As an SME</div><div class="txt">I want to be pinged only when a draft genuinely needs my input so that my time is used sparingly.</div><div class="ac"><b>Accepts when:</b> the system asks me a targeted question only when confidence on a claim is low.</div></div>
+
+  <h3>Editor / Author</h3>
+  <div class="story"><div class="who">As an editor</div><div class="txt">I want to generate a draft from an approved idea and see the SEO panel fill in live so that writing and optimization happen together.</div><div class="ac"><b>Accepts when:</b> title/meta char counts, focus keyword, and internal links populate and validate as I edit.</div></div>
+  <div class="story"><div class="who">As an editor</div><div class="txt">I want to switch the SEO output to Rank Math for a client workspace so that the fields match their plugin.</div><div class="ac"><b>Accepts when:</b> changing the plugin re-labels/reshapes the exported fields correctly.</div></div>
+
+  <h3>Client Reviewer</h3>
+  <div class="story"><div class="who">As a client reviewer</div><div class="txt">I want to approve or request changes on only my items so that I review quickly without seeing other clients.</div><div class="ac"><b>Accepts when:</b> I see a filtered queue and my decision advances the workflow and notifies the team.</div></div>
+
+  <h3>The System (Autonomous mode)</h3>
+  <div class="story"><div class="who">As the system</div><div class="txt">I want to run the monthly cadence end-to-end and stop at the configured human gate so that output is consistent but never unsupervised where it matters.</div><div class="ac"><b>Accepts when:</b> ideas are generated, drafted, optimized, asset-briefed, and parked at "Final Approval" with a Nifty card created.</div></div>
+  <div class="story"><div class="who">As the system</div><div class="txt">I want to publish and then schedule social variants so that distribution follows automatically once approved.</div><div class="ac"><b>Accepts when:</b> on publish, channel variants are queued in their mapped motif and await approval per policy.</div></div>
+</section>
+
+<!-- ============ 07 WORKFLOW ============ -->
+<section class="section" id="workflow">
+  <div class="kicker">07 · Workflow &amp; Approvals</div>
+  <h2 class="sec">Manual, scheduled, or autonomous — same states, different triggers</h2>
+
+  <h3>Content lifecycle states</h3>
+  <div class="statediag">
+    <span class="state idea">Idea</span><span class="arrow">→</span>
+    <span class="state idea">Approved Idea</span><span class="arrow">→</span>
+    <span class="state draft">Drafting</span><span class="arrow">→</span>
+    <span class="state review">Draft Review</span><span class="arrow">→</span>
+    <span class="state review">SEO &amp; A11y Review</span><span class="arrow">→</span>
+    <span class="state review">Assets Pending</span><span class="arrow">→</span>
+    <span class="state review">Final Approval</span><span class="arrow">→</span>
+    <span class="state live">Scheduled</span><span class="arrow">→</span>
+    <span class="state live">Published</span><span class="arrow">→</span>
+    <span class="state live">Distributed</span><span class="arrow">→</span>
+    <span class="state live">Analyzing</span>
+  </div>
+  <p style="font-size:.9rem;color:var(--muted)">Each transition maps to a Nifty status (Planned → Doing/In Process → For Review → Done) and emits notifications. Any gate can be set to auto-pass or require a named role.</p>
+
+  <h3>The three run modes</h3>
+  <div class="modes">
+    <div class="mode man"><div class="mh">▶ Manual</div><div class="mb"><b>Human-driven, step by step.</b> An author picks an idea, triggers generation, edits, optimizes, and clicks through each gate. Spark assists; the human decides every transition. Best for high-stakes flagship pieces.</div></div>
+    <div class="mode sch"><div class="mh">◷ Scheduled</div><div class="mb"><b>Cadence-driven.</b> The calendar fires jobs (e.g. "draft next cornerstone on the 1st"). Spark advances the piece to the first human gate and waits. Best for a reliable monthly rhythm with oversight.</div></div>
+    <div class="mode aut"><div class="mh">⚡ Autonomous</div><div class="mb"><b>Goal-driven, within guardrails.</b> Spark ideates, drafts, optimizes, briefs assets, and either parks at Final Approval or — if a workspace opts in per content type — publishes and distributes. Spend caps and a kill switch always apply.</div></div>
+  </div>
+
+  <h3>Approval workflow rules</h3>
+  <ul>
+    <li><b>Role-gated transitions</b> — e.g. Editors can move to Draft Review; only Strategist/Owner (or assigned Client Reviewer) can grant Final Approval.</li>
+    <li><b>Automated pre-gates</b> — anti-slop, citation-verification, and accessibility checks must pass (or be explicitly overridden with a logged reason) before a human gate appears.</li>
+    <li><b>Parallel review</b> — SEO and asset review can run concurrently to compress cycle time.</li>
+    <li><b>Escalation &amp; SLA</b> — items idle past a threshold notify the next approver; nothing publishes by silence in supervised modes.</li>
+    <li><b>Full audit trail</b> — every state change, approval, override, and AI action is logged per workspace.</li>
+  </ul>
+</section>
+
+<!-- ============ 08 MOCKUPS ============ -->
+<section class="section" id="mockups">
+  <div class="kicker">08 · Screen Mockups</div>
+  <h2 class="sec">Proposed interface</h2>
+  <p class="lead">Wireframe-level mockups in the LSI Media palette. Final visual design follows the brand style guide; these establish layout, hierarchy, and where the motif engine, SEO, and approvals live.</p>
+
+  <div class="legend">
+    <span class="swatch"><i style="background:#0D5A84"></i>Primary Blue #0D5A84</span>
+    <span class="swatch"><i style="background:#343433"></i>Primary Gray #343433</span>
+    <span class="swatch"><i style="background:#C4571C"></i>Orange #C4571C</span>
+    <span class="swatch"><i style="background:#F8CF40"></i>Yellow #F8CF40</span>
+    <span class="swatch"><i style="background:#B1D4E0"></i>Light Blue #B1D4E0</span>
+    <span class="swatch"><i style="background:#EFF3FA;border:1px solid #ccc"></i>Paper #EFF3FA</span>
+  </div>
+  <div class="note blue"><b>Brand-aligned:</b> colors and type come directly from the LSI Media brand board — Primary Blue #0D5A84 and Primary Gray #343433, with orange, yellow and light blue as secondary accents. Typography is Quicksand, with Kollektif reserved for the logo (used automatically where installed).</div>
+
+  <!-- Mockup 1: Login -->
+  <div class="mockwrap">
+    <div class="mockcap"><b>M1</b> · Login &amp; Workspace entry</div>
+    <div class="screen">
+      <div class="s-top"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="url">app.lsi-media.com/login</span></div>
+      <div class="s-body" style="background:linear-gradient(135deg,#0A3A56,#072B40);align-items:center;justify-content:center;min-height:320px">
+        <div style="background:#fff;border-radius:16px;padding:26px 28px;width:320px;box-shadow:var(--shadow-lg)">
+          <div style="display:flex;align-items:center;gap:9px;margin-bottom:16px"><div class="spark-dot"></div><div><div style="font-family:'Kollektif','Quicksand';font-weight:700">Spark</div><div class="mono" style="font-size:.6rem;color:var(--cyan-deep);letter-spacing:.18em">LSI MEDIA</div></div></div>
+          <div class="field"><div class="fl">Email</div><div class="fv">sabine@lsi-media.com</div></div>
+          <div class="field"><div class="fl">Password</div><div class="fv">••••••••••</div></div>
+          <button class="s-btn" style="width:100%;margin-top:6px">Sign in</button>
+          <div style="text-align:center;margin:10px 0;font-size:.66rem;color:var(--muted)">— or —</div>
+          <button class="s-btn ghost" style="width:100%">Continue with Google / Microsoft</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mockup 2: Dashboard -->
+  <div class="mockwrap">
+    <div class="mockcap"><b>M2</b> · Workspace dashboard &amp; switcher</div>
+    <div class="screen">
+      <div class="s-top"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="url">app.lsi-media.com/w/lsi-media</span></div>
+      <div class="s-body">
+        <div class="s-side">
+          <div class="ws"><span class="av"></span>LSI Media ▾</div>
+          <div class="nav">
+            <i class="on">◷ Dashboard</i><i>✦ Ideas</i><i>✎ Content</i><i>⇶ Workflow</i><i>◧ Calendar</i><i>↗ Social</i><i>📊 Analytics</i><i>⚙ Settings</i>
+          </div>
+        </div>
+        <div class="s-main">
+          <div class="s-h"><h5>Good morning, Sabine</h5><button class="s-btn">+ New content</button></div>
+          <div class="metrics">
+            <div class="metric"><div class="ml">Organic clicks (28d)</div><div class="mv">4,812</div><div class="md up">▲ 14%</div></div>
+            <div class="metric"><div class="ml">In workflow</div><div class="mv">7</div><div class="md" style="color:var(--warn)">2 need approval</div></div>
+            <div class="metric"><div class="ml">Scheduled</div><div class="mv">3</div><div class="md" style="color:var(--muted)">next: Jun 1</div></div>
+            <div class="metric"><div class="ml">Published (mo)</div><div class="mv">5</div><div class="md up">on cadence</div></div>
+          </div>
+          <div style="display:grid;grid-template-columns:1.4fr 1fr;gap:12px">
+            <div class="panel"><div class="pt">Needs your attention</div>
+              <div class="kcard"><div class="kti">WCAG 2.1 AA Checklist for Websites</div><div class="ktags"><span class="tg t4">Tier 4</span><span class="tg">Final Approval</span></div></div>
+              <div class="kcard"><div class="kti">Nonprofit Website Best Practices</div><div class="ktags"><span class="tg np">Nonprofit</span><span class="tg">SEO Review</span></div></div>
+            </div>
+            <div class="panel"><div class="pt">Run mode</div>
+              <div class="statline"><span class="check">●</span> Scheduled cadence: <b style="color:var(--ink)">ON</b></div>
+              <div class="statline"><span style="color:var(--spark)">●</span> Autonomous: <b style="color:var(--ink)">draft-only</b></div>
+              <div class="statline">Next job: <span class="mono">Jun 1 · cornerstone</span></div>
+              <button class="s-btn ghost" style="margin-top:8px;width:100%">Manage automation</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mockup 3: Idea Board -->
+  <div class="mockwrap">
+    <div class="mockcap"><b>M3</b> · Idea Engine board</div>
+    <div class="screen">
+      <div class="s-top"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="url">app.lsi-media.com/w/lsi-media/ideas</span></div>
+      <div class="s-body">
+        <div class="s-side"><div class="ws"><span class="av"></span>LSI Media ▾</div><div class="nav"><i>◷ Dashboard</i><i class="on">✦ Ideas</i><i>✎ Content</i><i>⇶ Workflow</i><i>◧ Calendar</i><i>↗ Social</i><i>📊 Analytics</i></div></div>
+        <div class="s-main">
+          <div class="s-h"><h5>Idea Engine</h5><div style="display:flex;gap:6px"><button class="s-btn ghost">Refresh keywords</button><button class="s-btn">+ Discover ideas</button></div></div>
+          <div class="kanban">
+            <div class="kcol"><div class="kt">Discovered <span>12</span></div>
+              <div class="kcard"><div class="kti">What is Section 508 compliance?</div><div class="ktags"><span class="tg sc">87</span><span class="tg t4">T4</span><span class="tg">Informative</span></div></div>
+              <div class="kcard"><div class="kti">Capability statement examples</div><div class="ktags"><span class="tg sc">81</span><span class="tg">Federal</span></div></div>
+              <div class="kcard"><div class="kti">Cloud migration checklist</div><div class="ktags"><span class="tg sc">74</span><span class="tg">T4</span></div></div>
+              <div class="kcard"><div class="kti">Is AI search killing SEO?</div><div class="ktags"><span class="tg sc">79</span><span class="tg" style="background:#ffe9e9;color:#c0392b;border-color:#f5c6c6">▶ YouTube ▲</span></div></div>
+            </div>
+            <div class="kcol"><div class="kt">Approved <span>4</span></div>
+              <div class="kcard"><div class="kti">WCAG 2.1 AA Checklist</div><div class="ktags"><span class="tg sc">92</span><span class="tg np">All</span><span class="tg">Succinct</span></div></div>
+              <div class="kcard"><div class="kti">Nonprofit DT roadmap</div><div class="ktags"><span class="tg np">Nonprofit</span><span class="tg">Sincere</span></div></div>
+            </div>
+            <div class="kcol"><div class="kt">Refresh <span>3</span></div>
+              <div class="kcard"><div class="kti">How to choose a web agency <span style="color:var(--warn)">↻</span></div><div class="ktags"><span class="tg">Exists · pos 14</span></div></div>
+              <div class="kcard"><div class="kti">2026 social trends <span style="color:var(--warn)">↻</span></div><div class="ktags"><span class="tg">Update date</span></div></div>
+            </div>
+            <div class="kcol"><div class="kt">Rejected <span>2</span></div>
+              <div class="kcard" style="opacity:.55"><div class="kti">7 tips listicle</div><div class="ktags"><span class="tg">De-prioritized</span></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mockup 4: Article workspace -->
+  <div class="mockwrap">
+    <div class="mockcap"><b>M4</b> · Article workspace — editor + motif selector + SEO &amp; A11y panel</div>
+    <div class="screen">
+      <div class="s-top"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="url">app.lsi-media.com/w/lsi-media/content/wcag-checklist</span></div>
+      <div class="s-body">
+        <div class="s-main" style="padding:16px 18px">
+          <div class="s-h"><h5>WCAG 2.1 AA Checklist for Websites</h5><div style="display:flex;gap:6px"><button class="s-btn ghost">Regenerate</button><button class="s-btn blue">Send to review</button></div></div>
+          <div class="editor">
+            <div class="doc">
+              <div class="h1l"></div>
+              <div class="ln m"></div><div class="ln s"></div><div class="ln x"></div>
+              <div class="h2l"></div>
+              <div class="ln m"></div><div class="ln m"></div><div class="ln s"></div>
+              <div style="margin:10px 0;font-size:.7rem;color:var(--ink)">
+                <div style="display:flex;align-items:center;gap:7px;margin:3px 0"><span style="width:15px;height:15px;border-radius:50%;background:var(--ok);color:#fff;display:grid;place-items:center;font-size:.55rem;flex:none">✓</span> Heading order one H1 → H2 → H3</div>
+                <div style="display:flex;align-items:center;gap:7px;margin:3px 0"><span style="width:15px;height:15px;border-radius:50%;background:var(--ok);color:#fff;display:grid;place-items:center;font-size:.55rem;flex:none">✓</span> Descriptive alt text on images</div>
+                <div style="display:flex;align-items:center;gap:7px;margin:3px 0"><span style="width:15px;height:15px;border-radius:50%;background:var(--ok);color:#fff;display:grid;place-items:center;font-size:.55rem;flex:none">✓</span> Keyboard-operable FAQ toggles</div>
+              </div>
+              <div style="border-left:3px solid var(--cyan);background:#eefcfe;padding:7px 10px;border-radius:0 7px 7px 0;font-size:.66rem;color:var(--cyan-deep);margin:8px 0"><b>Content box</b> — Avada element preview</div>
+              <div class="h2l" style="width:36%"></div>
+              <div class="ln m"></div><div class="ln s"></div>
+              <div style="font-family:'Quicksand';font-size:.58rem;color:var(--muted);background:var(--paper-2);border:1px dashed var(--line-2);border-radius:6px;padding:5px 8px;margin-top:8px">Rendering profile: <b style="color:var(--ink)">Avada / Fusion</b> · H2 30px ·  margins 28/10</div>
+              <div class="statline" style="margin-top:10px"><span class="check">✓</span> Grounded in SME profile: <b style="color:var(--ink)">Sabine — Accessibility</b></div>
+              <div class="statline"><span class="check">✓</span> 3 claims verified · <span style="color:var(--warn)">1 needs source</span></div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:10px">
+              <div class="panel"><div class="pt">Motif voice</div>
+                <div class="motchips"><span class="mc on sp">Informative</span><span class="mc on">Succinct</span><span class="mc">Visionary</span><span class="mc">Sincere</span><span class="mc">Social</span></div>
+                <div style="font-size:.62rem;color:var(--muted);margin-top:6px">Primary 70% · secondary 30%</div>
+              </div>
+              <div class="panel"><div class="pt">SEO · Squirrly</div>
+                <div class="field"><div class="fl">Focus keyword</div><div class="fv">WCAG 2.1 AA checklist</div></div>
+                <div class="field"><div class="fl">Title · 58/60</div><div class="fv">WCAG 2.1 AA Checklist | LSI Media</div><div class="meter"><b style="width:96%"></b></div></div>
+                <div class="field"><div class="fl">Meta · 149/155</div><div class="fv">A practical WCAG 2.1 AA checklist…</div><div class="meter"><b style="width:96%"></b></div></div>
+                <div class="field"><div class="fl">Slug</div><div class="fv">/wcag-2-1-aa-checklist/</div></div>
+                <div class="field"><div class="fl">Internal links</div><div class="fv">→ Accessible web design · Section 508</div></div>
+              </div>
+              <div class="panel"><div class="pt">Accessibility</div>
+                <div class="statline"><span class="check">✓</span> Heading order valid</div>
+                <div class="statline"><span class="check">✓</span> Alt text complete</div>
+                <div class="statline"><span class="check">✓</span> Link text descriptive</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mockup 5: Workflow kanban -->
+  <div class="mockwrap">
+    <div class="mockcap"><b>M5</b> · Workflow &amp; approvals board (synced to Nifty)</div>
+    <div class="screen">
+      <div class="s-top"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="url">app.lsi-media.com/w/lsi-media/workflow</span></div>
+      <div class="s-body">
+        <div class="s-side"><div class="ws"><span class="av"></span>LSI Media ▾</div><div class="nav"><i>◷ Dashboard</i><i>✦ Ideas</i><i>✎ Content</i><i class="on">⇶ Workflow</i><i>◧ Calendar</i><i>↗ Social</i></div></div>
+        <div class="s-main">
+          <div class="s-h"><h5>Workflow</h5><span class="pill cyan">⇄ Nifty synced</span></div>
+          <div class="kanban">
+            <div class="kcol"><div class="kt">Drafting <span>2</span></div>
+              <div class="kcard"><div class="kti">Section 508 vs WCAG 2.1</div><div class="ktags"><span class="tg">AI · 62%</span></div></div>
+            </div>
+            <div class="kcol"><div class="kt">SEO + A11y <span>1</span></div>
+              <div class="kcard"><div class="kti">Nonprofit Best Practices</div><div class="ktags"><span class="tg np">Nonprofit</span><span class="tg">✓ A11y</span></div></div>
+            </div>
+            <div class="kcol"><div class="kt">Final Approval <span>2</span></div>
+              <div class="kcard"><div class="kti">WCAG 2.1 AA Checklist</div><div class="ktags"><span class="tg sc">Sabine</span><span class="tg">Approve ▸</span></div></div>
+              <div class="kcard"><div class="kti">Capability Statement Guide</div><div class="ktags"><span class="tg">Client review</span></div></div>
+            </div>
+            <div class="kcol"><div class="kt">Published <span>5</span></div>
+              <div class="kcard"><div class="kti">Does Accessibility Affect SEO?</div><div class="ktags"><span class="tg np">Live</span><span class="tg">↗ 3 posts</span></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mockup 6: Automation -->
+  <div class="mockwrap">
+    <div class="mockcap"><b>M6</b> · Automation &amp; scheduling console</div>
+    <div class="screen">
+      <div class="s-top"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="url">app.lsi-media.com/w/lsi-media/automation</span></div>
+      <div class="s-body">
+        <div class="s-main" style="padding:16px 20px">
+          <div class="s-h"><h5>Automation</h5><span class="pill spark">⚡ Autonomous: draft-only</span></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div class="panel"><div class="pt">Cadence rules</div>
+              <div class="field"><div class="fl">Cornerstone</div><div class="fv">1 / month · 1st · Informative</div></div>
+              <div class="field"><div class="fl">Service-supporting</div><div class="fv">2 / month · 10th &amp; 24th</div></div>
+              <div class="field"><div class="fl">Social per article</div><div class="fv">LinkedIn + X + Instagram</div></div>
+            </div>
+            <div class="panel"><div class="pt">Guardrails</div>
+              <div class="statline"><span class="check">✓</span> Human gate before publish: <b style="color:var(--ink)">required</b></div>
+              <div class="statline"><span class="check">✓</span> Monthly AI spend cap: <b style="color:var(--ink)">$120</b></div>
+              <div class="statline"><span class="check">✓</span> Max auto-publish: <b style="color:var(--ink)">0 (review only)</b></div>
+              <div class="statline"><span style="color:#ff5f56">●</span> Global pause: <b style="color:var(--ink)">off</b></div>
+              <button class="s-btn" style="background:#c23b2e;margin-top:8px;width:100%">⏸ Pause all automation</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mockup 7: Social composer -->
+  <div class="mockwrap">
+    <div class="mockcap"><b>M7</b> · Social composer — motif-aligned variants</div>
+    <div class="screen">
+      <div class="s-top"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="url">app.lsi-media.com/w/lsi-media/social/wcag-checklist</span></div>
+      <div class="s-body">
+        <div class="s-main" style="padding:16px 20px">
+          <div class="s-h"><h5>Distribute: WCAG 2.1 AA Checklist</h5><div style="display:flex;gap:6px"><span class="pill">Motif: Social</span><span class="pill cyan">via Uniple</span><button class="s-btn blue">Schedule all</button></div></div>
+          <div class="soc">
+            <div class="scard"><div class="sh"><span class="si li"></span>LinkedIn</div><div class="stext">Accessibility isn't a compliance checkbox — it's the same foundation as good SEO. Our new WCAG 2.1 AA checklist breaks down what actually moves the needle…</div><div class="smeta">1200×627 · Tue 9:00a</div></div>
+            <div class="scard"><div class="sh"><span class="si x"></span>X</div><div class="stext">Accessible sites rank better. Here's our WCAG 2.1 AA checklist — the practical version, no fluff. ↓</div><div class="smeta">1200×675 · Tue 9:15a</div></div>
+            <div class="scard"><div class="sh"><span class="si ig"></span>Instagram</div><div class="stext">Build it for everyone. Swipe for the WCAG 2.1 AA essentials every site needs ♿✨</div><div class="smeta">1080×1080 · Tue 12:00p</div></div>
+          </div>
+          <div class="statline" style="margin-top:12px"><span class="check">✓</span> Each variant uses the channel's mapped motif &amp; image size · links to the published post</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mockup 8: Analytics -->
+  <div class="mockwrap">
+    <div class="mockcap"><b>M8</b> · Analytics &amp; feedback loop</div>
+    <div class="screen">
+      <div class="s-top"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="url">app.lsi-media.com/w/lsi-media/analytics</span></div>
+      <div class="s-body">
+        <div class="s-main" style="padding:16px 20px">
+          <div class="s-h"><h5>Performance</h5><span class="pill blue">GSC + GA4 connected</span></div>
+          <div class="metrics">
+            <div class="metric"><div class="ml">Impressions</div><div class="mv">128k</div><div class="md up">▲ 9%</div></div>
+            <div class="metric"><div class="ml">Clicks</div><div class="mv">4.8k</div><div class="md up">▲ 14%</div></div>
+            <div class="metric"><div class="ml">Avg position</div><div class="mv">11.2</div><div class="md up">▲ 1.6</div></div>
+            <div class="metric"><div class="ml">Conversions</div><div class="mv">37</div><div class="md up">▲ 6</div></div>
+          </div>
+          <div style="display:grid;grid-template-columns:1.5fr 1fr;gap:12px">
+            <div class="bars">
+              <div class="bar" style="height:45%"><span>Jan</span></div><div class="bar" style="height:52%"><span>Feb</span></div><div class="bar" style="height:60%"><span>Mar</span></div><div class="bar" style="height:58%"><span>Apr</span></div><div class="bar" style="height:74%"><span>May</span></div>
+            </div>
+            <div class="panel"><div class="pt">Feedback to ideas</div>
+              <div class="kcard"><div class="kti">Section 508 cluster ▲</div><div class="ktags"><span class="tg np">Expand</span></div></div>
+              <div class="kcard"><div class="kti">"How to choose agency" pos 14</div><div class="ktags"><span class="tg">↻ Refresh</span></div></div>
+              <div class="kcard" style="border-color:#ffd2b3"><div class="kti">Top post — protect</div><div class="ktags"><span class="tg" style="background:#fff1e7;color:#a3471a">🔒 No rewrite</span></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mockup 9: Settings -->
+  <div class="mockwrap">
+    <div class="mockcap"><b>M9</b> · Workspace settings — brand, motifs, strategy, integrations</div>
+    <div class="screen">
+      <div class="s-top"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="url">app.lsi-media.com/w/lsi-media/settings</span></div>
+      <div class="s-body">
+        <div class="s-side"><div class="ws"><span class="av"></span>LSI Media ▾</div><div class="nav"><i>◷ Dashboard</i><i>✦ Ideas</i><i>✎ Content</i><i>⇶ Workflow</i><i class="on">⚙ Settings</i></div></div>
+        <div class="s-main">
+          <div class="s-h"><h5>Workspace settings</h5></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div class="panel"><div class="pt">Brand kit &amp; images</div>
+              <div class="legend" style="margin:0"><span class="swatch"><i style="background:#0D5A84"></i>Blue</span><span class="swatch"><i style="background:#343433"></i>Gray</span><span class="swatch"><i style="background:#C4571C"></i>Orange</span><span class="swatch"><i style="background:#F8CF40"></i>Yellow</span><span class="swatch"><i style="background:#B1D4E0"></i>Lt Blue</span></div>
+              <div class="field" style="margin-top:8px"><div class="fl">OG image (px) · branded · required</div><div class="fv">[ 1200 ] × [ 630 ]</div></div>
+              <div class="field"><div class="fl">Featured image (px) · required</div><div class="fv">[ 1920 ] × [ 1080 ]</div></div>
+            </div>
+            <div class="panel"><div class="pt">Heading styles (article)</div>
+              <div class="field"><div class="fl">H1 · size / margin top·bottom</div><div class="fv">[ 40px ]  ·  [ 0 ] / [ 16 ]</div></div>
+              <div class="field"><div class="fl">H2 · size / margin top·bottom</div><div class="fv">[ 30px ]  ·  [ 28 ] / [ 10 ]</div></div>
+              <div class="field"><div class="fl">H3 · size / margin top·bottom</div><div class="fv">[ 22px ]  ·  [ 20 ] / [ 8 ]</div></div>
+              <div style="font-size:.6rem;color:var(--muted);margin-top:2px">Visual only — semantic H-order always preserved</div>
+            </div>
+            <div class="panel"><div class="pt">Default motifs</div>
+              <div class="field"><div class="fl">Tier 4 · Nonprofit</div><div class="fv">Sincere + Informative</div></div>
+              <div class="field"><div class="fl">Tier 2 · Commercial</div><div class="fv">Competitive + Succinct</div></div>
+              <div class="field"><div class="fl">Social channel</div><div class="fv">Social</div></div>
+            </div>
+            <div class="panel"><div class="pt">Design elements (rendering)</div>
+              <div class="field"><div class="fl">Profile</div><div class="fv">Avada / Fusion ▾</div></div>
+              <div class="statline" style="margin-top:2px"><span class="check">✓</span> Checklists → ✔ checkmarks</div>
+              <div class="statline"><span class="check">✓</span> Callouts → content boxes</div>
+              <div class="statline"><span class="check">✓</span> Quotes · FAQ toggles · buttons</div>
+            </div>
+            <div class="panel"><div class="pt">SEO &amp; site</div>
+              <div class="field"><div class="fl">SEO plugin</div><div class="fv">Squirrly ▾ (Rank Math · Yoast)</div></div>
+              <div class="field"><div class="fl">Blog slug rule</div><div class="fv">root-level /{slug}/ <span style="color:var(--warn)">⚠ confirm</span></div></div>
+              <div class="field"><div class="fl">WordPress</div><div class="fv">connected · Avada</div></div>
+            </div>
+            <div class="panel"><div class="pt">Integrations</div>
+              <div class="statline"><span class="check">✓</span> Google Search Console</div>
+              <div class="statline"><span class="check">✓</span> GA4 · Nifty</div>
+              <div class="statline"><span class="check">✓</span> Uniple — social (LinkedIn · X · IG · FB)</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 09 IDEAS ============ -->
+<section class="section" id="ideas">
+  <div class="kicker">09 · Ideas &amp; Enhancements</div>
+  <h2 class="sec">Ideas functionality &amp; future-facing concepts</h2>
+
+  <h3>Idea generation — sources &amp; scoring</h3>
+  <ul>
+    <li><b>Question mining</b> — People-Also-Ask, AlsoAsked-style question trees, and community questions surfaced as draftable topics.</li>
+    <li><b>Strategy gaps</b> — keywords in the workbook with no targeting page yet; tiers under-served vs the 50/25/15/10 audience weighting.</li>
+    <li><b>Competitor &amp; SERP gaps</b> — topics competitors rank for that the workspace doesn't.</li>
+    <li><b>YouTube trend &amp; competitor intel</b> — trending/fast-rising videos, search autocomplete, and competitor-channel topic mix in the niche, plus question themes mined from video comments (see FR-17).</li>
+    <li><b>Seasonal &amp; calendar hooks</b> — recurring monthly content (the existing social calendar cadence) and dated opportunities.</li>
+    <li><b>Performance-driven</b> — analytics flags refresh candidates and "expand this cluster" opportunities.</li>
+    <li><b>Idea score</b> — composite of intent, tier fit, audience priority, difficulty (real data only), internal-link leverage, and a YouTube trend-velocity signal (validated, never invented).</li>
+  </ul>
+
+  <h3>YouTube research &amp; competitor intelligence</h3>
+  <p style="font-size:.94rem;color:var(--muted);max-width:880px">YouTube is the second-largest search engine, which makes it a strong <em>leading</em> indicator of topic demand — often surfacing interest before it peaks in Google. Spark treats it as both an idea source and a competitor-watch channel.</p>
+  <div class="grid cols-3" style="margin-top:14px">
+    <div class="card"><div class="ico">▶</div><h4>Trending topics</h4><p style="font-size:.86rem;color:var(--muted)">Fast-rising videos, search autocomplete, titles/tags, and "also-watched" clusters in the niche become draftable blog topics with a trend-velocity score.</p></div>
+    <div class="card"><div class="ico">?</div><h4>Question themes</h4><p style="font-size:.86rem;color:var(--muted)">Recurring questions and pain points mined from comments on popular videos — as aggregate themes, never individual profiling — feed the same question pool as PAA/AlsoAsked.</p></div>
+    <div class="card"><div class="ico">⚔</div><h4>Competitor watch</h4><p style="font-size:.86rem;color:var(--muted)">Track competitor channels: most-viewed and newest videos, upload cadence, and topic mix, with gap analysis flagging themes they cover that you don't.</p></div>
+  </div>
+  <div class="note blue"><b>Leading indicator, not gospel:</b> a YouTube signal raises an idea's velocity score but must be validated against real search data before it's committed — the same "never invent numbers" discipline applied everywhere. Deep historical/competitor metrics that the official API doesn't expose may need an approved third-party provider, and are flagged as estimates rather than fabricated.</div>
+  <div class="note"><b>LSI-specific upside:</b> because the agency also produces video and runs its own channel, YouTube-sourced ideas can be tagged for blog, video, or both — feeding the repurposing pipeline (one topic → article ↔ video ↔ social) rather than just the blog.</div>
+
+  <h3>Workflow ideas</h3>
+  <ul>
+    <li><b>Content clusters / pillars</b> — group ideas into a pillar + supporting set so internal linking and topical authority are planned, not accidental.</li>
+    <li><b>Motif A/B testing</b> — generate two motif treatments and measure which earns more engagement per audience.</li>
+    <li><b>AI-search / GEO mode</b> — an optimization pass that structures content for citation by AI answer engines (clear entities, extractable answers, matched structured data) — directly aligned to the agency's own thesis.</li>
+    <li><b>Repurposing pipeline</b> — one article → social set → newsletter blurb → an FAQ entry, all motif-aware.</li>
+    <li><b>Brand-voice learning</b> — fine-tune tone from the workspace's best existing posts to sharpen the SME profile over time.</li>
+    <li><b>Template library</b> — reusable structures (comparison, checklist+PDF, buyer guide, case study) tied to tiers and motifs.</li>
+  </ul>
+
+  <h3>Approval-workflow ideas</h3>
+  <ul>
+    <li><b>Confidence-based routing</b> — high-confidence, low-risk pieces get a lighter gate; claim-heavy or client-facing pieces get stricter review.</li>
+    <li><b>One-click client review links</b> — a scoped link lets a client approve/comment without a full account.</li>
+    <li><b>"Explain the changes" diffs</b> — every AI revision shows what changed and why, so reviewers trust fast.</li>
+    <li><b>Source dossier</b> — each draft ships with its verified citations attached for quick reviewer verification.</li>
+    <li><b>Quiet hours &amp; rate limits</b> — no autonomous publishing outside configured windows.</li>
+  </ul>
+</section>
+
+<!-- ============ 10 NFR ============ -->
+<section class="section" id="nfr">
+  <div class="kicker">10 · Non-Functional Requirements</div>
+  <h2 class="sec">Quality attributes</h2>
+  <div class="grid cols-2">
+    <div class="card"><h4>Truthfulness (hard constraint)</h4><p style="font-size:.9rem;color:var(--muted)">No fabricated statistics, studies, quotes, or citations — ever. Evidence-bearing claims require a retrieved, linkable source or are flagged. This is enforced, logged, and non-overridable in autonomous mode.</p></div>
+    <div class="card"><h4>Security &amp; privacy</h4><p style="font-size:.9rem;color:var(--muted)">Per-workspace data isolation; encrypted, scoped, revocable OAuth tokens; least-privilege roles; no automated account creation or password handling.</p></div>
+    <div class="card"><h4>Accessibility of the app</h4><p style="font-size:.9rem;color:var(--muted)">Spark itself meets WCAG 2.1 AA — it would be off-brand for an accessibility agency's tool to fail its own standard.</p></div>
+    <div class="card"><h4>Auditability</h4><p style="font-size:.9rem;color:var(--muted)">Full trail of AI actions, edits, approvals, overrides, and publishes per workspace; exportable.</p></div>
+    <div class="card"><h4>Reliability &amp; recovery</h4><p style="font-size:.9rem;color:var(--muted)">Failed jobs retry and surface clearly; nothing publishes silently on error; a global kill switch halts automation instantly.</p></div>
+    <div class="card"><h4>Cost control</h4><p style="font-size:.9rem;color:var(--muted)">Per-workspace AI spend caps, usage visibility, and model selection to balance quality vs cost.</p></div>
+    <div class="card"><h4>Performance</h4><p style="font-size:.9rem;color:var(--muted)">Generation streams progressively; long jobs run async with status; dashboards load fast under multi-workspace load.</p></div>
+    <div class="card"><h4>Extensibility</h4><p style="font-size:.9rem;color:var(--muted)">Pluggable SEO plugins, social networks, research providers, and PM tools so new integrations don't require core rewrites.</p></div>
+  </div>
+</section>
+
+<!-- ============ 11 INTEGRATIONS ============ -->
+<section class="section" id="integrations">
+  <div class="kicker">11 · Integrations</div>
+  <h2 class="sec">External systems</h2>
+  <table>
+    <tr><th>System</th><th>Purpose</th><th>Direction</th><th>Priority</th></tr>
+    <tr><td><b>WordPress</b> (REST API)</td><td>Publish/schedule posts, media, categories, SEO fields, schema</td><td>Write</td><td><span class="pill spark">MVP</span></td></tr>
+    <tr><td><b>Squirrly / Rank Math / Yoast</b></td><td>SEO field mapping per workspace plugin</td><td>Write (via WP)</td><td><span class="pill spark">MVP</span></td></tr>
+    <tr><td><b>Google Search Console</b></td><td>Impressions, clicks, position, indexation; top-post protection</td><td>Read</td><td><span class="pill blue">V1</span></td></tr>
+    <tr><td><b>Google Analytics 4</b></td><td>Sessions, conversions, content performance</td><td>Read</td><td><span class="pill blue">V1</span></td></tr>
+    <tr><td><b>Nifty</b></td><td>Task creation &amp; status sync through the workflow</td><td>Read/Write</td><td><span class="pill spark">MVP</span></td></tr>
+    <tr><td><b>Keyword research</b> (Squirrly Briefcase / Keyword Planner)</td><td>Real volume &amp; difficulty data; no invented numbers</td><td>Read</td><td><span class="pill blue">V1</span></td></tr>
+    <tr><td><b>Uniple</b> (social posting/integration)</td><td>Scheduling &amp; publishing of social variants across networks (LinkedIn, X, Instagram, Facebook); manages per-network accounts/tokens</td><td>Write (+ status read)</td><td><span class="pill blue">V1</span></td></tr>
+    <tr><td><b>Question/PAA sources</b></td><td>Idea discovery from real customer questions</td><td>Read</td><td><span class="pill blue">V1</span></td></tr>
+    <tr><td><b>YouTube Data API</b></td><td>Trend/topic research, search autocomplete, comment-theme mining, own-channel signals</td><td>Read</td><td><span class="pill blue">V1</span></td></tr>
+    <tr><td><b>YouTube competitor intel</b> (API + approved 3rd-party)</td><td>Competitor-channel tracking, velocity &amp; gap analysis</td><td>Read</td><td><span class="pill">V2</span></td></tr>
+    <tr><td><b>Accessibility checker</b> (Equalize Digital)</td><td>WCAG validation signals</td><td>Read</td><td><span class="pill">V2</span></td></tr>
+    <tr><td><b>Slack / Email</b></td><td>Notifications &amp; approvals</td><td>Write</td><td><span class="pill blue">V1</span></td></tr>
+  </table>
+</section>
+
+<!-- ============ 12 DECISIONS ============ -->
+<section class="section" id="decisions">
+  <div class="kicker">12 · Open Decisions</div>
+  <h2 class="sec">Resolve before / during build</h2>
+  <table>
+    <tr><th>#</th><th>Decision</th><th>Why it matters</th><th>Recommendation</th></tr>
+    <tr><td>1</td><td><b>Blog URL structure</b> — root-level <span class="mono">/{slug}/</span> vs <span class="mono">/blog/{slug}/</span></td><td>Your finished articles use root-level; the strategy workbook uses /blog/. Drives slugs, canonicals, internal links &amp; redirects.</td><td>Confirm against the live site and lock one rule per content type.</td></tr>
+    <tr><td>2</td><td><b>AI image generation</b> now or later</td><td>Quality concerns (faces/limbs) documented; OG images currently made by hand.</td><td>v1 = image <em>brief</em> + manual; AI generation behind a reviewed toggle later.</td></tr>
+    <tr><td>3</td><td><b>Review gate</b> — human, automated, or hybrid</td><td>Determines autonomy ceiling and trust.</td><td>Hybrid: automated pre-checks + human final approval; per-type opt-in for auto-publish.</td></tr>
+    <tr><td>4</td><td><b>Branding on every image</b></td><td>Logo-on-everything looked cluttered on the blog.</td><td>Brand the OG image; keep in-body images clean unless workspace opts in.</td></tr>
+    <tr><td>5</td><td><b>Plugin field differences</b> (Rank Math vs Squirrly/Yoast)</td><td>Affects export mapping effort.</td><td>Build Squirrly first; abstract a field schema so others map cheaply.</td></tr>
+    <tr><td>6</td><td><b>Hosting &amp; model strategy</b></td><td>Cost, privacy, performance.</td><td>Decide managed vs self-host and model tiering per content track.</td></tr>
+  </table>
+</section>
+
+<!-- ============ 13 ROADMAP ============ -->
+<section class="section" id="roadmap">
+  <div class="kicker">13 · Phased Roadmap</div>
+  <h2 class="sec">Build order</h2>
+  <div class="grid cols-3">
+    <div class="card"><div class="pill spark" style="margin-bottom:8px">MVP · single workspace</div><h4>Prove the core loop</h4><ul style="font-size:.86rem;color:var(--muted)"><li>Auth + LSI Media workspace</li><li>SME profiles + brand/motif config</li><li>Idea board (manual + workbook)</li><li>Motif-driven generation</li><li>Squirrly SEO output + internal links</li><li>Image brief + alt text + A11y checks</li><li>Approval gates → WordPress publish</li><li>Nifty sync</li></ul></div>
+    <div class="card"><div class="pill blue" style="margin-bottom:8px">V1 · multi-workspace</div><h4>Scale &amp; close the loop</h4><ul style="font-size:.86rem;color:var(--muted)"><li>Multiple workspaces + client reviewer role</li><li>Scheduled + autonomous (draft-only) modes</li><li>GSC/GA4 analytics + feedback to ideas</li><li>Question-mining idea sources</li><li>YouTube trend research + comment-theme mining</li><li>Social distribution via Uniple (LinkedIn/X/IG/FB)</li><li>Rank Math &amp; Yoast output</li><li>Existing-content audit</li></ul></div>
+    <div class="card"><div class="pill" style="margin-bottom:8px">V2 · intelligence</div><h4>Differentiators</h4><ul style="font-size:.86rem;color:var(--muted)"><li>Full autonomous publish (opt-in)</li><li>Motif A/B testing</li><li>AI-search / GEO optimization mode</li><li>YouTube competitor intelligence + gap analysis</li><li>Content clusters &amp; repurposing</li><li>Brand-voice learning</li><li>AI image generation (reviewed)</li><li>Accessibility-checker integration</li></ul></div>
+  </div>
+</section>
+
+<div class="footer">
+  <span class="spark-dot" style="width:22px;height:22px"></span>
+  <b style="font-family:'Kollektif','Quicksand';color:var(--ink)">Spark</b> — Capability Requirements (Draft v0.1) · Prepared for LSI Media LLC · May 31, 2026<br>
+  <span style="font-size:.74rem">Tone engine powered by the LSI Media 7 Motifs™ framework · Brand colors &amp; typography per the LSI Media brand board (Primary Blue #0D5A84 · Quicksand / Kollektif).</span>
+</div>
+
+</main>
+</div>
+</body>
+</html>
