@@ -108,10 +108,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           {/* Priority order under shrinking effective width: ticker and email
               drop first, then the redundant buttons ("Manage channels" repeats
               the workspace-name link; "+ Channel" lives on /channels too). */}
-          <Link href="/onboarding/channel/new" className="btn hidden @4xl:inline-flex items-center gap-1.5" title="Create a new YouTube channel">
+          {/* !hidden: .btn is unlayered CSS (display:inline-flex) and beats the
+              layered hidden utility — these two buttons were visible at EVERY
+              width since the header shipped, part of the reported crowding. */}
+          <Link href="/onboarding/channel/new" className="btn !hidden @4xl:!inline-flex items-center gap-1.5" title="Create a new YouTube channel">
             <Layers className="w-4 h-4" /> + Channel
           </Link>
-          <Link href="/channels" className="btn hidden @6xl:inline-flex" title="Manage all channels">Manage channels</Link>
+          <Link href="/channels" className="btn !hidden @6xl:!inline-flex" title="Manage all channels">Manage channels</Link>
           <LiveTicker initial={ticker} />
           <div className="flex-1" />
           <Link
