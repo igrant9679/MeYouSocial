@@ -12,6 +12,7 @@ import { saveSmtpAction, clearSmtpAction, testSmtpAction } from "@/app/actions/e
 type SearchParams = { ok?: string; error?: string; msg?: string; to?: string };
 
 const PRESETS: { label: string; host: string; port: number; secure: boolean; note?: string }[] = [
+  { label: "Your own domain (hosted mailbox)", host: "mail.yourdomain.com", port: 465, secure: true, note: "Standard SMTP/IMAP mailbox from cPanel/Plesk/your host — username is usually the full email address; 465 TLS or 587 STARTTLS" },
   { label: "Gmail",           host: "smtp.gmail.com",     port: 465, secure: true,  note: "Use an App Password — your regular Gmail password won't work" },
   { label: "Outlook / 365",   host: "smtp.office365.com", port: 587, secure: false, note: "Port 587 with STARTTLS" },
   { label: "iCloud",          host: "smtp.mail.me.com",   port: 587, secure: false, note: "Use an app-specific password" },
@@ -55,8 +56,8 @@ export default async function EmailSettingsPage({ searchParams }: { searchParams
 
       {/* IMAP note — we only need SMTP for outbound. */}
       <div className="card mb-4 text-xs text-[var(--mute)] leading-relaxed">
-        <p className="mb-1"><strong>Why no IMAP field?</strong> IMAP is for <em>reading</em> mail; MeYouSocial only sends. The same email account you'd configure in your mail client will work — paste its SMTP settings here.</p>
-        <p>For Gmail & iCloud you must generate an <strong>app-specific password</strong> in your account's security settings (the normal password won't work).</p>
+        <p className="mb-1"><strong>Standard SMTP/IMAP mailboxes work here.</strong> Paste the mailbox&apos;s <em>SMTP</em> settings (the sending half — usually the same host your mail client uses, username = the full email address). The IMAP half isn&apos;t needed: IMAP is for <em>reading</em> mail, and MeYouSocial only sends.</p>
+        <p>Only Gmail &amp; iCloud need an <strong>app-specific password</strong>; a normal hosted mailbox uses its regular password.</p>
       </div>
 
       {/* Presets */}
