@@ -38,7 +38,7 @@ export async function publishSocialPost(postId: string): Promise<void> {
       if (!configured) throw new Error("Unipile is not configured");
       const providerPostId = await createPostViaUnipile({
         accountId: target.unipileAccountId,
-        text: post.text,
+        text: target.text ?? post.text, // per-network override, else base
         attachments,
       });
       await db.socialPostTarget.update({

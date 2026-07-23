@@ -63,6 +63,13 @@ export async function createSocialPostAction(formData: FormData) {
     status = "publishing"; // publish immediately below
   }
 
+  // Per-network text overrides: variant_<PROVIDER> from the composer. Empty or
+  // identical-to-base overrides are dropped so the target falls back to base.
+  const variantFor = (provider: string): string | null => {
+    const v = String(formData.get(`variant_${provider.toUpperCase()}`) ?? "").trim();
+    return v && v !== text ? v : null;
+  };
+
   const post = await db.socialPost.create({
     data: {
       workspaceId: workspace.id,
@@ -76,6 +83,7 @@ export async function createSocialPostAction(formData: FormData) {
           provider: a.provider,
           unipileAccountId: a.accountId,
           accountName: a.name,
+          text: variantFor(a.provider),
         })),
       },
     },
@@ -133,7 +141,7 @@ export async function duplicateSocialPostAction(formData: FormData) {
       mediaKeys: src.mediaKeys,
       status: "draft",
       targets: {
-        create: src.targets.map((t) => ({ provider: t.provider, unipileAccountId: t.unipileAccountId, accountName: t.accountName })),
+        create: src.targets.map((t) => ({ provider: t.provider, unipileAccountId: t.unipileAccountId, accountName: t.accountName, text: t.text })),
       },
     },
   });

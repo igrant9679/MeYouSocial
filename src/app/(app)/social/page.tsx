@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Share2, CalendarClock, Send, Copy, Trash2, RotateCw, Check, X, Clock } from "lucide-react";
+import { Share2, CalendarClock, Send, Copy, Trash2, RotateCw, Check, X, Clock, Pencil } from "lucide-react";
 import { requireRole } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { SocialComposer } from "@/components/SocialComposer";
@@ -112,7 +112,7 @@ type PostRow = {
   status: string;
   scheduledAt: Date | null;
   publishedAt: Date | null;
-  targets: { id: string; provider: string; accountName: string | null; status: string; error: string | null }[];
+  targets: { id: string; provider: string; accountName: string | null; text: string | null; status: string; error: string | null }[];
 };
 
 function PostCard({ post }: { post: PostRow }) {
@@ -157,6 +157,20 @@ function PostCard({ post }: { post: PostRow }) {
         </form>
       </div>
       <p className="text-sm text-[var(--slate)] whitespace-pre-wrap mb-2">{post.text || <span className="text-[var(--mute)] italic">(image only)</span>}</p>
+      {/* Per-network overrides, when any target customized its text. */}
+      {post.targets.some((t) => t.text) && (
+        <div className="flex flex-col gap-1 mb-2">
+          {post.targets.filter((t) => t.text).map((t) => {
+            const net = networkFor(t.provider);
+            return (
+              <div key={t.id} className="text-xs text-[var(--slate)] border-l-2 pl-2" style={{ borderColor: net?.color ?? "var(--line-2)" }}>
+                <span className="font-mono text-[10px] uppercase tracking-wider mr-1" style={{ color: net?.color ?? "var(--mute)" }}>{net?.label ?? t.provider}</span>
+                <span className="whitespace-pre-wrap">{t.text}</span>
+              </div>
+            );
+          })}
+        </div>
+      )}
       <div className="flex flex-wrap gap-1.5">
         {post.targets.map((t) => {
           const net = networkFor(t.provider);
@@ -168,6 +182,7 @@ function PostCard({ post }: { post: PostRow }) {
               title={t.error ?? undefined}>
               <span className="w-1.5 h-1.5 rounded-full" style={{ background: net?.color ?? "var(--mute)" }} />
               {net?.label ?? t.provider}
+              {t.text && <Pencil className="w-2.5 h-2.5" style={{ color: "var(--mute)" }} />}
               {posted && <Check className="w-3 h-3" style={{ color: "var(--green-on)" }} />}
               {failed && <X className="w-3 h-3" style={{ color: "var(--rose-on)" }} />}
             </span>
