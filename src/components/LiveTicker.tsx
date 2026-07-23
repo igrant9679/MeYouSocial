@@ -56,9 +56,11 @@ export function LiveTicker({ initial }: { initial: TickerEvent[] }) {
   return (
     // Container-based visibility: the ticker needs real spare width, which the
     // XL content-size (body zoom) eats without moving viewport breakpoints.
-    // flex-[2] against the header's flex-1 spacer = the ticker claims 2/3 of
-    // free space, capped so it never crowds the right-side controls.
-    <div className="hidden @4xl:flex items-center min-w-0 flex-[2] max-w-md @6xl:max-w-3xl rounded-lg border border-[var(--line)] overflow-hidden" aria-label="Recent activity">
+    // flex 4 1 8rem: a REAL basis (a zero-basis ticker collapsed to the LIVE
+    // label whenever the header line ran full, which is all of 1024-1400), grow
+    // 4 vs the spacer's 1 so the ticker claims most of what's free, shrinkable
+    // so it yields before anything else wraps.
+    <div className="hidden @4xl:flex items-center min-w-0 flex-[4_1_8rem] max-w-2xl rounded-lg border border-[var(--line)] overflow-hidden" aria-label="Recent activity">
       <span className="font-mono text-[9px] font-bold tracking-widest px-2 py-1.5 shrink-0 text-white" style={{ background: "var(--ink)" }}>
         LIVE
       </span>

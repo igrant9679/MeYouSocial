@@ -114,7 +114,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <Link href="/onboarding/channel/new" className="btn !hidden @4xl:!inline-flex items-center gap-1.5" title="Create a new YouTube channel">
             <Layers className="w-4 h-4" /> + Channel
           </Link>
-          <Link href="/channels" className="btn !hidden @6xl:!inline-flex" title="Manage all channels">Manage channels</Link>
+          {/* @min-[88rem]: the 1024-1400 header is otherwise FULL — the ticker
+              (which the user wants wide) only gets space these two give up;
+              this link duplicates the workspace-name link anyway. */}
+          <Link href="/channels" className="btn !hidden @min-[88rem]:!inline-flex" title="Manage all channels">Manage channels</Link>
           <LiveTicker initial={ticker} />
           <div className="flex-1" />
           <Link
@@ -134,7 +137,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             )}
           </Link>
           <span className="hidden @md:inline-block font-mono text-[12px] uppercase tracking-wider font-bold px-2.5 py-1.5 rounded-lg" style={{ background: "var(--accent-soft)", color: "var(--accent-on)" }}>{membership.role}</span>
-          <span className="hidden @6xl:inline text-[13px] text-[var(--mute)] truncate max-w-[24ch]">{user.email}</span>
+          <span className="hidden @min-[88rem]:inline text-[13px] text-[var(--mute)] truncate max-w-[24ch]">{user.email}</span>
         </header>
 
         {/* Also a @container: page components size against the CONTENT area
