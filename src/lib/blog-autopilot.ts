@@ -633,6 +633,7 @@ export async function packageVideoCore(workspaceId: string, blogPostId: string):
     data: {
       workspaceId,
       blogPostId: post.id,
+      topicId: post.topicId, // the source post's topic follows into the render
       title: (parsed.title ?? post.title).slice(0, 200),
       prompt: scenes[0].prompt.slice(0, 2000),
       scenes: JSON.stringify(scenes),

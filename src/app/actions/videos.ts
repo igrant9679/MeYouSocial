@@ -24,6 +24,25 @@ export async function createVideoPackageAction(formData: FormData) {
   revalidatePath(`/blog/${blogPostId}`);
 }
 
+/**
+ * Assign (or clear) the workspace Topic on a render. Renders packaged from a
+ * blog post inherit that post's topic; this lets it be set or corrected by hand
+ * (and is the only way to set one on a render with no source post).
+ */
+export async function setRenderTopicAction(formData: FormData) {
+  const id = String(formData.get("id") ?? "");
+  const raw = String(formData.get("topicId") ?? "").trim();
+  const { workspace } = await requireRole("EDITOR");
+  const render = await db.videoRender.findFirst({ where: { id, workspaceId: workspace.id }, select: { id: true } });
+  if (!render) return;
+  const topicId = raw
+    ? (await db.topic.findFirst({ where: { id: raw, workspaceId: workspace.id }, select: { id: true } }))?.id ?? null
+    : null;
+  await db.videoRender.update({ where: { id: render.id }, data: { topicId } });
+  revalidatePath("/videos");
+  revalidatePath(`/videos/${render.id}`);
+}
+
 export async function processRenderNowAction(formData: FormData) {
   const id = String(formData.get("id"));
   const { workspace } = await requireRole("ADMIN");

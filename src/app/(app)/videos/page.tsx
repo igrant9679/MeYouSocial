@@ -1,10 +1,10 @@
 import Link from "next/link";
-import { Clapperboard, Play, Trash2 } from "lucide-react";
+import { Clapperboard, Play, Trash2, Tags } from "lucide-react";
 import { requireMembership, canAdmin, canEdit } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { env } from "@/lib/env";
 import { SubmitButton } from "@/components/SubmitButton";
-import { deleteRenderAction, processRenderNowAction, retryRenderAction } from "@/app/actions/videos";
+import { deleteRenderAction, processRenderNowAction, retryRenderAction, setRenderTopicAction } from "@/app/actions/videos";
 import { getVideoProviderSetting } from "@/lib/video";
 
 // Phase 4 — short-form video renders. Queue → render → play. Mock provider by
@@ -23,16 +23,22 @@ export default async function VideosPage() {
   const editor = canEdit(membership.role);
   const dayStart = new Date();
   dayStart.setHours(0, 0, 0, 0);
-  const [renders, todayCount, providerSetting] = await Promise.all([
+  const [renders, todayCount, providerSetting, topics] = await Promise.all([
     db.videoRender.findMany({
       where: { workspaceId: workspace.id },
       orderBy: { createdAt: "desc" },
       take: 50,
+      include: { topic: { select: { name: true } } },
     }),
     db.videoRender.count({
       where: { workspaceId: workspace.id, status: { in: ["rendering", "done"] }, updatedAt: { gte: dayStart } },
     }),
     getVideoProviderSetting(workspace.id),
+    db.topic.findMany({
+      where: { workspaceId: workspace.id, status: "active" },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true },
+    }),
   ]);
   const todaySpend = renders
     .filter((r) => (r.status === "done" || r.status === "rendering") && r.updatedAt >= dayStart)
@@ -132,6 +138,23 @@ export default async function VideosPage() {
               {r.blogPostId && posts.get(r.blogPostId) && (
                 <p className="text-xs text-[var(--mute)] mb-1">
                   from <Link href={`/blog/${r.blogPostId}`} className="underline">{posts.get(r.blogPostId)}</Link>
+                </p>
+              )}
+              {topics.length > 0 && editor && (
+                <form action={setRenderTopicAction} className="flex items-center gap-1.5 mb-2">
+                  <input type="hidden" name="id" value={r.id} />
+                  <Tags className="w-3.5 h-3.5 shrink-0" style={{ color: "var(--indigo-on)" }} />
+                  <select name="topicId" defaultValue={r.topicId ?? ""} aria-label="Topic"
+                    className="text-[11px] border border-[var(--line-2)] rounded-md px-1.5 py-1 max-w-[220px]">
+                    <option value="">no topic</option>
+                    {topics.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                  </select>
+                  <SubmitButton className="btn sm" pendingText="…">Set</SubmitButton>
+                </form>
+              )}
+              {topics.length === 0 && r.topic && (
+                <p className="font-mono text-[10px] mb-2 inline-flex items-center gap-1" style={{ color: "var(--indigo-on)" }}>
+                  <Tags className="w-3 h-3" /> {r.topic.name}
                 </p>
               )}
               <p className="text-xs text-[var(--slate)] mb-2">{r.prompt}</p>

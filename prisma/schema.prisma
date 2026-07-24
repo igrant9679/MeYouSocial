@@ -545,6 +545,7 @@ model VideoRender {
   workspaceId  String
   blogPostId   String?
   scriptId     String?
+  topicId      String?  // workspace Topic; inherited from the source post when packaged
   title        String
   prompt       String   // the scene/visual prompt sent to the provider
   status       String   @default("queued") // queued | rendering | done | failed
@@ -562,6 +563,9 @@ model VideoRender {
   voiceoverUrl String?  // TTS output, when a TTS provider is configured
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+
+  // Deleting a topic must not delete the renders that referenced it.
+  topic        Topic?   @relation(fields: [topicId], references: [id], onDelete: SetNull)
 
   @@index([workspaceId, status])
 }
@@ -1258,6 +1262,7 @@ model Topic {
   blogPosts     BlogPost[]
   blogIdeas     BlogIdea[]
   channelIdeas  Idea[]
+  videoRenders  VideoRender[]
 
   @@unique([workspaceId, name])
   @@index([workspaceId, status])
