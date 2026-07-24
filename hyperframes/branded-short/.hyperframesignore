@@ -1,0 +1,3 @@
+# Keep the render bundle to just the composition + config. Everything the
+# render needs is index.html; the rest is authoring metadata.
+/README.md

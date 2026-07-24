@@ -574,6 +574,28 @@ model VideoRender {
   @@index([workspaceId, status])
 }
 
+// Branded shorts: a HyperFrames composition themed from the workspace BrandKit
+// and rendered on HeyGen's cloud (src/lib/branded-video). Distinct from
+// VideoRender (Veo storyboards) — no scenes, no local render.
+model BrandedShort {
+  id          String   @id @default(cuid())
+  workspaceId String
+  blogPostId  String?
+  title       String
+  eyebrow     String?
+  status      String   @default("rendering") // rendering | done | failed
+  provider    String   @default("heygen")
+  variables   String   @default("{}") // JSON snapshot of what was sent
+  renderId    String?  // HeyGen render id
+  videoUrl    String?  // signed HeyGen URL (time-limited)
+  storedUrl   String?  // persisted copy in StorageProvider
+  error       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([workspaceId, createdAt])
+}
+
 model AuditLog {
   id          String   @id @default(cuid())
   workspaceId String

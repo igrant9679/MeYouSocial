@@ -51,6 +51,9 @@ export const env = {
   // with USE_MOCK_VIDEO=false + a Google key (DB Setting or GOOGLE_GENAI_API_KEY).
   USE_MOCK_VIDEO: bool(process.env.USE_MOCK_VIDEO, true),
   YOUTUBE_API_KEY: str(process.env.YOUTUBE_API_KEY),
+  // Branded shorts render on HeyGen's HyperFrames cloud. Key resolved DB-first
+  // (Setting api_key:heygen) with these env fallbacks, same as every provider.
+  HEYGEN_API_KEY: str(process.env.HEYGEN_API_KEY) || str(process.env.HYPERFRAMES_API_KEY),
   VIDEO_MAX_SECONDS: num(process.env.VIDEO_MAX_SECONDS) ?? 8, // short-form first
   VIDEO_COST_PER_SECOND: num(process.env.VIDEO_COST_PER_SECOND) ?? 0.75, // rough Veo estimate, USD
   VIDEO_DAILY_RENDER_CAP: num(process.env.VIDEO_DAILY_RENDER_CAP) ?? 3,

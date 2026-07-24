@@ -22,9 +22,10 @@ type Row = {
   helpText: string;
 };
 
-const MEDIA_ROWS: Array<{ provider: "youtube" | "elevenlabs"; label: string; envVar: string; helpUrl: string; helpText: string; note: string }> = [
+const MEDIA_ROWS: Array<{ provider: "youtube" | "elevenlabs" | "heygen"; label: string; envVar: string; helpUrl: string; helpText: string; note: string }> = [
   { provider: "youtube", label: "YouTube Data API", envVar: "YOUTUBE_API_KEY", helpUrl: "https://console.cloud.google.com/apis/credentials", helpText: "Google Cloud Console → Credentials", note: "Powers real channel/video lookups in Intel and onboarding." },
   { provider: "elevenlabs", label: "ElevenLabs (voiceovers)", envVar: "ELEVENLABS_API_KEY", helpUrl: "https://elevenlabs.io/app/settings/api-keys", helpText: "elevenlabs.io → API keys", note: "Turns the voiceover button on video storyboards into real audio." },
+  { provider: "heygen", label: "HeyGen (branded shorts)", envVar: "HEYGEN_API_KEY", helpUrl: "https://app.heygen.com/settings/api", helpText: "app.heygen.com → Settings → API", note: "Renders branded-short title cards on HeyGen's HyperFrames cloud (pay-per-credit). Enables the 'Render branded short' button on approved/published posts." },
 ];
 
 const ROWS: Row[] = [

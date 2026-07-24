@@ -562,3 +562,66 @@ a multi-scene board, so it never wins.
 **Storage caveat:** assembled files land in whatever `storage:backend` is set
 to. Until the user activates Google Drive, that is local disk — wiped on every
 Railway redeploy, same as renders and voiceovers.
+
+---
+
+## Branded shorts — BrandKit-themed title cards via HeyGen HyperFrames cloud (shipped 2026-07-24)
+
+A "designed video" surface alongside Veo. HyperFrames (HeyGen's open-source
+"write HTML, render video" framework) renders **exact, on-brand** motion
+graphics from brand data; Veo generates footage from a prompt. Complementary,
+not a swap — the `VideoProvider` seam (`{prompt,seconds,aspect}`) was the wrong
+shape, so this is its own path.
+
+**Spike first, then wired.** A scratchpad spike proved one template re-themes
+per tenant purely from injected variables (coral MeYouSocial vs teal LSI, same
+composition). Then wired to the app.
+
+**Why cloud.** Rendering a HyperFrames composition needs headless Chrome +
+ffmpeg. `hyperframes cloud` runs both on HeyGen's infra, so Railway needs **no
+Chromium** — the whole app-side path is HTTP. (`hyperframes lambda`/`cloudrun`
+exist for self-hosted farms; not used.)
+
+**Dependency-free client** (`src/lib/branded-video/heygen-cloud.ts`), same house
+pattern as `storage/gdrive.ts`. Contract reverse-read from the hyperframes CLI
+source (v0.7.71):
+- `POST /v3/hyperframes/renders` `{ base64 | asset_id | url, aspect_ratio, fps,
+  quality, format, variables }` → `render_id`
+- `GET /v3/hyperframes/renders/{id}` → `{ status, video_url }`
+- auth header `x-api-key`; base `https://api.heygen.com` (override
+  `HEYGEN_API_URL`); responses wrap `data`; terminal statuses `completed|failed`.
+
+**No zip-upload round-trip.** The composition bundle is built into a
+STORED/DEFLATE zip **by hand** (Node ships no zip writer — ~60 lines, in the
+spirit of gdrive.ts's hand-rolled JWT) and **base64-submitted inline**.
+_Verified:_ the hand-built zip extracts with a standard `unzip` and the extracted
+composition passes `hyperframes check` (0 errors, WCAG AA 21/21). The only
+unexercised step is the paid HeyGen API call itself.
+
+**Wired to BrandKit** (`src/lib/branded-video/index.ts`): `brandKitToVariables`
+reads the workspace's BrandKit colours + footer + name, falls back to the app's
+coral tokens for anything unset, and picks an AA-contrast text colour by WCAG
+luminance. _Verified against the live prod DB_ for real workspaces (names
+resolve, fallbacks apply, eyebrow uppercased, white text chosen).
+
+**Gating (house pattern).** `heygen` is a first-class key provider
+(`keys.ts` + env; Setting `api_key:heygen` DB-first, env `HEYGEN_API_KEY` /
+`HYPERFRAMES_API_KEY` fallback). No key → the Distribute tab shows "add a HeyGen
+key", never a fake. Admin → API keys has a HeyGen row.
+
+**Surface.** A post's Distribute tab (approved/published) gets a "Render branded
+short" button + a gallery of that post's shorts (status, inline video, download,
+delete). EDITOR-gated (spends credits). Finished MP4s are persisted through the
+storage layer — HeyGen's signed `video_url` is time-limited.
+
+Model `BrandedShort`; migration `20260724060000_branded_short`.
+
+**USER MUST activate:** paste a HeyGen API key (Admin → API keys → *Media &
+video*) from app.heygen.com → Settings → API, and hold HeyGen credits.
+Pay-per-credit. Until then the button is replaced by a configure-key notice.
+
+**Template asset** lives at `hyperframes/branded-short/` (editable via the
+HyperFrames CLI: `npx hyperframes preview|check|render`). `next start` runs from
+the repo root so the dir is on disk at render time — no bundling step. The
+Google-Fonts `<link>` for IBM Plex is a known non-blocking `check` warning;
+bundling woff2 locally is the deterministic-render hardening step if wanted.

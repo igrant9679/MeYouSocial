@@ -87,6 +87,8 @@ import {
   postSocialVariantAction,
 } from "@/app/actions/blog-social";
 import { createVideoPackageAction } from "@/app/actions/videos";
+import { renderBrandedShortAction, deleteBrandedShortAction } from "@/app/actions/branded-video";
+import { brandedShortAvailable } from "@/lib/branded-video";
 
 // Blog post editor (Spark port, slice 1): SEO metadata + HTML body + grounded
 // AI draft + the review-state machine. Publishing is an ADMIN act (human gate).
@@ -141,6 +143,16 @@ export default async function BlogPostPage({
   });
   if (!post) notFound();
   const wpConn = await db.wordPressConnection.findUnique({ where: { workspaceId: workspace.id } });
+
+  // Branded shorts (HeyGen HyperFrames cloud) — availability + this post's renders.
+  const [heygenReady, brandedShorts] = await Promise.all([
+    brandedShortAvailable(workspace.id),
+    db.brandedShort.findMany({
+      where: { workspaceId: workspace.id, blogPostId: id },
+      orderBy: { createdAt: "desc" },
+      take: 6,
+    }),
+  ]);
 
   const editor = canEdit(membership.role);
   const admin = canAdmin(membership.role);
@@ -1258,6 +1270,64 @@ export default async function BlogPostPage({
               <Sparkles className="w-4 h-4" /> Create video package
             </SubmitButton>
           </form>
+        </div>
+      )}
+
+      {/* Branded short (HeyGen HyperFrames cloud) — a title card themed from the
+          workspace BrandKit. Distinct from the Veo package above. */}
+      {(post.status === "final_approval" || post.status === "published") && editor && (
+        <div className="card mt-4">
+          <div className="flex flex-wrap items-center gap-2 text-sm mb-1">
+            <b>Branded short:</b>
+            <span className="text-xs text-[var(--mute)] flex-1 min-w-40">
+              A 6s vertical title card rendered from this workspace&apos;s brand colours & footer on HeyGen&apos;s cloud.
+            </span>
+            {heygenReady ? (
+              <form action={renderBrandedShortAction}>
+                <input type="hidden" name="blogPostId" value={post.id} />
+                <SubmitButton className="btn" pendingText="Rendering… (cloud, ~1–2 min)">
+                  <Sparkles className="w-4 h-4" /> Render branded short
+                </SubmitButton>
+              </form>
+            ) : (
+              <span className="text-xs px-2.5 py-1 rounded-lg" style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }}>
+                Add a HeyGen key under <Link href="/admin/api-keys" className="underline">Admin → API keys</Link> to enable.
+              </span>
+            )}
+          </div>
+          {brandedShorts.length > 0 && (
+            <div className="grid grid-cols-1 @lg:grid-cols-2 @3xl:grid-cols-3 gap-3 mt-3">
+              {brandedShorts.map((s) => (
+                <div key={s.id} className="rounded-xl border border-[var(--line)] overflow-hidden flex flex-col">
+                  {s.status === "done" && (s.storedUrl || s.videoUrl) ? (
+                    <video src={s.storedUrl ?? s.videoUrl!} controls preload="none" className="w-full bg-black" />
+                  ) : (
+                    <div className="aspect-[9/16] max-h-56 grid place-items-center text-xs" style={{ background: "var(--panel)", color: "var(--mute)" }}>
+                      {s.status === "rendering" ? "Rendering on HeyGen…" : s.error ? "Failed" : s.status}
+                    </div>
+                  )}
+                  <div className="p-2 flex items-center gap-2">
+                    <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: `var(--${s.status === "done" ? "green" : s.status === "failed" ? "rose" : "amber"}-soft)`, color: `var(--${s.status === "done" ? "green" : s.status === "failed" ? "rose" : "amber"}-on)` }}>
+                      {s.status}
+                    </span>
+                    <span className="text-[11px] text-[var(--mute)] flex-1 truncate" title={s.error ?? s.eyebrow ?? ""}>
+                      {s.error ? s.error : s.eyebrow}
+                    </span>
+                    {s.status === "done" && (s.storedUrl || s.videoUrl) && (
+                      <a href={s.storedUrl ?? s.videoUrl!} download className="text-[11px] underline">Download</a>
+                    )}
+                    <form action={deleteBrandedShortAction}>
+                      <input type="hidden" name="id" value={s.id} />
+                      <button className="text-[11px] text-[var(--mute)] hover:text-[var(--rose-on)]" title="Delete">✕</button>
+                    </form>
+                  </div>
+                  {s.status === "done" && !s.storedUrl && s.videoUrl && (
+                    <p className="px-2 pb-2 text-[10px] text-[var(--mute)]">⚠ HeyGen link only — expires; couldn&apos;t persist to storage.</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 

@@ -9,7 +9,7 @@ import { getSetting, invalidateSettingsCache } from "@/lib/settings";
 
 type Provider =
   | "anthropic" | "openai" | "google" | "deepseek" | "xai" | "moonshot" | "minimax"
-  | "youtube" | "elevenlabs";
+  | "youtube" | "elevenlabs" | "heygen";
 
 const SETTING_KEY: Record<Provider, string> = {
   anthropic: "api_key:anthropic",
@@ -21,6 +21,7 @@ const SETTING_KEY: Record<Provider, string> = {
   minimax:   "api_key:minimax",
   youtube:   "api_key:youtube",
   elevenlabs: "api_key:elevenlabs",
+  heygen:    "api_key:heygen",
 };
 
 const ENV_KEY: Record<Provider, string> = {
@@ -33,6 +34,7 @@ const ENV_KEY: Record<Provider, string> = {
   minimax:   env.MINIMAX_API_KEY,
   youtube:   process.env.YOUTUBE_API_KEY ?? "",
   elevenlabs: process.env.ELEVENLABS_API_KEY ?? "",
+  heygen:    env.HEYGEN_API_KEY,
 };
 
 export async function getApiKey(provider: Provider, workspaceId?: string | null): Promise<string> {

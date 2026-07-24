@@ -1,0 +1,151 @@
+<!doctype html>
+<html
+  lang="en"
+  data-resolution="portrait"
+  data-composition-variables='[
+    {"id":"eyebrow","type":"string","label":"Eyebrow","default":"NEW POST"},
+    {"id":"title","type":"string","label":"Title","default":"Turn every blog post into a branded short."},
+    {"id":"brandName","type":"string","label":"Brand name","default":"MeYouSocial"},
+    {"id":"footer","type":"string","label":"Footer","default":"meyousocial.app"},
+    {"id":"primaryColor","type":"color","label":"Primary","default":"#E5482F"},
+    {"id":"secondaryColor","type":"color","label":"Secondary","default":"#B5371F"},
+    {"id":"accentColor","type":"color","label":"Accent","default":"#FDE7E1"},
+    {"id":"textColor","type":"color","label":"Text","default":"#FFFFFF"}
+  ]'
+>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1080, height=1920" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap"
+      rel="stylesheet"
+    />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body {
+        width: 1080px; height: 1920px; overflow: hidden;
+        background: #000;
+        font-family: "IBM Plex Sans", system-ui, sans-serif;
+      }
+      /* Brand tokens live as CSS custom properties; the script sets them from
+         the resolved variables so one template themes to any workspace. */
+      #root {
+        --brand: #E5482F; --brand-2: #B5371F; --accent: #FDE7E1; --text: #FFFFFF;
+        position: relative; width: 1080px; height: 1920px; overflow: hidden;
+      }
+      /* Full-bleed brand gradient + a soft accent glow for depth. */
+      .bg {
+        position: absolute; inset: 0;
+        background:
+          radial-gradient(1200px 900px at 78% 12%, color-mix(in srgb, var(--accent) 26%, transparent), transparent 60%),
+          linear-gradient(158deg, var(--brand) 0%, var(--brand-2) 100%);
+        transform-origin: 60% 40%;
+      }
+      /* Faint oversized wordmark watermark — pure brand texture. */
+      .watermark {
+        position: absolute; right: -120px; bottom: 320px;
+        font-family: "IBM Plex Mono", monospace; font-weight: 600;
+        font-size: 460px; line-height: 0.8; letter-spacing: -20px;
+        color: var(--text); opacity: 0.06; white-space: nowrap;
+      }
+      .content {
+        position: absolute; inset: 0;
+        padding: 150px 110px; display: flex; flex-direction: column;
+      }
+      .brandrow { display: flex; align-items: center; gap: 22px; }
+      .dot { width: 34px; height: 34px; border-radius: 50%; background: var(--accent); }
+      .brandname {
+        font-family: "IBM Plex Mono", monospace; font-weight: 600;
+        font-size: 40px; letter-spacing: 1px; color: var(--text);
+      }
+      .spacer { flex: 1; }
+      .eyebrow {
+        font-family: "IBM Plex Mono", monospace; font-weight: 600;
+        font-size: 40px; letter-spacing: 10px; text-transform: uppercase;
+        color: var(--accent); margin-bottom: 34px;
+      }
+      .rule {
+        height: 8px; width: 220px; background: var(--accent);
+        border-radius: 4px; transform-origin: left center; margin-bottom: 52px;
+      }
+      .title {
+        font-weight: 700; font-size: 118px; line-height: 1.03;
+        letter-spacing: -2px; color: var(--text);
+        max-width: 830px;
+        /* clip-path drives the reveal wipe; JS animates the inset. */
+        clip-path: inset(0 100% 0 0);
+      }
+      .footer {
+        display: flex; align-items: center; gap: 18px;
+        font-family: "IBM Plex Mono", monospace; font-weight: 500;
+        font-size: 34px; color: var(--text); opacity: 0.85;
+      }
+      .footer .bar { width: 46px; height: 4px; background: var(--text); opacity: 0.6; }
+    </style>
+  </head>
+  <body>
+    <div
+      id="root"
+      data-composition-id="main"
+      data-start="0"
+      data-duration="6"
+      data-width="1080"
+      data-height="1920"
+    >
+      <div id="bg" class="bg clip" data-start="0" data-duration="6" data-track-index="0"></div>
+      <div id="watermark" class="watermark clip" data-start="0" data-duration="6" data-track-index="1" data-layout-allow-overflow data-var-text="brandName">MeYouSocial</div>
+
+      <div class="content">
+        <div id="brandrow" class="brandrow clip" data-start="0" data-duration="6" data-track-index="2">
+          <span class="dot"></span>
+          <span class="brandname" data-var-text="brandName">MeYouSocial</span>
+        </div>
+
+        <div class="spacer"></div>
+
+        <div id="eyebrow" class="eyebrow clip" data-start="0" data-duration="6" data-track-index="3" data-var-text="eyebrow">NEW POST</div>
+        <div id="rule" class="rule clip" data-start="0" data-duration="6" data-track-index="4"></div>
+        <h1 id="hero-title" class="title clip" data-start="0" data-duration="6" data-track-index="5" data-var-text="title">
+          Turn every blog post into a branded short.
+        </h1>
+
+        <div class="spacer"></div>
+
+        <div id="footer" class="footer clip" data-start="0" data-duration="6" data-track-index="6">
+          <span class="bar"></span>
+          <span data-var-text="footer">meyousocial.app</span>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // Theme the template from the resolved variables (declared defaults ->
+      // CLI --variables overrides). Deterministic: no Date/Math.random/fetch.
+      const v = window.__hyperframes.getVariables();
+      const root = document.getElementById("root");
+      root.style.setProperty("--brand", v.primaryColor);
+      root.style.setProperty("--brand-2", v.secondaryColor);
+      root.style.setProperty("--accent", v.accentColor);
+      root.style.setProperty("--text", v.textColor);
+
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true, defaults: { ease: "power3.out" } });
+
+      // Slow background push for life under the static type.
+      tl.fromTo(".bg", { scale: 1.0 }, { scale: 1.08, ease: "none", duration: 6 }, 0);
+
+      tl.from(".brandrow", { opacity: 0, y: -40, duration: 0.8 }, 0.1);
+      tl.from(".dot", { scale: 0, transformOrigin: "center", duration: 0.6, ease: "back.out(2)" }, 0.3);
+      tl.from(".eyebrow", { opacity: 0, y: 30, duration: 0.7 }, 0.5);
+      tl.fromTo(".rule", { scaleX: 0 }, { scaleX: 1, duration: 0.7, ease: "power2.out" }, 0.7);
+      tl.to(".title", { clipPath: "inset(0 0% 0 0)", duration: 1.1, ease: "power4.out" }, 0.9);
+      tl.from(".title", { y: 40, opacity: 0, duration: 1.0 }, 0.9);
+      tl.from(".footer", { opacity: 0, y: 30, duration: 0.7 }, 1.7);
+
+      window.__timelines["main"] = tl;
+    </script>
+  </body>
+</html>

@@ -24,6 +24,7 @@ const SETTING_KEY: Record<KeyProvider, string> = {
   minimax:   "api_key:minimax",
   youtube:   "api_key:youtube",
   elevenlabs: "api_key:elevenlabs",
+  heygen:    "api_key:heygen",
 };
 
 /**
@@ -124,7 +125,7 @@ export async function saveStorageSettingAction(formData: FormData) {
 export async function saveApiKeyAction(formData: FormData) {
   const { workspace } = await requireRole("ADMIN");
   const provider = String(formData.get("provider") ?? "") as KeyProvider;
-  if (!KEY_PROVIDERS.includes(provider) && provider !== "youtube" && provider !== "elevenlabs") return;
+  if (!KEY_PROVIDERS.includes(provider) && provider !== "youtube" && provider !== "elevenlabs" && provider !== "heygen") return;
   const value = String(formData.get("value") ?? "").trim();
   const { setWorkspaceSetting } = await import("@/lib/settings");
   await setWorkspaceSetting(workspace.id, SETTING_KEY[provider], value);

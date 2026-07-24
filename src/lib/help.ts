@@ -255,6 +255,18 @@ export const HELP_CATEGORIES: FaqCategory[] = [
         tags: ["veo", "provider", "mock", "cost"],
       },
       {
+        q: "What's a branded short, and how is it different from a video package?",
+        a: "A **branded short** is a 6-second vertical title card — your post's headline over this workspace's brand colours, name and footer — rendered on HeyGen's HyperFrames cloud (no Chrome/ffmpeg here; it's designed motion graphics, not generated footage). A **video package** is the Veo route: an AI-generated multi-scene storyboard. Use branded shorts for exact, on-brand promos; use packages for generated video. The **Render branded short** button is on a post's Distribute tab once it's approved/published.",
+        links: [{ label: "Admin → API keys →", href: "/admin/api-keys" }],
+        tags: ["branded short", "hyperframes", "heygen", "title card"],
+      },
+      {
+        q: "How do I enable branded shorts?",
+        a: "Admin → **API keys** → *Media & video*: paste a **HeyGen** key (app.heygen.com → Settings → API). Rendering runs on HeyGen's cloud and is pay-per-credit. The short pulls its colours and footer from this workspace's **Brand** hub, falling back to the app's own coral tokens when unset — so it renders on-brand with nothing configured. Finished MP4s are persisted to storage (HeyGen's own links expire).",
+        links: [{ label: "Brand hub →", href: "/brand" }, { label: "Admin → API keys →", href: "/admin/api-keys" }],
+        tags: ["branded short", "heygen", "hyperframes", "brand", "cost"],
+      },
+      {
         q: "Can it generate a voiceover?",
         a: "Yes — the **Generate voiceover** button on a storyboard reads the scene texts as a narration script. With the mock TTS it stores that script as clearly-labeled text; paste an ElevenLabs key and switch the TTS provider (Admin → API keys) for real audio.",
         tags: ["voiceover", "tts", "elevenlabs", "audio"],
