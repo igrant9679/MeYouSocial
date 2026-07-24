@@ -493,3 +493,72 @@ _Also code-verified only:_ `packageVideoCore` topic inheritance (needs a real
 packaging run — LLM + render budget), and AI idea discovery output quality
 (the Anthropic key is at $0, so generations fall back to mock; the topic
 plumbing is verified, the generated text is not).
+
+---
+
+## Scene assembly — one file out of a storyboard (shipped 2026-07-24)
+
+The seam noted in `src/lib/video/index.ts` ("Long-form assembly (multi-clip +
+ffmpeg stitch) is a later step, gated on infra") is closed. A multi-scene board
+used to end as N separate clips the user played one by one; the deliverable is
+now a single file.
+
+**No infra change was needed.** `ffmpeg-static` is an npm dependency shipping a
+per-platform binary, so Railway's Nixpacks image is untouched (no apt/nix
+package, no `nixpacks.toml`). Binary resolution is layered:
+`FFMPEG_PATH` env → `ffmpeg-static` → bare `ffmpeg` on PATH. `ffmpeg-static` is
+listed in `serverExternalPackages` — bundling it would rewrite the path its
+module exports and the spawn would fail.
+
+**The chain** (`src/lib/video/assemble.ts`):
+
+1. **Read back** each scene clip. App-relative URLs (`/uploads/<key>`,
+   `/api/files/<key>`) are read through the storage layer, *not* fetched —
+   both routes are session-gated and a server-side fetch would 401. Only
+   `http(s)` provider URLs are fetched.
+2. **Normalize** each clip onto one canvas (9:16 → 720×1280, 16:9 → 1280×720,
+   1:1 → 1080×1080) via `scale…force_original_aspect_ratio=decrease` + `pad`,
+   30fps, h264/yuv420p, aac 48k stereo.
+3. **Concat** through the concat demuxer.
+4. **Mux** a real voiceover over the whole cut when one exists (it *replaces*
+   the clip audio — that's the right call for narration). The narration is
+   `apad`-ed and `-shortest` then stops at the **video's** end, so the cut
+   always survives intact whichever track is longer.
+5. **Store** via `storage.put` → `VideoRender.assembledUrl`.
+
+**Decisions worth not re-litigating:**
+
+- **No ffprobe.** `ffmpeg-static` ships no probe binary. Instead each clip is
+  normalized assuming it carries audio (`-map 0:a:0`) and retried against an
+  `anullsrc` silent track when that mapping fails. This is what makes a board
+  that *mixes* Veo clips (audio) with silent ones work — verified against
+  exactly that mixed case.
+- **Video is stream-copied at concat, audio is re-encoded.** Copying audio too
+  emits `Non-monotonic DTS` at every segment boundary (AAC priming samples) and
+  shifts timestamps. Re-encoding only the audio costs almost nothing and the
+  video never takes a second generation of loss. Verified: `-c copy` warned,
+  `-c:v copy -c:a aac` was clean, both at the correct duration.
+- **`-shortest` alone was a bug, caught in testing.** Without `apad`, muxing a
+  2s voiceover over a 6.04s board produced a **2.0s file** — `-shortest` had
+  truncated the video down to the narration. With `[1:a]apad[a]` the output is
+  6.039s in both directions (2s and 10s narration), verified.
+- **Captions are not burned in.** Burn-in needs libass and makes the caption
+  text unfixable after the fact; the SRT sidecar stays the deliverable.
+- **Assembly never fails a render.** It writes `assemblyStatus`
+  (`assembling|done|failed|unavailable`) + `assemblyError` and leaves `status`
+  alone — a render whose stitch failed is still a successful render with
+  playable per-scene clips. `unavailable` (no ffmpeg binary) is reported
+  distinctly from `failed`, and suppresses the button rather than offering an
+  action that cannot work.
+- **EDITOR-level, re-runnable.** Unlike rendering it spends no provider money,
+  only CPU. Re-assemble after regenerating a voiceover.
+- Guards: ≥2 rendered scenes, 200MB in, 200MB out, 5-min ffmpeg timeout, temp
+  dir always cleaned in a `finally`.
+
+Migration `20260724050000_video_assembly` (three nullable columns). The Videos
+list now previews `assembledUrl ?? outputUrl` — `outputUrl` is only scene 1 on
+a multi-scene board, so it never wins.
+
+**Storage caveat:** assembled files land in whatever `storage:backend` is set
+to. Until the user activates Google Drive, that is local disk — wiped on every
+Railway redeploy, same as renders and voiceovers.

@@ -260,6 +260,12 @@ export const HELP_CATEGORIES: FaqCategory[] = [
         tags: ["voiceover", "tts", "elevenlabs", "audio"],
       },
       {
+        q: "How do I get ONE video file instead of separate scene clips?",
+        a: "A multi-scene board renders one clip per scene. **Assemble full video** (on the storyboard page) stitches them with ffmpeg: every clip is scaled and padded onto one canvas for the render's aspect ratio, then concatenated in scene order. If a real voiceover exists it replaces the soundtrack over the whole cut. Assembly runs automatically as soon as a multi-scene render finishes, and it's re-runnable — do that after regenerating a voiceover. It costs no provider money, only CPU. Captions stay a separate SRT file; they are not burned in.",
+        links: [{ label: "Videos →", href: "/videos" }],
+        tags: ["assemble", "ffmpeg", "stitch", "concat", "full video", "download"],
+      },
+      {
         q: "Where are uploads, voiceovers and renders stored?",
         a: "Admin → **API keys** → *Storage*. **Local disk** is the dev default, but on Railway the disk is wiped on every redeploy — files don't survive. **Google Drive** keeps them durably: create a service account, share a Drive folder with it as Editor, paste both in, and the app runs a real write test before switching. Files stay private — they're streamed only to signed-in members, never public-by-link. Note: on a free personal Drive, uploads count against the *service account's own* 15 GB quota (shown live on the Storage card); a Workspace Shared Drive pools quota instead.",
         links: [{ label: "Admin → API keys →", href: "/admin/api-keys" }],

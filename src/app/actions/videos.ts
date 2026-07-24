@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/acl";
 import { db } from "@/lib/db";
-import { packageVideoCore, processRenderCore } from "@/lib/blog-autopilot";
+import { assembleRenderCore, packageVideoCore, processRenderCore } from "@/lib/blog-autopilot";
 import { env } from "@/lib/env";
 import { estimateCostUsd } from "@/lib/video";
 import { parseScenes, scenesToNarration, scenesToSrt } from "@/lib/captions";
@@ -48,6 +48,19 @@ export async function processRenderNowAction(formData: FormData) {
   const { workspace } = await requireRole("ADMIN");
   await processRenderCore(workspace.id, id);
   revalidatePath("/videos");
+}
+
+/**
+ * Stitch the board's clips into one file. EDITOR-level: unlike rendering this
+ * costs no provider money, only local CPU. Re-runnable — a fresh voiceover or a
+ * re-render is a legitimate reason to assemble again.
+ */
+export async function assembleRenderAction(formData: FormData) {
+  const id = String(formData.get("id"));
+  const { workspace } = await requireRole("EDITOR");
+  await assembleRenderCore(workspace.id, id);
+  revalidatePath("/videos");
+  revalidatePath(`/videos/${id}`);
 }
 
 export async function deleteRenderAction(formData: FormData) {

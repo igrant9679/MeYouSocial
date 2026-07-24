@@ -561,6 +561,10 @@ model VideoRender {
   srt          String?  // generated captions (SRT text)
   storedUrl    String?  // provider output persisted to StorageProvider (Veo URIs expire ~2d)
   voiceoverUrl String?  // TTS output, when a TTS provider is configured
+  // Assembly (ffmpeg): the storyboard's clips stitched into ONE file.
+  assembledUrl    String? // stored single-file cut of the whole board
+  assemblyStatus  String? // null (never attempted) | assembling | done | failed | unavailable
+  assemblyError   String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

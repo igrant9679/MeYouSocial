@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Captions, Clapperboard, Mic, Play, Plus, RotateCcw, Trash2 } from "lucide-react";
+import { ArrowLeft, Captions, Clapperboard, Download, Film, Mic, Play, Plus, RotateCcw, Trash2 } from "lucide-react";
 import { requireMembership, canAdmin, canEdit } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { env } from "@/lib/env";
@@ -8,6 +8,7 @@ import { SubmitButton } from "@/components/SubmitButton";
 import { parseScenes } from "@/lib/captions";
 import {
   addSceneAction,
+  assembleRenderAction,
   deleteSceneAction,
   generateSrtAction,
   generateVoiceoverAction,
@@ -44,6 +45,7 @@ export default async function StoryboardPage({ params }: { params: Promise<{ id:
   const editor = canEdit(membership.role);
   const admin = canAdmin(membership.role);
   const scenes = parseScenes(render.scenes);
+  const renderedClips = scenes.filter((s) => s.outputUrl).length;
   const editable = editor && (render.status === "queued" || render.status === "failed");
   const hue = STATUS_HUE[render.status] ?? "cyan";
   const post = render.blogPostId
@@ -162,8 +164,65 @@ export default async function StoryboardPage({ params }: { params: Promise<{ id:
         )}
       </div>
 
-      {/* Output */}
-      {render.status === "done" && (render.storedUrl || render.outputUrl) && (
+      {/* Full video — the deliverable for a multi-scene board */}
+      {render.status === "done" && scenes.length > 1 && (
+        <div className="card mb-4">
+          <h2 className="font-mono text-[13px] font-bold mb-2 flex items-center gap-1.5">
+            <Film className="w-4 h-4" /> Full video
+          </h2>
+          {render.assembledUrl ? (
+            <>
+              <video src={render.assembledUrl} controls className="w-full max-w-sm rounded-xl border border-[var(--line)]" />
+              <p className="text-[11px] text-[var(--mute)] mt-1.5">
+                All {renderedClips} clips stitched into one file
+                {render.voiceoverUrl ? ", narration muxed over the cut where available" : ""}. Captions stay a
+                separate SRT sidecar — they are not burned in.
+              </p>
+              <div className="flex flex-wrap items-center gap-2 mt-2">
+                <a href={render.assembledUrl} download className="btn sm"><Download className="w-3.5 h-3.5" /> Download</a>
+                {editor && (
+                  <form action={assembleRenderAction}>
+                    <input type="hidden" name="id" value={render.id} />
+                    <SubmitButton className="btn sm" pendingText="Assembling…">Re-assemble</SubmitButton>
+                  </form>
+                )}
+              </div>
+            </>
+          ) : (
+            <>
+              <p className="text-xs text-[var(--mute)]">
+                {render.assemblyStatus === "unavailable"
+                  ? "This deployment has no ffmpeg binary, so the clips can't be stitched here. Per-scene clips above are unaffected."
+                  : render.assemblyStatus === "failed"
+                    ? "Assembly failed — the render itself is fine and every scene above still plays."
+                    : renderedClips > 1
+                      ? "The scenes rendered as separate clips. Assemble them into one file to download or upload."
+                      : "Assembly needs at least two rendered scenes."}
+              </p>
+              {render.assemblyError && (
+                <p className="text-[11px] mt-1.5 px-2.5 py-1.5 rounded-lg" style={{ background: "var(--rose-soft)", color: "var(--rose-on)" }}>
+                  {render.assemblyError}
+                </p>
+              )}
+              {/* Offered even after "unavailable": that status is a snapshot of
+                  the deploy that tried, and a later one may well have ffmpeg. */}
+              {editor && renderedClips > 1 && (
+                <div className="mt-2">
+                  <form action={assembleRenderAction}>
+                    <input type="hidden" name="id" value={render.id} />
+                    <SubmitButton className="btn primary" pendingText="Assembling… (encodes every clip)">
+                      <Film className="w-4 h-4" /> {render.assemblyStatus ? "Try assembly again" : "Assemble full video"}
+                    </SubmitButton>
+                  </form>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Output — single-clip boards; multi-scene clips already play per scene */}
+      {render.status === "done" && scenes.length <= 1 && (render.storedUrl || render.outputUrl) && (
         <div className="card mb-4">
           <h2 className="font-mono text-[13px] font-bold mb-2">Output</h2>
           <video src={render.storedUrl ?? render.outputUrl!} controls className="w-full max-w-sm rounded-xl border border-[var(--line)]" />

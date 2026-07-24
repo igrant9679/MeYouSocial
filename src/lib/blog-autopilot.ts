@@ -745,6 +745,11 @@ export async function processRenderCore(workspaceId: string, renderId: string): 
       entityId: render.id,
       meta: { provider: provider.name, scenes: Math.max(1, scenes.length) },
     });
+    // A multi-scene board's deliverable is the stitched file, so assemble it
+    // straight away. Best-effort by design — the render is already a success.
+    if (scenes.length > 1) {
+      await assembleRenderCore(workspaceId, render.id).catch(() => false);
+    }
     return true;
   } catch (e) {
     const message = e instanceof Error ? e.message.slice(0, 500) : "render failed";
@@ -761,6 +766,53 @@ export async function processRenderCore(workspaceId: string, renderId: string): 
     });
     // Someone should look before a retry loop burns budget.
     await autoTaskForRenderFailure(workspaceId, { id: render.id, title: render.title, error: message });
+    return false;
+  }
+}
+
+/**
+ * Stitch a finished storyboard's clips into one file (ffmpeg). Runs after a
+ * successful multi-scene render and on demand from the storyboard page.
+ *
+ * Never throws and never touches `status`: a render whose assembly fails is
+ * still a successful render with playable per-scene clips. The reason is
+ * recorded on `assemblyError` so the UI can be specific about it.
+ */
+export async function assembleRenderCore(workspaceId: string, renderId: string): Promise<boolean> {
+  const render = await db.videoRender.findFirst({ where: { id: renderId, workspaceId } });
+  if (!render || render.status !== "done") return false;
+  const scenes = parseScenes(render.scenes);
+  if (scenes.filter((s) => s.outputUrl).length < 2) return false;
+
+  await db.videoRender.update({
+    where: { id: render.id },
+    data: { assemblyStatus: "assembling", assemblyError: null },
+  });
+  try {
+    const { assembleScenes } = await import("@/lib/video/assemble");
+    const out = await assembleScenes(scenes, render.aspect, render.voiceoverUrl);
+    await db.videoRender.update({
+      where: { id: render.id },
+      data: { assembledUrl: out.url, assemblyStatus: "done", assemblyError: null },
+    });
+    await writeAudit({
+      workspaceId,
+      action: "video.assembled",
+      entityType: "video_render",
+      entityId: render.id,
+      meta: { clips: out.clips, bytes: out.bytes, withVoiceover: out.withVoiceover },
+    });
+    return true;
+  } catch (e) {
+    const { AssemblyUnavailable } = await import("@/lib/video/assemble");
+    const unavailable = e instanceof AssemblyUnavailable;
+    await db.videoRender.update({
+      where: { id: render.id },
+      data: {
+        assemblyStatus: unavailable ? "unavailable" : "failed",
+        assemblyError: e instanceof Error ? e.message.slice(0, 500) : "assembly failed",
+      },
+    });
     return false;
   }
 }

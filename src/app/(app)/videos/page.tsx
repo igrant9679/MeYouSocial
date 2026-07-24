@@ -158,8 +158,13 @@ export default async function VideosPage() {
                 </p>
               )}
               <p className="text-xs text-[var(--slate)] mb-2">{r.prompt}</p>
-              {r.status === "done" && r.outputUrl && (
-                <video src={r.outputUrl} controls preload="metadata" className="rounded-lg max-h-72 border border-[var(--line)]" />
+              {/* The assembled cut is the real deliverable; `outputUrl` is only
+                  scene 1 on a multi-scene board, so it never wins here. */}
+              {r.status === "done" && (r.assembledUrl || r.outputUrl) && (
+                <video src={r.assembledUrl ?? r.outputUrl!} controls preload="metadata" className="rounded-lg max-h-72 border border-[var(--line)]" />
+              )}
+              {r.status === "done" && r.assembledUrl && (
+                <p className="font-mono text-[10px] text-[var(--mute)] mt-1">full cut · all scenes assembled</p>
               )}
               {r.status === "done" && r.provider === "veo" && (
                 <p className="text-[10px] text-[var(--mute)] mt-1">
