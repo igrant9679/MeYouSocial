@@ -51,6 +51,15 @@ export async function createSocialPostAction(formData: FormData) {
   });
   if (accounts.length === 0) backTo("Those accounts aren't connected. Connect one under Admin → Connections.");
 
+  // Optional workspace Topic — validated against this workspace so a stale or
+  // foreign id can never be attached.
+  const topicRaw = String(formData.get("topicId") ?? "").trim();
+  let topicId: string | null = null;
+  if (topicRaw) {
+    const topic = await db.topic.findFirst({ where: { id: topicRaw, workspaceId: workspace.id }, select: { id: true } });
+    topicId = topic?.id ?? null;
+  }
+
   let scheduledAt: Date | null = null;
   let status = "draft";
   if (when === "schedule") {
@@ -83,6 +92,7 @@ export async function createSocialPostAction(formData: FormData) {
     data: {
       workspaceId: workspace.id,
       createdById: user.id,
+      topicId,
       text,
       mediaKeys: writeJson(mediaKeys),
       scheduledAt,
@@ -147,6 +157,7 @@ export async function duplicateSocialPostAction(formData: FormData) {
     data: {
       workspaceId: workspace.id,
       createdById: user.id,
+      topicId: src.topicId,
       text: src.text,
       mediaKeys: src.mediaKeys,
       status: "draft",

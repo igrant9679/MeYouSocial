@@ -1,12 +1,13 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import { Send, CalendarClock, ImagePlus, X, Pencil, RotateCcw } from "lucide-react";
+import { Send, CalendarClock, ImagePlus, X, Pencil, RotateCcw, Tags, Plus } from "lucide-react";
 import { SubmitButton } from "@/components/SubmitButton";
 import { createSocialPostAction } from "@/app/actions/social";
 import { networkFor } from "@/lib/social/networks";
 
 export type ComposerAccount = { id: string; provider: string; name: string | null };
+export type ComposerTopic = { id: string; name: string; keywords: string[] };
 
 // Buffer/Hootsuite-style composer: pick accounts, write a base post once, then
 // optionally customize text AND images per network. Each network shows its own
@@ -20,9 +21,10 @@ function syncInput(input: HTMLInputElement | null, files: File[]) {
   input.files = dt.files;
 }
 
-export function SocialComposer({ accounts }: { accounts: ComposerAccount[] }) {
+export function SocialComposer({ accounts, topics = [] }: { accounts: ComposerAccount[]; topics?: ComposerTopic[] }) {
   const [selected, setSelected] = useState<Set<string>>(new Set(accounts.length === 1 ? [accounts[0].id] : []));
   const [text, setText] = useState("");
+  const [topicId, setTopicId] = useState("");
   const [variants, setVariants] = useState<Record<string, string>>({});
   const [customizing, setCustomizing] = useState<Set<string>>(new Set());
   const [when, setWhen] = useState<"now" | "schedule">("now");
@@ -47,6 +49,7 @@ export function SocialComposer({ accounts }: { accounts: ComposerAccount[] }) {
     customizing.has(p) && (variantFiles[p]?.length ?? 0) > 0 ? variantFiles[p] : files;
 
   const anyOver = selectedProviders.some((p) => effectiveText(p).length > (networkFor(p)?.charLimit ?? 3000));
+  const topic = topics.find((t) => t.id === topicId);
 
   const toggle = (id: string) =>
     setSelected((prev) => {
@@ -100,6 +103,29 @@ export function SocialComposer({ accounts }: { accounts: ComposerAccount[] }) {
           })}
         </div>
       </div>
+
+      {/* Topic — optional, ties the post to a workspace theme */}
+      {topics.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          <label className="inline-flex items-center gap-1.5 text-xs">
+            <Tags className="w-3.5 h-3.5" style={{ color: "var(--violet-on)" }} />
+            <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">Topic</span>
+            <select name="topicId" value={topicId} onChange={(e) => setTopicId(e.target.value)}
+              className="border border-[var(--line-2)] rounded-lg px-2 py-1 text-xs">
+              <option value="">— none —</option>
+              {topics.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+            </select>
+          </label>
+          {/* That topic's related phrases, click to insert */}
+          {topic?.keywords.map((k) => (
+            <button key={k} type="button" title="Insert into the post"
+              onClick={() => setText((prev) => (prev ? `${prev.replace(/\s+$/, "")} ${k}` : k))}
+              className="inline-flex items-center gap-1 text-[11px] font-mono px-1.5 py-0.5 rounded-full border border-[var(--line-2)] hover:border-[var(--accent)]">
+              <Plus className="w-2.5 h-2.5" /> {k}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Base composer */}
       <div>

@@ -1188,6 +1188,7 @@ model SocialPost {
   id          String   @id @default(cuid())
   workspaceId String
   createdById String?
+  topicId     String?  // optional workspace Topic this post belongs to
   text        String
   mediaKeys   String   @default("[]") // JSON array of StorageProvider keys
   scheduledAt DateTime?               // null = draft / post-now
@@ -1198,10 +1199,13 @@ model SocialPost {
   updatedAt   DateTime @updatedAt
 
   workspace   Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  // Deleting a topic must not delete the posts that referenced it.
+  topic       Topic?             @relation(fields: [topicId], references: [id], onDelete: SetNull)
   targets     SocialPostTarget[]
 
   @@index([workspaceId, status])
   @@index([status, scheduledAt])
+  @@index([workspaceId, topicId])
 }
 
 model SocialPostTarget {
@@ -1237,6 +1241,7 @@ model Topic {
   updatedAt   DateTime @updatedAt
 
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  socialPosts SocialPost[]
 
   @@unique([workspaceId, name])
   @@index([workspaceId, status])

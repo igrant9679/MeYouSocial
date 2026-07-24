@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { Share2, CalendarClock, Send, Copy, Trash2, RotateCw, Check, X, Clock, Pencil, Image as ImageIcon } from "lucide-react";
+import { Share2, CalendarClock, Send, Copy, Trash2, RotateCw, Check, X, Clock, Pencil, Image as ImageIcon, Tags } from "lucide-react";
 import { requireRole } from "@/lib/acl";
 import { db } from "@/lib/db";
+import { readJson } from "@/lib/db/json";
 import { SocialComposer } from "@/components/SocialComposer";
 import { networkFor } from "@/lib/social/networks";
 import {
@@ -29,7 +30,7 @@ export default async function SocialPage({ searchParams }: { searchParams: Promi
   const { workspace } = await requireRole("EDITOR");
   const { ok, err } = await searchParams;
 
-  const [accounts, posts] = await Promise.all([
+  const [accounts, posts, topicRows] = await Promise.all([
     db.unipileAccount.findMany({
       where: { workspaceId: workspace.id, kind: "social", status: "connected" },
       orderBy: { createdAt: "asc" },
@@ -38,10 +39,16 @@ export default async function SocialPage({ searchParams }: { searchParams: Promi
     db.socialPost.findMany({
       where: { workspaceId: workspace.id },
       orderBy: { createdAt: "desc" },
-      include: { targets: true },
+      include: { targets: true, topic: { select: { name: true } } },
       take: 100,
     }),
+    db.topic.findMany({
+      where: { workspaceId: workspace.id, status: "active" },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true, keywords: true },
+    }),
   ]);
+  const topics = topicRows.map((t) => ({ id: t.id, name: t.name, keywords: readJson<string[]>(t.keywords, []) }));
 
   const scheduled = posts
     .filter((p) => p.status === "scheduled")
@@ -72,7 +79,7 @@ export default async function SocialPage({ searchParams }: { searchParams: Promi
       {ok && <Banner kind="ok" text={ok} />}
       {err && <Banner kind="err" text={err} />}
 
-      <SocialComposer accounts={accounts} />
+      <SocialComposer accounts={accounts} topics={topics} />
 
       {/* Scheduled — agenda grouped by day */}
       <Section icon={<CalendarClock className="w-4 h-4" style={{ color: "var(--blue-on)" }} />} title="Scheduled" count={scheduled.length} />
@@ -113,6 +120,7 @@ type PostRow = {
   status: string;
   scheduledAt: Date | null;
   publishedAt: Date | null;
+  topic: { name: string } | null;
   targets: { id: string; provider: string; accountName: string | null; text: string | null; mediaKeys: string | null; status: string; error: string | null }[];
 };
 
@@ -135,6 +143,11 @@ function PostCard({ post }: { post: PostRow }) {
     <div className="card">
       <div className="flex items-center gap-2 flex-wrap mb-1.5">
         <span className="font-mono text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded-full" style={{ background: s.bg, color: s.fg }}>{s.label}</span>
+        {post.topic && (
+          <span className="inline-flex items-center gap-1 font-mono text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "var(--violet-soft)", color: "var(--violet-on)" }}>
+            <Tags className="w-2.5 h-2.5" /> {post.topic.name}
+          </span>
+        )}
         {when && (
           <span className="font-mono text-[11px] text-[var(--mute)]">
             {post.scheduledAt ? "for " : "at "}{when.toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
