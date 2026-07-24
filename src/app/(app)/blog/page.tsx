@@ -35,6 +35,7 @@ export default async function BlogPage() {
         images: { select: { role: true, status: true } },
         comments: { where: { resolved: false }, select: { id: true } },
         snapshots: { orderBy: { capturedAt: "desc" }, take: 1, select: { position: true, clicks: true } },
+        topic: { select: { name: true } },
       },
     }),
     db.blogIdea.findMany({
@@ -121,6 +122,11 @@ export default async function BlogPage() {
                     >
                       <div className="text-[13px] font-semibold leading-snug mb-1.5">{p.title}</div>
                       <div className="flex flex-wrap gap-1">
+                        {p.topic && (
+                          <span className="font-mono text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: "var(--indigo-soft)", color: "var(--indigo-on)" }}>
+                            {p.topic.name}
+                          </span>
+                        )}
                         {motifs.length > 0 && (
                           <span className="font-mono text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: "var(--violet-soft)", color: "var(--violet-on)" }}>
                             {motifSummaryLabel(motifs).split(" + ")[0]}

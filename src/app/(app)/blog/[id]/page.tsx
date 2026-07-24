@@ -228,13 +228,18 @@ export default async function BlogPostPage({
   const openComments = post.comments.filter((c) => !c.resolved).length;
 
   // FR-3: the expert roster, plus who would be auto-matched if none is pinned.
-  const [experts, matchedSme] = await Promise.all([
+  const [experts, matchedSme, topics] = await Promise.all([
     db.smeProfile.findMany({
       where: { workspaceId: workspace.id, status: "active" },
       orderBy: { name: "asc" },
       select: { id: true, name: true, role: true },
     }),
     selectSmeProfile(workspace.id, post),
+    db.topic.findMany({
+      where: { workspaceId: workspace.id, status: "active" },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true },
+    }),
   ]);
   const postMotifs = parseMotifs(post.motifs);
   const [directives, effectiveMotifs] = await Promise.all([
@@ -947,6 +952,15 @@ export default async function BlogPostPage({
             <select name="contentTier" defaultValue={post.contentTier?.toString() ?? ""} className="w-full text-xs" disabled={!editor}>
               <option value="">unset</option>
               {[1, 2, 3, 4].map((t) => <option key={t} value={t}>Tier {t}</option>)}
+            </select>
+          </label>
+          <label className="text-sm">
+            <span className="block text-xs text-[var(--mute)] mb-1">
+              Topic {topics.length === 0 && <Link href="/brand" className="underline">add topics</Link>}
+            </span>
+            <select name="topicId" defaultValue={post.topicId ?? ""} className="w-full text-xs" disabled={!editor}>
+              <option value="">none</option>
+              {topics.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
             </select>
           </label>
           <label className="text-sm">

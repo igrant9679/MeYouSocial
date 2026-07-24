@@ -93,6 +93,7 @@ model BlogPost {
   categories      String    @default("[]") // JSON array of WP category names
   tags            String    @default("[]") // JSON array of WP tag names
   publisherNotes  String?   // FR-7 "notes for the publisher"
+  topicId         String?   // optional workspace Topic this post belongs to
   smeProfileId    String?   // FR-3: the expert this draft speaks as
   reviewerId      String?   // FR-10: who owns the review of this draft
   wpPostId        Int?      // set on publish; lets a later slice update in place
@@ -104,6 +105,8 @@ model BlogPost {
   updatedAt       DateTime  @updatedAt
 
   workspace Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  // Deleting a topic must not delete the posts that referenced it.
+  topic     Topic?         @relation(fields: [topicId], references: [id], onDelete: SetNull)
   citations BlogCitation[]
   comments  BlogComment[]
   images    BlogImage[]
@@ -1242,6 +1245,7 @@ model Topic {
 
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   socialPosts SocialPost[]
+  blogPosts   BlogPost[]
 
   @@unique([workspaceId, name])
   @@index([workspaceId, status])

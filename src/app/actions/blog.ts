@@ -76,6 +76,11 @@ export async function updateBlogPostAction(formData: FormData) {
   const secondary = secondaryRaw
     ? JSON.stringify(secondaryRaw.split(",").map((s) => s.trim().toLowerCase()).filter(Boolean).slice(0, 8))
     : "[]";
+  // Optional workspace Topic — validated so a stale or foreign id can't attach.
+  const topicRaw = str(formData.get("topicId"));
+  const topicId = topicRaw
+    ? (await db.topic.findFirst({ where: { id: topicRaw, workspaceId: workspace.id }, select: { id: true } }))?.id ?? null
+    : null;
   await db.blogPost.update({
     where: { id: post.id },
     data: {
@@ -89,6 +94,7 @@ export async function updateBlogPostAction(formData: FormData) {
       // FR-2: the motif blend replaces the old 4-option tone select.
       motifs: serializeMotifs(readMotifWeights(formData)),
       contentTier: tier,
+      topicId,
       smeProfileId: str(formData.get("smeProfileId")), // blank = auto-match by topic
       readingLevel: pick("readingLevel", ["simple", "standard", "advanced"]),
       templateKey: str(formData.get("templateKey")),
