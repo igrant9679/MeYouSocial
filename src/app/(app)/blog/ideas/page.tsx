@@ -28,14 +28,20 @@ const COLUMNS = [
 export default async function BlogIdeasPage() {
   const { workspace, membership } = await requireMembership();
   const editor = canEdit(membership.role);
-  const [ideas, directives, pages] = await Promise.all([
+  const [ideas, directives, pages, topics] = await Promise.all([
     db.blogIdea.findMany({
       where: { workspaceId: workspace.id },
       orderBy: [{ priority: "desc" }, { createdAt: "desc" }],
       take: 200,
+      include: { topic: { select: { name: true } } },
     }),
     ensureMotifDirectives(workspace.id),
     db.sitePage.findMany({ where: { workspaceId: workspace.id }, select: { url: true, title: true }, take: 60 }),
+    db.topic.findMany({
+      where: { workspaceId: workspace.id, status: "active" },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true },
+    }),
   ]);
   const open = ideas.filter((i) => i.status === "discovered" || i.status === "approved");
 
@@ -68,10 +74,26 @@ export default async function BlogIdeasPage() {
               <span className="block text-xs text-[var(--mute)] mb-1">Keyword</span>
               <input name="keyword" placeholder="optional" className="w-full text-xs" />
             </label>
+            {topics.length > 0 && (
+              <label className="text-sm w-44">
+                <span className="block text-xs text-[var(--mute)] mb-1">Topic</span>
+                <select name="topicId" className="w-full text-xs" defaultValue="">
+                  <option value="">none</option>
+                  {topics.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                </select>
+              </label>
+            )}
             <SubmitButton className="btn primary"><Plus className="w-4 h-4" /> Add</SubmitButton>
           </form>
           <div className="flex flex-wrap items-center gap-2">
-            <form action={discoverBlogIdeasAction}>
+            {/* Focused discovery: pick a topic and every idea in the run belongs to it. */}
+            <form action={discoverBlogIdeasAction} className="flex items-center gap-2">
+              {topics.length > 0 && (
+                <select name="topicId" defaultValue="" className="text-xs border border-[var(--line-2)] rounded-lg px-2 py-1.5" aria-label="Focus discovery on a topic">
+                  <option value="">all topics</option>
+                  {topics.map((t) => <option key={t.id} value={t.id}>focus: {t.name}</option>)}
+                </select>
+              )}
               <SubmitButton className="btn" pendingText="Discovering…">
                 <Sparkles className="w-3.5 h-3.5" /> Discover &amp; tag ideas
               </SubmitButton>
@@ -117,6 +139,11 @@ export default async function BlogIdeasPage() {
                         {idea.angle && <p className="text-[11px] text-[var(--mute)] mt-1">{idea.angle}</p>}
 
                         <div className="flex flex-wrap items-center gap-1 mt-1.5">
+                          {idea.topic && (
+                            <span className="font-mono text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: "var(--indigo-soft)", color: "var(--indigo-on)" }}>
+                              {idea.topic.name}
+                            </span>
+                          )}
                           {idea.tier && (
                             <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "var(--panel)", color: "var(--mute)" }}>
                               T{idea.tier}

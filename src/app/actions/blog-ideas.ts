@@ -20,22 +20,34 @@ export async function addBlogIdeaAction(formData: FormData) {
   const title = String(formData.get("title") ?? "").trim();
   if (!title) return;
   const { workspace } = await requireRole("EDITOR");
+  const rawTopic = String(formData.get("topicId") ?? "").trim();
+  const topicId = rawTopic
+    ? (await db.topic.findFirst({ where: { id: rawTopic, workspaceId: workspace.id }, select: { id: true } }))?.id ?? null
+    : null;
   await db.blogIdea.create({
     data: {
       workspaceId: workspace.id,
       title,
       keyword: String(formData.get("keyword") ?? "").trim() || null,
+      topicId,
       source: "manual",
     },
   });
   revalidatePath("/blog");
+  revalidatePath("/blog/ideas");
 }
 
-export async function discoverBlogIdeasAction() {
+export async function discoverBlogIdeasAction(formData?: FormData) {
   const { workspace } = await requireRole("EDITOR");
+  // Optional focus topic — validated against the workspace before it steers a run.
+  const raw = String(formData?.get("topicId") ?? "").trim();
+  const topicId = raw
+    ? (await db.topic.findFirst({ where: { id: raw, workspaceId: workspace.id }, select: { id: true } }))?.id ?? null
+    : null;
   // Grounding, dedupe, parsing, pause guard, audit — all in the shared core.
-  await discoverIdeasCore(workspace.id);
+  await discoverIdeasCore(workspace.id, topicId);
   revalidatePath("/blog");
+  revalidatePath("/blog/ideas");
 }
 
 export async function setBlogIdeaStatusAction(formData: FormData) {
@@ -155,6 +167,7 @@ export async function draftFromIdeaAction(formData: FormData) {
       workspaceId: workspace.id,
       title: idea.title,
       focusKeyword: idea.keyword,
+      topicId: idea.topicId, // the idea's topic follows it into the draft
       createdById: user.id,
     },
   });
@@ -180,6 +193,7 @@ export async function autoDraftApprovedAction() {
         workspaceId: workspace.id,
         title: idea.title,
         focusKeyword: idea.keyword,
+        topicId: idea.topicId,
         createdById: user.id,
       },
     });

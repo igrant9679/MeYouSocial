@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { env } from "@/lib/env";
 import { llm } from "@/lib/llm";
+import { readJson } from "@/lib/db/json";
 import { runBlogChecks, requiredChecksPass } from "@/lib/blog-checks";
 import { decryptSecret, type Encrypted } from "@/lib/blog-crypto";
 import {
@@ -68,11 +69,28 @@ const clip = (s: string | null | undefined, n = 600) => (s && s !== "{}" && s !=
 
 // ---- Cores (shared by actions + scheduler) -----------------------------------
 
-export async function discoverIdeasCore(workspaceId: string): Promise<number> {
+/**
+ * Discover blog ideas. When `topicId` is given the run is focused on that
+ * workspace Topic (its description + related phrases go into the prompt and
+ * every idea produced is stamped with it). Without one, the workspace's active
+ * topics are supplied as steering context so ideas stay on-theme — but nothing
+ * is stamped, because we can't reliably map a free-text idea back to a topic.
+ */
+export async function discoverIdeasCore(workspaceId: string, topicId?: string | null): Promise<number> {
   if (await isGloballyPaused(workspaceId)) return 0;
   const workspace = await db.workspace.findUnique({ where: { id: workspaceId } });
   if (!workspace) return 0;
   const org = await db.orgProfile.findUnique({ where: { workspaceId } });
+  const focusTopic = topicId
+    ? await db.topic.findFirst({ where: { id: topicId, workspaceId, status: "active" } })
+    : null;
+  const allTopics = focusTopic
+    ? []
+    : await db.topic.findMany({
+        where: { workspaceId, status: "active" },
+        select: { name: true },
+        take: 25,
+      });
   const existing = await db.blogIdea.findMany({
     where: { workspaceId },
     select: { title: true },
@@ -102,6 +120,15 @@ export async function discoverIdeasCore(workspaceId: string): Promise<number> {
       ? `The organization: ${org.description}${org.industry ? ` Industry: ${org.industry}.` : ""}${org.audience ? ` Audience: ${org.audience}.` : ""}`
       : "No organization profile is set — generate broadly useful business-content ideas and note that grounding is missing.",
     `Motif keys available: ${motifDirectives.map((d) => `${d.key} (${d.label})`).join(", ")}.`,
+    focusTopic
+      ? `EVERY idea must belong to this topic: "${focusTopic.name}".${focusTopic.description ? ` It covers: ${focusTopic.description}` : ""}${
+          readJson<string[]>(focusTopic.keywords, []).length
+            ? ` Related phrases: ${readJson<string[]>(focusTopic.keywords, []).join(", ")}.`
+            : ""
+        }`
+      : allTopics.length
+        ? `Topics this organization publishes about — prefer ideas that fit one of them: ${allTopics.map((t) => t.name).join(", ")}.`
+        : null,
     keywords.length ? `Keyword strategy (phrase → tier): ${keywords.map((k) => `${k.phrase} → ${k.tier}`).join("; ")}` : null,
     pages.length ? `Service pages that ideas can support:\n${pages.map((p) => `${p.url} — ${p.title}`).join("\n")}` : null,
     existing.length ? `Avoid duplicating these existing ideas: ${existing.map((i) => i.title).join(" | ")}` : null,
@@ -154,6 +181,8 @@ export async function discoverIdeasCore(workspaceId: string): Promise<number> {
         targetPage: targetPage && pageUrls.has(targetPage) ? targetPage : null,
         motifs: serializeMotifs(normalizeMotifs(parseMotifs(JSON.stringify(i.motifs ?? [])))),
         seasonalHook: text(i.seasonalHook, 120),
+        // Only stamp the topic when the run was focused on one.
+        topicId: focusTopic?.id ?? null,
         source: "ai",
       };
     });

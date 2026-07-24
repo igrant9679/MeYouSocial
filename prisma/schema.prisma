@@ -347,6 +347,7 @@ model SmeProfileVersion {
 model BlogIdea {
   id        String   @id @default(cuid())
   workspaceId String
+  topicId   String?  // workspace Topic this idea belongs to (steers discovery)
   title     String
   angle     String?  // the hook / why it works
   keyword   String?
@@ -369,6 +370,9 @@ model BlogIdea {
   mergedIntoId   String?  // set when merged into another idea
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  // Deleting a topic must not delete the ideas that referenced it.
+  topic     Topic?   @relation(fields: [topicId], references: [id], onDelete: SetNull)
 
   @@index([workspaceId, status])
 }
@@ -1246,6 +1250,7 @@ model Topic {
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   socialPosts SocialPost[]
   blogPosts   BlogPost[]
+  blogIdeas   BlogIdea[]
 
   @@unique([workspaceId, name])
   @@index([workspaceId, status])
