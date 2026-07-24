@@ -388,12 +388,19 @@ Full social posting + scheduling on the Unipile connect flow.
   near their scheduled time. Single-replica (same caveat as autopilot).
 - `createPostViaUnipile` extended for image attachments (multipart).
 - _Needs Unipile active + a connected social account to actually post._
-- **Per-network text variants (shipped 2026-07-23, commit 34f4887):**
-  `SocialPostTarget.text` (migration `20260723233000`) overrides the base per
-  network; publish uses `target.text ?? post.text`. Composer has a base box plus
-  a Customize toggle per selected network, each with its own live char count
-  against its own limit; queue cards show overrides and mark customized chips;
-  duplicate carries them.
+- **Per-network variants — text (commit 34f4887) + images (commit 4a73a80):**
+  `SocialPostTarget.text` (migration `20260723233000`) and
+  `SocialPostTarget.mediaKeys` (migration `20260723235500`) override the base
+  per network; publish uses `target.text ?? post.text` and the target's media
+  keys when set, resolving attachments per target through a per-key fetch cache
+  so an image shared across networks downloads once. The composer's Customize
+  toggle covers both: its own textarea (own live char count vs that network's
+  limit) and its own image picker (`media_<PROVIDER>`), falling back to the base
+  when left empty. Queue cards show base image count plus each network's
+  overridden text/"own image" lines and mark customized chips; duplicate carries
+  everything. _Bug fixed here:_ removing a media chip previously only updated
+  React state while the file input still submitted the file — removal now
+  rewrites the input's FileList via `DataTransfer`.
 - _Deferred:_ full drag-calendar (agenda ships), draft text editing
   (duplicate/delete workaround), link-preview/first-comment, threads.
   Single-replica scheduler (no Redis lock).

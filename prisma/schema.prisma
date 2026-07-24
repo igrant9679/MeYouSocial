@@ -49,6 +49,7 @@ model Workspace {
   settings        WorkspaceSetting[]
   unipileAccounts UnipileAccount[]
   socialPosts     SocialPost[]
+  topics          Topic[]
 }
 
 // ---- Blog (ported from Spark's article pipeline; slice 1) --------------------
@@ -1220,4 +1221,23 @@ model SocialPostTarget {
   post SocialPost @relation(fields: [postId], references: [id], onDelete: Cascade)
 
   @@index([postId])
+}
+
+// Workspace topics/themes — the subjects this company publishes about. Feeds
+// ideation and the social composer. Distinct from Keyword (search phrases with
+// tiers/intent) and from SmeProfile.topics (what one persona is expert in).
+model Topic {
+  id          String   @id @default(cuid())
+  workspaceId String
+  name        String
+  description String?
+  keywords    String   @default("[]") // JSON array of related phrases
+  status      String   @default("active") // active | archived
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, name])
+  @@index([workspaceId, status])
 }
