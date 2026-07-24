@@ -79,10 +79,35 @@ export async function createProjectAction(formData: FormData) {
   if (!title) return;
   const ok = await db.channel.findFirst({ where: { id: channelId, workspaceId: workspace.id } });
   if (!ok) return;
+  const rawTopic = String(formData.get("topicId") ?? "").trim();
+  const topicId = rawTopic
+    ? (await db.topic.findFirst({ where: { id: rawTopic, workspaceId: workspace.id }, select: { id: true } }))?.id ?? null
+    : null;
   await db.contentProject.create({
-    data: { channelId, title, status: "idea", format: "long" },
+    data: { channelId, title, status: "idea", format: "long", topicId },
   });
   revalidatePath("/production");
+}
+
+/**
+ * Assign (or clear) the workspace Topic on a production project. Validated via
+ * the project's channel workspace and the topic's own workspace.
+ */
+export async function setProjectTopicAction(formData: FormData) {
+  const id = String(formData.get("id") ?? "");
+  const raw = String(formData.get("topicId") ?? "").trim();
+  const { workspace } = await requireRole("EDITOR");
+  const project = await db.contentProject.findFirst({
+    where: { id, channel: { workspaceId: workspace.id } },
+    select: { id: true },
+  });
+  if (!project) return;
+  const topicId = raw
+    ? (await db.topic.findFirst({ where: { id: raw, workspaceId: workspace.id }, select: { id: true } }))?.id ?? null
+    : null;
+  await db.contentProject.update({ where: { id: project.id }, data: { topicId } });
+  revalidatePath("/production");
+  revalidatePath(`/production/projects/${project.id}`);
 }
 
 export async function setProjectStatusAction(formData: FormData) {

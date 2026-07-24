@@ -1043,6 +1043,9 @@ model ContentProject {
   channelId      String
   scriptId       String?  @unique
   parentId       String?  // for repurposing
+  // Workspace Topic. Tasks deliberately have NO topic of their own — a task's
+  // topic is its project's, so the two can never drift apart.
+  topicId        String?
   title          String
   format         String?  // long | short | repurpose
   status         String   @default("idea") // idea | research_writing | recording | editing | scheduled | published
@@ -1055,6 +1058,7 @@ model ContentProject {
 
   channel        Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
   script         Script?  @relation(fields: [scriptId], references: [id])
+  topic          Topic?   @relation(fields: [topicId], references: [id], onDelete: SetNull)
   parent         ContentProject? @relation("Repurposed", fields: [parentId], references: [id])
   derivatives    ContentProject[] @relation("Repurposed")
   assignees      ProjectAssignee[]
@@ -1263,6 +1267,7 @@ model Topic {
   blogIdeas     BlogIdea[]
   channelIdeas  Idea[]
   videoRenders  VideoRender[]
+  projects      ContentProject[]
 
   @@unique([workspaceId, name])
   @@index([workspaceId, status])

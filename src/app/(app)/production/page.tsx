@@ -1,8 +1,8 @@
 import Link from "next/link";
-import { ArrowRight, Plus } from "lucide-react";
+import { ArrowRight, Plus, Tags } from "lucide-react";
 import { requireMembership } from "@/lib/acl";
 import { db } from "@/lib/db";
-import { setProjectStatusAction, createProjectAction } from "@/app/actions/production";
+import { setProjectStatusAction, createProjectAction, setProjectTopicAction } from "@/app/actions/production";
 import { SubmitButton } from "@/components/SubmitButton";
 
 // Configurable Production Board: all content by status, with click-to-advance.
@@ -19,13 +19,22 @@ const STATUSES = [
 
 export default async function ProductionBoardPage() {
   const { workspace } = await requireMembership();
-  const [projects, channels] = await Promise.all([
+  const [projects, channels, topics] = await Promise.all([
     db.contentProject.findMany({
       where: { channel: { workspaceId: workspace.id } },
-      include: { channel: { select: { id: true, name: true, accentColor: true } }, script: { select: { id: true, wordCount: true } } },
+      include: {
+        channel: { select: { id: true, name: true, accentColor: true } },
+        script: { select: { id: true, wordCount: true } },
+        topic: { select: { name: true } },
+      },
       orderBy: { updatedAt: "desc" },
     }),
     db.channel.findMany({ where: { workspaceId: workspace.id }, orderBy: { createdAt: "asc" } }),
+    db.topic.findMany({
+      where: { workspaceId: workspace.id, status: "active" },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true },
+    }),
   ]);
 
   return (
@@ -43,6 +52,15 @@ export default async function ProductionBoardPage() {
               {channels.map((c) => (<option key={c.id} value={c.id}>{c.name}</option>))}
             </select>
           </label>
+          {topics.length > 0 && (
+            <label className="flex flex-col gap-1">
+              <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">Topic</span>
+              <select name="topicId" defaultValue="" className="border border-[var(--line-2)] rounded-lg p-2 text-sm">
+                <option value="">none</option>
+                {topics.map((t) => (<option key={t.id} value={t.id}>{t.name}</option>))}
+              </select>
+            </label>
+          )}
           <SubmitButton className="btn primary sm" pendingText="Adding…"><Plus className="w-3.5 h-3.5" /> Add</SubmitButton>
         </form>
       )}
@@ -85,6 +103,22 @@ export default async function ProductionBoardPage() {
                       <div className="font-semibold text-sm leading-tight">{p.title}</div>
                     )}
                     <div className="text-[11px] text-[var(--mute)] mt-1">{p.channel.name}{p.script ? ` · ${p.script.wordCount}w` : ""}</div>
+                    {topics.length > 0 ? (
+                      <form action={setProjectTopicAction} className="flex items-center gap-1 mt-1.5">
+                        <input type="hidden" name="id" value={p.id} />
+                        <Tags className="w-3 h-3 shrink-0" style={{ color: "var(--indigo-on)" }} />
+                        <select name="topicId" defaultValue={p.topicId ?? ""} aria-label="Topic"
+                          className="text-[10px] border border-[var(--line-2)] rounded px-1 py-0.5 flex-1 min-w-0">
+                          <option value="">no topic</option>
+                          {topics.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                        </select>
+                        <SubmitButton className="btn sm !px-1.5 !py-0.5 !text-[10px]" pendingText="…">Set</SubmitButton>
+                      </form>
+                    ) : p.topic ? (
+                      <div className="font-mono text-[10px] mt-1 inline-flex items-center gap-1" style={{ color: "var(--indigo-on)" }}>
+                        <Tags className="w-3 h-3" /> {p.topic.name}
+                      </div>
+                    ) : null}
                   </li>
                 ))}
               </ul>
