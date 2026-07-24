@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Send, CalendarClock, ImagePlus, X, Pencil, RotateCcw } from "lucide-react";
 import { SubmitButton } from "@/components/SubmitButton";
 import { createSocialPostAction } from "@/app/actions/social";
@@ -9,8 +9,17 @@ import { networkFor } from "@/lib/social/networks";
 export type ComposerAccount = { id: string; provider: string; name: string | null };
 
 // Buffer/Hootsuite-style composer: pick accounts, write a base post once, then
-// optionally customize the text per network. Each network shows its own live
-// character count against its own limit.
+// optionally customize text AND images per network. Each network shows its own
+// live character count against its own limit.
+
+/** Rewrite a file input's FileList so removing a chip actually drops the upload. */
+function syncInput(input: HTMLInputElement | null, files: File[]) {
+  if (!input) return;
+  const dt = new DataTransfer();
+  for (const f of files) dt.items.add(f);
+  input.files = dt.files;
+}
+
 export function SocialComposer({ accounts }: { accounts: ComposerAccount[] }) {
   const [selected, setSelected] = useState<Set<string>>(new Set(accounts.length === 1 ? [accounts[0].id] : []));
   const [text, setText] = useState("");
@@ -18,6 +27,10 @@ export function SocialComposer({ accounts }: { accounts: ComposerAccount[] }) {
   const [customizing, setCustomizing] = useState<Set<string>>(new Set());
   const [when, setWhen] = useState<"now" | "schedule">("now");
   const [files, setFiles] = useState<File[]>([]);
+  const [variantFiles, setVariantFiles] = useState<Record<string, File[]>>({});
+
+  const baseInput = useRef<HTMLInputElement>(null);
+  const variantInputs = useRef<Record<string, HTMLInputElement | null>>({});
 
   // Distinct providers among the selected accounts — one customization row each.
   const selectedProviders = useMemo(() => {
@@ -26,15 +39,14 @@ export function SocialComposer({ accounts }: { accounts: ComposerAccount[] }) {
     return [...set];
   }, [accounts, selected]);
 
-  // The text a network will actually post: its override (when customizing and
-  // non-empty) else the base — mirrors the server's fallback.
-  const effectiveFor = (provider: string) =>
-    customizing.has(provider) && (variants[provider] ?? "").trim() ? variants[provider] : text;
+  // What a network will actually post — its override when customizing and
+  // non-empty, else the base. Mirrors the server's fallback exactly.
+  const effectiveText = (p: string) =>
+    customizing.has(p) && (variants[p] ?? "").trim() ? variants[p] : text;
+  const effectiveMedia = (p: string) =>
+    customizing.has(p) && (variantFiles[p]?.length ?? 0) > 0 ? variantFiles[p] : files;
 
-  const anyOver = selectedProviders.some((p) => {
-    const limit = networkFor(p)?.charLimit ?? 3000;
-    return effectiveFor(p).length > limit;
-  });
+  const anyOver = selectedProviders.some((p) => effectiveText(p).length > (networkFor(p)?.charLimit ?? 3000));
 
   const toggle = (id: string) =>
     setSelected((prev) => {
@@ -49,6 +61,8 @@ export function SocialComposer({ accounts }: { accounts: ComposerAccount[] }) {
       if (next.has(provider)) {
         next.delete(provider);
         setVariants((v) => { const c = { ...v }; delete c[provider]; return c; });
+        setVariantFiles((v) => { const c = { ...v }; delete c[provider]; return c; });
+        syncInput(variantInputs.current[provider], []);
       } else {
         next.add(provider);
         setVariants((v) => ({ ...v, [provider]: text })); // seed from base
@@ -90,7 +104,7 @@ export function SocialComposer({ accounts }: { accounts: ComposerAccount[] }) {
       {/* Base composer */}
       <div>
         <div className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)] mb-1">
-          {selectedProviders.length > 1 ? "Base text (used by any network you don’t customize)" : "Text"}
+          {selectedProviders.length > 1 ? "Base post (used by any network you don’t customize)" : "Text"}
         </div>
         <textarea
           name="text"
@@ -100,6 +114,23 @@ export function SocialComposer({ accounts }: { accounts: ComposerAccount[] }) {
           placeholder="What do you want to share?"
           className="w-full border border-[var(--line-2)] rounded-lg p-2.5 text-sm resize-y"
         />
+        {/* Base media */}
+        <div className="flex items-center gap-2 flex-wrap mt-2">
+          <label className="btn sm cursor-pointer">
+            <ImagePlus className="w-4 h-4" /> Add image
+            <input ref={baseInput} type="file" name="media" accept="image/png,image/jpeg,image/gif,image/webp" multiple className="sr-only"
+              onChange={(e) => setFiles(Array.from(e.target.files ?? []).slice(0, 4))} />
+          </label>
+          {files.map((f, i) => (
+            <span key={i} className="inline-flex items-center gap-1 text-[11px] font-mono px-2 py-1 rounded-lg" style={{ background: "var(--panel)" }}>
+              {f.name.slice(0, 20)}
+              <button type="button" aria-label={`Remove ${f.name}`}
+                onClick={() => { const next = files.filter((_, j) => j !== i); setFiles(next); syncInput(baseInput.current, next); }}>
+                <X className="w-3 h-3" />
+              </button>
+            </span>
+          ))}
+        </div>
       </div>
 
       {/* Per-network customization + live counts */}
@@ -109,52 +140,66 @@ export function SocialComposer({ accounts }: { accounts: ComposerAccount[] }) {
             const net = networkFor(p);
             const limit = net?.charLimit ?? 3000;
             const isCustom = customizing.has(p);
-            const eff = effectiveFor(p);
+            const eff = effectiveText(p);
             const over = eff.length > limit;
+            const media = effectiveMedia(p);
+            const vFiles = variantFiles[p] ?? [];
             return (
               <div key={p} className="rounded-lg border border-[var(--line)] p-2">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <span className="w-2 h-2 rounded-full" style={{ background: net?.color ?? "var(--mute)" }} />
                   <span className="text-xs font-semibold">{net?.label ?? p}</span>
                   <span className="font-mono text-[11px]" style={{ color: over ? "var(--rose-on)" : "var(--mute)" }}>
                     {eff.length}/{limit}{over ? " — over limit" : ""}
                   </span>
-                  {net?.requiresMedia && files.length === 0 && <span className="text-[11px] text-[var(--amber-on)]">needs an image</span>}
+                  {media.length > 0 && (
+                    <span className="font-mono text-[10px] text-[var(--mute)]">
+                      {media.length} image{media.length > 1 ? "s" : ""}{isCustom && vFiles.length > 0 ? " (own)" : ""}
+                    </span>
+                  )}
+                  {net?.requiresMedia && media.length === 0 && <span className="text-[11px] text-[var(--amber-on)]">needs an image</span>}
                   <span className="flex-1" />
                   <button type="button" onClick={() => toggleCustom(p)} className="text-[11px] font-semibold inline-flex items-center gap-1" style={{ color: "var(--accent)" }}>
                     {isCustom ? <><RotateCcw className="w-3 h-3" /> Use base</> : <><Pencil className="w-3 h-3" /> Customize</>}
                   </button>
                 </div>
                 {isCustom && (
-                  <textarea
-                    name={`variant_${p}`}
-                    value={variants[p] ?? ""}
-                    onChange={(e) => setVariants((v) => ({ ...v, [p]: e.target.value }))}
-                    rows={3}
-                    placeholder={`Text just for ${net?.label ?? p}…`}
-                    className="w-full border border-[var(--line-2)] rounded-lg p-2 text-sm mt-2 resize-y"
-                  />
+                  <>
+                    <textarea
+                      name={`variant_${p}`}
+                      value={variants[p] ?? ""}
+                      onChange={(e) => setVariants((v) => ({ ...v, [p]: e.target.value }))}
+                      rows={3}
+                      placeholder={`Text just for ${net?.label ?? p}…`}
+                      className="w-full border border-[var(--line-2)] rounded-lg p-2 text-sm mt-2 resize-y"
+                    />
+                    <div className="flex items-center gap-2 flex-wrap mt-2">
+                      <label className="btn sm cursor-pointer">
+                        <ImagePlus className="w-4 h-4" /> Image for {net?.label ?? p}
+                        <input
+                          ref={(el) => { variantInputs.current[p] = el; }}
+                          type="file" name={`media_${p}`} accept="image/png,image/jpeg,image/gif,image/webp" multiple className="sr-only"
+                          onChange={(e) => setVariantFiles((v) => ({ ...v, [p]: Array.from(e.target.files ?? []).slice(0, 4) }))}
+                        />
+                      </label>
+                      {vFiles.length === 0 && <span className="text-[11px] text-[var(--mute)]">using the base image{files.length === 1 ? "" : "s"}</span>}
+                      {vFiles.map((f, i) => (
+                        <span key={i} className="inline-flex items-center gap-1 text-[11px] font-mono px-2 py-1 rounded-lg" style={{ background: "var(--panel)" }}>
+                          {f.name.slice(0, 20)}
+                          <button type="button" aria-label={`Remove ${f.name}`}
+                            onClick={() => { const next = vFiles.filter((_, j) => j !== i); setVariantFiles((v) => ({ ...v, [p]: next })); syncInput(variantInputs.current[p], next); }}>
+                            <X className="w-3 h-3" />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  </>
                 )}
               </div>
             );
           })}
         </div>
       )}
-
-      {/* Media */}
-      <div className="flex items-center gap-2 flex-wrap">
-        <label className="btn sm cursor-pointer">
-          <ImagePlus className="w-4 h-4" /> Add image
-          <input type="file" name="media" accept="image/png,image/jpeg,image/gif,image/webp" multiple className="sr-only"
-            onChange={(e) => setFiles(Array.from(e.target.files ?? []).slice(0, 4))} />
-        </label>
-        {files.map((f, i) => (
-          <span key={i} className="inline-flex items-center gap-1 text-[11px] font-mono px-2 py-1 rounded-lg" style={{ background: "var(--panel)" }}>
-            {f.name.slice(0, 20)}
-            <button type="button" onClick={() => setFiles((p) => p.filter((_, j) => j !== i))} aria-label="remove"><X className="w-3 h-3" /></button>
-          </span>
-        ))}
-      </div>
 
       {/* Schedule + submit */}
       <div className="flex flex-wrap items-center gap-3 border-t border-[var(--line)] pt-3">

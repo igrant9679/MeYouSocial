@@ -1209,8 +1209,9 @@ model SocialPostTarget {
   provider        String    // LINKEDIN | X | INSTAGRAM | ...
   unipileAccountId String   // Unipile account id (resolved at publish)
   accountName     String?
-  // Per-network text override — null falls back to SocialPost.text at publish.
+  // Per-network overrides — null falls back to the post's base at publish.
   text            String?
+  mediaKeys       String?   // JSON array of storage keys; null = use base media
   status          String    @default("pending") // pending | posted | failed
   providerPostId  String?
   error           String?

@@ -16,19 +16,22 @@ export async function publishSocialPost(postId: string): Promise<void> {
 
   await db.socialPost.update({ where: { id: post.id }, data: { status: "publishing" } });
 
-  // Load media once (shared across targets).
-  let attachments: PostAttachment[] = [];
-  const mediaKeys = readJson<string[]>(post.mediaKeys, []);
-  if (mediaKeys.length) {
-    const loaded = await Promise.all(
-      mediaKeys.map(async (key) => {
-        const buf = await storage.get(key);
-        if (!buf) return null;
-        return { bytes: new Uint8Array(buf), filename: key.split("/").pop() || "media" } as PostAttachment;
+  // Media is resolved per target (a network may override the base images).
+  // Cache by storage key so an image shared across networks is fetched once.
+  const baseKeys = readJson<string[]>(post.mediaKeys, []);
+  const cache = new Map<string, PostAttachment | null>();
+  const loadMedia = async (keys: string[]): Promise<PostAttachment[]> => {
+    const out = await Promise.all(
+      keys.map(async (key) => {
+        if (!cache.has(key)) {
+          const buf = await storage.get(key);
+          cache.set(key, buf ? { bytes: new Uint8Array(buf), filename: key.split("/").pop() || "media" } : null);
+        }
+        return cache.get(key) ?? null;
       }),
     );
-    attachments = loaded.filter((a): a is PostAttachment => a !== null);
-  }
+    return out.filter((a): a is PostAttachment => a !== null);
+  };
 
   const configured = await unipileConfigured();
 
@@ -36,10 +39,12 @@ export async function publishSocialPost(postId: string): Promise<void> {
     if (target.status === "posted") continue;
     try {
       if (!configured) throw new Error("Unipile is not configured");
+      // Per-network overrides, else the post's base.
+      const keys = target.mediaKeys ? readJson<string[]>(target.mediaKeys, []) : baseKeys;
       const providerPostId = await createPostViaUnipile({
         accountId: target.unipileAccountId,
-        text: target.text ?? post.text, // per-network override, else base
-        attachments,
+        text: target.text ?? post.text,
+        attachments: await loadMedia(keys),
       });
       await db.socialPostTarget.update({
         where: { id: target.id },

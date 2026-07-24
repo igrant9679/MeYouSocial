@@ -70,6 +70,15 @@ export async function createSocialPostAction(formData: FormData) {
     return v && v !== text ? v : null;
   };
 
+  // Per-network image overrides: media_<PROVIDER>. Stored once per provider so
+  // two accounts on the same network share the upload.
+  const mediaByProvider = new Map<string, string | null>();
+  for (const provider of new Set(accounts.map((a) => a.provider.toUpperCase()))) {
+    const files = formData.getAll(`media_${provider}`);
+    const keys = await storeMedia(files);
+    mediaByProvider.set(provider, keys.length ? writeJson(keys) : null);
+  }
+
   const post = await db.socialPost.create({
     data: {
       workspaceId: workspace.id,
@@ -84,6 +93,7 @@ export async function createSocialPostAction(formData: FormData) {
           unipileAccountId: a.accountId,
           accountName: a.name,
           text: variantFor(a.provider),
+          mediaKeys: mediaByProvider.get(a.provider.toUpperCase()) ?? null,
         })),
       },
     },
@@ -141,7 +151,7 @@ export async function duplicateSocialPostAction(formData: FormData) {
       mediaKeys: src.mediaKeys,
       status: "draft",
       targets: {
-        create: src.targets.map((t) => ({ provider: t.provider, unipileAccountId: t.unipileAccountId, accountName: t.accountName, text: t.text })),
+        create: src.targets.map((t) => ({ provider: t.provider, unipileAccountId: t.unipileAccountId, accountName: t.accountName, text: t.text, mediaKeys: t.mediaKeys })),
       },
     },
   });
