@@ -368,6 +368,12 @@ export const HELP_CATEGORIES: FaqCategory[] = [
         tags: ["brand", "identity", "personas", "topics", "company", "colors", "keywords"],
       },
       {
+        q: "Where can I use Topics?",
+        a: "A topic you add under **Brand** is available on every content surface: **channel ideas**, **blog ideas**, **blog posts**, **videos**, **production projects** and **social posts**. Two things make them more than labels:\n\n· **They steer ideation** — on the blog Idea board you can focus a discovery run on one topic, and every idea it generates belongs to that topic. In the social composer, the chosen topic's related phrases appear as click-to-insert chips.\n\n· **They follow the work** — promoting an idea to a draft carries the topic onto the post, and packaging that post into a video carries it again, so you set it once at the start.\n\nDeleting a topic is safe: it clears the tag from anything using it and never deletes your content. Tasks don't have their own topic — they inherit their project's.",
+        links: [{ label: "Manage topics →", href: "/brand" }],
+        tags: ["topics", "themes", "ideation", "tagging", "content"],
+      },
+      {
         q: "Can we use our own logo and colors?",
         a: "Admin → **Workspace** → *Branding*: pick an accent color (presets or any hex) and upload a logo. The whole app chrome — buttons, active states, sidebar mark and menu — re-tints for members of your workspace only; other companies keep their own look. Note this styles the **app**; the brand used in generated blog content lives separately under Blog → Brand.",
         links: [{ label: "Admin → Workspace →", href: "/admin/settings" }],

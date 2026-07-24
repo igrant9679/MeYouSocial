@@ -431,3 +431,65 @@ genuine gap. So this slice consolidates rather than rebuilds.
   render. Hex is validated.
 - _Verified live:_ all 7 sections render; Topic create (with keywords persisted),
   duplicate-name guard, and delete all exercised on production then cleaned up.
+
+---
+
+## Topics across all six content surfaces (shipped + verified 2026-07-24)
+
+A Topic is defined once in **Brand** and then flows through every content
+surface. `Topic` itself: migration `20260724001500`, per-workspace, unique name,
+description + related phrases (JSON), active/archived.
+
+### The six surfaces
+
+| Surface | Model.field | Migration | Commit |
+| --- | --- | --- | --- |
+| Channel ideas (YouTube) | `Idea.topicId` → rel `workspaceTopic` | `20260724024500` | `caa98a3` |
+| Blog ideas | `BlogIdea.topicId` | `20260724020000` | `2471518` |
+| Blog posts | `BlogPost.topicId` | `20260724013000` | `5ef9d18` |
+| Videos | `VideoRender.topicId` | `20260724031500` | `4c86b04` |
+| Production projects | `ContentProject.topicId` | `20260724034500` | `3a68e59` |
+| Social posts | `SocialPost.topicId` | `20260724010000` | `11bf0a9` |
+
+### Cross-cutting behaviour
+
+- **Inheritance** (no re-selecting at hand-offs):
+  `BlogIdea → BlogPost` (`draftFromIdeaAction` + `autoDraftApprovedAction`) and
+  `BlogPost → VideoRender` (`packageVideoCore`). A topic chosen at ideation
+  reaches the rendered video untouched.
+- **Steering, not just labelling** — `discoverIdeasCore(workspaceId, topicId?)`:
+  with a focus topic, its name/description/phrases go into the prompt ("EVERY
+  idea must belong to this topic") and results are stamped; without one, active
+  topic NAMES are supplied as context but **nothing is stamped** — a free-text
+  idea can't be mapped back to a topic without guessing, and a confidently wrong
+  tag corrupts topic reporting later.
+- **Social composer extra**: the selected topic's related phrases render as
+  click-to-insert chips, so topics actively help writing.
+- **Every FK is `ON DELETE SET NULL`** — deleting a topic clears the tag and
+  never deletes content. This is the single most important invariant here; a
+  cascade would silently destroy posts/ideas/renders when someone tidied their
+  topic list.
+- **Every setter validates the topic against the caller's workspace**, and for
+  the nested surfaces validates the parent too (channel ideas via
+  `channel.workspaceId`, projects likewise).
+- **`Task` deliberately has NO topic** — a task's topic is its parent project's.
+  Storing it on both would let them drift and give two disagreeing answers to
+  "what topic is this work under?".
+- **Naming note**: `Idea` already had a free-text `topic` string (the channel's
+  niche, set at onboarding). That column is untouched; the relation is named
+  `workspaceTopic`. Renaming the old field would have broken the onboarding job.
+
+### Verification record (honest)
+
+_Topic-deletion (`SET NULL`) actually exercised against live tagged content on
+**four** surfaces:_ blog posts, channel ideas, videos, production projects — in
+each case the content survived (HTTP 200), the tag cleared, no dangling
+reference. _Not exercised:_ blog ideas (the test idea was deleted before the
+topic, so the tagged-idea path wasn't hit) and social posts (creating one needs
+a connected Unipile account). Both use the identical FK clause as the four
+proven ones.
+
+_Also code-verified only:_ `packageVideoCore` topic inheritance (needs a real
+packaging run — LLM + render budget), and AI idea discovery output quality
+(the Anthropic key is at $0, so generations fall back to mock; the topic
+plumbing is verified, the generated text is not).
