@@ -404,3 +404,30 @@ Full social posting + scheduling on the Unipile connect flow.
 - _Deferred:_ full drag-calendar (agenda ships), draft text editing
   (duplicate/delete workaround), link-preview/first-comment, threads.
   Single-replica scheduler (no Redis lock).
+
+---
+
+## Brand hub — workspace identity (shipped + verified 2026-07-24, commit 3a6530f)
+
+**Audit finding first:** colours, company info, personas, keywords and social
+accounts were ALREADY per-workspace — just scattered under the Blog section, so
+they read as blog settings rather than company identity. Topics were the one
+genuine gap. So this slice consolidates rather than rebuilds.
+
+- **NEW `Topic` model** (migration `20260724001500`): per-workspace themes with
+  description + related phrases, active/archived, unique per workspace. Distinct
+  from `Keyword` (search phrases with tier/intent/cluster) and
+  `SmeProfile.topics` (one persona's expertise). Full CRUD on the hub.
+- **NEW `/brand` module** (nav entry): brand colours/fonts/logo/footer credit
+  (inline), app-appearance summary (chrome accent + logo → `/admin/settings`),
+  company info (inline, reuses `saveOrgProfileAction`), Topics CRUD, plus live
+  summaries + deep links for personas (`/blog/experts`), keywords
+  (`/blog/keywords`), social accounts (`/admin/connections`) and tone/asset
+  policy (`/blog/brand`). Existing rich editors are NOT duplicated.
+- **`saveBrandIdentityAction` is deliberately focused** — reusing
+  `saveBrandKitAction` would read the whole brand form and silently reset image
+  dimensions, render profile and the FR-8 asset-policy booleans (including
+  `requireImagesToPublish`, which gates publishing) that this page doesn't
+  render. Hex is validated.
+- _Verified live:_ all 7 sections render; Topic create (with keywords persisted),
+  duplicate-name guard, and delete all exercised on production then cleaned up.

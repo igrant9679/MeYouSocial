@@ -362,6 +362,12 @@ export const HELP_CATEGORIES: FaqCategory[] = [
         tags: ["email", "smtp", "social", "posting", "unipile", "connections", "linkedin"],
       },
       {
+        q: "Where do we set our company's brand, personas and topics?",
+        a: "**Brand** in the sidebar — your workspace's identity in one place: brand colours and fonts (used in generated content), the app's own accent + logo, company info that grounds every AI draft, **Topics** (the themes you publish about), plus live summaries and links for personas, keywords and connected social accounts. All of it is per workspace, so each company on this install keeps its own. Tone of voice (the 7 Motifs) and asset policy stay under Blog → Brand.",
+        links: [{ label: "Open Brand →", href: "/brand" }],
+        tags: ["brand", "identity", "personas", "topics", "company", "colors", "keywords"],
+      },
+      {
         q: "Can we use our own logo and colors?",
         a: "Admin → **Workspace** → *Branding*: pick an accent color (presets or any hex) and upload a logo. The whole app chrome — buttons, active states, sidebar mark and menu — re-tints for members of your workspace only; other companies keep their own look. Note this styles the **app**; the brand used in generated blog content lives separately under Blog → Brand.",
         links: [{ label: "Admin → Workspace →", href: "/admin/settings" }],
