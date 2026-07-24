@@ -18,6 +18,27 @@ export async function regenerateIdeasAction(formData: FormData) {
   revalidatePath(`/channels/${channelId}/ideas`);
 }
 
+/**
+ * Assign (or clear) the workspace Topic on a channel idea. Both the idea and
+ * the topic are validated through the caller's workspace — a channel idea can
+ * only take a topic owned by the same company.
+ */
+export async function setIdeaTopicAction(formData: FormData) {
+  const ideaId = String(formData.get("ideaId") ?? "");
+  const raw = String(formData.get("topicId") ?? "").trim();
+  const { workspace } = await requireRole("EDITOR");
+  const idea = await db.idea.findFirst({
+    where: { id: ideaId, channel: { workspaceId: workspace.id } },
+    select: { id: true, channelId: true },
+  });
+  if (!idea) return;
+  const topicId = raw
+    ? (await db.topic.findFirst({ where: { id: raw, workspaceId: workspace.id }, select: { id: true } }))?.id ?? null
+    : null;
+  await db.idea.update({ where: { id: idea.id }, data: { topicId } });
+  revalidatePath(`/channels/${idea.channelId}/ideas`);
+}
+
 /** Write action: create a Script with the idea's context pre-loaded; open Canvas. */
 export async function writeIdeaToCanvasAction(formData: FormData) {
   const ideaId = String(formData.get("ideaId"));

@@ -836,7 +836,10 @@ model Idea {
   id             String   @id @default(cuid())
   channelId      String
   title          String
+  // Free-text subject (usually the channel's niche) — predates the structured
+  // workspace Topic below and is kept as-is; `topicId` is the real link.
   topic          String?
+  topicId        String?  // workspace Topic (the channel's workspace owns it)
   strategy       String?  // the hook / why it works
   sourceVideoId  String?
   outlierScore   Float?
@@ -848,6 +851,9 @@ model Idea {
 
   channel        Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
   sourceVideo    IntelVideo? @relation(fields: [sourceVideoId], references: [id])
+  // Named `workspaceTopic` because the free-text `topic` field above owns the
+  // plain name. Deleting a topic must not delete the ideas that used it.
+  workspaceTopic Topic?   @relation(fields: [topicId], references: [id], onDelete: SetNull)
   scripts        Script[]
 }
 
@@ -1249,8 +1255,9 @@ model Topic {
 
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   socialPosts SocialPost[]
-  blogPosts   BlogPost[]
-  blogIdeas   BlogIdea[]
+  blogPosts     BlogPost[]
+  blogIdeas     BlogIdea[]
+  channelIdeas  Idea[]
 
   @@unique([workspaceId, name])
   @@index([workspaceId, status])

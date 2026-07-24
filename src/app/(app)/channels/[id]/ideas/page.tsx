@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { SubmitButton } from "@/components/SubmitButton";
-import { PenLine } from "lucide-react";
+import { PenLine, Tags } from "lucide-react";
 import { requireChannel } from "@/lib/channel";
 import { db } from "@/lib/db";
 import { outlierBand } from "@/lib/intel";
-import { regenerateIdeasAction, writeIdeaToCanvasAction } from "@/app/actions/ideas";
+import { regenerateIdeasAction, writeIdeaToCanvasAction, setIdeaTopicAction } from "@/app/actions/ideas";
 
 // MU-06 — Ideas Library. list with sort/filter; regenerate.
 
@@ -17,15 +17,22 @@ export default async function ChannelIdeasPage({
 }) {
   const { id } = await params;
   const { sort = "newest", status } = await searchParams;
-  await requireChannel(id);
-
-  const ideas = await db.idea.findMany({
-    where: { channelId: id, ...(status ? { status } : {}) },
-    orderBy: sort === "outlier"
-      ? [{ outlierScore: "desc" }]
-      : [{ createdAt: "desc" }],
-    take: 50,
-  });
+  const { workspace } = await requireChannel(id);
+  const [ideas, topics] = await Promise.all([
+    db.idea.findMany({
+      where: { channelId: id, ...(status ? { status } : {}) },
+      orderBy: sort === "outlier"
+        ? [{ outlierScore: "desc" }]
+        : [{ createdAt: "desc" }],
+      take: 50,
+      include: { workspaceTopic: { select: { name: true } } },
+    }),
+    db.topic.findMany({
+      where: { workspaceId: workspace.id, status: "active" },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true },
+    }),
+  ]);
 
   return (
     <div>
@@ -68,6 +75,22 @@ export default async function ChannelIdeasPage({
               </div>
               <Link href={`/channels/${id}/ideas/${i.id}`} className="font-semibold block mb-2 hover:text-[var(--accent)]">{i.title}</Link>
               {i.strategy && <div className="text-xs text-[var(--mute)] mb-3 line-clamp-2">Strategy: {i.strategy}</div>}
+              {topics.length > 0 && (
+                <form action={setIdeaTopicAction} className="flex items-center gap-1.5 mb-3">
+                  <input type="hidden" name="ideaId" value={i.id} />
+                  <Tags className="w-3.5 h-3.5 shrink-0" style={{ color: "var(--indigo-on)" }} />
+                  <select
+                    name="topicId"
+                    defaultValue={i.topicId ?? ""}
+                    className="text-[11px] border border-[var(--line-2)] rounded-md px-1.5 py-1 flex-1 min-w-0"
+                    aria-label="Topic"
+                  >
+                    <option value="">no topic</option>
+                    {topics.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                  </select>
+                  <SubmitButton className="btn sm" pendingText="…">Set</SubmitButton>
+                </form>
+              )}
               <div className="flex gap-2">
                 <form action={writeIdeaToCanvasAction}>
                   <input type="hidden" name="ideaId" value={i.id} />
