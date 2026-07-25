@@ -36,9 +36,30 @@ const SYSTEM_CHROME_PATHS =
 // primary Railway resolution — layout- and version-agnostic.
 const CHROME_PATH_FILE = "/app/.chrome-path";
 
-// Fallback: glob the puppeteer-style cache the build downloads into. Layout is
-// <root>/chrome/<platform>-<buildId>/chrome-<platform>/chrome.
-const CHROME_CACHE_ROOTS = [process.env.BRANDED_SHORT_CHROME_DIR, "/app/.cache/puppeteer", "/app/.cache/chrome"].filter(Boolean) as string[];
+// Fallback roots to glob if the path file is missing. /app/.chrome is where the
+// build copies Chrome out of the cache mount (railway.json build command).
+const CHROME_CACHE_ROOTS = [process.env.BRANDED_SHORT_CHROME_DIR, "/app/.chrome", "/app/.cache/puppeteer"].filter(Boolean) as string[];
+
+/** Depth-limited hunt for a chrome / chrome-headless-shell executable file. */
+function huntChromeBinary(dir: string, depth: number): string | null {
+  if (depth < 0) return null;
+  let entries: string[];
+  try {
+    entries = readdirSync(dir);
+  } catch {
+    return null;
+  }
+  const names = new Set(process.platform === "win32" ? ["chrome.exe", "chrome-headless-shell.exe"] : ["chrome", "chrome-headless-shell"]);
+  for (const name of entries) {
+    const full = path.join(dir, name);
+    if (names.has(name) && existsSync(full)) return full;
+  }
+  for (const name of entries) {
+    const found = huntChromeBinary(path.join(dir, name), depth - 1);
+    if (found) return found;
+  }
+  return null;
+}
 
 function findInChromeCache(): string | null {
   try {
@@ -48,17 +69,8 @@ function findInChromeCache(): string | null {
     // no path file — try globbing
   }
   for (const root of CHROME_CACHE_ROOTS) {
-    try {
-      const chromeDir = path.join(root, "chrome");
-      for (const build of readdirSync(chromeDir)) {
-        for (const sub of ["chrome-linux64", "chrome-linux", "chrome-mac-x64", "chrome-win64"]) {
-          const bin = path.join(chromeDir, build, sub, process.platform === "win32" ? "chrome.exe" : "chrome");
-          if (existsSync(bin)) return bin;
-        }
-      }
-    } catch {
-      // cache dir absent — next root
-    }
+    const found = huntChromeBinary(root, 6);
+    if (found) return found;
   }
   return null;
 }

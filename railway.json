@@ -2,7 +2,7 @@
   "$schema": "https://railway.com/railway.schema.json",
   "build": {
     "builder": "NIXPACKS",
-    "buildCommand": "npx prisma generate && npm run build && PUPPETEER_CACHE_DIR=/app/.cache/puppeteer npx --yes hyperframes@0.7.71 browser ensure && PUPPETEER_CACHE_DIR=/app/.cache/puppeteer npx --yes hyperframes@0.7.71 browser path | tail -1 > /app/.chrome-path && cat /app/.chrome-path"
+    "buildCommand": "npx prisma generate && npm run build && npx --yes hyperframes@0.7.71 browser ensure && rm -rf /app/.chrome && cp -r /root/.cache/hyperframes /app/.chrome && find /app/.chrome -type f -name chrome-headless-shell | head -1 > /app/.chrome-path && cat /app/.chrome-path"
   },
   "deploy": {
     "startCommand": "npx prisma migrate deploy && npm run db:seed && npm run start",

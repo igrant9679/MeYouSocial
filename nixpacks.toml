@@ -47,3 +47,12 @@ aptPkgs = [
   "libxcb1",
   "libxext6"
 ]
+
+# Cache the HyperFrames Chrome download (~114MB) across builds so it isn't
+# re-fetched every deploy. A cache mount is EPHEMERAL (its contents never land in
+# the image), so the build command copies Chrome out of this cached dir into
+# /app/.chrome — a real image layer — before capturing the path. If the mount
+# ever fails to engage the copy still works from a normal dir, so the build never
+# breaks; it just re-downloads that time.
+[phases.build]
+cacheDirectories = ["/root/.cache/hyperframes"]
