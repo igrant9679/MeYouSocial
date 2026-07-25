@@ -731,3 +731,58 @@ No migration (`WorkspaceSetting` rows).
 **Still user-owned:** granting the SA access in GSC/GA4, creating the YouTube
 OAuth client, and pasting a search key. Until a source is connected, dependent
 features report "no data" rather than guessing.
+
+---
+
+## Metrics spine (shipped 2026-07-25) — step 1 of the intelligence layer
+
+Built **before** any recommendation engine on purpose: a recommender with no
+telemetry is an LLM guessing, which the truthfulness rules forbid. Everything
+here comes from the workspace's own content, so it needs **no credentials** and
+works immediately.
+
+`src/lib/metrics/index.ts` is the spine. The `Metric` shape carries `value`,
+`sample`, `confidence`, `evidence` and `source` — so external inputs (GSC, GA4,
+YouTube, social) land in the *same shape* later without collectors or UI
+changing. That is what makes it a spine rather than a dashboard query.
+
+**The honesty contract (enforced in the type):**
+- **`value: null` means NO DATA — never 0.** The UI renders a dash plus the
+  reason. A missing input must not read as a bad result.
+- Every metric states its provenance in `evidence`, so a future recommendation
+  can *cite its basis* instead of asserting.
+- **Confidence is per KIND of number** — running against production caught this:
+  a **count** is exact (we counted every row), including a true zero, so
+  flagging "0 posts in progress" as low-confidence would be wrong. **Rates and
+  medians** take confidence from sample size, where it genuinely applies.
+
+**Collectors (all owned data):** pipeline funnel (ideas → approved → drafted →
+published), idea conversion, draft→publish cycle time (median), weekly cadence +
+trend (only claimed with enough on both sides), distribution follow-through
+(published posts that actually got social/video), WIP by stage + stall
+detection, AI generation volume, and **per-topic publish rates** — the "which
+topics actually produce finished work" question the layer starts from.
+
+**Performance metrics read `BlogSnapshot`**, which already carries exactly the
+GSC/GA4 shape (impressions/clicks/position/sessions). When those connectors are
+switched on they write the same rows and the collector does not change — only
+`source` and the volume do.
+
+**`MetricSnapshot` + migration `20260725010000`:** most metrics recompute live
+(accurate, no drift), but point-in-time values (open WIP, stall counts) are
+destroyed by time and trend detection needs real history. Rollup is idempotent
+per (workspace, day, metric) and **records nulls too** — "we looked and there was
+nothing" is a fact, and it stops a later gap being misread as a drop to zero.
+Wired into the existing scheduler (hourly, `METRICS_ROLLUP_MIN`); one failing
+workspace can't stop the rest.
+
+New `/insights` page + nav (both the desktop rail and the mobile drawer register
+the icon — they have separate registries).
+
+_Verified against the live production DB before shipping:_ real idea counts, real
+WIP with ages, real generation counts, and correct "—" for every absent input.
+
+**Next (not started):** the recommendation engine on top — proposals that cite
+`evidence` + `confidence`, surfaced in a review queue; then `auto` tweaks behind
+an explicit allow-list (topic weighting, cadence, title variants), never
+publishing or brand identity.

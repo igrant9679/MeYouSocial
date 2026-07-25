@@ -596,6 +596,29 @@ model BrandedShort {
   @@index([workspaceId, createdAt])
 }
 
+// Metrics spine (src/lib/metrics): one row per metric per workspace per day.
+//
+// Most metrics are recomputed live from owned data — accurate, no drift. This
+// table exists for the parts that CANNOT be reconstructed after the fact
+// (point-in-time WIP, stall counts) and as the landing zone for external
+// sources once Search Console / GA4 / YouTube are connected, so trends survive.
+// `value` is nullable on purpose: null means "no data", never zero.
+model MetricSnapshot {
+  id          String   @id @default(cuid())
+  workspaceId String
+  day         DateTime // date-only (UTC midnight) — one row per metric per day
+  key         String
+  value       Float?
+  sample      Int      @default(0)
+  confidence  String   @default("none")
+  source      String   @default("owned")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([workspaceId, day, key])
+  @@index([workspaceId, key, day])
+}
+
 model AuditLog {
   id          String   @id @default(cuid())
   workspaceId String

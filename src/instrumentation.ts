@@ -14,6 +14,7 @@ export async function register() {
   const globals = globalThis as unknown as {
     __autopilotTimer?: ReturnType<typeof setInterval>;
     __socialTimer?: ReturnType<typeof setInterval>;
+    __metricsTimer?: ReturnType<typeof setInterval>;
   };
   if (globals.__autopilotTimer) return; // HMR / double-register guard
 
@@ -47,4 +48,22 @@ export async function register() {
   };
   globals.__socialTimer = setInterval(socialSweep, socialSec * 1000);
   console.log(`[social] scheduler armed — every ${socialSec}s`);
+
+  // Metrics rollup — freezes point-in-time values (WIP, stalls) so trends have a
+  // real history. Upserts per (workspace, day, metric), so running it several
+  // times a day just refreshes today's row; hourly keeps it current on a
+  // long-lived process without waiting for a restart.
+  const metricsMin = Math.max(15, parseInt(process.env.METRICS_ROLLUP_MIN ?? "60", 10) || 60);
+  const metricsSweep = async () => {
+    try {
+      const { rollupAllWorkspaces } = await import("@/lib/metrics/rollup");
+      const { workspaces, rows } = await rollupAllWorkspaces();
+      console.log(`[metrics] rolled up ${rows} metric row(s) across ${workspaces} workspace(s)`);
+    } catch (e) {
+      console.error("[metrics] rollup failed:", e instanceof Error ? e.message : e);
+    }
+  };
+  setTimeout(metricsSweep, 3 * 60 * 1000);
+  globals.__metricsTimer = setInterval(metricsSweep, metricsMin * 60 * 1000);
+  console.log(`[metrics] rollup armed — every ${metricsMin} min`);
 }

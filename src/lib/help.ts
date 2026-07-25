@@ -255,6 +255,17 @@ export const HELP_CATEGORIES: FaqCategory[] = [
         tags: ["veo", "provider", "mock", "cost"],
       },
       {
+        q: "What is the Insights page measuring?",
+        a: "Everything on **Insights** is computed from this workspace's own content — no external connectors needed, so it works from day one. It covers the pipeline (ideas → approved → drafted → published), how long a draft takes to publish, your weekly cadence and whether it's rising or falling, which **Topics** actually reach publication, how many published posts got followed up with social or video, and what's sitting in progress or stalled. Search and traffic figures stay blank until Search Console/GA4 are connected.",
+        links: [{ label: "Insights →", href: "/insights" }],
+        tags: ["insights", "metrics", "analytics", "pipeline", "cadence", "topics"],
+      },
+      {
+        q: "Why does Insights show a dash instead of 0?",
+        a: "Because they mean different things and conflating them is how dashboards mislead. A **dash means no data** — nothing was measured, and the card tells you why. A **0 means we counted and the answer really is zero**. For that reason counts are always exact, while rates and medians carry a **confidence** based on how many items produced them: “100% publish rate” from two posts is labelled low confidence rather than presented as a fact. Anything built on top of these numbers can therefore cite its basis instead of guessing.",
+        tags: ["insights", "no data", "confidence", "honesty", "zero"],
+      },
+      {
         q: "Where do I connect Search Console, GA4 and YouTube?",
         a: "Admin → **Analytics**. **Search Console** and **GA4** use a Google *service account* (no OAuth): paste its JSON — or reuse the platform one shown at the top of the page — then grant that address access in Search Console (Settings → Users and permissions) and GA4 (Admin → Property access management). **YouTube** is different: channel-owned data needs real **OAuth**, so create an OAuth client in Google Cloud Console, paste the ID/secret, add the redirect URI the page shows you, and hit Connect. Every save runs a **live check** against the real API, so a wrong ID or a missing permission is caught immediately rather than showing up later as empty data.",
         links: [{ label: "Admin → Analytics →", href: "/admin/analytics" }],
