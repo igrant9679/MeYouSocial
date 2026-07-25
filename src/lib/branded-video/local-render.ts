@@ -31,9 +31,11 @@ const SYSTEM_CHROME_PATHS =
       ? ["/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"]
       : ["/usr/bin/google-chrome", "/usr/bin/google-chrome-stable", "/usr/bin/chromium", "/usr/bin/chromium-browser"];
 
-// The Railway build downloads Chrome via `hyperframes browser ensure` and writes
-// its absolute path here (railway.json build command). Reading this file is the
-// primary Railway resolution — layout- and version-agnostic.
+// The Railway build downloads Chrome via `hyperframes browser ensure` (cached
+// across builds — see nixpacks.toml [phases.build] cacheDirectories) and copies
+// it into the image, writing its absolute path here (railway.json build
+// command). Reading this file is the primary Railway resolution — layout- and
+// version-agnostic.
 const CHROME_PATH_FILE = "/app/.chrome-path";
 
 // Fallback roots to glob if the path file is missing. /app/.chrome is where the
