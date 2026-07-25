@@ -879,3 +879,47 @@ days, ending 2 days ago. Cheap no-op when no workspace has a connector.
 the sync says which. A live connector that matched nothing reports exactly that,
 including how many other pages had traffic but match no post — the usual cause
 being non-blog URLs or a slug mismatch. Manual **Sync now** on Admin → Analytics.
+
+---
+
+## Social: post editing + UTM link tagging (shipped 2026-07-25)
+
+**Editing** closes the gap the original scheduler explicitly deferred. The module
+had create / publishNow / cancel / delete / duplicate but **no edit** — fixing a
+typo meant delete-and-recreate, losing the schedule, per-network variants and
+media.
+
+`SocialComposer` is **generalized to accept an existing post** (`ComposerInitial`)
+rather than forking a second form: editing reuses the composer wholesale, so
+char limits, per-network text variants and per-network images behave identically
+*because they are the same component*. A parallel editor would have drifted.
+
+Rules that keep it honest:
+- **Editable only while `draft` | `scheduled`.** Once a target has posted the
+  record is history and must keep saying what actually went out — duplicate
+  instead.
+- **Saving never sends.** In edit mode "Post now" is replaced by *keep as draft*
+  / *schedule*; publishing stays a deliberate act from the queue, so an edit
+  can't accidentally fire a post.
+- Media is kept unless explicitly cleared or replaced (same per network).
+- Deselecting an account deletes that target; re-adding recreates it.
+- A target whose account has since been **disconnected is called out** on the
+  edit page rather than silently dropped on save.
+Plus `unscheduleSocialPostAction` (scheduled → draft, content intact).
+
+**UTM link tagging** plugs into the analytics chain. Without it every click lands
+in GA4 as undifferentiated referral traffic — the sync can say a page got
+sessions, never that LinkedIn out-pulled X. Tagging is **per network**
+(`utm_source=linkedin` vs `x`), per-workspace configurable, and applied **at
+send, not compose**, so the stored text stays the author's and re-editing can
+never accumulate parameters.
+
+_Fixture-verified 6/6_ on the cases that would otherwise corrupt real post text:
+trailing sentence punctuation is not swallowed (`Read https://x.com/p.` keeps its
+full stop outside the URL), fragments survive with params inserted before them,
+an **already-tagged link is left completely alone**, non-http schemes are
+untouched, and disabled is an exact no-op. Anything unparseable keeps the
+original text.
+
+**Not exercised:** publishing still needs Unipile connected, so tagged text has
+not gone to a live network.

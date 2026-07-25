@@ -255,6 +255,18 @@ export const HELP_CATEGORIES: FaqCategory[] = [
         tags: ["veo", "provider", "mock", "cost"],
       },
       {
+        q: "Can I edit a social post after writing it?",
+        a: "Yes — **Edit** appears on any post that hasn't been sent (drafts and scheduled). It opens the full composer with everything already filled in: base text, per-network variants, targets, topic and time. Saving **never sends** — you choose \"keep as draft\" or \"schedule\", and publishing stays a separate, deliberate act from the queue. Once a post has actually gone out it can no longer be edited, because the record has to keep saying what really was published; duplicate it instead. Images stay as they are unless you tick remove or attach new ones.",
+        links: [{ label: "Social →", href: "/social" }],
+        tags: ["social", "edit", "draft", "reschedule", "scheduled"],
+      },
+      {
+        q: "What is link tagging (UTM) on the Social page?",
+        a: "When it's on, links in a post get UTM parameters added **as the post is sent**, using the **network as the source** — so `utm_source=linkedin` versus `utm_source=x`. That's what lets GA4, and the search & traffic panels on **Insights**, tell which network actually drove traffic instead of lumping it all together as referral. Links you already tagged yourself are left untouched, and the text you wrote is stored exactly as written — tagging happens at send, so editing a post can never pile up duplicate parameters.",
+        links: [{ label: "Social →", href: "/social" }, { label: "Insights →", href: "/insights" }],
+        tags: ["utm", "links", "attribution", "ga4", "social", "tracking"],
+      },
+      {
         q: "Where do recommendations come from — is it AI guessing?",
         a: "No. They come from **deterministic rules** over the measured metrics, not from a language model writing advice. Every recommendation shows the exact figures it was derived from (expand **Evidence**), and inherits the **confidence of its weakest input** — so nothing asserts more certainty than the data supports. Rules also refuse to fire below a minimum sample: a bad-looking rate from two posts produces *silence* rather than a confident warning. If the queue is empty, that means nothing cleared a threshold — which is a real answer, not a failure.",
         links: [{ label: "Insights →", href: "/insights" }],

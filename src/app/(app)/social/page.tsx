@@ -1,9 +1,12 @@
 import Link from "next/link";
-import { Share2, CalendarClock, Send, Copy, Trash2, RotateCw, Check, X, Clock, Pencil, Image as ImageIcon, Tags } from "lucide-react";
+import { Share2, CalendarClock, Send, Copy, Trash2, RotateCw, Check, X, Clock, Pencil, Image as ImageIcon, Tags, Link2 as LinkIcon } from "lucide-react";
 import { requireRole } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { readJson } from "@/lib/db/json";
 import { SocialComposer } from "@/components/SocialComposer";
+import { SubmitButton } from "@/components/SubmitButton";
+import { getUtmConfig } from "@/lib/social/utm";
+import { saveUtmSettingsAction } from "@/app/actions/social";
 import { networkFor } from "@/lib/social/networks";
 import {
   publishNowAction,
@@ -49,6 +52,7 @@ export default async function SocialPage({ searchParams }: { searchParams: Promi
     }),
   ]);
   const topics = topicRows.map((t) => ({ id: t.id, name: t.name, keywords: readJson<string[]>(t.keywords, []) }));
+  const utm = await getUtmConfig(workspace.id);
 
   const scheduled = posts
     .filter((p) => p.status === "scheduled")
@@ -80,6 +84,42 @@ export default async function SocialPage({ searchParams }: { searchParams: Promi
       {err && <Banner kind="err" text={err} />}
 
       <SocialComposer accounts={accounts} topics={topics} />
+
+      {/* Link tagging — makes social traffic attributable in GA4, which is what
+          lets Insights tell LinkedIn clicks apart from X clicks. */}
+      <details className="card mb-6">
+        <summary className="cursor-pointer text-sm font-semibold flex items-center gap-2">
+          <LinkIcon className="w-4 h-4" style={{ color: "var(--blue-on)" }} />
+          Link tagging (UTM)
+          <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: utm.enabled ? "var(--green-soft)" : "var(--zebra)", color: utm.enabled ? "var(--green-on)" : "var(--mute)" }}>
+            {utm.enabled ? "on" : "off"}
+          </span>
+        </summary>
+        <p className="text-[11px] text-[var(--mute)] mt-2 mb-2 leading-relaxed">
+          Appends UTM parameters to links when a post is sent, using <b>the network as the source</b> — so GA4 (and the
+          search &amp; traffic panels on <Link href="/insights" className="underline">Insights</Link>) can tell LinkedIn
+          traffic from X traffic instead of lumping it together as referral. Links you&apos;ve already tagged yourself are
+          left untouched, and the text you wrote is stored unchanged — tagging happens at send.
+        </p>
+        <form action={saveUtmSettingsAction} className="flex flex-wrap items-end gap-2">
+          <label className="inline-flex items-center gap-1.5 text-xs">
+            <input type="checkbox" name="enabled" defaultChecked={utm.enabled} /> Enabled
+          </label>
+          <label className="text-[11px] text-[var(--mute)]">
+            Source
+            <input name="source" defaultValue={utm.source} placeholder="(network name)" className="w-32 text-xs block mt-0.5" />
+          </label>
+          <label className="text-[11px] text-[var(--mute)]">
+            Medium
+            <input name="medium" defaultValue={utm.medium} placeholder="social" className="w-28 text-xs block mt-0.5" />
+          </label>
+          <label className="text-[11px] text-[var(--mute)]">
+            Campaign
+            <input name="campaign" defaultValue={utm.campaign} placeholder="(optional)" className="w-36 text-xs block mt-0.5" />
+          </label>
+          <SubmitButton className="btn sm" pendingText="Saving…">Save</SubmitButton>
+        </form>
+      </details>
 
       {/* Scheduled — agenda grouped by day */}
       <Section icon={<CalendarClock className="w-4 h-4" style={{ color: "var(--blue-on)" }} />} title="Scheduled" count={scheduled.length} />
@@ -171,6 +211,11 @@ function PostCard({ post }: { post: PostRow }) {
             <input type="hidden" name="id" value={post.id} />
             <button className="btn sm" title="Move to drafts">Cancel</button>
           </form>
+        )}
+        {(post.status === "draft" || post.status === "scheduled") && (
+          <Link href={`/social/${post.id}/edit`} className="btn sm" title="Edit text, targets, schedule">
+            <Pencil className="w-3.5 h-3.5" /> Edit
+          </Link>
         )}
         <form action={duplicateSocialPostAction}>
           <input type="hidden" name="id" value={post.id} />

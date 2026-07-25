@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { storage } from "@/lib/storage";
 import { createPostViaUnipile, type PostAttachment, unipileConfigured } from "@/lib/unipile";
 import { readJson } from "@/lib/db/json";
+import { tagLinksForNetwork } from "@/lib/social/utm";
 
 /**
  * Publish one composed post to all its pending targets through Unipile. Per-
@@ -41,9 +42,14 @@ export async function publishSocialPost(postId: string): Promise<void> {
       if (!configured) throw new Error("Unipile is not configured");
       // Per-network overrides, else the post's base.
       const keys = target.mediaKeys ? readJson<string[]>(target.mediaKeys, []) : baseKeys;
+      // Tag links per NETWORK, so GA4 can tell LinkedIn traffic from X traffic.
+      // No-op unless the workspace enabled it; never rewrites an already-tagged
+      // link. Applied here rather than at compose time so the stored text stays
+      // the author's, and editing a post can't accumulate params.
+      const composed = await tagLinksForNetwork(target.text ?? post.text, post.workspaceId, target.provider);
       const providerPostId = await createPostViaUnipile({
         accountId: target.unipileAccountId,
-        text: target.text ?? post.text,
+        text: composed,
         attachments: await loadMedia(keys),
       });
       await db.socialPostTarget.update({

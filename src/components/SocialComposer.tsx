@@ -3,11 +3,24 @@
 import { useMemo, useRef, useState } from "react";
 import { Send, CalendarClock, ImagePlus, X, Pencil, RotateCcw, Tags, Plus } from "lucide-react";
 import { SubmitButton } from "@/components/SubmitButton";
-import { createSocialPostAction } from "@/app/actions/social";
+import { createSocialPostAction, updateSocialPostAction } from "@/app/actions/social";
 import { networkFor } from "@/lib/social/networks";
 
 export type ComposerAccount = { id: string; provider: string; name: string | null };
 export type ComposerTopic = { id: string; name: string; keywords: string[] };
+
+/** An existing post being edited. Absent = composing a new one. */
+export type ComposerInitial = {
+  id: string;
+  text: string;
+  topicId: string | null;
+  scheduledAt: string | null; // value for <input type="datetime-local">
+  accountIds: string[];
+  /** Per-provider text overrides already saved on the post. */
+  variants: Record<string, string>;
+  /** How many images the post already has (per base / per provider). */
+  existingMedia: number;
+};
 
 // Buffer/Hootsuite-style composer: pick accounts, write a base post once, then
 // optionally customize text AND images per network. Each network shows its own
@@ -21,13 +34,29 @@ function syncInput(input: HTMLInputElement | null, files: File[]) {
   input.files = dt.files;
 }
 
-export function SocialComposer({ accounts, topics = [] }: { accounts: ComposerAccount[]; topics?: ComposerTopic[] }) {
-  const [selected, setSelected] = useState<Set<string>>(new Set(accounts.length === 1 ? [accounts[0].id] : []));
-  const [text, setText] = useState("");
-  const [topicId, setTopicId] = useState("");
-  const [variants, setVariants] = useState<Record<string, string>>({});
-  const [customizing, setCustomizing] = useState<Set<string>>(new Set());
-  const [when, setWhen] = useState<"now" | "schedule">("now");
+export function SocialComposer({
+  accounts,
+  topics = [],
+  initial,
+}: {
+  accounts: ComposerAccount[];
+  topics?: ComposerTopic[];
+  initial?: ComposerInitial;
+}) {
+  // Editing reuses this component wholesale rather than a parallel form — a
+  // second implementation would drift from the composer's per-network rules.
+  const editing = Boolean(initial);
+  const [selected, setSelected] = useState<Set<string>>(
+    new Set(initial ? initial.accountIds : accounts.length === 1 ? [accounts[0].id] : []),
+  );
+  const [text, setText] = useState(initial?.text ?? "");
+  const [topicId, setTopicId] = useState(initial?.topicId ?? "");
+  const [variants, setVariants] = useState<Record<string, string>>(initial?.variants ?? {});
+  const [customizing, setCustomizing] = useState<Set<string>>(new Set(Object.keys(initial?.variants ?? {})));
+  const [when, setWhen] = useState<"now" | "schedule" | "draft">(
+    initial ? (initial.scheduledAt ? "schedule" : "draft") : "now",
+  );
+  const [clearMedia, setClearMedia] = useState(false);
   const [files, setFiles] = useState<File[]>([]);
   const [variantFiles, setVariantFiles] = useState<Record<string, File[]>>({});
 
@@ -83,7 +112,8 @@ export function SocialComposer({ accounts, topics = [] }: { accounts: ComposerAc
   }
 
   return (
-    <form action={createSocialPostAction} className="card mb-6 flex flex-col gap-3" encType="multipart/form-data">
+    <form action={editing ? updateSocialPostAction : createSocialPostAction} className="card mb-6 flex flex-col gap-3" encType="multipart/form-data">
+      {editing && <input type="hidden" name="id" value={initial!.id} />}
       {/* Account picker */}
       <div>
         <div className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)] mb-1.5">Post to</div>
@@ -227,20 +257,59 @@ export function SocialComposer({ accounts, topics = [] }: { accounts: ComposerAc
         </div>
       )}
 
+      {/* Existing images — an edit keeps them unless you say otherwise. */}
+      {editing && initial!.existingMedia > 0 && (
+        <label className="inline-flex items-center gap-2 text-xs text-[var(--mute)]">
+          <input type="checkbox" name="clearMedia" checked={clearMedia} onChange={(e) => setClearMedia(e.target.checked)} />
+          Remove the {initial!.existingMedia} image{initial!.existingMedia === 1 ? "" : "s"} already on this post
+          <span className="text-[10px]">(attaching new ones replaces them anyway)</span>
+        </label>
+      )}
+
       {/* Schedule + submit */}
       <div className="flex flex-wrap items-center gap-3 border-t border-[var(--line)] pt-3">
-        <label className="inline-flex items-center gap-1.5 text-sm cursor-pointer">
-          <input type="radio" name="when" value="now" checked={when === "now"} onChange={() => setWhen("now")} /> Post now
-        </label>
-        <label className="inline-flex items-center gap-1.5 text-sm cursor-pointer">
-          <input type="radio" name="when" value="schedule" checked={when === "schedule"} onChange={() => setWhen("schedule")} /> Schedule
-        </label>
+        {editing ? (
+          <>
+            {/* An existing post is saved, not sent — publishing stays an
+                explicit act from the queue, so an edit can never fire it. */}
+            <label className="inline-flex items-center gap-1.5 text-sm cursor-pointer">
+              <input type="radio" name="when" value="draft" checked={when === "draft"} onChange={() => setWhen("draft")} /> Keep as draft
+            </label>
+            <label className="inline-flex items-center gap-1.5 text-sm cursor-pointer">
+              <input type="radio" name="when" value="schedule" checked={when === "schedule"} onChange={() => setWhen("schedule")} /> Schedule
+            </label>
+          </>
+        ) : (
+          <>
+            <label className="inline-flex items-center gap-1.5 text-sm cursor-pointer">
+              <input type="radio" name="when" value="now" checked={when === "now"} onChange={() => setWhen("now")} /> Post now
+            </label>
+            <label className="inline-flex items-center gap-1.5 text-sm cursor-pointer">
+              <input type="radio" name="when" value="schedule" checked={when === "schedule"} onChange={() => setWhen("schedule")} /> Schedule
+            </label>
+          </>
+        )}
         {when === "schedule" && (
-          <input type="datetime-local" name="scheduledAt" className="border border-[var(--line-2)] rounded-lg p-1.5 text-sm font-mono" />
+          <input
+            type="datetime-local"
+            name="scheduledAt"
+            defaultValue={initial?.scheduledAt ?? undefined}
+            className="border border-[var(--line-2)] rounded-lg p-1.5 text-sm font-mono"
+          />
         )}
         <span className="flex-1" />
-        <SubmitButton className="btn primary" disabled={selected.size === 0 || anyOver} pendingText={when === "schedule" ? "Scheduling…" : "Posting…"}>
-          {when === "schedule" ? <><CalendarClock className="w-4 h-4" /> Schedule</> : <><Send className="w-4 h-4" /> Post now</>}
+        <SubmitButton
+          className="btn primary"
+          disabled={selected.size === 0 || anyOver}
+          pendingText={editing ? "Saving…" : when === "schedule" ? "Scheduling…" : "Posting…"}
+        >
+          {editing ? (
+            <><Pencil className="w-4 h-4" /> Save changes</>
+          ) : when === "schedule" ? (
+            <><CalendarClock className="w-4 h-4" /> Schedule</>
+          ) : (
+            <><Send className="w-4 h-4" /> Post now</>
+          )}
         </SubmitButton>
       </div>
     </form>
