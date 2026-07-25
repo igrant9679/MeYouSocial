@@ -6,6 +6,8 @@ import { env } from "@/lib/env";
 import { SubmitButton } from "@/components/SubmitButton";
 import { deleteRenderAction, processRenderNowAction, retryRenderAction, setRenderTopicAction } from "@/app/actions/videos";
 import { getVideoProviderSetting } from "@/lib/video";
+import { renderStandaloneBrandedShortAction, deleteBrandedShortAction } from "@/app/actions/branded-video";
+import { brandedShortReadiness } from "@/lib/branded-video";
 
 // Phase 4 — short-form video renders. Queue → render → play. Mock provider by
 // default; Veo activates via USE_MOCK_VIDEO=false + a Google key.
@@ -39,6 +41,10 @@ export default async function VideosPage() {
       orderBy: { name: "asc" },
       select: { id: true, name: true },
     }),
+  ]);
+  const [brandedReadiness, brandedShorts] = await Promise.all([
+    brandedShortReadiness(workspace.id),
+    db.brandedShort.findMany({ where: { workspaceId: workspace.id }, orderBy: { createdAt: "desc" }, take: 12 }),
   ]);
   const todaySpend = renders
     .filter((r) => (r.status === "done" || r.status === "rendering") && r.updatedAt >= dayStart)
@@ -92,6 +98,69 @@ export default async function VideosPage() {
           The cap counts every scene render. Package videos from a published post&apos;s Distribute tab, or let
           autopilot do it — <Link href="/blog/automation" className="underline">Automation</Link>.
         </p>
+      </div>
+
+      {/* Branded shorts — a title card from the workspace BrandKit; no blog post
+          needed. Renders free locally when Chrome is present, else HeyGen cloud. */}
+      <div className="card mb-4">
+        <div className="flex flex-wrap items-center gap-2 mb-1">
+          <h2 className="font-mono text-sm font-bold flex-1 min-w-40">Branded short</h2>
+          <span className="text-[11px] text-[var(--mute)]">
+            {brandedReadiness.mode === "local"
+              ? "Renders free on this server."
+              : brandedReadiness.mode === "cloud"
+                ? "Renders on HeyGen's cloud (pay-per-credit)."
+                : "Not set up yet."}
+          </span>
+        </div>
+        <p className="text-[11px] text-[var(--mute)] mb-2">
+          A 6-second vertical title card in this workspace&apos;s brand colours — straight from a headline, no blog post required.
+        </p>
+        {editor && brandedReadiness.ready ? (
+          <form action={renderStandaloneBrandedShortAction} className="flex flex-wrap items-end gap-2">
+            <label className="flex-1 min-w-52 text-[11px] text-[var(--mute)]">
+              Headline
+              <input name="title" required maxLength={160} placeholder="Turn every post into a branded short" className="w-full text-sm mt-0.5" />
+            </label>
+            <label className="w-40 text-[11px] text-[var(--mute)]">
+              Eyebrow
+              <input name="eyebrow" maxLength={40} placeholder="NEW POST" className="w-full text-sm mt-0.5" />
+            </label>
+            <SubmitButton className="btn primary" pendingText="Rendering… (~1–2 min)">Render short</SubmitButton>
+          </form>
+        ) : !brandedReadiness.ready ? (
+          <p className="text-xs px-2.5 py-1.5 rounded-lg inline-block" style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }}>
+            Add a HeyGen key under <Link href="/admin/api-keys" className="underline">Admin → API keys</Link>, or run the app where Chrome is installed for free local rendering.
+          </p>
+        ) : null}
+
+        {brandedShorts.length > 0 && (
+          <div className="grid grid-cols-2 @2xl:grid-cols-4 @5xl:grid-cols-6 gap-3 mt-3">
+            {brandedShorts.map((s) => (
+              <div key={s.id} className="rounded-xl border border-[var(--line)] overflow-hidden flex flex-col">
+                {s.status === "done" && (s.storedUrl || s.videoUrl) ? (
+                  <video src={s.storedUrl ?? s.videoUrl!} controls preload="none" className="w-full bg-black" />
+                ) : (
+                  <div className="aspect-[9/16] grid place-items-center text-[10px] text-center px-1" style={{ background: "var(--panel)", color: "var(--mute)" }}>
+                    {s.status === "rendering" ? "Rendering…" : s.error ? "Failed" : s.status}
+                  </div>
+                )}
+                <div className="p-1.5 flex items-center gap-1">
+                  <span className="font-mono text-[9px] px-1 py-0.5 rounded-full shrink-0" style={{ background: `var(--${s.status === "done" ? "green" : s.status === "failed" ? "rose" : "amber"}-soft)`, color: `var(--${s.status === "done" ? "green" : s.status === "failed" ? "rose" : "amber"}-on)` }}>
+                    {s.status}
+                  </span>
+                  <span className="text-[10px] text-[var(--mute)] flex-1 truncate" title={s.error ?? s.title}>{s.title}</span>
+                  {editor && (
+                    <form action={deleteBrandedShortAction}>
+                      <input type="hidden" name="id" value={s.id} />
+                      <button className="text-[10px] text-[var(--mute)] hover:text-[var(--rose-on)]" title="Delete">✕</button>
+                    </form>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {renders.length === 0 ? (

@@ -1,16 +1,33 @@
 import path from "node:path";
+import { promises as fs } from "node:fs";
 import { db } from "@/lib/db";
 import { getApiKey } from "@/lib/llm/keys";
+import { getSetting } from "@/lib/settings";
 import { storage } from "@/lib/storage";
 import { writeAudit, isGloballyPaused } from "@/lib/governance";
 import { renderOnCloud, HeygenCloudError } from "@/lib/branded-video/heygen-cloud";
+import { localRenderAvailable, renderLocally } from "@/lib/branded-video/local-render";
 
 /**
  * Branded shorts: one HyperFrames composition (hyperframes/branded-short),
- * themed per workspace from its BrandKit and rendered on HeyGen's cloud. Same
- * house pattern as Veo/TTS — a user-owned key (Setting api_key:heygen, DB-first)
- * gates it; with no key the feature reports "configure a key", never a fake.
+ * themed per workspace from its BrandKit.
+ *
+ * Two render paths, resolved per call (Setting branded_short:mode, default
+ * "auto"):
+ *  - local  — free; shells the HyperFrames CLI when a real Chrome is present.
+ *  - cloud  — HeyGen's HyperFrames cloud (pay-per-credit); needs api_key:heygen.
+ * "auto" prefers local when available (free), else cloud. Railway has no Chrome,
+ * so it lands on cloud there; a dev/self-hosted box renders free. With neither
+ * available the feature says so — never a fake, same house pattern as Veo/TTS.
  */
+
+export type RenderMode = "auto" | "local" | "cloud";
+
+async function resolveRenderMode(workspaceId?: string | null): Promise<RenderMode> {
+  const v = await getSetting("branded_short:mode", workspaceId).catch(() => "");
+  if (v === "local" || v === "cloud" || v === "auto") return v;
+  return (process.env.BRANDED_SHORT_MODE as RenderMode) || "auto";
+}
 
 // The app's own brand tokens — the defaults when a workspace hasn't set its own
 // (mirrors src/app/globals.css). Keep in sync if the app palette changes.
@@ -105,26 +122,62 @@ export async function brandKitToVariables(
 
 // ── Provider gating ───────────────────────────────────────────────────────────
 
-/** True when a HeyGen key resolves for this workspace (drives UI + the action). */
+export type BrandedShortReadiness = {
+  ready: boolean;
+  /** Which path a render would take right now, or null when nothing is set up. */
+  mode: "local" | "cloud" | null;
+  cloudKey: boolean;
+  localChrome: boolean;
+};
+
+/**
+ * What a render would do right now — drives the UI (button vs. how-to notice).
+ * ready = a render can actually run: local Chrome present, or a HeyGen key set.
+ */
+export async function brandedShortReadiness(workspaceId?: string | null): Promise<BrandedShortReadiness> {
+  const [cloudKey, forced] = await Promise.all([
+    getApiKey("heygen", workspaceId).then(Boolean),
+    resolveRenderMode(workspaceId),
+  ]);
+  const localChrome = localRenderAvailable();
+  let mode: "local" | "cloud" | null = null;
+  if (forced === "local") mode = localChrome ? "local" : null;
+  else if (forced === "cloud") mode = cloudKey ? "cloud" : null;
+  else mode = localChrome ? "local" : cloudKey ? "cloud" : null; // auto
+  return { ready: mode !== null, mode, cloudKey, localChrome };
+}
+
+/** Back-comp boolean used by simple call sites. */
 export async function brandedShortAvailable(workspaceId?: string | null): Promise<boolean> {
-  return Boolean(await getApiKey("heygen", workspaceId));
+  return (await brandedShortReadiness(workspaceId)).ready;
 }
 
 // ── Render ─────────────────────────────────────────────────────────────────────
 
+/** Persist an MP4 buffer through the storage layer; null if it couldn't. */
+async function persistMp4(buf: Buffer): Promise<string | null> {
+  if (!buf.byteLength || buf.byteLength > 120 * 1024 * 1024) return null;
+  try {
+    return (await storage.put("branded-short.mp4", buf, "video/mp4")).url;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Render a branded short end-to-end and persist it. Creates the BrandedShort
  * row up front (status rendering) so the UI has something immediately, then
- * fills in the result. Costs HeyGen credits — callers gate on role. Returns the
- * row id, or null when no key is configured.
+ * fills in the result. Routes local (free) vs cloud (paid) per resolveRenderMode.
+ * Returns the row id, or null when neither path is available (no Chrome, no key).
  */
 export async function renderBrandedShortCore(
   workspaceId: string,
   input: BrandedShortInput & { blogPostId?: string; actorId?: string },
 ): Promise<string | null> {
   if (await isGloballyPaused(workspaceId)) return null;
-  const apiKey = await getApiKey("heygen", workspaceId);
-  if (!apiKey) return null;
+  const readiness = await brandedShortReadiness(workspaceId);
+  if (!readiness.ready || !readiness.mode) return null;
+  const mode = readiness.mode;
 
   const variables = await brandKitToVariables(workspaceId, input);
   const short = await db.brandedShort.create({
@@ -134,33 +187,43 @@ export async function renderBrandedShortCore(
       title: variables.title,
       eyebrow: variables.eyebrow,
       status: "rendering",
-      provider: "heygen",
+      provider: mode === "local" ? "local" : "heygen",
       variables: JSON.stringify(variables),
     },
   });
 
   try {
-    const { renderId, videoUrl } = await renderOnCloud({
-      apiKey,
-      projectDir: templateDir(),
-      variables,
-      aspectRatio: "9:16",
-      fps: 30,
-      quality: "standard",
-    });
-
-    // Persist the signed URL's bytes — HeyGen's video_url is time-limited.
+    let videoUrl: string | null = null;
+    let renderId: string | null = null;
     let storedUrl: string | null = null;
-    try {
-      const res = await fetch(videoUrl, { signal: AbortSignal.timeout(120_000), redirect: "follow" });
-      if (res.ok) {
-        const buf = Buffer.from(await res.arrayBuffer());
-        if (buf.byteLength && buf.byteLength < 120 * 1024 * 1024) {
-          storedUrl = (await storage.put("branded-short.mp4", buf, res.headers.get("content-type") ?? "video/mp4")).url;
-        }
+
+    if (mode === "local") {
+      const { outputPath, cleanup } = await renderLocally({ projectDir: templateDir(), variables, fps: 30 });
+      try {
+        storedUrl = await persistMp4(await fs.readFile(outputPath));
+      } finally {
+        await cleanup();
       }
-    } catch {
-      // keep the signed URL even if persistence failed
+      if (!storedUrl) throw new Error("Local render produced a file but it could not be stored");
+    } else {
+      const apiKey = await getApiKey("heygen", workspaceId);
+      const out = await renderOnCloud({
+        apiKey,
+        projectDir: templateDir(),
+        variables,
+        aspectRatio: "9:16",
+        fps: 30,
+        quality: "standard",
+      });
+      renderId = out.renderId;
+      videoUrl = out.videoUrl;
+      // Persist the signed URL's bytes — HeyGen's video_url is time-limited.
+      try {
+        const res = await fetch(out.videoUrl, { signal: AbortSignal.timeout(120_000), redirect: "follow" });
+        if (res.ok) storedUrl = await persistMp4(Buffer.from(await res.arrayBuffer()));
+      } catch {
+        // keep the signed URL even if persistence failed
+      }
     }
 
     await db.brandedShort.update({
@@ -173,7 +236,7 @@ export async function renderBrandedShortCore(
       action: "branded_short.rendered",
       entityType: "branded_short",
       entityId: short.id,
-      meta: { renderId, persisted: Boolean(storedUrl) },
+      meta: { mode, renderId, persisted: Boolean(storedUrl) },
     });
     return short.id;
   } catch (e) {
@@ -189,7 +252,7 @@ export async function renderBrandedShortCore(
       action: "branded_short.render_failed",
       entityType: "branded_short",
       entityId: short.id,
-      meta: { error: message.slice(0, 200) },
+      meta: { mode, error: message.slice(0, 200) },
     });
     return short.id;
   }

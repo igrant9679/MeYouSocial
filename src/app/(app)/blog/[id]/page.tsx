@@ -88,7 +88,7 @@ import {
 } from "@/app/actions/blog-social";
 import { createVideoPackageAction } from "@/app/actions/videos";
 import { renderBrandedShortAction, deleteBrandedShortAction } from "@/app/actions/branded-video";
-import { brandedShortAvailable } from "@/lib/branded-video";
+import { brandedShortReadiness } from "@/lib/branded-video";
 
 // Blog post editor (Spark port, slice 1): SEO metadata + HTML body + grounded
 // AI draft + the review-state machine. Publishing is an ADMIN act (human gate).
@@ -144,9 +144,9 @@ export default async function BlogPostPage({
   if (!post) notFound();
   const wpConn = await db.wordPressConnection.findUnique({ where: { workspaceId: workspace.id } });
 
-  // Branded shorts (HeyGen HyperFrames cloud) — availability + this post's renders.
-  const [heygenReady, brandedShorts] = await Promise.all([
-    brandedShortAvailable(workspace.id),
+  // Branded shorts (HyperFrames) — how a render would run + this post's renders.
+  const [brandedReadiness, brandedShorts] = await Promise.all([
+    brandedShortReadiness(workspace.id),
     db.brandedShort.findMany({
       where: { workspaceId: workspace.id, blogPostId: id },
       orderBy: { createdAt: "desc" },
@@ -1280,18 +1280,20 @@ export default async function BlogPostPage({
           <div className="flex flex-wrap items-center gap-2 text-sm mb-1">
             <b>Branded short:</b>
             <span className="text-xs text-[var(--mute)] flex-1 min-w-40">
-              A 6s vertical title card rendered from this workspace&apos;s brand colours & footer on HeyGen&apos;s cloud.
+              A 6s vertical title card from this workspace&apos;s brand colours & footer.
+              {brandedReadiness.mode === "local" && " Renders free on this server."}
+              {brandedReadiness.mode === "cloud" && " Renders on HeyGen&apos;s cloud (pay-per-credit)."}
             </span>
-            {heygenReady ? (
+            {brandedReadiness.ready ? (
               <form action={renderBrandedShortAction}>
                 <input type="hidden" name="blogPostId" value={post.id} />
-                <SubmitButton className="btn" pendingText="Rendering… (cloud, ~1–2 min)">
+                <SubmitButton className="btn" pendingText="Rendering… (~1–2 min)">
                   <Sparkles className="w-4 h-4" /> Render branded short
                 </SubmitButton>
               </form>
             ) : (
               <span className="text-xs px-2.5 py-1 rounded-lg" style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }}>
-                Add a HeyGen key under <Link href="/admin/api-keys" className="underline">Admin → API keys</Link> to enable.
+                Add a HeyGen key under <Link href="/admin/api-keys" className="underline">Admin → API keys</Link> (or run where Chrome is installed for free local rendering) to enable.
               </span>
             )}
           </div>

@@ -616,6 +616,27 @@ storage layer — HeyGen's signed `video_url` is time-limited.
 
 Model `BrandedShort`; migration `20260724060000_branded_short`.
 
+**Free local render fallback (2026-07-24, added after the cloud path).** Two
+render paths, resolved per call (Setting `branded_short:mode`, default `auto`):
+- **local** — free; shells the pinned HyperFrames CLI when a real Chrome is
+  already resolvable (`CHROME_PATH`/`PUPPETEER_EXECUTABLE_PATH` env, or a system
+  install). It **never** triggers HyperFrames' managed Chromium download — that
+  restraint is the whole point, so Railway (no Chrome) always lands on cloud,
+  while a dev box or a self-hosted worker with Chrome renders for free.
+- **cloud** — HeyGen HyperFrames cloud, pay-per-credit (needs `api_key:heygen`).
+`auto` prefers local when Chrome is present, else cloud. `brandedShortReadiness()`
+reports which path a render would take and drives the UI copy.
+_Verified:_ `renderLocally()` produced a real MP4 on the dev box (system Chrome +
+ffmpeg, zero credits) — so the local path is proven end-to-end, unlike cloud.
+Local render lives in `src/lib/branded-video/local-render.ts`; ffmpeg comes from
+`ffmpeg-static` (`FFMPEG_PATH`), Chrome from the env/system resolver.
+
+**Standalone shorts (no blog needed).** The Videos page has a compose card
+(headline + eyebrow) + a gallery of all workspace shorts —
+`renderStandaloneBrandedShortAction`. `BrandedShort.blogPostId` was already
+nullable, so a standalone short is just one with no post. The per-post button on
+the Distribute tab remains.
+
 **USER MUST activate:** paste a HeyGen API key (Admin → API keys → *Media &
 video*) from app.heygen.com → Settings → API, and hold HeyGen credits.
 Pay-per-credit. Until then the button is replaced by a configure-key notice.

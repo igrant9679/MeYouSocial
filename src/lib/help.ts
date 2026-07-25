@@ -262,7 +262,7 @@ export const HELP_CATEGORIES: FaqCategory[] = [
       },
       {
         q: "How do I enable branded shorts?",
-        a: "Admin → **API keys** → *Media & video*: paste a **HeyGen** key (app.heygen.com → Settings → API). Rendering runs on HeyGen's cloud and is pay-per-credit. The short pulls its colours and footer from this workspace's **Brand** hub, falling back to the app's own coral tokens when unset — so it renders on-brand with nothing configured. Finished MP4s are persisted to storage (HeyGen's own links expire).",
+        a: "Two ways to render. **Free (local):** run the app where Chrome is installed — it renders on this server with local Chrome + ffmpeg, no key, no cost. **Cloud:** paste a **HeyGen** key (Admin → API keys → *Media & video*; app.heygen.com → Settings → API) and it renders on HeyGen's HyperFrames cloud (pay-per-credit). It picks local automatically when Chrome is present, else cloud. Either way the short pulls its colours and footer from this workspace's **Brand** hub, falling back to the app's own coral tokens when unset. Finished MP4s are persisted to storage.",
         links: [{ label: "Brand hub →", href: "/brand" }, { label: "Admin → API keys →", href: "/admin/api-keys" }],
         tags: ["branded short", "heygen", "hyperframes", "brand", "cost"],
       },

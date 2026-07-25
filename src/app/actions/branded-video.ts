@@ -31,11 +31,25 @@ export async function renderBrandedShortAction(formData: FormData) {
   revalidatePath(`/blog/${blogPostId}`);
 }
 
+/**
+ * Render a standalone branded short — no blog post required. Title + optional
+ * eyebrow come straight from the composer on the Videos page.
+ */
+export async function renderStandaloneBrandedShortAction(formData: FormData) {
+  const title = String(formData.get("title") ?? "").trim();
+  const eyebrow = String(formData.get("eyebrow") ?? "").trim() || undefined;
+  const { user, workspace } = await requireRole("EDITOR");
+  if (title.length < 2) return;
+  await renderBrandedShortCore(workspace.id, { title, eyebrow, actorId: user.id });
+  revalidatePath("/videos");
+}
+
 /** Remove a branded short row (and forget its stored file reference). */
 export async function deleteBrandedShortAction(formData: FormData) {
   const id = String(formData.get("id") ?? "");
   const { workspace } = await requireRole("EDITOR");
   const short = await db.brandedShort.findFirst({ where: { id, workspaceId: workspace.id }, select: { blogPostId: true } });
   await db.brandedShort.deleteMany({ where: { id, workspaceId: workspace.id } });
+  revalidatePath("/videos");
   if (short?.blogPostId) revalidatePath(`/blog/${short.blogPostId}`);
 }
