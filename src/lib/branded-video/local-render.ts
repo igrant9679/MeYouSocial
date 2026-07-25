@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { existsSync, promises as fs } from "node:fs";
+import { existsSync, promises as fs, readdirSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { nanoid } from "nanoid";
@@ -31,7 +31,29 @@ const SYSTEM_CHROME_PATHS =
       ? ["/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"]
       : ["/usr/bin/google-chrome", "/usr/bin/google-chrome-stable", "/usr/bin/chromium", "/usr/bin/chromium-browser"];
 
-/** An existing Chrome, or null. Env first (matches HyperFrames), then system. */
+// Where the Railway build drops its Chrome-for-Testing (railway.json build cmd:
+// `@puppeteer/browsers install chrome --path /app/.cache/chrome`). Layout is
+// <root>/chrome/<platform>-<buildId>/chrome-<platform>/chrome.
+const CHROME_CACHE_ROOTS = [process.env.BRANDED_SHORT_CHROME_DIR, "/app/.cache/chrome"].filter(Boolean) as string[];
+
+function findInChromeCache(): string | null {
+  for (const root of CHROME_CACHE_ROOTS) {
+    try {
+      const chromeDir = path.join(root, "chrome");
+      for (const build of readdirSync(chromeDir)) {
+        for (const sub of ["chrome-linux64", "chrome-linux", "chrome-mac-x64", "chrome-win64"]) {
+          const bin = path.join(chromeDir, build, sub, process.platform === "win32" ? "chrome.exe" : "chrome");
+          if (existsSync(bin)) return bin;
+        }
+      }
+    } catch {
+      // cache dir absent — next root
+    }
+  }
+  return null;
+}
+
+/** An existing Chrome, or null. Env → system install → build-downloaded cache. */
 function resolveChrome(): string | null {
   for (const e of [process.env.CHROME_PATH, process.env.PUPPETEER_EXECUTABLE_PATH, process.env.HYPERFRAMES_CHROME]) {
     if (e && existsSync(e)) return e;
@@ -39,7 +61,7 @@ function resolveChrome(): string | null {
   for (const p of SYSTEM_CHROME_PATHS) {
     if (existsSync(p)) return p;
   }
-  return null;
+  return findInChromeCache();
 }
 
 /** ffmpeg-static's binary path, if the dependency is present. */

@@ -1,0 +1,38 @@
+# Chrome for free local branded-short rendering ON Railway (instead of paying
+# HeyGen credits). `aptPkgs` is ADDITIVE — it installs Chrome's shared-library
+# dependencies on top of the auto-detected Node toolchain, so the Node/Prisma/
+# Next build is untouched. The Chrome binary itself is a pinned Chrome-for-
+# Testing download in the build command (see railway.json) — apt's `chromium`
+# on Ubuntu is a snap shim that won't launch in a container, so we don't use it.
+#
+# ffmpeg for the render comes from the ffmpeg-static npm dependency (FFMPEG_PATH),
+# already present. If a build fails on a package name (Ubuntu jammy vs noble
+# renamed a few libs with a t64 suffix), the failed build does NOT affect the
+# running site — fix the name from the build log and redeploy.
+[phases.setup]
+aptPkgs = [
+  # ffmpeg provides ffprobe, which HyperFrames' render needs and ffmpeg-static
+  # does not ship (the app's own video assembly keeps using ffmpeg-static).
+  "ffmpeg",
+  "fonts-liberation",
+  "libnss3",
+  "libnspr4",
+  "libatk1.0-0",
+  "libatk-bridge2.0-0",
+  "libcups2",
+  "libdrm2",
+  "libgbm1",
+  "libasound2",
+  "libxkbcommon0",
+  "libxcomposite1",
+  "libxdamage1",
+  "libxfixes3",
+  "libxrandr2",
+  "libpango-1.0-0",
+  "libcairo2",
+  "libxshmfence1",
+  "libgtk-3-0",
+  "libxext6",
+  "libx11-6",
+  "libxcb1"
+]

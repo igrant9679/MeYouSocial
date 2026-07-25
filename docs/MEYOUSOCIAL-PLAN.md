@@ -631,6 +631,19 @@ ffmpeg, zero credits) — so the local path is proven end-to-end, unlike cloud.
 Local render lives in `src/lib/branded-video/local-render.ts`; ffmpeg comes from
 `ffmpeg-static` (`FFMPEG_PATH`), Chrome from the env/system resolver.
 
+**Chrome on Railway → free rendering there too (2026-07-24).** Rather than
+paying HeyGen credits on Railway, the image now carries Chrome so the free local
+path runs there. Builder is **NIXPACKS** (confirmed from build logs — the
+dashboard's "RAILPACK" manifest field was stale). `nixpacks.toml` adds Chrome's
+shared libraries + `ffmpeg` via **additive** `aptPkgs` (Node toolchain
+untouched); `railway.json`'s build command appends a pinned Chrome-for-Testing
+download (`@puppeteer/browsers`) to `/app/.cache/chrome`, which persists into the
+single-stage runtime image. `resolveChrome()` globs that cache, so
+`localRenderAvailable()` is true on Railway and `auto` picks local (free). We do
+NOT apt-install `chromium` (Ubuntu ships it as a snap shim that won't launch in a
+container). A failed build can't take the site down (atomic deploys), so an
+apt-name drift across Ubuntu releases is a safe, one-line fix.
+
 **Standalone shorts (no blog needed).** The Videos page has a compose card
 (headline + eyebrow) + a gallery of all workspace shorts —
 `renderStandaloneBrandedShortAction`. `BrandedShort.blogPostId` was already
