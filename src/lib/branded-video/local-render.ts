@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { existsSync, promises as fs, readdirSync } from "node:fs";
+import { existsSync, promises as fs, readdirSync, readFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { nanoid } from "nanoid";
@@ -31,12 +31,22 @@ const SYSTEM_CHROME_PATHS =
       ? ["/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"]
       : ["/usr/bin/google-chrome", "/usr/bin/google-chrome-stable", "/usr/bin/chromium", "/usr/bin/chromium-browser"];
 
-// Where the Railway build drops its Chrome-for-Testing (railway.json build cmd:
-// `@puppeteer/browsers install chrome --path /app/.cache/chrome`). Layout is
+// The Railway build downloads Chrome via `hyperframes browser ensure` and writes
+// its absolute path here (railway.json build command). Reading this file is the
+// primary Railway resolution — layout- and version-agnostic.
+const CHROME_PATH_FILE = "/app/.chrome-path";
+
+// Fallback: glob the puppeteer-style cache the build downloads into. Layout is
 // <root>/chrome/<platform>-<buildId>/chrome-<platform>/chrome.
-const CHROME_CACHE_ROOTS = [process.env.BRANDED_SHORT_CHROME_DIR, "/app/.cache/chrome"].filter(Boolean) as string[];
+const CHROME_CACHE_ROOTS = [process.env.BRANDED_SHORT_CHROME_DIR, "/app/.cache/puppeteer", "/app/.cache/chrome"].filter(Boolean) as string[];
 
 function findInChromeCache(): string | null {
+  try {
+    const p = readFileSync(CHROME_PATH_FILE, "utf8").trim();
+    if (p && existsSync(p)) return p;
+  } catch {
+    // no path file — try globbing
+  }
   for (const root of CHROME_CACHE_ROOTS) {
     try {
       const chromeDir = path.join(root, "chrome");
