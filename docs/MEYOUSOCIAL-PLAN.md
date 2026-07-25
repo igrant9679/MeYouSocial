@@ -786,3 +786,55 @@ WIP with ages, real generation counts, and correct "—" for every absent input.
 `evidence` + `confidence`, surfaced in a review queue; then `auto` tweaks behind
 an explicit allow-list (topic weighting, cadence, title variants), never
 publishing or brand identity.
+
+---
+
+## Recommendation engine (shipped 2026-07-25) — step 2 of the intelligence layer
+
+Reads the metrics spine, proposes changes, and can apply exactly one of them
+autonomously — with the properties that make that acceptable.
+
+**Deterministic, not LLM-authored.** The central decision. A model riffing over
+numbers produces confident prose with no accountable derivation, which the
+truthfulness rules forbid — and would produce mock garbage today anyway (the
+Anthropic key is at $0). Every recommendation is a function of measured values,
+so its rationale is checkable line by line, and it works right now.
+
+**Every rule must** refuse to fire below its minimum sample, cite the exact
+metrics used, and inherit the confidence of its **weakest** input. Thin data
+produces *silence*, not a guess.
+
+_Verified in both directions_ — silence alone could have meant "broken":
+- **Live prod data:** 7 of 8 rules silent; only `connect_search_key` fires, and
+  that's a certainty (no key set), not an inference.
+- **Synthetic boundary fixtures:** 20% social follow-through at n=2 → silent,
+  at n=9 → fires. Two topics at 100% vs 0% across 2 posts each → silent; 87% vs
+  25% across 8 posts each → fires. Cadence −20% → silent, −45% → fires.
+
+**Rules:** stalled content · declining cadence · missing social distribution ·
+unconverted idea backlog · slow cycle time · best-converting topic · plus two
+setup gaps (no analytics, no search key).
+
+**Autonomy, deliberately narrow.** Applying is separate from generating and
+gated **twice**: the action must be on the explicit `AUTO_APPLICABLE` allow-list
+**and** the governing function's mode dial must be `auto`. Exactly **one** action
+qualifies — `topic.raise_priority` — because it's the only genuinely safe lever:
+it reorders which topics lead the discovery prompt (and win the 25-topic cut),
+deletes nothing, and is undone by resetting the priority. `Topic.priority` added;
+`discoverIdeasCore` orders by it. **Publishing and brand identity are not
+reachable from the engine at all.** Rather than invent a riskier lever to look
+more autonomous, the allow-list stays at one.
+
+**Dedup that makes "dismiss" mean something:** generation is idempotent by
+`fingerprint`, and dismissing applies a **14-day cooldown** — otherwise an hourly
+sweep would resurrect it immediately. Counts are bucketed into the fingerprint so
+a drift of one doesn't spawn a fresh row each hour.
+
+Review queue on `/insights`: each proposal shows its **evidence inline**
+(value, n, provenance), with apply / "I'll handle it" / dismiss-with-reason, and
+a resolved list marking anything applied automatically. Migration
+`20260725020000`.
+
+**Not exercised:** the apply and auto-apply paths are code-verified only — no
+action-carrying recommendation fires on current prod data (no Topics exist yet),
+so there was nothing real to apply.

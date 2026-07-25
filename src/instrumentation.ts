@@ -59,6 +59,13 @@ export async function register() {
       const { rollupAllWorkspaces } = await import("@/lib/metrics/rollup");
       const { workspaces, rows } = await rollupAllWorkspaces();
       console.log(`[metrics] rolled up ${rows} metric row(s) across ${workspaces} workspace(s)`);
+      // Recommendations ride the same cadence: they're derived from the metrics
+      // that were just refreshed, so generating here keeps the two consistent.
+      const { sweepRecommendations } = await import("@/lib/recommendations");
+      const { created, applied } = await sweepRecommendations();
+      if (created || applied) {
+        console.log(`[recommendations] ${created} new, ${applied} auto-applied`);
+      }
     } catch (e) {
       console.error("[metrics] rollup failed:", e instanceof Error ? e.message : e);
     }

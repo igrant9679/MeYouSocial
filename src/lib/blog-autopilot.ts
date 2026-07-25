@@ -89,6 +89,10 @@ export async function discoverIdeasCore(workspaceId: string, topicId?: string | 
     : await db.topic.findMany({
         where: { workspaceId, status: "active" },
         select: { name: true },
+        // Priority first: higher-priority topics lead the list and win the cut
+        // when a workspace has more than 25. This is the lever the
+        // recommendation engine adjusts (src/lib/recommendations).
+        orderBy: [{ priority: "desc" }, { name: "asc" }],
         take: 25,
       });
   const existing = await db.blogIdea.findMany({

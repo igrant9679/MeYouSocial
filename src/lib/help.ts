@@ -255,6 +255,18 @@ export const HELP_CATEGORIES: FaqCategory[] = [
         tags: ["veo", "provider", "mock", "cost"],
       },
       {
+        q: "Where do recommendations come from — is it AI guessing?",
+        a: "No. They come from **deterministic rules** over the measured metrics, not from a language model writing advice. Every recommendation shows the exact figures it was derived from (expand **Evidence**), and inherits the **confidence of its weakest input** — so nothing asserts more certainty than the data supports. Rules also refuse to fire below a minimum sample: a bad-looking rate from two posts produces *silence* rather than a confident warning. If the queue is empty, that means nothing cleared a threshold — which is a real answer, not a failure.",
+        links: [{ label: "Insights →", href: "/insights" }],
+        tags: ["recommendations", "rules", "evidence", "confidence", "ai"],
+      },
+      {
+        q: "Can the system make changes on its own?",
+        a: "Only one, and only if you opt in. Applying is gated **twice**: the change must be on an explicit allow-list, **and** the governing function's mode dial must be set to **auto**. Today exactly one change qualifies — raising a Topic's discovery priority — because it's the only genuinely safe lever: it reorders which topics idea-generation is prompted with, deletes nothing, and is undone by resetting the priority in Brand. **Publishing and brand identity can't be touched by the engine at all.** Everything else waits in the review queue for you to apply, accept or dismiss. Dismissing silences that finding for two weeks.",
+        links: [{ label: "Automation →", href: "/blog/automation" }],
+        tags: ["auto", "autonomy", "apply", "mode dial", "safety", "allow-list"],
+      },
+      {
         q: "What is the Insights page measuring?",
         a: "Everything on **Insights** is computed from this workspace's own content — no external connectors needed, so it works from day one. It covers the pipeline (ideas → approved → drafted → published), how long a draft takes to publish, your weekly cadence and whether it's rising or falling, which **Topics** actually reach publication, how many published posts got followed up with social or video, and what's sitting in progress or stalled. Search and traffic figures stay blank until Search Console/GA4 are connected.",
         links: [{ label: "Insights →", href: "/insights" }],

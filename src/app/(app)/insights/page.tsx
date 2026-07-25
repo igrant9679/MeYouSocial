@@ -1,7 +1,15 @@
 import Link from "next/link";
-import { LineChart, TrendingUp, Info } from "lucide-react";
-import { requireMembership } from "@/lib/acl";
+import { LineChart, TrendingUp, Info, Lightbulb, CheckCircle2, AlertTriangle, RefreshCw } from "lucide-react";
+import { requireMembership, canEdit } from "@/lib/acl";
 import { collectWorkspaceMetrics, type Metric, type Confidence } from "@/lib/metrics";
+import { openRecommendations, recentlyResolved, parseEvidence } from "@/lib/recommendations";
+import { SubmitButton } from "@/components/SubmitButton";
+import {
+  applyRecommendationAction,
+  acceptRecommendationAction,
+  dismissRecommendationAction,
+  refreshRecommendationsAction,
+} from "@/app/actions/recommendations";
 
 // Insights — the read-only face of the metrics spine (src/lib/metrics).
 //
@@ -58,9 +66,21 @@ function MetricCard({ m }: { m: Metric }) {
   );
 }
 
-export default async function InsightsPage() {
-  const { workspace } = await requireMembership();
-  const data = await collectWorkspaceMetrics(workspace.id, RANGE_DAYS);
+const SEVERITY_HUE: Record<string, string> = { warning: "rose", opportunity: "amber", info: "blue" };
+
+export default async function InsightsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ ok?: string; err?: string }>;
+}) {
+  const { workspace, membership } = await requireMembership();
+  const { ok, err } = await searchParams;
+  const editor = canEdit(membership.role);
+  const [data, recs, resolved] = await Promise.all([
+    collectWorkspaceMetrics(workspace.id, RANGE_DAYS),
+    openRecommendations(workspace.id),
+    recentlyResolved(workspace.id),
+  ]);
 
   const byKey = new Map(data.metrics.map((m) => [m.key, m]));
   const pick = (...keys: string[]) => keys.map((k) => byKey.get(k)).filter((m): m is Metric => Boolean(m));
@@ -89,11 +109,131 @@ export default async function InsightsPage() {
         </div>
       </div>
 
+      {ok && (
+        <div className="card mb-4 flex items-center gap-2" style={{ background: "var(--green-soft)", borderColor: "var(--green)" }}>
+          <CheckCircle2 className="w-4 h-4 shrink-0" style={{ color: "var(--green-on)" }} />
+          <span className="text-sm">{ok}</span>
+        </div>
+      )}
+      {err && (
+        <div className="card mb-4 flex items-center gap-2" style={{ background: "var(--rose-soft)", borderColor: "var(--rose)" }}>
+          <AlertTriangle className="w-4 h-4 shrink-0" style={{ color: "var(--rose-on)" }} />
+          <span className="text-sm">{err}</span>
+        </div>
+      )}
+
       {data.empty && (
         <div className="card mb-4 text-sm">
           Nothing to measure yet. Capture some ideas and publish a post, and this page fills in on its own —
           <Link href="/ideas" className="underline"> start with Ideas</Link>.
         </div>
+      )}
+
+      {/* ── Recommendations ─────────────────────────────────────────────── */}
+      <div className="flex items-center gap-2 mt-4 mb-2">
+        <h2 className="font-mono text-[13px] font-bold flex-1 flex items-center gap-1.5">
+          <Lightbulb className="w-4 h-4" /> Recommendations
+          {recs.length > 0 && (
+            <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }}>
+              {recs.length}
+            </span>
+          )}
+        </h2>
+        {editor && (
+          <form action={refreshRecommendationsAction}>
+            <SubmitButton className="btn sm" pendingText="Checking…"><RefreshCw className="w-3.5 h-3.5" /> Re-check</SubmitButton>
+          </form>
+        )}
+      </div>
+
+      {recs.length === 0 ? (
+        <div className="card mb-4 text-xs text-[var(--mute)]">
+          Nothing to suggest right now. Rules stay silent unless the data clears their threshold — a thin sample
+          produces no recommendation rather than a confident guess.
+        </div>
+      ) : (
+        <div className="flex flex-col gap-3 mb-4">
+          {recs.map((r) => {
+            const evidence = parseEvidence(r.evidence);
+            const hue = SEVERITY_HUE[r.severity] ?? "blue";
+            return (
+              <div key={r.id} className="card" style={{ borderLeft: `3px solid var(--${hue})` }}>
+                <div className="flex flex-wrap items-center gap-2 mb-1">
+                  <span className="font-mono text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: `var(--${hue}-soft)`, color: `var(--${hue}-on)` }}>
+                    {r.severity}
+                  </span>
+                  <h3 className="text-sm font-semibold flex-1 min-w-40">{r.title}</h3>
+                  {r.status === "accepted" && (
+                    <span className="font-mono text-[10px] px-2 py-0.5 rounded-full" style={{ background: "var(--green-soft)", color: "var(--green-on)" }}>
+                      accepted
+                    </span>
+                  )}
+                  <span className="font-mono text-[10px] text-[var(--mute)]" title="Confidence is inherited from the weakest metric behind this.">
+                    {r.confidence} confidence
+                  </span>
+                </div>
+                <p className="text-xs mb-1.5">{r.detail}</p>
+                <p className="text-[11px] text-[var(--mute)] leading-relaxed mb-2">{r.rationale}</p>
+
+                {evidence.length > 0 && (
+                  <details className="mb-2">
+                    <summary className="cursor-pointer text-[11px] text-[var(--mute)]">Evidence ({evidence.length})</summary>
+                    <ul className="mt-1.5 flex flex-col gap-1">
+                      {evidence.map((e) => (
+                        <li key={e.key} className="text-[11px] pl-2" style={{ borderLeft: "2px solid var(--line)" }}>
+                          <b className="font-mono">{e.value === null ? "—" : e.value}</b> {e.label}
+                          <span className="text-[var(--mute)]"> · n={e.sample} · {e.evidence}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </details>
+                )}
+
+                {editor && (
+                  <div className="flex flex-wrap items-center gap-2">
+                    {r.actionKey && r.status !== "applied" && (
+                      <form action={applyRecommendationAction}>
+                        <input type="hidden" name="id" value={r.id} />
+                        <SubmitButton className="btn primary sm" pendingText="Applying…">{r.actionLabel ?? "Apply"}</SubmitButton>
+                      </form>
+                    )}
+                    {r.status === "open" && (
+                      <form action={acceptRecommendationAction}>
+                        <input type="hidden" name="id" value={r.id} />
+                        <SubmitButton className="btn sm" pendingText="…">I&apos;ll handle it</SubmitButton>
+                      </form>
+                    )}
+                    <form action={dismissRecommendationAction} className="flex items-center gap-1">
+                      <input type="hidden" name="id" value={r.id} />
+                      <input name="reason" placeholder="reason (optional)" className="text-[11px] w-40" />
+                      <SubmitButton className="btn sm" pendingText="…">Dismiss</SubmitButton>
+                    </form>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {resolved.length > 0 && (
+        <details className="card mb-4">
+          <summary className="cursor-pointer text-xs text-[var(--mute)]">Recently resolved ({resolved.length})</summary>
+          <ul className="mt-2 flex flex-col gap-1">
+            {resolved.map((r) => (
+              <li key={r.id} className="text-[11px] flex items-start gap-2">
+                <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full shrink-0" style={{ background: "var(--zebra)", color: "var(--mute)" }}>
+                  {r.status}
+                </span>
+                <span className="flex-1">
+                  {r.title}
+                  {r.appliedBy === "auto" && <span className="text-[var(--mute)]"> · applied automatically</span>}
+                  {r.dismissedReason && <span className="text-[var(--mute)]"> · “{r.dismissedReason}”</span>}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </details>
       )}
 
       {/* Pipeline */}

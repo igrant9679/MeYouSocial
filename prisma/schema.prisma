@@ -619,6 +619,38 @@ model MetricSnapshot {
   @@index([workspaceId, key, day])
 }
 
+// Recommendations (src/lib/recommendations): produced by deterministic rules
+// over the metrics spine, never by an LLM riffing on numbers. Each row carries
+// the evidence it was derived from, so the UI can show WHY rather than assert.
+//
+// `fingerprint` dedups regeneration: the same finding must not pile up a new row
+// every sweep, and dismissing one silences that finding for a cooldown period.
+model Recommendation {
+  id            String    @id @default(cuid())
+  workspaceId   String
+  ruleKey       String
+  fingerprint   String    // ruleKey + the salient values — dedup/cooldown key
+  title         String
+  detail        String    // what to do
+  rationale     String    // why, in terms of the metrics
+  severity      String    @default("info") // info | opportunity | warning
+  confidence    String    @default("none") // inherited from the weakest input
+  evidence      String    @default("[]")   // JSON [{key,label,value,sample,evidence}]
+  status        String    @default("open") // open | accepted | dismissed | applied
+  // Machine-actionable key + payload. Null = advisory only.
+  actionKey     String?
+  actionPayload String?
+  actionLabel   String?
+  appliedAt     DateTime?
+  appliedBy     String?   // user id, or "auto" when the mode dial applied it
+  dismissedReason String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([workspaceId, status, createdAt])
+  @@index([workspaceId, fingerprint])
+}
+
 model AuditLog {
   id          String   @id @default(cuid())
   workspaceId String
@@ -1307,6 +1339,11 @@ model Topic {
   description String?
   keywords    String   @default("[]") // JSON array of related phrases
   status      String   @default("active") // active | archived
+  // Ordering weight for idea discovery: higher priority topics are listed first
+  // in the discovery prompt and win the 25-topic cut. This is the ONE lever the
+  // recommendation engine may adjust automatically — it nudges what gets
+  // suggested, deletes nothing, and is fully reversible.
+  priority    Int      @default(0)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
