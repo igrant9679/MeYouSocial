@@ -838,3 +838,44 @@ a resolved list marking anything applied automatically. Migration
 **Not exercised:** the apply and auto-apply paths are code-verified only — no
 action-carrying recommendation fires on current prod data (no Topics exist yet),
 so there was nothing real to apply.
+
+---
+
+## Analytics sync — GSC/GA4 → BlogSnapshot (shipped 2026-07-25)
+
+Closes a chain that was ~90% built and 0% functional. The connectors
+authenticated and queried fine, and the metrics spine read `BlogSnapshot` — but
+**nothing joined them**: `gscQuery`/`ga4RunReport` had zero callers and
+`BlogSnapshot` was only written by the manual entry form. Connecting Search
+Console would verify green and leave Insights' performance panels blank.
+
+**Two decisions that carry the correctness:**
+
+1. **One row per post per DAY.** `collectPerformance` **sums** snapshots across
+   the window, so each row must describe a single day — storing a rolling
+   "last 28 days" total per capture would multiply-count badly. Both APIs are
+   therefore queried with a date dimension (`["page","date"]` /
+   `["pagePath","date"]`), and GA4's `YYYYMMDD` is normalized to GSC's
+   `YYYY-MM-DD` so the two merge into the same row.
+2. **The sync only touches its own rows.** New `BlogSnapshot.source`
+   (`manual|gsc|ga4|sync`, migration `20260725030000`). GSC revises recent days,
+   so a refresh must overwrite — but it must never delete an operator's
+   hand-entered snapshot. The delete is filtered to synced sources only.
+
+**Matching:** posts are indexed by `publishedUrl`, **falling back to `slug`** —
+without that fallback a freshly-connected property matches nothing, because a
+post published outside the app (or before WordPress wiring) has a slug and no
+stored URL. `urlKey()` normalizes to path-only, lowercased, no query/hash, no
+trailing slash. _Verified with fixtures (8/8), including the case that matters:
+a GSC absolute URL and a GA4 path for the same page produce the same key, so the
+providers merge rather than duplicate._
+
+**Cadence:** its own timer (`ANALYTICS_SYNC_MIN`, default **360 min**) rather
+than riding the hourly metrics rollup — GSC lags ~2 days and is revised, so
+polling hourly would burn quota re-fetching identical numbers. Lookback is 10
+days, ending 2 days ago. Cheap no-op when no workspace has a connector.
+
+**Honest reporting:** "connected" and "producing data" are different states, and
+the sync says which. A live connector that matched nothing reports exactly that,
+including how many other pages had traffic but match no post — the usual cause
+being non-blog URLs or a slug mismatch. Manual **Sync now** on Admin → Analytics.

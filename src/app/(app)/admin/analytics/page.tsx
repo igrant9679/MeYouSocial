@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { LineChart, CheckCircle2, AlertTriangle, CirclePlay, Search, BarChart3 } from "lucide-react";
+import { LineChart, CheckCircle2, AlertTriangle, CirclePlay, Search, BarChart3, RefreshCw } from "lucide-react";
 import { requireRole } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { SubmitButton } from "@/components/SubmitButton";
@@ -15,6 +15,7 @@ import {
   saveYoutubeOauthAction,
   connectYoutubeAction,
   disconnectYoutubeAction,
+  syncAnalyticsNowAction,
 } from "@/app/actions/analytics-connections";
 
 // Admin → Analytics: the real-data inputs (Search Console, GA4, YouTube).
@@ -216,6 +217,24 @@ export default async function AnalyticsConnectionsPage({
           </>
         )}
       </div>
+
+      {/* Sync — the join between these connections and Insights. */}
+      {(gsc || ga4) && (
+        <div className="card mb-3 flex flex-wrap items-center gap-2">
+          <div className="flex-1 min-w-52">
+            <h2 className="font-mono font-bold text-sm mb-0.5">Sync to Insights</h2>
+            <p className="text-[11px] text-[var(--mute)] leading-relaxed">
+              Pulls per-day clicks, impressions, position and sessions into each published post, which is what fills the
+              search &amp; traffic panels on <Link href="/insights" className="underline">Insights</Link>. Runs automatically
+              every few hours — Search Console data lags about two days, so more often wouldn&apos;t show more.
+              Posts are matched by their published URL, falling back to slug.
+            </p>
+          </div>
+          <form action={syncAnalyticsNowAction}>
+            <SubmitButton className="btn" pendingText="Syncing…"><RefreshCw className="w-3.5 h-3.5" /> Sync now</SubmitButton>
+          </form>
+        </div>
+      )}
 
       <div className="card text-xs text-[var(--mute)] leading-relaxed">
         <p className="mb-1">

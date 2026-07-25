@@ -91,6 +91,20 @@ export async function clearGa4Action() {
   back("GA4 disconnected.", true);
 }
 
+/**
+ * Pull Search Console / GA4 data into BlogSnapshot now, instead of waiting for
+ * the scheduled sweep. Reports honestly when a connector is live but nothing
+ * matched — "connected" and "producing data" are different states.
+ */
+export async function syncAnalyticsNowAction() {
+  const { workspace } = await requireRole("ADMIN");
+  const { syncWorkspaceAnalytics } = await import("@/lib/analytics/sync");
+  const outcome = await syncWorkspaceAnalytics(workspace.id);
+  revalidatePath("/admin/analytics");
+  revalidatePath("/insights");
+  back(outcome.message, outcome.ok);
+}
+
 // ── YouTube OAuth ────────────────────────────────────────────────────────────
 
 export async function saveYoutubeOauthAction(formData: FormData) {

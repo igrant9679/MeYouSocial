@@ -15,6 +15,7 @@ export async function register() {
     __autopilotTimer?: ReturnType<typeof setInterval>;
     __socialTimer?: ReturnType<typeof setInterval>;
     __metricsTimer?: ReturnType<typeof setInterval>;
+    __analyticsTimer?: ReturnType<typeof setInterval>;
   };
   if (globals.__autopilotTimer) return; // HMR / double-register guard
 
@@ -73,4 +74,24 @@ export async function register() {
   setTimeout(metricsSweep, 3 * 60 * 1000);
   globals.__metricsTimer = setInterval(metricsSweep, metricsMin * 60 * 1000);
   console.log(`[metrics] rollup armed — every ${metricsMin} min`);
+
+  // Analytics sync (Search Console / GA4 → BlogSnapshot). Its own, slower
+  // cadence: GSC data lags ~2 days and is revised for a while, so polling it
+  // hourly would burn quota to re-fetch the same numbers. No-ops cheaply when
+  // no workspace has a connector configured.
+  const syncMin = Math.max(30, parseInt(process.env.ANALYTICS_SYNC_MIN ?? "360", 10) || 360);
+  const analyticsSweep = async () => {
+    try {
+      const { syncAllWorkspaces } = await import("@/lib/analytics/sync");
+      const { workspaces, rowsWritten } = await syncAllWorkspaces();
+      if (workspaces > 0) {
+        console.log(`[analytics] synced ${rowsWritten} snapshot row(s) across ${workspaces} connected workspace(s)`);
+      }
+    } catch (e) {
+      console.error("[analytics] sync failed:", e instanceof Error ? e.message : e);
+    }
+  };
+  setTimeout(analyticsSweep, 5 * 60 * 1000);
+  globals.__analyticsTimer = setInterval(analyticsSweep, syncMin * 60 * 1000);
+  console.log(`[analytics] sync armed — every ${syncMin} min`);
 }

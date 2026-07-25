@@ -415,12 +415,19 @@ model SocialVariant {
 model BlogSnapshot {
   id          String   @id @default(cuid())
   postId      String
+  // One row per post per DAY. The metrics spine SUMS snapshots over a window,
+  // so each row must describe a single day — a rolling-window total would
+  // multiply-count. `capturedAt` is that day (UTC midnight) for synced rows.
   capturedAt  DateTime @default(now())
   impressions Int?
   clicks      Int?
   position    Float?
   sessions    Int?
   conversions Int?
+  // manual = typed in by an operator; gsc/ga4 = written by the analytics sync.
+  // The sync only ever refreshes its OWN rows, so re-running can never destroy
+  // hand-entered data.
+  source      String   @default("manual")
 
   post BlogPost @relation(fields: [postId], references: [id], onDelete: Cascade)
 
