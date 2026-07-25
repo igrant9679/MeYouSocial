@@ -16,6 +16,10 @@
 # noble these names change — but a failed build can't take the site down.
 [phases.setup]
 aptPkgs = [
+  # unzip is required to EXTRACT the Chrome download (`hyperframes browser
+  # ensure`); the noble base ships none, so the download succeeded but
+  # extraction failed. This was the real blocker.
+  "unzip",
   # ffmpeg provides ffprobe, which HyperFrames' render needs and ffmpeg-static
   # does not ship (the app's own video assembly keeps using ffmpeg-static).
   "ffmpeg",
