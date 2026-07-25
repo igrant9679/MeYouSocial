@@ -641,8 +641,21 @@ download (`@puppeteer/browsers`) to `/app/.cache/chrome`, which persists into th
 single-stage runtime image. `resolveChrome()` globs that cache, so
 `localRenderAvailable()` is true on Railway and `auto` picks local (free). We do
 NOT apt-install `chromium` (Ubuntu ships it as a snap shim that won't launch in a
-container). A failed build can't take the site down (atomic deploys), so an
-apt-name drift across Ubuntu releases is a safe, one-line fix.
+container).
+
+_Blockers hit + fixed while landing this (each a green deploy after a safe failed
+build — atomic deploys kept prod up throughout):_ (1) the base is Ubuntu **noble
+24.04**, so jammy lib names failed — switched to the `t64` set; (2)
+`@puppeteer/browsers` couldn't extract — the noble base ships **no `unzip`**;
+added it; (3) switched the download to `hyperframes browser ensure` (pinned
+Chrome the renderer is tested with) over `@puppeteer/browsers @stable`. Final:
+the build downloads **chrome-headless-shell** to
+`/root/.cache/hyperframes/chrome/.../chrome-headless-shell` (HyperFrames uses its
+own cache dir, ignoring `PUPPETEER_CACHE_DIR`) and writes that absolute path to
+`/app/.chrome-path`; `resolveChrome()` reads it with an `existsSync` guard, so if
+the path ever fails to resolve at runtime it degrades safely to cloud, never a
+crash. Deploy `c926e2d` is green; the runtime render itself is exercised by
+clicking Render on the Videos page (couldn't drive the signed-in UI from here).
 
 **Standalone shorts (no blog needed).** The Videos page has a compose card
 (headline + eyebrow) + a gallery of all workspace shorts —
