@@ -680,3 +680,54 @@ HyperFrames CLI: `npx hyperframes preview|check|render`). `next start` runs from
 the repo root so the dir is on disk at render time — no bundling step. The
 Google-Fonts `<link>` for IBM Plex is a known non-blocking `check` warning;
 bundling woff2 locally is the deterministic-render hardening step if wanted.
+
+---
+
+## Analytics connections — GSC, GA4, YouTube OAuth (shipped 2026-07-25)
+
+Groundwork for the intelligence/recommendation layer: **the data inputs land
+before the analysis**, because a recommender without real telemetry would be an
+LLM guessing — exactly what the truthfulness rules forbid.
+
+**Audit finding:** two of the four sources already had UI and were simply
+unconfigured — **Tavily/Serper** (Admin → API keys → Search) and **Unipile**
+(Admin → Connections). Genuinely missing: **GSC, GA4, YouTube OAuth**.
+
+**Auth model differs per platform on purpose:**
+
+| Source | Mechanism | Why |
+| --- | --- | --- |
+| Search Console | Service account | Can grant an arbitrary principal access to a property |
+| GA4 | Service account | Same — add the SA as a Viewer |
+| YouTube | **OAuth** | Google will **not** let a service account touch a channel |
+
+`src/lib/google/service-account.ts` generalizes the RS256-JWT → access-token
+signer already proven in `storage/gdrive.ts` (dependency-free `node:crypto`),
+scope-parameterized with a per-(SA, scope) token cache. `gdrive.ts` keeps its own
+copy deliberately — load-bearing for storage, not worth churning.
+
+`src/lib/youtube/oauth.ts` + `/api/oauth/youtube/callback` implement the real
+consent flow. **The refresh token grants upload rights, so it is AES-GCM
+encrypted** (`blog-crypto`, `TOKEN_ENCRYPTION_KEY`). `access_type=offline` +
+`prompt=consent` is deliberate: without `prompt=consent`, a *second*
+authorization returns no refresh token and the connection silently dies after an
+hour. The callback only completes for a signed-in **ADMIN** whose workspace
+matches the `state` we sent.
+
+**Live probes, not status codes** (the Drive-storage pattern). GSC lists the
+properties the SA can actually see and, on mismatch, names them — "not shared
+with the service account" is the overwhelmingly common mistake. GA4 runs a real
+28-day report (exercises the exact permission) and appends the precise fix on a
+403. Input normalizing absorbs the usual paste errors: GSC domain
+(`sc-domain:x.com`) vs URL-prefix properties, and GA4's numeric property id vs
+the `G-XXXX` measurement id (the latter is rejected with an explanation rather
+than silently stored).
+
+Per-workspace throughout, with the service account **falling back to the
+platform Drive SA** — one Google project can serve every workspace; the page
+surfaces that address when it exists. New `/admin/analytics` page + nav entry.
+No migration (`WorkspaceSetting` rows).
+
+**Still user-owned:** granting the SA access in GSC/GA4, creating the YouTube
+OAuth client, and pasting a search key. Until a source is connected, dependent
+features report "no data" rather than guessing.

@@ -255,6 +255,18 @@ export const HELP_CATEGORIES: FaqCategory[] = [
         tags: ["veo", "provider", "mock", "cost"],
       },
       {
+        q: "Where do I connect Search Console, GA4 and YouTube?",
+        a: "Admin → **Analytics**. **Search Console** and **GA4** use a Google *service account* (no OAuth): paste its JSON — or reuse the platform one shown at the top of the page — then grant that address access in Search Console (Settings → Users and permissions) and GA4 (Admin → Property access management). **YouTube** is different: channel-owned data needs real **OAuth**, so create an OAuth client in Google Cloud Console, paste the ID/secret, add the redirect URI the page shows you, and hit Connect. Every save runs a **live check** against the real API, so a wrong ID or a missing permission is caught immediately rather than showing up later as empty data.",
+        links: [{ label: "Admin → Analytics →", href: "/admin/analytics" }],
+        tags: ["gsc", "search console", "ga4", "analytics", "youtube", "oauth", "connect"],
+      },
+      {
+        q: "Why does the YouTube API key not give me my own channel's data?",
+        a: "An API key only reads **public** data (search, public video/channel metadata) — that's the key under Admin → API keys, used for Intel lookups. Anything your channel *owns* — uploading, or your own view/watch-time analytics — requires **OAuth** consent, because Google won't let an arbitrary credential act on a channel. Connect that separately under Admin → **Analytics**. Both can be set up at once; they do different jobs.",
+        links: [{ label: "Admin → Analytics →", href: "/admin/analytics" }],
+        tags: ["youtube", "oauth", "api key", "channel", "upload"],
+      },
+      {
         q: "What's a branded short, and how is it different from a video package?",
         a: "A **branded short** is a 6-second vertical title card — your post's headline over this workspace's brand colours, name and footer — rendered on HeyGen's HyperFrames cloud (no Chrome/ffmpeg here; it's designed motion graphics, not generated footage). A **video package** is the Veo route: an AI-generated multi-scene storyboard. Use branded shorts for exact, on-brand promos; use packages for generated video. The **Render branded short** button is on a post's Distribute tab once it's approved/published.",
         links: [{ label: "Admin → API keys →", href: "/admin/api-keys" }],

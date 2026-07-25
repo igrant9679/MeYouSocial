@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Users, Settings, Gauge, BarChart3, Layers, KeyRound, Mail, Plug } from "lucide-react";
+import { Users, Settings, Gauge, BarChart3, Layers, KeyRound, Mail, Plug, LineChart } from "lucide-react";
 import { requireRole } from "@/lib/acl";
 
 // Admin sub-layout — tab strip across the admin surfaces.
@@ -12,6 +12,7 @@ const NAV = [
   { href: "/admin/usage",      label: "Usage",       icon: BarChart3, color: "#15924B" },
   { href: "/admin/channels",   label: "Channels",    icon: Layers,   color: "#6D28D9" },
   { href: "/admin/api-keys",   label: "API keys",    icon: KeyRound, color: "#D97706" },
+  { href: "/admin/analytics",  label: "Analytics",   icon: LineChart, color: "#15924B" },
   { href: "/admin/email",      label: "Email/SMTP",  icon: Mail,     color: "#0891B2" },
 ];
 
