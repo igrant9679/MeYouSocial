@@ -657,6 +657,14 @@ the path ever fails to resolve at runtime it degrades safely to cloud, never a
 crash. Deploy `c926e2d` is green; the runtime render itself is exercised by
 clicking Render on the Videos page (couldn't drive the signed-in UI from here).
 
+_Chrome download cached across builds (2026-07-25):_ `nixpacks.toml`
+`[phases.build] cacheDirectories = ["/root/.cache/hyperframes"]` + the build
+copies Chrome out of the cache mount into `/app/.chrome` (a real image layer)
+before capturing the path — cached AND in the image. **Confirmed** across two
+deploys: the cache-populating build logged 12 Chrome download-progress lines, the
+next build logged **0** (`browser ensure` found it in the mount instantly), and
+build time roughly halved.
+
 **Standalone shorts (no blog needed).** The Videos page has a compose card
 (headline + eyebrow) + a gallery of all workspace shorts —
 `renderStandaloneBrandedShortAction`. `BrandedShort.blogPostId` was already
