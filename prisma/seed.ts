@@ -1,10 +1,28 @@
-// Seeds: built-in templates, a demo workspace + admin user,
-// a sample channel with voice/audience/ideas so the app shows real data on first run.
+// Seeds: built-in templates, a demo workspace + admin user, and a sample
+// channel with voice/audience profiles. Runs on EVERY Railway boot, so
+// everything here must be idempotent.
+//
+// Fabricated demo CONTENT — sample channel ideas and the mock Intel market data
+// — is opt-in behind SEED_DEMO_CONTENT=true. See seedDemoContent().
 
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
 const db = new PrismaClient();
+
+/**
+ * Whether to seed fabricated DEMO CONTENT (sample channel ideas, the mock Intel
+ * market data). Off unless explicitly asked for.
+ *
+ * These are invented numbers — Intel's 13 channels and 104 videos have
+ * hash-derived subscriber and view counts — and once they sit in a production
+ * database next to real rows nothing distinguishes them. They were purged from
+ * this install on 2026-07-26 at the owner's request; re-seeding them on the
+ * next boot would have silently undone that.
+ */
+function seedDemoContent(): boolean {
+  return process.env.SEED_DEMO_CONTENT === "true";
+}
 
 const LONG_TEMPLATES = [
   { name: "Flexible", structure: { sections: ["Hook", "Body", "Conclusion"], notes: "Free-form. AI decides pacing." } },
@@ -149,6 +167,19 @@ async function seedDemoData() {
     },
   });
 
+  // ⚠ THIS USED TO RUN ON EVERY BOOT WITH A BARE create(). The seed runs on
+  // every Railway deploy, so the same three ideas were re-inserted each time —
+  // production reached 276 rows of the same 3 titles before anyone noticed, and
+  // they skewed every count in Intel and Insights. Two guards now:
+  //   1. demo CONTENT is opt-in (SEED_DEMO_CONTENT=true), so a real install
+  //      doesn't get fake ideas at all;
+  //   2. even when opted in it is idempotent — nothing is inserted if the
+  //      channel already has ideas, so it can never pile up again.
+  // The workspace/user/channel/templates above are NOT gated: they're the
+  // account you sign in with, and they're upserts.
+  if (!seedDemoContent()) return;
+  if ((await db.idea.count({ where: { channelId: channel.id } })) > 0) return;
+
   const ideas = [
     { title: "I tried four productivity systems for 30 days. Only one worked.", strategy: "Comparison + receipts", outlierScore: 4.2 },
     { title: "Stop reading productivity books. Do this instead.", strategy: "Counter-intuitive hook", outlierScore: 6.1 },
@@ -261,7 +292,9 @@ async function seedIntel() {
 async function main() {
   await seedTemplates();
   await seedDemoData();
-  await seedIntel();
+  // Mock market data — fabricated subscriber/view figures. Opt-in only; see
+  // seedDemoContent().
+  if (seedDemoContent()) await seedIntel();
   const adminEmail = (process.env.BOOTSTRAP_ADMIN_EMAIL ?? "you@example.com").toLowerCase();
   // Don't print a configured admin password into deploy logs (this runs on every
   // Railway boot). Only echo the built-in dev default, which is public anyway.
