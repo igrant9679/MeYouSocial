@@ -431,8 +431,14 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
             <br />
             Enable the <b>Google Drive API</b> on the project. The app asks only for the{" "}
             <code className="font-mono text-[10px] px-1 rounded" style={{ background: "var(--zebra)" }}>drive.file</code> scope,
-            which needs no Google verification review — and <b>publish the OAuth consent screen</b> rather than leaving it in
-            Testing, because Google expires refresh tokens of Testing apps after <b>7 days</b>.
+            which needs no Google verification review.
+          </p>
+          <p className="text-[11px] mb-2 leading-relaxed rounded-lg p-2" style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }}>
+            <b>Then publish the consent screen.</b> In <i>OAuth consent screen → Audience</i>, hit <b>Publish app</b>. A consent
+            screen left in <b>Testing</b> rejects everyone except listed testers — Google shows <i>“has not completed the Google
+            verification process”</i>, error 403 <span className="font-mono">access_denied</span> — and, worse, it{" "}
+            <b>expires refresh tokens after 7 days</b>, so storage would work and then break next week. Adding yourself under
+            <b> Test users</b> unblocks the sign-in immediately but keeps that 7-day clock.
           </p>
 
           {driveOauth.connected ? (

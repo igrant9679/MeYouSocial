@@ -21,6 +21,21 @@ export async function GET(req: NextRequest) {
   const back = (msg: string, ok = false) =>
     NextResponse.redirect(new URL(`/admin/api-keys?${ok ? "ok" : "err"}=${encodeURIComponent(msg)}#storage`, url.origin));
 
+  // `access_denied` is overwhelmingly ONE thing here, not a real refusal: the
+  // OAuth consent screen is still in "Testing", so Google only lets
+  // developer-approved testers through and shows "has not completed the Google
+  // verification process". Relaying the bare error code would send the operator
+  // hunting for a verification problem they don't have — the app requests only
+  // `drive.file`, which is non-sensitive and needs no review.
+  if (oauthError === "access_denied") {
+    return back(
+      'Google blocked the sign-in with "access_denied". If the screen said the app "has not completed the Google verification process",' +
+      " the OAuth consent screen is still in Testing, which only admits listed testers." +
+      " Fix it in Google Cloud Console → APIs & Services → OAuth consent screen → Audience: either Publish app" +
+      " (this app asks only for the non-sensitive drive.file scope, so there is no review to pass), or add your Google address" +
+      " under Test users. Publishing is the one to prefer — Google expires the refresh tokens of Testing-status apps after 7 days.",
+    );
+  }
   if (oauthError) return back(`Google returned "${oauthError}".`);
   if (!code || !state) return back("Missing authorization code.");
 
