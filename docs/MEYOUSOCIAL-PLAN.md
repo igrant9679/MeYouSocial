@@ -1128,3 +1128,109 @@ time an automation artifact has masqueraded as an app bug — see also §0i.
 synthetic drag events exercise the same handlers), and anything on production —
 the queue and calendar still need a signed-in session and a connected Unipile
 account.
+
+## Social performance pullback (shipped 2026-07-26)
+
+The social half of what the analytics sync does for the blog. Until now
+`/social` could say a post went out but never what it did, and the metrics
+spine measured a distribution channel it couldn't see. `MetricSource` already
+had `"social"` reserved for this.
+
+### The storage rule — deliberately NOT the blog's
+
+`BlogSnapshot` rows are **per-day**, because GSC/GA4 are queried with a date
+dimension, so `collectPerformance` **sums** them. Social APIs report
+**cumulative lifetime totals** — "this post has 412 likes" as of the moment you
+ask. Summing those across days would multiply-count by roughly the number of
+times we polled (a post polled daily for a week would report ~7× its real
+engagement).
+
+So `SocialSnapshot` stores the cumulative reading and aggregates
+**latest-per-target, then sums across targets**. `latestPerTarget()` in
+`src/lib/social/performance.ts` is the only place that collapses it — anything
+else that reaches for `db.socialSnapshot` directly is a bug waiting to happen.
+`@@unique([targetId, capturedAt])` makes a re-poll on the same day a refresh
+rather than an append, which is what keeps "latest" unambiguous.
+
+**Deltas were considered and rejected:** they need an unbroken chain of prior
+snapshots, so one missed sync silently corrupts the series, whereas a
+cumulative reading is self-describing and re-derivable at any time.
+
+**A consequence stated rather than hidden:** a lifetime counter cannot answer
+*"engagement earned in the last 30 days"*, only *"engagement to date on posts
+sent in the last 30 days"*. The metrics are scoped by **send date** and every
+evidence string says exactly that. Under the blog's per-day heading the same
+number would mean something different.
+
+### The unverifiable part, handled as such
+
+Unipile's post-statistics endpoint **and payload shape could not be verified** —
+there is no connected account on this deployment, so no real response was ever
+seen. `getPostViaUnipile` was written from the shape of the posting endpoint
+(`/api/v1/posts`, `account_id`, `X-API-KEY`).
+
+Hard-coding one guessed shape would fail **silently** — the worst outcome for a
+metrics feed, because "no engagement" and "we didn't understand the reply" would
+look identical. Instead `parseSocialStats` (`src/lib/social/stats.ts`):
+
+- accepts the plausible spellings each network/API version uses
+  (`impression_count` / `impressionCount` / `views` / `reach` …), normalised by
+  lowercasing and stripping separators;
+- descends only into **known container keys** (`statistics`, `public_metrics`,
+  `insights`, …). A blind recursive walk would happily read
+  `author.followers.count` as `likes`, and a wrong number is worse than a null;
+- refuses values that only look numeric — `"1.2K"` is **not** read as 1.2,
+  negatives and booleans are rejected;
+- reports both what it **matched** (provenance) and which numeric fields it did
+  **not** recognise. A shape mismatch therefore surfaces as an actionable
+  message naming the exact fields to add to `ALIASES`, instead of writing nulls
+  forever;
+- keeps the spine's contract: unknown → `null`, a genuine zero → `0`. Those are
+  different facts and the UI renders them differently.
+
+A 404/405 comes back as `null` rather than throwing, so one wrong guess about
+the path can't take down the sweep.
+
+### Wiring
+
+- Model `SocialSnapshot`, migration `20260726010000_social_snapshot`,
+  `ON DELETE CASCADE` from `SocialPostTarget`.
+- `collectSocialPerformance` adds `social_impressions`, `social_engagement`,
+  `social_engagement_rate`, `social_clicks`. The rate is computed **only over
+  targets reporting both halves** — mixing a network that reports impressions
+  with one that doesn't would understate it. The empty state distinguishes
+  "nothing was posted" from "posted but nothing pulled back", because those call
+  for completely different actions.
+- Insights gains a **Social performance** section plus a **by-network** table
+  (the split UTM tagging exists to make possible). A dash there is a fact: the
+  network didn't report that figure.
+- **Rides the existing analytics cadence** (360 min) rather than taking a fifth
+  timer — same job, and every extra timer is another thing that double-fires the
+  day a second replica appears. It sits in its **own `try`** so a Unipile outage
+  can't stop the GSC/GA4 half from having run.
+- Manual **"Pull engagement"** button on `/social`, which reports the outcome
+  verbatim — including the "polled N, read nothing usable" diagnostic.
+- Sequential polling, capped at 120 targets/run, 30-day lookback (engagement is
+  mostly earned early; after that polling just spends rate limit).
+
+### Verification
+
+- **50 fixtures** on the two things that would silently corrupt every social
+  number: the mapper (four plausible network shapes, real-zero-vs-unknown,
+  `"1.2K"`/negative/boolean rejection, the diagnostic output, top-level winning
+  over nested, and *not* descending into unknown containers) and the aggregation
+  (three cumulative readings collapsing to the latest **not** the sum, unsorted
+  input, summing across targets, null-not-Infinity rates, provider-casing).
+- **21 assertions against the production DB** (Demo Workspace, seeded and fully
+  cleaned up): the no-data path returning nulls with a reason; latest-per-target
+  against real rows (1000, not 2300); cross-target sums; the P2002 unique guard
+  and upsert-refresh; workspace isolation (LSI Media saw none of it); the
+  unconfigured-Unipile skip; and `ON DELETE CASCADE`.
+- `tsc --noEmit` clean, build compiles, migration applied on prod.
+
+**NOT verified — and this is the important caveat:** no real Unipile call has
+ever been made. The endpoint path, the response shape, and therefore whether
+`ALIASES` matches anything at all are **unconfirmed**. The design assumes it
+will be wrong on first contact and makes that visible; expect the first live
+pull to report unrecognised field names, and add them to `ALIASES`. Nothing
+about engagement numbers on Insights should be trusted until that has happened.
