@@ -159,12 +159,25 @@ async function driveUpload(cfg: GdriveConfig, name: string, data: Buffer, conten
   });
   if (!res.ok) {
     const detail = await res.text().catch(() => "");
-    // storageQuotaExceeded = the service account's OWN 15 GB is full (personal
-    // My Drive target) — surface that plainly instead of a generic 403.
-    const quota = detail.includes("storageQuotaExceeded")
-      ? " The service account's own 15 GB Drive quota is full — free space or switch to a Workspace Shared Drive."
-      : "";
-    throw new Error(`Drive upload failed (HTTP ${res.status}): ${detail.slice(0, 200)}${quota}`);
+    // Name the fix rather than dumping Google's JSON. These two are, in
+    // practice, the only 403s this call produces, and they need opposite
+    // actions — so telling them apart is the whole value of the message.
+    let hint = "";
+    if (detail.includes("storageQuotaExceeded")) {
+      // The service account OWNS what it uploads, and its own Drive quota is
+      // separate from the folder owner's.
+      hint =
+        " The service account's own Drive quota is full — it owns whatever it uploads, which is separate from the folder owner's space." +
+        " A Workspace Shared Drive avoids this entirely, because files there are owned by the drive.";
+    } else if (res.status === 403 && /Insufficient permissions for the specified parent|insufficientFilePermissions/i.test(detail)) {
+      // Almost always: the folder is shared with the SA as VIEWER, or not at
+      // all. Read access is enough to pass the folder check and still fail here.
+      hint =
+        ` — the folder is reachable but not writable by ${cfg.sa.client_email}.` +
+        ` Open the folder in Drive → Share, add that address with the EDITOR role (Viewer isn't enough), and untick "Notify people".` +
+        ` If it lives in a Shared Drive, add the service account as a member of the drive with Content manager.`;
+    }
+    throw new Error(`Drive upload failed (HTTP ${res.status}): ${detail.slice(0, 200)}${hint}`);
   }
   const out = (await res.json()) as { id?: string };
   if (!out.id) throw new Error("Drive upload returned no file id");
