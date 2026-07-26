@@ -141,6 +141,23 @@ function requireConfig(cfg: GdriveConfig | null): GdriveConfig {
   return cfg;
 }
 
+/**
+ * Pull the human sentence out of a Drive error body. Drive answers
+ * `{"error":{"code":403,"message":"…"}}`; blindly slicing that leaves the caller
+ * staring at half a JSON object. Falls back to a trimmed body when it isn't the
+ * shape we expect (HTML error pages from a proxy, say).
+ */
+function driveErrorMessage(detail: string): string {
+  try {
+    const parsed = JSON.parse(detail) as { error?: { message?: string } };
+    const message = parsed.error?.message;
+    if (message) return message;
+  } catch {
+    // not JSON — fall through
+  }
+  return detail.replace(/\s+/g, " ").trim().slice(0, 300) || "no detail returned";
+}
+
 async function driveUpload(cfg: GdriveConfig, name: string, data: Buffer, contentType: string): Promise<{ id: string }> {
   const token = await accessToken(cfg.sa);
   const boundary = `mys-${nanoid(12)}`;
@@ -162,22 +179,34 @@ async function driveUpload(cfg: GdriveConfig, name: string, data: Buffer, conten
     // Name the fix rather than dumping Google's JSON. These two are, in
     // practice, the only 403s this call produces, and they need opposite
     // actions — so telling them apart is the whole value of the message.
-    let hint = "";
+    //
+    // ⚠ When we have a hint, the raw body is REPLACED, not appended to. The
+    // previous version concatenated our advice onto `detail.slice(0, 200)`,
+    // which cut Google's JSON mid-sentence and spliced English into an
+    // unbalanced brace — the user saw "...Leverage shared drives (...), or use
+    // The service account's own Drive quota is full". Truncated JSON plus prose
+    // reads as a broken app, which is the opposite of the point here.
     if (detail.includes("storageQuotaExceeded")) {
       // The service account OWNS what it uploads, and its own Drive quota is
-      // separate from the folder owner's.
-      hint =
-        " The service account's own Drive quota is full — it owns whatever it uploads, which is separate from the folder owner's space." +
-        " A Workspace Shared Drive avoids this entirely, because files there are owned by the drive.";
-    } else if (res.status === 403 && /Insufficient permissions for the specified parent|insufficientFilePermissions/i.test(detail)) {
+      // separate from the folder owner's — sharing a folder grants no space.
+      throw new Error(
+        `Drive upload failed: the service account (${cfg.sa.client_email}) has no Drive storage of its own.` +
+        ` A service account owns every file it uploads, and that storage is separate from the folder owner's —` +
+        ` sharing a folder with it grants permission, never quota, so a My Drive folder can never work.` +
+        ` Fix: create a Shared Drive (Google Workspace only), add ${cfg.sa.client_email} as a member with` +
+        ` Content manager, and use a folder ID from inside that drive — files there are owned by the drive, not the account.`,
+      );
+    }
+    if (res.status === 403 && /Insufficient permissions for the specified parent|insufficientFilePermissions/i.test(detail)) {
       // Almost always: the folder is shared with the SA as VIEWER, or not at
       // all. Read access is enough to pass the folder check and still fail here.
-      hint =
-        ` — the folder is reachable but not writable by ${cfg.sa.client_email}.` +
+      throw new Error(
+        `Drive upload failed: the folder is reachable but not writable by ${cfg.sa.client_email}.` +
         ` Open the folder in Drive → Share, add that address with the EDITOR role (Viewer isn't enough), and untick "Notify people".` +
-        ` If it lives in a Shared Drive, add the service account as a member of the drive with Content manager.`;
+        ` If it lives in a Shared Drive, add the service account as a member of the drive with Content manager.`,
+      );
     }
-    throw new Error(`Drive upload failed (HTTP ${res.status}): ${detail.slice(0, 200)}${hint}`);
+    throw new Error(`Drive upload failed (HTTP ${res.status}): ${driveErrorMessage(detail)}`);
   }
   const out = (await res.json()) as { id?: string };
   if (!out.id) throw new Error("Drive upload returned no file id");
@@ -216,17 +245,39 @@ export async function gdriveStatus(): Promise<GdriveStatus> {
       fetch(`${DRIVE}/about?fields=storageQuota`, {
         headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(6_000),
       }),
-      fetch(`${DRIVE}/files/${cfg.folderId}?fields=id,name&supportsAllDrives=true`, {
+      fetch(`${DRIVE}/files/${cfg.folderId}?fields=id,name,driveId&supportsAllDrives=true`, {
         headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(6_000),
       }),
     ]);
     if (!folderRes.ok) {
       return { ok: false, email: cfg.sa.client_email, error: `Folder not reachable (HTTP ${folderRes.status}) — is it shared with the service account as Editor?` };
     }
-    const folder = (await folderRes.json()) as { name?: string };
+    // `driveId` is present only for items inside a Shared Drive. Its absence
+    // means the folder lives in somebody's My Drive.
+    const folder = (await folderRes.json()) as { name?: string; driveId?: string };
     const about = aboutRes.ok
       ? ((await aboutRes.json()) as { storageQuota?: { usage?: string; limit?: string } })
       : {};
+
+    // ⚠ THE CARD USED TO GO GREEN HERE WHILE EVERY UPLOAD FAILED. Reaching the
+    // folder proves permission, never capacity: a service account has a storage
+    // limit of exactly 0 and owns every file it creates, so writing into a My
+    // Drive folder always ends in storageQuotaExceeded no matter who shared it
+    // or with what role. Inside a Shared Drive the DRIVE owns the file, so a
+    // zero limit is expected and fine — hence the driveId check, not a bare
+    // limit check.
+    if (about.storageQuota?.limit === "0" && !folder.driveId) {
+      return {
+        ok: false,
+        email: cfg.sa.client_email,
+        folderName: folder.name,
+        error:
+          `Folder is reachable, but uploads cannot work: “${folder.name}” is in a My Drive and the service account has 0 bytes of storage of its own.` +
+          ` A service account owns every file it uploads, so sharing a folder with it grants permission but never space.` +
+          ` Use a folder inside a Shared Drive (Google Workspace only) with ${cfg.sa.client_email} added as Content manager.`,
+      };
+    }
+
     return {
       ok: true,
       email: cfg.sa.client_email,
