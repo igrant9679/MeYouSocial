@@ -1387,3 +1387,93 @@ same reason. There is a comment on the file saying so, because "tidying" it into
 
 Entry point is **Settings → Workspaces**; the creator becomes ADMIN, matching
 signup.
+
+## Elsie — the in-app guide (shipped 2026-07-26)
+
+An interactive walkthrough: spotlight, arrow, popup, stepped with Back/Next/Done,
+toggled by a single button in the top bar. Named for LSI Media — "L-S-I" said
+aloud is *el-ess-eye*.
+
+### She is contextual, not a slideshow
+
+The decision the whole feature hangs on. `relevantSteps(setupState, done)`
+filters setup steps against what the workspace has **actually** done — AI key,
+Zernio key, connected profiles, mailbox, topics, posting slots — so nobody is
+walked through work they finished last week. A tour that tells you to do things
+you have already done trains you to close it, and then it can't help with the
+things you haven't.
+
+Consequences that fall out of that:
+
+- Setup steps run **before** the tour. Being shown the social composer is noise
+  if you have no account to post from.
+- `setup-accounts` ("connect your profiles") is withheld until Zernio itself is
+  configured — otherwise it's advice you can't act on.
+- Platform-only setup (AI key, Zernio key, mailbox) is hidden from non-operators
+  entirely, and the button's badge counts **only** steps the viewer can act on.
+  Badging someone with work they're not allowed to do is just nagging.
+
+`src/lib/guide/steps.ts` is pure data plus one selector, deliberately — the
+sequencing is the part worth testing and it shouldn't need a browser.
+
+### Anchors are `data-elsie`, never CSS selectors
+
+A selector like `.btn:nth-child(3)` breaks the first time someone reorders a
+toolbar, and breaks **silently** — the tour points confidently at the wrong
+thing, which is worse than not pointing at all. `LeftRailNav` emits
+`data-elsie="nav/<href>"` generically, so adding a module makes it targetable
+without touching the engine.
+
+A step whose anchor is genuinely absent is **skipped after ~2.5s**, not left
+pointing at nothing: a page can legitimately not render a control (no accounts,
+no permission).
+
+### ⚠ Not requestAnimationFrame
+
+Measuring after `scrollIntoView` used to be `requestAnimationFrame`. **Browsers
+suspend rAF in a hidden or background tab**, so anyone who switched away
+mid-tour came back to a guide stuck with no popup — the overlay hung in exactly
+that state during verification. It now measures immediately and corrects with a
+`setTimeout` once layout settles. Don't reintroduce rAF here.
+
+### Other choices
+
+- The spotlight is ONE element with a `0 0 0 9999px` box-shadow, not four divs
+  forming a mask — it can't develop seams and it animates as one.
+- The overlay **swallows clicks**. Letting you click through means navigating
+  away mid-step and stranding the highlight; steps that want action carry an
+  explicit CTA link instead.
+- **Esc and X mean "not now"** and leave her enabled; the top-bar button is the
+  real on/off. Turning her back **on clears progress**, so she replays instead
+  of appearing to do nothing.
+- State lives in cookies (`meyousocial_elsie`, `_done`), matching theme and
+  content size — a per-person UI preference read in the layout on every render
+  without a query. Two cookies, so a malformed progress list still leaves the
+  toggle working. **Absent = on**, which is what makes her show up for new users
+  at all; only an explicit "off" disables her.
+- Placement prefers below → above → right → left → centred, whichever genuinely
+  fits, then clamps to the viewport. A popup half off the edge is worse than one
+  slightly off-centre from its target.
+
+### Verification
+
+- **31 fixtures** on selection: fresh install offers all five setup steps in
+  order and badges 5; a configured workspace offers none; each condition flipped
+  independently drops exactly its own step; operator-only steps hidden from a
+  member (badge drops to 2); progress removes steps; and every step is
+  well-formed (unique ids, off-route anchors declare their route, absolute CTAs).
+- **Browser-verified against a throwaway harness**: auto-open on the welcome
+  card, spotlight wrapping its target, popup placed below (`top` = spotlight
+  bottom + gap) then **flipping above** when there's no room, clamped to
+  `left: 8` at both the left edge and 375px wide with **no body scroll**, the
+  CTA and `setup` badge, a **missing anchor skipped** to the next step, `Done`
+  on the last step, the complete off→on cycle clearing progress, and Esc closing
+  without disabling.
+
+**Note on reach:** she defaults on for *everyone*, not only brand-new accounts,
+so existing users meet her once until they dismiss or switch her off. That is
+the requested behaviour; the alternative (auto-open only when setup is
+outstanding) is a one-line change in the layout if it proves annoying.
+
+**Not verified:** the real app's own anchors on production (signed-out session).
+The harness exercised the engine, not the fifteen real `data-elsie` targets.
