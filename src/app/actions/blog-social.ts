@@ -53,22 +53,31 @@ export async function postSocialVariantAction(formData: FormData) {
   if (!variant) return;
   if (variant.status !== "approved") return; // must be approved first
 
-  const [{ unipileConfigured, createPostViaUnipile }, { resolveSocialAccount }] = await Promise.all([
-    import("@/lib/unipile"),
-    import("@/lib/unipile/accounts"),
+  const [{ zernioConfigured, createZernioPost, platformFor }, { resolveSocialAccount }] = await Promise.all([
+    import("@/lib/zernio"),
+    import("@/lib/zernio/accounts"),
   ]);
   const revalidate = (msg?: string) => {
     revalidatePath(`/blog/${variant.postId}`);
     if (msg) redirect(`/blog/${variant.postId}?tab=distribute&social_err=${encodeURIComponent(msg)}`);
   };
 
-  if (!(await unipileConfigured())) return revalidate("Unipile isn't configured — connect a social account under Admin → Connections.");
-  const account = await resolveSocialAccount(workspace.id, variant.platform);
+  if (!(await zernioConfigured())) return revalidate("Zernio isn't configured — add the API key under Admin → Connections.");
+  // Blog variants store their own platform label; normalise it to a Zernio slug.
+  const platform = platformFor(variant.platform)?.slug ?? variant.platform.toLowerCase();
+  const account = await resolveSocialAccount(workspace.id, platform);
   if (!account) return revalidate(`No ${variant.platform} account connected. Connect one under Admin → Connections.`);
 
   const text = variant.content.replaceAll("{{URL}}", variant.post.publishedUrl ?? "");
   try {
-    await createPostViaUnipile({ accountId: account.accountId, text });
+    await createZernioPost({
+      content: text,
+      platforms: [{ platform, accountId: account.accountId }],
+      publishNow: true,
+      // Stable per variant: clicking "Post now" twice inside Zernio's window
+      // returns the original post rather than posting again.
+      requestId: `variant-${variant.id}`,
+    });
   } catch (e) {
     return revalidate(e instanceof Error ? e.message : "Posting failed.");
   }

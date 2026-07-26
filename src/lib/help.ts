@@ -422,9 +422,9 @@ export const HELP_CATEGORIES: FaqCategory[] = [
       },
       {
         q: "How do we send email and post to social?",
-        a: "Admin → **Connections**. Connect your workspace's own mailbox (Gmail, Outlook, or any IMAP) and social profiles (LinkedIn, Instagram, X) through a guided pop-up — no passwords are stored in the app. Email notifications then send from your connected mailbox over HTTPS (this is the reliable path — the server blocks direct SMTP), and blog social variants gain a **Post now** button on the Distribute tab that publishes to the matching connected profile. Each company connects its own accounts; nothing is shared. A default account per type is used when you have more than one.",
+        a: "Admin → **Connections**. Social profiles connect through **Zernio** — LinkedIn, X/Twitter, Facebook, Instagram, Threads, Bluesky, TikTok, YouTube, Pinterest, Reddit, Google Business, Telegram, Snapchat, WhatsApp and Discord — via a guided OAuth pop-up, so no passwords are stored in the app. Your mailbox connects separately through **Unipile** (Gmail, Outlook, or any IMAP), because email is a different channel: notifications send from your connected mailbox over HTTPS, which is the reliable path here since the server blocks direct SMTP. Blog social variants gain a **Post now** button on the Distribute tab that publishes to the matching connected profile. Each company connects its own accounts; nothing is shared, and a default account per platform is used when you have more than one.",
         links: [{ label: "Admin → Connections →", href: "/admin/connections" }],
-        tags: ["email", "smtp", "social", "posting", "unipile", "connections", "linkedin"],
+        tags: ["email", "smtp", "social", "posting", "zernio", "unipile", "connections", "linkedin", "facebook", "twitter"],
       },
       {
         q: "Where do we set our company's brand, personas and topics?",

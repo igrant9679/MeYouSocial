@@ -39,7 +39,7 @@ export default async function BrandPage({ searchParams }: { searchParams: Promis
     db.topic.findMany({ where: { workspaceId: workspace.id }, orderBy: [{ status: "asc" }, { name: "asc" }] }),
     db.keyword.count({ where: { workspaceId: workspace.id } }),
     db.keyword.findMany({ where: { workspaceId: workspace.id, cluster: { not: null } }, select: { cluster: true }, take: 200 }),
-    db.unipileAccount.findMany({ where: { workspaceId: workspace.id, kind: "social" }, orderBy: { createdAt: "asc" } }),
+    db.zernioAccount.findMany({ where: { workspaceId: workspace.id, status: "connected" }, orderBy: { createdAt: "asc" } }),
   ]);
 
   const clusterNames = [...new Set(clusters.map((c) => c.cluster).filter(Boolean) as string[])].slice(0, 8);
@@ -233,12 +233,12 @@ export default async function BrandPage({ searchParams }: { searchParams: Promis
             ) : (
               <ul className="flex flex-wrap gap-2 mb-2">
                 {socials.map((s) => {
-                  const net = networkFor(s.provider);
+                  const net = networkFor(s.platform);
                   return (
                     <li key={s.id} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs" style={{ borderColor: net?.color ?? "var(--line-2)" }}>
                       <span className="w-2 h-2 rounded-full" style={{ background: net?.color ?? "var(--mute)" }} />
-                      {net?.label ?? s.provider}
-                      <span className="text-[var(--mute)] truncate max-w-[120px]">{s.name}</span>
+                      {net?.label ?? s.platform}
+                      <span className="text-[var(--mute)] truncate max-w-[120px]">{s.displayName ?? s.username}</span>
                     </li>
                   );
                 })}

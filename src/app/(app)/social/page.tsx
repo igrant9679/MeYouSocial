@@ -20,7 +20,7 @@ import {
 } from "@/app/actions/social";
 
 // Social scheduler — compose once, fan out to connected accounts, post now or
-// schedule. Publishing runs through Unipile; the scheduler sweep sends due posts.
+// schedule. Publishing runs through Zernio; the scheduler sweep sends due posts.
 
 type SP = { ok?: string; err?: string; view?: string };
 
@@ -40,10 +40,10 @@ export default async function SocialPage({ searchParams }: { searchParams: Promi
   const mode = view === "agenda" ? "agenda" : "calendar";
 
   const [accounts, posts, topicRows] = await Promise.all([
-    db.unipileAccount.findMany({
-      where: { workspaceId: workspace.id, kind: "social", status: "connected" },
+    db.zernioAccount.findMany({
+      where: { workspaceId: workspace.id, status: "connected" },
       orderBy: { createdAt: "asc" },
-      select: { id: true, provider: true, name: true },
+      select: { id: true, platform: true, displayName: true, username: true },
     }),
     db.socialPost.findMany({
       where: { workspaceId: workspace.id },
@@ -58,6 +58,12 @@ export default async function SocialPage({ searchParams }: { searchParams: Promi
     }),
   ]);
   const topics = topicRows.map((t) => ({ id: t.id, name: t.name, keywords: readJson<string[]>(t.keywords, []) }));
+  // Composer works in {id, provider, name}; `provider` is the Zernio platform slug.
+  const composerAccounts = accounts.map((a) => ({
+    id: a.id,
+    provider: a.platform,
+    name: a.displayName ?? a.username,
+  }));
   const [utm, queue] = await Promise.all([getUtmConfig(workspace.id), getQueue(workspace.id)]);
 
   // Slot instants are resolved here (the server owns the posting timezone) and
@@ -100,7 +106,7 @@ export default async function SocialPage({ searchParams }: { searchParams: Promi
       {ok && <Banner kind="ok" text={ok} />}
       {err && <Banner kind="err" text={err} />}
 
-      <SocialComposer accounts={accounts} topics={topics} queue={{ nextFree: nextFreeLabel, hasSlots }} />
+      <SocialComposer accounts={composerAccounts} topics={topics} queue={{ nextFree: nextFreeLabel, hasSlots }} />
 
       <PostingSchedule
         slots={queue.slots}

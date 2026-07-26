@@ -10,8 +10,28 @@ import { publishSocialPost } from "@/lib/social/publish";
 import { claimNextFreeSlot, formatInZone, getPostingTimeZone, queueFailureMessage } from "@/lib/social/slots";
 
 // Social scheduler actions. A post fans out to one or more connected social
-// accounts (Unipile), either now or at a scheduled time. Media is optional and
+// accounts (Zernio), either now or at a scheduled time. Media is optional and
 // stored via the storage layer; the scheduler/publisher reads it back at send.
+
+/**
+ * Resolve the composer's selected account rows, workspace-scoped.
+ *
+ * Returns a shape deliberately matching what the rest of this file already
+ * used, so the Zernio migration didn't have to touch the per-network variant
+ * and media logic below: `provider` carries the Zernio platform slug where the
+ * Unipile provider used to sit.
+ */
+async function resolveSelectedAccounts(workspaceId: string, ids: string[]) {
+  const rows = await db.zernioAccount.findMany({
+    where: { id: { in: ids }, workspaceId, status: "connected" },
+  });
+  return rows.map((a) => ({
+    id: a.id,
+    accountId: a.accountId,
+    provider: a.platform,
+    name: a.displayName ?? a.username,
+  }));
+}
 
 const MEDIA_MAX = 4;
 const MEDIA_BYTES = 15 * 1024 * 1024;
@@ -46,10 +66,7 @@ export async function createSocialPostAction(formData: FormData) {
   const mediaKeys = await storeMedia(formData.getAll("media"));
   if (!text && mediaKeys.length === 0) backTo("Write something or attach an image.");
 
-  // Resolve the selected accounts (workspace-scoped, connected, social).
-  const accounts = await db.unipileAccount.findMany({
-    where: { id: { in: accountIds }, workspaceId: workspace.id, kind: "social", status: "connected" },
-  });
+  const accounts = await resolveSelectedAccounts(workspace.id, accountIds);
   if (accounts.length === 0) backTo("Those accounts aren't connected. Connect one under Admin → Connections.");
 
   // Optional workspace Topic — validated against this workspace so a stale or
@@ -108,7 +125,7 @@ export async function createSocialPostAction(formData: FormData) {
       targets: {
         create: accounts.map((a) => ({
           provider: a.provider,
-          unipileAccountId: a.accountId,
+          accountId: a.accountId,
           accountName: a.name,
           text: variantFor(a.provider),
           mediaKeys: mediaByProvider.get(a.provider.toUpperCase()) ?? null,
@@ -175,7 +192,7 @@ export async function duplicateSocialPostAction(formData: FormData) {
       mediaKeys: src.mediaKeys,
       status: "draft",
       targets: {
-        create: src.targets.map((t) => ({ provider: t.provider, unipileAccountId: t.unipileAccountId, accountName: t.accountName, text: t.text, mediaKeys: t.mediaKeys })),
+        create: src.targets.map((t) => ({ provider: t.provider, accountId: t.accountId, accountName: t.accountName, text: t.text, mediaKeys: t.mediaKeys })),
       },
     },
   });
@@ -209,9 +226,7 @@ export async function updateSocialPostAction(formData: FormData) {
   const accountIds = formData.getAll("accountIds").map(String).filter(Boolean);
   if (accountIds.length === 0) backTo("Pick at least one account to post to.");
 
-  const accounts = await db.unipileAccount.findMany({
-    where: { id: { in: accountIds }, workspaceId: workspace.id, kind: "social", status: "connected" },
-  });
+  const accounts = await resolveSelectedAccounts(workspace.id, accountIds);
   if (accounts.length === 0) backTo("Those accounts aren't connected. Connect one under Admin → Connections.");
 
   // Media: keep what's there unless explicitly cleared or replaced.
@@ -265,10 +280,10 @@ export async function updateSocialPostAction(formData: FormData) {
   await db.$transaction(async (tx) => {
     // Drop targets whose account was deselected.
     await tx.socialPostTarget.deleteMany({
-      where: { postId: post!.id, unipileAccountId: { notIn: [...keepIds] } },
+      where: { postId: post!.id, accountId: { notIn: [...keepIds] } },
     });
     for (const a of accounts) {
-      const existing = post!.targets.find((t) => t.unipileAccountId === a.accountId);
+      const existing = post!.targets.find((t) => t.accountId === a.accountId);
       const providerKey = a.provider.toUpperCase();
       const overrideMedia = mediaByProvider.get(providerKey);
       if (existing) {
@@ -289,7 +304,7 @@ export async function updateSocialPostAction(formData: FormData) {
           data: {
             postId: post!.id,
             provider: a.provider,
-            unipileAccountId: a.accountId,
+            accountId: a.accountId,
             accountName: a.name,
             text: variantFor(a.provider),
             mediaKeys: overrideMedia ?? null,

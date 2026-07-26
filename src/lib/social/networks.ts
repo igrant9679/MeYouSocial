@@ -1,23 +1,42 @@
-// Networks the social scheduler can target — matches the providers the
-// Connections page can connect via Unipile. charLimit powers the composer's
-// per-network counter; requiresMedia flags networks that can't post text-only.
+import { ZERNIO_PLATFORMS, platformFor, type ZernioPlatform } from "@/lib/zernio";
+
+/**
+ * The networks the social scheduler can target.
+ *
+ * Since 2026-07-26 this is a view over Zernio's platform list — the single
+ * source of truth for what can actually be posted to. It used to be a
+ * hand-maintained set of three (LinkedIn, X, Instagram), which was all Unipile
+ * still supported; Zernio covers fifteen including Facebook and Twitter/X,
+ * which is why the integration moved.
+ *
+ * `provider` holds the Zernio slug and is LOWERCASE (`twitter`, not `X`).
+ * Anything comparing providers must be case-insensitive: SocialPostTarget rows
+ * written before the migration hold uppercase Unipile names.
+ */
 
 export type Network = {
-  provider: string;   // Unipile provider (uppercase)
+  /** Zernio platform slug — what goes in platforms[].platform. */
+  provider: string;
   label: string;
   charLimit: number;
   requiresMedia?: boolean;
   color: string;
 };
 
-export const NETWORKS: Network[] = [
-  { provider: "LINKEDIN", label: "LinkedIn", charLimit: 3000, color: "#0A66C2" },
-  { provider: "X", label: "X (Twitter)", charLimit: 280, color: "#111111" },
-  { provider: "INSTAGRAM", label: "Instagram", charLimit: 2200, requiresMedia: true, color: "#E1306C" },
-];
+function toNetwork(p: ZernioPlatform): Network {
+  return { provider: p.slug, label: p.label, charLimit: p.charLimit, requiresMedia: p.requiresMedia, color: p.color };
+}
+
+export const NETWORKS: Network[] = ZERNIO_PLATFORMS.map(toNetwork);
+
+/** Legacy Unipile spellings → Zernio slugs, so pre-migration history still
+ *  renders with a proper label and colour instead of a bare uppercase string. */
+const LEGACY: Record<string, string> = { x: "twitter", "twitter/x": "twitter" };
 
 export function networkFor(provider: string): Network | undefined {
-  return NETWORKS.find((n) => n.provider === provider.toUpperCase());
+  const key = provider.trim().toLowerCase();
+  const p = platformFor(key) ?? (LEGACY[key] ? platformFor(LEGACY[key]) : undefined);
+  return p ? toNetwork(p) : undefined;
 }
 
 /** The tightest char limit among the chosen providers — what the composer warns against. */

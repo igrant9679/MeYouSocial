@@ -434,7 +434,7 @@ export async function collectSocialPerformance(workspaceId: string, range: Metri
       where: { status: "posted", postedAt: { gte: range.since }, post: { workspaceId } },
     });
     const note = sent
-      ? `${sent} post${sent === 1 ? " was" : "s were"} sent in the ${range.label} but no engagement has been pulled back yet — check Unipile under Admin → Connections.`
+      ? `${sent} post${sent === 1 ? " was" : "s were"} sent in the ${range.label} but no engagement has been pulled back yet — check the Zernio connection under Admin → Connections.`
       : `Nothing was posted to social in the ${range.label}.`;
     return [
       metric("social_impressions", "Social impressions", null, "count", 0, note, "social"),

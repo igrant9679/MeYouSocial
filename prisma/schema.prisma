@@ -48,9 +48,14 @@ model Workspace {
   blogPosts       BlogPost[]
   settings        WorkspaceSetting[]
   unipileAccounts UnipileAccount[]
+  zernioAccounts  ZernioAccount[]
   socialPosts     SocialPost[]
   postingSlots    PostingSlot[]
   topics          Topic[]
+
+  // This workspace's Zernio profile — Zernio's tenant boundary. Created lazily
+  // the first time an account is connected, then reused.
+  zernioProfileId String?
 }
 
 // ---- Blog (ported from Spark's article pipeline; slice 1) --------------------
@@ -1272,12 +1277,18 @@ model ChannelStat {
 // Unipile's; sending email / posting resolves the workspace's account here.
 // Platform holds ONE Unipile API key/DSN (Settings unipile:api_key / unipile:dsn)
 // under which every tenant's accounts are connected — the multi-tenant fit.
+// Unipile is now EMAIL ONLY. Social publishing moved to Zernio (2026-07-26)
+// because Unipile had dropped networks this product needs — Facebook and
+// Twitter/X among them. Unipile stays because Zernio has no email channel and
+// Railway blocks outbound SMTP, so a connected mailbox over HTTPS is still the
+// only way real mail leaves this host. `kind` keeps its shape for existing
+// rows, but nothing creates `social` rows any more.
 model UnipileAccount {
   id            String   @id @default(cuid())
   workspaceId   String
   accountId     String   // Unipile account id
-  kind          String   // email | social
-  provider      String   // GOOGLE | OUTLOOK | IMAP | MAIL | LINKEDIN | INSTAGRAM | X | ...
+  kind          String   // email (social is legacy — see note above)
+  provider      String   // GOOGLE | OUTLOOK | IMAP | MAIL | ...
   name          String?  // email address or social profile name (display)
   isDefault     Boolean  @default(false) // default sender for its kind+provider
   status        String   @default("connected") // connected | error | disconnected
@@ -1288,6 +1299,34 @@ model UnipileAccount {
 
   @@unique([workspaceId, accountId])
   @@index([workspaceId, kind])
+}
+
+// A social account connected through Zernio, inside this workspace's Zernio
+// profile. Zernio's `profile` is its tenant boundary, so it maps 1:1 onto a
+// workspace (Workspace.zernioProfileId).
+//
+// Better than the arrangement it replaces: Unipile's account→workspace mapping
+// depended entirely on smuggling the workspace id through the hosted-auth
+// `name` field, with no way to reconcile a missed webhook. Zernio's
+// `account.connected` event carries `profileId` directly, so the mapping is
+// recoverable by re-listing accounts at any time.
+model ZernioAccount {
+  id          String   @id @default(cuid())
+  workspaceId String
+  accountId   String   // Zernio account _id (24-char)
+  platform    String   // instagram | facebook | twitter | linkedin | tiktok | ...
+  username    String?
+  displayName String?
+  profileUrl  String?
+  isDefault   Boolean  @default(false) // preferred account for its platform
+  status      String   @default("connected") // connected | disconnected | error
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, accountId])
+  @@index([workspaceId, platform])
 }
 
 // ---- Social scheduler (Hootsuite/Buffer-style) ------------------------------
@@ -1321,14 +1360,20 @@ model SocialPost {
 model SocialPostTarget {
   id              String    @id @default(cuid())
   postId          String
-  provider        String    // LINKEDIN | X | INSTAGRAM | ...
-  unipileAccountId String   // Unipile account id (resolved at publish)
+  // Zernio platform slug, lowercase: linkedin | twitter | facebook | ...
+  // (Was an uppercase Unipile provider before the 2026-07-26 migration.)
+  provider        String
+  // Zernio account id. Renamed from `unipileAccountId` — the column is
+  // provider-neutral now so a future swap doesn't need another rename.
+  accountId       String
   accountName     String?
   // Per-network overrides — null falls back to the post's base at publish.
   text            String?
   mediaKeys       String?   // JSON array of storage keys; null = use base media
   status          String    @default("pending") // pending | posted | failed
-  providerPostId  String?
+  providerPostId  String?   // Zernio post _id
+  // Public URL of the live post, when the network reports one.
+  platformPostUrl String?
   error           String?
   postedAt        DateTime?
 
@@ -1362,13 +1407,16 @@ model SocialSnapshot {
   // day, so re-running the sync refreshes today rather than appending.
   capturedAt  DateTime
   impressions Int?
+  reach       Int?
   likes       Int?
   comments    Int?
   shares      Int?
+  saves       Int?
   clicks      Int?
-  // unipile = pulled by the sync; manual = typed by an operator. The sync only
+  views       Int?
+  // zernio = pulled by the sync; manual = typed by an operator. The sync only
   // ever rewrites its own rows.
-  source      String   @default("unipile")
+  source      String   @default("zernio")
   createdAt   DateTime @default(now())
 
   target SocialPostTarget @relation(fields: [targetId], references: [id], onDelete: Cascade)

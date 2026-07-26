@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
-import { getPostViaUnipile, getUnipileConfig } from "@/lib/unipile";
+import { getZernioAnalytics, getZernioConfig } from "@/lib/zernio";
 import { writeAudit } from "@/lib/governance";
-import { engagementOf, hasAnyStat, parseSocialStats, type SocialStats } from "@/lib/social/stats";
+import { engagementOf, fromZernioMetrics, hasAnyStat, EMPTY_STATS, type SocialStats } from "@/lib/social/stats";
 
 /**
  * Social performance pullback — the social half of what the analytics sync does
@@ -11,29 +11,32 @@ import { engagementOf, hasAnyStat, parseSocialStats, type SocialStats } from "@/
  * ── The aggregation rule, which is NOT the blog's ───────────────────────────
  * BlogSnapshot rows are PER-DAY (GSC/GA4 are queried with a date dimension), so
  * `collectPerformance` SUMS them. SocialSnapshot rows are CUMULATIVE LIFETIME
- * totals, because that is what a social API reports — "this post has 412 likes"
- * as of the moment you ask. Summing those across days would multiply-count by
- * roughly the number of times we polled.
+ * totals — Zernio's docs state this explicitly, and it is what every social
+ * platform reports. Summing those across days would multiply-count by roughly
+ * the number of times we polled.
  *
  * The correct aggregation is therefore: **latest snapshot per target, then sum
- * across targets.** `latestPerTarget()` below is the single place that does it,
- * and everything else goes through it.
+ * across targets.** `latestPerTarget()` below is the single place that does it.
  *
  * ── What the window means ───────────────────────────────────────────────────
  * A consequence of cumulative storage: you cannot ask "engagement earned in the
- * last 30 days" from it, only "engagement to date on posts published in the last
- * 30 days". The metrics are scoped by the POST's send date for exactly that
- * reason, and every evidence string says so. Pretending otherwise would be the
- * kind of quiet misattribution the spine exists to prevent.
+ * last 30 days", only "engagement to date on posts published in the last 30
+ * days". Metrics are scoped by the post's SEND date for that reason, and every
+ * evidence string says so.
+ *
+ * ── One call per workspace ──────────────────────────────────────────────────
+ * Zernio's `GET /analytics` takes a `profileId` and returns every post with a
+ * `platformAnalytics[]` breakdown, so a whole workspace refreshes in one
+ * paginated request rather than one call per post. Its numbers carry the
+ * platform's own reporting delay (~24h on Instagram); `lastUpdated` says when
+ * Zernio last synced, and nothing here pretends to be more current than that.
  */
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-/** How far back to keep re-polling. Engagement is mostly earned early; after
- *  this the numbers barely move and polling just spends rate limit. */
+/** How far back to keep re-polling. Engagement is mostly earned early. */
 const DEFAULT_LOOKBACK_DAYS = 30;
-/** Ceiling on API calls per workspace per run, so one big backlog can't stall the sweep. */
-const MAX_TARGETS_PER_RUN = 120;
+const MAX_PAGES = 5; // 100 rows/page — 500 posts per workspace per run
 
 /** UTC midnight of `d` — the day key a snapshot is filed under. */
 export function dayStart(d: Date): Date {
@@ -43,86 +46,105 @@ export function dayStart(d: Date): Date {
 export type SocialSyncOutcome = {
   ok: boolean;
   message: string;
-  /** Targets we attempted to read. */
   targetsPolled: number;
   rowsWritten: number;
   failures: number;
-  /** Payload keys that looked numeric but matched no alias — the map's to-do
-   *  list, surfaced so the first real pull can correct src/lib/social/stats.ts. */
-  unrecognisedKeys: string[];
-  /** True when Unipile isn't configured at all — a no-op, not a failure. */
+  /** True when Zernio isn't configured at all — a no-op, not a failure. */
   skipped: boolean;
 };
 
 /**
  * Pull fresh engagement for one workspace's recently-posted targets.
  *
- * Safe to call when nothing is connected: it reports `skipped` rather than
+ * Safe to call when nothing is connected: reports `skipped` rather than
  * erroring, which is what lets the scheduler run it unconditionally.
  */
 export async function syncWorkspaceSocialPerformance(
   workspaceId: string,
   lookbackDays = DEFAULT_LOOKBACK_DAYS,
 ): Promise<SocialSyncOutcome> {
-  const cfg = await getUnipileConfig();
+  const cfg = await getZernioConfig();
   if (!cfg) {
     return {
-      ok: true, skipped: true, targetsPolled: 0, rowsWritten: 0, failures: 0, unrecognisedKeys: [],
-      message: "Unipile isn't configured, so there's nothing to pull. Set the DSN + API key under Admin → Connections.",
+      ok: true, skipped: true, targetsPolled: 0, rowsWritten: 0, failures: 0,
+      message: "Zernio isn't configured, so there's nothing to pull. Add the API key under Admin → Connections.",
+    };
+  }
+  const ws = await db.workspace.findUnique({ where: { id: workspaceId }, select: { zernioProfileId: true } });
+  if (!ws?.zernioProfileId) {
+    return {
+      ok: true, skipped: true, targetsPolled: 0, rowsWritten: 0, failures: 0,
+      message: "This workspace has no Zernio profile yet — connect a social account first.",
     };
   }
 
   const since = new Date(Date.now() - lookbackDays * DAY_MS);
+  // Our targets, keyed by the Zernio post id + account they were sent as.
   const targets = await db.socialPostTarget.findMany({
-    where: {
-      status: "posted",
-      providerPostId: { not: null },
-      postedAt: { gte: since },
-      post: { workspaceId },
-    },
-    orderBy: { postedAt: "desc" },
-    take: MAX_TARGETS_PER_RUN,
-    select: { id: true, providerPostId: true, unipileAccountId: true, provider: true },
+    where: { status: "posted", providerPostId: { not: null }, postedAt: { gte: since }, post: { workspaceId } },
+    select: { id: true, providerPostId: true, accountId: true, provider: true },
   });
-
   if (targets.length === 0) {
     return {
-      ok: true, skipped: false, targetsPolled: 0, rowsWritten: 0, failures: 0, unrecognisedKeys: [],
+      ok: true, skipped: false, targetsPolled: 0, rowsWritten: 0, failures: 0,
       message: `No posts sent in the last ${lookbackDays} days, so there's nothing to measure yet.`,
     };
   }
+  const byKey = new Map(targets.map((t) => [`${t.providerPostId}|${t.accountId}`, t]));
+  // Fallback key for a reply that omits accountId on a single-account post.
+  const byPost = new Map<string, typeof targets>();
+  for (const t of targets) byPost.set(t.providerPostId!, [...(byPost.get(t.providerPostId!) ?? []), t]);
 
   const capturedAt = dayStart(new Date());
-  const unrecognised = new Set<string>();
   let rowsWritten = 0;
+  let matched = 0;
   let failures = 0;
-  const failureDetails: string[] = [];
+  let lastError = "";
 
-  // Sequential on purpose: this runs on a background sweep with no deadline,
-  // and a burst of parallel calls is the fastest way to get rate-limited.
-  for (const t of targets) {
-    const res = await getPostViaUnipile({ postId: t.providerPostId!, accountId: t.unipileAccountId });
-    if (!res.ok) {
+  for (let page = 1; page <= MAX_PAGES; page++) {
+    let rows;
+    try {
+      rows = await getZernioAnalytics({ profileId: ws.zernioProfileId, fromDate: since, limit: 100, page });
+    } catch (e) {
       failures++;
-      if (failureDetails.length < 3) failureDetails.push(`${t.provider}: HTTP ${res.status} ${res.detail}`.trim());
-      continue;
+      lastError = e instanceof Error ? e.message : String(e);
+      break;
     }
-    const parsed = parseSocialStats(res.payload);
-    for (const k of parsed.unrecognisedNumericKeys) unrecognised.add(k);
-    // Nothing understood → write nothing. A row of nulls would be
-    // indistinguishable from a post that genuinely earned nothing.
-    if (!hasAnyStat(parsed.stats)) {
-      failures++;
-      continue;
+    if (rows.length === 0) break;
+
+    for (const row of rows) {
+      for (const leg of row.perPlatform) {
+        const target =
+          byKey.get(`${row.postId}|${leg.accountId ?? ""}`) ??
+          // Single target on that post → unambiguous even without accountId.
+          (byPost.get(row.postId)?.length === 1 ? byPost.get(row.postId)![0] : undefined);
+        if (!target) continue;
+        matched++;
+
+        const stats: SocialStats = fromZernioMetrics(leg.metrics);
+        // Nothing reported → write nothing. A row of nulls is indistinguishable
+        // from a post that genuinely earned zero, and they are different facts.
+        if (!hasAnyStat(stats)) continue;
+
+        await db.socialSnapshot.upsert({
+          where: { targetId_capturedAt: { targetId: target.id, capturedAt } },
+          // Same-day re-run refreshes; it never appends a second reading, which
+          // is what keeps latest-per-target unambiguous.
+          update: { ...stats, source: "zernio" },
+          create: { targetId: target.id, capturedAt, ...stats, source: "zernio" },
+        });
+        rowsWritten++;
+
+        // Backfill the public URL if we didn't capture it at publish time.
+        if (leg.platformPostUrl) {
+          await db.socialPostTarget.updateMany({
+            where: { id: target.id, platformPostUrl: null },
+            data: { platformPostUrl: leg.platformPostUrl },
+          });
+        }
+      }
     }
-    await db.socialSnapshot.upsert({
-      where: { targetId_capturedAt: { targetId: t.id, capturedAt } },
-      // Re-running the same day refreshes; it never appends a second reading,
-      // which is what keeps latest-per-target unambiguous.
-      update: { ...parsed.stats, source: "unipile" },
-      create: { targetId: t.id, capturedAt, ...parsed.stats, source: "unipile" },
-    });
-    rowsWritten++;
+    if (rows.length < 100) break;
   }
 
   if (rowsWritten) {
@@ -130,34 +152,28 @@ export async function syncWorkspaceSocialPerformance(
       workspaceId,
       action: "social.performance_synced",
       entityType: "social_snapshot",
-      meta: { rowsWritten, targetsPolled: targets.length, failures, lookbackDays },
+      meta: { rowsWritten, targetsPolled: targets.length, matched, lookbackDays, source: "zernio" },
     });
   }
 
   const message = rowsWritten
-    ? `Pulled engagement for ${rowsWritten} of ${targets.length} sent post${targets.length === 1 ? "" : "s"}.` +
-      (failures ? ` ${failures} couldn't be read${failureDetails.length ? ` (${failureDetails[0]})` : ""}.` : "")
-    : `Polled ${targets.length} sent post${targets.length === 1 ? "" : "s"} but read no usable numbers back` +
-      `${failureDetails.length ? ` — ${failureDetails[0]}` : ""}.` +
-      (unrecognised.size
-        ? ` The reply did contain numeric fields (${[...unrecognised].slice(0, 6).join(", ")}); add them to ALIASES in src/lib/social/stats.ts.`
-        : "");
+    ? `Pulled engagement for ${rowsWritten} of ${targets.length} sent post${targets.length === 1 ? "" : "s"}.`
+    : failures
+      ? `Couldn't reach Zernio analytics: ${lastError}`
+      : matched
+        ? `Zernio knows these ${matched} post${matched === 1 ? "" : "s"} but hasn't reported any metrics yet — platforms lag (about a day on Instagram). Try again tomorrow.`
+        : `Zernio returned no analytics rows matching the ${targets.length} post${targets.length === 1 ? "" : "s"} sent from here. If they were posted outside this app, they won't match.`;
 
-  return {
-    ok: rowsWritten > 0 || failures === 0,
-    skipped: false,
-    targetsPolled: targets.length,
-    rowsWritten,
-    failures,
-    unrecognisedKeys: [...unrecognised].sort(),
-    message,
-  };
+  return { ok: failures === 0, skipped: false, targetsPolled: targets.length, rowsWritten, failures, message };
 }
 
 /** Every workspace, for the scheduler. */
 export async function syncAllWorkspacesSocialPerformance(): Promise<{ workspaces: number; rowsWritten: number }> {
-  if (!(await getUnipileConfig())) return { workspaces: 0, rowsWritten: 0 };
-  const workspaces = await db.workspace.findMany({ select: { id: true } });
+  if (!(await getZernioConfig())) return { workspaces: 0, rowsWritten: 0 };
+  const workspaces = await db.workspace.findMany({
+    where: { zernioProfileId: { not: null } },
+    select: { id: true },
+  });
   let rowsWritten = 0;
   let touched = 0;
   for (const w of workspaces) {
@@ -187,10 +203,13 @@ type SnapshotRow = {
   targetId: string;
   capturedAt: Date;
   impressions: number | null;
+  reach: number | null;
   likes: number | null;
   comments: number | null;
   shares: number | null;
+  saves: number | null;
   clicks: number | null;
+  views: number | null;
   target: { provider: string; postId: string };
 };
 
@@ -209,11 +228,13 @@ export function latestPerTarget(rows: SnapshotRow[]): TargetReading[] {
   }
   return [...best.values()].map((r) => {
     const stats: SocialStats = {
-      impressions: r.impressions, likes: r.likes, comments: r.comments, shares: r.shares, clicks: r.clicks,
+      impressions: r.impressions, reach: r.reach, likes: r.likes, comments: r.comments,
+      shares: r.shares, saves: r.saves, clicks: r.clicks, views: r.views,
     };
     return {
       targetId: r.targetId,
-      provider: r.target.provider.toUpperCase(),
+      // Lowercase: Zernio slugs are lowercase, and pre-migration rows are not.
+      provider: r.target.provider.toLowerCase(),
       postId: r.target.postId,
       stats,
       engagement: engagementOf(stats),
@@ -224,15 +245,14 @@ export function latestPerTarget(rows: SnapshotRow[]): TargetReading[] {
 
 /**
  * The latest reading for every target whose post was SENT since `since`.
- *
- * Scoped by send date, not snapshot date — see the header note on what the
- * window can honestly mean for cumulative counters.
+ * Scoped by send date, not snapshot date — see the header note.
  */
 export async function readingsForWorkspace(workspaceId: string, since: Date): Promise<TargetReading[]> {
   const rows = await db.socialSnapshot.findMany({
     where: { target: { status: "posted", postedAt: { gte: since }, post: { workspaceId } } },
     select: {
-      targetId: true, capturedAt: true, impressions: true, likes: true, comments: true, shares: true, clicks: true,
+      targetId: true, capturedAt: true, impressions: true, reach: true, likes: true, comments: true,
+      shares: true, saves: true, clicks: true, views: true,
       target: { select: { provider: true, postId: true } },
     },
   });
@@ -261,7 +281,9 @@ export function byNetwork(readings: TargetReading[]): NetworkPerformance[] {
   for (const r of readings) groups.set(r.provider, [...(groups.get(r.provider) ?? []), r]);
   return [...groups.entries()]
     .map(([provider, rs]) => {
-      const impressions = sumOrNull(rs, (r) => r.stats.impressions);
+      // Impressions is the comparable denominator across networks; reach fills
+      // in for the ones that only report that.
+      const impressions = sumOrNull(rs, (r) => r.stats.impressions ?? r.stats.reach);
       const engagement = sumOrNull(rs, (r) => r.engagement);
       return {
         provider,
@@ -269,7 +291,6 @@ export function byNetwork(readings: TargetReading[]): NetworkPerformance[] {
         impressions,
         engagement,
         clicks: sumOrNull(rs, (r) => r.stats.clicks),
-        // A rate needs both halves and a non-zero denominator, or it's a lie.
         engagementRate:
           impressions !== null && impressions > 0 && engagement !== null
             ? Math.round((engagement / impressions) * 1000) / 10
@@ -278,3 +299,5 @@ export function byNetwork(readings: TargetReading[]): NetworkPerformance[] {
     })
     .sort((a, b) => (b.engagement ?? -1) - (a.engagement ?? -1) || a.provider.localeCompare(b.provider));
 }
+
+export { EMPTY_STATS };

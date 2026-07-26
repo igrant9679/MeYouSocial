@@ -1,14 +1,21 @@
 import { getSetting } from "@/lib/settings";
 
 /**
- * Unipile client — one HTTPS API that connects end-users' mailboxes and social
- * profiles and sends/posts on their behalf. This is how MeYouSocial delivers
- * email at all: Railway blocks outbound SMTP, but Unipile posts over HTTPS:443.
+ * Unipile client — EMAIL ONLY since 2026-07-26.
+ *
+ * Social publishing, account connection and analytics all moved to Zernio
+ * (src/lib/zernio/), because Unipile had dropped networks this product needs —
+ * Facebook and Twitter/X among them.
+ *
+ * This did NOT become dead code, and shouldn't be deleted: Zernio has no email
+ * channel, and Railway blocks outbound SMTP (587/465/2525 all time out), so a
+ * Unipile-connected mailbox over HTTPS:443 is still the only way real mail
+ * leaves this host. Everything below serves `src/lib/email/index.ts`.
  *
  * Multi-tenant fit: the PLATFORM holds one Unipile API key + DSN (Settings
  * `unipile:api_key` / `unipile:dsn`, operator-set, env fallback). Each tenant
- * connects its own mailbox/social accounts under it via the hosted-auth wizard;
- * the resulting Unipile account_id is stored per workspace (UnipileAccount).
+ * connects its own mailbox under it via the hosted-auth wizard; the resulting
+ * Unipile account_id is stored per workspace (UnipileAccount, kind=email).
  *
  * DSN = the dedicated host:port from the Unipile dashboard, e.g.
  * `api8.unipile.com:13443`. Base URL is `https://<dsn>`, endpoints under
@@ -63,9 +70,8 @@ export type EmailRecipient = { display_name?: string; identifier: string };
 
 // ── Hosted auth wizard ───────────────────────────────────────────────────────
 
-/** Provider groups the wizard can be scoped to. */
+/** The only providers the wizard is scoped to now — social moved to Zernio. */
 export const EMAIL_PROVIDERS = ["GOOGLE", "MICROSOFT", "IMAP"] as const;
-export const SOCIAL_PROVIDERS = ["LINKEDIN", "INSTAGRAM", "X", "WHATSAPP", "TELEGRAM"] as const;
 
 /**
  * Create a hosted-auth wizard link. The user visits it to connect an account;
@@ -134,6 +140,59 @@ export async function listUnipileAccounts(): Promise<UnipileAccountInfo[]> {
   }
 }
 
+/**
+ * Verify a DSN + API key pair by actually calling Unipile with it.
+ *
+ * The house pattern (Drive storage, GSC, GA4): credentials are proved before
+ * they're stored, and the failure names the fix. Previously these two fields
+ * saved unvalidated, so a typo in the DSN looked identical to success and only
+ * showed up later as "Post now" mysteriously failing.
+ *
+ * Takes the candidate config explicitly rather than reading Settings, so it can
+ * validate a pasted value BEFORE persisting it.
+ */
+export async function probeUnipileCredentials(
+  dsn: string,
+  apiKey: string,
+): Promise<{ ok: boolean; message: string; accounts: UnipileAccountInfo[] }> {
+  const baseUrl = normalizeDsn(dsn);
+  if (!baseUrl) {
+    return { ok: false, accounts: [], message: `“${dsn}” isn't a usable DSN. Copy it from dashboard.unipile.com — it looks like api8.unipile.com:13443.` };
+  }
+  if (!apiKey.trim()) {
+    return { ok: false, accounts: [], message: "An API key is required. Create one under Access Tokens in the Unipile dashboard." };
+  }
+
+  let res: Response;
+  try {
+    res = await unipileFetch("/api/v1/accounts?limit=250", { cfg: { baseUrl, apiKey: apiKey.trim() } });
+  } catch (e) {
+    const detail = e instanceof Error ? e.message : String(e);
+    // Distinguish "host doesn't exist" from "host refused us" — different fixes.
+    const hint = /ENOTFOUND|EAI_AGAIN/i.test(detail)
+      ? ` The host in the DSN doesn't resolve — check it for typos.`
+      : /timeout|abort/i.test(detail)
+        ? ` The host didn't respond. Check the port in the DSN (it isn't 443).`
+        : "";
+    return { ok: false, accounts: [], message: `Couldn't reach ${baseUrl}: ${detail}.${hint}` };
+  }
+
+  if (res.status === 401 || res.status === 403) {
+    return { ok: false, accounts: [], message: `${baseUrl} rejected that API key (HTTP ${res.status}). The DSN looks reachable, so re-copy the key from Access Tokens.` };
+  }
+  if (!res.ok) {
+    const detail = (await res.text().catch(() => "")).slice(0, 200);
+    return { ok: false, accounts: [], message: `Unipile returned HTTP ${res.status} from ${baseUrl}. ${detail}` };
+  }
+
+  const data = (await res.json().catch(() => ({}))) as { items?: Record<string, unknown>[] };
+  const accounts = (data.items ?? []).map(normalizeAccount);
+  const summary = accounts.length
+    ? `Connected. Unipile reports ${accounts.length} account${accounts.length === 1 ? "" : "s"}: ${accounts.map((a) => `${a.type}${a.name ? ` (${a.name})` : ""}`).join(", ")}.`
+    : "Connected — the credentials work. Unipile has no accounts on it yet; connect a mailbox or profile below.";
+  return { ok: true, accounts, message: summary };
+}
+
 // Unipile account objects vary by provider; pull the id/type/name defensively.
 function normalizeAccount(a: Record<string, unknown>): UnipileAccountInfo {
   const id = String(a.id ?? a.account_id ?? "");
@@ -183,65 +242,8 @@ export async function sendEmailViaUnipile(opts: {
   return data.id ?? data.message_id ?? "sent";
 }
 
-// ── Social posting ───────────────────────────────────────────────────────────
-
-export type PostAttachment = { bytes: Uint8Array; filename: string; contentType?: string };
-
-/** Publish a post (optional media) from a connected social account. Returns the post id. */
-export async function createPostViaUnipile(opts: {
-  accountId: string;
-  text: string;
-  attachments?: PostAttachment[];
-}): Promise<string> {
-  const form = new FormData();
-  form.append("account_id", opts.accountId);
-  form.append("text", opts.text);
-  for (const a of opts.attachments ?? []) {
-    // Copy into a fresh ArrayBuffer-backed view so the Blob part type is exact.
-    form.append("attachments", new Blob([new Uint8Array(a.bytes)], { type: a.contentType || "application/octet-stream" }), a.filename);
-  }
-  const res = await unipileFetch("/api/v1/posts", { method: "POST", body: form });
-  if (!res.ok) {
-    const detail = await res.text().catch(() => "");
-    throw new Error(`Unipile post failed (HTTP ${res.status}): ${detail.slice(0, 200)}`);
-  }
-  const data = (await res.json().catch(() => ({}))) as { id?: string; post_id?: string };
-  return data.id ?? data.post_id ?? "posted";
-}
-
-/**
- * Fetch one published post back, for its engagement counts.
- *
- * ⚠ The endpoint and response shape are UNVERIFIED against a live account —
- * there is no connected Unipile account on this deployment, so this was written
- * from the shape of the posting endpoint above (`/api/v1/posts`, `account_id`
- * as a parameter, `X-API-KEY`) rather than from an observed reply. Two
- * consequences deliberately built in:
- *
- *   • the caller gets the RAW payload and maps it with `parseSocialStats`,
- *     which tolerates many field spellings and reports what it didn't
- *     recognise — so a shape mismatch shows up as a diagnostic, not as silence;
- *   • a 404/405 is returned as `null` rather than thrown, so one wrong guess
- *     about the path can't take down the whole sweep.
- *
- * If the path turns out to be wrong, this function is the only thing to change.
- */
-export async function getPostViaUnipile(opts: {
-  postId: string;
-  accountId: string;
-}): Promise<{ ok: true; payload: unknown } | { ok: false; status: number; detail: string }> {
-  const qs = new URLSearchParams({ account_id: opts.accountId });
-  let res: Response;
-  try {
-    res = await unipileFetch(`/api/v1/posts/${encodeURIComponent(opts.postId)}?${qs}`);
-  } catch (e) {
-    return { ok: false, status: 0, detail: e instanceof Error ? e.message : "request failed" };
-  }
-  if (!res.ok) {
-    const detail = await res.text().catch(() => "");
-    return { ok: false, status: res.status, detail: detail.slice(0, 300) };
-  }
-  const payload = await res.json().catch(() => null);
-  if (payload === null) return { ok: false, status: res.status, detail: "response was not JSON" };
-  return { ok: true, payload };
-}
+// ── Social posting: REMOVED 2026-07-26 ───────────────────────────────────────
+// Publishing and post statistics moved to Zernio (src/lib/zernio/), which
+// supports the networks this product needs — Unipile had dropped Facebook and
+// Twitter/X among others. This client is now EMAIL ONLY; it stays because
+// Zernio has no email channel and Railway blocks outbound SMTP.

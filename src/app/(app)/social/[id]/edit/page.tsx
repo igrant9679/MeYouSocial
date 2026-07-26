@@ -21,10 +21,10 @@ export default async function EditSocialPostPage({ params }: { params: Promise<{
 
   const [post, accounts, topicRows] = await Promise.all([
     db.socialPost.findFirst({ where: { id, workspaceId: workspace.id }, include: { targets: true } }),
-    db.unipileAccount.findMany({
-      where: { workspaceId: workspace.id, kind: "social", status: "connected" },
+    db.zernioAccount.findMany({
+      where: { workspaceId: workspace.id, status: "connected" },
       orderBy: { createdAt: "asc" },
-      select: { id: true, provider: true, name: true, accountId: true },
+      select: { id: true, platform: true, displayName: true, username: true, accountId: true },
     }),
     db.topic.findMany({
       where: { workspaceId: workspace.id, status: "active" },
@@ -37,9 +37,15 @@ export default async function EditSocialPostPage({ params }: { params: Promise<{
     redirect(`/social?err=${encodeURIComponent("That post has already been sent, so it can't be edited.")}`);
   }
 
-  // Targets store the Unipile account id; the picker works in local row ids.
+  // Targets store the Zernio account id; the picker works in local row ids.
   const byAccountId = new Map(accounts.map((a) => [a.accountId, a.id]));
-  const selectedIds = post.targets.map((t) => byAccountId.get(t.unipileAccountId)).filter((x): x is string => Boolean(x));
+  const selectedIds = post.targets.map((t) => byAccountId.get(t.accountId)).filter((x): x is string => Boolean(x));
+  // Shape the rows the way the composer expects (provider = platform slug).
+  const composerAccounts = accounts.map((a) => ({
+    id: a.id,
+    provider: a.platform,
+    name: a.displayName ?? a.username,
+  }));
 
   const variants: Record<string, string> = {};
   for (const t of post.targets) if (t.text) variants[t.provider.toUpperCase()] = t.text;
@@ -98,7 +104,7 @@ export default async function EditSocialPostPage({ params }: { params: Promise<{
         </div>
       ) : (
         <SocialComposer
-          accounts={accounts}
+          accounts={composerAccounts}
           topics={topicRows.map((t) => ({ id: t.id, name: t.name, keywords: readJson<string[]>(t.keywords, []) }))}
           initial={initial}
           queue={{ nextFree, hasSlots: queue.slots.some((s) => s.enabled) }}
