@@ -1234,3 +1234,156 @@ ever been made. The endpoint path, the response shape, and therefore whether
 will be wrong on first contact and makes that visible; expect the first live
 pull to report unrecognised field names, and add them to `ALIASES`. Nothing
 about engagement numbers on Insights should be trusted until that has happened.
+
+## Social: Unipile → Zernio, and Redis-locked schedulers (shipped 2026-07-26)
+
+### Why the swap
+
+Unipile had dropped networks this product needs — Facebook and Twitter/X among
+them. Zernio covers **fifteen**: linkedin, twitter, facebook, instagram,
+threads, bluesky, tiktok, youtube, pinterest, reddit, googlebusiness, telegram,
+snapchat, whatsapp, discord.
+
+### ⚠ Unipile is NOT gone — it is the EMAIL path
+
+**Do not delete `src/lib/unipile/`.** Zernio has no email channel (its channels
+are social posts, DMs, SMS, calls, ads and WhatsApp), and Railway blocks
+outbound SMTP, so a Unipile-connected mailbox over HTTPS is still the only way
+real mail leaves this host. Removing it would silently break invitations,
+verification, password resets and notifications — they would fall back to SMTP,
+time out, and land on the mock. The client's social half was deleted; the header
+comment says exactly why the rest stays. Product-owner decision, 2026-07-26.
+
+### What Zernio's model gives us
+
+- **`profile` is a tenant boundary**, so it maps 1:1 onto a workspace
+  (`Workspace.zernioProfileId`, created lazily by `ensureZernioProfile`). The
+  profile NAME is `ws_<workspaceId>` because Zernio requires names unique per
+  team and two customers called "Acme" would collide; the display name goes in
+  `description`.
+- **`account.connected` carries `profileId` directly.** Unipile's mapping had to
+  be smuggled through the hosted-auth `name` field with *no reconcile path* if a
+  webhook was missed. Accounts are now listable by profile at any time, so
+  `syncZernioAccounts()` can rebuild the local mirror from the source of truth —
+  surfaced as **Refresh from Zernio**. Vanished accounts are marked
+  `disconnected`, never deleted: SocialPostTarget rows reference them and
+  history must stay readable.
+- **Webhooks are signed** (`X-Zernio-Signature`, lowercase-hex HMAC-SHA256 of
+  the RAW body — never a re-serialised object, which would change the digest).
+  The route **fails closed without a secret**: an open endpoint that writes
+  account rows is worth more to an attacker than a broken one is to us.
+- **One publish call, not one per network.** `POST /posts` takes the whole
+  fan-out in `platforms[]` and reports per-platform status back, which matches
+  how `SocialPostTarget` already models things. Per-network overrides map onto
+  `content` / `customMedia`.
+- **Four guards against double-posting**, because a duplicate reaches a real
+  audience: the scheduler lock, the atomic status claim, a **stable
+  `x-request-id`** (derived from post id + exact targets + text, so a retry
+  dedupes but a genuine edit-then-resend does not), and Zernio's content-hash
+  409 — which we treat as SUCCESS, because it means the content is already out.
+
+### The analytics guesswork is gone
+
+`stats.ts` was ~150 lines of tolerant field-name guessing that existed *only*
+because Unipile's statistics endpoint was undocumented and unverifiable. Zernio
+documents its metric block exactly (`impressions, reach, likes, comments,
+shares, saves, clicks, views, follows, engagementRate, lastUpdated`), so that
+collapsed to a direct mapping. Kept from the old design: the honesty contract —
+unknown stays `null`, a real zero stays `0`.
+
+**Cumulative-lifetime storage was the right call and Zernio's docs confirm it**,
+so `latestPerTarget()` stands unchanged. Snapshots gained `reach`, `saves` and
+`views`, which Unipile simply never provided. Zernio's own `engagementRate` is
+deliberately **not** stored: it is computed per platform against a denominator
+we cannot see, so it cannot be summed or compared across networks — we derive
+the rate from figures we hold.
+
+### Migration note worth keeping
+
+`SocialPostTarget.unipileAccountId` → `accountId` is a **hand-written
+`RENAME COLUMN`**. What `prisma migrate diff` generated was `DROP` + `ADD COLUMN
+NOT NULL` with no default — which fails outright on a non-empty table and
+silently discards the ids on an empty one. The column is provider-neutral now so
+a future swap will not need another rename.
+
+## Redis-locked schedulers (shipped 2026-07-26)
+
+All four sweeps (autopilot 30m, social 60s, metrics 60m, analytics 360m) now run
+inside a distributed lock. Previously every timer fired on every replica, and
+these are not harmless duplicates: **the social sweep publishes to a real
+audience.**
+
+- **Held for the WHOLE run**, not just long enough to elect a leader, and
+  **per-sweep** so a slow autopilot cannot block the 60-second social tick.
+- Acquire is `SET key token NX PX ttl` — atomic by construction. Release is a
+  **Lua compare-and-delete**, so a holder whose lock already expired can never
+  delete the lock a different replica has since taken. That check-then-act has
+  to be atomic on the server.
+- A **heartbeat** at ttl/3 extends it while work runs, which lets the TTL stay
+  short: a killed replica frees the lock in `ttl`, not in however long the job
+  might have taken.
+- **Unreachable Redis fails CLOSED** (skips the tick). Failing open would
+  double-run; for a periodic sweep, skipping is plainly safer.
+- **Without `REDIS_URL` it degrades to an in-process mutex** — the previous
+  behaviour, safe on one replica only — and warns loudly at boot rather than
+  silently providing no protection.
+- Honest limit: single-instance Redis, so a failover could briefly allow two
+  holders. Redlock across independent nodes is the alternative and this
+  deployment has one Redis; the social publisher's per-post atomic claim is a
+  second net.
+- `src/lib/redis.ts` is a hand-rolled RESP2 client (same call as `gdrive.ts` /
+  `heygen-cloud.ts`): six commands, one in flight at a time, every call
+  timeout-bounded. Explicitly not a general client — swap for `ioredis` if it
+  ever needs more.
+
+### Build fix that came with it
+
+`instrumentation.ts` is compiled for the **Edge** runtime as well as Node, so
+the lock's static import put `node:net` / `node:tls` / `node:crypto` into a
+graph with no implementation for them — three `Ecmascript file had an error`
+reports on every build (harmless, since `register()` returns early off-Node, but
+noise that hides real errors). Everything touching Node built-ins is now
+imported **dynamically, after the runtime guard**. Same for
+`checkLockBackend()` in the connections page.
+
+### Verification
+
+- **42 fixtures against the real Railway Redis**: RESP round-trips including a
+  200KB bulk string and 25 concurrent commands keeping order; **ten simultaneous
+  contenders with exactly one entering the critical section**; release-on-throw;
+  compare-and-delete refusing to free another holder's token; TTL expiry;
+  heartbeat holding a 5s body past its TTL; fail-closed on an unreachable
+  server; and the in-process fallback still being mutually exclusive.
+- **70 fixtures on the Zernio side**: signature verification (valid, wrong
+  secret, tampered body, single-character forgery, truncated, body-specific),
+  API-key shape, all fifteen platform slugs, legacy Unipile spellings still
+  resolving so pre-migration history renders, char limits, the metric mapping
+  (real zero vs unknown, negatives/NaN refused, engagementRate not stored), and
+  the cumulative aggregation surviving the swap.
+- **Live on production**: migration `20260726020000_zernio_social` applied, and
+  the boot log reads **`[lock] sweep locking backend: redis`** — the lock is
+  active against the real Redis, not the fallback. `REDIS_URL` is wired to the
+  Redis service over Railway's private network.
+
+**NOT verified:** no real Zernio API call has been made — there is no key yet.
+Every shape comes from Zernio's published docs rather than guesswork, but first
+contact may still differ; the probe-on-save is what will surface that
+immediately. The UI is also unverified (prod session signed out).
+
+## Create a workspace (shipped 2026-07-26)
+
+There was no way to make a workspace from inside the app: they only appeared at
+signup (one per new user) or by invitation. Worse, `requireMembership()` has
+always redirected members-of-nothing to `/onboarding/workspace` — **a route that
+did not exist**, so a user whose last membership was revoked hit a 404 they
+could not escape.
+
+**The page must stay OUTSIDE the `(app)` route group.** That group's layout
+calls `getActiveChannel()` → `requireMembership()`, so a page inside it would
+send a zero-membership user straight back to its own URL, for ever. It sits on
+the bare root layout next to `/invitations/[token]`, which is outside for the
+same reason. There is a comment on the file saying so, because "tidying" it into
+`(app)` would silently restore the loop.
+
+Entry point is **Settings → Workspaces**; the creator becomes ADMIN, matching
+signup.
