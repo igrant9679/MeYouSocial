@@ -1065,3 +1065,66 @@ wall clock for any non-UTC user.
   (read-then-write, no lock). Consistent with the existing single-replica
   assumption already documented for the sweeps; a second replica would need the
   same Redis lock those need.
+
+## Social: week view for the calendar (shipped 2026-07-25)
+
+Month answers *"what does my coverage look like"*; week answers *"what goes out
+when"*. So week is a **TIME GRID** (day columns × hour rows), not a denser month
+— that is what earns it a place. A month cell can only place a post on a **day**;
+a week cell places it at an **hour**, and dropping into one sets the time.
+
+- **Month / Week is client-side state**, not a route change: switching framing
+  shouldn't cost a round trip or discard an in-flight optimistic move. (The
+  agenda toggle stays a `?view=` link — it's a different page section.)
+- **One `cursor` anchor date, two framings.** Month reads its month, week reads
+  the Monday-start week containing it; prev/next steps by the unit in view.
+- **Drops snap to the half hour**, computed from where the pointer sits in the
+  cell (`halfFor`) — matching how calendars behave. The cell shows the exact
+  time it will land on while you hover, because a snap you can't see is a
+  surprise. Exact-minute precision stays available: drop onto a **ghost slot**,
+  or type into the chip's own control.
+- **The chip's control is the always-available path, and it changes with the
+  view**: month and the drafts tray get a `date` input, the week grid gets
+  `datetime-local`. Otherwise week view would add a capability (setting a time)
+  that keyboard and touch users couldn't reach — which would break the
+  `TaskBoard` rule rather than merely bend it.
+- **The hour window opens 07:00–20:00 and WIDENS to fit whatever is scheduled**,
+  so a 06:00 post is never hidden by a default. A footnote says which window is
+  showing and that nothing is hidden; **All 24h** overrides it for scheduling
+  into the quiet hours. Widening is scoped to the visible week.
+- **Times are locale-formatted through one helper (`timeLabel`)** — gutter,
+  chips, ghost slots and the drop hint. A hard-coded 24h gutter put "15:00" next
+  to a "03:00 PM" chip in the same cell; caught in verification.
+- The week range label repeats the month on both sides on purpose: collapsing it
+  reads fine in day-first locales but gives "20 – Jul 26, 2026" in month-first
+  ones. Also caught in verification.
+- **Seven columns + a gutter can't compress onto a phone**, so the grid keeps its
+  width and scrolls inside its own container — the page body never scrolls
+  sideways.
+
+### Verification
+
+Exercised in a real browser against a **throwaway fixture harness** (a temporary
+unauthenticated route, deleted afterwards — the prod session is signed out and
+Claude cannot type credentials). Confirmed: Monday-first headers `Mon20…Sun26`;
+the window opening at 06:00 because of the early post while next week's 22:15
+post correctly did **not** widen it; 105 cells = 15 hours × 7 days; locale
+consistency across gutter/chips/ghosts; the range label; **half-hour snapping
+(upper half → 01:00 PM, lower half → 01:30 PM)**; the drop reaching
+`rescheduleSocialPostAction`; "All 24h" giving 24 rows 12:00 AM–11:00 PM and
+hiding the window note; at 375px the grid scrolling internally (1008px inner vs
+325px visible) with **no horizontal body scroll**; and month view unaffected (31
+cells, `date` inputs only, the August post excluded).
+
+**Automation caveat worth remembering:** `getComputedStyle` reads are **stale for
+pre-existing nodes** in the browser-automation context — a control mutation
+(setting an `<h1>` background) also failed to read back. The cell highlight
+therefore looked broken and is not: a **clone** of the hovered cell computed to
+`rgb(229,72,47)` / `rgb(253,231,225)` (accent + accent-soft). Verify styling on
+freshly-created or cloned nodes, not mutated existing ones. This is the third
+time an automation artifact has masqueraded as an app bug — see also §0i.
+
+**Not verified:** the literal pointer-drag gesture (CDP drag remains unreliable;
+synthetic drag events exercise the same handlers), and anything on production —
+the queue and calendar still need a signed-in session and a connected Unipile
+account.
