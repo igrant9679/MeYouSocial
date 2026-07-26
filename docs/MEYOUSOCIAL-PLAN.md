@@ -1042,11 +1042,25 @@ wall clock for any non-UTC user.
   (a Sydney Monday slot at 22:00Z Monday correctly offers *next* Monday), and a
   weekly slot holding 09:00 across fall-back.
 - `tsc --noEmit` clean, `npm run build` compiles.
-- **NOT verified:** anything needing the live app — creating slots against the
-  real DB, the queue actions end-to-end, and the ghost-slot drag. Same root
-  blocker as the rest of the social work: **no Unipile account is connected**, so
-  there are no real posts to queue. The composer's "Add to queue" radio only
-  appears when accounts exist.
+- **The server path IS verified against the production DB** (2026-07-25, 21/21),
+  by a throwaway probe that created slots + one scheduled post in Demo Workspace
+  and deleted everything in a `finally` (cleanup confirmed: 0 slots, 0 `[TEST]`
+  posts, timezone setting restored to unset). It proved: the timezone setting
+  resolves and reports `configured`; Monday-first ordering; the unique
+  constraint rejects a duplicate slot (P2002); free slots are ascending, future,
+  and land on exactly the stored wall clock (`Mon 09:00 | Mon 15:00 | Wed 09:00 |
+  Mon 09:00` in Europe/London); a claim takes the first free slot and the next
+  claim **skips the occupied one**; `excludePostId` frees the post's own slot
+  again; **pausing a slot removes it from the queue without unscheduling or
+  moving the post already in it**; an all-paused schedule returns `no-slots`
+  rather than a made-up time; and **workspace isolation holds** (LSI Media saw
+  none of Demo Workspace's slots).
+- **NOT verified:** the UI. The Browser pane opened a **signed-out** session and
+  Claude cannot type credentials, so no page was exercised on prod — the
+  schedule editor, the composer's "Add to queue" radio, the Queue buttons and
+  the ghost-slot drag are code-verified only. The composer radio additionally
+  needs a connected account to appear at all, so the **Unipile blocker** still
+  gates that half.
 - **Concurrency:** two simultaneous queue requests could claim the same slot
   (read-then-write, no lock). Consistent with the existing single-replica
   assumption already documented for the sweeps; a second replica would need the
