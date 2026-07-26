@@ -1,8 +1,7 @@
 import Link from "next/link";
 import { Plug, Mail, CheckCircle2, AlertTriangle, Star, Trash2, Share2, RefreshCw, KeyRound } from "lucide-react";
-import { requireRole } from "@/lib/acl";
+import { requireRole, isPlatformOperator as isOperator } from "@/lib/acl";
 import { db } from "@/lib/db";
-import { env } from "@/lib/env";
 import { SubmitButton } from "@/components/SubmitButton";
 import { unipileConfigured } from "@/lib/unipile";
 import { zernioConfigured, ZERNIO_PLATFORMS } from "@/lib/zernio";
@@ -47,7 +46,7 @@ export default async function ConnectionsPage({ searchParams }: { searchParams: 
   const { workspace, user } = await requireRole("ADMIN");
   const { ok, err, connected, failed } = await searchParams;
 
-  const isPlatformOperator = Boolean(env.BOOTSTRAP_ADMIN_EMAIL && user.email === env.BOOTSTRAP_ADMIN_EMAIL);
+  const isPlatformOperator = isOperator(user.email);
   const [emailReady, socialReady, emailAccounts, socialAccounts, origin] = await Promise.all([
     unipileConfigured(),
     zernioConfigured(),

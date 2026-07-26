@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { User, Mail, Lock, Palette, ShieldCheck, Building2, Plus } from "lucide-react";
-import { requireUser } from "@/lib/acl";
+import { requireUser, isPlatformOperator } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { setThemeAction, getTheme, setContentSizeAction, getContentSize } from "@/app/actions/theme";
 import { CONTENT_SIZES, SIZE_LABELS } from "@/lib/ui-size";
@@ -20,6 +20,9 @@ export default async function UserSettingsPage({ searchParams }: { searchParams:
     where: { userId: user.id, status: "active" },
     include: { workspace: { select: { name: true } } },
   });
+  // Standing up a whole tenant is the platform operator's job, not a workspace
+  // admin's. Display only — createWorkspaceAction enforces the same check.
+  const canCreateWorkspace = isPlatformOperator(user.email);
 
   return (
     <div className="w-full">
@@ -155,10 +158,13 @@ export default async function UserSettingsPage({ searchParams }: { searchParams:
           <p className="text-[11px] text-[var(--mute)] flex-1 leading-relaxed">
             Each workspace is a separate company — its own brand, content, connected accounts and API keys. Switch
             between them from the name at the top of the page.
+            {!canCreateWorkspace && " New workspaces are set up by the platform administrator."}
           </p>
-          <Link href="/onboarding/workspace" className="btn primary sm">
-            <Plus className="w-3.5 h-3.5" /> New workspace
-          </Link>
+          {canCreateWorkspace && (
+            <Link href="/onboarding/workspace" className="btn primary sm">
+              <Plus className="w-3.5 h-3.5" /> New workspace
+            </Link>
+          )}
         </div>
       </section>
     </div>

@@ -3,7 +3,7 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
-import { requireUser, ACTIVE_WS_COOKIE } from "@/lib/acl";
+import { requireUser, isPlatformOperator, ACTIVE_WS_COOKIE } from "@/lib/acl";
 
 /**
  * Multi-company users: switch the active workspace. Validated against the
@@ -45,12 +45,22 @@ async function setActive(workspaceId: string) {
  * state (a revoked last membership, say) hit a dead end they couldn't escape.
  * This action backs that route as well as the button in Settings.
  *
- * The creator becomes ADMIN, matching what signup does.
+ * ⚠ PLATFORM OPERATOR ONLY. A workspace is a whole tenant — its own brand,
+ * content, connected accounts and API keys — so letting any signed-in user mint
+ * them would turn every account into a self-serve tenant factory. This check is
+ * the real boundary; hiding the buttons is only cosmetic, and a hand-rolled
+ * POST would sail straight past that.
+ *
+ * The creator becomes ADMIN of what they create, matching what signup does.
  */
 export async function createWorkspaceAction(formData: FormData) {
   const user = await requireUser();
   const name = String(formData.get("name") ?? "").trim();
   const back = String(formData.get("returnTo") ?? "/settings");
+
+  if (!isPlatformOperator(user.email)) {
+    redirect(`${back}?error=${encodeURIComponent("Only the platform administrator can create workspaces. Ask them to set one up and invite you.")}`);
+  }
 
   if (name.length < 2) {
     redirect(`${back}?error=${encodeURIComponent("Give the workspace a name of at least 2 characters.")}`);

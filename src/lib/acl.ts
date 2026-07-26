@@ -1,5 +1,6 @@
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
+import { env } from "@/lib/env";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import type { Role } from "@prisma/client";
@@ -42,6 +43,24 @@ export async function requireMembership(workspaceId?: string) {
   }
   if (!target) redirect("/forbidden");
   return { user, membership: target, workspace: target.workspace };
+}
+
+/**
+ * The PLATFORM operator — the one super-admin who runs this install, as opposed
+ * to a workspace ADMIN who only runs their own company.
+ *
+ * Identified by `BOOTSTRAP_ADMIN_EMAIL`. This gate already guarded storage, the
+ * shared API keys and the Zernio/Unipile credentials, but as an inline
+ * comparison copy-pasted into four files. Centralised here so there's one
+ * definition to audit — and so the comparison is case-insensitive on BOTH
+ * sides: `env.BOOTSTRAP_ADMIN_EMAIL` is lowercased at load, while `user.email`
+ * is whatever was typed at signup, so the old `!==` checks would silently deny
+ * the operator if their stored address had any capitals.
+ */
+export function isPlatformOperator(email: string | null | undefined): boolean {
+  const configured = env.BOOTSTRAP_ADMIN_EMAIL;
+  if (!configured || !email) return false;
+  return email.trim().toLowerCase() === configured;
 }
 
 export function canEdit(role: Role): boolean {

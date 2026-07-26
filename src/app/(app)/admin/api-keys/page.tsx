@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { KeyRound, CheckCircle2, ExternalLink, HardDrive, AlertTriangle } from "lucide-react";
-import { requireRole } from "@/lib/acl";
+import { requireRole, isPlatformOperator as isOperator } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { env } from "@/lib/env";
 import { saveApiKeyAction, saveSearchKeyAction, saveMediaSettingAction, saveStorageSettingAction } from "@/app/actions/api-keys";
@@ -64,7 +64,7 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
   const ttsProvider = ttsSetting === "elevenlabs" ? "elevenlabs" : "mock";
 
   // Storage is platform infrastructure — card shown only to the platform operator.
-  const isPlatformOperator = Boolean(env.BOOTSTRAP_ADMIN_EMAIL && user.email === env.BOOTSTRAP_ADMIN_EMAIL);
+  const isPlatformOperator = isOperator(user.email);
   const storageBackend = await getStorageBackendSetting();
   const gdriveSa = parseServiceAccount(platformByKey.get("gdrive:service_account") ?? process.env.GDRIVE_SERVICE_ACCOUNT_JSON ?? "");
   const gdriveFolder = platformByKey.get("gdrive:folder_id") ?? process.env.GDRIVE_FOLDER_ID ?? "";

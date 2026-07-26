@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { requireRole } from "@/lib/acl";
+import { requireRole, isPlatformOperator } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { KEY_PROVIDERS, type KeyProvider } from "@/lib/llm/keys";
 import { llm } from "@/lib/llm";
@@ -70,8 +70,7 @@ export async function saveStorageSettingAction(formData: FormData) {
   // Storage is PLATFORM infrastructure (one Drive/local store serves every
   // tenant) — only the platform operator may change it.
   const { user } = await requireRole("ADMIN");
-  const { env } = await import("@/lib/env");
-  if (!env.BOOTSTRAP_ADMIN_EMAIL || user.email !== env.BOOTSTRAP_ADMIN_EMAIL) {
+  if (!isPlatformOperator(user.email)) {
     redirect("/admin/api-keys?err=" + encodeURIComponent("Storage is managed by the platform operator."));
   }
   const setting = String(formData.get("setting") ?? "");

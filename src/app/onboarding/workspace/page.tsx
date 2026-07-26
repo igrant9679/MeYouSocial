@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Building2, AlertTriangle } from "lucide-react";
-import { requireUser } from "@/lib/acl";
+import { requireUser, isPlatformOperator } from "@/lib/acl";
 import { SubmitButton } from "@/components/SubmitButton";
 import { ValidatedInput } from "@/components/ValidatedInput";
 import { createWorkspaceAction } from "@/app/actions/workspace-switch";
@@ -28,6 +28,33 @@ export default async function NewWorkspacePage({
   const { error } = await searchParams;
   const active = user.memberships.filter((m) => m.status === "active");
   const first = active.length === 0;
+  // Creating a tenant is the platform operator's job. Everyone else gets an
+  // explanation instead of a form they'd only be refused on submit — and this
+  // page is still where a member-of-nothing lands, so it must say something
+  // useful to them rather than 404 or bounce.
+  const canCreate = isPlatformOperator(user.email);
+
+  if (!canCreate) {
+    return (
+      <main className="min-h-screen grid place-items-center p-6">
+        <div className="w-full max-w-lg card">
+          <div className="flex items-center gap-2 mb-2">
+            <AlertTriangle className="w-4 h-4 shrink-0" style={{ color: "var(--amber-on)" }} />
+            <h1 className="font-mono font-bold text-base">Workspaces are set up by the administrator</h1>
+          </div>
+          <p className="text-sm text-[var(--mute)] leading-relaxed mb-3">
+            {first
+              ? "You're signed in, but you're not a member of any workspace yet. Ask your platform administrator to invite you to one — the invitation link will bring you straight in."
+              : "Only the platform administrator can create new workspaces on this install. Ask them to set one up and invite you."}
+          </p>
+          <div className="flex gap-2">
+            {!first && <Link href="/dashboard" className="btn sm">Back to the app</Link>}
+            <Link href="/settings" className="btn sm">Your settings</Link>
+          </div>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="min-h-screen grid place-items-center p-6">

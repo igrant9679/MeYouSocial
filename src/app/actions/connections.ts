@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { requireRole } from "@/lib/acl";
+import { requireRole, isPlatformOperator } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { env } from "@/lib/env";
 import { getPublicUrl } from "@/lib/public-url";
@@ -207,8 +207,8 @@ export async function clearZernioConfigAction() {
 /** Only the platform operator may touch the shared Unipile credentials. */
 async function requirePlatformOperator() {
   const ctx = await requireRole("ADMIN");
-  if (!env.BOOTSTRAP_ADMIN_EMAIL || ctx.user.email !== env.BOOTSTRAP_ADMIN_EMAIL) {
-    redirect("/admin/connections?err=" + encodeURIComponent("Unipile is configured by the platform operator."));
+  if (!isPlatformOperator(ctx.user.email)) {
+    redirect("/admin/connections?err=" + encodeURIComponent("These credentials are managed by the platform operator."));
   }
   return ctx;
 }

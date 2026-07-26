@@ -6,6 +6,7 @@ import { LiveTicker } from "@/components/LiveTicker";
 import { tickerEvents } from "@/lib/dashboard-data";
 import { signOut } from "@/auth";
 import { getActiveChannel } from "@/lib/channel";
+import { isPlatformOperator } from "@/lib/acl";
 import { setActiveChannelAction } from "@/app/actions/channel";
 import { LeftRailNav, type LeftRailItem } from "@/components/LeftRailNav";
 import { MobileNav } from "@/components/MobileNav";
@@ -47,6 +48,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const workspaceChoices = user.memberships
     .filter((m) => m.status === "active")
     .map((m) => ({ id: m.workspaceId, name: m.workspace.name }));
+  // Creating a workspace stands up a whole tenant, so it's the platform
+  // operator's job, not a workspace admin's. Cosmetic only — the action
+  // enforces the same check.
+  const canCreateWorkspace = isPlatformOperator(user.email);
 
   // Per-company branding (multi-tenant): accent re-tints the chrome via CSS
   // token overrides; the logo/wordmark swap to the company's own. Hex is
@@ -146,10 +151,16 @@ html[data-theme="dark"] .ws-brand {
           <div className="md:hidden">
             <MobileNav items={navItems} userLabel={userLabel} signOutAction={signOutAction} logoUrl={logoUrl} brandName={brandName} />
           </div>
-          {workspaceChoices.length > 1 ? (
-            // Multi-company user: the workspace name becomes a switcher.
+          {workspaceChoices.length > 1 || canCreateWorkspace ? (
+            // Multi-company user: the workspace name becomes a switcher. The
+            // platform operator gets it even with one workspace, because that's
+            // where "+ New workspace" lives.
             <form action={setActiveWorkspaceAction} className="min-w-0">
-              <WorkspaceSwitcher workspaces={workspaceChoices} activeId={workspace.id} />
+              <WorkspaceSwitcher
+                workspaces={workspaceChoices}
+                activeId={workspace.id}
+                canCreate={canCreateWorkspace}
+              />
             </form>
           ) : (
             <Link href="/channels" className="font-mono font-bold text-[15px] tracking-tight hover:text-[var(--accent)] transition truncate max-w-[40vw] md:max-w-[200px] @6xl:max-w-none" title="Manage workspace channels">
