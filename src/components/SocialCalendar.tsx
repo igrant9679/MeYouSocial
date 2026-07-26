@@ -17,6 +17,13 @@ import { networkFor } from "@/lib/social/networks";
  * Drag-and-drop follows the production board's rule: it is an ENHANCEMENT, never
  * the only path. Every chip also carries a date input, so keyboard and touch
  * users can reschedule without dragging.
+ *
+ * Free QUEUE SLOTS are drawn as dashed ghost chips. Their instants are computed
+ * on the server (only it knows the workspace's posting timezone) and arrive as
+ * ISO strings, which the browser then buckets by LOCAL day exactly like posts —
+ * so resolution happens where the timezone lives and display happens where the
+ * viewer lives. Dropping onto a ghost takes that slot's exact time; the
+ * always-available path to the same result is the "Queue" button on a draft.
  */
 
 export type CalendarPost = {
@@ -40,7 +47,7 @@ function leadingBlanks(first: Date): number {
   return (first.getDay() + 6) % 7;
 }
 
-export function SocialCalendar({ posts }: { posts: CalendarPost[] }) {
+export function SocialCalendar({ posts, freeSlots = [] }: { posts: CalendarPost[]; freeSlots?: string[] }) {
   const [cursor, setCursor] = useState(() => {
     const now = new Date();
     return new Date(now.getFullYear(), now.getMonth(), 1);
@@ -68,23 +75,38 @@ export function SocialCalendar({ posts }: { posts: CalendarPost[] }) {
     return map;
   }, [scheduled]);
 
+  /**
+   * Free slots bucketed by local day. A slot that something has since been
+   * moved into (optimistically, this session) stops being offered — otherwise
+   * the grid would show a free slot and an occupying post in the same minute.
+   */
+  const freeByDay = useMemo(() => {
+    const claimed = new Set(
+      items.filter((p) => p.scheduledAt).map((p) => Math.floor(new Date(p.scheduledAt!).getTime() / 60_000)),
+    );
+    const map = new Map<string, string[]>();
+    for (const iso of freeSlots) {
+      const at = new Date(iso);
+      if (claimed.has(Math.floor(at.getTime() / 60_000))) continue;
+      const k = dayKey(at);
+      map.set(k, [...(map.get(k) ?? []), iso]);
+    }
+    for (const list of map.values()) list.sort();
+    return map;
+  }, [freeSlots, items]);
+
   const year = cursor.getFullYear();
   const month = cursor.getMonth();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const blanks = leadingBlanks(new Date(year, month, 1));
   const todayKey = dayKey(new Date());
 
-  /** Move a post to `key` (YYYY-MM-DD), preserving its time of day. */
-  const moveTo = (id: string, key: string) => {
+  /** Commit a post to an exact instant, optimistically, with server confirmation. */
+  const commit = (id: string, target: Date) => {
     const post = items.find((p) => p.id === id);
     if (!post) return;
-    const [y, m, d] = key.split("-").map(Number);
-    const existing = post.scheduledAt ? new Date(post.scheduledAt) : null;
-    // A draft has no time yet — 09:00 local is a sane, obvious default.
-    const target = new Date(y, m - 1, d, existing ? existing.getHours() : 9, existing ? existing.getMinutes() : 0, 0, 0);
-
     if (target.getTime() < Date.now() - 60_000) {
-      setError("That day has already passed — pick a future date.");
+      setError("That time has already passed — pick a future one.");
       return;
     }
     setError(null);
@@ -100,6 +122,50 @@ export function SocialCalendar({ posts }: { posts: CalendarPost[] }) {
         }
       });
     });
+  };
+
+  /** Move a post to `key` (YYYY-MM-DD), preserving its time of day. */
+  const moveTo = (id: string, key: string) => {
+    const post = items.find((p) => p.id === id);
+    if (!post) return;
+    const [y, m, d] = key.split("-").map(Number);
+    const existing = post.scheduledAt ? new Date(post.scheduledAt) : null;
+    // A draft has no time yet — 09:00 local is a sane, obvious default.
+    commit(id, new Date(y, m - 1, d, existing ? existing.getHours() : 9, existing ? existing.getMinutes() : 0, 0, 0));
+  };
+
+  /**
+   * An empty queue slot. Drop a post on it to take that exact time — the day
+   * cell underneath would only give the post's existing time (or 09:00).
+   */
+  const GhostSlot = ({ iso }: { iso: string }) => {
+    const [over, setOver] = useState(false);
+    const at = new Date(iso);
+    return (
+      <div
+        onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setOver(true); }}
+        onDragLeave={() => setOver(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          // Stop the day cell from also handling this and overwriting the time.
+          e.stopPropagation();
+          setOver(false);
+          setOverDay(null);
+          if (dragId) commit(dragId, at);
+          setDragId(null);
+        }}
+        className="rounded-md px-1.5 py-0.5 text-[9px] font-mono border border-dashed flex items-center gap-1"
+        style={{
+          borderColor: over ? "var(--accent)" : "var(--line-2)",
+          background: over ? "var(--accent-soft)" : "transparent",
+          color: "var(--mute)",
+        }}
+        title={`Free queue slot — drop a post here to take ${at.toLocaleString(undefined, { hour: "2-digit", minute: "2-digit" })}`}
+      >
+        <span className="w-1.5 h-1.5 rounded-full border border-dashed shrink-0" style={{ borderColor: "var(--mute)" }} />
+        {at.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}
+      </div>
+    );
   };
 
   const Chip = ({ p }: { p: CalendarPost }) => {
@@ -195,6 +261,9 @@ export function SocialCalendar({ posts }: { posts: CalendarPost[] }) {
               >
                 <span className={`font-mono text-[10px] ${isToday ? "font-bold" : "text-[var(--mute)]"}`}>{day}</span>
                 {dayPosts.map((p) => <Chip key={p.id} p={p} />)}
+                {(freeByDay.get(key) ?? []).map((iso) => (
+                  <GhostSlot key={iso} iso={iso} />
+                ))}
               </div>
             );
           })}
@@ -205,7 +274,10 @@ export function SocialCalendar({ posts }: { posts: CalendarPost[] }) {
       {drafts.length > 0 && (
         <div className="card mt-3">
           <h3 className="font-mono text-[11px] font-bold mb-1.5">
-            Unscheduled drafts <span className="text-[var(--mute)] font-normal">— drag onto a day to schedule (09:00 by default)</span>
+            Unscheduled drafts{" "}
+            <span className="text-[var(--mute)] font-normal">
+              — drag onto a free slot to take that time, or onto a day (09:00 by default)
+            </span>
           </h3>
           <div className="grid grid-cols-2 @2xl:grid-cols-4 @5xl:grid-cols-6 gap-2">
             {drafts.map((p) => <Chip key={p.id} p={p} />)}

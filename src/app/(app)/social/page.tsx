@@ -1,13 +1,16 @@
 import Link from "next/link";
-import { Share2, CalendarClock, Send, Copy, Trash2, RotateCw, Check, X, Clock, Pencil, Image as ImageIcon, Tags, Link2 as LinkIcon } from "lucide-react";
-import { requireRole } from "@/lib/acl";
+import { Share2, CalendarClock, Send, Copy, Trash2, RotateCw, Check, X, Clock, Pencil, Image as ImageIcon, Tags, Link2 as LinkIcon, ListPlus } from "lucide-react";
+import { requireRole, canAdmin } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { readJson } from "@/lib/db/json";
 import { SocialComposer } from "@/components/SocialComposer";
 import { SocialCalendar, type CalendarPost } from "@/components/SocialCalendar";
+import { PostingSchedule } from "@/components/PostingSchedule";
 import { SubmitButton } from "@/components/SubmitButton";
 import { getUtmConfig } from "@/lib/social/utm";
+import { formatInZone, getQueue } from "@/lib/social/slots";
 import { saveUtmSettingsAction } from "@/app/actions/social";
+import { queueSocialPostAction, queueAllDraftsAction } from "@/app/actions/social-slots";
 import { networkFor } from "@/lib/social/networks";
 import {
   publishNowAction,
@@ -31,7 +34,7 @@ const STATUS_STYLE: Record<string, { bg: string; fg: string; label: string }> = 
 };
 
 export default async function SocialPage({ searchParams }: { searchParams: Promise<SP> }) {
-  const { workspace } = await requireRole("EDITOR");
+  const { workspace, membership } = await requireRole("EDITOR");
   const { ok, err, view } = await searchParams;
   // Calendar is the natural primary view for a scheduler; agenda stays one click away.
   const mode = view === "agenda" ? "agenda" : "calendar";
@@ -55,7 +58,13 @@ export default async function SocialPage({ searchParams }: { searchParams: Promi
     }),
   ]);
   const topics = topicRows.map((t) => ({ id: t.id, name: t.name, keywords: readJson<string[]>(t.keywords, []) }));
-  const utm = await getUtmConfig(workspace.id);
+  const [utm, queue] = await Promise.all([getUtmConfig(workspace.id), getQueue(workspace.id)]);
+
+  // Slot instants are resolved here (the server owns the posting timezone) and
+  // handed to the calendar as ISO, which buckets them by the VIEWER's local day.
+  const freeSlotIso = queue.free.slice(0, 60).map((d) => d.toISOString());
+  const nextFreeLabel = queue.free[0] ? formatInZone(queue.free[0], queue.timeZone) : null;
+  const hasSlots = queue.slots.some((s) => s.enabled);
 
   const scheduled = posts
     .filter((p) => p.status === "scheduled")
@@ -63,10 +72,15 @@ export default async function SocialPage({ searchParams }: { searchParams: Promi
   const drafts = posts.filter((p) => p.status === "draft");
   const history = posts.filter((p) => ["posted", "partial", "failed", "publishing"].includes(p.status));
 
-  // Group scheduled by day for the agenda/calendar.
+  // Group scheduled by day for the agenda. Rendered on the server, so the day
+  // (and the times inside PostCard) must be read in the workspace's posting
+  // timezone — Railway is UTC, and an evening post would otherwise sit under
+  // tomorrow's heading. The calendar solves the same problem in the browser.
   const byDay = new Map<string, typeof scheduled>();
   for (const p of scheduled) {
-    const day = p.scheduledAt!.toLocaleDateString("en-GB", { weekday: "long", day: "2-digit", month: "short" });
+    const day = p.scheduledAt!.toLocaleDateString("en-GB", {
+      timeZone: queue.timeZone, weekday: "long", day: "2-digit", month: "short",
+    });
     (byDay.get(day) ?? byDay.set(day, []).get(day)!).push(p);
   }
 
@@ -86,7 +100,15 @@ export default async function SocialPage({ searchParams }: { searchParams: Promi
       {ok && <Banner kind="ok" text={ok} />}
       {err && <Banner kind="err" text={err} />}
 
-      <SocialComposer accounts={accounts} topics={topics} />
+      <SocialComposer accounts={accounts} topics={topics} queue={{ nextFree: nextFreeLabel, hasSlots }} />
+
+      <PostingSchedule
+        slots={queue.slots}
+        timeZone={queue.timeZone}
+        timeZoneConfigured={queue.timeZoneConfigured}
+        canEdit={canAdmin(membership.role)}
+        nextFree={nextFreeLabel}
+      />
 
       {/* Link tagging — makes social traffic attributable in GA4, which is what
           lets Insights tell LinkedIn clicks apart from X clicks. */}
@@ -125,9 +147,17 @@ export default async function SocialPage({ searchParams }: { searchParams: Promi
       </details>
 
       {/* View toggle — calendar (default) or the original agenda. */}
-      <div className="flex items-center gap-2 mb-3">
+      <div className="flex items-center gap-2 mb-3 flex-wrap">
         <Link href="/social?view=calendar" className={`btn sm ${mode === "calendar" ? "primary" : ""}`}>Calendar</Link>
         <Link href="/social?view=agenda" className={`btn sm ${mode === "agenda" ? "primary" : ""}`}>Agenda</Link>
+        <span className="flex-1" />
+        {drafts.length > 0 && hasSlots && (
+          <form action={queueAllDraftsAction}>
+            <SubmitButton className="btn sm" pendingText="Queueing…" title="Fill the free slots with drafts, oldest first">
+              <ListPlus className="w-3.5 h-3.5" /> Queue all {drafts.length} draft{drafts.length === 1 ? "" : "s"}
+            </SubmitButton>
+          </form>
+        )}
       </div>
 
       {mode === "calendar" && (
@@ -139,6 +169,7 @@ export default async function SocialPage({ searchParams }: { searchParams: Promi
             providers: [...new Set(p.targets.map((t) => t.provider.toUpperCase()))],
             status: p.status,
           }))}
+          freeSlots={freeSlotIso}
         />
       )}
 
@@ -152,7 +183,7 @@ export default async function SocialPage({ searchParams }: { searchParams: Promi
           <div key={day} className="mb-4">
             <div className="text-[11px] font-mono uppercase tracking-wider text-[var(--mute)] mb-2">{day}</div>
             <div className="flex flex-col gap-2">
-              {items.map((p) => <PostCard key={p.id} post={p} />)}
+              {items.map((p) => <PostCard key={p.id} post={p} canQueue={hasSlots} timeZone={queue.timeZone} />)}
             </div>
           </div>
         ))
@@ -161,7 +192,7 @@ export default async function SocialPage({ searchParams }: { searchParams: Promi
       {drafts.length > 0 && (
         <>
           <Section icon={<Clock className="w-4 h-4" style={{ color: "var(--mute)" }} />} title="Drafts" count={drafts.length} />
-          <div className="flex flex-col gap-2 mb-6">{drafts.map((p) => <PostCard key={p.id} post={p} />)}</div>
+          <div className="flex flex-col gap-2 mb-6">{drafts.map((p) => <PostCard key={p.id} post={p} canQueue={hasSlots} timeZone={queue.timeZone} />)}</div>
         </>
       )}
 
@@ -171,7 +202,7 @@ export default async function SocialPage({ searchParams }: { searchParams: Promi
       {history.length === 0 ? (
         <Empty text="Posts you publish appear here with per-network status." />
       ) : (
-        <div className="flex flex-col gap-2">{history.map((p) => <PostCard key={p.id} post={p} />)}</div>
+        <div className="flex flex-col gap-2">{history.map((p) => <PostCard key={p.id} post={p} timeZone={queue.timeZone} />)}</div>
       )}
     </div>
   );
@@ -199,10 +230,11 @@ function countKeys(raw: string | null): number {
   }
 }
 
-function PostCard({ post }: { post: PostRow }) {
+function PostCard({ post, canQueue = false, timeZone }: { post: PostRow; canQueue?: boolean; timeZone: string }) {
   const s = STATUS_STYLE[post.status] ?? STATUS_STYLE.draft;
   const when = post.scheduledAt ?? post.publishedAt;
   const canRetry = post.status === "failed" || post.status === "partial";
+  const unsent = post.status === "draft" || post.status === "scheduled";
   return (
     <div className="card">
       <div className="flex items-center gap-2 flex-wrap mb-1.5">
@@ -214,11 +246,22 @@ function PostCard({ post }: { post: PostRow }) {
         )}
         {when && (
           <span className="font-mono text-[11px] text-[var(--mute)]">
-            {post.scheduledAt ? "for " : "at "}{when.toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
+            {post.scheduledAt ? "for " : "at "}
+            {when.toLocaleString("en-GB", { timeZone, day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
           </span>
         )}
         <span className="flex-1" />
-        {(post.status === "draft" || post.status === "scheduled") && (
+        {/* Queue = the schedule picks the time. Always available without a
+            drag, which is what keeps calendar DnD an enhancement. */}
+        {unsent && canQueue && (
+          <form action={queueSocialPostAction}>
+            <input type="hidden" name="id" value={post.id} />
+            <button className="btn sm" title="Move to the next free slot on the posting schedule">
+              <ListPlus className="w-3.5 h-3.5" /> Queue
+            </button>
+          </form>
+        )}
+        {unsent && (
           <form action={publishNowAction}>
             <input type="hidden" name="id" value={post.id} />
             <button className="btn sm" title="Publish immediately"><Send className="w-3.5 h-3.5" /> Post now</button>
@@ -236,7 +279,7 @@ function PostCard({ post }: { post: PostRow }) {
             <button className="btn sm" title="Move to drafts">Cancel</button>
           </form>
         )}
-        {(post.status === "draft" || post.status === "scheduled") && (
+        {unsent && (
           <Link href={`/social/${post.id}/edit`} className="btn sm" title="Edit text, targets, schedule">
             <Pencil className="w-3.5 h-3.5" /> Edit
           </Link>

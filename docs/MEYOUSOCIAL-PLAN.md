@@ -957,3 +957,97 @@ that isn't `draft|scheduled` — a sent post can't be dragged into a lie.
 
 **Not exercised:** with no Unipile accounts connected there are no posts to place
 on the grid, so the DnD path is code-verified only.
+
+## Social: posting schedule + queue slots (shipped 2026-07-25)
+
+Buffer's core loop, and the natural follow-on from the calendar: define recurring
+slots ("09:00 Mon–Fri"), then **"Add to queue"** drops a post into the next free
+one. The common case stops needing a date picker at all.
+
+### The timezone problem, and why it shapes the schema
+
+A slot is stored as **wall clock** — `weekday` (0–6, `Date#getDay()`) plus
+`minute` past local midnight — never as an instant. Two reasons, both load-bearing:
+
+1. **"09:00 every Tuesday" must stay 09:00 across a DST change.** Storing an
+   instant and adding 7 days drifts by an hour twice a year.
+2. **Railway runs in UTC and the user doesn't.** The server's own
+   `new Date(y, m, d, 9)` is simply the wrong answer, off by the user's offset.
+
+So the schedule needs an anchor: **`WorkspaceSetting social:timezone`** (IANA).
+Unset falls back to UTC, and the editor says so in amber rather than pretending —
+`resolveTimeZone()` reports `configured` separately precisely so that a workspace
+that *deliberately* picked UTC isn't nagged. The zone can't be auto-detected
+server-side, so `PostingSchedule` reads the browser's
+`Intl.DateTimeFormat().resolvedOptions().timeZone`, offers it, and makes saving
+it an explicit act.
+
+**`src/lib/social/slots.ts` is the only place allowed to convert wall clock to an
+instant.** `zonedTimeToUtc()` samples the zone's offset via
+`Intl.DateTimeFormat` `formatToParts` and runs **two passes** — the first offset
+guess can be taken from the wrong side of a DST boundary, the second re-samples
+at the guess and corrects it. Uses `hourCycle: "h23"`, not `hour12: false`: the
+latter emits hour `"24"` on some ICU builds, which silently shifts the day.
+
+This is the **mirror image** of the calendar's rule, and the pair should be read
+together: **resolution** maths runs on the server (which knows the *workspace's*
+zone), **display** maths runs in the browser (which knows the *viewer's* zone).
+Neither may ever use the server's own local zone. Free slots are therefore
+resolved server-side and handed to `SocialCalendar` as ISO strings, which buckets
+them by local day exactly as it already does posts.
+
+### Behaviour
+
+- **Model `PostingSlot`** (migration `20260725040000_posting_slots`), unique on
+  `[workspaceId, weekday, minute]` — a duplicate would mean two slots claiming
+  one instant, which the queue counts as one.
+- **A slot is "taken"** if any `scheduled|publishing` post sits in that minute,
+  however it got there — queued, dragged, or typed by hand. Minute granularity,
+  so a hand-typed 09:00:30 doesn't block the 09:00 slot.
+- **Slots can be paused** rather than deleted. Pausing does **not** unschedule
+  posts already placed in that slot — they were scheduled, and silently
+  retracting them would misrepresent what's going out.
+- **`claimNextFreeSlot(wsId, excludePostId?)`** returns `no-slots` or `full`
+  rather than inventing a time. `excludePostId` lets a post being re-queued
+  ignore the slot it already holds instead of being bumped down the line.
+- **"Queue all drafts"** fills free slots oldest-draft-first and reports partial
+  success honestly ("Queued 6. 3 didn't fit — add more slots") rather than
+  refusing the whole batch.
+- **Editing the schedule is ADMIN** (it changes when *everyone's* posts go out,
+  so it sits with the other workspace config); **using the queue is EDITOR**,
+  like every other way of scheduling.
+- **Horizon is 120 days.** Beyond that the queue reports full.
+- Calendar renders free slots as **dashed ghost chips**; dropping onto one takes
+  that slot's *exact* time (the day cell underneath would only give the post's
+  existing time, or 09:00). Ghost drop is an **enhancement** — the accessible
+  path to the identical result is the **Queue** button on every unsent post.
+
+### Fixed in passing (same bug class, now that a zone exists)
+
+Server-rendered times on `/social` and the edit page were formatted with
+`toLocaleString()` — i.e. **Railway's UTC clock**, not the reader's. The agenda's
+day grouping, `PostCard`'s times and the edit page's "Scheduled for…" line now
+pass `timeZone`. `ComposerInitial.scheduledAt` (a pre-formatted local string
+built on the server) became **`scheduledAtIso`**, converted to a
+`datetime-local` value in the browser — the edit form was pre-filling the wrong
+wall clock for any non-UTC user.
+
+### Verification honesty
+
+- The timezone maths is the risky part and is **proven by 45 fixtures**: fixed
+  offsets (London/New York/Kolkata/Sydney, both hemispheres' DST directions),
+  both UK transitions *and* the US ones that fall on different dates, the
+  **skipped** hour (resolves past the jump, doesn't throw) and the **ambiguous**
+  hour (lands on one of the two real instants), local-vs-UTC weekday selection
+  (a Sydney Monday slot at 22:00Z Monday correctly offers *next* Monday), and a
+  weekly slot holding 09:00 across fall-back.
+- `tsc --noEmit` clean, `npm run build` compiles.
+- **NOT verified:** anything needing the live app — creating slots against the
+  real DB, the queue actions end-to-end, and the ghost-slot drag. Same root
+  blocker as the rest of the social work: **no Unipile account is connected**, so
+  there are no real posts to queue. The composer's "Add to queue" radio only
+  appears when accounts exist.
+- **Concurrency:** two simultaneous queue requests could claim the same slot
+  (read-then-write, no lock). Consistent with the existing single-replica
+  assumption already documented for the sweeps; a second replica would need the
+  same Redis lock those need.

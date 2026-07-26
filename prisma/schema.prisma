@@ -49,6 +49,7 @@ model Workspace {
   settings        WorkspaceSetting[]
   unipileAccounts UnipileAccount[]
   socialPosts     SocialPost[]
+  postingSlots    PostingSlot[]
   topics          Topic[]
 }
 
@@ -1334,6 +1335,31 @@ model SocialPostTarget {
   post SocialPost @relation(fields: [postId], references: [id], onDelete: Cascade)
 
   @@index([postId])
+}
+
+// A recurring publishing slot — "Tue 09:00" — in the workspace's posting
+// timezone (WorkspaceSetting `social:timezone`). Together the slots form the
+// posting schedule: "add to queue" drops a post into the next free one instead
+// of making the author pick a datetime.
+//
+// Deliberately stores WALL CLOCK (weekday + minutes past local midnight), not
+// an instant: "09:00 every Tuesday" must stay 09:00 across a DST change. The
+// conversion to a real UTC instant happens in src/lib/social/slots.ts, which is
+// the only place allowed to do it.
+model PostingSlot {
+  id          String   @id @default(cuid())
+  workspaceId String
+  weekday     Int      // 0 = Sunday … 6 = Saturday, matching Date#getDay()
+  minute      Int      // minutes past local midnight, 0…1439
+  enabled     Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  // One slot per weekday+time per workspace — a duplicate would mean two posts
+  // claiming the same instant, which the queue treats as one.
+  @@unique([workspaceId, weekday, minute])
+  @@index([workspaceId])
 }
 
 // Workspace topics/themes — the subjects this company publishes about. Feeds

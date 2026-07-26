@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import { storage } from "@/lib/storage";
 import { writeJson, readJson } from "@/lib/db/json";
 import { publishSocialPost } from "@/lib/social/publish";
+import { claimNextFreeSlot, formatInZone, getPostingTimeZone, queueFailureMessage } from "@/lib/social/slots";
 
 // Social scheduler actions. A post fans out to one or more connected social
 // accounts (Unipile), either now or at a scheduled time. Media is optional and
@@ -68,6 +69,13 @@ export async function createSocialPostAction(formData: FormData) {
     if (t.getTime() < Date.now() - 60_000) backTo("Scheduled time must be in the future.");
     scheduledAt = t;
     status = "scheduled";
+  } else if (when === "queue") {
+    // Next free slot on the workspace's posting schedule. Refuses rather than
+    // inventing a time — a queue with no schedule has nowhere to put this.
+    const claim = await claimNextFreeSlot(workspace.id);
+    if ("error" in claim) backTo(queueFailureMessage(claim.error));
+    scheduledAt = claim.at;
+    status = "scheduled";
   } else {
     status = "publishing"; // publish immediately below
   }
@@ -109,13 +117,18 @@ export async function createSocialPostAction(formData: FormData) {
     },
   });
 
-  if (when !== "schedule") {
+  if (status === "publishing") {
     await publishSocialPost(post.id);
     revalidatePath("/social");
     backTo("Post sent — check the queue for per-network status.", "ok");
   }
   revalidatePath("/social");
-  backTo("Scheduled.", "ok");
+  backTo(
+    when === "queue"
+      ? `Queued for ${formatInZone(scheduledAt!, await getPostingTimeZone(workspace.id))}.`
+      : "Scheduled.",
+    "ok",
+  );
 }
 
 export async function publishNowAction(formData: FormData) {
@@ -215,7 +228,7 @@ export async function updateSocialPostAction(formData: FormData) {
     topicId = topic?.id ?? null;
   }
 
-  // Schedule: keep as draft, or (re)schedule to a future time.
+  // Schedule: keep as draft, (re)schedule to a future time, or take a slot.
   const when = String(formData.get("when") ?? "draft");
   let scheduledAt: Date | null = null;
   let status = "draft";
@@ -225,6 +238,13 @@ export async function updateSocialPostAction(formData: FormData) {
     if (!t || Number.isNaN(t.getTime())) backTo("Enter a valid date and time to schedule.");
     if (t.getTime() < Date.now() - 60_000) backTo("Scheduled time must be in the future.");
     scheduledAt = t;
+    status = "scheduled";
+  } else if (when === "queue") {
+    // Excludes this post's own slot, so re-queueing an already-queued post can
+    // keep the slot it's in rather than being pushed to the back of the line.
+    const claim = await claimNextFreeSlot(workspace.id, post!.id);
+    if ("error" in claim) backTo(queueFailureMessage(claim.error));
+    scheduledAt = claim.at;
     status = "scheduled";
   }
 
@@ -284,7 +304,12 @@ export async function updateSocialPostAction(formData: FormData) {
   });
 
   revalidatePath("/social");
-  backTo(status === "scheduled" ? "Saved and scheduled." : "Saved as a draft.", "ok");
+  backTo(
+    when === "queue"
+      ? `Saved and queued for ${formatInZone(scheduledAt!, await getPostingTimeZone(workspace.id))}.`
+      : status === "scheduled" ? "Saved and scheduled." : "Saved as a draft.",
+    "ok",
+  );
 }
 
 /** Scheduled → draft, without losing the content. */

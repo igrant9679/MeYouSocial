@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import { Send, CalendarClock, ImagePlus, X, Pencil, RotateCcw, Tags, Plus } from "lucide-react";
+import { Send, CalendarClock, ImagePlus, X, Pencil, RotateCcw, Tags, Plus, ListPlus } from "lucide-react";
 import { SubmitButton } from "@/components/SubmitButton";
 import { createSocialPostAction, updateSocialPostAction } from "@/app/actions/social";
 import { networkFor } from "@/lib/social/networks";
@@ -14,12 +14,22 @@ export type ComposerInitial = {
   id: string;
   text: string;
   topicId: string | null;
-  scheduledAt: string | null; // value for <input type="datetime-local">
+  /** ISO instant. Converted to a `datetime-local` value HERE, in the browser —
+   *  formatting it on the server would print Railway's UTC wall clock. */
+  scheduledAtIso: string | null;
   accountIds: string[];
   /** Per-provider text overrides already saved on the post. */
   variants: Record<string, string>;
   /** How many images the post already has (per base / per provider). */
   existingMedia: number;
+};
+
+/** State of the workspace's posting schedule, for the "Add to queue" option. */
+export type ComposerQueue = {
+  /** The next free slot, already formatted in the workspace's posting zone. */
+  nextFree: string | null;
+  /** Whether a schedule exists at all — distinguishes "no slots" from "all full". */
+  hasSlots: boolean;
 };
 
 // Buffer/Hootsuite-style composer: pick accounts, write a base post once, then
@@ -34,14 +44,24 @@ function syncInput(input: HTMLInputElement | null, files: File[]) {
   input.files = dt.files;
 }
 
+/** ISO instant → the `datetime-local` value for the viewer's own clock. */
+function toLocalInput(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 export function SocialComposer({
   accounts,
   topics = [],
   initial,
+  queue,
 }: {
   accounts: ComposerAccount[];
   topics?: ComposerTopic[];
   initial?: ComposerInitial;
+  queue?: ComposerQueue;
 }) {
   // Editing reuses this component wholesale rather than a parallel form — a
   // second implementation would drift from the composer's per-network rules.
@@ -53,8 +73,8 @@ export function SocialComposer({
   const [topicId, setTopicId] = useState(initial?.topicId ?? "");
   const [variants, setVariants] = useState<Record<string, string>>(initial?.variants ?? {});
   const [customizing, setCustomizing] = useState<Set<string>>(new Set(Object.keys(initial?.variants ?? {})));
-  const [when, setWhen] = useState<"now" | "schedule" | "draft">(
-    initial ? (initial.scheduledAt ? "schedule" : "draft") : "now",
+  const [when, setWhen] = useState<"now" | "schedule" | "draft" | "queue">(
+    initial ? (initial.scheduledAtIso ? "schedule" : "draft") : "now",
   );
   const [clearMedia, setClearMedia] = useState(false);
   const [files, setFiles] = useState<File[]>([]);
@@ -289,11 +309,25 @@ export function SocialComposer({
             </label>
           </>
         )}
+        {/* Add to queue — offered only when there IS a free slot to take, so the
+            option never promises a time the schedule can't supply. */}
+        {queue?.nextFree && (
+          <label className="inline-flex items-center gap-1.5 text-sm cursor-pointer">
+            <input type="radio" name="when" value="queue" checked={when === "queue"} onChange={() => setWhen("queue")} />
+            Add to queue
+            <span className="font-mono text-[11px] text-[var(--mute)]">{queue.nextFree}</span>
+          </label>
+        )}
+        {queue && !queue.nextFree && queue.hasSlots && (
+          <span className="text-[11px]" style={{ color: "var(--amber-on)" }}>
+            Queue full — every slot ahead is taken.
+          </span>
+        )}
         {when === "schedule" && (
           <input
             type="datetime-local"
             name="scheduledAt"
-            defaultValue={initial?.scheduledAt ?? undefined}
+            defaultValue={initial?.scheduledAtIso ? toLocalInput(initial.scheduledAtIso) : undefined}
             className="border border-[var(--line-2)] rounded-lg p-1.5 text-sm font-mono"
           />
         )}
@@ -301,10 +335,12 @@ export function SocialComposer({
         <SubmitButton
           className="btn primary"
           disabled={selected.size === 0 || anyOver}
-          pendingText={editing ? "Saving…" : when === "schedule" ? "Scheduling…" : "Posting…"}
+          pendingText={editing ? "Saving…" : when === "queue" ? "Queueing…" : when === "schedule" ? "Scheduling…" : "Posting…"}
         >
           {editing ? (
             <><Pencil className="w-4 h-4" /> Save changes</>
+          ) : when === "queue" ? (
+            <><ListPlus className="w-4 h-4" /> Add to queue</>
           ) : when === "schedule" ? (
             <><CalendarClock className="w-4 h-4" /> Schedule</>
           ) : (

@@ -5,6 +5,7 @@ import { requireRole } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { readJson } from "@/lib/db/json";
 import { SocialComposer, type ComposerInitial } from "@/components/SocialComposer";
+import { formatInZone, getQueue } from "@/lib/social/slots";
 
 // Editing an unsent post. Reuses the composer wholesale so per-network rules
 // (char limits, variants, per-network images) behave identically to composing.
@@ -13,12 +14,6 @@ import { SocialComposer, type ComposerInitial } from "@/components/SocialCompose
 // history and must keep saying what actually went out.
 
 const EDITABLE = new Set(["draft", "scheduled"]);
-
-/** `datetime-local` wants local wall-clock, not an ISO/UTC string. */
-function toLocalInput(d: Date): string {
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
 
 export default async function EditSocialPostPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -53,11 +48,18 @@ export default async function EditSocialPostPage({ params }: { params: Promise<{
     id: post.id,
     text: post.text,
     topicId: post.topicId,
-    scheduledAt: post.scheduledAt ? toLocalInput(post.scheduledAt) : null,
+    // ISO, not a formatted wall clock: the composer converts it in the browser.
+    // Formatting here would print Railway's UTC clock, not the author's.
+    scheduledAtIso: post.scheduledAt ? post.scheduledAt.toISOString() : null,
     accountIds: selectedIds,
     variants,
     existingMedia: readJson<string[]>(post.mediaKeys, []).length,
   };
+
+  // Re-queueing ignores this post's own slot, so "Add to queue" on an already
+  // queued post offers the slot it's in rather than bumping it down the line.
+  const queue = await getQueue(workspace.id, { excludePostId: post.id, limit: 60 });
+  const nextFree = queue.free[0] ? formatInZone(queue.free[0], queue.timeZone) : null;
 
   const droppedTargets = post.targets.length - selectedIds.length;
 
@@ -75,7 +77,7 @@ export default async function EditSocialPostPage({ params }: { params: Promise<{
           <h1 className="font-mono font-bold text-xl leading-tight">Edit post</h1>
           <p className="text-xs text-[var(--mute)]">
             {post.status === "scheduled" && post.scheduledAt
-              ? `Scheduled for ${post.scheduledAt.toLocaleString("en-GB")}. Saving keeps it scheduled unless you switch it back to a draft.`
+              ? `Scheduled for ${formatInZone(post.scheduledAt, queue.timeZone)} (${queue.timeZone}). Saving keeps it scheduled unless you switch it back to a draft.`
               : "This is a draft. Saving won't send it — publishing stays an explicit act from the queue."}
           </p>
         </div>
@@ -95,7 +97,12 @@ export default async function EditSocialPostPage({ params }: { params: Promise<{
           <Link href="/admin/connections" className="underline">Admin → Connections</Link> before editing targets.
         </div>
       ) : (
-        <SocialComposer accounts={accounts} topics={topicRows.map((t) => ({ id: t.id, name: t.name, keywords: readJson<string[]>(t.keywords, []) }))} initial={initial} />
+        <SocialComposer
+          accounts={accounts}
+          topics={topicRows.map((t) => ({ id: t.id, name: t.name, keywords: readJson<string[]>(t.keywords, []) }))}
+          initial={initial}
+          queue={{ nextFree, hasSlots: queue.slots.some((s) => s.enabled) }}
+        />
       )}
     </main>
   );
