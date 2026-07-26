@@ -208,3 +208,40 @@ export async function createPostViaUnipile(opts: {
   const data = (await res.json().catch(() => ({}))) as { id?: string; post_id?: string };
   return data.id ?? data.post_id ?? "posted";
 }
+
+/**
+ * Fetch one published post back, for its engagement counts.
+ *
+ * ⚠ The endpoint and response shape are UNVERIFIED against a live account —
+ * there is no connected Unipile account on this deployment, so this was written
+ * from the shape of the posting endpoint above (`/api/v1/posts`, `account_id`
+ * as a parameter, `X-API-KEY`) rather than from an observed reply. Two
+ * consequences deliberately built in:
+ *
+ *   • the caller gets the RAW payload and maps it with `parseSocialStats`,
+ *     which tolerates many field spellings and reports what it didn't
+ *     recognise — so a shape mismatch shows up as a diagnostic, not as silence;
+ *   • a 404/405 is returned as `null` rather than thrown, so one wrong guess
+ *     about the path can't take down the whole sweep.
+ *
+ * If the path turns out to be wrong, this function is the only thing to change.
+ */
+export async function getPostViaUnipile(opts: {
+  postId: string;
+  accountId: string;
+}): Promise<{ ok: true; payload: unknown } | { ok: false; status: number; detail: string }> {
+  const qs = new URLSearchParams({ account_id: opts.accountId });
+  let res: Response;
+  try {
+    res = await unipileFetch(`/api/v1/posts/${encodeURIComponent(opts.postId)}?${qs}`);
+  } catch (e) {
+    return { ok: false, status: 0, detail: e instanceof Error ? e.message : "request failed" };
+  }
+  if (!res.ok) {
+    const detail = await res.text().catch(() => "");
+    return { ok: false, status: res.status, detail: detail.slice(0, 300) };
+  }
+  const payload = await res.json().catch(() => null);
+  if (payload === null) return { ok: false, status: res.status, detail: "response was not JSON" };
+  return { ok: true, payload };
+}

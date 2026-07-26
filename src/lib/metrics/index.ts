@@ -411,6 +411,73 @@ export async function collectPerformance(workspaceId: string, range: MetricsRang
   ];
 }
 
+/**
+ * Social engagement, from the pullback.
+ *
+ * Reads through `readingsForWorkspace`, which collapses each target's
+ * cumulative snapshots to its LATEST reading before summing — see the header of
+ * src/lib/social/performance.ts. Never sum SocialSnapshot rows directly here.
+ *
+ * The window means "posts SENT in this window", not "engagement earned in this
+ * window": a lifetime counter can't answer the latter. Every evidence string
+ * below says so, because the same figure under the blog's per-day heading would
+ * mean something different.
+ */
+export async function collectSocialPerformance(workspaceId: string, range: MetricsRange): Promise<Metric[]> {
+  const { readingsForWorkspace } = await import("@/lib/social/performance");
+  const readings = await readingsForWorkspace(workspaceId, range.since);
+
+  if (!readings.length) {
+    // Distinguish "nothing was sent" from "sent, but nothing measured" — they
+    // call for completely different actions from the operator.
+    const sent = await db.socialPostTarget.count({
+      where: { status: "posted", postedAt: { gte: range.since }, post: { workspaceId } },
+    });
+    const note = sent
+      ? `${sent} post${sent === 1 ? " was" : "s were"} sent in the ${range.label} but no engagement has been pulled back yet — check Unipile under Admin → Connections.`
+      : `Nothing was posted to social in the ${range.label}.`;
+    return [
+      metric("social_impressions", "Social impressions", null, "count", 0, note, "social"),
+      metric("social_engagement", "Social engagements", null, "count", 0, note, "social"),
+      metric("social_engagement_rate", "Engagement rate", null, "percent", 0, note, "social"),
+      metric("social_clicks", "Social link clicks", null, "count", 0, note, "social"),
+    ];
+  }
+
+  const sum = (pick: (r: (typeof readings)[number]) => number | null) => {
+    const vals = readings.map(pick).filter((v): v is number => v !== null);
+    return vals.length ? { total: vals.reduce((a, b) => a + b, 0), n: vals.length } : null;
+  };
+  const impressions = sum((r) => r.stats.impressions);
+  const engagement = sum((r) => r.engagement);
+  const clicks = sum((r) => r.stats.clicks);
+  const basis = (n: number) =>
+    `Lifetime totals for ${n} of ${readings.length} sent post${readings.length === 1 ? "" : "s"} from the ${range.label}, as last pulled from the network.`;
+  const missing = "The networks connected here didn't report this figure.";
+
+  // The rate is computed only over targets reporting BOTH halves — mixing a
+  // network that reports impressions with one that doesn't would understate it.
+  const bothReported = readings.filter((r) => r.stats.impressions !== null && r.engagement !== null);
+  const rateImpressions = bothReported.reduce((a, r) => a + (r.stats.impressions ?? 0), 0);
+  const rateEngagement = bothReported.reduce((a, r) => a + (r.engagement ?? 0), 0);
+
+  return [
+    metric("social_impressions", "Social impressions", impressions?.total ?? null, "count",
+      impressions?.n ?? 0, impressions ? basis(impressions.n) : missing, "social"),
+    metric("social_engagement", "Social engagements", engagement?.total ?? null, "count",
+      engagement?.n ?? 0, engagement ? `${basis(engagement.n)} Likes, comments and shares combined.` : missing, "social"),
+    metric("social_engagement_rate", "Engagement rate",
+      rateImpressions > 0 ? Math.round((rateEngagement / rateImpressions) * 1000) / 10 : null,
+      "percent", bothReported.length,
+      rateImpressions > 0
+        ? `${rateEngagement} engagements against ${rateImpressions} impressions, over the ${bothReported.length} post${bothReported.length === 1 ? "" : "s"} reporting both.`
+        : "No connected network reported impressions, so a rate can't be computed.",
+      "social"),
+    metric("social_clicks", "Social link clicks", clicks?.total ?? null, "count",
+      clicks?.n ?? 0, clicks ? basis(clicks.n) : missing, "social"),
+  ];
+}
+
 // ── Per-topic breakdown ──────────────────────────────────────────────────────
 
 export type TopicPerformance = {
@@ -477,7 +544,7 @@ export type WorkspaceMetrics = {
 
 export async function collectWorkspaceMetrics(workspaceId: string, days = 90): Promise<WorkspaceMetrics> {
   const range = rangeForDays(days);
-  const [funnel, cycle, cadence, follow, wip, ai, perf, topics] = await Promise.all([
+  const [funnel, cycle, cadence, follow, wip, ai, perf, social, topics] = await Promise.all([
     collectFunnel(workspaceId, range),
     collectCycleTime(workspaceId, range),
     collectCadence(workspaceId),
@@ -485,10 +552,11 @@ export async function collectWorkspaceMetrics(workspaceId: string, days = 90): P
     collectWip(workspaceId),
     collectAiVolume(workspaceId, range),
     collectPerformance(workspaceId, range),
+    collectSocialPerformance(workspaceId, range),
     collectTopicPerformance(workspaceId, range),
   ]);
 
-  const metrics = [...funnel.metrics, ...cycle, ...cadence.metrics, ...follow, ...wip.metrics, ...ai, ...perf];
+  const metrics = [...funnel.metrics, ...cycle, ...cadence.metrics, ...follow, ...wip.metrics, ...ai, ...perf, ...social];
   const empty = metrics.every((m) => m.value === null || m.value === 0) && !funnel.stages.some((s) => s.count > 0);
 
   return { range, funnel: funnel.stages, cadence: cadence.points, wip: wip.buckets, topics, metrics, empty };

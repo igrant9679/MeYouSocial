@@ -101,6 +101,24 @@ export async function savePostingTimeZoneAction(formData: FormData) {
   backTo(`Posting times are now read in ${tz}.`, "ok");
 }
 
+// ---- Performance ---------------------------------------------------------------
+
+/**
+ * Pull engagement for this workspace now, rather than waiting for the sweep.
+ *
+ * Reports the outcome verbatim — including "polled N but read nothing usable",
+ * which is the message that matters most on a first run, because it's how a
+ * field-name mismatch in the stats mapper becomes visible instead of silent.
+ */
+export async function syncSocialPerformanceAction() {
+  const { workspace } = await requireRole("EDITOR");
+  const { syncWorkspaceSocialPerformance } = await import("@/lib/social/performance");
+  const out = await syncWorkspaceSocialPerformance(workspace.id);
+  revalidatePath("/social");
+  revalidatePath("/insights");
+  backTo(out.message, out.rowsWritten > 0 || out.skipped || out.targetsPolled === 0 ? "ok" : "err");
+}
+
 // ---- Using the queue -----------------------------------------------------------
 
 /** Drop one post into the next free slot. */

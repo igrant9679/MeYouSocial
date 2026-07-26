@@ -90,6 +90,20 @@ export async function register() {
     } catch (e) {
       console.error("[analytics] sync failed:", e instanceof Error ? e.message : e);
     }
+    // Social engagement rides the same cadence rather than taking a fifth
+    // timer: it's the same job (pull external performance in, feed the spine),
+    // and every extra timer is another thing that double-fires the day a second
+    // replica appears. Isolated in its own try so a Unipile outage can't stop
+    // the GSC/GA4 half from having run.
+    try {
+      const { syncAllWorkspacesSocialPerformance } = await import("@/lib/social/performance");
+      const { workspaces, rowsWritten } = await syncAllWorkspacesSocialPerformance();
+      if (rowsWritten > 0) {
+        console.log(`[social-perf] pulled ${rowsWritten} engagement row(s) across ${workspaces} workspace(s)`);
+      }
+    } catch (e) {
+      console.error("[social-perf] sync failed:", e instanceof Error ? e.message : e);
+    }
   };
   setTimeout(analyticsSweep, 5 * 60 * 1000);
   globals.__analyticsTimer = setInterval(analyticsSweep, syncMin * 60 * 1000);

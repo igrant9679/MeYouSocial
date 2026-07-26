@@ -2,6 +2,8 @@ import Link from "next/link";
 import { LineChart, TrendingUp, Info, Lightbulb, CheckCircle2, AlertTriangle, RefreshCw } from "lucide-react";
 import { requireMembership, canEdit } from "@/lib/acl";
 import { collectWorkspaceMetrics, type Metric, type Confidence } from "@/lib/metrics";
+import { readingsForWorkspace, byNetwork } from "@/lib/social/performance";
+import { networkFor } from "@/lib/social/networks";
 import { openRecommendations, recentlyResolved, parseEvidence } from "@/lib/recommendations";
 import { SubmitButton } from "@/components/SubmitButton";
 import {
@@ -76,11 +78,13 @@ export default async function InsightsPage({
   const { workspace, membership } = await requireMembership();
   const { ok, err } = await searchParams;
   const editor = canEdit(membership.role);
-  const [data, recs, resolved] = await Promise.all([
+  const [data, recs, resolved, socialReadings] = await Promise.all([
     collectWorkspaceMetrics(workspace.id, RANGE_DAYS),
     openRecommendations(workspace.id),
     recentlyResolved(workspace.id),
+    readingsForWorkspace(workspace.id, new Date(Date.now() - RANGE_DAYS * 86_400_000)),
   ]);
+  const networks = byNetwork(socialReadings);
 
   const byKey = new Map(data.metrics.map((m) => [m.key, m]));
   const pick = (...keys: string[]) => keys.map((k) => byKey.get(k)).filter((m): m is Metric => Boolean(m));
@@ -89,6 +93,8 @@ export default async function InsightsPage({
   const momentum = pick("weekly_cadence", "cadence_trend", "wip_open", "wip_stalled");
   const distribution = pick("social_follow_through", "video_follow_through", "ai_generations", "generations_per_publish");
   const performance = pick("search_clicks", "search_impressions", "avg_position", "sessions");
+  const social = pick("social_impressions", "social_engagement", "social_engagement_rate", "social_clicks");
+  const hasSocial = social.some((m) => m.value !== null);
 
   const maxFunnel = Math.max(1, ...data.funnel.map((s) => s.count));
   const maxWeek = Math.max(1, ...data.cadence.map((p) => p.published));
@@ -366,6 +372,69 @@ export default async function InsightsPage({
       <div className="grid grid-cols-1 @xl:grid-cols-2 @4xl:grid-cols-4 gap-3 mb-4">
         {performance.map((m) => <MetricCard key={m.key} m={m} />)}
       </div>
+
+      {/* Social performance — the distribution side of the same question */}
+      <h2 className="font-mono text-[13px] font-bold mb-2">Social performance</h2>
+      {!hasSocial && (
+        <div className="card mb-3 text-xs flex items-start gap-2" style={{ background: "var(--amber-soft)" }}>
+          <Info className="w-4 h-4 shrink-0 mt-0.5" style={{ color: "var(--amber-on)" }} />
+          <span>
+            No engagement pulled back yet. Connect a social account under{" "}
+            <Link href="/admin/connections" className="underline">Admin → Connections</Link>; once posts have gone out,
+            engagement is pulled in automatically and these fill in. Blank means unknown, not zero.
+          </span>
+        </div>
+      )}
+      <div className="grid grid-cols-1 @xl:grid-cols-2 @4xl:grid-cols-4 gap-3 mb-3">
+        {social.map((m) => <MetricCard key={m.key} m={m} />)}
+      </div>
+
+      {/* Per-network split — the reason UTM tagging separates the sources. */}
+      {networks.length > 0 && (
+        <div className="card mb-4 overflow-x-auto">
+          <h3 className="font-mono text-[11px] font-bold mb-2">By network</h3>
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)] text-left">
+                <th className="pb-1">Network</th>
+                <th className="pb-1 text-right">Posts</th>
+                <th className="pb-1 text-right">Impressions</th>
+                <th className="pb-1 text-right">Engagements</th>
+                <th className="pb-1 text-right">Rate</th>
+                <th className="pb-1 text-right">Clicks</th>
+              </tr>
+            </thead>
+            <tbody>
+              {networks.map((n) => {
+                const net = networkFor(n.provider);
+                // A dash is a fact here: the network didn't report it.
+                const cell = (v: number | null, suffix = "") =>
+                  v === null ? <span className="text-[var(--mute)]">—</span> : `${v.toLocaleString()}${suffix}`;
+                return (
+                  <tr key={n.provider} className="border-t border-[var(--line)]">
+                    <td className="py-1.5">
+                      <span className="inline-flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full" style={{ background: net?.color ?? "var(--mute)" }} />
+                        {net?.label ?? n.provider}
+                      </span>
+                    </td>
+                    <td className="text-right font-mono">{n.posts}</td>
+                    <td className="text-right font-mono">{cell(n.impressions)}</td>
+                    <td className="text-right font-mono">{cell(n.engagement)}</td>
+                    <td className="text-right font-mono">{cell(n.engagementRate, "%")}</td>
+                    <td className="text-right font-mono">{cell(n.clicks)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          <p className="text-[10px] text-[var(--mute)] mt-2">
+            Lifetime totals for posts sent in the last {RANGE_DAYS} days, as last pulled from each network — not
+            engagement earned within the window, which a lifetime counter can&apos;t tell us. A dash means the network
+            didn&apos;t report that figure.
+          </p>
+        </div>
+      )}
 
       <p className="text-[10px] text-[var(--mute)]">
         Every figure states where it came from. Rates and medians carry a confidence based on how many items produced

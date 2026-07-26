@@ -1332,9 +1332,49 @@ model SocialPostTarget {
   error           String?
   postedAt        DateTime?
 
-  post SocialPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  post      SocialPost       @relation(fields: [postId], references: [id], onDelete: Cascade)
+  snapshots SocialSnapshot[]
 
   @@index([postId])
+}
+
+// Engagement pulled back from the network for ONE posted target.
+//
+// ⚠ READ THIS BEFORE AGGREGATING. Unlike BlogSnapshot, these rows are
+// CUMULATIVE LIFETIME TOTALS, not per-day deltas. Search Console and GA4 are
+// queried with a date dimension and hand back "clicks on the 4th"; social APIs
+// hand back "this post has 412 likes" — the running total as of the moment we
+// asked. So:
+//
+//   • SUMMING a target's snapshots across days multiply-counts catastrophically
+//     (a post polled daily for a week would report ~7× its real engagement).
+//   • The correct aggregation is LATEST-PER-TARGET, then sum ACROSS targets.
+//     `latestPerTarget()` in src/lib/social/performance.ts is the only place
+//     that should do it.
+//
+// Deltas were considered and rejected: they need an unbroken chain of prior
+// snapshots, so one missed sync silently corrupts the series, whereas a
+// cumulative reading is self-describing and re-derivable at any time.
+model SocialSnapshot {
+  id          String   @id @default(cuid())
+  targetId    String
+  // UTC midnight of the day this reading was taken — one row per target per
+  // day, so re-running the sync refreshes today rather than appending.
+  capturedAt  DateTime
+  impressions Int?
+  likes       Int?
+  comments    Int?
+  shares      Int?
+  clicks      Int?
+  // unipile = pulled by the sync; manual = typed by an operator. The sync only
+  // ever rewrites its own rows.
+  source      String   @default("unipile")
+  createdAt   DateTime @default(now())
+
+  target SocialPostTarget @relation(fields: [targetId], references: [id], onDelete: Cascade)
+
+  @@unique([targetId, capturedAt])
+  @@index([targetId])
 }
 
 // A recurring publishing slot — "Tue 09:00" — in the workspace's posting

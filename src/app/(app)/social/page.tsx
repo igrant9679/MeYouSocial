@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Share2, CalendarClock, Send, Copy, Trash2, RotateCw, Check, X, Clock, Pencil, Image as ImageIcon, Tags, Link2 as LinkIcon, ListPlus } from "lucide-react";
+import { Share2, CalendarClock, Send, Copy, Trash2, RotateCw, Check, X, Clock, Pencil, Image as ImageIcon, Tags, Link2 as LinkIcon, ListPlus, BarChart3 } from "lucide-react";
 import { requireRole, canAdmin } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { readJson } from "@/lib/db/json";
@@ -10,7 +10,7 @@ import { SubmitButton } from "@/components/SubmitButton";
 import { getUtmConfig } from "@/lib/social/utm";
 import { formatInZone, getQueue } from "@/lib/social/slots";
 import { saveUtmSettingsAction } from "@/app/actions/social";
-import { queueSocialPostAction, queueAllDraftsAction } from "@/app/actions/social-slots";
+import { queueSocialPostAction, queueAllDraftsAction, syncSocialPerformanceAction } from "@/app/actions/social-slots";
 import { networkFor } from "@/lib/social/networks";
 import {
   publishNowAction,
@@ -198,7 +198,17 @@ export default async function SocialPage({ searchParams }: { searchParams: Promi
 
       </>)}
 
-      <Section icon={<Send className="w-4 h-4" style={{ color: "var(--green-on)" }} />} title="History" count={history.length} />
+      <div className="flex items-end gap-2 flex-wrap">
+        <Section icon={<Send className="w-4 h-4" style={{ color: "var(--green-on)" }} />} title="History" count={history.length} />
+        <span className="flex-1" />
+        {history.length > 0 && (
+          <form action={syncSocialPerformanceAction} className="mb-2">
+            <SubmitButton className="btn sm" pendingText="Pulling…" title="Pull likes, comments, shares and impressions back from each network">
+              <BarChart3 className="w-3.5 h-3.5" /> Pull engagement
+            </SubmitButton>
+          </form>
+        )}
+      </div>
       {history.length === 0 ? (
         <Empty text="Posts you publish appear here with per-network status." />
       ) : (
