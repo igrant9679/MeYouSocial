@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { Compass, X, ArrowRight, ArrowLeft, Check } from "lucide-react";
-import { markGuideStepsDoneAction, setGuideEnabledAction } from "@/app/actions/guide";
+import { markGuideStepsDoneAction, setGuideEnabledAction, snoozeGuideAction } from "@/app/actions/guide";
 
 /**
  * Elsie — LSI Media's in-app guide. ("L-S-I" said aloud is *el-ess-eye*.)
@@ -50,18 +50,33 @@ export function Elsie({
   steps,
   enabled,
   outstanding,
+  snoozed,
 }: {
   /** Already filtered server-side to what's relevant and not yet done. */
   steps: ElsieStep[];
   enabled: boolean;
   /** Outstanding setup steps — badges the button. */
   outstanding: number;
+  /** Dismissed earlier this session — she stays available but won't auto-open. */
+  snoozed: boolean;
 }) {
   const router = useRouter();
   const pathname = usePathname();
   const [index, setIndex] = useState(0);
-  // "Not now" hides the overlay without switching Elsie off.
-  const [dismissed, setDismissed] = useState(false);
+  // "Not now" hides the overlay without switching Elsie off. Seeded from the
+  // session snooze so a dismissal survives navigation — this component
+  // re-mounts constantly, and local state alone reset on every page change.
+  const [dismissed, setDismissed] = useState(snoozed);
+  /**
+   * Whether the CURRENT step was reached by the user pressing Next/Back.
+   *
+   * Gates navigation. Elsie used to `router.push` to a step's route whenever
+   * its anchor was missing — including on auto-open, which meant opening any
+   * page could yank you somewhere else entirely. Going to /ideas and landing on
+   * /admin/connections is not a guide, it's a hijack. She may now only navigate
+   * when you asked her to continue.
+   */
+  const userDriven = useRef(false);
   const [target, setTarget] = useState<Box | null>(null);
   const [placement, setPlacement] = useState<Placement>("bottom");
   const [tipPos, setTipPos] = useState<{ top: number; left: number } | null>(null);
@@ -131,7 +146,16 @@ export function Elsie({
       reposition();
       return;
     }
+    // Only ever navigate on an explicit Next/Back. On auto-open we stay put and
+    // fall through: if the anchor isn't here, the step renders as a centred
+    // card with its "take me there" link, which the reader chooses to follow.
     if (step.route && pathname !== step.route) {
+      if (!userDriven.current) {
+        setTarget(null);
+        setPlacement("center");
+        setReady(true);
+        return;
+      }
       router.push(step.route);
       // The effect re-runs when pathname changes; don't poll across the nav.
       return;
@@ -155,8 +179,18 @@ export function Elsie({
         return;
       }
       if (Date.now() > deadline) {
-        // Genuinely not on this page — skip rather than point at nothing.
-        setIndex((i) => (i + 1 < steps.length ? i + 1 : i));
+        if (userDriven.current) {
+          // Following the tour and this control genuinely isn't here — skip on
+          // rather than point at nothing.
+          setIndex((i) => (i + 1 < steps.length ? i + 1 : i));
+        } else {
+          // Auto-opened somewhere the anchor doesn't exist. Show the step as a
+          // plain card; silently advancing would race through the tour behind
+          // the reader's back.
+          setTarget(null);
+          setPlacement("center");
+          setReady(true);
+        }
         return;
       }
       setTimeout(tick, 80);
@@ -184,17 +218,26 @@ export function Elsie({
   }, [open, reposition]);
 
   const finish = useCallback(
-    (markAll: boolean) => {
-      const ids = markAll ? steps.map((s) => s.id) : steps.slice(0, index + 1).map((s) => s.id);
+    (completed: boolean) => {
       setDismissed(true);
       // Fire and forget: closing must feel instant, and a failed cookie write
-      // only costs the user seeing a step again.
-      void markGuideStepsDoneAction(ids);
+      // only costs the reader seeing a step again.
+      if (completed) {
+        // Reached the end — record the lot so she doesn't start over.
+        void markGuideStepsDoneAction(steps.map((s) => s.id));
+      } else {
+        // "Not now". Deliberately does NOT mark the current step done: you
+        // dismissed it, you didn't complete it, so it should be waiting where
+        // you left it. The snooze is what stops her reappearing — and it has to
+        // be server-side, because this component remounts on every navigation.
+        void snoozeGuideAction();
+      }
     },
-    [steps, index],
+    [steps],
   );
 
   const next = useCallback(() => {
+    userDriven.current = true;
     if (index + 1 >= steps.length) {
       finish(true);
       return;
@@ -203,7 +246,10 @@ export function Elsie({
     setIndex((i) => i + 1);
   }, [index, steps, finish]);
 
-  const back = useCallback(() => setIndex((i) => Math.max(0, i - 1)), []);
+  const back = useCallback(() => {
+    userDriven.current = true;
+    setIndex((i) => Math.max(0, i - 1));
+  }, []);
 
   // Esc closes; arrows step. Only while she's actually on screen.
   useEffect(() => {
@@ -229,7 +275,7 @@ export function Elsie({
         <button
           type="submit"
           data-elsie="elsie-button"
-          onClick={() => setDismissed(false)}
+          onClick={() => { setDismissed(false); userDriven.current = false; }}
           title={enabled ? "Turn Elsie off" : "Turn Elsie on — she'll walk you through the app"}
           aria-pressed={enabled}
           className="relative inline-flex items-center gap-1.5 h-11 px-2.5 rounded-xl text-[13px] font-semibold transition-colors hover:bg-[var(--zebra)]"

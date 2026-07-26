@@ -16,6 +16,51 @@ export type YTChannelSummary = {
   category?: string;
 };
 
+/**
+ * What the user typed, resolved to something the API can look up exactly.
+ *
+ * People paste channel URLs, and both providers used to take the raw string:
+ * the mock stripped it to a slug (turning
+ * `https://www.youtube.com/@lsimedia` into `Httpswwwyoutubecomlsimedia`), and
+ * the real one fed the whole URL to `search` as a free-text query. Neither
+ * gives you the channel you asked for.
+ *
+ *   - `id`     → a UC… channel id: look up directly, no ambiguity at all.
+ *   - `handle` → an @handle: `channels?forHandle=` is an EXACT match.
+ *   - `search` → anything else: fall back to fuzzy search.
+ *
+ * Preferring the first two matters for accuracy, not just tidiness — `search`
+ * returns a best guess, which can quietly be a different channel entirely.
+ */
+export type ChannelQuery = { kind: "id" | "handle" | "search"; value: string };
+
+export function parseChannelQuery(raw: string): ChannelQuery {
+  const s = (raw ?? "").trim();
+  if (!s) return { kind: "search", value: "" };
+
+  // Pull the meaningful part out of any youtube.com/youtu.be URL.
+  let candidate = s;
+  const urlish = /^(https?:\/\/)?(www\.|m\.)?(youtube\.com|youtu\.be)\//i.test(s);
+  if (urlish) {
+    try {
+      const u = new URL(/^https?:\/\//i.test(s) ? s : `https://${s}`);
+      const parts = u.pathname.split("/").filter(Boolean);
+      if (parts[0]?.startsWith("@")) candidate = parts[0];
+      else if (parts[0] === "channel" && parts[1]) candidate = parts[1];
+      else if ((parts[0] === "c" || parts[0] === "user") && parts[1]) candidate = parts[1];
+      else candidate = parts[0] ?? s;
+    } catch {
+      candidate = s;
+    }
+  }
+
+  if (/^UC[\w-]{22}$/.test(candidate)) return { kind: "id", value: candidate };
+  if (candidate.startsWith("@")) return { kind: "handle", value: candidate };
+  // A bare word from a /c/ or /user/ URL is a handle in all but the leading @.
+  if (urlish && /^[\w.-]+$/.test(candidate)) return { kind: "handle", value: `@${candidate}` };
+  return { kind: "search", value: candidate };
+}
+
 export type YTVideoSummary = {
   id: string;            // YouTube video id
   channelId: string;
@@ -163,7 +208,21 @@ const realFor = (workspaceId?: string): YouTubeProvider => ({
     return (channels.items ?? []).map(toChannelSummary);
   },
   async findChannel(query) {
-    const list = await this.searchChannels(query, 1);
+    const q = parseChannelQuery(query);
+    // Exact lookups first — `search` is a best guess and can return a
+    // different channel with a similar name.
+    if (q.kind === "id" || q.kind === "handle") {
+      const params: Record<string, string> = { part: "snippet,statistics" };
+      if (q.kind === "id") params.id = q.value;
+      else params.forHandle = q.value;
+      const res = await ytGet<{ items?: YtChannelItem[] }>("channels", params, workspaceId)
+        .catch(() => ({ items: [] as YtChannelItem[] }));
+      const hit = res.items?.[0];
+      if (hit) return toChannelSummary(hit);
+      // A handle that resolves to nothing is worth one fuzzy retry — handles
+      // change, and the old one often still names the channel.
+    }
+    const list = await this.searchChannels(q.value || query, 1);
     return list[0] ?? null;
   },
   async listVideos(channelId, limit = 20) {
@@ -230,13 +289,34 @@ export function youtubeFor(workspaceId?: string): YouTubeProvider {
 
 export const youtube: YouTubeProvider = youtubeFor();
 
+/**
+ * No key, and the mock wasn't explicitly asked for. Reports "I don't know"
+ * instead of inventing an answer.
+ *
+ * This exists because the mock used to be the fallback, so a production install
+ * with no YouTube key silently served **fabricated** subscriber and video
+ * counts — hashed from the channel name — with nothing anywhere saying so. They
+ * were then persisted, indistinguishable from real figures. Reported from the
+ * field as "not accurate, not even close", which was exactly right.
+ *
+ * Refusing to answer is the same contract the metrics spine already keeps:
+ * unknown is null, never a plausible-looking number.
+ */
+const unavailable: YouTubeProvider = {
+  async findChannel() { return null; },
+  async listVideos() { return []; },
+  async searchChannels() { return []; },
+  async getTranscript() { return null; },
+};
+
 async function pick(workspaceId?: string): Promise<YouTubeProvider> {
+  // Explicit opt-in only — for local development and demos.
   if (env.USE_MOCK_YOUTUBE) return mock;
   try {
     const { getApiKey } = await import("@/lib/llm/keys");
     const key = (await getApiKey("youtube", workspaceId)) || env.YOUTUBE_API_KEY;
-    return key ? realFor(workspaceId) : mock;
+    return key ? realFor(workspaceId) : unavailable;
   } catch {
-    return env.YOUTUBE_API_KEY ? realFor(workspaceId) : mock;
+    return env.YOUTUBE_API_KEY ? realFor(workspaceId) : unavailable;
   }
 }

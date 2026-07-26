@@ -217,7 +217,7 @@ html[data-theme="dark"] .ws-brand {
           <Link href="/channels" className="btn !hidden @min-[88rem]:!inline-flex" title="Manage all channels">Manage channels</Link>
           <LiveTicker initial={ticker} />
           <div className="flex-1" />
-          <Elsie steps={elsieSteps} enabled={guide.enabled} outstanding={elsieOutstanding} />
+          <Elsie steps={elsieSteps} enabled={guide.enabled} outstanding={elsieOutstanding} snoozed={guide.snoozed} />
           <Link
             href="/notifications"
             className="relative inline-flex items-center justify-center w-11 h-11 rounded-xl hover:bg-[var(--zebra)] transition-colors"
