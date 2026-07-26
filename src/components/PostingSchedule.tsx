@@ -87,20 +87,23 @@ export function PostingSchedule({
     });
 
   return (
-    <div className="card mb-6">
-      <div className="flex items-center gap-2 flex-wrap mb-2">
+    // Set-once config, so it collapses like the UTM card — but stays OPEN while
+    // there's no schedule, because that's the state that needs the user's hands.
+    <details className="card mb-6" open={activeCount === 0}>
+      <summary className="cursor-pointer flex items-center gap-2 flex-wrap">
         <CalendarRange className="w-4 h-4" style={{ color: "var(--violet-on)" }} />
         <h2 className="font-mono font-bold text-sm">Posting schedule</h2>
-        <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "var(--panel)", color: "var(--mute)" }}>
+        <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full"
+          style={{ background: activeCount ? "var(--violet-soft)" : "var(--zebra)", color: activeCount ? "var(--violet-on)" : "var(--mute)" }}>
           {perWeek} slot{perWeek === 1 ? "" : "s"}/week
         </span>
         <span className="flex-1" />
         <span className="text-[11px] text-[var(--mute)]">
           {nextFree ? <>next free slot <b className="font-mono">{nextFree}</b></> : activeCount ? "no free slots ahead" : "no slots yet"}
         </span>
-      </div>
+      </summary>
 
-      <p className="text-[11px] text-[var(--mute)] mb-3 leading-relaxed">
+      <p className="text-[11px] text-[var(--mute)] mt-2 mb-3 leading-relaxed">
         Recurring times you publish at. “Add to queue” drops a post into the next free one, so the
         usual case never needs a date picker. Slots are wall-clock times in the posting timezone —
         <b> 09:00 stays 09:00 across a daylight-saving change</b>.
@@ -224,6 +227,6 @@ export function PostingSchedule({
           Only workspace admins can change the posting schedule.
         </p>
       )}
-    </div>
+    </details>
   );
 }
