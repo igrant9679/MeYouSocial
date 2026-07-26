@@ -84,11 +84,33 @@ export async function saveStorageSettingAction(formData: FormData) {
     if (value !== "local" && value !== "gdrive") return;
     if (value === "gdrive") {
       invalidateGdriveCache();
-      if (!(await getGdriveConfig())) fail("Add the service account JSON and folder below before switching to Google Drive.");
+      const { getDriveAuthMode, resolveDriveAccess } = await import("@/lib/storage/gdrive");
+      // Which prerequisite is missing depends on the auth mode — telling an
+      // OAuth user to paste a service account JSON would send them the wrong way.
+      if ((await getDriveAuthMode()) === "oauth") {
+        if (!(await resolveDriveAccess().catch(() => null))) {
+          fail("Connect a Google account below before switching storage to Google Drive.");
+        }
+      } else if (!(await getGdriveConfig())) {
+        fail("Add the service account JSON and folder below before switching to Google Drive.");
+      }
       const probe = await gdriveProbeWrite();
       if (!probe.ok) fail(`Drive write test failed: ${probe.error}`);
     }
     await db.setting.upsert({ where: { key: setting }, update: { value }, create: { key: setting, value } });
+  } else if (setting === "gdrive:auth_mode") {
+    if (value !== "service_account" && value !== "oauth") return;
+    await db.setting.upsert({ where: { key: setting }, update: { value }, create: { key: setting, value } });
+    invalidateGdriveCache();
+    // If Drive is already the live backend, a mode switch changes where every
+    // future upload goes — prove the new mode actually works rather than
+    // letting it fail at upload time. The setting is kept either way; the
+    // operator may well be mid-setup.
+    const backend = await db.setting.findUnique({ where: { key: "storage:backend" } });
+    if (backend?.value === "gdrive") {
+      const probe = await gdriveProbeWrite();
+      if (!probe.ok) fail(`Switched, but the write test failed: ${probe.error}`);
+    }
   } else if (setting === "gdrive:service_account") {
     if (value && !parseServiceAccount(value)) {
       fail("That doesn't look like a service account JSON key (needs client_email + private_key). Google Cloud Console → IAM → Service Accounts → Keys → Add key (JSON).");
@@ -119,6 +141,58 @@ export async function saveStorageSettingAction(formData: FormData) {
   invalidateStorageCache();
   revalidatePath("/admin/api-keys");
   redirect(`/admin/api-keys?ok=${encodeURIComponent(setting)}#storage`);
+}
+
+// ── Drive user-OAuth (platform storage) ──────────────────────────────────────
+//
+// Mirrors the YouTube OAuth actions in analytics-connections.ts, but every
+// value is a PLATFORM setting and every action is gated to the platform
+// operator — storage is shared infrastructure, not a per-tenant credential.
+
+/** Guard + redirect helper shared by the three OAuth actions below. */
+async function requireStorageOperator() {
+  const { user } = await requireRole("ADMIN");
+  if (!isPlatformOperator(user.email)) {
+    redirect("/admin/api-keys?err=" + encodeURIComponent("Storage is managed by the platform operator.") + "#storage");
+  }
+}
+
+export async function saveGdriveOauthClientAction(formData: FormData) {
+  await requireStorageOperator();
+  const clientId = String(formData.get("client_id") ?? "").trim();
+  const clientSecret = String(formData.get("client_secret") ?? "").trim();
+  const { setPlatformSetting } = await import("@/lib/settings");
+  await setPlatformSetting("gdrive_oauth:client_id", clientId);
+  // Keep an existing secret when the field is left blank (it renders masked).
+  if (clientSecret) await setPlatformSetting("gdrive_oauth:client_secret", clientSecret);
+  revalidatePath("/admin/api-keys");
+  redirect("/admin/api-keys?ok=" + encodeURIComponent("Drive OAuth client saved — now hit Connect.") + "#storage");
+}
+
+/** Kick off the consent flow (redirects to Google). */
+export async function connectGdriveAction() {
+  await requireStorageOperator();
+  const { buildGdriveAuthUrl } = await import("@/lib/storage/gdrive-oauth");
+  const { getPublicUrl } = await import("@/lib/public-url");
+  const url = await buildGdriveAuthUrl(await getPublicUrl());
+  if (!url) {
+    redirect("/admin/api-keys?err=" + encodeURIComponent("Save an OAuth client ID and secret first.") + "#storage");
+  }
+  redirect(url!);
+}
+
+export async function disconnectGdriveAction() {
+  await requireStorageOperator();
+  const { disconnectGdriveOauth } = await import("@/lib/storage/gdrive-oauth");
+  const { invalidateGdriveCache } = await import("@/lib/storage/gdrive");
+  await disconnectGdriveOauth();
+  invalidateGdriveCache();
+  revalidatePath("/admin/api-keys");
+  // Deliberately does NOT touch storage:backend. If Drive was live, uploads now
+  // fail loudly with "not connected" — which is correct. Silently reverting to
+  // local disk would scatter new files onto a disk that gets wiped on redeploy,
+  // and nothing would say so.
+  redirect("/admin/api-keys?ok=" + encodeURIComponent("Google account disconnected. Files already in Drive keep working.") + "#storage");
 }
 
 export async function saveApiKeyAction(formData: FormData) {

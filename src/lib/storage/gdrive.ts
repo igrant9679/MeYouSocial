@@ -12,10 +12,16 @@ import type { StoredFile, StorageProvider } from "@/lib/storage";
 // signed-in users only. Keys are `gdrive:<fileId>` so they can never collide
 // with legacy local keys.
 //
-// Honest limits (also stated in the admin UI): on a personal My Drive folder,
-// uploads are owned by the service account and count against the SERVICE
-// ACCOUNT's own 15 GB Google quota — not the folder owner's. Shared Drives
-// (Google Workspace) pool quota instead; both work here (supportsAllDrives).
+// TWO AUTH MODES, chosen by the Setting `gdrive:auth_mode`:
+//   service_account — this file. Server-to-server, no human involved.
+//   oauth           — ./gdrive-oauth.ts. Files owned by a consenting human.
+//
+// ⚠ Honest limit, measured not assumed: a service account's storage quota is
+// literally 0 and it OWNS every file it uploads, so a personal My Drive folder
+// can NEVER work no matter how it is shared — the upload 403s with
+// storageQuotaExceeded. Only a Shared Drive (Google Workspace) makes the
+// service-account path viable, because there the drive owns the file. On a
+// personal @gmail.com account, use OAuth mode instead.
 
 export type ServiceAccount = {
   client_email: string;
@@ -88,6 +94,9 @@ export async function getGdriveConfig(): Promise<GdriveConfig | null> {
 export function invalidateGdriveCache() {
   configCache = null;
   tokenCache = null;
+  // The OAuth access token is cached separately; a mode switch or a reconnect
+  // must not leave a stale token behind for the other path.
+  void import("@/lib/storage/gdrive-oauth").then((m) => m.invalidateGdriveOauthCache()).catch(() => {});
 }
 
 // ── OAuth: service-account JWT → access token ────────────────────────────────
@@ -130,16 +139,75 @@ async function accessToken(sa: ServiceAccount): Promise<string> {
   return data.access_token;
 }
 
-// ── Drive REST helpers ───────────────────────────────────────────────────────
+// ── Auth mode: service account vs user OAuth ─────────────────────────────────
 
-function requireConfig(cfg: GdriveConfig | null): GdriveConfig {
-  if (!cfg) {
+/**
+ * Two ways to reach Drive, and which one is in play changes what a failure
+ * MEANS — so every call resolves through here rather than reaching for the
+ * service account directly.
+ *
+ * - `service_account`: server-to-server, files owned by the SA. Only viable
+ *   against a Shared Drive, i.e. Google Workspace. See ./gdrive-oauth.ts for
+ *   why a My Drive folder can never work.
+ * - `oauth`: files owned by the human who consented, using their own quota.
+ *   The only option on a personal @gmail.com account.
+ *
+ * Default is `service_account` so existing installs are untouched by this
+ * being added.
+ */
+export type DriveAuthMode = "service_account" | "oauth";
+
+export async function getDriveAuthMode(): Promise<DriveAuthMode> {
+  try {
+    const { db } = await import("@/lib/db");
+    const row = await db.setting.findUnique({ where: { key: "gdrive:auth_mode" } });
+    if (row?.value === "oauth") return "oauth";
+  } catch {
+    // DB unavailable — the service-account path is the safe assumption
+  }
+  return "service_account";
+}
+
+/**
+ * Everything a Drive call needs, with the mode carried along so error messages
+ * can name the right fix. `label` is the identity that owns the files — the SA
+ * address, or the connected Google account.
+ */
+export type DriveAccess = {
+  mode: DriveAuthMode;
+  token: string;
+  folderId: string;
+  label: string;
+};
+
+/** Resolves credentials + destination folder for whichever mode is configured. */
+export async function resolveDriveAccess(): Promise<DriveAccess | null> {
+  if ((await getDriveAuthMode()) === "oauth") {
+    const { gdriveOauthAccessToken, ensureAppFolder, gdriveOauthConnected } = await import("@/lib/storage/gdrive-oauth");
+    const token = await gdriveOauthAccessToken();
+    if (!token) return null;
+    // The folder is re-validated on every resolve: the user can delete it from
+    // Drive whenever they like, and a stale id 404s every upload.
+    const folder = await ensureAppFolder(token);
+    const { account } = await gdriveOauthConnected();
+    return { mode: "oauth", token, folderId: folder.id, label: account || "the connected Google account" };
+  }
+  const cfg = await getGdriveConfig();
+  if (!cfg) return null;
+  return { mode: "service_account", token: await accessToken(cfg.sa), folderId: cfg.folderId, label: cfg.sa.client_email };
+}
+
+function requireAccess(access: DriveAccess | null): DriveAccess {
+  if (!access) {
     throw new Error(
-      "Google Drive storage is selected but not configured — paste the service account JSON and folder under Admin → API keys → Storage.",
+      "Google Drive storage is selected but not connected — set it up under Admin → API keys → Storage" +
+      " (connect a Google account, or paste a service account JSON and folder).",
     );
   }
-  return cfg;
+  return access;
 }
+
+// ── Drive REST helpers ───────────────────────────────────────────────────────
 
 /**
  * Pull the human sentence out of a Drive error body. Drive answers
@@ -158,10 +226,10 @@ function driveErrorMessage(detail: string): string {
   return detail.replace(/\s+/g, " ").trim().slice(0, 300) || "no detail returned";
 }
 
-async function driveUpload(cfg: GdriveConfig, name: string, data: Buffer, contentType: string): Promise<{ id: string }> {
-  const token = await accessToken(cfg.sa);
+async function driveUpload(access: DriveAccess, name: string, data: Buffer, contentType: string): Promise<{ id: string }> {
+  const token = access.token;
   const boundary = `mys-${nanoid(12)}`;
-  const meta = JSON.stringify({ name, parents: [cfg.folderId] });
+  const meta = JSON.stringify({ name, parents: [access.folderId] });
   const body = Buffer.concat([
     Buffer.from(`--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${meta}\r\n`),
     Buffer.from(`--${boundary}\r\nContent-Type: ${contentType}\r\n\r\n`),
@@ -186,22 +254,32 @@ async function driveUpload(cfg: GdriveConfig, name: string, data: Buffer, conten
     // unbalanced brace — the user saw "...Leverage shared drives (...), or use
     // The service account's own Drive quota is full". Truncated JSON plus prose
     // reads as a broken app, which is the opposite of the point here.
+    //
+    // ⚠ `storageQuotaExceeded` means two COMPLETELY different things depending
+    // on the mode, and telling a user with a full Drive to go buy Google
+    // Workspace would be nonsense. Branch on the mode, not just the reason code.
     if (detail.includes("storageQuotaExceeded")) {
+      if (access.mode === "oauth") {
+        throw new Error(
+          `Drive upload failed: ${access.label} is out of Google storage.` +
+          ` Free space in that account (Drive, Gmail and Photos share one quota) or upgrade its Google One plan, then try again.`,
+        );
+      }
       // The service account OWNS what it uploads, and its own Drive quota is
       // separate from the folder owner's — sharing a folder grants no space.
       throw new Error(
-        `Drive upload failed: the service account (${cfg.sa.client_email}) has no Drive storage of its own.` +
+        `Drive upload failed: the service account (${access.label}) has no Drive storage of its own.` +
         ` A service account owns every file it uploads, and that storage is separate from the folder owner's —` +
         ` sharing a folder with it grants permission, never quota, so a My Drive folder can never work.` +
-        ` Fix: create a Shared Drive (Google Workspace only), add ${cfg.sa.client_email} as a member with` +
-        ` Content manager, and use a folder ID from inside that drive — files there are owned by the drive, not the account.`,
+        ` Fix: either switch Storage to "Connect a Google account" (works on a personal account), or create a Shared Drive` +
+        ` (Google Workspace only), add ${access.label} as a member with Content manager, and use a folder ID from inside it.`,
       );
     }
     if (res.status === 403 && /Insufficient permissions for the specified parent|insufficientFilePermissions/i.test(detail)) {
       // Almost always: the folder is shared with the SA as VIEWER, or not at
       // all. Read access is enough to pass the folder check and still fail here.
       throw new Error(
-        `Drive upload failed: the folder is reachable but not writable by ${cfg.sa.client_email}.` +
+        `Drive upload failed: the folder is reachable but not writable by ${access.label}.` +
         ` Open the folder in Drive → Share, add that address with the EDITOR role (Viewer isn't enough), and untick "Notify people".` +
         ` If it lives in a Shared Drive, add the service account as a member of the drive with Content manager.`,
       );
@@ -218,16 +296,16 @@ async function driveUpload(cfg: GdriveConfig, name: string, data: Buffer, conten
  * seeking works through the /api/files proxy; Drive answers 206 + Content-Range.
  */
 export async function gdriveFetchMedia(fileId: string, range?: string): Promise<Response> {
-  const cfg = requireConfig(await getGdriveConfig());
-  const token = await accessToken(cfg.sa);
+  const access = requireAccess(await resolveDriveAccess());
   return fetch(`${DRIVE}/files/${fileId}?alt=media&supportsAllDrives=true`, {
-    headers: { Authorization: `Bearer ${token}`, ...(range ? { Range: range } : {}) },
+    headers: { Authorization: `Bearer ${access.token}`, ...(range ? { Range: range } : {}) },
     signal: AbortSignal.timeout(300_000),
   });
 }
 
 export type GdriveStatus = {
   ok: boolean;
+  mode?: DriveAuthMode;
   email?: string;
   folderName?: string;
   usedBytes?: number;
@@ -237,20 +315,37 @@ export type GdriveStatus = {
 
 /** Live connection + quota check for the admin card. Never throws. */
 export async function gdriveStatus(): Promise<GdriveStatus> {
-  const cfg = await getGdriveConfig();
-  if (!cfg) return { ok: false, error: "Not configured" };
+  const mode = await getDriveAuthMode();
+  let access: DriveAccess | null;
   try {
-    const token = await accessToken(cfg.sa);
+    access = await resolveDriveAccess();
+  } catch (err) {
+    // OAuth mode resolves the folder eagerly, so folder creation can fail here.
+    return { ok: false, mode, error: err instanceof Error ? err.message : "Connection failed" };
+  }
+  if (!access) {
+    return {
+      ok: false,
+      mode,
+      error: mode === "oauth" ? "No Google account connected" : "Not configured",
+    };
+  }
+  try {
     const [aboutRes, folderRes] = await Promise.all([
       fetch(`${DRIVE}/about?fields=storageQuota`, {
-        headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(6_000),
+        headers: { Authorization: `Bearer ${access.token}` }, signal: AbortSignal.timeout(6_000),
       }),
-      fetch(`${DRIVE}/files/${cfg.folderId}?fields=id,name,driveId&supportsAllDrives=true`, {
-        headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(6_000),
+      fetch(`${DRIVE}/files/${access.folderId}?fields=id,name,driveId&supportsAllDrives=true`, {
+        headers: { Authorization: `Bearer ${access.token}` }, signal: AbortSignal.timeout(6_000),
       }),
     ]);
     if (!folderRes.ok) {
-      return { ok: false, email: cfg.sa.client_email, error: `Folder not reachable (HTTP ${folderRes.status}) — is it shared with the service account as Editor?` };
+      return {
+        ok: false, mode, email: access.label,
+        error: mode === "oauth"
+          ? `The app's Drive folder is not reachable (HTTP ${folderRes.status}) — reconnect the Google account.`
+          : `Folder not reachable (HTTP ${folderRes.status}) — is it shared with the service account as Editor?`,
+      };
     }
     // `driveId` is present only for items inside a Shared Drive. Its absence
     // means the folder lives in somebody's My Drive.
@@ -265,28 +360,32 @@ export async function gdriveStatus(): Promise<GdriveStatus> {
     // Drive folder always ends in storageQuotaExceeded no matter who shared it
     // or with what role. Inside a Shared Drive the DRIVE owns the file, so a
     // zero limit is expected and fine — hence the driveId check, not a bare
-    // limit check.
-    if (about.storageQuota?.limit === "0" && !folder.driveId) {
+    // limit check. In OAuth mode a real human owns the quota, so this whole
+    // trap is inapplicable.
+    if (mode === "service_account" && about.storageQuota?.limit === "0" && !folder.driveId) {
       return {
         ok: false,
-        email: cfg.sa.client_email,
+        mode,
+        email: access.label,
         folderName: folder.name,
         error:
           `Folder is reachable, but uploads cannot work: “${folder.name}” is in a My Drive and the service account has 0 bytes of storage of its own.` +
           ` A service account owns every file it uploads, so sharing a folder with it grants permission but never space.` +
-          ` Use a folder inside a Shared Drive (Google Workspace only) with ${cfg.sa.client_email} added as Content manager.`,
+          ` Either switch to "Connect a Google account" above, or use a folder inside a Shared Drive (Google Workspace only)` +
+          ` with ${access.label} added as Content manager.`,
       };
     }
 
     return {
       ok: true,
-      email: cfg.sa.client_email,
+      mode,
+      email: access.label,
       folderName: folder.name,
       usedBytes: about.storageQuota?.usage ? Number(about.storageQuota.usage) : undefined,
       limitBytes: about.storageQuota?.limit ? Number(about.storageQuota.limit) : undefined,
     };
   } catch (err) {
-    return { ok: false, email: cfg.sa.client_email, error: err instanceof Error ? err.message : "Connection failed" };
+    return { ok: false, mode, email: access.label, error: err instanceof Error ? err.message : "Connection failed" };
   }
 }
 
@@ -296,12 +395,11 @@ export async function gdriveStatus(): Promise<GdriveStatus> {
  */
 export async function gdriveProbeWrite(): Promise<{ ok: boolean; error?: string }> {
   try {
-    const cfg = requireConfig(await getGdriveConfig());
-    const { id } = await driveUpload(cfg, ".meyousocial-write-probe.txt", Buffer.from("probe"), "text/plain");
-    const token = await accessToken(cfg.sa);
+    const access = requireAccess(await resolveDriveAccess());
+    const { id } = await driveUpload(access, ".meyousocial-write-probe.txt", Buffer.from("probe"), "text/plain");
     await fetch(`${DRIVE}/files/${id}?supportsAllDrives=true`, {
       method: "DELETE",
-      headers: { Authorization: `Bearer ${token}` },
+      headers: { Authorization: `Bearer ${access.token}` },
       signal: AbortSignal.timeout(15_000),
     }).catch(() => {});
     return { ok: true };
@@ -314,12 +412,12 @@ export async function gdriveProbeWrite(): Promise<{ ok: boolean; error?: string 
 
 export const gdriveProvider: StorageProvider = {
   async put(name, data, contentType): Promise<StoredFile> {
-    const cfg = requireConfig(await getGdriveConfig());
+    const access = requireAccess(await resolveDriveAccess());
     const buf = Buffer.isBuffer(data) ? data : Buffer.from(data);
     // Keep the human-readable name visible in the Drive folder, prefixed for
     // uniqueness (Drive allows duplicate names, humans browsing don't enjoy them).
     const safeName = name.replace(/[^\w.-]+/g, "_").slice(0, 80) || "file";
-    const { id } = await driveUpload(cfg, `${nanoid(10)}-${safeName}`, buf, contentType || "application/octet-stream");
+    const { id } = await driveUpload(access, `${nanoid(10)}-${safeName}`, buf, contentType || "application/octet-stream");
     const key = `${GDRIVE_KEY_PREFIX}${id}`;
     return {
       key,

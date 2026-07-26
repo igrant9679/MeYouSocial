@@ -3,10 +3,15 @@ import { KeyRound, CheckCircle2, ExternalLink, HardDrive, AlertTriangle } from "
 import { requireRole, isPlatformOperator as isOperator } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { env } from "@/lib/env";
-import { saveApiKeyAction, saveSearchKeyAction, saveMediaSettingAction, saveStorageSettingAction } from "@/app/actions/api-keys";
+import {
+  saveApiKeyAction, saveSearchKeyAction, saveMediaSettingAction, saveStorageSettingAction,
+  saveGdriveOauthClientAction, connectGdriveAction, disconnectGdriveAction,
+} from "@/app/actions/api-keys";
 import { getVideoProviderSetting } from "@/lib/video";
 import { getStorageBackendSetting } from "@/lib/storage";
-import { gdriveStatus, parseServiceAccount } from "@/lib/storage/gdrive";
+import { gdriveStatus, parseServiceAccount, getDriveAuthMode } from "@/lib/storage/gdrive";
+import { gdriveOauthConnected, gdriveRedirectUri, getGdriveOauthClient, APP_FOLDER_NAME } from "@/lib/storage/gdrive-oauth";
+import { getPublicUrl } from "@/lib/public-url";
 import { SubmitButton } from "@/components/SubmitButton";
 
 // In-app API key management. Admins can paste provider keys here
@@ -68,7 +73,15 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
   const storageBackend = await getStorageBackendSetting();
   const gdriveSa = parseServiceAccount(platformByKey.get("gdrive:service_account") ?? process.env.GDRIVE_SERVICE_ACCOUNT_JSON ?? "");
   const gdriveFolder = platformByKey.get("gdrive:folder_id") ?? process.env.GDRIVE_FOLDER_ID ?? "";
-  const gdriveConfigured = Boolean(gdriveSa && gdriveFolder);
+  const [driveMode, driveOauth, driveOauthClient, origin] = await Promise.all([
+    getDriveAuthMode(),
+    gdriveOauthConnected(),
+    getGdriveOauthClient(),
+    getPublicUrl(),
+  ]);
+  // "Configured" means whatever the ACTIVE mode needs — an OAuth connection, or
+  // a service account plus a folder.
+  const gdriveConfigured = driveMode === "oauth" ? driveOauth.connected : Boolean(gdriveSa && gdriveFolder);
   // Live check only when it can possibly succeed — keeps the page fast otherwise.
   const drive = isPlatformOperator && gdriveConfigured ? await gdriveStatus() : null;
 
@@ -345,7 +358,9 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
         {storageBackend === "gdrive" && !gdriveConfigured && (
           <div className="text-[11px] rounded-lg p-2 flex items-center gap-2" style={{ background: "var(--rose-soft)", color: "var(--rose-on)" }}>
             <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
-            Drive is selected but not configured — uploads will fail until the service account and folder below are set.
+            {driveMode === "oauth"
+              ? "Drive is selected but no Google account is connected — uploads will fail until you connect one below."
+              : "Drive is selected but not configured — uploads will fail until the service account and folder below are set."}
           </div>
         )}
         {drive && (
@@ -364,6 +379,100 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
           </div>
         )}
       </div>
+
+      {/* How we authenticate to Drive. This is not a cosmetic preference — the
+          two modes have genuinely different limits, so the copy says which one
+          suits which kind of Google account. */}
+      <div className="card mb-3">
+        <div className="font-mono font-bold text-sm mb-1">How to reach Drive</div>
+        <p className="text-[11px] text-[var(--mute)] mb-2">
+          <b>Connect a Google account</b> — files are owned by that account and use its storage. This is the only option
+          that works on a personal <span className="font-mono">@gmail.com</span> account.
+          <br />
+          <b>Service account</b> — server-to-server, no human sign-in. Needs a <b>Shared Drive</b> (Google Workspace):
+          a service account has <b>zero</b> storage of its own and owns everything it uploads, so a My&nbsp;Drive folder
+          can never work, however it is shared.
+        </p>
+        <div className="flex gap-2">
+          {([
+            ["oauth", "Connect a Google account"],
+            ["service_account", "Service account"],
+          ] as const).map(([v, label]) => (
+            <form key={v} action={saveStorageSettingAction} className="flex-1">
+              <input type="hidden" name="setting" value="gdrive:auth_mode" />
+              <input type="hidden" name="value" value={v} />
+              <button
+                className="card w-full text-center cursor-pointer text-sm !p-2.5"
+                style={driveMode === v ? { borderColor: "var(--accent)", background: "var(--accent-soft)", color: "var(--accent-on)", fontWeight: 600 } : undefined}
+              >
+                {label}{driveMode === v ? " ✓" : ""}
+              </button>
+            </form>
+          ))}
+        </div>
+      </div>
+
+      {driveMode === "oauth" ? (
+        <div className="card mb-3">
+          <div className="font-mono font-bold text-sm flex items-center gap-2 mb-1">
+            Google account
+            {driveOauth.connected && (
+              <span className="text-[10px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded flex items-center gap-1" style={{ background: "var(--green-soft)", color: "var(--green-on)" }}>
+                <CheckCircle2 className="w-3 h-3" /> connected
+              </span>
+            )}
+          </div>
+          <p className="text-[11px] text-[var(--mute)] mb-2 leading-relaxed">
+            In Google Cloud Console → <i>APIs &amp; Services → Credentials</i>, create an <b>OAuth client ID</b> (type: Web
+            application) and add this exact redirect URI:
+            <code className="font-mono text-[10px] px-1.5 py-0.5 rounded ml-1 inline-block break-all" style={{ background: "var(--zebra)" }}>
+              {gdriveRedirectUri(origin)}
+            </code>
+            <br />
+            Enable the <b>Google Drive API</b> on the project. The app asks only for the{" "}
+            <code className="font-mono text-[10px] px-1 rounded" style={{ background: "var(--zebra)" }}>drive.file</code> scope,
+            which needs no Google verification review — and <b>publish the OAuth consent screen</b> rather than leaving it in
+            Testing, because Google expires refresh tokens of Testing apps after <b>7 days</b>.
+          </p>
+
+          {driveOauth.connected ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs flex-1">
+                {driveOauth.account || "Google account connected"} · files go to the{" "}
+                {driveOauth.folderId ? (
+                  <a className="underline" href={`https://drive.google.com/drive/folders/${driveOauth.folderId}`} target="_blank" rel="noreferrer">
+                    “{APP_FOLDER_NAME}” folder <ExternalLink className="w-3 h-3 inline" />
+                  </a>
+                ) : (<>“{APP_FOLDER_NAME}” folder</>)}{" "}
+                in its Drive
+              </span>
+              <form action={disconnectGdriveAction}>
+                <SubmitButton className="btn sm" pendingText="Disconnecting…">Disconnect</SubmitButton>
+              </form>
+            </div>
+          ) : (
+            <>
+              <form action={saveGdriveOauthClientAction} className="flex flex-wrap items-end gap-2 mb-2">
+                <label className="flex-1 min-w-52 text-[11px] text-[var(--mute)]">
+                  OAuth client ID
+                  <input name="client_id" defaultValue={platformByKey.get("gdrive_oauth:client_id") ?? ""} placeholder="…apps.googleusercontent.com" className="w-full text-sm font-mono mt-0.5 border border-[var(--line-2)] rounded-lg p-2" autoComplete="off" />
+                </label>
+                <label className="flex-1 min-w-40 text-[11px] text-[var(--mute)]">
+                  Client secret {driveOauthClient?.clientSecret ? <span style={{ color: "var(--green-on)" }}>· stored</span> : ""}
+                  <input name="client_secret" type="password" placeholder={driveOauthClient?.clientSecret ? "•••••• (leave blank to keep)" : "GOCSPX-…"} className="w-full text-sm font-mono mt-0.5 border border-[var(--line-2)] rounded-lg p-2" autoComplete="off" />
+                </label>
+                <SubmitButton className="btn sm" pendingText="Saving…">Save client</SubmitButton>
+              </form>
+              <form action={connectGdriveAction}>
+                <SubmitButton className="btn primary sm" pendingText="Redirecting…" disabled={!driveOauthClient}>
+                  <HardDrive className="w-4 h-4" /> Connect Google Drive
+                </SubmitButton>
+                {!driveOauthClient && <span className="text-[11px] text-[var(--mute)] ml-2">Save a client ID and secret first.</span>}
+              </form>
+            </>
+          )}
+        </div>
+      ) : (<>
 
       <form action={saveStorageSettingAction} className="card mb-3">
         <input type="hidden" name="setting" value="gdrive:service_account" />
@@ -420,11 +529,19 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
           <SubmitButton className="btn primary sm" pendingText="Testing…">Save</SubmitButton>
         </div>
       </form>
+      </>)}
 
       <div className="card mb-3 text-xs text-[var(--mute)] leading-relaxed">
         <p className="mb-1"><strong>Honest tradeoffs:</strong></p>
         <p className="mb-1">· Files stay <b>private</b> in Drive — the app streams them to signed-in members via <code className="font-mono px-1 rounded" style={{ background: "var(--zebra)" }}>/api/files</code>. Nothing is public-by-link, but every view passes through this server.</p>
-        <p className="mb-1">· On a personal (free) Drive, uploaded files are owned by the service account and count against <b>its own 15&nbsp;GB quota</b> — not yours. The connection banner above shows real usage. A Google Workspace <b>Shared Drive</b> pools quota instead; both work here.</p>
+        {driveMode === "oauth" ? (
+          <>
+            <p className="mb-1">· Uploads are owned by the <b>connected Google account</b> and use its quota (Drive, Gmail and Photos share one). The banner above shows real usage. Files land in a <b>{APP_FOLDER_NAME}</b> folder the app creates — with the <span className="font-mono">drive.file</span> scope it can only ever see files it made itself, so it cannot read the rest of that Drive.</p>
+            <p className="mb-1">· <b>Disconnecting leaves the files in Drive.</b> They keep serving, because the app stores their file ids. Deleting the folder in Drive breaks those links permanently.</p>
+          </>
+        ) : (
+          <p className="mb-1">· A service account has <b>zero</b> storage of its own and owns everything it uploads, so a personal <b>My&nbsp;Drive</b> folder always fails with <span className="font-mono">storageQuotaExceeded</span> — sharing grants permission, never space. Only a Google Workspace <b>Shared Drive</b> works here, because there the drive owns the files. On a personal account, use <b>Connect a Google account</b> instead.</p>
+        )}
         <p>· Existing locally-stored files are <b>not migrated</b> (on Railway they don&apos;t survive a redeploy anyway). Switching backends only routes new files.</p>
       </div>
       </>)}
