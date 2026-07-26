@@ -44,6 +44,9 @@ export function LeftRailNav({ items }: { items: LeftRailItem[] }) {
           <Link
             key={n.href}
             href={n.href}
+            // Anchor for the Elsie guide — generic, so adding a nav item makes
+            // it targetable without touching the tour engine.
+            data-elsie={`nav${n.href}`}
             aria-current={isActive ? "page" : undefined}
             title={n.label}
             className={

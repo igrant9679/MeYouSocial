@@ -14,6 +14,10 @@ import { ChannelSwitcher } from "@/components/ChannelSwitcher";
 import { WorkspaceSwitcher } from "@/components/WorkspaceSwitcher";
 import { setActiveWorkspaceAction } from "@/app/actions/workspace-switch";
 import { storage } from "@/lib/storage";
+import { db } from "@/lib/db";
+import { Elsie } from "@/components/Elsie";
+import { getGuideState } from "@/app/actions/guide";
+import { relevantSteps, outstandingSetup, type SetupState } from "@/lib/guide/steps";
 
 // Each nav item carries its own brand color so the rail reads as a vibrant chip strip
 // (mirrors the CreateUp_Mockups.html per-module accent palette).
@@ -91,6 +95,32 @@ html[data-theme="dark"] .ws-brand {
     tickerEvents(workspace.id, 12),
   ]);
 
+  // Elsie, the guide. Her setup steps are filtered against what this workspace
+  // has actually done, so she never walks anyone through work already finished.
+  // All counts, deliberately — cheap enough to run on every page render.
+  const guide = await getGuideState();
+  const [llmKeyRows, zernioKeyRow, socialAccounts, emailAccounts, topics, postingSlots, blogPosts] = await Promise.all([
+    db.setting.count({ where: { key: { in: ["api_key:anthropic", "api_key:google"] }, NOT: { value: "" } } }),
+    db.setting.findFirst({ where: { key: "zernio:api_key", NOT: { value: "" } }, select: { key: true } }),
+    db.zernioAccount.count({ where: { workspaceId: workspace.id, status: "connected" } }),
+    db.unipileAccount.count({ where: { workspaceId: workspace.id, kind: "email", status: "connected" } }),
+    db.topic.count({ where: { workspaceId: workspace.id } }),
+    db.postingSlot.count({ where: { workspaceId: workspace.id } }),
+    db.blogPost.count({ where: { workspaceId: workspace.id } }),
+  ]);
+  const setupState: SetupState = {
+    hasLlmKey: llmKeyRows > 0 || Boolean(process.env.ANTHROPIC_API_KEY || process.env.GOOGLE_GENAI_API_KEY),
+    socialConfigured: Boolean(zernioKeyRow) || Boolean(process.env.ZERNIO_API_KEY),
+    socialAccounts,
+    emailConnected: emailAccounts > 0,
+    topics,
+    postingSlots,
+    blogPosts,
+    isOperator: canCreateWorkspace,
+  };
+  const elsieSteps = relevantSteps(setupState, guide.done).map(({ needed: _needed, ...s }) => s);
+  const elsieOutstanding = outstandingSetup(setupState, guide.done);
+
   return (
     // @container: the rail + header adapt to EFFECTIVE width (container queries
     // measure the zoom-scaled space, viewport breakpoints don't — the XL
@@ -115,7 +145,7 @@ html[data-theme="dark"] .ws-brand {
           <span className="font-mono font-bold text-[17px] tracking-tight hidden @6xl:inline truncate max-w-[160px]">{brandName}</span>
         </Link>
 
-        <LeftRailNav items={navItems} />
+        <span data-elsie="rail" className="contents"><LeftRailNav items={navItems} /></span>
 
         {/* Profile + sign out */}
         <div className="mt-auto flex flex-col gap-1 pt-2 border-t border-[var(--line)]">
@@ -187,6 +217,7 @@ html[data-theme="dark"] .ws-brand {
           <Link href="/channels" className="btn !hidden @min-[88rem]:!inline-flex" title="Manage all channels">Manage channels</Link>
           <LiveTicker initial={ticker} />
           <div className="flex-1" />
+          <Elsie steps={elsieSteps} enabled={guide.enabled} outstanding={elsieOutstanding} />
           <Link
             href="/notifications"
             className="relative inline-flex items-center justify-center w-11 h-11 rounded-xl hover:bg-[var(--zebra)] transition-colors"

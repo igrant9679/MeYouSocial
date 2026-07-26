@@ -89,7 +89,7 @@ export function PostingSchedule({
   return (
     // Set-once config, so it collapses like the UTM card — but stays OPEN while
     // there's no schedule, because that's the state that needs the user's hands.
-    <details className="card mb-6" open={activeCount === 0}>
+    <details data-elsie="posting-schedule" className="card mb-6" open={activeCount === 0}>
       <summary className="cursor-pointer flex items-center gap-2 flex-wrap">
         <CalendarRange className="w-4 h-4" style={{ color: "var(--violet-on)" }} />
         <h2 className="font-mono font-bold text-sm">Posting schedule</h2>

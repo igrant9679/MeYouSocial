@@ -132,7 +132,7 @@ export function SocialComposer({
   }
 
   return (
-    <form action={editing ? updateSocialPostAction : createSocialPostAction} className="card mb-6 flex flex-col gap-3" encType="multipart/form-data">
+    <form data-elsie="social-composer" action={editing ? updateSocialPostAction : createSocialPostAction} className="card mb-6 flex flex-col gap-3" encType="multipart/form-data">
       {editing && <input type="hidden" name="id" value={initial!.id} />}
       {/* Account picker */}
       <div>

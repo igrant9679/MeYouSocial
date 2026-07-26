@@ -361,7 +361,7 @@ export function SocialCalendar({ posts, freeSlots = [] }: { posts: CalendarPost[
   };
 
   return (
-    <div className="mb-6">
+    <div className="mb-6" data-elsie="social-calendar">
       <div className="flex flex-wrap items-center gap-2 mb-2">
         <CalendarClock className="w-4 h-4" style={{ color: "var(--blue-on)" }} />
         <h2 className="font-mono font-bold text-sm">
