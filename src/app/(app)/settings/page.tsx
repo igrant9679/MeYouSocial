@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { User, Mail, Lock, Palette, ShieldCheck } from "lucide-react";
+import { User, Mail, Lock, Palette, ShieldCheck, Building2, Plus } from "lucide-react";
 import { requireUser } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { setThemeAction, getTheme, setContentSizeAction, getContentSize } from "@/app/actions/theme";
@@ -138,9 +138,11 @@ export default async function UserSettingsPage({ searchParams }: { searchParams:
         </div>
       </section>
 
-      {/* Workspaces */}
+      {/* Workspaces — also the only place in the app you can create one. */}
       <section className="card mb-4">
-        <h2 className="font-mono font-bold text-[14px] mb-3">Workspaces ({memberships.length})</h2>
+        <h2 className="font-mono font-bold text-[14px] mb-3 flex items-center gap-2">
+          <Building2 className="w-4 h-4" style={{ color: "var(--accent-on)" }} /> Workspaces ({memberships.length})
+        </h2>
         <ul className="m-0 p-0">
           {memberships.map((m) => (
             <li key={m.id} className="border-t border-[var(--line)] first:border-t-0 py-2 text-sm flex items-center gap-2">
@@ -149,6 +151,15 @@ export default async function UserSettingsPage({ searchParams }: { searchParams:
             </li>
           ))}
         </ul>
+        <div className="flex items-center gap-2 flex-wrap mt-3 pt-3 border-t border-[var(--line)]">
+          <p className="text-[11px] text-[var(--mute)] flex-1 leading-relaxed">
+            Each workspace is a separate company — its own brand, content, connected accounts and API keys. Switch
+            between them from the name at the top of the page.
+          </p>
+          <Link href="/onboarding/workspace" className="btn primary sm">
+            <Plus className="w-3.5 h-3.5" /> New workspace
+          </Link>
+        </div>
       </section>
     </div>
   );
