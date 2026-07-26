@@ -371,8 +371,11 @@ export async function gdriveStatus(): Promise<GdriveStatus> {
         error:
           `Folder is reachable, but uploads cannot work: “${folder.name}” is in a My Drive and the service account has 0 bytes of storage of its own.` +
           ` A service account owns every file it uploads, so sharing a folder with it grants permission but never space.` +
-          ` Either switch to "Connect a Google account" above, or use a folder inside a Shared Drive (Google Workspace only)` +
-          ` with ${access.label} added as Content manager.`,
+          // No "above"/"below" — this renders in a banner that sits ABOVE the
+          // control it points at, and it may get surfaced elsewhere later. Name
+          // the control, not its position on one particular page.
+          ` Fix: under "How to reach Drive", pick "Connect a Google account" — or use a folder inside a Shared Drive` +
+          ` (Google Workspace only) with ${access.label} added as Content manager.`,
       };
     }
 
