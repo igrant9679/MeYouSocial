@@ -47,6 +47,43 @@ function leadingBlanks(first: Date): number {
   return (first.getDay() + 6) % 7;
 }
 
+/**
+ * An empty queue slot. Drop a post on it to take that EXACT time — the day cell
+ * underneath would only give the post's existing time (or 09:00 for a draft).
+ *
+ * Declared at module scope, not inside SocialCalendar: it holds hook state, and
+ * a component defined in the parent's body is a fresh type on every parent
+ * render, so React would unmount it and drop that state mid-drag.
+ */
+function GhostSlot({ iso, onTake }: { iso: string; onTake: (at: Date) => void }) {
+  const [over, setOver] = useState(false);
+  const at = new Date(iso);
+  const time = at.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+  return (
+    <div
+      onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setOver(true); }}
+      onDragLeave={() => setOver(false)}
+      onDrop={(e) => {
+        e.preventDefault();
+        // Stop the day cell handling this too and overwriting the exact time.
+        e.stopPropagation();
+        setOver(false);
+        onTake(at);
+      }}
+      className="rounded-md px-1.5 py-0.5 text-[9px] font-mono border border-dashed flex items-center gap-1"
+      style={{
+        borderColor: over ? "var(--accent)" : "var(--line-2)",
+        background: over ? "var(--accent-soft)" : "transparent",
+        color: "var(--mute)",
+      }}
+      title={`Free queue slot — drop a post here to take ${time}`}
+    >
+      <span className="w-1.5 h-1.5 rounded-full border border-dashed shrink-0" style={{ borderColor: "var(--mute)" }} />
+      {time}
+    </div>
+  );
+}
+
 export function SocialCalendar({ posts, freeSlots = [] }: { posts: CalendarPost[]; freeSlots?: string[] }) {
   const [cursor, setCursor] = useState(() => {
     const now = new Date();
@@ -132,40 +169,6 @@ export function SocialCalendar({ posts, freeSlots = [] }: { posts: CalendarPost[
     const existing = post.scheduledAt ? new Date(post.scheduledAt) : null;
     // A draft has no time yet — 09:00 local is a sane, obvious default.
     commit(id, new Date(y, m - 1, d, existing ? existing.getHours() : 9, existing ? existing.getMinutes() : 0, 0, 0));
-  };
-
-  /**
-   * An empty queue slot. Drop a post on it to take that exact time — the day
-   * cell underneath would only give the post's existing time (or 09:00).
-   */
-  const GhostSlot = ({ iso }: { iso: string }) => {
-    const [over, setOver] = useState(false);
-    const at = new Date(iso);
-    return (
-      <div
-        onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setOver(true); }}
-        onDragLeave={() => setOver(false)}
-        onDrop={(e) => {
-          e.preventDefault();
-          // Stop the day cell from also handling this and overwriting the time.
-          e.stopPropagation();
-          setOver(false);
-          setOverDay(null);
-          if (dragId) commit(dragId, at);
-          setDragId(null);
-        }}
-        className="rounded-md px-1.5 py-0.5 text-[9px] font-mono border border-dashed flex items-center gap-1"
-        style={{
-          borderColor: over ? "var(--accent)" : "var(--line-2)",
-          background: over ? "var(--accent-soft)" : "transparent",
-          color: "var(--mute)",
-        }}
-        title={`Free queue slot — drop a post here to take ${at.toLocaleString(undefined, { hour: "2-digit", minute: "2-digit" })}`}
-      >
-        <span className="w-1.5 h-1.5 rounded-full border border-dashed shrink-0" style={{ borderColor: "var(--mute)" }} />
-        {at.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}
-      </div>
-    );
   };
 
   const Chip = ({ p }: { p: CalendarPost }) => {
@@ -262,7 +265,15 @@ export function SocialCalendar({ posts, freeSlots = [] }: { posts: CalendarPost[
                 <span className={`font-mono text-[10px] ${isToday ? "font-bold" : "text-[var(--mute)]"}`}>{day}</span>
                 {dayPosts.map((p) => <Chip key={p.id} p={p} />)}
                 {(freeByDay.get(key) ?? []).map((iso) => (
-                  <GhostSlot key={iso} iso={iso} />
+                  <GhostSlot
+                    key={iso}
+                    iso={iso}
+                    onTake={(at) => {
+                      setOverDay(null);
+                      if (dragId) commit(dragId, at);
+                      setDragId(null);
+                    }}
+                  />
                 ))}
               </div>
             );
