@@ -6,6 +6,8 @@ import { updateChannelSettingsAction } from "@/app/actions/channel-settings";
 import { relinkYoutubeAction, setBusinessChannelAction } from "@/app/actions/channel-extras";
 import { updateThumbnailConfigAction } from "@/app/actions/final-pass";
 import { ModelChip } from "@/components/ModelChip";
+import { DeleteButton } from "@/components/DeleteButton";
+import { deletionImpact } from "@/lib/deletable";
 import { readJson } from "@/lib/db/json";
 
 // Channel Settings: details, linked YouTube, Script Defaults.
@@ -67,11 +69,19 @@ export default async function ChannelSettingsPage({ params }: { params: Promise<
       <form action={relinkYoutubeAction} className="card flex items-end gap-2 mt-4">
         <input type="hidden" name="channelId" value={id} />
         <label className="flex-1 flex flex-col gap-1">
-          <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">Relink YouTube channel — re-trains voice + audience</span>
+          <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">
+            Relink YouTube channel — adopts its real name and re-trains voice + audience
+          </span>
           <input name="handle" required placeholder="@new-handle" className="border border-[var(--line-2)] rounded-lg p-2 text-sm font-mono" />
         </label>
-        <button type="submit" className="btn">Relink & retrain</button>
+        <button type="submit" className="btn">Relink &amp; retrain</button>
       </form>
+      {channel.linkedYoutubeId && (
+        <p className="text-[11px] text-[var(--mute)] mt-1 px-1">
+          Currently linked to <span className="font-mono">{channel.linkedYoutubeHandle ?? channel.linkedYoutubeId}</span>
+          {" "}(<span className="font-mono">{channel.linkedYoutubeId}</span>).
+        </p>
+      )}
 
       {/* Business / brand channel toggle */}
       <form action={setBusinessChannelAction} className="card flex items-center gap-3 mt-4">
@@ -101,6 +111,25 @@ export default async function ChannelSettingsPage({ params }: { params: Promise<
           </form>
         );
       })()}
+
+      {/* Danger zone — deleting a channel takes every script, idea, project and
+          asset under it, so the control lives at the bottom behind a typed
+          confirmation and states the counts it just read. */}
+      <div className="card mt-4" style={{ borderColor: "var(--rose)" }}>
+        <h2 className="font-mono font-bold text-[14px] mb-1" style={{ color: "var(--rose-on)" }}>Danger zone</h2>
+        <p className="text-xs text-[var(--mute)] mb-3">
+          Deleting <b>{channel.name}</b> also removes everything filed under it. There is no undo and no export.
+        </p>
+        <DeleteButton
+          kind="channel"
+          id={id}
+          name={channel.name}
+          confirmName
+          impact={await deletionImpact("channel", id, channel.workspaceId)}
+          returnTo="/admin/channels"
+          label="Delete this channel"
+        />
+      </div>
     </div>
   );
 }

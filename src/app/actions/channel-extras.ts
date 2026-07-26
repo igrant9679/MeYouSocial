@@ -25,6 +25,15 @@ export async function relinkYoutubeAction(formData: FormData) {
   await db.channel.update({
     where: { id: channelId },
     data: {
+      // ⚠ The NAME is adopted too, which this deliberately did not do before.
+      // Onboarding's step 2 sets name+id+handle together; relink only moved the
+      // id and handle, so a channel pointed at a new YouTube channel kept the
+      // old one's name for ever. That is how a row ended up called
+      // "Httpswwwyoutubecomlsimedia" — a mock provider had slugged a pasted URL
+      // into the name, and no later relink could ever repair it.
+      // The name field is editable directly above this form, so adopting the
+      // real one costs nothing and is what "relink" plainly means.
+      name: found!.name || channel.name,
       linkedYoutubeId: found!.id,
       linkedYoutubeHandle: found!.handle ?? handle,
       defaultLanguage: found!.language ?? channel.defaultLanguage,

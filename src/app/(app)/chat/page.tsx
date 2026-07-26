@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { SubmitButton } from "@/components/SubmitButton";
+import { DeleteButton } from "@/components/DeleteButton";
 import { MessageCircle, Plus } from "lucide-react";
 import { getActiveChannel } from "@/lib/channel";
 import { db } from "@/lib/db";
@@ -71,9 +72,12 @@ export default async function ChatListPage() {
             <h2 className="font-mono text-[11px] uppercase tracking-wider text-[var(--mute)] mb-2">{labelOf(key)}</h2>
             <ul className="m-0 p-0 flex flex-col gap-2">
               {buckets[key].map((c) => (
-                <li key={c.id}>
-                  <Link href={`/chat/${c.id}`} className="card flex items-center gap-3 hover:border-[var(--accent)] hover:shadow-md transition">
-                    <span className="w-9 h-9 rounded-xl grid place-items-center" style={{ background: "#EDE7FB", color: "#6D28D9" }}>
+                <li key={c.id} className="card flex items-center gap-3 hover:border-[var(--accent)] hover:shadow-md transition">
+                  {/* The delete control sits OUTSIDE the Link — nesting a form
+                      and buttons inside an anchor makes every delete click
+                      navigate instead. */}
+                  <Link href={`/chat/${c.id}`} className="flex items-center gap-3 flex-1 min-w-0">
+                    <span className="w-9 h-9 rounded-xl grid place-items-center shrink-0" style={{ background: "#EDE7FB", color: "#6D28D9" }}>
                       <MessageCircle className="w-4 h-4" strokeWidth={2.5} />
                     </span>
                     <div className="flex-1 min-w-0">
@@ -81,6 +85,13 @@ export default async function ChatListPage() {
                       <div className="text-xs text-[var(--mute)]">{new Date(c.updatedAt).toLocaleString()}</div>
                     </div>
                   </Link>
+                  <DeleteButton
+                    kind="chat"
+                    id={c.id}
+                    name={c.title ?? c.messages[0]?.content?.slice(0, 40) ?? "New chat"}
+                    returnTo="/chat"
+                    iconOnly
+                  />
                 </li>
               ))}
             </ul>

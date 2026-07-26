@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { requireChannel } from "@/lib/channel";
 import { db } from "@/lib/db";
+import { DeleteButton } from "@/components/DeleteButton";
 
 // Channel-scoped scripts list ( surface, per-channel slice).
 
@@ -25,12 +26,13 @@ export default async function ChannelScriptsPage({ params }: { params: Promise<{
       {scripts.length === 0 && <p className="card text-sm text-[var(--mute)]">No scripts in this channel yet.</p>}
       <ul className="m-0 p-0">
         {scripts.map((s) => (
-          <li key={s.id} className="border-t border-[var(--line)] first:border-t-0 py-3 flex items-center gap-3 text-sm">
+          <li key={s.id} className="border-t border-[var(--line)] first:border-t-0 py-3 flex items-center gap-3 text-sm flex-wrap">
             <span className="tag">{s.workflow}</span>
             <span className="font-semibold">{s.title}</span>
             <span className="text-xs text-[var(--mute)]">{s.wordCount} words · {s.status}</span>
             <span className="flex-1" />
             <Link href={`/scripts/${s.id}`} className="btn sm">Open</Link>
+            <DeleteButton kind="script" id={s.id} name={s.title} confirmName returnTo={`/channels/${id}/scripts`} />
           </li>
         ))}
       </ul>

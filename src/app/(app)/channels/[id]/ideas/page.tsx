@@ -5,6 +5,7 @@ import { requireChannel } from "@/lib/channel";
 import { db } from "@/lib/db";
 import { outlierBand } from "@/lib/intel";
 import { regenerateIdeasAction, writeIdeaToCanvasAction, setIdeaTopicAction } from "@/app/actions/ideas";
+import { DeleteButton } from "@/components/DeleteButton";
 
 // MU-06 — Ideas Library. list with sort/filter; regenerate.
 
@@ -91,12 +92,13 @@ export default async function ChannelIdeasPage({
                   <SubmitButton className="btn sm" pendingText="…">Set</SubmitButton>
                 </form>
               )}
-              <div className="flex gap-2">
+              <div className="flex gap-2 items-start flex-wrap">
                 <form action={writeIdeaToCanvasAction}>
                   <input type="hidden" name="ideaId" value={i.id} />
                   <SubmitButton className="btn primary sm flex items-center gap-1.5"><PenLine className="w-3.5 h-3.5" /> Write</SubmitButton>
                 </form>
                 <Link href={`/channels/${id}/ideas/${i.id}`} className="btn sm">Detail</Link>
+                <DeleteButton kind="idea" id={i.id} name={i.title} returnTo={`/channels/${id}/ideas`} />
               </div>
             </li>
           );

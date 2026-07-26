@@ -8,6 +8,8 @@ import { updateProfileAction, changePasswordAction } from "@/app/actions/profile
 import { resendVerificationAction } from "@/app/actions/auth-flows";
 import { SubmitButton } from "@/components/SubmitButton";
 import { ValidatedInput } from "@/components/ValidatedInput";
+import { DeleteButton } from "@/components/DeleteButton";
+import { deletionImpact } from "@/lib/deletable";
 
 // User-level settings (distinct from /admin/settings which is workspace-level).
 // Linked from the avatar button in the left rail.
@@ -23,6 +25,15 @@ export default async function UserSettingsPage({ searchParams }: { searchParams:
   // Standing up a whole tenant is the platform operator's job, not a workspace
   // admin's. Display only — createWorkspaceAction enforces the same check.
   const canCreateWorkspace = isPlatformOperator(user.email);
+  // Counted only for workspaces this user actually administers, so the
+  // confirmation can say what a delete would cost.
+  const workspaceImpacts = Object.fromEntries(
+    await Promise.all(
+      memberships
+        .filter((m) => m.role === "ADMIN")
+        .map(async (m) => [m.workspaceId, await deletionImpact("workspace", m.workspaceId, m.workspaceId)] as const),
+    ),
+  );
 
   return (
     <div className="w-full">
@@ -148,9 +159,23 @@ export default async function UserSettingsPage({ searchParams }: { searchParams:
         </h2>
         <ul className="m-0 p-0">
           {memberships.map((m) => (
-            <li key={m.id} className="border-t border-[var(--line)] first:border-t-0 py-2 text-sm flex items-center gap-2">
+            <li key={m.id} className="border-t border-[var(--line)] first:border-t-0 py-2 text-sm flex items-center gap-2 flex-wrap">
               <span className="flex-1">{m.workspace.name}</span>
               <span className="font-mono text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: "var(--accent-soft)", color: "var(--accent-on)" }}>{m.role}</span>
+              {/* Only an ADMIN of that workspace may delete it, and only ever
+                  their own — the action re-resolves membership for the target
+                  id rather than trusting the one being viewed. */}
+              {m.role === "ADMIN" && (
+                <DeleteButton
+                  kind="workspace"
+                  id={m.workspaceId}
+                  name={m.workspace.name}
+                  confirmName
+                  impact={workspaceImpacts[m.workspaceId]}
+                  returnTo="/settings"
+                  label="Delete"
+                />
+              )}
             </li>
           ))}
         </ul>
