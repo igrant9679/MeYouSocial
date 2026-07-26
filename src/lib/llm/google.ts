@@ -7,12 +7,21 @@ import type { LLMProvider, LLMRequest, LLMResponse } from "./types";
 
 // Map our stable model ids → current Gemini model names.
 // Update this table when Google rolls a new generation; no other code changes.
+//
+// ⚠ Do NOT point these at a pinned `gemini-2.5-*` name. Probed against the live
+// key on 2026-07-26: `models.list()` still ADVERTISES gemini-2.5-pro/flash, but
+// generateContent 404s with "no longer available to new users" — the listing is
+// not proof a model is callable for this project. The router swallows provider
+// errors and falls back to mock, so a dead name here looks like "Gemini is
+// configured" while silently producing mock text. `gemini-pro-latest` and
+// `gemini-flash-latest` are the moving aliases Google keeps current; both
+// answered a real round-trip on that key.
 const MODEL_MAP: Record<string, string> = {
-  "gemini-1.5-pro":   "gemini-2.5-pro",      // legacy alias bumped to current pro
-  "gemini-pro":       "gemini-2.5-pro",
-  "gemini-flash":     "gemini-2.5-flash",
-  "gemini-2.5-pro":   "gemini-2.5-pro",
-  "gemini-2.5-flash": "gemini-2.5-flash",
+  "gemini-1.5-pro":   "gemini-pro-latest",    // legacy alias bumped to current pro
+  "gemini-pro":       "gemini-pro-latest",
+  "gemini-flash":     "gemini-flash-latest",
+  "gemini-2.5-pro":   "gemini-pro-latest",
+  "gemini-2.5-flash": "gemini-flash-latest",
 };
 
 export function createGoogleProvider(apiKey: string): LLMProvider {
