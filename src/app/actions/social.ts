@@ -311,3 +311,36 @@ export async function saveUtmSettingsAction(formData: FormData) {
   revalidatePath("/social");
   backTo(enabled ? "Link tagging on — new posts will carry UTM parameters." : "Link tagging off.", "ok");
 }
+
+/**
+ * Move a post to a new date/time — the calendar's drag-and-drop target.
+ *
+ * Typed args rather than FormData (same shape as the production board's
+ * moveTaskAction) so the client can call it optimistically inside a transition.
+ * Dropping a DRAFT onto a day schedules it, which is the whole point of being
+ * able to drag from the drafts tray onto the grid.
+ */
+export async function rescheduleSocialPostAction(id: string, isoDateTime: string) {
+  const { workspace } = await requireRole("EDITOR");
+  const when = new Date(isoDateTime);
+  if (Number.isNaN(when.getTime())) return { ok: false, message: "That isn't a valid date." };
+  // A minute of slack absorbs the round-trip; anything genuinely past is refused
+  // because the sweep would fire it immediately, which is never what a drag meant.
+  if (when.getTime() < Date.now() - 60_000) return { ok: false, message: "That time has already passed." };
+
+  const post = await db.socialPost.findFirst({
+    where: { id, workspaceId: workspace.id },
+    select: { id: true, status: true },
+  });
+  if (!post) return { ok: false, message: "Post not found." };
+  if (post.status !== "draft" && post.status !== "scheduled") {
+    return { ok: false, message: "Only unsent posts can be moved." };
+  }
+
+  await db.socialPost.update({
+    where: { id: post.id },
+    data: { scheduledAt: when, status: "scheduled" },
+  });
+  revalidatePath("/social");
+  return { ok: true, message: "Moved." };
+}

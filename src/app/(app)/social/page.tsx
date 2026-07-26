@@ -4,6 +4,7 @@ import { requireRole } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { readJson } from "@/lib/db/json";
 import { SocialComposer } from "@/components/SocialComposer";
+import { SocialCalendar, type CalendarPost } from "@/components/SocialCalendar";
 import { SubmitButton } from "@/components/SubmitButton";
 import { getUtmConfig } from "@/lib/social/utm";
 import { saveUtmSettingsAction } from "@/app/actions/social";
@@ -18,7 +19,7 @@ import {
 // Social scheduler — compose once, fan out to connected accounts, post now or
 // schedule. Publishing runs through Unipile; the scheduler sweep sends due posts.
 
-type SP = { ok?: string; err?: string };
+type SP = { ok?: string; err?: string; view?: string };
 
 const STATUS_STYLE: Record<string, { bg: string; fg: string; label: string }> = {
   scheduled: { bg: "var(--blue-soft)", fg: "var(--blue-on)", label: "scheduled" },
@@ -31,7 +32,9 @@ const STATUS_STYLE: Record<string, { bg: string; fg: string; label: string }> = 
 
 export default async function SocialPage({ searchParams }: { searchParams: Promise<SP> }) {
   const { workspace } = await requireRole("EDITOR");
-  const { ok, err } = await searchParams;
+  const { ok, err, view } = await searchParams;
+  // Calendar is the natural primary view for a scheduler; agenda stays one click away.
+  const mode = view === "agenda" ? "agenda" : "calendar";
 
   const [accounts, posts, topicRows] = await Promise.all([
     db.unipileAccount.findMany({
@@ -121,6 +124,25 @@ export default async function SocialPage({ searchParams }: { searchParams: Promi
         </form>
       </details>
 
+      {/* View toggle — calendar (default) or the original agenda. */}
+      <div className="flex items-center gap-2 mb-3">
+        <Link href="/social?view=calendar" className={`btn sm ${mode === "calendar" ? "primary" : ""}`}>Calendar</Link>
+        <Link href="/social?view=agenda" className={`btn sm ${mode === "agenda" ? "primary" : ""}`}>Agenda</Link>
+      </div>
+
+      {mode === "calendar" && (
+        <SocialCalendar
+          posts={[...scheduled, ...drafts].map((p): CalendarPost => ({
+            id: p.id,
+            text: p.text,
+            scheduledAt: p.scheduledAt ? p.scheduledAt.toISOString() : null,
+            providers: [...new Set(p.targets.map((t) => t.provider.toUpperCase()))],
+            status: p.status,
+          }))}
+        />
+      )}
+
+      {mode === "agenda" && (<>
       {/* Scheduled — agenda grouped by day */}
       <Section icon={<CalendarClock className="w-4 h-4" style={{ color: "var(--blue-on)" }} />} title="Scheduled" count={scheduled.length} />
       {scheduled.length === 0 ? (
@@ -142,6 +164,8 @@ export default async function SocialPage({ searchParams }: { searchParams: Promi
           <div className="flex flex-col gap-2 mb-6">{drafts.map((p) => <PostCard key={p.id} post={p} />)}</div>
         </>
       )}
+
+      </>)}
 
       <Section icon={<Send className="w-4 h-4" style={{ color: "var(--green-on)" }} />} title="History" count={history.length} />
       {history.length === 0 ? (

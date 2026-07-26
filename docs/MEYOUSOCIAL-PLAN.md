@@ -923,3 +923,37 @@ original text.
 
 **Not exercised:** publishing still needs Unipile connected, so tagged text has
 not gone to a live network.
+
+---
+
+## Social: month calendar with drag-to-reschedule (shipped 2026-07-25)
+
+The drag-calendar the original scheduler deferred. **Calendar is now the default
+view** for `/social`; the agenda stays one click away (`?view=agenda`).
+
+**All date maths runs in the BROWSER, from ISO strings.** Deliberate, not
+incidental: Railway runs UTC and the user doesn't, so a server-rendered grid
+would place evening posts on the wrong day for anyone west of Greenwich. The
+component buckets by **local** day.
+
+**DnD is an enhancement, never the only path** — the rule `TaskBoard` already
+established. Every chip also carries a date input, so keyboard and touch users
+can reschedule without dragging.
+
+Behaviour:
+- Dragging to another day **preserves the time of day** (14:30 stays 14:30).
+- Dragging an unscheduled **draft** from the tray onto a day schedules it at
+  09:00 local. That tray is what makes this a working surface rather than a
+  read-only month view.
+- Moves are **optimistic**, and a server rejection **snaps the chip back** rather
+  than leaving a lie on screen.
+- Past days are dimmed and refuse drops (the sweep would fire them immediately).
+  **The server re-checks the same rule** — the client guard is convenience, not
+  the security boundary.
+
+`rescheduleSocialPostAction` takes typed args (like `moveTaskAction`) so the
+client can call it in a transition, is workspace-scoped, and refuses anything
+that isn't `draft|scheduled` — a sent post can't be dragged into a lie.
+
+**Not exercised:** with no Unipile accounts connected there are no posts to place
+on the grid, so the DnD path is code-verified only.
