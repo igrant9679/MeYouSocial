@@ -19,7 +19,7 @@ import { db } from "@/lib/db";
 import { Elsie } from "@/components/Elsie";
 import { FlashBanner } from "@/components/FlashBanner";
 import { getGuideState } from "@/app/actions/guide";
-import { relevantSteps, outstandingSetup, type SetupState } from "@/lib/guide/steps";
+import { relevantSteps, outstandingSetup, availableTracks, type SetupState } from "@/lib/guide/steps";
 
 // Each nav item carries its own brand color so the rail reads as a vibrant chip strip
 // (mirrors the CreateUp_Mockups.html per-module accent palette).
@@ -101,17 +101,31 @@ html[data-theme="dark"] .ws-brand {
   // has actually done, so she never walks anyone through work already finished.
   // All counts, deliberately — cheap enough to run on every page render.
   const guide = await getGuideState();
-  const [llmKeyRows, zernioKeyRow, socialAccounts, emailAccounts, topics, postingSlots, blogPosts] = await Promise.all([
+  const [llmKeyRows, wsLlmKeyRows, zernioKeyRow, socialAccounts, emailAccounts, topics, postingSlots, blogPosts, storageBackend, analyticsRows] = await Promise.all([
     db.setting.count({ where: { key: { in: ["api_key:anthropic", "api_key:google"] }, NOT: { value: "" } } }),
+    // ⚠ Workspace keys count too. This only looked at PLATFORM settings, so a
+    // company that had pasted its own key was still told to "add an AI provider
+    // key" — the guide nagging about work already done is precisely what makes
+    // people close it.
+    db.workspaceSetting.count({ where: { workspaceId: workspace.id, key: { in: ["api_key:anthropic", "api_key:google"] }, NOT: { value: "" } } }),
     db.setting.findFirst({ where: { key: "zernio:api_key", NOT: { value: "" } }, select: { key: true } }),
     db.zernioAccount.count({ where: { workspaceId: workspace.id, status: "connected" } }),
     db.unipileAccount.count({ where: { workspaceId: workspace.id, kind: "email", status: "connected" } }),
     db.topic.count({ where: { workspaceId: workspace.id } }),
     db.postingSlot.count({ where: { workspaceId: workspace.id } }),
     db.blogPost.count({ where: { workspaceId: workspace.id } }),
+    db.setting.findUnique({ where: { key: "storage:backend" }, select: { value: true } }),
+    db.workspaceSetting.count({
+      where: { workspaceId: workspace.id, key: { in: ["gsc:site_url", "ga4:property_id", "youtube_oauth:refresh_token"] }, NOT: { value: "" } },
+    }),
   ]);
   const setupState: SetupState = {
-    hasLlmKey: llmKeyRows > 0 || Boolean(process.env.ANTHROPIC_API_KEY || process.env.GOOGLE_GENAI_API_KEY),
+    hasLlmKey: llmKeyRows > 0 || wsLlmKeyRows > 0 || Boolean(process.env.ANTHROPIC_API_KEY || process.env.GOOGLE_GENAI_API_KEY),
+    // A model is chosen if the workspace picked one or any channel did.
+    defaultModelSet: Boolean(workspace.defaultModel) || channels.some((c) => c.defaultModel),
+    channelLinked: channels.some((c) => c.linkedYoutubeId),
+    storageDurable: storageBackend?.value === "gdrive",
+    analyticsConnected: analyticsRows > 0,
     socialConfigured: Boolean(zernioKeyRow) || Boolean(process.env.ZERNIO_API_KEY),
     socialAccounts,
     emailConnected: emailAccounts > 0,
@@ -120,8 +134,15 @@ html[data-theme="dark"] .ws-brand {
     blogPosts,
     isOperator: canCreateWorkspace,
   };
-  const elsieSteps = relevantSteps(setupState, guide.done).map(({ needed: _needed, ...s }) => s);
+  // `needed` is a function and can't cross to the client — strip it. Tracks are
+  // resolved server-side for the same reason: the picker needs real step lists,
+  // not predicates it can't run.
+  const strip = (list: ReturnType<typeof relevantSteps>) => list.map(({ needed: _needed, ...s }) => s);
+  const elsieSteps = strip(relevantSteps(setupState, guide.done));
   const elsieOutstanding = outstandingSetup(setupState, guide.done);
+  const elsieTracks = availableTracks(setupState, guide.done).map((t) => ({
+    id: t.id, label: t.label, blurb: t.blurb, steps: strip(t.steps),
+  }));
 
   return (
     // @container: the rail + header adapt to EFFECTIVE width (container queries
@@ -219,7 +240,7 @@ html[data-theme="dark"] .ws-brand {
           <Link href="/channels" className="btn !hidden @min-[88rem]:!inline-flex" title="Manage all channels">Manage channels</Link>
           <LiveTicker initial={ticker} />
           <div className="flex-1" />
-          <Elsie steps={elsieSteps} enabled={guide.enabled} outstanding={elsieOutstanding} snoozed={guide.snoozed} />
+          <Elsie steps={elsieSteps} tracks={elsieTracks} enabled={guide.enabled} outstanding={elsieOutstanding} snoozed={guide.snoozed} />
           <Link
             href="/notifications"
             className="relative inline-flex items-center justify-center w-11 h-11 rounded-xl hover:bg-[var(--zebra)] transition-colors"

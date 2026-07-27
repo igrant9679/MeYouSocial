@@ -1,22 +1,25 @@
 import Link from "next/link";
 import { SubmitButton } from "@/components/SubmitButton";
-import { HelpCircle, Keyboard, Palette, Sparkles, ExternalLink } from "lucide-react";
+import { HelpCircle, Keyboard, Palette, Sparkles, ExternalLink, Compass } from "lucide-react";
 import { setThemeAction, getTheme } from "@/app/actions/theme";
 import { HelpClient } from "./HelpClient";
+import { TRACKS, ELSIE_NAME } from "@/lib/guide/steps";
 
 // User Guide / Help center. Searchable FAQ + per-role quick starts
 // + appearance + shortcuts in one place.
 
+// Quick starts describe the app as it is now — a content engine that also
+// publishes and measures — rather than the YouTube-scripting tool it began as.
 const QUICK_START = [
-  { role: "New creator (solo)",         steps: ["Create your channel", "Browse 10 starter ideas", "Click Write on one", "Run Agent → coffee → script done"] },
-  { role: "Established creator",        steps: ["Connect your YouTube handle in onboarding", "Voice trains from your top 10 videos", "Edit Voice in Simple mode", "Use Canvas + Humanize"] },
-  { role: "Agency / Team lead",         steps: ["Add team in Admin → Users", "Create one channel per client (or per series)", "Set per-channel default models & templates", "Use Production board to track each video"] },
-  { role: "Faceless / Multi-channel",   steps: ["Create multiple channels", "Switch the active channel via topbar pill", "Use Borrow-a-voice to bootstrap a similar style", "Templates make recurring formats one-click"] },
+  { role: "Setting the app up",       steps: ["Admin → API keys: paste a provider key", "Set the model to match that key", "Admin → Connections: social + a mailbox", "Admin → Storage: switch off local disk"] },
+  { role: "New creator (solo)",       steps: ["Link your YouTube channel", "Add two or three Topics in Brand", "Browse the generated ideas", "Click Write, then run the agent"] },
+  { role: "Publishing regularly",     steps: ["Set your posting slots + timezone", "Compose once, pick the accounts", "Queue drafts into the next free slot", "Check History for per-network results"] },
+  { role: "Agency / team lead",       steps: ["Invite the team in Admin → Users", "One workspace per client — keys stay separate", "Per-channel default models & templates", "Track work on the Production board"] },
 ];
 
 const SHORTCUTS = [
   { keys: "Ctrl/⌘ + /", action: "Open Prompt Library (in chat)" },
-  { keys: "Esc",        action: "Close Prompt Library or Improve modal" },
+  { keys: "Esc",        action: "Dismiss the guide, or close a modal" },
   { keys: "Tab",        action: "Move through form fields" },
 ];
 
@@ -82,14 +85,46 @@ export default async function HelpPage() {
         </section>
       </div>
 
+      {/* Elsie — the guide lives in the top bar, which isn't obvious unless
+          someone says so. The tours are listed from the same source of truth
+          she uses, so this can't drift out of sync with what she offers. */}
+      <section className="card mb-4">
+        <h2 className="font-mono font-bold text-[14px] mb-1 flex items-center gap-2">
+          <Compass className="w-4 h-4" style={{ color: "var(--amber-on)" }} /> {ELSIE_NAME}, the in-app guide
+        </h2>
+        <p className="text-xs text-[var(--mute)] mb-3">
+          The compass button in the top bar. She flags setup that&apos;s genuinely still outstanding for your workspace,
+          then offers a tour — each one short, so you take the one you need. Esc is only &ldquo;not now&rdquo;; the top-bar
+          button is the real on/off.
+        </p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+          {TRACKS.map((t) => (
+            <div key={t.id} className="border border-[var(--line)] rounded-lg px-3 py-2">
+              <div className="text-sm font-semibold">
+                {t.label}
+                {t.operatorOnly && (
+                  <span className="ml-1.5 text-[10px] font-mono uppercase tracking-wider px-1 py-0.5 rounded" style={{ background: "var(--accent-soft)", color: "var(--accent-on)" }}>
+                    operator
+                  </span>
+                )}
+              </div>
+              <div className="text-[11px] text-[var(--mute)] leading-snug">{t.blurb}</div>
+            </div>
+          ))}
+        </div>
+      </section>
+
       {/* Useful links */}
       <section className="card mb-5">
         <h2 className="font-mono font-bold text-[14px] mb-3">Useful links</h2>
         <div className="flex flex-wrap gap-2">
           <Link href="/channels" className="btn sm flex items-center gap-1.5">Manage channels <ExternalLink className="w-3 h-3" /></Link>
           <Link href="/onboarding/channel/new" className="btn sm flex items-center gap-1.5">New channel <ExternalLink className="w-3 h-3" /></Link>
+          <Link href="/brand" className="btn sm flex items-center gap-1.5">Brand &amp; topics <ExternalLink className="w-3 h-3" /></Link>
           <Link href="/intel" className="btn sm flex items-center gap-1.5">Intel <ExternalLink className="w-3 h-3" /></Link>
-          <Link href="/scripts" className="btn sm flex items-center gap-1.5">Scripts <ExternalLink className="w-3 h-3" /></Link>
+          <Link href="/blog" className="btn sm flex items-center gap-1.5">Blog <ExternalLink className="w-3 h-3" /></Link>
+          <Link href="/social" className="btn sm flex items-center gap-1.5">Social <ExternalLink className="w-3 h-3" /></Link>
+          <Link href="/insights" className="btn sm flex items-center gap-1.5">Insights <ExternalLink className="w-3 h-3" /></Link>
           <Link href="/production" className="btn sm flex items-center gap-1.5">Production board <ExternalLink className="w-3 h-3" /></Link>
           <Link href="/admin" className="btn sm flex items-center gap-1.5">Admin <ExternalLink className="w-3 h-3" /></Link>
           <Link href="/settings" className="btn sm flex items-center gap-1.5">Profile <ExternalLink className="w-3 h-3" /></Link>

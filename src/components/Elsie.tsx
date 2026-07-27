@@ -46,14 +46,23 @@ function findAnchor(key: string): HTMLElement | null {
   return document.querySelector<HTMLElement>(`[data-elsie="${CSS.escape(key)}"]`);
 }
 
+export type ElsieTrack = { id: string; label: string; blurb: string; steps: ElsieStep[] };
+
 export function Elsie({
-  steps,
+  steps: defaultSteps,
+  tracks = [],
   enabled,
   outstanding,
   snoozed,
 }: {
   /** Already filtered server-side to what's relevant and not yet done. */
   steps: ElsieStep[];
+  /**
+   * The other tours, offered on the welcome card. Resolved server-side because
+   * a track's membership depends on `needed` predicates that can't be sent to
+   * the client.
+   */
+  tracks?: ElsieTrack[];
   enabled: boolean;
   /** Outstanding setup steps — badges the button. */
   outstanding: number;
@@ -63,6 +72,15 @@ export function Elsie({
   const router = useRouter();
   const pathname = usePathname();
   const [index, setIndex] = useState(0);
+  /**
+   * A tour picked from the welcome card. Null = the default run (outstanding
+   * setup, then the short tour). Switching resets to the first step of it.
+   */
+  const [chosen, setChosen] = useState<string | null>(null);
+  // Welcome is dropped from a chosen tour — it's the card you picked from.
+  const steps = chosen
+    ? (tracks.find((t) => t.id === chosen)?.steps.filter((x) => x.id !== "welcome") ?? defaultSteps)
+    : defaultSteps;
   // "Not now" hides the overlay without switching Elsie off. Seeded from the
   // session snooze so a dismissal survives navigation — this component
   // re-mounts constantly, and local state alone reset on every page change.
@@ -378,6 +396,31 @@ export function Elsie({
             </div>
 
             <p className="text-[13px] text-[var(--slate)] leading-relaxed mb-3">{step!.body}</p>
+
+            {/* Tour picker — only on the greeting, and only before one is
+                chosen. Offering it on every step would be a menu, not a tour.
+                Welcome is dropped from the chosen list: you just read it. */}
+            {step!.id === "welcome" && !chosen && tracks.length > 0 && (
+              <div className="flex flex-col gap-1.5 mb-3">
+                <span className="font-mono text-[10px] uppercase tracking-wider text-[var(--mute)]">Pick a tour</span>
+                {tracks.map((t) => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => {
+                      if (t.steps.filter((x) => x.id !== "welcome").length === 0) return;
+                      setChosen(t.id);
+                      setIndex(0);
+                      userDriven.current = true;
+                    }}
+                    className="text-left rounded-lg border border-[var(--line-2)] px-2.5 py-1.5 hover:border-[var(--accent)] transition"
+                  >
+                    <span className="text-[12px] font-semibold block">{t.label}</span>
+                    <span className="text-[11px] text-[var(--mute)] block leading-snug">{t.blurb}</span>
+                  </button>
+                ))}
+              </div>
+            )}
 
             {step!.cta && (
               <a

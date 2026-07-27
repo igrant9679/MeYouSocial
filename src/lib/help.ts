@@ -447,6 +447,183 @@ export const HELP_CATEGORIES: FaqCategory[] = [
     ],
   },
   {
+    id: "social",
+    label: "Social & scheduling",
+    color: "#0A66C2",
+    soft: "#E5EDFD",
+    entries: [
+      {
+        q: "How do I post to several networks at once?",
+        a: "Social → **Composer**: write the post once, tick the accounts, and send or schedule. Each account shows its own character count against its own limit, and you can override the text or image per network where it matters — the rest inherit what you wrote.",
+        links: [{ label: "Open Social →", href: "/social" }],
+        tags: ["social", "composer", "publish", "cross-post", "multi-network"],
+      },
+      {
+        q: "What are queue slots, and why use them instead of picking a date?",
+        a: "Slots are your standing publishing times — say 09:00 Monday to Friday. Queue a draft and it takes the next free one, so you are not choosing a date for every post. If every slot in the horizon is taken the app tells you rather than inventing a time, and pausing a slot never un-schedules a post already sitting in it.",
+        links: [{ label: "Posting schedule →", href: "/social" }],
+        tags: ["queue", "slots", "schedule", "posting times"],
+      },
+      {
+        q: "Why is my scheduled time an hour out?",
+        a: "Check the **social timezone** on the posting schedule. Slots are stored as wall clock, not as instants, so 09:00 Tuesday stays 09:00 across daylight saving. Everything is anchored to the workspace timezone; if it is unset the app falls back to UTC and says so in amber.",
+        tags: ["timezone", "dst", "wrong time", "schedule"],
+      },
+      {
+        q: "Month view or week view?",
+        a: "Month shows coverage at a glance — which days have something going out. Week is a time grid when you care about the hour: drops snap to the half hour and the cell shows the landing time as you hover. Both let you drag, and both keep a date box on every card, because dragging is never the only way to move something.",
+        tags: ["calendar", "month", "week", "drag"],
+      },
+      {
+        q: "A post failed to send. What now?",
+        a: "History shows the outcome per network, so a post that reached LinkedIn and failed on X says exactly that. Use **Retry** on the failed target — it re-sends only that one. Duplicate sends are guarded four ways, so a retry cannot double-post.",
+        tags: ["failed", "retry", "history", "error"],
+      },
+      {
+        q: "Are my links tracked?",
+        a: "Links are tagged with UTM parameters **at send time**, per network — so the same post arrives as utm_source=linkedin on one and utm_source=x on another, and your analytics can tell them apart. Tagging happens on send, not while you write, so re-editing a draft never accumulates parameters, and links you already tagged yourself are left alone.",
+        tags: ["utm", "tracking", "links", "analytics"],
+      },
+    ],
+  },
+  {
+    id: "insights",
+    label: "Insights & measurement",
+    color: "#15924B",
+    soft: "#E0F2E8",
+    entries: [
+      {
+        q: "What does Insights actually measure?",
+        a: "Two different things. Your **pipeline** — what you made, how long it took, what stalled — which the app knows exactly because it owns that data. And **performance** — views, engagement — which it knows only as well as your connected analytics allow. The two are shown separately on purpose.",
+        links: [{ label: "Open Insights →", href: "/insights" }],
+        tags: ["insights", "metrics", "measurement"],
+      },
+      {
+        q: "Why is a number blank instead of zero?",
+        a: "Because a blank means *we do not know* and a zero means *we measured nothing happening*. Conflating them makes missing data look like bad performance. Every dash comes with the reason it is a dash, and every figure carries its sample size and source.",
+        tags: ["blank", "zero", "no data", "dash", "missing"],
+      },
+      {
+        q: "Why will the app not recommend anything?",
+        a: "Recommendations are deterministic rules, not a model musing over your numbers, and each one refuses to fire below a usable sample. Thin data produces silence rather than confident advice you cannot check. As real content accumulates they start appearing on their own.",
+        tags: ["recommendations", "advice", "silent", "rules"],
+      },
+      {
+        q: "What does the engagement figure actually cover?",
+        a: "The window means **posts sent in that window**, not engagement earned in it — networks report lifetime totals per post, so engagement earned last week is not a question the data can answer. The evidence line under each figure says so.",
+        tags: ["engagement", "window", "lifetime", "social stats"],
+      },
+      {
+        q: "Insights is empty. Is it broken?",
+        a: "Almost certainly not — it needs published content and connected analytics before it has anything to say. Connect Search Console, GA4 or YouTube under Admin → Analytics, and publish a few posts; the panels fill in as the data arrives.",
+        links: [{ label: "Admin → Analytics →", href: "/admin/analytics" }],
+        tags: ["empty", "no data", "analytics", "setup"],
+      },
+    ],
+  },
+  {
+    id: "storage",
+    label: "Storage & files",
+    color: "#0D9488",
+    soft: "#D7F1ED",
+    entries: [
+      {
+        q: "Why did my uploaded images disappear?",
+        a: "If storage is still set to **local disk**, files live on the server's own disk — and this host wipes that on every redeploy. Images, voiceovers and rendered video all go with it. Switching storage to Google Drive keeps them permanently.",
+        links: [{ label: "Admin → API keys → Storage →", href: "/admin/api-keys#storage" }],
+        tags: ["files", "missing", "uploads", "disappeared", "redeploy"],
+      },
+      {
+        q: "Connect a Google account, or use a service account?",
+        a: "**Connect a Google account** works on any address, including a personal gmail.com one, and files are owned by that account and use its storage. A **service account** is server-to-server with no human sign-in, but it has zero storage of its own and owns everything it uploads — so it only works against a Google Workspace **Shared Drive**. On a personal account the service-account route cannot work at all, however you share the folder.",
+        links: [{ label: "Storage settings →", href: "/admin/api-keys#storage" }],
+        tags: ["drive", "google", "oauth", "service account", "shared drive"],
+      },
+      {
+        q: "Google says the app is not verified and blocks sign-in.",
+        a: "That is the OAuth consent screen still being in **Testing**, which only admits listed testers — not a verification problem. In Google Cloud Console → *OAuth consent screen → Audience*, click **Publish app**. The app only asks for the drive.file scope, which is non-sensitive, so there is no review to pass. Adding yourself as a test user also unblocks it, but Testing status expires the connection after seven days.",
+        tags: ["access_denied", "verification", "oauth", "403", "blocked"],
+      },
+      {
+        q: "Are my files public once they are in Drive?",
+        a: "No. Nothing is shared by link. The app streams files to signed-in members through its own route, so every view passes through this server and requires a session. With the drive.file scope the app can only ever see files it created itself — it has no access to the rest of that Drive.",
+        tags: ["private", "public", "security", "sharing", "permissions"],
+      },
+      {
+        q: "What happens to my files if I disconnect?",
+        a: "They stay in Drive and keep working, because the app stores each file's id. Disconnecting only forgets the credential. Deleting the folder in Drive, on the other hand, breaks those links permanently — the app cannot recover from that.",
+        tags: ["disconnect", "delete", "files", "recovery"],
+      },
+    ],
+  },
+  {
+    id: "data",
+    label: "Deleting & data",
+    color: "#E11D48",
+    soft: "#FBDFE6",
+    entries: [
+      {
+        q: "How do I delete something?",
+        a: "From wherever it lives — every list and detail surface carries a delete control. Small records confirm inline; anything that takes other data with it asks you to type its name first and lists exactly what else goes, counted from the database rather than guessed at.",
+        tags: ["delete", "remove", "cleanup"],
+      },
+      {
+        q: "What happens when I delete a channel?",
+        a: "Everything filed under it goes too — scripts, ideas, chats, thumbnails, production projects, voice profiles, assets, wiki docs, research and competitors. The confirmation lists the real counts before you type the name. There is no undo and no export, so read the list.",
+        links: [{ label: "Channels admin →", href: "/admin/channels" }],
+        tags: ["channel", "delete", "cascade"],
+      },
+      {
+        q: "Why will it not let me remove this admin?",
+        a: "Because they are the workspace's last active admin, and removing them would leave nobody able to reach its settings — with no way back from inside the app. Promote someone else to admin first, then remove them.",
+        tags: ["admin", "remove", "member", "locked out", "last admin"],
+      },
+      {
+        q: "Revoke or Remove — what is the difference?",
+        a: "**Revoke** suspends a membership and keeps the record, so their history stays intact and access can be restored. **Remove** deletes the membership outright. On connected social accounts the same distinction applies: Disconnect marks the account inactive but keeps the record and its post history; Remove deletes it.",
+        tags: ["revoke", "remove", "disconnect", "members", "accounts"],
+      },
+      {
+        q: "Is there a record of what was deleted?",
+        a: "Yes — every deletion writes an audit entry naming the record *before* it disappears, along with who did it. An audit line holding only an id nobody can look up any more answers none of the questions you have after an accidental delete.",
+        tags: ["audit", "log", "history", "accountability"],
+      },
+    ],
+  },
+  {
+    id: "guide",
+    label: "Elsie, the guide",
+    color: "#D97706",
+    soft: "#FBEED5",
+    entries: [
+      {
+        q: "What is Elsie?",
+        a: "The guide built into the app — the compass button in the top bar. She flags setup that is genuinely still outstanding, then offers a short tour. She is named for LSI Media: *L-S-I* said aloud is el-ess-eye.",
+        tags: ["elsie", "guide", "tour", "onboarding", "help"],
+      },
+      {
+        q: "Why does she show me different things than my colleague?",
+        a: "Because she is contextual, not a slideshow. Setup steps are filtered against what this workspace has actually done, and steps only the platform operator can act on are hidden from everyone else. A guide that walks you through work you finished last week teaches you to close it.",
+        tags: ["elsie", "different", "contextual", "steps"],
+      },
+      {
+        q: "Are there other tours?",
+        a: "Yes — the welcome card offers several, each deliberately short: the overview, making content, publishing, measuring, and running the install. Take the one you need rather than sitting through all of them.",
+        tags: ["elsie", "tours", "tracks", "tour"],
+      },
+      {
+        q: "The badge on the guide button — what is the number?",
+        a: "How many setup steps are still outstanding for this workspace. It disappears when everything relevant to you is done. Steps you dismiss stay dismissed.",
+        tags: ["elsie", "badge", "count", "setup"],
+      },
+      {
+        q: "How do I turn her off?",
+        a: "The button in the top bar toggles her. Closing the popup with Esc or the X is only *not now* — she stays available and will not reopen on you as you navigate. Turning her back **on** clears progress so the tour replays from the start.",
+        tags: ["elsie", "off", "disable", "dismiss", "snooze"],
+      },
+    ],
+  },
+  {
     id: "appearance",
     label: "Appearance & shortcuts",
     color: "#6D28D9",
