@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import { Bell, LogOut, Layers, User } from "lucide-react";
 import { unreadCount } from "@/lib/notify";
@@ -16,6 +17,7 @@ import { setActiveWorkspaceAction } from "@/app/actions/workspace-switch";
 import { storage } from "@/lib/storage";
 import { db } from "@/lib/db";
 import { Elsie } from "@/components/Elsie";
+import { FlashBanner } from "@/components/FlashBanner";
 import { getGuideState } from "@/app/actions/guide";
 import { relevantSteps, outstandingSetup, type SetupState } from "@/lib/guide/steps";
 
@@ -240,7 +242,12 @@ html[data-theme="dark"] .ws-brand {
 
         {/* Also a @container: page components size against the CONTENT area
             (shell minus rail), the width that actually constrains them. */}
-        <main className="flex-1 overflow-auto bg-[var(--panel)] p-6 @container">{children}</main>
+        {/* Suspense: FlashBanner reads useSearchParams, which Next requires be
+            suspended so a page can still be prerendered around it. */}
+        <main className="flex-1 overflow-auto bg-[var(--panel)] p-6 @container">
+          <Suspense fallback={null}><FlashBanner /></Suspense>
+          {children}
+        </main>
       </div>
     </div>
   );

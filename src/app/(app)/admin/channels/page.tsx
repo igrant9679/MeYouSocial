@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Layers, CheckCircle2, AlertTriangle } from "lucide-react";
+import { Layers } from "lucide-react";
 import { requireRole } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { transferChannelOwnershipAction } from "@/app/actions/admin";
@@ -12,9 +12,8 @@ import { deletionImpact } from "@/lib/deletable";
 
 const PALETTE = ["#E5482F", "#6D28D9", "#2563EB", "#0D9488", "#D97706", "#DB2777", "#4F46E5", "#15924B", "#0891B2", "#7C3AED", "#E11D48"];
 
-export default async function AdminChannelsPage({ searchParams }: { searchParams: Promise<{ ok?: string; err?: string }> }) {
+export default async function AdminChannelsPage() {
   const { workspace } = await requireRole("ADMIN");
-  const { ok, err } = await searchParams;
   const channels = await db.channel.findMany({
     where: { workspaceId: workspace.id },
     include: {
@@ -42,18 +41,6 @@ export default async function AdminChannelsPage({ searchParams }: { searchParams
         </div>
       </div>
 
-      {ok && (
-        <div className="card mb-3 flex items-center gap-2" style={{ background: "var(--green-soft)", borderColor: "var(--green)" }}>
-          <CheckCircle2 className="w-4 h-4 shrink-0" style={{ color: "var(--green)" }} />
-          <span className="text-sm">{ok}</span>
-        </div>
-      )}
-      {err && (
-        <div className="card mb-3 flex items-center gap-2" style={{ background: "var(--rose-soft)", borderColor: "var(--rose)" }}>
-          <AlertTriangle className="w-4 h-4 shrink-0" style={{ color: "var(--rose-on)" }} />
-          <span className="text-sm">{err}</span>
-        </div>
-      )}
 
       <ul className="m-0 p-0 grid grid-cols-1 md:grid-cols-2 gap-3">
         {channels.map((c) => (

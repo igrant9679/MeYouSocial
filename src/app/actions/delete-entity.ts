@@ -30,10 +30,14 @@ export async function deleteEntityAction(formData: FormData) {
   // viewing. For everything else the active workspace IS the tenant boundary.
   const { workspace, user } = await requireRole(spec.role, kind === "workspace" ? id : undefined);
 
+  // `flashErr` / `flash`, not `ok` / `err`: those are already used by several
+  // pages to pass a TOKEN they wrap in their own copy (api-keys redirects with
+  // ok=anthropic and renders "Saved anthropic key"). These carry a finished
+  // sentence and are rendered once, by FlashBanner in the (app) layout.
   const back = (msg: string, ok = false) => {
     const target = returnTo || spec.redirectTo?.({ id, name: "" }) || "/";
     const sep = target.includes("?") ? "&" : "?";
-    redirect(`${target}${sep}${ok ? "ok" : "err"}=${encodeURIComponent(msg)}`);
+    redirect(`${target}${sep}${ok ? "flash" : "flashErr"}=${encodeURIComponent(msg)}`);
   };
 
   const target = await spec.find(id, workspace.id);
@@ -70,5 +74,5 @@ export async function deleteEntityAction(formData: FormData) {
 
   const dest = returnTo || spec.redirectTo?.(target!) || "/";
   const sep = dest.includes("?") ? "&" : "?";
-  redirect(`${dest}${sep}ok=${encodeURIComponent(`Deleted ${spec.label} “${target!.name}”.`)}`);
+  redirect(`${dest}${sep}flash=${encodeURIComponent(`Deleted ${spec.label} “${target!.name}”.`)}`);
 }
