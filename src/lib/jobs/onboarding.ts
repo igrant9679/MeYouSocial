@@ -233,8 +233,13 @@ export function registerOnboardingJobs() {
           data: {
             channelId,
             title,
-            strategy: "Counter-intuitive hook with research-backed payoff.",
-            outlierScore: 2 + Math.random() * 4,
+            strategy: "Placeholder — generic hook, not derived from this channel or its competitors.",
+            // ⚠ NO INVENTED SCORE. This used to write `2 + Math.random() * 4`,
+            // so a placeholder landed in the list wearing a "4.7x outlier"
+            // badge indistinguishable from one computed off real competitor
+            // views. null renders as "—x", which is the truth: nothing measured
+            // this.
+            outlierScore: null,
             suggestedLength: "8–12 min",
             topic: channel.nicheDescription?.slice(0, 80) ?? null,
           },
@@ -269,7 +274,13 @@ export function registerOnboardingJobs() {
             channelId,
             title,
             strategy: strategy ?? "Counter-intuitive hook with research-backed payoff.",
-            outlierScore: seed[i]?.outlier ?? 2 + Math.random() * 4,
+            // The score is the SEED's real outlier ratio (competitor views over
+            // that competitor's average), carried onto the idea it inspired.
+            // When the model returns more ideas than there were seeds, the
+            // extras have no measurement behind them — `?? 2 + Math.random()*4`
+            // used to invent one, which put a fabricated multiplier in the same
+            // column as a computed one. null renders as "—x".
+            outlierScore: seed[i]?.outlier ?? null,
             suggestedLength: "8–12 min",
             topic: channel.nicheDescription?.slice(0, 80) ?? null,
           },
