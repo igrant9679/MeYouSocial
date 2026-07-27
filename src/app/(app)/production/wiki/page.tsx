@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { DeleteButton } from "@/components/DeleteButton";
 import { BookOpen, Plus } from "lucide-react";
 import { requireMembership } from "@/lib/acl";
 import { db } from "@/lib/db";
@@ -39,8 +40,9 @@ export default async function WikiPage({ searchParams }: { searchParams: Promise
       <ul className="m-0 p-0 grid grid-cols-1 md:grid-cols-2 gap-3">
         {docs.length === 0 && <li className="col-span-full text-center py-10 text-sm text-[var(--mute)]">No docs yet.</li>}
         {docs.map((d) => (
-          <li key={d.id}>
-            <Link href={`/production/wiki/${d.id}`} className="card block hover:shadow-md transition">
+          <li key={d.id} className="card hover:shadow-md transition">
+            {/* Delete outside the Link — a form inside an anchor navigates. */}
+            <Link href={`/production/wiki/${d.id}`} className="block">
               <div className="flex items-center gap-2 mb-1">
                 <BookOpen className="w-4 h-4" style={{ color: d.channel?.accentColor ?? "#4F46E5" }} />
                 <h3 className="font-semibold text-sm flex-1">{d.title}</h3>
@@ -48,6 +50,9 @@ export default async function WikiPage({ searchParams }: { searchParams: Promise
               <div className="text-xs text-[var(--mute)] line-clamp-2">{d.body.slice(0, 200) || "—"}</div>
               <div className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)] mt-2">{d.channel?.name ?? "Workspace"} · {new Date(d.updatedAt).toLocaleDateString()}</div>
             </Link>
+            <div className="mt-2">
+              <DeleteButton kind="wikiDoc" id={d.id} name={d.title} returnTo="/production/wiki" iconOnly />
+            </div>
           </li>
         ))}
       </ul>

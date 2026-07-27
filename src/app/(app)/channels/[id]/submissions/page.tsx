@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { reviewSubmissionAction, promoteSubmissionAction } from "@/app/actions/growth";
 import { getPublicUrl } from "@/lib/public-url";
 import { CopyButton } from "@/components/CopyButton";
+import { DeleteButton } from "@/components/DeleteButton";
 
 // Reviewable queue for incoming audience submissions; promote to Ideas.
 
@@ -85,6 +86,9 @@ export default async function SubmissionsPage({ params, searchParams }: { params
                   <input type="hidden" name="status" value="rejected" />
                   <button type="submit" className="btn sm flex items-center gap-1.5"><X className="w-3.5 h-3.5" /> Reject</button>
                 </form>
+                {/* Reject keeps the submission in the queue under a status;
+                    this removes it outright. */}
+                <DeleteButton kind="audienceSubmission" id={s.id} name={s.topic} returnTo={`/channels/${id}/submissions`} iconOnly />
               </div>
             </li>
           ))}

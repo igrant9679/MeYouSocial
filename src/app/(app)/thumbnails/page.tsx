@@ -5,6 +5,7 @@ import { Image as ImageIcon, Wand2, Copy, History } from "lucide-react";
 import { getActiveChannel } from "@/lib/channel";
 import { db } from "@/lib/db";
 import { brainstormThumbnailsAction, cloneThumbnailAction } from "@/app/actions/thumbnails";
+import { DeleteButton } from "@/components/DeleteButton";
 import { readJson } from "@/lib/db/json";
 
 // MU-08 — AI Thumbnail Studio. Brainstorm + Clone modes + history.
@@ -97,18 +98,25 @@ export default async function ThumbnailsPage({ searchParams }: { searchParams: P
               const concepts = readJson<{ url: string; label: string }[]>(t.concepts, []);
               const previewUrl = t.renderUrl ?? concepts[0]?.url;
               return (
-                <Link key={t.id} href={`/thumbnails/${t.id}`} className="block hover:shadow-md transition rounded-xl overflow-hidden border border-[var(--line)]">
-                  {previewUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={previewUrl} alt={t.title ?? ""} className="w-full aspect-video object-cover" />
-                  ) : (
-                    <div className="w-full aspect-video bg-[var(--zebra)] grid place-items-center text-xs text-[var(--mute)]">No preview</div>
-                  )}
-                  <div className="p-2">
-                    <div className="text-xs font-semibold truncate">{t.title ?? "Untitled"}</div>
-                    <div className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">{t.mode}{t.renderUrl ? " · rendered" : ""}</div>
+                <div key={t.id} className="rounded-xl overflow-hidden border border-[var(--line)] hover:shadow-md transition">
+                  {/* Delete sits beside the Link, never inside it — a form
+                      nested in an anchor navigates instead of submitting. */}
+                  <Link href={`/thumbnails/${t.id}`} className="block">
+                    {previewUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={previewUrl} alt={t.title ?? ""} className="w-full aspect-video object-cover" />
+                    ) : (
+                      <div className="w-full aspect-video bg-[var(--zebra)] grid place-items-center text-xs text-[var(--mute)]">No preview</div>
+                    )}
+                    <div className="px-2 pt-2">
+                      <div className="text-xs font-semibold truncate">{t.title ?? "Untitled"}</div>
+                      <div className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">{t.mode}{t.renderUrl ? " · rendered" : ""}</div>
+                    </div>
+                  </Link>
+                  <div className="px-2 pb-2 pt-1">
+                    <DeleteButton kind="thumbnail" id={t.id} name={t.title ?? "Untitled"} returnTo="/thumbnails" iconOnly />
                   </div>
-                </Link>
+                </div>
               );
             })}
           </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { DeleteButton } from "@/components/DeleteButton";
 import { moveTaskAction } from "@/app/actions/production";
 
 /**
@@ -135,6 +136,11 @@ export function TaskBoard({ tasks: initial, wipLimit }: { tasks: BoardTask[]; wi
                         <option key={c.key} value={c.key}>{c.label}</option>
                       ))}
                     </select>
+                    {/* draggable={false} on the wrapper: without it, grabbing
+                        the delete control starts a card drag instead. */}
+                    <span draggable={false} onDragStart={(e) => e.preventDefault()}>
+                      <DeleteButton kind="task" id={t.id} name={t.title} returnTo="/production/tasks" iconOnly className="btn !px-1 !py-0.5" />
+                    </span>
                   </div>
                 </div>
               ))}

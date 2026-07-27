@@ -1,6 +1,7 @@
 import { requireRole } from "@/lib/acl";
 import { SubmitButton } from "@/components/SubmitButton";
 import { db } from "@/lib/db";
+import { DeleteButton } from "@/components/DeleteButton";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { emailFor } from "@/lib/email";
@@ -138,12 +139,20 @@ export default async function AdminUsersPage() {
                 <td><span className="pill" style={{ background: m.status === "active" ? "var(--green-soft)" : "var(--rose-soft)", color: m.status === "active" ? "var(--green)" : "var(--rose)" }}>{m.status}</span></td>
                 <td className="text-xs text-[var(--mute)]">{m.user.lastActivityAt ? new Date(m.user.lastActivityAt).toLocaleString() : "—"}</td>
                 <td className="text-right">
-                  {m.status === "active" && (
-                    <form action={revokeAction}>
-                      <input type="hidden" name="userId" value={m.userId} />
-                      <button type="submit" className="btn sm">Revoke</button>
-                    </form>
-                  )}
+                  {/* Revoke suspends the membership; Remove deletes it. Both
+                      are offered because they are genuinely different: a
+                      revoked member keeps their row and history, a removed one
+                      does not. Removing the last active ADMIN is refused by
+                      the action — it would leave the workspace unadministrable. */}
+                  <div className="flex items-center gap-1 justify-end flex-wrap">
+                    {m.status === "active" && (
+                      <form action={revokeAction}>
+                        <input type="hidden" name="userId" value={m.userId} />
+                        <button type="submit" className="btn sm">Revoke</button>
+                      </form>
+                    )}
+                    <DeleteButton kind="membership" id={m.id} name={m.user.email} returnTo="/admin" label="Remove" />
+                  </div>
                 </td>
               </tr>
             ))}
@@ -156,10 +165,11 @@ export default async function AdminUsersPage() {
           <h2 className="font-mono text-[15px] mb-3">Pending invitations</h2>
           <ul className="m-0 p-0">
             {invitations.map((inv) => (
-              <li key={inv.id} className="border-t border-[var(--line)] first:border-t-0 py-2 text-sm flex items-center gap-3">
+              <li key={inv.id} className="border-t border-[var(--line)] first:border-t-0 py-2 text-sm flex items-center gap-3 flex-wrap">
                 <span className="font-mono text-xs text-[var(--mute)]">{inv.role}</span>
                 <span className="flex-1">{inv.email}</span>
                 <span className="text-xs text-[var(--mute)]">expires {new Date(inv.expiresAt).toLocaleDateString()}</span>
+                <DeleteButton kind="invitation" id={inv.id} name={inv.email} returnTo="/admin" label="Revoke invite" />
               </li>
             ))}
           </ul>

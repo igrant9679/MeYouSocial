@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Plug, Mail, CheckCircle2, AlertTriangle, Star, Trash2, Share2, RefreshCw, KeyRound } from "lucide-react";
 import { requireRole, isPlatformOperator as isOperator } from "@/lib/acl";
 import { db } from "@/lib/db";
+import { DeleteButton } from "@/components/DeleteButton";
 import { SubmitButton } from "@/components/SubmitButton";
 import { unipileConfigured } from "@/lib/unipile";
 import { zernioConfigured, ZERNIO_PLATFORMS } from "@/lib/zernio";
@@ -161,10 +162,24 @@ export default async function ConnectionsPage({ searchParams }: { searchParams: 
                     <button className="btn sm" title="Post from this account by default">Make default</button>
                   </form>
                 )}
-                <form action={disconnectSocialAccountAction}>
-                  <input type="hidden" name="id" value={a.id} />
-                  <button className="btn sm" title="Forget this account here (revoke access in Zernio)"><Trash2 className="w-3.5 h-3.5" /></button>
-                </form>
+                {/* Two DIFFERENT things, and the old UI conflated them: this
+                    button only flips status to "disconnected" — the row stays
+                    for ever — while its tooltip claimed it forgot the account.
+                    Disconnect keeps the record (and its post history); Remove
+                    deletes it. */}
+                {live && (
+                  <form action={disconnectSocialAccountAction}>
+                    <input type="hidden" name="id" value={a.id} />
+                    <button className="btn sm" title="Mark as disconnected — keeps the record. Revoke access in Zernio too.">Disconnect</button>
+                  </form>
+                )}
+                <DeleteButton
+                  kind="zernioAccount"
+                  id={a.id}
+                  name={a.displayName ?? a.username ?? a.platform}
+                  returnTo="/admin/connections"
+                  label="Remove"
+                />
               </li>
             );
           })}

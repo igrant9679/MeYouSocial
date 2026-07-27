@@ -3,6 +3,7 @@ import { ArrowRight, Plus, Tags } from "lucide-react";
 import { requireMembership } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { setProjectStatusAction, createProjectAction, setProjectTopicAction } from "@/app/actions/production";
+import { DeleteButton } from "@/components/DeleteButton";
 import { SubmitButton } from "@/components/SubmitButton";
 
 // Configurable Production Board: all content by status, with click-to-advance.
@@ -119,6 +120,9 @@ export default async function ProductionBoardPage() {
                         <Tags className="w-3 h-3" /> {p.topic.name}
                       </div>
                     ) : null}
+                    <div className="mt-1.5">
+                      <DeleteButton kind="contentProject" id={p.id} name={p.title} confirmName returnTo="/production" iconOnly />
+                    </div>
                   </li>
                 ))}
               </ul>

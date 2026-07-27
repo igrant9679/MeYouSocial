@@ -1,6 +1,7 @@
 import { requireChannel } from "@/lib/channel";
 import { SubmitButton } from "@/components/SubmitButton";
 import { db } from "@/lib/db";
+import { DeleteButton } from "@/components/DeleteButton";
 import { readJson } from "@/lib/db/json";
 import {
   updateAudienceSectionAction,
@@ -54,6 +55,13 @@ export default async function ChannelAudiencePage({ params }: { params: Promise<
           <input type="hidden" name="channelId" value={id} />
           <button type="submit" className="btn w-full" title="Re-generate avatar from latest YouTube data (overwrites edits)">Refresh avatar from YT data</button>
         </form>
+        {/* Deleting is not the same as refreshing: refresh overwrites from
+            YouTube data, this clears the profile so the page returns to its
+            "no avatar yet" state — which is what you want when the existing one
+            was generated against the wrong channel. */}
+        <div className="mt-3">
+          <DeleteButton kind="audienceAvatar" id={audience.id} name="audience profile" returnTo={`/channels/${id}/audience`} label="Delete profile" className="btn sm w-full" />
+        </div>
       </aside>
 
       <div className="lg:col-span-2 flex flex-col gap-3">

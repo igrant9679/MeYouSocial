@@ -2,6 +2,7 @@ import { Film, Star, Link2, Upload } from "lucide-react";
 import { SubmitButton } from "@/components/SubmitButton";
 import { requireMembership } from "@/lib/acl";
 import { db } from "@/lib/db";
+import { DeleteButton } from "@/components/DeleteButton";
 import { createAssetAction, toggleAssetFavoriteAction } from "@/app/actions/production";
 import { importMarkersAction } from "@/app/actions/final-pass";
 
@@ -126,6 +127,7 @@ export default async function AssetsPage({ searchParams }: { searchParams: Promi
                 <Star className="w-4 h-4" style={{ color: a.favorite ? "#D97706" : "var(--mute)" }} fill={a.favorite ? "currentColor" : "none"} />
               </button>
             </form>
+            <DeleteButton kind="asset" id={a.id} name={a.name} returnTo="/production/assets" iconOnly />
           </li>
         ))}
       </ul>
