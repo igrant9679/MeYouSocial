@@ -31,6 +31,8 @@ type VoiceData = {
   _preview?: string;
   summary?: string;
   borrowedFrom?: string;
+  /** Written by onboarding.voice — what, if anything, actually trained this. */
+  source?: { trained?: boolean; basis?: string; videos?: number; transcripts?: number; reason?: string };
 };
 
 type Sample = { id: string; label: string; chars: number; body: string };
@@ -110,6 +112,20 @@ export default async function ChannelVoicePage({
               {active.isDefault && <span className="text-[10px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: "#FBEED5", color: "#D97706" }}>default</span>}
               {data.borrowedFrom && <span className="text-[10px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: "var(--accent-soft)", color: "var(--accent)" }}>borrowed from {data.borrowedFrom}</span>}
             </h1>
+            {/* An untrained profile is a generic placeholder — it must not read
+                as if it were learned from the channel. Say which it is. */}
+            {data.source && (
+              data.source.trained ? (
+                <p className="text-[11px] text-[var(--mute)] mt-0.5">
+                  Trained from {data.source.basis}
+                  {data.source.videos ? ` across ${data.source.videos} videos` : ""}.
+                </p>
+              ) : (
+                <p className="text-[11px] mt-0.5" style={{ color: "var(--amber-on)" }}>
+                  <b>Not trained on this channel</b> — generic starting point. {data.source.reason}
+                </p>
+              )
+            )}
           </div>
           {!active.isDefault && (
             <form action={setDefaultVoiceAction}>

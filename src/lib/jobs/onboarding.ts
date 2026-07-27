@@ -26,33 +26,65 @@ export function registerOnboardingJobs() {
     const channel = await db.channel.findUnique({ where: { id: channelId } });
     if (!channel) return;
 
-    // ALWAYS write a baseline first so the UI completes even if the LLM call fails later.
-    let voiceData: Record<string, unknown> = baselineVoice(channel.nicheDescription ?? "");
-    await db.voiceProfile.upsert({
-      where: { id: `voice-${channelId}-default` },
-      update: { data: writeJson(voiceData), isDefault: true },
-      create: {
-        id: `voice-${channelId}-default`,
-        channelId,
-        label: "Default voice",
-        isDefault: true,
-        data: writeJson(voiceData),
-      },
-    });
+    // ALWAYS write a baseline first so the UI completes even if the LLM call
+    // fails later. `source` says plainly that nothing has trained it yet — a
+    // generic baseline rendered with no marker reads as a trained profile, and
+    // baselineVoice() is entirely invented ("30s", "warm-curious", "Here's the
+    // thing —"). Overwritten below the moment real material is found.
+    let voiceData: Record<string, unknown> = {
+      ...baselineVoice(channel.nicheDescription ?? ""),
+      source: { trained: false, reason: "No channel material read yet." },
+    };
+    const writeVoice = async () => {
+      await db.voiceProfile.upsert({
+        where: { id: `voice-${channelId}-default` },
+        update: { data: writeJson(voiceData), isDefault: true },
+        create: {
+          id: `voice-${channelId}-default`,
+          channelId,
+          label: "Default voice",
+          isDefault: true,
+          data: writeJson(voiceData),
+        },
+      });
+    };
+    await writeVoice();
     await ctx.progress(0.3);
 
     if (channel.linkedYoutubeId) {
-      const videos = await youtubeFor(channel.workspaceId).listVideos(channel.linkedYoutubeId, 10);
-      const usable = videos.filter((v) => v.durationSeconds >= 180);
-      ctx.log(`voice: ${usable.length}/${videos.length} videos usable`);
-      await ctx.progress(0.4);
+      const videos = await youtubeFor(channel.workspaceId).listVideos(channel.linkedYoutubeId, 25);
 
-      if (usable.length >= 3) {
-        // Pull transcripts to inform the voice model.
-        const transcripts = (await Promise.all(usable.slice(0, 5).map((v) => youtubeFor(channel.workspaceId).getTranscript(v.id))))
-          .filter(Boolean) as string[];
-        await ctx.progress(0.7);
+      // ⚠ TRAINS ON TITLES + DESCRIPTIONS, NOT TRANSCRIPTS — deliberate, and it
+      // is what makes this job work at all. `getTranscript` returns null on the
+      // real provider (caption download needs OAuth with youtube.force-ssl, not
+      // an API key), and the old gate additionally required 3 videos of 180s+.
+      // A Shorts-heavy channel therefore hit BOTH walls: the LLM branch never
+      // ran and the stored profile stayed a generic placeholder that looked
+      // trained. Titles and descriptions are the creator's own writing, come
+      // back on every listVideos call, and a 30-second video's title is no less
+      // authored than a 20-minute one's — so no duration filter.
+      const corpus = videos
+        .map((v) => [v.title, (v.description ?? "").slice(0, 600)].filter(Boolean).join("\n").trim())
+        .filter((t) => t.length > 0);
 
+      // Kept opportunistically: the mock provider does return transcripts, and
+      // a future OAuth scope would too. Absent, the profile is titles-only and
+      // says so rather than pretending otherwise.
+      const transcripts = (
+        await Promise.all(videos.slice(0, 5).map((v) => youtubeFor(channel.workspaceId).getTranscript(v.id)))
+      ).filter(Boolean) as string[];
+
+      ctx.log(`voice: ${corpus.length}/${videos.length} videos with text, ${transcripts.length} transcripts`);
+      await ctx.progress(0.5);
+
+      if (corpus.length < 3) {
+        voiceData = {
+          ...voiceData,
+          source: { trained: false, reason: `Only ${corpus.length} video(s) with readable text on the linked channel — need at least 3.` },
+        };
+        await writeVoice();
+      } else {
+        const basis = transcripts.length ? "transcripts plus video titles and descriptions" : "video titles and descriptions";
         try {
           const completion = await llm.complete({
             // ⚠ NOT a hard-coded model. These three jobs used to pin
@@ -62,20 +94,40 @@ export function registerOnboardingJobs() {
             // was out of credit, and the router's fallback-to-mock turned a
             // "re-train from real data" into invented text with no error.
             model: channel.defaultModel ?? llm.defaultModel,
-            system: "You produce a structured voice profile from creator transcripts.",
+            // The system prompt names the evidence and forbids inventing past
+            // it. Titles and descriptions show diction, hooks and framing; they
+            // show NOTHING about cadence, energy or pacing, and a model asked
+            // for a "voice profile" will happily supply all three anyway.
+            system:
+              "You build a structured voice profile for a video creator from their own written material." +
+              " Ground every claim in the supplied text. Where the material cannot evidence something —" +
+              " spoken cadence, energy or pacing cannot be inferred from titles and descriptions —" +
+              " say \"not evidenced by the available material\" rather than guessing.",
             messages: [
-              { role: "user", content: `Niche: ${channel.nicheDescription}\n\nStyle: ${channel.presentationStyle}\n\nTranscripts:\n${transcripts.join("\n\n---\n\n").slice(0, 8000)}\n\nReturn a JSON-ish profile of archetype, delivery, rhetoric, diction, and extras.` },
+              {
+                role: "user",
+                content:
+                  `Niche: ${channel.nicheDescription}\n` +
+                  `Presentation style: ${channel.presentationStyle}\n` +
+                  `Material below is: ${basis}.\n\n` +
+                  (transcripts.length ? `Transcripts:\n${transcripts.join("\n\n---\n\n").slice(0, 6000)}\n\n` : "") +
+                  `Video titles and descriptions (${corpus.length} videos):\n${corpus.join("\n\n---\n\n").slice(0, 8000)}\n\n` +
+                  `Return a profile covering archetype, delivery, rhetoric, diction and extras.`,
+              },
             ],
             workspaceId: channel.workspaceId,
           });
-          voiceData = { ...voiceData, summary: completion.content };
-          // Upgrade the baseline with the LLM-enriched profile.
-          await db.voiceProfile.update({
-            where: { id: `voice-${channelId}-default` },
-            data: { data: writeJson(voiceData) },
-          });
+          voiceData = {
+            ...voiceData,
+            summary: completion.content,
+            source: { trained: true, basis, videos: corpus.length, transcripts: transcripts.length, model: channel.defaultModel ?? llm.defaultModel },
+          };
+          await writeVoice();
         } catch (e) {
-          ctx.log(`voice: LLM enrichment failed, keeping baseline. ${e instanceof Error ? e.message : e}`);
+          const message = e instanceof Error ? e.message : String(e);
+          ctx.log(`voice: LLM enrichment failed, keeping baseline. ${message}`);
+          voiceData = { ...voiceData, source: { trained: false, reason: `The model call failed: ${message.slice(0, 200)}` } };
+          await writeVoice();
         }
       }
     }
