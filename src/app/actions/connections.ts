@@ -94,6 +94,39 @@ export async function syncSocialAccountsAction() {
   }
 }
 
+/**
+ * Mirror the Unipile team's mailboxes into this workspace — the email-side
+ * equivalent of syncSocialAccountsAction.
+ *
+ * Names the workspace in the confirmation for the same reason the Zernio one
+ * does: Unipile credentials are platform-level, so this decides which tenant
+ * owns a mailbox, and the active workspace is a cookie that may not be the one
+ * you think.
+ */
+export async function syncMailboxesAction() {
+  const { workspace } = await requireRole("ADMIN");
+  const { syncUnipileMailboxes } = await import("@/lib/unipile/accounts");
+  try {
+    const { found, adopted, skipped, addresses } = await syncUnipileMailboxes(workspace.id);
+    revalidatePath("/admin/connections");
+    const detail = addresses.length ? ` (${addresses.join(", ")})` : "";
+    redirect(
+      "/admin/connections?ok=" +
+        encodeURIComponent(
+          adopted
+            ? `${workspace.name}: mirrored ${adopted} mailbox${adopted === 1 ? "" : "es"} from Unipile${detail}.` +
+              (skipped ? ` ${skipped} already belong to another workspace and were left alone.` : "")
+            : found
+              ? `Unipile has ${found} mailbox${found === 1 ? "" : "es"}, but ${skipped ? "they already belong to another workspace" : "none could be adopted"}.`
+              : "Unipile reports no mailboxes yet — connect one with the button below.",
+        ),
+    );
+  } catch (e) {
+    if (e && typeof e === "object" && "digest" in e) throw e; // redirect() control flow
+    redirect("/admin/connections?err=" + encodeURIComponent(e instanceof Error ? e.message : "mailbox sync failed"));
+  }
+}
+
 export async function disconnectAccountAction(formData: FormData) {
   const { workspace } = await requireRole("ADMIN");
   const id = String(formData.get("id") ?? "");

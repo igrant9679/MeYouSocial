@@ -11,6 +11,7 @@ import {
   connectAccountAction,
   connectSocialAccountAction,
   syncSocialAccountsAction,
+  syncMailboxesAction,
   disconnectAccountAction,
   disconnectSocialAccountAction,
   setDefaultAccountAction,
@@ -221,6 +222,18 @@ export default async function ConnectionsPage({ searchParams }: { searchParams: 
         <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "var(--panel)", color: "var(--mute)" }}>
           Unipile
         </span>
+        <span className="flex-1" />
+        {/* Same reasoning as the Zernio reconcile: a mailbox connected in
+            Unipile's own dashboard carries no workspace marker, so the app
+            can't see it and reports "no mailbox connected" while mail sits
+            there working. Not gated on having accounts already. */}
+        {emailReady && (
+          <form action={syncMailboxesAction}>
+            <SubmitButton className="btn sm" pendingText="Refreshing…" title="Re-read mailboxes from Unipile">
+              <RefreshCw className="w-3.5 h-3.5" /> Refresh from Unipile
+            </SubmitButton>
+          </form>
+        )}
       </div>
       <p className="text-[11px] text-[var(--mute)] mb-2 leading-relaxed">
         Zernio doesn&apos;t send email, and this host blocks outbound SMTP — so notifications, invitations and password
@@ -228,7 +241,16 @@ export default async function ConnectionsPage({ searchParams }: { searchParams: 
         actually delivered.
       </p>
       {emailAccounts.length === 0 ? (
-        <div className="card mb-2 text-xs text-[var(--mute)]">No mailbox connected — email is not being delivered.</div>
+        <div className="card mb-2 text-xs text-[var(--mute)]">
+          No mailbox connected here — email is not being delivered.
+          {emailReady && (
+            <>
+              {" "}
+              <b>Already connected one in Unipile?</b> Use <b>Refresh from Unipile</b> above — a mailbox added from
+              Unipile&apos;s own dashboard carries no workspace marker, so this list stays empty until you claim it.
+            </>
+          )}
+        </div>
       ) : (
         <ul className="flex flex-col gap-2 mb-3">
           {emailAccounts.map((a) => (
