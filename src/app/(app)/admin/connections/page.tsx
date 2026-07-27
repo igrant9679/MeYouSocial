@@ -111,7 +111,13 @@ export default async function ConnectionsPage({ searchParams }: { searchParams: 
           Zernio
         </span>
         <span className="flex-1" />
-        {socialReady && socialAccounts.length > 0 && (
+        {/* ⚠ NOT gated on `socialAccounts.length > 0`. It used to be, which hid
+            the reconcile from the one workspace that needs it most: zero local
+            accounts is the state a missed webhook — or accounts connected in
+            Zernio's own dashboard before this app was pointed at it — actually
+            produces. "You have no accounts connected" with no way to go and
+            check is the whole bug. */}
+        {socialReady && (
           <form action={syncSocialAccountsAction}>
             <SubmitButton className="btn sm" pendingText="Refreshing…" title="Re-read this workspace's accounts from Zernio">
               <RefreshCw className="w-3.5 h-3.5" /> Refresh from Zernio
@@ -131,7 +137,18 @@ export default async function ConnectionsPage({ searchParams }: { searchParams: 
 
       {socialAccounts.length === 0 ? (
         <div className="card mb-3 text-xs text-[var(--mute)]">
-          No social profile connected — connect one to publish from <Link href="/social" className="underline">Social</Link> or a blog post&apos;s Distribute tab.
+          No social profile connected here — connect one below to publish from{" "}
+          <Link href="/social" className="underline">Social</Link> or a blog post&apos;s Distribute tab.
+          {socialReady && (
+            <>
+              {" "}
+              {/* The likeliest cause of an empty list on a configured install is
+                  that the accounts exist in Zernio and were never mirrored —
+                  say so, rather than implying nothing is connected anywhere. */}
+              <b>Already connected them in Zernio?</b> Use <b>Refresh from Zernio</b> above — this list mirrors what
+              Zernio holds, and a missed webhook leaves it empty even when the accounts are live.
+            </>
+          )}
         </div>
       ) : (
         <ul className="flex flex-col gap-2 mb-3">
