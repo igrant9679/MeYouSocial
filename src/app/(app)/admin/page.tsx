@@ -74,8 +74,13 @@ async function revokeAction(formData: FormData) {
   revalidatePath("/admin");
 }
 
-export default async function AdminUsersPage() {
+export default async function AdminUsersPage({ searchParams }: { searchParams: Promise<{ ok?: string; err?: string }> }) {
   const { workspace } = await requireRole("ADMIN");
+  // ⚠ Without this the page was SILENT on a refused delete. The last-admin
+  // guard returns its reason via ?err=, and with nothing rendering it the
+  // button simply appeared to do nothing — the worst possible feedback for a
+  // destructive action that was deliberately blocked.
+  const { ok, err } = await searchParams;
 
   const [members, invitations] = await Promise.all([
     db.membership.findMany({
@@ -93,6 +98,17 @@ export default async function AdminUsersPage() {
     <div className="w-full">
       <h1 className="font-mono font-bold text-xl mb-1">Users & Roles</h1>
       <p className="text-sm text-[var(--mute)] mb-5">Workspace: <b>{workspace.name}</b></p>
+
+      {ok && (
+        <div className="card mb-3" style={{ background: "var(--green-soft)", borderColor: "var(--green)" }}>
+          <span className="text-sm">{ok}</span>
+        </div>
+      )}
+      {err && (
+        <div className="card mb-3" style={{ background: "var(--rose-soft)", borderColor: "var(--rose)" }}>
+          <span className="text-sm">{err}</span>
+        </div>
+      )}
 
       <section className="card mb-5">
         <h2 className="font-mono text-[15px] mb-3">Invite a member</h2>
