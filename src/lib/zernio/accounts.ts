@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { createZernioProfile, listZernioAccounts, type ZernioAccountInfo } from "@/lib/zernio";
+import { createZernioProfile, listZernioProfiles, listZernioAccounts, type ZernioAccountInfo } from "@/lib/zernio";
 
 /**
  * DB-side resolvers for a workspace's Zernio profile and connected accounts.
@@ -22,10 +22,36 @@ export async function ensureZernioProfile(workspaceId: string): Promise<string> 
   if (!ws) throw new Error("Workspace not found");
   if (ws.zernioProfileId) return ws.zernioProfileId;
 
+  const claim = async (id: string) => {
+    await db.workspace.update({ where: { id: ws.id }, data: { zernioProfileId: id } });
+    return id;
+  };
+
+  // ⚠ ADOPT BEFORE CREATING. This used to create unconditionally, which is
+  // wrong in two situations that both really happen:
+  //   • the local row was lost (restore, re-seed) but the profile still exists;
+  //   • the team already connected accounts in Zernio's own dashboard before
+  //     ever using this app — the accounts sit under their existing profile,
+  //     and minting `ws_<id>` strands them where the reconcile can't see them,
+  //     then asks the user to re-authorise accounts they already authorised.
+  // Both leave the app permanently unable to see real, connected accounts.
+  const existing = await listZernioProfiles().catch(() => []);
+  const byName = existing.find((p) => p.name === `ws_${ws.id}`);
+  if (byName?.id) return claim(byName.id);
+
+  // A single unclaimed profile on the team is unambiguous — adopt it. More than
+  // one is a real choice and guessing could bind a tenant to another tenant's
+  // accounts, so fall through to creating our own.
+  const claimed = new Set(
+    (await db.workspace.findMany({ where: { NOT: { zernioProfileId: null } }, select: { zernioProfileId: true } }))
+      .map((w) => w.zernioProfileId as string),
+  );
+  const unclaimed = existing.filter((p) => p.id && !claimed.has(p.id));
+  if (unclaimed.length === 1) return claim(unclaimed[0].id!);
+
   const profile = await createZernioProfile(`ws_${ws.id}`, ws.name);
   if (!profile.id) throw new Error("Zernio created a profile but returned no id.");
-  await db.workspace.update({ where: { id: ws.id }, data: { zernioProfileId: profile.id } });
-  return profile.id;
+  return claim(profile.id);
 }
 
 /** The account a workspace posts to for a given platform. */
@@ -68,10 +94,13 @@ export async function saveZernioAccount(workspaceId: string, a: ZernioAccountInf
  * readable.
  */
 export async function syncZernioAccounts(workspaceId: string): Promise<{ found: number; removed: number }> {
-  const ws = await db.workspace.findUnique({ where: { id: workspaceId }, select: { zernioProfileId: true } });
-  if (!ws?.zernioProfileId) return { found: 0, removed: 0 };
+  // Resolve (and if necessary adopt) the profile rather than giving up when
+  // none is stored. Refusing to bind here made Refresh a no-op for exactly the
+  // workspace that most needs it: one whose accounts were connected in Zernio's
+  // dashboard and never mirrored locally.
+  const profileId = await ensureZernioProfile(workspaceId);
 
-  const remote = await listZernioAccounts({ profileId: ws.zernioProfileId });
+  const remote = await listZernioAccounts({ profileId });
   for (const a of remote) await saveZernioAccount(workspaceId, a);
 
   const keep = remote.map((a) => a.id);
