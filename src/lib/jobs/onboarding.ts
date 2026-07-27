@@ -55,7 +55,13 @@ export function registerOnboardingJobs() {
 
         try {
           const completion = await llm.complete({
-            model: "claude-sonnet",
+            // ⚠ NOT a hard-coded model. These three jobs used to pin
+            // "claude-sonnet" while every other generation path resolves
+            // `channel.defaultModel` first — so pointing a channel at Gemini
+            // silently did nothing here, the call went to an Anthropic key that
+            // was out of credit, and the router's fallback-to-mock turned a
+            // "re-train from real data" into invented text with no error.
+            model: channel.defaultModel ?? llm.defaultModel,
             system: "You produce a structured voice profile from creator transcripts.",
             messages: [
               { role: "user", content: `Niche: ${channel.nicheDescription}\n\nStyle: ${channel.presentationStyle}\n\nTranscripts:\n${transcripts.join("\n\n---\n\n").slice(0, 8000)}\n\nReturn a JSON-ish profile of archetype, delivery, rhetoric, diction, and extras.` },
@@ -107,7 +113,9 @@ export function registerOnboardingJobs() {
         ? `Top videos: ${(await youtubeFor(channel.workspaceId).listVideos(channel.linkedYoutubeId, 5)).map((v) => v.title).join("; ")}`
         : `Description: ${channel.nicheDescription}`;
       const completion = await llm.complete({
-        model: "claude-sonnet",
+        // See the note in onboarding.voice — resolve the channel's model, never
+        // pin one, or a workspace on Gemini silently falls back to mock.
+        model: channel.defaultModel ?? llm.defaultModel,
         system: "You generate audience avatars with demographics, psychographics, online behavior, offline behavior, and key questions.",
         messages: [{ role: "user", content: `Niche: ${channel.nicheDescription}\n${source}\n\nDifferentiation: ${channel.differentiation}\n\nProduce a JSON object with fields: demographics, psychographics, onlineBehavior, offlineBehavior, keyQuestions (array of 5 strings).` }],
         workspaceId: channel.workspaceId,
@@ -185,7 +193,9 @@ export function registerOnboardingJobs() {
 
     try {
       const completion = await llm.complete({
-        model: "claude-sonnet",
+        // See the note in onboarding.voice — resolve the channel's model, never
+        // pin one, or a workspace on Gemini silently falls back to mock.
+        model: channel.defaultModel ?? llm.defaultModel,
         system: "You convert outlier video titles into 10 fresh idea titles for a creator in a related niche, preserving each one's hook structure.",
         messages: [
           { role: "user", content: `Creator niche: ${channel.nicheDescription}\nDifferentiation: ${channel.differentiation}${perfHint}\nOutlier seeds:\n${seed.map((s, i) => `${i + 1}. (${s.outlier.toFixed(1)}x) ${s.title}`).join("\n")}\n\nReturn one idea per line: "title — strategy".` },
