@@ -75,14 +75,17 @@ export async function syncSocialAccountsAction() {
   const { workspace } = await requireRole("ADMIN");
   const { syncZernioAccounts } = await import("@/lib/zernio/accounts");
   try {
-    const { found, removed } = await syncZernioAccounts(workspace.id);
+    const { found, removed, profileId, adopted } = await syncZernioAccounts(workspace.id);
     revalidatePath("/admin/connections");
     redirect(
       "/admin/connections?ok=" +
         encodeURIComponent(
-          found
-            ? `Zernio has ${found} account${found === 1 ? "" : "s"} for this workspace${removed ? `; ${removed} no longer connected` : ""}.`
-            : "Zernio reports no accounts for this workspace yet.",
+          (found
+            ? `${workspace.name}: mirrored ${found} account${found === 1 ? "" : "s"} from Zernio${removed ? `; ${removed} no longer connected` : ""}.`
+            : `${workspace.name}: Zernio reports no accounts under this profile yet.`) +
+            // Naming the workspace and the newly-bound profile is what makes a
+            // wrong-workspace refresh obvious immediately.
+            (adopted ? ` Bound to Zernio profile ${profileId} — accounts now belong to ${workspace.name}.` : ""),
         ),
     );
   } catch (e) {

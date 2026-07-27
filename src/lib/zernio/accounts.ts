@@ -93,12 +93,20 @@ export async function saveZernioAccount(workspaceId: string, a: ZernioAccountInf
  * deleted: existing SocialPostTarget rows reference them, and history must stay
  * readable.
  */
-export async function syncZernioAccounts(workspaceId: string): Promise<{ found: number; removed: number }> {
+export async function syncZernioAccounts(
+  workspaceId: string,
+): Promise<{ found: number; removed: number; profileId: string; adopted: boolean }> {
   // Resolve (and if necessary adopt) the profile rather than giving up when
   // none is stored. Refusing to bind here made Refresh a no-op for exactly the
   // workspace that most needs it: one whose accounts were connected in Zernio's
   // dashboard and never mirrored locally.
+  const before = await db.workspace.findUnique({ where: { id: workspaceId }, select: { zernioProfileId: true } });
   const profileId = await ensureZernioProfile(workspaceId);
+  // Binding is the consequential half of this action — it decides which
+  // workspace owns a team's accounts, and on a multi-workspace install the
+  // wrong active workspace silently claims them. Report it so a mis-bind is
+  // visible at the moment it happens rather than days later.
+  const adopted = before?.zernioProfileId !== profileId;
 
   const remote = await listZernioAccounts({ profileId });
   for (const a of remote) await saveZernioAccount(workspaceId, a);
@@ -108,5 +116,5 @@ export async function syncZernioAccounts(workspaceId: string): Promise<{ found: 
     where: { workspaceId, accountId: { notIn: keep.length ? keep : ["__none__"] }, status: "connected" },
     data: { status: "disconnected" },
   });
-  return { found: remote.length, removed: count };
+  return { found: remote.length, removed: count, profileId, adopted };
 }
