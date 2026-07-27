@@ -85,6 +85,37 @@ export async function googleAccessToken(sa: ServiceAccount, scope: string): Prom
   return body.access_token;
 }
 
+/**
+ * Classify a Google API failure into the action that actually fixes it.
+ *
+ * ⚠ A DISABLED API AND A MISSING GRANT BOTH COME BACK AS 403 PERMISSION_DENIED,
+ * and they need opposite actions. Matching on "403" alone — which the GA4 probe
+ * did — tells someone to add a service account as a Viewer in GA4 when the real
+ * problem is that the Analytics Admin API was never switched on for the Cloud
+ * project. They'd do the grant, it would still fail, and nothing would say why.
+ *
+ * Google helpfully names the service and project in the SERVICE_DISABLED body,
+ * so the enablement URL can be reconstructed exactly rather than guessed.
+ */
+export function explainGoogleError(raw: string, opts: { saEmail?: string; grantHint?: string } = {}): string {
+  const disabled = /has not been used in project (\d+)|SERVICE_DISABLED/i.exec(raw);
+  if (disabled) {
+    const project = disabled[1] ?? /project (\d+)/i.exec(raw)?.[1];
+    const service = /([a-z0-9.-]+\.googleapis\.com)/i.exec(raw)?.[1];
+    const url = service && project
+      ? `https://console.developers.google.com/apis/api/${service}/overview?project=${project}`
+      : "https://console.cloud.google.com/apis/library";
+    return (
+      `That Google API isn't enabled on the Cloud project yet — this is NOT a permissions problem, so granting access ` +
+      `won't help until it's switched on. Enable it here: ${url} — then wait a minute and try again.`
+    );
+  }
+  if (/permission|403|PERMISSION_DENIED/i.test(raw) && opts.grantHint) {
+    return `${raw.slice(0, 200)} ${opts.grantHint}`;
+  }
+  return raw.slice(0, 250);
+}
+
 /** Small JSON helper that surfaces Google's error message rather than a bare status. */
 export async function googleApi<T>(
   url: string,

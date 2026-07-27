@@ -1,5 +1,5 @@
 import { getSetting } from "@/lib/settings";
-import { googleAccessToken, googleApi, parseServiceAccount, type ServiceAccount } from "@/lib/google/service-account";
+import { explainGoogleError, googleAccessToken, googleApi, parseServiceAccount, type ServiceAccount } from "@/lib/google/service-account";
 
 /**
  * Google Search Console connector — real ranking data (clicks, impressions,
@@ -92,7 +92,15 @@ export async function gscVerify(workspaceId?: string | null): Promise<{ ok: bool
     }
     return { ok: true, message: `Connected to ${cfg.siteUrl}.`, sites };
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message.slice(0, 300) : "Verification failed" };
+    const raw = e instanceof Error ? e.message : "Verification failed";
+    // A disabled Search Console API and an ungranted service account both come
+    // back as 403 — explainGoogleError tells them apart and names the fix.
+    return {
+      ok: false,
+      message: explainGoogleError(raw, {
+        grantHint: `Add ${cfg.saEmail} as a user on this property in Search Console → Settings → Users and permissions.`,
+      }),
+    };
   }
 }
 

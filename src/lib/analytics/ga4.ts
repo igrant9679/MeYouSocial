@@ -1,5 +1,5 @@
 import { getSetting } from "@/lib/settings";
-import { googleAccessToken, googleApi, parseServiceAccount, type ServiceAccount } from "@/lib/google/service-account";
+import { explainGoogleError, googleAccessToken, googleApi, parseServiceAccount, type ServiceAccount } from "@/lib/google/service-account";
 
 /**
  * GA4 (Google Analytics 4) connector — sessions, users and conversions for the
@@ -75,11 +75,15 @@ export async function ga4Verify(workspaceId?: string | null): Promise<{ ok: bool
     return { ok: true, message: `Connected to property ${cfg.propertyId} — ${sessions} sessions in the last 28 days.` };
   } catch (e) {
     const raw = e instanceof Error ? e.message : "Verification failed";
-    // The permission error is the common one; name the fix.
-    const hint = /permission|403/i.test(raw)
-      ? ` Grant ${cfg.saEmail} the Viewer role on this property (GA4 → Admin → Property access management).`
-      : "";
-    return { ok: false, message: `${raw.slice(0, 250)}${hint}` };
+    // ⚠ Was `/permission|403/` alone, which misdiagnoses a DISABLED API as a
+    // missing grant — they're both 403 PERMISSION_DENIED and need opposite
+    // actions. explainGoogleError separates them.
+    return {
+      ok: false,
+      message: explainGoogleError(raw, {
+        grantHint: `Grant ${cfg.saEmail} the Viewer role on this property (GA4 → Admin → Property access management).`,
+      }),
+    };
   }
 }
 
