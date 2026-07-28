@@ -24,12 +24,15 @@ export function MobileNav({
   signOutAction,
   logoUrl,
   brandName = "MeYouSocial",
+  coBranded = false,
 }: {
   items: LeftRailItem[];
   userLabel: string;
   signOutAction: () => void;
   logoUrl?: string | null;
   brandName?: string;
+  /** Workspace has its own branding — show the product byline alongside it. */
+  coBranded?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname() ?? "";
@@ -59,7 +62,15 @@ export function MobileNav({
                   <BrandLogo size={36} />
                 )}
               </span>
-              <span className="font-mono font-bold text-[15px] truncate">{brandName}</span>
+              <span className="flex flex-col min-w-0">
+                <span className="font-mono font-bold text-[15px] truncate leading-tight">{brandName}</span>
+                {/* Matches the rail: the tenant leads, the product stays visible. */}
+                {coBranded && (
+                  <span className="flex items-center gap-1 text-[9px] font-mono uppercase tracking-wider text-[var(--mute)] leading-tight mt-0.5">
+                    <BrandLogo size={10} /> MeYouSocial
+                  </span>
+                )}
+              </span>
               <span className="flex-1" />
               <button
                 type="button"

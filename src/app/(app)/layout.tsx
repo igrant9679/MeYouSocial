@@ -64,7 +64,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // re-validated here — never interpolate an unvalidated DB string into CSS.
   const accent = workspace.accentColor && /^#[0-9a-fA-F]{6}$/.test(workspace.accentColor) ? workspace.accentColor : null;
   const logoUrl = workspace.logoKey ? storage.url(workspace.logoKey) : null;
-  const brandName = accent || logoUrl ? workspace.name : "MeYouSocial";
+  // ⚠ CO-BRANDED, NOT WHITE-LABELLED. This used to be a straight swap — set an
+  // accent or upload a logo and every trace of MeYouSocial disappeared from the
+  // chrome. The tenant's identity should lead, but the product it runs on
+  // shouldn't vanish: `isBranded` drives a byline that keeps both visible.
+  const isBranded = Boolean(accent || logoUrl);
+  const brandName = isBranded ? workspace.name : "MeYouSocial";
   // The alias tokens (--accent*, --brand-on…) capture :root's --brand at
   // definition time, so every derived token must be restated here, per theme.
   const brandCss = accent ? `
@@ -155,7 +160,7 @@ html[data-theme="dark"] .ws-brand {
         <Link
           href="/dashboard"
           className="flex items-center justify-center @6xl:justify-start gap-2.5 px-0 @6xl:px-2 py-1.5 mb-2 rounded-xl"
-          title={`${brandName} · Home`}
+          title={isBranded ? `${workspace.name} on MeYouSocial · Home` : "MeYouSocial · Home"}
         >
           <span className="flex-shrink-0 shadow-lg shadow-[#15181D]/25 rounded-xl">
             {logoUrl ? (
@@ -165,7 +170,18 @@ html[data-theme="dark"] .ws-brand {
               <BrandLogo size={38} />
             )}
           </span>
-          <span className="font-mono font-bold text-[17px] tracking-tight hidden @6xl:inline truncate max-w-[160px]">{brandName}</span>
+          <span className="hidden @6xl:flex flex-col min-w-0">
+            <span className="font-mono font-bold text-[17px] tracking-tight truncate max-w-[160px] leading-tight">{brandName}</span>
+            {/* The product byline. Only when the workspace has its own branding
+                — an unbranded install already says MeYouSocial above, and
+                repeating it would just be noise. Hidden with the wordmark when
+                the rail collapses to icons; there is no room for either. */}
+            {isBranded && (
+              <span className="flex items-center gap-1 text-[10px] font-mono uppercase tracking-wider text-[var(--mute)] leading-tight mt-0.5">
+                <BrandLogo size={11} /> MeYouSocial
+              </span>
+            )}
+          </span>
         </Link>
 
         <span data-elsie="rail" className="contents"><LeftRailNav items={navItems} /></span>
@@ -202,7 +218,7 @@ html[data-theme="dark"] .ws-brand {
       <div className="flex-1 min-w-0 flex flex-col">
         <header className="min-h-[60px] border-b border-[var(--line)] app-header flex items-center gap-2 md:gap-3 px-3 md:px-6 py-2 flex-shrink-0 flex-wrap">
           <div className="md:hidden">
-            <MobileNav items={navItems} userLabel={userLabel} signOutAction={signOutAction} logoUrl={logoUrl} brandName={brandName} />
+            <MobileNav items={navItems} userLabel={userLabel} signOutAction={signOutAction} logoUrl={logoUrl} brandName={brandName} coBranded={isBranded} />
           </div>
           {workspaceChoices.length > 1 || canCreateWorkspace ? (
             // Multi-company user: the workspace name becomes a switcher. The
