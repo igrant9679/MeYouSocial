@@ -85,18 +85,53 @@ export async function POST(req: NextRequest) {
 
   // post.published / post.failed / post.partial — reconcile our own record so a
   // scheduled post that Zernio published later reflects reality here too.
+  //
+  // ⚠ SCOPE THIS TO THE LEG THE EVENT IS ABOUT. One Zernio post fans out to
+  // every selected network, so a bare `where: { providerPostId }` applies one
+  // platform's outcome to all of them — an Instagram failure would mark the
+  // LinkedIn and Facebook legs failed too, and a later success would flip them
+  // all back. The singular `platformPostUrl` / `errorMessage` fields say these
+  // deliveries are per-platform. When the payload names an account or platform
+  // we narrow to it; when it names neither the event really is about the whole
+  // post, and updating every leg is then correct.
   if (type.startsWith("post.")) {
     const postId = String(data.postId ?? data.id ?? "");
     if (!postId) return NextResponse.json({ ok: true, ignored: "no post id" });
     const url = typeof data.platformPostUrl === "string" ? data.platformPostUrl : null;
     const failed = type === "post.failed";
-    await db.socialPostTarget.updateMany({
-      where: { providerPostId: postId },
+
+    const accountId = typeof data.accountId === "string" ? data.accountId : null;
+    const platform = typeof data.platform === "string" ? data.platform.toLowerCase() : null;
+    const scope = accountId ? { accountId } : platform ? { provider: platform } : {};
+
+    const { count } = await db.socialPostTarget.updateMany({
+      where: { providerPostId: postId, ...scope },
       data: failed
         ? { status: "failed", error: String(data.errorMessage ?? "Zernio reported the post failed").slice(0, 500) }
-        : { status: "posted", postedAt: new Date(), ...(url ? { platformPostUrl: url } : {}) },
+        : { status: "posted", postedAt: new Date(), error: null, ...(url ? { platformPostUrl: url } : {}) },
     });
-    return NextResponse.json({ ok: true });
+
+    // Re-roll the parent post from its targets, so a per-leg event moves the
+    // post between posted / partial / failed instead of leaving whatever the
+    // send-time roll-up wrote.
+    const target = await db.socialPostTarget.findFirst({
+      where: { providerPostId: postId },
+      select: { postId: true },
+    });
+    if (target) {
+      const all = await db.socialPostTarget.findMany({ where: { postId: target.postId } });
+      const posted = all.filter((t) => t.status === "posted").length;
+      const stillPending = all.some((t) => t.status === "pending");
+      await db.socialPost.update({
+        where: { id: target.postId },
+        data: {
+          status:
+            posted === all.length ? "posted" : posted > 0 ? "partial" : stillPending ? "publishing" : "failed",
+          ...(posted > 0 ? {} : { publishedAt: null }),
+        },
+      });
+    }
+    return NextResponse.json({ ok: true, updated: count });
   }
 
   // Everything else (inbox, ads, calls) is acknowledged and ignored.

@@ -86,7 +86,19 @@ export async function publishSocialPost(postId: string): Promise<void> {
   if (!post) return;
 
   const pending = post.targets.filter((t) => t.status !== "posted");
-  if (pending.length === 0) return;
+  if (pending.length === 0) {
+    // Nothing left to send. Returning bare would strand a post the scheduler
+    // had already claimed (scheduled → publishing) in "publishing" for good, so
+    // settle it here instead. Only when there ARE targets and they're all out —
+    // a post with none was never sent anywhere and mustn't be called posted.
+    if (post.targets.length > 0 && post.status !== "posted") {
+      await db.socialPost.update({
+        where: { id: post.id },
+        data: { status: "posted", publishedAt: post.publishedAt ?? new Date() },
+      });
+    }
+    return;
+  }
 
   await db.socialPost.update({ where: { id: post.id }, data: { status: "publishing" } });
 
@@ -135,7 +147,14 @@ export async function publishSocialPost(postId: string): Promise<void> {
       const leg = byAccount.get(t.accountId) ?? byPlatform.get(t.provider.toLowerCase());
       // A deduped 409/200 carries no per-platform detail, but it means the
       // content IS out — recording it as failed would be a lie.
-      const posted = result.deduped || !leg || leg.status === "published" || leg.status === "publishing";
+      const posted = result.deduped || leg?.status === "published" || leg?.status === "publishing";
+      // ⚠ A MISSING leg is not a success. Zernio accepting the request says
+      // nothing about a platform it then didn't report on, and marking that
+      // "posted" with a postedAt invents an outcome we were never told — the
+      // one thing this codebase doesn't do. Leave it pending, keep the post id
+      // so `post.published` can still reconcile it, and say why. The roll-up
+      // below turns that into "partial", which is the honest reading.
+      const unreported = !result.deduped && !leg;
       await db.socialPostTarget.update({
         where: { id: t.id },
         data: posted
@@ -146,7 +165,13 @@ export async function publishSocialPost(postId: string): Promise<void> {
               postedAt: new Date(),
               error: null,
             }
-          : { status: "failed", error: (leg?.error ?? `Zernio reported status “${leg?.status}”`).slice(0, 500) },
+          : unreported
+            ? {
+                status: "pending",
+                providerPostId: result.postId,
+                error: "Zernio accepted the post but reported nothing for this account — status unknown.",
+              }
+            : { status: "failed", error: (leg?.error ?? `Zernio reported status “${leg?.status}”`).slice(0, 500) },
       });
     }
   } catch (e) {
@@ -157,10 +182,15 @@ export async function publishSocialPost(postId: string): Promise<void> {
     });
   }
 
-  // Roll up the post status from its targets.
+  // Roll up the post status from its targets. A target left PENDING is still in
+  // flight, not a failure: if nothing posted but nothing failed either, the post
+  // stays "publishing" so the webhook can settle it, rather than being written
+  // off as failed on no evidence.
   const fresh = await db.socialPostTarget.findMany({ where: { postId: post.id } });
   const posted = fresh.filter((t) => t.status === "posted").length;
-  const status = posted === fresh.length ? "posted" : posted > 0 ? "partial" : "failed";
+  const stillPending = fresh.some((t) => t.status === "pending");
+  const status =
+    posted === fresh.length ? "posted" : posted > 0 ? "partial" : stillPending ? "publishing" : "failed";
   await db.socialPost.update({
     where: { id: post.id },
     data: { status, publishedAt: posted > 0 ? new Date() : null },

@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import { storage } from "@/lib/storage";
 import { writeJson, readJson } from "@/lib/db/json";
 import { publishSocialPost } from "@/lib/social/publish";
+import { networkFor } from "@/lib/social/networks";
 import { claimNextFreeSlot, formatInZone, getPostingTimeZone, queueFailureMessage } from "@/lib/social/slots";
 
 // Social scheduler actions. A post fans out to one or more connected social
@@ -39,6 +40,39 @@ const IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/gif", "image/webp
 
 function backTo(msg: string, kind: "err" | "ok" = "err"): never {
   redirect(`/social?${kind === "err" ? "err" : "ok"}=${encodeURIComponent(msg)}`);
+}
+
+/**
+ * Refuse a send that a network will certainly reject for having no image.
+ *
+ * Instagram, Pinterest, YouTube, TikTok and Snapchat cannot accept a text-only
+ * post at all. The composer shows an amber "needs an image" next to those rows
+ * but does NOT block submit — and nothing checked server-side — so the post was
+ * accepted, stored, and only failed later at Zernio, per-network, after it had
+ * already gone out everywhere else. Refusing here is the same rule the queue
+ * follows for a missing slot: say no with a reason rather than half-doing it.
+ *
+ * Drafts are exempt: an image can be attached before it ever goes out. This
+ * only guards a post that is about to publish or is being scheduled to.
+ *
+ * `mediaFor` returns the keys that provider will actually send — its own
+ * override when it has one, else the post's base media.
+ */
+function assertMediaWhereRequired(
+  providers: string[],
+  mediaFor: (provider: string) => string[],
+): void {
+  const missing = [...new Set(providers)]
+    .filter((p) => networkFor(p)?.requiresMedia && mediaFor(p).length === 0)
+    .map((p) => networkFor(p)?.label ?? p);
+  if (missing.length === 0) return;
+  const list =
+    missing.length === 1
+      ? missing[0]
+      : `${missing.slice(0, -1).join(", ")} and ${missing[missing.length - 1]}`;
+  backTo(
+    `${list} ${missing.length === 1 ? "needs" : "need"} an image — attach one, or deselect ${missing.length === 1 ? "it" : "them"}.`,
+  );
 }
 
 async function storeMedia(files: FormDataEntryValue[]): Promise<string[]> {
@@ -97,21 +131,34 @@ export async function createSocialPostAction(formData: FormData) {
     status = "publishing"; // publish immediately below
   }
 
-  // Per-network text overrides: variant_<PROVIDER> from the composer. Empty or
+  // Per-network text overrides: variant_<provider> from the composer. Empty or
   // identical-to-base overrides are dropped so the target falls back to base.
+  //
+  // ⚠ The field name carries the provider slug EXACTLY as stored — lowercase
+  // ("variant_linkedin"). It was uppercase while these were Unipile providers,
+  // and the .toUpperCase() outlived the 2026-07-26 migration to lowercase
+  // Zernio slugs, so every lookup missed and every override was silently
+  // dropped: customise X to fit 280 chars, save, and the base text posts
+  // instead. Keep this in step with SocialComposer's `name={`variant_${p}`}`.
   const variantFor = (provider: string): string | null => {
-    const v = String(formData.get(`variant_${provider.toUpperCase()}`) ?? "").trim();
+    const v = String(formData.get(`variant_${provider}`) ?? "").trim();
     return v && v !== text ? v : null;
   };
 
-  // Per-network image overrides: media_<PROVIDER>. Stored once per provider so
+  // Per-network image overrides: media_<provider>. Stored once per provider so
   // two accounts on the same network share the upload.
   const mediaByProvider = new Map<string, string | null>();
-  for (const provider of new Set(accounts.map((a) => a.provider.toUpperCase()))) {
+  for (const provider of new Set(accounts.map((a) => a.provider))) {
     const files = formData.getAll(`media_${provider}`);
     const keys = await storeMedia(files);
     mediaByProvider.set(provider, keys.length ? writeJson(keys) : null);
   }
+
+  // Every path here either publishes now or schedules, so check before storing.
+  assertMediaWhereRequired(
+    accounts.map((a) => a.provider),
+    (p) => readJson<string[]>(mediaByProvider.get(p), mediaKeys),
+  );
 
   const post = await db.socialPost.create({
     data: {
@@ -128,7 +175,7 @@ export async function createSocialPostAction(formData: FormData) {
           accountId: a.accountId,
           accountName: a.name,
           text: variantFor(a.provider),
-          mediaKeys: mediaByProvider.get(a.provider.toUpperCase()) ?? null,
+          mediaKeys: mediaByProvider.get(a.provider) ?? null,
         })),
       },
     },
@@ -263,17 +310,29 @@ export async function updateSocialPostAction(formData: FormData) {
     status = "scheduled";
   }
 
+  // Lowercase slug, exactly as stored — see the note on the create path above.
   const variantFor = (provider: string): string | null => {
-    const v = String(formData.get(`variant_${provider.toUpperCase()}`) ?? "").trim();
+    const v = String(formData.get(`variant_${provider}`) ?? "").trim();
     return v && v !== text ? v : null;
   };
 
   // Per-provider media overrides — only replaced when new files are supplied,
   // so an edit that doesn't touch images keeps the ones already chosen.
   const mediaByProvider = new Map<string, string | null | undefined>();
-  for (const provider of new Set(accounts.map((a) => a.provider.toUpperCase()))) {
+  for (const provider of new Set(accounts.map((a) => a.provider))) {
     const keys = await storeMedia(formData.getAll(`media_${provider}`));
     mediaByProvider.set(provider, keys.length ? writeJson(keys) : undefined);
+  }
+
+  // Only when it's actually going out — a draft may legitimately have no image
+  // yet. `undefined` here means "no new upload", so fall back to whatever that
+  // target already had, then to the post's base media.
+  if (status !== "draft") {
+    const existingFor = new Map(post!.targets.map((t) => [t.provider, t.mediaKeys]));
+    assertMediaWhereRequired(
+      accounts.map((a) => a.provider),
+      (p) => readJson<string[]>(mediaByProvider.get(p) ?? existingFor.get(p), mediaKeys),
+    );
   }
 
   const keepIds = new Set(accounts.map((a) => a.accountId));
@@ -284,8 +343,7 @@ export async function updateSocialPostAction(formData: FormData) {
     });
     for (const a of accounts) {
       const existing = post!.targets.find((t) => t.accountId === a.accountId);
-      const providerKey = a.provider.toUpperCase();
-      const overrideMedia = mediaByProvider.get(providerKey);
+      const overrideMedia = mediaByProvider.get(a.provider);
       if (existing) {
         await tx.socialPostTarget.update({
           where: { id: existing.id },
