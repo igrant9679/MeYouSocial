@@ -35,20 +35,25 @@ export async function findSimilarChannelsAction(formData: FormData) {
   revalidatePath(`/intel/channels/${intelChannelId}`);
 }
 
-// Auto-index unindexed @handles. Called from the Intel search box when a
-// query looks like a handle and yields no matches.
-export async function autoIndexHandleAction(formData: FormData) {
-  const { workspace } = await requireMembership();
-  const handle = String(formData.get("handle") ?? "").trim();
-  if (!handle) return;
-  const source = await youtubeFor(workspace.id).findChannel(handle);
-  if (!source) return;
+
+/**
+ * Index one channel (and a handful of its videos) into the Intel corpus.
+ *
+ * Shared by the handle path and the keyword path so they can't drift — the
+ * outlier maths in particular has to stay identical, since a video's score is
+ * only comparable to others computed the same way.
+ */
+async function indexIntelChannel(
+  workspaceId: string,
+  source: { id: string; handle?: string; name: string; subscribers: number; videoCount: number; totalViews: number; language?: string; category?: string },
+  videoLimit = 8,
+) {
   const upserted = await db.intelChannel.upsert({
     where: { youtubeId: source.id },
     update: { lastIndexedAt: new Date() },
     create: {
       youtubeId: source.id,
-      handle: source.handle ?? handle,
+      handle: source.handle ?? null,
       name: source.name,
       subscribers: source.subscribers,
       totalViews: BigInt(source.totalViews),
@@ -58,8 +63,9 @@ export async function autoIndexHandleAction(formData: FormData) {
       lastIndexedAt: new Date(),
     },
   });
-  // Also fetch a handful of videos so the detail page has content.
-  const videos = await youtubeFor(workspace.id).listVideos(source.id, 8);
+  const videos = await youtubeFor(workspaceId).listVideos(source.id, videoLimit);
+  // Outlier score is views over THIS channel's own average — the same
+  // definition used for idea seeds. Never a fabricated figure.
   const avg = videos.reduce((a, v) => a + v.views, 0) / Math.max(1, videos.length);
   for (const v of videos) {
     await db.intelVideo.upsert({
@@ -79,6 +85,48 @@ export async function autoIndexHandleAction(formData: FormData) {
       },
     });
   }
+  return upserted;
+}
+
+/**
+ * Index whatever YouTube returns for a free-text query.
+ *
+ * ⚠ WHY THIS EXISTS: the Intel search box queries a LOCAL index, and the only
+ * way to add to it was to type a query starting with "@". Any other keyword
+ * produced "No matches" and no way forward — on an empty index (a fresh
+ * install, or one whose fabricated demo corpus was cleared) that made the whole
+ * page a dead end, even though `searchChannels` already existed and worked.
+ */
+export async function indexSearchResultsAction(formData: FormData) {
+  const { workspace } = await requireMembership();
+  const q = String(formData.get("q") ?? "").trim();
+  if (!q) return;
+  const back = (msg: string, ok = false) =>
+    redirect(`/intel?q=${encodeURIComponent(q)}&${ok ? "flash" : "flashErr"}=${encodeURIComponent(msg)}`);
+
+  const found = await youtubeFor(workspace.id).searchChannels(q, 6).catch(() => []);
+  if (found.length === 0) {
+    back(`YouTube returned no channels for “${q}”. Try a broader term, or an @handle for an exact match.`);
+  }
+  for (const c of found) await indexIntelChannel(workspace.id, c);
+  revalidatePath("/intel");
+  back(`Indexed ${found.length} channel${found.length === 1 ? "" : "s"} for “${q}” — ${found.map((c) => c.name).slice(0, 3).join(", ")}${found.length > 3 ? "…" : ""}.`, true);
+}
+
+// Auto-index unindexed @handles. Called from the Intel search box when a
+// query looks like a handle and yields no matches.
+export async function autoIndexHandleAction(formData: FormData) {
+  const { workspace } = await requireMembership();
+  const handle = String(formData.get("handle") ?? "").trim();
+  if (!handle) return;
+  // findChannel resolves a handle EXACTLY; searchChannels returns best guesses.
+  // Keep them separate — an exact handle deserves the exact lookup.
+  const source = await youtubeFor(workspace.id).findChannel(handle);
+  if (!source) {
+    redirect(`/intel?q=${encodeURIComponent(handle)}&flashErr=${encodeURIComponent(`YouTube has no channel matching ${handle}.`)}`);
+  }
+  const upserted = await indexIntelChannel(workspace.id, source!);
+  revalidatePath("/intel");
   redirect(`/intel/channels/${upserted.id}`);
 }
 

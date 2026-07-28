@@ -4,7 +4,7 @@ import { requireMembership } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { searchIntel, outlierBand, isFastGrowing, formatNum } from "@/lib/intel";
 import { toggleBookmarkAction } from "@/app/actions/bookmarks";
-import { autoIndexHandleAction } from "@/app/actions/intel";
+import { autoIndexHandleAction, indexSearchResultsAction } from "@/app/actions/intel";
 import { SubmitButton } from "@/components/SubmitButton";
 
 // MU-02 — Intel dashboard. Implements:
@@ -23,6 +23,10 @@ export default async function IntelPage({ searchParams }: { searchParams: Promis
     language: sp.language,
     format: (sp.format === "short" || sp.format === "long" ? sp.format : "") as "" | "short" | "long",
   };
+
+  // How much is indexed at all — lets the empty state distinguish "your query
+  // matched nothing" from "there is nothing to match against".
+  const indexedCount = await db.intelChannel.count();
 
   const [{ channels, videos, biasChannels }, bookmarked, trending, hotChannels, byCategory] = await Promise.all([
     searchIntel(params),
@@ -214,12 +218,37 @@ export default async function IntelPage({ searchParams }: { searchParams: Promis
 
       {channels.length === 0 && videos.length === 0 && (
         <div className="card text-center py-12">
-          <p className="text-sm text-[var(--mute)] mb-3">No matches. Try a broader search or relax your filters.</p>
-          {params.q?.trim().startsWith("@") && (
-            <form action={autoIndexHandleAction} className="flex items-center gap-2 justify-center">
-              <input type="hidden" name="handle" value={params.q} />
-              <SubmitButton className="btn primary sm">Auto-index <code className="font-mono">{params.q}</code> now</SubmitButton>
-            </form>
+          {/* ⚠ This box searches a LOCAL index, not YouTube. Saying "no matches"
+              and stopping was a dead end on an empty index — the page looked
+              broken when it simply had nothing indexed yet. Every non-empty
+              query now offers a way to populate it. */}
+          <p className="text-sm text-[var(--mute)] mb-1">
+            No matches in your indexed channels{indexedCount === 0 ? " — nothing is indexed yet" : ""}.
+          </p>
+          {params.q?.trim() ? (
+            <>
+              <p className="text-[11px] text-[var(--mute)] mb-3">
+                Intel searches channels you&apos;ve indexed, not YouTube directly. Pull some in and they become
+                searchable here.
+              </p>
+              {params.q.trim().startsWith("@") ? (
+                <form action={autoIndexHandleAction} className="flex items-center gap-2 justify-center">
+                  <input type="hidden" name="handle" value={params.q} />
+                  <SubmitButton className="btn primary sm" pendingText="Indexing…">
+                    Index <code className="font-mono">{params.q}</code> from YouTube
+                  </SubmitButton>
+                </form>
+              ) : (
+                <form action={indexSearchResultsAction} className="flex items-center gap-2 justify-center">
+                  <input type="hidden" name="q" value={params.q} />
+                  <SubmitButton className="btn primary sm" pendingText="Searching YouTube…">
+                    Search YouTube for “{params.q}” and index the results
+                  </SubmitButton>
+                </form>
+              )}
+            </>
+          ) : (
+            <p className="text-[11px] text-[var(--mute)]">Search a keyword or an @handle to index channels.</p>
           )}
         </div>
       )}
