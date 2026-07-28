@@ -67,10 +67,27 @@ function buildMockReply(req: LLMRequest): string {
   }
 
   if (text.includes("idea") || text.includes("ideas")) {
-    return Array.from({ length: 5 }, (_, i) => {
-      const score = (1 + rand() * 9).toFixed(1);
-      return `**${i + 1}. ${pick(HOOK_OPENERS).replace(/[.!?]$/, "")} — variant ${i + 1}**\n- Outlier ${score}x · Suggested length 8–12 min · ${pick(FILLER)}`;
-    }).join("\n\n");
+    // ⚠ No invented outlier multiplier here. This branch used to emit
+    // `Outlier ${(1 + rand() * 9).toFixed(1)}x` — a number derived from a PRNG
+    // seeded on the prompt, indistinguishable in the UI from a real ratio of
+    // seed views to a competitor's average. It was also the only branch that
+    // never said "mock", so a workspace with no API key (a fresh tenant hits
+    // exactly this: no key → mockProvider, no warning) got five plausible ideas
+    // carrying fabricated performance figures. An outlier ratio is measured or
+    // it is absent — the same rule the real discovery path follows.
+    //
+    // One idea per line, "title — strategy", which is the shape the ideas job
+    // asks for and parses. The old bold-heading-plus-bullet layout emitted two
+    // lines per idea, so every other row stored as an "idea" was really its
+    // bullet ("Outlier 3.4x · Suggested length 8–12 min · …").
+    // Exactly ONE em-dash per line: the job splits on it to get title/strategy,
+    // so nothing else here may contain one (two of the HOOK_OPENERS do, which
+    // is why they aren't reused for this branch).
+    return Array.from(
+      { length: 10 },
+      (_, i) =>
+        `[mock ${i + 1}: no API key] Placeholder idea, not generated — add a key under Admin → API keys to generate for real.`,
+    ).join("\n");
   }
 
   // Default: a short scripty paragraph.

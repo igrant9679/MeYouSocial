@@ -131,24 +131,23 @@ export async function createSocialPostAction(formData: FormData) {
     status = "publishing"; // publish immediately below
   }
 
-  // Per-network text overrides: variant_<provider> from the composer. Empty or
+  // Per-network text overrides: variant_<PROVIDER> from the composer. Empty or
   // identical-to-base overrides are dropped so the target falls back to base.
   //
-  // ⚠ The field name carries the provider slug EXACTLY as stored — lowercase
-  // ("variant_linkedin"). It was uppercase while these were Unipile providers,
-  // and the .toUpperCase() outlived the 2026-07-26 migration to lowercase
-  // Zernio slugs, so every lookup missed and every override was silently
-  // dropped: customise X to fit 280 chars, save, and the base text posts
-  // instead. Keep this in step with SocialComposer's `name={`variant_${p}`}`.
+  // The field name uses the UPPERCASED slug on both sides — SocialComposer
+  // builds its rows from `a.provider.toUpperCase()`, and the edit page keys
+  // `initial.variants` the same way. The stored provider is lowercase, so this
+  // must keep uppercasing; "fixing" it to match the stored casing silently
+  // drops every override, which is exactly the bug this comment now prevents.
   const variantFor = (provider: string): string | null => {
-    const v = String(formData.get(`variant_${provider}`) ?? "").trim();
+    const v = String(formData.get(`variant_${provider.toUpperCase()}`) ?? "").trim();
     return v && v !== text ? v : null;
   };
 
-  // Per-network image overrides: media_<provider>. Stored once per provider so
+  // Per-network image overrides: media_<PROVIDER>. Stored once per provider so
   // two accounts on the same network share the upload.
   const mediaByProvider = new Map<string, string | null>();
-  for (const provider of new Set(accounts.map((a) => a.provider))) {
+  for (const provider of new Set(accounts.map((a) => a.provider.toUpperCase()))) {
     const files = formData.getAll(`media_${provider}`);
     const keys = await storeMedia(files);
     mediaByProvider.set(provider, keys.length ? writeJson(keys) : null);
@@ -157,7 +156,7 @@ export async function createSocialPostAction(formData: FormData) {
   // Every path here either publishes now or schedules, so check before storing.
   assertMediaWhereRequired(
     accounts.map((a) => a.provider),
-    (p) => readJson<string[]>(mediaByProvider.get(p), mediaKeys),
+    (p) => readJson<string[]>(mediaByProvider.get(p.toUpperCase()), mediaKeys),
   );
 
   const post = await db.socialPost.create({
@@ -175,7 +174,7 @@ export async function createSocialPostAction(formData: FormData) {
           accountId: a.accountId,
           accountName: a.name,
           text: variantFor(a.provider),
-          mediaKeys: mediaByProvider.get(a.provider) ?? null,
+          mediaKeys: mediaByProvider.get(a.provider.toUpperCase()) ?? null,
         })),
       },
     },
@@ -310,16 +309,16 @@ export async function updateSocialPostAction(formData: FormData) {
     status = "scheduled";
   }
 
-  // Lowercase slug, exactly as stored — see the note on the create path above.
+  // Uppercased slug on both sides — see the note on the create path above.
   const variantFor = (provider: string): string | null => {
-    const v = String(formData.get(`variant_${provider}`) ?? "").trim();
+    const v = String(formData.get(`variant_${provider.toUpperCase()}`) ?? "").trim();
     return v && v !== text ? v : null;
   };
 
   // Per-provider media overrides — only replaced when new files are supplied,
   // so an edit that doesn't touch images keeps the ones already chosen.
   const mediaByProvider = new Map<string, string | null | undefined>();
-  for (const provider of new Set(accounts.map((a) => a.provider))) {
+  for (const provider of new Set(accounts.map((a) => a.provider.toUpperCase()))) {
     const keys = await storeMedia(formData.getAll(`media_${provider}`));
     mediaByProvider.set(provider, keys.length ? writeJson(keys) : undefined);
   }
@@ -331,7 +330,7 @@ export async function updateSocialPostAction(formData: FormData) {
     const existingFor = new Map(post!.targets.map((t) => [t.provider, t.mediaKeys]));
     assertMediaWhereRequired(
       accounts.map((a) => a.provider),
-      (p) => readJson<string[]>(mediaByProvider.get(p) ?? existingFor.get(p), mediaKeys),
+      (p) => readJson<string[]>(mediaByProvider.get(p.toUpperCase()) ?? existingFor.get(p), mediaKeys),
     );
   }
 
@@ -343,7 +342,7 @@ export async function updateSocialPostAction(formData: FormData) {
     });
     for (const a of accounts) {
       const existing = post!.targets.find((t) => t.accountId === a.accountId);
-      const overrideMedia = mediaByProvider.get(a.provider);
+      const overrideMedia = mediaByProvider.get(a.provider.toUpperCase());
       if (existing) {
         await tx.socialPostTarget.update({
           where: { id: existing.id },
