@@ -90,6 +90,7 @@ import { createVideoPackageAction } from "@/app/actions/videos";
 import { renderBrandedShortAction, deleteBrandedShortAction } from "@/app/actions/branded-video";
 import { brandedShortReadiness } from "@/lib/branded-video";
 import { HelpTip } from "@/components/HelpTip";
+import { resolveImageProviderName } from "@/lib/images";
 import { BLOG_EDITOR_TAB_TIPS, BLOG_EDITOR_TIPS, IMAGE_TIPS } from "@/lib/help-tips";
 
 // Blog post editor (Spark port, slice 1): SEO metadata + HTML body + grounded
@@ -155,6 +156,8 @@ export default async function BlogPostPage({
       take: 6,
     }),
   ]);
+
+  const imageProviderName = await resolveImageProviderName(workspace.id);
 
   const editor = canEdit(membership.role);
   const admin = canAdmin(membership.role);
@@ -648,10 +651,11 @@ export default async function BlogPostPage({
             <span className="font-mono text-xs text-[var(--mute)]">
               {post.images.filter((i) => i.status === "approved").length}/2 ready
             </span>
-            {/* Same unwired provider as Thumbnail Studio — and because
-                requireImagesToPublish defaults ON, publishing is gated behind
-                an image that can currently only ever be a stock photo. */}
-            <HelpTip text={IMAGE_TIPS.notWired} side="bottom" wide />
+            {/* Only while the mock is resolving. requireImagesToPublish
+                defaults ON, so with no provider the gate sits in front of an
+                image that could only ever be a stock photo — worth saying
+                here, and worth NOT saying once a real provider is on. */}
+            {imageProviderName === "mock" && <HelpTip text={IMAGE_TIPS.notWired} side="bottom" wide />}
           </h2>
           {!brand.requireImagesToPublish && (
             <span className="font-mono text-[10px] px-2 py-0.5 rounded-full" style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }}>

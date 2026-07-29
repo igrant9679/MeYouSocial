@@ -60,6 +60,7 @@ export async function generateAudiencePhotoAction(formData: FormData) {
   const result = await images.generate({
     prompt: `Editorial portrait of the ideal viewer of a ${channel.nicheDescription} channel — natural lighting, warm tones.`,
     aspectRatio: "1:1",
+    workspaceId: workspace.id,
   });
   await db.audienceAvatar.update({
     where: { channelId },

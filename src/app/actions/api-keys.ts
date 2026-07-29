@@ -38,6 +38,7 @@ export async function saveMediaSettingAction(formData: FormData) {
   const ALLOWED: Record<string, string[]> = {
     "video:provider": ["auto", "mock", "veo"],
     "tts:provider": ["mock", "elevenlabs"],
+    "image:provider": ["auto", "mock", "openai", "google"],
   };
   if (!ALLOWED[setting]?.includes(value)) return;
   const { setWorkspaceSetting } = await import("@/lib/settings");

@@ -46,6 +46,7 @@ LABELs should cover 4 proven formats: 1) Face + reaction, 2) Object + tight crop
     const img = await images.generate({
       prompt: `YouTube thumbnail, 1280x720. Concept: ${label}. Visual brief: ${brief}. Video title: ${title}.`,
       aspectRatio: "16:9",
+      workspaceId: workspace.id,
     });
     concepts.push({
       id: Math.random().toString(36).slice(2, 10),
@@ -91,6 +92,7 @@ export async function renderThumbnailAction(formData: FormData) {
   const img = await images.generate({
     prompt: `Final-quality YouTube thumbnail, 1280x720, high contrast. ${concept.label} — ${concept.description}. Title: ${thumb.title}.`,
     aspectRatio: "16:9",
+    workspaceId: workspace.id,
   });
 
   await db.thumbnail.update({
@@ -130,6 +132,7 @@ export async function cloneThumbnailAction(formData: FormData) {
     prompt: `Render a YouTube thumbnail in the following reference style:\n${analysis.content.slice(0, 800)}\nVideo title: ${parsed.data.title}.`,
     aspectRatio: "16:9",
     referenceUrl: parsed.data.referenceUrl,
+    workspaceId: workspace.id,
   });
 
   const thumb = await db.thumbnail.create({

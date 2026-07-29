@@ -8,6 +8,7 @@ import {
   saveGdriveOauthClientAction, connectGdriveAction, disconnectGdriveAction,
 } from "@/app/actions/api-keys";
 import { getVideoProviderSetting } from "@/lib/video";
+import { getImageProviderSetting, resolveImageProviderName } from "@/lib/images";
 import { getStorageBackendSetting } from "@/lib/storage";
 import { gdriveStatus, parseServiceAccount, getDriveAuthMode } from "@/lib/storage/gdrive";
 import { HelpTip } from "@/components/HelpTip";
@@ -67,6 +68,10 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
   const byKey = new Map(wsRows.map((s) => [s.key, s.value] as const));
   const platformByKey = new Map(platformRows.map((s) => [s.key, s.value] as const));
   const videoProvider = await getVideoProviderSetting(workspace.id);
+  const [imageProvider, resolvedImageProvider] = await Promise.all([
+    getImageProviderSetting(workspace.id),
+    resolveImageProviderName(workspace.id),
+  ]);
   const ttsSetting = byKey.get("tts:provider") ?? platformByKey.get("tts:provider");
   const ttsProvider = ttsSetting === "elevenlabs" ? "elevenlabs" : "mock";
 
@@ -239,6 +244,31 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
           <p className="text-xs text-[var(--mute)]">
             Video rendering, YouTube data, and voiceovers — keys and provider switches, all in-app, no Railway needed.
           </p>
+        </div>
+      </div>
+
+      <div className="card mb-3">
+        <div className="font-mono font-bold text-sm mb-1">Image generation</div>
+        <p className="text-[11px] text-[var(--mute)] mb-2">
+          <b>Auto</b> uses OpenAI when its key is set, else Google, else the mock — it prefers OpenAI only because
+          <b> gpt-image-1</b> renders legible text far more reliably, and thumbnails usually need words on them.
+          <b> Mock</b> returns an unrelated stock photo and is <b>not</b> a working image generator; it exists so the
+          pipeline can be exercised without spending. Naming a provider forces it and errors loudly without a key.
+          {" "}Currently resolving to <b>{resolvedImageProvider}</b>.
+        </p>
+        <div className="flex gap-2">
+          {(["auto", "mock", "openai", "google"] as const).map((v) => (
+            <form key={v} action={saveMediaSettingAction} className="flex-1">
+              <input type="hidden" name="setting" value="image:provider" />
+              <input type="hidden" name="value" value={v} />
+              <button
+                className="card w-full text-center cursor-pointer text-sm capitalize !p-2.5"
+                style={imageProvider === v ? { borderColor: "var(--accent)", background: "var(--accent-soft)", color: "var(--accent-on)", fontWeight: 600 } : undefined}
+              >
+                {v}{imageProvider === v ? " ✓" : ""}
+              </button>
+            </form>
+          ))}
         </div>
       </div>
 

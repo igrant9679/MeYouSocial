@@ -9,6 +9,7 @@ import { DeleteButton } from "@/components/DeleteButton";
 import { readJson } from "@/lib/db/json";
 import { HelpTip } from "@/components/HelpTip";
 import { IMAGE_TIPS } from "@/lib/help-tips";
+import { resolveImageProviderName } from "@/lib/images";
 
 // MU-08 — AI Thumbnail Studio. Brainstorm + Clone modes + history.
 
@@ -34,6 +35,7 @@ export default async function ThumbnailsPage({ searchParams }: { searchParams: P
     orderBy: { createdAt: "desc" },
     take: 12,
   });
+  const imageProviderName = await resolveImageProviderName(workspace.id);
 
   return (
     <div>
@@ -47,19 +49,22 @@ export default async function ThumbnailsPage({ searchParams }: { searchParams: P
         </div>
       </div>
 
-      {/* Stated on the page, not just in a tooltip. `src/lib/images/index.ts`
-          resolves to the mock provider on BOTH branches of its ternary, so
-          every render here is a stock photo from picsum seeded by the prompt.
-          It doesn't look like a placeholder — it looks like a finished
-          thumbnail — which is exactly why it has to be said out loud. */}
-      <div className="card mb-4 flex items-start gap-2 text-sm" style={{ background: "var(--amber-soft)", borderColor: "var(--amber)" }}>
-        <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" style={{ color: "var(--amber-on)" }} />
-        <div>
-          <b>Images here are placeholders.</b> No image-generation provider is connected yet, so every
-          render comes back as an unrelated stock photo. The written concepts below <i>are</i> generated
-          for real — use those; treat the pictures as layout stand-ins, not artwork to publish.
+      {/* Shown ONLY while the resolved provider is the mock. A placeholder here
+          is success-shaped — a real, attractive photo that has nothing to do
+          with your title — so it has to be said on the page, not left to a
+          tooltip. Once a real provider resolves, the warning must disappear:
+          a stale "this is fake" notice over genuine renders is its own lie. */}
+      {imageProviderName === "mock" && (
+        <div className="card mb-4 flex items-start gap-2 text-sm" style={{ background: "var(--amber-soft)", borderColor: "var(--amber)" }}>
+          <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" style={{ color: "var(--amber-on)" }} />
+          <div>
+            <b>Images here are placeholders.</b> No image provider is active for this workspace, so every
+            render comes back as an unrelated stock photo. The written concepts below <i>are</i> generated
+            for real — use those; treat the pictures as layout stand-ins, not artwork to publish.{" "}
+            <Link href="/admin/api-keys" className="underline">Turn on a provider →</Link>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Mode tabs */}
       <div className="flex gap-1 mb-4">
@@ -77,7 +82,11 @@ export default async function ThumbnailsPage({ searchParams }: { searchParams: P
           {/* Was: "We'll analyze palette, typography, composition, and render a
               new thumbnail." The analysis is real; the render is not, and
               promising both oversold the half that doesn't work. */}
-          <p className="text-xs text-[var(--mute)]">Paste any YouTube URL or image URL. We&apos;ll describe its palette, typography and composition, then write a version of that style for your title. The rendered image is a placeholder.</p>
+          <p className="text-xs text-[var(--mute)]">
+            Paste any YouTube URL or image URL. We&apos;ll describe its palette, typography and composition, then
+            render a version of that style for your title.
+            {imageProviderName === "mock" && " The rendered image is a placeholder until a provider is turned on."}
+          </p>
           <label className="flex flex-col gap-1">
             <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">Reference URL</span>
             <input name="referenceUrl" required placeholder="https://… or @handle" className="border border-[var(--line-2)] rounded-lg p-2.5 text-sm font-mono" />
@@ -97,7 +106,11 @@ export default async function ThumbnailsPage({ searchParams }: { searchParams: P
             <Wand2 className="w-4 h-4" style={{ color: "#DB2777" }} /> Brainstorm 4 concepts
             <HelpTip text={IMAGE_TIPS.brainstorm} side="bottom" wide />
           </h2>
-          <p className="text-xs text-[var(--mute)]">From a working title (and optional topic), we&apos;ll write four concept directions across proven formats. The written directions are the useful part — the images beside them are placeholders.</p>
+          <p className="text-xs text-[var(--mute)]">
+            From a working title (and optional topic), we&apos;ll write four concept directions across proven formats
+            and render each one.
+            {imageProviderName === "mock" && " The written directions are the useful part until a provider is turned on — the images beside them are placeholders."}
+          </p>
           <label className="flex flex-col gap-1">
             <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">Video title</span>
             <input name="title" required placeholder="e.g. Why your morning routine is broken" className="border border-[var(--line-2)] rounded-lg p-2.5 text-sm" />

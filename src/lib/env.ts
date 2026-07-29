@@ -37,7 +37,13 @@ export const env = {
   MOONSHOT_API_KEY: str(process.env.MOONSHOT_API_KEY),
   MINIMAX_API_KEY: str(process.env.MINIMAX_API_KEY),
 
-  USE_MOCK_IMAGES: bool(process.env.USE_MOCK_IMAGES, true),
+  // Default FALSE, for the same reason USE_MOCK_YOUTUBE and USE_MOCK_SEARCH
+  // are: a key pasted under Admin → API keys should activate the real provider
+  // with no redeploy. While this defaulted TRUE it silently won over a
+  // perfectly good OpenAI key, which is the identical bug described just below
+  // — an install serving fabricated output after the operator had already paid
+  // for the real thing. Set it to "true" explicitly to force placeholders.
+  USE_MOCK_IMAGES: bool(process.env.USE_MOCK_IMAGES, false),
   // Default FALSE, like USE_MOCK_SEARCH: a key pasted under Admin → API keys
   // activates the real API with no redeploy. It defaulted true, which meant a
   // production install served hashed-up fake subscriber counts even after a

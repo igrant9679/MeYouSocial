@@ -342,7 +342,21 @@ export async function generateImageCore(workspaceId: string, postId: string, rol
   const spec = specFor(role, brand);
   const ratio = spec.width / spec.height;
   const aspect: "16:9" | "1:1" | "9:16" = ratio > 1.3 ? "16:9" : ratio < 0.85 ? "9:16" : "1:1";
-  const out = await imageProvider.generate({ prompt: brief.slice(0, 1200), aspectRatio: aspect });
+  // A real provider THROWS rather than substituting a placeholder (see
+  // lib/images). This core runs unattended from autopilot, where an uncaught
+  // throw would take down the whole cycle — so it degrades to "no image made"
+  // like every other early return here, and leaves no fake image behind.
+  let out;
+  try {
+    out = await imageProvider.generate({
+      prompt: brief.slice(0, 1200),
+      aspectRatio: aspect,
+      workspaceId,
+    });
+  } catch (e) {
+    console.warn("[blog-images] generation failed:", e instanceof Error ? e.message : e);
+    return false;
+  }
 
   await db.blogImage.upsert({
     where: { postId_role: { postId, role } },
