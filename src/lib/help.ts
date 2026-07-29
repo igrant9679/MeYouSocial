@@ -68,6 +68,12 @@ export const HELP_CATEGORIES: FaqCategory[] = [
         tags: ["blog", "stages", "workflow", "draft", "review", "approval", "pipeline"],
       },
       {
+        q: "Why are my thumbnails and featured images unrelated stock photos?",
+        a: "Because **image generation isn't connected yet**. There's no provider behind it, so every render returns a stock photo picked from your prompt — thumbnails, blog featured/OG images and audience photos alike.\n\nIt's worth knowing this looks like success rather than failure: you get a real, good-looking photo, just not one that has anything to do with your title.\n\nWhat *is* real: the **written** parts. Thumbnail concepts and the clone-style analysis come from the LLM, so the directions are genuinely usable — treat the pictures as layout stand-ins and make the actual artwork elsewhere.\n\nOne knock-on: `Require images to publish` defaults **on**, so a post can be gated behind an image that can currently only ever be a placeholder. Turn that gate off in Blog → Brand if it blocks you, or approve the placeholder knowingly.",
+        links: [{ label: "Thumbnail Studio →", href: "/thumbnails" }, { label: "Blog → Brand →", href: "/blog/brand" }],
+        tags: ["thumbnail", "image", "placeholder", "stock photo", "picsum", "not real", "generation"],
+      },
+      {
         q: "Is there hover help on the buttons themselves?",
         a: "Yes. Anything with a small **?** next to it has a one-line explanation on hover — and some controls (the left-rail modules, the per-network *Customize* button, character counts) explain themselves when you hover the control directly.\n\nThey work on keyboard focus too, so tabbing through a form surfaces the same text. If you want the longer version, search for the same words here.",
         tags: ["hover", "tooltip", "popup", "help", "keyboard"],

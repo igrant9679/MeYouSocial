@@ -165,6 +165,50 @@ export const CHAT_TIPS = {
     "Chats belong to the channel that was active when you started them — switch channels and you'll see that channel's chats instead.",
 };
 
+/**
+ * Blog post editor tabs, keyed by tab key.
+ *
+ * ⚠ Native `title` again — the editor's tab strip is `overflow-x-auto`.
+ */
+export const BLOG_EDITOR_TAB_TIPS: Record<string, string> = {
+  write: "The draft itself — outline, body, and the AI writing tools.",
+  optimize: "Title, meta description, keywords, internal links and readability. The SEO pass.",
+  assets: "The featured and social images this post needs before it's allowed to publish.",
+  distribute: "Where it goes once it's live — social variants, and packaging it as a video.",
+  review: "The publish gates and the content score. A post can't advance until the required checks pass.",
+};
+
+export const BLOG_EDITOR_TIPS = {
+  gates:
+    "Deterministic checks — SEO, accessibility, readability, citations — re-run on the server every time a post tries to advance. They can't be clicked past, and unverified citations can never publish unattended.",
+  score:
+    "A guide, not a gate. It's computed from the post itself, not from how it ranks — nothing here has seen a search result.",
+};
+
+/**
+ * ⚠ IMAGE GENERATION IS NOT WIRED UP.
+ *
+ * `src/lib/images/index.ts` ends with `env.USE_MOCK_IMAGES ? mock : mock` —
+ * BOTH branches are the mock, so the flag does nothing and there is no real
+ * provider behind it. Every "generated" image is a random stock photo from
+ * picsum.photos, seeded by the prompt.
+ *
+ * That's the most misleading failure shape available: it doesn't look like a
+ * placeholder, it looks like a real result. It affects thumbnails, blog
+ * featured/OG images and audience photos alike — and since
+ * `BrandKit.requireImagesToPublish` defaults ON, publishing is gated behind an
+ * image that can only ever be stock. Say so out loud wherever it's offered.
+ */
+export const IMAGE_TIPS = {
+  notWired:
+    "Image generation isn't connected yet, so this returns a random stock photo rather than a real thumbnail — a placeholder to lay out against, not something to publish.",
+  brainstorm:
+    "Writes four thumbnail concepts as text — the angle, the framing, the words on screen. The concepts are real; the pictures beside them are stock placeholders.",
+  clone:
+    "Takes a reference thumbnail and writes a concept in that style. The description is generated for real; the rendered image is still a stock placeholder.",
+  history: "Everything this channel has generated, newest first.",
+};
+
 /** Brand. */
 export const BRAND_TIPS = {
   topics:

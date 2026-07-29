@@ -89,6 +89,8 @@ import {
 import { createVideoPackageAction } from "@/app/actions/videos";
 import { renderBrandedShortAction, deleteBrandedShortAction } from "@/app/actions/branded-video";
 import { brandedShortReadiness } from "@/lib/branded-video";
+import { HelpTip } from "@/components/HelpTip";
+import { BLOG_EDITOR_TAB_TIPS, BLOG_EDITOR_TIPS, IMAGE_TIPS } from "@/lib/help-tips";
 
 // Blog post editor (Spark port, slice 1): SEO metadata + HTML body + grounded
 // AI draft + the review-state machine. Publishing is an ADMIN act (human gate).
@@ -320,6 +322,8 @@ export default async function BlogPostPage({
               key={t.key}
               href={`/blog/${post.id}?tab=${t.key}`}
               aria-current={on ? "page" : undefined}
+              // Native title, not a bubble: this strip is overflow-x-auto.
+              title={BLOG_EDITOR_TAB_TIPS[t.key]}
               className="group relative inline-flex items-center gap-1.5 px-3.5 py-2.5 text-[13px] font-semibold whitespace-nowrap"
               style={{ color: on ? "var(--rose)" : "var(--slate)" }}
             >
@@ -457,7 +461,9 @@ export default async function BlogPostPage({
       {is("review") && (<>
       {/* Pre-publish checks (Spark gates — server-enforced on advance) */}
       <details className="card mb-4" open={!gatesPass}>
-        <summary className="cursor-pointer select-none text-sm font-semibold flex items-center gap-2 flex-wrap">
+        {/* `title` on the summary rather than a <HelpTip> inside it — a button
+            in a <summary> toggles the <details> when clicked. */}
+        <summary title={BLOG_EDITOR_TIPS.gates} className="cursor-pointer select-none text-sm font-semibold flex items-center gap-2 flex-wrap">
           <ShieldCheck className="w-4 h-4" style={{ color: gatesPass ? "var(--green-on)" : "var(--amber-on)" }} />
           Publish gates: {checks.filter((c) => c.required && c.pass).length}/{checks.filter((c) => c.required).length} required checks pass
           <span
@@ -469,7 +475,7 @@ export default async function BlogPostPage({
                   ? { background: "var(--amber-soft)", color: "var(--amber-on)" }
                   : { background: "var(--rose-soft)", color: "var(--rose-on)" }
             }
-            title={score.parts.map((p) => `${p.label} ${p.score}/${p.max}${p.detail ? ` (${p.detail})` : ""}`).join(" · ")}
+            title={`${BLOG_EDITOR_TIPS.score}\n\n${score.parts.map((p) => `${p.label} ${p.score}/${p.max}${p.detail ? ` (${p.detail})` : ""}`).join(" · ")}`}
           >
             content score {score.total}/100
           </span>
@@ -637,11 +643,15 @@ export default async function BlogPostPage({
       {/* Images (FR-8): featured + branded OG, at the workspace's dimensions. */}
       <div className="card mb-4">
         <div className="flex flex-wrap items-center gap-2 mb-2">
-          <h2 className="text-sm font-semibold flex-1">
+          <h2 className="text-sm font-semibold flex-1 flex items-center gap-1.5">
             Images{" "}
             <span className="font-mono text-xs text-[var(--mute)]">
               {post.images.filter((i) => i.status === "approved").length}/2 ready
             </span>
+            {/* Same unwired provider as Thumbnail Studio — and because
+                requireImagesToPublish defaults ON, publishing is gated behind
+                an image that can currently only ever be a stock photo. */}
+            <HelpTip text={IMAGE_TIPS.notWired} side="bottom" wide />
           </h2>
           {!brand.requireImagesToPublish && (
             <span className="font-mono text-[10px] px-2 py-0.5 rounded-full" style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }}>

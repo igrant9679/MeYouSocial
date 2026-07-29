@@ -1,12 +1,14 @@
 import Link from "next/link";
 import { SubmitButton } from "@/components/SubmitButton";
 import Image from "next/image";
-import { Image as ImageIcon, Wand2, Copy, History } from "lucide-react";
+import { Image as ImageIcon, Wand2, Copy, History, AlertTriangle } from "lucide-react";
 import { getActiveChannel } from "@/lib/channel";
 import { db } from "@/lib/db";
 import { brainstormThumbnailsAction, cloneThumbnailAction } from "@/app/actions/thumbnails";
 import { DeleteButton } from "@/components/DeleteButton";
 import { readJson } from "@/lib/db/json";
+import { HelpTip } from "@/components/HelpTip";
+import { IMAGE_TIPS } from "@/lib/help-tips";
 
 // MU-08 — AI Thumbnail Studio. Brainstorm + Clone modes + history.
 
@@ -45,6 +47,20 @@ export default async function ThumbnailsPage({ searchParams }: { searchParams: P
         </div>
       </div>
 
+      {/* Stated on the page, not just in a tooltip. `src/lib/images/index.ts`
+          resolves to the mock provider on BOTH branches of its ternary, so
+          every render here is a stock photo from picsum seeded by the prompt.
+          It doesn't look like a placeholder — it looks like a finished
+          thumbnail — which is exactly why it has to be said out loud. */}
+      <div className="card mb-4 flex items-start gap-2 text-sm" style={{ background: "var(--amber-soft)", borderColor: "var(--amber)" }}>
+        <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" style={{ color: "var(--amber-on)" }} />
+        <div>
+          <b>Images here are placeholders.</b> No image-generation provider is connected yet, so every
+          render comes back as an unrelated stock photo. The written concepts below <i>are</i> generated
+          for real — use those; treat the pictures as layout stand-ins, not artwork to publish.
+        </div>
+      </div>
+
       {/* Mode tabs */}
       <div className="flex gap-1 mb-4">
         <TabLink href="/thumbnails?mode=brainstorm" active={mode !== "clone"} icon={<Wand2 className="w-3.5 h-3.5" />}>Brainstorm</TabLink>
@@ -54,8 +70,14 @@ export default async function ThumbnailsPage({ searchParams }: { searchParams: P
       {mode === "clone" ? (
         <form action={cloneThumbnailAction} className="card flex flex-col gap-3 max-w-2xl mb-6">
           <input type="hidden" name="channelId" value={active.id} />
-          <h2 className="font-mono font-bold text-[14px] flex items-center gap-2"><Copy className="w-4 h-4" style={{ color: "#DB2777" }} /> Clone a thumbnail's style</h2>
-          <p className="text-xs text-[var(--mute)]">Paste any YouTube URL or image URL. We'll analyze palette, typography, composition, and render a new thumbnail for your title.</p>
+          <h2 className="font-mono font-bold text-[14px] flex items-center gap-2">
+            <Copy className="w-4 h-4" style={{ color: "#DB2777" }} /> Clone a thumbnail&apos;s style
+            <HelpTip text={IMAGE_TIPS.clone} side="bottom" wide />
+          </h2>
+          {/* Was: "We'll analyze palette, typography, composition, and render a
+              new thumbnail." The analysis is real; the render is not, and
+              promising both oversold the half that doesn't work. */}
+          <p className="text-xs text-[var(--mute)]">Paste any YouTube URL or image URL. We&apos;ll describe its palette, typography and composition, then write a version of that style for your title. The rendered image is a placeholder.</p>
           <label className="flex flex-col gap-1">
             <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">Reference URL</span>
             <input name="referenceUrl" required placeholder="https://… or @handle" className="border border-[var(--line-2)] rounded-lg p-2.5 text-sm font-mono" />
@@ -71,8 +93,11 @@ export default async function ThumbnailsPage({ searchParams }: { searchParams: P
       ) : (
         <form action={brainstormThumbnailsAction} className="card flex flex-col gap-3 max-w-2xl mb-6">
           <input type="hidden" name="channelId" value={active.id} />
-          <h2 className="font-mono font-bold text-[14px] flex items-center gap-2"><Wand2 className="w-4 h-4" style={{ color: "#DB2777" }} /> Brainstorm 4 concepts</h2>
-          <p className="text-xs text-[var(--mute)]">From a working title (and optional topic), we'll generate four concept directions across proven formats. Pick one to render in full resolution.</p>
+          <h2 className="font-mono font-bold text-[14px] flex items-center gap-2">
+            <Wand2 className="w-4 h-4" style={{ color: "#DB2777" }} /> Brainstorm 4 concepts
+            <HelpTip text={IMAGE_TIPS.brainstorm} side="bottom" wide />
+          </h2>
+          <p className="text-xs text-[var(--mute)]">From a working title (and optional topic), we&apos;ll write four concept directions across proven formats. The written directions are the useful part — the images beside them are placeholders.</p>
           <label className="flex flex-col gap-1">
             <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">Video title</span>
             <input name="title" required placeholder="e.g. Why your morning routine is broken" className="border border-[var(--line-2)] rounded-lg p-2.5 text-sm" />
