@@ -95,6 +95,29 @@ export const CHANNEL_TIPS = {
     "Which AI model this channel drafts with. Falls back to the workspace default when unset.",
 };
 
+/**
+ * Blog sub-nav, keyed by href.
+ *
+ * ⚠ These are rendered as native `title` attributes, NOT as <WithTip> bubbles.
+ * The strip is `overflow-x-auto` (11 tabs, it scrolls), and an overflow
+ * container clips absolutely-positioned children — a bubble would be cut off
+ * or invisible. A native tooltip escapes the clip. It's slower to appear and
+ * can't be styled, which is the trade for working at all here.
+ */
+export const BLOG_TAB_TIPS: Record<string, string> = {
+  "/blog": "Every article, at whatever stage it's reached. The badge counts the ones waiting on you.",
+  "/blog/ideas": "Article ideas waiting to be approved into drafts.",
+  "/blog/keywords": "The phrases you're targeting, grouped into clusters — labelled by intent, with no invented search volumes.",
+  "/blog/experts": "Subject-matter expert profiles, so a draft can be written in a named person's voice and credentials.",
+  "/blog/audit": "Existing content flagged for refresh or repair.",
+  "/blog/analytics": "Search and traffic for published articles. Needs Search Console and GA4 connected.",
+  "/blog/report": "A client-ready summary you can export.",
+  "/blog/automation": "How much the app may do unattended, per function — and the global pause that stops all of it.",
+  "/blog/brand": "Tone of voice (the 7 Motifs) and the image policy that gates publishing.",
+  "/blog/organization": "Company details that ground drafts in who you actually are.",
+  "/blog/settings": "WordPress connection and publishing options.",
+};
+
 /** Brand. */
 export const BRAND_TIPS = {
   topics:

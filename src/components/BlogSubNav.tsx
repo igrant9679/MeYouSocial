@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { BLOG_TAB_TIPS } from "@/lib/help-tips";
 
 /**
  * The Blog workspace sub-nav: sticky tab strip with live count badges and a
@@ -73,6 +74,9 @@ export function BlogSubNav({ items }: { items: BlogNavItem[] }) {
               key={it.href}
               href={it.href}
               aria-current={on ? "page" : undefined}
+              // Native title rather than a <WithTip> bubble: this strip is
+              // overflow-x-auto, which clips absolutely-positioned children.
+              title={BLOG_TAB_TIPS[it.href]}
               className="group relative inline-flex items-center gap-1.5 px-3 py-2.5 text-[13px] font-semibold whitespace-nowrap transition-colors"
               style={{ color: on ? "var(--rose)" : "var(--slate)" }}
             >
