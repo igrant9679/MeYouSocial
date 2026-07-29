@@ -212,9 +212,15 @@ export async function launchVideoProductionAction(formData: FormData) {
   const run = await db.agentRun.create({
     data: { scriptId: script.id, status: "queued" },
   });
-  // The standard agent pipeline already ends with a "voiceover" step ( pipeline).
-  // For real TTS/avatar/render integration, wire env.USE_MOCK_PRODUCTION=false and supply
-  // the provider keys; the existing job is the single place that branches.
+  // The agent pipeline ends with a "voiceover" step, but that step only
+  // REFORMATS the script for narration via llm.complete — it produces no audio
+  // and branches on nothing.
+  //
+  // Real audio lives elsewhere: `getTtsProvider()` in src/lib/tts, reached from
+  // app/actions/videos.ts, activated by the Setting `tts:provider` plus
+  // `api_key:elevenlabs` under Admin → API keys. There is no env flag involved —
+  // this comment used to say to set `env.USE_MOCK_PRODUCTION=false`, which was
+  // read by nothing and so did nothing.
   await jobs.enqueue("agent.run", { runId: run.id, scriptId: script.id });
   revalidatePath(`/scripts/${scriptId}`);
 }

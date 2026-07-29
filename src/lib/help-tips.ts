@@ -186,18 +186,16 @@ export const BLOG_EDITOR_TIPS = {
 };
 
 /**
- * ⚠ IMAGE GENERATION IS NOT WIRED UP.
+ * Image generation IS wired now — `gpt-image-1` or `gemini-3.1-flash-image`, per
+ * the `image:provider` setting. `notWired` below is therefore CONDITIONAL copy:
+ * only render it where `resolveImageProviderName()` actually returns "mock".
  *
- * `src/lib/images/index.ts` ends with `env.USE_MOCK_IMAGES ? mock : mock` —
- * BOTH branches are the mock, so the flag does nothing and there is no real
- * provider behind it. Every "generated" image is a random stock photo from
- * picsum.photos, seeded by the prompt.
- *
- * That's the most misleading failure shape available: it doesn't look like a
- * placeholder, it looks like a real result. It affects thumbnails, blog
- * featured/OG images and audience photos alike — and since
- * `BrandKit.requireImagesToPublish` defaults ON, publishing is gated behind an
- * image that can only ever be stock. Say so out loud wherever it's offered.
+ * It used to be unconditional, because `lib/images` resolved to the mock on both
+ * branches of its ternary and every "generated" image was a picsum stock photo.
+ * That is the most misleading failure shape available — it doesn't look like a
+ * placeholder, it looks like a real result — which is why the warning exists at
+ * all, and why it must disappear once a real provider resolves. A stale "this is
+ * fake" notice sitting over genuine renders is its own kind of lie.
  */
 export const IMAGE_TIPS = {
   notWired:

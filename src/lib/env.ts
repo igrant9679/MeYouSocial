@@ -56,13 +56,16 @@ export const env = {
   USE_MOCK_SEARCH: bool(process.env.USE_MOCK_SEARCH, false),
   TAVILY_API_KEY: str(process.env.TAVILY_API_KEY),
   SERPER_API_KEY: str(process.env.SERPER_API_KEY),
-  // NOTE: there is deliberately no USE_MOCK_EMAIL. One existed, defaulted true,
-  // and was read by NOTHING — while the invite form told operators to set it
-  // false "to send for real", which did nothing either way. Delivery is decided
-  // by what's actually configured (connected mailbox → SMTP → mock, see
-  // `emailFor`), not by a flag. Don't reintroduce one without wiring it, and if
-  // you do, default it FALSE — see USE_MOCK_IMAGES for why.
-  USE_MOCK_PRODUCTION: bool(process.env.USE_MOCK_PRODUCTION, true),
+  // NOTE: there is deliberately no USE_MOCK_EMAIL and no USE_MOCK_PRODUCTION.
+  // Both existed, both defaulted true, and both were read by NOTHING — while the
+  // UI and a code comment told operators to set them false to "send for real" /
+  // "wire real TTS", which did nothing either way. What actually decides:
+  //   • email    — connected mailbox → SMTP → mock, in `emailFor`
+  //   • TTS      — Setting `tts:provider` + `api_key:elevenlabs`, in `lib/tts`
+  //   • video    — Setting `video:provider`, in `lib/video`
+  //   • images   — Setting `image:provider`, in `lib/images`
+  // i.e. in-app configuration, not env flags. Don't reintroduce either without
+  // wiring it, and if you do, default it FALSE — see USE_MOCK_IMAGES for why.
 
   // Phase 4 — video. Mock by default like every other provider; Veo activates
   // with USE_MOCK_VIDEO=false + a Google key (DB Setting or GOOGLE_GENAI_API_KEY).
