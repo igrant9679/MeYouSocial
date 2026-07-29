@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Home, Layers, Telescope, Sparkles, PenLine, MessageCircle, Image as ImageIcon, KanbanSquare, Settings, HelpCircle, FileText, Clapperboard, FileBarChart, Share2, Palette, LineChart } from "lucide-react";
+import { WithTip } from "@/components/HelpTip";
+import { NAV_TIPS } from "@/lib/help-tips";
 
 // Client-side left-rail nav. Renders the chip strip and highlights the active
 // route via usePathname. Kept tiny so the rest of the app shell can stay server-rendered.
@@ -40,7 +42,8 @@ export function LeftRailNav({ items }: { items: LeftRailItem[] }) {
       {items.map((n) => {
         const Icon = ICONS[n.icon];
         const isActive = isNavActive(n.href, pathname);
-        return (
+        const tip = NAV_TIPS[n.href];
+        const link = (
           <Link
             key={n.href}
             href={n.href}
@@ -48,7 +51,6 @@ export function LeftRailNav({ items }: { items: LeftRailItem[] }) {
             // it targetable without touching the tour engine.
             data-elsie={`nav${n.href}`}
             aria-current={isActive ? "page" : undefined}
-            title={n.label}
             className={
               // justify-center + hidden label = icon-only mode when the shell
               // container is narrow (rail collapse; see (app)/layout.tsx).
@@ -64,6 +66,16 @@ export function LeftRailNav({ items }: { items: LeftRailItem[] }) {
             />
             <span className="hidden @6xl:inline">{n.label}</span>
           </Link>
+        );
+        // The label leads the bubble because the rail collapses to icons on a
+        // narrow shell — in that mode this tooltip is the only place the name
+        // appears at all, which is what the old `title` was doing.
+        return tip ? (
+          <WithTip key={n.href} text={`${n.label} — ${tip}`} side="right" wide block>
+            {link}
+          </WithTip>
+        ) : (
+          link
         );
       })}
     </nav>

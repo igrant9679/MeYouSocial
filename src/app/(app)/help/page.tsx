@@ -38,6 +38,49 @@ export default async function HelpPage() {
         </div>
       </div>
 
+      {/* Orientation. Deliberately the first thing on the page: the FAQ below
+          answers "how do I do X", but someone who has just been handed the app
+          doesn't yet know what X is. This is the mental model, in the order the
+          work actually happens, with the two facts that most often derail a
+          first session (placeholder output, and hover help existing at all). */}
+      <section className="card mb-4">
+        <h2 className="font-mono font-bold text-[14px] mb-1 flex items-center gap-2">
+          <Compass className="w-4 h-4" style={{ color: "var(--accent)" }} /> Start here
+        </h2>
+        <p className="text-sm mb-3 leading-[1.6]">
+          This app turns research into content, publishes it, and measures what happened — for one company or several.
+          You don&apos;t have to use all of it. Many people only ever use <b>Social</b>, or only ever use <b>Blog</b>.
+        </p>
+        <ol className="m-0 pl-5 list-decimal text-sm space-y-1.5 leading-[1.55] mb-3">
+          <li><b>Set up</b> — an AI key so generation works, plus the accounts you publish to. <span className="text-[var(--mute)]">Admin → API keys, Admin → Connections.</span></li>
+          <li><b>Say what you&apos;re about</b> — a Channel for video; Topics and tone in Brand.</li>
+          <li><b>Find something worth saying</b> — Intel surfaces videos that beat their own channel&apos;s average; those become Ideas.</li>
+          <li><b>Make it</b> — Scripts for video, Blog for articles, Social for short posts.</li>
+          <li><b>Publish it</b> — now, at a time you pick, or into a recurring slot.</li>
+          <li><b>See what happened</b> — Insights and Reports.</li>
+        </ol>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+          <div className="border rounded-lg px-3 py-2" style={{ borderColor: "var(--line)" }}>
+            <div className="text-sm font-semibold mb-0.5">Hover anything you don&apos;t recognise</div>
+            <div className="text-[12px] text-[var(--mute)] leading-snug">
+              Every left-rail module explains itself on hover, and controls with a small <b>?</b> beside them do too.
+              Keyboard focus shows the same text.
+            </div>
+          </div>
+          <div className="border rounded-lg px-3 py-2" style={{ borderColor: "var(--line)" }}>
+            <div className="text-sm font-semibold mb-0.5">If the output looks fake, it probably is</div>
+            <div className="text-[12px] text-[var(--mute)] leading-snug">
+              With no working API key the app falls back to placeholder text rather than erroring. Keys are per
+              workspace — check <Link href="/admin/api-keys" className="underline">Admin → API keys</Link>.
+            </div>
+          </div>
+        </div>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <Link href="/social" className="btn sm primary">Try the 2-minute first post →</Link>
+          <Link href="/admin/api-keys" className="btn sm">Check my API keys</Link>
+        </div>
+      </section>
+
       {/* Quick starts by role */}
       <section className="card mb-4">
         <h2 className="font-mono font-bold text-[14px] mb-3 flex items-center gap-2"><Sparkles className="w-4 h-4" style={{ color: "var(--accent)" }} /> Quick start by role</h2>

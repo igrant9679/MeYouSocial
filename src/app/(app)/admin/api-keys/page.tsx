@@ -10,6 +10,8 @@ import {
 import { getVideoProviderSetting } from "@/lib/video";
 import { getStorageBackendSetting } from "@/lib/storage";
 import { gdriveStatus, parseServiceAccount, getDriveAuthMode } from "@/lib/storage/gdrive";
+import { HelpTip } from "@/components/HelpTip";
+import { ADMIN_TIPS } from "@/lib/help-tips";
 import { gdriveOauthConnected, gdriveRedirectUri, getGdriveOauthClient, APP_FOLDER_NAME } from "@/lib/storage/gdrive-oauth";
 import { getPublicUrl } from "@/lib/public-url";
 import { SubmitButton } from "@/components/SubmitButton";
@@ -92,10 +94,18 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
           <KeyRound className="w-5 h-5" strokeWidth={2.25} />
         </span>
         <div>
-          <h1 className="font-mono font-bold text-lg leading-tight">LLM API keys</h1>
+          <h1 className="font-mono font-bold text-lg leading-tight flex items-center gap-2">
+            LLM API keys <HelpTip text={ADMIN_TIPS.apiKeys} side="bottom" wide />
+          </h1>
           <p className="text-xs text-[var(--mute)]">
             Keys for <b>{workspace.name}</b> — saved per workspace, never visible to other companies on this
             install. Without your own key, calls fall back to the platform&apos;s shared key where one exists.
+          </p>
+          {/* The single most confusing behaviour in the app, said plainly at the
+              place that fixes it: a missing key degrades to placeholder text
+              rather than erroring, so bad output looks like real output. */}
+          <p className="text-xs mt-1" style={{ color: "var(--amber-on)" }}>
+            {ADMIN_TIPS.mockWarning}
           </p>
         </div>
       </div>

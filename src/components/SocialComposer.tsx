@@ -5,6 +5,8 @@ import { Send, CalendarClock, ImagePlus, X, Pencil, RotateCcw, Tags, Plus, ListP
 import { SubmitButton } from "@/components/SubmitButton";
 import { createSocialPostAction, updateSocialPostAction } from "@/app/actions/social";
 import { networkFor } from "@/lib/social/networks";
+import { HelpTip, WithTip } from "@/components/HelpTip";
+import { SOCIAL_TIPS } from "@/lib/help-tips";
 
 export type ComposerAccount = { id: string; provider: string; name: string | null };
 export type ComposerTopic = { id: string; name: string; keywords: string[] };
@@ -136,7 +138,9 @@ export function SocialComposer({
       {editing && <input type="hidden" name="id" value={initial!.id} />}
       {/* Account picker */}
       <div>
-        <div className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)] mb-1.5">Post to</div>
+        <div className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)] mb-1.5 flex items-center gap-1.5">
+          Post to <HelpTip text={SOCIAL_TIPS.postTo} side="bottom" wide />
+        </div>
         <div className="flex flex-wrap gap-2">
           {accounts.map((a) => {
             const net = networkFor(a.provider);
@@ -166,6 +170,9 @@ export function SocialComposer({
               {topics.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
             </select>
           </label>
+          {/* Outside the <label> on purpose — a button inside one retargets the
+              click to the select it labels. */}
+          <HelpTip text={SOCIAL_TIPS.topic} side="bottom" wide />
           {/* That topic's related phrases, click to insert */}
           {topic?.keywords.map((k) => (
             <button key={k} type="button" title="Insert into the post"
@@ -225,19 +232,27 @@ export function SocialComposer({
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="w-2 h-2 rounded-full" style={{ background: net?.color ?? "var(--mute)" }} />
                   <span className="text-xs font-semibold">{net?.label ?? p}</span>
-                  <span className="font-mono text-[11px]" style={{ color: over ? "var(--rose-on)" : "var(--mute)" }}>
-                    {eff.length}/{limit}{over ? " — over limit" : ""}
-                  </span>
+                  <WithTip text={SOCIAL_TIPS.charCount} side="bottom" wide>
+                    <span className="font-mono text-[11px]" style={{ color: over ? "var(--rose-on)" : "var(--mute)" }}>
+                      {eff.length}/{limit}{over ? " — over limit" : ""}
+                    </span>
+                  </WithTip>
                   {media.length > 0 && (
                     <span className="font-mono text-[10px] text-[var(--mute)]">
                       {media.length} image{media.length > 1 ? "s" : ""}{isCustom && vFiles.length > 0 ? " (own)" : ""}
                     </span>
                   )}
-                  {net?.requiresMedia && media.length === 0 && <span className="text-[11px] text-[var(--amber-on)]">needs an image</span>}
+                  {net?.requiresMedia && media.length === 0 && (
+                    <WithTip text={SOCIAL_TIPS.needsImage} side="bottom" wide>
+                      <span className="text-[11px] text-[var(--amber-on)]">needs an image</span>
+                    </WithTip>
+                  )}
                   <span className="flex-1" />
-                  <button type="button" onClick={() => toggleCustom(p)} className="text-[11px] font-semibold inline-flex items-center gap-1" style={{ color: "var(--accent)" }}>
-                    {isCustom ? <><RotateCcw className="w-3 h-3" /> Use base</> : <><Pencil className="w-3 h-3" /> Customize</>}
-                  </button>
+                  <WithTip text={SOCIAL_TIPS.customize} side="left" wide>
+                    <button type="button" onClick={() => toggleCustom(p)} className="text-[11px] font-semibold inline-flex items-center gap-1" style={{ color: "var(--accent)" }}>
+                      {isCustom ? <><RotateCcw className="w-3 h-3" /> Use base</> : <><Pencil className="w-3 h-3" /> Customize</>}
+                    </button>
+                  </WithTip>
                 </div>
                 {isCustom && (
                   <>
@@ -304,19 +319,25 @@ export function SocialComposer({
             <label className="inline-flex items-center gap-1.5 text-sm cursor-pointer">
               <input type="radio" name="when" value="now" checked={when === "now"} onChange={() => setWhen("now")} /> Post now
             </label>
+            <HelpTip text={SOCIAL_TIPS.postNow} />
             <label className="inline-flex items-center gap-1.5 text-sm cursor-pointer">
               <input type="radio" name="when" value="schedule" checked={when === "schedule"} onChange={() => setWhen("schedule")} /> Schedule
             </label>
+            <HelpTip text={SOCIAL_TIPS.schedule} />
           </>
         )}
         {/* Add to queue — offered only when there IS a free slot to take, so the
             option never promises a time the schedule can't supply. */}
         {queue?.nextFree && (
-          <label className="inline-flex items-center gap-1.5 text-sm cursor-pointer">
-            <input type="radio" name="when" value="queue" checked={when === "queue"} onChange={() => setWhen("queue")} />
-            Add to queue
-            <span className="font-mono text-[11px] text-[var(--mute)]">{queue.nextFree}</span>
-          </label>
+          <>
+            <label className="inline-flex items-center gap-1.5 text-sm cursor-pointer">
+              <input type="radio" name="when" value="queue" checked={when === "queue"} onChange={() => setWhen("queue")} />
+              Add to queue
+              <span className="font-mono text-[11px] text-[var(--mute)]">{queue.nextFree}</span>
+            </label>
+            {/* Sibling, not a child of the label — see the Topic tip above. */}
+            <HelpTip text={SOCIAL_TIPS.queue} wide />
+          </>
         )}
         {queue && !queue.nextFree && queue.hasSlots && (
           <span className="text-[11px]" style={{ color: "var(--amber-on)" }}>
