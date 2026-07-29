@@ -57,6 +57,17 @@ export const HELP_CATEGORIES: FaqCategory[] = [
         tags: ["mock", "fake", "placeholder", "generic", "api key", "not working"],
       },
       {
+        q: "Everything is empty and nothing seems to happen. Is it broken?",
+        a: "Probably not — a fresh workspace genuinely has nothing in it, and this app deliberately shows an honest blank rather than filling the screen with sample data. A dash means **no data**, never zero.\n\nRun down these in order:\n\n**1. Is there a working AI key?** No key means generations quietly produce placeholder text. *Admin → API keys.*\n**2. Am I in the right workspace?** Keys, accounts, content and team are all per company. Check the switcher in the top bar.\n**3. Is there anything to measure?** Insights and Reports stay empty until something has actually been published — they're reporting surfaces, not generators.\n**4. Are the analytics connected?** Search traffic needs Search Console and GA4 connected; engagement needs a social account connected and posts that have gone out.\n\nIf all four are fine and a page is still blank, that page is telling you the truth about your data.",
+        links: [{ label: "Admin → API keys →", href: "/admin/api-keys" }, { label: "Admin → Connections →", href: "/admin/connections" }],
+        tags: ["empty", "blank", "broken", "nothing", "no data", "not working"],
+      },
+      {
+        q: "What do the blog stages mean — drafting, review, approval, published?",
+        a: "A post moves along one track, and the two middle stages are separate on purpose:\n\n**Drafting** — being written.\n**In review** (`draft_review`) — the AI has finished a draft and parked it. This is the checkpoint where a human reads it.\n**Approval** (`final_approval`) — reviewed and queued to go out, waiting on the final say.\n**Published** — live.\n\nThe split matters because automation is allowed to move a post *into* review, but only fully automatic mode may publish from approval — and even then the publish gates re-run first, so a post with unverified citations can never go out unattended.",
+        tags: ["blog", "stages", "workflow", "draft", "review", "approval", "pipeline"],
+      },
+      {
         q: "Is there hover help on the buttons themselves?",
         a: "Yes. Anything with a small **?** next to it has a one-line explanation on hover — and some controls (the left-rail modules, the per-network *Customize* button, character counts) explain themselves when you hover the control directly.\n\nThey work on keyboard focus too, so tabbing through a form surfaces the same text. If you want the longer version, search for the same words here.",
         tags: ["hover", "tooltip", "popup", "help", "keyboard"],
@@ -117,6 +128,37 @@ export const HELP_CATEGORIES: FaqCategory[] = [
         q: "How do I refresh the audience avatar after my channel evolves?",
         a: "Channels → Audience → **Refresh avatar from YT data**. Heads up: this overwrites manual edits.",
         tags: ["audience", "refresh"],
+      },
+    ],
+  },
+  {
+    id: "brand",
+    label: "Brand & topics",
+    color: "#DB2777",
+    soft: "#FBE2EF",
+    entries: [
+      {
+        q: "What is the Brand module actually for?",
+        a: "It holds the things every generation should obey, so you set them once instead of restating them in each prompt: your colours and logo, your company info, your **Topics**, your personas, your keywords, and your tone.\n\nIf output keeps coming back sounding wrong, this is usually the page to fix rather than the prompt.",
+        links: [{ label: "Open Brand →", href: "/brand" }],
+        tags: ["brand", "identity", "tone", "what is"],
+      },
+      {
+        q: "What's a Topic, and why would I bother?",
+        a: "A Topic is a theme this company publishes about — \"Nonprofit fundraising\", \"Content-led SEO\".\n\nThe payoff is that it's the **one tag that spans every content surface**: social posts, blog posts, channel ideas, videos and production projects can all carry the same Topic. That's what lets Reports and Insights group everything on a theme together instead of showing you six unrelated lists.\n\nDeleting a Topic only clears the tag — it never deletes the content that was tagged with it.",
+        links: [{ label: "Manage topics →", href: "/brand" }],
+        tags: ["topic", "theme", "tagging", "reports"],
+      },
+      {
+        q: "Where do I change the tone of what gets written?",
+        a: "Tone of voice lives in **Blog → Brand** as the 7 Motifs, alongside the asset policy. They're editable rows rather than fixed prompt text, and each piece resolves a weighted blend of them — so changing a Motif changes every future generation that uses it, without you touching any prompt.",
+        links: [{ label: "Tone & motifs →", href: "/blog/brand" }],
+        tags: ["tone", "motifs", "voice", "style"],
+      },
+      {
+        q: "Is Brand per company or global?",
+        a: "Per company. Brand, like keys, accounts and content, is scoped to the workspace you're currently in — check the workspace switcher in the top bar before editing, because it's easy to change the wrong company's identity when you run more than one.",
+        tags: ["workspace", "multi-tenant", "scope"],
       },
     ],
   },

@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { requireChannel } from "@/lib/channel";
+import { WithTip } from "@/components/HelpTip";
+import { CHANNEL_TAB_TIPS } from "@/lib/help-tips";
 
 // Channel navigation: Ideas, Scripts, Audience, Competitors + Settings menu.
 
@@ -41,13 +43,14 @@ export default async function ChannelLayout({
       </div>
       <nav className="flex flex-wrap gap-1 mb-5 border-b border-[var(--line)]">
         {SUBNAV.map((s) => (
-          <Link
-            key={s.href}
-            href={`/channels/${channel.id}${s.href}`}
-            className="text-xs font-mono uppercase tracking-wider px-3 py-2 border-b-2 border-transparent hover:border-[var(--accent)] hover:text-[var(--accent)] text-[var(--mute)]"
-          >
-            {s.label}
-          </Link>
+          <WithTip key={s.href} text={`${s.label} — ${CHANNEL_TAB_TIPS[s.href] ?? ""}`} side="bottom" wide>
+            <Link
+              href={`/channels/${channel.id}${s.href}`}
+              className="text-xs font-mono uppercase tracking-wider px-3 py-2 border-b-2 border-transparent hover:border-[var(--accent)] hover:text-[var(--accent)] text-[var(--mute)]"
+            >
+              {s.label}
+            </Link>
+          </WithTip>
         ))}
       </nav>
       {children}

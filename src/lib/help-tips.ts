@@ -67,6 +67,22 @@ export const IDEA_TIPS = {
     "The channels an idea's outliers are measured against. Getting these right is what makes the numbers meaningful.",
 };
 
+/** The channel sub-nav. Most of these names mean nothing until you've opened
+ *  them once, which is exactly the case hover help is for. */
+export const CHANNEL_TAB_TIPS: Record<string, string> = {
+  "": "This channel at a glance — recent ideas, scripts and stats.",
+  "/ideas": "Video ideas for this channel, each carrying the measured outlier of the competitor video that inspired it.",
+  "/scripts": "Every script for this channel. Open one to write with the AI or run the agent over it.",
+  "/audience": "Who this channel is talking to, inferred from its own videos. Generations use it for level and framing.",
+  "/competitors": "The channels your outliers are measured against. Add by @handle, or search if you don't already know who they are.",
+  "/voice": "How this channel sounds, trained from its own titles and descriptions. It says so plainly when it hasn't been trained.",
+  "/templates": "Reusable script structures — the built-in ones, plus any you clone from a video you like.",
+  "/memory": "Durable facts the AI applies to every script here, so you never re-explain them.",
+  "/research": "Multi-source research saved as reports. Star an item to keep it available across every script.",
+  "/submissions": "A public form anyone can use to suggest topics. Review what comes in and promote the good ones to Ideas.",
+  "/settings": "This channel's name, model, YouTube link and accent colour.",
+};
+
 /** Channel setup. */
 export const CHANNEL_TIPS = {
   voice:
