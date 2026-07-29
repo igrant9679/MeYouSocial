@@ -21,7 +21,7 @@ export default async function ThumbnailDetailPage({ params }: { params: Promise<
   });
   if (!thumb) notFound();
 
-  const conceptsBlob = readJson<{ id: string; label: string; description: string; url: string }[] | { items: { id: string; label: string; description: string; url: string }[]; critique?: string }>(thumb.concepts, []);
+  const conceptsBlob = readJson<{ id: string; label: string; description: string; url: string; sawReference?: boolean }[] | { items: { id: string; label: string; description: string; url: string; sawReference?: boolean }[]; critique?: string }>(thumb.concepts, []);
   const concepts = Array.isArray(conceptsBlob) ? conceptsBlob : conceptsBlob.items;
   const critique = Array.isArray(conceptsBlob) ? undefined : conceptsBlob.critique;
 
@@ -71,7 +71,21 @@ export default async function ThumbnailDetailPage({ params }: { params: Promise<
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={c.url} alt={c.label} className="w-full aspect-video object-cover" />
                 <div className="p-3">
-                  <div className="font-semibold text-sm">{c.label}</div>
+                  <div className="font-semibold text-sm flex items-center gap-1.5">
+                    {c.label}
+                    {/* A clone that couldn't open its reference is rendered from
+                        the title alone. It looks identical to a real style match
+                        on screen, which is exactly how that went unnoticed —
+                        so it gets said, not left to the description text. */}
+                    {c.sawReference === false && (
+                      <span
+                        className="font-mono text-[9px] font-bold px-1.5 py-0.5 rounded-full"
+                        style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }}
+                      >
+                        reference not read
+                      </span>
+                    )}
+                  </div>
                   <div className="text-xs text-[var(--mute)] mt-1 line-clamp-3">{c.description}</div>
                   {!thumb.renderUrl && (
                     <form action={renderThumbnailAction} className="mt-2">

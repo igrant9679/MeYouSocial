@@ -205,7 +205,7 @@ export const IMAGE_TIPS = {
   brainstorm:
     "Writes four thumbnail concepts as text — the angle, the framing, the words on screen. The concepts are real; the pictures beside them are stock placeholders.",
   clone:
-    "Takes a reference thumbnail and writes a concept in that style. The description is generated for real; the rendered image is still a stock placeholder.",
+    "Fetches the reference image and has a vision model actually look at it — palette, the words on screen, the crop — then renders your title in that style. Works with a YouTube link or a direct image URL; an @handle can't be opened, and you'll be told when it fell back to the title alone.",
   history: "Everything this channel has generated, newest first.",
 };
 

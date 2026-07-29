@@ -6,9 +6,10 @@ import { requireRole } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { llm } from "@/lib/llm";
 import { images } from "@/lib/images";
+import { describeImageStyle, fetchReferenceImage } from "@/lib/vision";
 import { readJson, writeJson } from "@/lib/db/json";
 
-type Concept = { id: string; label: string; description: string; url: string };
+type Concept = { id: string; label: string; description: string; url: string; sawReference?: boolean };
 
 /** Brainstorm: 4 concept sketches from title (+ optional topic). */
 export async function brainstormThumbnailsAction(formData: FormData) {
@@ -120,27 +121,53 @@ export async function cloneThumbnailAction(formData: FormData) {
   const channel = await db.channel.findFirst({ where: { id: parsed.data.channelId, workspaceId: workspace.id } });
   if (!channel) return;
 
-  // "Analyze" the reference — in mock mode this is fake but the abstraction is real.
-  const analysis = await llm.complete({
-    model: channel.defaultModel ?? "claude-sonnet",
-    system: "Describe the visual style of the supplied reference image/URL: palette, typography, composition, lighting. Be concise.",
-    messages: [{ role: "user", content: `Reference: ${parsed.data.referenceUrl}\nVideo title for the new thumbnail: ${parsed.data.title}` }],
-    workspaceId: workspace.id,
-  });
+  // ── Actually LOOK at the reference ────────────────────────────────────────
+  // This used to hand the URL to llm.complete() as a plain string. A text model
+  // can't fetch a URL, so the "analysis" was recall or invention — convincing
+  // for a famous video the model already knows, and quietly wrong for the real
+  // use case (a competitor's thumbnail nobody has memorised). Now the bytes are
+  // fetched and passed to a vision model, and when they CAN'T be fetched we say
+  // we're working from the title alone rather than describing nothing.
+  const reference = await fetchReferenceImage(parsed.data.referenceUrl);
+  let styleNote: string;
+  let sawReference = false;
+  if (reference) {
+    try {
+      styleNote = await describeImageStyle(reference, workspace.id);
+      sawReference = true;
+    } catch {
+      styleNote = "";
+    }
+  } else {
+    styleNote = "";
+  }
+
+  const prompt = sawReference
+    ? `Render a YouTube thumbnail in this reference style:\n${styleNote.slice(0, 1200)}\nVideo title: ${parsed.data.title}.`
+    : `Render a bold, high-contrast YouTube thumbnail for the video title: ${parsed.data.title}.`;
 
   const img = await images.generate({
-    prompt: `Render a YouTube thumbnail in the following reference style:\n${analysis.content.slice(0, 800)}\nVideo title: ${parsed.data.title}.`,
+    prompt,
     aspectRatio: "16:9",
     referenceUrl: parsed.data.referenceUrl,
     workspaceId: workspace.id,
   });
+
+  // Recorded so the UI can distinguish a real style match from a title-only
+  // render. Without this the two are indistinguishable on screen, which is how
+  // the old behaviour went unnoticed.
+  const description = sawReference
+    ? styleNote.slice(0, 400)
+    : `Could not open the reference, so this was rendered from the title alone — its style is not based on ${parsed.data.referenceUrl.slice(0, 80)}. Paste a direct image URL or a YouTube video link to match a style.`;
 
   const thumb = await db.thumbnail.create({
     data: {
       channelId: parsed.data.channelId,
       title: parsed.data.title,
       mode: "clone",
-      concepts: writeJson([{ id: "ref", label: "Clone", description: analysis.content.slice(0, 400), url: img.url }]),
+      concepts: writeJson([
+        { id: "ref", label: sawReference ? "Clone" : "Title only", description, url: img.url, sawReference },
+      ]),
       renderUrl: img.url,
     },
   });
