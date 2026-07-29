@@ -5,6 +5,8 @@ import { MessageCircle, Plus } from "lucide-react";
 import { getActiveChannel } from "@/lib/channel";
 import { db } from "@/lib/db";
 import { createChatAction } from "@/app/actions/chat";
+import { HelpTip } from "@/components/HelpTip";
+import { CHAT_TIPS } from "@/lib/help-tips";
 
 // MU-07 — Ideation chat. channel-scoped, grouped history (this/last week).
 
@@ -46,8 +48,12 @@ export default async function ChatListPage() {
           <MessageCircle className="w-6 h-6" strokeWidth={2.25} />
         </span>
         <div>
-          <h1 className="font-mono font-bold text-2xl leading-tight">Ideation chat</h1>
-          <p className="text-xs text-[var(--mute)]">Channel: <b>{active.name}</b></p>
+          <h1 className="font-mono font-bold text-2xl leading-tight flex items-center gap-2">
+            Ideation chat <HelpTip text={CHAT_TIPS.chat} side="bottom" wide />
+          </h1>
+          <p className="text-xs text-[var(--mute)] flex items-center gap-1.5">
+            Channel: <b>{active.name}</b> <HelpTip text={CHAT_TIPS.scoped} side="bottom" wide />
+          </p>
         </div>
         <span className="flex-1" />
         <form action={createChatAction}>

@@ -4,6 +4,8 @@ import { requireMembership, canEdit } from "@/lib/acl";
 import { SubmitButton } from "@/components/SubmitButton";
 import { createCustomReportAction } from "@/app/actions/reports";
 import { listReports } from "@/lib/report-defs";
+import { HelpTip } from "@/components/HelpTip";
+import { REPORT_TIPS } from "@/lib/help-tips";
 
 // The Reports hub: ten stock reports plus this workspace's custom ones. Every
 // report is an ordered list of blocks — customizing writes a per-workspace
@@ -21,7 +23,9 @@ export default async function ReportsHubPage() {
           <FileBarChart className="w-6 h-6" strokeWidth={2.25} />
         </span>
         <div className="min-w-40 flex-1">
-          <h1 className="font-mono font-bold text-2xl leading-tight">Reports</h1>
+          <h1 className="font-mono font-bold text-2xl leading-tight flex items-center gap-2">
+            Reports <HelpTip text={REPORT_TIPS.reports} side="bottom" wide />
+          </h1>
           <p className="text-xs text-[var(--mute)]">
             Ten stock reports, all customizable block by block — plus your own. Data is real rows only; blocks without
             data say so.
@@ -37,11 +41,14 @@ export default async function ReportsHubPage() {
                 <FileBarChart className="w-4 h-4" strokeWidth={2.5} />
               </span>
               <span className="font-semibold text-sm leading-tight flex-1">{r.name}</span>
+              {/* `title` on the badge spans, not a <HelpTip>: these sit inside
+                  the card's <Link>, and a button there would nest interactive
+                  elements and let the anchor swallow the click. */}
               {r.isCustom && (
-                <span className="font-mono text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: "var(--indigo-soft)", color: "var(--indigo-on)" }}>custom</span>
+                <span title={REPORT_TIPS.custom} className="font-mono text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: "var(--indigo-soft)", color: "var(--indigo-on)" }}>custom</span>
               )}
               {!r.isCustom && r.customized && (
-                <span className="font-mono text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: "var(--panel)", color: "var(--mute)" }}>customized</span>
+                <span title={REPORT_TIPS.customized} className="font-mono text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: "var(--panel)", color: "var(--mute)" }}>customized</span>
               )}
             </div>
             <p className="text-xs text-[var(--mute)]">{r.description}</p>

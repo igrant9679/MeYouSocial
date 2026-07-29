@@ -8,6 +8,8 @@ import { deleteRenderAction, processRenderNowAction, retryRenderAction, setRende
 import { getVideoProviderSetting } from "@/lib/video";
 import { renderStandaloneBrandedShortAction, deleteBrandedShortAction } from "@/app/actions/branded-video";
 import { brandedShortReadiness } from "@/lib/branded-video";
+import { HelpTip } from "@/components/HelpTip";
+import { VIDEO_TIPS } from "@/lib/help-tips";
 
 // Phase 4 — short-form video renders. Queue → render → play. Mock provider by
 // default; Veo activates via USE_MOCK_VIDEO=false + a Google key.
@@ -71,6 +73,7 @@ export default async function VideosPage() {
           <p className="text-xs text-[var(--mute)]">
             Storyboards → scene renders → captions → voiceover. Provider:{" "}
             <b>{providerSetting === "mock" ? "mock (no cost)" : providerSetting === "veo" ? "Veo" : "auto"}</b>
+            <HelpTip text={VIDEO_TIPS.provider} side="bottom" wide className="mx-1" />
             {" "}(<Link href="/admin/api-keys" className="underline">change in Admin → API keys</Link>) ·
             ≤{env.VIDEO_MAX_SECONDS}s per scene.
           </p>
@@ -80,7 +83,9 @@ export default async function VideosPage() {
       {/* Budget bar — renders + estimated spend against today's cap */}
       <div className="card mb-4">
         <div className="flex items-center gap-3">
-          <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-[var(--mute)] shrink-0">Today</span>
+          <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-[var(--mute)] shrink-0 inline-flex items-center gap-1.5">
+            Today <HelpTip text={VIDEO_TIPS.budget} side="bottom" wide />
+          </span>
           <div className="flex-1 h-2.5 rounded-full bg-[var(--panel)] overflow-hidden">
             <div
               className="h-full rounded-full anim-grow"
@@ -104,7 +109,9 @@ export default async function VideosPage() {
           needed. Renders free locally when Chrome is present, else HeyGen cloud. */}
       <div className="card mb-4">
         <div className="flex flex-wrap items-center gap-2 mb-1">
-          <h2 className="font-mono text-sm font-bold flex-1 min-w-40">Branded short</h2>
+          <h2 className="font-mono text-sm font-bold flex-1 min-w-40 flex items-center gap-1.5">
+            Branded short <HelpTip text={VIDEO_TIPS.brandedShort} side="bottom" wide />
+          </h2>
           <span className="text-[11px] text-[var(--mute)]">
             {brandedReadiness.mode === "local"
               ? "Renders free on this server."

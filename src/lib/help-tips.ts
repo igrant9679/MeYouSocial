@@ -118,6 +118,53 @@ export const BLOG_TAB_TIPS: Record<string, string> = {
   "/blog/settings": "WordPress connection and publishing options.",
 };
 
+/**
+ * Production sub-nav, keyed by href.
+ *
+ * ⚠ Native `title`, not bubbles — that strip is `overflow-x-auto` too. Same
+ * clipping reason as BLOG_TAB_TIPS above.
+ *
+ * The first four are the same projects at different stages, not four separate
+ * tools, which is the thing that isn't obvious from the names.
+ */
+export const PRODUCTION_TAB_TIPS: Record<string, string> = {
+  "/production": "Every project on one board, arranged by the stage it's reached. Start here.",
+  "/production/writers-room": "Just the projects being researched and written, with what's due soon and who has it.",
+  "/production/film-queue": "Just the projects at the recording stage, grouped by shoot day.",
+  "/production/edit-bay": "Just the projects being edited, on their own board.",
+  "/production/calendar": "The same work laid out by date instead of by stage.",
+  "/production/tasks": "Individual to-dos rather than whole projects — with a work-in-progress limit, ageing flags and per-person capacity.",
+  "/production/assets": "A shared B-roll and shot-list library you can reuse across channels.",
+  "/production/swipes": "Saved visual references — thumbnails, set design, landing pages — to borrow from later.",
+  "/production/wiki": "Your own process docs and SOPs, so how-we-do-it lives with the work.",
+};
+
+/** Videos. */
+export const VIDEO_TIPS = {
+  provider:
+    "Which engine renders scenes. “mock” costs nothing and produces a stand-in clip rather than a real render — useful for trying the flow, misleading if you think it's finished footage.",
+  budget:
+    "Every scene render counts against today's cap, including re-runs. The spend figure is an estimate, not a bill.",
+  brandedShort:
+    "A short vertical title card built from this workspace's brand colours, straight from a headline — no blog post needed.",
+};
+
+/** Reports. */
+export const REPORT_TIPS = {
+  reports:
+    "Pre-built reports you can rearrange block by block. Blocks with no data say so rather than showing a zero, so an empty block means the data isn't there yet.",
+  custom: "Built by you from scratch, rather than one of the stock reports.",
+  customized: "A stock report whose blocks you've since changed.",
+};
+
+/** Chat. */
+export const CHAT_TIPS = {
+  chat:
+    "A conversation with your channel's voice, audience and memory already loaded, so you don't have to re-explain the channel each time. Good for thinking out loud before committing to a script.",
+  scoped:
+    "Chats belong to the channel that was active when you started them — switch channels and you'll see that channel's chats instead.",
+};
+
 /** Brand. */
 export const BRAND_TIPS = {
   topics:

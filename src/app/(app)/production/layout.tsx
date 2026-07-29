@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { KanbanSquare, PenLine, Clapperboard, Scissors, Calendar, ListChecks, Film, BookOpen, ImageIcon } from "lucide-react";
 import { requireMembership } from "@/lib/acl";
+import { PRODUCTION_TAB_TIPS } from "@/lib/help-tips";
 
 const NAV = [
   { href: "/production",              label: "Board",         icon: KanbanSquare, color: "#0D9488" },
@@ -32,7 +33,14 @@ export default async function ProductionLayout({ children }: { children: React.R
         {NAV.map((n) => {
           const Icon = n.icon;
           return (
-            <Link key={n.href} href={n.href} className="flex items-center gap-1.5 px-3 py-2 rounded-md text-xs font-mono uppercase tracking-wider text-[var(--mute)] hover:bg-[var(--zebra)]">
+            <Link
+              key={n.href}
+              href={n.href}
+              // Native title, not a <WithTip> bubble: this strip is
+              // overflow-x-auto, which clips absolutely-positioned children.
+              title={PRODUCTION_TAB_TIPS[n.href]}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-md text-xs font-mono uppercase tracking-wider text-[var(--mute)] hover:bg-[var(--zebra)]"
+            >
               <Icon className="w-3.5 h-3.5" style={{ color: n.color }} />
               {n.label}
             </Link>
