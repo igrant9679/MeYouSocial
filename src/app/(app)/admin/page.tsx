@@ -7,6 +7,8 @@ import { z } from "zod";
 import { emailFor } from "@/lib/email";
 import { nanoid } from "nanoid";
 import { getPublicUrl } from "@/lib/public-url";
+import { resolveEmailSender } from "@/lib/unipile/accounts";
+import Link from "next/link";
 
 // MU-14 — Users & Roles (Admin). Implements:
 //   (Users page: list + add/edit role/deactivate/remove)
@@ -77,7 +79,7 @@ async function revokeAction(formData: FormData) {
 export default async function AdminUsersPage() {
   const { workspace } = await requireRole("ADMIN");
 
-  const [members, invitations] = await Promise.all([
+  const [members, invitations, mailSender] = await Promise.all([
     db.membership.findMany({
       where: { workspaceId: workspace.id },
       include: { user: true },
@@ -87,6 +89,10 @@ export default async function AdminUsersPage() {
       where: { workspaceId: workspace.id, acceptedAt: null },
       orderBy: { createdAt: "desc" },
     }),
+    // Name the mailbox this invite will actually leave from, rather than
+    // describing a hypothetical. Same principle as the image provider card:
+    // if the UI can resolve what will happen, it should say so.
+    resolveEmailSender(workspace.id).catch(() => null),
   ]);
 
   return (
@@ -110,7 +116,22 @@ export default async function AdminUsersPage() {
           </label>
           <SubmitButton className="btn primary">Send invitation</SubmitButton>
         </form>
-        <p className="text-xs text-[var(--mute)] mt-2">Emails are mocked in dev — check your console. Set <code>USE_MOCK_EMAIL=false</code> + supply a provider key to send for real.</p>
+        {/* Was: "Emails are mocked in dev — check your console. Set
+            USE_MOCK_EMAIL=false + supply a provider key to send for real."
+            Wrong twice over: invitations DO send for real through a connected
+            mailbox, and USE_MOCK_EMAIL was read by nothing at all, so the
+            instruction had no effect. Say what will actually happen instead. */}
+        {mailSender ? (
+          <p className="text-xs text-[var(--mute)] mt-2">
+            Sends for real from <b>{mailSender.name ?? "the connected mailbox"}</b> over HTTPS.
+          </p>
+        ) : (
+          <p className="text-xs mt-2" style={{ color: "var(--amber-on)" }}>
+            <b>No mailbox is connected for {workspace.name}</b>, so this invitation will be logged rather than
+            delivered — outbound SMTP is blocked on this host, so a connected mailbox is the only route out.{" "}
+            <Link href="/admin/connections" className="underline">Connect one →</Link>
+          </p>
+        )}
       </section>
 
       <section className="card mb-5">

@@ -56,7 +56,12 @@ export const env = {
   USE_MOCK_SEARCH: bool(process.env.USE_MOCK_SEARCH, false),
   TAVILY_API_KEY: str(process.env.TAVILY_API_KEY),
   SERPER_API_KEY: str(process.env.SERPER_API_KEY),
-  USE_MOCK_EMAIL: bool(process.env.USE_MOCK_EMAIL, true),
+  // NOTE: there is deliberately no USE_MOCK_EMAIL. One existed, defaulted true,
+  // and was read by NOTHING — while the invite form told operators to set it
+  // false "to send for real", which did nothing either way. Delivery is decided
+  // by what's actually configured (connected mailbox → SMTP → mock, see
+  // `emailFor`), not by a flag. Don't reintroduce one without wiring it, and if
+  // you do, default it FALSE — see USE_MOCK_IMAGES for why.
   USE_MOCK_PRODUCTION: bool(process.env.USE_MOCK_PRODUCTION, true),
 
   // Phase 4 — video. Mock by default like every other provider; Veo activates
