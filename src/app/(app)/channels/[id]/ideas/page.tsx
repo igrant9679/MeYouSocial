@@ -6,6 +6,8 @@ import { db } from "@/lib/db";
 import { outlierBand } from "@/lib/intel";
 import { regenerateIdeasAction, writeIdeaToCanvasAction, setIdeaTopicAction } from "@/app/actions/ideas";
 import { DeleteButton } from "@/components/DeleteButton";
+import { WithTip } from "@/components/HelpTip";
+import { IDEA_TIPS } from "@/lib/help-tips";
 
 // MU-06 — Ideas Library. list with sort/filter; regenerate.
 
@@ -69,7 +71,9 @@ export default async function ChannelIdeasPage({
           return (
             <li key={i.id} className="card hover:shadow-md transition">
               <div className="flex items-center gap-2 mb-2">
-                <span className="font-mono font-bold text-[11px] px-2 py-1 rounded-md" style={{ background: band.soft, color: band.color }}>{i.outlierScore?.toFixed(1) ?? "—"}x</span>
+                <WithTip text={IDEA_TIPS.outlier} side="bottom" wide>
+                  <span className="font-mono font-bold text-[11px] px-2 py-1 rounded-md" style={{ background: band.soft, color: band.color }}>{i.outlierScore?.toFixed(1) ?? "—"}x</span>
+                </WithTip>
                 <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">{i.status}</span>
                 <span className="flex-1" />
                 <span className="text-xs text-[var(--mute)]">{i.suggestedLength ?? "—"}</span>

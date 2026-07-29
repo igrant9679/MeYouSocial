@@ -8,6 +8,8 @@ import { db } from "@/lib/db";
 import { storage } from "@/lib/storage";
 import { readJson } from "@/lib/db/json";
 import { SubmitButton } from "@/components/SubmitButton";
+import { HelpTip } from "@/components/HelpTip";
+import { BRAND_TIPS } from "@/lib/help-tips";
 import { saveOrgProfileAction } from "@/app/actions/blog";
 import {
   saveBrandIdentityAction,
@@ -127,7 +129,8 @@ export default async function BrandPage({ searchParams }: { searchParams: Promis
 
       {/* ── Topics ──────────────────────────────────────────────────────── */}
       <SectionHead icon={<Tags className="w-4 h-4" style={{ color: "var(--violet-on)" }} />} title="Topics"
-        note="The themes this company publishes about — used to steer ideation and posts." />
+        note="The themes this company publishes about — used to steer ideation and posts."
+        tip={BRAND_TIPS.topics} />
       {editor && (
         <form action={createTopicAction} className="card mb-3 flex flex-wrap items-end gap-2">
           <label className="text-sm flex-1 min-w-[180px]">
@@ -256,11 +259,14 @@ export default async function BrandPage({ searchParams }: { searchParams: Promis
   );
 }
 
-function SectionHead({ icon, title, note }: { icon: React.ReactNode; title: string; note: string }) {
+function SectionHead({ icon, title, note, tip }: { icon: React.ReactNode; title: string; note: string; tip?: string }) {
   return (
     <div className="flex items-baseline gap-2 mb-2 flex-wrap">
       <span className="translate-y-0.5">{icon}</span>
-      <h2 className="font-mono font-bold text-sm">{title}</h2>
+      <h2 className="font-mono font-bold text-sm flex items-center gap-1.5">
+        {title}
+        {tip && <HelpTip text={tip} side="bottom" wide />}
+      </h2>
       <span className="text-[11px] text-[var(--mute)]">{note}</span>
     </div>
   );

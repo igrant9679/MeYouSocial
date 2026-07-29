@@ -23,6 +23,16 @@ import type { ReactNode } from "react";
  *
  * ⚠ Never place one inside an <a>. Nesting a button in an anchor is invalid
  * HTML and the anchor swallows the interaction (same rule as DeleteButton).
+ *
+ * ── Touch devices ───────────────────────────────────────────────────────────
+ * Tailwind wraps `hover:` variants in `@media (hover: hover)`, so the hover
+ * rule deliberately does NOT apply on a touchscreen — which is right, or a tap
+ * would leave a tooltip stuck open with nothing to dismiss it. `focus-within`
+ * carries that case instead: tapping the ⓘ focuses the button and shows the
+ * bubble. <WithTip> around a LINK has no touch affordance for the same reason
+ * (the tap navigates) — that's fine for the nav rail, where the mobile drawer
+ * shows full labels anyway, but don't rely on WithTip to explain something a
+ * touch user can't otherwise discover.
  */
 
 type Side = "top" | "bottom" | "left" | "right";

@@ -7,6 +7,8 @@ import { SubmitButton } from "@/components/SubmitButton";
 import { unipileConfigured } from "@/lib/unipile";
 import { zernioConfigured, ZERNIO_PLATFORMS } from "@/lib/zernio";
 import { getPublicUrl } from "@/lib/public-url";
+import { HelpTip } from "@/components/HelpTip";
+import { ADMIN_TIPS } from "@/lib/help-tips";
 import {
   connectAccountAction,
   connectSocialAccountAction,
@@ -83,7 +85,9 @@ export default async function ConnectionsPage({ searchParams }: { searchParams: 
           <Plug className="w-5 h-5" strokeWidth={2.25} />
         </span>
         <div>
-          <h1 className="font-mono font-bold text-lg leading-tight">Connections</h1>
+          <h1 className="font-mono font-bold text-lg leading-tight flex items-center gap-2">
+            Connections <HelpTip text={ADMIN_TIPS.connections} side="bottom" wide />
+          </h1>
           <p className="text-xs text-[var(--mute)]">
             Connect <b>{workspace.name}</b>&apos;s social profiles (via Zernio) and its mailbox (via Unipile, which is
             how email leaves this host at all — outbound SMTP is blocked here).
@@ -120,7 +124,7 @@ export default async function ConnectionsPage({ searchParams }: { searchParams: 
             check is the whole bug. */}
         {socialReady && (
           <form action={syncSocialAccountsAction}>
-            <SubmitButton className="btn sm" pendingText="Refreshing…" title="Re-read this workspace's accounts from Zernio">
+            <SubmitButton className="btn sm" pendingText="Refreshing…" title={ADMIN_TIPS.refresh}>
               <RefreshCw className="w-3.5 h-3.5" /> Refresh from Zernio
             </SubmitButton>
           </form>
@@ -229,7 +233,7 @@ export default async function ConnectionsPage({ searchParams }: { searchParams: 
             there working. Not gated on having accounts already. */}
         {emailReady && (
           <form action={syncMailboxesAction}>
-            <SubmitButton className="btn sm" pendingText="Refreshing…" title="Re-read mailboxes from Unipile">
+            <SubmitButton className="btn sm" pendingText="Refreshing…" title={ADMIN_TIPS.refresh}>
               <RefreshCw className="w-3.5 h-3.5" /> Refresh from Unipile
             </SubmitButton>
           </form>
