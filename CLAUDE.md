@@ -2,12 +2,28 @@
 
 # Project state — handoff for a fresh session
 
-_Last updated: 2026-05-31._
+_Last updated: 2026-07-28._
 
-CreateUp is an AI-powered YouTube research & scripting platform. Next.js 16 (App Router) +
-React 19 + TypeScript + Tailwind v4, Prisma 6 + PostgreSQL, Auth.js v5 (JWT). Hosted on
-**Railway**, source on **GitHub** (`igrant9679/CreateUp`). Pushing to `main` auto-deploys;
-Railway runs `prisma migrate deploy` on boot.
+**MeYouSocial** is a multi-tenant AI content engine: it turns research into content, publishes
+it, and measures what happened — for several companies on one install. (It began as CreateUp, a
+YouTube research/scripting tool, and absorbed Spark's blog/SEO pipeline. Older docs and some
+code comments still say "CreateUp"; the product is MeYouSocial.)
+
+Next.js 16 (App Router) + React 19 + TypeScript + Tailwind v4, Prisma 6 + PostgreSQL,
+Auth.js v5 (JWT). Hosted on **Railway**; `prisma migrate deploy` runs on boot.
+
+**Full detail lives in `docs/MEYOUSOCIAL-PLAN.md`.** Read that before a big change.
+
+## ⚠ Two repos — every push goes to BOTH
+
+```bash
+git push origin main; git push deploy main:main
+```
+
+`origin` = `igrant9679/MeYouSocial` (canonical). `deploy` = `sgrant5724/spark`, which is what
+Railway actually builds from. Push only to `origin` and nothing deploys. The usernames are
+embedded in the remote URLs on purpose — Git Credential Manager juggles two accounts and drops
+403s without them.
 
 ## How to work here
 - Read `AGENTS.md` (above): this is Next.js 16 — check `node_modules/next/dist/docs/` before
@@ -25,53 +41,102 @@ Railway runs `prisma migrate deploy` on boot.
 - **Commit messages with quotes need `git commit -F <file>`** — a PowerShell 5.1 here-string
   (`@'…'@`) passed to `git commit -m` breaks on double quotes in the body and git reads the
   remainder as a pathspec. Write the message to a scratch file and use `-F`.
+- Throwaway probes go in `scripts/_tmp-*.mts`, run with `npx tsx`, and are **deleted after** —
+  they otherwise fail `tsc --noEmit` on the next run.
 - No billing/credits/payments anywhere in the app (per spec). Access = roles + optional soft limits.
+
+## ⚠ NEVER TRUST `models.list()` ON THE GOOGLE KEY — probe first
+
+Three separate model ids have been advertised by the API and then 404'd when called:
+
+| Advertised | Reality |
+| --- | --- |
+| `gemini-2.5-pro` / `gemini-2.5-flash` | 404 "no longer available to new users" |
+| `imagen-4.0-generate-001` (+ `-ultra`, `-fast`) | 404 "no longer available to new users" |
+| `gemini-3.1-flash` | 404 "not found for generateContent" |
+
+`MODEL_MAP` in `src/lib/llm/google.ts` routes every gemini id to the `-latest` aliases for this
+reason. **Probe a model against the live key before shipping it.** Known-good today:
+`gemini-flash-latest` / `gemini-pro-latest` (text + vision), `gemini-3.1-flash-image`
+(image output via `generateContent`), `gpt-image-1` (OpenAI images), `gpt-4o-mini` (OpenAI vision).
+
+## ⚠ Mock fallbacks are the #1 source of confusion
+
+Several subsystems degrade to a mock rather than failing. That keeps the app usable without keys,
+but it means **bad output can look like real output**. Rules learned the hard way:
+
+- **Default every `USE_MOCK_*` flag to FALSE**, so a key pasted in the admin UI activates the real
+  provider with no redeploy. `USE_MOCK_YOUTUBE` and `USE_MOCK_IMAGES` both once defaulted true and
+  silently beat a working paid key.
+- **A mock must be nameable.** `ImageGenResult.provider` / `VideoRenderResult.provider` carry the
+  provider name so the UI can say "this is a placeholder" — and stop saying it once it isn't.
+- **Never invent a number.** A blank is not a zero: `value: null` renders as a dash with a reason.
+  Outlier ratios are measured or absent. Three separate PRNG-derived "outlier" figures have been
+  found and removed.
 
 ## Architecture quick map
 - **LLM router** `src/lib/llm/` — provider-agnostic `llm.complete()/stream()`. Real providers
   (anthropic, google) are wrapped with a 45s timeout + transparent **fallback to mock** on any
-  error, so the app never breaks when a key is missing/out of credits. Keys resolved by
-  `src/lib/llm/keys.ts`: **DB Setting row first, env var fallback**, 30s cache.
-- **Email** `src/lib/email/` — nodemailer SMTP. Config resolved DB-first (`email:smtp` Setting),
-  then `SMTP_*` env, then mock. Set via the admin UI.
-- **Public URL** `src/lib/public-url.ts` — `getPublicUrl()` derives the origin from the request
-  host (falls back to `env.APP_URL` in background jobs). Auth.js has `trustHost: true`. This means
-  **custom domains need no env changes**.
-- **Motif tone engine** `src/lib/motifs.ts` (FR-2) — the 7 Motifs are DB rows per workspace
-  (`MotifDirective`, versioned), not hard-coded prompt text. `motifPromptFor()` resolves a post's
-  weighted blend (explicit selection → `MotifDefault` by tier/audience) and renders the prompt
-  block; `platformMotifBlock()` does the per-channel mapping for social variants. Every new
-  generation surface should inject it, plus `brandGuardrailBlock()`. Admin UI: `/blog/brand`.
-- **Settings storage** — generic `Setting` table (key/value). Backs in-app API keys + SMTP config.
-- **Icons/PWA** — `src/app/icon.tsx`, `apple-icon.tsx`, `manifest.ts` generate favicon, iOS
-  home-screen icon, and web manifest.
-- **Left nav** `src/components/LeftRailNav.tsx` (client) — labeled sidebar (≥md, 240px; icon +
-  always-visible label, colored active row). Active route via the shared `isNavActive()` (also used
-  by `MobileNav`); channel-scoped `ideas`/`scripts` URLs light up those entries, not Channels.
-- **Theming/colors** `src/app/globals.css` — light/dark via `data-theme` on `<html>`. Per-hue tokens:
-  `--<hue>` (solid, e.g. nav chips with white text), `--<hue>-soft` (chip background), `--<hue>-on`
-  (chip foreground). Dark mode auto-derives `-soft`/`-on` via `color-mix`, so **use these tokens for
-  colored chips/badges instead of raw hex** or they won't adapt. `.btn.primary` uses `--accent-strong`
-  for AA contrast. Fonts come from next/font via `--font-plex-sans/-mono`.
-- **Shared UI helpers** `src/components/`: `SubmitButton` (form pending spinner via `useFormStatus`),
-  `MobileNav` (hamburger drawer <md), `ChannelSwitcher` (auto-submitting channel select),
-  `ValidatedInput` (on-blur per-field validation via native constraints; use for form inputs).
+  error. Keys resolved by `src/lib/llm/keys.ts`. ⚠ OpenAI is NOT wired as a text provider — it's
+  used for images and vision only.
+- **Settings / multi-tenancy** `src/lib/settings.ts` — resolution is **`WorkspaceSetting` → global
+  `Setting` → env var** (30s cache). Each company brings its own keys; a platform row back-fills
+  every workspace, which is usually not what you want.
+- **Images** `src/lib/images/` — `gpt-image-1` (hand-written REST) or `gemini-3.1-flash-image`
+  (via `@google/genai`), chosen by `image:provider` (`auto|mock|openai|google`). Bytes are written
+  into StorageProvider so URLs are ours and permanent; dimensions are parsed from the bytes, not
+  echoed from the request. A selected real provider that fails **throws** rather than substituting
+  a placeholder.
+- **Vision** `src/lib/vision.ts` — `fetchReferenceImage()` (YouTube link → `i.ytimg.com`, direct
+  image URLs, else null) + `describeImageStyle()`. Used by Thumbnail Studio's Clone so it actually
+  looks at the reference instead of guessing from the URL string.
+- **Video** `src/lib/video/` — Google Veo, `video:provider` (`auto|mock|veo`). ⚠ Stores a bare Veo
+  URI that **expires in ~2 days**; unlike images, bytes are not persisted yet.
+- **Social** `src/lib/zernio/` + `src/lib/social/` — Zernio publishes to 15 networks; one post fans
+  out to N `SocialPostTarget`s, each with independent status. Slots are **wall clock** (weekday +
+  minute) so 09:00 survives DST; only `social/slots.ts` converts.
+- **Email** `src/lib/unipile/` — ⚠ **Railway blocks outbound SMTP** (587/465/2525 all ETIMEDOUT),
+  so a connected mailbox over HTTPS is the only way real mail leaves this host. `src/lib/email/`
+  still holds the nodemailer path for installs that can use it. Don't delete unipile.
+- **Storage** `src/lib/storage/` — local or Google Drive (`storage:backend`). Drive OAuth scope is
+  `drive.file` and must stay (non-sensitive, no Google verification). Served by session-gated
+  routes `/uploads/<key>` and `/api/files/<key>` — nothing is public.
+- **Motif tone engine** `src/lib/motifs.ts` — the 7 Motifs are versioned DB rows per workspace, not
+  hard-coded prompt text. `motifPromptFor()` renders a post's weighted blend. Every new generation
+  surface should inject it plus `brandGuardrailBlock()`. Admin UI: `/blog/brand`.
+- **Public URL** `src/lib/public-url.ts` — derives the origin from the request host, so **custom
+  domains need no env changes**. Auth.js has `trustHost: true`.
+- **Hover help** `src/components/HelpTip.tsx` + `src/lib/help-tips.ts` — pure CSS (`group-hover` /
+  `group-focus-within`), so it drops into server components with no JS. ⚠ `type="button"` is
+  load-bearing (these sit in forms); never nest one in a `<label>` or `<a>`; and inside an
+  `overflow-x-auto` strip use a native `title` instead, because overflow clips the bubble.
+- **Left nav** `src/components/LeftRailNav.tsx` — active route via shared `isNavActive()`.
+- **Theming** `src/app/globals.css` — light/dark via `data-theme`. Per-hue tokens `--<hue>`,
+  `--<hue>-soft`, `--<hue>-on`; dark mode derives soft/on via `color-mix`, so **use the tokens, not
+  raw hex**. ⚠ `.btn` / `.card` are **unlayered** and beat Tailwind utilities — a bare `hidden` on a
+  `.btn` does nothing; use `!`-marked utilities.
+- **Shared UI** `SubmitButton`, `MobileNav`, `ChannelSwitcher`, `ValidatedInput`, `DeleteButton`
+  (one registry in `src/lib/deletable.ts`, one action, 15 kinds — don't add bespoke delete actions).
 
 ## Admin surfaces (sidebar → Admin)
-Users · Workspace · Soft limits · Usage · Channels · **API keys** (`/admin/api-keys`) ·
-**Email/SMTP** (`/admin/email`). API keys + SMTP can be set in-app without touching Railway.
+Users · Workspace · Soft limits · Usage · Channels · **API keys** (`/admin/api-keys`: LLM, search,
+images, video, TTS, storage) · **Connections** (`/admin/connections`: social via Zernio, mailboxes
+via Unipile) · **Analytics** (`/admin/analytics`) · **Email** (`/admin/email`). All configurable
+in-app without touching Railway.
 
 ## Open items / things the user still owns
-- **Anthropic key has $0 credits** — generations fall back to mock until the user tops up billing
-  OR sets a **Gemini** key (`/admin/api-keys` → Google) and switches a channel's model to
-  `gemini-2.5-pro` / `gemini-2.5-flash`.
+- **Analytics is credential-blocked.** Neither the Search Console API nor the Google Analytics
+  Admin API has ever been enabled on Cloud project `479503233109`; the service account is not
+  short of permission. It needs the owner's Google account. ⚠ A disabled API and a missing grant
+  both return 403 `PERMISSION_DENIED` — `explainGoogleError` separates them, don't collapse that
+  back to a `/403/` test. YouTube OAuth is separate and needs a consent flow.
+- **Video bytes aren't persisted** — Veo URIs expire in ~2 days. Images already do this correctly;
+  copy that approach.
 - **Rotate `AUTH_SECRET`** — a `.test-cookies.txt` with an encrypted session token was once
-  committed then removed (commit `8daa5b7`). Not exploitable without the secret, but rotating is
-  best practice. (Will sign everyone out once.)
-- ~~Seed prints the admin password to the deploy log~~ — **done (2026-05-31):** only the public
-  built-in default is echoed for local dev; a configured `SEED_ADMIN_PASSWORD` is never logged.
-- **Custom domain:** if the user adds one in Railway → Settings → Networking, add the Google OAuth
-  redirect URI in Google Cloud Console if SSO is enabled. No code/env change needed otherwise.
+  committed then removed (`8daa5b7`). Not exploitable without the secret; rotating signs everyone
+  out once.
+- **Custom domain:** if one is added in Railway → Settings → Networking, add the Google OAuth
+  redirect URI in Cloud Console if SSO is enabled. No code/env change otherwise.
 
 ## Machine-level (not part of this repo)
 User-level Claude skills are installed at `C:\Users\Admin\.claude\skills\`: `notebooklm-research`,

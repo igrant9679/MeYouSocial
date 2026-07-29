@@ -1477,3 +1477,227 @@ outstanding) is a one-line change in the layout if it proves annoying.
 
 **Not verified:** the real app's own anchors on production (signed-out session).
 The harness exercised the engine, not the fifteen real `data-elsie` targets.
+
+---
+
+## Social publish path, hardened before its first real use (shipped 2026-07-28)
+
+`SocialPostTarget` had **zero rows** — nothing had ever been published from this
+install — so the whole publish path was code-verified only. Four defects, all of
+which the first real send would have met at once.
+
+**Networks that cannot take a text-only post now refuse at save.** Instagram,
+Pinterest, YouTube, TikTok and Snapchat all require media. The composer showed an
+amber "needs an image" beside those rows but **did not block submit** (confirmed
+on prod: the Post now button was enabled), and nothing checked server-side. Three
+of the six connected accounts are in that set, so the obvious first post — text,
+everything selected — was half-guaranteed to fail per-network *after* it had
+already gone out everywhere else. Drafts stay exempt; an image can be attached
+before it goes anywhere.
+
+**A leg Zernio didn't report on is no longer recorded as posted.** The roll-up
+read `result.deduped || !leg || …`, so a platform absent from the reply was
+marked `posted` with a `postedAt` we were never told. It stays **pending** now,
+keeps the post id so `post.published` can still settle it, and records why; the
+roll-up turns that into "partial". The deduped 409/200 case is untouched — that
+one really does mean the content is out.
+
+**The webhook applied one platform's outcome to every leg.** A bare
+`where: { providerPostId }` on a fan-out post meant an Instagram failure marked
+the LinkedIn and Facebook legs failed too, and a later success flipped them all
+back. The singular `platformPostUrl` / `errorMessage` fields say these deliveries
+are per-platform, so it narrows to the named `accountId`/`platform` and only
+updates every leg when the payload names neither. The parent post is re-rolled
+afterwards.
+
+**A post whose targets were all already posted stranded in "publishing".** The
+scheduler claims the row (`scheduled` to `publishing`) and then `publishSocialPost`
+returned bare with nothing pending. It settles the row now — and only when there
+ARE targets, since a post with none was never sent anywhere.
+
+### The mistake in the middle of this, and the invariant it produced
+
+The same commit also "fixed" the per-network override lookups from
+`variant_${provider.toUpperCase()}` to `variant_${provider}`, reasoning that the
+Zernio migration had made providers lowercase. **That was backwards and it broke
+a working path.**
+
+The form field names are namespaced by the **uppercased** slug on purpose, on all
+three sides: `SocialComposer` builds its rows from `a.provider.toUpperCase()` and
+renders its field as `variant_` plus that uppercased slug, so the field is
+`variant_FACEBOOK`; the edit page keys `initial.variants` the same way when it
+rehydrates. The stored provider is lowercase, which is exactly why the action has
+to uppercase before looking the field up. Reading the lowercase form matched
+nothing, so every per-network text and image override was silently dropped on
+save — the precise failure the commit claimed to be fixing.
+
+Reverted in `75bcf2b`. **Reading the JSX was not enough to see this**: the
+provider is already uppercased by the time it reaches the template. It was caught
+by driving the deployed composer and reading the rendered field name. Check the
+DOM, not the template, before believing a casing mismatch.
+
+**Verified on prod, nothing sent:** the media guard refuses with "Instagram needs
+an image — attach one, or deselect it." and writes nothing; a Facebook post with
+a distinct override round-tripped into `SocialPostTarget.text` correctly. Both
+used Schedule (31 Dec), never Post now, so a guard failure could not have
+published. Deleted afterwards through the UI's own delete path.
+
+---
+
+## Hover help, and a Help centre that assumes nothing (shipped 2026-07-28)
+
+Prompted by the owner saying plainly that he didn't know how to use the install he
+had commissioned. That is a documentation defect, not a user failure — the Help
+centre was written for someone who already knew the product.
+
+**`src/components/HelpTip.tsx`** — `<HelpTip>` (a small marker) and `<WithTip>`
+(wraps a control so the control explains itself). Pure CSS, `group-hover` plus
+`group-focus-within`, and deliberately **no client directive**: these belong on
+dozens of surfaces, nearly all server components, and a stateful tooltip would
+have forced every one of them to become a client component for a hover bubble.
+The trigger is a real button so it is keyboard-reachable, the text lives in its
+`aria-label` so a screen reader announces it on focus, and the visible bubble is
+`aria-hidden` rather than announced twice.
+
+Three placement rules that are load-bearing:
+
+- **`type="button"` is not optional** — most of these sit inside forms, and a bare
+  button in a form defaults to submit.
+- **Never inside a label or an anchor** — both retarget the click. The Topic /
+  Post now / Schedule / Add to queue tips are siblings of their labels for this
+  reason, and the Reports badges use a native `title` because they sit inside the
+  card's link.
+- **Inside an `overflow-x-auto` strip, use a native `title`** — an overflow
+  container clips absolutely-positioned children, so a bubble would be cut off or
+  invisible. That is why the Blog and Production sub-navs use `title` and the
+  channel sub-nav (which wraps rather than scrolls) uses bubbles.
+
+Touch is a real limitation, not an oversight: Tailwind wraps `hover:` in
+`@media (hover: hover)`, so hover bubbles do not appear on a touchscreen — correct,
+or a tap would strand one open with no way to dismiss it. `focus-within` covers
+the marker variant; wrapping a *link* has no touch affordance at all, since the
+tap navigates.
+
+Tip text lives in **`src/lib/help-tips.ts`**, one registry shared with the Help
+centre so a bubble and its FAQ answer cannot drift apart. Coverage: all 16 rail
+modules, all 11 channel tabs, all 11 blog tabs, all 9 production tabs, the 5 blog
+editor tabs, the social composer, idea outlier scores, Admin API keys and
+Connections, Brand, Videos, Reports, Chat, Thumbnails.
+
+### Two things the Help centre was actively getting wrong
+
+- The left-rail answer listed **eleven** modules. There are **sixteen** — it had
+  never been updated for Reports, Insights, Social or Brand.
+- "Run Agent" promised **"you get an email when it's done."** There is no email and
+  no notification anywhere in `agent.ts`; it enqueues a background job and the
+  status sits on the script page. Someone would have waited for mail that was
+  never coming.
+
+Added: what the app actually is, as a mental model, in the order the work happens;
+the shortest path to something real (one text post to one network, steering clear
+of the three that reject text-only posts); why output looks generic, which is
+nearly always the silent mock fallback; "everything is empty — is it broken?"; the
+blog stage meanings; and a **Brand & topics** category, Brand having been the only
+nav module with no Help at all.
+
+---
+
+## Real image generation (shipped 2026-07-28)
+
+`src/lib/images/index.ts` ended with a ternary whose **both branches were the
+mock**. The flag was inert and there was no real provider anywhere, so every
+thumbnail, blog featured/OG image and audience photo was a random stock photo
+from picsum seeded by the prompt.
+
+This was worse than the LLM's mock fallback because it is **success-shaped**: the
+LLM mock produces visibly generic text, whereas this produced a real, attractive
+photograph that simply had nothing to do with the title, so it read as finished
+work. `BrandKit.requireImagesToPublish` defaults ON, so publishing could be gated
+behind an image that could only ever be stock.
+
+Two real providers now sit behind the seam: **OpenAI `gpt-image-1`** (hand-written
+REST, matching `lib/zernio` — one documented endpoint is not worth another package
+in the bundle graph) and **Google `gemini-3.1-flash-image`** (via `@google/genai`,
+already a dependency for Veo). Selected by `image:provider`
+(`auto|mock|openai|google`), workspace-scoped and DB-first like `video:provider`,
+with a switch under Admin → API keys that also names what `auto` resolves to.
+`auto` prefers OpenAI purely because gpt-image-1 renders legible text more
+reliably, and thumbnails usually need words on them. No new key was required —
+both were already configured.
+
+### Not Imagen
+
+`models.list()` advertises `imagen-4.0-generate-001` (plus `-ultra` and `-fast`) as
+supporting `predict`. **Every one of them 404s** with "no longer available to new
+users" — the same trap already recorded for `gemini-2.5-pro`. The `gemini-*-image`
+models work through ordinary `generateContent`, returning the picture as an
+`inlineData` part, and `config.imageConfig.aspectRatio` is honoured. Don't
+"simplify" this back to `generateImages()`.
+
+### Two deliberate choices
+
+- **Bytes are stored, not hot-linked.** Both providers return base64 and both are
+  written into StorageProvider, so the persisted URL is ours, permanent and
+  session-gated. Deliberately unlike `lib/video`, which keeps a bare Veo URI that
+  expires in ~2 days. An image that 404s a week after publication is worse than
+  one that took a second longer to make.
+- **Dimensions are parsed from the bytes** (PNG IHDR / JPEG SOFn) rather than
+  echoed from the request, because providers don't always honour the aspect —
+  Gemini returns 1376x768 for "16:9", not the 1536x864 asked for — and
+  `width/height` feeds the publish asset gate.
+
+Failure is loud: a selected real provider that fails **throws** rather than
+substituting a placeholder. `blog-images.ts` catches it and returns false, since
+it runs unattended from autopilot and an uncaught throw would take the cycle down.
+
+`USE_MOCK_IMAGES` now defaults **false**, for the same reason `USE_MOCK_YOUTUBE`
+and `USE_MOCK_SEARCH` do: while it defaulted true it silently beat a working paid
+key, which is the identical bug the comment beneath it in `env.ts` already
+describes.
+
+**Verified end to end on prod:** OpenAI 1536x1024 PNG (2.0 MB) and Google
+1376x768 JPEG (0.56 MB), both written to Drive and read back through the storage
+layer; the Thumbnail Studio button drives the same path and produced four
+on-brief concepts with legible on-image text.
+
+---
+
+## Thumbnail Clone actually looks at the reference (shipped 2026-07-28)
+
+`cloneThumbnailAction` "analysed" a reference by passing its **URL as a plain
+string** to `llm.complete()`. A text model cannot fetch a URL, so the palette /
+typography / composition breakdown was recall or invention — never observation.
+
+**It hid well.** Tested with a famous video it produced a near-perfect style
+match, because the model recognised the id and described the video from training
+knowledge; its own output opened with "Based on the provided reference (the
+iconic 1987 'Never Gonna Give You Up' music video)". For the real use case — a
+competitor's thumbnail nobody has memorised — it would invent a style with equal
+confidence and identical-looking output.
+
+Measured: that video's real thumbnail is a slate-blue panel carrying large white
+uppercase type. The text-only path reported "Typography: None inherent to the
+original video frames" — the exact opposite of what is on screen.
+
+**`src/lib/vision.ts`.** `fetchReferenceImage()` turns what was pasted into real
+bytes — YouTube watch/youtu.be/shorts/embed links resolve to `i.ytimg.com`
+(`maxresdefault`, falling back to `hqdefault`, which always exists), direct image
+URLs are fetched as-is, anything else returns null. `describeImageStyle()` sends
+those bytes to a vision model. Model ids were probed rather than assumed, which
+caught a third trap: **`gemini-3.1-flash` 404s for `generateContent`**.
+`gemini-flash-latest` works and leads; OpenAI `gpt-4o-mini` is the fallback.
+
+**Null is surfaced, not papered over.** An `@handle` or dead link cannot be looked
+at, so the render falls back to the title alone, the stored description names the
+reference it did NOT use, and the concept is labelled "Title only" with a
+**"reference not read"** badge. On screen the two outcomes were previously
+identical — which is exactly how the original behaviour survived unnoticed.
+
+**Verified against a reference published after the model's training cutoff**
+(a Dan Martell video from 2026-07-22, so memorisation was impossible). The real
+thumbnail was downloaded and inspected first, independently. Vision reported the
+blue crew-neck t-shirt, greying hair, the ring, the smartwatch on the left wrist,
+the raised index finger and the dark wooden table — all correct. The render
+carried across the red brush-stroke bar, the huge white "$100 000 /mo", the plant,
+the lighting and the Venn diagram on white board, while relabelling the circles
+Donors / Volunteers / Events / Grants for the new subject.
