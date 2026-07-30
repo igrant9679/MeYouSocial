@@ -6,14 +6,28 @@ import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { ACTIVE_WS_COOKIE } from "@/lib/acl";
 
-// invitee accepts and joins the workspace with the role from the invite.
+// Invitee accepts and joins the workspace with the role from the invite.
+//
+// ── Why the failure states carry real copy ──────────────────────────────────
+// Every one of these is reached by someone who has just clicked a link in their
+// email and has no idea what this app is. A bare "Invalid invitation" with no
+// reason and no way onward — which is what this used to render — leaves them
+// stuck with nothing to do but email whoever invited them. Each state now says
+// what likely happened and offers a route.
 
 async function acceptAction(token: string) {
   "use server";
   const session = await auth();
   if (!session?.user?.id) redirect(`/signin?next=/invitations/${token}`);
   const invite = await db.invitation.findUnique({ where: { token } });
-  if (!invite || invite.acceptedAt || invite.expiresAt < new Date()) redirect("/forbidden");
+  if (!invite || invite.acceptedAt || invite.expiresAt < new Date()) {
+    // Back to this page rather than /forbidden. The invite can be revoked or
+    // expire between render and submit, and /forbidden says "your role doesn't
+    // permit access to that page" — which is not what happened and sends people
+    // looking for a permissions problem that doesn't exist. Re-rendering here
+    // shows the state that actually applies, with its explanation.
+    redirect(`/invitations/${token}`);
+  }
 
   await db.$transaction([
     db.membership.upsert({
@@ -28,18 +42,93 @@ async function acceptAction(token: string) {
   redirect("/dashboard");
 }
 
+function Notice({
+  title,
+  children,
+  actions,
+}: {
+  title: string;
+  children?: React.ReactNode;
+  actions?: React.ReactNode;
+}) {
+  return (
+    <div className="flex-1 grid place-items-center p-6">
+      <div className="card max-w-md">
+        <h1 className="font-mono font-bold text-xl mb-2 text-center">{title}</h1>
+        {children && <div className="text-sm text-[var(--mute)] leading-[1.6] space-y-2">{children}</div>}
+        {actions && <div className="flex flex-wrap gap-2 justify-center mt-4">{actions}</div>}
+      </div>
+    </div>
+  );
+}
+
 export default async function InvitationPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
   const invite = await db.invitation.findUnique({ where: { token }, include: { workspace: true } });
 
+  // ⚠ A revoked invitation and a token that never existed are the SAME state
+  // here — the row is deleted on revoke, so there is nothing left to tell them
+  // apart. They're deliberately not separated: doing so would confirm to anyone
+  // holding a guessed token whether it was ever real. So this names the likely
+  // causes instead of asserting one, and includes the truncated-link case, which
+  // is a genuine cause — mail clients wrap long URLs and the tail gets lost.
   if (!invite) {
-    return <div className="flex-1 grid place-items-center p-6"><div className="card max-w-md text-center"><h1 className="font-mono font-bold mb-2">Invalid invitation</h1></div></div>;
+    return (
+      <Notice
+        title="This invitation is no longer valid"
+        actions={
+          <>
+            <Link href="/signin" className="btn primary">Sign in</Link>
+            <Link href="/" className="btn">Home</Link>
+          </>
+        }
+      >
+        <p>Usually one of:</p>
+        <ul className="list-disc pl-5 space-y-1">
+          <li>It was <b>withdrawn</b>, or it has already been used.</li>
+          <li>The <b>link got cut short</b> — mail clients often wrap long URLs. Check the address bar
+            against the full link in the email.</li>
+        </ul>
+        <p>
+          If you already have an account, sign in — you may not need this invitation at all. Otherwise ask
+          whoever invited you to send a fresh one.
+        </p>
+      </Notice>
+    );
   }
+
   if (invite.acceptedAt) {
-    return <div className="flex-1 grid place-items-center p-6"><div className="card max-w-md text-center"><h1 className="font-mono font-bold mb-2">Already accepted</h1><Link className="btn primary" href="/dashboard">Go to dashboard</Link></div></div>;
+    return (
+      <Notice
+        title="Already accepted"
+        actions={<Link className="btn primary" href="/dashboard">Go to dashboard</Link>}
+      >
+        <p>
+          You&apos;ve already joined <b>{invite.workspace.name}</b>. Invitations only work once — sign in
+          normally from now on.
+        </p>
+      </Notice>
+    );
   }
+
   if (invite.expiresAt < new Date()) {
-    return <div className="flex-1 grid place-items-center p-6"><div className="card max-w-md text-center"><h1 className="font-mono font-bold mb-2">Expired</h1><p className="text-sm text-[var(--mute)]">Ask your admin for a new invite.</p></div></div>;
+    return (
+      <Notice
+        title="This invitation has expired"
+        actions={
+          <>
+            <Link href="/signin" className="btn primary">Sign in</Link>
+            <Link href="/" className="btn">Home</Link>
+          </>
+        }
+      >
+        <p>
+          Your invitation to <b>{invite.workspace.name}</b> lapsed on{" "}
+          <b>{invite.expiresAt.toLocaleDateString()}</b>. Invitations last seven days.
+        </p>
+        <p>Ask an admin of that workspace to send a new one — nothing is lost, it just needs reissuing.</p>
+      </Notice>
+    );
   }
 
   return (
