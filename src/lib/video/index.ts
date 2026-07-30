@@ -85,9 +85,12 @@ const veoProvider: VideoProvider = {
     const video = operation.response?.generatedVideos?.[0]?.video;
     const uri = video?.uri;
     if (!uri) throw new Error("Veo returned no video");
-    // Store the BARE file URI — never append the API key (it would leak to
-    // every member via the UI/DB). Veo URIs expire in ~2 days; downloading the
-    // bytes into StorageProvider at render time is the planned hardening step.
+    // Return the BARE file URI — never append the API key (it would leak to
+    // every member via the UI/DB). This URI expires in ~2 days and is NOT
+    // publicly readable, so `persistRenderOutput` re-fetches it with the key in
+    // an `x-goog-api-key` header and writes the bytes into StorageProvider;
+    // `VideoRender.storedUrl` is the durable copy the UI prefers. Don't "fix"
+    // this by embedding the key in the URL — that's the leak this avoids.
     return { url: uri, provider: "veo", seconds: Math.min(req.seconds, env.VIDEO_MAX_SECONDS) };
   },
 };

@@ -23,6 +23,7 @@ import { parseScenes, scenesToSrt } from "@/lib/captions";
 import { autoTaskForRenderFailure } from "@/lib/auto-tasks";
 import { getModes, isGloballyPaused, writeAudit } from "@/lib/governance";
 import { getVideoProvider, estimateCostUsd } from "@/lib/video";
+import { getApiKey } from "@/lib/llm/keys";
 import { templateGuidance, trackLabel, trackWordTarget } from "@/lib/blog-templates";
 import { buildJsonLd } from "@/lib/blog-jsonld";
 import { loadAssetGate } from "@/lib/blog-images";
@@ -668,17 +669,73 @@ async function rendersToday(workspaceId: string): Promise<number> {
  * Persist a provider's output into StorageProvider so it outlives expiring
  * URIs (Veo's die in ~2 days). Skipped for the mock's stable sample URL and
  * for anything over 80MB. Returns the durable URL, or null when not persisted.
+ *
+ * ── Why this never worked for Veo until 2026-07-28 ──────────────────────────
+ * It used a bare `fetch(url)`. A Veo file URI is NOT publicly readable — it
+ * needs the Google key — so every attempt came back 401 and hit `return null`.
+ * The call site then fell back to the raw provider URL, the UI dutifully said
+ * "couldn't be persisted", and no one could tell that the reason was a missing
+ * credential rather than a storage problem. Two years of Veo renders would have
+ * quietly gone dead after 48 hours.
+ *
+ * The download URL is NOT the file URI. Taken from the SDK's own downloader
+ * (`files/<name>:download` + `alt=media`) rather than guessed — probing showed
+ * a bare `?alt=media` on the resource URI returns 400 "File download is not
+ * supported. Try getting metadata without ?alt=media." The `:download` verb is
+ * required.
+ *
+ * Auth goes in an `x-goog-api-key` HEADER, never the query string: the key must
+ * not land in a stored URL or a log line, which is also why `veoProvider`
+ * deliberately returns the bare URI.
+ *
+ * ⚠ Verified as far as it can be without paying for a render: unauthenticated
+ * gets 403, this construction authenticates and reaches the API, and the SDK's
+ * own `files.download` issues the identical request. What is NOT covered is a
+ * real Veo output — the endpoint refuses anything else with "Only GENERATED
+ * files can be downloaded", so an uploaded test file cannot stand in for it.
  */
-async function persistRenderOutput(url: string, providerName: string): Promise<string | null> {
+async function persistRenderOutput(
+  url: string,
+  providerName: string,
+  workspaceId: string,
+): Promise<string | null> {
   if (providerName === "mock") return null;
   try {
-    const res = await fetch(url, { signal: AbortSignal.timeout(120_000), redirect: "follow" });
-    if (!res.ok) return null;
+    let target = url;
+    const headers: Record<string, string> = {};
+
+    // Veo hands back a Gemini Files URI; HeyGen and friends hand back already
+    // signed URLs that a bare fetch can read.
+    const isGoogleFileUri = /generativelanguage\.googleapis\.com/.test(url);
+    if (isGoogleFileUri) {
+      const key = await getApiKey("google", workspaceId).catch(() => "");
+      if (!key) {
+        console.warn("[video] cannot persist Veo output — no Google key resolved for this workspace");
+        return null;
+      }
+      headers["x-goog-api-key"] = key;
+      // .../v1beta/files/<id>  →  .../v1beta/files/<id>:download?alt=media
+      if (/\/files\/[^/:?]+$/.test(target)) target += ":download";
+      if (!/[?&]alt=media\b/.test(target)) {
+        target += (target.includes("?") ? "&" : "?") + "alt=media";
+      }
+    }
+
+    const res = await fetch(target, { headers, signal: AbortSignal.timeout(120_000), redirect: "follow" });
+    if (!res.ok) {
+      // Say why. The silent `return null` here is what hid the missing-auth bug.
+      console.warn(`[video] cannot persist ${providerName} output — download failed (HTTP ${res.status})`);
+      return null;
+    }
     const buf = Buffer.from(await res.arrayBuffer());
-    if (!buf.byteLength || buf.byteLength > 80 * 1024 * 1024) return null;
+    if (!buf.byteLength || buf.byteLength > 80 * 1024 * 1024) {
+      console.warn(`[video] not persisting ${providerName} output — ${buf.byteLength} bytes is empty or over the 80MB cap`);
+      return null;
+    }
     const file = await storage.put("render.mp4", buf, res.headers.get("content-type") ?? "video/mp4");
     return file.url;
-  } catch {
+  } catch (e) {
+    console.warn(`[video] cannot persist ${providerName} output:`, e instanceof Error ? e.message : e);
     return null;
   }
 }
@@ -708,7 +765,7 @@ export async function processRenderCore(workspaceId: string, renderId: string): 
           aspect: render.aspect as "9:16" | "16:9" | "1:1",
           workspaceId,
         });
-        const durable = await persistRenderOutput(out.url, out.provider);
+        const durable = await persistRenderOutput(out.url, out.provider, workspaceId);
         scenes[i] = { ...scenes[i], outputUrl: durable ?? out.url, status: "done" };
         await db.videoRender.update({ where: { id: render.id }, data: { scenes: JSON.stringify(scenes) } });
       }
@@ -729,7 +786,7 @@ export async function processRenderCore(workspaceId: string, renderId: string): 
         aspect: render.aspect as "9:16" | "16:9" | "1:1",
         workspaceId,
       });
-      const durable = await persistRenderOutput(out.url, out.provider);
+      const durable = await persistRenderOutput(out.url, out.provider, workspaceId);
       await db.videoRender.update({
         where: { id: render.id },
         data: {
