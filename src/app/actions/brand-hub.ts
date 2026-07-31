@@ -83,9 +83,18 @@ export async function updateTopicAction(formData: FormData) {
     .map((s) => s.trim())
     .filter(Boolean)
     .slice(0, 30);
+  // Priority is the one field the recommendation engine writes on its own
+  // (`topic.raise_priority` sets it to 10), and its success message points here
+  // to undo that — so this form is the only way back down. A missing field
+  // leaves the stored value alone rather than silently zeroing it; an empty one
+  // is a deliberate reset to 0.
+  const rawPriority = formData.get("priority");
+  const priority =
+    rawPriority == null ? undefined : Math.max(0, Math.min(10, Math.round(Number(rawPriority) || 0)));
+
   await db.topic.updateMany({
     where: { id, workspaceId: workspace.id },
-    data: { description, keywords: writeJson(keywords) },
+    data: { description, keywords: writeJson(keywords), ...(priority == null ? {} : { priority }) },
   });
   revalidatePath("/brand");
   back("Topic updated.");

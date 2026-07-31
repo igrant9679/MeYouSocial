@@ -152,7 +152,18 @@ export async function assembleScenes(
     let totalIn = 0;
     for (let i = 0; i < clips.length; i++) {
       const buf = await readSource(clips[i].outputUrl!);
-      if (!buf?.byteLength) throw new Error(`Scene ${i + 1}'s clip could not be read back from storage.`);
+      if (!buf?.byteLength) {
+        // Name the actual cause. A scene that never persisted keeps the bare
+        // provider URI, which is not publicly readable and expires in ~2 days —
+        // "could not be read back from storage" sends someone hunting a storage
+        // fault that isn't there.
+        const isProviderUrl = /^https?:\/\//i.test(clips[i].outputUrl!);
+        throw new Error(
+          isProviderUrl
+            ? `Scene ${i + 1}'s clip was never persisted to storage — only the provider's own link exists, and it isn't readable from here (Veo links also expire in ~2 days). Re-render the board.`
+            : `Scene ${i + 1}'s clip could not be read back from storage.`,
+        );
+      }
       totalIn += buf.byteLength;
       if (totalIn > MAX_TOTAL_INPUT_BYTES) throw new Error("Storyboard clips exceed the 200MB assembly limit.");
 

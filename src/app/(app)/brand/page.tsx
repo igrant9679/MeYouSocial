@@ -156,6 +156,17 @@ export default async function BrandPage({ searchParams }: { searchParams: Promis
                 <div className="flex items-center gap-2 flex-wrap mb-1">
                   <span className="font-semibold text-sm">{t.name}</span>
                   {archived && <span className="font-mono text-[10px] uppercase px-1.5 py-0.5 rounded-full" style={{ background: "var(--panel)", color: "var(--mute)" }}>archived</span>}
+                  {/* A raised priority used to be invisible everywhere: only the
+                      recommendation engine set it, and nothing displayed it. */}
+                  {t.priority > 0 && (
+                    <span
+                      className="font-mono text-[10px] px-1.5 py-0.5 rounded-full"
+                      style={{ background: "var(--violet-soft)", color: "var(--violet-on)" }}
+                      title={`Priority ${t.priority} — this topic leads the idea-discovery prompt. Set it back to 0 below to undo.`}
+                    >
+                      priority {t.priority}
+                    </span>
+                  )}
                   <span className="flex-1" />
                   {editor && (
                     <>
@@ -182,6 +193,19 @@ export default async function BrandPage({ searchParams }: { searchParams: Promis
                     <label className="text-xs flex-1 min-w-[180px]">
                       <span className="block text-[10px] text-[var(--mute)] mb-1">Related phrases</span>
                       <input name="keywords" defaultValue={kw.join(", ")} className="w-full text-xs" />
+                    </label>
+                    <label className="text-xs">
+                      <span className="block text-[10px] text-[var(--mute)] mb-1">Priority</span>
+                      <input
+                        name="priority"
+                        type="number"
+                        min={0}
+                        max={10}
+                        step={1}
+                        defaultValue={t.priority}
+                        className="w-16 font-mono text-xs"
+                        title="0–10. Higher topics lead the idea-discovery prompt and win the 25-topic cut. Reset to 0 to undo a “raise priority” recommendation."
+                      />
                     </label>
                     <SubmitButton className="btn sm">Save</SubmitButton>
                   </form>

@@ -758,6 +758,12 @@ export async function processRenderCore(workspaceId: string, renderId: string): 
     if (scenes.length > 1) {
       // Storyboard: render scene by scene, recording progress as it happens so
       // a mid-board failure keeps the completed clips.
+      // ⚠ `firstDurable` is tracked separately from `scenes[0].outputUrl`. A
+      // scene falls back to the raw provider URL so it still PLAYS when the
+      // persist failed, but `storedUrl` means "we hold the bytes" — writing the
+      // fallback into it claims a durability we don't have, and the UI reads
+      // that field to decide whether to warn about provider-URL expiry.
+      let firstDurable: string | null = null;
       for (let i = 0; i < scenes.length; i++) {
         const out = await provider.render({
           prompt: scenes[i].prompt,
@@ -766,6 +772,7 @@ export async function processRenderCore(workspaceId: string, renderId: string): 
           workspaceId,
         });
         const durable = await persistRenderOutput(out.url, out.provider, workspaceId);
+        if (i === 0) firstDurable = durable;
         scenes[i] = { ...scenes[i], outputUrl: durable ?? out.url, status: "done" };
         await db.videoRender.update({ where: { id: render.id }, data: { scenes: JSON.stringify(scenes) } });
       }
@@ -775,7 +782,7 @@ export async function processRenderCore(workspaceId: string, renderId: string): 
           status: "done",
           provider: provider.name,
           outputUrl: scenes[0].outputUrl,
-          storedUrl: scenes[0].outputUrl,
+          storedUrl: firstDurable,
           srt: scenesToSrt(scenes),
         },
       });
