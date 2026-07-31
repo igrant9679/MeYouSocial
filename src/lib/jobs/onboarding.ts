@@ -52,7 +52,21 @@ export function registerOnboardingJobs() {
     await ctx.progress(0.3);
 
     if (channel.linkedYoutubeId) {
-      const videos = await youtubeFor(channel.workspaceId).listVideos(channel.linkedYoutubeId, 25);
+      // ⚠ Guarded for the same reason as the competitor loop in onboarding.ideas:
+      // listVideos throws on any non-2xx, including the ordinary case of a
+      // channel with no public uploads playlist (404). Unguarded, that killed
+      // the job here too — less visibly, because the baseline profile written
+      // above already makes step 5 report "Voice profile ✓". The profile would
+      // simply stay untrained forever with nothing saying why.
+      let videos: Awaited<ReturnType<ReturnType<typeof youtubeFor>["listVideos"]>> = [];
+      let unreadable = "";
+      try {
+        videos = await youtubeFor(channel.workspaceId).listVideos(channel.linkedYoutubeId, 25);
+      } catch (e) {
+        unreadable = e instanceof Error ? e.message : String(e);
+        ctx.log(`voice: could not read the linked channel — ${unreadable}`);
+        console.warn(`[onboarding.voice] listVideos failed for ${channel.linkedYoutubeId}:`, unreadable);
+      }
 
       // ⚠ TRAINS ON TITLES + DESCRIPTIONS, NOT TRANSCRIPTS — deliberate, and it
       // is what makes this job work at all. `getTranscript` returns null on the
@@ -77,7 +91,15 @@ export function registerOnboardingJobs() {
       ctx.log(`voice: ${corpus.length}/${videos.length} videos with text, ${transcripts.length} transcripts`);
       await ctx.progress(0.5);
 
-      if (corpus.length < 3) {
+      if (unreadable) {
+        // Distinct from "too few videos": nothing was read at all, and saying
+        // "only 0 video(s) with readable text" would point at the wrong problem.
+        voiceData = {
+          ...voiceData,
+          source: { trained: false, reason: `The linked YouTube channel could not be read (${unreadable}).` },
+        };
+        await writeVoice();
+      } else if (corpus.length < 3) {
         voiceData = {
           ...voiceData,
           source: { trained: false, reason: `Only ${corpus.length} video(s) with readable text on the linked channel — need at least 3.` },
@@ -199,26 +221,13 @@ export function registerOnboardingJobs() {
       perfHint = `\nOwn-channel performance hint: avg retention ${(avgRet * 100).toFixed(0)}% across the last ${top.length} tracked uploads. Bias new ideas toward formats that hold attention.`;
     }
 
-    // Pull recent videos from each competitor and grab the strongest outlier.
-    const candidates: { title: string; outlier: number; source: string }[] = [];
-    for (const c of channel.competitors) {
-      if (!c.youtubeId) continue;
-      const videos = await youtubeFor(channel.workspaceId).listVideos(c.youtubeId, 8);
-      const avgViews = videos.reduce((a, v) => a + v.views, 0) / Math.max(1, videos.length);
-      for (const v of videos) {
-        candidates.push({
-          title: v.title,
-          outlier: v.views / Math.max(1, avgViews),
-          source: c.youtubeHandle ?? c.youtubeId ?? "",
-        });
-      }
-    }
-    candidates.sort((a, b) => b.outlier - a.outlier);
-    await ctx.progress(0.6);
-
-    const seed = candidates.slice(0, 10);
-
-    // ALWAYS seed at least 5 baseline ideas so the UI completes if the LLM call fails.
+    // ⚠ SEED THE BASELINE FIRST. This block is the safety net that lets the
+    // wizard's step 5 complete, and it used to sit AFTER the competitor pull —
+    // i.e. downstream of the most failure-prone code in the job. On 2026-07-31
+    // one competitor with no public uploads playlist (404 from playlistItems)
+    // threw out of the loop below, so the "ALWAYS" net never ran: 0 ideas, and
+    // step 5 sat on "Generating…" indefinitely because nothing reads job state.
+    // Anything that can throw must come after this, never before it.
     const baselineIdeas = [
       "Why everything you know about this is wrong",
       "The 80/20 nobody talks about",
@@ -246,6 +255,37 @@ export function registerOnboardingJobs() {
         });
       }
     }
+    await ctx.progress(0.3);
+
+    // Pull recent videos from each competitor and grab the strongest outlier.
+    // ⚠ Guarded PER COMPETITOR. A channel can be perfectly real and still fail
+    // here — no public uploads playlist 404s, a deleted channel 404s, quota
+    // 403s — and one such competitor must not cost the other four their videos.
+    const candidates: { title: string; outlier: number; source: string }[] = [];
+    for (const c of channel.competitors) {
+      if (!c.youtubeId) continue;
+      try {
+        const videos = await youtubeFor(channel.workspaceId).listVideos(c.youtubeId, 8);
+        const avgViews = videos.reduce((a, v) => a + v.views, 0) / Math.max(1, videos.length);
+        for (const v of videos) {
+          candidates.push({
+            title: v.title,
+            outlier: v.views / Math.max(1, avgViews),
+            source: c.youtubeHandle ?? c.youtubeId ?? "",
+          });
+        }
+      } catch (e) {
+        // Name the competitor. A silent skip here is what made the original
+        // failure impossible to diagnose from the outside.
+        const who = c.youtubeHandle ?? c.youtubeId ?? "unknown";
+        ctx.log(`ideas: skipping competitor ${who} — ${e instanceof Error ? e.message : e}`);
+        console.warn(`[onboarding.ideas] competitor ${who} unreadable, continuing:`, e instanceof Error ? e.message : e);
+      }
+    }
+    candidates.sort((a, b) => b.outlier - a.outlier);
+    await ctx.progress(0.6);
+
+    const seed = candidates.slice(0, 10);
     await ctx.progress(0.7);
 
     try {
