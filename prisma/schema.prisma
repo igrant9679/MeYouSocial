@@ -693,9 +693,14 @@ model Setting {
 }
 
 // Workspace-scoped settings (API keys, SMTP, provider switches, branding).
-// Resolution everywhere is: WorkspaceSetting → global Setting → env var, so
-// each company can bring its own keys while the platform's keys stay as the
-// fallback for workspaces that haven't configured their own.
+// Resolution is: WorkspaceSetting → global Setting → env var, so each company
+// can bring its own keys while the platform's keys stay as the fallback for
+// workspaces that haven't configured their own.
+//
+// ⚠ EXCEPT for PLATFORM_MANAGED_KEYS (src/lib/settings.ts), which skip this
+// table entirely on read and are editable only by the platform operator —
+// `api_key:youtube` today. A row here for one of those keys is IGNORED, not
+// honoured; that is what stops a stale row shadowing the shared value.
 model WorkspaceSetting {
   workspaceId String
   key         String

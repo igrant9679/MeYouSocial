@@ -10,6 +10,7 @@ import {
 import { getVideoProviderSetting } from "@/lib/video";
 import { getImageProviderSetting, resolveImageProviderName } from "@/lib/images";
 import { getStorageBackendSetting } from "@/lib/storage";
+import { isPlatformManagedKey } from "@/lib/settings";
 import { gdriveStatus, parseServiceAccount, getDriveAuthMode } from "@/lib/storage/gdrive";
 import { HelpTip } from "@/components/HelpTip";
 import { ADMIN_TIPS } from "@/lib/help-tips";
@@ -317,8 +318,18 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
       </div>
 
       {MEDIA_ROWS.map((row) => {
-        const dbVal = byKey.get(`api_key:${row.provider}`) ?? "";
-        const platformHas = Boolean(platformByKey.get(`api_key:${row.provider}`) || process.env[row.envVar]);
+        const settingKey = `api_key:${row.provider}`;
+        // Shared across every tenant (see PLATFORM_MANAGED_KEYS). The YouTube
+        // Data API key reads any PUBLIC channel by id, so it isn't bound to the
+        // workspace's own channel and one key serves everyone.
+        const managed = isPlatformManagedKey(settingKey);
+        const platformVal = platformByKey.get(settingKey) ?? "";
+        const dbVal = managed ? platformVal : (byKey.get(settingKey) ?? "");
+        const platformHas = Boolean(platformVal || process.env[row.envVar]);
+        // Tenant admins get no field at all for a managed key — the action
+        // refuses them anyway, but rendering an input they can't use is the
+        // kind of thing that reads as broken rather than as deliberate.
+        const editable = !managed || isPlatformOperator;
         return (
           <form key={row.provider} action={saveApiKeyAction} className="card mb-3">
             <input type="hidden" name="provider" value={row.provider} />
@@ -326,7 +337,11 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
               <div className="flex-1">
                 <div className="font-mono font-bold text-sm flex items-center gap-2">
                   {row.label}
-                  {dbVal ? (
+                  {managed ? (
+                    <span className="text-[10px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: platformHas ? "var(--blue-soft)" : "var(--amber-soft)", color: platformHas ? "var(--blue-on)" : "var(--amber-on)" }}>
+                      {platformHas ? "shared · all workspaces" : "shared · not set"}
+                    </span>
+                  ) : dbVal ? (
                     <span className="text-[10px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded flex items-center gap-1" style={{ background: "var(--green-soft)", color: "var(--green-on)" }}>
                       <CheckCircle2 className="w-3 h-3" /> your key
                     </span>
@@ -338,22 +353,33 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
                 </div>
                 <div className="text-[11px] text-[var(--mute)] font-mono mt-0.5">{row.envVar}</div>
                 <div className="text-[11px] text-[var(--mute)] mt-0.5">{row.note}</div>
-                {dbVal && <div className="text-[11px] font-mono text-[var(--mute)] mt-0.5">Current: {mask(dbVal)}</div>}
-                <Link href={row.helpUrl} target="_blank" rel="noopener noreferrer" className="text-[11px] inline-flex items-center gap-1 mt-1" style={{ color: "var(--accent)" }}>
-                  Get a key from {row.helpText} <ExternalLink className="w-3 h-3" />
-                </Link>
+                {managed && (
+                  <div className="text-[11px] mt-1 px-2.5 py-1.5 rounded-lg" style={{ background: "var(--panel)", color: "var(--mute)" }}>
+                    {isPlatformOperator
+                      ? "One key serves every workspace — it reads public channel data by id, so it isn't tied to any one channel. Changing it here changes it for all tenants, and the daily quota is shared between them."
+                      : "Provided by the platform and shared with every workspace — there's nothing to set up here. Your own channel's analytics and uploads are a separate connection under Admin → Analytics."}
+                  </div>
+                )}
+                {dbVal && editable && <div className="text-[11px] font-mono text-[var(--mute)] mt-0.5">Current: {mask(dbVal)}</div>}
+                {editable && (
+                  <Link href={row.helpUrl} target="_blank" rel="noopener noreferrer" className="text-[11px] inline-flex items-center gap-1 mt-1" style={{ color: "var(--accent)" }}>
+                    Get a key from {row.helpText} <ExternalLink className="w-3 h-3" />
+                  </Link>
+                )}
               </div>
             </div>
-            <div className="flex gap-2">
-              <input
-                name="value"
-                type="password"
-                placeholder={dbVal ? "Paste a new key to replace, or leave empty to clear DB value" : "Paste your API key here"}
-                className="flex-1 border border-[var(--line-2)] rounded-lg p-2 text-sm font-mono"
-                autoComplete="off"
-              />
-              <SubmitButton className="btn primary sm" pendingText="Saving…">Save</SubmitButton>
-            </div>
+            {editable && (
+              <div className="flex gap-2">
+                <input
+                  name="value"
+                  type="password"
+                  placeholder={dbVal ? "Paste a new key to replace, or leave empty to clear DB value" : "Paste your API key here"}
+                  className="flex-1 border border-[var(--line-2)] rounded-lg p-2 text-sm font-mono"
+                  autoComplete="off"
+                />
+                <SubmitButton className="btn primary sm" pendingText="Saving…">Save</SubmitButton>
+              </div>
+            )}
           </form>
         );
       })}

@@ -197,12 +197,29 @@ export async function disconnectGdriveAction() {
 }
 
 export async function saveApiKeyAction(formData: FormData) {
-  const { workspace } = await requireRole("ADMIN");
+  const { workspace, user } = await requireRole("ADMIN");
   const provider = String(formData.get("provider") ?? "") as KeyProvider;
   if (!KEY_PROVIDERS.includes(provider) && provider !== "youtube" && provider !== "elevenlabs" && provider !== "heygen") return;
   const value = String(formData.get("value") ?? "").trim();
-  const { setWorkspaceSetting } = await import("@/lib/settings");
-  await setWorkspaceSetting(workspace.id, SETTING_KEY[provider], value);
+  const settingKey = SETTING_KEY[provider];
+  const { setWorkspaceSetting, setPlatformSetting, isPlatformManagedKey } = await import("@/lib/settings");
+
+  if (isPlatformManagedKey(settingKey)) {
+    // Shared across every tenant, so only the operator may touch it. Workspace
+    // admins don't get a field for this at all — this is the server-side half,
+    // because a hidden input is not a permission check.
+    if (!isPlatformOperator(user.email)) {
+      redirect("/admin/api-keys?err=" + encodeURIComponent(`The ${provider} key is shared across all workspaces and is managed by the platform operator.`));
+    }
+    await setPlatformSetting(settingKey, value);
+    // Clear anything left from before the key became shared. Without this the
+    // old rows are inert (getSetting skips the workspace layer for these) but
+    // still readable in the DB, which reads as "this tenant has its own key".
+    await db.workspaceSetting.deleteMany({ where: { key: settingKey } });
+  } else {
+    await setWorkspaceSetting(workspace.id, settingKey, value);
+  }
+
   llm.invalidateKeyCache();
   revalidatePath("/admin/api-keys");
   redirect(`/admin/api-keys?ok=${provider}`);

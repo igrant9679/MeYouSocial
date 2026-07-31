@@ -10,6 +10,31 @@ import { db } from "@/lib/db";
  * applies its env fallback). 30s cache, busted by the admin save actions.
  */
 
+/**
+ * PLATFORM-MANAGED keys — shared by every workspace, editable only by the
+ * platform operator (`isPlatformOperator`, i.e. BOOTSTRAP_ADMIN_EMAIL).
+ *
+ * ⚠ These deliberately SKIP the WorkspaceSetting layer on read. Gating the
+ * write alone would not be enough: resolution is workspace-first, so any row
+ * left behind from before a key became platform-managed would shadow the shared
+ * value forever, for that one tenant, invisibly. Skipping the layer means there
+ * is exactly one source of truth and a stale row is inert rather than wrong.
+ *
+ * `api_key:youtube` is here because the YouTube **Data** API key is not bound to
+ * a channel — it reads any public channel by id — so one key genuinely serves
+ * every tenant. The channel-owned half (`youtube_oauth:*`) is the opposite: it
+ * is per-workspace and must NEVER be listed here.
+ *
+ * ⚠ Adding a key here makes it shared across tenants. Quota is per Cloud
+ * project, not per workspace, so one tenant can exhaust another's. Only add a
+ * credential the operator genuinely intends to pool.
+ */
+export const PLATFORM_MANAGED_KEYS: ReadonlySet<string> = new Set(["api_key:youtube"]);
+
+export function isPlatformManagedKey(key: string): boolean {
+  return PLATFORM_MANAGED_KEYS.has(key);
+}
+
 const CACHE_TTL_MS = 30_000;
 const cache = new Map<string, { value: string; expires: number }>();
 
@@ -24,7 +49,9 @@ export async function getSetting(key: string, workspaceId?: string | null): Prom
 
   let value = "";
   try {
-    if (workspaceId) {
+    // Platform-managed keys ignore the workspace layer entirely — see the note
+    // on PLATFORM_MANAGED_KEYS. Everything else is workspace-first.
+    if (workspaceId && !PLATFORM_MANAGED_KEYS.has(key)) {
       const ws = await db.workspaceSetting.findUnique({
         where: { workspaceId_key: { workspaceId, key } },
       });
@@ -44,6 +71,9 @@ export async function getSetting(key: string, workspaceId?: string | null): Prom
 /** Reads ONLY the workspace row — no global fallback. For admin UIs that must
  *  show whether THIS workspace configured a value vs inheriting the platform's. */
 export async function getWorkspaceSettingRaw(workspaceId: string, key: string): Promise<string> {
+  // A platform-managed key has no meaningful per-workspace value; returning a
+  // stale row here would let an admin UI claim "your key" for a shared one.
+  if (PLATFORM_MANAGED_KEYS.has(key)) return "";
   try {
     const ws = await db.workspaceSetting.findUnique({ where: { workspaceId_key: { workspaceId, key } } });
     return ws?.value ?? "";
@@ -53,6 +83,11 @@ export async function getWorkspaceSettingRaw(workspaceId: string, key: string): 
 }
 
 export async function setWorkspaceSetting(workspaceId: string, key: string, value: string): Promise<void> {
+  // Fail loudly rather than writing a row that would be silently ignored on
+  // read. If this throws, the caller should be using setPlatformSetting.
+  if (PLATFORM_MANAGED_KEYS.has(key)) {
+    throw new Error(`"${key}" is platform-managed — write it with setPlatformSetting, not per workspace.`);
+  }
   if (!value) {
     await db.workspaceSetting.deleteMany({ where: { workspaceId, key } });
   } else {

@@ -81,7 +81,12 @@ but it means **bad output can look like real output**. Rules learned the hard wa
   used for images and vision only.
 - **Settings / multi-tenancy** `src/lib/settings.ts` — resolution is **`WorkspaceSetting` → global
   `Setting` → env var** (30s cache). Each company brings its own keys; a platform row back-fills
-  every workspace, which is usually not what you want.
+  every workspace, which is usually not what you want. ⚠ **`PLATFORM_MANAGED_KEYS` is the deliberate
+  exception** — those skip the workspace layer on read and only `isPlatformOperator` can write them,
+  so one shared credential serves every tenant and no stale per-workspace row can shadow it.
+  `api_key:youtube` is the only member: the **Data** API key takes the channel as an argument and
+  reads public data, so it isn't channel-bound. ⚠ Quota is per **Cloud project**, so sharing pools
+  it — one tenant can exhaust another. Never add `youtube_oauth:*` here; that half IS per-channel.
 - **Images** `src/lib/images/` — `gpt-image-1` (hand-written REST) or `gemini-3.1-flash-image`
   (via `@google/genai`), chosen by `image:provider` (`auto|mock|openai|google`). Bytes are written
   into StorageProvider so URLs are ours and permanent; dimensions are parsed from the bytes, not
@@ -90,8 +95,12 @@ but it means **bad output can look like real output**. Rules learned the hard wa
 - **Vision** `src/lib/vision.ts` — `fetchReferenceImage()` (YouTube link → `i.ytimg.com`, direct
   image URLs, else null) + `describeImageStyle()`. Used by Thumbnail Studio's Clone so it actually
   looks at the reference instead of guessing from the URL string.
-- **Video** `src/lib/video/` — Google Veo, `video:provider` (`auto|mock|veo`). ⚠ Stores a bare Veo
-  URI that **expires in ~2 days**; unlike images, bytes are not persisted yet.
+- **Video** `src/lib/video/` — Google Veo, `video:provider` (`auto|mock|veo`). The provider returns
+  a **bare** Gemini Files URI (never key-appended — that would leak the key through the UI and DB)
+  which expires in ~2 days and isn't publicly readable, so `persistRenderOutput` re-fetches it with
+  an `x-goog-api-key` header and writes the bytes into StorageProvider; `VideoRender.storedUrl` is
+  the durable copy the UI prefers. ⚠ Persistence is **code-verified only — no real render has ever
+  run**, and a failed persist leaves `storedUrl` null on purpose so the UI warns about expiry.
 - **Social** `src/lib/zernio/` + `src/lib/social/` — Zernio publishes to 15 networks; one post fans
   out to N `SocialPostTarget`s, each with independent status. Slots are **wall clock** (weekday +
   minute) so 09:00 survives DST; only `social/slots.ts` converts.
@@ -130,8 +139,10 @@ in-app without touching Railway.
   short of permission. It needs the owner's Google account. ⚠ A disabled API and a missing grant
   both return 403 `PERMISSION_DENIED` — `explainGoogleError` separates them, don't collapse that
   back to a `/403/` test. YouTube OAuth is separate and needs a consent flow.
-- **Video bytes aren't persisted** — Veo URIs expire in ~2 days. Images already do this correctly;
-  copy that approach.
+- **Veo persistence has never run for real.** The code landed in `74115ee` and every claim about it
+  is code-verified only: `VideoRender` is 0 rows, and the Files endpoint refuses anything but a
+  generated file ("Only GENERATED files can be downloaded"), so an uploaded probe can't stand in.
+  The first paid render proves it — and now logs the reason if it fails.
 - **Rotate `AUTH_SECRET`** — a `.test-cookies.txt` with an encrypted session token was once
   committed then removed (`8daa5b7`). Not exploitable without the secret; rotating signs everyone
   out once.
