@@ -16,6 +16,7 @@ import {
   retryRenderAction,
   updateSceneAction,
 } from "@/app/actions/videos";
+import { AiAssist } from "@/components/AiAssist";
 
 // The storyboard editor: scene-by-scene plan for one render. Scenes are
 // editable until rendering starts; after that the board becomes the record of
@@ -124,6 +125,7 @@ export default async function StoryboardPage({ params }: { params: Promise<{ id:
                   <input type="hidden" name="id" value={render.id} />
                   <input type="hidden" name="index" value={i} />
                   <textarea name="prompt" defaultValue={scene.prompt} rows={4} className="w-full text-[11px]" aria-label={`Scene ${i + 1} prompt`} />
+                  <AiAssist field="scene.prompt" target="prompt" label="Draft" className="!mt-0" />
                   <input name="text" defaultValue={scene.text ?? ""} placeholder="on-screen text (≤8 words)" className="w-full text-[11px]" />
                   <div className="flex items-center gap-2">
                     <input name="seconds" type="number" min={2} max={env.VIDEO_MAX_SECONDS} defaultValue={scene.seconds} className="w-16 font-mono text-[11px]" aria-label="Seconds" />
@@ -158,6 +160,7 @@ export default async function StoryboardPage({ params }: { params: Promise<{ id:
             <input type="hidden" name="id" value={render.id} />
             <div className="flex items-center gap-2 text-sm font-semibold text-[var(--mute)]"><Plus className="w-4 h-4" /> Add scene</div>
             <textarea name="prompt" rows={3} placeholder="Visual prompt…" className="w-full text-[11px]" />
+            <AiAssist field="scene.prompt" target="prompt" label="Draft" className="!mt-0" />
             <input name="text" placeholder="on-screen text" className="w-full text-[11px]" />
             <div><SubmitButton className="btn sm">Add</SubmitButton></div>
           </form>

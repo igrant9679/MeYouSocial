@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { readJson } from "@/lib/db/json";
 import { outlierBand, formatNum } from "@/lib/intel";
 import { toggleBookmarkAction, updateBookmarkAction } from "@/app/actions/bookmarks";
+import { AiAssist } from "@/components/AiAssist";
 
 // Bookmarks page. Team-shared per-workspace.
 
@@ -110,6 +111,7 @@ function BookmarkMeta({ id, tags, notes }: { id: string; tags: string[]; notes: 
         <input type="hidden" name="id" value={id} />
         <input name="tags" defaultValue={tags.join(", ")} placeholder="comma-separated tags" className="border border-[var(--line-2)] rounded-md p-1.5 text-xs font-mono" />
         <textarea name="notes" defaultValue={notes} rows={2} placeholder="Notes..." className="border border-[var(--line-2)] rounded-md p-1.5 text-xs" />
+        <AiAssist field="bookmark.note" target="notes" label="Draft" className="!mt-0" />
         <button type="submit" className="btn sm self-end">Save</button>
       </form>
     </details>

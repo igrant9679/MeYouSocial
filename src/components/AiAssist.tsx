@@ -87,9 +87,16 @@ export function AiAssist({
   function accept() {
     const el = fieldEl();
     if (el && draft) {
-      el.value = draft;
-      // React and any listeners (counters, autosave) watch input events; setting
-      // .value alone fires nothing.
+      // ⚠ Assign through the PROTOTYPE's value setter, not `el.value = …`.
+      // React keeps a `_valueTracker` on the node and swallows an input event
+      // whose value it believes hasn't changed — so a plain assignment updates
+      // the DOM but leaves a controlled component's state on the old text, and
+      // the next keystroke reverts the whole field. Uncontrolled fields don't
+      // care either way, so this path is correct for both.
+      const proto = el instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+      const setter = Object.getOwnPropertyDescriptor(proto, "value")?.set;
+      if (setter) setter.call(el, draft);
+      else el.value = draft;
       el.dispatchEvent(new Event("input", { bubbles: true }));
       el.focus();
     }

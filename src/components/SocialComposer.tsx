@@ -7,6 +7,7 @@ import { createSocialPostAction, updateSocialPostAction } from "@/app/actions/so
 import { networkFor } from "@/lib/social/networks";
 import { HelpTip, WithTip } from "@/components/HelpTip";
 import { SOCIAL_TIPS } from "@/lib/help-tips";
+import { AiAssist } from "@/components/AiAssist";
 
 export type ComposerAccount = { id: string; provider: string; name: string | null };
 export type ComposerTopic = { id: string; name: string; keywords: string[] };
@@ -197,6 +198,9 @@ export function SocialComposer({
           placeholder="What do you want to share?"
           className="w-full border border-[var(--line-2)] rounded-lg p-2.5 text-sm resize-y"
         />
+        {/* This textarea is CONTROLLED, so accepting a draft has to go through
+            the prototype value setter — see the note in AiAssist.accept(). */}
+        <AiAssist field="social.post" target="text" label="Draft this post" />
         {/* Base media */}
         <div className="flex items-center gap-2 flex-wrap mt-2">
           <label className="btn sm cursor-pointer">

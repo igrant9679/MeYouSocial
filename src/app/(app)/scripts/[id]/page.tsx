@@ -189,7 +189,7 @@ export default async function CanvasPage({
             />
           )}
           {activeTab === "plan" ? (
-            <PlanTab script={{ id: script.id, outline }} />
+            <PlanTab script={{ id: script.id, outline }} hasBody={!!script.body} />
           ) : (
             <ScriptTab scriptId={script.id} body={script.body ?? ""} hasOutline={!!outline.markdown} />
           )}
@@ -227,7 +227,7 @@ function TabLink({ href, active, icon, children }: { href: string; active: boole
   );
 }
 
-function PlanTab({ script }: { script: { id: string; outline: { questions?: Record<string, string>; markdown?: string } } }) {
+function PlanTab({ script, hasBody }: { script: { id: string; outline: { questions?: Record<string, string>; markdown?: string } }; hasBody: boolean }) {
   return (
     <div className="flex flex-col gap-4">
       {/* Planning questions */}
@@ -273,11 +273,23 @@ function PlanTab({ script }: { script: { id: string; outline: { questions?: Reco
               </div>
             </form>
 
+            {/* ⚠ The label has to change once a script exists. It read "Approve
+                & write" in both states, so the control that REPLACES a finished
+                draft looked identical to the one that first creates it — the
+                blog editor beside it already gets this right ("Regenerate
+                draft"). Overwriting minutes of edited prose should announce
+                itself. */}
             <form action={generateScriptAction} className="mt-3 border-t border-[var(--line)] pt-3 flex items-center gap-2">
               <input type="hidden" name="scriptId" value={script.id} />
-              <p className="text-xs text-[var(--mute)] flex-1">Approve the outline and expand into the full script.</p>
+              <p className="text-xs text-[var(--mute)] flex-1">
+                {hasBody
+                  ? "Rewrites the full script from the current outline. The existing draft is replaced."
+                  : "Approve the outline and expand into the full script."}
+              </p>
               <Link href={`/scripts/${script.id}?tab=script`} className="btn sm">View script tab</Link>
-              <button type="submit" className="btn sm">Approve & write</button>
+              <SubmitButton className="btn sm" pendingText="Writing…">
+                {hasBody ? "Regenerate script" : "Approve & write"}
+              </SubmitButton>
             </form>
             <div className="mt-2">
               <StreamButton scriptId={script.id} stage="script" label="Stream full script" />

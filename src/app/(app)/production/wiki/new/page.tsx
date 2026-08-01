@@ -4,6 +4,7 @@ import { ArrowLeft } from "lucide-react";
 import { requireMembership } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { upsertWikiDocAction } from "@/app/actions/production";
+import { AiAssist } from "@/components/AiAssist";
 
 export default async function NewWikiPage() {
   const { workspace } = await requireMembership();
@@ -27,6 +28,7 @@ export default async function NewWikiPage() {
           <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">Body (Markdown supported)</span>
           <textarea name="body" rows={18} className="border border-[var(--line-2)] rounded-lg p-2 text-sm font-mono" />
         </label>
+        <AiAssist field="wiki.body" target="body" siblings={{ title: "Page title" }} label="Draft this page" />
         <div className="flex justify-end">
           <SubmitButton className="btn primary">Create page</SubmitButton>
         </div>
