@@ -692,6 +692,46 @@ model Setting {
   updatedAt DateTime @updatedAt
 }
 
+// Durable background jobs (onboarding, agent runs).
+//
+// ⚠ This table IS the queue. Before it existed the queue was a Map in one
+// process's memory: a redeploy silently destroyed every queued and running job,
+// `status()` then returned null forever, and callers had no way to tell "still
+// working" from "died an hour ago". `JOB_BACKEND=redis` was set in production
+// and read by nothing.
+//
+// `claimedAt` + the atomic claim in DbQueue are what make it safe to run the
+// sweeper on more than one replica: claiming is an UPDATE ... WHERE state =
+// 'queued' and the row goes to exactly one winner. A row still 'running' with a
+// stale `claimedAt` is an interrupted job — recoverStalled() requeues it, which
+// is the property that survives a redeploy.
+model Job {
+  id          String    @id @default(cuid())
+  name        String
+  payload     String    @default("{}")
+  state       String    @default("queued") // queued | running | done | failed
+  progress    Float     @default(0)
+  attempts    Int       @default(0)
+  maxAttempts Int       @default(3)
+  error       String?
+  lastLog     String?
+
+  // What this job is ABOUT (a channelId, an agent runId). Indexed so a page can
+  // ask "how did the ideas job for this channel end?" without scanning payloads.
+  refId       String?
+  workspaceId String?
+
+  claimedAt   DateTime?
+  claimedBy   String?
+  startedAt   DateTime?
+  finishedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([state, createdAt])
+  @@index([name, refId, createdAt])
+}
+
 // Workspace-scoped settings (API keys, SMTP, provider switches, branding).
 // Resolution is: WorkspaceSetting → global Setting → env var, so each company
 // can bring its own keys while the platform's keys stay as the fallback for

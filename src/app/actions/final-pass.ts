@@ -221,6 +221,6 @@ export async function launchVideoProductionAction(formData: FormData) {
   // `api_key:elevenlabs` under Admin → API keys. There is no env flag involved —
   // this comment used to say to set `env.USE_MOCK_PRODUCTION=false`, which was
   // read by nothing and so did nothing.
-  await jobs.enqueue("agent.run", { runId: run.id, scriptId: script.id });
+  await jobs.enqueue("agent.run", { runId: run.id, scriptId: script.id }, { refId: run.id, workspaceId: workspace.id });
   revalidatePath(`/scripts/${scriptId}`);
 }

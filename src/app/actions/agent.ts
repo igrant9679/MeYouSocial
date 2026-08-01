@@ -20,7 +20,7 @@ export async function launchAgentAction(formData: FormData) {
   const run = await db.agentRun.create({
     data: { scriptId: script.id, status: "queued" },
   });
-  await jobs.enqueue("agent.run", { runId: run.id, scriptId: script.id });
+  await jobs.enqueue("agent.run", { runId: run.id, scriptId: script.id }, { refId: run.id, workspaceId: workspace.id });
   revalidatePath(`/scripts/${script.id}`);
 }
 

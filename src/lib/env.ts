@@ -81,7 +81,12 @@ export const env = {
   STORAGE_BACKEND: str(process.env.STORAGE_BACKEND, "local") as "local" | "s3" | "gdrive",
   STORAGE_LOCAL_DIR: str(process.env.STORAGE_LOCAL_DIR, "./.data/uploads"),
 
-  JOB_BACKEND: str(process.env.JOB_BACKEND, "memory") as "memory" | "redis",
+  // ⚠ Defaults to the DURABLE backend. It used to default to "memory" and the
+  // only other accepted value, "redis", was read by nothing — so production ran
+  // an in-memory queue that lost every job on redeploy while the env var said
+  // otherwise. "memory" is now opt-in (tests, dev without a DB); "redis" is
+  // accepted as an obsolete alias for "db" and warns once at startup.
+  JOB_BACKEND: str(process.env.JOB_BACKEND, "db") as "memory" | "db" | "redis",
   REDIS_URL: str(process.env.REDIS_URL),
 
   EMAIL_FROM: str(process.env.EMAIL_FROM, "MeYouSocial <no-reply@example.com>"),

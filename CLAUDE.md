@@ -119,6 +119,15 @@ but it means **bad output can look like real output**. Rules learned the hard wa
   `group-focus-within`), so it drops into server components with no JS. ⚠ `type="button"` is
   load-bearing (these sit in forms); never nest one in a `<label>` or `<a>`; and inside an
   `overflow-x-auto` strip use a native `title` instead, because overflow clips the bubble.
+- **Background jobs** `src/lib/jobs/` — **durable Postgres queue** (`Job` table). Jobs survive a
+  redeploy: the worker in `instrumentation.ts` requeues rows left `running` with a stale `claimedAt`
+  (a killed container), and `progress()` doubles as the heartbeat that keeps a long job from being
+  requeued underneath itself. Claiming is `UPDATE … WHERE state='queued'`, so multi-replica sweeping
+  is safe. ⚠ Handlers register as a side effect of importing an action module, so the worker calls
+  `registerAllJobs()` explicitly — without it a claimed row finds no handler. ⚠ `JOB_BACKEND=redis`
+  is an obsolete alias for `db`: **no Redis queue ever existed**, yet it was set in production and
+  read by nothing, so every redeploy silently destroyed queued and running jobs. Redis is for the
+  sweep *locks* only.
 - **Left nav** `src/components/LeftRailNav.tsx` — active route via shared `isNavActive()`.
 - **Theming** `src/app/globals.css` — light/dark via `data-theme`. Per-hue tokens `--<hue>`,
   `--<hue>-soft`, `--<hue>-on`; dark mode derives soft/on via `color-mix`, so **use the tokens, not

@@ -156,15 +156,43 @@ async function StepFivePreview({ channelId }: { channelId: string }) {
     ideas: channel.ideas.length > 0,
   };
 
+  // ⚠ Row counts alone cannot tell "still working" from "died an hour ago", and
+  // this page used to show only the former — so a failed job read as a spinner
+  // forever. It cost a real onboarding on 2026-07-31. Now that jobs are durable
+  // rows, ask the queue how each one actually ended.
+  const { jobs } = await import("@/lib/jobs");
+  const [voiceJob, audienceJob, ideasJob] = await Promise.all([
+    jobs.latestFor("onboarding.voice", channelId),
+    jobs.latestFor("onboarding.audience", channelId),
+    jobs.latestFor("onboarding.ideas", channelId),
+  ]);
+  const failed = {
+    voice: !ready.voice && voiceJob?.state === "failed" ? voiceJob.error : null,
+    audience: !ready.audience && audienceJob?.state === "failed" ? audienceJob.error : null,
+    ideas: !ready.ideas && ideasJob?.state === "failed" ? ideasJob.error : null,
+  };
+  const anyFailed = Boolean(failed.voice || failed.audience || failed.ideas);
+
   return (
     <div className="max-w-3xl mx-auto">
       <StepHeader step={5} total={5} title="Preview — and start scripting" subtitle="You can leave this page; generation continues in the background." />
 
       <div className="grid grid-cols-3 gap-3 mt-5">
-        <StatusCard label="Voice profile" ready={ready.voice} />
-        <StatusCard label="Audience avatar" ready={ready.audience} />
-        <StatusCard label="Starter ideas" ready={ready.ideas} />
+        <StatusCard label="Voice profile" ready={ready.voice} error={failed.voice} />
+        <StatusCard label="Audience avatar" ready={ready.audience} error={failed.audience} />
+        <StatusCard label="Starter ideas" ready={ready.ideas} error={failed.ideas} />
       </div>
+
+      {anyFailed && (
+        <div className="card mt-3" style={{ background: "var(--rose-soft)", color: "var(--rose-on)" }}>
+          <p className="text-sm font-semibold mb-1">Something didn&apos;t finish.</p>
+          <p className="text-xs leading-relaxed">
+            The rest of the setup is unaffected and you can carry on — open the channel and use the
+            Regenerate button on the affected section to try again. If it keeps failing, the reason
+            above is the one the job recorded.
+          </p>
+        </div>
+      )}
 
       <section className="card mt-5">
         <h2 className="font-mono text-[15px] mb-3">Audience snapshot</h2>
@@ -212,18 +240,24 @@ async function StepFivePreview({ channelId }: { channelId: string }) {
         <Link href={`/onboarding/channel/${channelId}?step=5`} className="underline">Refresh now</Link>.
       </p>
 
-      <RefreshScript ready={Object.values(ready).every(Boolean)} />
+      {/* Stop polling once everything either finished OR failed — refreshing at
+          a job that has already given up is what made this look alive. */}
+      <RefreshScript ready={Object.values(ready).every(Boolean) || anyFailed} />
     </div>
   );
 }
 
-function StatusCard({ label, ready }: { label: string; ready: boolean }) {
+function StatusCard({ label, ready, error }: { label: string; ready: boolean; error?: string | null }) {
+  // Three states, not two. A pulsing amber dot on a job that died half an hour
+  // ago is the specific lie this component used to tell.
+  const dot = ready ? "bg-[var(--green)]" : error ? "bg-[var(--rose)]" : "bg-[var(--amber)] animate-pulse";
   return (
     <div className="card flex items-center gap-3">
-      <span className={"w-2.5 h-2.5 rounded-full " + (ready ? "bg-[var(--green)]" : "bg-[var(--amber)] animate-pulse")} />
-      <div>
+      <span className={"w-2.5 h-2.5 rounded-full shrink-0 " + dot} />
+      <div className="min-w-0">
         <div className="text-sm font-semibold">{label}</div>
-        <div className="text-xs text-[var(--mute)] font-mono">{ready ? "ready" : "generating…"}</div>
+        <div className="text-xs text-[var(--mute)] font-mono">{ready ? "ready" : error ? "failed" : "generating…"}</div>
+        {error && <div className="text-[11px] mt-0.5 leading-snug" style={{ color: "var(--rose-on)" }}>{error}</div>}
       </div>
     </div>
   );

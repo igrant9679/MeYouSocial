@@ -14,7 +14,7 @@ export async function regenerateIdeasAction(formData: FormData) {
   const { workspace } = await requireRole("EDITOR");
   const channel = await db.channel.findFirst({ where: { id: channelId, workspaceId: workspace.id } });
   if (!channel) return;
-  await jobs.enqueue("onboarding.ideas", { channelId: channel.id });
+  await jobs.enqueue("onboarding.ideas", { channelId: channel.id }, { refId: channel.id, workspaceId: workspace.id });
   revalidatePath(`/channels/${channelId}/ideas`);
 }
 

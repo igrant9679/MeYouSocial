@@ -43,7 +43,7 @@ export async function refreshAudienceAction(formData: FormData) {
   const { workspace } = await requireRole("EDITOR");
   const channel = await db.channel.findFirst({ where: { id: channelId, workspaceId: workspace.id } });
   if (!channel) return;
-  await jobs.enqueue("onboarding.audience", { channelId });
+  await jobs.enqueue("onboarding.audience", { channelId }, { refId: channelId, workspaceId: workspace.id });
   revalidatePath(`/channels/${channelId}/audience`);
 }
 

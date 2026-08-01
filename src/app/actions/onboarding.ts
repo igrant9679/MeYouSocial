@@ -155,9 +155,12 @@ export async function differentiationAction(formData: FormData) {
 
   // Kick off the background generation jobs. They run independently;
   // the wizard's final step polls their status, but users can also leave and come back.
-  await jobs.enqueue("onboarding.voice", { channelId: channel.id });
-  await jobs.enqueue("onboarding.audience", { channelId: channel.id });
-  await jobs.enqueue("onboarding.ideas", { channelId: channel.id });
+  // refId is the channel: it lets step 5 ask how THIS channel's job ended,
+  // rather than inferring "still working" from an absence of rows forever.
+  const ref = { refId: channel.id, workspaceId: channel.workspaceId };
+  await jobs.enqueue("onboarding.voice", { channelId: channel.id }, ref);
+  await jobs.enqueue("onboarding.audience", { channelId: channel.id }, ref);
+  await jobs.enqueue("onboarding.ideas", { channelId: channel.id }, ref);
 
   // Make this the active channel as the user finishes onboarding.
   const jar = await cookies();

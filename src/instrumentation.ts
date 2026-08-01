@@ -34,6 +34,7 @@ export async function register() {
     __socialTimer?: ReturnType<typeof setInterval>;
     __metricsTimer?: ReturnType<typeof setInterval>;
     __analyticsTimer?: ReturnType<typeof setInterval>;
+    __jobsTimer?: ReturnType<typeof setInterval>;
   };
   if (globals.__autopilotTimer) return; // HMR / double-register guard
 
@@ -87,6 +88,31 @@ export async function register() {
   });
   globals.__socialTimer = setInterval(socialSweep, socialSec * 1000);
   console.log(`[social] scheduler armed — every ${socialSec}s`);
+
+  // Background-job worker. Two responsibilities, both impossible before the
+  // queue became durable: requeue jobs abandoned mid-run (a redeploy kills the
+  // container that was executing them) and pick up anything enqueued by a
+  // process that has since gone away.
+  //
+  // ⚠ Handlers must be registered HERE. They are otherwise registered as a side
+  // effect of importing a server-action module, and this boot path imports
+  // none — so a claimed row would find no handler and fail as a "deploy
+  // problem" that isn't one.
+  const jobsSec = Math.max(10, parseInt(process.env.JOBS_SWEEP_SEC ?? "20", 10) || 20);
+  const { registerAllJobs, jobs } = await import("@/lib/jobs");
+  await registerAllJobs();
+  // TTL comfortably exceeds a bounded sweep (5 jobs) of slow LLM work. A tick
+  // that arrives while one is still running simply loses the lock and skips,
+  // which is the intended behaviour rather than a queue-up.
+  const jobsSweep = guarded("jobs", 15 * 60_000, async () => {
+    const { recovered, ran } = await jobs.sweep();
+    if (recovered || ran) console.log(`[jobs] swept — ${recovered} recovered, ${ran} run`);
+  });
+  // Runs promptly at boot ON PURPOSE: the jobs most needing recovery are the
+  // ones the restart just interrupted.
+  setTimeout(jobsSweep, 15 * 1000);
+  globals.__jobsTimer = setInterval(jobsSweep, jobsSec * 1000);
+  console.log(`[jobs] worker armed — every ${jobsSec}s`);
 
   // Metrics rollup — freezes point-in-time values (WIP, stalls) so trends have a
   // real history. Upserts per (workspace, day, metric), so running it several

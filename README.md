@@ -79,8 +79,11 @@ Steps:
    npm run build`; start = `npx prisma migrate deploy && npm run start` (see
    `railway.json`). Migrations apply on every boot — safe because
    `migrate deploy` is idempotent.
-5. (For the autonomy engine / Agent Mode) Add the **Redis** plugin and set
-   `JOB_BACKEND=redis`.
+5. Background jobs need no setup — they are durable rows in Postgres
+   (`JOB_BACKEND` defaults to `db`). Adding the **Redis** plugin is still
+   worthwhile before scaling past one replica, but for the sweep *locks*, not
+   the queue. ⚠ Don't set `JOB_BACKEND=redis`: there is no Redis queue, and that
+   value is only kept as a warning-emitting alias for `db`.
 
 ## Docs
 

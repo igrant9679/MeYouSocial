@@ -35,7 +35,7 @@ video ideas, drafts scripts in an AI canvas, makes thumbnails, and runs a produc
 | Auth | **Auth.js v5** (`next-auth@5-beta`), JWT sessions, `@auth/prisma-adapter`, Credentials + optional Google SSO, `trustHost: true` |
 | Data mutations | **Server Actions** (`src/app/actions/*`) — not a REST layer |
 | Streaming | SSE for script/agent generation (`api/scripts/[id]/generate`, `.../agent/[runId]`) |
-| Background jobs | in-memory queue (`src/lib/jobs`), Redis/BullMQ-ready via `JOB_BACKEND=redis` |
+| Background jobs | durable Postgres queue (`src/lib/jobs`, `Job` table); `JOB_BACKEND=memory` for tests. The old "Redis/BullMQ-ready" claim was never true |
 | Validation | Zod v4 |
 | Exports | `docx`, `pdfkit` |
 | Key libs | `@anthropic-ai/sdk`, `@google/genai`, `nodemailer`, `bcryptjs`, `nanoid`, `lucide-react` |
@@ -139,7 +139,7 @@ Every external dependency sits behind a **provider interface with a mock default
 | YouTube | `src/lib/youtube/` | `YouTubeProvider` | mock only (YouTube Data API planned) | `USE_MOCK_YOUTUBE` |
 | Search | `src/lib/search/` | `SearchProvider` | mock only (Tavily/Brave/SerpApi/Bing planned) | `USE_MOCK_SEARCH` |
 | Storage | `src/lib/storage/` | `StorageProvider` | local FS, S3/R2, Google Drive | `STORAGE_BACKEND` |
-| Jobs | `src/lib/jobs/` | `JobQueue` | in-memory, Redis-ready | `JOB_BACKEND` |
+| Jobs | `src/lib/jobs/` | `JobQueue` | durable (Postgres `Job` table) | `JOB_BACKEND` (`db` default) |
 
 **LLM specifics** (`src/lib/llm/`): the router `llm.complete()/stream()` is provider-agnostic. Real
 providers are wrapped with a **45s timeout + transparent fallback to mock** on any error — so a

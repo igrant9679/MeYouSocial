@@ -115,14 +115,24 @@ GOOGLE_SERVICE_ACCOUNT_JSON=/abs/path/to/service-account.json
 
 ## 8. Background jobs (FR-AGENT, FR-ONB-09)
 
-Local dev uses in-memory queue. For production:
+Jobs are **durable rows in Postgres** (`Job` table) and need no configuration —
+`JOB_BACKEND` defaults to `db`. They survive a redeploy: a job left mid-run is
+requeued by the worker once its claim goes stale, and a job that failed is
+recorded as failed so the UI can say so.
 
 ```
-JOB_BACKEND=redis
-REDIS_URL=redis://...
+JOB_BACKEND=db       # default; "memory" opts into the non-durable dev queue
 ```
 
-On Railway, add the Redis plugin and Railway will inject `REDIS_URL` automatically.
+⚠ **`JOB_BACKEND=redis` is obsolete.** There was never a Redis queue — the value
+was read by nothing while production ran an in-memory Map, so every redeploy
+destroyed queued and running jobs silently. It is now an alias for `db` and warns
+once at startup.
+
+Redis is still useful, but for the sweep **locks** (`src/lib/lock.ts`), not the
+queue: with `REDIS_URL` set the locks are cross-replica, without it they degrade
+to an in-process mutex that is safe on one replica only. On Railway, add the
+Redis plugin and `REDIS_URL` is injected automatically.
 
 ## 9. Optional video production (FR-AGENT-05)
 

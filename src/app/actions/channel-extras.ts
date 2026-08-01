@@ -40,8 +40,8 @@ export async function relinkYoutubeAction(formData: FormData) {
     },
   });
   // Kick off re-training jobs in the background.
-  await jobs.enqueue("onboarding.voice", { channelId });
-  await jobs.enqueue("onboarding.audience", { channelId });
+  await jobs.enqueue("onboarding.voice", { channelId }, { refId: channelId, workspaceId: channel.workspaceId });
+  await jobs.enqueue("onboarding.audience", { channelId }, { refId: channelId, workspaceId: channel.workspaceId });
   revalidatePath(`/channels/${channelId}/settings`);
   revalidatePath(`/channels/${channelId}/voice`);
   revalidatePath(`/channels/${channelId}/audience`);

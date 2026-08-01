@@ -9,7 +9,7 @@ Concrete tech choices and any deviations from the defaults proposed in the brief
 - **ORM:** Prisma 6 (latest stable on the 6.x line). _Deviation: not Prisma 7._ Prisma 7 dropped the `url` field from `schema.prisma` in favor of driver-adapter packages + `prisma.config.ts`. Adopting it would have required wiring `@prisma/adapter-better-sqlite3` (dev) and a separate Postgres adapter (prod) for no application benefit. v6 keeps the well-known config and migration story.
 - **Auth:** Auth.js v5 (NextAuth beta) with the Prisma adapter, Credentials provider for email/password, and an optional Google OAuth provider gated by `ENABLE_GOOGLE_SSO`. _Brief default._
 - **Validation:** Zod for all API input.
-- **Background jobs:** in-memory queue for local dev; **BullMQ + Redis** when `JOB_BACKEND=redis` and `REDIS_URL` is set (matches `.env.example`).
+- **Background jobs:** durable **Postgres-backed** queue (`Job` table) by default; `JOB_BACKEND=memory` opts into the in-memory queue for tests. ⚠ Superseded an earlier plan for BullMQ + Redis that was **never implemented** — `JOB_BACKEND=redis` was set in production and read by nothing, so every redeploy silently destroyed queued and running jobs. Postgres was chosen over BullMQ because the UI must render job state (which needs a queryable row regardless) and this repo hand-rolls its Redis client rather than carrying ioredis.
 - **Tests:** Vitest + React Testing Library + Playwright for E2E (added in a later phase).
 
 ## Deviations from defaults
