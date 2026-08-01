@@ -11,6 +11,7 @@ import { getVideoProviderSetting } from "@/lib/video";
 import { getImageProviderSetting, resolveImageProviderName } from "@/lib/images";
 import { getStorageBackendSetting } from "@/lib/storage";
 import { isPlatformManagedKey } from "@/lib/settings";
+import { checkKeyFormat } from "@/lib/key-format";
 import { gdriveStatus, parseServiceAccount, getDriveAuthMode } from "@/lib/storage/gdrive";
 import { HelpTip } from "@/components/HelpTip";
 import { ADMIN_TIPS } from "@/lib/help-tips";
@@ -46,6 +47,23 @@ const ROWS: Row[] = [
   { provider: "moonshot",  label: "Moonshot (Kimi)",     envVar: "MOONSHOT_API_KEY",      envValue: env.MOONSHOT_API_KEY,      helpUrl: "https://platform.moonshot.ai",                helpText: "platform.moonshot.ai" },
   { provider: "minimax",   label: "MiniMax",             envVar: "MINIMAX_API_KEY",       envValue: env.MINIMAX_API_KEY,       helpUrl: "https://www.minimax.io",                      helpText: "minimax.io" },
 ];
+
+/**
+ * Flags a STORED value that doesn't look like a key. The save-time check stops
+ * new mistakes; this one surfaces the ones already sitting in the database —
+ * without it, a URL saved before the check existed stays invisible behind a row
+ * of mask dots until something fails at call time, which is exactly how it went
+ * unnoticed in the first place.
+ */
+function StoredKeyWarning({ provider, value }: { provider: string; value: string }) {
+  const problem = value ? checkKeyFormat(provider, value) : null;
+  if (!problem) return null;
+  return (
+    <div className="text-[11px] mt-1 px-2 py-1.5 rounded-lg leading-snug" style={{ background: "var(--rose-soft)", color: "var(--rose-on)" }}>
+      ⚠ The saved value doesn&apos;t look like a key. {problem.reason} Paste the real one below to replace it.
+    </div>
+  );
+}
 
 function mask(s: string): string {
   if (!s) return "";
@@ -157,6 +175,7 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
                 </div>
                 <div className="text-[11px] text-[var(--mute)] font-mono mt-0.5">{row.envVar}</div>
                 {dbVal && <div className="text-[11px] font-mono text-[var(--mute)] mt-0.5">Current: {mask(dbVal)}</div>}
+                <StoredKeyWarning provider={row.provider} value={dbVal} />
                 <Link href={row.helpUrl} target="_blank" rel="noopener noreferrer" className="text-[11px] inline-flex items-center gap-1 mt-1" style={{ color: "var(--accent)" }}>
                   Get a key from {row.helpText} <ExternalLink className="w-3 h-3" />
                 </Link>
@@ -216,6 +235,7 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
                 </div>
                 <div className="text-[11px] text-[var(--mute)] font-mono mt-0.5">{row.envVar}</div>
                 {dbVal && <div className="text-[11px] font-mono text-[var(--mute)] mt-0.5">Current: {mask(dbVal)}</div>}
+                <StoredKeyWarning provider={row.vendor} value={dbVal} />
                 <Link href={row.helpUrl} target="_blank" rel="noopener noreferrer" className="text-[11px] inline-flex items-center gap-1 mt-1" style={{ color: "var(--accent)" }}>
                   Get a key from {row.helpText} <ExternalLink className="w-3 h-3" />
                 </Link>
@@ -361,6 +381,7 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
                   </div>
                 )}
                 {dbVal && editable && <div className="text-[11px] font-mono text-[var(--mute)] mt-0.5">Current: {mask(dbVal)}</div>}
+                {editable && <StoredKeyWarning provider={row.provider} value={dbVal} />}
                 {editable && (
                   <Link href={row.helpUrl} target="_blank" rel="noopener noreferrer" className="text-[11px] inline-flex items-center gap-1 mt-1" style={{ color: "var(--accent)" }}>
                     Get a key from {row.helpText} <ExternalLink className="w-3 h-3" />

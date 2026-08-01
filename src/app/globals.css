@@ -1,5 +1,38 @@
 @import "tailwindcss";
 
+/* ⚠ CONTENT-SIZE ZOOM vs VIEWPORT UNITS — read before touching any 100vh/100vw.
+ *
+ * The content-size setting applies CSS `zoom` to <body> (1 / 1.1 / 1.22, see
+ * src/lib/ui-size.ts). `zoom` multiplies the USED value of lengths, but
+ * percentages and viewport units still resolve against the UNZOOMED containing
+ * block. So a box sized to the viewport gets laid out at the full viewport and
+ * is THEN scaled: at "Extra large" the shell renders ~22% wider and ~22% taller
+ * than the window.
+ *
+ * That is not cosmetic. It gives the document a horizontal scrollbar it should
+ * never have, and pushes the bottom of the app shell below the fold, so the
+ * page looks truncated with dead space beside it. Reported from a screenshot on
+ * 2026-08-01 and reproduced from the CSS.
+ *
+ * The fix is to divide the zoom back out wherever a box is sized FROM the
+ * viewport. `--ui-zoom` is set alongside `zoom` in the root layout and defaults
+ * to 1, so the Standard size is a genuine no-op.
+ *
+ * ⚠ The .min-h-screen rule below deliberately overrides the Tailwind utility of
+ * the same name. It is UNLAYERED, so it beats Tailwind's layered utilities (the
+ * same mechanism .btn and .card rely on) and every existing `min-h-screen` in
+ * the app is corrected without touching eight files. Write `min-h-screen` as
+ * normal; it now means "one viewport, after zoom".
+ */
+:root { --ui-zoom: 1; }
+
+.app-body {
+  width: calc(100% / var(--ui-zoom));
+  min-height: calc(100% / var(--ui-zoom));
+}
+
+.min-h-screen { min-height: calc(100vh / var(--ui-zoom)); }
+
 /* CreateUp design tokens — pulled from CreateUp_Mockups.html */
 :root {
   --brand: #E5482F; --brand-2: #B5371F; --brand-soft: #FDE7E1;

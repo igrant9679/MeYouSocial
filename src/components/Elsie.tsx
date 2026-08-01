@@ -346,8 +346,8 @@ export function Elsie({
             className="absolute card shadow-2xl outline-none"
             style={
               tipPos
-                ? { top: tipPos.top, left: tipPos.left, width: TIP_WIDTH, maxWidth: "calc(100vw - 16px)" }
-                : { top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: TIP_WIDTH, maxWidth: "calc(100vw - 16px)" }
+                ? { top: tipPos.top, left: tipPos.left, width: TIP_WIDTH, maxWidth: "calc((100vw - 16px) / var(--ui-zoom))" }
+                : { top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: TIP_WIDTH, maxWidth: "calc((100vw - 16px) / var(--ui-zoom))" }
             }
           >
             {/* Arrow — a rotated square tucked under the popup edge. */}

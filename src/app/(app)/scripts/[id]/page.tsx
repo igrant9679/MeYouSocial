@@ -55,8 +55,10 @@ export default async function CanvasPage({
   ]);
   const activeTab = (tab === "script" ? "script" : "plan") as "plan" | "script";
 
+  // Zoom-corrected height: a bare 100vh here renders 22% taller than the window
+  // at the XL content size. See the note at the top of globals.css.
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-[360px_1fr] gap-4 h-[calc(100vh-120px)]">
+    <div className="grid grid-cols-1 lg:grid-cols-[360px_1fr] gap-4 h-[calc((100vh-120px)/var(--ui-zoom))]">
       {/* LEFT: Chat pane */}
       <aside className="card flex flex-col p-0 overflow-hidden h-full">
         <div className="px-4 py-3 border-b border-[var(--line)] flex items-center gap-2">

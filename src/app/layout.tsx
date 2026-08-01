@@ -41,8 +41,16 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       className={`${plexSans.variable} ${plexMono.variable} h-full antialiased`}
     >
       {/* Content-size setting: zoom scales px-based utilities too, which a root
-          font-size change would miss. 1 renders as no-op. */}
-      <body className="min-h-full flex flex-col" style={zoom !== 1 ? ({ zoom } as React.CSSProperties) : undefined}>
+          font-size change would miss. 1 renders as no-op.
+          ⚠ `--ui-zoom` must be set with it, never without: percentages and
+          viewport units resolve against the UNZOOMED containing block, so every
+          viewport-sized box needs the zoom divided back out. See the note at the
+          top of globals.css — omitting this is what gave the page a horizontal
+          scrollbar and cut the shell off below the fold. */}
+      <body
+        className="app-body flex flex-col"
+        style={zoom !== 1 ? ({ zoom, "--ui-zoom": String(zoom) } as React.CSSProperties) : undefined}
+      >
         {children}
       </body>
     </html>

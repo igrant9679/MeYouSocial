@@ -6,6 +6,7 @@ import { requireRole, isPlatformOperator } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { KEY_PROVIDERS, type KeyProvider } from "@/lib/llm/keys";
 import { llm } from "@/lib/llm";
+import { checkKeyFormat, keyFormatMessage } from "@/lib/key-format";
 
 // Admin-only: save / clear provider API keys and switches. Multi-tenant: every
 // save below writes a WorkspaceSetting row for the acting admin's workspace —
@@ -55,6 +56,10 @@ export async function saveSearchKeyAction(formData: FormData) {
   const vendor = String(formData.get("vendor") ?? "");
   if (!(SEARCH_VENDORS as readonly string[]).includes(vendor)) return;
   const value = String(formData.get("value") ?? "").trim();
+  const problem = checkKeyFormat(vendor, value);
+  if (problem) {
+    redirect(`/admin/api-keys?err=${encodeURIComponent(keyFormatMessage(vendor, problem))}`);
+  }
   const { setWorkspaceSetting } = await import("@/lib/settings");
   await setWorkspaceSetting(workspace.id, `api_key:${vendor}`, value);
   revalidatePath("/admin/api-keys");
@@ -201,6 +206,15 @@ export async function saveApiKeyAction(formData: FormData) {
   const provider = String(formData.get("provider") ?? "") as KeyProvider;
   if (!KEY_PROVIDERS.includes(provider) && provider !== "youtube" && provider !== "elevenlabs" && provider !== "heygen") return;
   const value = String(formData.get("value") ?? "").trim();
+
+  // Refuse here, not three screens later. A key field that accepts anything is
+  // how a URL ended up stored as an ElevenLabs key with tts:provider pointed at
+  // it — invisible until a render failed for an unrelated-looking reason.
+  const problem = checkKeyFormat(provider, value);
+  if (problem) {
+    redirect(`/admin/api-keys?err=${encodeURIComponent(keyFormatMessage(provider, problem))}`);
+  }
+
   const settingKey = SETTING_KEY[provider];
   const { setWorkspaceSetting, setPlatformSetting, isPlatformManagedKey } = await import("@/lib/settings");
 
