@@ -122,5 +122,37 @@ export const llm = {
   invalidateKeyCache,
 };
 
+/**
+ * Pick a model this workspace can actually reach.
+ *
+ * ⚠ A model id whose provider has no key resolves to the MOCK, silently. That
+ * is fine for a background job (the output is labelled) but wrong for a button
+ * someone just pressed: LSI Media has a Google key and no Anthropic key, so a
+ * workspace-level call falling back to env's `claude-sonnet` produced mock prose
+ * on an account that is fully configured. Found by probing production, not by
+ * reading the code — from the outside it looked like the feature working.
+ *
+ * Order: the caller's preference (channel → workspace → env), then, only if
+ * that provider has no key, the first model whose provider does. Returns the
+ * preference unchanged when nothing is reachable, so the caller still gets a
+ * clearly-labelled mock rather than a hidden substitution.
+ */
+export async function resolveUsableModel(preferred: string, workspaceId?: string): Promise<string> {
+  if (env.USE_MOCK_LLM) return preferred;
+  const wanted = getModel(preferred);
+  const reachable = async (providerId: string) =>
+    (providerId === "anthropic" || providerId === "google")
+      ? Boolean(await getApiKey(providerId, workspaceId).catch(() => ""))
+      : false;
+
+  if (wanted && (await reachable(wanted.provider))) return preferred;
+
+  for (const m of MODELS) {
+    if (m.provider === "mock") continue;
+    if (await reachable(m.provider)) return m.id;
+  }
+  return preferred;
+}
+
 export type { LLMRequest, LLMResponse, LLMProvider } from "./types";
 export type { ModelDescriptor } from "./types";

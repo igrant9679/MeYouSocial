@@ -25,6 +25,7 @@ export function AiAssist({
   field,
   target,
   siblings,
+  extra,
   channelId,
   label = "Draft with AI",
   className = "",
@@ -37,6 +38,11 @@ export function AiAssist({
    *  Onboarding needs it — the channel name is typed in a sibling input and
    *  isn't saved yet, so without this the draft has no idea what it's naming. */
   siblings?: Record<string, string>;
+  /** Facts the SERVER already knows, as `{ Label: value }` — a topic's name, a
+   *  page title. Use this rather than a sibling when the value isn't in the
+   *  form: passing a hidden `id` teaches the model nothing, and a cuid in the
+   *  prompt is pure noise. */
+  extra?: Record<string, string>;
   channelId?: string;
   label?: string;
   className?: string;
@@ -59,7 +65,7 @@ export function AiAssist({
     setDraft(null);
     try {
       const form = anchorRef.current?.closest("form");
-      const collected: Record<string, string> = {};
+      const collected: Record<string, string> = { ...(extra ?? {}) };
       for (const [name, labelText] of Object.entries(siblings ?? {})) {
         const el = form?.elements.namedItem(name) as HTMLInputElement | HTMLTextAreaElement | null;
         if (el?.value?.trim()) collected[labelText] = el.value;

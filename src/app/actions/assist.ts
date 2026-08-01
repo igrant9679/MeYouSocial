@@ -2,7 +2,7 @@
 
 import { requireRole } from "@/lib/acl";
 import { db } from "@/lib/db";
-import { llm } from "@/lib/llm";
+import { llm, resolveUsableModel } from "@/lib/llm";
 import { motifPromptFor, brandGuardrailBlock } from "@/lib/motifs";
 import { ASSIST_FIELDS, isAssistField, type AssistField } from "@/lib/assist/fields";
 
@@ -120,8 +120,17 @@ export async function draftFieldAction(input: {
     // ⚠ Resolve the channel's model, never pin one. Three onboarding jobs once
     // hard-coded claude-sonnet, so pointing a channel at Gemini silently did
     // nothing and the fallback-to-mock hid it.
+    //
+    // ⚠ The WORKSPACE default sits between the channel and env, and skipping it
+    // was a real bug: most assist fields are workspace-level and so have no
+    // channel, which sent a fully-configured workspace to env's claude-sonnet —
+    // a provider it has no key for — and silently to the mock.
+    const model = await resolveUsableModel(
+      channel?.defaultModel ?? workspace.defaultModel ?? llm.defaultModel,
+      workspace.id,
+    );
     const res = await llm.complete({
-      model: channel?.defaultModel ?? llm.defaultModel,
+      model,
       system,
       messages: [{ role: "user", content: prompt }],
       workspaceId: workspace.id,

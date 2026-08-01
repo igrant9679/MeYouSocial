@@ -198,7 +198,7 @@ export default async function BrandPage({ searchParams }: { searchParams: Promis
                       <span className="block text-[10px] text-[var(--mute)] mb-1">Description</span>
                       <input name="description" defaultValue={t.description ?? ""} className="w-full text-xs" placeholder="What this topic covers" />
                     </label>
-                    <AiAssist field="topic.description" target="description" siblings={{ id: "Topic id" }} label="Draft" className="!mt-0" />
+                    <AiAssist field="topic.description" target="description" extra={{ "Topic name": t.name }} label="Draft" className="!mt-0" />
                     <label className="text-xs flex-1 min-w-[180px]">
                       <span className="block text-[10px] text-[var(--mute)] mb-1">Related phrases</span>
                       <input name="keywords" defaultValue={kw.join(", ")} className="w-full text-xs" />
