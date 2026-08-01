@@ -68,11 +68,16 @@ function wrapWithFallback(real: LLMProvider, providerId: string): LLMProvider {
     supports: real.supports,
     async complete(req: LLMRequest): Promise<LLMResponse> {
       try {
-        return await withTimeout(real.complete(req));
+        const out = await withTimeout(real.complete(req));
+        return { ...out, provider: providerId };
       } catch (e) {
         // eslint-disable-next-line no-console
         console.warn(`[llm] ${providerId}.complete failed → falling back to mock:`, e instanceof Error ? e.message : e);
-        return mockProvider.complete(req);
+        // ⚠ Stamped "mock", not `providerId`. This branch is exactly the case a
+        // caller must be able to detect: the request LOOKS like it went to a
+        // real provider and the prose comes back fluent either way.
+        const fallback = await mockProvider.complete(req);
+        return { ...fallback, provider: "mock" };
       }
     },
     async *stream(req: LLMRequest) {
@@ -104,7 +109,11 @@ export const llm = {
   defaultModel: env.DEFAULT_LLM_MODEL,
   async complete(req: LLMRequest): Promise<LLMResponse> {
     const p = await selectProvider(req.model, req.workspaceId);
-    return p.complete(req);
+    const out = await p.complete(req);
+    // Providers don't set this; the router does. `p` is already the mock when a
+    // key is missing or USE_MOCK_LLM is on, so `p.id` is the truth in every case
+    // the wrapper didn't already stamp.
+    return { ...out, provider: out.provider ?? p.id };
   },
   async *stream(req: LLMRequest): AsyncIterable<string> {
     const p = await selectProvider(req.model, req.workspaceId);

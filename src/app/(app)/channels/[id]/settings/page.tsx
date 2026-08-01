@@ -9,6 +9,7 @@ import { ModelChip } from "@/components/ModelChip";
 import { DeleteButton } from "@/components/DeleteButton";
 import { deletionImpact } from "@/lib/deletable";
 import { readJson } from "@/lib/db/json";
+import { AiAssist } from "@/components/AiAssist";
 
 // Channel Settings: details, linked YouTube, Script Defaults.
 
@@ -35,8 +36,8 @@ export default async function ChannelSettingsPage({ params }: { params: Promise<
           <legend className="font-mono text-xs uppercase tracking-wider text-[var(--mute)]">Details</legend>
           <Field name="name" label="Channel name" defaultValue={channel.name} required />
           <Field name="linkedYoutubeHandle" label="Linked YouTube handle" defaultValue={channel.linkedYoutubeHandle ?? ""} placeholder="@example" />
-          <TextArea name="nicheDescription" label="Niche description" defaultValue={channel.nicheDescription ?? ""} />
-          <TextArea name="differentiation" label="Differentiation" defaultValue={channel.differentiation ?? ""} />
+          <TextArea name="nicheDescription" label="Niche description" defaultValue={channel.nicheDescription ?? ""} assist="channel.nicheDescription" channelId={channel.id} />
+          <TextArea name="differentiation" label="Differentiation" defaultValue={channel.differentiation ?? ""} assist="channel.differentiation" channelId={channel.id} />
         </fieldset>
 
         <fieldset className="flex flex-col gap-3 border-t border-[var(--line)] pt-4">
@@ -149,17 +150,23 @@ function Field(props: { name: string; label: string; defaultValue?: string; plac
   );
 }
 
-function TextArea(props: { name: string; label: string; defaultValue?: string }) {
+function TextArea(props: { name: string; label: string; defaultValue?: string; assist?: string; channelId?: string }) {
   return (
-    <label className="flex flex-col gap-1">
-      <span className="text-xs font-mono uppercase text-[var(--mute)]">{props.label}</span>
-      <textarea
-        name={props.name}
-        defaultValue={props.defaultValue}
-        rows={3}
-        className="border border-[var(--line-2)] rounded-lg p-2 text-sm"
-      />
-    </label>
+    // Fragment, not a wrapping div: these sit in a `flex flex-col gap-*`
+    // fieldset and an extra element would break the spacing rhythm.
+    <>
+      <label className="flex flex-col gap-1">
+        <span className="text-xs font-mono uppercase text-[var(--mute)]">{props.label}</span>
+        <textarea
+          name={props.name}
+          defaultValue={props.defaultValue}
+          rows={3}
+          className="border border-[var(--line-2)] rounded-lg p-2 text-sm"
+        />
+      </label>
+      {/* Outside the <label> on purpose — a label retargets clicks to its control. */}
+      {props.assist && <AiAssist field={props.assist} target={props.name} channelId={props.channelId} />}
+    </>
   );
 }
 

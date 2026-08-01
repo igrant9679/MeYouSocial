@@ -33,6 +33,7 @@ import {
   isRenderProfile,
   parseRenderRules,
 } from "@/lib/design-render";
+import { AiAssist } from "@/components/AiAssist";
 
 // FR-2 — Brand, typography & the 7 Motifs tone engine. Everything on this page
 // steers generation: the directives are the actual prompt text, not decoration.
@@ -127,6 +128,7 @@ export default async function BrandPage() {
             disabled={!admin}
           />
         </label>
+        {admin && <AiAssist field="brand.guardrails" target="toneGuardrails" />}
 
         <div>
           <h3 className="text-xs font-semibold mb-1">Image dimensions</h3>

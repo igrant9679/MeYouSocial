@@ -12,6 +12,7 @@ import {
   setSmeStatusAction,
 } from "@/app/actions/sme";
 import { INTAKE_QUESTIONS, completeness, parseAnswers, parseTopics } from "@/lib/sme";
+import { AiAssist } from "@/components/AiAssist";
 
 // FR-3 — the structured intake. One pass per expert replaces the per-article
 // interview; every save keeps the prior version.
@@ -85,6 +86,12 @@ export default async function SmeProfilePage({ params }: { params: Promise<{ id:
           <span className="block text-xs text-[var(--mute)] mb-1">Short background</span>
           <textarea name="bio" defaultValue={profile.bio ?? ""} rows={2} className="w-full text-xs" disabled={!editor} />
         </label>
+        {/* ⚠ The bio gets a draft button; the INTERVIEW ANSWERS below deliberately
+            do not. A bio restates facts already on this record, but the answers
+            are the expert's own words — drafting them would put invented opinions
+            and experience in a named person's mouth, which is the one thing this
+            whole profile exists to prevent. */}
+        {editor && <AiAssist field="persona.bio" target="bio" siblings={{ name: "Name", role: "Role" }} />}
 
         <div className="flex flex-col gap-3">
           <h2 className="text-sm font-semibold">The intake</h2>

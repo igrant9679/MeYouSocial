@@ -2,6 +2,7 @@ import { requireRole } from "@/lib/acl";
 import { SubmitButton } from "@/components/SubmitButton";
 import { startOnboardingAction } from "@/app/actions/onboarding";
 import { StepHeader } from "@/components/onboarding/StepHeader";
+import { AiAssist } from "@/components/AiAssist";
 
 // MU-12 — Onboarding Wizard, step 1.
 // capture niche/content description.
@@ -23,6 +24,10 @@ export default async function OnboardingStartPage({ searchParams }: { searchPara
           <span className="text-xs font-mono uppercase text-[var(--mute)]">What's your channel about?</span>
           <textarea name="niche" required minLength={10} rows={4} placeholder="e.g. Evidence-based productivity for knowledge workers. Less hustle, more systems." className="border border-[var(--line-2)] rounded-lg p-3 text-sm" />
         </label>
+        {/* No channel exists yet at step 1, so this drafts from the company
+            profile alone — thin, but better than a blank box for someone who
+            doesn't know what "niche description" is supposed to contain. */}
+        <AiAssist field="channel.nicheDescription" target="niche" />
 
         <fieldset className="flex flex-col gap-1">
           <span className="text-xs font-mono uppercase text-[var(--mute)]">Presentation style</span>

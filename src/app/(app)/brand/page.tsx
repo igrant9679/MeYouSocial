@@ -19,6 +19,7 @@ import {
   deleteTopicAction,
 } from "@/app/actions/brand-hub";
 import { networkFor } from "@/lib/social/networks";
+import { AiAssist } from "@/components/AiAssist";
 
 // Brand — the workspace's identity in one place: colours, company info,
 // personas, topics, keywords and connected social accounts. Everything here is
@@ -120,6 +121,13 @@ export default async function BrandPage({ searchParams }: { searchParams: Promis
             placeholder="e.g. LSI Media is a digital agency helping nonprofits grow through content-led SEO…"
             className="w-full text-sm leading-relaxed" />
         </label>
+        {editor && (
+          <AiAssist
+            field="workspace.description"
+            target="description"
+            siblings={{ industry: "Industry", audience: "Primary audience" }}
+          />
+        )}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Field name="industry" label="Industry" value={org?.industry ?? ""} disabled={!editor} />
           <Field name="audience" label="Primary audience" value={org?.audience ?? ""} disabled={!editor} />
@@ -190,6 +198,7 @@ export default async function BrandPage({ searchParams }: { searchParams: Promis
                       <span className="block text-[10px] text-[var(--mute)] mb-1">Description</span>
                       <input name="description" defaultValue={t.description ?? ""} className="w-full text-xs" placeholder="What this topic covers" />
                     </label>
+                    <AiAssist field="topic.description" target="description" siblings={{ id: "Topic id" }} label="Draft" className="!mt-0" />
                     <label className="text-xs flex-1 min-w-[180px]">
                       <span className="block text-[10px] text-[var(--mute)] mb-1">Related phrases</span>
                       <input name="keywords" defaultValue={kw.join(", ")} className="w-full text-xs" />

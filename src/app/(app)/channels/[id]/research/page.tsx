@@ -3,6 +3,7 @@ import { SubmitButton } from "@/components/SubmitButton";
 import { requireChannel } from "@/lib/channel";
 import { db } from "@/lib/db";
 import { deepResearchAction, starResearchAction, deleteResearchAction } from "@/app/actions/research";
+import { AiAssist } from "@/components/AiAssist";
 
 // MU — Research library. deep tool,..05 manage sources,
 // starred research persists across all scripts.
@@ -39,6 +40,7 @@ export default async function ChannelResearchPage({ params, searchParams }: { pa
           <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">Question / topic</span>
           <textarea name="question" required rows={2} placeholder="What's the latest evidence on cold exposure and recovery?" className="border border-[var(--line-2)] rounded-lg p-2 text-sm" />
         </label>
+        <AiAssist field="research.notes" target="question" channelId={id} label="Suggest a question" />
         <div className="flex flex-wrap items-end gap-2">
           <label className="flex flex-col gap-1">
             <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">Depth (word budget)</span>

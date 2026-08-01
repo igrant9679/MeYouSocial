@@ -2,6 +2,7 @@ import { requireChannel } from "@/lib/channel";
 import { SubmitButton } from "@/components/SubmitButton";
 import { db } from "@/lib/db";
 import { DeleteButton } from "@/components/DeleteButton";
+import { AiAssist } from "@/components/AiAssist";
 import { readJson } from "@/lib/db/json";
 import {
   updateAudienceSectionAction,
@@ -79,6 +80,7 @@ export default async function ChannelAudiencePage({ params }: { params: Promise<
                   defaultValue={value.summary ?? ""}
                   className="border border-[var(--line-2)] rounded-lg p-2 text-sm"
                 />
+                <AiAssist field="audience.description" target="value" channelId={id} siblings={{ section: "Which part of the avatar this is" }} />
                 <div className="flex justify-end">
                   <button type="submit" className="btn sm">Save</button>
                 </div>

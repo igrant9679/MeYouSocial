@@ -5,6 +5,7 @@ import { requireChannel } from "@/lib/channel";
 import { db } from "@/lib/db";
 import { youtubeFor } from "@/lib/youtube";
 import { StepHeader } from "@/components/onboarding/StepHeader";
+import { AiAssist } from "@/components/AiAssist";
 import { readJson } from "@/lib/db/json";
 import {
   lookupYoutubeAction,
@@ -76,6 +77,15 @@ function StepTwoCustom({ channelId, error }: { channelId: string; error?: string
           <span className="text-xs font-mono uppercase text-[var(--mute)]">Detailed niche & audience description</span>
           <textarea name="description" required minLength={20} rows={4} className="border border-[var(--line-2)] rounded-lg p-3 text-sm" />
         </label>
+        {/* Sibling of the label, never inside it — a <label> retargets the click
+            to its control. Passes the channel name along because it is typed
+            just above and not saved yet. */}
+        <AiAssist
+          field="channel.nicheDescription"
+          target="description"
+          siblings={{ name: "Channel name the user just entered" }}
+          channelId={channelId}
+        />
         <div className="flex justify-between items-center mt-2">
           <Link href={`/onboarding/channel/${channelId}?step=2&path=youtube`} className="text-xs text-[var(--mute)] underline">Link a YouTube channel instead →</Link>
           <SubmitButton className="btn primary">Continue →</SubmitButton>
@@ -131,6 +141,7 @@ function StepFourDifferentiation({ channelId, error }: { channelId: string; erro
           <span className="text-xs font-mono uppercase text-[var(--mute)]">Differentiation</span>
           <textarea name="differentiation" required minLength={20} rows={3} placeholder="e.g. I cite the actual papers and show the math instead of vague advice." className="border border-[var(--line-2)] rounded-lg p-3 text-sm" />
         </label>
+        <AiAssist field="channel.differentiation" target="differentiation" channelId={channelId} />
         <div className="flex justify-end">
           <SubmitButton className="btn primary">Start generating →</SubmitButton>
         </div>

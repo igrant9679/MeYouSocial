@@ -21,6 +21,20 @@ export type LLMRequest = {
 export type LLMResponse = {
   model: string;
   content: string;
+  /**
+   * Which provider actually answered — "anthropic", "google", or "mock".
+   *
+   * ⚠ Set by the ROUTER, not by the provider, because the fallback is the whole
+   * point: a real provider that times out or 401s is silently retried against
+   * the mock, so the provider a caller asked for is not evidence of who replied.
+   *
+   * The house rule is "a mock must be nameable" — ImageGenResult.provider and
+   * VideoRenderResult.provider already carry it so the UI can say "this is a
+   * placeholder" and stop saying it once it isn't. Text had no equivalent, which
+   * is why a keyless workspace could show fabricated prose with nothing marking
+   * it. Any surface that puts generated text in front of someone must check this.
+   */
+  provider?: string;
   /** Approximate; providers may report exact counts. */
   inputTokens?: number;
   outputTokens?: number;
