@@ -2,7 +2,7 @@
 
 # Project state — handoff for a fresh session
 
-_Last updated: 2026-07-28._
+_Last updated: 2026-08-02._
 
 **MeYouSocial** is a multi-tenant AI content engine: it turns research into content, publishes
 it, and measures what happened — for several companies on one install. (It began as CreateUp, a
@@ -184,8 +184,14 @@ in-app without touching Railway.
 - **A workspace has a URL stored as its ElevenLabs key**, with `tts:provider` pointed at it, so
   voiceover there fails at call time. Flagged in red on `/admin/api-keys`. Only the owner can fix
   it — never guess a credential.
-- **The assist + platform-key UI has only been driven as the platform operator.** The read-only
-  YouTube card a plain workspace ADMIN should see has never been rendered; it needs a second user.
+- ~~The assist + platform-key UI has only been driven as the platform operator.~~ **Verified
+  2026-08-02** with a throwaway fixture user (ADMIN of Demo Workspace only, deleted after): the
+  YouTube card renders read-only for a tenant admin (badge + tenant copy, no input/Save), the
+  Storage section is operator-only as intended, and assist propose/discard works for a
+  non-operator. ⚠ In passing this confirmed the Demo env back-fill is live for assist:
+  workspace-level fields have no channel, so Demo resolves env `claude-sonnet` → the platform
+  `ANTHROPIC_API_KEY` and gets **real** (unlabelled, correctly) Claude output on the platform's
+  key. Known and deliberate — raise it, don't silently "fix" it.
 - **A reported layout problem is unexplained.** The content-size `zoom` was *ruled out* by
   measurement on prod (no overflow at 1.22, with or without the zoom fix; modern Chrome handles
   standardised `zoom` correctly). Ask which page and whether a reload clears it before changing
