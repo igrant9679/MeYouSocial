@@ -79,6 +79,11 @@ but it means **bad output can look like real output**. Rules learned the hard wa
   (anthropic, google) are wrapped with a 45s timeout + transparent **fallback to mock** on any
   error. Keys resolved by `src/lib/llm/keys.ts`. ⚠ OpenAI is NOT wired as a text provider — it's
   used for images and vision only.
+  ⚠ **`LLMResponse.provider` is stamped by the ROUTER, not the provider** — the fallback is the
+  whole point, so the provider you *asked* for is not evidence of who replied, and mock prose is
+  fluent. Any surface putting generated text in front of a person must check it. ⚠ A small
+  `maxTokens` returns **empty** text from `gemini-2.5-pro`: it is a reasoning model and spends the
+  budget before emitting anything — don't cap a probe and conclude the provider is broken.
 - **Settings / multi-tenancy** `src/lib/settings.ts` — resolution is **`WorkspaceSetting` → global
   `Setting` → env var** (30s cache). Each company brings its own keys; a platform row back-fills
   every workspace, which is usually not what you want. ⚠ **`PLATFORM_MANAGED_KEYS` is the deliberate
@@ -128,6 +133,25 @@ but it means **bad output can look like real output**. Rules learned the hard wa
   is an obsolete alias for `db`: **no Redis queue ever existed**, yet it was set in production and
   read by nothing, so every redeploy silently destroyed queued and running jobs. Redis is for the
   sweep *locks* only.
+- **AI assist** `src/lib/assist/fields.ts` (registry) · `src/app/actions/assist.ts` · `src/components/AiAssist.tsx`
+  — draft buttons on description fields. The client sends a field **key**, never a prompt, so a
+  browser can't spend the workspace's LLM budget on arbitrary instructions. It **proposes** (Use it /
+  Discard / Try again) and never overwrites until accepted. ⚠ Accepting assigns through the
+  **prototype's value setter** — React's `_valueTracker` swallows an input event it thinks is
+  unchanged, so `el.value = …` leaves a *controlled* field's state stale and the next keystroke
+  reverts it. ⚠ Model resolution is `channel → workspace → env`, then `resolveUsableModel()`; skipping
+  the workspace tier sent a fully-configured workspace to a provider it had no key for and silently
+  to the mock. ⚠ It **refuses** rather than drafting from nothing (the company name is not grounding —
+  that produced "LSI Media is a company."). Fields that must stay unassisted: expert intake answers,
+  voice training samples, and anything that is a list.
+- **Key format validation** `src/lib/key-format.ts` — refuses a URL, whitespace, an email or a value
+  under 20 chars at save time, plus a wrong prefix where the vendor's format is stable (`sk-ant-`,
+  `sk-`, `xai-`, `sk_`, `tvly-`). ⚠ **Google is deliberately exempt**: Gemini keys are documented as
+  `AIza`, and the key in live use starts `AQ.` — a real key a strict check would have refused. The
+  admin page also flags a *stored* value that fails, since save-time checks can't see old mistakes.
+- **Content-size zoom** `src/lib/ui-size.ts` — `zoom` on `<body>` (1 / 1.1 / 1.22). ⚠ Always set
+  `--ui-zoom` alongside it: `.min-h-screen` is overridden (unlayered) to `calc(100vh / var(--ui-zoom))`
+  so viewport-sized boxes stay one viewport after scaling. Standard size is a genuine no-op.
 - **Left nav** `src/components/LeftRailNav.tsx` — active route via shared `isNavActive()`.
 - **Theming** `src/app/globals.css` — light/dark via `data-theme`. Per-hue tokens `--<hue>`,
   `--<hue>-soft`, `--<hue>-on`; dark mode derives soft/on via `color-mix`, so **use the tokens, not
@@ -157,6 +181,15 @@ in-app without touching Railway.
   out once.
 - **Custom domain:** if one is added in Railway → Settings → Networking, add the Google OAuth
   redirect URI in Cloud Console if SSO is enabled. No code/env change otherwise.
+- **A workspace has a URL stored as its ElevenLabs key**, with `tts:provider` pointed at it, so
+  voiceover there fails at call time. Flagged in red on `/admin/api-keys`. Only the owner can fix
+  it — never guess a credential.
+- **The assist + platform-key UI has only been driven as the platform operator.** The read-only
+  YouTube card a plain workspace ADMIN should see has never been rendered; it needs a second user.
+- **A reported layout problem is unexplained.** The content-size `zoom` was *ruled out* by
+  measurement on prod (no overflow at 1.22, with or without the zoom fix; modern Chrome handles
+  standardised `zoom` correctly). Ask which page and whether a reload clears it before changing
+  layout CSS — the evidence points at a partially-repainted window, not a CSS bug.
 
 ## Machine-level (not part of this repo)
 User-level Claude skills are installed at `C:\Users\Admin\.claude\skills\`: `notebooklm-research`,
