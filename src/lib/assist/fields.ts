@@ -22,6 +22,17 @@ export type AssistField = {
   /** Which workspace/channel facts to feed in. Only what the field needs —
    *  a bigger prompt is not a better one, and it costs tokens per click. */
   context: ReadonlyArray<"workspace" | "channel" | "brand" | "motifs">;
+  /**
+   * What the user can do when there is nothing to draft FROM. Shown verbatim
+   * instead of a draft.
+   *
+   * ⚠ Some fields are their own primary source of context — the company
+   * description is grounded in the company profile, which IS the company
+   * description. On an empty workspace that produced "LSI Media is a company.":
+   * real model output, technically a success, and worth nothing. A field that
+   * cannot be drafted should say so and name the cheapest way to fix it.
+   */
+  groundingHint?: string;
 };
 
 export const ASSIST_FIELDS = {
@@ -33,6 +44,9 @@ export const ASSIST_FIELDS = {
       "Concrete and specific — name the actual topics rather than saying \"valuable content\". No marketing superlatives.",
     maxWords: 90,
     context: ["workspace", "channel"],
+    groundingHint:
+      "Nothing here yet to describe. Type even a few rough words about the subject and press this again — " +
+      "expanding your own starting point is what this is good at; inventing a channel from nothing is not.",
   },
   "channel.differentiation": {
     label: "What makes this channel different",
@@ -42,6 +56,9 @@ export const ASSIST_FIELDS = {
       "Avoid \"high quality\", \"unique insights\" and anything every channel would also say.",
     maxWords: 60,
     context: ["workspace", "channel"],
+    groundingHint:
+      "This one genuinely needs you: what you do differently is not something the app can find out. " +
+      "Write a rough version and press this again to sharpen it.",
   },
   "channel.presentationStyle": {
     label: "Presentation style",
@@ -56,6 +73,9 @@ export const ASSIST_FIELDS = {
       "Describe what this company does, for whom, and what problem it solves. Factual and specific; no taglines.",
     maxWords: 80,
     context: ["workspace"],
+    groundingHint:
+      "Type a rough sentence of your own and press this again — it will sharpen what you wrote. " +
+      "Or fill in Industry and Primary audience below first, and it will have something to work from.",
   },
 
   // ── Brand ─────────────────────────────────────────────────────────────────

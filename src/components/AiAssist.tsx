@@ -50,6 +50,7 @@ export function AiAssist({
   const [busy, setBusy] = useState(false);
   const [draft, setDraft] = useState<string | null>(null);
   const [isMock, setIsMock] = useState(false);
+  const [isThin, setIsThin] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const anchorRef = useRef<HTMLButtonElement>(null);
 
@@ -80,6 +81,7 @@ export function AiAssist({
       if (res.ok) {
         setDraft(res.text);
         setIsMock(res.mock);
+        setIsThin(res.thin);
       } else {
         setError(res.error);
       }
@@ -123,10 +125,19 @@ export function AiAssist({
           {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
           {busy ? "Drafting…" : label}
         </button>
-        {error && (
-          <span className="text-[11px]" style={{ color: "var(--rose-on)" }}>{error}</span>
-        )}
       </div>
+
+      {/* Not styled as a failure. Every message that lands here is actionable
+          guidance — "write a rough version first" — and a red one-liner reads
+          as something broken rather than as the next thing to do. */}
+      {error && (
+        <div
+          className="text-[11px] mt-2 px-2.5 py-2 rounded-lg leading-relaxed"
+          style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }}
+        >
+          {error}
+        </div>
+      )}
 
       {draft && (
         <div className="mt-2 rounded-xl border p-3" style={{ borderColor: "var(--line-2)", background: "var(--zebra)" }}>
@@ -140,6 +151,15 @@ export function AiAssist({
             >
               ⚠ Placeholder text — no working AI key resolved for this workspace, so this is a stand-in, not a real
               suggestion. Add a key under Admin → API keys.
+            </div>
+          )}
+          {!isMock && isThin && (
+            <div
+              className="text-[11px] mb-2 px-2 py-1.5 rounded-lg leading-snug"
+              style={{ background: "var(--panel)", color: "var(--mute)" }}
+            >
+              Drafted from very little — this workspace has almost nothing filled in yet, so read it
+              closely rather than accepting it as written.
             </div>
           )}
           <p className="text-sm whitespace-pre-wrap leading-relaxed">{draft}</p>

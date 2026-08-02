@@ -20,7 +20,7 @@ import { ASSIST_FIELDS, isAssistField, type AssistField } from "@/lib/assist/fie
  */
 
 export type AssistResult =
-  | { ok: true; text: string; provider: string; mock: boolean }
+  | { ok: true; text: string; provider: string; mock: boolean; thin: boolean }
   | { ok: false; error: string };
 
 export async function draftFieldAction(input: {
@@ -62,28 +62,74 @@ export async function draftFieldAction(input: {
     : null;
 
   const facts: string[] = [];
+  // Counted separately from `facts`: the company NAME is not grounding. A draft
+  // built from the name alone produces a tautology ("LSI Media is a company."),
+  // which is real model output, technically a success, and worth nothing.
+  let grounding = 0;
+
   if (spec.context.includes("workspace")) {
-    const org = await db.orgProfile.findUnique({
-      where: { workspaceId: workspace.id },
-      select: { description: true, industry: true, audience: true },
-    });
+    const [org, channels, topics] = await Promise.all([
+      db.orgProfile.findUnique({
+        where: { workspaceId: workspace.id },
+        select: { description: true, industry: true, audience: true },
+      }),
+      db.channel.findMany({
+        where: { workspaceId: workspace.id },
+        select: { name: true, nicheDescription: true },
+        take: 5,
+      }),
+      db.topic.findMany({
+        where: { workspaceId: workspace.id, status: "active" },
+        select: { name: true },
+        orderBy: { priority: "desc" },
+        take: 12,
+      }),
+    ]);
     facts.push(`Company: ${workspace.name}`);
-    if (org?.industry) facts.push(`Industry: ${org.industry}`);
-    if (org?.description) facts.push(`What it does: ${org.description}`);
-    if (org?.audience) facts.push(`Who it serves: ${org.audience}`);
+    if (org?.industry) { facts.push(`Industry: ${org.industry}`); grounding++; }
+    if (org?.description) { facts.push(`What it does: ${org.description}`); grounding++; }
+    if (org?.audience) { facts.push(`Who it serves: ${org.audience}`); grounding++; }
+    // What the company actually publishes is strong evidence of what it IS, and
+    // is usually populated long before anyone fills in the company profile.
+    if (channels.length) {
+      facts.push(
+        `Channels it runs: ${channels
+          .map((c) => c.name + (c.nicheDescription ? ` — ${c.nicheDescription.slice(0, 120)}` : ""))
+          .join(" · ")}`,
+      );
+      grounding++;
+    }
+    if (topics.length) {
+      facts.push(`Topics it publishes about: ${topics.map((t) => t.name).join(", ")}`);
+      grounding++;
+    }
   }
   if (spec.context.includes("channel") && channel) {
     facts.push(`Channel: ${channel.name}`);
-    if (channel.nicheDescription) facts.push(`Niche: ${channel.nicheDescription}`);
-    if (channel.presentationStyle) facts.push(`Presentation style: ${channel.presentationStyle}`);
-    if (channel.differentiation) facts.push(`Differentiator: ${channel.differentiation}`);
+    if (channel.nicheDescription) { facts.push(`Niche: ${channel.nicheDescription}`); grounding++; }
+    if (channel.presentationStyle) { facts.push(`Presentation style: ${channel.presentationStyle}`); grounding++; }
+    if (channel.differentiation) { facts.push(`Differentiator: ${channel.differentiation}`); grounding++; }
   }
 
   // What the user has typed elsewhere on this form but not yet saved. Bounded
   // in both count and length so a crafted form post can't inflate the prompt.
   for (const [k, v] of Object.entries(input.siblings ?? {}).slice(0, 8)) {
     const value = String(v ?? "").trim().slice(0, 500);
-    if (value) facts.push(`${k.slice(0, 60)}: ${value}`);
+    if (value) { facts.push(`${k.slice(0, 60)}: ${value}`); grounding++; }
+  }
+
+  // ⚠ Refuse rather than draft from nothing. The user's OWN text counts as
+  // grounding — "improve what I wrote" works with no other context at all — so
+  // this only fires on an empty field with an empty workspace, which is exactly
+  // the case that produced a tautology. Saying what would make it work beats
+  // returning something shaped like an answer.
+  if (grounding === 0 && !current) {
+    return {
+      ok: false,
+      error:
+        spec.groundingHint ??
+        "There isn't enough saved yet to draft this from. Write a rough version and press this again — sharpening your own words is what this does best.",
+    };
   }
 
   const [motifs, guardrails] = await Promise.all([
@@ -141,7 +187,10 @@ export async function draftFieldAction(input: {
     if (!text) return { ok: false, error: "The model returned nothing. Try again." };
 
     const provider = res.provider ?? "unknown";
-    return { ok: true, text, provider, mock: provider === "mock" };
+    // One grounding fact is enough to beat a tautology but not enough to trust
+    // unread. Say so rather than letting a thin draft look as considered as a
+    // well-grounded one.
+    return { ok: true, text, provider, mock: provider === "mock", thin: grounding <= 1 };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message.slice(0, 200) : "Generation failed." };
   }
