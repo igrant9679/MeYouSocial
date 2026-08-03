@@ -176,9 +176,9 @@ in-app without touching Railway.
   is code-verified only: `VideoRender` is 0 rows, and the Files endpoint refuses anything but a
   generated file ("Only GENERATED files can be downloaded"), so an uploaded probe can't stand in.
   The first paid render proves it — and now logs the reason if it fails.
-- **Rotate `AUTH_SECRET`** — a `.test-cookies.txt` with an encrypted session token was once
-  committed then removed (`8daa5b7`). Not exploitable without the secret; rotating signs everyone
-  out once.
+- ~~Rotate `AUTH_SECRET`~~ — **done 2026-08-03** (32 random bytes, set via Railway variables).
+  The `.test-cookies.txt` session token from `8daa5b7` is now dead regardless of the secret.
+  Everyone was signed out once, as expected.
 - **Custom domain:** if one is added in Railway → Settings → Networking, add the Google OAuth
   redirect URI in Cloud Console if SSO is enabled. No code/env change otherwise.
 - **A workspace has a URL stored as its ElevenLabs key**, with `tts:provider` pointed at it, so
