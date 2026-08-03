@@ -53,7 +53,11 @@ const mockProvider: VideoProvider = {
 
 // ── Google Veo (via @google/genai) ───────────────────────────────────────────
 
-const VEO_MODEL = process.env.VEO_MODEL ?? "veo-3.0-generate-001";
+// ⚠ Fourth model-id trap (see CLAUDE.md): veo-3.0-generate-001 404s on this key
+// ("not supported for predictLongRunning") even though it's the documented id.
+// The live key lists only the veo-3.1 *-preview models; -fast- is the cheapest
+// and was proven by the first real render on 2026-08-03. Probe before changing.
+const VEO_MODEL = process.env.VEO_MODEL ?? "veo-3.1-fast-generate-preview";
 const VEO_POLL_MS = 10_000;
 const VEO_TIMEOUT_MS = 6 * 60 * 1000;
 

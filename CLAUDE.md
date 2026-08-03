@@ -54,11 +54,14 @@ Three separate model ids have been advertised by the API and then 404'd when cal
 | `gemini-2.5-pro` / `gemini-2.5-flash` | 404 "no longer available to new users" |
 | `imagen-4.0-generate-001` (+ `-ultra`, `-fast`) | 404 "no longer available to new users" |
 | `gemini-3.1-flash` | 404 "not found for generateContent" |
+| `veo-3.0-generate-001` (the documented id) | 404 "not supported for predictLongRunning" (found 2026-08-03, cost a failed render row + a failure email) |
 
 `MODEL_MAP` in `src/lib/llm/google.ts` routes every gemini id to the `-latest` aliases for this
 reason. **Probe a model against the live key before shipping it.** Known-good today:
 `gemini-flash-latest` / `gemini-pro-latest` (text + vision), `gemini-3.1-flash-image`
-(image output via `generateContent`), `gpt-image-1` (OpenAI images), `gpt-4o-mini` (OpenAI vision).
+(image output via `generateContent`), `gpt-image-1` (OpenAI images), `gpt-4o-mini` (OpenAI vision),
+`veo-3.1-fast-generate-preview` (video — proven by the first real render 2026-08-03; the key lists
+only `veo-3.1-*-preview` for `predictLongRunning`).
 
 ## ⚠ Mock fallbacks are the #1 source of confusion
 
@@ -167,23 +170,24 @@ via Unipile) · **Analytics** (`/admin/analytics`) · **Email** (`/admin/email`)
 in-app without touching Railway.
 
 ## Open items / things the user still owns
-- **Analytics is credential-blocked.** Neither the Search Console API nor the Google Analytics
-  Admin API has ever been enabled on Cloud project `479503233109`; the service account is not
-  short of permission. It needs the owner's Google account. ⚠ A disabled API and a missing grant
-  both return 403 `PERMISSION_DENIED` — `explainGoogleError` separates them, don't collapse that
-  back to a `/403/` test. YouTube OAuth is separate and needs a consent flow.
-- **Veo persistence has never run for real.** The code landed in `74115ee` and every claim about it
-  is code-verified only: `VideoRender` is 0 rows, and the Files endpoint refuses anything but a
-  generated file ("Only GENERATED files can be downloaded"), so an uploaded probe can't stand in.
-  The first paid render proves it — and now logs the reason if it fails.
+- **Analytics: APIs enabled 2026-08-03** (Search Console + GA Admin + GA Data, on project
+  `479503233109` = `gen-lang-client-0838901195` = "CreateUp"). Still pending, user-only: add the
+  SA as a user in Search Console (property `https://www.lsi-media.com/`) and as Viewer in GA4
+  (property `361954739`), then save site URL + property id in Admin → Analytics (live probe).
+  ⚠ A disabled API and a missing grant both return 403 `PERMISSION_DENIED` — `explainGoogleError`
+  separates them, don't collapse that back to a `/403/` test.
+- ~~Veo persistence has never run for real.~~ **PROVEN 2026-08-03** by the first paid render
+  (2-scene board, `veo-3.1-fast-generate-preview`): both scenes persisted to Drive, `storedUrl`
+  set, ffmpeg assembly produced a stitched file, SRT generated. The old default model id 404'd —
+  see the trap table above.
 - ~~Rotate `AUTH_SECRET`~~ — **done 2026-08-03** (32 random bytes, set via Railway variables).
   The `.test-cookies.txt` session token from `8daa5b7` is now dead regardless of the secret.
   Everyone was signed out once, as expected.
 - **Custom domain:** if one is added in Railway → Settings → Networking, add the Google OAuth
   redirect URI in Cloud Console if SSO is enabled. No code/env change otherwise.
-- **A workspace has a URL stored as its ElevenLabs key**, with `tts:provider` pointed at it, so
-  voiceover there fails at call time. Flagged in red on `/admin/api-keys`. Only the owner can fix
-  it — never guess a credential.
+- ~~A workspace has a URL stored as its ElevenLabs key~~ — **FIXED 2026-08-03**: the owner pasted
+  a real `sk_` key for CommunityForce; a live probe through `getTtsProvider` produced real audio
+  stored to Drive. (LSI Media still deliberately on Mock — the owner's call, don't flip it.)
 - ~~The assist + platform-key UI has only been driven as the platform operator.~~ **Verified
   2026-08-02** with a throwaway fixture user (ADMIN of Demo Workspace only, deleted after): the
   YouTube card renders read-only for a tenant admin (badge + tenant copy, no input/Save), the
