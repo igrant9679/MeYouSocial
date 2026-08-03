@@ -156,7 +156,15 @@ html[data-theme="dark"] .ws-brand {
     // media query). Below ~72rem effective the rail collapses to icons.
     <div className={"flex-1 flex min-h-screen @container" + (brandCss ? " ws-brand" : "")}>
       {brandCss && <style dangerouslySetInnerHTML={{ __html: brandCss }} />}
-      <aside className="w-[68px] @6xl:w-64 left-rail border-r border-[var(--line)] hidden md:flex flex-col gap-1 py-4 px-2 @6xl:px-3 flex-shrink-0 relative z-40 transition-[width] duration-200 motion-reduce:transition-none">
+      {/* max-h + overflow-y-auto: the rail's intrinsic height (~980px with all
+          16 modules) exceeds shorter viewports — 1080p at 125% Windows scaling,
+          or any browser zoom. Without the cap its content spills past the shell,
+          the WINDOW grows a scrollbar, and scrolling clips the (non-sticky)
+          header — the "truncated page with the rail extending past the content"
+          reported from screenshots on 2026-08-01 and 08-03. The shell's scroll
+          container is <main>; the window must never scroll. 100vh is divided by
+          --ui-zoom for the same reason .min-h-screen is (see globals.css). */}
+      <aside className="w-[68px] @6xl:w-64 left-rail border-r border-[var(--line)] hidden md:flex flex-col gap-1 py-4 px-2 @6xl:px-3 flex-shrink-0 sticky top-0 max-h-[calc(100vh/var(--ui-zoom))] overflow-y-auto overscroll-contain z-40 transition-[width] duration-200 motion-reduce:transition-none">
         <Link
           href="/dashboard"
           className="flex items-center justify-center @6xl:justify-start gap-2.5 px-0 @6xl:px-2 py-1.5 mb-2 rounded-xl"
