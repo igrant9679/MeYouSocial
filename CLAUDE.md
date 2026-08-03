@@ -192,10 +192,17 @@ in-app without touching Railway.
   workspace-level fields have no channel, so Demo resolves env `claude-sonnet` → the platform
   `ANTHROPIC_API_KEY` and gets **real** (unlabelled, correctly) Claude output on the platform's
   key. Known and deliberate — raise it, don't silently "fix" it.
-- **A reported layout problem is unexplained.** The content-size `zoom` was *ruled out* by
-  measurement on prod (no overflow at 1.22, with or without the zoom fix; modern Chrome handles
-  standardised `zoom` correctly). Ask which page and whether a reload clears it before changing
-  layout CSS — the evidence points at a partially-repainted window, not a CSS bug.
+- ~~A reported layout problem is unexplained.~~ **SOLVED 2026-08-03 (`bdbc002`).** The left
+  rail's intrinsic height (~980px, 16 modules) exceeded shorter viewports; with no height cap or
+  internal scrolling its content spilled past the shell, the window grew a scrollbar, and
+  scrolling clipped the non-sticky header. Both screenshot reports (2026-08-01 "rail extending
+  past the content", 2026-08-03 clipped header on /dashboard) were this one bug — not `zoom`,
+  not a repaint artifact. Reproduced by measurement at a 720px viewport (document scrollHeight
+  981 == the aside's content height) and re-measured fixed after deploy (720 == viewport; rail
+  scrolls internally; Sign out reachable). The rail now caps at `100vh / --ui-zoom` — the same
+  correction `.min-h-screen` gets in globals.css. ⚠ The window must never scroll in the app
+  shell; `<main>` is the scroll container. Any new full-height sibling of `<main>` needs the
+  same cap.
 
 ## Machine-level (not part of this repo)
 User-level Claude skills are installed at `C:\Users\Admin\.claude\skills\`: `notebooklm-research`,
