@@ -18,8 +18,12 @@ export async function GET(req: NextRequest) {
   const code = url.searchParams.get("code") ?? "";
   const state = url.searchParams.get("state") ?? "";
   const oauthError = url.searchParams.get("error");
+  // ⚠ Redirect against the PUBLIC origin, never url.origin: behind Railway's
+  // proxy req.url carries the container's internal host (localhost:8080), and
+  // a redirect built on it strands the user on a dead page after consent.
+  const publicOrigin = await getPublicUrl();
   const back = (msg: string, ok = false) =>
-    NextResponse.redirect(new URL(`/admin/api-keys?${ok ? "ok" : "err"}=${encodeURIComponent(msg)}#storage`, url.origin));
+    NextResponse.redirect(new URL(`/admin/api-keys?${ok ? "ok" : "err"}=${encodeURIComponent(msg)}#storage`, publicOrigin));
 
   // `access_denied` is overwhelmingly ONE thing here, not a real refusal: the
   // OAuth consent screen is still in "Testing", so Google only lets
@@ -48,6 +52,6 @@ export async function GET(req: NextRequest) {
     return back("Sign in as the platform operator, then connect Drive again.");
   }
 
-  const result = await exchangeGdriveCode(code, state, await getPublicUrl());
+  const result = await exchangeGdriveCode(code, state, publicOrigin);
   return back(result.message, result.ok);
 }

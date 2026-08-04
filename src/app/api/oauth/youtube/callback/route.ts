@@ -16,8 +16,12 @@ export async function GET(req: NextRequest) {
   const code = url.searchParams.get("code") ?? "";
   const state = url.searchParams.get("state") ?? "";
   const oauthError = url.searchParams.get("error");
+  // ⚠ Redirect against the PUBLIC origin, never url.origin: behind Railway's
+  // proxy req.url carries the container's internal host (localhost:8080), and
+  // a redirect built on it strands the user on a dead page after consent.
+  const publicOrigin = await getPublicUrl();
   const back = (msg: string, ok = false) =>
-    NextResponse.redirect(new URL(`/admin/analytics?${ok ? "ok" : "err"}=${encodeURIComponent(msg)}`, url.origin));
+    NextResponse.redirect(new URL(`/admin/analytics?${ok ? "ok" : "err"}=${encodeURIComponent(msg)}`, publicOrigin));
 
   if (oauthError) return back(`Google returned "${oauthError}".`);
   if (!code || !state) return back("Missing authorization code.");
@@ -35,6 +39,6 @@ export async function GET(req: NextRequest) {
     return back("This authorization was started for a different workspace. Try again from this workspace.");
   }
 
-  const result = await exchangeYoutubeCode(workspaceId, code, await getPublicUrl());
+  const result = await exchangeYoutubeCode(workspaceId, code, publicOrigin);
   return back(result.message, result.ok);
 }

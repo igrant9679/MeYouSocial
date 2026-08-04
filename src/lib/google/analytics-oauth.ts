@@ -58,7 +58,9 @@ export async function buildAnalyticsAuthUrl(workspaceId: string, origin: string)
     scope: ANALYTICS_SCOPES,
     access_type: "offline",
     prompt: "consent",
-    include_granted_scopes: "true",
+    // ⚠ No include_granted_scopes — see the same note in youtube/oauth.ts:
+    // merged prior grants (drive.file, youtube.*) make Google reject the
+    // request outright once other consents exist on this project.
     state: workspaceId,
   });
   return `${AUTH_ENDPOINT}?${params.toString()}`;

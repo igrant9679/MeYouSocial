@@ -60,7 +60,10 @@ export async function buildYoutubeAuthUrl(workspaceId: string, origin: string): 
     scope: YOUTUBE_SCOPES,
     access_type: "offline",
     prompt: "consent",
-    include_granted_scopes: "true",
+    // ⚠ No include_granted_scopes: Google merges previously granted scopes
+    // (e.g. Drive's drive.file) into the request, and YouTube scopes refuse to
+    // combine with them — "scopes that cannot be requested together",
+    // Error 400 invalid_request. Each connect keeps its own token instead.
     state: workspaceId,
   });
   return `${AUTH_ENDPOINT}?${params.toString()}`;
