@@ -49,6 +49,9 @@ export type ImageGenResult = {
   height: number;
   /** "mock" | "openai" | "google" — surface this; a placeholder must be nameable. */
   provider: string;
+  /** StorageProvider key for the stored bytes. Absent for the mock, whose
+   *  "image" is a hot-linked stock URL with no stored bytes behind it. */
+  key?: string;
 };
 
 export interface ImageProvider {
@@ -109,7 +112,7 @@ async function store(
   const [w, h] = dimsOfBytes(buf) ?? dimsFor(aspect);
   const ext = mimeType.includes("jpeg") ? "jpg" : mimeType.includes("webp") ? "webp" : "png";
   const file = await storage.put(`${provider}-${Date.now()}.${ext}`, buf, mimeType);
-  return { url: file.url, width: w, height: h, provider };
+  return { url: file.url, width: w, height: h, provider, key: file.key };
 }
 
 // ── Mock ─────────────────────────────────────────────────────────────────────

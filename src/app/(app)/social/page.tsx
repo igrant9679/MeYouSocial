@@ -86,11 +86,13 @@ export default async function SocialPage({ searchParams }: { searchParams: Promi
     provider: a.platform,
     name: a.displayName ?? a.username,
   }));
-  const [utm, queue, requireApproval, evergreenFill] = await Promise.all([
+  const [utm, queue, requireApproval, evergreenFill, autoImage] = await Promise.all([
     getUtmConfig(workspace.id),
     getQueue(workspace.id),
     getSetting("social:require_approval", workspace.id).catch(() => "").then((v) => v === "true"),
     getSetting("social:evergreen_fill", workspace.id).catch(() => "").then((v) => v === "true"),
+    // Default-ON: only an explicit "false" turns auto-image off.
+    getSetting("social:auto_image", workspace.id).catch(() => "").then((v) => v !== "false"),
   ]);
   const isAdmin = canAdmin(membership.role);
   const activeCampaigns = campaigns.filter((c) => c.status === "active");
@@ -265,6 +267,9 @@ export default async function SocialPage({ searchParams }: { searchParams: Promi
             <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: evergreenFill ? "var(--green-soft)" : "var(--zebra)", color: evergreenFill ? "var(--green-on)" : "var(--mute)" }}>
               evergreen fill {evergreenFill ? "on" : "off"}
             </span>
+            <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: autoImage ? "var(--green-soft)" : "var(--zebra)", color: autoImage ? "var(--green-on)" : "var(--mute)" }}>
+              auto-image {autoImage ? "on" : "off"}
+            </span>
           </summary>
           <form action={saveSocialWorkflowSettingsAction} className="mt-3 flex flex-col gap-2">
             <label className="inline-flex items-start gap-2 text-xs cursor-pointer">
@@ -280,6 +285,15 @@ export default async function SocialPage({ searchParams }: { searchParams: Promi
                 <b>Evergreen auto-fill.</b> Free queue slots in the next 7 days are refilled with
                 eligible evergreen posts (each after its own cooldown). Off by default — automatic
                 posting should never be a surprise.
+              </span>
+            </label>
+            <label className="inline-flex items-start gap-2 text-xs cursor-pointer">
+              <input type="checkbox" name="autoImage" defaultChecked={autoImage} className="mt-0.5" />
+              <span>
+                <b>Auto-generate an image</b> for any post composed without one, using the
+                workspace&apos;s image provider (renders cost that provider&apos;s per-image fee). Your own
+                attachments always win; when the provider is the mock, nothing is attached rather
+                than faking it with stock.
               </span>
             </label>
             <div><SubmitButton className="btn sm" pendingText="Saving…">Save workflow</SubmitButton></div>

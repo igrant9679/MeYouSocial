@@ -173,11 +173,15 @@ export async function saveSocialWorkflowSettingsAction(formData: FormData) {
   const { workspace } = await requireRole("ADMIN");
   const approval = String(formData.get("requireApproval") ?? "") === "on";
   const evergreen = String(formData.get("evergreenFill") ?? "") === "on";
+  const autoImage = String(formData.get("autoImage") ?? "") === "on";
   await setWorkspaceSetting(workspace.id, "social:require_approval", approval ? "true" : "false");
   await setWorkspaceSetting(workspace.id, "social:evergreen_fill", evergreen ? "true" : "false");
+  // ⚠ Default-ON semantics: absent means on, so the OFF state must be written
+  // explicitly — clearing the row would silently turn it back on.
+  await setWorkspaceSetting(workspace.id, "social:auto_image", autoImage ? "true" : "false");
   revalidatePath("/social");
   backTo(
-    `Approval workflow ${approval ? "on" : "off"} · evergreen auto-fill ${evergreen ? "on" : "off"}.`,
+    `Approval workflow ${approval ? "on" : "off"} · evergreen auto-fill ${evergreen ? "on" : "off"} · auto-image ${autoImage ? "on" : "off"}.`,
     "ok",
   );
 }
@@ -321,7 +325,7 @@ export async function importSocialCsvAction(formData: FormData) {
       accountName: a.displayName ?? a.username ?? a.platform,
     }));
 
-    await db.socialPost.create({
+    const row = await db.socialPost.create({
       data: {
         workspaceId: workspace.id,
         createdById: user.id,
@@ -339,6 +343,10 @@ export async function importSocialCsvAction(formData: FormData) {
         targets: { create: targets },
       },
     });
+    // Imported rows are text-only by nature — the default-to-image job gives
+    // each one a generated picture in the background, worker-paced.
+    const { jobs } = await import("@/lib/jobs");
+    await jobs.enqueue("social.autoimage", { postId: row.id }, { refId: row.id, workspaceId: workspace.id });
     created++;
     if (scheduledAt && !held) scheduled++;
   }

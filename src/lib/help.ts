@@ -354,6 +354,12 @@ export const HELP_CATEGORIES: FaqCategory[] = [
         tags: ["approval", "review", "workflow", "permissions", "social"],
       },
       {
+        q: "Where do the images on my social posts come from?",
+        a: "Any image you attach in the composer is used as-is. A post composed **without** one gets an image **generated automatically** in the background by your workspace's image provider (the AI derives it from the post's text, square when Instagram/Pinterest are targeted, wide otherwise) — it lands on the post within a minute or so, well before a scheduled send. Two honest rules: your own attachment always wins over generation, and if the workspace has no real image provider the post simply stays text-only — the mock never fakes it with a stock photo. Turn the default off per workspace under Social → **Workflow** (\"Auto-generate an image\"); note real renders cost the provider's per-image fee.",
+        links: [{ label: "Social →", href: "/social" }, { label: "Admin → API keys →", href: "/admin/api-keys" }],
+        tags: ["auto-image", "image", "generate", "thumbnail", "social", "media"],
+      },
+      {
         q: "Can I import many social posts at once?",
         a: "Yes — **Social → Import from CSV**, one post per row, up to 200 rows. Columns: `text` (required), `scheduledAt`, `networks`, `campaign` (by name), `category`, `evergreen`, `recycleEveryDays`. Rows with a future date are scheduled, the rest land as drafts. The import is text-only, so networks that require an image (Instagram, Pinterest, YouTube…) are skipped per row with a note rather than being allowed to half-fail later. If approval is required, imported posts wait for it like everything else.",
         links: [{ label: "Social →", href: "/social" }],

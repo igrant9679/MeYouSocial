@@ -66,7 +66,9 @@ export const SOCIAL_TIPS = {
   evergreenFill:
     "When on, free queue slots in the next 7 days are automatically refilled with eligible evergreen posts. Off by default — automatic posting should never be a surprise.",
   csvImport:
-    "One post per row: text, optional scheduledAt, networks, campaign, category, evergreen. Text-only — networks that require an image are skipped with a note.",
+    "One post per row: text, optional scheduledAt, networks, campaign, category, evergreen. Rows import text-only; the auto-image setting then generates a picture for each in the background.",
+  autoImage:
+    "Posts composed without an image get one generated automatically by the workspace's image provider. Your own attachment always wins, and the mock provider never fakes it — no key means no image, visibly.",
 };
 
 /** Ideas / Intel — where the numbers come from. */

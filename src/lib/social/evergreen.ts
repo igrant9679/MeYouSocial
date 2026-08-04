@@ -138,6 +138,12 @@ export async function recycleEvergreenPosts(): Promise<number> {
         where: { id: source.id },
         data: { lastRecycledAt: new Date(), timesRecycled: { increment: 1 } },
       });
+      // A clone of a pre-auto-image source has no media; give it the same
+      // default-to-image treatment as a composed post.
+      if (source.mediaKeys === "[]") {
+        const { jobs } = await import("@/lib/jobs");
+        await jobs.enqueue("social.autoimage", { postId: clone.id }, { refId: clone.id, workspaceId });
+      }
       await writeAudit({
         workspaceId,
         action: "social.recycled",

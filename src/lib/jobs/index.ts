@@ -349,10 +349,12 @@ globalForJobs.__jobs = jobs;
  * and fail as a "deploy problem" that isn't one.
  */
 export async function registerAllJobs(): Promise<void> {
-  const [{ registerOnboardingJobs }, { registerAgentJobs }] = await Promise.all([
+  const [{ registerOnboardingJobs }, { registerAgentJobs }, { registerSocialImageJobs }] = await Promise.all([
     import("@/lib/jobs/onboarding"),
     import("@/lib/jobs/agent"),
+    import("@/lib/jobs/social-image"),
   ]);
   registerOnboardingJobs();
   registerAgentJobs();
+  registerSocialImageJobs();
 }

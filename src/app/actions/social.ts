@@ -232,6 +232,14 @@ export async function createSocialPostAction(formData: FormData) {
     },
   });
 
+  // Default-to-image: a post composed without media gets one generated in the
+  // background (social.autoimage skips honestly when the provider is mock or
+  // the workspace opted out). Not for post-now — the send would race the render.
+  if (mediaKeys.length === 0 && status !== "publishing") {
+    const { jobs } = await import("@/lib/jobs");
+    await jobs.enqueue("social.autoimage", { postId: post.id }, { refId: post.id, workspaceId: workspace.id });
+  }
+
   if (gate.held) {
     const { notify } = await import("@/lib/notify");
     await notify({
@@ -488,6 +496,13 @@ export async function updateSocialPostAction(formData: FormData) {
       },
     });
   });
+
+  // Same default-to-image rule on edit: clearing the images (or never having
+  // any) re-queues a generation for an unsent post.
+  if (mediaKeys.length === 0) {
+    const { jobs } = await import("@/lib/jobs");
+    await jobs.enqueue("social.autoimage", { postId: post!.id }, { refId: post!.id, workspaceId: workspace.id });
+  }
 
   if (resubmitted) {
     const { notify } = await import("@/lib/notify");

@@ -61,8 +61,12 @@ export async function getSetting(key: string, workspaceId?: string | null): Prom
       const row = await db.setting.findUnique({ where: { key } });
       value = row?.value ?? "";
     }
-  } catch {
-    // DB unavailable — callers fall through to their env fallback
+  } catch (e) {
+    // DB unavailable — callers fall through to their env fallback. ⚠ Say so:
+    // this swallow once turned a UTM-tagging miss into an unexplainable "the
+    // setting was true but the send behaved as if it wasn't" (2026-08-04).
+    // A feature silently degrading must at least leave a line in the logs.
+    console.warn(`[settings] read failed for "${key}" (ws=${workspaceId ?? "global"}) — returning empty:`, e instanceof Error ? e.message : e);
   }
   cache.set(ck, { value, expires: Date.now() + CACHE_TTL_MS });
   return value;
