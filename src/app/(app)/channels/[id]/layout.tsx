@@ -1,6 +1,5 @@
-import Link from "next/link";
 import { requireChannel } from "@/lib/channel";
-import { WithTip } from "@/components/HelpTip";
+import { ChannelSubNav } from "@/components/ChannelSubNav";
 import { CHANNEL_TAB_TIPS } from "@/lib/help-tips";
 
 // Channel navigation: Ideas, Scripts, Audience, Competitors + Settings menu.
@@ -41,18 +40,11 @@ export default async function ChannelLayout({
           <div className="text-xs text-[var(--mute)]">{channel.linkedYoutubeHandle ?? channel.presentationStyle ?? "—"}</div>
         </div>
       </div>
-      <nav className="flex flex-wrap gap-1 mb-5 border-b border-[var(--line)]">
-        {SUBNAV.map((s) => (
-          <WithTip key={s.href} text={`${s.label} — ${CHANNEL_TAB_TIPS[s.href] ?? ""}`} side="bottom" wide>
-            <Link
-              href={`/channels/${channel.id}${s.href}`}
-              className="text-xs font-mono uppercase tracking-wider px-3 py-2 border-b-2 border-transparent hover:border-[var(--accent)] hover:text-[var(--accent)] text-[var(--mute)]"
-            >
-              {s.label}
-            </Link>
-          </WithTip>
-        ))}
-      </nav>
+      <ChannelSubNav
+        base={`/channels/${channel.id}`}
+        accent={accent}
+        items={SUBNAV.map((s) => ({ ...s, tip: CHANNEL_TAB_TIPS[s.href] }))}
+      />
       {children}
     </div>
   );

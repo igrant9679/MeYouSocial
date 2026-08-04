@@ -38,6 +38,17 @@ export async function draftFieldAction(input: {
    * spec as material to describe rather than commands to follow.
    */
   siblings?: Record<string, string>;
+  /**
+   * The author's own steering for this draft ("mention the London office",
+   * "keep it under ten words"). This is the ONE deliberate softening of the
+   * key-not-prompt rule above, added 2026-08-04 at the owner's request: it is
+   * bounded (500 chars), it rides INSIDE the server-owned field spec rather
+   * than replacing it, and the system prompt still constrains the output to
+   * this field's text with no invented facts. It also counts as grounding —
+   * an explicit instruction is the strongest signal a drafter can get, which
+   * is what lets short-answer fields draft from the instruction alone.
+   */
+  guidance?: string;
 }): Promise<AssistResult> {
   const { workspace } = await requireRole("EDITOR");
 
@@ -118,6 +129,9 @@ export async function draftFieldAction(input: {
     if (value) { facts.push(`${k.slice(0, 60)}: ${value}`); grounding++; }
   }
 
+  const guidance = String(input.guidance ?? "").trim().slice(0, 500);
+  if (guidance) grounding++;
+
   // ⚠ Refuse rather than draft from nothing. The user's OWN text counts as
   // grounding — "improve what I wrote" works with no other context at all — so
   // this only fires on an empty field with an empty workspace, which is exactly
@@ -159,6 +173,9 @@ export async function draftFieldAction(input: {
     `Field: ${spec.label}`,
     `What it needs to say: ${spec.instruction}`,
     `Length: at most about ${spec.maxWords} words.`,
+    guidance
+      ? `The author's instructions for this draft — follow them, within the rules above:\n${guidance}`
+      : "",
     mode,
   ].filter(Boolean).join("\n\n");
 

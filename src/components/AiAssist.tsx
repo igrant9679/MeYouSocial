@@ -52,6 +52,7 @@ export function AiAssist({
   const [isMock, setIsMock] = useState(false);
   const [isThin, setIsThin] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [guidance, setGuidance] = useState("");
   const anchorRef = useRef<HTMLButtonElement>(null);
 
   function fieldEl(): HTMLTextAreaElement | HTMLInputElement | null {
@@ -77,6 +78,7 @@ export function AiAssist({
         current: fieldEl()?.value ?? "",
         channelId,
         siblings: collected,
+        guidance: guidance.trim() || undefined,
       });
       if (res.ok) {
         setDraft(res.text);
@@ -125,6 +127,25 @@ export function AiAssist({
           {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
           {busy ? "Drafting…" : label}
         </button>
+        {/* The author's steering — optional, bounded server-side to 500 chars.
+            ⚠ Enter here must draft, NOT submit the surrounding form: every
+            assist sits inside one, and a stray Enter would save half-finished
+            work. preventDefault + run is the whole reason for the handler. */}
+        <input
+          type="text"
+          value={guidance}
+          onChange={(e) => setGuidance(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              if (!busy) void run();
+            }
+          }}
+          maxLength={500}
+          placeholder="Optional: tell the AI what you want…"
+          className="flex-1 min-w-[180px] border border-[var(--line-2)] rounded-lg px-2 py-1 text-xs"
+          aria-label="Instructions for the AI draft"
+        />
       </div>
 
       {/* Not styled as a failure. Every message that lands here is actionable

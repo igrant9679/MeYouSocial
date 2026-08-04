@@ -67,6 +67,78 @@ ${transcripts.length > 1 ? "Synthesize across all references — extract the com
   redirect(`/channels/${channelId}/templates?focus=${template.id}`);
 }
 
+/**
+ * Edit a CUSTOM template's name, kind and structure text.
+ *
+ * Built-ins (channelId null) are deliberately not editable: they're one shared
+ * set of rows serving every workspace on the install, so an admin "fixing" one
+ * would silently rewrite it for every other tenant. The path for those is
+ * duplicateTemplateAction below — copy it into your channel, then edit freely.
+ *
+ * The structure column is JSON with two authoring shapes: cloned templates
+ * carry prose in `ai`, seeded ones carry a `sections` list. The textarea edits
+ * whichever shape the template already has, and everything else in the JSON
+ * (sources, notes) is preserved untouched.
+ */
+export async function updateTemplateAction(formData: FormData) {
+  const id = String(formData.get("id"));
+  const channelId = String(formData.get("channelId"));
+  const name = String(formData.get("name") ?? "").trim().slice(0, 80);
+  const kind = String(formData.get("kind") ?? "long") === "short" ? "short" : "long";
+  const body = String(formData.get("body") ?? "").trim().slice(0, 20_000);
+  if (!name || !body) return;
+
+  const { workspace } = await requireRole("EDITOR");
+  const template = await db.template.findFirst({
+    where: { id, channelId, channel: { workspaceId: workspace.id } },
+  });
+  if (!template) return;
+
+  let structure: Record<string, unknown> = {};
+  try { structure = JSON.parse(template.structure) as Record<string, unknown>; } catch { /* rebuild below */ }
+  if (Array.isArray(structure.sections) && !structure.ai) {
+    structure.sections = body.split(/\r?\n/).map((s) => s.trim()).filter(Boolean);
+  } else {
+    structure.ai = body;
+  }
+
+  await db.template.update({
+    where: { id: template.id },
+    data: { name, kind, structure: writeJson(structure) },
+  });
+  revalidatePath(`/channels/${channelId}/templates`);
+  const { redirect } = await import("next/navigation");
+  redirect(`/channels/${channelId}/templates?focus=${template.id}`);
+}
+
+/** Copy a template (built-in or own) into this channel as an editable custom one. */
+export async function duplicateTemplateAction(formData: FormData) {
+  const id = String(formData.get("id"));
+  const channelId = String(formData.get("channelId"));
+  const { workspace } = await requireRole("EDITOR");
+  const channel = await db.channel.findFirst({ where: { id: channelId, workspaceId: workspace.id } });
+  if (!channel) return;
+  // Source must be a built-in, or a template this workspace already owns —
+  // never another tenant's row.
+  const src = await db.template.findFirst({
+    where: { id, OR: [{ channelId: null }, { channel: { workspaceId: workspace.id } }] },
+  });
+  if (!src) return;
+
+  const copy = await db.template.create({
+    data: {
+      channelId,
+      name: `${src.name} (copy)`.slice(0, 80),
+      kind: src.kind,
+      source: "custom",
+      structure: src.structure,
+    },
+  });
+  revalidatePath(`/channels/${channelId}/templates`);
+  const { redirect } = await import("next/navigation");
+  redirect(`/channels/${channelId}/templates?focus=${copy.id}`);
+}
+
 export async function deleteTemplateAction(formData: FormData) {
   const id = String(formData.get("id"));
   const channelId = String(formData.get("channelId"));

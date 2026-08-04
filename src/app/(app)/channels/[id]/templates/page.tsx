@@ -1,11 +1,14 @@
-import { Layers, Trash2, Sparkles, Plus } from "lucide-react";
+import { Layers, Trash2, Sparkles, Plus, Copy, Pencil } from "lucide-react";
 import { SubmitButton } from "@/components/SubmitButton";
 import { requireChannel } from "@/lib/channel";
 import { db } from "@/lib/db";
 import { readJson } from "@/lib/db/json";
-import { cloneTemplateAction, deleteTemplateAction } from "@/app/actions/templates";
+import { cloneTemplateAction, deleteTemplateAction, updateTemplateAction, duplicateTemplateAction } from "@/app/actions/templates";
 
-// Templates manager. Lists built-in + custom; clone-from-video.
+// Templates manager. Lists built-in + custom; clone-from-video; custom
+// templates are editable in place, built-ins are duplicated to customize
+// (they're shared install-wide, so editing one would rewrite it for every
+// workspace — the copy is what makes it yours).
 
 export default async function ChannelTemplatesPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ focus?: string }> }) {
   const { id } = await params;
@@ -58,22 +61,70 @@ export default async function ChannelTemplatesPage({ params, searchParams }: { p
         <div className="flex justify-end mt-2"><SubmitButton className="btn primary sm flex items-center gap-1.5"><Plus className="w-3.5 h-3.5" /> Clone</SubmitButton></div>
       </form>
 
-      {/* Focused template detail */}
-      {focused && (
-        <section className="card mb-5">
-          <div className="flex items-center mb-2">
-            <h3 className="font-mono font-bold text-[14px] flex items-center gap-2">{focused.name}</h3>
-            <span className="text-[10px] font-mono uppercase tracking-wider ml-2 px-1.5 py-0.5 rounded" style={{ background: "var(--accent-soft)", color: "var(--accent)" }}>{focused.source}</span>
-            <span className="text-xs text-[var(--mute)] ml-2">· {focused.kind}</span>
-          </div>
-          {focusedStructure?.sources && focusedStructure.sources.length > 0 && (
-            <p className="text-xs text-[var(--mute)] mb-2 font-mono">Sources: {focusedStructure.sources.join(" · ")}</p>
-          )}
-          {focusedStructure?.ai && (
-            <pre className="text-xs whitespace-pre-wrap bg-[var(--zebra)] rounded-md p-3 font-mono max-h-96 overflow-auto">{focusedStructure.ai}</pre>
-          )}
-        </section>
-      )}
+      {/* Focused template detail — read-only + duplicate for built-ins,
+          editable in place for this channel's own templates. */}
+      {focused && (() => {
+        const isCustom = focused.channelId === id;
+        const sectionLines = Array.isArray(focusedStructure?.sections)
+          ? focusedStructure!.sections!.map((s) => (typeof s === "string" ? s : JSON.stringify(s))).join("\n")
+          : "";
+        const bodyText = focusedStructure?.ai ?? sectionLines;
+        return (
+          <section className="card mb-5">
+            <div className="flex items-center mb-2">
+              <h3 className="font-mono font-bold text-[14px] flex items-center gap-2">{focused.name}</h3>
+              <span className="text-[10px] font-mono uppercase tracking-wider ml-2 px-1.5 py-0.5 rounded" style={{ background: "var(--accent-soft)", color: "var(--accent)" }}>{focused.source}</span>
+              <span className="text-xs text-[var(--mute)] ml-2">· {focused.kind}</span>
+              <span className="flex-1" />
+              {!isCustom && (
+                <form action={duplicateTemplateAction}>
+                  <input type="hidden" name="id" value={focused.id} />
+                  <input type="hidden" name="channelId" value={id} />
+                  <SubmitButton className="btn sm" pendingText="Copying…" title="Built-ins are shared install-wide, so they can't be edited directly — this makes an editable copy for this channel">
+                    <Copy className="w-3.5 h-3.5" /> Duplicate to customize
+                  </SubmitButton>
+                </form>
+              )}
+            </div>
+            {focusedStructure?.sources && focusedStructure.sources.length > 0 && (
+              <p className="text-xs text-[var(--mute)] mb-2 font-mono">Sources: {focusedStructure.sources.join(" · ")}</p>
+            )}
+            {isCustom ? (
+              <form action={updateTemplateAction} className="flex flex-col gap-2">
+                <input type="hidden" name="id" value={focused.id} />
+                <input type="hidden" name="channelId" value={id} />
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                  <label className="flex flex-col gap-1 md:col-span-2">
+                    <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">Name</span>
+                    <input name="name" required maxLength={80} defaultValue={focused.name} className="border border-[var(--line-2)] rounded-lg p-2 text-sm" />
+                  </label>
+                  <label className="flex flex-col gap-1">
+                    <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">Kind</span>
+                    <select name="kind" defaultValue={focused.kind} className="border border-[var(--line-2)] rounded-lg p-2 text-sm">
+                      <option value="long">Long-form</option>
+                      <option value="short">Shorts</option>
+                    </select>
+                  </label>
+                </div>
+                <label className="flex flex-col gap-1">
+                  <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">
+                    Structure {focusedStructure?.ai ? "(free-form outline the writer follows)" : "(one section per line)"}
+                  </span>
+                  <textarea name="body" required rows={14} defaultValue={bodyText}
+                    className="border border-[var(--line-2)] rounded-lg p-2.5 text-xs font-mono resize-y" />
+                </label>
+                <div className="flex justify-end">
+                  <SubmitButton className="btn primary sm" pendingText="Saving…"><Pencil className="w-3.5 h-3.5" /> Save template</SubmitButton>
+                </div>
+              </form>
+            ) : (
+              bodyText && (
+                <pre className="text-xs whitespace-pre-wrap bg-[var(--zebra)] rounded-md p-3 font-mono max-h-96 overflow-auto">{bodyText}</pre>
+              )
+            )}
+          </section>
+        );
+      })()}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         {/* Custom */}
@@ -86,6 +137,7 @@ export default async function ChannelTemplatesPage({ params, searchParams }: { p
                 <Layers className="w-3.5 h-3.5" style={{ color: "#4F46E5" }} />
                 <a href={`/channels/${id}/templates?focus=${t.id}`} className="flex-1 font-semibold hover:text-[var(--accent)]">{t.name}</a>
                 <span className="text-[10px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: "var(--accent-soft)", color: "var(--accent)" }}>{t.kind}</span>
+                <a href={`/channels/${id}/templates?focus=${t.id}`} className="btn sm" title="View and edit"><Pencil className="w-3.5 h-3.5" /></a>
                 <form action={deleteTemplateAction}>
                   <input type="hidden" name="id" value={t.id} />
                   <input type="hidden" name="channelId" value={id} />
@@ -103,7 +155,7 @@ export default async function ChannelTemplatesPage({ params, searchParams }: { p
             {builtIn.map((t) => (
               <li key={t.id} className="py-1.5 flex items-center gap-2 text-sm border-t border-[var(--line)] first:border-t-0">
                 <Layers className="w-3.5 h-3.5 text-[var(--mute)]" />
-                <span className="flex-1">{t.name}</span>
+                <a href={`/channels/${id}/templates?focus=${t.id}`} className="flex-1 hover:text-[var(--accent)]" title="View — duplicate to customize">{t.name}</a>
                 <span className="text-[10px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded text-[var(--mute)]" style={{ background: "var(--zebra)" }}>{t.kind}</span>
               </li>
             ))}
