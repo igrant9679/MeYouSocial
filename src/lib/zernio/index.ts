@@ -181,12 +181,24 @@ function accountOf(raw: Record<string, unknown>): ZernioAccountInfo {
 }
 
 export async function listZernioAccounts(opts: { profileId?: string; cfg?: ZernioConfig } = {}): Promise<ZernioAccountInfo[]> {
-  const qs = new URLSearchParams({ limit: "100" });
-  if (opts.profileId) qs.set("profileId", opts.profileId);
-  const res = await zernioFetch(`/accounts?${qs}`, { cfg: opts.cfg });
-  const body = (await readJsonOrThrow(res, "Listing Zernio accounts")) as Record<string, unknown>;
-  const items = (body.accounts ?? body.items ?? body.data ?? []) as Record<string, unknown>[];
-  return Array.isArray(items) ? items.map(accountOf) : [];
+  // ⚠ Zernio's API rejects `limit` without `page` ("page and limit must be
+  // provided together", HTTP 400 — surfaced 2026-08-04; the old limit-only
+  // call worked before). That 400 also silently broke REPLACING the API key:
+  // the save-time probe runs through this listing, so the probe failed, the
+  // save refused, and the old key stayed put — which read as a display bug.
+  const PAGE_SIZE = 100;
+  const out: ZernioAccountInfo[] = [];
+  for (let page = 1; page <= 10; page++) {
+    const qs = new URLSearchParams({ page: String(page), limit: String(PAGE_SIZE) });
+    if (opts.profileId) qs.set("profileId", opts.profileId);
+    const res = await zernioFetch(`/accounts?${qs}`, { cfg: opts.cfg });
+    const body = (await readJsonOrThrow(res, "Listing Zernio accounts")) as Record<string, unknown>;
+    const items = (body.accounts ?? body.items ?? body.data ?? []) as Record<string, unknown>[];
+    if (!Array.isArray(items) || items.length === 0) break;
+    out.push(...items.map(accountOf));
+    if (items.length < PAGE_SIZE) break;
+  }
+  return out;
 }
 
 /**
