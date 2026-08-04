@@ -1,7 +1,7 @@
 import { jobs } from "@/lib/jobs";
 import { db } from "@/lib/db";
 import { llm } from "@/lib/llm";
-import { email } from "@/lib/email";
+import { emailFor } from "@/lib/email";
 import { readJson, writeJson } from "@/lib/db/json";
 import { countWords, durationSeconds, MAX_WORDS } from "@/lib/canvas/duration";
 import { systemForOutline, systemForScript, HUMANIZE_SYSTEM } from "@/lib/canvas/prompts";
@@ -202,13 +202,19 @@ export function registerAgentJobs() {
         where: { id: runId },
         data: { status: state, endedAt: new Date(), progress: state === "succeeded" ? 1 : run!.progress },
       });
-      // email on completion (mocked in dev).
+      // Email on completion — through the WORKSPACE's mailer, not the bare
+      // app-level `email` export. The bare export skips Unipile (it has no
+      // workspace to resolve a mailbox for), and Railway blocks SMTP, so this
+      // notice silently landed in the mock and nobody ever received it — while
+      // the Help page said, correctly at the time, that no email existed.
+      // Routing through emailFor(workspaceId) makes it real wherever a mailbox
+      // is connected, and an honest mock (console log) where none is.
       if (state === "succeeded") {
         const sc = await db.script.findUnique({ where: { id: scriptId }, include: { channel: true, author: true } });
         if (sc?.author?.email) {
           // Background job — no request scope, so getPublicUrl() falls back to env.APP_URL.
           const origin = await getPublicUrl();
-          await email.send({
+          await emailFor(sc.channel.workspaceId).send({
             to: sc.author.email,
             subject: `Your script is ready: ${sc.title}`,
             html: `<p>Agent Mode finished a script for <b>${sc.channel.name}</b>.</p>

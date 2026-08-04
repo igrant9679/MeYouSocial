@@ -31,8 +31,8 @@ export const HELP_CATEGORIES: FaqCategory[] = [
       },
       {
         q: "What does “Run Agent” do, and do I have to sit and watch it?",
-        a: "Open a script and press **Run Agent** in the toolbar. It queues a background job that works through research → outline → script → QA on its own.\n\nBecause it's a background job, **you can close the tab** — it keeps going server-side. Come back to the script and the run's status is on the page, with **Cancel** while it's in flight and **Re-run Agent** afterwards.\n\nThere is **no email or notification when it finishes** — check the script page. (If it produced something bland, see the question about placeholder output: a missing API key is the usual cause.)",
-        tags: ["agent", "draft", "background", "run agent"],
+        a: "Open a script and press **Run Agent** in the toolbar. It queues a background job that works through research → outline → script → QA on its own.\n\nBecause it's a background job, **you can close the tab** — it keeps going server-side, and it survives redeploys. Come back to the script and the run's status is on the page, with **Cancel** while it's in flight and **Re-run Agent** afterwards.\n\nWhen it finishes successfully you also get an **email** (“Your script is ready”) — sent through your workspace's connected mailbox, so it only arrives if one is connected under Admin → Connections. No mailbox, no email; the script page is always the source of truth either way. (If the result reads bland, see the question about placeholder output: a missing API key is the usual cause.)",
+        tags: ["agent", "draft", "background", "run agent", "email"],
       },
       {
         q: "What are all the icons on the left bar?",
@@ -57,6 +57,11 @@ export const HELP_CATEGORIES: FaqCategory[] = [
         tags: ["mock", "fake", "placeholder", "generic", "api key", "not working"],
       },
       {
+        q: "What are the “Draft with AI” buttons on description fields?",
+        a: "Most description boxes — company profile, channel niche, topics, the social composer and more — have a small **Draft with AI** button. It writes a draft from what your workspace already knows (your profile, channels, topics, and anything you've typed into the form), then **proposes** it: you choose *Use it*, *Discard* or *Try again*, and nothing touches your text until you accept.\n\nTwo honest behaviours worth knowing: it **refuses instead of inventing** when there's nothing to draft from — an empty field in an empty workspace gets a hint about what to add first, not confident filler (your own rough text always counts, so “improve what I wrote” always works). And if no working AI key resolves, the proposal is **labelled as placeholder text** rather than being passed off as real.\n\nA few fields deliberately have no button: expert answers and voice-training samples must be a real person's own words, or the profiles trained on them are poisoned.",
+        tags: ["assist", "draft with ai", "ai button", "autofill", "propose"],
+      },
+      {
         q: "Everything is empty and nothing seems to happen. Is it broken?",
         a: "Probably not — a fresh workspace genuinely has nothing in it, and this app deliberately shows an honest blank rather than filling the screen with sample data. A dash means **no data**, never zero.\n\nRun down these in order:\n\n**1. Is there a working AI key?** No key means generations quietly produce placeholder text. *Admin → API keys.*\n**2. Am I in the right workspace?** Keys, accounts, content and team are all per company. Check the switcher in the top bar.\n**3. Is there anything to measure?** Insights and Reports stay empty until something has actually been published — they're reporting surfaces, not generators.\n**4. Are the analytics connected?** Search traffic needs Search Console and GA4 connected; engagement needs a social account connected and posts that have gone out.\n\nIf all four are fine and a page is still blank, that page is telling you the truth about your data.",
         links: [{ label: "Admin → API keys →", href: "/admin/api-keys" }, { label: "Admin → Connections →", href: "/admin/connections" }],
@@ -69,9 +74,9 @@ export const HELP_CATEGORIES: FaqCategory[] = [
       },
       {
         q: "Why are my thumbnails and featured images unrelated stock photos?",
-        a: "Because **image generation isn't connected yet**. There's no provider behind it, so every render returns a stock photo picked from your prompt — thumbnails, blog featured/OG images and audience photos alike.\n\nIt's worth knowing this looks like success rather than failure: you get a real, good-looking photo, just not one that has anything to do with your title.\n\nWhat *is* real: the **written** parts. Thumbnail concepts and the clone-style analysis come from the LLM, so the directions are genuinely usable — treat the pictures as layout stand-ins and make the actual artwork elsewhere.\n\nOne knock-on: `Require images to publish` defaults **on**, so a post can be gated behind an image that can currently only ever be a placeholder. Turn that gate off in Blog → Brand if it blocks you, or approve the placeholder knowingly.",
-        links: [{ label: "Thumbnail Studio →", href: "/thumbnails" }, { label: "Blog → Brand →", href: "/blog/brand" }],
-        tags: ["thumbnail", "image", "placeholder", "stock photo", "picsum", "not real", "generation"],
+        a: "Because your workspace is on the **mock image provider** — no image key resolved, so every render returns a stock photo picked from your prompt instead of a real generation. It's worth knowing this looks like success rather than failure: you get a real, good-looking photo, just not one that has anything to do with your title. Thumbnail Studio shows a banner whenever the provider actually resolving is the mock.\n\n**Real image generation is built in** — paste an **OpenAI** or **Google** key under Admin → API keys and the *Image generation* switch picks it up (Auto prefers OpenAI's gpt-image-1 because it renders legible text more reliably, which thumbnails need). Renders are stored durably with your other files, and the studio's Clone analysis genuinely *looks at* the reference image.\n\nWith a real provider the `Require images to publish` gate under Blog → Brand does exactly what it says; on the mock it can gate a post behind an image that only ever will be stock — turn it off there if that blocks you.",
+        links: [{ label: "Admin → API keys →", href: "/admin/api-keys" }, { label: "Thumbnail Studio →", href: "/thumbnails" }, { label: "Blog → Brand →", href: "/blog/brand" }],
+        tags: ["thumbnail", "image", "placeholder", "stock photo", "gpt-image-1", "provider", "generation"],
       },
       {
         q: "Is there hover help on the buttons themselves?",
@@ -504,13 +509,13 @@ export const HELP_CATEGORIES: FaqCategory[] = [
       },
       {
         q: "Whose API keys does my workspace use?",
-        a: "Your own, when you've pasted them: everything under Admin → **API keys** (LLMs, search, YouTube, ElevenLabs, video/TTS switches) is saved **per workspace**. If your workspace hasn't set a key, it falls back to the platform's shared key — the card shows which one is in effect. Same for **SMTP**: your notification and invitation emails go out through the server you configure under Admin → Email, visible only to your workspace.",
+        a: "Your own, when you've pasted them: everything under Admin → **API keys** (LLMs, search, ElevenLabs, image/video/TTS switches) is saved **per workspace**. If your workspace hasn't set a key, it falls back to the platform's shared key — the card shows which one is in effect. The one deliberate exception is the **YouTube Data API key**: it only reads public data, so a single platform-provided key serves every workspace and its card says so (there's nothing for you to set up). Same for **SMTP**: your notification and invitation emails go out through the server you configure under Admin → Email, visible only to your workspace.",
         links: [{ label: "Admin → API keys →", href: "/admin/api-keys" }, { label: "Admin → Email →", href: "/admin/email" }],
         tags: ["api keys", "smtp", "per-workspace", "tenant"],
       },
       {
         q: "How do I schedule social posts (like Buffer/Hootsuite)?",
-        a: "Open **Social** in the sidebar. Pick which connected accounts to post to, write once (a live counter warns when you exceed the tightest network's limit), optionally attach images, then **Post now** or **Schedule** for a future date/time. Scheduled posts publish automatically within about a minute of their time. The queue below the composer shows what's scheduled (grouped by day), your drafts, and history — each post shows per-network status, so if one network fails you can **Retry** just that leg, or **Duplicate** to repost. Connect accounts first under Admin → Connections.",
+        a: "Open **Social** in the sidebar. Pick which connected accounts to post to, write once (a live counter warns when you exceed the tightest network's limit), optionally attach images, then **Post now**, **Schedule** for a date/time, or **Add to queue** to take the next free slot on your posting schedule. Scheduled posts publish automatically within about a minute of their time. The queue below the composer shows what's scheduled (grouped by day), your drafts, and history — each post shows per-network status, so if one network fails you can **Retry** just that leg, or **Duplicate** to repost. The rest of the Buffer-style toolkit lives on the same page: **campaigns** (a named series with its own UTM tag), **evergreen recycling**, **slot categories**, an optional **approval workflow**, and **CSV import** — each has its own question in this Help centre. Connect accounts first under Admin → Connections.",
         links: [{ label: "Open Social →", href: "/social" }, { label: "Admin → Connections →", href: "/admin/connections" }],
         tags: ["social", "schedule", "buffer", "hootsuite", "posting", "queue", "calendar"],
       },
@@ -557,6 +562,12 @@ export const HELP_CATEGORIES: FaqCategory[] = [
         a: "Slots are your standing publishing times — say 09:00 Monday to Friday. Queue a draft and it takes the next free one, so you are not choosing a date for every post. If every slot in the horizon is taken the app tells you rather than inventing a time, and pausing a slot never un-schedules a post already sitting in it.",
         links: [{ label: "Posting schedule →", href: "/social" }],
         tags: ["queue", "slots", "schedule", "posting times"],
+      },
+      {
+        q: "Can I dedicate certain slots to certain kinds of content?",
+        a: "Yes — give a slot a **category** when you add it on the posting schedule (e.g. *tips* every Tuesday, *promo* on Fridays), and pick the matching **Slot category** on a post in the composer. Queueing then routes each post to its own lane. The matching rule is designed so nothing ever strands: a categorized post falls back to a general (uncategorized) slot when its lane is full, and an uncategorized post takes a general slot first but will use any free slot if that's all there is. Workspaces that never touch categories behave exactly as before.",
+        links: [{ label: "Posting schedule →", href: "/social" }],
+        tags: ["slot", "category", "lane", "queue", "tips", "promo"],
       },
       {
         q: "Why is my scheduled time an hour out?",
