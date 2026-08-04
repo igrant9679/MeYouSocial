@@ -17,6 +17,7 @@ import { setActiveWorkspaceAction } from "@/app/actions/workspace-switch";
 import { storage } from "@/lib/storage";
 import { db } from "@/lib/db";
 import { Elsie } from "@/components/Elsie";
+import { AiActivity } from "@/components/AiActivity";
 import { FlashBanner } from "@/components/FlashBanner";
 import { getGuideState } from "@/app/actions/guide";
 import { relevantSteps, outstandingSetup, availableTracks, type SetupState } from "@/lib/guide/steps";
@@ -264,6 +265,7 @@ html[data-theme="dark"] .ws-brand {
           <Link href="/channels" className="btn !hidden @min-[88rem]:!inline-flex" title="Manage all channels">Manage channels</Link>
           <LiveTicker initial={ticker} />
           <div className="flex-1" />
+          <AiActivity />
           <Elsie steps={elsieSteps} tracks={elsieTracks} enabled={guide.enabled} outstanding={elsieOutstanding} snoozed={guide.snoozed} />
           <Link
             href="/notifications"

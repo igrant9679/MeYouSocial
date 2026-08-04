@@ -57,6 +57,11 @@ export const HELP_CATEGORIES: FaqCategory[] = [
         tags: ["mock", "fake", "placeholder", "generic", "api key", "not working"],
       },
       {
+        q: "How do I know when the AI is working on something?",
+        a: "A **sparkle chip appears in the top bar** whenever a generation is running for your workspace — post images, Agent script runs, voice/audience training, starter ideas, video renders. It pulses with a count while things run; click it for per-item progress. When something finishes, the chip shows a check for a few seconds and **the page refreshes itself**, so the result (the image on a post, the new ideas) appears without you reloading. No chip means nothing is running — instant generations like the Draft-with-AI buttons show their progress on the button itself instead.",
+        tags: ["progress", "status", "running", "generating", "spinner", "activity"],
+      },
+      {
         q: "What are the “Draft with AI” buttons on description fields?",
         a: "Most description boxes — company profile, channel niche, topics, the social composer and more — have a small **Draft with AI** button. It writes a draft from what your workspace already knows (your profile, channels, topics, and anything you've typed into the form), then **proposes** it: you choose *Use it*, *Discard* or *Try again*, and nothing touches your text until you accept.\n\nTwo honest behaviours worth knowing: it **refuses instead of inventing** when there's nothing to draft from — an empty field in an empty workspace gets a hint about what to add first, not confident filler (your own rough text always counts, so “improve what I wrote” always works). And if no working AI key resolves, the proposal is **labelled as placeholder text** rather than being passed off as real.\n\nA few fields deliberately have no button: expert answers and voice-training samples must be a real person's own words, or the profiles trained on them are poisoned.",
         tags: ["assist", "draft with ai", "ai button", "autofill", "propose"],
