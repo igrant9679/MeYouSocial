@@ -35,7 +35,7 @@ export function ChannelSubNav({
       {items.map((s) => {
         const on = isActive(s.href);
         return (
-          <WithTip key={s.href} text={`${s.label} — ${s.tip ?? ""}`} side="bottom" wide>
+          <WithTip key={s.href} text={`${s.label} — ${s.tip ?? ""}`} side="bottom-start" wide>
             <Link
               href={`${base}${s.href}`}
               aria-current={on ? "page" : undefined}

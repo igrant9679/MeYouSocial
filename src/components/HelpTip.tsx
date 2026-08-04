@@ -35,11 +35,17 @@ import type { ReactNode } from "react";
  * touch user can't otherwise discover.
  */
 
-type Side = "top" | "bottom" | "left" | "right";
+type Side = "top" | "bottom" | "bottom-start" | "left" | "right";
 
 const SIDE_CLASS: Record<Side, string> = {
   top: "bottom-full left-1/2 -translate-x-1/2 mb-2",
   bottom: "top-full left-1/2 -translate-x-1/2 mt-2",
+  // Anchored to the trigger's LEFT edge, growing rightward. For triggers near
+  // the left edge of a scroll container (<main> is overflow-auto): a centered
+  // bubble extends past the container's left boundary and gets CLIPPED there —
+  // seen 2026-08-04 on the channel tab strip, where the rail border cut the
+  // bubble's first characters off. Same family as the overflow-x-auto trap.
+  "bottom-start": "top-full left-0 mt-2",
   left: "right-full top-1/2 -translate-y-1/2 mr-2",
   right: "left-full top-1/2 -translate-y-1/2 ml-2",
 };
