@@ -126,6 +126,41 @@ export default async function AnalyticsConnectionsPage({
             {youtubeRedirectUri(origin)}
           </code>
         </div>
+        {/* Step-by-step, embedded so nobody has to leave the page to learn the
+            dance. <details> keeps the card compact and needs no client JS. */}
+        <details className="mb-2 text-[11px] text-[var(--mute)] leading-relaxed">
+          <summary className="cursor-pointer font-bold select-none">Step-by-step: create the OAuth client in Google Cloud Console</summary>
+          <ol className="list-decimal ml-4 mt-1.5 space-y-1">
+            <li>
+              Open <a href="https://console.cloud.google.com" target="_blank" rel="noreferrer" className="underline">console.cloud.google.com</a> and
+              pick the Google Cloud <b>project</b> to use (or create one — top bar → project picker → New project). Check the
+              project name in the top bar before every later step: Cloud Console links can silently switch projects.
+            </li>
+            <li>
+              <i>APIs &amp; Services → OAuth consent screen</i>: configure it once — User type <b>External</b>, fill in the app
+              name and your email, then <b>Publish</b> it to &ldquo;In production&rdquo;. Leaving it in Testing makes every
+              connection expire after 7 days.
+            </li>
+            <li>
+              <i>APIs &amp; Services → Enabled APIs</i>: enable what the connectors call — <b>Google Search Console API</b>,{" "}
+              <b>Google Analytics Data API</b> and <b>Google Analytics Admin API</b> for the analytics connects;{" "}
+              <b>YouTube Data API v3</b> and <b>YouTube Analytics API</b> for the YouTube connect.
+            </li>
+            <li>
+              <i>APIs &amp; Services → Credentials → Create credentials → OAuth client ID</i>: Application type{" "}
+              <b>Web application</b>, any name. Under <b>Authorized redirect URIs</b> add BOTH URIs shown above,
+              character-for-character.
+            </li>
+            <li>
+              Copy the <b>Client ID</b> and <b>Client secret</b> Google shows you into the fields below and hit{" "}
+              <b>Save client</b>. (The secret is shown once — if you lose it, make a new secret on the same client.)
+            </li>
+            <li>
+              Hit a <b>Connect</b> button. If Google warns the app is unverified, choose <i>Advanced → Go to (app name)</i> —
+              expected for a private client, verification is only needed for public apps.
+            </li>
+          </ol>
+        </details>
         <div className="flex flex-wrap items-end gap-2">
           <label className="flex-1 min-w-52 text-[11px] text-[var(--mute)]">
             OAuth client ID
