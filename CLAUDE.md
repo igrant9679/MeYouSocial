@@ -111,7 +111,15 @@ but it means **bad output can look like real output**. Rules learned the hard wa
   run**, and a failed persist leaves `storedUrl` null on purpose so the UI warns about expiry.
 - **Social** `src/lib/zernio/` + `src/lib/social/` — Zernio publishes to 15 networks; one post fans
   out to N `SocialPostTarget`s, each with independent status. Slots are **wall clock** (weekday +
-  minute) so 09:00 survives DST; only `social/slots.ts` converts.
+  minute) so 09:00 survives DST; only `social/slots.ts` converts. Since 2026-08-04 also:
+  **Campaigns** (named series, own utm_campaign at send), **slot categories** (one matching rule,
+  `pickFreeSlot` — own category → general → any, so nothing strands), **evergreen recycling**
+  (`social/evergreen.ts`: clones a posted source into free slots after its cooldown; OPT-IN via
+  `social:evergreen_fill`, clones carry `recycledFromId` and are never themselves evergreen), an
+  **approval workflow** (`social:require_approval`: pending/changes posts can't be sent, scheduled,
+  queued or dragged — enforced in publish + the sweep's claim, not just the UI; ⚠ the sweep's
+  filter is `OR [null, "approved"]`, never `notIn` — SQL NOT IN drops NULL rows and would silently
+  stop every normal post), and **CSV import** (`actions/social-workflow.ts`).
 - **Email** `src/lib/unipile/` — ⚠ **Railway blocks outbound SMTP** (587/465/2525 all ETIMEDOUT),
   so a connected mailbox over HTTPS is the only way real mail leaves this host. `src/lib/email/`
   still holds the nodemailer path for installs that can use it. Don't delete unipile.
