@@ -1,11 +1,12 @@
 import Link from "next/link";
-import { LineChart, CheckCircle2, AlertTriangle, CirclePlay, Search, BarChart3, RefreshCw } from "lucide-react";
+import { LineChart, CheckCircle2, AlertTriangle, CirclePlay, Search, BarChart3, RefreshCw, KeyRound, LogIn } from "lucide-react";
 import { requireRole } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { SubmitButton } from "@/components/SubmitButton";
 import { getGscConfig } from "@/lib/analytics/gsc";
 import { getGa4Config } from "@/lib/analytics/ga4";
 import { youtubeOauthConnected, youtubeRedirectUri, getYoutubeOauthConfig } from "@/lib/youtube/oauth";
+import { analyticsOauthConnected, analyticsRedirectUri, type AnalyticsCredential } from "@/lib/google/analytics-oauth";
 import { getPublicUrl } from "@/lib/public-url";
 import {
   saveGscAction,
@@ -15,6 +16,8 @@ import {
   saveYoutubeOauthAction,
   connectYoutubeAction,
   disconnectYoutubeAction,
+  connectGoogleAnalyticsAction,
+  disconnectGoogleAnalyticsAction,
   syncAnalyticsNowAction,
 } from "@/app/actions/analytics-connections";
 
@@ -30,11 +33,12 @@ export default async function AnalyticsConnectionsPage({
   const { workspace } = await requireRole("ADMIN");
   const { ok, err } = await searchParams;
 
-  const [gsc, ga4, yt, ytCfg, origin, rows, driveSa] = await Promise.all([
+  const [gsc, ga4, yt, ytCfg, gaOauth, origin, rows, driveSa] = await Promise.all([
     getGscConfig(workspace.id),
     getGa4Config(workspace.id),
     youtubeOauthConnected(workspace.id),
     getYoutubeOauthConfig(workspace.id),
+    analyticsOauthConnected(workspace.id),
     getPublicUrl(),
     db.workspaceSetting.findMany({
       where: {
@@ -60,6 +64,20 @@ export default async function AnalyticsConnectionsPage({
     >
       {on ? "connected" : label}
     </span>
+  );
+
+  // Name the credential a connector actually runs on, so "connected" never
+  // hides WHOSE access is being used.
+  const credLabel = (cred: AnalyticsCredential) =>
+    cred.kind === "oauth"
+      ? `this workspace's Google account (${cred.identity})`
+      : cred.kind === "own_sa"
+        ? `this workspace's own service account (${cred.identity})`
+        : `the shared platform service account (${cred.identity})`;
+  const CredLine = ({ cred }: { cred: AnalyticsCredential }) => (
+    <p className="text-[10px] font-mono mb-2" style={{ color: cred.kind === "platform_sa" ? "var(--amber-on)" : "var(--green-on)" }}>
+      Running on {credLabel(cred)}.
+    </p>
   );
 
   return (
@@ -90,16 +108,71 @@ export default async function AnalyticsConnectionsPage({
         </div>
       )}
 
-      {sharedSaEmail && (
-        <div className="card mb-4 text-xs text-[var(--mute)] leading-relaxed">
-          <p>
-            <strong>Shortcut:</strong> a platform Google service account already exists (
-            <code className="font-mono px-1 rounded" style={{ background: "var(--zebra)" }}>{sharedSaEmail}</code>). Grant that
-            address access to your Search Console property and GA4 property and you can leave the JSON boxes below empty —
-            they fall back to it.
-          </p>
+      {/* ── Google OAuth client (shared by every Connect button) ────────── */}
+      <form action={saveYoutubeOauthAction} className="card mb-3">
+        <div className="flex items-center gap-2 mb-1">
+          <KeyRound className="w-4 h-4" style={{ color: "var(--violet-on)" }} />
+          <h2 className="font-mono font-bold text-sm flex-1">Google OAuth client</h2>
+          <Status on={Boolean(ytCfg)} label="not saved" />
         </div>
-      )}
+        <div className="text-[11px] text-[var(--mute)] mb-2 leading-relaxed">
+          One OAuth client per workspace powers every &ldquo;Connect&rdquo; below. In Google Cloud Console →{" "}
+          <i>APIs &amp; Services → Credentials</i>, create an <b>OAuth client ID</b> (type: Web application) and register{" "}
+          <b>both</b> redirect URIs:
+          <code className="font-mono text-[10px] px-1.5 py-0.5 rounded ml-1 inline-block" style={{ background: "var(--zebra)" }}>
+            {analyticsRedirectUri(origin)}
+          </code>
+          <code className="font-mono text-[10px] px-1.5 py-0.5 rounded ml-1 inline-block" style={{ background: "var(--zebra)" }}>
+            {youtubeRedirectUri(origin)}
+          </code>
+        </div>
+        <div className="flex flex-wrap items-end gap-2">
+          <label className="flex-1 min-w-52 text-[11px] text-[var(--mute)]">
+            OAuth client ID
+            <input name="client_id" defaultValue={val.get("youtube_oauth:client_id") ?? ""} placeholder="…apps.googleusercontent.com" className="w-full text-sm font-mono mt-0.5" />
+          </label>
+          <label className="flex-1 min-w-40 text-[11px] text-[var(--mute)]">
+            Client secret {ytCfg?.clientSecret ? <span style={{ color: "var(--green-on)" }}>· stored</span> : ""}
+            <input name="client_secret" type="password" placeholder={ytCfg?.clientSecret ? "•••••• (leave blank to keep)" : "GOCSPX-…"} className="w-full text-sm font-mono mt-0.5" autoComplete="off" />
+          </label>
+          <SubmitButton className="btn" pendingText="Saving…">Save client</SubmitButton>
+        </div>
+      </form>
+
+      {/* ── This workspace's Google account (GSC + GA4 in one consent) ──── */}
+      <div className="card mb-3">
+        <div className="flex items-center gap-2 mb-1">
+          <LogIn className="w-4 h-4" style={{ color: "var(--green-on)" }} />
+          <h2 className="font-mono font-bold text-sm flex-1">Google account (Search Console + GA4)</h2>
+          <Status on={gaOauth.connected} label="not connected" />
+        </div>
+        <p className="text-[11px] text-[var(--mute)] mb-2 leading-relaxed">
+          Sign in with <b>this company&apos;s own Google account</b> — one consent grants read access for both connectors
+          below, no service account to create. The account must be able to see the Search Console property and GA4 property.
+        </p>
+        {gaOauth.connected ? (
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs flex-1 font-mono">{gaOauth.account || "Google account connected."}</span>
+            <form action={disconnectGoogleAnalyticsAction}>
+              <SubmitButton className="btn" pendingText="Disconnecting…">Disconnect</SubmitButton>
+            </form>
+          </div>
+        ) : (
+          <form action={connectGoogleAnalyticsAction}>
+            <SubmitButton className="btn primary" pendingText="Redirecting…" disabled={!ytCfg}>
+              <LogIn className="w-4 h-4" /> Connect with Google
+            </SubmitButton>
+            {!ytCfg && <span className="text-[11px] text-[var(--mute)] ml-2">Save the OAuth client above first.</span>}
+          </form>
+        )}
+        {!gaOauth.connected && sharedSaEmail && (
+          <p className="text-[10px] text-[var(--mute)] mt-2 leading-relaxed">
+            Fallbacks while no account is connected: a service-account JSON pasted below, then the shared platform service
+            account (<code className="font-mono px-1 rounded" style={{ background: "var(--zebra)" }}>{sharedSaEmail}</code>)
+            when it has been granted access.
+          </p>
+        )}
+      </div>
 
       {/* ── Search Console ─────────────────────────────────────────────── */}
       <form action={saveGscAction} className="card mb-3">
@@ -109,10 +182,11 @@ export default async function AnalyticsConnectionsPage({
           <Status on={Boolean(gsc)} label="not connected" />
         </div>
         <p className="text-[11px] text-[var(--mute)] mb-2 leading-relaxed">
-          Queries, clicks, impressions and average position for your site. Uses a <b>service account</b> — no OAuth: paste its
-          JSON (or use the shared one above), then in Search Console → <i>Settings → Users and permissions</i> add the service
-          account&apos;s email as a user.
+          Queries, clicks, impressions and average position for your site. Runs on the connected Google account above when
+          there is one; otherwise paste a <b>service-account</b> JSON and add its email as a user in Search Console →{" "}
+          <i>Settings → Users and permissions</i>.
         </p>
+        {gsc && <CredLine cred={gsc.cred} />}
         <label className="block text-[11px] text-[var(--mute)] mb-2">
           Site / property
           <input
@@ -143,9 +217,11 @@ export default async function AnalyticsConnectionsPage({
           <Status on={Boolean(ga4)} label="not connected" />
         </div>
         <p className="text-[11px] text-[var(--mute)] mb-2 leading-relaxed">
-          Sessions, users and conversions per page. Same service-account model: grant the address <b>Viewer</b> under GA4 →
-          <i> Admin → Property access management</i>. Saving runs a real report as the test.
+          Sessions, users and conversions per page. Runs on the connected Google account above when there is one; a pasted
+          service account needs <b>Viewer</b> under GA4 → <i>Admin → Property access management</i>. Saving runs a real
+          report as the test.
         </p>
+        {ga4 && <CredLine cred={ga4.cred} />}
         <label className="block text-[11px] text-[var(--mute)] mb-2">
           Property ID
           <input
@@ -178,15 +254,8 @@ export default async function AnalyticsConnectionsPage({
         <p className="text-[11px] text-[var(--mute)] mb-2 leading-relaxed">
           Uploading and your own channel&apos;s view/watch-time data. This needs <b>OAuth</b>, not a key — YouTube won&apos;t let a
           service account touch a channel. (The Data API key under <Link href="/admin/api-keys" className="underline">API keys</Link> only
-          reads public data.)
+          reads public data.) Uses the Google OAuth client at the top of this page.
         </p>
-        <div className="text-[11px] text-[var(--mute)] mb-2 leading-relaxed">
-          In Google Cloud Console → <i>APIs &amp; Services → Credentials</i>, create an <b>OAuth client ID</b> (type: Web
-          application) and add this exact redirect URI:
-          <code className="font-mono text-[10px] px-1.5 py-0.5 rounded ml-1 inline-block" style={{ background: "var(--zebra)" }}>
-            {youtubeRedirectUri(origin)}
-          </code>
-        </div>
 
         {yt.connected ? (
           <div className="flex flex-wrap items-center gap-2">
@@ -196,25 +265,12 @@ export default async function AnalyticsConnectionsPage({
             </form>
           </div>
         ) : (
-          <>
-            <form action={saveYoutubeOauthAction} className="flex flex-wrap items-end gap-2 mb-2">
-              <label className="flex-1 min-w-52 text-[11px] text-[var(--mute)]">
-                OAuth client ID
-                <input name="client_id" defaultValue={val.get("youtube_oauth:client_id") ?? ""} placeholder="…apps.googleusercontent.com" className="w-full text-sm font-mono mt-0.5" />
-              </label>
-              <label className="flex-1 min-w-40 text-[11px] text-[var(--mute)]">
-                Client secret {ytCfg?.clientSecret ? <span style={{ color: "var(--green-on)" }}>· stored</span> : ""}
-                <input name="client_secret" type="password" placeholder={ytCfg?.clientSecret ? "•••••• (leave blank to keep)" : "GOCSPX-…"} className="w-full text-sm font-mono mt-0.5" autoComplete="off" />
-              </label>
-              <SubmitButton className="btn" pendingText="Saving…">Save client</SubmitButton>
-            </form>
-            <form action={connectYoutubeAction}>
-              <SubmitButton className="btn primary" pendingText="Redirecting…" disabled={!ytCfg}>
-                <CirclePlay className="w-4 h-4" /> Connect YouTube
-              </SubmitButton>
-              {!ytCfg && <span className="text-[11px] text-[var(--mute)] ml-2">Save a client ID and secret first.</span>}
-            </form>
-          </>
+          <form action={connectYoutubeAction}>
+            <SubmitButton className="btn primary" pendingText="Redirecting…" disabled={!ytCfg}>
+              <CirclePlay className="w-4 h-4" /> Connect YouTube
+            </SubmitButton>
+            {!ytCfg && <span className="text-[11px] text-[var(--mute)] ml-2">Save the OAuth client at the top of the page first.</span>}
+          </form>
         )}
       </div>
 

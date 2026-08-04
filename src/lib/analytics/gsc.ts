@@ -1,5 +1,10 @@
 import { getSetting } from "@/lib/settings";
-import { explainGoogleError, googleAccessToken, googleApi, parseServiceAccount, type ServiceAccount } from "@/lib/google/service-account";
+import { explainGoogleError, googleApi } from "@/lib/google/service-account";
+import {
+  analyticsCredentialToken,
+  resolveAnalyticsCredential,
+  type AnalyticsCredential,
+} from "@/lib/google/analytics-oauth";
 
 /**
  * Google Search Console connector — real ranking data (clicks, impressions,
@@ -9,15 +14,16 @@ import { explainGoogleError, googleAccessToken, googleApi, parseServiceAccount, 
  * as a user on the property in Search Console. No OAuth dance, and it matches
  * the Drive-storage pattern the app already uses.
  *
- * Config is per-workspace (each company has its own site). The service account
- * falls back to the platform Drive SA, so an operator running one Google
- * project can grant that single SA access to every property instead of pasting
- * the same JSON repeatedly.
+ * Config is per-workspace (each company has its own site). Credential
+ * resolution (see resolveAnalyticsCredential): the workspace's connected
+ * Google account (OAuth) → the workspace's own pasted SA → the platform Drive
+ * SA, so an operator running one Google project can grant that single SA
+ * access to every property instead of pasting the same JSON repeatedly.
  */
 
 const SCOPE = "https://www.googleapis.com/auth/webmasters.readonly";
 
-export type GscConfig = { sa: ServiceAccount; siteUrl: string; saEmail: string };
+export type GscConfig = { cred: AnalyticsCredential; siteUrl: string; identity: string };
 
 /**
  * Search Console is picky about the site identifier: a Domain property is
@@ -34,27 +40,14 @@ export function normalizeSiteUrl(input: string): string {
   return raw.endsWith("/") ? raw : `${raw}/`;
 }
 
-async function resolveServiceAccount(workspaceId?: string | null): Promise<ServiceAccount | null> {
-  const own = await getSetting("gsc:service_account", workspaceId).catch(() => "");
-  if (own) return parseServiceAccount(own);
-  // Fall back to the platform Drive service account (same Google project).
-  try {
-    const { db } = await import("@/lib/db");
-    const row = await db.setting.findUnique({ where: { key: "gdrive:service_account" } });
-    return row?.value ? parseServiceAccount(row.value) : null;
-  } catch {
-    return null;
-  }
-}
-
 export async function getGscConfig(workspaceId?: string | null): Promise<GscConfig | null> {
-  const [sa, siteRaw] = await Promise.all([
-    resolveServiceAccount(workspaceId),
+  const [cred, siteRaw] = await Promise.all([
+    resolveAnalyticsCredential(workspaceId, "gsc:service_account"),
     getSetting("gsc:site_url", workspaceId).catch(() => ""),
   ]);
   const siteUrl = normalizeSiteUrl(siteRaw ?? "");
-  if (!sa || !siteUrl) return null;
-  return { sa, siteUrl, saEmail: sa.client_email };
+  if (!cred || !siteUrl) return null;
+  return { cred, siteUrl, identity: cred.identity };
 }
 
 export async function gscConfigured(workspaceId?: string | null): Promise<boolean> {
@@ -68,9 +61,9 @@ export async function gscConfigured(workspaceId?: string | null): Promise<boolea
  */
 export async function gscVerify(workspaceId?: string | null): Promise<{ ok: boolean; message: string; sites?: string[] }> {
   const cfg = await getGscConfig(workspaceId);
-  if (!cfg) return { ok: false, message: "Paste a service account and a site URL first." };
+  if (!cfg) return { ok: false, message: "Connect a Google account (or paste a service account) and set a site URL first." };
   try {
-    const token = await googleAccessToken(cfg.sa, SCOPE);
+    const token = await analyticsCredentialToken(workspaceId, cfg.cred, SCOPE);
     const data = await googleApi<{ siteEntry?: Array<{ siteUrl: string; permissionLevel: string }> }>(
       "https://www.googleapis.com/webmasters/v3/sites",
       token,
@@ -79,7 +72,10 @@ export async function gscVerify(workspaceId?: string | null): Promise<{ ok: bool
     if (!sites.length) {
       return {
         ok: false,
-        message: `No properties are shared with ${cfg.saEmail}. In Search Console → Settings → Users and permissions, add that address as a user.`,
+        message:
+          cfg.cred.kind === "oauth"
+            ? `${cfg.identity} can't see any Search Console properties. Open Search Console with that account, or connect a different one.`
+            : `No properties are shared with ${cfg.identity}. In Search Console → Settings → Users and permissions, add that address as a user.`,
         sites,
       };
     }
@@ -98,7 +94,10 @@ export async function gscVerify(workspaceId?: string | null): Promise<{ ok: bool
     return {
       ok: false,
       message: explainGoogleError(raw, {
-        grantHint: `Add ${cfg.saEmail} as a user on this property in Search Console → Settings → Users and permissions.`,
+        grantHint:
+          cfg.cred.kind === "oauth"
+            ? `The connected Google account (${cfg.identity}) needs access to this property in Search Console.`
+            : `Add ${cfg.identity} as a user on this property in Search Console → Settings → Users and permissions.`,
       }),
     };
   }
@@ -117,7 +116,7 @@ export async function gscQuery(
 ): Promise<GscRow[]> {
   const cfg = await getGscConfig(workspaceId);
   if (!cfg) return [];
-  const token = await googleAccessToken(cfg.sa, SCOPE);
+  const token = await analyticsCredentialToken(workspaceId, cfg.cred, SCOPE);
   const data = await googleApi<{ rows?: GscRow[] }>(
     `https://www.googleapis.com/webmasters/v3/sites/${encodeURIComponent(cfg.siteUrl)}/searchAnalytics/query`,
     token,

@@ -105,7 +105,7 @@ export async function syncAnalyticsNowAction() {
   back(outcome.message, outcome.ok);
 }
 
-// ── YouTube OAuth ────────────────────────────────────────────────────────────
+// ── Google OAuth (shared client; YouTube + Analytics consent flows) ──────────
 
 export async function saveYoutubeOauthAction(formData: FormData) {
   const { workspace } = await requireRole("ADMIN");
@@ -115,7 +115,24 @@ export async function saveYoutubeOauthAction(formData: FormData) {
   // Keep an existing secret when the field is left blank (it renders masked).
   if (clientSecret) await setWorkspaceSetting(workspace.id, "youtube_oauth:client_secret", clientSecret);
   revalidatePath("/admin/analytics");
-  back("YouTube OAuth client saved — now hit Connect.", true);
+  back("Google OAuth client saved — now hit a Connect button.", true);
+}
+
+/** Kick off the Search Console + GA4 consent flow (redirects to Google). */
+export async function connectGoogleAnalyticsAction() {
+  const { workspace } = await requireRole("ADMIN");
+  const { buildAnalyticsAuthUrl } = await import("@/lib/google/analytics-oauth");
+  const url = await buildAnalyticsAuthUrl(workspace.id, await getPublicUrl());
+  if (!url) back("Save a Google OAuth client ID and secret first.");
+  redirect(url!);
+}
+
+export async function disconnectGoogleAnalyticsAction() {
+  const { workspace } = await requireRole("ADMIN");
+  const { disconnectAnalyticsOauth } = await import("@/lib/google/analytics-oauth");
+  await disconnectAnalyticsOauth(workspace.id);
+  revalidatePath("/admin/analytics");
+  back("Google account disconnected — analytics falls back to a service account if one is available.", true);
 }
 
 /** Kick off the consent flow (redirects to Google). */

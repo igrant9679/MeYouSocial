@@ -1,18 +1,23 @@
 import { getSetting } from "@/lib/settings";
-import { explainGoogleError, googleAccessToken, googleApi, parseServiceAccount, type ServiceAccount } from "@/lib/google/service-account";
+import { explainGoogleError, googleApi } from "@/lib/google/service-account";
+import {
+  analyticsCredentialToken,
+  resolveAnalyticsCredential,
+  type AnalyticsCredential,
+} from "@/lib/google/analytics-oauth";
 
 /**
  * GA4 (Google Analytics 4) connector — sessions, users and conversions for the
  * workspace's own site, via the Data API.
  *
- * Same service-account model as the Search Console connector: paste the SA JSON
- * (or reuse the platform Drive SA) and grant that address Viewer on the GA4
- * property. Config is per-workspace.
+ * Same credential model as the Search Console connector (see
+ * resolveAnalyticsCredential): the workspace's connected Google account →
+ * its own pasted SA → the platform Drive SA. Config is per-workspace.
  */
 
 const SCOPE = "https://www.googleapis.com/auth/analytics.readonly";
 
-export type Ga4Config = { sa: ServiceAccount; propertyId: string; saEmail: string };
+export type Ga4Config = { cred: AnalyticsCredential; propertyId: string; identity: string };
 
 /** Accepts "123456789", "properties/123456789", or a pasted admin URL. */
 export function normalizePropertyId(input: string): string {
@@ -22,26 +27,14 @@ export function normalizePropertyId(input: string): string {
   return digits ? digits[1] : "";
 }
 
-async function resolveServiceAccount(workspaceId?: string | null): Promise<ServiceAccount | null> {
-  const own = await getSetting("ga4:service_account", workspaceId).catch(() => "");
-  if (own) return parseServiceAccount(own);
-  try {
-    const { db } = await import("@/lib/db");
-    const row = await db.setting.findUnique({ where: { key: "gdrive:service_account" } });
-    return row?.value ? parseServiceAccount(row.value) : null;
-  } catch {
-    return null;
-  }
-}
-
 export async function getGa4Config(workspaceId?: string | null): Promise<Ga4Config | null> {
-  const [sa, propRaw] = await Promise.all([
-    resolveServiceAccount(workspaceId),
+  const [cred, propRaw] = await Promise.all([
+    resolveAnalyticsCredential(workspaceId, "ga4:service_account"),
     getSetting("ga4:property_id", workspaceId).catch(() => ""),
   ]);
   const propertyId = normalizePropertyId(propRaw ?? "");
-  if (!sa || !propertyId) return null;
-  return { sa, propertyId, saEmail: sa.client_email };
+  if (!cred || !propertyId) return null;
+  return { cred, propertyId, identity: cred.identity };
 }
 
 export async function ga4Configured(workspaceId?: string | null): Promise<boolean> {
@@ -56,9 +49,9 @@ export async function ga4Configured(workspaceId?: string | null): Promise<boolea
  */
 export async function ga4Verify(workspaceId?: string | null): Promise<{ ok: boolean; message: string }> {
   const cfg = await getGa4Config(workspaceId);
-  if (!cfg) return { ok: false, message: "Paste a service account and a GA4 property ID first." };
+  if (!cfg) return { ok: false, message: "Connect a Google account (or paste a service account) and set a GA4 property ID first." };
   try {
-    const token = await googleAccessToken(cfg.sa, SCOPE);
+    const token = await analyticsCredentialToken(workspaceId, cfg.cred, SCOPE);
     const data = await googleApi<{ rows?: Array<{ metricValues?: Array<{ value: string }> }>; rowCount?: number }>(
       `https://analyticsdata.googleapis.com/v1beta/properties/${encodeURIComponent(cfg.propertyId)}:runReport`,
       token,
@@ -81,7 +74,10 @@ export async function ga4Verify(workspaceId?: string | null): Promise<{ ok: bool
     return {
       ok: false,
       message: explainGoogleError(raw, {
-        grantHint: `Grant ${cfg.saEmail} the Viewer role on this property (GA4 → Admin → Property access management).`,
+        grantHint:
+          cfg.cred.kind === "oauth"
+            ? `The connected Google account (${cfg.identity}) needs at least Viewer access to this GA4 property.`
+            : `Grant ${cfg.identity} the Viewer role on this property (GA4 → Admin → Property access management).`,
       }),
     };
   }
@@ -99,7 +95,7 @@ export async function ga4RunReport(
 ): Promise<Ga4Row[]> {
   const cfg = await getGa4Config(workspaceId);
   if (!cfg) return [];
-  const token = await googleAccessToken(cfg.sa, SCOPE);
+  const token = await analyticsCredentialToken(workspaceId, cfg.cred, SCOPE);
   const data = await googleApi<{
     rows?: Array<{ dimensionValues?: Array<{ value: string }>; metricValues?: Array<{ value: string }> }>;
   }>(
