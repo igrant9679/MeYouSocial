@@ -64,7 +64,7 @@ import { rescoreIdeas } from "@/lib/blog-idea-scoring";
  */
 
 const DAILY_AI_BUDGET = 20; // unattended generations per workspace per day
-const GENERATION_ACTIONS = ["blog.draft_generated", "ideas.ai_discovery", "social.variants_generated"];
+const GENERATION_ACTIONS = ["blog.draft_generated", "ideas.ai_discovery", "social.variants_generated", "social.post_generated"];
 
 const clip = (s: string | null | undefined, n = 600) => (s && s !== "{}" && s !== "[]" ? s.slice(0, n) : null);
 
@@ -901,6 +901,7 @@ export type CycleReport = {
   ideasCreated: number;
   drafted: number;
   variantPosts: number;
+  postsGenerated: number;
   published: number;
   videosPackaged: number;
   videosRendered: number;
@@ -912,6 +913,7 @@ export async function runAutopilotCycle(workspaceId: string): Promise<CycleRepor
     ideasCreated: 0,
     drafted: 0,
     variantPosts: 0,
+    postsGenerated: 0,
     published: 0,
     videosPackaged: 0,
     videosRendered: 0,
@@ -965,12 +967,24 @@ export async function runAutopilotCycle(workspaceId: string): Promise<CycleRepor
   }
 
   // 2. Drafting: draft approved ideas, park at the draft_review checkpoint.
+  // `autopilot:weekly_articles` caps how many articles the autopilot drafts in
+  // any rolling 7 days — the owner's "N articles a week" dial. Unset = the old
+  // behavior (bounded only by the approved-ideas pool and the daily budget).
   if (unattended("blog_drafting")) {
-    const approved = await db.blogIdea.findMany({
+    const { getSetting } = await import("@/lib/settings");
+    const weeklyRaw = parseInt(await getSetting("autopilot:weekly_articles", workspaceId).catch(() => ""), 10);
+    let allowance = 2; // per-cycle cap, as before
+    if (Number.isFinite(weeklyRaw) && weeklyRaw > 0) {
+      const draftedThisWeek = await db.auditLog.count({
+        where: { workspaceId, action: "blog.draft_generated", createdAt: { gte: new Date(Date.now() - 7 * 86_400_000) } },
+      });
+      allowance = Math.min(2, Math.max(0, weeklyRaw - draftedThisWeek));
+    }
+    const approved = allowance > 0 ? await db.blogIdea.findMany({
       where: { workspaceId, status: "approved" },
       orderBy: { createdAt: "asc" },
-      take: 2,
-    });
+      take: allowance,
+    }) : [];
     for (const idea of approved) {
       const post = await db.blogPost.create({
         data: { workspaceId, title: idea.title, focusKeyword: idea.keyword, status: "drafting" },
@@ -994,6 +1008,16 @@ export async function runAutopilotCycle(workspaceId: string): Promise<CycleRepor
     for (const p of bare) {
       const n = await generateVariantsCore(workspaceId, p.id);
       if (n > 0) report.variantPosts++;
+    }
+
+    // 3½. De-novo social posts on a weekly quota — same mode dial, same lock,
+    // same daily budget; additionally opt-in via social:autogen. One per
+    // cycle: the 30-minute cadence spreads the quota rather than bursting it.
+    const { generateSocialPostForWorkspace } = await import("@/lib/social/autogen");
+    try {
+      if (await generateSocialPostForWorkspace(workspaceId)) report.postsGenerated++;
+    } catch (e) {
+      console.error(`[social-autogen] failed for ${workspaceId}:`, e instanceof Error ? e.message : e);
     }
   }
 
@@ -1061,8 +1085,8 @@ export async function runAutopilotCycle(workspaceId: string): Promise<CycleRepor
   }
 
   const activity =
-    report.ideasCreated + report.drafted + report.variantPosts + report.published +
-    report.videosPackaged + report.videosRendered;
+    report.ideasCreated + report.drafted + report.variantPosts + report.postsGenerated +
+    report.published + report.videosPackaged + report.videosRendered;
   if (activity > 0) {
     await writeAudit({
       workspaceId,

@@ -4,7 +4,8 @@ import { requireMembership, canAdmin } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { GOVERNED_FUNCTIONS, FUNCTION_LABELS, MODES, getModes, isGloballyPaused } from "@/lib/governance";
 import { SubmitButton } from "@/components/SubmitButton";
-import { runAutopilotNowAction, setFunctionModeAction, toggleGlobalPauseAction } from "@/app/actions/blog-governance";
+import { runAutopilotNowAction, setFunctionModeAction, toggleGlobalPauseAction, saveWeeklyArticleTargetAction } from "@/app/actions/blog-governance";
+import { getSetting } from "@/lib/settings";
 
 // The three-mode autonomy dial + kill switch. Admin-writable; visible to all.
 
@@ -32,6 +33,7 @@ export default async function AutomationPage() {
   ]);
   const intervalMin = Math.max(5, parseInt(process.env.AUTOPILOT_INTERVAL_MIN ?? "30", 10) || 30);
   const autopilotOff = process.env.AUTOPILOT === "off";
+  const weeklyArticles = await getSetting("autopilot:weekly_articles", workspace.id).catch(() => "");
 
   return (
     <main className="p-6 w-full">
@@ -90,6 +92,33 @@ export default async function AutomationPage() {
           <form action={runAutopilotNowAction}>
             <SubmitButton className="btn" pendingText="Running cycle…">Run cycle now</SubmitButton>
           </form>
+        )}
+      </div>
+
+      {/* Volume — how much the autopilot writes, independent of HOW attended
+          it is (the mode dial below). */}
+      <div className="card mb-5 flex flex-wrap items-center gap-3">
+        <div className="flex-1 min-w-48">
+          <div className="text-sm font-semibold">Weekly article target</div>
+          <div className="text-xs text-[var(--mute)]">
+            Caps how many articles the autopilot drafts in any rolling 7 days (each still parks at the
+            review checkpoint unless publishing is on auto). Empty = no cap — bounded only by approved
+            ideas and the daily AI budget of 20 generations. Auto-generated <b>social posts</b> have
+            their own weekly dial on the Social page under Workflow.
+          </div>
+        </div>
+        {admin ? (
+          <form action={saveWeeklyArticleTargetAction} className="flex items-center gap-2">
+            <input
+              type="number" name="weeklyArticles" min={0} max={50}
+              defaultValue={weeklyArticles || ""}
+              placeholder="∞"
+              className="w-20 border border-[var(--line-2)] rounded-lg p-2 text-sm font-mono"
+            />
+            <SubmitButton className="btn sm" pendingText="Saving…">Save</SubmitButton>
+          </form>
+        ) : (
+          <span className="font-mono text-sm">{weeklyArticles || "no cap"}</span>
         )}
       </div>
 

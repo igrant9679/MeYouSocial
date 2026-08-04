@@ -174,14 +174,23 @@ export async function saveSocialWorkflowSettingsAction(formData: FormData) {
   const approval = String(formData.get("requireApproval") ?? "") === "on";
   const evergreen = String(formData.get("evergreenFill") ?? "") === "on";
   const autoImage = String(formData.get("autoImage") ?? "") === "on";
+  const autogen = String(formData.get("autogen") ?? "") === "on";
+  const autogenWeekly = Math.min(50, Math.max(1, parseInt(String(formData.get("autogenWeekly") ?? "5"), 10) || 5));
+  const autogenCampaignRaw = String(formData.get("autogenCampaign") ?? "").trim();
+  const autogenCampaign = autogenCampaignRaw
+    ? (await db.campaign.findFirst({ where: { id: autogenCampaignRaw, workspaceId: workspace.id, status: "active" }, select: { id: true } }))?.id ?? ""
+    : "";
   await setWorkspaceSetting(workspace.id, "social:require_approval", approval ? "true" : "false");
   await setWorkspaceSetting(workspace.id, "social:evergreen_fill", evergreen ? "true" : "false");
   // ⚠ Default-ON semantics: absent means on, so the OFF state must be written
   // explicitly — clearing the row would silently turn it back on.
   await setWorkspaceSetting(workspace.id, "social:auto_image", autoImage ? "true" : "false");
+  await setWorkspaceSetting(workspace.id, "social:autogen", autogen ? "true" : "false");
+  await setWorkspaceSetting(workspace.id, "social:autogen_weekly", String(autogenWeekly));
+  await setWorkspaceSetting(workspace.id, "social:autogen_campaign", autogenCampaign);
   revalidatePath("/social");
   backTo(
-    `Approval workflow ${approval ? "on" : "off"} · evergreen auto-fill ${evergreen ? "on" : "off"} · auto-image ${autoImage ? "on" : "off"}.`,
+    `Approval ${approval ? "on" : "off"} · evergreen fill ${evergreen ? "on" : "off"} · auto-image ${autoImage ? "on" : "off"} · auto-generate ${autogen ? `${autogenWeekly}/week` : "off"}.`,
     "ok",
   );
 }

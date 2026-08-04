@@ -94,6 +94,11 @@ export default async function SocialPage({ searchParams }: { searchParams: Promi
     // Default-ON: only an explicit "false" turns auto-image off.
     getSetting("social:auto_image", workspace.id).catch(() => "").then((v) => v !== "false"),
   ]);
+  const [autogenOn, autogenWeekly, autogenCampaign] = await Promise.all([
+    getSetting("social:autogen", workspace.id).catch(() => "").then((v) => v === "true"),
+    getSetting("social:autogen_weekly", workspace.id).catch(() => "").then((v) => parseInt(v, 10) || 5),
+    getSetting("social:autogen_campaign", workspace.id).catch(() => ""),
+  ]);
   const isAdmin = canAdmin(membership.role);
   const activeCampaigns = campaigns.filter((c) => c.status === "active");
   // Slot categories that actually exist drive the composer's picker.
@@ -270,6 +275,9 @@ export default async function SocialPage({ searchParams }: { searchParams: Promi
             <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: autoImage ? "var(--green-soft)" : "var(--zebra)", color: autoImage ? "var(--green-on)" : "var(--mute)" }}>
               auto-image {autoImage ? "on" : "off"}
             </span>
+            <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: autogenOn ? "var(--green-soft)" : "var(--zebra)", color: autogenOn ? "var(--green-on)" : "var(--mute)" }}>
+              auto-generate {autogenOn ? `${autogenWeekly}/wk` : "off"}
+            </span>
           </summary>
           <form action={saveSocialWorkflowSettingsAction} className="mt-3 flex flex-col gap-2">
             <label className="inline-flex items-start gap-2 text-xs cursor-pointer">
@@ -296,6 +304,32 @@ export default async function SocialPage({ searchParams }: { searchParams: Promi
                 than faking it with stock.
               </span>
             </label>
+            <div className="flex items-start gap-2 text-xs">
+              <label className="inline-flex items-start gap-2 cursor-pointer">
+                <input type="checkbox" name="autogen" defaultChecked={autogenOn} className="mt-0.5" />
+                <b>Auto-generate posts.</b>
+              </label>
+              {/* Inputs are SIBLINGS of the label, never inside it — a click on
+                  a nested input would toggle the checkbox instead. */}
+              <span className="flex-1">
+                The autopilot writes fresh posts from your Topics —{" "}
+                <input type="number" name="autogenWeekly" min={1} max={50} defaultValue={autogenWeekly}
+                  className="w-14 border border-[var(--line-2)] rounded px-1 py-0.5 text-xs font-mono inline-block" />{" "}
+                per week, spread across the day, each with an auto-image, queued into free slots — or held
+                for approval when the approval workflow is on. Needs the <b>Social</b> mode dial under
+                Blog → Automation set to assisted or auto, and active Topics under Brand. Placeholder output is
+                never stored: no working AI key means no posts, visibly.
+                {activeCampaigns.length > 0 && (
+                  <span className="inline-flex items-center gap-1.5 ml-1">
+                    Campaign:{" "}
+                    <select name="autogenCampaign" defaultValue={autogenCampaign} className="border border-[var(--line-2)] rounded px-1 py-0.5 text-xs">
+                      <option value="">— none —</option>
+                      {activeCampaigns.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
+                  </span>
+                )}
+              </span>
+            </div>
             <div><SubmitButton className="btn sm" pendingText="Saving…">Save workflow</SubmitButton></div>
           </form>
         </details>

@@ -41,6 +41,24 @@ export async function setFunctionModeAction(formData: FormData) {
   revalidatePath("/blog/automation");
 }
 
+/** Admin: cap how many articles the autopilot drafts per rolling 7 days.
+ *  0 / empty clears the cap (pool- and budget-bounded, as before). */
+export async function saveWeeklyArticleTargetAction(formData: FormData) {
+  const { user, workspace } = await requireRole("ADMIN");
+  const raw = parseInt(String(formData.get("weeklyArticles") ?? ""), 10);
+  const value = Number.isFinite(raw) && raw > 0 ? String(Math.min(50, raw)) : "";
+  const { setWorkspaceSetting } = await import("@/lib/settings");
+  await setWorkspaceSetting(workspace.id, "autopilot:weekly_articles", value);
+  await writeAudit({
+    workspaceId: workspace.id,
+    actorId: user.id,
+    action: "governance.weekly_articles_set",
+    entityType: "workspace",
+    meta: { weeklyArticles: value || "unlimited" },
+  });
+  revalidatePath("/blog/automation");
+}
+
 export async function toggleGlobalPauseAction() {
   const { user, workspace } = await requireRole("ADMIN");
   const current = await db.automationState.findUnique({ where: { workspaceId: workspace.id } });
