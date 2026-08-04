@@ -23,7 +23,7 @@ import type { Role } from "@prisma/client";
 export type DeletableKind =
   | "channel" | "idea" | "script" | "chat" | "thumbnail" | "contentProject"
   | "task" | "asset" | "wikiDoc" | "audienceSubmission" | "audienceAvatar"
-  | "invitation" | "membership" | "zernioAccount" | "workspace";
+  | "invitation" | "membership" | "zernioAccount" | "workspace" | "campaign";
 
 export type DeletableTarget = { id: string; name: string };
 
@@ -87,6 +87,19 @@ export const DELETABLE: Record<DeletableKind, Deletable> = {
     },
     redirectTo: () => "/admin/channels",
     revalidate: ["/admin/channels", "/channels", "/"],
+  },
+
+  campaign: {
+    label: "campaign",
+    role: "ADMIN",
+    find: (id, workspaceId) => db.campaign.findFirst({ where: { id, workspaceId }, select: { id: true, name: true } }),
+    async impact(id, workspaceId) {
+      // SocialPost.campaignId is SetNull — the posts survive, they just unlink.
+      const posts = await db.socialPost.count({ where: { campaignId: id, workspaceId } });
+      return nonZero([["posts (kept, unlinked)", posts]]);
+    },
+    async remove(id, workspaceId) { await db.campaign.deleteMany({ where: { id, workspaceId } }); },
+    revalidate: ["/social"],
   },
 
   idea: {

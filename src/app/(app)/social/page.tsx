@@ -1,16 +1,29 @@
 import Link from "next/link";
-import { Share2, CalendarClock, Send, Copy, Trash2, RotateCw, Check, X, Clock, Pencil, Image as ImageIcon, Tags, Link2 as LinkIcon, ListPlus, BarChart3 } from "lucide-react";
+import { Share2, CalendarClock, Send, Copy, Trash2, RotateCw, Check, X, Clock, Pencil, Image as ImageIcon, Tags, Link2 as LinkIcon, ListPlus, BarChart3, Megaphone, Recycle, ShieldCheck, FileUp } from "lucide-react";
 import { requireRole, canAdmin } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { readJson } from "@/lib/db/json";
+import { getSetting } from "@/lib/settings";
 import { SocialComposer } from "@/components/SocialComposer";
 import { SocialCalendar, type CalendarPost } from "@/components/SocialCalendar";
 import { PostingSchedule } from "@/components/PostingSchedule";
 import { SubmitButton } from "@/components/SubmitButton";
+import { DeleteButton } from "@/components/DeleteButton";
+import { HelpTip } from "@/components/HelpTip";
+import { SOCIAL_TIPS } from "@/lib/help-tips";
 import { getUtmConfig } from "@/lib/social/utm";
 import { formatInZone, getQueue } from "@/lib/social/slots";
 import { saveUtmSettingsAction } from "@/app/actions/social";
 import { queueSocialPostAction, queueAllDraftsAction, syncSocialPerformanceAction } from "@/app/actions/social-slots";
+import {
+  createCampaignAction,
+  toggleCampaignAction,
+  approveSocialPostAction,
+  requestChangesSocialPostAction,
+  submitForApprovalAction,
+  saveSocialWorkflowSettingsAction,
+  importSocialCsvAction,
+} from "@/app/actions/social-workflow";
 import { networkFor } from "@/lib/social/networks";
 import {
   publishNowAction,
@@ -39,7 +52,7 @@ export default async function SocialPage({ searchParams }: { searchParams: Promi
   // Calendar is the natural primary view for a scheduler; agenda stays one click away.
   const mode = view === "agenda" ? "agenda" : "calendar";
 
-  const [accounts, posts, topicRows] = await Promise.all([
+  const [accounts, posts, topicRows, campaigns] = await Promise.all([
     db.zernioAccount.findMany({
       where: { workspaceId: workspace.id, status: "connected" },
       orderBy: { createdAt: "asc" },
@@ -48,13 +61,22 @@ export default async function SocialPage({ searchParams }: { searchParams: Promi
     db.socialPost.findMany({
       where: { workspaceId: workspace.id },
       orderBy: { createdAt: "desc" },
-      include: { targets: true, topic: { select: { name: true } } },
+      include: {
+        targets: true,
+        topic: { select: { name: true } },
+        campaign: { select: { name: true, color: true } },
+        recycledFrom: { select: { id: true } },
+      },
       take: 100,
     }),
     db.topic.findMany({
       where: { workspaceId: workspace.id, status: "active" },
       orderBy: { name: "asc" },
       select: { id: true, name: true, keywords: true },
+    }),
+    db.campaign.findMany({
+      where: { workspaceId: workspace.id },
+      orderBy: [{ status: "asc" }, { name: "asc" }],
     }),
   ]);
   const topics = topicRows.map((t) => ({ id: t.id, name: t.name, keywords: readJson<string[]>(t.keywords, []) }));
@@ -64,18 +86,30 @@ export default async function SocialPage({ searchParams }: { searchParams: Promi
     provider: a.platform,
     name: a.displayName ?? a.username,
   }));
-  const [utm, queue] = await Promise.all([getUtmConfig(workspace.id), getQueue(workspace.id)]);
+  const [utm, queue, requireApproval, evergreenFill] = await Promise.all([
+    getUtmConfig(workspace.id),
+    getQueue(workspace.id),
+    getSetting("social:require_approval", workspace.id).catch(() => "").then((v) => v === "true"),
+    getSetting("social:evergreen_fill", workspace.id).catch(() => "").then((v) => v === "true"),
+  ]);
+  const isAdmin = canAdmin(membership.role);
+  const activeCampaigns = campaigns.filter((c) => c.status === "active");
+  // Slot categories that actually exist drive the composer's picker.
+  const slotCategories = [...new Set(queue.slots.map((s) => s.category).filter((c): c is string => Boolean(c)))];
 
   // Slot instants are resolved here (the server owns the posting timezone) and
   // handed to the calendar as ISO, which buckets them by the VIEWER's local day.
-  const freeSlotIso = queue.free.slice(0, 60).map((d) => d.toISOString());
-  const nextFreeLabel = queue.free[0] ? formatInZone(queue.free[0], queue.timeZone) : null;
+  const freeSlotIso = queue.free.slice(0, 60).map((s) => s.at.toISOString());
+  const nextFreeLabel = queue.free[0] ? formatInZone(queue.free[0].at, queue.timeZone) : null;
   const hasSlots = queue.slots.some((s) => s.enabled);
 
   const scheduled = posts
     .filter((p) => p.status === "scheduled")
     .sort((a, b) => (a.scheduledAt?.getTime() ?? 0) - (b.scheduledAt?.getTime() ?? 0));
-  const drafts = posts.filter((p) => p.status === "draft");
+  // A held post is technically a draft; it lives in its own section so the
+  // review queue is one glance, not a hunt through drafts.
+  const awaiting = posts.filter((p) => p.approval === "pending");
+  const drafts = posts.filter((p) => p.status === "draft" && p.approval !== "pending");
   const history = posts.filter((p) => ["posted", "partial", "failed", "publishing"].includes(p.status));
 
   // Group scheduled by day for the agenda. Rendered on the server, so the day
@@ -106,7 +140,14 @@ export default async function SocialPage({ searchParams }: { searchParams: Promi
       {ok && <Banner kind="ok" text={ok} />}
       {err && <Banner kind="err" text={err} />}
 
-      <SocialComposer accounts={composerAccounts} topics={topics} queue={{ nextFree: nextFreeLabel, hasSlots }} />
+      <SocialComposer
+        accounts={composerAccounts}
+        topics={topics}
+        campaigns={activeCampaigns.map((c) => ({ id: c.id, name: c.name, color: c.color }))}
+        categories={slotCategories}
+        approvalNotice={requireApproval && !isAdmin}
+        queue={{ nextFree: nextFreeLabel, hasSlots }}
+      />
 
       <PostingSchedule
         slots={queue.slots}
@@ -152,6 +193,136 @@ export default async function SocialPage({ searchParams }: { searchParams: Promi
         </form>
       </details>
 
+      {/* Campaigns — named series with their own UTM tag and their own roll-up. */}
+      <details className="card mb-6">
+        <summary className="cursor-pointer text-sm font-semibold flex items-center gap-2">
+          <Megaphone className="w-4 h-4" style={{ color: "var(--blue-on)" }} />
+          Campaigns
+          <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: activeCampaigns.length ? "var(--blue-soft)" : "var(--zebra)", color: activeCampaigns.length ? "var(--blue-on)" : "var(--mute)" }}>
+            {activeCampaigns.length} active
+          </span>
+          <HelpTip text={SOCIAL_TIPS.campaign} side="bottom" wide />
+        </summary>
+        {campaigns.length > 0 && (
+          <div className="flex flex-col gap-1.5 mt-3 mb-3">
+            {campaigns.map((c) => {
+              const stats = posts.filter((p) => p.campaign && p.campaign.name === c.name);
+              const out = stats.filter((p) => ["posted", "partial"].includes(p.status)).length;
+              return (
+                <div key={c.id} className="flex items-center gap-2 text-xs rounded-lg border border-[var(--line)] px-2 py-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: /^#[0-9a-fA-F]{6}$/.test(c.color ?? "") ? c.color! : "var(--blue)" }} />
+                  <span className="font-semibold">{c.name}</span>
+                  {c.status === "archived" && <span className="font-mono text-[10px] text-[var(--mute)]">archived</span>}
+                  {c.utmCampaign && <span className="font-mono text-[10px] text-[var(--mute)]">utm: {c.utmCampaign}</span>}
+                  <span className="font-mono text-[10px] text-[var(--mute)]">{stats.length} post{stats.length === 1 ? "" : "s"} · {out} sent</span>
+                  <span className="flex-1" />
+                  {isAdmin && (
+                    <>
+                      <form action={toggleCampaignAction}>
+                        <input type="hidden" name="id" value={c.id} />
+                        <button className="btn sm" title={c.status === "active" ? "Archive — keeps the tag on existing posts" : "Reactivate"}>
+                          {c.status === "active" ? "Archive" : "Reactivate"}
+                        </button>
+                      </form>
+                      <DeleteButton kind="campaign" id={c.id} name={c.name} iconOnly className="btn sm" />
+                    </>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+        {isAdmin ? (
+          <form action={createCampaignAction} className="flex flex-wrap items-end gap-2 mt-2">
+            <label className="text-[11px] text-[var(--mute)]">
+              Name
+              <input name="name" required maxLength={60} placeholder="Q3 product launch" className="w-44 text-xs block mt-0.5" />
+            </label>
+            <label className="text-[11px] text-[var(--mute)]">
+              utm_campaign
+              <input name="utmCampaign" maxLength={80} placeholder="(optional — defaults to the workspace tag)" className="w-64 text-xs block mt-0.5" />
+            </label>
+            <label className="text-[11px] text-[var(--mute)]">
+              Color
+              <input name="color" type="color" defaultValue="#2563EB" className="block mt-0.5 h-7 w-10 p-0 border border-[var(--line-2)] rounded" />
+            </label>
+            <SubmitButton className="btn sm" pendingText="Creating…">Create campaign</SubmitButton>
+          </form>
+        ) : (
+          <p className="text-[11px] text-[var(--mute)] mt-2">Only workspace admins manage campaigns; pick one on any post in the composer.</p>
+        )}
+      </details>
+
+      {/* Workflow — approval + evergreen auto-fill, both opt-in. */}
+      {isAdmin && (
+        <details className="card mb-6">
+          <summary className="cursor-pointer text-sm font-semibold flex items-center gap-2">
+            <ShieldCheck className="w-4 h-4" style={{ color: "var(--green-on)" }} />
+            Workflow
+            <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: requireApproval ? "var(--green-soft)" : "var(--zebra)", color: requireApproval ? "var(--green-on)" : "var(--mute)" }}>
+              approval {requireApproval ? "on" : "off"}
+            </span>
+            <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: evergreenFill ? "var(--green-soft)" : "var(--zebra)", color: evergreenFill ? "var(--green-on)" : "var(--mute)" }}>
+              evergreen fill {evergreenFill ? "on" : "off"}
+            </span>
+          </summary>
+          <form action={saveSocialWorkflowSettingsAction} className="mt-3 flex flex-col gap-2">
+            <label className="inline-flex items-start gap-2 text-xs cursor-pointer">
+              <input type="checkbox" name="requireApproval" defaultChecked={requireApproval} className="mt-0.5" />
+              <span>
+                <b>Require approval.</b> Posts by non-admins are held until an admin approves them —
+                nothing unapproved can be sent, scheduled, queued or dragged onto the calendar.
+              </span>
+            </label>
+            <label className="inline-flex items-start gap-2 text-xs cursor-pointer">
+              <input type="checkbox" name="evergreenFill" defaultChecked={evergreenFill} className="mt-0.5" />
+              <span>
+                <b>Evergreen auto-fill.</b> Free queue slots in the next 7 days are refilled with
+                eligible evergreen posts (each after its own cooldown). Off by default — automatic
+                posting should never be a surprise.
+              </span>
+            </label>
+            <div><SubmitButton className="btn sm" pendingText="Saving…">Save workflow</SubmitButton></div>
+          </form>
+        </details>
+      )}
+
+      {/* Bulk import */}
+      <details className="card mb-6">
+        <summary className="cursor-pointer text-sm font-semibold flex items-center gap-2">
+          <FileUp className="w-4 h-4" style={{ color: "var(--violet-on)" }} />
+          Import from CSV
+          <HelpTip text={SOCIAL_TIPS.csvImport} side="bottom" wide />
+        </summary>
+        <p className="text-[11px] text-[var(--mute)] mt-2 mb-2 leading-relaxed">
+          One post per row, up to 200 rows. Header row required; columns:{" "}
+          <code className="font-mono">text</code> (required),{" "}
+          <code className="font-mono">scheduledAt</code> (e.g. 2026-08-10T09:00),{" "}
+          <code className="font-mono">networks</code> (e.g. facebook|linkedin — empty = all),{" "}
+          <code className="font-mono">campaign</code> (by name),{" "}
+          <code className="font-mono">category</code>,{" "}
+          <code className="font-mono">evergreen</code> (true/false),{" "}
+          <code className="font-mono">recycleEveryDays</code>. Rows without a date land as drafts.
+        </p>
+        <form action={importSocialCsvAction} className="flex flex-wrap items-center gap-2" encType="multipart/form-data">
+          <input type="file" name="file" accept=".csv,text/csv" required className="text-xs" />
+          <SubmitButton className="btn sm" pendingText="Importing…">Import</SubmitButton>
+        </form>
+      </details>
+
+      {/* Awaiting approval — always visible, above the view toggle: a review
+          queue nobody sees is a review queue nobody clears. */}
+      {awaiting.length > 0 && (
+        <>
+          <Section icon={<ShieldCheck className="w-4 h-4" style={{ color: "var(--amber-on)" }} />} title="Awaiting approval" count={awaiting.length} />
+          <div className="flex flex-col gap-2 mb-6">
+            {awaiting.map((p) => (
+              <PostCard key={p.id} post={p} timeZone={queue.timeZone} isAdmin={isAdmin} approvalOn={requireApproval} />
+            ))}
+          </div>
+        </>
+      )}
+
       {/* View toggle — calendar (default) or the original agenda. */}
       <div className="flex items-center gap-2 mb-3 flex-wrap">
         <Link href="/social?view=calendar" className={`btn sm ${mode === "calendar" ? "primary" : ""}`}>Calendar</Link>
@@ -189,7 +360,7 @@ export default async function SocialPage({ searchParams }: { searchParams: Promi
           <div key={day} className="mb-4">
             <div className="text-[11px] font-mono uppercase tracking-wider text-[var(--mute)] mb-2">{day}</div>
             <div className="flex flex-col gap-2">
-              {items.map((p) => <PostCard key={p.id} post={p} canQueue={hasSlots} timeZone={queue.timeZone} />)}
+              {items.map((p) => <PostCard key={p.id} post={p} canQueue={hasSlots} timeZone={queue.timeZone} isAdmin={isAdmin} approvalOn={requireApproval} />)}
             </div>
           </div>
         ))
@@ -198,7 +369,7 @@ export default async function SocialPage({ searchParams }: { searchParams: Promi
       {drafts.length > 0 && (
         <>
           <Section icon={<Clock className="w-4 h-4" style={{ color: "var(--mute)" }} />} title="Drafts" count={drafts.length} />
-          <div className="flex flex-col gap-2 mb-6">{drafts.map((p) => <PostCard key={p.id} post={p} canQueue={hasSlots} timeZone={queue.timeZone} />)}</div>
+          <div className="flex flex-col gap-2 mb-6">{drafts.map((p) => <PostCard key={p.id} post={p} canQueue={hasSlots} timeZone={queue.timeZone} isAdmin={isAdmin} approvalOn={requireApproval} />)}</div>
         </>
       )}
 
@@ -218,7 +389,7 @@ export default async function SocialPage({ searchParams }: { searchParams: Promi
       {history.length === 0 ? (
         <Empty text="Posts you publish appear here with per-network status." />
       ) : (
-        <div className="flex flex-col gap-2">{history.map((p) => <PostCard key={p.id} post={p} timeZone={queue.timeZone} />)}</div>
+        <div className="flex flex-col gap-2">{history.map((p) => <PostCard key={p.id} post={p} timeZone={queue.timeZone} isAdmin={isAdmin} approvalOn={requireApproval} />)}</div>
       )}
     </div>
   );
@@ -232,6 +403,14 @@ type PostRow = {
   scheduledAt: Date | null;
   publishedAt: Date | null;
   topic: { name: string } | null;
+  campaign: { name: string; color: string | null } | null;
+  category: string | null;
+  evergreen: boolean;
+  recycleEveryDays: number;
+  timesRecycled: number;
+  recycledFrom: { id: string } | null;
+  approval: string | null;
+  reviewNote: string | null;
   targets: { id: string; provider: string; accountName: string | null; text: string | null; mediaKeys: string | null; status: string; error: string | null }[];
 };
 
@@ -246,18 +425,55 @@ function countKeys(raw: string | null): number {
   }
 }
 
-function PostCard({ post, canQueue = false, timeZone }: { post: PostRow; canQueue?: boolean; timeZone: string }) {
+function PostCard({
+  post, canQueue = false, timeZone, isAdmin = false, approvalOn = false,
+}: {
+  post: PostRow; canQueue?: boolean; timeZone: string; isAdmin?: boolean; approvalOn?: boolean;
+}) {
   const s = STATUS_STYLE[post.status] ?? STATUS_STYLE.draft;
   const when = post.scheduledAt ?? post.publishedAt;
   const canRetry = post.status === "failed" || post.status === "partial";
-  const unsent = post.status === "draft" || post.status === "scheduled";
+  const held = post.approval === "pending" || post.approval === "changes";
+  // Held posts hide the send buttons — the server refuses anyway, but showing
+  // controls that always fail reads as broken rather than as governed.
+  const unsent = (post.status === "draft" || post.status === "scheduled") && !held;
   return (
     <div className="card">
       <div className="flex items-center gap-2 flex-wrap mb-1.5">
         <span className="font-mono text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded-full" style={{ background: s.bg, color: s.fg }}>{s.label}</span>
+        {post.approval === "pending" && (
+          <span className="inline-flex items-center gap-1 font-mono text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }}>
+            <ShieldCheck className="w-2.5 h-2.5" /> awaiting approval
+          </span>
+        )}
+        {post.approval === "changes" && (
+          <span className="inline-flex items-center gap-1 font-mono text-[10px] px-1.5 py-0.5 rounded-full" title={post.reviewNote ?? undefined} style={{ background: "var(--rose-soft)", color: "var(--rose-on)" }}>
+            <ShieldCheck className="w-2.5 h-2.5" /> changes requested
+          </span>
+        )}
         {post.topic && (
           <span className="inline-flex items-center gap-1 font-mono text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "var(--violet-soft)", color: "var(--violet-on)" }}>
             <Tags className="w-2.5 h-2.5" /> {post.topic.name}
+          </span>
+        )}
+        {post.campaign && (
+          <span className="inline-flex items-center gap-1 font-mono text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "var(--blue-soft)", color: "var(--blue-on)" }}>
+            <Megaphone className="w-2.5 h-2.5" /> {post.campaign.name}
+          </span>
+        )}
+        {post.category && (
+          <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "var(--panel)", color: "var(--mute)" }}>
+            {post.category}
+          </span>
+        )}
+        {post.evergreen && (
+          <span className="inline-flex items-center gap-1 font-mono text-[10px] px-1.5 py-0.5 rounded-full" title={`Recycles every ${post.recycleEveryDays} days${post.timesRecycled ? ` · recycled ${post.timesRecycled}×` : ""}`} style={{ background: "var(--green-soft)", color: "var(--green-on)" }}>
+            <Recycle className="w-2.5 h-2.5" /> evergreen
+          </span>
+        )}
+        {post.recycledFrom && (
+          <span className="inline-flex items-center gap-1 font-mono text-[10px] px-1.5 py-0.5 rounded-full" title="Automatically recycled from an evergreen post" style={{ background: "var(--panel)", color: "var(--mute)" }}>
+            <Recycle className="w-2.5 h-2.5" /> recycled
           </span>
         )}
         {when && (
@@ -267,9 +483,32 @@ function PostCard({ post, canQueue = false, timeZone }: { post: PostRow; canQueu
           </span>
         )}
         <span className="flex-1" />
+        {/* Approval decisions — admin only, on held posts. */}
+        {post.approval === "pending" && isAdmin && (
+          <>
+            <form action={approveSocialPostAction}>
+              <input type="hidden" name="id" value={post.id} />
+              <button className="btn sm primary" title={post.scheduledAt ? "Approve — it keeps its requested time" : "Approve — it becomes a normal draft"}>
+                <Check className="w-3.5 h-3.5" /> Approve
+              </button>
+            </form>
+            <form action={requestChangesSocialPostAction} className="inline-flex items-center gap-1">
+              <input type="hidden" name="id" value={post.id} />
+              <input name="note" placeholder="What needs to change?" maxLength={500} className="text-xs w-44 border border-[var(--line-2)] rounded-lg px-1.5 py-1" />
+              <button className="btn sm" title="Send it back with a note"><X className="w-3.5 h-3.5" /> Request changes</button>
+            </form>
+          </>
+        )}
+        {/* A pre-workflow draft enters review here. */}
+        {approvalOn && !isAdmin && post.approval === null && (post.status === "draft" || post.status === "scheduled") && (
+          <form action={submitForApprovalAction}>
+            <input type="hidden" name="id" value={post.id} />
+            <button className="btn sm" title="Send to an admin for approval"><ShieldCheck className="w-3.5 h-3.5" /> Submit for approval</button>
+          </form>
+        )}
         {/* Queue = the schedule picks the time. Always available without a
             drag, which is what keeps calendar DnD an enhancement. */}
-        {unsent && canQueue && (
+        {unsent && canQueue && !(approvalOn && !isAdmin && post.approval === null) && (
           <form action={queueSocialPostAction}>
             <input type="hidden" name="id" value={post.id} />
             <button className="btn sm" title="Move to the next free slot on the posting schedule">
@@ -277,7 +516,7 @@ function PostCard({ post, canQueue = false, timeZone }: { post: PostRow; canQueu
             </button>
           </form>
         )}
-        {unsent && (
+        {unsent && !(approvalOn && !isAdmin) && (
           <form action={publishNowAction}>
             <input type="hidden" name="id" value={post.id} />
             <button className="btn sm" title="Publish immediately"><Send className="w-3.5 h-3.5" /> Post now</button>
@@ -295,8 +534,10 @@ function PostCard({ post, canQueue = false, timeZone }: { post: PostRow; canQueu
             <button className="btn sm" title="Move to drafts">Cancel</button>
           </form>
         )}
-        {unsent && (
-          <Link href={`/social/${post.id}/edit`} className="btn sm" title="Edit text, targets, schedule">
+        {/* Held posts stay EDITABLE — editing is how changes-requested gets
+            answered; it resubmits automatically. Only sending is locked. */}
+        {(post.status === "draft" || post.status === "scheduled") && (
+          <Link href={`/social/${post.id}/edit`} className="btn sm" title={held ? "Edit and resubmit for approval" : "Edit text, targets, schedule"}>
             <Pencil className="w-3.5 h-3.5" /> Edit
           </Link>
         )}
@@ -310,6 +551,11 @@ function PostCard({ post, canQueue = false, timeZone }: { post: PostRow; canQueu
         </form>
       </div>
       <p className="text-sm text-[var(--slate)] whitespace-pre-wrap mb-1">{post.text || <span className="text-[var(--mute)] italic">(image only)</span>}</p>
+      {post.approval === "changes" && post.reviewNote && (
+        <p className="text-xs rounded-lg px-2 py-1.5 mb-2" style={{ background: "var(--rose-soft)", color: "var(--rose-on)" }}>
+          Reviewer: {post.reviewNote}
+        </p>
+      )}
       {countKeys(post.mediaKeys) > 0 && (
         <p className="font-mono text-[10px] text-[var(--mute)] mb-2 inline-flex items-center gap-1">
           <ImageIcon className="w-3 h-3" /> {countKeys(post.mediaKeys)} base image{countKeys(post.mediaKeys) > 1 ? "s" : ""}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import { Send, CalendarClock, ImagePlus, X, Pencil, RotateCcw, Tags, Plus, ListPlus } from "lucide-react";
+import { Send, CalendarClock, ImagePlus, X, Pencil, RotateCcw, Tags, Plus, ListPlus, Megaphone, Recycle } from "lucide-react";
 import { SubmitButton } from "@/components/SubmitButton";
 import { createSocialPostAction, updateSocialPostAction } from "@/app/actions/social";
 import { networkFor } from "@/lib/social/networks";
@@ -11,12 +11,17 @@ import { AiAssist } from "@/components/AiAssist";
 
 export type ComposerAccount = { id: string; provider: string; name: string | null };
 export type ComposerTopic = { id: string; name: string; keywords: string[] };
+export type ComposerCampaign = { id: string; name: string; color: string | null };
 
 /** An existing post being edited. Absent = composing a new one. */
 export type ComposerInitial = {
   id: string;
   text: string;
   topicId: string | null;
+  campaignId: string | null;
+  category: string | null;
+  evergreen: boolean;
+  recycleEveryDays: number;
   /** ISO instant. Converted to a `datetime-local` value HERE, in the browser —
    *  formatting it on the server would print Railway's UTC wall clock. */
   scheduledAtIso: string | null;
@@ -58,11 +63,20 @@ function toLocalInput(iso: string): string {
 export function SocialComposer({
   accounts,
   topics = [],
+  campaigns = [],
+  categories = [],
+  approvalNotice = false,
   initial,
   queue,
 }: {
   accounts: ComposerAccount[];
   topics?: ComposerTopic[];
+  /** Active campaigns this post can join. */
+  campaigns?: ComposerCampaign[];
+  /** Slot categories that exist on the posting schedule, for the picker. */
+  categories?: string[];
+  /** True when this user's posts are held for approval before sending. */
+  approvalNotice?: boolean;
   initial?: ComposerInitial;
   queue?: ComposerQueue;
 }) {
@@ -74,6 +88,8 @@ export function SocialComposer({
   );
   const [text, setText] = useState(initial?.text ?? "");
   const [topicId, setTopicId] = useState(initial?.topicId ?? "");
+  const [campaignId, setCampaignId] = useState(initial?.campaignId ?? "");
+  const [evergreen, setEvergreen] = useState(initial?.evergreen ?? false);
   const [variants, setVariants] = useState<Record<string, string>>(initial?.variants ?? {});
   const [customizing, setCustomizing] = useState<Set<string>>(new Set(Object.keys(initial?.variants ?? {})));
   const [when, setWhen] = useState<"now" | "schedule" | "draft" | "queue">(
@@ -184,6 +200,59 @@ export function SocialComposer({
           ))}
         </div>
       )}
+
+      {/* Campaign + slot category — both optional, both plain selects. */}
+      {(campaigns.length > 0 || categories.length > 0) && (
+        <div className="flex flex-wrap items-center gap-3">
+          {campaigns.length > 0 && (
+            <>
+              <label className="inline-flex items-center gap-1.5 text-xs">
+                <Megaphone className="w-3.5 h-3.5" style={{ color: "var(--blue-on)" }} />
+                <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">Campaign</span>
+                <select name="campaignId" value={campaignId} onChange={(e) => setCampaignId(e.target.value)}
+                  className="border border-[var(--line-2)] rounded-lg px-2 py-1 text-xs">
+                  <option value="">— none —</option>
+                  {campaigns.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </label>
+              {/* Sibling of the label, same trap as the Topic tip. */}
+              <HelpTip text={SOCIAL_TIPS.campaign} side="bottom" wide />
+            </>
+          )}
+          {categories.length > 0 && (
+            <>
+              <label className="inline-flex items-center gap-1.5 text-xs">
+                <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">Slot category</span>
+                <select name="category" defaultValue={initial?.category ?? ""}
+                  className="border border-[var(--line-2)] rounded-lg px-2 py-1 text-xs">
+                  <option value="">— any —</option>
+                  {categories.map((c) => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </label>
+              <HelpTip text={SOCIAL_TIPS.slotCategory} side="bottom" wide />
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Evergreen — flag it now; recycling starts once it has been posted. */}
+      <div className="flex flex-wrap items-center gap-2">
+        <label className="inline-flex items-center gap-1.5 text-xs cursor-pointer">
+          <input type="checkbox" name="evergreen" checked={evergreen} onChange={(e) => setEvergreen(e.target.checked)} />
+          <Recycle className="w-3.5 h-3.5" style={{ color: "var(--green-on)" }} />
+          Evergreen — recycle this post
+        </label>
+        <HelpTip text={SOCIAL_TIPS.evergreen} side="bottom" wide />
+        {evergreen && (
+          <label className="inline-flex items-center gap-1.5 text-[11px] text-[var(--mute)]">
+            every
+            <input type="number" name="recycleEveryDays" min={1} max={365}
+              defaultValue={initial?.recycleEveryDays ?? 30}
+              className="w-16 border border-[var(--line-2)] rounded-lg px-1.5 py-0.5 text-xs font-mono" />
+            days, into a free queue slot
+          </label>
+        )}
+      </div>
 
       {/* Base composer */}
       <div>
@@ -357,6 +426,11 @@ export function SocialComposer({
           />
         )}
         <span className="flex-1" />
+        {approvalNotice && (
+          <span className="text-[11px]" style={{ color: "var(--amber-on)" }}>
+            Held for approval before it goes out
+          </span>
+        )}
         <SubmitButton
           className="btn primary"
           disabled={selected.size === 0 || anyOver}

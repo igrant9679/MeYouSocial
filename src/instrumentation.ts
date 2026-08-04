@@ -85,6 +85,12 @@ export async function register() {
     const { publishDueSocialPosts } = await import("@/lib/social/publish");
     const n = await publishDueSocialPosts();
     if (n > 0) console.log(`[social] published ${n} due post(s)`);
+    // Evergreen refill rides the same lock: it writes scheduled posts, so it
+    // must never race the publisher or run on two replicas at once. Opt-in per
+    // workspace (social:evergreen_fill) — the sweep no-ops cheaply otherwise.
+    const { recycleEvergreenPosts } = await import("@/lib/social/evergreen");
+    const r = await recycleEvergreenPosts();
+    if (r > 0) console.log(`[social] recycled ${r} evergreen post(s) into free slots`);
   });
   globals.__socialTimer = setInterval(socialSweep, socialSec * 1000);
   console.log(`[social] scheduler armed — every ${socialSec}s`);

@@ -55,6 +55,18 @@ export const SOCIAL_TIPS = {
     "Off by default. When on, links get utm_* tags at send, per network — that's what lets analytics tell a LinkedIn click apart from an X one. Links you've already tagged yourself are left alone.",
   perNetworkStatus:
     "Each account's leg is tracked separately, so one network failing doesn't hide the others succeeding.",
+  campaign:
+    "Group this post into a named series. A campaign can carry its own utm_campaign tag, so analytics can report the series as a series.",
+  slotCategory:
+    "Route this post to slots of one category (e.g. 'tips' every Tuesday). It falls back to a general slot if its category has none free — nothing ever strands.",
+  evergreen:
+    "Once this post has gone out, the scheduler may clone it back into a free queue slot after the cooldown — if evergreen auto-fill is switched on below. Clones appear in the queue like any scheduled post and can be edited or cancelled.",
+  approvalWorkflow:
+    "When on, posts by non-admins are held as drafts until an admin approves them. Nothing unapproved can be sent, scheduled, queued or dragged onto the calendar.",
+  evergreenFill:
+    "When on, free queue slots in the next 7 days are automatically refilled with eligible evergreen posts. Off by default — automatic posting should never be a surprise.",
+  csvImport:
+    "One post per row: text, optional scheduledAt, networks, campaign, category, evergreen. Text-only — networks that require an image are skipped with a note.",
 };
 
 /** Ideas / Intel — where the numbers come from. */

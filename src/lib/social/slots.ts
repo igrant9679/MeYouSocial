@@ -22,7 +22,14 @@ import { getSetting } from "@/lib/settings";
  * (which knows the workspace's zone). Neither may use the server's local zone.
  */
 
-export type PostingSlotRow = { id: string; weekday: number; minute: number; enabled: boolean };
+export type PostingSlotRow = {
+  id: string;
+  weekday: number;
+  minute: number;
+  enabled: boolean;
+  /** Buffer-style content category. Null = general slot, takes anything. */
+  category: string | null;
+};
 
 /** Used when the workspace hasn't picked one. Honest, if not always right — the
  *  schedule editor nudges the user to save their detected zone. */
@@ -154,13 +161,16 @@ export async function listPostingSlots(workspaceId: string): Promise<PostingSlot
   const rows = await db.postingSlot.findMany({
     where: { workspaceId },
     orderBy: [{ weekday: "asc" }, { minute: "asc" }],
-    select: { id: true, weekday: true, minute: true, enabled: true },
+    select: { id: true, weekday: true, minute: true, enabled: true, category: true },
   });
   // Monday-first, matching how the schedule editor and calendar read.
   return rows.sort(
     (a, b) => WEEK_ORDER.indexOf(a.weekday) - WEEK_ORDER.indexOf(b.weekday) || a.minute - b.minute,
   );
 }
+
+/** A concrete future firing of a slot — the instant plus the slot's category. */
+export type UpcomingInstant = { at: Date; category: string | null };
 
 /**
  * Every slot instant strictly after `from`, in ascending order.
@@ -170,11 +180,11 @@ export async function listPostingSlots(workspaceId: string): Promise<PostingSlot
  */
 export function upcomingSlotInstants(
   slots: PostingSlotRow[], timeZone: string, from: Date, limit = 200,
-): Date[] {
+): UpcomingInstant[] {
   const active = slots.filter((s) => s.enabled);
   if (active.length === 0) return [];
 
-  const out: Date[] = [];
+  const out: UpcomingInstant[] = [];
   const start = zonedParts(from, timeZone);
   // A UTC-midnight marker used purely as a local-calendar cursor: we only ever
   // read its Y/M/D and weekday, never treat it as a real instant.
@@ -191,7 +201,7 @@ export function upcomingSlotInstants(
         c.getUTCFullYear(), c.getUTCMonth() + 1, c.getUTCDate(),
         Math.floor(s.minute / 60), s.minute % 60, timeZone,
       );
-      if (at.getTime() > from.getTime()) out.push(at);
+      if (at.getTime() > from.getTime()) out.push({ at, category: s.category });
     }
     cursor += DAY_MS;
   }
@@ -216,7 +226,10 @@ async function occupiedMinutes(
   return new Set(rows.map((r) => Math.floor(r.scheduledAt!.getTime() / 60_000)));
 }
 
-export type SlotInstant = { at: Date; taken: boolean };
+export type SlotInstant = { at: Date; taken: boolean; category: string | null };
+
+/** A free slot the queue can claim. */
+export type FreeSlot = { at: Date; category: string | null };
 
 export type QueueView = {
   timeZone: string;
@@ -225,8 +238,9 @@ export type QueueView = {
   slots: PostingSlotRow[];
   /** Upcoming slot instants with occupancy — drives the calendar's ghost chips. */
   upcoming: SlotInstant[];
-  /** Just the free ones, ascending — `free[0]` is where "add to queue" lands. */
-  free: Date[];
+  /** Just the free ones, ascending — `pickFreeSlot` decides which one a given
+   *  post takes, respecting slot categories. */
+  free: FreeSlot[];
 };
 
 /**
@@ -246,20 +260,44 @@ export async function getQueue(
   ]);
   const instants = upcomingSlotInstants(slots, timeZone, from, opts.limit ?? 200);
   const taken = instants.length ? await occupiedMinutes(workspaceId, from, opts.excludePostId) : new Set<number>();
-  const upcoming = instants.map((at) => ({ at, taken: taken.has(Math.floor(at.getTime() / 60_000)) }));
+  const upcoming = instants.map(({ at, category }) => ({
+    at, category, taken: taken.has(Math.floor(at.getTime() / 60_000)),
+  }));
   return {
     timeZone,
     timeZoneConfigured: configured,
     slots,
     upcoming,
-    free: upcoming.filter((s) => !s.taken).map((s) => s.at),
+    free: upcoming.filter((s) => !s.taken).map(({ at, category }) => ({ at, category })),
   };
 }
 
-/** The single next free slot, or null when there's no schedule / it's full. */
-export async function nextFreeSlot(workspaceId: string, excludePostId?: string): Promise<Date | null> {
+/**
+ * Which free slot a post of `category` takes — the whole category rule, in one
+ * place, written so nothing ever strands:
+ *
+ *   - a CATEGORIZED post prefers the earliest slot of its own category, then
+ *     falls back to the earliest GENERAL (uncategorized) slot;
+ *   - an UNCATEGORIZED post prefers the earliest general slot, then falls back
+ *     to the earliest slot of any category.
+ *
+ * A workspace that never touches categories therefore behaves exactly as
+ * before, and a fully-categorized schedule still accepts plain posts.
+ */
+export function pickFreeSlot(free: FreeSlot[], category: string | null | undefined): FreeSlot | null {
+  const want = (category ?? "").trim() || null;
+  if (want) {
+    return free.find((s) => s.category === want) ?? free.find((s) => s.category === null) ?? null;
+  }
+  return free.find((s) => s.category === null) ?? free[0] ?? null;
+}
+
+/** The single next free slot for that category, or null when none. */
+export async function nextFreeSlot(
+  workspaceId: string, excludePostId?: string, category?: string | null,
+): Promise<Date | null> {
   const { free } = await getQueue(workspaceId, { excludePostId, limit: 60 });
-  return free[0] ?? null;
+  return pickFreeSlot(free, category)?.at ?? null;
 }
 
 /** Why a queue request couldn't be honoured — the caller turns this into copy. */
@@ -280,10 +318,11 @@ export function formatInZone(at: Date, timeZone: string): string {
 }
 
 export async function claimNextFreeSlot(
-  workspaceId: string, excludePostId?: string,
+  workspaceId: string, excludePostId?: string, category?: string | null,
 ): Promise<{ at: Date } | { error: QueueFailure }> {
   const { slots, free } = await getQueue(workspaceId, { excludePostId, limit: 60 });
   if (slots.filter((s) => s.enabled).length === 0) return { error: "no-slots" };
-  if (free.length === 0) return { error: "full" };
-  return { at: free[0] };
+  const slot = pickFreeSlot(free, category);
+  if (!slot) return { error: "full" };
+  return { at: slot.at };
 }

@@ -82,8 +82,23 @@ function makeUploader(): MediaUploader {
 }
 
 export async function publishSocialPost(postId: string): Promise<void> {
-  const post = await db.socialPost.findUnique({ where: { id: postId }, include: { targets: true } });
+  const post = await db.socialPost.findUnique({
+    where: { id: postId },
+    include: { targets: true, campaign: { select: { utmCampaign: true } } },
+  });
   if (!post) return;
+
+  // ⚠ Unapproved content must never reach a network, whoever calls this and
+  // however the post got here. The sweep's claim already excludes these; this
+  // guard covers the direct paths (Post now, retry) and anything future. The
+  // post drops back to draft — leaving it "scheduled" would make the sweep
+  // retry a post it can never send.
+  if (post.approval === "pending" || post.approval === "changes") {
+    if (post.status !== "draft") {
+      await db.socialPost.update({ where: { id: post.id }, data: { status: "draft" } });
+    }
+    return;
+  }
 
   const pending = post.targets.filter((t) => t.status !== "posted");
   if (pending.length === 0) {
@@ -114,7 +129,9 @@ export async function publishSocialPost(postId: string): Promise<void> {
     // text stays the author's and re-editing can't accumulate params.
     const specs: ZernioPostTargetSpec[] = [];
     for (const t of pending) {
-      const text = await tagLinksForNetwork(t.text ?? post.text, post.workspaceId, t.provider);
+      const text = await tagLinksForNetwork(
+        t.text ?? post.text, post.workspaceId, t.provider, post.campaign?.utmCampaign,
+      );
       const ownKeys = t.mediaKeys ? readJson<string[]>(t.mediaKeys, []) : null;
       specs.push({
         platform: t.provider.toLowerCase(),
@@ -204,7 +221,15 @@ export async function publishSocialPost(postId: string): Promise<void> {
  */
 export async function publishDueSocialPosts(): Promise<number> {
   const due = await db.socialPost.findMany({
-    where: { status: "scheduled", scheduledAt: { lte: new Date() } },
+    // ⚠ The approval filter is spelled as an OR over the two sendable values,
+    // NOT `notIn: ["pending","changes"]` — SQL's NOT IN excludes NULL rows,
+    // which would silently stop every normal (approval = null) post from ever
+    // publishing. `approval` only ever holds null|pending|approved|changes.
+    where: {
+      status: "scheduled",
+      scheduledAt: { lte: new Date() },
+      OR: [{ approval: null }, { approval: "approved" }],
+    },
     select: { id: true },
     take: 50,
   });

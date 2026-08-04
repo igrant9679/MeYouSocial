@@ -52,6 +52,7 @@ model Workspace {
   socialPosts     SocialPost[]
   postingSlots    PostingSlot[]
   topics          Topic[]
+  campaigns       Campaign[]
 
   // This workspace's Zernio profile — Zernio's tenant boundary. Created lazily
   // the first time an account is connected, then reused.
@@ -1378,28 +1379,83 @@ model ZernioAccount {
 // A composed post fanned out to one or more connected social accounts, publish
 // now or scheduled. Publishing goes through Unipile; each target carries its own
 // status so a 3-network post records exactly which legs succeeded.
+// A named series of posts — its own UTM tag at send, its own report roll-up.
+// Grouping only: campaigns don't own slots; the queue stays one per workspace.
+model Campaign {
+  id          String   @id @default(cuid())
+  workspaceId String
+  name        String
+  // utm_campaign value stamped on this campaign's links at send. Empty = fall
+  // back to the workspace-wide social:utm_campaign setting.
+  utmCampaign String?
+  color       String?  // hex accent for chips; re-validated before use in CSS
+  status      String   @default("active") // active | archived
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  posts     SocialPost[]
+
+  @@unique([workspaceId, name])
+  @@index([workspaceId, status])
+}
+
 model SocialPost {
   id          String   @id @default(cuid())
   workspaceId String
   createdById String?
   topicId     String?  // optional workspace Topic this post belongs to
+  campaignId  String?  // optional Campaign this post belongs to
+  // Matches PostingSlot.category: which slot lane this post queues into.
+  // Null = uncategorized (queues into uncategorized slots, then any).
+  category    String?
   text        String
   mediaKeys   String   @default("[]") // JSON array of StorageProvider keys
   scheduledAt DateTime?               // null = draft / post-now
   // draft | scheduled | publishing | posted | partial | failed
   status      String   @default("draft")
   publishedAt DateTime?
+
+  // ── Evergreen recycling ────────────────────────────────────────────────────
+  // An evergreen SOURCE is a normal post that, once it has gone out, the sweep
+  // may clone back into a free queue slot after `recycleEveryDays`. Clones
+  // carry `recycledFromId` and are never themselves evergreen — recycling
+  // always accounts against the source, so the cadence can't compound.
+  evergreen        Boolean   @default(false)
+  recycleEveryDays Int       @default(30)
+  recycleUntil     DateTime? // null = no end date
+  lastRecycledAt   DateTime?
+  timesRecycled    Int       @default(0)
+  recycledFromId   String?
+
+  // ── Approval workflow (opt-in: social:require_approval) ────────────────────
+  // null = never needed one | pending | approved | changes (changes requested).
+  // A pending/changes post cannot be scheduled, queued, or published — the
+  // guard lives in the publish path AND the sweep's claim, not just the UI.
+  approval     String?
+  approvedById String?
+  approvedAt   DateTime?
+  reviewNote   String?
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   workspace   Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   // Deleting a topic must not delete the posts that referenced it.
   topic       Topic?             @relation(fields: [topicId], references: [id], onDelete: SetNull)
+  // Same rule for campaigns: posts survive their campaign, they just unlink.
+  campaign    Campaign?          @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  // Clone → source. SetNull so deleting a source keeps the clones' history.
+  recycledFrom  SocialPost?  @relation("RecycleClones", fields: [recycledFromId], references: [id], onDelete: SetNull)
+  recycleClones SocialPost[] @relation("RecycleClones")
   targets     SocialPostTarget[]
 
   @@index([workspaceId, status])
   @@index([status, scheduledAt])
   @@index([workspaceId, topicId])
+  @@index([workspaceId, campaignId])
+  @@index([workspaceId, evergreen])
+  @@index([workspaceId, approval])
 }
 
 model SocialPostTarget {
@@ -1485,6 +1541,11 @@ model PostingSlot {
   weekday     Int      // 0 = Sunday … 6 = Saturday, matching Date#getDay()
   minute      Int      // minutes past local midnight, 0…1439
   enabled     Boolean  @default(true)
+  // Buffer-style content category ("tips", "promo"). Null = general slot.
+  // Matching rule lives in slots.ts: categorized posts prefer their own slots
+  // then fall back to general ones; uncategorized posts prefer general slots
+  // then fall back to any — so nothing ever strands.
+  category    String?
   createdAt   DateTime @default(now())
 
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)

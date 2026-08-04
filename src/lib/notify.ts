@@ -17,6 +17,7 @@ import { getPublicUrl } from "@/lib/public-url";
 
 export const NOTIFICATION_KINDS = [
   "approval_needed",
+  "approval_decided",
   "published",
   "publish_failed",
   "scheduled",
@@ -27,6 +28,7 @@ export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
 
 export const KIND_LABELS: Record<NotificationKind, string> = {
   approval_needed: "Something needs approval",
+  approval_decided: "A decision on my submitted post",
   published: "A post was published",
   publish_failed: "A publish failed",
   scheduled: "A post was scheduled",
@@ -37,6 +39,7 @@ export const KIND_LABELS: Record<NotificationKind, string> = {
 /** Email defaults to off for the chatty kinds, on for the ones that need a human. */
 const EMAIL_DEFAULT: Record<NotificationKind, boolean> = {
   approval_needed: true,
+  approval_decided: true,
   published: false,
   publish_failed: true,
   scheduled: false,

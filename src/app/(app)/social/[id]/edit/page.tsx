@@ -19,7 +19,7 @@ export default async function EditSocialPostPage({ params }: { params: Promise<{
   const { id } = await params;
   const { workspace } = await requireRole("EDITOR");
 
-  const [post, accounts, topicRows] = await Promise.all([
+  const [post, accounts, topicRows, campaigns] = await Promise.all([
     db.socialPost.findFirst({ where: { id, workspaceId: workspace.id }, include: { targets: true } }),
     db.zernioAccount.findMany({
       where: { workspaceId: workspace.id, status: "connected" },
@@ -30,6 +30,11 @@ export default async function EditSocialPostPage({ params }: { params: Promise<{
       where: { workspaceId: workspace.id, status: "active" },
       orderBy: { name: "asc" },
       select: { id: true, name: true, keywords: true },
+    }),
+    db.campaign.findMany({
+      where: { workspaceId: workspace.id, status: "active" },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true, color: true },
     }),
   ]);
   if (!post) notFound();
@@ -54,6 +59,10 @@ export default async function EditSocialPostPage({ params }: { params: Promise<{
     id: post.id,
     text: post.text,
     topicId: post.topicId,
+    campaignId: post.campaignId,
+    category: post.category,
+    evergreen: post.evergreen,
+    recycleEveryDays: post.recycleEveryDays,
     // ISO, not a formatted wall clock: the composer converts it in the browser.
     // Formatting here would print Railway's UTC clock, not the author's.
     scheduledAtIso: post.scheduledAt ? post.scheduledAt.toISOString() : null,
@@ -65,7 +74,8 @@ export default async function EditSocialPostPage({ params }: { params: Promise<{
   // Re-queueing ignores this post's own slot, so "Add to queue" on an already
   // queued post offers the slot it's in rather than bumping it down the line.
   const queue = await getQueue(workspace.id, { excludePostId: post.id, limit: 60 });
-  const nextFree = queue.free[0] ? formatInZone(queue.free[0], queue.timeZone) : null;
+  const nextFree = queue.free[0] ? formatInZone(queue.free[0].at, queue.timeZone) : null;
+  const slotCategories = [...new Set(queue.slots.map((s) => s.category).filter((c): c is string => Boolean(c)))];
 
   const droppedTargets = post.targets.length - selectedIds.length;
 
@@ -106,6 +116,9 @@ export default async function EditSocialPostPage({ params }: { params: Promise<{
         <SocialComposer
           accounts={composerAccounts}
           topics={topicRows.map((t) => ({ id: t.id, name: t.name, keywords: readJson<string[]>(t.keywords, []) }))}
+          campaigns={campaigns}
+          categories={slotCategories}
+          approvalNotice={post.approval === "pending" || post.approval === "changes"}
           initial={initial}
           queue={{ nextFree, hasSlots: queue.slots.some((s) => s.enabled) }}
         />

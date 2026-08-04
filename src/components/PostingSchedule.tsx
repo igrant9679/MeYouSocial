@@ -20,7 +20,11 @@ import {
  * detection has to happen here and be saved explicitly.
  */
 
-export type ScheduleSlot = { id: string; weekday: number; minute: number; enabled: boolean };
+export type ScheduleSlot = {
+  id: string; weekday: number; minute: number; enabled: boolean;
+  /** Buffer-style content category; null = general slot. */
+  category: string | null;
+};
 
 const WEEKDAYS = [
   { n: 1, label: "Mon" }, { n: 2, label: "Tue" }, { n: 3, label: "Wed" }, { n: 4, label: "Thu" },
@@ -163,6 +167,13 @@ export function PostingSchedule({
                   <span className="font-mono text-[11px]" style={{ color: s.enabled ? "var(--violet-on)" : "var(--mute)", textDecoration: s.enabled ? undefined : "line-through" }}>
                     {fmt(s.minute)}
                   </span>
+                  {s.category && (
+                    <span className="font-mono text-[9px] px-1 rounded-full truncate max-w-[64px]"
+                      title={`Only “${s.category}” posts queue here (general posts fall back to it when nothing else is free)`}
+                      style={{ background: "var(--panel)", color: "var(--mute)" }}>
+                      {s.category}
+                    </span>
+                  )}
                   <span className="flex-1" />
                   {canEdit && (
                     <>
@@ -217,6 +228,14 @@ export function PostingSchedule({
             <button type="button" className="btn sm" onClick={() => setDays(new Set(WEEKEND_NUMS))}>Weekend</button>
             <button type="button" className="btn sm" onClick={() => setDays(new Set([...WEEKDAY_NUMS, ...WEEKEND_NUMS]))}>All</button>
           </div>
+          <label className="text-[11px] text-[var(--mute)]">
+            Category <span className="text-[10px]">(optional)</span>
+            <input name="category" list="slot-cats" maxLength={40} placeholder="e.g. tips"
+              className="block mt-0.5 w-28 text-xs font-mono" />
+            <datalist id="slot-cats">
+              {[...new Set(slots.map((s) => s.category).filter(Boolean))].map((c) => <option key={c!} value={c!} />)}
+            </datalist>
+          </label>
           <span className="flex-1" />
           <SubmitButton className="btn primary sm" disabled={days.size === 0} pendingText="Adding…">
             <Plus className="w-3.5 h-3.5" /> Add slot{days.size > 1 ? `s (${days.size})` : ""}

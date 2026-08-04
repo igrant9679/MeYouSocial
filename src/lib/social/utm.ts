@@ -82,8 +82,21 @@ export function applyUtm(text: string, cfg: UtmConfig, provider: string): string
   });
 }
 
-/** Convenience for the publish path: resolve config then tag. */
-export async function tagLinksForNetwork(text: string, workspaceId: string, provider: string): Promise<string> {
+/**
+ * Convenience for the publish path: resolve config then tag.
+ *
+ * `campaignOverride` is the post's Campaign.utmCampaign — a campaign's own tag
+ * beats the workspace-wide one so a series is attributable as a series. Empty
+ * or absent falls back to the workspace setting, exactly like every other
+ * setting resolution in this codebase.
+ */
+export async function tagLinksForNetwork(
+  text: string,
+  workspaceId: string,
+  provider: string,
+  campaignOverride?: string | null,
+): Promise<string> {
   const cfg = await getUtmConfig(workspaceId);
-  return applyUtm(text, cfg, provider);
+  const campaign = (campaignOverride ?? "").trim();
+  return applyUtm(text, campaign ? { ...cfg, campaign } : cfg, provider);
 }

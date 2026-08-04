@@ -42,11 +42,13 @@ export async function addPostingSlotsAction(formData: FormData) {
     formData.getAll("weekdays").map((v) => Number(v)).filter((n) => Number.isInteger(n) && n >= 0 && n <= 6),
   )];
   if (weekdays.length === 0) backTo("Pick at least one day for that slot.");
+  // Optional Buffer-style category ("tips", "promo"). Empty = a general slot.
+  const category = String(formData.get("category") ?? "").trim().slice(0, 40) || null;
 
   // skipDuplicates: re-adding a time that already exists on some of the chosen
   // days should add the missing ones, not fail the whole submit.
   const { count } = await db.postingSlot.createMany({
-    data: weekdays.map((weekday) => ({ workspaceId: workspace.id, weekday, minute: minute! })),
+    data: weekdays.map((weekday) => ({ workspaceId: workspace.id, weekday, minute: minute!, category })),
     skipDuplicates: true,
   });
   revalidatePath("/social");
@@ -121,18 +123,28 @@ export async function syncSocialPerformanceAction() {
 
 // ---- Using the queue -----------------------------------------------------------
 
-/** Drop one post into the next free slot. */
+/** Drop one post into the next free slot (of its category, if it has one). */
 export async function queueSocialPostAction(formData: FormData) {
-  const { workspace } = await requireRole("EDITOR");
+  const { workspace, membership } = await requireRole("EDITOR");
   const id = String(formData.get("id") ?? "");
   const post = await db.socialPost.findFirst({
     where: { id, workspaceId: workspace.id },
-    select: { id: true, status: true },
+    select: { id: true, status: true, approval: true, category: true },
   });
   if (!post) backTo("Post not found.");
   if (post!.status !== "draft" && post!.status !== "scheduled") backTo("Only unsent posts can be queued.");
+  // Queueing IS scheduling — an unapproved post must not be able to reach a
+  // slot the sweep would then fire.
+  if (post!.approval === "pending") backTo("That post is awaiting approval — it can't be queued yet.");
+  if (post!.approval === "changes") backTo("Changes were requested on that post — edit and resubmit it first.");
+  if (post!.approval === null && membership.role !== "ADMIN") {
+    const { getSetting } = await import("@/lib/settings");
+    if ((await getSetting("social:require_approval", workspace.id).catch(() => "")) === "true") {
+      backTo("This workspace requires approval before posts go out — submit it for approval first.");
+    }
+  }
 
-  const claim = await claimNextFreeSlot(workspace.id, post!.id);
+  const claim = await claimNextFreeSlot(workspace.id, post!.id, post!.category);
   if ("error" in claim) backTo(queueFailureMessage(claim.error));
 
   await db.socialPost.update({
@@ -150,21 +162,47 @@ export async function queueSocialPostAction(formData: FormData) {
  * queue what fits and say exactly how many didn't, rather than refusing the lot.
  */
 export async function queueAllDraftsAction() {
-  const { workspace } = await requireRole("EDITOR");
-  const drafts = await db.socialPost.findMany({
+  const { workspace, membership } = await requireRole("EDITOR");
+  const all = await db.socialPost.findMany({
     where: { workspaceId: workspace.id, status: "draft" },
     orderBy: { createdAt: "asc" },
-    select: { id: true },
+    select: { id: true, approval: true, category: true },
   });
-  if (drafts.length === 0) backTo("No drafts to queue.");
+  if (all.length === 0) backTo("No drafts to queue.");
+
+  // Held posts are skipped, not failed on — "queue everything that's allowed
+  // to go" is what the button means once an approval workflow exists.
+  let requireApproval = false;
+  if (membership.role !== "ADMIN") {
+    const { getSetting } = await import("@/lib/settings");
+    requireApproval = (await getSetting("social:require_approval", workspace.id).catch(() => "")) === "true";
+  }
+  const drafts = all.filter(
+    (d) => d.approval !== "pending" && d.approval !== "changes" &&
+      !(requireApproval && d.approval === null),
+  );
+  const held = all.length - drafts.length;
+  if (drafts.length === 0) backTo(`All ${held} draft${held === 1 ? " is" : "s are"} waiting on approval.`);
 
   // One queue read, then assign in order — re-reading per draft would be N
-  // round-trips to learn something we already know.
+  // round-trips to learn something we already know. Each draft takes the
+  // earliest free slot its category allows, and slots claimed earlier in the
+  // loop are gone for the drafts after it.
   const { slots, free } = await getQueue(workspace.id, { limit: 200 });
   if (slots.filter((s) => s.enabled).length === 0) backTo(queueFailureMessage("no-slots"));
   if (free.length === 0) backTo(queueFailureMessage("full"));
 
-  const pairs = drafts.slice(0, free.length).map((d, i) => ({ id: d.id, at: free[i] }));
+  const { pickFreeSlot } = await import("@/lib/social/slots");
+  let remaining = free;
+  const pairs: Array<{ id: string; at: Date }> = [];
+  for (const d of drafts) {
+    const slot = pickFreeSlot(remaining, d.category);
+    if (!slot) continue; // nothing this category can take — try the next draft
+    pairs.push({ id: d.id, at: slot.at });
+    remaining = remaining.filter((f) => f.at.getTime() !== slot.at.getTime());
+  }
+  if (pairs.length === 0) backTo(queueFailureMessage("full"));
+
   await db.$transaction(
     pairs.map((p) =>
       db.socialPost.update({ where: { id: p.id }, data: { scheduledAt: p.at, status: "scheduled" } }),
@@ -172,10 +210,8 @@ export async function queueAllDraftsAction() {
   );
   const left = drafts.length - pairs.length;
   revalidatePath("/social");
-  backTo(
-    left > 0
-      ? `Queued ${pairs.length} draft${pairs.length === 1 ? "" : "s"}. ${left} didn't fit — add more slots.`
-      : `Queued ${pairs.length} draft${pairs.length === 1 ? "" : "s"}.`,
-    "ok",
-  );
+  const bits = [`Queued ${pairs.length} draft${pairs.length === 1 ? "" : "s"}.`];
+  if (left > 0) bits.push(`${left} didn't fit — add more slots.`);
+  if (held > 0) bits.push(`${held} skipped (awaiting approval).`);
+  backTo(bits.join(" "), "ok");
 }

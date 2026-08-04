@@ -331,6 +331,30 @@ export const HELP_CATEGORIES: FaqCategory[] = [
         tags: ["social", "edit", "draft", "reschedule", "scheduled"],
       },
       {
+        q: "What are campaigns on the Social page?",
+        a: "A campaign is a named series of posts — “Q3 product launch” — that can carry its **own utm_campaign tag**, so analytics reports the series as a series instead of one undifferentiated stream. Admins create campaigns under **Social → Campaigns** (name, tag, color); anyone composing a post can then pick one. Archiving a campaign keeps the tag on everything already sent but removes it from the picker; deleting one keeps the posts and just unlinks them.",
+        links: [{ label: "Social →", href: "/social" }],
+        tags: ["campaign", "series", "utm", "social", "grouping"],
+      },
+      {
+        q: "What does “evergreen” mean on a social post?",
+        a: "An evergreen post is one you're happy to re-share on a cycle. Once it has actually been posted, and its cooldown (default 30 days) has passed, the scheduler can **clone it into a free queue slot** — the clone appears in the queue like any scheduled post and can be edited or cancelled before it goes. Recycling only happens when **evergreen auto-fill** is switched on under Social → Workflow (it's off by default — automatic posting should never be a surprise), only fills slots in the next 7 days, and skips accounts that are no longer connected.",
+        links: [{ label: "Social →", href: "/social" }],
+        tags: ["evergreen", "recycle", "queue", "auto-fill", "social"],
+      },
+      {
+        q: "How does the social approval workflow work?",
+        a: "Turn on **Require approval** under Social → Workflow and posts by non-admins are **held as drafts** until an admin approves them — held posts cannot be sent, scheduled, queued or dragged onto the calendar, and the server enforces that, not just the buttons. Admins see an **Awaiting approval** section with Approve and Request-changes (with a note); approving honors the time the author asked for if it's still in the future. Authors are notified of decisions, and editing a sent-back post resubmits it automatically.",
+        links: [{ label: "Social →", href: "/social" }, { label: "Notifications →", href: "/notifications" }],
+        tags: ["approval", "review", "workflow", "permissions", "social"],
+      },
+      {
+        q: "Can I import many social posts at once?",
+        a: "Yes — **Social → Import from CSV**, one post per row, up to 200 rows. Columns: `text` (required), `scheduledAt`, `networks`, `campaign` (by name), `category`, `evergreen`, `recycleEveryDays`. Rows with a future date are scheduled, the rest land as drafts. The import is text-only, so networks that require an image (Instagram, Pinterest, YouTube…) are skipped per row with a note rather than being allowed to half-fail later. If approval is required, imported posts wait for it like everything else.",
+        links: [{ label: "Social →", href: "/social" }],
+        tags: ["csv", "import", "bulk", "social", "schedule"],
+      },
+      {
         q: "What is link tagging (UTM) on the Social page?",
         a: "When it's on, links in a post get UTM parameters added **as the post is sent**, using the **network as the source** — so `utm_source=linkedin` versus `utm_source=x`. That's what lets GA4, and the search & traffic panels on **Insights**, tell which network actually drove traffic instead of lumping it all together as referral. Links you already tagged yourself are left untouched, and the text you wrote is stored exactly as written — tagging happens at send, so editing a post can never pile up duplicate parameters.",
         links: [{ label: "Social →", href: "/social" }, { label: "Insights →", href: "/insights" }],

@@ -89,11 +89,51 @@ async function storeMedia(files: FormDataEntryValue[]): Promise<string[]> {
   return keys;
 }
 
+/**
+ * Approval workflow resolution for a post being created or resubmitted.
+ *
+ * When `social:require_approval` is on, a non-admin's post carries
+ * approval="pending" and is HELD AS A DRAFT whatever send option they chose —
+ * the requested time is kept on scheduledAt so approving can honor it. Admins'
+ * own posts are stamped "approved" so the UI can say so. With the workflow
+ * off, approval stays null and nothing changes.
+ */
+async function resolveApprovalForCreate(
+  workspaceId: string, role: string,
+): Promise<{ requireApproval: boolean; approval: string | null; held: boolean }> {
+  const { getSetting } = await import("@/lib/settings");
+  const requireApproval = (await getSetting("social:require_approval", workspaceId).catch(() => "")) === "true";
+  if (!requireApproval) return { requireApproval, approval: null, held: false };
+  const held = role !== "ADMIN";
+  return { requireApproval, approval: held ? "pending" : "approved", held };
+}
+
+/** Campaign / category / evergreen fields shared by create and update. */
+async function parseCompositionExtras(workspaceId: string, formData: FormData) {
+  // Campaign — validated against this workspace, same rule as topics.
+  const campaignRaw = String(formData.get("campaignId") ?? "").trim();
+  let campaignId: string | null = null;
+  if (campaignRaw) {
+    const c = await db.campaign.findFirst({
+      where: { id: campaignRaw, workspaceId, status: "active" },
+      select: { id: true },
+    });
+    campaignId = c?.id ?? null;
+  }
+  // Slot category — bounded free text; empty = uncategorized.
+  const category = String(formData.get("category") ?? "").trim().slice(0, 40) || null;
+  const evergreen = String(formData.get("evergreen") ?? "") === "on";
+  const recycleEveryDays = Math.min(
+    365, Math.max(1, parseInt(String(formData.get("recycleEveryDays") ?? "30"), 10) || 30),
+  );
+  return { campaignId, category, evergreen, recycleEveryDays };
+}
+
 export async function createSocialPostAction(formData: FormData) {
-  const { workspace, user } = await requireRole("EDITOR");
+  const { workspace, user, membership } = await requireRole("EDITOR");
   const text = String(formData.get("text") ?? "").trim();
   const accountIds = formData.getAll("accountIds").map(String).filter(Boolean);
-  const when = String(formData.get("when") ?? "now"); // now | schedule
+  const when = String(formData.get("when") ?? "now"); // now | schedule | queue
   const scheduledRaw = String(formData.get("scheduledAt") ?? "");
 
   if (accountIds.length === 0) backTo("Pick at least one account to post to.");
@@ -112,6 +152,9 @@ export async function createSocialPostAction(formData: FormData) {
     topicId = topic?.id ?? null;
   }
 
+  const { campaignId, category, evergreen, recycleEveryDays } = await parseCompositionExtras(workspace.id, formData);
+  const gate = await resolveApprovalForCreate(workspace.id, membership.role);
+
   let scheduledAt: Date | null = null;
   let status = "draft";
   if (when === "schedule") {
@@ -121,15 +164,19 @@ export async function createSocialPostAction(formData: FormData) {
     scheduledAt = t;
     status = "scheduled";
   } else if (when === "queue") {
-    // Next free slot on the workspace's posting schedule. Refuses rather than
-    // inventing a time — a queue with no schedule has nowhere to put this.
-    const claim = await claimNextFreeSlot(workspace.id);
+    // Next free slot on the workspace's posting schedule, respecting the
+    // post's category. Refuses rather than inventing a time — a queue with no
+    // schedule has nowhere to put this.
+    const claim = await claimNextFreeSlot(workspace.id, undefined, category);
     if ("error" in claim) backTo(queueFailureMessage(claim.error));
     scheduledAt = claim.at;
     status = "scheduled";
   } else {
     status = "publishing"; // publish immediately below
   }
+  // The approval hold beats every send option: the post lands as a draft with
+  // approval="pending", keeping the requested time for the approver to honor.
+  if (gate.held) status = "draft";
 
   // Per-network text overrides: variant_<PROVIDER> from the composer. Empty or
   // identical-to-base overrides are dropped so the target falls back to base.
@@ -164,6 +211,11 @@ export async function createSocialPostAction(formData: FormData) {
       workspaceId: workspace.id,
       createdById: user.id,
       topicId,
+      campaignId,
+      category,
+      evergreen,
+      recycleEveryDays,
+      approval: gate.approval,
       text,
       mediaKeys: writeJson(mediaKeys),
       scheduledAt,
@@ -180,6 +232,22 @@ export async function createSocialPostAction(formData: FormData) {
     },
   });
 
+  if (gate.held) {
+    const { notify } = await import("@/lib/notify");
+    await notify({
+      workspaceId: workspace.id,
+      kind: "approval_needed",
+      title: "A social post is waiting for approval",
+      body: text.slice(0, 140),
+      path: "/social",
+      entityType: "social_post",
+      entityId: post.id,
+      excludeUserId: user.id,
+    });
+    revalidatePath("/social");
+    backTo("Sent for approval — an admin will review it before it goes out.", "ok");
+  }
+
   if (status === "publishing") {
     await publishSocialPost(post.id);
     revalidatePath("/social");
@@ -194,12 +262,34 @@ export async function createSocialPostAction(formData: FormData) {
   );
 }
 
+/**
+ * Refuse to send or schedule content the approval workflow hasn't cleared.
+ *
+ * Two distinct refusals: a post explicitly held (pending/changes) is blocked
+ * for EVERYONE — approving is the act that unlocks it, one path, no shortcuts.
+ * A post with approval=null (predating the workflow, or a duplicate) is blocked
+ * only for non-admins while the workflow is on — they submit it instead.
+ */
+async function assertApprovedForSend(
+  workspaceId: string, role: string, post: { approval: string | null },
+): Promise<void> {
+  if (post.approval === "pending") backTo("That post is awaiting approval — an admin has to approve it first.");
+  if (post.approval === "changes") backTo("Changes were requested on that post — edit it and resubmit for approval.");
+  if (post.approval === null && role !== "ADMIN") {
+    const { getSetting } = await import("@/lib/settings");
+    if ((await getSetting("social:require_approval", workspaceId).catch(() => "")) === "true") {
+      backTo("This workspace requires approval before posts go out — submit it for approval first.");
+    }
+  }
+}
+
 export async function publishNowAction(formData: FormData) {
-  const { workspace } = await requireRole("EDITOR");
+  const { workspace, membership } = await requireRole("EDITOR");
   const id = String(formData.get("id") ?? "");
   const post = await db.socialPost.findFirst({ where: { id, workspaceId: workspace.id } });
   if (!post || post.status === "posted") backTo("Nothing to publish.");
-  await publishSocialPost(post.id);
+  await assertApprovedForSend(workspace.id, membership.role, post!);
+  await publishSocialPost(post!.id);
   revalidatePath("/social");
   backTo("Published — see per-network status below.", "ok");
 }
@@ -225,18 +315,25 @@ export async function deleteSocialPostAction(formData: FormData) {
 }
 
 export async function duplicateSocialPostAction(formData: FormData) {
-  const { workspace, user } = await requireRole("EDITOR");
+  const { workspace, user, membership } = await requireRole("EDITOR");
   const id = String(formData.get("id") ?? "");
   const src = await db.socialPost.findFirst({ where: { id, workspaceId: workspace.id }, include: { targets: true } });
   if (!src) backTo("Not found.");
+  // A duplicate is NEW content as far as the approval workflow is concerned —
+  // without this, duplicating a pending post would mint a sendable copy and
+  // walk straight around the review.
+  const gate = await resolveApprovalForCreate(workspace.id, membership.role);
   await db.socialPost.create({
     data: {
       workspaceId: workspace.id,
       createdById: user.id,
       topicId: src.topicId,
+      campaignId: src.campaignId,
+      category: src.category,
       text: src.text,
       mediaKeys: src.mediaKeys,
       status: "draft",
+      approval: gate.approval,
       targets: {
         create: src.targets.map((t) => ({ provider: t.provider, accountId: t.accountId, accountName: t.accountName, text: t.text, mediaKeys: t.mediaKeys })),
       },
@@ -264,7 +361,7 @@ async function loadEditablePost(workspaceId: string, id: string) {
 
 export async function updateSocialPostAction(formData: FormData) {
   const id = String(formData.get("id") ?? "");
-  const { workspace } = await requireRole("EDITOR");
+  const { workspace, user } = await requireRole("EDITOR");
   const post = await loadEditablePost(workspace.id, id);
   if (!post) backTo("That post can't be edited — it has already been sent or doesn't exist.");
 
@@ -289,6 +386,8 @@ export async function updateSocialPostAction(formData: FormData) {
     topicId = topic?.id ?? null;
   }
 
+  const { campaignId, category, evergreen, recycleEveryDays } = await parseCompositionExtras(workspace.id, formData);
+
   // Schedule: keep as draft, (re)schedule to a future time, or take a slot.
   const when = String(formData.get("when") ?? "draft");
   let scheduledAt: Date | null = null;
@@ -303,10 +402,22 @@ export async function updateSocialPostAction(formData: FormData) {
   } else if (when === "queue") {
     // Excludes this post's own slot, so re-queueing an already-queued post can
     // keep the slot it's in rather than being pushed to the back of the line.
-    const claim = await claimNextFreeSlot(workspace.id, post!.id);
+    const claim = await claimNextFreeSlot(workspace.id, post!.id, category);
     if ("error" in claim) backTo(queueFailureMessage(claim.error));
     scheduledAt = claim.at;
     status = "scheduled";
+  }
+
+  // A held post stays held through an edit: editing it is RESUBMISSION, not a
+  // way to slip past review. changes → pending is the author's answer to the
+  // reviewer; the note is cleared because it referred to the previous text.
+  let approval = post!.approval;
+  let reviewNote = post!.reviewNote;
+  const resubmitted = post!.approval === "changes";
+  if (post!.approval === "pending" || post!.approval === "changes") {
+    approval = "pending";
+    reviewNote = null;
+    status = "draft";
   }
 
   // Uppercased slug on both sides — see the note on the create path above.
@@ -371,15 +482,34 @@ export async function updateSocialPostAction(formData: FormData) {
     }
     await tx.socialPost.update({
       where: { id: post!.id },
-      data: { text, mediaKeys: writeJson(mediaKeys), topicId, scheduledAt, status },
+      data: {
+        text, mediaKeys: writeJson(mediaKeys), topicId, scheduledAt, status,
+        campaignId, category, evergreen, recycleEveryDays, approval, reviewNote,
+      },
     });
   });
 
+  if (resubmitted) {
+    const { notify } = await import("@/lib/notify");
+    await notify({
+      workspaceId: workspace.id,
+      kind: "approval_needed",
+      title: "An edited post was resubmitted for approval",
+      body: text.slice(0, 140),
+      path: "/social",
+      entityType: "social_post",
+      entityId: post!.id,
+      excludeUserId: user.id,
+    });
+  }
+
   revalidatePath("/social");
   backTo(
-    when === "queue"
-      ? `Saved and queued for ${formatInZone(scheduledAt!, await getPostingTimeZone(workspace.id))}.`
-      : status === "scheduled" ? "Saved and scheduled." : "Saved as a draft.",
+    approval === "pending"
+      ? "Saved — it's waiting for approval before it can go out."
+      : when === "queue"
+        ? `Saved and queued for ${formatInZone(scheduledAt!, await getPostingTimeZone(workspace.id))}.`
+        : status === "scheduled" ? "Saved and scheduled." : "Saved as a draft.",
     "ok",
   );
 }
@@ -427,12 +557,15 @@ export async function rescheduleSocialPostAction(id: string, isoDateTime: string
 
   const post = await db.socialPost.findFirst({
     where: { id, workspaceId: workspace.id },
-    select: { id: true, status: true },
+    select: { id: true, status: true, approval: true },
   });
   if (!post) return { ok: false, message: "Post not found." };
   if (post.status !== "draft" && post.status !== "scheduled") {
     return { ok: false, message: "Only unsent posts can be moved." };
   }
+  // Dragging onto the calendar is scheduling — same approval gate as the queue.
+  if (post.approval === "pending") return { ok: false, message: "Awaiting approval — it can't be scheduled yet." };
+  if (post.approval === "changes") return { ok: false, message: "Changes were requested — edit and resubmit it first." };
 
   await db.socialPost.update({
     where: { id: post.id },

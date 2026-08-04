@@ -16,6 +16,7 @@ import { KIND_LABELS, NOTIFICATION_KINDS, type NotificationKind } from "@/lib/no
 
 const KIND_HUE: Record<NotificationKind, string> = {
   approval_needed: "violet",
+  approval_decided: "violet",
   published: "green",
   publish_failed: "rose",
   scheduled: "blue",
@@ -150,6 +151,7 @@ export default async function NotificationsPage() {
 // Mirrors the defaults in src/lib/notify.ts so an unsaved form shows the truth.
 const DEFAULT_EMAIL: Record<NotificationKind, boolean> = {
   approval_needed: true,
+  approval_decided: true,
   published: false,
   publish_failed: true,
   scheduled: false,
