@@ -45,7 +45,16 @@ export function createGoogleProvider(apiKey: string): LLMProvider {
       config: {
         systemInstruction: req.system ? { parts: [{ text: req.system }] } : undefined,
         temperature: req.temperature,
-        maxOutputTokens: req.maxTokens ?? 4096,
+        // ⚠ Reasoning cushion. The gemini-2.5 family spends output tokens on
+        // internal thinking BEFORE emitting text, so a caller's tight cap
+        // ("about 1500 tokens of JSON, please") starves the visible answer and
+        // the call returns EMPTY — fluent nothing, which downstream JSON
+        // parsers read as "no ideas" rather than as an error. Every maxTokens
+        // in this codebase means "bound the ANSWER", so the reasoning budget
+        // is padded on top of it here, centrally, instead of every call site
+        // needing to know Gemini's accounting. (Found 2026-08-04 when idea
+        // discovery had silently produced 0 ideas since the Gemini switch.)
+        maxOutputTokens: (req.maxTokens ?? 4096) + 4096,
       },
     };
   }

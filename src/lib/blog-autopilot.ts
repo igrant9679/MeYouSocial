@@ -146,7 +146,12 @@ export async function discoverIdeasCore(workspaceId: string, topicId?: string | 
     model: workspace.defaultModel ?? llm.defaultModel,
     system,
     messages: [{ role: "user", content: prompt }],
-    maxTokens: 1500,
+    // ⚠ 8000, not 1500: gemini-2.5-pro is a REASONING model that spends its
+    // token budget thinking before emitting (the documented CLAUDE.md trap).
+    // At 1500 these calls returned EMPTY content, so the JSON match failed and
+    // the step silently produced nothing on every cycle since the workspaces
+    // moved to Gemini — found 2026-08-04.
+    maxTokens: 8000,
     workspaceId,
   });
 
@@ -399,7 +404,12 @@ export async function generateVariantsCore(workspaceId: string, postId: string):
     model: workspace.defaultModel ?? llm.defaultModel,
     system,
     messages: [{ role: "user", content: prompt }],
-    maxTokens: 1500,
+    // ⚠ 8000, not 1500: gemini-2.5-pro is a REASONING model that spends its
+    // token budget thinking before emitting (the documented CLAUDE.md trap).
+    // At 1500 these calls returned EMPTY content, so the JSON match failed and
+    // the step silently produced nothing on every cycle since the workspaces
+    // moved to Gemini — found 2026-08-04.
+    maxTokens: 8000,
     workspaceId,
   });
 
