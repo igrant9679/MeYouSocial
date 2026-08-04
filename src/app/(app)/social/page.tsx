@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { Share2, CalendarClock, Send, Copy, Trash2, RotateCw, Check, X, Clock, Pencil, Image as ImageIcon, Tags, Link2 as LinkIcon, ListPlus, BarChart3, Megaphone, Recycle, ShieldCheck, FileUp } from "lucide-react";
+import { Share2, CalendarClock, Send, Copy, Trash2, RotateCw, Check, X, Clock, Pencil, Tags, Link2 as LinkIcon, ListPlus, BarChart3, Megaphone, Recycle, ShieldCheck, FileUp } from "lucide-react";
 import { requireRole, canAdmin } from "@/lib/acl";
 import { db } from "@/lib/db";
+import { storage } from "@/lib/storage";
 import { readJson } from "@/lib/db/json";
 import { getSetting } from "@/lib/settings";
 import { SocialComposer } from "@/components/SocialComposer";
@@ -462,15 +463,34 @@ type PostRow = {
   targets: { id: string; provider: string; accountName: string | null; text: string | null; mediaKeys: string | null; status: string; error: string | null }[];
 };
 
-/** How many images a JSON key array holds (0 for null/malformed). */
-function countKeys(raw: string | null): number {
-  if (!raw) return 0;
+/** The image keys a JSON key array holds ([] for null/malformed). */
+function listKeys(raw: string | null): string[] {
+  if (!raw) return [];
   try {
     const arr = JSON.parse(raw);
-    return Array.isArray(arr) ? arr.length : 0;
+    return Array.isArray(arr) ? arr.filter((k): k is string => typeof k === "string") : [];
   } catch {
-    return 0;
+    return [];
   }
+}
+
+/** Thumbnail strip for stored media keys; each opens full-size in a new tab. */
+function MediaThumbs({ keys, size = "h-20 w-20" }: { keys: string[]; size?: string }) {
+  if (!keys.length) return null;
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {keys.map((k) => (
+        <a key={k} href={storage.url(k)} target="_blank" rel="noreferrer" title="Open full size">
+          <img
+            src={storage.url(k)}
+            alt="Post image"
+            loading="lazy"
+            className={`${size} rounded-lg object-cover border border-[var(--line)]`}
+          />
+        </a>
+      ))}
+    </div>
+  );
 }
 
 function PostCard({
@@ -604,25 +624,25 @@ function PostCard({
           Reviewer: {post.reviewNote}
         </p>
       )}
-      {countKeys(post.mediaKeys) > 0 && (
-        <p className="font-mono text-[10px] text-[var(--mute)] mb-2 inline-flex items-center gap-1">
-          <ImageIcon className="w-3 h-3" /> {countKeys(post.mediaKeys)} base image{countKeys(post.mediaKeys) > 1 ? "s" : ""}
-        </p>
+      {listKeys(post.mediaKeys).length > 0 && (
+        <div className="mb-2">
+          <MediaThumbs keys={listKeys(post.mediaKeys)} />
+        </div>
       )}
       {/* Per-network overrides — customized text and/or images. */}
       {post.targets.some((t) => t.text || t.mediaKeys) && (
         <div className="flex flex-col gap-1 mb-2">
           {post.targets.filter((t) => t.text || t.mediaKeys).map((t) => {
             const net = networkFor(t.provider);
-            const imgs = countKeys(t.mediaKeys);
+            const imgs = listKeys(t.mediaKeys);
             return (
               <div key={t.id} className="text-xs text-[var(--slate)] border-l-2 pl-2" style={{ borderColor: net?.color ?? "var(--line-2)" }}>
                 <span className="font-mono text-[10px] uppercase tracking-wider mr-1" style={{ color: net?.color ?? "var(--mute)" }}>{net?.label ?? t.provider}</span>
                 {t.text ? <span className="whitespace-pre-wrap">{t.text}</span> : <span className="text-[var(--mute)] italic">base text</span>}
-                {imgs > 0 && (
-                  <span className="font-mono text-[10px] text-[var(--mute)] ml-1.5 inline-flex items-center gap-1">
-                    <ImageIcon className="w-3 h-3" /> {imgs} own image{imgs > 1 ? "s" : ""}
-                  </span>
+                {imgs.length > 0 && (
+                  <div className="mt-1">
+                    <MediaThumbs keys={imgs} size="h-10 w-10" />
+                  </div>
                 )}
               </div>
             );
