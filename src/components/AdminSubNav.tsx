@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Users, Settings, Gauge, BarChart3, Layers, KeyRound, Mail, Plug, LineChart } from "lucide-react";
+import { Users, Settings, Gauge, BarChart3, Layers, KeyRound, Mail, Plug, LineChart, Building2 } from "lucide-react";
 
 /**
  * Admin's tab strip, with an ACTIVE state (like Production's, it used to
@@ -22,14 +22,21 @@ const NAV = [
   { href: "/admin/email",      label: "Email/SMTP",  icon: Mail,     color: "#0891B2" },
 ];
 
-export function AdminSubNav() {
+// Platform-operator-only tab — appended when the server layout says so. Kept
+// out of NAV so a tenant admin never sees a tab that only 403s for them.
+const OPERATOR_NAV = [
+  { href: "/admin/workspaces", label: "Workspaces",  icon: Building2, color: "#7C3AED" },
+];
+
+export function AdminSubNav({ operator = false }: { operator?: boolean }) {
   const pathname = usePathname() ?? "";
   const isActive = (href: string) =>
     href === "/admin" ? pathname === "/admin" : pathname === href || pathname.startsWith(href + "/");
+  const tabs = operator ? [...NAV, ...OPERATOR_NAV] : NAV;
 
   return (
     <nav className="flex flex-wrap gap-1 mb-5 border-b border-[var(--line)] overflow-x-auto pb-1">
-      {NAV.map((n) => {
+      {tabs.map((n) => {
         const Icon = n.icon;
         const on = isActive(n.href);
         return (
