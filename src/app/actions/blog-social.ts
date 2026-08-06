@@ -62,12 +62,13 @@ export async function postSocialVariantAction(formData: FormData) {
     if (msg) redirect(`/blog/${variant.postId}?tab=distribute&social_err=${encodeURIComponent(msg)}`);
   };
 
-  if (!(await zernioConfigured())) return revalidate("Zernio isn't configured — add the API key under Admin → Connections.");
+  if (!(await zernioConfigured(workspace.id))) return revalidate("Zernio isn't configured — add the API key under Admin → Connections.");
   // Blog variants store their own platform label; normalise it to a Zernio slug.
   const platform = platformFor(variant.platform)?.slug ?? variant.platform.toLowerCase();
   const account = await resolveSocialAccount(workspace.id, platform);
   if (!account) return revalidate(`No ${variant.platform} account connected. Connect one under Admin → Connections.`);
 
+  const ws = await db.workspace.findUnique({ where: { id: workspace.id }, select: { zernioProfileId: true } });
   const text = variant.content.replaceAll("{{URL}}", variant.post.publishedUrl ?? "");
   try {
     await createZernioPost({
@@ -77,6 +78,8 @@ export async function postSocialVariantAction(formData: FormData) {
       // Stable per variant: clicking "Post now" twice inside Zernio's window
       // returns the original post rather than posting again.
       requestId: `variant-${variant.id}`,
+      profileId: ws?.zernioProfileId ?? undefined,
+      workspaceId: workspace.id,
     });
   } catch (e) {
     return revalidate(e instanceof Error ? e.message : "Posting failed.");

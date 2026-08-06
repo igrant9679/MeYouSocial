@@ -6,6 +6,7 @@ import { DeleteButton } from "@/components/DeleteButton";
 import { SubmitButton } from "@/components/SubmitButton";
 import { unipileConfigured } from "@/lib/unipile";
 import { zernioConfigured, ZERNIO_PLATFORMS } from "@/lib/zernio";
+import { getWorkspaceSettingRaw } from "@/lib/settings";
 import { getPublicUrl } from "@/lib/public-url";
 import { HelpTip } from "@/components/HelpTip";
 import { ADMIN_TIPS } from "@/lib/help-tips";
@@ -24,6 +25,8 @@ import {
   saveZernioConfigAction,
   testZernioConfigAction,
   clearZernioConfigAction,
+  saveWorkspaceZernioKeyAction,
+  clearWorkspaceZernioKeyAction,
 } from "@/app/actions/connections";
 
 /**
@@ -51,9 +54,9 @@ export default async function ConnectionsPage({ searchParams }: { searchParams: 
   const { ok, err, connected, failed } = await searchParams;
 
   const isPlatformOperator = isOperator(user.email);
-  const [emailReady, socialReady, emailAccounts, socialAccounts, origin] = await Promise.all([
+  const [emailReady, socialReady, emailAccounts, socialAccounts, origin, ownZernioKey] = await Promise.all([
     unipileConfigured(),
-    zernioConfigured(),
+    zernioConfigured(workspace.id),
     db.unipileAccount.findMany({
       where: { workspaceId: workspace.id, kind: "email" },
       orderBy: [{ createdAt: "asc" }],
@@ -63,6 +66,7 @@ export default async function ConnectionsPage({ searchParams }: { searchParams: 
       orderBy: [{ status: "asc" }, { platform: "asc" }, { createdAt: "asc" }],
     }),
     getPublicUrl(),
+    getWorkspaceSettingRaw(workspace.id, "zernio:api_key"),
   ]);
 
   const cfgRows = isPlatformOperator
@@ -286,6 +290,53 @@ export default async function ConnectionsPage({ searchParams }: { searchParams: 
           <Mail className="w-4 h-4" /> Connect a mailbox (Gmail, Outlook, or any IMAP)
         </SubmitButton>
       </form>
+
+      {/* ── This workspace's own Zernio key ─────────────────────────────── */}
+      <div className="flex items-center gap-2 mb-2 mt-8 pt-4 border-t border-[var(--line)]">
+        <KeyRound className="w-4 h-4" style={{ color: "var(--purple-on)" }} />
+        <h2 className="font-mono font-bold text-sm">Zernio API key (this workspace)</h2>
+        <span
+          className="font-mono text-[10px] font-bold px-2 py-0.5 rounded-full"
+          style={ownZernioKey
+            ? { background: "var(--green-soft)", color: "var(--green-on)" }
+            : { background: "var(--zebra)", color: "var(--mute)" }}
+        >
+          {ownZernioKey ? "own key" : "using platform key"}
+        </span>
+      </div>
+      <div className="card mb-2 text-xs text-[var(--mute)] leading-relaxed">
+        Zernio serves the accounts of exactly <b>one Zernio user per API key</b> — two workspaces whose accounts were
+        connected by different Zernio logins cannot share a key (whichever connected last works; the other fails with
+        &ldquo;accounts do not belong to this user&rdquo;). Give each workspace a key created in <b>its own</b> Zernio
+        account and the conflict disappears. Leave this empty to use the platform key.
+      </div>
+      <form action={saveWorkspaceZernioKeyAction} className="card mb-2 flex flex-col gap-3">
+        <label className="flex flex-col gap-1">
+          <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">
+            API key {ownZernioKey && <span className="text-[var(--green-on)]">· {mask(ownZernioKey)}</span>}
+          </span>
+          <input
+            name="apiKey"
+            type="password"
+            placeholder={ownZernioKey ? "Paste a new key to replace it" : "sk_… (from the Zernio account that owns this workspace's social logins)"}
+            className="border border-[var(--line-2)] rounded-lg p-2 text-sm font-mono"
+            autoComplete="off"
+          />
+        </label>
+        <div className="flex flex-wrap items-center gap-2">
+          <SubmitButton className="btn primary sm" pendingText="Verifying…">Verify &amp; save for {workspace.name}</SubmitButton>
+          <label className="inline-flex items-center gap-1.5 text-[11px] text-[var(--mute)]">
+            <input type="checkbox" name="force" /> Save even if the check fails
+          </label>
+        </div>
+      </form>
+      {ownZernioKey && (
+        <form action={clearWorkspaceZernioKeyAction} className="mb-6">
+          <SubmitButton className="btn sm" pendingText="Clearing…">
+            <Trash2 className="w-3.5 h-3.5" /> Remove — fall back to the platform key
+          </SubmitButton>
+        </form>
+      )}
 
       {/* ── Platform operator ───────────────────────────────────────────── */}
       {isPlatformOperator && (

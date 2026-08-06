@@ -63,7 +63,7 @@ export async function syncWorkspaceSocialPerformance(
   workspaceId: string,
   lookbackDays = DEFAULT_LOOKBACK_DAYS,
 ): Promise<SocialSyncOutcome> {
-  const cfg = await getZernioConfig();
+  const cfg = await getZernioConfig(workspaceId);
   if (!cfg) {
     return {
       ok: true, skipped: true, targetsPolled: 0, rowsWritten: 0, failures: 0,
@@ -104,7 +104,7 @@ export async function syncWorkspaceSocialPerformance(
   for (let page = 1; page <= MAX_PAGES; page++) {
     let rows;
     try {
-      rows = await getZernioAnalytics({ profileId: ws.zernioProfileId, fromDate: since, limit: 100, page });
+      rows = await getZernioAnalytics({ profileId: ws.zernioProfileId, fromDate: since, limit: 100, page, workspaceId });
     } catch (e) {
       failures++;
       lastError = e instanceof Error ? e.message : String(e);
@@ -167,9 +167,10 @@ export async function syncWorkspaceSocialPerformance(
   return { ok: failures === 0, skipped: false, targetsPolled: targets.length, rowsWritten, failures, message };
 }
 
-/** Every workspace, for the scheduler. */
+/** Every workspace, for the scheduler. Per-workspace keys mean a missing
+ *  platform key no longer short-circuits the loop — each workspace's own
+ *  config check (inside syncWorkspaceSocialPerformance) decides. */
 export async function syncAllWorkspacesSocialPerformance(): Promise<{ workspaces: number; rowsWritten: number }> {
-  if (!(await getZernioConfig())) return { workspaces: 0, rowsWritten: 0 };
   const workspaces = await db.workspace.findMany({
     where: { zernioProfileId: { not: null } },
     select: { id: true },

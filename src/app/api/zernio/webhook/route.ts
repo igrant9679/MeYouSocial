@@ -75,8 +75,9 @@ export async function POST(req: NextRequest) {
 
     // Re-read from Zernio rather than trusting the payload's own fields: the
     // signature proves the sender, but listing gives us the canonical record
-    // (username, display name, active flag) in one shape.
-    const remote = await listZernioAccounts({ profileId });
+    // (username, display name, active flag) in one shape. Use the workspace's
+    // own key — the platform key may belong to another Zernio user now.
+    const remote = await listZernioAccounts({ profileId, workspaceId: workspace.id });
     const found = remote.find((a) => a.id === accountId);
     if (!found) return NextResponse.json({ ok: true, ignored: "account not visible" });
     await saveZernioAccount(workspace.id, found);

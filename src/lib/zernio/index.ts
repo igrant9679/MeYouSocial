@@ -34,16 +34,21 @@ export function looksLikeApiKey(key: string): boolean {
   return /^sk_[0-9a-f]{64}$/i.test(key.trim());
 }
 
-export async function getZernioConfig(): Promise<ZernioConfig | null> {
-  // Platform-level, like Unipile was: one team key, many workspace profiles.
-  const apiKey = (await getSetting("zernio:api_key")) || process.env.ZERNIO_API_KEY || "";
+export async function getZernioConfig(workspaceId?: string | null): Promise<ZernioConfig | null> {
+  // ⚠ Was platform-level only ("one team key, many workspace profiles") —
+  // Zernio broke that model on 2026-08-05: a key serves exactly ONE Zernio
+  // user's accounts, and whichever tenant (re)connected last owned the key's
+  // view while the other tenant's sends 403'd ("accounts do not belong to
+  // this user"). Keys are per tenant now, like every other credential:
+  // WorkspaceSetting → platform Setting → env, via getSetting's normal chain.
+  const apiKey = (await getSetting("zernio:api_key", workspaceId)) || process.env.ZERNIO_API_KEY || "";
   if (!apiKey.trim()) return null;
   const baseUrl = (process.env.ZERNIO_BASE_URL || DEFAULT_BASE).replace(/\/+$/, "");
   return { baseUrl, apiKey: apiKey.trim() };
 }
 
-export async function zernioConfigured(): Promise<boolean> {
-  return (await getZernioConfig()) !== null;
+export async function zernioConfigured(workspaceId?: string | null): Promise<boolean> {
+  return (await getZernioConfig(workspaceId)) !== null;
 }
 
 export class ZernioError extends Error {
@@ -52,10 +57,10 @@ export class ZernioError extends Error {
   }
 }
 
-type FetchInit = RequestInit & { cfg?: ZernioConfig; requestId?: string };
+type FetchInit = RequestInit & { cfg?: ZernioConfig; requestId?: string; workspaceId?: string | null };
 
 async function zernioFetch(path: string, init: FetchInit = {}): Promise<Response> {
-  const cfg = init.cfg ?? (await getZernioConfig());
+  const cfg = init.cfg ?? (await getZernioConfig(init.workspaceId));
   if (!cfg) {
     throw new ZernioError(
       "Zernio isn't configured — the platform operator must add the API key under Admin → Connections.",
@@ -133,11 +138,12 @@ function profileOf(raw: Record<string, unknown>): ZernioProfile {
   return { id: String(raw._id ?? raw.id ?? ""), name: String(raw.name ?? "") };
 }
 
-export async function createZernioProfile(name: string, description?: string): Promise<ZernioProfile> {
+export async function createZernioProfile(name: string, description?: string, workspaceId?: string | null): Promise<ZernioProfile> {
   const res = await zernioFetch("/profiles", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ name, description }),
+    workspaceId,
   });
   const body = (await readJsonOrThrow(res, "Creating a Zernio profile")) as Record<string, unknown>;
   // Documented as `profile._id`; accept a bare object too rather than break on
@@ -146,8 +152,8 @@ export async function createZernioProfile(name: string, description?: string): P
   return profileOf(raw);
 }
 
-export async function listZernioProfiles(): Promise<ZernioProfile[]> {
-  const res = await zernioFetch("/profiles");
+export async function listZernioProfiles(workspaceId?: string | null): Promise<ZernioProfile[]> {
+  const res = await zernioFetch("/profiles", { workspaceId });
   const body = (await readJsonOrThrow(res, "Listing Zernio profiles")) as Record<string, unknown>;
   const items = (body.profiles ?? body.items ?? body.data ?? []) as Record<string, unknown>[];
   return Array.isArray(items) ? items.map(profileOf) : [];
@@ -180,7 +186,7 @@ function accountOf(raw: Record<string, unknown>): ZernioAccountInfo {
   };
 }
 
-export async function listZernioAccounts(opts: { profileId?: string; cfg?: ZernioConfig } = {}): Promise<ZernioAccountInfo[]> {
+export async function listZernioAccounts(opts: { profileId?: string; cfg?: ZernioConfig; workspaceId?: string | null } = {}): Promise<ZernioAccountInfo[]> {
   // ⚠ Zernio's API rejects `limit` without `page` ("page and limit must be
   // provided together", HTTP 400 — surfaced 2026-08-04; the old limit-only
   // call worked before). That 400 also silently broke REPLACING the API key:
@@ -191,7 +197,7 @@ export async function listZernioAccounts(opts: { profileId?: string; cfg?: Zerni
   for (let page = 1; page <= 10; page++) {
     const qs = new URLSearchParams({ page: String(page), limit: String(PAGE_SIZE) });
     if (opts.profileId) qs.set("profileId", opts.profileId);
-    const res = await zernioFetch(`/accounts?${qs}`, { cfg: opts.cfg });
+    const res = await zernioFetch(`/accounts?${qs}`, { cfg: opts.cfg, workspaceId: opts.workspaceId });
     const body = (await readJsonOrThrow(res, "Listing Zernio accounts")) as Record<string, unknown>;
     const items = (body.accounts ?? body.items ?? body.data ?? []) as Record<string, unknown>[];
     if (!Array.isArray(items) || items.length === 0) break;
@@ -209,9 +215,10 @@ export async function zernioConnectLink(opts: {
   platform: string;
   profileId: string;
   redirectUrl: string;
+  workspaceId?: string | null;
 }): Promise<string> {
   const qs = new URLSearchParams({ profileId: opts.profileId, redirect_url: opts.redirectUrl });
-  const res = await zernioFetch(`/connect/${encodeURIComponent(opts.platform)}?${qs}`);
+  const res = await zernioFetch(`/connect/${encodeURIComponent(opts.platform)}?${qs}`, { workspaceId: opts.workspaceId });
   const body = (await readJsonOrThrow(res, "Starting the connection")) as Record<string, unknown>;
   const url = (body.authUrl ?? body.url ?? body.redirectUrl) as string | undefined;
   if (!url) throw new ZernioError("Zernio didn't return an authUrl to redirect to.", 0, body);
@@ -232,11 +239,13 @@ export async function uploadZernioMedia(opts: {
   bytes: Uint8Array;
   filename: string;
   contentType: string;
+  workspaceId?: string | null;
 }): Promise<string> {
   const res = await zernioFetch("/media/presign", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ filename: opts.filename, contentType: opts.contentType }),
+    workspaceId: opts.workspaceId,
   });
   const body = (await readJsonOrThrow(res, "Requesting a media upload URL")) as Record<string, unknown>;
   const uploadUrl = String(body.uploadUrl ?? "");
@@ -321,6 +330,8 @@ export async function createZernioPost(opts: {
    * once a second profile existed. Always pass the workspace's profile.
    */
   profileId?: string;
+  /** Resolves the workspace's own API key (falling back to the platform key). */
+  workspaceId?: string | null;
 }): Promise<ZernioPostResult> {
   const payload: Record<string, unknown> = {
     content: opts.content,
@@ -344,6 +355,7 @@ export async function createZernioPost(opts: {
     headers: { "content-type": "application/json" },
     body: JSON.stringify(payload),
     requestId: opts.requestId,
+    workspaceId: opts.workspaceId,
   });
 
   if (res.status === 409) {
@@ -411,6 +423,7 @@ export async function getZernioAnalytics(opts: {
   toDate?: Date;
   limit?: number;
   page?: number;
+  workspaceId?: string | null;
 }): Promise<ZernioAnalyticsRow[]> {
   const qs = new URLSearchParams();
   if (opts.profileId) qs.set("profileId", opts.profileId);
@@ -421,7 +434,7 @@ export async function getZernioAnalytics(opts: {
   qs.set("limit", String(Math.min(100, Math.max(1, opts.limit ?? 100))));
   if (opts.page) qs.set("page", String(opts.page));
 
-  const res = await zernioFetch(`/analytics?${qs}`);
+  const res = await zernioFetch(`/analytics?${qs}`, { workspaceId: opts.workspaceId });
   const body = (await readJsonOrThrow(res, "Fetching analytics")) as Record<string, unknown>;
   const rows = (body.analytics ?? body.data ?? body.items ?? body.results ?? []) as unknown;
   const list = Array.isArray(rows) ? rows : Array.isArray(body) ? body : [];

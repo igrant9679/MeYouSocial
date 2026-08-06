@@ -35,7 +35,7 @@ export async function ensureZernioProfile(workspaceId: string): Promise<string> 
   //     and minting `ws_<id>` strands them where the reconcile can't see them,
   //     then asks the user to re-authorise accounts they already authorised.
   // Both leave the app permanently unable to see real, connected accounts.
-  const existing = await listZernioProfiles().catch(() => []);
+  const existing = await listZernioProfiles(workspaceId).catch(() => []);
   const byName = existing.find((p) => p.name === `ws_${ws.id}`);
   if (byName?.id) return claim(byName.id);
 
@@ -49,7 +49,7 @@ export async function ensureZernioProfile(workspaceId: string): Promise<string> 
   const unclaimed = existing.filter((p) => p.id && !claimed.has(p.id));
   if (unclaimed.length === 1) return claim(unclaimed[0].id!);
 
-  const profile = await createZernioProfile(`ws_${ws.id}`, ws.name);
+  const profile = await createZernioProfile(`ws_${ws.id}`, ws.name, workspaceId);
   if (!profile.id) throw new Error("Zernio created a profile but returned no id.");
   return claim(profile.id);
 }
@@ -108,7 +108,7 @@ export async function syncZernioAccounts(
   // visible at the moment it happens rather than days later.
   const adopted = before?.zernioProfileId !== profileId;
 
-  const remote = await listZernioAccounts({ profileId });
+  const remote = await listZernioAccounts({ profileId, workspaceId });
   for (const a of remote) await saveZernioAccount(workspaceId, a);
 
   const keep = remote.map((a) => a.id);

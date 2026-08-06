@@ -48,7 +48,7 @@ export async function connectSocialAccountAction(formData: FormData) {
   const platform = String(formData.get("platform") ?? "").toLowerCase();
   const { platformFor, zernioConfigured, zernioConnectLink } = await import("@/lib/zernio");
   if (!platformFor(platform)) redirect("/admin/connections?err=" + encodeURIComponent("Unknown platform."));
-  if (!(await zernioConfigured())) {
+  if (!(await zernioConfigured(workspace.id))) {
     redirect("/admin/connections?err=" + encodeURIComponent("Zernio isn't configured yet — add the API key below."));
   }
 
@@ -63,6 +63,7 @@ export async function connectSocialAccountAction(formData: FormData) {
       // Zernio sends the browser back here; the account itself arrives via the
       // signed `account.connected` webhook, which carries the profileId.
       redirectUrl: `${origin}/admin/connections?connected=1`,
+      workspaceId: workspace.id,
     });
   } catch (e) {
     redirect(`/admin/connections?err=${encodeURIComponent(e instanceof Error ? e.message : "connect failed")}`);
@@ -214,6 +215,45 @@ export async function saveZernioConfigAction(formData: FormData) {
     "/admin/connections?ok=" +
       encodeURIComponent(probe.ok ? probe.message : `Saved without verifying — ${probe.message}`),
   );
+}
+
+/**
+ * Save THIS WORKSPACE's own Zernio key (workspace tier beats the platform key
+ * on read). Needed since 2026-08-06: Zernio serves exactly one user's accounts
+ * per key, so two tenants whose accounts were connected by different Zernio
+ * users cannot share one key — whichever connected last worked and the other
+ * 403'd. Workspace ADMIN may save it (keys per tenant, the house rule).
+ */
+export async function saveWorkspaceZernioKeyAction(formData: FormData) {
+  const { workspace } = await requireRole("ADMIN");
+  const { setWorkspaceSetting } = await import("@/lib/settings");
+  const { probeZernioCredentials } = await import("@/lib/zernio");
+
+  const apiKey = String(formData.get("apiKey") ?? "").trim();
+  const force = String(formData.get("force") ?? "") === "on";
+  if (!apiKey) redirect("/admin/connections?err=" + encodeURIComponent("Paste the Zernio API key for this workspace."));
+
+  const probe = await probeZernioCredentials(apiKey);
+  if (!probe.ok && !force) {
+    redirect("/admin/connections?err=" + encodeURIComponent(`Not saved — ${probe.message}`));
+  }
+  await setWorkspaceSetting(workspace.id, "zernio:api_key", apiKey);
+  revalidatePath("/admin/connections");
+  revalidatePath("/social");
+  redirect(
+    "/admin/connections?ok=" +
+      encodeURIComponent(
+        `${workspace.name} now uses its own Zernio key. ` + (probe.ok ? probe.message : `Saved without verifying — ${probe.message}`),
+      ),
+  );
+}
+
+export async function clearWorkspaceZernioKeyAction() {
+  const { workspace } = await requireRole("ADMIN");
+  const { setWorkspaceSetting } = await import("@/lib/settings");
+  await setWorkspaceSetting(workspace.id, "zernio:api_key", "");
+  revalidatePath("/admin/connections");
+  redirect("/admin/connections?ok=" + encodeURIComponent(`${workspace.name} falls back to the platform Zernio key.`));
 }
 
 /** Re-probe the stored key and report exactly what Zernio says. */

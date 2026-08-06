@@ -80,7 +80,7 @@ const EXT_FOR: Record<string, string> = {
   "video/mp4": "mp4", "video/quicktime": "mov", "video/webm": "webm", "application/pdf": "pdf",
 };
 
-function makeUploader(): MediaUploader {
+function makeUploader(workspaceId: string): MediaUploader {
   // Cache by storage key: an image shared by three networks uploads once.
   const cache = new Map<string, ZernioMediaItem | null>();
   return async (keys) => {
@@ -94,7 +94,7 @@ function makeUploader(): MediaUploader {
           let filename = key.split("/").pop() || "media";
           if (!filename.includes(".") && EXT_FOR[contentType]) filename += `.${EXT_FOR[contentType]}`;
           cache.set(key, {
-            url: await uploadZernioMedia({ bytes, filename, contentType }),
+            url: await uploadZernioMedia({ bytes, filename, contentType, workspaceId }),
             type: mediaTypeFor(key, contentType),
           });
         } else {
@@ -145,9 +145,9 @@ export async function publishSocialPost(postId: string): Promise<void> {
   await db.socialPost.update({ where: { id: post.id }, data: { status: "publishing" } });
 
   try {
-    if (!(await zernioConfigured())) throw new Error("Zernio is not configured");
+    if (!(await zernioConfigured(post.workspaceId))) throw new Error("Zernio is not configured");
 
-    const upload = makeUploader();
+    const upload = makeUploader(post.workspaceId);
     const baseKeys = readJson<string[]>(post.mediaKeys, []);
     const baseMedia = baseKeys.length ? await upload(baseKeys) : [];
 
@@ -188,6 +188,7 @@ export async function publishSocialPost(postId: string): Promise<void> {
       publishNow: true,
       requestId,
       profileId: ws?.zernioProfileId ?? undefined,
+      workspaceId: post.workspaceId,
     });
 
     // Match Zernio's per-platform report back onto our targets. Fall back to
