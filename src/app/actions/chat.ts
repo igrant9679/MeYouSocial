@@ -72,7 +72,7 @@ export async function postMessageAction(formData: FormData) {
   if (/outlier|outliers|long-form outlier|top \d+ about/i.test(parsed.data.content)) {
     const { db } = await import("@/lib/db");
     const top = await db.intelVideo.findMany({
-      where: { outlierScore: { gte: 2 } },
+      where: { outlierScore: { gte: 2 }, intelChannel: { workspaceId: workspace.id } },
       orderBy: { outlierScore: "desc" },
       take: 10,
       include: { intelChannel: true },

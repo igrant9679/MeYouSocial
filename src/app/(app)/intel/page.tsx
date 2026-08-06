@@ -16,6 +16,7 @@ export default async function IntelPage({ searchParams }: { searchParams: Promis
   const sp = await searchParams;
 
   const params = {
+    workspaceId: workspace.id,
     q: sp.q,
     subsMin: sp.subsMin ? Number(sp.subsMin) : undefined,
     subsMax: sp.subsMax ? Number(sp.subsMax) : undefined,
@@ -28,29 +29,31 @@ export default async function IntelPage({ searchParams }: { searchParams: Promis
   // matched nothing" from "there is nothing to match against", and keeps the
   // header honest (it used to claim "100K+ indexed channels" over a real
   // index of nine — an invented number, the exact thing this app forbids).
+  // Everything on this page is scoped to THIS workspace's index.
   const [indexedCount, indexedVideos] = await Promise.all([
-    db.intelChannel.count(),
-    db.intelVideo.count(),
+    db.intelChannel.count({ where: { workspaceId: workspace.id } }),
+    db.intelVideo.count({ where: { intelChannel: { workspaceId: workspace.id } } }),
   ]);
 
   const [{ channels, videos, biasChannels }, bookmarked, trending, hotChannels, byCategory] = await Promise.all([
     searchIntel(params),
     db.bookmark.findMany({ where: { workspaceId: workspace.id }, select: { intelChannelId: true, intelVideoId: true } }),
     db.intelVideo.findMany({
-      where: { outlierScore: { gte: 2 } },
+      where: { outlierScore: { gte: 2 }, intelChannel: { workspaceId: workspace.id } },
       orderBy: { outlierScore: "desc" },
       take: 6,
       include: { intelChannel: true },
     }),
     // Hot new channels (high velocity, smaller subs)
     db.intelChannel.findMany({
-      where: { velocityScore: { gte: 5 } },
+      where: { velocityScore: { gte: 5 }, workspaceId: workspace.id },
       orderBy: { velocityScore: "desc" },
       take: 4,
     }),
     // Trending niches (category counts)
     db.intelChannel.groupBy({
       by: ["category"],
+      where: { workspaceId: workspace.id },
       _count: { _all: true },
       orderBy: { _count: { id: "desc" } },
       take: 6,

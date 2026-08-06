@@ -11,15 +11,18 @@ import { youtubeFor } from "@/lib/youtube";
 export async function findSimilarChannelsAction(formData: FormData) {
   const { workspace } = await requireMembership();
   const intelChannelId = String(formData.get("intelChannelId"));
-  const source = await db.intelChannel.findUnique({ where: { id: intelChannelId } });
+  // Tenancy in the lookup: Intel is workspace-scoped, so another company's row
+  // id must behave exactly like a nonexistent one.
+  const source = await db.intelChannel.findFirst({ where: { id: intelChannelId, workspaceId: workspace.id } });
   if (!source) return;
   // Try to find more channels via the youtube provider — this auto-indexes new ones.
   const candidates = await youtubeFor(workspace.id).searchChannels(source.category ?? source.name ?? "creator", 6);
   for (const c of candidates) {
     await db.intelChannel.upsert({
-      where: { youtubeId: c.id },
+      where: { workspaceId_youtubeId: { workspaceId: workspace.id, youtubeId: c.id } },
       update: {},
       create: {
+        workspaceId: workspace.id,
         youtubeId: c.id,
         handle: c.handle ?? null,
         name: c.name,
@@ -49,9 +52,10 @@ async function indexIntelChannel(
   videoLimit = 8,
 ) {
   const upserted = await db.intelChannel.upsert({
-    where: { youtubeId: source.id },
+    where: { workspaceId_youtubeId: { workspaceId, youtubeId: source.id } },
     update: { lastIndexedAt: new Date() },
     create: {
+      workspaceId,
       youtubeId: source.id,
       handle: source.handle ?? null,
       name: source.name,
@@ -63,13 +67,21 @@ async function indexIntelChannel(
       lastIndexedAt: new Date(),
     },
   });
-  const videos = await youtubeFor(workspaceId).listVideos(source.id, videoLimit);
+  // ⚠ A channel with zero (or hidden) uploads 404s its uploads playlist —
+  // YouTube's way of saying "no videos", not an error worth dying for. One
+  // such channel in a keyword batch used to kill the WHOLE indexing loop
+  // (guard per item over external resources; the channel row above is still
+  // worth keeping — it's real, it just has nothing to score).
+  const videos = await youtubeFor(workspaceId).listVideos(source.id, videoLimit).catch((e) => {
+    console.warn(`[intel] listVideos failed for ${source.name} (${source.id}) — indexing channel without videos:`, e instanceof Error ? e.message : e);
+    return [];
+  });
   // Outlier score is views over THIS channel's own average — the same
   // definition used for idea seeds. Never a fabricated figure.
   const avg = videos.reduce((a, v) => a + v.views, 0) / Math.max(1, videos.length);
   for (const v of videos) {
     await db.intelVideo.upsert({
-      where: { youtubeId: v.id },
+      where: { intelChannelId_youtubeId: { intelChannelId: upserted.id, youtubeId: v.id } },
       update: {},
       create: {
         intelChannelId: upserted.id,
@@ -147,7 +159,7 @@ export async function autoIndexHandleAction(formData: FormData) {
 // Chat with channel / video: open a new chat with the entity pre-loaded
 // as context. Requires an active channel (the user's own — chat is channel-scoped).
 export async function chatWithEntityAction(formData: FormData) {
-  const { user } = await requireRole("EDITOR");
+  const { user, workspace } = await requireRole("EDITOR");
   const kind = String(formData.get("kind"));           // "channel" | "video"
   const entityId = String(formData.get("entityId"));
   const { getActiveChannel } = await import("@/lib/channel");
@@ -158,13 +170,16 @@ export async function chatWithEntityAction(formData: FormData) {
   let ref = entityId;
   let url = "";
   if (kind === "channel") {
-    const e = await db.intelChannel.findUnique({ where: { id: entityId } });
+    const e = await db.intelChannel.findFirst({ where: { id: entityId, workspaceId: workspace.id } });
     if (!e) return;
     title = `Chat about ${e.name ?? e.handle}`;
     ref = e.youtubeId;
     url = `intel://channel/${e.id}`;
   } else if (kind === "video") {
-    const e = await db.intelVideo.findUnique({ where: { id: entityId }, include: { intelChannel: true } });
+    const e = await db.intelVideo.findFirst({
+      where: { id: entityId, intelChannel: { workspaceId: workspace.id } },
+      include: { intelChannel: true },
+    });
     if (!e) return;
     title = `Chat about "${e.title}"`;
     ref = e.youtubeId;

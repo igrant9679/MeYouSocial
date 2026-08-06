@@ -16,8 +16,9 @@ export default async function IntelChannelPage({ params, searchParams }: { param
   const { sort = "outlier" } = await searchParams;
   const { workspace } = await requireMembership();
 
-  const channel = await db.intelChannel.findUnique({
-    where: { id },
+  // Tenancy in the lookup — another workspace's row id 404s like any other.
+  const channel = await db.intelChannel.findFirst({
+    where: { id, workspaceId: workspace.id },
     include: {
       videos: {
         orderBy: sort === "views" ? { views: "desc" } : { outlierScore: "desc" },

@@ -24,6 +24,8 @@ export function viewsPerSubBand(ratio: number | null | undefined): { color: stri
 }
 
 export type IntelSearchParams = {
+  /** Tenant boundary — Intel is workspace-scoped like everything else. */
+  workspaceId: string;
   q?: string;
   subsMin?: number;
   subsMax?: number;
@@ -86,19 +88,40 @@ export async function searchIntel(params: IntelSearchParams) {
   return searchIntelRaw(merged);
 }
 
+// Words that carry no signal in a research query — matching on them would make
+// "AI for nonprofit management" hit every row containing "for".
+const STOPWORDS = new Set(["a", "an", "and", "for", "in", "of", "on", "or", "the", "to", "with"]);
+
+/**
+ * Split a query into match tokens. ⚠ Two field lessons baked in:
+ * Prisma `contains` is case-SENSITIVE on Postgres unless mode:"insensitive" —
+ * "AI marketing" silently missed "AI Marketing" right after indexing it; and
+ * phrase-matching the whole query meant a multi-word search only hit rows
+ * containing the exact phrase. Tokens match ANY-of (OR), insensitively.
+ */
+function queryTokens(q: string): string[] {
+  return q
+    .split(/[\s,]+/)
+    .map((t) => t.trim())
+    .filter((t) => t.length > 1 && !STOPWORDS.has(t.toLowerCase()))
+    .slice(0, 10);
+}
+
 async function searchIntelRaw(params: IntelSearchParams) {
   const q = (params.q ?? "").trim();
   const biasChannels = /\b(channel|niche|creator|account)s?\b/i.test(q);
+  const tokens = queryTokens(q);
 
   const channelWhere: Prisma.IntelChannelWhereInput = {
     AND: [
-      q
+      { workspaceId: params.workspaceId },
+      tokens.length
         ? {
-            OR: [
-              { name: { contains: q } },
-              { handle: { contains: q } },
-              { category: { contains: q } },
-            ],
+            OR: tokens.flatMap((t) => [
+              { name: { contains: t, mode: "insensitive" as const } },
+              { handle: { contains: t, mode: "insensitive" as const } },
+              { category: { contains: t, mode: "insensitive" as const } },
+            ]),
           }
         : {},
       params.subsMin != null ? { subscribers: { gte: params.subsMin } } : {},
@@ -110,7 +133,10 @@ async function searchIntelRaw(params: IntelSearchParams) {
 
   const videoWhere: Prisma.IntelVideoWhereInput = {
     AND: [
-      q ? { title: { contains: q } } : {},
+      { intelChannel: { workspaceId: params.workspaceId } },
+      tokens.length
+        ? { OR: tokens.map((t) => ({ title: { contains: t, mode: "insensitive" as const } })) }
+        : {},
       params.format ? { format: params.format } : {},
       params.velocityMin != null ? { intelChannel: { velocityScore: { gte: params.velocityMin } } } : {},
       params.language ? { intelChannel: { language: params.language } } : {},

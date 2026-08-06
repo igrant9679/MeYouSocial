@@ -44,12 +44,16 @@ function hash(s: string): number {
 }
 
 async function main() {
+  // Intel is workspace-scoped — this mock corpus goes to the Demo workspace.
+  const demoWorkspaceId = "demo-workspace";
   for (const c of CHANNELS) {
+    const ytId = "UC_" + c.handle.replace(/[^a-z0-9]+/gi, "_");
     const ch = await db.intelChannel.upsert({
-      where: { youtubeId: "UC_" + c.handle.replace(/[^a-z0-9]+/gi, "_") },
+      where: { workspaceId_youtubeId: { workspaceId: demoWorkspaceId, youtubeId: ytId } },
       update: {},
       create: {
-        youtubeId: "UC_" + c.handle.replace(/[^a-z0-9]+/gi, "_"),
+        workspaceId: demoWorkspaceId,
+        youtubeId: ytId,
         handle: c.handle,
         name: c.name,
         subscribers: c.subs,
@@ -88,7 +92,7 @@ async function main() {
     const avg = videos.reduce((a, v) => a + v.views, 0) / videos.length;
     for (const v of videos) {
       await db.intelVideo.upsert({
-        where: { youtubeId: v.youtubeId },
+        where: { intelChannelId_youtubeId: { intelChannelId: ch.id, youtubeId: v.youtubeId } },
         update: {},
         create: {
           intelChannelId: ch.id,

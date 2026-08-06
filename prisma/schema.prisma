@@ -53,6 +53,7 @@ model Workspace {
   postingSlots    PostingSlot[]
   topics          Topic[]
   campaigns       Campaign[]
+  intelChannels   IntelChannel[]
 
   // This workspace's Zernio profile — Zernio's tenant boundary. Created lazily
   // the first time an account is connected, then reused.
@@ -928,9 +929,15 @@ model ChannelMemoryEntry {
 // Intel / research database (FR-INTEL-*)
 // ──────────────────────────────────────────────────────────────────────────
 
+// ⚠ Workspace-scoped since 2026-08-06. The index began install-wide ("one
+// research corpus, many workspaces") — but that leaks one tenant's
+// competitive research to another's users, violating the workspace-scoping
+// rule everything else follows. youtubeId is unique PER WORKSPACE now: two
+// tenants researching the same channel each get their own row.
 model IntelChannel {
   id              String   @id @default(cuid())
-  youtubeId       String   @unique
+  workspaceId     String
+  youtubeId       String
   handle          String?
   name            String?
   subscribers     Int?
@@ -944,15 +951,21 @@ model IntelChannel {
   lastIndexedAt   DateTime?
   createdAt       DateTime @default(now())
 
+  workspace       Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   videos          IntelVideo[]
   competitorRefs  Competitor[]
   bookmarks       Bookmark[]
+
+  @@unique([workspaceId, youtubeId])
+  @@index([workspaceId])
 }
 
 model IntelVideo {
   id              String   @id @default(cuid())
   intelChannelId  String
-  youtubeId       String   @unique
+  // Unique per parent channel row (which is per-workspace) — not globally:
+  // the same video indexed by two workspaces is two rows.
+  youtubeId       String
   title           String
   description     String?
   publishedAt     DateTime?
@@ -970,6 +983,8 @@ model IntelVideo {
   intelChannel    IntelChannel @relation(fields: [intelChannelId], references: [id], onDelete: Cascade)
   bookmarks       Bookmark[]
   sourcedIdeas    Idea[]
+
+  @@unique([intelChannelId, youtubeId])
 }
 
 // ──────────────────────────────────────────────────────────────────────────

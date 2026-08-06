@@ -232,12 +232,16 @@ async function seedIntel() {
   const TOPICS = ["productivity", "habits", "focus", "income", "writing", "filmmaking", "AI", "investing", "wellness", "leadership"];
   const hash = (s: string) => { let h = 0; for (const c of s) h = (h * 31 + c.charCodeAt(0)) | 0; return Math.abs(h); };
 
+  // Intel is workspace-scoped — demo market data belongs to the Demo
+  // workspace, never mixed into a real tenant's research index.
+  const demoWorkspaceId = "demo-workspace";
   for (const c of CHANNELS) {
     const ytId = "UC_" + c.handle.replace(/[^a-z0-9]+/gi, "_");
     const ch = await db.intelChannel.upsert({
-      where: { youtubeId: ytId },
+      where: { workspaceId_youtubeId: { workspaceId: demoWorkspaceId, youtubeId: ytId } },
       update: {},
       create: {
+        workspaceId: demoWorkspaceId,
         youtubeId: ytId,
         handle: c.handle,
         name: c.name,
@@ -269,7 +273,7 @@ async function seedIntel() {
     const avg = videos.reduce((a, v) => a + v.views, 0) / videos.length;
     for (const v of videos) {
       await db.intelVideo.upsert({
-        where: { youtubeId: v.ytId },
+        where: { intelChannelId_youtubeId: { intelChannelId: ch.id, youtubeId: v.ytId } },
         update: {},
         create: {
           intelChannelId: ch.id,

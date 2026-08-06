@@ -13,8 +13,9 @@ import { MessageCircle } from "lucide-react";
 export default async function IntelVideoPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { workspace } = await requireMembership();
-  const video = await db.intelVideo.findUnique({
-    where: { id },
+  // Tenancy via the parent channel — Intel rows belong to one workspace.
+  const video = await db.intelVideo.findFirst({
+    where: { id, intelChannel: { workspaceId: workspace.id } },
     include: { intelChannel: true },
   });
   if (!video) notFound();
