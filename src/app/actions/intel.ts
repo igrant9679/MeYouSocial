@@ -104,13 +104,27 @@ export async function indexSearchResultsAction(formData: FormData) {
   const back = (msg: string, ok = false) =>
     redirect(`/intel?q=${encodeURIComponent(q)}&${ok ? "flash" : "flashErr"}=${encodeURIComponent(msg)}`);
 
-  const found = await youtubeFor(workspace.id).searchChannels(q, 6).catch(() => []);
+  // A comma-separated query is N searches, not one: YouTube treats the whole
+  // string as a single phrase and returns much weaker results than each term
+  // alone. People naturally type topic lists ("grants management, nonprofit
+  // grants, …") — honor that. Dedupe by channel id across terms.
+  const terms = q.split(",").map((t) => t.trim()).filter(Boolean).slice(0, 8);
+  const perTerm = Math.max(3, Math.ceil(6 / terms.length) + 2);
+  const seen = new Map<string, Awaited<ReturnType<ReturnType<typeof youtubeFor>["searchChannels"]>>[number]>();
+  for (const term of terms) {
+    const found = await youtubeFor(workspace.id).searchChannels(term, perTerm).catch(() => []);
+    for (const c of found) if (!seen.has(c.id)) seen.set(c.id, c);
+  }
+  const found = [...seen.values()];
   if (found.length === 0) {
     back(`YouTube returned no channels for “${q}”. Try a broader term, or an @handle for an exact match.`);
   }
   for (const c of found) await indexIntelChannel(workspace.id, c);
   revalidatePath("/intel");
-  back(`Indexed ${found.length} channel${found.length === 1 ? "" : "s"} for “${q}” — ${found.map((c) => c.name).slice(0, 3).join(", ")}${found.length > 3 ? "…" : ""}.`, true);
+  back(
+    `Indexed ${found.length} channel${found.length === 1 ? "" : "s"}${terms.length > 1 ? ` across ${terms.length} searches` : ""} — ${found.map((c) => c.name).slice(0, 3).join(", ")}${found.length > 3 ? "…" : ""}.`,
+    true,
+  );
 }
 
 // Auto-index unindexed @handles. Called from the Intel search box when a

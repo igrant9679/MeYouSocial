@@ -25,8 +25,13 @@ export default async function IntelPage({ searchParams }: { searchParams: Promis
   };
 
   // How much is indexed at all — lets the empty state distinguish "your query
-  // matched nothing" from "there is nothing to match against".
-  const indexedCount = await db.intelChannel.count();
+  // matched nothing" from "there is nothing to match against", and keeps the
+  // header honest (it used to claim "100K+ indexed channels" over a real
+  // index of nine — an invented number, the exact thing this app forbids).
+  const [indexedCount, indexedVideos] = await Promise.all([
+    db.intelChannel.count(),
+    db.intelVideo.count(),
+  ]);
 
   const [{ channels, videos, biasChannels }, bookmarked, trending, hotChannels, byCategory] = await Promise.all([
     searchIntel(params),
@@ -64,7 +69,11 @@ export default async function IntelPage({ searchParams }: { searchParams: Promis
         </span>
         <div>
           <h1 className="font-mono font-bold text-2xl leading-tight">Intel</h1>
-          <p className="text-xs text-[var(--mute)]">Search 100K+ indexed channels and videos. Outliers, velocity, deep filters.</p>
+          <p className="text-xs text-[var(--mute)]">
+            {indexedCount > 0
+              ? `Search ${indexedCount} indexed channel${indexedCount === 1 ? "" : "s"} and ${indexedVideos} video${indexedVideos === 1 ? "" : "s"}. Outliers, velocity, deep filters.`
+              : "Nothing indexed yet — search a keyword or @handle to pull channels in from YouTube."}
+          </p>
         </div>
         <span className="flex-1" />
         <Link href="/intel/bookmarks" className="btn sm flex items-center gap-2"><Bookmark className="w-3.5 h-3.5" /> Bookmarks</Link>
