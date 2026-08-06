@@ -314,9 +314,17 @@ export async function createZernioPost(opts: {
   isDraft?: boolean;
   timezone?: string;
   requestId?: string;
+  /**
+   * ⚠ Required in practice since ~2026-08-05: Zernio resolves the KEY'S
+   * DEFAULT profile when this is absent and then 403s ("accounts do not
+   * belong") for any account of another profile — which broke every LSI send
+   * once a second profile existed. Always pass the workspace's profile.
+   */
+  profileId?: string;
 }): Promise<ZernioPostResult> {
   const payload: Record<string, unknown> = {
     content: opts.content,
+    ...(opts.profileId ? { profileId: opts.profileId } : {}),
     platforms: opts.platforms.map((p) => ({
       platform: p.platform,
       accountId: p.accountId,

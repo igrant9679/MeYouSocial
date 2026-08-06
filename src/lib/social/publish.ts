@@ -36,11 +36,33 @@ import {
 /** Storage keys → media Zernio can attach, uploaded once and reused per network. */
 type MediaUploader = (keys: string[]) => Promise<ZernioMediaItem[]>;
 
-function mediaTypeFor(key: string): ZernioMediaItem["type"] {
+function mediaTypeFor(key: string, contentType?: string | null): ZernioMediaItem["type"] {
+  if (contentType?.startsWith("video/")) return "video";
+  if (contentType === "application/pdf") return "document";
   const ext = key.split(".").pop()?.toLowerCase() ?? "";
   if (["mp4", "mov", "avi", "webm"].includes(ext)) return "video";
   if (ext === "pdf") return "document";
   return "image";
+}
+
+/**
+ * ⚠ Trust the BYTES, not the key. Drive-stored media keys are extensionless
+ * (`gdrive:<fileId>`), so an extension map alone returns
+ * application/octet-stream — which Zernio's presign started REJECTING against
+ * a content-type allowlist on 2026-08-05, failing every scheduled send of an
+ * auto-generated image (the 08-04 manual send predated the validation). Same
+ * rule as the images layer: dimensions/types come from the bytes.
+ */
+function sniffContentType(bytes: Uint8Array): string | null {
+  if (bytes.length < 12) return null;
+  const b = bytes;
+  if (b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47) return "image/png";
+  if (b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return "image/jpeg";
+  if (b[0] === 0x47 && b[1] === 0x49 && b[2] === 0x46 && b[3] === 0x38) return "image/gif";
+  if (b[0] === 0x52 && b[1] === 0x49 && b[2] === 0x46 && b[3] === 0x46 && b[8] === 0x57 && b[9] === 0x45 && b[10] === 0x42 && b[11] === 0x50) return "image/webp";
+  if (b[4] === 0x66 && b[5] === 0x74 && b[6] === 0x79 && b[7] === 0x70) return "video/mp4"; // ISO-BMFF "ftyp"
+  if (b[0] === 0x25 && b[1] === 0x50 && b[2] === 0x44 && b[3] === 0x46) return "application/pdf";
+  return null;
 }
 
 function contentTypeFor(key: string): string {
@@ -52,6 +74,12 @@ function contentTypeFor(key: string): string {
   return map[ext] ?? "application/octet-stream";
 }
 
+/** File extension for a content type, so extensionless keys upload with an honest filename. */
+const EXT_FOR: Record<string, string> = {
+  "image/png": "png", "image/jpeg": "jpg", "image/gif": "gif", "image/webp": "webp",
+  "video/mp4": "mp4", "video/quicktime": "mov", "video/webm": "webm", "application/pdf": "pdf",
+};
+
 function makeUploader(): MediaUploader {
   // Cache by storage key: an image shared by three networks uploads once.
   const cache = new Map<string, ZernioMediaItem | null>();
@@ -60,19 +88,18 @@ function makeUploader(): MediaUploader {
     for (const key of keys) {
       if (!cache.has(key)) {
         const buf = await storage.get(key);
-        cache.set(
-          key,
-          buf
-            ? {
-                url: await uploadZernioMedia({
-                  bytes: new Uint8Array(buf),
-                  filename: key.split("/").pop() || "media",
-                  contentType: contentTypeFor(key),
-                }),
-                type: mediaTypeFor(key),
-              }
-            : null,
-        );
+        if (buf) {
+          const bytes = new Uint8Array(buf);
+          const contentType = sniffContentType(bytes) ?? contentTypeFor(key);
+          let filename = key.split("/").pop() || "media";
+          if (!filename.includes(".") && EXT_FOR[contentType]) filename += `.${EXT_FOR[contentType]}`;
+          cache.set(key, {
+            url: await uploadZernioMedia({ bytes, filename, contentType }),
+            type: mediaTypeFor(key, contentType),
+          });
+        } else {
+          cache.set(key, null);
+        }
       }
       const item = cache.get(key);
       if (item) out.push(item);
@@ -147,12 +174,20 @@ export async function publishSocialPost(postId: string): Promise<void> {
       .digest("hex")
       .slice(0, 40);
 
+    // The workspace's Zernio profile scopes the accounts — without it Zernio
+    // resolves the key's default profile and refuses other profiles' accounts.
+    const ws = await db.workspace.findUnique({
+      where: { id: post.workspaceId },
+      select: { zernioProfileId: true },
+    });
+
     const result = await createZernioPost({
       content: post.text,
       platforms: specs,
       mediaItems: baseMedia,
       publishNow: true,
       requestId,
+      profileId: ws?.zernioProfileId ?? undefined,
     });
 
     // Match Zernio's per-platform report back onto our targets. Fall back to
