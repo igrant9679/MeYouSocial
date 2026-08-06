@@ -153,8 +153,31 @@ export async function platformAddMemberAction(formData: FormData) {
       action: "membership.added", entityType: "membership",
       meta: { email, role, via: "platform" },
     });
+    // An existing account has nothing to "accept", but silent access is how
+    // "she never got an email" tickets happen — tell them, when a mailbox can.
+    // Best-effort: a failed notification must not roll back the membership.
+    let notified = false;
+    try {
+      const { resolveEmailSender } = await import("@/lib/unipile/accounts");
+      if (await resolveEmailSender(workspaceId)) {
+        const origin = await getPublicUrl();
+        await emailFor(workspaceId).send({
+          to: email,
+          subject: `You now have access to ${workspace!.name} on MeYouSocial`,
+          html: `<p>You've been added to <b>${workspace!.name}</b> as a <b>${role}</b>.</p>
+                 <p>Sign in with your existing account: <a href="${origin}/signin">${origin}/signin</a></p>`,
+        });
+        notified = true;
+      }
+    } catch {
+      // fall through to the honest flash below
+    }
     revalidatePath(PAGE);
-    back(`Added ${email} to “${workspace!.name}” as ${role}.`);
+    back(
+      notified
+        ? `Added ${email} to “${workspace!.name}” as ${role} and emailed them — they sign in with their existing account.`
+        : `Added ${email} to “${workspace!.name}” as ${role}. They already have an account, so there is nothing to accept — but no notification could be emailed (${workspace!.name} has no connected mailbox), so let them know yourself.`,
+    );
   }
 
   const token = nanoid(40);
@@ -162,14 +185,23 @@ export async function platformAddMemberAction(formData: FormData) {
     data: { workspaceId, email, role, token, expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 7) },
   });
   const origin = await getPublicUrl();
-  await emailFor(workspaceId).send({
-    to: email,
-    subject: `You've been invited to ${workspace!.name} on MeYouSocial`,
-    html: `<p>You've been invited to join <b>${workspace!.name}</b> as a <b>${role}</b>.</p>
-           <p><a href="${origin}/invitations/${token}">Accept the invitation</a></p>`,
-  });
+  const inviteUrl = `${origin}/invitations/${token}`;
+  const { resolveEmailSender } = await import("@/lib/unipile/accounts");
+  const sender = await resolveEmailSender(workspaceId);
+  if (sender) {
+    await emailFor(workspaceId).send({
+      to: email,
+      subject: `You've been invited to ${workspace!.name} on MeYouSocial`,
+      html: `<p>You've been invited to join <b>${workspace!.name}</b> as a <b>${role}</b>.</p>
+             <p><a href="${inviteUrl}">Accept the invitation</a></p>`,
+    });
+  }
   revalidatePath(PAGE);
-  back(`No account for ${email} yet — sent an invitation to join “${workspace!.name}” as ${role}.`);
+  back(
+    sender
+      ? `No account for ${email} yet — sent an invitation to join “${workspace!.name}” as ${role}.`
+      : `No account for ${email} yet — created an invitation, but ${workspace!.name} has no connected mailbox to send it from. Share the link yourself: ${inviteUrl}`,
+  );
 }
 
 /** Refuse any change that would leave a workspace with no active admin. */
