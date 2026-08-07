@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Send, CalendarClock, ImagePlus, X, Pencil, RotateCcw, Tags, Plus, ListPlus, Megaphone, Recycle, Sparkles, Loader2, Eye, EyeOff } from "lucide-react";
+import { Send, CalendarClock, ImagePlus, X, Pencil, RotateCcw, Tags, Plus, ListPlus, Megaphone, Recycle, Sparkles, Loader2, Eye, EyeOff, Wand2, Check } from "lucide-react";
 import { SubmitButton } from "@/components/SubmitButton";
 import { createSocialPostAction, updateSocialPostAction } from "@/app/actions/social";
 import { generateComposerImageAction } from "@/app/actions/social-image-gen";
+import { tailorPostForNetworksAction } from "@/app/actions/social-tailor";
 import { networkFor } from "@/lib/social/networks";
 import { HelpTip, WithTip } from "@/components/HelpTip";
 import { SOCIAL_TIPS } from "@/lib/help-tips";
@@ -109,6 +110,11 @@ export function SocialComposer({
   const [genError, setGenError] = useState<string | null>(null);
   const [genGuidance, setGenGuidance] = useState("");
   const [showPreview, setShowPreview] = useState(false);
+  // AI per-network tailoring: PROPOSED variants awaiting accept/discard.
+  const [tailorBusy, setTailorBusy] = useState(false);
+  const [tailorError, setTailorError] = useState<string | null>(null);
+  const [proposed, setProposed] = useState<Record<string, string>>({});
+  const [tailorNote, setTailorNote] = useState<string | null>(null);
 
   const baseInput = useRef<HTMLInputElement>(null);
   const variantInputs = useRef<Record<string, HTMLInputElement | null>>({});
@@ -144,6 +150,51 @@ export function SocialComposer({
     customizing.has(p) && (variantFiles[p]?.length ?? 0) > 0
       ? variantFileUrls[p] ?? []
       : [...fileUrls, ...genImages.map((g) => g.url)];
+
+  /** Accept one proposed variant: turn on that network's override and fill it. */
+  function acceptProposal(providerUpper: string) {
+    const key = providerUpper.toLowerCase();
+    const text = proposed[key];
+    if (!text) return;
+    setCustomizing((prev) => new Set(prev).add(providerUpper));
+    setVariants((v) => ({ ...v, [providerUpper]: text }));
+    setProposed((p) => { const c = { ...p }; delete c[key]; return c; });
+  }
+
+  async function tailorForNetworks() {
+    setTailorBusy(true);
+    setTailorError(null);
+    setTailorNote(null);
+    try {
+      const providers = accounts.filter((a) => selected.has(a.id)).map((a) => a.provider.toLowerCase());
+      const res = await tailorPostForNetworksAction({ text, providers, guidance: genGuidance || undefined });
+      if (!res.ok) {
+        setTailorError(res.error);
+        return;
+      }
+      setProposed(res.variants);
+      const notes: string[] = [];
+      if (Object.keys(res.variants).length === 0) {
+        notes.push("Nothing needed rewriting — the base post already suits every selected network.");
+      }
+      if (res.skipped.length) {
+        notes.push(`Left on the base text: ${res.skipped.map((p) => networkFor(p)?.label ?? p).join(", ")}.`);
+      }
+      if (res.stillOver.length) {
+        notes.push(`⚠ Still over the limit after rewriting: ${res.stillOver.map((p) => networkFor(p)?.label ?? p).join(", ")} — shorten by hand.`);
+      }
+      setTailorNote(notes.join(" ") || null);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "";
+      setTailorError(
+        /server action|older or newer deployment/i.test(msg)
+          ? "This page is out of date after an update — reload it, then try again."
+          : "Couldn't reach the model. Try again.",
+      );
+    } finally {
+      setTailorBusy(false);
+    }
+  }
 
   async function generateAiImage() {
     setGenBusy(true);
@@ -392,6 +443,39 @@ export function SocialComposer({
       {/* Per-network customization + live counts */}
       {selectedProviders.length > 0 && (
         <div className="flex flex-col gap-2">
+          {/* One click writes a version per network that needs one. Proposes —
+              each variant lands in its row with Use it / Discard. */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              type="button"
+              className="btn sm"
+              disabled={tailorBusy || text.trim().length < 20}
+              onClick={tailorForNetworks}
+              title="Rewrite the base post for each network's length and conventions"
+            >
+              {tailorBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />}
+              {tailorBusy ? "Tailoring…" : "Tailor per network with AI"}
+            </button>
+            {Object.keys(proposed).length > 0 && (
+              <>
+                <button
+                  type="button"
+                  className="btn sm primary"
+                  onClick={() => selectedProviders.forEach((p) => acceptProposal(p))}
+                >
+                  <Check className="w-3.5 h-3.5" /> Use all {Object.keys(proposed).length}
+                </button>
+                <button type="button" className="btn sm" onClick={() => { setProposed({}); setTailorNote(null); }}>
+                  Discard all
+                </button>
+              </>
+            )}
+            {text.trim().length < 20 && (
+              <span className="text-[11px] text-[var(--mute)]">Write the base post first.</span>
+            )}
+          </div>
+          {tailorError && <p className="text-[11px]" style={{ color: "var(--amber-on)" }}>{tailorError}</p>}
+          {tailorNote && <p className="text-[11px] text-[var(--mute)]">{tailorNote}</p>}
           {selectedProviders.map((p) => {
             const net = networkFor(p);
             const limit = net?.charLimit ?? 3000;
@@ -427,6 +511,30 @@ export function SocialComposer({
                     </button>
                   </WithTip>
                 </div>
+                {/* A proposed AI variant for this network — accept or discard;
+                    the author's own text is never overwritten silently. */}
+                {proposed[p.toLowerCase()] && (
+                  <div className="mt-2 rounded-lg p-2" style={{ background: "var(--accent-soft)" }}>
+                    <div className="flex items-center gap-2 mb-1">
+                      <Wand2 className="w-3 h-3" style={{ color: "var(--accent-on)" }} />
+                      <span className="text-[10px] font-mono uppercase tracking-wider" style={{ color: "var(--accent-on)" }}>
+                        Suggested for {net?.label ?? p} · {proposed[p.toLowerCase()].length}/{limit}
+                      </span>
+                      <span className="flex-1" />
+                      <button type="button" className="btn sm primary" onClick={() => acceptProposal(p)}>
+                        <Check className="w-3 h-3" /> Use it
+                      </button>
+                      <button
+                        type="button"
+                        className="btn sm"
+                        onClick={() => setProposed((prev) => { const c = { ...prev }; delete c[p.toLowerCase()]; return c; })}
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                    <p className="text-xs whitespace-pre-wrap">{proposed[p.toLowerCase()]}</p>
+                  </div>
+                )}
                 {isCustom && (
                   <>
                     <textarea
