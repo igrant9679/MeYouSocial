@@ -129,6 +129,20 @@ async function parseCompositionExtras(workspaceId: string, formData: FormData) {
   return { campaignId, category, evergreen, recycleEveryDays };
 }
 
+/**
+ * Storage keys of composer-generated AI images (hidden inputs). The keys were
+ * minted by generateComposerImageAction, but the FORM is client-controlled, so
+ * bound + shape-check them. They point into the same membership-gated storage
+ * the upload path uses — no new exposure beyond what /api/files already has.
+ */
+function generatedKeysFrom(formData: FormData): string[] {
+  return formData
+    .getAll("generatedKeys")
+    .map(String)
+    .filter((k) => /^[A-Za-z0-9._:/-]{1,200}$/.test(k) && !k.includes(".."))
+    .slice(0, 4);
+}
+
 export async function createSocialPostAction(formData: FormData) {
   const { workspace, user, membership } = await requireRole("EDITOR");
   const text = String(formData.get("text") ?? "").trim();
@@ -137,7 +151,7 @@ export async function createSocialPostAction(formData: FormData) {
   const scheduledRaw = String(formData.get("scheduledAt") ?? "");
 
   if (accountIds.length === 0) backTo("Pick at least one account to post to.");
-  const mediaKeys = await storeMedia(formData.getAll("media"));
+  const mediaKeys = [...(await storeMedia(formData.getAll("media"))), ...generatedKeysFrom(formData)];
   if (!text && mediaKeys.length === 0) backTo("Write something or attach an image.");
 
   const accounts = await resolveSelectedAccounts(workspace.id, accountIds);
@@ -380,10 +394,11 @@ export async function updateSocialPostAction(formData: FormData) {
   const accounts = await resolveSelectedAccounts(workspace.id, accountIds);
   if (accounts.length === 0) backTo("Those accounts aren't connected. Connect one under Admin → Connections.");
 
-  // Media: keep what's there unless explicitly cleared or replaced.
+  // Media: keep what's there unless explicitly cleared or replaced. Newly
+  // generated AI images count as "new media" exactly like uploads do.
   let mediaKeys = readJson<string[]>(post!.mediaKeys, []);
   if (String(formData.get("clearMedia") ?? "") === "on") mediaKeys = [];
-  const added = await storeMedia(formData.getAll("media"));
+  const added = [...(await storeMedia(formData.getAll("media"))), ...generatedKeysFrom(formData)];
   if (added.length) mediaKeys = added;
   if (!text && mediaKeys.length === 0) backTo("Write something or attach an image.");
 

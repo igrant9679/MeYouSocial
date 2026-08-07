@@ -1,13 +1,17 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
-import { Send, CalendarClock, ImagePlus, X, Pencil, RotateCcw, Tags, Plus, ListPlus, Megaphone, Recycle } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Send, CalendarClock, ImagePlus, X, Pencil, RotateCcw, Tags, Plus, ListPlus, Megaphone, Recycle, Sparkles, Loader2, Eye, EyeOff } from "lucide-react";
 import { SubmitButton } from "@/components/SubmitButton";
 import { createSocialPostAction, updateSocialPostAction } from "@/app/actions/social";
+import { generateComposerImageAction } from "@/app/actions/social-image-gen";
 import { networkFor } from "@/lib/social/networks";
 import { HelpTip, WithTip } from "@/components/HelpTip";
 import { SOCIAL_TIPS } from "@/lib/help-tips";
 import { AiAssist } from "@/components/AiAssist";
+
+/** A composer-generated AI image, already stored server-side. */
+type GenImage = { key: string; url: string; provider: string };
 
 export type ComposerAccount = { id: string; provider: string; name: string | null };
 export type ComposerTopic = { id: string; name: string; keywords: string[] };
@@ -98,9 +102,26 @@ export function SocialComposer({
   const [clearMedia, setClearMedia] = useState(false);
   const [files, setFiles] = useState<File[]>([]);
   const [variantFiles, setVariantFiles] = useState<Record<string, File[]>>({});
+  // AI-generated base images: stored server-side the moment they're generated,
+  // attached to the post only on submit (hidden generatedKeys inputs).
+  const [genImages, setGenImages] = useState<GenImage[]>([]);
+  const [genBusy, setGenBusy] = useState(false);
+  const [genError, setGenError] = useState<string | null>(null);
+  const [genGuidance, setGenGuidance] = useState("");
+  const [showPreview, setShowPreview] = useState(false);
 
   const baseInput = useRef<HTMLInputElement>(null);
   const variantInputs = useRef<Record<string, HTMLInputElement | null>>({});
+
+  // Object URLs for uploaded files, for the preview frames. Revoked on change.
+  const fileUrls = useMemo(() => files.map((f) => URL.createObjectURL(f)), [files]);
+  const variantFileUrls = useMemo(() => {
+    const out: Record<string, string[]> = {};
+    for (const [p, fs] of Object.entries(variantFiles)) out[p] = fs.map((f) => URL.createObjectURL(f));
+    return out;
+  }, [variantFiles]);
+  useEffect(() => () => { fileUrls.forEach((u) => URL.revokeObjectURL(u)); }, [fileUrls]);
+  useEffect(() => () => { Object.values(variantFileUrls).flat().forEach((u) => URL.revokeObjectURL(u)); }, [variantFileUrls]);
 
   // Distinct providers among the selected accounts — one customization row each.
   const selectedProviders = useMemo(() => {
@@ -110,11 +131,38 @@ export function SocialComposer({
   }, [accounts, selected]);
 
   // What a network will actually post — its override when customizing and
-  // non-empty, else the base. Mirrors the server's fallback exactly.
+  // non-empty, else the base. Mirrors the server's fallback exactly. AI images
+  // are BASE media (they attach to the post, not a variant).
   const effectiveText = (p: string) =>
     customizing.has(p) && (variants[p] ?? "").trim() ? variants[p] : text;
-  const effectiveMedia = (p: string) =>
-    customizing.has(p) && (variantFiles[p]?.length ?? 0) > 0 ? variantFiles[p] : files;
+  const effectiveMediaCount = (p: string) =>
+    customizing.has(p) && (variantFiles[p]?.length ?? 0) > 0
+      ? variantFiles[p].length
+      : files.length + genImages.length;
+  /** Image URLs a network's preview should show, mirroring effectiveMediaCount. */
+  const previewImagesFor = (p: string) =>
+    customizing.has(p) && (variantFiles[p]?.length ?? 0) > 0
+      ? variantFileUrls[p] ?? []
+      : [...fileUrls, ...genImages.map((g) => g.url)];
+
+  async function generateAiImage() {
+    setGenBusy(true);
+    setGenError(null);
+    try {
+      const squareFirst = new Set(["instagram", "pinterest", "tiktok"]);
+      const square = accounts.some((a) => selected.has(a.id) && squareFirst.has(a.provider.toLowerCase()));
+      const res = await generateComposerImageAction({ text, guidance: genGuidance, square });
+      if (res.ok) {
+        setGenImages((g) => [...g, { key: res.key, url: res.url, provider: res.provider }].slice(0, 4));
+      } else {
+        setGenError(res.error);
+      }
+    } catch {
+      setGenError("Image generation failed — try again.");
+    } finally {
+      setGenBusy(false);
+    }
+  }
 
   const anyOver = selectedProviders.some((p) => effectiveText(p).length > (networkFor(p)?.charLimit ?? 3000));
   const topic = topics.find((t) => t.id === topicId);
@@ -277,6 +325,28 @@ export function SocialComposer({
             <input ref={baseInput} type="file" name="media" accept="image/png,image/jpeg,image/gif,image/webp" multiple className="sr-only"
               onChange={(e) => setFiles(Array.from(e.target.files ?? []).slice(0, 4))} />
           </label>
+          {/* AI image — generated from the post text, PROPOSED as a removable
+              chip; nothing attaches until the form is submitted. type="button"
+              is load-bearing (inside the form), and it is a SIBLING of the
+              label above, never nested. */}
+          <button
+            type="button"
+            className="btn sm"
+            disabled={genBusy || genImages.length >= 4}
+            onClick={generateAiImage}
+            title="Generate an image from the post text"
+          >
+            {genBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+            {genBusy ? "Generating…" : "AI image"}
+          </button>
+          <input
+            value={genGuidance}
+            onChange={(e) => setGenGuidance(e.target.value)}
+            maxLength={300}
+            placeholder="Optional style hint (e.g. flat illustration, brand colors)"
+            className="border border-[var(--line-2)] rounded-lg px-2 py-1 text-xs min-w-56 flex-1 max-w-md"
+            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); if (!genBusy) void generateAiImage(); } }}
+          />
           {files.map((f, i) => (
             <span key={i} className="inline-flex items-center gap-1 text-[11px] font-mono px-2 py-1 rounded-lg" style={{ background: "var(--panel)" }}>
               {f.name.slice(0, 20)}
@@ -287,6 +357,32 @@ export function SocialComposer({
             </span>
           ))}
         </div>
+        {genError && (
+          <p className="text-[11px] mt-1" style={{ color: "var(--amber-on)" }}>{genError}</p>
+        )}
+        {genImages.length > 0 && (
+          <div className="flex items-center gap-2 flex-wrap mt-2">
+            {genImages.map((g, i) => (
+              <span key={g.key} className="relative inline-block">
+                <input type="hidden" name="generatedKeys" value={g.key} />
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={g.url} alt={`AI image ${i + 1}`} className="h-20 w-20 rounded-lg object-cover border border-[var(--line)]" />
+                <span className="absolute bottom-0.5 left-0.5 font-mono text-[9px] px-1 rounded" style={{ background: "var(--panel)", color: "var(--mute)" }}>
+                  {g.provider}
+                </span>
+                <button
+                  type="button"
+                  aria-label={`Remove AI image ${i + 1}`}
+                  onClick={() => setGenImages((prev) => prev.filter((x) => x.key !== g.key))}
+                  className="absolute -top-1.5 -right-1.5 rounded-full p-0.5 border border-[var(--line-2)]"
+                  style={{ background: "var(--panel)" }}
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Per-network customization + live counts */}
@@ -298,7 +394,7 @@ export function SocialComposer({
             const isCustom = customizing.has(p);
             const eff = effectiveText(p);
             const over = eff.length > limit;
-            const media = effectiveMedia(p);
+            const mediaCount = effectiveMediaCount(p);
             const vFiles = variantFiles[p] ?? [];
             return (
               <div key={p} className="rounded-lg border border-[var(--line)] p-2">
@@ -310,12 +406,12 @@ export function SocialComposer({
                       {eff.length}/{limit}{over ? " — over limit" : ""}
                     </span>
                   </WithTip>
-                  {media.length > 0 && (
+                  {mediaCount > 0 && (
                     <span className="font-mono text-[10px] text-[var(--mute)]">
-                      {media.length} image{media.length > 1 ? "s" : ""}{isCustom && vFiles.length > 0 ? " (own)" : ""}
+                      {mediaCount} image{mediaCount > 1 ? "s" : ""}{isCustom && vFiles.length > 0 ? " (own)" : ""}
                     </span>
                   )}
-                  {net?.requiresMedia && media.length === 0 && (
+                  {net?.requiresMedia && mediaCount === 0 && (
                     <WithTip text={SOCIAL_TIPS.needsImage} side="bottom" wide>
                       <span className="text-[11px] text-[var(--amber-on)]">needs an image</span>
                     </WithTip>
@@ -362,6 +458,45 @@ export function SocialComposer({
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Per-platform preview — how the post will read on each selected
+          network, using the same effective text/media fallbacks the server
+          applies. An approximation of each network's card, not a screenshot. */}
+      {selectedProviders.length > 0 && (
+        <div>
+          <button
+            type="button"
+            onClick={() => setShowPreview((v) => !v)}
+            className="text-[11px] font-semibold inline-flex items-center gap-1"
+            style={{ color: "var(--accent)" }}
+          >
+            {showPreview ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+            {showPreview ? "Hide previews" : `Preview on ${selectedProviders.length} network${selectedProviders.length > 1 ? "s" : ""}`}
+          </button>
+          {showPreview && (
+            <div className="grid gap-3 mt-2" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))" }}>
+              {selectedProviders.map((p) => {
+                const account = accounts.find((a) => selected.has(a.id) && a.provider.toUpperCase() === p);
+                return (
+                  <PlatformPreview
+                    key={p}
+                    provider={p}
+                    accountName={account?.name ?? null}
+                    text={effectiveText(p)}
+                    images={previewImagesFor(p)}
+                  />
+                );
+              })}
+            </div>
+          )}
+          {showPreview && (
+            <p className="text-[10px] text-[var(--mute)] mt-1.5">
+              Approximate rendering — networks apply their own fonts, cropping and link handling. Campaign/UTM tags are
+              added to links at send time and aren&apos;t shown here.
+            </p>
+          )}
         </div>
       )}
 
@@ -448,5 +583,85 @@ export function SocialComposer({
         </SubmitButton>
       </div>
     </form>
+  );
+}
+
+/**
+ * One network's preview card. Deliberately an APPROXIMATION built from the
+ * network's own facts (color, label, char limit, image-first layouts) rather
+ * than a pixel-clone of its feed — clones rot the moment a network redesigns,
+ * and a stale clone is worse than an honest sketch.
+ */
+function PlatformPreview({
+  provider,
+  accountName,
+  text,
+  images,
+}: {
+  provider: string;
+  accountName: string | null;
+  text: string;
+  images: string[];
+}) {
+  const net = networkFor(provider);
+  const limit = net?.charLimit ?? 3000;
+  const truncated = text.length > limit;
+  const shown = truncated ? text.slice(0, limit) : text;
+  const slug = provider.toLowerCase();
+  const imageFirst = ["instagram", "pinterest", "tiktok"].includes(slug);
+  const square = imageFirst;
+  const name = accountName ?? net?.label ?? provider;
+
+  const imageBlock =
+    images.length > 0 ? (
+      <div className={images.length > 1 ? "grid grid-cols-2 gap-0.5" : ""}>
+        {images.slice(0, 4).map((u, i) => (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            key={i}
+            src={u}
+            alt=""
+            className={`w-full object-cover ${square ? "aspect-square" : "aspect-video"}`}
+          />
+        ))}
+      </div>
+    ) : imageFirst ? (
+      <div className="aspect-square grid place-items-center text-[11px]" style={{ background: "var(--zebra)", color: "var(--amber-on)" }}>
+        {net?.label} needs an image
+      </div>
+    ) : null;
+
+  return (
+    <div className="rounded-xl border border-[var(--line)] overflow-hidden text-sm" style={{ background: "var(--panel)" }}>
+      {/* Network strip */}
+      <div className="px-3 py-1.5 flex items-center gap-1.5 border-b border-[var(--line)]">
+        <span className="w-2 h-2 rounded-full" style={{ background: net?.color ?? "var(--mute)" }} />
+        <span className="font-mono text-[10px] uppercase tracking-wider text-[var(--mute)]">{net?.label ?? provider}</span>
+      </div>
+      {/* Author row */}
+      <div className="px-3 pt-2.5 pb-1.5 flex items-center gap-2">
+        <span
+          className="w-8 h-8 rounded-full grid place-items-center text-xs font-bold shrink-0"
+          style={{ background: net?.color ?? "var(--mute)", color: "#fff" }}
+        >
+          {name.slice(0, 1).toUpperCase()}
+        </span>
+        <div className="min-w-0">
+          <div className="text-xs font-semibold truncate">{name}</div>
+          <div className="text-[10px] text-[var(--mute)]">Just now</div>
+        </div>
+      </div>
+      {imageFirst && imageBlock}
+      {shown && (
+        <p className="px-3 py-2 text-[13px] whitespace-pre-wrap break-words leading-snug">
+          {shown}
+          {truncated && <span style={{ color: "var(--rose-on)" }}>… ✂ cut at {limit} characters</span>}
+        </p>
+      )}
+      {!imageFirst && imageBlock}
+      <div className="px-3 py-1.5 border-t border-[var(--line)] flex gap-4 text-[10px] font-mono text-[var(--mute)]">
+        <span>Like</span><span>Comment</span><span>Share</span>
+      </div>
+    </div>
   );
 }
