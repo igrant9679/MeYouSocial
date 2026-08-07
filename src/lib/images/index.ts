@@ -224,12 +224,27 @@ const googleProvider: ImageProvider = {
     const { GoogleGenAI } = await import("@google/genai");
     const ai = new GoogleGenAI({ apiKey });
 
-    const res = await ai.models.generateContent({
-      model: GOOGLE_MODEL,
-      contents: req.prompt.slice(0, 4000),
-      // Honoured — verified 16:9 → 1376x768 and 1:1 → 1024x1024 on the live key.
-      config: { imageConfig: { aspectRatio: aspect } },
-    } as Parameters<typeof ai.models.generateContent>[0]);
+    let res;
+    try {
+      res = await ai.models.generateContent({
+        model: GOOGLE_MODEL,
+        contents: req.prompt.slice(0, 4000),
+        // Honoured — verified 16:9 → 1376x768 and 1:1 → 1024x1024 on the live key.
+        config: { imageConfig: { aspectRatio: aspect } },
+      } as Parameters<typeof ai.models.generateContent>[0]);
+    } catch (e) {
+      const raw = e instanceof Error ? e.message : String(e);
+      // ⚠ "free_tier_requests, limit: 0" is not a rate limit you can wait out:
+      // Gemini's IMAGE models have no free tier at all, so a key from a
+      // project without billing gets quota zero. Name the real fix.
+      if (/free_tier/i.test(raw) && /limit:\s*0/i.test(raw)) {
+        throw new Error(
+          `This Google key's project has no billing enabled — Gemini image models have NO free tier (quota 0). ` +
+          `Enable billing on the project in Google Cloud Console, or paste a key from a project that already has billing.`,
+        );
+      }
+      throw new Error(`Google image generation failed: ${raw.slice(0, 300)}`);
+    }
 
     const parts = res.candidates?.[0]?.content?.parts ?? [];
     const inline = (parts.find((p) => (p as { inlineData?: unknown }).inlineData) as
@@ -296,8 +311,13 @@ export async function getImageProvider(workspaceId?: string): Promise<ImageProvi
         } catch (openaiErr) {
           try {
             return await googleProvider.generate(req);
-          } catch {
-            throw openaiErr; // the primary's error is the one worth reading
+          } catch (googleErr) {
+            // BOTH failed — report both, or the fallback's failure is
+            // undiagnosable (cost a probe on 2026-08-07: Google's "no billing
+            // on this project" hid behind OpenAI's "unverified org").
+            const o = openaiErr instanceof Error ? openaiErr.message : String(openaiErr);
+            const g = googleErr instanceof Error ? googleErr.message : String(googleErr);
+            throw new Error(`Both image providers failed. OpenAI: ${o.slice(0, 220)} — Google fallback: ${g.slice(0, 220)}`);
           }
         }
       },

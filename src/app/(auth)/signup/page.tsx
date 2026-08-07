@@ -63,6 +63,33 @@ async function signupAction(formData: FormData) {
     }
   }
 
+  // No token? Claim pending invitations BY EMAIL. Field case (2026-08-07): an
+  // invited teammate signed up bare — straight to /signup, no token — and was
+  // minted a stray personal workspace while her invitation sat unaccepted.
+  // The token only proves what email equality already anchors here: signup
+  // trusts the typed email for account identity anyway, so an invitation
+  // addressed to exactly this email may be claimed by it. (An attacker who
+  // signs up with someone else's invited address gains nothing they wouldn't
+  // get from the same trick without an invitation — the account, not the
+  // mailbox, and the real invitee's link then reports "already accepted",
+  // which is the alarm.)
+  if (!joinedInvite) {
+    const pending = await db.invitation.findMany({
+      where: { email: parsed.data.email, acceptedAt: null, expiresAt: { gt: new Date() } },
+    });
+    for (const invite of pending) {
+      await db.$transaction([
+        db.membership.upsert({
+          where: { userId_workspaceId: { userId: user.id, workspaceId: invite.workspaceId } },
+          update: { role: invite.role, status: "active" },
+          create: { userId: user.id, workspaceId: invite.workspaceId, role: invite.role },
+        }),
+        db.invitation.update({ where: { id: invite.id }, data: { acceptedAt: new Date() } }),
+      ]);
+      joinedInvite = true;
+    }
+  }
+
   // Otherwise every user starts with a workspace of their own (their company's
   // first workspace — rename it under Admin → Workspace).
   if (!joinedInvite) {
