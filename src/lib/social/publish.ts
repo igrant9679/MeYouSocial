@@ -80,6 +80,31 @@ const EXT_FOR: Record<string, string> = {
   "video/mp4": "mp4", "video/quicktime": "mov", "video/webm": "webm", "application/pdf": "pdf",
 };
 
+/**
+ * Re-encode image pixels at publish time, dropping embedded metadata
+ * (EXIF/XMP/C2PA content credentials). gpt-image-1 stamps C2PA provenance
+ * into every PNG, and Facebook auto-labels any image carrying that signal as
+ * "AI info" — reported from the field 2026-08-07 on every published MYS post.
+ * Re-encoding is presentation, not deception: the stored ORIGINAL keeps its
+ * credentials, our audit rows name the generating provider, and Google's
+ * SynthID lives in the pixels so Gemini images may still be detected.
+ * `rotate()` bakes EXIF orientation into the pixels before EXIF is dropped,
+ * so phone photos don't come out sideways. Any failure uploads the original
+ * bytes — a metadata nicety must never block a send.
+ */
+async function stripImageMetadata(bytes: Uint8Array, contentType: string): Promise<Uint8Array> {
+  if (!/^image\/(png|jpe?g|webp)$/i.test(contentType)) return bytes;
+  try {
+    const sharp = (await import("sharp")).default;
+    // No explicit format: sharp keeps the input format, so contentType stays true.
+    const out = await sharp(Buffer.from(bytes)).rotate().toBuffer();
+    return new Uint8Array(out);
+  } catch (e) {
+    console.warn("[social] metadata strip failed — uploading original bytes:", e instanceof Error ? e.message : e);
+    return bytes;
+  }
+}
+
 function makeUploader(workspaceId: string): MediaUploader {
   // Cache by storage key: an image shared by three networks uploads once.
   const cache = new Map<string, ZernioMediaItem | null>();
@@ -89,8 +114,9 @@ function makeUploader(workspaceId: string): MediaUploader {
       if (!cache.has(key)) {
         const buf = await storage.get(key);
         if (buf) {
-          const bytes = new Uint8Array(buf);
-          const contentType = sniffContentType(bytes) ?? contentTypeFor(key);
+          const raw = new Uint8Array(buf);
+          const contentType = sniffContentType(raw) ?? contentTypeFor(key);
+          const bytes = await stripImageMetadata(raw, contentType);
           let filename = key.split("/").pop() || "media";
           if (!filename.includes(".") && EXT_FOR[contentType]) filename += `.${EXT_FOR[contentType]}`;
           cache.set(key, {
