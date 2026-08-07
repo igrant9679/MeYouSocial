@@ -165,6 +165,10 @@ export function SocialComposer({
   }
 
   const anyOver = selectedProviders.some((p) => effectiveText(p).length > (networkFor(p)?.charLimit ?? 3000));
+  // Over-limit blocks SENDING (the network would refuse) but never PARKING:
+  // "save as draft and trim later" is the whole point of drafts. Editing an
+  // existing post with when="draft" is the same parking action.
+  const overBlocks = anyOver && when !== "draft";
   const topic = topics.find((t) => t.id === topicId);
 
   const toggle = (id: string) =>
@@ -569,9 +573,14 @@ export function SocialComposer({
             Held for approval before it goes out
           </span>
         )}
+        {overBlocks && (
+          <span className="text-[11px]" style={{ color: "var(--rose-on)" }}>
+            Over a network&apos;s limit — shorten it, customize that network, or save as draft.
+          </span>
+        )}
         <SubmitButton
           className="btn primary"
-          disabled={selected.size === 0 || anyOver}
+          disabled={selected.size === 0 || overBlocks}
           pendingText={editing ? "Saving…" : when === "queue" ? "Queueing…" : when === "schedule" ? "Scheduling…" : when === "draft" ? "Saving…" : "Posting…"}
         >
           {editing ? (
