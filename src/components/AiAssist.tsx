@@ -87,8 +87,17 @@ export function AiAssist({
       } else {
         setError(res.error);
       }
-    } catch {
-      setError("Couldn't reach the model. Try again.");
+    } catch (e) {
+      // A "Failed to find Server Action … from an older or newer deployment"
+      // error means this PAGE is stale — it was loaded before a deploy and its
+      // action ids no longer exist on the server. That's not a model problem,
+      // and no retry fixes it; a reload does. Detect it and say so.
+      const msg = e instanceof Error ? e.message : "";
+      if (/server action|older or newer deployment/i.test(msg)) {
+        setError("This page is out of date after an update — reload it, then try again.");
+      } else {
+        setError("Couldn't reach the model. Try again.");
+      }
     } finally {
       setBusy(false);
     }
