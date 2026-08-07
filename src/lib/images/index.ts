@@ -173,6 +173,16 @@ const openaiProvider: ImageProvider = {
         const j = JSON.parse(text) as { error?: { message?: string } };
         if (j.error?.message) detail = j.error.message;
       } catch { /* keep raw */ }
+      // ⚠ "TPM: Limit 0" is not rate limiting — it means the OpenAI org behind
+      // this key has NO gpt-image quota at all, which is how OpenAI presents
+      // an org that hasn't completed identity verification for image models.
+      // Surfaced 2026-08-06 as a cryptic 429; name the actual fix.
+      if (res.status === 429 && /limit[:\s]*0/i.test(detail)) {
+        throw new Error(
+          `This OpenAI organization has no ${OPENAI_MODEL} quota (limit 0) — image models need a VERIFIED OpenAI organization. ` +
+          `Verify it at platform.openai.com → Settings → Organization → Verification, or add a Google key under Admin → API keys to use Gemini images instead.`,
+        );
+      }
       throw new Error(`OpenAI image generation failed (HTTP ${res.status}): ${detail}`);
     }
 
@@ -271,8 +281,30 @@ export async function getImageProviderSetting(workspaceId?: string): Promise<Ima
 export async function getImageProvider(workspaceId?: string): Promise<ImageProvider> {
   const setting = await getImageProviderSetting(workspaceId);
   if (setting !== "auto") return PROVIDERS[setting];
-  if (await getApiKey("openai", workspaceId).catch(() => "")) return openaiProvider;
-  if (await getApiKey("google", workspaceId).catch(() => "")) return googleProvider;
+  const hasOpenai = Boolean(await getApiKey("openai", workspaceId).catch(() => ""));
+  const hasGoogle = Boolean(await getApiKey("google", workspaceId).catch(() => ""));
+  // Fallback sits UPSTREAM of the likeliest failure: in auto mode with both
+  // keys, an OpenAI failure (unverified org, quota, outage) retries on Google
+  // instead of dying — the result names whichever provider actually rendered.
+  // An explicitly CHOSEN provider still fails loudly, per the house rule.
+  if (hasOpenai && hasGoogle) {
+    return {
+      name: "openai",
+      async generate(req) {
+        try {
+          return await openaiProvider.generate(req);
+        } catch (openaiErr) {
+          try {
+            return await googleProvider.generate(req);
+          } catch {
+            throw openaiErr; // the primary's error is the one worth reading
+          }
+        }
+      },
+    };
+  }
+  if (hasOpenai) return openaiProvider;
+  if (hasGoogle) return googleProvider;
   return mockProvider;
 }
 

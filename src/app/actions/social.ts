@@ -185,6 +185,8 @@ export async function createSocialPostAction(formData: FormData) {
     if ("error" in claim) backTo(queueFailureMessage(claim.error));
     scheduledAt = claim.at;
     status = "scheduled";
+  } else if (when === "draft") {
+    status = "draft"; // park it — send later from the drafts list
   } else {
     status = "publishing"; // publish immediately below
   }
@@ -279,7 +281,9 @@ export async function createSocialPostAction(formData: FormData) {
   backTo(
     when === "queue"
       ? `Queued for ${formatInZone(scheduledAt!, await getPostingTimeZone(workspace.id))}.`
-      : "Scheduled.",
+      : when === "draft"
+        ? "Saved to drafts."
+        : "Scheduled.",
     "ok",
   );
 }

@@ -532,6 +532,9 @@ export function SocialComposer({
               <input type="radio" name="when" value="schedule" checked={when === "schedule"} onChange={() => setWhen("schedule")} /> Schedule
             </label>
             <HelpTip text={SOCIAL_TIPS.schedule} />
+            <label className="inline-flex items-center gap-1.5 text-sm cursor-pointer">
+              <input type="radio" name="when" value="draft" checked={when === "draft"} onChange={() => setWhen("draft")} /> Save as draft
+            </label>
           </>
         )}
         {/* Add to queue — offered only when there IS a free slot to take, so the
@@ -569,7 +572,7 @@ export function SocialComposer({
         <SubmitButton
           className="btn primary"
           disabled={selected.size === 0 || anyOver}
-          pendingText={editing ? "Saving…" : when === "queue" ? "Queueing…" : when === "schedule" ? "Scheduling…" : "Posting…"}
+          pendingText={editing ? "Saving…" : when === "queue" ? "Queueing…" : when === "schedule" ? "Scheduling…" : when === "draft" ? "Saving…" : "Posting…"}
         >
           {editing ? (
             <><Pencil className="w-4 h-4" /> Save changes</>
@@ -577,6 +580,8 @@ export function SocialComposer({
             <><ListPlus className="w-4 h-4" /> Add to queue</>
           ) : when === "schedule" ? (
             <><CalendarClock className="w-4 h-4" /> Schedule</>
+          ) : when === "draft" ? (
+            <><Pencil className="w-4 h-4" /> Save draft</>
           ) : (
             <><Send className="w-4 h-4" /> Post now</>
           )}
