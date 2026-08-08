@@ -179,6 +179,33 @@ export async function zernioJson(
   return (await readJsonOrThrow(res, `Reading ${path.split("?")[0]}`)) as Record<string, unknown>;
 }
 
+/**
+ * POST JSON to Zernio and return the parsed reply.
+ *
+ * Unlike `zernioJson` this THROWS when the path isn't a route: a write that
+ * quietly did nothing is far worse than one that fails loudly — the caller is
+ * about to tell someone their message was sent.
+ */
+export async function zernioSend(
+  path: string,
+  body: Record<string, unknown>,
+  workspaceId?: string | null,
+): Promise<Record<string, unknown>> {
+  const res = await zernioFetch(path, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+    workspaceId,
+  });
+  if (!(res.headers.get("content-type") ?? "").includes("json")) {
+    throw new ZernioError(
+      `Zernio has no endpoint at ${path.split("?")[0]} (it answered with its website, not JSON).`,
+      res.status,
+    );
+  }
+  return (await readJsonOrThrow(res, `Sending to ${path.split("?")[0]}`)) as Record<string, unknown>;
+}
+
 // ── Accounts ─────────────────────────────────────────────────────────────────
 
 export type ZernioAccountInfo = {

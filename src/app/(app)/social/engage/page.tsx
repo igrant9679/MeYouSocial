@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { MessagesSquare, MessageCircle, ExternalLink, Info, AlertTriangle, ArrowLeft, Heart } from "lucide-react";
-import { requireRole } from "@/lib/acl";
+import { requireRole, canAdmin } from "@/lib/acl";
 import { db } from "@/lib/db";
+import { getSetting } from "@/lib/settings";
 import { networkFor } from "@/lib/social/networks";
 import { zernioConfigured } from "@/lib/zernio";
 import {
@@ -14,6 +15,8 @@ import {
   type InboxCommentablePost,
 } from "@/lib/zernio/inbox";
 import { Banner, SocialHeader } from "@/components/SocialPostCard";
+import { InboxReply } from "@/components/InboxReply";
+import { sendInboxReplyAction, replyOnPostAction } from "@/app/actions/social-inbox";
 
 /**
  * Engage — the direct messages and post comments Zernio can see, in one place.
@@ -35,8 +38,14 @@ type SP = { dm?: string; post?: string; acct?: string; net?: string; ok?: string
 const DM_NETWORKS = ["facebook", "instagram", "linkedin", "twitter"];
 
 export default async function EngagePage({ searchParams }: { searchParams: Promise<SP> }) {
-  const { workspace } = await requireRole("EDITOR");
+  const { workspace, membership } = await requireRole("EDITOR");
   const { dm, post, acct, net, ok, err } = await searchParams;
+
+  const isAdmin = canAdmin(membership.role);
+  // Mirrors the guard in replyOnPostAction: public comments are admin-only
+  // while this workspace reviews posts. Shown as governed, not as broken.
+  const commentsLocked =
+    !isAdmin && (await getSetting("social:require_approval", workspace.id).catch(() => "")) === "true";
 
   const configured = await zernioConfigured(workspace.id);
   const accounts = await db.zernioAccount.findMany({
@@ -176,9 +185,12 @@ export default async function EngagePage({ searchParams }: { searchParams: Promi
                   })}
                 </div>
               )}
-              <p className="text-[10px] text-[var(--mute)] mt-3 pt-2 border-t border-[var(--line)]">
-                Read-only for now — replies still go out from the network itself.
-              </p>
+              <InboxReply
+                action={sendInboxReplyAction}
+                hidden={{ conversationId: openConvo.id, accountId: openConvo.accountId }}
+                asLabel={openConvo.accountUsername ?? networkFor(openConvo.platform)?.label ?? openConvo.platform}
+                placeholder={`Reply to ${openConvo.participantName ?? "them"}…`}
+              />
             </div>
           ) : conversations.length === 0 ? (
             <EmptyOrUnsupported connected={connected} filtered={net} kind="dms" />
@@ -248,9 +260,21 @@ export default async function EngagePage({ searchParams }: { searchParams: Promi
                   ))}
                 </div>
               )}
-              <p className="text-[10px] text-[var(--mute)] mt-3 pt-2 border-t border-[var(--line)]">
-                Read-only for now — replies still go out from the network itself.
-              </p>
+              {commentsLocked ? (
+                <p className="text-[11px] mt-3 pt-3 border-t border-[var(--line)] text-[var(--mute)]">
+                  This workspace reviews posts before they go out, so public comments are admin-only. Direct-message
+                  replies are still yours to send.
+                </p>
+              ) : (
+                <InboxReply
+                  action={replyOnPostAction}
+                  hidden={{ postId: openPost.id, accountId: openPost.accountId }}
+                  asLabel={openPost.accountUsername ?? networkFor(openPost.platform)?.label ?? openPost.platform}
+                  placeholder="Add a comment on this post…"
+                  // Not a threaded reply — say so, because "reply" implies one.
+                  publicNote="posts publicly as a new comment on the post, not threaded under a reply"
+                />
+              )}
             </div>
           ) : withComments.length === 0 ? (
             <>

@@ -1,4 +1,4 @@
-import { zernioJson } from "@/lib/zernio";
+import { zernioJson, zernioSend } from "@/lib/zernio";
 
 /**
  * Zernio's inbox: direct messages, and comments on posts we published.
@@ -198,6 +198,55 @@ export async function listCommentablePosts(opts: {
     commentCount: num(r.commentCount),
     likeCount: num(r.likeCount),
   }));
+}
+
+/**
+ * Send a direct message into an existing conversation.
+ *
+ * ⚠ `accountId` goes in the BODY, not the query string — passing it as a query
+ * param returns `missing_required_field: accountId` even though the same
+ * endpoint reads it from the query on GET. Mapped 2026-08-08 by POSTing
+ * deliberately incomplete bodies and reading the validation errors, so the
+ * contract was learned without delivering anything to anyone.
+ *
+ * This REACHES A REAL PERSON. Callers must have a human behind them.
+ */
+export async function sendInboxMessage(opts: {
+  workspaceId: string;
+  conversationId: string;
+  accountId: string;
+  message: string;
+}): Promise<void> {
+  await zernioSend(
+    `/inbox/conversations/${encodeURIComponent(opts.conversationId)}/messages`,
+    { accountId: opts.accountId, message: opts.message },
+    opts.workspaceId,
+  );
+}
+
+/**
+ * Comment on one of our own posts — this is how a comment gets answered.
+ *
+ * ⚠ It posts a NEW top-level comment on the post; it does not thread under the
+ * comment being answered. Zernio's comment rows carry `canReply` and a
+ * `replies` array, so a threaded form may exist, but determining its shape
+ * would have meant POSTing a valid message to find out — i.e. publishing a
+ * test comment on a real company page. Not worth it; the UI says plainly what
+ * this does instead.
+ *
+ * Same warning as above: this is public and immediate.
+ */
+export async function replyOnPost(opts: {
+  workspaceId: string;
+  postId: string;
+  accountId: string;
+  message: string;
+}): Promise<void> {
+  await zernioSend(
+    `/inbox/comments/${encodeURIComponent(opts.postId)}`,
+    { accountId: opts.accountId, message: opts.message },
+    opts.workspaceId,
+  );
 }
 
 /** The actual comments on one post. `accountId` is required, as above. */
