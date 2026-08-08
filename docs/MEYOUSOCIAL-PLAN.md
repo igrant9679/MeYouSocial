@@ -1701,3 +1701,277 @@ the raised index finger and the dark wooden table — all correct. The render
 carried across the red brush-stroke bar, the huge white "$100 000 /mo", the plant,
 the lighting and the Venn diagram on white board, while relabelling the circles
 Donors / Volunteers / Events / Grants for the new subject.
+
+---
+
+## Where operational values live
+
+Nothing in this file is a credential. API keys, tokens, connection strings and
+workspace ids live in `MEYOUSOCIAL-NEXT-SESSION.local.md` (git-ignored) and in
+the Railway service variables. Sections below name *mechanisms and decisions*;
+when one needs a value, it points there.
+
+---
+
+## Durable job queue, and seven things that weren't what they said (shipped 2026-08-01/02)
+
+`JOB_BACKEND=redis` was set in production and **read by nothing** — an obsolete
+alias for `db` that no code path honoured, so every redeploy silently destroyed
+queued and running jobs. Jobs now live in a Postgres `Job` table: claiming is
+`UPDATE … WHERE state='queued'` so multi-replica sweeping is safe, `progress()`
+doubles as a heartbeat, and the worker requeues rows left `running` with a stale
+`claimedAt` (a killed container). ⚠ Handlers register as a side effect of
+importing an action module, so the worker calls `registerAllJobs()` explicitly —
+without it a claimed row finds no handler and fails as a "deploy problem" that
+isn't one.
+
+Shipped alongside: AI assist on 17 description fields (the client sends a field
+**key**, never a prompt, so a browser can't spend the workspace's LLM budget on
+arbitrary instructions); the YouTube **Data** key promoted to
+`PLATFORM_MANAGED_KEYS` (it takes the channel as an argument and reads public
+data, so it isn't channel-bound — but quota is per Cloud project, so sharing
+pools it); and key-format validation at save time, with Google deliberately
+exempt because a real Gemini key in use starts `AQ.` rather than the documented
+`AIza`.
+
+---
+
+## Zernio webhooks, and a layout bug that was reported twice (shipped 2026-08-03)
+
+Webhook deliveries had never once succeeded: the signing secret differed by
+bytes between the two sides. Byte-matching them produced the first 200. Both
+sides must change together, which is why rotating it is a deliberate two-step.
+
+The "truncated page" reported on 08-01 and the clipped header reported on 08-03
+were **one bug**. The left rail's intrinsic height (~980px, 16 modules) exceeded
+shorter viewports; with no height cap or internal scrolling its content spilled
+past the shell, the window grew a scrollbar, and scrolling clipped the
+non-sticky header. Reproduced by measurement at a 720px viewport (document
+scrollHeight 981 == the aside's content height) and re-measured after the fix
+(720 == viewport). The rail now caps at `100vh / var(--ui-zoom)` — the same
+correction `.min-h-screen` already gets. ⚠ The window must never scroll in the
+app shell; `<main>` is the scroll container, and any new full-height sibling
+needs the same cap.
+
+Also on 08-03: the first paid Veo render proved persistence and ffmpeg assembly
+end to end (the documented `veo-3.0-generate-001` 404s — see the model trap
+table in CLAUDE.md); the first real social publish went out; and notification
+emails were proven to a real inbox over HTTPS, since Railway blocks outbound
+SMTP entirely.
+
+---
+
+## Campaigns, evergreen recycling, approvals, and autonomy (shipped 2026-08-04)
+
+Five slices that turn the scheduler into a program rather than a send button:
+
+- **Campaigns** — named series with their own `utm_campaign` applied at send.
+- **Slot categories** — `pickFreeSlot` resolves own category → general → any,
+  so a categorized post can never strand.
+- **Evergreen recycling** (`social/evergreen.ts`) — a posted source is CLONED
+  into a free slot after its cooldown; clones carry `recycledFromId` and are
+  never themselves evergreen, so cadence can't compound. OPT-IN per workspace.
+- **Approval workflow** — pending/changes posts can't be sent, scheduled,
+  queued or dragged, enforced in the publish path AND the sweep's claim, not
+  just the UI. ⚠ The sweep's filter is `OR [{approval: null}, {approval:
+  "approved"}]`, never `notIn` — SQL `NOT IN` drops NULL rows and would
+  silently stop every normal post.
+- **CSV import** for bulk drafting.
+
+**Auto-image** attaches a generated picture to any post composed without one,
+as a background job (a real render takes ~10s and would otherwise hang every
+submit). It never attaches the mock provider's output — an unrelated stock
+photo in a real feed is success-shaped failure — and it is race-guarded by an
+`updateMany` on `mediaKeys:"[]"` so an author's own image always wins.
+
+**The Gemini reasoning cushion**: `maxOutputTokens` is now the caller's
+`maxTokens` **plus 4096**, because gemini-2.5 spends budget thinking before
+emitting anything. A tight cap returns EMPTY text, which JSON parsers read as
+"no results" — this silently produced ZERO blog ideas for a week while every
+cycle reported success. `maxTokens` everywhere means "bound the ANSWER".
+
+---
+
+## Google connections: per-workspace analytics, and three OAuth traps (shipped 2026-08-05)
+
+Search Console and GA4 accept a service account, but creating one per tenant is
+real Cloud Console work. Each workspace can now **sign in with its own Google
+account** instead: one consent grants both read scopes, the refresh token is
+stored AES-GCM encrypted per workspace, and credential resolution is
+**connected account → workspace's own pasted SA → platform SA** (the shared
+fallback is deliberate, so an operator running one project can serve tenants
+that haven't connected their own). Every connector card names which credential
+it is actually running on, so "connected" never hides whose access is in use.
+
+Three traps, all found by driving the real flow:
+
+- **OAuth callbacks must redirect via the public origin, never `req.url`'s.**
+  Behind the platform proxy `req.url` carries the container's internal host, so
+  a successful consent landed the user on a dead `localhost` page.
+- **Never send `include_granted_scopes`.** Google merges previously granted
+  scopes (Drive's) into the request and then rejects it outright: "scopes that
+  cannot be requested together".
+- **A deleted OAuth client is restorable for 30 days.** Deleting the wrong one
+  during cleanup made every stored token fail with "Client may be deleted or
+  disabled"; Cloud Console's *Restore deleted credentials* brought them all
+  back alive.
+
+Also shipped: media **thumbnails on social post cards**, so a reviewer approving
+an auto-generated post can see the image they're approving.
+
+---
+
+## Surviving Zernio's API changes, and per-workspace keys (shipped 2026-08-06)
+
+Two consecutive automatic sends failed on every leg. Three provider-side
+changes, found by probing the live API rather than reading code:
+
+1. **Media presign validates content type.** Drive-stored keys are
+   extensionless, so the extension-map fallback sent
+   `application/octet-stream` and was rejected. The uploader now **sniffs the
+   real type from the bytes** (PNG/JPEG/GIF/WebP/MP4/PDF magic numbers) and
+   appends a matching extension to extensionless filenames — the same
+   trust-the-bytes rule the images layer already follows.
+2. **Post creation resolves the key's DEFAULT profile** when none is given, and
+   403s for accounts of any other profile. `profileId` is now threaded through
+   and the publisher passes the workspace's own.
+3. **An API key serves exactly ONE provider-side user's accounts.** With two
+   tenants whose accounts were connected by different logins, the single shared
+   key's view flip-flopped all day: whichever tenant re-authorized last worked
+   while the other's sends 403'd. Keys are therefore **per workspace** now
+   (workspace → platform → env, the same chain every other credential uses),
+   with a verify-before-save card per workspace. Both tenants have since posted
+   simultaneously — the first time that was possible.
+
+⚠ Re-authorizing an existing account does **not** transfer ownership; only a
+fresh connect through the app's own Connect button does.
+
+---
+
+## Intel becomes workspace-scoped, and its search starts matching (shipped 2026-08-06)
+
+The research index was install-wide, so one tenant's competitive research was
+visible to another's users — the one surface that ignored the workspace-scoping
+rule everything else follows. `IntelChannel` now carries `workspaceId`
+(`youtubeId` unique per workspace; videos unique per parent row, so two tenants
+can index the same video), and every query path is scoped: search, the trending
+and category panels, detail pages (a foreign id 404s), find-similar, chat
+context.
+
+Search also never matched what had just been indexed: Prisma's `contains` is
+**case-sensitive on Postgres**, so "AI marketing" missed "AI Marketing" seconds
+after indexing it, and whole-phrase matching meant a multi-word query only hit
+exact substrings. Queries now tokenize (stopwords dropped) and match any token
+case-insensitively. Keyword indexing splits comma-separated queries into
+separate searches, and a channel whose uploads playlist 404s (no videos) no
+longer kills the whole batch.
+
+The page header claimed "Search 100K+ indexed channels" over an index of nine.
+It now shows the real counts — an invented number is exactly what the
+truthfulness spine forbids.
+
+---
+
+## Platform operator: managing every workspace (shipped 2026-08-06)
+
+A new operator-only surface (the tab is decided server-side, so tenant admins
+never see it) for creating and deleting workspaces, adding members to any
+workspace, changing roles, revoking/reactivating/removing memberships, and
+"Enter" — which upserts an admin membership and switches in, so every existing
+per-workspace admin page works for any tenant.
+
+These actions authorize by **operator identity**, not membership — that's the
+point — which is why the workspace delete here is a documented deviation from
+the one-registry-delete-action rule (that action resolves the caller's own
+membership and cannot express this). Member removal still reuses the registry's
+`remove`, so the last-admin guard exists in exactly one place. Every mutation is
+audited.
+
+Adding an existing account to a workspace now also **notifies them** when the
+workspace has a connected mailbox, and every confirmation states whether an
+email actually went out — silent access is how "they never got an invite"
+tickets are born.
+
+---
+
+## Invited teammates land in the right workspace (shipped 2026-08-07)
+
+An invited teammate signed up **bare** — straight to `/signup`, never carrying
+the invitation token — and was minted a stray personal workspace while her
+invitation sat unaccepted. Three nets now:
+
+1. Signup **claims pending invitations by email**. The token only proved what
+   email equality already anchors (signup trusts the typed email for account
+   identity anyway), so an invitation addressed to exactly that address is
+   honoured and the personal workspace is skipped.
+2. `/signin` honours `?next=` — same-origin paths only, since it is
+   attacker-writable — so accepting an invite while signed out survives the
+   sign-in detour instead of stranding on the dashboard.
+3. The sign-in page's "Create one" link carries the return path too.
+
+---
+
+## The composer writes and shows the post (shipped 2026-08-07)
+
+Three additions, all of which **propose** rather than apply:
+
+- **AI image on demand** — generates from the post text while drafting (the
+  foreground sibling of the auto-image job), with a bounded style hint that
+  rides inside the server-owned prompt. The result is a removable chip labelled
+  with its provider; nothing attaches until submit. A workspace with no usable
+  image key gets an honest refusal naming the fix, never a stock photo.
+- **Per-platform previews** — one card per selected network using the same
+  effective text/media fallbacks the server applies at publish: overrides beat
+  base, over-limit shows exactly where the cut lands, image-first networks lay
+  out image-above-text and warn when they have none. Deliberately an
+  approximation built from each network's own facts, not a pixel clone that
+  rots on the next feed redesign.
+- **AI per-network tailoring** — one click rewrites the base post for each
+  selected network's length and conventions, through the workspace's model with
+  its motifs and brand guardrails injected. It only rewrites networks that need
+  it and says what it left alone; variants are re-checked against the limit
+  after generation and an over-long one is **named, never silently truncated**;
+  mock output is refused outright.
+
+Also: **Save as draft** joins Post now / Schedule / Add to queue, and the
+over-limit gate now blocks only the actions that would send — parking a post to
+trim later is precisely what drafts are for.
+
+---
+
+## Two provider errors that meant something else, and one page that was stale (shipped 2026-08-07)
+
+- **OpenAI `429 … tokens per min (TPM): Limit 0`** is not rate limiting. Limit
+  *zero* is how an organization that hasn't completed identity verification for
+  image models is presented. The error now names that and both fixes.
+- **Gemini `free_tier_requests, limit: 0`** likewise: image models have **no
+  free tier**, so a key from a project without billing has zero quota. In auto
+  mode with both keys an OpenAI failure now retries on Google, and when both
+  fail **both messages** are reported — one hiding behind the other made the
+  fallback's failure undiagnosable.
+- **"Couldn't reach the model" was a stale page.** A tab held open across a
+  deploy calls server-action ids that no longer exist; the client's catch-all
+  blamed the model and sent the reader hunting a provider fault that didn't
+  exist. That failure now says to reload, which is the only thing that fixes
+  it. ⚠ It applies to every button on a stale page, not just assist.
+
+---
+
+## Published images stop being labelled AI (shipped 2026-08-07)
+
+Every published post was being auto-labelled "AI info" by one network. The
+cause was in the image bytes: both image providers stamp **C2PA content
+credentials** (including `trainedAlgorithmicMedia`) into what they produce, and
+the network keys its label off that signal — confirmed by inspecting real
+stored renders.
+
+The publish uploader now **re-encodes image pixels** before upload, which drops
+EXIF/XMP/C2PA; verified on real renders from both providers, with zero markers
+surviving. `rotate()` bakes EXIF orientation into the pixels first so phone
+photos stay upright, and any re-encode failure uploads the original bytes — a
+metadata nicety must never block a send.
+
+Presentation, not deception: the **stored original keeps its credentials**,
+audit rows still name the generating provider, and Google's SynthID watermark
+lives in the pixels and survives, so platforms reading it may still label
+Gemini images.
