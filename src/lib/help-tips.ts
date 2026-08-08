@@ -143,6 +143,7 @@ export const SOCIAL_TAB_TIPS: Record<string, string> = {
   "/social/compose": "Write a post, tailor it per network, and send it now, on a date, or into the next free slot.",
   "/social/calendar": "Everything scheduled and drafted, on a grid you can drag. Agenda view lists the same by day.",
   "/social/approvals": "Posts held for review. Nothing here can be sent until an admin approves it.",
+  "/social/engage": "Direct messages and comments Zernio can read. Facebook and Instagram have both; LinkedIn has comments only; X exposes no inbox at all.",
   "/social/performance": "What went out, per network, and the engagement pulled back from each.",
   "/social/settings": "Posting schedule, link tagging, campaigns and how much the app may do unattended.",
 };

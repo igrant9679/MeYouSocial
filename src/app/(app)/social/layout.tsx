@@ -39,6 +39,10 @@ export default async function SocialLayout({ children }: { children: React.React
     { href: "/social/compose", label: "Compose" },
     { href: "/social/calendar", label: "Calendar", count: scheduled },
     { href: "/social/approvals", label: "Approvals", count: awaiting, urgent: awaiting > 0 },
+    // No badge: an unread count would have to be fetched from Zernio on every
+    // Social page load, and coverage is partial enough (no X inbox at all,
+    // no LinkedIn DMs) that a number here would misrepresent what it counts.
+    { href: "/social/engage", label: "Engage" },
     { href: "/social/performance", label: "Performance" },
     { href: "/social/settings", label: "Settings" },
   ];

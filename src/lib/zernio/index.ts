@@ -159,6 +159,26 @@ export async function listZernioProfiles(workspaceId?: string | null): Promise<Z
   return Array.isArray(items) ? items.map(profileOf) : [];
 }
 
+/**
+ * GET a Zernio path and return parsed JSON — or null when the path isn't a
+ * route at all.
+ *
+ * ⚠ Zernio serves its marketing site from the same origin, and its catch-all
+ * answers **HTTP 200 with text/html** for any API path it doesn't recognise.
+ * `/comments`, `/inbox`, `/mentions` and `/engagements` all "succeed" that way
+ * and none of them exist. A status check would call every one of them working,
+ * so the CONTENT-TYPE is the only reliable evidence a route is real. Callers
+ * treat null as "unsupported", which is a different answer from "empty".
+ */
+export async function zernioJson(
+  path: string,
+  workspaceId?: string | null,
+): Promise<Record<string, unknown> | null> {
+  const res = await zernioFetch(path, { workspaceId });
+  if (!(res.headers.get("content-type") ?? "").includes("json")) return null;
+  return (await readJsonOrThrow(res, `Reading ${path.split("?")[0]}`)) as Record<string, unknown>;
+}
+
 // ── Accounts ─────────────────────────────────────────────────────────────────
 
 export type ZernioAccountInfo = {
