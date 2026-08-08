@@ -56,6 +56,23 @@ export async function checkWorkspaceAccountHealth(
 ): Promise<{ checked: number; broke: { label: string; reason: string; scheduledAhead: number }[] }> {
   if (!(await zernioConfigured(workspaceId))) return { checked: 0, broke: [] };
 
+  // ⚠ ONLY workspaces already bound to a Zernio profile. This is a health
+  // CHECK — it must not bind anything.
+  //
+  // `syncZernioAccounts` calls `ensureZernioProfile`, which adopts an unclaimed
+  // profile or creates a new one. That is right for a human pressing Refresh in
+  // their own workspace; it is badly wrong for a sweep running unattended over
+  // every workspace on the install. Demo Workspace has no Zernio key of its own,
+  // so it falls back to the PLATFORM key, and the first run of this sweep
+  // (2026-08-08 20:02Z) duly adopted an unclaimed profile on that key and
+  // mirrored CommunityForce's Facebook, Instagram and LinkedIn accounts into
+  // Demo. No content referenced them and the binding was reverted, but a
+  // workspace with posts would have had them queued against another tenant's
+  // accounts. An existing profileId makes ensureZernioProfile a no-op, which is
+  // what keeps this call read-only.
+  const ws = await db.workspace.findUnique({ where: { id: workspaceId }, select: { zernioProfileId: true } });
+  if (!ws?.zernioProfileId) return { checked: 0, broke: [] };
+
   const before = new Map(
     (await db.zernioAccount.findMany({ where: { workspaceId }, select: SELECT })).map((a) => [a.accountId, a]),
   );
