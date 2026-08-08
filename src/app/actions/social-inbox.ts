@@ -21,8 +21,17 @@ import { sendInboxMessage, replyOnPost } from "@/lib/zernio/inbox";
 
 type Flash = (msg: string, kind?: "err" | "ok") => never;
 
+/**
+ * ⚠ Unlike the other Social action files, `to` here ALREADY carries a query
+ * string — we return to the specific thread (`?dm=…&acct=…`), not to a bare
+ * tab. Appending "?err=…" produced `…&acct=x?err=y`, a second question mark
+ * that leaves `err` inside the value of `acct`, so the page rendered no banner
+ * at all. Caught by the tenancy negative test, which refused correctly and
+ * then said nothing about it.
+ */
 function flashTo(to: string, msg: string, kind: "err" | "ok"): never {
-  redirect(`${to}?${kind === "err" ? "err" : "ok"}=${encodeURIComponent(msg)}`);
+  const sep = to.includes("?") ? "&" : "?";
+  redirect(`${to}${sep}${kind === "err" ? "err" : "ok"}=${encodeURIComponent(msg)}`);
 }
 
 const MAX_LEN = 2000;
