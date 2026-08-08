@@ -339,7 +339,15 @@ export async function createZernioPost(opts: {
     platforms: opts.platforms.map((p) => ({
       platform: p.platform,
       accountId: p.accountId,
-      ...(p.content ? { content: p.content } : {}),
+      // ⚠ The per-platform text override is `customContent`, NOT `content` —
+      // it pairs with `customMedia`. Zernio accepts unknown keys SILENTLY, so
+      // sending `content` here published the base text every time while the
+      // API returned a clean 201: UTM tags never reached a network (four
+      // sessions of "why is this untagged?"), and per-network variants —
+      // manual overrides AND the AI tailoring — were dropped on the floor.
+      // Proven 2026-08-08 by a draft probe: of content / customContent / text
+      // / platformContent sent together, only customContent came back stored.
+      ...(p.content ? { customContent: p.content } : {}),
       ...(p.customMedia?.length ? { customMedia: p.customMedia } : {}),
     })),
   };
