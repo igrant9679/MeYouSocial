@@ -110,6 +110,16 @@ export type InboxComment = {
 const str = (v: unknown): string | null => (typeof v === "string" && v ? v : null);
 const num = (v: unknown): number => (typeof v === "number" && Number.isFinite(v) ? v : 0);
 
+/**
+ * LinkedIn returns hashtags in its own wire markup — `{hashtag|\#|Foo}` — which
+ * is what a person wrote as `#Foo`. Rendering the raw form makes real posts
+ * look corrupted. Left as plain text rather than linkified: this is somebody
+ * else's content and we are only displaying it.
+ */
+export function readableText(s: string): string {
+  return s.replace(/\{hashtag\|\\?#\|([^}]+)\}/g, "#$1");
+}
+
 /** Direct-message threads across every account on the workspace's profile. */
 export async function listInboxConversations(opts: {
   workspaceId: string;
@@ -128,7 +138,7 @@ export async function listInboxConversations(opts: {
     participantName: str(r.participantName),
     participantUsername: str(r.participantUsername),
     participantPicture: str(r.participantPicture),
-    lastMessage: str(r.lastMessage),
+    lastMessage: str(r.lastMessage) === null ? null : readableText(String(r.lastMessage)),
     updatedTime: str(r.updatedTime),
     unreadCount: num(r.unreadCount),
     url: str(r.url),
@@ -149,7 +159,7 @@ export async function listInboxMessages(opts: {
     id: String(r.id ?? ""),
     conversationId: String(r.conversationId ?? ""),
     platform: String(r.platform ?? "").toLowerCase(),
-    message: String(r.message ?? ""),
+    message: readableText(String(r.message ?? "")),
     senderName: str(r.senderName),
     direction: String(r.direction ?? "incoming"),
     createdAt: str(r.createdAt) ?? str(r.sentAt),
@@ -181,7 +191,7 @@ export async function listCommentablePosts(opts: {
     accountId: String(r.accountId ?? ""),
     accountUsername: str(r.accountUsername),
     platform: String(r.platform ?? "").toLowerCase(),
-    content: String(r.content ?? ""),
+    content: readableText(String(r.content ?? "")),
     createdTime: str(r.createdTime),
     permalink: str(r.permalink),
     picture: str(r.picture),
@@ -203,7 +213,7 @@ export async function listInboxComments(opts: {
     const from = (r.from ?? {}) as Record<string, unknown>;
     return {
       id: String(r.id ?? ""),
-      message: String(r.message ?? ""),
+      message: readableText(String(r.message ?? "")),
       createdTime: str(r.createdTime),
       authorName: str(from.name),
       authorUsername: str(from.username),
