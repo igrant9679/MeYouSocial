@@ -24,16 +24,33 @@ import { zernioJson } from "@/lib/zernio";
  * content-type, which is the only reliable signal that a route exists.
  */
 
-/** What each network's inbox actually offers, as measured — not as documented. */
-export const INBOX_SUPPORT: Record<string, { dms: boolean; comments: boolean; note?: string }> = {
+/**
+ * What each network's inbox actually offers, as measured — not as documented.
+ *
+ * `note` is a PHRASE, not a sentence: the caller renders it after the network's
+ * own label ("X — no inbox at all…"). Keeping the name out of the string is
+ * what stops an unnamed "no inbox support recorded for this network" appearing
+ * twice in a row with no clue which networks it meant.
+ */
+export type InboxSupport = { dms: boolean; comments: boolean; note?: string };
+
+export const INBOX_SUPPORT: Record<string, InboxSupport> = {
   facebook: { dms: true, comments: true },
   instagram: { dms: true, comments: true },
-  linkedin: { dms: false, comments: true, note: "LinkedIn exposes no direct messages through Zernio — comments only." },
-  twitter: { dms: false, comments: false, note: "X exposes no inbox through Zernio: its inbox capability is switched off on the account, even though the token carries dm.read and dm.write." },
+  linkedin: { dms: false, comments: true, note: "comments only — it exposes no direct messages through Zernio" },
+  twitter: {
+    dms: false, comments: false,
+    note: "no inbox at all — Zernio's inbox capability is switched off on the account, even though its token carries dm.read and dm.write",
+  },
+  pinterest: { dms: false, comments: false, note: "no inbox through Zernio" },
+  youtube: { dms: false, comments: false, note: "no inbox through Zernio" },
 };
 
-export function inboxSupportFor(platform: string): { dms: boolean; comments: boolean; note?: string } {
-  return INBOX_SUPPORT[platform.trim().toLowerCase()] ?? { dms: false, comments: false, note: "No inbox support recorded for this network." };
+export function inboxSupportFor(platform: string): InboxSupport {
+  // Unknown networks get the same honest phrasing rather than a vague
+  // "not recorded", which reads like our bookkeeping failed rather than like
+  // the integration has no such surface.
+  return INBOX_SUPPORT[platform.trim().toLowerCase()] ?? { dms: false, comments: false, note: "no inbox through Zernio" };
 }
 
 export type InboxConversation = {

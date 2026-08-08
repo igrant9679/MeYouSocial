@@ -43,7 +43,15 @@ export default async function EngagePage({ searchParams }: { searchParams: Promi
     where: { workspaceId: workspace.id, status: "connected" },
     select: { platform: true },
   });
-  const connected = [...new Set(accounts.map((a) => a.platform))];
+  // Networks we can actually read come first — a filter that always returns
+  // nothing shouldn't sit at the head of the row.
+  const connected = [...new Set(accounts.map((a) => a.platform))].sort((a, b) => {
+    const rank = (p: string) => {
+      const s = inboxSupportFor(p);
+      return (s.dms ? 0 : 1) + (s.comments ? 0 : 1);
+    };
+    return rank(a) - rank(b) || a.localeCompare(b);
+  });
 
   if (!configured) {
     return (
@@ -288,18 +296,21 @@ export default async function EngagePage({ searchParams }: { searchParams: Promi
 function CoverageNote({ connected, filtered }: { connected: string[]; filtered?: string }) {
   const shown = filtered ? [filtered] : connected;
   const limited = shown
-    .map((p) => ({ p, sup: inboxSupportFor(p) }))
+    .map((p) => ({ p, label: networkFor(p)?.label ?? p, sup: inboxSupportFor(p) }))
     .filter(({ sup }) => sup.note);
   if (limited.length === 0) return null;
   return (
     <div className="card mb-4 flex items-start gap-2.5" style={{ borderColor: "var(--line)" }}>
       <Info className="w-4 h-4 mt-0.5 flex-shrink-0" style={{ color: "var(--blue-on)" }} />
       <div className="text-[11px] text-[var(--mute)] leading-relaxed">
-        <b className="text-[var(--slate)]">What each network exposes.</b>{" "}
-        {limited.map(({ p, sup }) => (
-          <span key={p}>{sup.note} </span>
-        ))}
-        Nothing here is a count of zero — these are limits of the integration, not quiet audiences.
+        <b className="text-[var(--slate)]">What each network exposes.</b>
+        <ul className="mt-1 mb-1.5 flex flex-col gap-0.5">
+          {limited.map(({ p, label, sup }) => (
+            // Name the network. An unattributed limitation is unactionable.
+            <li key={p}><b className="text-[var(--slate)]">{label}</b> — {sup.note}.</li>
+          ))}
+        </ul>
+        None of that is a count of zero: these are limits of the integration, not quiet audiences.
       </div>
     </div>
   );
