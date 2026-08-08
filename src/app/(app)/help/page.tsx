@@ -76,7 +76,7 @@ export default async function HelpPage() {
           </div>
         </div>
         <div className="mt-3 flex flex-wrap gap-2">
-          <Link href="/social" className="btn sm primary">Try the 2-minute first post →</Link>
+          <Link href="/social/compose" className="btn sm primary">Try the 2-minute first post →</Link>
           <Link href="/admin/api-keys" className="btn sm">Check my API keys</Link>
         </div>
       </section>

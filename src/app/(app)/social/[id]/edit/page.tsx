@@ -81,8 +81,8 @@ export default async function EditSocialPostPage({ params }: { params: Promise<{
 
   return (
     <main className="w-full">
-      <Link href="/social" className="inline-flex items-center gap-1 text-xs text-[var(--mute)] hover:text-[var(--ink)] mb-3">
-        <ArrowLeft className="w-3.5 h-3.5" /> Social
+      <Link href="/social/calendar" className="inline-flex items-center gap-1 text-xs text-[var(--mute)] hover:text-[var(--ink)] mb-3">
+        <ArrowLeft className="w-3.5 h-3.5" /> Calendar
       </Link>
 
       <div className="flex items-center gap-3 mb-1">

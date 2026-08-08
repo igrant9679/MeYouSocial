@@ -210,7 +210,7 @@ export async function saveZernioConfigAction(formData: FormData) {
   if (secret) await setPlatformSetting("zernio:webhook_secret", secret);
 
   revalidatePath("/admin/connections");
-  revalidatePath("/social");
+  revalidatePath("/social", "layout");
   redirect(
     "/admin/connections?ok=" +
       encodeURIComponent(probe.ok ? probe.message : `Saved without verifying — ${probe.message}`),
@@ -239,7 +239,7 @@ export async function saveWorkspaceZernioKeyAction(formData: FormData) {
   }
   await setWorkspaceSetting(workspace.id, "zernio:api_key", apiKey);
   revalidatePath("/admin/connections");
-  revalidatePath("/social");
+  revalidatePath("/social", "layout");
   redirect(
     "/admin/connections?ok=" +
       encodeURIComponent(
@@ -330,7 +330,7 @@ export async function saveUnipileConfigAction(formData: FormData) {
   if (rawKey) await setPlatformSetting("unipile:api_key", rawKey);
 
   revalidatePath("/admin/connections");
-  revalidatePath("/social");
+  revalidatePath("/social", "layout");
   redirect(
     "/admin/connections?ok=" +
       encodeURIComponent(probe.ok ? probe.message : `Saved without verifying — ${probe.message}`),

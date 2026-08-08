@@ -133,6 +133,21 @@ export const BLOG_TAB_TIPS: Record<string, string> = {
 };
 
 /**
+ * Social sub-nav, keyed by href.
+ *
+ * ⚠ Native `title`, not bubbles — same `overflow-x-auto` clipping reason as
+ * BLOG_TAB_TIPS above.
+ */
+export const SOCIAL_TAB_TIPS: Record<string, string> = {
+  "/social": "The command centre: what's connected, what's due, and what's asking for a decision.",
+  "/social/compose": "Write a post, tailor it per network, and send it now, on a date, or into the next free slot.",
+  "/social/calendar": "Everything scheduled and drafted, on a grid you can drag. Agenda view lists the same by day.",
+  "/social/approvals": "Posts held for review. Nothing here can be sent until an admin approves it.",
+  "/social/performance": "What went out, per network, and the engagement pulled back from each.",
+  "/social/settings": "Posting schedule, link tagging, campaigns and how much the app may do unattended.",
+};
+
+/**
  * Production sub-nav, keyed by href.
  *
  * ⚠ Native `title`, not bubbles — that strip is `overflow-x-auto` too. Same

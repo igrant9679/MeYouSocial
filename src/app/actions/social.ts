@@ -38,8 +38,30 @@ const MEDIA_MAX = 4;
 const MEDIA_BYTES = 15 * 1024 * 1024;
 const IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/gif", "image/webp"]);
 
+/**
+ * Flash a message and land on a Social tab.
+ *
+ * Since /social became a set of tabs, "back" is no longer one place: approving
+ * a post should return to Approvals, not bounce you to Overview mid-review.
+ * Actions that belong to a tab shadow `backTo` with a one-line local bound to
+ * it — that keeps every call site inside the action untouched.
+ */
+function flashTo(to: string, msg: string, kind: "err" | "ok"): never {
+  redirect(`${to}?${kind === "err" ? "err" : "ok"}=${encodeURIComponent(msg)}`);
+}
+
+/**
+ * ⚠ The `Flash` annotation is load-bearing: TypeScript only applies
+ * never-returns control-flow narrowing through a VARIABLE when that variable
+ * carries an explicit type annotation. Without it every `if (!post) backTo(…)`
+ * below stops narrowing and the next line errors on a possibly-null value.
+ */
+type Flash = (msg: string, kind?: "err" | "ok") => never;
+
+const tabFlash = (to: string): Flash => (msg, kind = "err") => flashTo(to, msg, kind);
+
 function backTo(msg: string, kind: "err" | "ok" = "err"): never {
-  redirect(`/social?${kind === "err" ? "err" : "ok"}=${encodeURIComponent(msg)}`);
+  return flashTo("/social", msg, kind);
 }
 
 /**
@@ -144,6 +166,7 @@ function generatedKeysFrom(formData: FormData): string[] {
 }
 
 export async function createSocialPostAction(formData: FormData) {
+  const backTo: Flash = tabFlash("/social/compose");
   const { workspace, user, membership } = await requireRole("EDITOR");
   const text = String(formData.get("text") ?? "").trim();
   const accountIds = formData.getAll("accountIds").map(String).filter(Boolean);
@@ -268,16 +291,16 @@ export async function createSocialPostAction(formData: FormData) {
       entityId: post.id,
       excludeUserId: user.id,
     });
-    revalidatePath("/social");
+    revalidatePath("/social", "layout");
     backTo("Sent for approval — an admin will review it before it goes out.", "ok");
   }
 
   if (status === "publishing") {
     await publishSocialPost(post.id);
-    revalidatePath("/social");
+    revalidatePath("/social", "layout");
     backTo("Post sent — check the queue for per-network status.", "ok");
   }
-  revalidatePath("/social");
+  revalidatePath("/social", "layout");
   backTo(
     when === "queue"
       ? `Queued for ${formatInZone(scheduledAt!, await getPostingTimeZone(workspace.id))}.`
@@ -316,7 +339,7 @@ export async function publishNowAction(formData: FormData) {
   if (!post || post.status === "posted") backTo("Nothing to publish.");
   await assertApprovedForSend(workspace.id, membership.role, post!);
   await publishSocialPost(post!.id);
-  revalidatePath("/social");
+  revalidatePath("/social", "layout");
   backTo("Published — see per-network status below.", "ok");
 }
 
@@ -328,7 +351,7 @@ export async function cancelScheduledAction(formData: FormData) {
     where: { id, workspaceId: workspace.id, status: "scheduled" },
     data: { status: "draft", scheduledAt: null },
   });
-  revalidatePath("/social");
+  revalidatePath("/social", "layout");
   backTo("Moved to drafts.", "ok");
 }
 
@@ -336,7 +359,7 @@ export async function deleteSocialPostAction(formData: FormData) {
   const { workspace } = await requireRole("EDITOR");
   const id = String(formData.get("id") ?? "");
   await db.socialPost.deleteMany({ where: { id, workspaceId: workspace.id } });
-  revalidatePath("/social");
+  revalidatePath("/social", "layout");
   backTo("Deleted.", "ok");
 }
 
@@ -365,7 +388,7 @@ export async function duplicateSocialPostAction(formData: FormData) {
       },
     },
   });
-  revalidatePath("/social");
+  revalidatePath("/social", "layout");
   backTo("Duplicated to drafts.", "ok");
 }
 
@@ -386,6 +409,7 @@ async function loadEditablePost(workspaceId: string, id: string) {
 }
 
 export async function updateSocialPostAction(formData: FormData) {
+  const backTo: Flash = tabFlash("/social/calendar");
   const id = String(formData.get("id") ?? "");
   const { workspace, user } = await requireRole("EDITOR");
   const post = await loadEditablePost(workspace.id, id);
@@ -537,7 +561,7 @@ export async function updateSocialPostAction(formData: FormData) {
     });
   }
 
-  revalidatePath("/social");
+  revalidatePath("/social", "layout");
   backTo(
     approval === "pending"
       ? "Saved — it's waiting for approval before it can go out."
@@ -556,12 +580,13 @@ export async function unscheduleSocialPostAction(formData: FormData) {
     where: { id, workspaceId: workspace.id, status: "scheduled" },
     data: { status: "draft", scheduledAt: null },
   });
-  revalidatePath("/social");
+  revalidatePath("/social", "layout");
   backTo(updated.count ? "Moved back to drafts." : "That post isn't scheduled.", updated.count ? "ok" : "err");
 }
 
 /** Save UTM link-tagging settings for this workspace. */
 export async function saveUtmSettingsAction(formData: FormData) {
+  const backTo: Flash = tabFlash("/social/settings");
   const { workspace } = await requireRole("ADMIN");
   const { setWorkspaceSetting } = await import("@/lib/settings");
   const enabled = String(formData.get("enabled") ?? "") === "on";
@@ -569,7 +594,7 @@ export async function saveUtmSettingsAction(formData: FormData) {
   await setWorkspaceSetting(workspace.id, "social:utm_source", String(formData.get("source") ?? "").trim());
   await setWorkspaceSetting(workspace.id, "social:utm_medium", String(formData.get("medium") ?? "").trim());
   await setWorkspaceSetting(workspace.id, "social:utm_campaign", String(formData.get("campaign") ?? "").trim());
-  revalidatePath("/social");
+  revalidatePath("/social", "layout");
   backTo(enabled ? "Link tagging on — new posts will carry UTM parameters." : "Link tagging off.", "ok");
 }
 
@@ -605,6 +630,6 @@ export async function rescheduleSocialPostAction(id: string, isoDateTime: string
     where: { id: post.id },
     data: { scheduledAt: when, status: "scheduled" },
   });
-  revalidatePath("/social");
+  revalidatePath("/social", "layout");
   return { ok: true, message: "Moved." };
 }

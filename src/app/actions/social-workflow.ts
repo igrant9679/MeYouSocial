@@ -18,8 +18,30 @@ import { networkFor } from "@/lib/social/networks";
  * approval workflow applies to imported rows exactly as to composed ones.
  */
 
+/**
+ * Flash a message and land on a Social tab.
+ *
+ * Since /social became a set of tabs, "back" is no longer one place: approving
+ * a post should return to Approvals, not bounce you to Overview mid-review.
+ * Actions that belong to a tab shadow `backTo` with a one-line local bound to
+ * it — that keeps every call site inside the action untouched.
+ */
+function flashTo(to: string, msg: string, kind: "err" | "ok"): never {
+  redirect(`${to}?${kind === "err" ? "err" : "ok"}=${encodeURIComponent(msg)}`);
+}
+
+/**
+ * ⚠ The `Flash` annotation is load-bearing: TypeScript only applies
+ * never-returns control-flow narrowing through a VARIABLE when that variable
+ * carries an explicit type annotation. Without it every `if (!post) backTo(…)`
+ * below stops narrowing and the next line errors on a possibly-null value.
+ */
+type Flash = (msg: string, kind?: "err" | "ok") => never;
+
+const tabFlash = (to: string): Flash => (msg, kind = "err") => flashTo(to, msg, kind);
+
 function backTo(msg: string, kind: "err" | "ok" = "err"): never {
-  redirect(`/social?${kind === "err" ? "err" : "ok"}=${encodeURIComponent(msg)}`);
+  return flashTo("/social", msg, kind);
 }
 
 // ---- Campaigns -----------------------------------------------------------------
@@ -27,6 +49,7 @@ function backTo(msg: string, kind: "err" | "ok" = "err"): never {
 const HEX_RE = /^#[0-9a-fA-F]{6}$/;
 
 export async function createCampaignAction(formData: FormData) {
+  const backTo: Flash = tabFlash("/social/settings");
   const { workspace } = await requireRole("ADMIN");
   const name = String(formData.get("name") ?? "").trim().slice(0, 60);
   if (!name) backTo("Give the campaign a name.");
@@ -49,18 +72,19 @@ export async function createCampaignAction(formData: FormData) {
     }
     throw e;
   }
-  revalidatePath("/social");
+  revalidatePath("/social", "layout");
   backTo(`Campaign “${name}” created.`, "ok");
 }
 
 export async function toggleCampaignAction(formData: FormData) {
+  const backTo: Flash = tabFlash("/social/settings");
   const { workspace } = await requireRole("ADMIN");
   const id = String(formData.get("id") ?? "");
   const c = await db.campaign.findFirst({ where: { id, workspaceId: workspace.id } });
   if (!c) backTo("Campaign not found.");
   const status = c!.status === "active" ? "archived" : "active";
   await db.campaign.update({ where: { id: c!.id }, data: { status } });
-  revalidatePath("/social");
+  revalidatePath("/social", "layout");
   backTo(status === "archived"
     ? `“${c!.name}” archived — its posts keep their tag, new posts can't pick it.`
     : `“${c!.name}” is active again.`, "ok");
@@ -69,6 +93,7 @@ export async function toggleCampaignAction(formData: FormData) {
 // ---- Approval workflow ---------------------------------------------------------
 
 export async function approveSocialPostAction(formData: FormData) {
+  const backTo: Flash = tabFlash("/social/approvals");
   const { workspace, user } = await requireRole("ADMIN");
   const id = String(formData.get("id") ?? "");
   const post = await db.socialPost.findFirst({ where: { id, workspaceId: workspace.id } });
@@ -104,11 +129,12 @@ export async function approveSocialPostAction(formData: FormData) {
       userIds: [post!.createdById],
     });
   }
-  revalidatePath("/social");
+  revalidatePath("/social", "layout");
   backTo(scheduleIt ? "Approved — it keeps its scheduled time." : "Approved — it's a draft, ready to queue or send.", "ok");
 }
 
 export async function requestChangesSocialPostAction(formData: FormData) {
+  const backTo: Flash = tabFlash("/social/approvals");
   const { workspace, user } = await requireRole("ADMIN");
   const id = String(formData.get("id") ?? "");
   const note = String(formData.get("note") ?? "").trim().slice(0, 500);
@@ -136,12 +162,13 @@ export async function requestChangesSocialPostAction(formData: FormData) {
       userIds: [post!.createdById],
     });
   }
-  revalidatePath("/social");
+  revalidatePath("/social", "layout");
   backTo("Changes requested — the author has been notified.", "ok");
 }
 
 /** A draft that predates the workflow (approval = null) enters review here. */
 export async function submitForApprovalAction(formData: FormData) {
+  const backTo: Flash = tabFlash("/social/approvals");
   const { workspace, user } = await requireRole("EDITOR");
   const id = String(formData.get("id") ?? "");
   const post = await db.socialPost.findFirst({ where: { id, workspaceId: workspace.id } });
@@ -163,13 +190,14 @@ export async function submitForApprovalAction(formData: FormData) {
     entityId: post!.id,
     excludeUserId: user.id,
   });
-  revalidatePath("/social");
+  revalidatePath("/social", "layout");
   backTo("Submitted for approval.", "ok");
 }
 
 // ---- Workflow settings ---------------------------------------------------------
 
 export async function saveSocialWorkflowSettingsAction(formData: FormData) {
+  const backTo: Flash = tabFlash("/social/settings");
   const { workspace } = await requireRole("ADMIN");
   const approval = String(formData.get("requireApproval") ?? "") === "on";
   const evergreen = String(formData.get("evergreenFill") ?? "") === "on";
@@ -188,7 +216,7 @@ export async function saveSocialWorkflowSettingsAction(formData: FormData) {
   await setWorkspaceSetting(workspace.id, "social:autogen", autogen ? "true" : "false");
   await setWorkspaceSetting(workspace.id, "social:autogen_weekly", String(autogenWeekly));
   await setWorkspaceSetting(workspace.id, "social:autogen_campaign", autogenCampaign);
-  revalidatePath("/social");
+  revalidatePath("/social", "layout");
   backTo(
     `Approval ${approval ? "on" : "off"} · evergreen fill ${evergreen ? "on" : "off"} · auto-image ${autoImage ? "on" : "off"} · auto-generate ${autogen ? `${autogenWeekly}/week` : "off"}.`,
     "ok",
@@ -244,6 +272,7 @@ function parseCsv(text: string): string[][] {
  * import should never invent workspace structure from a typo.
  */
 export async function importSocialCsvAction(formData: FormData) {
+  const backTo: Flash = tabFlash("/social/compose");
   const { workspace, user, membership } = await requireRole("EDITOR");
   const file = formData.get("file");
   if (!(file instanceof File) || file.size === 0) backTo("Choose a CSV file to import.");
@@ -374,7 +403,7 @@ export async function importSocialCsvAction(formData: FormData) {
     entityType: "social_post", meta: { created, scheduled, errors: errors.length },
   });
 
-  revalidatePath("/social");
+  revalidatePath("/social", "layout");
   const bits = [`Imported ${created} post${created === 1 ? "" : "s"}`];
   if (scheduled > 0) bits.push(`${scheduled} scheduled`);
   if (held && created > 0) bits.push("all awaiting approval");

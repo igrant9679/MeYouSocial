@@ -24,8 +24,30 @@ import {
  * scheduling a post.
  */
 
+/**
+ * Flash a message and land on a Social tab.
+ *
+ * Since /social became a set of tabs, "back" is no longer one place: editing
+ * the posting schedule should return to Settings, not bounce you to Overview
+ * mid-task. Actions that belong to a tab shadow `backTo` with a one-line local
+ * bound to it — that keeps every call site inside the action untouched.
+ */
+function flashTo(to: string, msg: string, kind: "err" | "ok"): never {
+  redirect(`${to}?${kind === "err" ? "err" : "ok"}=${encodeURIComponent(msg)}`);
+}
+
+/**
+ * ⚠ The `Flash` annotation is load-bearing: TypeScript only applies
+ * never-returns control-flow narrowing through a VARIABLE when that variable
+ * carries an explicit type annotation. Without it every `if (!post) backTo(…)`
+ * below stops narrowing and the next line errors on a possibly-null value.
+ */
+type Flash = (msg: string, kind?: "err" | "ok") => never;
+
+const tabFlash = (to: string): Flash => (msg, kind = "err") => flashTo(to, msg, kind);
+
 function backTo(msg: string, kind: "err" | "ok" = "err"): never {
-  redirect(`/social?${kind === "err" ? "err" : "ok"}=${encodeURIComponent(msg)}`);
+  return flashTo("/social", msg, kind);
 }
 
 // ---- Schedule editing ----------------------------------------------------------
@@ -35,6 +57,7 @@ function backTo(msg: string, kind: "err" | "ok" = "err"): never {
  * submit, which is how people actually think about a posting schedule.
  */
 export async function addPostingSlotsAction(formData: FormData) {
+  const backTo: Flash = tabFlash("/social/settings");
   const { workspace } = await requireRole("ADMIN");
   const minute = parseMinute(String(formData.get("time") ?? ""));
   if (minute === null) backTo("Enter a time as HH:MM.");
@@ -51,17 +74,18 @@ export async function addPostingSlotsAction(formData: FormData) {
     data: weekdays.map((weekday) => ({ workspaceId: workspace.id, weekday, minute: minute!, category })),
     skipDuplicates: true,
   });
-  revalidatePath("/social");
+  revalidatePath("/social", "layout");
   if (count === 0) backTo("Those slots already exist.", "ok");
   backTo(`Added ${count} slot${count === 1 ? "" : "s"}.`, "ok");
 }
 
 export async function deletePostingSlotAction(formData: FormData) {
+  const backTo: Flash = tabFlash("/social/settings");
   const { workspace } = await requireRole("ADMIN");
   const id = String(formData.get("id") ?? "");
   // Scoped delete — a slot id from another workspace matches nothing.
   await db.postingSlot.deleteMany({ where: { id, workspaceId: workspace.id } });
-  revalidatePath("/social");
+  revalidatePath("/social", "layout");
   backTo("Slot removed.", "ok");
 }
 
@@ -71,22 +95,24 @@ export async function deletePostingSlotAction(formData: FormData) {
  * silently unscheduling someone's post would be a lie about what's going out.
  */
 export async function togglePostingSlotAction(formData: FormData) {
+  const backTo: Flash = tabFlash("/social/settings");
   const { workspace } = await requireRole("ADMIN");
   const id = String(formData.get("id") ?? "");
   const slot = await db.postingSlot.findFirst({ where: { id, workspaceId: workspace.id } });
   if (!slot) backTo("Slot not found.");
   await db.postingSlot.update({ where: { id: slot!.id }, data: { enabled: !slot!.enabled } });
-  revalidatePath("/social");
+  revalidatePath("/social", "layout");
   backTo(slot!.enabled ? "Slot paused." : "Slot resumed.", "ok");
 }
 
 /** Remove every slot on one weekday — the column header's clear button. */
 export async function clearWeekdaySlotsAction(formData: FormData) {
+  const backTo: Flash = tabFlash("/social/settings");
   const { workspace } = await requireRole("ADMIN");
   const weekday = Number(formData.get("weekday"));
   if (!Number.isInteger(weekday) || weekday < 0 || weekday > 6) backTo("Unknown day.");
   const { count } = await db.postingSlot.deleteMany({ where: { workspaceId: workspace.id, weekday } });
-  revalidatePath("/social");
+  revalidatePath("/social", "layout");
   backTo(count ? `Cleared ${count} slot${count === 1 ? "" : "s"}.` : "Nothing to clear.", "ok");
 }
 
@@ -95,11 +121,12 @@ export async function clearWeekdaySlotsAction(formData: FormData) {
  * it: the server runs in UTC, so "09:00" has to be anchored somewhere.
  */
 export async function savePostingTimeZoneAction(formData: FormData) {
+  const backTo: Flash = tabFlash("/social/settings");
   const { workspace } = await requireRole("ADMIN");
   const tz = String(formData.get("timezone") ?? "").trim();
   if (!isValidTimeZone(tz)) backTo("That isn't a recognised timezone.");
   await setWorkspaceSetting(workspace.id, "social:timezone", tz);
-  revalidatePath("/social");
+  revalidatePath("/social", "layout");
   backTo(`Posting times are now read in ${tz}.`, "ok");
 }
 
@@ -113,10 +140,11 @@ export async function savePostingTimeZoneAction(formData: FormData) {
  * field-name mismatch in the stats mapper becomes visible instead of silent.
  */
 export async function syncSocialPerformanceAction() {
+  const backTo: Flash = tabFlash("/social/performance");
   const { workspace } = await requireRole("EDITOR");
   const { syncWorkspaceSocialPerformance } = await import("@/lib/social/performance");
   const out = await syncWorkspaceSocialPerformance(workspace.id);
-  revalidatePath("/social");
+  revalidatePath("/social", "layout");
   revalidatePath("/insights");
   backTo(out.message, out.rowsWritten > 0 || out.skipped || out.targetsPolled === 0 ? "ok" : "err");
 }
@@ -125,6 +153,7 @@ export async function syncSocialPerformanceAction() {
 
 /** Drop one post into the next free slot (of its category, if it has one). */
 export async function queueSocialPostAction(formData: FormData) {
+  const backTo: Flash = tabFlash("/social/calendar");
   const { workspace, membership } = await requireRole("EDITOR");
   const id = String(formData.get("id") ?? "");
   const post = await db.socialPost.findFirst({
@@ -151,7 +180,7 @@ export async function queueSocialPostAction(formData: FormData) {
     where: { id: post!.id },
     data: { scheduledAt: claim.at, status: "scheduled" },
   });
-  revalidatePath("/social");
+  revalidatePath("/social", "layout");
   backTo(`Queued for ${formatInZone(claim.at, await getPostingTimeZone(workspace.id))}.`, "ok");
 }
 
@@ -162,6 +191,7 @@ export async function queueSocialPostAction(formData: FormData) {
  * queue what fits and say exactly how many didn't, rather than refusing the lot.
  */
 export async function queueAllDraftsAction() {
+  const backTo: Flash = tabFlash("/social/calendar");
   const { workspace, membership } = await requireRole("EDITOR");
   const all = await db.socialPost.findMany({
     where: { workspaceId: workspace.id, status: "draft" },
@@ -209,7 +239,7 @@ export async function queueAllDraftsAction() {
     ),
   );
   const left = drafts.length - pairs.length;
-  revalidatePath("/social");
+  revalidatePath("/social", "layout");
   const bits = [`Queued ${pairs.length} draft${pairs.length === 1 ? "" : "s"}.`];
   if (left > 0) bits.push(`${left} didn't fit — add more slots.`);
   if (held > 0) bits.push(`${held} skipped (awaiting approval).`);

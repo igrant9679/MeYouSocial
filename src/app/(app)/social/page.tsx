@@ -1,696 +1,377 @@
 import Link from "next/link";
-import { Share2, CalendarClock, Send, Copy, Trash2, RotateCw, Check, X, Clock, Pencil, Tags, Link2 as LinkIcon, ListPlus, BarChart3, Megaphone, Recycle, ShieldCheck, FileUp } from "lucide-react";
+import {
+  Share2, AlertTriangle, Info, CalendarClock, Send, Plug, Clock, BarChart3, Sparkles, ExternalLink, Check,
+} from "lucide-react";
 import { requireRole, canAdmin } from "@/lib/acl";
 import { db } from "@/lib/db";
-import { storage } from "@/lib/storage";
-import { readJson } from "@/lib/db/json";
 import { getSetting } from "@/lib/settings";
-import { SocialComposer } from "@/components/SocialComposer";
-import { SocialCalendar, type CalendarPost } from "@/components/SocialCalendar";
-import { PostingSchedule } from "@/components/PostingSchedule";
-import { SubmitButton } from "@/components/SubmitButton";
-import { DeleteButton } from "@/components/DeleteButton";
-import { HelpTip } from "@/components/HelpTip";
-import { SOCIAL_TIPS } from "@/lib/help-tips";
-import { getUtmConfig } from "@/lib/social/utm";
-import { formatInZone, getQueue } from "@/lib/social/slots";
-import { saveUtmSettingsAction } from "@/app/actions/social";
-import { queueSocialPostAction, queueAllDraftsAction, syncSocialPerformanceAction } from "@/app/actions/social-slots";
-import {
-  createCampaignAction,
-  toggleCampaignAction,
-  approveSocialPostAction,
-  requestChangesSocialPostAction,
-  submitForApprovalAction,
-  saveSocialWorkflowSettingsAction,
-  importSocialCsvAction,
-} from "@/app/actions/social-workflow";
+import { getSocialOverview, type AttentionItem } from "@/lib/social/overview";
+import { readingsForWorkspace, byNetwork } from "@/lib/social/performance";
 import { networkFor } from "@/lib/social/networks";
-import {
-  publishNowAction,
-  cancelScheduledAction,
-  deleteSocialPostAction,
-  duplicateSocialPostAction,
-} from "@/app/actions/social";
+import { Banner, SocialHeader } from "@/components/SocialPostCard";
 
-// Social scheduler — compose once, fan out to connected accounts, post now or
-// schedule. Publishing runs through Zernio; the scheduler sweep sends due posts.
+// Social command centre. Answers three questions in order, because that's the
+// order they matter in: is the plumbing connected, what needs a decision, and
+// what is about to happen.
+//
+// ⚠ Truthfulness spine: nothing on this page is estimated. Engagement that has
+// never been synced renders as a dash with the reason, not a zero — a zero here
+// would read as "nobody engaged" when it means "we haven't asked yet".
 
-type SP = { ok?: string; err?: string; view?: string };
+type SP = { ok?: string; err?: string };
 
-const STATUS_STYLE: Record<string, { bg: string; fg: string; label: string }> = {
-  scheduled: { bg: "var(--blue-soft)", fg: "var(--blue-on)", label: "scheduled" },
-  publishing: { bg: "var(--amber-soft)", fg: "var(--amber-on)", label: "publishing" },
-  posted: { bg: "var(--green-soft)", fg: "var(--green-on)", label: "posted" },
-  partial: { bg: "var(--amber-soft)", fg: "var(--amber-on)", label: "partly posted" },
-  failed: { bg: "var(--rose-soft)", fg: "var(--rose-on)", label: "failed" },
-  draft: { bg: "var(--panel)", fg: "var(--mute)", label: "draft" },
-};
+const DAY = 24 * 60 * 60 * 1000;
 
-export default async function SocialPage({ searchParams }: { searchParams: Promise<SP> }) {
+export default async function SocialOverviewPage({ searchParams }: { searchParams: Promise<SP> }) {
   const { workspace, membership } = await requireRole("EDITOR");
-  const { ok, err, view } = await searchParams;
-  // Calendar is the natural primary view for a scheduler; agenda stays one click away.
-  const mode = view === "agenda" ? "agenda" : "calendar";
+  const { ok, err } = await searchParams;
+  const isAdmin = canAdmin(membership.role);
 
-  const [accounts, posts, topicRows, campaigns] = await Promise.all([
-    db.zernioAccount.findMany({
-      where: { workspaceId: workspace.id, status: "connected" },
-      orderBy: { createdAt: "asc" },
-      select: { id: true, platform: true, displayName: true, username: true },
+  const [overview, readings, upcoming, recent, dials] = await Promise.all([
+    getSocialOverview(workspace.id),
+    readingsForWorkspace(workspace.id, new Date(Date.now() - 30 * DAY)),
+    db.socialPost.findMany({
+      where: { workspaceId: workspace.id, status: "scheduled", scheduledAt: { gte: new Date() } },
+      orderBy: { scheduledAt: "asc" },
+      take: 6,
+      select: {
+        id: true, text: true, scheduledAt: true, approval: true,
+        campaign: { select: { name: true } },
+        targets: { select: { id: true, provider: true } },
+      },
     }),
     db.socialPost.findMany({
-      where: { workspaceId: workspace.id },
-      orderBy: { createdAt: "desc" },
-      include: {
-        targets: true,
-        topic: { select: { name: true } },
-        campaign: { select: { name: true, color: true } },
-        recycledFrom: { select: { id: true } },
+      where: { workspaceId: workspace.id, status: { in: ["posted", "partial", "failed"] } },
+      orderBy: { publishedAt: "desc" },
+      take: 5,
+      select: {
+        id: true, text: true, status: true, publishedAt: true,
+        targets: { select: { id: true, provider: true, status: true, platformPostUrl: true } },
       },
-      take: 100,
     }),
-    db.topic.findMany({
-      where: { workspaceId: workspace.id, status: "active" },
-      orderBy: { name: "asc" },
-      select: { id: true, name: true, keywords: true },
-    }),
-    db.campaign.findMany({
-      where: { workspaceId: workspace.id },
-      orderBy: [{ status: "asc" }, { name: "asc" }],
-    }),
+    Promise.all([
+      getSetting("social:autogen", workspace.id).catch(() => "").then((v) => v === "true"),
+      getSetting("social:autogen_weekly", workspace.id).catch(() => "").then((v) => parseInt(v, 10) || 5),
+      getSetting("social:evergreen_fill", workspace.id).catch(() => "").then((v) => v === "true"),
+      getSetting("social:auto_image", workspace.id).catch(() => "").then((v) => v !== "false"),
+      getSetting("social:require_approval", workspace.id).catch(() => "").then((v) => v === "true"),
+      getSetting("social:utm_enabled", workspace.id).catch(() => "").then((v) => v === "true"),
+    ]),
   ]);
-  const topics = topicRows.map((t) => ({ id: t.id, name: t.name, keywords: readJson<string[]>(t.keywords, []) }));
-  // Composer works in {id, provider, name}; `provider` is the Zernio platform slug.
-  const composerAccounts = accounts.map((a) => ({
-    id: a.id,
-    provider: a.platform,
-    name: a.displayName ?? a.username,
-  }));
-  const [utm, queue, requireApproval, evergreenFill, autoImage] = await Promise.all([
-    getUtmConfig(workspace.id),
-    getQueue(workspace.id),
-    getSetting("social:require_approval", workspace.id).catch(() => "").then((v) => v === "true"),
-    getSetting("social:evergreen_fill", workspace.id).catch(() => "").then((v) => v === "true"),
-    // Default-ON: only an explicit "false" turns auto-image off.
-    getSetting("social:auto_image", workspace.id).catch(() => "").then((v) => v !== "false"),
-  ]);
-  const [autogenOn, autogenWeekly, autogenCampaign] = await Promise.all([
-    getSetting("social:autogen", workspace.id).catch(() => "").then((v) => v === "true"),
-    getSetting("social:autogen_weekly", workspace.id).catch(() => "").then((v) => parseInt(v, 10) || 5),
-    getSetting("social:autogen_campaign", workspace.id).catch(() => ""),
-  ]);
-  const isAdmin = canAdmin(membership.role);
-  const activeCampaigns = campaigns.filter((c) => c.status === "active");
-  // Slot categories that actually exist drive the composer's picker.
-  const slotCategories = [...new Set(queue.slots.map((s) => s.category).filter((c): c is string => Boolean(c)))];
-
-  // Slot instants are resolved here (the server owns the posting timezone) and
-  // handed to the calendar as ISO, which buckets them by the VIEWER's local day.
-  const freeSlotIso = queue.free.slice(0, 60).map((s) => s.at.toISOString());
-  const nextFreeLabel = queue.free[0] ? formatInZone(queue.free[0].at, queue.timeZone) : null;
-  const hasSlots = queue.slots.some((s) => s.enabled);
-
-  const scheduled = posts
-    .filter((p) => p.status === "scheduled")
-    .sort((a, b) => (a.scheduledAt?.getTime() ?? 0) - (b.scheduledAt?.getTime() ?? 0));
-  // A held post is technically a draft; it lives in its own section so the
-  // review queue is one glance, not a hunt through drafts.
-  const awaiting = posts.filter((p) => p.approval === "pending");
-  const drafts = posts.filter((p) => p.status === "draft" && p.approval !== "pending");
-  const history = posts.filter((p) => ["posted", "partial", "failed", "publishing"].includes(p.status));
-
-  // Group scheduled by day for the agenda. Rendered on the server, so the day
-  // (and the times inside PostCard) must be read in the workspace's posting
-  // timezone — Railway is UTC, and an evening post would otherwise sit under
-  // tomorrow's heading. The calendar solves the same problem in the browser.
-  const byDay = new Map<string, typeof scheduled>();
-  for (const p of scheduled) {
-    const day = p.scheduledAt!.toLocaleDateString("en-GB", {
-      timeZone: queue.timeZone, weekday: "long", day: "2-digit", month: "short",
-    });
-    (byDay.get(day) ?? byDay.set(day, []).get(day)!).push(p);
-  }
+  const [autogenOn, autogenWeekly, evergreenFill, autoImage, requireApproval, utmOn] = dials;
+  const networks = byNetwork(readings);
+  const hasEngagement = networks.length > 0;
 
   return (
-    <div className="w-full">
-      <div className="flex items-center gap-3 mb-4">
-        <span className="w-12 h-12 rounded-2xl grid place-items-center" style={{ background: "var(--purple-soft)", color: "var(--purple-on)" }}>
-          <Share2 className="w-6 h-6" strokeWidth={2.25} />
-        </span>
-        <div className="flex-1 min-w-0">
-          <h1 className="font-mono font-bold text-2xl leading-tight">Social scheduler</h1>
-          <p className="text-xs text-[var(--mute)]">Compose once, publish to your connected profiles now or on a schedule.</p>
-        </div>
-        <Link href="/admin/connections" className="btn sm">Manage accounts</Link>
-      </div>
+    <div className="p-6 w-full">
+      <SocialHeader
+        icon={<Share2 className="w-6 h-6" strokeWidth={2.25} />}
+        title="Social"
+        blurb="What's connected, what needs you, and what goes out next."
+      >
+        <Link href="/social/compose" className="btn sm primary">New post</Link>
+      </SocialHeader>
 
       {ok && <Banner kind="ok" text={ok} />}
       {err && <Banner kind="err" text={err} />}
 
-      <SocialComposer
-        accounts={composerAccounts}
-        topics={topics}
-        campaigns={activeCampaigns.map((c) => ({ id: c.id, name: c.name, color: c.color }))}
-        categories={slotCategories}
-        approvalNotice={requireApproval && !isAdmin}
-        queue={{ nextFree: nextFreeLabel, hasSlots }}
-      />
+      {/* ── Health ─────────────────────────────────────────────────────────── */}
+      <div className="card mb-4">
+        <div className="flex items-center gap-2 mb-3">
+          <Plug className="w-4 h-4" style={{ color: "var(--purple-on)" }} />
+          <h2 className="font-mono font-bold text-sm">Connected</h2>
+          <span className="flex-1" />
+          <Link href="/admin/connections" className="btn sm">Manage accounts</Link>
+        </div>
 
-      <PostingSchedule
-        slots={queue.slots}
-        timeZone={queue.timeZone}
-        timeZoneConfigured={queue.timeZoneConfigured}
-        canEdit={canAdmin(membership.role)}
-        nextFree={nextFreeLabel}
-      />
-
-      {/* Link tagging — makes social traffic attributable in GA4, which is what
-          lets Insights tell LinkedIn clicks apart from X clicks. */}
-      <details className="card mb-6">
-        <summary className="cursor-pointer text-sm font-semibold flex items-center gap-2">
-          <LinkIcon className="w-4 h-4" style={{ color: "var(--blue-on)" }} />
-          Link tagging (UTM)
-          <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: utm.enabled ? "var(--green-soft)" : "var(--zebra)", color: utm.enabled ? "var(--green-on)" : "var(--mute)" }}>
-            {utm.enabled ? "on" : "off"}
-          </span>
-        </summary>
-        <p className="text-[11px] text-[var(--mute)] mt-2 mb-2 leading-relaxed">
-          Appends UTM parameters to links when a post is sent, using <b>the network as the source</b> — so GA4 (and the
-          search &amp; traffic panels on <Link href="/insights" className="underline">Insights</Link>) can tell LinkedIn
-          traffic from X traffic instead of lumping it together as referral. Links you&apos;ve already tagged yourself are
-          left untouched, and the text you wrote is stored unchanged — tagging happens at send.
-        </p>
-        <form action={saveUtmSettingsAction} className="flex flex-wrap items-end gap-2">
-          <label className="inline-flex items-center gap-1.5 text-xs">
-            <input type="checkbox" name="enabled" defaultChecked={utm.enabled} /> Enabled
-          </label>
-          <label className="text-[11px] text-[var(--mute)]">
-            Source
-            <input name="source" defaultValue={utm.source} placeholder="(network name)" className="w-32 text-xs block mt-0.5" />
-          </label>
-          <label className="text-[11px] text-[var(--mute)]">
-            Medium
-            <input name="medium" defaultValue={utm.medium} placeholder="social" className="w-28 text-xs block mt-0.5" />
-          </label>
-          <label className="text-[11px] text-[var(--mute)]">
-            Campaign
-            <input name="campaign" defaultValue={utm.campaign} placeholder="(optional)" className="w-36 text-xs block mt-0.5" />
-          </label>
-          <SubmitButton className="btn sm" pendingText="Saving…">Save</SubmitButton>
-        </form>
-      </details>
-
-      {/* Campaigns — named series with their own UTM tag and their own roll-up. */}
-      <details className="card mb-6">
-        <summary className="cursor-pointer text-sm font-semibold flex items-center gap-2">
-          <Megaphone className="w-4 h-4" style={{ color: "var(--blue-on)" }} />
-          Campaigns
-          <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: activeCampaigns.length ? "var(--blue-soft)" : "var(--zebra)", color: activeCampaigns.length ? "var(--blue-on)" : "var(--mute)" }}>
-            {activeCampaigns.length} active
-          </span>
-          <HelpTip text={SOCIAL_TIPS.campaign} side="bottom" wide />
-        </summary>
-        {campaigns.length > 0 && (
-          <div className="flex flex-col gap-1.5 mt-3 mb-3">
-            {campaigns.map((c) => {
-              const stats = posts.filter((p) => p.campaign && p.campaign.name === c.name);
-              const out = stats.filter((p) => ["posted", "partial"].includes(p.status)).length;
+        {overview.accounts.length === 0 ? (
+          <p className="text-xs text-[var(--mute)]">
+            No accounts yet. Connect them from{" "}
+            <Link href="/admin/connections" className="underline">Admin → Connections</Link> — use this app&apos;s
+            Connect buttons, not Zernio&apos;s dashboard.
+          </p>
+        ) : (
+          <div className="flex flex-wrap gap-1.5 mb-3">
+            {overview.accounts.map((a) => {
+              const live = a.status === "connected";
               return (
-                <div key={c.id} className="flex items-center gap-2 text-xs rounded-lg border border-[var(--line)] px-2 py-1.5">
-                  <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: /^#[0-9a-fA-F]{6}$/.test(c.color ?? "") ? c.color! : "var(--blue)" }} />
-                  <span className="font-semibold">{c.name}</span>
-                  {c.status === "archived" && <span className="font-mono text-[10px] text-[var(--mute)]">archived</span>}
-                  {c.utmCampaign && <span className="font-mono text-[10px] text-[var(--mute)]">utm: {c.utmCampaign}</span>}
-                  <span className="font-mono text-[10px] text-[var(--mute)]">{stats.length} post{stats.length === 1 ? "" : "s"} · {out} sent</span>
-                  <span className="flex-1" />
-                  {isAdmin && (
-                    <>
-                      <form action={toggleCampaignAction}>
-                        <input type="hidden" name="id" value={c.id} />
-                        <button className="btn sm" title={c.status === "active" ? "Archive — keeps the tag on existing posts" : "Reactivate"}>
-                          {c.status === "active" ? "Archive" : "Reactivate"}
-                        </button>
-                      </form>
-                      <DeleteButton kind="campaign" id={c.id} name={c.name} iconOnly className="btn sm" />
-                    </>
+                <span
+                  key={a.id}
+                  className="inline-flex items-center gap-1.5 text-[11px] font-mono px-2 py-1 rounded-full border"
+                  style={{
+                    borderColor: live ? a.color : "var(--rose)",
+                    background: live ? "transparent" : "var(--rose-soft)",
+                    color: live ? "var(--slate)" : "var(--rose-on)",
+                  }}
+                  title={
+                    live
+                      ? `${a.name} · ${a.scheduledAhead} scheduled leg${a.scheduledAhead === 1 ? "" : "s"} in the next 7 days`
+                      : `${a.name} — ${a.status}. Reconnect before its next send.`
+                  }
+                >
+                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: live ? a.color : "var(--rose)" }} />
+                  {a.label}
+                  {!live && <AlertTriangle className="w-3 h-3" />}
+                  {live && a.scheduledAhead > 0 && (
+                    <span className="text-[9.5px] text-[var(--mute)]">{a.scheduledAhead}</span>
                   )}
-                </div>
+                </span>
               );
             })}
           </div>
         )}
-        {isAdmin ? (
-          <form action={createCampaignAction} className="flex flex-wrap items-end gap-2 mt-2">
-            <label className="text-[11px] text-[var(--mute)]">
-              Name
-              <input name="name" required maxLength={60} placeholder="Q3 product launch" className="w-44 text-xs block mt-0.5" />
-            </label>
-            <label className="text-[11px] text-[var(--mute)]">
-              utm_campaign
-              <input name="utmCampaign" maxLength={80} placeholder="(optional — defaults to the workspace tag)" className="w-64 text-xs block mt-0.5" />
-            </label>
-            <label className="text-[11px] text-[var(--mute)]">
-              Color
-              <input name="color" type="color" defaultValue="#2563EB" className="block mt-0.5 h-7 w-10 p-0 border border-[var(--line-2)] rounded" />
-            </label>
-            <SubmitButton className="btn sm" pendingText="Creating…">Create campaign</SubmitButton>
-          </form>
-        ) : (
-          <p className="text-[11px] text-[var(--mute)] mt-2">Only workspace admins manage campaigns; pick one on any post in the composer.</p>
-        )}
-      </details>
 
-      {/* Workflow — approval + evergreen auto-fill, both opt-in. */}
-      {isAdmin && (
-        <details className="card mb-6">
-          <summary className="cursor-pointer text-sm font-semibold flex items-center gap-2">
-            <ShieldCheck className="w-4 h-4" style={{ color: "var(--green-on)" }} />
-            Workflow
-            <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: requireApproval ? "var(--green-soft)" : "var(--zebra)", color: requireApproval ? "var(--green-on)" : "var(--mute)" }}>
-              approval {requireApproval ? "on" : "off"}
-            </span>
-            <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: evergreenFill ? "var(--green-soft)" : "var(--zebra)", color: evergreenFill ? "var(--green-on)" : "var(--mute)" }}>
-              evergreen fill {evergreenFill ? "on" : "off"}
-            </span>
-            <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: autoImage ? "var(--green-soft)" : "var(--zebra)", color: autoImage ? "var(--green-on)" : "var(--mute)" }}>
-              auto-image {autoImage ? "on" : "off"}
-            </span>
-            <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: autogenOn ? "var(--green-soft)" : "var(--zebra)", color: autogenOn ? "var(--green-on)" : "var(--mute)" }}>
-              auto-generate {autogenOn ? `${autogenWeekly}/wk` : "off"}
-            </span>
-          </summary>
-          <form action={saveSocialWorkflowSettingsAction} className="mt-3 flex flex-col gap-2">
-            <label className="inline-flex items-start gap-2 text-xs cursor-pointer">
-              <input type="checkbox" name="requireApproval" defaultChecked={requireApproval} className="mt-0.5" />
-              <span>
-                <b>Require approval.</b> Posts by non-admins are held until an admin approves them —
-                nothing unapproved can be sent, scheduled, queued or dragged onto the calendar.
-              </span>
-            </label>
-            <label className="inline-flex items-start gap-2 text-xs cursor-pointer">
-              <input type="checkbox" name="evergreenFill" defaultChecked={evergreenFill} className="mt-0.5" />
-              <span>
-                <b>Evergreen auto-fill.</b> Free queue slots in the next 7 days are refilled with
-                eligible evergreen posts (each after its own cooldown). Off by default — automatic
-                posting should never be a surprise.
-              </span>
-            </label>
-            <label className="inline-flex items-start gap-2 text-xs cursor-pointer">
-              <input type="checkbox" name="autoImage" defaultChecked={autoImage} className="mt-0.5" />
-              <span>
-                <b>Auto-generate an image</b> for any post composed without one, using the
-                workspace&apos;s image provider (renders cost that provider&apos;s per-image fee). Your own
-                attachments always win; when the provider is the mock, nothing is attached rather
-                than faking it with stock.
-              </span>
-            </label>
-            <div className="flex items-start gap-2 text-xs">
-              <label className="inline-flex items-start gap-2 cursor-pointer">
-                <input type="checkbox" name="autogen" defaultChecked={autogenOn} className="mt-0.5" />
-                <b>Auto-generate posts.</b>
-              </label>
-              {/* Inputs are SIBLINGS of the label, never inside it — a click on
-                  a nested input would toggle the checkbox instead. */}
-              <span className="flex-1">
-                The autopilot writes fresh posts from your Topics —{" "}
-                <input type="number" name="autogenWeekly" min={1} max={50} defaultValue={autogenWeekly}
-                  className="w-14 border border-[var(--line-2)] rounded px-1 py-0.5 text-xs font-mono inline-block" />{" "}
-                per week, spread across the day, each with an auto-image, queued into free slots — or held
-                for approval when the approval workflow is on. Needs the <b>Social</b> mode dial under
-                Blog → Automation set to assisted or auto, and active Topics under Brand. Placeholder output is
-                never stored: no working AI key means no posts, visibly.
-                {activeCampaigns.length > 0 && (
-                  <span className="inline-flex items-center gap-1.5 ml-1">
-                    Campaign:{" "}
-                    <select name="autogenCampaign" defaultValue={autogenCampaign} className="border border-[var(--line-2)] rounded px-1 py-0.5 text-xs">
-                      <option value="">— none —</option>
-                      {activeCampaigns.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                    </select>
-                  </span>
-                )}
-              </span>
-            </div>
-            <div><SubmitButton className="btn sm" pendingText="Saving…">Save workflow</SubmitButton></div>
-          </form>
-        </details>
-      )}
-
-      {/* Bulk import */}
-      <details className="card mb-6">
-        <summary className="cursor-pointer text-sm font-semibold flex items-center gap-2">
-          <FileUp className="w-4 h-4" style={{ color: "var(--violet-on)" }} />
-          Import from CSV
-          <HelpTip text={SOCIAL_TIPS.csvImport} side="bottom" wide />
-        </summary>
-        <p className="text-[11px] text-[var(--mute)] mt-2 mb-2 leading-relaxed">
-          One post per row, up to 200 rows. Header row required; columns:{" "}
-          <code className="font-mono">text</code> (required),{" "}
-          <code className="font-mono">scheduledAt</code> (e.g. 2026-08-10T09:00),{" "}
-          <code className="font-mono">networks</code> (e.g. facebook|linkedin — empty = all),{" "}
-          <code className="font-mono">campaign</code> (by name),{" "}
-          <code className="font-mono">category</code>,{" "}
-          <code className="font-mono">evergreen</code> (true/false),{" "}
-          <code className="font-mono">recycleEveryDays</code>. Rows without a date land as drafts.
-        </p>
-        <form action={importSocialCsvAction} className="flex flex-wrap items-center gap-2" encType="multipart/form-data">
-          <input type="file" name="file" accept=".csv,text/csv" required className="text-xs" />
-          <SubmitButton className="btn sm" pendingText="Importing…">Import</SubmitButton>
-        </form>
-      </details>
-
-      {/* Awaiting approval — always visible, above the view toggle: a review
-          queue nobody sees is a review queue nobody clears. */}
-      {awaiting.length > 0 && (
-        <>
-          <Section icon={<ShieldCheck className="w-4 h-4" style={{ color: "var(--amber-on)" }} />} title="Awaiting approval" count={awaiting.length} />
-          <div className="flex flex-col gap-2 mb-6">
-            {awaiting.map((p) => (
-              <PostCard key={p.id} post={p} timeZone={queue.timeZone} isAdmin={isAdmin} approvalOn={requireApproval} />
-            ))}
-          </div>
-        </>
-      )}
-
-      {/* View toggle — calendar (default) or the original agenda. */}
-      <div className="flex items-center gap-2 mb-3 flex-wrap">
-        <Link href="/social?view=calendar" className={`btn sm ${mode === "calendar" ? "primary" : ""}`}>Calendar</Link>
-        <Link href="/social?view=agenda" className={`btn sm ${mode === "agenda" ? "primary" : ""}`}>Agenda</Link>
-        <span className="flex-1" />
-        {drafts.length > 0 && hasSlots && (
-          <form action={queueAllDraftsAction}>
-            <SubmitButton className="btn sm" pendingText="Queueing…" title="Fill the free slots with drafts, oldest first">
-              <ListPlus className="w-3.5 h-3.5" /> Queue all {drafts.length} draft{drafts.length === 1 ? "" : "s"}
-            </SubmitButton>
-          </form>
-        )}
-      </div>
-
-      {mode === "calendar" && (
-        <SocialCalendar
-          posts={[...scheduled, ...drafts].map((p): CalendarPost => ({
-            id: p.id,
-            text: p.text,
-            scheduledAt: p.scheduledAt ? p.scheduledAt.toISOString() : null,
-            providers: [...new Set(p.targets.map((t) => t.provider.toUpperCase()))],
-            status: p.status,
-          }))}
-          freeSlots={freeSlotIso}
-        />
-      )}
-
-      {mode === "agenda" && (<>
-      {/* Scheduled — agenda grouped by day */}
-      <Section icon={<CalendarClock className="w-4 h-4" style={{ color: "var(--blue-on)" }} />} title="Scheduled" count={scheduled.length} />
-      {scheduled.length === 0 ? (
-        <Empty text="Nothing scheduled. Use the composer above and pick “Schedule”." />
-      ) : (
-        [...byDay.entries()].map(([day, items]) => (
-          <div key={day} className="mb-4">
-            <div className="text-[11px] font-mono uppercase tracking-wider text-[var(--mute)] mb-2">{day}</div>
-            <div className="flex flex-col gap-2">
-              {items.map((p) => <PostCard key={p.id} post={p} canQueue={hasSlots} timeZone={queue.timeZone} isAdmin={isAdmin} approvalOn={requireApproval} />)}
-            </div>
-          </div>
-        ))
-      )}
-
-      {drafts.length > 0 && (
-        <>
-          <Section icon={<Clock className="w-4 h-4" style={{ color: "var(--mute)" }} />} title="Drafts" count={drafts.length} />
-          <div className="flex flex-col gap-2 mb-6">{drafts.map((p) => <PostCard key={p.id} post={p} canQueue={hasSlots} timeZone={queue.timeZone} isAdmin={isAdmin} approvalOn={requireApproval} />)}</div>
-        </>
-      )}
-
-      </>)}
-
-      <div className="flex items-end gap-2 flex-wrap">
-        <Section icon={<Send className="w-4 h-4" style={{ color: "var(--green-on)" }} />} title="History" count={history.length} />
-        <span className="flex-1" />
-        {history.length > 0 && (
-          <form action={syncSocialPerformanceAction} className="mb-2">
-            <SubmitButton className="btn sm" pendingText="Pulling…" title="Pull likes, comments, shares and impressions back from each network">
-              <BarChart3 className="w-3.5 h-3.5" /> Pull engagement
-            </SubmitButton>
-          </form>
-        )}
-      </div>
-      {history.length === 0 ? (
-        <Empty text="Posts you publish appear here with per-network status." />
-      ) : (
-        <div className="flex flex-col gap-2">{history.map((p) => <PostCard key={p.id} post={p} timeZone={queue.timeZone} isAdmin={isAdmin} approvalOn={requireApproval} />)}</div>
-      )}
-    </div>
-  );
-}
-
-type PostRow = {
-  id: string;
-  text: string;
-  mediaKeys: string;
-  status: string;
-  scheduledAt: Date | null;
-  publishedAt: Date | null;
-  topic: { name: string } | null;
-  campaign: { name: string; color: string | null } | null;
-  category: string | null;
-  evergreen: boolean;
-  recycleEveryDays: number;
-  timesRecycled: number;
-  recycledFrom: { id: string } | null;
-  approval: string | null;
-  reviewNote: string | null;
-  targets: { id: string; provider: string; accountName: string | null; text: string | null; mediaKeys: string | null; status: string; error: string | null }[];
-};
-
-/** The image keys a JSON key array holds ([] for null/malformed). */
-function listKeys(raw: string | null): string[] {
-  if (!raw) return [];
-  try {
-    const arr = JSON.parse(raw);
-    return Array.isArray(arr) ? arr.filter((k): k is string => typeof k === "string") : [];
-  } catch {
-    return [];
-  }
-}
-
-/** Thumbnail strip for stored media keys; each opens full-size in a new tab. */
-function MediaThumbs({ keys, size = "h-20 w-20" }: { keys: string[]; size?: string }) {
-  if (!keys.length) return null;
-  return (
-    <div className="flex flex-wrap gap-1.5">
-      {keys.map((k) => (
-        <a key={k} href={storage.url(k)} target="_blank" rel="noreferrer" title="Open full size">
-          <img
-            src={storage.url(k)}
-            alt="Post image"
-            loading="lazy"
-            className={`${size} rounded-lg object-cover border border-[var(--line)]`}
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+          <Stat
+            label="Next send"
+            value={overview.nextSend ? overview.nextSend.label : null}
+            reason="Nothing scheduled"
+            hint={overview.nextSend ? overview.nextSend.providers.map((p) => networkFor(p)?.label ?? p).join(" · ") : undefined}
           />
-        </a>
-      ))}
-    </div>
-  );
-}
+          <Stat
+            label="Free slots (7 days)"
+            value={overview.slotsConfigured ? String(overview.freeSlotsAhead) : null}
+            reason="No slots set"
+            hint={overview.slotsConfigured ? `${overview.timeZone}${overview.timeZoneConfigured ? "" : " (default)"}` : undefined}
+          />
+          <Stat
+            label="Scheduled"
+            value={String(overview.counts.scheduled)}
+            hint={`${overview.counts.drafts} draft${overview.counts.drafts === 1 ? "" : "s"}`}
+          />
+          <Stat
+            label="Published (30 days)"
+            value={String(overview.counts.postedLast30)}
+            hint={`${overview.counts.postedAllTime} all time`}
+          />
+        </div>
 
-function PostCard({
-  post, canQueue = false, timeZone, isAdmin = false, approvalOn = false,
-}: {
-  post: PostRow; canQueue?: boolean; timeZone: string; isAdmin?: boolean; approvalOn?: boolean;
-}) {
-  const s = STATUS_STYLE[post.status] ?? STATUS_STYLE.draft;
-  const when = post.scheduledAt ?? post.publishedAt;
-  const canRetry = post.status === "failed" || post.status === "partial";
-  const held = post.approval === "pending" || post.approval === "changes";
-  // Held posts hide the send buttons — the server refuses anyway, but showing
-  // controls that always fail reads as broken rather than as governed.
-  const unsent = (post.status === "draft" || post.status === "scheduled") && !held;
-  return (
-    <div className="card">
-      <div className="flex items-center gap-2 flex-wrap mb-1.5">
-        <span className="font-mono text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded-full" style={{ background: s.bg, color: s.fg }}>{s.label}</span>
-        {post.approval === "pending" && (
-          <span className="inline-flex items-center gap-1 font-mono text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }}>
-            <ShieldCheck className="w-2.5 h-2.5" /> awaiting approval
-          </span>
+        {!overview.zernioReady && (
+          <p className="text-[11px] mt-3 px-2 py-1.5 rounded-lg" style={{ background: "var(--rose-soft)", color: "var(--rose-on)" }}>
+            This workspace has no Zernio API key of its own, so nothing can publish.
+          </p>
         )}
-        {post.approval === "changes" && (
-          <span className="inline-flex items-center gap-1 font-mono text-[10px] px-1.5 py-0.5 rounded-full" title={post.reviewNote ?? undefined} style={{ background: "var(--rose-soft)", color: "var(--rose-on)" }}>
-            <ShieldCheck className="w-2.5 h-2.5" /> changes requested
-          </span>
-        )}
-        {post.topic && (
-          <span className="inline-flex items-center gap-1 font-mono text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "var(--violet-soft)", color: "var(--violet-on)" }}>
-            <Tags className="w-2.5 h-2.5" /> {post.topic.name}
-          </span>
-        )}
-        {post.campaign && (
-          <span className="inline-flex items-center gap-1 font-mono text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "var(--blue-soft)", color: "var(--blue-on)" }}>
-            <Megaphone className="w-2.5 h-2.5" /> {post.campaign.name}
-          </span>
-        )}
-        {post.category && (
-          <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "var(--panel)", color: "var(--mute)" }}>
-            {post.category}
-          </span>
-        )}
-        {post.evergreen && (
-          <span className="inline-flex items-center gap-1 font-mono text-[10px] px-1.5 py-0.5 rounded-full" title={`Recycles every ${post.recycleEveryDays} days${post.timesRecycled ? ` · recycled ${post.timesRecycled}×` : ""}`} style={{ background: "var(--green-soft)", color: "var(--green-on)" }}>
-            <Recycle className="w-2.5 h-2.5" /> evergreen
-          </span>
-        )}
-        {post.recycledFrom && (
-          <span className="inline-flex items-center gap-1 font-mono text-[10px] px-1.5 py-0.5 rounded-full" title="Automatically recycled from an evergreen post" style={{ background: "var(--panel)", color: "var(--mute)" }}>
-            <Recycle className="w-2.5 h-2.5" /> recycled
-          </span>
-        )}
-        {when && (
-          <span className="font-mono text-[11px] text-[var(--mute)]">
-            {post.scheduledAt ? "for " : "at "}
-            {when.toLocaleString("en-GB", { timeZone, day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
-          </span>
-        )}
-        <span className="flex-1" />
-        {/* Approval decisions — admin only, on held posts. */}
-        {post.approval === "pending" && isAdmin && (
-          <>
-            <form action={approveSocialPostAction}>
-              <input type="hidden" name="id" value={post.id} />
-              <button className="btn sm primary" title={post.scheduledAt ? "Approve — it keeps its requested time" : "Approve — it becomes a normal draft"}>
-                <Check className="w-3.5 h-3.5" /> Approve
-              </button>
-            </form>
-            <form action={requestChangesSocialPostAction} className="inline-flex items-center gap-1">
-              <input type="hidden" name="id" value={post.id} />
-              <input name="note" placeholder="What needs to change?" maxLength={500} className="text-xs w-44 border border-[var(--line-2)] rounded-lg px-1.5 py-1" />
-              <button className="btn sm" title="Send it back with a note"><X className="w-3.5 h-3.5" /> Request changes</button>
-            </form>
-          </>
-        )}
-        {/* A pre-workflow draft enters review here. */}
-        {approvalOn && !isAdmin && post.approval === null && (post.status === "draft" || post.status === "scheduled") && (
-          <form action={submitForApprovalAction}>
-            <input type="hidden" name="id" value={post.id} />
-            <button className="btn sm" title="Send to an admin for approval"><ShieldCheck className="w-3.5 h-3.5" /> Submit for approval</button>
-          </form>
-        )}
-        {/* Queue = the schedule picks the time. Always available without a
-            drag, which is what keeps calendar DnD an enhancement. */}
-        {unsent && canQueue && !(approvalOn && !isAdmin && post.approval === null) && (
-          <form action={queueSocialPostAction}>
-            <input type="hidden" name="id" value={post.id} />
-            <button className="btn sm" title="Move to the next free slot on the posting schedule">
-              <ListPlus className="w-3.5 h-3.5" /> Queue
-            </button>
-          </form>
-        )}
-        {unsent && !(approvalOn && !isAdmin) && (
-          <form action={publishNowAction}>
-            <input type="hidden" name="id" value={post.id} />
-            <button className="btn sm" title="Publish immediately"><Send className="w-3.5 h-3.5" /> Post now</button>
-          </form>
-        )}
-        {canRetry && (
-          <form action={publishNowAction}>
-            <input type="hidden" name="id" value={post.id} />
-            <button className="btn sm" title="Retry the legs that failed"><RotateCw className="w-3.5 h-3.5" /> Retry</button>
-          </form>
-        )}
-        {post.status === "scheduled" && (
-          <form action={cancelScheduledAction}>
-            <input type="hidden" name="id" value={post.id} />
-            <button className="btn sm" title="Move to drafts">Cancel</button>
-          </form>
-        )}
-        {/* Held posts stay EDITABLE — editing is how changes-requested gets
-            answered; it resubmits automatically. Only sending is locked. */}
-        {(post.status === "draft" || post.status === "scheduled") && (
-          <Link href={`/social/${post.id}/edit`} className="btn sm" title={held ? "Edit and resubmit for approval" : "Edit text, targets, schedule"}>
-            <Pencil className="w-3.5 h-3.5" /> Edit
-          </Link>
-        )}
-        <form action={duplicateSocialPostAction}>
-          <input type="hidden" name="id" value={post.id} />
-          <button className="btn sm" title="Duplicate"><Copy className="w-3.5 h-3.5" /></button>
-        </form>
-        <form action={deleteSocialPostAction}>
-          <input type="hidden" name="id" value={post.id} />
-          <button className="btn sm" title="Delete"><Trash2 className="w-3.5 h-3.5" /></button>
-        </form>
       </div>
-      <p className="text-sm text-[var(--slate)] whitespace-pre-wrap mb-1">{post.text || <span className="text-[var(--mute)] italic">(image only)</span>}</p>
-      {post.approval === "changes" && post.reviewNote && (
-        <p className="text-xs rounded-lg px-2 py-1.5 mb-2" style={{ background: "var(--rose-soft)", color: "var(--rose-on)" }}>
-          Reviewer: {post.reviewNote}
-        </p>
-      )}
-      {listKeys(post.mediaKeys).length > 0 && (
-        <div className="mb-2">
-          <MediaThumbs keys={listKeys(post.mediaKeys)} />
+
+      {/* ── Attention ──────────────────────────────────────────────────────── */}
+      <div className="flex items-center gap-2 mb-2 mt-6">
+        <AlertTriangle className="w-4 h-4" style={{ color: overview.attention.length ? "var(--amber-on)" : "var(--green-on)" }} />
+        <h2 className="font-mono font-bold text-sm">Needs you</h2>
+        <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "var(--panel)", color: "var(--mute)" }}>
+          {overview.attention.length}
+        </span>
+      </div>
+      {overview.attention.length === 0 ? (
+        <div className="card text-xs flex items-center gap-2" style={{ borderColor: "var(--green)" }}>
+          <Check className="w-4 h-4" style={{ color: "var(--green-on)" }} />
+          Nothing waiting. Accounts are connected, nothing is held for review, and no send has failed.
+        </div>
+      ) : (
+        <div className="flex flex-col gap-2">
+          {overview.attention.map((item) => <AttentionCard key={item.kind} item={item} />)}
         </div>
       )}
-      {/* Per-network overrides — customized text and/or images. */}
-      {post.targets.some((t) => t.text || t.mediaKeys) && (
-        <div className="flex flex-col gap-1 mb-2">
-          {post.targets.filter((t) => t.text || t.mediaKeys).map((t) => {
-            const net = networkFor(t.provider);
-            const imgs = listKeys(t.mediaKeys);
+
+      {/* ── Next out ───────────────────────────────────────────────────────── */}
+      <div className="flex items-center gap-2 mb-2 mt-6">
+        <CalendarClock className="w-4 h-4" style={{ color: "var(--blue-on)" }} />
+        <h2 className="font-mono font-bold text-sm">Going out next</h2>
+        <span className="flex-1" />
+        <Link href="/social/calendar" className="btn sm">Open calendar</Link>
+      </div>
+      {upcoming.length === 0 ? (
+        <div className="card text-xs text-[var(--mute)]">
+          Nothing scheduled.{" "}
+          <Link href="/social/compose" className="underline">Compose a post</Link> and queue it into the next free slot.
+        </div>
+      ) : (
+        <div className="card flex flex-col divide-y divide-[var(--line)]">
+          {upcoming.map((p) => (
+            <Link key={p.id} href={`/social/${p.id}/edit`} className="flex items-start gap-3 py-2 first:pt-0 last:pb-0 group">
+              <span className="font-mono text-[11px] text-[var(--mute)] w-32 flex-shrink-0 pt-0.5">
+                {p.scheduledAt?.toLocaleString("en-GB", {
+                  timeZone: overview.timeZone, weekday: "short", day: "2-digit", month: "short",
+                  hour: "2-digit", minute: "2-digit",
+                })}
+              </span>
+              <span className="flex-1 min-w-0 text-xs text-[var(--slate)] truncate group-hover:underline">
+                {p.text || <span className="italic text-[var(--mute)]">(image only)</span>}
+              </span>
+              <span className="flex gap-1 flex-shrink-0">
+                {p.targets.map((t) => {
+                  const net = networkFor(t.provider);
+                  return (
+                    <span key={t.id} className="w-2 h-2 rounded-full" title={net?.label ?? t.provider}
+                      style={{ background: net?.color ?? "var(--mute)" }} />
+                  );
+                })}
+              </span>
+              {p.approval === "pending" && (
+                <span className="font-mono text-[9.5px] px-1.5 py-0.5 rounded-full flex-shrink-0" style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }}>
+                  held
+                </span>
+              )}
+            </Link>
+          ))}
+        </div>
+      )}
+
+      {/* ── Performance snapshot ───────────────────────────────────────────── */}
+      <div className="flex items-center gap-2 mb-2 mt-6">
+        <BarChart3 className="w-4 h-4" style={{ color: "var(--green-on)" }} />
+        <h2 className="font-mono font-bold text-sm">Engagement, last 30 days</h2>
+        <span className="flex-1" />
+        <Link href="/social/performance" className="btn sm">All posts</Link>
+      </div>
+      {!hasEngagement ? (
+        <div className="card text-xs text-[var(--mute)]">
+          {/* Blank ≠ zero: say WHY it's blank. */}
+          No engagement pulled back yet — the networks are asked for it on demand, not continuously.{" "}
+          <Link href="/social/performance" className="underline">Pull engagement</Link> once something has been posted.
+        </div>
+      ) : (
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          {networks.map((n) => {
+            const net = networkFor(n.provider);
             return (
-              <div key={t.id} className="text-xs text-[var(--slate)] border-l-2 pl-2" style={{ borderColor: net?.color ?? "var(--line-2)" }}>
-                <span className="font-mono text-[10px] uppercase tracking-wider mr-1" style={{ color: net?.color ?? "var(--mute)" }}>{net?.label ?? t.provider}</span>
-                {t.text ? <span className="whitespace-pre-wrap">{t.text}</span> : <span className="text-[var(--mute)] italic">base text</span>}
-                {imgs.length > 0 && (
-                  <div className="mt-1">
-                    <MediaThumbs keys={imgs} size="h-10 w-10" />
-                  </div>
-                )}
+              <div key={n.provider} className="card">
+                <div className="flex items-center gap-1.5 mb-1.5">
+                  <span className="w-2 h-2 rounded-full" style={{ background: net?.color ?? "var(--mute)" }} />
+                  <span className="text-xs font-semibold">{net?.label ?? n.provider}</span>
+                  <span className="flex-1" />
+                  <span className="font-mono text-[10px] text-[var(--mute)]">{n.posts} post{n.posts === 1 ? "" : "s"}</span>
+                </div>
+                <div className="flex gap-4">
+                  <Mini label="impressions" value={n.impressions} />
+                  <Mini label="engagement" value={n.engagement} />
+                  <Mini label="clicks" value={n.clicks} />
+                </div>
               </div>
             );
           })}
         </div>
       )}
-      <div className="flex flex-wrap gap-1.5">
-        {post.targets.map((t) => {
-          const net = networkFor(t.provider);
-          const posted = t.status === "posted";
-          const failed = t.status === "failed";
-          return (
-            <span key={t.id} className="inline-flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 rounded-full border"
-              style={{ borderColor: net?.color ?? "var(--line-2)" }}
-              title={t.error ?? undefined}>
-              <span className="w-1.5 h-1.5 rounded-full" style={{ background: net?.color ?? "var(--mute)" }} />
-              {net?.label ?? t.provider}
-              {(t.text || t.mediaKeys) && <Pencil className="w-2.5 h-2.5" style={{ color: "var(--mute)" }} />}
-              {posted && <Check className="w-3 h-3" style={{ color: "var(--green-on)" }} />}
-              {failed && <X className="w-3 h-3" style={{ color: "var(--rose-on)" }} />}
-            </span>
-          );
-        })}
+
+      {/* ── Recent ─────────────────────────────────────────────────────────── */}
+      {recent.length > 0 && (
+        <>
+          <div className="flex items-center gap-2 mb-2 mt-6">
+            <Send className="w-4 h-4" style={{ color: "var(--green-on)" }} />
+            <h2 className="font-mono font-bold text-sm">Recently published</h2>
+          </div>
+          <div className="card flex flex-col divide-y divide-[var(--line)]">
+            {recent.map((p) => (
+              <div key={p.id} className="flex items-start gap-3 py-2 first:pt-0 last:pb-0">
+                <span className="font-mono text-[11px] text-[var(--mute)] w-28 flex-shrink-0 pt-0.5">
+                  {p.publishedAt
+                    ? p.publishedAt.toLocaleString("en-GB", { timeZone: overview.timeZone, day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })
+                    : "—"}
+                </span>
+                <span className="flex-1 min-w-0 text-xs text-[var(--slate)] truncate">{p.text}</span>
+                <span className="flex gap-1.5 flex-shrink-0">
+                  {p.targets.map((t) => {
+                    const net = networkFor(t.provider);
+                    const label = net?.label ?? t.provider;
+                    // A live URL is the only proof a leg really landed, so link it.
+                    return t.platformPostUrl ? (
+                      <a key={t.id} href={t.platformPostUrl} target="_blank" rel="noreferrer"
+                        className="inline-flex items-center gap-0.5 text-[10px] font-mono px-1.5 py-0.5 rounded-full border hover:underline"
+                        style={{ borderColor: net?.color ?? "var(--line-2)" }} title={`Open on ${label}`}>
+                        {label}<ExternalLink className="w-2.5 h-2.5" />
+                      </a>
+                    ) : (
+                      <span key={t.id} className="text-[10px] font-mono px-1.5 py-0.5 rounded-full border"
+                        style={{
+                          borderColor: t.status === "failed" ? "var(--rose)" : "var(--line-2)",
+                          color: t.status === "failed" ? "var(--rose-on)" : "var(--mute)",
+                        }}
+                        title={t.status === "failed" ? "This leg failed" : "No public URL reported by the network"}>
+                        {label}
+                      </span>
+                    );
+                  })}
+                </span>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {/* ── Automation ─────────────────────────────────────────────────────── */}
+      <div className="flex items-center gap-2 mb-2 mt-6">
+        <Sparkles className="w-4 h-4" style={{ color: "var(--violet-on)" }} />
+        <h2 className="font-mono font-bold text-sm">Running unattended</h2>
+        <span className="flex-1" />
+        {isAdmin && <Link href="/social/settings" className="btn sm">Change</Link>}
+      </div>
+      <div className="card flex flex-wrap gap-1.5">
+        <Dial on={autogenOn} label={autogenOn ? `auto-generate ${autogenWeekly}/wk` : "auto-generate off"} />
+        <Dial on={evergreenFill} label={`evergreen fill ${evergreenFill ? "on" : "off"}`} />
+        <Dial on={autoImage} label={`auto-image ${autoImage ? "on" : "off"}`} />
+        <Dial on={requireApproval} label={`approval ${requireApproval ? "required" : "off"}`} />
+        <Dial on={utmOn} label={`link tagging ${utmOn ? "on" : "off"}`} />
       </div>
     </div>
   );
 }
 
-function Section({ icon, title, count }: { icon: React.ReactNode; title: string; count: number }) {
+/**
+ * A single figure. `value: null` renders a dash and the reason — never a zero,
+ * which would assert something we haven't measured.
+ */
+function Stat({ label, value, reason, hint }: { label: string; value: string | null; reason?: string; hint?: string }) {
   return (
-    <div className="flex items-center gap-2 mb-2 mt-6">
-      {icon}
-      <h2 className="font-mono font-bold text-sm">{title}</h2>
-      <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "var(--panel)", color: "var(--mute)" }}>{count}</span>
+    <div className="rounded-lg border border-[var(--line)] px-2.5 py-2">
+      <div className="font-mono text-[9.5px] uppercase tracking-wider text-[var(--mute)]">{label}</div>
+      {value === null ? (
+        <>
+          <div className="text-lg font-bold leading-tight text-[var(--mute)]">—</div>
+          {reason && <div className="text-[10px] text-[var(--mute)]">{reason}</div>}
+        </>
+      ) : (
+        <>
+          <div className="text-lg font-bold leading-tight">{value}</div>
+          {hint && <div className="text-[10px] text-[var(--mute)] truncate" title={hint}>{hint}</div>}
+        </>
+      )}
     </div>
   );
 }
 
-function Empty({ text }: { text: string }) {
-  return <div className="card text-xs text-[var(--mute)] mb-2">{text}</div>;
+function Mini({ label, value }: { label: string; value: number | null }) {
+  return (
+    <div>
+      <div className="text-sm font-bold leading-tight">
+        {value === null ? <span className="text-[var(--mute)]">—</span> : value.toLocaleString("en-GB")}
+      </div>
+      <div className="font-mono text-[9px] uppercase tracking-wider text-[var(--mute)]">{label}</div>
+    </div>
+  );
 }
 
-function Banner({ kind, text }: { kind: "ok" | "err"; text: string }) {
-  const ok = kind === "ok";
+function Dial({ on, label }: { on: boolean; label: string }) {
   return (
-    <div className="card mb-4 flex items-center gap-2 text-sm" style={{ background: ok ? "var(--green-soft)" : "var(--rose-soft)", borderColor: ok ? "var(--green)" : "var(--rose)" }}>
-      {ok ? <Check className="w-4 h-4" style={{ color: "var(--green-on)" }} /> : <X className="w-4 h-4" style={{ color: "var(--rose-on)" }} />}
-      {text}
+    <span className="font-mono text-[10px] px-2 py-1 rounded-full"
+      style={{ background: on ? "var(--green-soft)" : "var(--zebra)", color: on ? "var(--green-on)" : "var(--mute)" }}>
+      {label}
+    </span>
+  );
+}
+
+function AttentionCard({ item }: { item: AttentionItem }) {
+  const warn = item.severity === "warn";
+  return (
+    <div className="card flex items-start gap-2.5" style={{ borderColor: warn ? "var(--amber)" : "var(--line)" }}>
+      <span className="mt-0.5 flex-shrink-0">
+        {warn
+          ? <AlertTriangle className="w-4 h-4" style={{ color: "var(--amber-on)" }} />
+          : <Info className="w-4 h-4" style={{ color: "var(--blue-on)" }} />}
+      </span>
+      <div className="flex-1 min-w-0">
+        <div className="text-sm font-semibold">{item.title}</div>
+        <div className="text-xs text-[var(--mute)] leading-relaxed">{item.detail}</div>
+      </div>
+      <Link href={item.href} className="btn sm flex-shrink-0">{item.cta}</Link>
     </div>
   );
 }
