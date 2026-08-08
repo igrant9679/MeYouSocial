@@ -201,6 +201,64 @@ export async function listCommentablePosts(opts: {
 }
 
 /**
+ * Meta's 24-hour messaging window, computed from the thread we already have.
+ *
+ * Facebook Messenger and Instagram only allow a business to send inside 24
+ * hours of the PERSON's last message — an outgoing message doesn't reset it.
+ * Proven the hard way on 2026-08-08: a test reply into a thread whose last
+ * inbound was June 2024 came back
+ * `HTTP 403 {"error":"This message is sent outside of allowed window.",
+ * platformError:{code:10,subcode:2534022,type:"IGApiException"}}`.
+ *
+ * Worth computing up front rather than letting people write a reply and lose
+ * it to a 403 — the thread already carries every timestamp needed.
+ *
+ * ⚠ Returns `open: true` when we simply can't tell (no inbound message in the
+ * page we fetched). Guessing "closed" would hide a Send button that might work,
+ * and exceptions do exist (Meta's human-agent tag widens the window to 7 days).
+ */
+const WINDOWED_PLATFORMS = new Set(["facebook", "instagram"]);
+const WINDOW_MS = 24 * 60 * 60 * 1000;
+
+export function messagingWindow(
+  platform: string,
+  messages: InboxMessage[],
+): { applies: boolean; open: boolean; lastInboundAt: Date | null } {
+  if (!WINDOWED_PLATFORMS.has(platform.trim().toLowerCase())) {
+    return { applies: false, open: true, lastInboundAt: null };
+  }
+  const inbound = messages
+    .filter((m) => m.direction === "incoming" && m.createdAt)
+    .map((m) => new Date(m.createdAt as string))
+    .filter((d) => !Number.isNaN(d.getTime()))
+    .sort((a, b) => b.getTime() - a.getTime());
+  const last = inbound[0] ?? null;
+  if (!last) return { applies: true, open: true, lastInboundAt: null };
+  return { applies: true, open: Date.now() - last.getTime() < WINDOW_MS, lastInboundAt: last };
+}
+
+/**
+ * Turn a raw send failure into something a person can act on.
+ *
+ * The house rule from the OpenAI unverified-org 429 and the stale-page error:
+ * translate at the source, and name the fix. A wall of JSON with an fbtraceId
+ * tells the author nothing about what to do next.
+ */
+export function explainInboxSendError(raw: string): string {
+  const s = raw.toLowerCase();
+  if (s.includes("outside of allowed window") || s.includes("2534022")) {
+    return "Instagram and Facebook only let you reply within 24 hours of someone's last message, and this thread is past that. They'd have to message again to reopen it — or reply from the network itself.";
+  }
+  if (s.includes("http 401") || s.includes("http 403")) {
+    return `The network refused this account. It may need reconnecting under Admin → Connections. (${raw.slice(0, 200)})`;
+  }
+  if (s.includes("http 429") || s.includes("rate limit")) {
+    return "The network is rate-limiting this account right now — try again shortly.";
+  }
+  return raw;
+}
+
+/**
  * Send a direct message into an existing conversation.
  *
  * ⚠ `accountId` goes in the BODY, not the query string — passing it as a query

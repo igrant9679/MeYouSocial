@@ -6,7 +6,7 @@ import { requireRole, canAdmin } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { getSetting } from "@/lib/settings";
 import { writeAudit } from "@/lib/governance";
-import { sendInboxMessage, replyOnPost } from "@/lib/zernio/inbox";
+import { sendInboxMessage, replyOnPost, explainInboxSendError } from "@/lib/zernio/inbox";
 
 /**
  * Answering from Engage: a direct-message reply, and a comment on our own post.
@@ -86,9 +86,11 @@ export async function sendInboxReplyAction(formData: FormData) {
       action: "social.dm_reply_failed", entityType: "zernio_conversation", entityId: conversationId,
       meta: { platform: account.platform, chars: message.length, error: detail.slice(0, 300) },
     });
-    // Say what the network said. "Something went wrong" on a message you
-    // believed you'd sent is the worst possible answer here.
-    back(`Couldn't send that: ${detail}`);
+    // Say what the network said, in words that name the fix. The raw form —
+    // an HTTP 403 wrapping an fbtraceId — is preserved in the audit row above,
+    // where a diagnosis needs it, not in front of the person who just lost a
+    // reply they'd written.
+    back(`Couldn't send that. ${explainInboxSendError(detail)}`);
   }
 
   await writeAudit({
@@ -138,7 +140,7 @@ export async function replyOnPostAction(formData: FormData) {
       action: "social.comment_reply_failed", entityType: "zernio_post", entityId: postId,
       meta: { platform: account.platform, chars: message.length, error: detail.slice(0, 300) },
     });
-    back(`Couldn't post that comment: ${detail}`);
+    back(`Couldn't post that comment. ${explainInboxSendError(detail)}`);
   }
 
   await writeAudit({

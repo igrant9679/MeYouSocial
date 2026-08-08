@@ -11,6 +11,7 @@ import {
   listCommentablePosts,
   listInboxComments,
   inboxSupportFor,
+  messagingWindow,
   type InboxConversation,
   type InboxCommentablePost,
 } from "@/lib/zernio/inbox";
@@ -185,6 +186,24 @@ export default async function EngagePage({ searchParams }: { searchParams: Promi
                   })}
                 </div>
               )}
+              {/* Meta's 24-hour rule, checked BEFORE anyone writes a reply —
+                  losing a composed message to a 403 is the avoidable version
+                  of this. */}
+              {(() => {
+                const w = messagingWindow(openConvo.platform, thread);
+                return w.applies && !w.open ? (
+                  <div className="mt-3 pt-3 border-t border-[var(--line)] text-[11px] flex items-start gap-2">
+                    <AlertTriangle className="w-4 h-4 flex-shrink-0" style={{ color: "var(--amber-on)" }} />
+                    <span className="text-[var(--mute)]">
+                      <b className="text-[var(--slate)]">Outside the 24-hour reply window.</b>{" "}
+                      {networkFor(openConvo.platform)?.label ?? openConvo.platform} only accepts a reply within 24
+                      hours of their last message
+                      {w.lastInboundAt && <> — theirs was {w.lastInboundAt.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}</>}.
+                      Sending will almost certainly be refused; they&apos;d have to write again to reopen it.
+                    </span>
+                  </div>
+                ) : null;
+              })()}
               <InboxReply
                 action={sendInboxReplyAction}
                 hidden={{ conversationId: openConvo.id, accountId: openConvo.accountId }}
