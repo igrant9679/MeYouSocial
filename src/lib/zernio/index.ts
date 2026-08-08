@@ -465,19 +465,32 @@ export async function getZernioAnalytics(opts: {
   if (opts.profileId) qs.set("profileId", opts.profileId);
   if (opts.accountId) qs.set("accountId", opts.accountId);
   if (opts.postId) qs.set("postId", opts.postId);
-  if (opts.fromDate) qs.set("fromDate", opts.fromDate.toISOString());
-  if (opts.toDate) qs.set("toDate", opts.toDate.toISOString());
+  // ⚠ CALENDAR DATES ONLY. A full ISO 8601 timestamp is rejected outright —
+  // `{"error":"Invalid ISO date","param":"fromDate"}`, HTTP 400 — despite the
+  // message asking for exactly what we were sending. Proven 2026-08-08 by
+  // trying all five plausible encodings against the live key: only YYYY-MM-DD
+  // returns 200 (full ISO, ISO-without-millis, epoch ms and epoch seconds all
+  // 400). This single line meant engagement sync had NEVER once succeeded.
+  if (opts.fromDate) qs.set("fromDate", ymd(opts.fromDate));
+  if (opts.toDate) qs.set("toDate", ymd(opts.toDate));
   qs.set("limit", String(Math.min(100, Math.max(1, opts.limit ?? 100))));
   if (opts.page) qs.set("page", String(opts.page));
 
   const res = await zernioFetch(`/analytics?${qs}`, { workspaceId: opts.workspaceId });
   const body = (await readJsonOrThrow(res, "Fetching analytics")) as Record<string, unknown>;
-  const rows = (body.analytics ?? body.data ?? body.items ?? body.results ?? []) as unknown;
+  // ⚠ The rows live under `posts`. The previous key list (analytics/data/items/
+  // results) matched nothing in the real payload, so even a request that got a
+  // 200 parsed to zero rows — a second, independent reason this never worked.
+  // The alternatives are kept as fallbacks in case the shape shifts again.
+  const rows = (body.posts ?? body.analytics ?? body.data ?? body.items ?? body.results ?? []) as unknown;
   const list = Array.isArray(rows) ? rows : Array.isArray(body) ? body : [];
   return (list as Record<string, unknown>[]).map((r) => {
-    const per = (r.platformAnalytics ?? []) as Record<string, unknown>[];
+    // `platforms` is the real per-network array; `platformAnalytics` was a guess.
+    const per = (r.platforms ?? r.platformAnalytics ?? []) as Record<string, unknown>[];
     return {
-      postId: String(r.postId ?? r._id ?? ""),
+      // ⚠ `_id` here is the ANALYTICS row's id, not the post's — matching on it
+      // finds nothing. `latePostId` carries the id we stored as providerPostId.
+      postId: String(r.latePostId ?? r.postId ?? r._id ?? ""),
       status: String(r.status ?? ""),
       publishedAt: typeof r.publishedAt === "string" ? r.publishedAt : null,
       perPlatform: (Array.isArray(per) ? per : []).map((p) => ({
@@ -490,6 +503,11 @@ export async function getZernioAnalytics(opts: {
       })),
     };
   });
+}
+
+/** Zernio's analytics window wants a calendar date, not an instant. */
+function ymd(d: Date): string {
+  return d.toISOString().slice(0, 10);
 }
 
 // ── Credential probe ─────────────────────────────────────────────────────────
