@@ -33,6 +33,7 @@ export async function register() {
     __autopilotTimer?: ReturnType<typeof setInterval>;
     __socialTimer?: ReturnType<typeof setInterval>;
     __metricsTimer?: ReturnType<typeof setInterval>;
+    __accountHealthTimer?: ReturnType<typeof setInterval>;
     __analyticsTimer?: ReturnType<typeof setInterval>;
     __jobsTimer?: ReturnType<typeof setInterval>;
   };
@@ -141,6 +142,24 @@ export async function register() {
   setTimeout(metricsSweep, 3 * 60 * 1000);
   globals.__metricsTimer = setInterval(metricsSweep, metricsMin * 60 * 1000);
   console.log(`[metrics] rollup armed — every ${metricsMin} min`);
+
+  // Social account health — reads each workspace's accounts back from Zernio
+  // and notifies when one STOPS being able to publish. Without this the first
+  // sign of a dead token is a failed post, which is how CommunityForce's
+  // Facebook outage was found twice in one day on 2026-08-07.
+  //
+  // Half-hourly: it's one listing call per workspace, and a token that dies
+  // now matters at the next slot, not the next second. It shares no lock with
+  // the publisher because it only ever writes account rows.
+  const healthMin = Math.max(10, parseInt(process.env.ACCOUNT_HEALTH_MIN ?? "30", 10) || 30);
+  const healthSweep = guarded("account-health", 5 * 60_000, async () => {
+    const { sweepAccountHealth } = await import("@/lib/social/account-health");
+    const { workspaces, alerted } = await sweepAccountHealth();
+    if (alerted > 0) console.log(`[account-health] ${alerted} account(s) newly broken across ${workspaces} workspace(s)`);
+  });
+  setTimeout(healthSweep, 90 * 1000);
+  globals.__accountHealthTimer = setInterval(healthSweep, healthMin * 60 * 1000);
+  console.log(`[account-health] armed — every ${healthMin} min`);
 
   // Analytics sync (Search Console / GA4 → BlogSnapshot). Its own, slower
   // cadence: GSC data lags ~2 days and is revised for a while, so polling it

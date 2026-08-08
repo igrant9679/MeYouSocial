@@ -45,7 +45,59 @@ export type AccountHealth = {
   status: string;
   /** Posts already scheduled against this account in the next 7 days. */
   scheduledAhead: number;
+  /** Null when the account is fine. */
+  trouble: { severity: AttentionSeverity; reason: string } | null;
+  tokenExpiresAt: Date | null;
+  healthCheckedAt: Date | null;
 };
+
+/**
+ * Is this account in trouble, and is it OUR problem or just news?
+ *
+ * ⚠ The one rule that matters here: **imminent token expiry is not trouble.**
+ * X and YouTube issue short-lived access tokens that Zernio refreshes on our
+ * behalf — probed 2026-08-08, four accounts across both tenants sat 15 to 70
+ * minutes from `tokenExpiresAt` while reporting `needsReconnection: false` and
+ * `platformStatus: "active"`. A "token expires soon" warning would have fired
+ * on all four, every hour, forever. An alert that is usually wrong is worse
+ * than no alert: people learn to close it, and then miss the real one.
+ *
+ * The signals that DO mean something are Zernio's own verdict
+ * (`needsReconnection`), the network's reported status, and our mirrored
+ * connection state. Expiry only earns a mention once it has actually passed
+ * AND something else already says the account is broken.
+ */
+export function troubleWith(a: {
+  status: string;
+  needsReconnection: boolean;
+  platformStatus: string | null;
+  platformStatusReason: string | null;
+  intentionalDisconnectAt: Date | null;
+  tokenExpiresAt: Date | null;
+}): { severity: AttentionSeverity; reason: string } | null {
+  if (a.needsReconnection) {
+    return { severity: "warn", reason: "the network revoked access — it needs reconnecting before it can post" };
+  }
+  if (a.status !== "connected") {
+    return a.intentionalDisconnectAt
+      ? { severity: "info", reason: "disconnected deliberately" }
+      : { severity: "warn", reason: "not connected" };
+  }
+  if (a.platformStatus && a.platformStatus.toLowerCase() !== "active") {
+    return {
+      severity: "warn",
+      reason: a.platformStatusReason
+        ? `${a.platformStatus} — ${a.platformStatusReason}`
+        : `the network reports it as "${a.platformStatus}"`,
+    };
+  }
+  // Past expiry with no other complaint means the refresh simply hasn't run
+  // yet. Say it quietly rather than raising an alarm we can't substantiate.
+  if (a.tokenExpiresAt && a.tokenExpiresAt < new Date()) {
+    return { severity: "info", reason: "its access token is past its expiry and hasn't been refreshed yet" };
+  }
+  return null;
+}
 
 export type SocialOverview = {
   accounts: AccountHealth[];
@@ -80,7 +132,11 @@ export async function getSocialOverview(workspaceId: string): Promise<SocialOver
     db.zernioAccount.findMany({
       where: { workspaceId },
       orderBy: { createdAt: "asc" },
-      select: { id: true, platform: true, displayName: true, username: true, status: true },
+      select: {
+        id: true, platform: true, displayName: true, username: true, status: true,
+        needsReconnection: true, platformStatus: true, platformStatusReason: true,
+        tokenExpiresAt: true, intentionalDisconnectAt: true, healthCheckedAt: true,
+      },
     }),
     db.socialPost.findMany({
       where: { workspaceId },
@@ -118,10 +174,15 @@ export async function getSocialOverview(workspaceId: string): Promise<SocialOver
       color: net?.color ?? "var(--mute)",
       status: a.status,
       scheduledAhead: perAccountAhead.get(a.id) ?? 0,
+      trouble: troubleWith(a),
+      tokenExpiresAt: a.tokenExpiresAt,
+      healthCheckedAt: a.healthCheckedAt,
     };
   });
   const connected = accounts.filter((a) => a.status === "connected");
-  const broken = accounts.filter((a) => a.status !== "connected");
+  const broken = accounts.filter((a) => a.trouble?.severity === "warn");
+  const grumbling = accounts.filter((a) => a.trouble?.severity === "info");
+  const neverChecked = accounts.filter((a) => a.healthCheckedAt === null);
 
   // ── Counts ────────────────────────────────────────────────────────────────
   const scheduled = posts.filter((p) => p.status === "scheduled");
@@ -169,17 +230,43 @@ export async function getSocialOverview(workspaceId: string): Promise<SocialOver
   }
 
   if (broken.length > 0) {
-    const names = broken.map((a) => a.label).join(", ");
+    // Name each one with the network's OWN reason. "LinkedIn needs
+    // reconnecting" is actionable; "1 account has a problem" is not.
+    const named = broken.map((a) => `${a.label} (${a.trouble!.reason})`).join("; ");
     const atRisk = broken.reduce((n, a) => n + a.scheduledAhead, 0);
     attention.push({
       kind: "accounts-broken",
       severity: "warn",
-      title: `${broken.length} account${broken.length === 1 ? "" : "s"} need${broken.length === 1 ? "s" : ""} reconnecting`,
+      title: `${broken.length} account${broken.length === 1 ? "" : "s"} can't publish`,
       detail: atRisk > 0
-        ? `${names} — ${atRisk} scheduled post leg${atRisk === 1 ? "" : "s"} in the next 7 days will fail until fixed.`
-        : `${names}. Nothing is scheduled against ${broken.length === 1 ? "it" : "them"} yet.`,
+        ? `${named}. ${atRisk} scheduled post leg${atRisk === 1 ? "" : "s"} in the next 7 days will fail until this is fixed.`
+        : `${named}. Nothing is scheduled against ${broken.length === 1 ? "it" : "them"} yet.`,
       href: "/admin/connections",
       cta: "Reconnect",
+    });
+  }
+
+  if (grumbling.length > 0) {
+    attention.push({
+      kind: "accounts-grumbling",
+      severity: "info",
+      title: `${grumbling.length} account${grumbling.length === 1 ? "" : "s"} worth a look`,
+      detail: grumbling.map((a) => `${a.label} — ${a.trouble!.reason}`).join("; ") + ".",
+      href: "/admin/connections",
+      cta: "Open",
+    });
+  }
+
+  if (neverChecked.length > 0 && connected.length > 0) {
+    // Health arrives with a reconcile. Until one has run, saying "all healthy"
+    // would be asserting something never measured.
+    attention.push({
+      kind: "health-unknown",
+      severity: "info",
+      title: `Health unknown for ${neverChecked.length} account${neverChecked.length === 1 ? "" : "s"}`,
+      detail: "Refresh accounts under Connections to read their current state back from Zernio.",
+      href: "/admin/connections",
+      cta: "Refresh",
     });
   }
 

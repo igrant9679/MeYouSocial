@@ -22,6 +22,7 @@ const KIND_HUE: Record<NotificationKind, string> = {
   scheduled: "blue",
   assigned: "amber",
   comment: "cyan",
+  account_broken: "rose",
 };
 
 export default async function NotificationsPage() {
@@ -157,4 +158,5 @@ const DEFAULT_EMAIL: Record<NotificationKind, boolean> = {
   scheduled: false,
   assigned: true,
   comment: false,
+  account_broken: true,
 };

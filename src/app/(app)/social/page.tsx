@@ -61,6 +61,11 @@ export default async function SocialOverviewPage({ searchParams }: { searchParam
   const [autogenOn, autogenWeekly, evergreenFill, autoImage, requireApproval, utmOn] = dials;
   const networks = byNetwork(readings);
   const hasEngagement = networks.length > 0;
+  // "Needs you" is things that are broken or blocking; "Worth knowing" is
+  // everything else the page surfaces. Mixing them makes the urgent ones
+  // easier to scroll past.
+  const warn = overview.attention.filter((a) => a.severity === "warn");
+  const info = overview.attention.filter((a) => a.severity === "info");
 
   return (
     <div className="p-6 w-full">
@@ -93,26 +98,33 @@ export default async function SocialOverviewPage({ searchParams }: { searchParam
         ) : (
           <div className="flex flex-wrap gap-1.5 mb-3">
             {overview.accounts.map((a) => {
-              const live = a.status === "connected";
+              // Colour by TROUBLE, not by our mirrored status: an account can
+              // be "connected" here and still be refusing to publish, which is
+              // exactly the state that used to be invisible.
+              const bad = a.trouble?.severity === "warn";
+              const meh = a.trouble?.severity === "info";
+              const hue = bad ? "var(--rose)" : meh ? "var(--amber)" : a.color;
               return (
                 <span
                   key={a.id}
                   className="inline-flex items-center gap-1.5 text-[11px] font-mono px-2 py-1 rounded-full border"
                   style={{
-                    borderColor: live ? a.color : "var(--rose)",
-                    background: live ? "transparent" : "var(--rose-soft)",
-                    color: live ? "var(--slate)" : "var(--rose-on)",
+                    borderColor: hue,
+                    background: bad ? "var(--rose-soft)" : "transparent",
+                    color: bad ? "var(--rose-on)" : "var(--slate)",
                   }}
                   title={
-                    live
-                      ? `${a.name} · ${a.scheduledAhead} scheduled leg${a.scheduledAhead === 1 ? "" : "s"} in the next 7 days`
-                      : `${a.name} — ${a.status}. Reconnect before its next send.`
+                    a.trouble
+                      ? `${a.name} — ${a.trouble.reason}.`
+                      : `${a.name} · ${a.scheduledAhead} scheduled leg${a.scheduledAhead === 1 ? "" : "s"} in the next 7 days` +
+                        // Shown, but never alerted on — see troubleWith().
+                        (a.tokenExpiresAt ? ` · token renews by ${a.tokenExpiresAt.toISOString().slice(0, 16).replace("T", " ")}Z` : "")
                   }
                 >
-                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: live ? a.color : "var(--rose)" }} />
+                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: hue }} />
                   {a.label}
-                  {!live && <AlertTriangle className="w-3 h-3" />}
-                  {live && a.scheduledAhead > 0 && (
+                  {bad && <AlertTriangle className="w-3 h-3" />}
+                  {!a.trouble && a.scheduledAhead > 0 && (
                     <span className="text-[9.5px] text-[var(--mute)]">{a.scheduledAhead}</span>
                   )}
                 </span>
@@ -154,22 +166,35 @@ export default async function SocialOverviewPage({ searchParams }: { searchParam
       </div>
 
       {/* ── Attention ──────────────────────────────────────────────────────── */}
+      {/* Split by severity, and NO count chip on either heading: the sub-nav
+          badge is already a number, and it counts only what the layout can
+          cheaply aggregate. Two numbers that disagree on the same screen is
+          worse than one number and a list. */}
       <div className="flex items-center gap-2 mb-2 mt-6">
-        <AlertTriangle className="w-4 h-4" style={{ color: overview.attention.length ? "var(--amber-on)" : "var(--green-on)" }} />
+        <AlertTriangle className="w-4 h-4" style={{ color: warn.length ? "var(--amber-on)" : "var(--green-on)" }} />
         <h2 className="font-mono font-bold text-sm">Needs you</h2>
-        <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "var(--panel)", color: "var(--mute)" }}>
-          {overview.attention.length}
-        </span>
       </div>
-      {overview.attention.length === 0 ? (
+      {warn.length === 0 ? (
         <div className="card text-xs flex items-center gap-2" style={{ borderColor: "var(--green)" }}>
           <Check className="w-4 h-4" style={{ color: "var(--green-on)" }} />
           Nothing waiting. Accounts are connected, nothing is held for review, and no send has failed.
         </div>
       ) : (
         <div className="flex flex-col gap-2">
-          {overview.attention.map((item) => <AttentionCard key={item.kind} item={item} />)}
+          {warn.map((item) => <AttentionCard key={item.kind} item={item} />)}
         </div>
+      )}
+
+      {info.length > 0 && (
+        <>
+          <div className="flex items-center gap-2 mb-2 mt-6">
+            <Info className="w-4 h-4" style={{ color: "var(--blue-on)" }} />
+            <h2 className="font-mono font-bold text-sm">Worth knowing</h2>
+          </div>
+          <div className="flex flex-col gap-2">
+            {info.map((item) => <AttentionCard key={item.kind} item={item} />)}
+          </div>
+        </>
       )}
 
       {/* ── Next out ───────────────────────────────────────────────────────── */}

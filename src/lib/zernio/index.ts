@@ -169,7 +169,30 @@ export type ZernioAccountInfo = {
   profileUrl: string | null;
   profileId: string | null;
   isActive: boolean;
+  // ── Health ────────────────────────────────────────────────────────────────
+  /** Zernio's own verdict: this account can't publish until someone re-auths. */
+  needsReconnection: boolean;
+  /** "active", or whatever the network last reported. */
+  platformStatus: string | null;
+  /** The network's own words for why, when it gives any. */
+  platformStatusReason: string | null;
+  /**
+   * ⚠ Informational ONLY — never alert on this alone. X and YouTube hand out
+   * short-lived access tokens that Zernio refreshes; probed 2026-08-08, four
+   * accounts sat 15–70 minutes from expiry in perfect health. Alerting on
+   * imminent expiry means alerting hourly about nothing.
+   */
+  tokenExpiresAt: Date | null;
+  /** Set when a human disconnected it deliberately — news, not a fault. */
+  intentionalDisconnectAt: Date | null;
 };
+
+/** Parse an ISO date that may be absent, null, or unparseable. */
+function dateOrNull(v: unknown): Date | null {
+  if (typeof v !== "string" || !v) return null;
+  const d = new Date(v);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
 
 function accountOf(raw: Record<string, unknown>): ZernioAccountInfo {
   // profileId is documented as an OBJECT ({_id,name,slug}) when populated, but
@@ -183,6 +206,11 @@ function accountOf(raw: Record<string, unknown>): ZernioAccountInfo {
     profileUrl: (raw.profileUrl as string) ?? null,
     profileId: typeof p === "string" ? p : (p?._id ?? null),
     isActive: raw.isActive !== false,
+    needsReconnection: raw.needsReconnection === true,
+    platformStatus: (raw.platformStatus as string) ?? null,
+    platformStatusReason: (raw.platformStatusReason as string) ?? null,
+    tokenExpiresAt: dateOrNull(raw.tokenExpiresAt),
+    intentionalDisconnectAt: dateOrNull(raw.intentionalDisconnectAt),
   };
 }
 

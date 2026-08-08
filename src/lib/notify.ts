@@ -23,6 +23,7 @@ export const NOTIFICATION_KINDS = [
   "scheduled",
   "assigned",
   "comment",
+  "account_broken",
 ] as const;
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
 
@@ -34,6 +35,7 @@ export const KIND_LABELS: Record<NotificationKind, string> = {
   scheduled: "A post was scheduled",
   assigned: "I was assigned a review",
   comment: "A comment on something I'm on",
+  account_broken: "A connected account stopped working",
 };
 
 /** Email defaults to off for the chatty kinds, on for the ones that need a human. */
@@ -45,6 +47,9 @@ const EMAIL_DEFAULT: Record<NotificationKind, boolean> = {
   scheduled: false,
   assigned: true,
   comment: false,
+  // Emailed by default: this one is silent until a post fails, which is the
+  // exact failure mode it exists to prevent.
+  account_broken: true,
 };
 
 export function isNotificationKind(k: string): k is NotificationKind {

@@ -74,6 +74,15 @@ export async function saveZernioAccount(workspaceId: string, a: ZernioAccountInf
     displayName: a.displayName,
     profileUrl: a.profileUrl,
     status: a.isActive ? "connected" : "disconnected",
+    // Health, mirrored so the app can warn BEFORE a send fails rather than
+    // discovering the problem from the failure (how CF's Facebook outage was
+    // found, twice, on 2026-08-07).
+    tokenExpiresAt: a.tokenExpiresAt,
+    needsReconnection: a.needsReconnection,
+    platformStatus: a.platformStatus,
+    platformStatusReason: a.platformStatusReason,
+    intentionalDisconnectAt: a.intentionalDisconnectAt,
+    healthCheckedAt: new Date(),
   };
   await db.zernioAccount.upsert({
     where: { workspaceId_accountId: { workspaceId, accountId: a.id } },

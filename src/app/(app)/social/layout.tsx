@@ -24,6 +24,14 @@ export default async function SocialLayout({ children }: { children: React.React
 
   // Overview's badge counts DECISIONS, not content: what a person has to act on
   // right now. A neutral total there ("47 posts") tells nobody anything.
+  //
+  // ⚠ This is deliberately a LOWER BOUND on what the Overview's "Needs you"
+  // panel lists. Two of that panel's checks (a post over a network's character
+  // limit, a text-only post aimed at a network that demands media) need each
+  // post's text measured against each network's rules — not something a COUNT
+  // can do. Under-counting is the safe direction: the badge never nags about
+  // something that isn't there. That's also why neither "Needs you" heading
+  // carries a count chip — one number beats two that disagree.
   const needsYou = awaiting + failing + broken;
 
   const items: SocialNavItem[] = [

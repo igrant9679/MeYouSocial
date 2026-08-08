@@ -1381,6 +1381,24 @@ model ZernioAccount {
   profileUrl  String?
   isDefault   Boolean  @default(false) // preferred account for its platform
   status      String   @default("connected") // connected | disconnected | error
+
+  // ── Token health, mirrored from Zernio on every reconcile ─────────────────
+  // ⚠ `tokenExpiresAt` is NOT a warning signal on its own. X and YouTube issue
+  // short-lived access tokens that Zernio refreshes for us — probed 2026-08-08,
+  // both were 15–70 MINUTES from expiry while reporting perfect health. Warning
+  // on imminent expiry would fire hourly, forever, for a non-problem. The real
+  // signals are `needsReconnection` and `platformStatus`; this column is kept
+  // for display and for the expired-AND-broken case only.
+  tokenExpiresAt       DateTime?
+  needsReconnection    Boolean   @default(false)
+  platformStatus       String?   // active | <whatever the network reports>
+  platformStatusReason String?   // the network's own words, when it gives any
+  // Set when the DISCONNECT WAS DELIBERATE — someone revoked it on purpose, so
+  // it's news, not a fault.
+  intentionalDisconnectAt DateTime?
+  /** When health was last read back from Zernio. Null = never reconciled. */
+  healthCheckedAt      DateTime?
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
