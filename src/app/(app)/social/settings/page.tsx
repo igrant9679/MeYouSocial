@@ -11,6 +11,12 @@ import { SOCIAL_TIPS } from "@/lib/help-tips";
 import { getUtmConfig } from "@/lib/social/utm";
 import { formatInZone, getQueue } from "@/lib/social/slots";
 import { saveUtmSettingsAction } from "@/app/actions/social";
+import { addPostingSlotsAction } from "@/app/actions/social-slots";
+import {
+  analyseBestTimes, MIN_POSTS, MIN_PER_BUCKET, OUTPERFORM, type BestTimeReport,
+} from "@/lib/social/best-time";
+import { formatMinute } from "@/lib/social/slots";
+import { Clock } from "lucide-react";
 import {
   createCampaignAction,
   toggleCampaignAction,
@@ -28,7 +34,7 @@ export default async function SocialSettingsPage({ searchParams }: { searchParam
   const { ok, err } = await searchParams;
   const isAdmin = canAdmin(membership.role);
 
-  const [campaigns, posts, utm, queue] = await Promise.all([
+  const [campaigns, posts, utm, queue, bestTimes] = await Promise.all([
     db.campaign.findMany({
       where: { workspaceId: workspace.id },
       orderBy: [{ status: "asc" }, { name: "asc" }],
@@ -40,6 +46,7 @@ export default async function SocialSettingsPage({ searchParams }: { searchParam
     }),
     getUtmConfig(workspace.id),
     getQueue(workspace.id),
+    analyseBestTimes(workspace.id),
   ]);
 
   const [requireApproval, evergreenFill, autoImage, autogenOn, autogenWeekly, autogenCampaign] = await Promise.all([
@@ -75,6 +82,8 @@ export default async function SocialSettingsPage({ searchParams }: { searchParam
         canEdit={isAdmin}
         nextFree={nextFreeLabel}
       />
+
+      <BestTimes report={bestTimes} canEdit={isAdmin} />
 
       {/* Link tagging — makes social traffic attributable in GA4, which is what
           lets Insights tell LinkedIn clicks apart from X clicks. */}
@@ -248,5 +257,127 @@ export default async function SocialSettingsPage({ searchParams }: { searchParam
         </details>
       )}
     </div>
+  );
+}
+
+/**
+ * Best time to post.
+ *
+ * ⚠ The interesting case is the one where it refuses to answer. Every rival
+ * product shows a confident "Tue 09:00" from day one; this shows a dash and
+ * the number of posts it is still waiting for, because a recommendation drawn
+ * from four posts is a coin toss wearing a lab coat. The rule is stated on
+ * screen so it can be argued with.
+ */
+function BestTimes({ report, canEdit }: { report: BestTimeReport; canEdit: boolean }) {
+  const { reason, baseline, best, worst, buckets, measured, unmeasurable, suggestions } = report;
+
+  return (
+    <details className="card mb-6" open={!reason}>
+      <summary className="cursor-pointer text-sm font-semibold flex items-center gap-2">
+        <Clock className="w-4 h-4" style={{ color: "var(--green-on)" }} />
+        Best time to post
+        <span
+          className="font-mono text-[10px] px-1.5 py-0.5 rounded-full"
+          style={
+            reason
+              ? { background: "var(--zebra)", color: "var(--mute)" }
+              : { background: "var(--green-soft)", color: "var(--green-on)" }
+          }
+        >
+          {reason ? "not enough data" : `${measured} posts`}
+        </span>
+      </summary>
+
+      <p className="text-[11px] text-[var(--mute)] mt-2 mb-2 leading-relaxed">
+        Measured from engagement actually pulled back from the networks — never modelled. Posts are grouped by the
+        hour they went out in <b>{report.timeZone}</b>
+        {!report.timeZoneConfigured && " (no timezone set, so this is UTC)"}, and compared on{" "}
+        <b>engagement rate</b> rather than raw engagement, so a post simply seen by more people doesn&apos;t win by
+        default. A time is only judged once it has {MIN_PER_BUCKET} posts of its own, and nothing is shown at all
+        below {MIN_POSTS} measured posts.
+      </p>
+
+      {reason ? (
+        // Blank ≠ zero: a dash, and exactly what it's waiting for.
+        <div className="flex items-baseline gap-2">
+          <span className="text-2xl font-bold text-[var(--mute)]">—</span>
+          <span className="text-xs text-[var(--mute)]">{reason}</span>
+        </div>
+      ) : (
+        <>
+          <div className="text-[11px] text-[var(--mute)] mb-2">
+            Baseline engagement rate across {measured} measured post{measured === 1 ? "" : "s"}:{" "}
+            <b className="text-[var(--slate)]">{baseline!.toFixed(2)}%</b>
+            {unmeasurable > 0 && <> · {unmeasurable} excluded for having no impressions figure</>}
+          </div>
+
+          {best.length > 0 ? (
+            <div className="flex flex-col gap-1 mb-2">
+              {best.map((b) => (
+                <div key={b.label} className="flex items-center gap-2 text-xs rounded-lg border px-2 py-1.5" style={{ borderColor: "var(--green)" }}>
+                  <span className="font-mono font-semibold w-20">{b.label}</span>
+                  <span style={{ color: "var(--green-on)" }}>{b.ratio.toFixed(1)}× the baseline</span>
+                  <span className="text-[var(--mute)]">{b.rate.toFixed(2)}%</span>
+                  <span className="flex-1" />
+                  <span className="font-mono text-[10px] text-[var(--mute)]">n={b.posts}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-[var(--mute)] mb-2">
+              No time beats the baseline by {OUTPERFORM}× yet — on this evidence, when you post matters less than that
+              you post. That is a finding, not a gap.
+            </p>
+          )}
+
+          {worst.length > 0 && (
+            <p className="text-[11px] text-[var(--mute)] mb-2">
+              Underperforming: {worst.map((w) => `${w.label} (${w.ratio.toFixed(1)}×, n=${w.posts})`).join(", ")}.
+            </p>
+          )}
+
+          {suggestions.length > 0 && canEdit && (
+            <div className="mt-2 pt-2 border-t border-[var(--line)]">
+              <div className="text-[11px] text-[var(--mute)] mb-1.5">Not in your posting schedule yet:</div>
+              <div className="flex flex-wrap gap-1.5">
+                {suggestions.map((s) => (
+                  <form key={s.label} action={addPostingSlotsAction}>
+                    <input type="hidden" name="time" value={formatMinute(s.minute)} />
+                    <input type="hidden" name="weekdays" value={String(s.weekday)} />
+                    <SubmitButton className="btn sm" pendingText="Adding…" title={`Add a ${s.label} slot to the posting schedule`}>
+                      + {s.label}
+                    </SubmitButton>
+                  </form>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {buckets.length > best.length && (
+            <details className="mt-2">
+              <summary className="cursor-pointer text-[11px] text-[var(--mute)]">
+                All {buckets.length} times measured
+              </summary>
+              <div className="flex flex-col gap-0.5 mt-1.5">
+                {buckets.map((b) => (
+                  <div key={b.label} className="flex items-center gap-2 text-[11px]">
+                    <span className="font-mono w-20">{b.label}</span>
+                    <span className="text-[var(--mute)] w-16">{b.rate.toFixed(2)}%</span>
+                    <span className="text-[var(--mute)]">
+                      {b.judged
+                        ? `${b.ratio.toFixed(1)}×`
+                        : <span title={`Only ${b.posts} post${b.posts === 1 ? "" : "s"} — needs ${MIN_PER_BUCKET} to judge`}>—</span>}
+                    </span>
+                    <span className="flex-1" />
+                    <span className="font-mono text-[10px] text-[var(--mute)]">n={b.posts}</span>
+                  </div>
+                ))}
+              </div>
+            </details>
+          )}
+        </>
+      )}
+    </details>
   );
 }
