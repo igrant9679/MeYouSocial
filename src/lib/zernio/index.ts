@@ -373,6 +373,14 @@ export type ZernioPostTargetSpec = {
   /** Per-network text/media override. */
   content?: string;
   customMedia?: ZernioMediaItem[];
+  /**
+   * Per-network options — `{ contentType: "story" | "reel" }` and friends.
+   * ⚠ The shape is a `oneOf` chosen by `platform`, and Zernio STORES UNKNOWN
+   * KEYS HERE WITHOUT COMPLAINT: a probe sent `postType: "reel"` and got it
+   * echoed back intact while doing nothing. Build it through
+   * `social/sub-formats.ts`, which only emits documented fields.
+   */
+  platformSpecificData?: Record<string, unknown>;
 };
 
 export type ZernioPostResult = {
@@ -446,6 +454,7 @@ export async function createZernioPost(opts: {
       // / platformContent sent together, only customContent came back stored.
       ...(p.content ? { customContent: p.content } : {}),
       ...(p.customMedia?.length ? { customMedia: p.customMedia } : {}),
+      ...(p.platformSpecificData ? { platformSpecificData: p.platformSpecificData } : {}),
     })),
   };
   if (opts.mediaItems?.length) payload.mediaItems = opts.mediaItems;

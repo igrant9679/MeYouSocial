@@ -4,6 +4,7 @@ import {
 } from "lucide-react";
 import { storage } from "@/lib/storage";
 import { networkFor } from "@/lib/social/networks";
+import { subFormatLabel } from "@/lib/social/sub-formats";
 import {
   approveSocialPostAction,
   requestChangesSocialPostAction,
@@ -56,7 +57,7 @@ export type PostRow = {
   reviewNote: string | null;
   targets: {
     id: string; provider: string; accountName: string | null; text: string | null;
-    mediaKeys: string | null; status: string; error: string | null;
+    mediaKeys: string | null; status: string; error: string | null; subFormat: string | null;
   }[];
 };
 
@@ -257,6 +258,9 @@ export function PostCard({
               title={t.error ?? undefined}>
               <span className="w-1.5 h-1.5 rounded-full" style={{ background: net?.color ?? "var(--mute)" }} />
               {net?.label ?? t.provider}
+              {subFormatLabel(t.provider, t.subFormat) && (
+                <span style={{ color: net?.color ?? "var(--mute)" }}>· {subFormatLabel(t.provider, t.subFormat)}</span>
+              )}
               {(t.text || t.mediaKeys) && <Pencil className="w-2.5 h-2.5" style={{ color: "var(--mute)" }} />}
               {posted && <Check className="w-3 h-3" style={{ color: "var(--green-on)" }} />}
               {failed && <X className="w-3 h-3" style={{ color: "var(--rose-on)" }} />}

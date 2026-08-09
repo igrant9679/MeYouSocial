@@ -8,6 +8,7 @@ import { storage } from "@/lib/storage";
 import { writeJson, readJson } from "@/lib/db/json";
 import { publishSocialPost } from "@/lib/social/publish";
 import { networkFor } from "@/lib/social/networks";
+import { normaliseSubFormat, subFormatsFor } from "@/lib/social/sub-formats";
 import { claimNextFreeSlot, formatInZone, getPostingTimeZone, queueFailureMessage } from "@/lib/social/slots";
 
 // Social scheduler actions. A post fans out to one or more connected social
@@ -239,11 +240,29 @@ export async function createSocialPostAction(formData: FormData) {
     mediaByProvider.set(provider, keys.length ? writeJson(keys) : null);
   }
 
+  // Publish-as: subformat_<PROVIDER>, uppercased like every other per-network
+  // field. Anything the network doesn't document is normalised away rather than
+  // forwarded — Zernio would store an invented value silently.
+  const subFormatFor = (provider: string): string | null =>
+    normaliseSubFormat(provider, String(formData.get(`subformat_${provider.toUpperCase()}`) ?? ""));
+
   // Every path here either publishes now or schedules, so check before storing.
   assertMediaWhereRequired(
     accounts.map((a) => a.provider),
     (p) => readJson<string[]>(mediaByProvider.get(p.toUpperCase()), mediaKeys),
   );
+
+  // A Story or a Reel cannot be text — the network rejects it at publish, long
+  // after the author has gone. Refuse here, naming the network and the format.
+  for (const provider of new Set(accounts.map((a) => a.provider))) {
+    const sf = subFormatFor(provider);
+    if (!sf) continue;
+    const opt = subFormatsFor(provider).find((o) => o.value === sf);
+    const keys = readJson<string[]>(mediaByProvider.get(provider.toUpperCase()), mediaKeys);
+    if (opt?.requiresMedia && keys.length === 0) {
+      backTo(`A ${opt.label.toLowerCase()} on ${networkFor(provider)?.label ?? provider} needs an image or video — attach one, or switch it back to a feed post.`);
+    }
+  }
 
   const post = await db.socialPost.create({
     data: {
@@ -266,6 +285,7 @@ export async function createSocialPostAction(formData: FormData) {
           accountName: a.name,
           text: variantFor(a.provider),
           mediaKeys: mediaByProvider.get(a.provider.toUpperCase()) ?? null,
+          subFormat: subFormatFor(a.provider),
         })),
       },
     },
@@ -384,7 +404,7 @@ export async function duplicateSocialPostAction(formData: FormData) {
       status: "draft",
       approval: gate.approval,
       targets: {
-        create: src.targets.map((t) => ({ provider: t.provider, accountId: t.accountId, accountName: t.accountName, text: t.text, mediaKeys: t.mediaKeys })),
+        create: src.targets.map((t) => ({ provider: t.provider, accountId: t.accountId, accountName: t.accountName, text: t.text, mediaKeys: t.mediaKeys, subFormat: t.subFormat })),
       },
     },
   });
@@ -488,12 +508,26 @@ export async function updateSocialPostAction(formData: FormData) {
   // Only when it's actually going out — a draft may legitimately have no image
   // yet. `undefined` here means "no new upload", so fall back to whatever that
   // target already had, then to the post's base media.
+  const subFormatFor = (provider: string): string | null =>
+    normaliseSubFormat(provider, String(formData.get(`subformat_${provider.toUpperCase()}`) ?? ""));
+
   if (status !== "draft") {
     const existingFor = new Map(post!.targets.map((t) => [t.provider, t.mediaKeys]));
     assertMediaWhereRequired(
       accounts.map((a) => a.provider),
       (p) => readJson<string[]>(mediaByProvider.get(p.toUpperCase()) ?? existingFor.get(p), mediaKeys),
     );
+    // Same rule as the composer: a Story or Reel with no media is refused here
+    // rather than by the network, hours later, with the author long gone.
+    for (const provider of new Set(accounts.map((a) => a.provider))) {
+      const sf = subFormatFor(provider);
+      if (!sf) continue;
+      const opt = subFormatsFor(provider).find((o) => o.value === sf);
+      const keys = readJson<string[]>(mediaByProvider.get(provider.toUpperCase()) ?? existingFor.get(provider), mediaKeys);
+      if (opt?.requiresMedia && keys.length === 0) {
+        backTo(`A ${opt.label.toLowerCase()} on ${networkFor(provider)?.label ?? provider} needs an image or video — attach one, or switch it back to a feed post.`);
+      }
+    }
   }
 
   const keepIds = new Set(accounts.map((a) => a.accountId));
@@ -512,6 +546,7 @@ export async function updateSocialPostAction(formData: FormData) {
             provider: a.provider,
             accountName: a.name,
             text: variantFor(a.provider),
+            subFormat: subFormatFor(a.provider),
             // undefined = leave as-is; a fresh upload replaces it.
             ...(overrideMedia === undefined ? {} : { mediaKeys: overrideMedia }),
             status: "pending",
@@ -526,6 +561,7 @@ export async function updateSocialPostAction(formData: FormData) {
             accountId: a.accountId,
             accountName: a.name,
             text: variantFor(a.provider),
+            subFormat: subFormatFor(a.provider),
             mediaKeys: overrideMedia ?? null,
           },
         });

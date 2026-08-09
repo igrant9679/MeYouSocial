@@ -7,6 +7,7 @@ import { createSocialPostAction, updateSocialPostAction } from "@/app/actions/so
 import { generateComposerImageAction } from "@/app/actions/social-image-gen";
 import { tailorPostForNetworksAction } from "@/app/actions/social-tailor";
 import { networkFor } from "@/lib/social/networks";
+import { subFormatsFor, AUTOMATIC_SUB_FORMAT } from "@/lib/social/sub-formats";
 import { HelpTip, WithTip } from "@/components/HelpTip";
 import { SOCIAL_TIPS } from "@/lib/help-tips";
 import { AiAssist } from "@/components/AiAssist";
@@ -33,6 +34,8 @@ export type ComposerInitial = {
   accountIds: string[];
   /** Per-provider text overrides already saved on the post. */
   variants: Record<string, string>;
+  /** Per-provider "publish as" already saved, keyed by UPPERCASED slug. */
+  subFormats?: Record<string, string>;
   /** How many images the post already has (per base / per provider). */
   existingMedia: number;
 };
@@ -502,6 +505,29 @@ export function SocialComposer({
                   {net?.requiresMedia && mediaCount === 0 && (
                     <WithTip text={SOCIAL_TIPS.needsImage} side="bottom" wide>
                       <span className="text-[11px] text-[var(--amber-on)]">needs an image</span>
+                    </WithTip>
+                  )}
+                  {/* Story / Reel, but only where the network takes a choice.
+                      Most don't: YouTube detects Shorts from duration and
+                      aspect ratio, TikTok follows the media. Offering a picker
+                      there would be inventing a control. */}
+                  {subFormatsFor(p).length > 0 && (
+                    <label className="inline-flex items-center gap-1 text-[11px] text-[var(--mute)]">
+                      Publish as
+                      <select
+                        name={`subformat_${p}`}
+                        defaultValue={initial?.subFormats?.[p] ?? ""}
+                        className="border border-[var(--line-2)] rounded px-1 py-0.5 text-[11px]"
+                      >
+                        {subFormatsFor(p).map((o) => (
+                          <option key={o.value} value={o.value} title={o.hint}>{o.label}</option>
+                        ))}
+                      </select>
+                    </label>
+                  )}
+                  {AUTOMATIC_SUB_FORMAT[p.toLowerCase()] && (
+                    <WithTip text={AUTOMATIC_SUB_FORMAT[p.toLowerCase()]} side="bottom" wide>
+                      <span className="text-[11px] text-[var(--mute)]">format: automatic</span>
                     </WithTip>
                   )}
                   <span className="flex-1" />

@@ -130,6 +130,10 @@ export async function recycleEvergreenPosts(): Promise<number> {
               accountName: t.accountName,
               text: t.text,
               mediaKeys: t.mediaKeys,
+              // A clone republishes the SAME content, so it must go out in the
+              // same shape — a source Story that recycled as a feed post would
+              // be a different post wearing its name.
+              subFormat: t.subFormat,
             })),
           },
         },

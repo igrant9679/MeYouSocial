@@ -54,6 +54,10 @@ export default async function EditSocialPostPage({ params }: { params: Promise<{
 
   const variants: Record<string, string> = {};
   for (const t of post.targets) if (t.text) variants[t.provider.toUpperCase()] = t.text;
+  // Same UPPERCASED keying as variants — the composer's rows and the action's
+  // form fields both use it, and diverging silently drops the value.
+  const subFormats: Record<string, string> = {};
+  for (const t of post.targets) if (t.subFormat) subFormats[t.provider.toUpperCase()] = t.subFormat;
 
   const initial: ComposerInitial = {
     id: post.id,
@@ -68,6 +72,7 @@ export default async function EditSocialPostPage({ params }: { params: Promise<{
     scheduledAtIso: post.scheduledAt ? post.scheduledAt.toISOString() : null,
     accountIds: selectedIds,
     variants,
+    subFormats,
     existingMedia: readJson<string[]>(post.mediaKeys, []).length,
   };
 

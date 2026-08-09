@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { storage } from "@/lib/storage";
 import { readJson } from "@/lib/db/json";
 import { tagLinksForNetwork } from "@/lib/social/utm";
+import { platformDataFor } from "@/lib/social/sub-formats";
 import {
   createZernioPost,
   uploadZernioMedia,
@@ -186,12 +187,17 @@ export async function publishSocialPost(postId: string): Promise<void> {
         t.text ?? post.text, post.workspaceId, t.provider, post.campaign?.utmCampaign,
       );
       const ownKeys = t.mediaKeys ? readJson<string[]>(t.mediaKeys, []) : null;
+      // Story/Reel rather than a feed post, where the network takes a choice.
+      // Null for everything else, which is how YouTube and TikTok keep working:
+      // they infer the format from the media and take no field at all.
+      const platformSpecificData = platformDataFor(t.provider, t.subFormat);
       specs.push({
         platform: t.provider.toLowerCase(),
         accountId: t.accountId,
         // Only send an override when it differs; otherwise let the base apply.
         ...(text !== post.text ? { content: text } : {}),
         ...(ownKeys?.length ? { customMedia: await upload(ownKeys) } : {}),
+        ...(platformSpecificData ? { platformSpecificData } : {}),
       });
     }
 
