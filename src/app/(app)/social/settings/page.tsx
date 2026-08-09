@@ -293,9 +293,10 @@ function BestTimes({ report, canEdit }: { report: BestTimeReport; canEdit: boole
         Measured from engagement actually pulled back from the networks — never modelled. Posts are grouped by the
         hour they went out in <b>{report.timeZone}</b>
         {!report.timeZoneConfigured && " (no timezone set, so this is UTC)"}, and compared on{" "}
-        <b>engagement rate</b> rather than raw engagement, so a post simply seen by more people doesn&apos;t win by
-        default. A time is only judged once it has {MIN_PER_BUCKET} posts of its own, and nothing is shown at all
-        below {MIN_POSTS} measured posts.
+        <b>engagement rate</b>{" "}
+        rather than raw engagement, so a post simply seen by more people doesn&apos;t win by default. A time is only
+        judged once it has {MIN_PER_BUCKET} posts of its own, and nothing is shown at all below {MIN_POSTS} measured
+        posts.
       </p>
 
       {reason ? (
