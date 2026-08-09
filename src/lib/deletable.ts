@@ -23,7 +23,8 @@ import type { Role } from "@prisma/client";
 export type DeletableKind =
   | "channel" | "idea" | "script" | "chat" | "thumbnail" | "contentProject"
   | "task" | "asset" | "wikiDoc" | "audienceSubmission" | "audienceAvatar"
-  | "invitation" | "membership" | "zernioAccount" | "workspace" | "campaign";
+  | "invitation" | "membership" | "zernioAccount" | "workspace" | "campaign"
+  | "zernioComment";
 
 export type DeletableTarget = { id: string; name: string };
 
@@ -50,6 +51,28 @@ export type Deletable = {
 /** Drops zero counts so the confirmation lists only what actually exists. */
 function nonZero(pairs: Array<[string, number]>): Array<[string, number]> {
   return pairs.filter(([, n]) => n > 0);
+}
+
+/**
+ * `postId|commentId|accountId` → its parts.
+ *
+ * Split on the FIRST and LAST separator rather than `split("|")`: a comment id
+ * is opaque and could in principle contain one, and losing the middle of it
+ * would delete nothing (or, worse, something else).
+ */
+export function commentRef(postId: string, commentId: string, accountId: string): string {
+  return `${postId}|${commentId}|${accountId}`;
+}
+
+function parseCommentRef(id: string): { postId: string; commentId: string; accountId: string } | null {
+  const first = id.indexOf("|");
+  const last = id.lastIndexOf("|");
+  if (first < 1 || last <= first || last === id.length - 1) return null;
+  return {
+    postId: id.slice(0, first),
+    commentId: id.slice(first + 1, last),
+    accountId: id.slice(last + 1),
+  };
 }
 
 export const DELETABLE: Record<DeletableKind, Deletable> = {
@@ -256,6 +279,63 @@ export const DELETABLE: Record<DeletableKind, Deletable> = {
       .then((r) => (r ? { id: r.id, name: r.platform } : null)),
     async remove(id, workspaceId) { await db.zernioAccount.deleteMany({ where: { id, workspaceId } }); },
     revalidate: ["/admin/connections", "/social"],
+  },
+
+  /**
+   * A comment on one of our posts, living on Facebook or LinkedIn rather than
+   * in our database — the first kind here that isn't a Prisma row.
+   *
+   * It belongs in this registry all the same: the reason the registry exists
+   * ("twenty more actions means twenty more places to get the tenant check
+   * wrong") applies with more force to a remote resource, not less. Zernio
+   * will happily delete any comment its API key can reach, and that key can
+   * reach every workspace's accounts.
+   *
+   * ⚠ The tenant boundary is NOT a `where: { workspaceId }` here. It is the
+   * ACCOUNT: a comment is ours to delete only if the account that owns it is
+   * connected to the caller's workspace. Checked in `find` and again in
+   * `remove`, because `remove` never trusts that `find` ran.
+   *
+   * ⚠ The id is a composite, `postId|commentId|accountId`, because the API
+   * needs all three and this registry passes exactly one string. `|` is safe:
+   * Facebook ids use `_`, LinkedIn's use `:` `,` `(` `)`.
+   */
+  zernioComment: {
+    label: "comment",
+    role: "ADMIN",
+    async find(id, workspaceId) {
+      const parts = parseCommentRef(id);
+      if (!parts) return null;
+      const { postId, commentId, accountId } = parts;
+      // THE TENANT CHECK. Everything below is reachable by the shared API key.
+      const account = await db.zernioAccount.findFirst({
+        where: { workspaceId, accountId, status: "connected" },
+        select: { id: true },
+      });
+      if (!account) return null;
+
+      const { listInboxComments } = await import("@/lib/zernio/inbox");
+      const comments = await listInboxComments({ workspaceId, postId, accountId }).catch(() => []);
+      const c = comments.find((x) => x.id === commentId);
+      // The NETWORK decides what may be removed; we don't second-guess it.
+      if (!c || !c.canDelete) return null;
+      const text = c.message.trim().replace(/\s+/g, " ");
+      return { id, name: text.length > 60 ? `${text.slice(0, 60)}…` : text || "(no text)" };
+    },
+    async remove(id, workspaceId) {
+      const parts = parseCommentRef(id);
+      if (!parts) throw new Error("That comment reference isn't valid.");
+      const { postId, commentId, accountId } = parts;
+      const account = await db.zernioAccount.findFirst({
+        where: { workspaceId, accountId, status: "connected" },
+        select: { id: true },
+      });
+      if (!account) throw new Error("That account isn't connected to this workspace.");
+
+      const { deleteInboxComment } = await import("@/lib/zernio/inbox");
+      await deleteInboxComment({ workspaceId, postId, commentId, accountId });
+    },
+    revalidate: ["/social/engage"],
   },
 
   workspace: {

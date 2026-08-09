@@ -17,6 +17,8 @@ import {
 } from "@/lib/zernio/inbox";
 import { Banner, SocialHeader } from "@/components/SocialPostCard";
 import { InboxReply } from "@/components/InboxReply";
+import { DeleteButton } from "@/components/DeleteButton";
+import { commentRef } from "@/lib/deletable";
 import { sendInboxReplyAction, replyOnPostAction } from "@/app/actions/social-inbox";
 
 /**
@@ -270,11 +272,29 @@ export default async function EngagePage({ searchParams }: { searchParams: Promi
                 <div className="flex flex-col gap-2">
                   {comments.map((c) => (
                     <div key={c.id} className="text-xs border-l-2 pl-2" style={{ borderColor: c.authorIsOwner ? "var(--blue)" : "var(--line-2)" }}>
-                      <div className="font-mono text-[9.5px] text-[var(--mute)] mb-0.5">
-                        {c.authorName ?? "Unknown"}{c.authorIsOwner ? " (you)" : ""} · {when(c.createdTime)}
-                        {c.likeCount > 0 && <> · {c.likeCount} like{c.likeCount === 1 ? "" : "s"}</>}
+                      <div className="flex items-start gap-2">
+                        <div className="flex-1 min-w-0">
+                          <div className="font-mono text-[9.5px] text-[var(--mute)] mb-0.5">
+                            {c.authorName ?? "Unknown"}{c.authorIsOwner ? " (you)" : ""} · {when(c.createdTime)}
+                            {c.likeCount > 0 && <> · {c.likeCount} like{c.likeCount === 1 ? "" : "s"}</>}
+                          </div>
+                          <p className="whitespace-pre-wrap break-words text-[var(--slate)]">{c.message}</p>
+                        </div>
+                        {/* Shown only where the NETWORK says we may — `canDelete`
+                            is true for our own comments and for others' on a page
+                            we administer. A button that always 403s would read as
+                            broken rather than as governed. */}
+                        {c.canDelete && (
+                          <DeleteButton
+                            kind="zernioComment"
+                            id={commentRef(openPost.id, c.id, openPost.accountId)}
+                            name={c.message.slice(0, 60)}
+                            returnTo={`/social/engage?post=${encodeURIComponent(openPost.id)}&acct=${encodeURIComponent(openPost.accountId)}`}
+                            iconOnly
+                            className="btn sm flex-shrink-0"
+                          />
+                        )}
                       </div>
-                      <p className="whitespace-pre-wrap break-words text-[var(--slate)]">{c.message}</p>
                     </div>
                   ))}
                 </div>

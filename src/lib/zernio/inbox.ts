@@ -1,4 +1,4 @@
-import { zernioJson, zernioSend } from "@/lib/zernio";
+import { zernioJson, zernioSend, zernioDelete } from "@/lib/zernio";
 
 /**
  * Zernio's inbox: direct messages, and comments on posts we published.
@@ -105,6 +105,8 @@ export type InboxComment = {
   replyCount: number;
   url: string | null;
   canReply: boolean;
+  /** The NETWORK's verdict on whether we may remove this one — not ours. */
+  canDelete: boolean;
 };
 
 const str = (v: unknown): string | null => (typeof v === "string" && v ? v : null);
@@ -329,6 +331,32 @@ export async function listInboxComments(opts: {
       replyCount: num(r.replyCount),
       url: str(r.url),
       canReply: r.canReply === true,
+      canDelete: r.canDelete === true,
     };
   });
+}
+
+/**
+ * Remove one comment from a post.
+ *
+ * ⚠ Needs THREE ids: the post it sits under, the comment itself, and the
+ * account whose permissions authorise it. Mapped 2026-08-08 with deliberately
+ * bogus ids so nothing real was touched — the endpoint reports
+ * `missing_required_field: commentId` until both are present, then hands the
+ * request to the network (a bogus comment id came back as Facebook's own
+ * "Platform error: 100").
+ *
+ * Whether a comment MAY be deleted is the network's call, not ours: each row
+ * carries `canDelete`, true for our own comments and for others' comments on a
+ * page we administer. Proven end to end on 2026-08-08 — a test comment posted
+ * and removed, `{"message":"Comment deleted successfully"}`.
+ */
+export async function deleteInboxComment(opts: {
+  workspaceId: string;
+  postId: string;
+  commentId: string;
+  accountId: string;
+}): Promise<void> {
+  const qs = new URLSearchParams({ accountId: opts.accountId, commentId: opts.commentId });
+  await zernioDelete(`/inbox/comments/${encodeURIComponent(opts.postId)}?${qs}`, opts.workspaceId);
 }

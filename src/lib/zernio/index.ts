@@ -180,6 +180,28 @@ export async function zernioJson(
 }
 
 /**
+ * DELETE at Zernio.
+ *
+ * Throws on a non-JSON reply for the same reason `zernioSend` does — the
+ * marketing-site catch-all answers 200 for any unrouted path, so a silent
+ * "success" would let the UI report a comment removed that is still on the
+ * page.
+ */
+export async function zernioDelete(
+  path: string,
+  workspaceId?: string | null,
+): Promise<Record<string, unknown>> {
+  const res = await zernioFetch(path, { method: "DELETE", workspaceId });
+  if (!(res.headers.get("content-type") ?? "").includes("json")) {
+    throw new ZernioError(
+      `Zernio has no endpoint at ${path.split("?")[0]} (it answered with its website, not JSON).`,
+      res.status,
+    );
+  }
+  return (await readJsonOrThrow(res, `Deleting via ${path.split("?")[0]}`)) as Record<string, unknown>;
+}
+
+/**
  * POST JSON to Zernio and return the parsed reply.
  *
  * Unlike `zernioJson` this THROWS when the path isn't a route: a write that
