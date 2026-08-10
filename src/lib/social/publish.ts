@@ -62,17 +62,38 @@ function sniffContentType(bytes: Uint8Array): string | null {
   if (b[0] === 0x47 && b[1] === 0x49 && b[2] === 0x46 && b[3] === 0x38) return "image/gif";
   if (b[0] === 0x52 && b[1] === 0x49 && b[2] === 0x46 && b[3] === 0x46 && b[8] === 0x57 && b[9] === 0x45 && b[10] === 0x42 && b[11] === 0x50) return "image/webp";
   if (b[4] === 0x66 && b[5] === 0x74 && b[6] === 0x79 && b[7] === 0x70) return "video/mp4"; // ISO-BMFF "ftyp"
+  // WebM/Matroska (EBML) and AVI (RIFF….AVI ) have no ftyp box, so without
+  // these two an extensionless Drive-stored video sniffed to nothing.
+  if (b[0] === 0x1a && b[1] === 0x45 && b[2] === 0xdf && b[3] === 0xa3) return "video/webm";
+  if (b[0] === 0x52 && b[1] === 0x49 && b[2] === 0x46 && b[3] === 0x46 && b[8] === 0x41 && b[9] === 0x56 && b[10] === 0x49) return "video/x-msvideo";
   if (b[0] === 0x25 && b[1] === 0x50 && b[2] === 0x44 && b[3] === 0x46) return "application/pdf";
   return null;
 }
 
-function contentTypeFor(key: string): string {
+/**
+ * Zernio's presign takes a fixed allowlist of MIME types (documented at
+ * docs.zernio.com/media/get-media-presigned-url). `application/octet-stream` is
+ * NOT on it — sending one is the 400 that broke every scheduled send on
+ * 2026-08-05. Everything this map and `sniffContentType` can produce IS on it.
+ */
+const PRESIGN_ALLOWED = new Set([
+  "image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif",
+  "video/mp4", "video/mpeg", "video/quicktime", "video/avi", "video/x-msvideo",
+  "video/webm", "video/x-m4v", "application/pdf",
+]);
+
+function contentTypeFor(key: string): string | null {
   const ext = key.split(".").pop()?.toLowerCase() ?? "";
   const map: Record<string, string> = {
     png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", gif: "image/gif", webp: "image/webp",
-    mp4: "video/mp4", mov: "video/quicktime", webm: "video/webm", avi: "video/x-msvideo", pdf: "application/pdf",
+    mp4: "video/mp4", mov: "video/quicktime", webm: "video/webm", avi: "video/x-msvideo",
+    mpeg: "video/mpeg", m4v: "video/x-m4v", pdf: "application/pdf",
   };
-  return map[ext] ?? "application/octet-stream";
+  // ⚠ null, never "application/octet-stream". Drive keys are extensionless, so
+  // an unsniffable video (webm and avi have no ftyp box) used to fall through
+  // to octet-stream and be rejected by presign — a 400 at SEND time, hours
+  // after anyone could act on it. Failing here names the file instead.
+  return map[ext] ?? null;
 }
 
 /** File extension for a content type, so extensionless keys upload with an honest filename. */
@@ -117,6 +138,13 @@ function makeUploader(workspaceId: string): MediaUploader {
         if (buf) {
           const raw = new Uint8Array(buf);
           const contentType = sniffContentType(raw) ?? contentTypeFor(key);
+          if (!contentType || !PRESIGN_ALLOWED.has(contentType)) {
+            // Say it here, naming the file, rather than letting presign 400
+            // with a message about a type nobody chose.
+            throw new Error(
+              `Can't upload ${key}: its file type ${contentType ? `(${contentType}) ` : ""}isn't one Zernio accepts. Attach a JPEG, PNG, WebP, GIF, MP4, MOV, WebM or PDF.`,
+            );
+          }
           const bytes = await stripImageMetadata(raw, contentType);
           let filename = key.split("/").pop() || "media";
           if (!filename.includes(".") && EXT_FOR[contentType]) filename += `.${EXT_FOR[contentType]}`;
