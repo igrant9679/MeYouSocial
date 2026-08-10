@@ -260,6 +260,13 @@ export async function generateImageBriefsCore(workspaceId: string, postId: strin
     maxTokens: 800,
     workspaceId,
   });
+  // The router falls back to mock SILENTLY on any provider error, and mock
+  // prose is fluent — unattended, a mock brief would go on to spend two real
+  // image renders painting nonsense. No brief beats a fake one.
+  if (res.provider === "mock") {
+    console.warn("[blog-images] brief generation fell back to mock — refusing to store it");
+    return false;
+  }
   let parsed: ImageBriefs = {};
   try {
     const m = res.content.match(/\{[\s\S]*\}/);
