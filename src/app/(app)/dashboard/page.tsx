@@ -1,286 +1,227 @@
 import Link from "next/link";
-import { Sparkles, PenLine, Telescope, MessageCircle, Image as ImageIcon, ArrowRight, FileText, Bot, TrendingUp } from "lucide-react";
+import {
+  Sparkles, PenLine, Telescope, MessageCircle, ArrowRight, Bot, TrendingUp,
+  AlertTriangle, Info, Check, ChevronRight, CalendarClock,
+} from "lucide-react";
 import { requireMembership } from "@/lib/acl";
 import { db } from "@/lib/db";
+import { getHomeData, type HomeDecision, type PipelineStage } from "@/lib/home";
 import { autopilotFeed, hasSeriesData, homeStats, postPerformance, weeklySeries } from "@/lib/dashboard-data";
-import { AreaChart, HBars, Sparkline } from "@/components/charts";
-import { CountUp } from "@/components/CountUp";
+import { AreaChart } from "@/components/charts";
+import { networkFor } from "@/lib/social/networks";
 
-// MU-01 — Dashboard home. Vibrant, color-keyed surfaces matching the mockup palette,
-// now with the analytics layer: KPI count-ups, sparklines, impressions chart,
-// pipeline bars, performance table, autopilot feed. All charts read real rows.
+/**
+ * Home = the decision queue, with the pipeline drawn above it.
+ *
+ * Rebuilt 2026-08-10 because the old dashboard answered "what exists"
+ * (channels, scripts, KPIs) while the person opening an autonomous app is
+ * asking "what needs me". Order of the page IS the design:
+ *
+ *   1. The pipeline strip — the workflow made visible, live counts per stage.
+ *   2. Needs you — every decision across Social, Blog, Engage and Setup.
+ *   3. Coming up / engine activity — what happens next without you.
+ *   4. Results — measured numbers only.
+ *   5. Start something — the launch points the old quick tiles provided.
+ *
+ * The queue reuses Social's attention rules: only actionable items, only
+ * measured counts, dashes (with reasons) where a number isn't known.
+ */
 
 export default async function DashboardPage() {
   const { workspace } = await requireMembership();
 
-  const [blogByStatus, blogIdeasOpen, lastAutopilot, stats, series, perf, feed] = await Promise.all([
-    db.blogPost.groupBy({ by: ["status"], where: { workspaceId: workspace.id }, _count: { _all: true } }),
-    db.blogIdea.count({ where: { workspaceId: workspace.id, status: { in: ["discovered", "approved"] } } }),
-    db.auditLog.findFirst({
-      where: { workspaceId: workspace.id, action: { in: ["autopilot.cycle", "autopilot.manual_run"] } },
-      orderBy: { createdAt: "desc" },
-    }),
+  const [home, stats, series, perf, feed, channels] = await Promise.all([
+    getHomeData(workspace.id),
     homeStats(workspace.id),
     weeklySeries(workspace.id, 8),
-    postPerformance(workspace.id, 6),
-    autopilotFeed(workspace.id, 5),
+    postPerformance(workspace.id, 5),
+    autopilotFeed(workspace.id, 6),
+    db.channel.findMany({ where: { workspaceId: workspace.id }, orderBy: { createdAt: "asc" }, take: 6 }),
   ]);
-  const hasAnalytics = hasSeriesData(series);
-  const publishedDelta = stats.publishedThisMonth - stats.publishedLastMonth;
-  const blogCount = (s: string) => blogByStatus.find((b) => b.status === s)?._count._all ?? 0;
-  const blogTotal = blogByStatus.reduce((a, b) => a + b._count._all, 0);
-  const blogNeedsYou = blogCount("draft_review") + blogCount("final_approval");
 
-  const [channelCount, scriptCount, ideaCount, recentScripts, recentIdeas, channels] = await Promise.all([
-    db.channel.count({ where: { workspaceId: workspace.id } }),
-    db.script.count({ where: { channel: { workspaceId: workspace.id } } }),
-    db.idea.count({ where: { channel: { workspaceId: workspace.id } } }),
-    db.script.findMany({
-      where: { channel: { workspaceId: workspace.id } },
-      orderBy: { updatedAt: "desc" },
-      take: 5,
-      include: { channel: { select: { name: true, accentColor: true } } },
-    }),
-    db.idea.findMany({
-      where: { channel: { workspaceId: workspace.id } },
-      orderBy: { createdAt: "desc" },
-      take: 6,
-      include: { channel: { select: { name: true, accentColor: true } } },
-    }),
-    db.channel.findMany({ where: { workspaceId: workspace.id }, orderBy: { createdAt: "asc" } }),
-  ]);
+  const warn = home.decisions.filter((d) => d.severity === "warn");
+  const info = home.decisions.filter((d) => d.severity === "info");
+  const hasAnalytics = hasSeriesData(series);
+  const { nextSend, timeZone } = home.social;
 
   return (
     <div>
-      {/* Hero banner */}
-      <div className="rounded-[20px] p-7 mb-6 text-white relative overflow-hidden shadow-xl shadow-[#E5482F]/20"
-           style={{ background: "linear-gradient(115deg,#E5482F 0%,#B5371F 45%,#6D28D9 100%)" }}>
-        {/* Decorative shapes — behind everything else (z-0) */}
-        <div className="absolute -right-20 -bottom-28 w-[320px] h-[320px] rounded-full border border-white/15 z-0 pointer-events-none" />
-        <div className="absolute right-[35%] -top-32 w-[200px] h-[200px] rounded-full bg-white/5 z-0 pointer-events-none" />
+      {/* ── Header — a sentence, not a hero ─────────────────────────────── */}
+      <div className="flex items-baseline gap-3 mb-4 flex-wrap">
+        <h1 className="font-mono text-[22px] font-bold m-0">{workspace.name}</h1>
+        <p className="text-[13px] text-[var(--mute)] m-0">
+          {warn.length > 0
+            ? `${warn.length} thing${warn.length === 1 ? "" : "s"} need${warn.length === 1 ? "s" : ""} you — everything else is running.`
+            : "Nothing needs you right now. The engine is running."}
+        </p>
+      </div>
 
-        {/* Foreground content */}
-        <div className="relative z-10">
-          <h1 className="font-mono text-[28px] font-bold m-0 flex items-center gap-3 leading-tight">
-            Welcome back to {workspace.name} <Sparkles className="w-6 h-6" />
-          </h1>
-          <p className="opacity-90 text-[14px] mt-1.5 max-w-xl">From idea to first draft in about twelve minutes. Pick up where you left off — or start something new.</p>
-        </div>
-
-        <div className="absolute right-6 top-6 flex gap-2 z-10">
-          <PillStat label="channels" value={channelCount} />
-          <PillStat label="scripts" value={scriptCount} />
-          <PillStat label="posts" value={blogTotal} />
-          <PillStat label="ideas" value={ideaCount + blogIdeasOpen} />
+      {/* ── 1 · Pipeline strip ──────────────────────────────────────────── */}
+      <div className="card mb-6 !p-0 overflow-x-auto">
+        <div className="flex items-stretch min-w-[720px]">
+          {home.pipeline.map((stage, i) => (
+            <PipelineCell key={stage.key} stage={stage} first={i === 0} />
+          ))}
         </div>
       </div>
 
-      {/* Quick start tiles */}
+      {/* ── 2 · Needs you ───────────────────────────────────────────────── */}
+      <div className="flex items-center gap-2 mb-2">
+        <AlertTriangle className="w-4 h-4" style={{ color: warn.length ? "var(--amber-on)" : "var(--green-on)" }} />
+        <h2 className="font-mono font-bold text-sm">Needs you</h2>
+      </div>
+      {warn.length === 0 ? (
+        <div className="card text-xs flex items-center gap-2 mb-4" style={{ borderColor: "var(--green)" }}>
+          <Check className="w-4 h-4" style={{ color: "var(--green-on)" }} />
+          Nothing urgent anywhere — social, blog and inbox are all clear.
+        </div>
+      ) : (
+        <div className="flex flex-col gap-2 mb-4">
+          {warn.map((d) => <DecisionCard key={`${d.module}-${d.kind}`} item={d} />)}
+        </div>
+      )}
+
+      {info.length > 0 && (
+        <>
+          <div className="flex items-center gap-2 mb-2">
+            <Info className="w-4 h-4" style={{ color: "var(--blue-on)" }} />
+            <h2 className="font-mono font-bold text-sm">Worth a look</h2>
+          </div>
+          <div className="flex flex-col gap-2 mb-4">
+            {info.map((d) => <DecisionCard key={`${d.module}-${d.kind}`} item={d} />)}
+          </div>
+        </>
+      )}
+
+      {/* ── 3 · Coming up · engine activity ─────────────────────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-6">
+        <section className="card">
+          <h2 className="font-mono text-[13px] font-bold mb-2 flex items-center gap-1.5">
+            <CalendarClock className="w-4 h-4" style={{ color: "var(--blue-on)" }} /> Coming up
+          </h2>
+          {nextSend ? (
+            <p className="text-xs text-[var(--slate)] m-0">
+              Next send <b className="font-mono">{nextSend.label}</b> ({timeZone}) on{" "}
+              {nextSend.providers.map((p) => networkFor(p)?.label ?? p).join(" · ")}.{" "}
+              <Link href="/social/calendar" className="underline">Calendar</Link>
+            </p>
+          ) : (
+            <p className="text-xs text-[var(--mute)] m-0">
+              Nothing scheduled. <Link href="/social/compose" className="underline">Compose a post</Link>{" "}
+              or <Link href="/social/calendar" className="underline">queue a draft</Link>.
+            </p>
+          )}
+          <p className="text-[11px] text-[var(--mute)] mt-2 mb-0">
+            {home.social.slotsConfigured
+              ? `${home.social.freeSlotsAhead} free slot${home.social.freeSlotsAhead === 1 ? "" : "s"} in the next 7 days`
+              : "No posting slots configured yet"}
+            {" · "}{home.social.counts.scheduled} scheduled{" · "}{home.social.counts.drafts} social draft{home.social.counts.drafts === 1 ? "" : "s"}
+          </p>
+        </section>
+
+        <section className="card">
+          <h2 className="font-mono text-[13px] font-bold mb-2 flex items-center gap-1.5">
+            <Bot className="w-4 h-4" style={{ color: "var(--violet-on)" }} /> What the engine did
+          </h2>
+          {feed.length === 0 ? (
+            <p className="text-xs text-[var(--mute)] m-0">
+              Idle — turn on autonomy under <Link href="/blog/automation" className="underline">Blog → Automation</Link>{" "}
+              and <Link href="/social/settings" className="underline">Social → Settings</Link>.
+            </p>
+          ) : (
+            <ul className="m-0 p-0 text-xs">
+              {feed.map((e, i) => (
+                <li key={i} className="border-t border-[var(--line)] first:border-t-0 py-1.5 flex items-baseline gap-2">
+                  <span className="font-mono text-[9.5px] text-[var(--mute)] w-20 shrink-0">
+                    {e.at.toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit", timeZone })}
+                  </span>
+                  {e.href ? <Link href={e.href} className="flex-1 hover:underline">{e.label}</Link> : <span className="flex-1">{e.label}</span>}
+                  {e.tone === "warn" && (
+                    <span className="font-mono text-[9px] font-bold px-1.5 rounded-full" style={{ background: "var(--rose-soft)", color: "var(--rose-on)" }}>!</span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      </div>
+
+      {/* ── 4 · Results — measured numbers only ─────────────────────────── */}
+      <section className="card mb-6">
+        <div className="flex items-center mb-2">
+          <h2 className="font-mono text-[15px] font-bold flex items-center gap-2">
+            <span className="w-7 h-7 rounded-lg grid place-items-center" style={{ background: "var(--blue-soft)", color: "var(--blue-on)" }}>
+              <TrendingUp className="w-4 h-4" strokeWidth={2.5} />
+            </span>
+            Results
+          </h2>
+          <span className="flex-1" />
+          <Link href="/social/performance" className="text-xs font-mono text-[var(--accent)] font-semibold hover:underline mr-3">social →</Link>
+          <Link href="/blog/analytics" className="text-xs font-mono text-[var(--accent)] font-semibold hover:underline">blog →</Link>
+        </div>
+        {hasAnalytics ? (
+          <AreaChart points={series.map((p) => ({ label: p.label, value: p.impressions }))} color="var(--blue)" title="Blog impressions — last 8 weeks" />
+        ) : (
+          <p className="text-sm text-[var(--mute)] py-6 text-center m-0">
+            No search analytics yet — numbers appear once snapshots exist under{" "}
+            <Link href="/blog/analytics" className="underline">Blog → Analytics</Link>. Charts light up from real data, never invented curves.
+          </p>
+        )}
+        {perf.length > 0 && (
+          <div className="overflow-x-auto mt-3">
+            <table className="w-full text-xs border-collapse">
+              <thead>
+                <tr className="text-left text-[var(--mute)]">
+                  <th className="py-1.5 px-2 font-mono text-[9px] uppercase tracking-wider border-b-2 border-[var(--line)]">Post</th>
+                  <th className="py-1.5 px-2 font-mono text-[9px] uppercase tracking-wider border-b-2 border-[var(--line)] text-right">Pos</th>
+                  <th className="py-1.5 px-2 font-mono text-[9px] uppercase tracking-wider border-b-2 border-[var(--line)] text-right">Δ</th>
+                  <th className="py-1.5 px-2 font-mono text-[9px] uppercase tracking-wider border-b-2 border-[var(--line)] text-right">Clicks</th>
+                </tr>
+              </thead>
+              <tbody>
+                {perf.map((p) => {
+                  const delta = p.position != null && p.prevPosition != null ? p.prevPosition - p.position : null;
+                  return (
+                    <tr key={p.id} className="odd:bg-[var(--zebra)] hover:bg-[var(--blue-soft)] transition-colors">
+                      <td className="py-1.5 px-2 border-b border-[var(--line)]">
+                        <Link href={`/blog/${p.id}`} className="font-semibold hover:underline">{p.title}</Link>
+                      </td>
+                      <td className="py-1.5 px-2 border-b border-[var(--line)] text-right font-mono tabular-nums">{p.position?.toFixed(1) ?? "—"}</td>
+                      <td className="py-1.5 px-2 border-b border-[var(--line)] text-right font-mono tabular-nums font-bold" style={{ color: delta == null ? "var(--mute)" : delta >= 0 ? "var(--green-on)" : "var(--rose-on)" }}>
+                        {delta == null ? "—" : `${delta >= 0 ? "▲" : "▼"} ${Math.abs(delta).toFixed(1)}`}
+                      </td>
+                      <td className="py-1.5 px-2 border-b border-[var(--line)] text-right font-mono tabular-nums">{p.clicks ?? "—"}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
+      {/* ── 5 · Start something ─────────────────────────────────────────── */}
+      <div className="flex items-center gap-2 mb-2">
+        <h2 className="font-mono font-bold text-sm m-0">Start something</h2>
+        <span className="flex-1" />
+        {stats.aiBudgetUsedToday > 0 && (
+          <span className="text-[10px] font-mono text-[var(--mute)]">{stats.aiBudgetUsedToday} AI runs today</span>
+        )}
+      </div>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-        <QuickTile href={`/channels/${channels[0]?.id ?? ""}/ideas`} disabled={!channels[0]} label="Generate ideas" icon={Sparkles} color="var(--amber-on)" soft="var(--amber-soft)" />
-        <QuickTile href="/scripts" label="Write a script" icon={PenLine} color="var(--green-on)" soft="var(--green-soft)" />
+        <QuickTile href="/social/compose" label="Write a social post" icon={PenLine} color="var(--green-on)" soft="var(--green-soft)" />
+        <QuickTile href={channels[0] ? `/channels/${channels[0].id}/ideas` : "/onboarding/channel/new"} label="Generate ideas" icon={Sparkles} color="var(--amber-on)" soft="var(--amber-soft)" />
         <QuickTile href="/intel" label="Explore Intel" icon={Telescope} color="var(--blue-on)" soft="var(--blue-soft)" />
         <QuickTile href="/chat" label="Brainstorm chat" icon={MessageCircle} color="var(--violet-on)" soft="var(--violet-soft)" />
       </div>
 
-      {/* KPI band — count-ups + sparklines, all from real rows */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
-        <div className="card anim-rise ad-1">
-          <div className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)] font-bold">Published this month</div>
-          <div className="font-mono font-bold text-[26px] leading-tight tabular-nums"><CountUp value={stats.publishedThisMonth} /></div>
-          <div className="text-[11px] font-semibold" style={{ color: publishedDelta >= 0 ? "var(--green-on)" : "var(--rose-on)" }}>
-            {publishedDelta >= 0 ? "▲" : "▼"} {publishedDelta >= 0 ? "+" : ""}{publishedDelta} vs last month
-          </div>
-        </div>
-        <div className="card anim-rise ad-2">
-          <div className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)] font-bold">Clicks this week</div>
-          <div className="font-mono font-bold text-[26px] leading-tight tabular-nums"><CountUp value={stats.clicksThisWeek} /></div>
-          {hasAnalytics ? (
-            <Sparkline points={series.map((p) => p.clicks)} color="var(--teal)" />
-          ) : (
-            <div className="text-[11px] text-[var(--mute)]">no snapshots yet</div>
-          )}
-        </div>
-        <div className="card anim-rise ad-3">
-          <div className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)] font-bold">Avg position</div>
-          <div className="font-mono font-bold text-[26px] leading-tight tabular-nums">
-            {stats.avgPosition != null ? <CountUp value={stats.avgPosition} decimals={1} /> : "—"}
-          </div>
-          <div className="text-[11px] text-[var(--mute)]">{stats.avgPosition != null ? "lower is better" : "add snapshots under Blog → Analytics"}</div>
-        </div>
-        <div className="card anim-rise ad-4">
-          <div className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)] font-bold">Waiting on you</div>
-          <div className="font-mono font-bold text-[26px] leading-tight tabular-nums" style={blogNeedsYou > 0 ? { color: "var(--amber-on)" } : undefined}>
-            <CountUp value={blogNeedsYou} />
-          </div>
-          <div className="flex flex-wrap gap-1 mt-1">
-            {stats.unverifiedCitations > 0 && (
-              <span className="font-mono text-[9.5px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }}>
-                {stats.unverifiedCitations} citations
-              </span>
-            )}
-            {stats.postsMissingAssets > 0 && (
-              <span className="font-mono text-[9.5px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: "var(--rose-soft)", color: "var(--rose-on)" }}>
-                {stats.postsMissingAssets} missing images
-              </span>
-            )}
-            {stats.unverifiedCitations === 0 && stats.postsMissingAssets === 0 && (
-              <span className="text-[11px] text-[var(--mute)]">no blockers</span>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Analytics band: impressions chart + pipeline & autopilot */}
-      <div className="grid grid-cols-1 lg:grid-cols-[1.55fr_1fr] gap-3 mb-4">
-        <section className="card anim-rise ad-3">
-          <div className="flex items-center mb-2">
-            <h2 className="font-mono text-[15px] font-bold flex items-center gap-2">
-              <span className="w-7 h-7 rounded-lg grid place-items-center" style={{ background: "var(--blue-soft)", color: "var(--blue-on)" }}>
-                <TrendingUp className="w-4 h-4" strokeWidth={2.5} />
-              </span>
-              Impressions — last 8 weeks
-            </h2>
-            <span className="flex-1" />
-            <Link href="/blog/analytics" className="text-xs font-mono text-[var(--accent)] font-semibold hover:underline">analytics →</Link>
-          </div>
-          {hasAnalytics ? (
-            <AreaChart points={series.map((p) => ({ label: p.label, value: p.impressions }))} color="var(--blue)" title="Impressions" />
-          ) : (
-            <p className="text-sm text-[var(--mute)] py-10 text-center">
-              No analytics snapshots yet. Add weekly numbers under <Link href="/blog/analytics" className="underline">Blog → Analytics</Link> —
-              charts light up from real data, never invented curves.
-            </p>
-          )}
-        </section>
-        <div className="flex flex-col gap-3">
-          <section className="card anim-rise ad-4">
-            <h2 className="font-mono text-[13px] font-bold mb-2">Pipeline</h2>
-            <HBars
-              rows={[
-                { label: "Ideas open", value: blogIdeasOpen, color: "var(--cyan)" },
-                { label: "Drafting", value: blogCount("drafting"), color: "var(--amber)" },
-                { label: "In review", value: blogCount("draft_review"), color: "var(--blue)" },
-                { label: "Approval", value: blogCount("final_approval"), color: "var(--violet)" },
-                { label: "Published", value: blogCount("published"), color: "var(--green)" },
-              ]}
-            />
-          </section>
-          <section className="card anim-rise ad-5 flex-1">
-            <h2 className="font-mono text-[13px] font-bold mb-2 flex items-center gap-1.5"><Bot className="w-4 h-4" style={{ color: "var(--violet-on)" }} /> Autopilot activity</h2>
-            {feed.length === 0 ? (
-              <p className="text-xs text-[var(--mute)]">Idle — set modes under <Link href="/blog/automation" className="underline">Blog → Automation</Link>.</p>
-            ) : (
-              <ul className="m-0 p-0 text-xs">
-                {feed.map((e, i) => (
-                  <li key={i} className="border-t border-[var(--line)] first:border-t-0 py-1.5 flex items-baseline gap-2">
-                    <span className="font-mono text-[9.5px] text-[var(--mute)] w-9 shrink-0">
-                      {e.at.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
-                    </span>
-                    <span className="flex-1">{e.label}</span>
-                    {e.tone === "warn" && <span className="font-mono text-[9px] font-bold px-1.5 rounded-full" style={{ background: "var(--rose-soft)", color: "var(--rose-on)" }}>!</span>}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-        </div>
-      </div>
-
-      {/* Content performance table */}
-      <section className="card mb-6 anim-rise ad-5">
-        <div className="flex items-center mb-2">
-          <h2 className="font-mono text-[15px] font-bold">Content performance</h2>
-          <span className="flex-1" />
-          <Link href="/blog/report" className="text-xs font-mono text-[var(--accent)] font-semibold hover:underline">full report →</Link>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-xs border-collapse">
-            <thead>
-              <tr className="text-left text-[var(--mute)]">
-                <th className="py-1.5 px-2 font-mono text-[9px] uppercase tracking-wider border-b-2 border-[var(--line)]">Post</th>
-                <th className="py-1.5 px-2 font-mono text-[9px] uppercase tracking-wider border-b-2 border-[var(--line)]">Stage</th>
-                <th className="py-1.5 px-2 font-mono text-[9px] uppercase tracking-wider border-b-2 border-[var(--line)] text-right">Pos</th>
-                <th className="py-1.5 px-2 font-mono text-[9px] uppercase tracking-wider border-b-2 border-[var(--line)] text-right">Δ</th>
-                <th className="py-1.5 px-2 font-mono text-[9px] uppercase tracking-wider border-b-2 border-[var(--line)] text-right">Clicks</th>
-              </tr>
-            </thead>
-            <tbody>
-              {perf.map((p) => {
-                const delta = p.position != null && p.prevPosition != null ? p.prevPosition - p.position : null;
-                const meta = STAGE_META[p.status] ?? { label: p.status, hue: "cyan" };
-                return (
-                  <tr key={p.id} className="odd:bg-[var(--zebra)] hover:bg-[var(--blue-soft)] transition-colors">
-                    <td className="py-1.5 px-2 border-b border-[var(--line)]">
-                      <Link href={`/blog/${p.id}`} className="font-semibold hover:underline">{p.title}</Link>
-                    </td>
-                    <td className="py-1.5 px-2 border-b border-[var(--line)]">
-                      <span className="font-mono text-[9.5px] font-bold px-2 py-0.5 rounded-full" style={{ background: `var(--${meta.hue}-soft)`, color: `var(--${meta.hue}-on)` }}>
-                        {meta.label}
-                      </span>
-                    </td>
-                    <td className="py-1.5 px-2 border-b border-[var(--line)] text-right font-mono tabular-nums">{p.position?.toFixed(1) ?? "—"}</td>
-                    <td className="py-1.5 px-2 border-b border-[var(--line)] text-right font-mono tabular-nums font-bold" style={{ color: delta == null ? "var(--mute)" : delta >= 0 ? "var(--green-on)" : "var(--rose-on)" }}>
-                      {delta == null ? "—" : `${delta >= 0 ? "▲" : "▼"} ${Math.abs(delta).toFixed(1)}`}
-                    </td>
-                    <td className="py-1.5 px-2 border-b border-[var(--line)] text-right font-mono tabular-nums">{p.clicks ?? "—"}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      {/* Blog pipeline (Wave A′ — the blog side is first-class on Home now) */}
-      <section className="card mb-6">
-        <div className="flex items-center mb-3">
-          <h2 className="font-mono text-[15px] font-bold flex items-center gap-2">
-            <span className="w-7 h-7 rounded-lg grid place-items-center" style={{ background: "var(--rose-soft)", color: "var(--rose-on)" }}>
-              <FileText className="w-4 h-4" strokeWidth={2.5} />
-            </span>
-            Blog pipeline
-          </h2>
-          <span className="flex-1" />
-          <Link href="/blog" className="text-xs font-mono text-[var(--accent)] font-semibold hover:underline">open blog →</Link>
-        </div>
-        <div className="flex flex-wrap items-center gap-2 mb-2">
-          {[
-            { label: "drafting", n: blogCount("drafting"), hue: "amber" },
-            { label: "in review", n: blogCount("draft_review"), hue: "blue" },
-            { label: "approval", n: blogCount("final_approval"), hue: "violet" },
-            { label: "published", n: blogCount("published"), hue: "green" },
-            { label: "open ideas", n: blogIdeasOpen, hue: "cyan" },
-          ].map((s) => (
-            <span key={s.label} className="font-mono text-xs px-2.5 py-1 rounded-full" style={{ background: `var(--${s.hue}-soft)`, color: `var(--${s.hue}-on)` }}>
-              {s.label} <b>{s.n}</b>
-            </span>
-          ))}
-        </div>
-        <div className="flex flex-wrap items-center gap-3 text-xs text-[var(--mute)]">
-          {blogNeedsYou > 0 ? (
-            <Link href="/blog/board" className="underline" style={{ color: "var(--amber-on)" }}>
-              {blogNeedsYou} post{blogNeedsYou === 1 ? "" : "s"} waiting on you
-            </Link>
-          ) : (
-            <span>Nothing waiting on review.</span>
-          )}
-          <span className="flex items-center gap-1">
-            <Bot className="w-3.5 h-3.5" />
-            {lastAutopilot
-              ? `autopilot: last activity ${lastAutopilot.createdAt.toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}`
-              : "autopilot idle — set modes under Blog → Automation"}
-          </span>
-        </div>
-      </section>
-
-      {/* Channels strip */}
+      {/* Channels strip — the YouTube studio side, still one click away */}
       {channels.length > 0 && (
-        <section className="card mb-6">
+        <section className="card">
           <div className="flex items-center mb-3">
-            <h2 className="font-mono text-[15px] font-bold flex items-center gap-2"><ImageIcon className="w-4 h-4" style={{ color: "var(--accent-on)" }} /> Your channels</h2>
+            <h2 className="font-mono text-[15px] font-bold">Your channels</h2>
             <span className="flex-1" />
-            <Link href="/onboarding/channel/new" className="text-xs font-mono text-[var(--accent)] font-semibold flex items-center gap-1 hover:underline">+ new channel</Link>
+            <Link href="/onboarding/channel/new" className="text-xs font-mono text-[var(--accent)] font-semibold hover:underline">+ new channel</Link>
           </div>
           <div className="flex gap-3 flex-wrap">
             {channels.map((c) => (
@@ -298,74 +239,81 @@ export default async function DashboardPage() {
           </div>
         </section>
       )}
+    </div>
+  );
+}
 
-      {/* Two-column: recent scripts + latest ideas */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <section className="card">
-          <h2 className="font-mono text-[15px] font-bold mb-3 flex items-center gap-2">
-            <span className="w-7 h-7 rounded-lg grid place-items-center" style={{ background: "var(--green-soft)", color: "var(--green-on)" }}><PenLine className="w-4 h-4" strokeWidth={2.5} /></span>
-            Recent scripts
-          </h2>
-          {recentScripts.length === 0 && <EmptyHint label="No scripts yet" cta={{ href: "/scripts", text: "Start a script" }} />}
-          <ul className="m-0 p-0">
-            {recentScripts.map((s) => (
-              <li key={s.id} className="border-t border-[var(--line)] first:border-t-0 py-3 flex items-center gap-3">
-                <span className="w-10 h-10 rounded-xl grid place-items-center font-mono text-[11px] font-bold text-white shadow-sm" style={{ background: s.channel.accentColor ?? "var(--accent)" }}>{s.channel.name.slice(0, 2).toUpperCase()}</span>
-                <div className="flex-1 min-w-0">
-                  <div className="font-semibold text-sm truncate">{s.title}</div>
-                  <div className="text-xs text-[var(--mute)]">{s.channel.name} · {s.wordCount} words · {s.status}</div>
-                </div>
-                <Link href={`/scripts/${s.id}`} className="btn sm">Open</Link>
-              </li>
-            ))}
-          </ul>
-        </section>
-
-        <section className="card">
-          <h2 className="font-mono text-[15px] font-bold mb-3 flex items-center gap-2">
-            <span className="w-7 h-7 rounded-lg grid place-items-center" style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }}><Sparkles className="w-4 h-4" strokeWidth={2.5} /></span>
-            Latest ideas
-          </h2>
-          {recentIdeas.length === 0 && <EmptyHint label="No ideas yet" cta={{ href: channels[0] ? `/channels/${channels[0].id}/ideas` : "/onboarding/channel/new", text: "Generate ideas" }} />}
-          <ul className="m-0 p-0">
-            {recentIdeas.map((i) => (
-              <li key={i.id} className="border-t border-[var(--line)] first:border-t-0 py-3 flex items-center gap-3">
-                <span className="font-mono font-bold text-[11px] px-2 py-1 rounded-md" style={{ background: outlierColor(i.outlierScore ?? 0).soft, color: outlierColor(i.outlierScore ?? 0).color }}>
-                  {i.outlierScore?.toFixed(1) ?? "—"}x
-                </span>
-                <div className="flex-1 min-w-0">
-                  <div className="font-semibold text-sm truncate">{i.title}</div>
-                  <div className="text-xs text-[var(--mute)]">{i.channel.name} · {i.suggestedLength ?? "—"}</div>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </section>
+/**
+ * One stage of the pipeline strip.
+ *
+ * A chevron between cells, drawn with a border, so the strip reads as a flow
+ * left-to-right rather than as six unrelated stat tiles — the whole point is
+ * that content MOVES through these.
+ */
+function PipelineCell({ stage, first }: { stage: PipelineStage; first: boolean }) {
+  const parts = stage.parts.filter((p) => p.n > 0);
+  return (
+    <div className={"flex-1 min-w-[120px] px-3 py-2.5 relative " + (first ? "" : "border-l border-[var(--line)]")}>
+      <div className="flex items-center gap-1">
+        {!first && <ChevronRight className="w-3 h-3 text-[var(--mute)] -ml-1.5 flex-shrink-0" aria-hidden />}
+        <Link href={stage.href} className="font-mono text-[9.5px] uppercase tracking-wider text-[var(--mute)] font-bold hover:text-[var(--accent)] hover:underline truncate">
+          {stage.label}
+        </Link>
+      </div>
+      {stage.total === null ? (
+        // A dash with the reason on hover — an unknown is not a zero.
+        <div className="font-mono font-bold text-[22px] leading-tight text-[var(--mute)]" title={stage.reason}>—</div>
+      ) : (
+        <Link href={stage.href} className="font-mono font-bold text-[22px] leading-tight tabular-nums block hover:text-[var(--accent)]">
+          {stage.total.toLocaleString("en-GB")}
+        </Link>
+      )}
+      <div className="flex gap-2 flex-wrap min-h-[14px]">
+        {parts.length > 1
+          ? parts.map((p) => (
+              <Link key={p.label} href={p.href} className="text-[10px] text-[var(--mute)] hover:underline">
+                {p.n} {p.label}
+              </Link>
+            ))
+          : null}
       </div>
     </div>
   );
 }
 
-const STAGE_META: Record<string, { label: string; hue: string }> = {
-  drafting: { label: "Drafting", hue: "amber" },
-  draft_review: { label: "Review", hue: "blue" },
-  final_approval: { label: "Approval", hue: "violet" },
-  published: { label: "Published", hue: "green" },
-};
-
-function PillStat({ label, value }: { label: string; value: number }) {
+function DecisionCard({ item }: { item: HomeDecision }) {
+  const warn = item.severity === "warn";
+  // Only hues with a full --<hue>-soft / --<hue>-on pair in globals.css —
+  // "slate" has neither and renders as unset background/color.
+  const HUES: Record<HomeDecision["module"], string> = {
+    Social: "violet", Blog: "rose", Engage: "cyan", Setup: "teal",
+  };
+  const hue = HUES[item.module] ?? "teal";
   return (
-    <div className="bg-white/15 border border-white/25 backdrop-blur-sm rounded-xl px-3.5 py-2 text-center min-w-[68px]">
-      <div className="font-mono font-bold text-lg leading-none">{value}</div>
-      <div className="text-[10px] uppercase tracking-wider opacity-80 mt-0.5">{label}</div>
+    <div className="card flex items-start gap-2.5" style={{ borderColor: warn ? "var(--amber)" : "var(--line)" }}>
+      <span className="mt-0.5 flex-shrink-0">
+        {warn
+          ? <AlertTriangle className="w-4 h-4" style={{ color: "var(--amber-on)" }} />
+          : <Info className="w-4 h-4" style={{ color: "var(--blue-on)" }} />}
+      </span>
+      <div className="flex-1 min-w-0">
+        <div className="text-sm font-semibold flex items-center gap-2 flex-wrap">
+          {item.title}
+          <span className="font-mono text-[9px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider"
+            style={{ background: `var(--${hue}-soft)`, color: `var(--${hue}-on)` }}>
+            {item.module}
+          </span>
+        </div>
+        <div className="text-xs text-[var(--mute)] leading-relaxed">{item.detail}</div>
+      </div>
+      <Link href={item.href} className="btn sm flex-shrink-0">{item.cta}</Link>
     </div>
   );
 }
 
-function QuickTile({ href, label, icon: Icon, color, soft, disabled }: { href: string; label: string; icon: React.ComponentType<{ className?: string; strokeWidth?: number }>; color: string; soft: string; disabled?: boolean }) {
-  const cls = "card flex items-center gap-3 hover:shadow-lg transition group " + (disabled ? "opacity-40 pointer-events-none" : "");
+function QuickTile({ href, label, icon: Icon, color, soft }: { href: string; label: string; icon: React.ComponentType<{ className?: string; strokeWidth?: number }>; color: string; soft: string }) {
   return (
-    <Link href={href} className={cls} style={{ borderColor: "var(--line)" }}>
+    <Link href={href} className="card flex items-center gap-3 hover:shadow-lg transition group" style={{ borderColor: "var(--line)" }}>
       <span className="w-11 h-11 rounded-xl grid place-items-center group-hover:scale-105 transition" style={{ background: soft, color }}>
         <Icon className="w-5 h-5" strokeWidth={2.25} />
       </span>
@@ -375,20 +323,4 @@ function QuickTile({ href, label, icon: Icon, color, soft, disabled }: { href: s
       </div>
     </Link>
   );
-}
-
-function EmptyHint({ label, cta }: { label: string; cta: { href: string; text: string } }) {
-  return (
-    <div className="text-sm text-[var(--mute)] py-8 text-center">
-      <div className="mb-3">{label}</div>
-      <Link href={cta.href} className="btn primary sm">{cta.text}</Link>
-    </div>
-  );
-}
-
-function outlierColor(score: number): { color: string; soft: string } {
-  if (score >= 5) return { color: "var(--brand-on)", soft: "var(--brand-soft)" };
-  if (score >= 2) return { color: "var(--amber-on)", soft: "var(--amber-soft)" };
-  if (score >= 1) return { color: "var(--blue-on)", soft: "var(--blue-soft)" };
-  return { color: "var(--mute)", soft: "var(--zebra)" };
 }
