@@ -13,13 +13,17 @@ import { SocialSubNav, type SocialNavItem } from "@/components/SocialSubNav";
  */
 export default async function SocialLayout({ children }: { children: React.ReactNode }) {
   const { workspace } = await requireMembership();
-  const [awaiting, scheduled, failing, broken] = await Promise.all([
+  const [awaiting, scheduled, failing, broken, unseen] = await Promise.all([
     db.socialPost.count({ where: { workspaceId: workspace.id, approval: "pending" } }),
     db.socialPost.count({ where: { workspaceId: workspace.id, status: "scheduled" } }),
     db.socialPost.count({
       where: { workspaceId: workspace.id, targets: { some: { status: "failed" } } },
     }),
     db.zernioAccount.count({ where: { workspaceId: workspace.id, status: { not: "connected" } } }),
+    // Comments and DMs Zernio pushed that nobody has looked at yet. A real
+    // count from our own table — no Zernio call on every Social page load,
+    // which is what made a badge here unaffordable before the webhooks landed.
+    db.socialInboxEvent.count({ where: { workspaceId: workspace.id, readAt: null } }),
   ]);
 
   // Overview's badge counts DECISIONS, not content: what a person has to act on
@@ -39,10 +43,10 @@ export default async function SocialLayout({ children }: { children: React.React
     { href: "/social/compose", label: "Compose" },
     { href: "/social/calendar", label: "Calendar", count: scheduled },
     { href: "/social/approvals", label: "Approvals", count: awaiting, urgent: awaiting > 0 },
-    // No badge: an unread count would have to be fetched from Zernio on every
-    // Social page load, and coverage is partial enough (no X inbox at all,
-    // no LinkedIn DMs) that a number here would misrepresent what it counts.
-    { href: "/social/engage", label: "Engage" },
+    // The badge counts INBOUND events Zernio pushed and nobody has opened —
+    // comments and DMs only, never our own replies. It reads our own table, so
+    // it costs one COUNT rather than a Zernio call per page load.
+    { href: "/social/engage", label: "Engage", count: unseen, urgent: unseen > 0 },
     { href: "/social/performance", label: "Performance" },
     { href: "/social/settings", label: "Settings" },
   ];

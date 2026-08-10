@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { MessagesSquare, MessageCircle, ExternalLink, Info, AlertTriangle, ArrowLeft, Heart } from "lucide-react";
+import { MessagesSquare, MessageCircle, ExternalLink, Info, AlertTriangle, ArrowLeft, Heart, BellRing } from "lucide-react";
 import { requireRole, canAdmin } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { getSetting } from "@/lib/settings";
@@ -16,6 +16,8 @@ import {
   type InboxCommentablePost,
 } from "@/lib/zernio/inbox";
 import { Banner, SocialHeader } from "@/components/SocialPostCard";
+import { SubmitButton } from "@/components/SubmitButton";
+import { markInboxEventsReadAction } from "@/app/actions/social-inbox-events";
 import { InboxReply } from "@/components/InboxReply";
 import { DeleteButton } from "@/components/DeleteButton";
 import { commentRef } from "@/lib/deletable";
@@ -79,7 +81,7 @@ export default async function EngagePage({ searchParams }: { searchParams: Promi
 
   // One thread at a time: a message list needs its conversation's accountId,
   // and comments need their post's — Zernio 400s without them, it won't guess.
-  const [conversations, posts, thread, comments] = await Promise.all([
+  const [conversations, posts, thread, comments, unseen, unseenTotal] = await Promise.all([
     listInboxConversations({ workspaceId: workspace.id, platform: net, limit: 50 }).catch(() => [] as InboxConversation[]),
     listCommentablePosts({ workspaceId: workspace.id, platform: net, limit: 100 }).catch(() => [] as InboxCommentablePost[]),
     dm && acct
@@ -88,6 +90,12 @@ export default async function EngagePage({ searchParams }: { searchParams: Promi
     post && acct
       ? listInboxComments({ workspaceId: workspace.id, postId: post, accountId: acct }).catch(() => [])
       : Promise.resolve([]),
+    db.socialInboxEvent.findMany({
+      where: { workspaceId: workspace.id, readAt: null },
+      orderBy: { receivedAt: "desc" },
+      take: 8,
+    }),
+    db.socialInboxEvent.count({ where: { workspaceId: workspace.id, readAt: null } }),
   ]);
 
   const withComments = posts.filter((p) => p.commentCount > 0);
@@ -127,6 +135,49 @@ export default async function EngagePage({ searchParams }: { searchParams: Promi
           );
         })}
       </div>
+
+      {/* What arrived while nobody was looking. The live lists below can't
+          answer this — they show the current state, not what changed. */}
+      {unseen.length > 0 && (
+        <div className="card mb-4" style={{ borderColor: "var(--amber)" }}>
+          <div className="flex items-center gap-2 mb-2">
+            <BellRing className="w-4 h-4" style={{ color: "var(--amber-on)" }} />
+            <h2 className="font-mono font-bold text-sm">New since you last looked</h2>
+            <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }}>
+              {unseenTotal}
+            </span>
+            <span className="flex-1" />
+            <form action={markInboxEventsReadAction}>
+              <input type="hidden" name="back" value="/social/engage" />
+              <SubmitButton className="btn sm" pendingText="Marking…">Mark all seen</SubmitButton>
+            </form>
+          </div>
+          <div className="flex flex-col divide-y divide-[var(--line)]">
+            {unseen.map((e) => (
+              <div key={e.id} className="flex items-start gap-2 py-1.5 first:pt-0 last:pb-0">
+                <span className="pt-1"><NetDot platform={e.platform} /></span>
+                <span className="flex-1 min-w-0">
+                  <span className="text-xs font-semibold">
+                    {e.authorName ?? "Someone"}
+                    <span className="font-normal text-[var(--mute)]">
+                      {e.kind === "comment" ? " commented" : e.kind === "conversation" ? " started a conversation" : " sent a message"}
+                    </span>
+                  </span>
+                  {e.preview && <span className="block text-[11px] text-[var(--mute)] truncate">{e.preview}</span>}
+                </span>
+                <span className="font-mono text-[9.5px] text-[var(--mute)] flex-shrink-0 pt-1">
+                  {e.receivedAt.toLocaleDateString("en-GB", { day: "2-digit", month: "short" })}
+                </span>
+              </div>
+            ))}
+          </div>
+          {unseenTotal > unseen.length && (
+            <p className="text-[11px] text-[var(--mute)] mt-2">
+              …and {unseenTotal - unseen.length} more.
+            </p>
+          )}
+        </div>
+      )}
 
       {/* Coverage, stated once and plainly. Without this the empty columns
           below read as "nobody wrote to you", which isn't what they mean. */}

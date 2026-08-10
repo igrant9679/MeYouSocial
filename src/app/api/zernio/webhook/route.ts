@@ -32,6 +32,19 @@ type ZernioEvent = {
   event?: string;
   data?: Record<string, unknown>;
   payload?: Record<string, unknown>;
+  /**
+   * ⚠ Inbox events put their objects at the TOP LEVEL, not inside `data`:
+   * `{ id, event: "message.received", message, conversation, account, timestamp }`
+   * (docs.zernio.com/webhooks/inbox). The `data`/`payload` fallbacks below stay
+   * because post and account events use them — the two families genuinely
+   * differ, so the reader accepts both rather than assuming one shape.
+   */
+  id?: string;
+  account?: Record<string, unknown>;
+  message?: Record<string, unknown>;
+  comment?: Record<string, unknown>;
+  conversation?: Record<string, unknown>;
+  post?: Record<string, unknown>;
 };
 
 export async function POST(req: NextRequest) {
@@ -82,6 +95,68 @@ export async function POST(req: NextRequest) {
     if (!found) return NextResponse.json({ ok: true, ignored: "account not visible" });
     await saveZernioAccount(workspace.id, found);
     return NextResponse.json({ ok: true });
+  }
+
+  // ── Inbox: a comment, a DM, or a brand-new conversation ───────────────────
+  //
+  // ⚠ These have been arriving all along. Both tenants' subscriptions have
+  // listed comment.received / message.received / conversation.started since
+  // they were created; this handler answered 200 and ignored them, so Zernio
+  // saw a healthy endpoint (failureCount 0) while every event was discarded.
+  //
+  // Only INBOUND events are recorded. message.sent / delivered / read are our
+  // own side of the conversation and would make the unread badge count our own
+  // replies. reaction.received is deliberately excluded too: an emoji is not
+  // something that needs answering, and a badge that cries wolf gets ignored.
+  if (type === "comment.received" || type === "message.received" || type === "conversation.started") {
+    const account = (event.account ?? data.account ?? {}) as Record<string, unknown>;
+    const accountId = String(account.accountId ?? account.id ?? data.accountId ?? "");
+    const profileId = String(account.profileId ?? data.profileId ?? "");
+
+    // Resolve the tenant by profile first (that IS Zernio's tenant boundary),
+    // then by the account row. Both are workspace-scoped; guessing is not.
+    const workspace =
+      (profileId ? await db.workspace.findFirst({ where: { zernioProfileId: profileId }, select: { id: true } }) : null) ??
+      (accountId
+        ? await db.zernioAccount.findFirst({ where: { accountId }, select: { workspaceId: true } })
+            .then((a) => (a ? { id: a.workspaceId } : null))
+        : null);
+    if (!workspace) return NextResponse.json({ ok: true, ignored: "unknown account/profile" });
+
+    const message = (event.message ?? data.message ?? {}) as Record<string, unknown>;
+    const comment = (event.comment ?? data.comment ?? {}) as Record<string, unknown>;
+    const conversation = (event.conversation ?? data.conversation ?? {}) as Record<string, unknown>;
+    const post = (event.post ?? data.post ?? {}) as Record<string, unknown>;
+    const author = (comment.author ?? {}) as Record<string, unknown>;
+
+    const kind = type === "comment.received" ? "comment" : type === "message.received" ? "message" : "conversation";
+    const text = String(
+      comment.text ?? comment.message ?? message.text ?? message.message ?? conversation.lastMessage ?? "",
+    ).trim();
+
+    // Zernio's own event id — redelivery after a failure must not double-count.
+    const eventId = String(event.id ?? data.id ?? `${type}:${message.id ?? comment.id ?? conversation.id ?? ""}`);
+    if (!eventId) return NextResponse.json({ ok: true, ignored: "no event id" });
+
+    await db.socialInboxEvent.upsert({
+      where: { workspaceId_eventId: { workspaceId: workspace.id, eventId } },
+      update: {},   // a redelivery is the SAME event; never resurrect it as unread
+      create: {
+        workspaceId: workspace.id,
+        eventId,
+        kind,
+        platform: String(account.platform ?? data.platform ?? message.platform ?? "").toLowerCase(),
+        accountId,
+        threadId: String(
+          kind === "comment" ? (post.id ?? post.platformPostId ?? "") : (conversation.id ?? message.conversationId ?? ""),
+        ) || null,
+        authorName: String(
+          author.name ?? author.username ?? comment.from ?? message.senderName ?? conversation.participantName ?? "",
+        ).slice(0, 120) || null,
+        preview: text ? text.slice(0, 300) : null,
+      },
+    });
+    return NextResponse.json({ ok: true, recorded: kind });
   }
 
   // post.published / post.failed / post.partial — reconcile our own record so a

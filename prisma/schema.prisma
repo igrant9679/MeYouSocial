@@ -50,6 +50,7 @@ model Workspace {
   unipileAccounts UnipileAccount[]
   zernioAccounts  ZernioAccount[]
   socialPosts     SocialPost[]
+  inboxEvents     SocialInboxEvent[]
   postingSlots    PostingSlot[]
   topics          Topic[]
   campaigns       Campaign[]
@@ -1371,6 +1372,40 @@ model UnipileAccount {
 // `name` field, with no way to reconcile a missed webhook. Zernio's
 // `account.connected` event carries `profileId` directly, so the mapping is
 // recoverable by re-listing accounts at any time.
+/**
+ * An inbox event Zernio pushed at us: a comment, a DM, a new conversation.
+ *
+ * ⚠ These were ALREADY being delivered. Both tenants' webhook subscriptions
+ * have listed comment.received / message.received / conversation.started since
+ * they were created; the handler simply ignored them and answered 200, so
+ * Zernio saw a healthy endpoint (failureCount 0) while every event was dropped.
+ * This table is what stops that.
+ *
+ * Kept deliberately thin — a pointer plus a preview, not a mirror of the
+ * conversation. Engage reads the real thing live from Zernio; this exists to
+ * answer "what arrived since I last looked", which a live fetch cannot.
+ */
+model SocialInboxEvent {
+  id          String   @id @default(cuid())
+  workspaceId String
+  /** Zernio's stable webhook event id. Redelivery must not double-count. */
+  eventId     String
+  kind        String   // comment | message | conversation
+  platform    String
+  accountId   String
+  /** DM → the conversation id. Comment → the post it sits under. */
+  threadId    String?
+  authorName  String?
+  preview     String?
+  receivedAt  DateTime @default(now())
+  readAt      DateTime?
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, eventId])
+  @@index([workspaceId, readAt])
+}
+
 model ZernioAccount {
   id          String   @id @default(cuid())
   workspaceId String
