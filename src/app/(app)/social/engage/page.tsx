@@ -160,7 +160,10 @@ export default async function EngagePage({ searchParams }: { searchParams: Promi
                   <span className="text-xs font-semibold">
                     {e.authorName ?? "Someone"}
                     <span className="font-normal text-[var(--mute)]">
-                      {e.kind === "comment" ? " commented" : e.kind === "conversation" ? " started a conversation" : " sent a message"}
+                      {e.kind === "comment" ? " commented"
+                        : e.kind === "review" ? " left a review"
+                        : e.kind === "conversation" ? " started a conversation"
+                        : " sent a message"}
                     </span>
                   </span>
                   {e.preview && <span className="block text-[11px] text-[var(--mute)] truncate">{e.preview}</span>}

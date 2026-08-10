@@ -45,6 +45,7 @@ type ZernioEvent = {
   comment?: Record<string, unknown>;
   conversation?: Record<string, unknown>;
   post?: Record<string, unknown>;
+  review?: Record<string, unknown>;
 };
 
 export async function POST(req: NextRequest) {
@@ -108,7 +109,21 @@ export async function POST(req: NextRequest) {
   // own side of the conversation and would make the unread badge count our own
   // replies. reaction.received is deliberately excluded too: an emoji is not
   // something that needs answering, and a badge that cries wolf gets ignored.
-  if (type === "comment.received" || type === "message.received" || type === "conversation.started") {
+  // ⚠ review.updated is ACCEPTED AND DISCARDED on purpose. It fires when a
+  // reply is added — including the reply WE just posted — so recording it
+  // would badge the workspace for its own action, which is the fastest way to
+  // teach people the badge is noise. It also fires on reviewer edits, which
+  // matter far less than the arrival of the review itself.
+  if (type === "review.updated") {
+    return NextResponse.json({ ok: true, ignored: "review.updated — a reply or edit, not a new review" });
+  }
+
+  if (
+    type === "comment.received" ||
+    type === "message.received" ||
+    type === "conversation.started" ||
+    type === "review.new"
+  ) {
     const account = (event.account ?? data.account ?? {}) as Record<string, unknown>;
     const accountId = String(account.accountId ?? account.id ?? data.accountId ?? "");
     const profileId = String(account.profileId ?? data.profileId ?? "");
@@ -127,15 +142,30 @@ export async function POST(req: NextRequest) {
     const comment = (event.comment ?? data.comment ?? {}) as Record<string, unknown>;
     const conversation = (event.conversation ?? data.conversation ?? {}) as Record<string, unknown>;
     const post = (event.post ?? data.post ?? {}) as Record<string, unknown>;
+    const review = (event.review ?? data.review ?? {}) as Record<string, unknown>;
     const author = (comment.author ?? {}) as Record<string, unknown>;
+    const reviewer = (review.reviewer ?? {}) as Record<string, unknown>;
 
-    const kind = type === "comment.received" ? "comment" : type === "message.received" ? "message" : "conversation";
-    const text = String(
-      comment.text ?? comment.message ?? message.text ?? message.message ?? conversation.lastMessage ?? "",
-    ).trim();
+    const kind =
+      type === "comment.received" ? "comment"
+      : type === "message.received" ? "message"
+      : type === "review.new" ? "review"
+      : "conversation";
+
+    // A review's headline IS its rating — a 1-star with no words still needs
+    // answering, so the stars lead and the text follows if there is any.
+    const rating = typeof review.rating === "number" ? review.rating : null;
+    const reviewText = String(review.text ?? "").trim();
+    const text =
+      kind === "review"
+        ? [rating !== null ? `${"★".repeat(Math.max(0, Math.min(5, Math.round(rating))))}${"☆".repeat(Math.max(0, 5 - Math.round(rating)))} ${rating}/5` : null,
+           reviewText || "(no written review)"].filter(Boolean).join(" — ")
+        : String(
+            comment.text ?? comment.message ?? message.text ?? message.message ?? conversation.lastMessage ?? "",
+          ).trim();
 
     // Zernio's own event id — redelivery after a failure must not double-count.
-    const eventId = String(event.id ?? data.id ?? `${type}:${message.id ?? comment.id ?? conversation.id ?? ""}`);
+    const eventId = String(event.id ?? data.id ?? `${type}:${message.id ?? comment.id ?? conversation.id ?? review.id ?? ""}`);
     if (!eventId) return NextResponse.json({ ok: true, ignored: "no event id" });
 
     await db.socialInboxEvent.upsert({
@@ -145,13 +175,15 @@ export async function POST(req: NextRequest) {
         workspaceId: workspace.id,
         eventId,
         kind,
-        platform: String(account.platform ?? data.platform ?? message.platform ?? "").toLowerCase(),
+        platform: String(account.platform ?? review.platform ?? data.platform ?? message.platform ?? "").toLowerCase(),
         accountId,
         threadId: String(
-          kind === "comment" ? (post.id ?? post.platformPostId ?? "") : (conversation.id ?? message.conversationId ?? ""),
+          kind === "comment" ? (post.id ?? post.platformPostId ?? "")
+          : kind === "review" ? (review.id ?? "")
+          : (conversation.id ?? message.conversationId ?? ""),
         ) || null,
         authorName: String(
-          author.name ?? author.username ?? comment.from ?? message.senderName ?? conversation.participantName ?? "",
+          reviewer.name ?? author.name ?? author.username ?? comment.from ?? message.senderName ?? conversation.participantName ?? "",
         ).slice(0, 120) || null,
         preview: text ? text.slice(0, 300) : null,
       },
