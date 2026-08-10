@@ -179,6 +179,14 @@ export function Elsie({
       return;
     }
 
+    // Tell interested components to make this anchor visible BEFORE measuring.
+    // The grouped left rail listens: a nav item inside a folded group is
+    // display:none, whose rect is an all-zero box at the viewport corner — the
+    // spotlight would point confidently at nothing. The rail expands the
+    // owning group on this event, and the delayed re-measure below sees the
+    // opened layout.
+    window.dispatchEvent(new CustomEvent("elsie:reveal", { detail: step.anchor }));
+
     // The anchor may mount a frame or two after the route settles.
     const deadline = Date.now() + 2500;
     const tick = () => {

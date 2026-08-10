@@ -83,24 +83,34 @@ export function MobileNav({
             </div>
 
             <div className="flex flex-col gap-1 overflow-y-auto">
-              {items.map((n) => {
+              {items.map((n, i) => {
                 const Icon = ICONS[n.icon];
                 const isActive = isNavActive(n.href, pathname);
+                // Static stage headers, mirroring the desktop rail's groups.
+                // No collapse here: a drawer is already an overlay you opened
+                // on purpose, and a second fold inside it is a maze.
+                const header = n.group && n.group !== items[i - 1]?.group ? n.group : null;
                 return (
-                  <Link
-                    key={n.href}
-                    href={n.href}
-                    onClick={() => setOpen(false)}
-                    aria-current={isActive ? "page" : undefined}
-                    className="flex items-center gap-3 px-2.5 py-2.5 rounded-xl text-sm font-semibold min-h-[44px]"
-                    style={{
-                      background: isActive ? n.color : n.soft,
-                      color: isActive ? "#ffffff" : n.color,
-                    }}
-                  >
-                    <Icon className="w-5 h-5" strokeWidth={2.25} />
-                    {n.label}
-                  </Link>
+                  <span key={n.href} className="contents">
+                    {header && (
+                      <div className="px-2.5 pt-3 pb-0.5 font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--mute)]">
+                        {header}
+                      </div>
+                    )}
+                    <Link
+                      href={n.href}
+                      onClick={() => setOpen(false)}
+                      aria-current={isActive ? "page" : undefined}
+                      className="flex items-center gap-3 px-2.5 py-2.5 rounded-xl text-sm font-semibold min-h-[44px]"
+                      style={{
+                        background: isActive ? n.color : n.soft,
+                        color: isActive ? "#ffffff" : n.color,
+                      }}
+                    >
+                      <Icon className="w-5 h-5" strokeWidth={2.25} />
+                      {n.label}
+                    </Link>
+                  </span>
                 );
               })}
             </div>
