@@ -36,6 +36,7 @@ export async function register() {
     __accountHealthTimer?: ReturnType<typeof setInterval>;
     __analyticsTimer?: ReturnType<typeof setInterval>;
     __jobsTimer?: ReturnType<typeof setInterval>;
+    __digestTimer?: ReturnType<typeof setInterval>;
   };
   if (globals.__autopilotTimer) return; // HMR / double-register guard
 
@@ -195,4 +196,21 @@ export async function register() {
   setTimeout(analyticsSweep, 5 * 60 * 1000);
   globals.__analyticsTimer = setInterval(analyticsSweep, syncMin * 60 * 1000);
   console.log(`[analytics] sync armed — every ${syncMin} min`);
+
+  // Morning digest — Home's decision queue as one email, per workspace, only
+  // when a warn-severity item is waiting (quiet day = no email, on purpose).
+  // Fifteen-minute ticks because the send window is judged in each workspace's
+  // OWN timezone (digest:hour, default 07:00 local, +3h grace): the sweep
+  // itself is timezone-agnostic and almost always no-ops. The once-a-day guard
+  // is an audit row written only after a successful send, so a failed delivery
+  // retries next tick instead of burning the day.
+  const digestMin = Math.max(5, parseInt(process.env.DIGEST_SWEEP_MIN ?? "15", 10) || 15);
+  const digestSweep = guarded("digest", 5 * 60_000, async () => {
+    const { sweepMorningDigests } = await import("@/lib/digest");
+    const { sent } = await sweepMorningDigests();
+    if (sent > 0) console.log(`[digest] sent ${sent} digest(s)`);
+  });
+  setTimeout(digestSweep, 4 * 60 * 1000);
+  globals.__digestTimer = setInterval(digestSweep, digestMin * 60 * 1000);
+  console.log(`[digest] armed — every ${digestMin} min`);
 }

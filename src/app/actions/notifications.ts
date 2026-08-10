@@ -38,7 +38,9 @@ export async function saveNotificationPreferencesAction(formData: FormData) {
   const { user, workspace } = await requireMembership();
   for (const kind of NOTIFICATION_KINDS) {
     if (!isNotificationKind(kind)) continue;
-    const inApp = formData.get(`inapp_${kind}`) === "on";
+    // The digest renders no in-app checkbox (it has no in-app form), so the
+    // field is absent from the form — don't let that absence write `false`.
+    const inApp = kind === "daily_digest" ? true : formData.get(`inapp_${kind}`) === "on";
     const emailOn = formData.get(`email_${kind}`) === "on";
     await db.notificationPreference.upsert({
       where: { workspaceId_userId_kind: { workspaceId: workspace.id, userId: user.id, kind } },

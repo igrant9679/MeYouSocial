@@ -24,6 +24,10 @@ export const NOTIFICATION_KINDS = [
   "assigned",
   "comment",
   "account_broken",
+  // Email-only, sent by src/lib/digest.ts (never through notify() — Home IS
+  // the in-app digest, so a bell item would be spam). Listed here so the
+  // preference row and its toggle exist in the Notifications UI.
+  "daily_digest",
 ] as const;
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
 
@@ -36,6 +40,7 @@ export const KIND_LABELS: Record<NotificationKind, string> = {
   assigned: "I was assigned a review",
   comment: "A comment on something I'm on",
   account_broken: "A connected account stopped working",
+  daily_digest: "The morning digest of what needs me (admins, email only)",
 };
 
 /** Email defaults to off for the chatty kinds, on for the ones that need a human. */
@@ -50,6 +55,9 @@ const EMAIL_DEFAULT: Record<NotificationKind, boolean> = {
   // Emailed by default: this one is silent until a post fails, which is the
   // exact failure mode it exists to prevent.
   account_broken: true,
+  // Default-on: it only ever sends when a warn-severity decision is waiting,
+  // so the quiet-day cost is zero. digest.ts reads this preference directly.
+  daily_digest: true,
 };
 
 export function isNotificationKind(k: string): k is NotificationKind {

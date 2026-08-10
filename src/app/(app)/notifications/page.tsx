@@ -23,6 +23,7 @@ const KIND_HUE: Record<NotificationKind, string> = {
   assigned: "amber",
   comment: "cyan",
   account_broken: "rose",
+  daily_digest: "teal",
 };
 
 export default async function NotificationsPage() {
@@ -131,7 +132,13 @@ export default async function NotificationsPage() {
                 <tr key={kind} className="border-t border-[var(--line)]">
                   <td className="py-1.5">{KIND_LABELS[kind]}</td>
                   <td className="py-1.5">
-                    <input type="checkbox" name={`inapp_${kind}`} defaultChecked={p ? p.inApp : true} />
+                    {/* The digest has no in-app form — Home IS its in-app form.
+                        A checkbox here would be a control wired to nothing. */}
+                    {kind === "daily_digest" ? (
+                      <span className="text-[var(--mute)]" title="Home is the in-app digest">—</span>
+                    ) : (
+                      <input type="checkbox" name={`inapp_${kind}`} defaultChecked={p ? p.inApp : true} />
+                    )}
                   </td>
                   <td className="py-1.5">
                     <input type="checkbox" name={`email_${kind}`} defaultChecked={p ? p.email : DEFAULT_EMAIL[kind]} />
@@ -159,4 +166,5 @@ const DEFAULT_EMAIL: Record<NotificationKind, boolean> = {
   assigned: true,
   comment: false,
   account_broken: true,
+  daily_digest: true,
 };
