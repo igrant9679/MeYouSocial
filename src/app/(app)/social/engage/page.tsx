@@ -23,7 +23,13 @@ import { markInboxEventsReadAction } from "@/app/actions/social-inbox-events";
 import { InboxReply } from "@/components/InboxReply";
 import { DeleteButton } from "@/components/DeleteButton";
 import { commentRef } from "@/lib/deletable";
-import { sendInboxReplyAction, replyOnPostAction, replyToReviewAction } from "@/app/actions/social-inbox";
+import {
+  sendInboxReplyAction,
+  replyOnPostAction,
+  replyToReviewAction,
+  saveReviewReplyDraftAction,
+  discardReviewReplyDraftAction,
+} from "@/app/actions/social-inbox";
 
 /**
  * Engage — the direct messages and post comments Zernio can see, in one place.
@@ -83,7 +89,7 @@ export default async function EngagePage({ searchParams }: { searchParams: Promi
 
   // One thread at a time: a message list needs its conversation's accountId,
   // and comments need their post's — Zernio 400s without them, it won't guess.
-  const [conversations, posts, thread, comments, unseen, unseenTotal, reviews] = await Promise.all([
+  const [conversations, posts, thread, comments, unseen, unseenTotal, reviews, reviewDrafts] = await Promise.all([
     listInboxConversations({ workspaceId: workspace.id, platform: net, limit: 50 }).catch(() => [] as InboxConversation[]),
     listCommentablePosts({ workspaceId: workspace.id, platform: net, limit: 100 }).catch(() => [] as InboxCommentablePost[]),
     dm && acct
@@ -101,7 +107,12 @@ export default async function EngagePage({ searchParams }: { searchParams: Promi
     db.workspace.findUnique({ where: { id: workspace.id }, select: { zernioProfileId: true } })
       .then((w) => listInboxReviews({ workspaceId: workspace.id, profileId: w?.zernioProfileId, limit: 25 }))
       .catch(() => [] as InboxReview[]),
+    // Answers written but not sent. Ours, not Zernio's — a draft exists only
+    // here, which is the whole point of it.
+    db.inboxReplyDraft.findMany({ where: { workspaceId: workspace.id, kind: "review" } }),
   ]);
+
+  const draftFor = new Map(reviewDrafts.map((d) => [d.targetId, d]));
 
   const withComments = posts.filter((p) => p.commentCount > 0);
   const quiet = posts.length - withComments.length;
@@ -203,6 +214,13 @@ export default async function EngagePage({ searchParams }: { searchParams: Promi
             <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "var(--panel)", color: "var(--mute)" }}>
               {reviews.filter((r) => !r.hasReply).length} unanswered
             </span>
+            {/* Counted separately, never folded into "unanswered": a drafted
+                reply is still an unanswered review until someone sends it. */}
+            {reviewDrafts.length > 0 && (
+              <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }}>
+                {reviewDrafts.length} drafted
+              </span>
+            )}
           </div>
           <div className="flex flex-col gap-2">
             {reviews.map((r) => (
@@ -235,18 +253,30 @@ export default async function EngagePage({ searchParams }: { searchParams: Promi
                     <div className="font-mono text-[9.5px] text-[var(--mute)] mb-0.5">Your reply</div>
                     <p className="whitespace-pre-wrap text-[var(--slate)]">{r.replyText ?? <span className="italic text-[var(--mute)]">(reply posted, text not returned)</span>}</p>
                   </div>
-                ) : commentsLocked ? (
-                  <p className="text-[11px] text-[var(--mute)] mt-2 pt-2 border-t border-[var(--line)]">
-                    This workspace reviews posts before they go out, so replying to a review is admin-only.
-                  </p>
                 ) : (
-                  <InboxReply
-                    action={replyToReviewAction}
-                    hidden={{ reviewId: r.id, accountId: r.accountId }}
-                    asLabel={r.accountUsername ?? networkFor(r.platform)?.label ?? r.platform}
-                    placeholder={`Reply to ${r.reviewerName ?? "this review"}…`}
-                    publicNote="public, and shown under the review for as long as it stands"
-                  />
+                  <>
+                    {commentsLocked && (
+                      <p className="text-[11px] text-[var(--mute)] mt-2 pt-2 border-t border-[var(--line)]">
+                        This workspace reviews posts before they go out, so <b>sending</b> a review reply is
+                        admin-only — you can still write one and save it for an admin to release.
+                      </p>
+                    )}
+                    <InboxReply
+                      // Remounted when the saved draft changes, so discarding one
+                      // clears the box instead of leaving its text behind under a
+                      // note that has just disappeared.
+                      key={draftFor.get(r.id)?.updatedAt.toISOString() ?? "no-draft"}
+                      action={commentsLocked ? undefined : replyToReviewAction}
+                      draftAction={saveReviewReplyDraftAction}
+                      discardDraftAction={discardReviewReplyDraftAction}
+                      initialText={draftFor.get(r.id)?.message}
+                      draftNote={draftNoteFor(draftFor.get(r.id))}
+                      hidden={{ reviewId: r.id, accountId: r.accountId }}
+                      asLabel={r.accountUsername ?? networkFor(r.platform)?.label ?? r.platform}
+                      placeholder={`Reply to ${r.reviewerName ?? "this review"}…`}
+                      publicNote="public, and shown under the review for as long as it stands"
+                    />
+                  </>
                 )}
               </div>
             ))}
@@ -567,6 +597,18 @@ function Rating({ rating, platform }: { rating: number | null; platform: string 
 function NetDot({ platform }: { platform: string }) {
   const n = networkFor(platform);
   return <span className="w-2 h-2 rounded-full block flex-shrink-0" title={n?.label ?? platform} style={{ background: n?.color ?? "var(--mute)" }} />;
+}
+
+/**
+ * "Draft saved 10 Aug by Idris", or nothing at all when there is no draft.
+ *
+ * Undefined rather than an empty string on purpose: it is the single switch
+ * that turns the note, the amber styling and the Discard button on together,
+ * so none of them can appear without the other two.
+ */
+function draftNoteFor(draft?: { updatedAt: Date; authorName: string | null }): string | undefined {
+  if (!draft) return undefined;
+  return `Draft saved ${when(draft.updatedAt.toISOString())}${draft.authorName ? ` by ${draft.authorName}` : ""}`;
 }
 
 function when(iso: string | null): string {

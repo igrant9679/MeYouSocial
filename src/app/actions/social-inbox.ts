@@ -36,6 +36,9 @@ function flashTo(to: string, msg: string, kind: "err" | "ok"): never {
 
 const MAX_LEN = 2000;
 
+/** Reviews are the only drafted kind so far; DMs and comments share the box. */
+const DRAFT_KIND = "review";
+
 /**
  * Resolve the sending account, scoped to the caller's workspace.
  *
@@ -145,8 +148,90 @@ export async function replyToReviewAction(formData: FormData) {
     action: "social.review_replied", entityType: "zernio_review", entityId: reviewId,
     meta: { platform: account.platform, account: account.displayName ?? account.username, chars: message.length },
   });
+  // A sent reply must not leave its draft standing, or the box would re-offer
+  // text that is already public and invite a second copy of the same answer.
+  await db.inboxReplyDraft.deleteMany({
+    where: { workspaceId: workspace.id, kind: DRAFT_KIND, targetId: reviewId },
+  });
   revalidatePath("/social", "layout");
   back(`Replied on ${account.platform}.`, "ok");
+}
+
+/**
+ * Save a review reply WITHOUT sending it.
+ *
+ * ⚠ The point of this action is what it doesn't do. Every other reply in Engage
+ * reaches a real audience the instant it succeeds, so a review — which stands
+ * under the business for years, and is often answered long after it was written
+ * — is the one answer worth reading twice before it exists in the world.
+ *
+ * ⚠ NOTHING DISPATCHES THESE. There is no sweep over drafts and there must
+ * never be one: a draft becomes a reply only when a person presses Send, so one
+ * left forgotten stays silent rather than surprising a customer months later.
+ *
+ * Deliberately NOT admin-gated under `social:require_approval`, unlike sending.
+ * Writing an answer for someone else to weigh is the reviewED step, not the
+ * publishing one — gating it would leave an editor nothing to do but ask an
+ * admin to type.
+ */
+export async function saveReviewReplyDraftAction(formData: FormData) {
+  const { user, workspace, membership } = await requireRole("EDITOR");
+  const reviewId = String(formData.get("reviewId") ?? "");
+  const accountId = String(formData.get("accountId") ?? "");
+  const back: Flash = (msg, kind = "err") => flashTo("/social/engage", msg, kind);
+
+  if (!reviewId || !accountId) back("Couldn't tell which review that was.");
+  // Same tenancy guard as sending. A draft names the account it would go out
+  // as, and that name must be true when it is written, not only when it is sent.
+  await requireOwnAccount(workspace.id, accountId, back);
+  const message = requireMessage(formData.get("message"), back);
+  const authorName = user.name ?? user.email;
+
+  await db.inboxReplyDraft.upsert({
+    where: {
+      workspaceId_kind_targetId: { workspaceId: workspace.id, kind: DRAFT_KIND, targetId: reviewId },
+    },
+    create: {
+      workspaceId: workspace.id, kind: DRAFT_KIND, targetId: reviewId,
+      accountId, message, authorId: membership.userId, authorName,
+    },
+    // Saving again edits the draft in place rather than stacking a second one,
+    // so two people can't end up holding rival answers to the same review.
+    update: { message, accountId, authorId: membership.userId, authorName },
+  });
+
+  await writeAudit({
+    workspaceId: workspace.id, actorId: membership.userId,
+    action: "social.review_reply_drafted", entityType: "zernio_review", entityId: reviewId,
+    meta: { chars: message.length },
+  });
+  revalidatePath("/social", "layout");
+  back("Draft saved. Nothing has been sent.", "ok");
+}
+
+/** Throw away a saved draft. The review itself is untouched. */
+export async function discardReviewReplyDraftAction(formData: FormData) {
+  const { workspace, membership } = await requireRole("EDITOR");
+  const reviewId = String(formData.get("reviewId") ?? "");
+  const back: Flash = (msg, kind = "err") => flashTo("/social/engage", msg, kind);
+  if (!reviewId) back("Couldn't tell which review that was.");
+
+  // `deleteMany` scoped by workspace, never `delete` by id: it is the tenancy
+  // boundary here, and a draft that has already gone (sent from another tab)
+  // should report calmly rather than throwing a record-not-found.
+  const { count } = await db.inboxReplyDraft.deleteMany({
+    where: { workspaceId: workspace.id, kind: DRAFT_KIND, targetId: reviewId },
+  });
+
+  if (count > 0) {
+    await writeAudit({
+      workspaceId: workspace.id, actorId: membership.userId,
+      action: "social.review_reply_draft_discarded", entityType: "zernio_review", entityId: reviewId,
+      meta: {},
+    });
+  }
+  revalidatePath("/social", "layout");
+  back(count > 0 ? "Draft discarded." : "There was no draft to discard.", "ok");
 }
 
 /** Answer a comment by commenting on the post it sits under. */

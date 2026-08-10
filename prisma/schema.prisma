@@ -51,6 +51,7 @@ model Workspace {
   zernioAccounts  ZernioAccount[]
   socialPosts     SocialPost[]
   inboxEvents     SocialInboxEvent[]
+  inboxDrafts     InboxReplyDraft[]
   postingSlots    PostingSlot[]
   topics          Topic[]
   campaigns       Campaign[]
@@ -1404,6 +1405,44 @@ model SocialInboxEvent {
 
   @@unique([workspaceId, eventId])
   @@index([workspaceId, readAt])
+}
+
+/**
+ * A reply written in Engage but not sent.
+ *
+ * ⚠ EVERY OTHER REPLY IN ENGAGE PUBLISHES THE MOMENT IT SUCCEEDS — no queue, no
+ * approval gate, no undo. That makes a public answer the one thing in this app
+ * you cannot re-read tomorrow before it exists in the world, which is exactly
+ * what a four-year-old customer review deserves. This table is that pause.
+ *
+ * It is NOT a send queue: nothing here is ever dispatched by a sweep. A draft
+ * only becomes a reply when a person presses Send, so a forgotten draft stays
+ * silent forever rather than surprising a customer months later.
+ *
+ * `accountId` is stored for display only and is RE-RESOLVED against the
+ * workspace at send time — a draft is not a licence to post as an account the
+ * workspace has since lost.
+ */
+model InboxReplyDraft {
+  id          String   @id @default(cuid())
+  workspaceId String
+  /** review — DMs and comments share the reply box but aren't wired yet. */
+  kind        String
+  /** The review/conversation/post answered. Opaque: Facebook's ids are numeric,
+   *  Google Business's are path-shaped. Never parsed, only matched. */
+  targetId    String
+  accountId   String
+  message     String
+  /** Snapshot, like an audit row: who wrote it survives the user being removed. */
+  authorId    String?
+  authorName  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, kind, targetId])
+  @@index([workspaceId, kind])
 }
 
 model ZernioAccount {
