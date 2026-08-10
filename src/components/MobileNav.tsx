@@ -93,7 +93,12 @@ export function MobileNav({
                 return (
                   <span key={n.href} className="contents">
                     {header && (
-                      <div className="px-2.5 pt-3 pb-0.5 font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--mute)]">
+                      // Same colour scheme as the desktop rail's headers: the
+                      // group wears its first item's hue on that item's tint.
+                      <div
+                        className="px-2.5 py-1.5 mt-2 rounded-lg font-mono text-[12px] font-bold uppercase tracking-[0.14em]"
+                        style={{ color: n.color, background: n.soft }}
+                      >
                         {header}
                       </div>
                     )}

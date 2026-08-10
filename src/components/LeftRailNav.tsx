@@ -142,23 +142,31 @@ export function LeftRailNav({ items }: { items: LeftRailItem[] }) {
         ) : (
           <div key={entry.group} className="flex flex-col gap-0.5">
             {/* Header exists only where there's room for words. On the narrow
-                rail the group is just a wordless run of icons, as before. */}
+                rail the group is just a wordless run of icons, as before.
+                Coloured with its FIRST item's hue (one source of truth — the
+                items already carry the palette), on that item's soft tint. */}
             <button
               type="button"
               onClick={() => setManual((m) => ({ ...m, [entry.group]: !isOpen(entry.group) }))}
               aria-expanded={isOpen(entry.group)}
-              className="hidden @6xl:flex items-center gap-1 px-3.5 pt-3 pb-1 font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--mute)] hover:text-[var(--slate)] transition-colors select-none"
+              className="hidden @6xl:flex items-center gap-1.5 px-3 py-1.5 mt-2 rounded-lg font-mono text-[12px] font-bold uppercase tracking-[0.14em] transition-transform hover:translate-x-0.5 motion-reduce:transform-none select-none"
+              style={{ color: entry.items[0].color, background: entry.items[0].soft }}
             >
               <ChevronRight
-                className={"w-3 h-3 transition-transform " + (isOpen(entry.group) ? "rotate-90" : "")}
-                strokeWidth={2.5}
+                className={"w-3.5 h-3.5 transition-transform " + (isOpen(entry.group) ? "rotate-90" : "")}
+                strokeWidth={2.75}
                 aria-hidden
               />
               {entry.group}
-              {/* When folded, say what's inside — count, plus a dot if the
-                  active page is hiding in there (possible mid-navigation). */}
+              {/* When folded, say what's inside — the count keeps a closed
+                  header honest about not being empty. */}
               {!isOpen(entry.group) && (
-                <span className="ml-auto font-normal text-[9px]">{entry.items.length}</span>
+                <span
+                  className="ml-auto text-[10px] font-bold px-1.5 py-0.5 rounded-full text-white"
+                  style={{ background: entry.items[0].color }}
+                >
+                  {entry.items.length}
+                </span>
               )}
             </button>
             {entry.items.map((n) => renderItem(n, !isOpen(entry.group)))}
