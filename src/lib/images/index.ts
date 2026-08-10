@@ -41,6 +41,19 @@ export type ImageGenRequest = {
   referenceUrl?: string;
   /** Multi-tenant: resolve the provider key for THIS workspace first. */
   workspaceId?: string;
+  /**
+   * Post-process before storing: cover-resize to EXACTLY this size. The sharp
+   * re-encode this implies also drops embedded metadata (EXIF/XMP/C2PA content
+   * credentials) — the same strip social publishing does at its wire, done at
+   * storage time instead because these bytes leave through many doors
+   * (WordPress media upload, og:image scrapes, manual download). Provenance
+   * still lives in the DB: audit rows and `source`/`provider` name the
+   * generator. ⚠ Google SynthID is pixel-level and SURVIVES this — Gemini
+   * images may still be detected by SynthID readers. Best-effort: on any
+   * sharp failure the original bytes are stored (a post-process nicety must
+   * never turn a paid render into nothing).
+   */
+  output?: { width: number; height: number };
 };
 
 export type ImageGenResult = {
@@ -107,8 +120,22 @@ async function store(
   aspect: string,
   provider: string,
   mimeType = "image/png",
+  output?: { width: number; height: number },
 ): Promise<ImageGenResult> {
-  const buf = Buffer.from(bytes);
+  let buf = Buffer.from(bytes);
+  if (output && output.width > 0 && output.height > 0) {
+    try {
+      const sharp = (await import("sharp")).default;
+      // No explicit format: sharp keeps the input format, so mimeType stays
+      // true. `rotate()` bakes EXIF orientation in before EXIF is dropped;
+      // `cover` crops rather than distorting. The re-encode is what strips
+      // C2PA/XMP — see ImageGenRequest.output for the full reasoning.
+      buf = await sharp(buf).rotate().resize(output.width, output.height, { fit: "cover" }).toBuffer();
+    } catch (e) {
+      console.warn("[images] output transform failed — storing original bytes:", e instanceof Error ? e.message : e);
+    }
+  }
+  // Measured from what we actually stored, never echoed from the request.
   const [w, h] = dimsOfBytes(buf) ?? dimsFor(aspect);
   const ext = mimeType.includes("jpeg") ? "jpg" : mimeType.includes("webp") ? "webp" : "png";
   const file = await storage.put(`${provider}-${Date.now()}.${ext}`, buf, mimeType);
@@ -190,11 +217,11 @@ const openaiProvider: ImageProvider = {
     const first = body.data?.[0];
     // gpt-image-1 always returns base64; older models could return a URL, so
     // accept that too rather than breaking on a model swap.
-    if (first?.b64_json) return store(Buffer.from(first.b64_json, "base64"), aspect, "openai");
+    if (first?.b64_json) return store(Buffer.from(first.b64_json, "base64"), aspect, "openai", "image/png", req.output);
     if (first?.url) {
       const img = await fetch(first.url, { signal: AbortSignal.timeout(OPENAI_TIMEOUT_MS) });
       if (!img.ok) throw new Error(`Could not download the generated image (HTTP ${img.status}).`);
-      return store(new Uint8Array(await img.arrayBuffer()), aspect, "openai");
+      return store(new Uint8Array(await img.arrayBuffer()), aspect, "openai", "image/png", req.output);
     }
     throw new Error("OpenAI returned no image data.");
   },
@@ -261,7 +288,7 @@ const googleProvider: ImageProvider = {
           : "Google returned no image — the prompt may have been refused by its safety filters.",
       );
     }
-    return store(Buffer.from(inline.data, "base64"), aspect, "google", inline.mimeType ?? "image/png");
+    return store(Buffer.from(inline.data, "base64"), aspect, "google", inline.mimeType ?? "image/png", req.output);
   },
 };
 

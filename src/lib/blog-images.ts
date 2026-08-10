@@ -346,12 +346,22 @@ export async function generateImageCore(workspaceId: string, postId: string, rol
   // lib/images). This core runs unattended from autopilot, where an uncaught
   // throw would take down the whole cycle — so it degrades to "no image made"
   // like every other early return here, and leaves no fake image behind.
+  //
+  // `output: spec` does two jobs at once: the stored file is EXACTLY the
+  // brand's pixel spec (so the dimension gate passes instead of warning about
+  // 1536×1024-vs-1920×1080 forever), and the sharp re-encode it implies drops
+  // the C2PA content credentials gpt-image/gemini stamp into every file — the
+  // same strip social publishing does, done here because blog images leave
+  // through many doors (WP media upload, og:image scrapes, manual download).
+  // ⚠ Google SynthID is pixel-level and survives; provenance stays recorded in
+  // the audit row and BlogImage.source either way.
   let out;
   try {
     out = await imageProvider.generate({
       prompt: brief.slice(0, 1200),
       aspectRatio: aspect,
       workspaceId,
+      output: spec,
     });
   } catch (e) {
     console.warn("[blog-images] generation failed:", e instanceof Error ? e.message : e);
@@ -389,4 +399,36 @@ export async function generateImageCore(workspaceId: string, postId: string, rol
     meta: { role, provider: out.provider, status: "pending_review" },
   });
   return true;
+}
+
+/**
+ * The unattended path: briefs (if none yet) then featured + OG, for a freshly
+ * drafted post. Called by autopilot right after a draft parks at review, so
+ * the human reviewing the article finds its imagery waiting in the same place
+ * — still `pending`, still theirs to approve.
+ *
+ * ⚠ NEVER overwrites a human's choice. A role whose image was attached by URL
+ * or upload, or already approved, is skipped — `generateImageCore`'s
+ * unconditional upsert is correct under the manual button (a human clicked)
+ * and wrong here. Gated on `aiImagesEnabled` BEFORE brief generation so a
+ * workspace with images off doesn't spend LLM budget writing briefs nobody
+ * will render.
+ */
+export async function generateBlogImagesCore(workspaceId: string, postId: string): Promise<number> {
+  const brand = await getBrandKit(workspaceId);
+  if (!brand.aiImagesEnabled) return 0;
+
+  let briefs = await getImageBriefs(postId);
+  if (!briefs.featured && !briefs.og) {
+    if (!(await generateImageBriefsCore(workspaceId, postId))) return 0;
+    briefs = await getImageBriefs(postId);
+  }
+
+  let made = 0;
+  for (const role of IMAGE_ROLES) {
+    const existing = await db.blogImage.findUnique({ where: { postId_role: { postId, role } } });
+    if (existing && (existing.source !== "ai" || existing.status === "approved")) continue;
+    if (await generateImageCore(workspaceId, postId, role)) made++;
+  }
+  return made;
 }

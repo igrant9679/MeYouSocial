@@ -26,7 +26,7 @@ import { getVideoProvider, estimateCostUsd } from "@/lib/video";
 import { getApiKey } from "@/lib/llm/keys";
 import { templateGuidance, trackLabel, trackWordTarget } from "@/lib/blog-templates";
 import { buildJsonLd } from "@/lib/blog-jsonld";
-import { loadAssetGate } from "@/lib/blog-images";
+import { loadAssetGate, generateBlogImagesCore } from "@/lib/blog-images";
 import {
   brandGuardrailBlock,
   ensureMotifDirectives,
@@ -912,6 +912,7 @@ export type CycleReport = {
   drafted: number;
   variantPosts: number;
   postsGenerated: number;
+  imagesGenerated: number;
   published: number;
   videosPackaged: number;
   videosRendered: number;
@@ -924,6 +925,7 @@ export async function runAutopilotCycle(workspaceId: string): Promise<CycleRepor
     drafted: 0,
     variantPosts: 0,
     postsGenerated: 0,
+    imagesGenerated: 0,
     published: 0,
     videosPackaged: 0,
     videosRendered: 0,
@@ -1004,6 +1006,17 @@ export async function runAutopilotCycle(workspaceId: string): Promise<CycleRepor
       if (ok) {
         await db.blogPost.update({ where: { id: post.id }, data: { status: "draft_review" } });
         report.drafted++;
+        // Images ride the draft: briefs + featured/OG, landing `pending` at the
+        // same review the article itself just parked at — one stop for the
+        // human, and with requireImagesToPublish on (the default) the article
+        // can't publish without them anyway. Gated on brand.aiImagesEnabled
+        // inside the core; isolated so an image-provider outage can't undo the
+        // draft that just succeeded.
+        try {
+          report.imagesGenerated += await generateBlogImagesCore(workspaceId, post.id);
+        } catch (e) {
+          console.error(`[autopilot] image generation failed for ${post.id}:`, e instanceof Error ? e.message : e);
+        }
       }
     }
   }
@@ -1096,7 +1109,7 @@ export async function runAutopilotCycle(workspaceId: string): Promise<CycleRepor
 
   const activity =
     report.ideasCreated + report.drafted + report.variantPosts + report.postsGenerated +
-    report.published + report.videosPackaged + report.videosRendered;
+    report.imagesGenerated + report.published + report.videosPackaged + report.videosRendered;
   if (activity > 0) {
     await writeAudit({
       workspaceId,
