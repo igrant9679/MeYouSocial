@@ -6,7 +6,7 @@ import { requireRole, canAdmin } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { getSetting } from "@/lib/settings";
 import { writeAudit } from "@/lib/governance";
-import { sendInboxMessage, replyOnPost, explainInboxSendError } from "@/lib/zernio/inbox";
+import { sendInboxMessage, replyOnPost, replyToInboxReview, explainInboxSendError } from "@/lib/zernio/inbox";
 
 /**
  * Answering from Engage: a direct-message reply, and a comment on our own post.
@@ -100,6 +100,53 @@ export async function sendInboxReplyAction(formData: FormData) {
   });
   revalidatePath("/social", "layout");
   back(`Sent on ${account.platform}.`, "ok");
+}
+
+/**
+ * Reply to a review.
+ *
+ * Public, immediate, and attached to the business itself rather than to one
+ * post — which is why it takes the same admin gate as a public comment while
+ * the workspace reviews content before it goes out.
+ */
+export async function replyToReviewAction(formData: FormData) {
+  const { workspace, membership } = await requireRole("EDITOR");
+  const reviewId = String(formData.get("reviewId") ?? "");
+  const accountId = String(formData.get("accountId") ?? "");
+  const back: Flash = (msg, kind = "err") => flashTo("/social/engage", msg, kind);
+
+  if (!reviewId || !accountId) back("Couldn't tell which review that was.");
+  const account = await requireOwnAccount(workspace.id, accountId, back);
+
+  if (!canAdmin(membership.role)) {
+    const requireApproval =
+      (await getSetting("social:require_approval", workspace.id).catch(() => "")) === "true";
+    if (requireApproval) {
+      back("This workspace reviews posts before they go out, so replying to a review is admin-only.");
+    }
+  }
+
+  const message = requireMessage(formData.get("message"), back);
+
+  try {
+    await replyToInboxReview({ workspaceId: workspace.id, reviewId, accountId, message });
+  } catch (e) {
+    const detail = e instanceof Error ? e.message : String(e);
+    await writeAudit({
+      workspaceId: workspace.id, actorId: membership.userId,
+      action: "social.review_reply_failed", entityType: "zernio_review", entityId: reviewId,
+      meta: { platform: account.platform, chars: message.length, error: detail.slice(0, 300) },
+    });
+    back(`Couldn't post that reply. ${explainInboxSendError(detail)}`);
+  }
+
+  await writeAudit({
+    workspaceId: workspace.id, actorId: membership.userId,
+    action: "social.review_replied", entityType: "zernio_review", entityId: reviewId,
+    meta: { platform: account.platform, account: account.displayName ?? account.username, chars: message.length },
+  });
+  revalidatePath("/social", "layout");
+  back(`Replied on ${account.platform}.`, "ok");
 }
 
 /** Answer a comment by commenting on the post it sits under. */

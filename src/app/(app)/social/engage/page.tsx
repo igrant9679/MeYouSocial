@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { MessagesSquare, MessageCircle, ExternalLink, Info, AlertTriangle, ArrowLeft, Heart, BellRing } from "lucide-react";
+import { MessagesSquare, MessageCircle, ExternalLink, Info, AlertTriangle, ArrowLeft, Heart, BellRing, Star } from "lucide-react";
 import { requireRole, canAdmin } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { getSetting } from "@/lib/settings";
@@ -12,6 +12,8 @@ import {
   listInboxComments,
   inboxSupportFor,
   messagingWindow,
+  listInboxReviews,
+  type InboxReview,
   type InboxConversation,
   type InboxCommentablePost,
 } from "@/lib/zernio/inbox";
@@ -21,7 +23,7 @@ import { markInboxEventsReadAction } from "@/app/actions/social-inbox-events";
 import { InboxReply } from "@/components/InboxReply";
 import { DeleteButton } from "@/components/DeleteButton";
 import { commentRef } from "@/lib/deletable";
-import { sendInboxReplyAction, replyOnPostAction } from "@/app/actions/social-inbox";
+import { sendInboxReplyAction, replyOnPostAction, replyToReviewAction } from "@/app/actions/social-inbox";
 
 /**
  * Engage — the direct messages and post comments Zernio can see, in one place.
@@ -81,7 +83,7 @@ export default async function EngagePage({ searchParams }: { searchParams: Promi
 
   // One thread at a time: a message list needs its conversation's accountId,
   // and comments need their post's — Zernio 400s without them, it won't guess.
-  const [conversations, posts, thread, comments, unseen, unseenTotal] = await Promise.all([
+  const [conversations, posts, thread, comments, unseen, unseenTotal, reviews] = await Promise.all([
     listInboxConversations({ workspaceId: workspace.id, platform: net, limit: 50 }).catch(() => [] as InboxConversation[]),
     listCommentablePosts({ workspaceId: workspace.id, platform: net, limit: 100 }).catch(() => [] as InboxCommentablePost[]),
     dm && acct
@@ -96,6 +98,9 @@ export default async function EngagePage({ searchParams }: { searchParams: Promi
       take: 8,
     }),
     db.socialInboxEvent.count({ where: { workspaceId: workspace.id, readAt: null } }),
+    db.workspace.findUnique({ where: { id: workspace.id }, select: { zernioProfileId: true } })
+      .then((w) => listInboxReviews({ workspaceId: workspace.id, profileId: w?.zernioProfileId, limit: 25 }))
+      .catch(() => [] as InboxReview[]),
   ]);
 
   const withComments = posts.filter((p) => p.commentCount > 0);
@@ -185,6 +190,69 @@ export default async function EngagePage({ searchParams }: { searchParams: Promi
       {/* Coverage, stated once and plainly. Without this the empty columns
           below read as "nobody wrote to you", which isn't what they mean. */}
       <CoverageNote connected={connected} filtered={net} />
+
+      {/* ── Reviews ─────────────────────────────────────────────────────────
+          Their own section rather than a third column: a review is attached to
+          the business, not to a post or a person, and it stays visible for
+          years. */}
+      {reviews.length > 0 && (
+        <section className="mb-4">
+          <div className="flex items-center gap-2 mb-2">
+            <Star className="w-4 h-4" style={{ color: "var(--amber-on)" }} />
+            <h2 className="font-mono font-bold text-sm">Reviews</h2>
+            <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "var(--panel)", color: "var(--mute)" }}>
+              {reviews.filter((r) => !r.hasReply).length} unanswered
+            </span>
+          </div>
+          <div className="flex flex-col gap-2">
+            {reviews.map((r) => (
+              <div key={`${r.platform}-${r.id}`} className="card">
+                <div className="flex items-start gap-2 mb-1.5">
+                  <span className="pt-1"><NetDot platform={r.platform} /></span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-xs font-semibold">{r.reviewerName ?? "Anonymous"}</span>
+                      <Rating rating={r.rating} platform={r.platform} />
+                      <span className="font-mono text-[9.5px] text-[var(--mute)]">{when(r.created)}</span>
+                      {r.locationName && <span className="font-mono text-[9.5px] text-[var(--mute)]">{r.locationName}</span>}
+                      {r.hasReply && (
+                        <span className="font-mono text-[9.5px] px-1.5 py-0.5 rounded-full" style={{ background: "var(--green-soft)", color: "var(--green-on)" }}>
+                          replied
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-[var(--slate)] whitespace-pre-wrap mt-1">{r.text || <span className="italic text-[var(--mute)]">(no written review)</span>}</p>
+                  </div>
+                  {r.reviewUrl && (
+                    <a href={r.reviewUrl} target="_blank" rel="noreferrer" className="btn sm flex-shrink-0" title="Open on the network">
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
+                  )}
+                </div>
+
+                {r.hasReply ? (
+                  <div className="text-xs border-l-2 pl-2 mt-2" style={{ borderColor: "var(--green)" }}>
+                    <div className="font-mono text-[9.5px] text-[var(--mute)] mb-0.5">Your reply</div>
+                    <p className="whitespace-pre-wrap text-[var(--slate)]">{r.replyText ?? <span className="italic text-[var(--mute)]">(reply posted, text not returned)</span>}</p>
+                  </div>
+                ) : commentsLocked ? (
+                  <p className="text-[11px] text-[var(--mute)] mt-2 pt-2 border-t border-[var(--line)]">
+                    This workspace reviews posts before they go out, so replying to a review is admin-only.
+                  </p>
+                ) : (
+                  <InboxReply
+                    action={replyToReviewAction}
+                    hidden={{ reviewId: r.id, accountId: r.accountId }}
+                    asLabel={r.accountUsername ?? networkFor(r.platform)?.label ?? r.platform}
+                    placeholder={`Reply to ${r.reviewerName ?? "this review"}…`}
+                    publicNote="public, and shown under the review for as long as it stands"
+                  />
+                )}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       <div className="grid gap-4 lg:grid-cols-2 items-start">
         {/* ── Direct messages ─────────────────────────────────────────────── */}
@@ -464,6 +532,35 @@ function EmptyOrUnsupported({
         <> {unsupported.map((p) => networkFor(p)?.label ?? p).join(", ")} can&apos;t be read at all, so {unsupported.length === 1 ? "it isn't" : "they aren't"} counted here.</>
       )}
     </div>
+  );
+}
+
+/**
+ * A star rating, or an honest absence.
+ *
+ * ⚠ Facebook Pages have no star ratings — they use Recommendations, and a real
+ * Facebook review comes back with NO `rating` field at all (verified on all
+ * three live reviews). Rendering that as ☆☆☆☆☆ or 0/5 would turn a compliment
+ * into a one-star. Null means "this network doesn't rate", which is a
+ * different fact from "rated zero", so it says so.
+ */
+function Rating({ rating, platform }: { rating: number | null; platform: string }) {
+  if (rating === null) {
+    return (
+      <span className="font-mono text-[9.5px] text-[var(--mute)]" title={`${networkFor(platform)?.label ?? platform} uses recommendations rather than star ratings`}>
+        no rating
+      </span>
+    );
+  }
+  const full = Math.max(0, Math.min(5, Math.round(rating)));
+  return (
+    <span
+      className="font-mono text-[11px]"
+      style={{ color: full <= 2 ? "var(--rose-on)" : full >= 4 ? "var(--green-on)" : "var(--amber-on)" }}
+      title={`${rating} out of 5`}
+    >
+      {"★".repeat(full)}{"☆".repeat(5 - full)} {rating}/5
+    </span>
   );
 }
 

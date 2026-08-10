@@ -309,6 +309,82 @@ export async function replyOnPost(opts: {
   );
 }
 
+/**
+ * A review on a connected account.
+ *
+ * ⚠ `rating` IS GENUINELY ABSENT ON FACEBOOK. Facebook retired star ratings for
+ * Pages in favour of Recommendations, so a real Facebook review carries text,
+ * a reviewer and nothing numeric — verified against all three live reviews on
+ * 2026-08-10. Rendering it as 0/5 would invent a one-star out of a compliment;
+ * null means "this network doesn't rate", which is a different fact from "rated
+ * zero". Google Business does send 1–5.
+ */
+export type InboxReview = {
+  id: string;
+  platform: string;
+  accountId: string;
+  accountUsername: string | null;
+  reviewerName: string | null;
+  text: string;
+  created: string | null;
+  /** Null on Facebook — see above. Never coerce this to a number. */
+  rating: number | null;
+  hasReply: boolean;
+  replyText: string | null;
+  reviewUrl: string | null;
+  locationName: string | null;
+};
+
+export async function listInboxReviews(opts: {
+  workspaceId: string;
+  profileId?: string | null;
+  limit?: number;
+}): Promise<InboxReview[]> {
+  const qs = new URLSearchParams({ limit: String(Math.min(50, opts.limit ?? 25)) });
+  if (opts.profileId) qs.set("profileId", opts.profileId);
+  const body = await zernioJson(`/inbox/reviews?${qs}`, opts.workspaceId);
+  const rows = (body?.data ?? []) as Record<string, unknown>[];
+  return (Array.isArray(rows) ? rows : []).map((r) => {
+    const reviewer = (r.reviewer ?? {}) as Record<string, unknown>;
+    const reply = (r.reply ?? {}) as Record<string, unknown>;
+    return {
+      id: String(r.id ?? ""),
+      platform: String(r.platform ?? "").toLowerCase(),
+      accountId: String(r.accountId ?? ""),
+      accountUsername: str(r.accountUsername),
+      reviewerName: str(reviewer.name),
+      text: readableText(String(r.text ?? "")),
+      created: str(r.created),
+      // Only a real number counts. `undefined`, null and "" all mean unrated.
+      rating: typeof r.rating === "number" && Number.isFinite(r.rating) ? r.rating : null,
+      hasReply: r.hasReply === true,
+      replyText: str(reply.text),
+      reviewUrl: str(r.reviewUrl),
+      locationName: str(r.locationName),
+    };
+  });
+}
+
+/**
+ * Reply to a review. Public and immediate, like a comment.
+ *
+ * ⚠ The id must be URL-ENCODED — Google Business review ids are path-shaped
+ * (`accounts/…/locations/…/reviews/…`) and would otherwise break the route.
+ * Facebook's are numeric, so encoding is harmless there.
+ */
+export async function replyToInboxReview(opts: {
+  workspaceId: string;
+  reviewId: string;
+  accountId: string;
+  message: string;
+}): Promise<void> {
+  await zernioSend(
+    `/inbox/reviews/${encodeURIComponent(opts.reviewId)}/reply`,
+    { accountId: opts.accountId, message: opts.message },
+    opts.workspaceId,
+  );
+}
+
 /** The actual comments on one post. `accountId` is required, as above. */
 export async function listInboxComments(opts: {
   workspaceId: string;
