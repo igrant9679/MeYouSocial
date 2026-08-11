@@ -58,13 +58,8 @@ export function registerSocialImageJobs() {
     const squareFirst = new Set(["instagram", "pinterest", "tiktok"]);
     const aspect = post.targets.some((t) => squareFirst.has(t.provider)) ? "1:1" : "16:9";
 
-    // The post text is the grounding; URLs add nothing to a picture.
-    const textForPrompt = post.text.replace(/https?:\/\/\S+/g, "").trim().slice(0, 600);
-    const prompt =
-      `Social media graphic to accompany this post: "${textForPrompt}". ` +
-      `Clean, modern, professional; simple bold composition; readable if it includes a short phrase from the post; ` +
-      `no watermarks, no logos, no fake UI screenshots.` +
-      (post.campaign?.name ? ` Part of the "${post.campaign.name}" series — keep a consistent, minimal style.` : "");
+    const { socialImagePrompt } = await import("@/lib/social/image-prompt");
+    const prompt = socialImagePrompt({ text: post.text, campaign: post.campaign?.name });
 
     const img = await provider.generate({ prompt, aspectRatio: aspect, workspaceId: post.workspaceId });
     if (!img.key) return; // defensive: only real, stored bytes get attached

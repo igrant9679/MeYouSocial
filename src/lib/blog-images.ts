@@ -233,8 +233,12 @@ export async function generateImageBriefsCore(workspaceId: string, postId: strin
 
   const system =
     "You write art-direction briefs for editorial images. Respond ONLY with JSON: " +
-    '{"featured": string, "og": string}. Each brief is 3-5 sentences covering subject, composition, ' +
+    '{"featured": string, "og": string}. Each brief is 4-6 sentences covering subject, composition, ' +
     "colour treatment, and what to avoid. Concrete and specific — no mood-board waffle. " +
+    "Direct like a magazine art director, not a slide designer: NAME a specific medium suited to the " +
+    "subject (cinematic photography, painterly illustration, tactile 3D, macro detail), specify the " +
+    "lighting and where the depth comes from, and demand texture and material richness — never flat " +
+    "corporate vector minimalism or a plain gradient backdrop. " +
     "Explicitly forbid generic stock clichés (handshakes, faceless suits, glowing circuit boards, " +
     "people pointing at charts). Never describe text overlays that state statistics or claims.";
 

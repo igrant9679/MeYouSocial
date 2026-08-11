@@ -46,11 +46,8 @@ export async function generateComposerImageAction(input: {
   }
 
   const guidance = String(input.guidance ?? "").trim().slice(0, 300);
-  const prompt =
-    `Social media graphic to accompany this post: "${text.slice(0, 600)}". ` +
-    `Clean, modern, professional; simple bold composition; readable if it includes a short phrase from the post; ` +
-    `no watermarks, no logos, no fake UI screenshots.` +
-    (guidance ? ` Style guidance from the author: ${guidance}.` : "");
+  const { socialImagePrompt } = await import("@/lib/social/image-prompt");
+  const prompt = socialImagePrompt({ text, guidance: guidance || null });
 
   try {
     const img = await provider.generate({

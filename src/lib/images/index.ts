@@ -174,6 +174,23 @@ function openaiSize(aspect: string): string {
   return aspect === "1:1" ? "1024x1024" : aspect === "9:16" ? "1024x1536" : "1536x1024";
 }
 
+/**
+ * Render quality for gpt-image-1 — `image:quality` (low|medium|high|auto),
+ * DEFAULT HIGH. The parameter default ("auto") was producing the flat, simple
+ * output the user reported 2026-08-10; high costs roughly 4× medium per image
+ * and is the point of paying for images at all. A workspace that wants cheaper
+ * renders dials the setting down. Gemini has no equivalent knob — its quality
+ * rides on the prompt alone.
+ */
+async function openaiQuality(workspaceId?: string): Promise<string> {
+  try {
+    const { getSetting } = await import("@/lib/settings");
+    const v = (await getSetting("image:quality", workspaceId)).trim().toLowerCase();
+    if (["low", "medium", "high", "auto"].includes(v)) return v;
+  } catch { /* fall through to the default */ }
+  return "high";
+}
+
 const openaiProvider: ImageProvider = {
   name: "openai",
   async generate(req) {
@@ -188,6 +205,7 @@ const openaiProvider: ImageProvider = {
         model: OPENAI_MODEL,
         prompt: req.prompt.slice(0, 4000),
         size: openaiSize(aspect),
+        quality: await openaiQuality(req.workspaceId),
         n: 1,
       }),
       signal: AbortSignal.timeout(OPENAI_TIMEOUT_MS),
