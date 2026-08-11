@@ -76,8 +76,29 @@ export default async function HelpPage() {
           </div>
         </div>
         <div className="mt-3 flex flex-wrap gap-2">
-          <Link href="/social/compose" className="btn sm primary">Try the 2-minute first post →</Link>
+          <Link href="/help/guide" className="btn sm primary">Read the owner&apos;s guide →</Link>
+          <Link href="/social/compose" className="btn sm">Try the 2-minute first post</Link>
           <Link href="/admin/api-keys" className="btn sm">Check my API keys</Link>
+        </div>
+      </section>
+
+      {/* The owner's guide — the document this Help page can't be: onboarding
+          as a narrative plus the daily/weekly/monthly routine. Linked twice on
+          purpose (button above, card here): it's the page new owners need and
+          the one nobody thinks to look for. */}
+      <section className="card mb-4" style={{ borderColor: "var(--amber)" }}>
+        <div className="flex items-center gap-3">
+          <span className="w-9 h-9 rounded-xl grid place-items-center flex-shrink-0" style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }}>
+            <Compass className="w-4.5 h-4.5" strokeWidth={2.25} />
+          </span>
+          <div className="flex-1 min-w-0">
+            <div className="text-sm font-semibold">The owner&apos;s guide</div>
+            <div className="text-[12px] text-[var(--mute)] leading-snug">
+              Onboarding as a ten-minute read, then the routine: what tending this app looks like daily
+              (~5 min), weekly (~30 min) and monthly (~1 hr).
+            </div>
+          </div>
+          <Link href="/help/guide" className="btn sm flex-shrink-0">Open</Link>
         </div>
       </section>
 
