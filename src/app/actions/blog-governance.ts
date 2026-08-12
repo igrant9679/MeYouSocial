@@ -59,6 +59,28 @@ export async function saveWeeklyArticleTargetAction(formData: FormData) {
   revalidatePath("/blog/automation");
 }
 
+/**
+ * Admin: the autonomous-SEO switch. ON = every autopilot draft gets its meta
+ * title, description and slug generated (fill-only — a human's hand-tuned
+ * values are never overwritten). Stored in the auto_image convention: the row
+ * holds "false" to switch off, and is CLEARED to switch on, so absent = on
+ * and a stale row can't shadow the default.
+ */
+export async function toggleAutoSeoAction(formData: FormData) {
+  const { user, workspace } = await requireRole("ADMIN");
+  const enable = String(formData.get("enable")) === "true";
+  const { setWorkspaceSetting } = await import("@/lib/settings");
+  await setWorkspaceSetting(workspace.id, "blog:auto_seo", enable ? "" : "false");
+  await writeAudit({
+    workspaceId: workspace.id,
+    actorId: user.id,
+    action: "governance.auto_seo_set",
+    entityType: "workspace",
+    meta: { enabled: enable },
+  });
+  revalidatePath("/blog/automation");
+}
+
 export async function toggleGlobalPauseAction() {
   const { user, workspace } = await requireRole("ADMIN");
   const current = await db.automationState.findUnique({ where: { workspaceId: workspace.id } });

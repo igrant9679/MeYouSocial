@@ -1,10 +1,10 @@
 import Link from "next/link";
-import { ArrowLeft, Bot, OctagonPause, Play, SlidersHorizontal } from "lucide-react";
+import { ArrowLeft, Bot, OctagonPause, Play, Search, SlidersHorizontal } from "lucide-react";
 import { requireMembership, canAdmin } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { GOVERNED_FUNCTIONS, FUNCTION_LABELS, MODES, getModes, isGloballyPaused } from "@/lib/governance";
 import { SubmitButton } from "@/components/SubmitButton";
-import { runAutopilotNowAction, setFunctionModeAction, toggleGlobalPauseAction, saveWeeklyArticleTargetAction } from "@/app/actions/blog-governance";
+import { runAutopilotNowAction, setFunctionModeAction, toggleGlobalPauseAction, saveWeeklyArticleTargetAction, toggleAutoSeoAction } from "@/app/actions/blog-governance";
 import { getSetting } from "@/lib/settings";
 
 // The three-mode autonomy dial + kill switch. Admin-writable; visible to all.
@@ -34,6 +34,8 @@ export default async function AutomationPage() {
   const intervalMin = Math.max(5, parseInt(process.env.AUTOPILOT_INTERVAL_MIN ?? "30", 10) || 30);
   const autopilotOff = process.env.AUTOPILOT === "off";
   const weeklyArticles = await getSetting("autopilot:weekly_articles", workspace.id).catch(() => "");
+  // auto_image convention: absent = on, off is the explicit string "false".
+  const autoSeo = (await getSetting("blog:auto_seo", workspace.id).catch(() => "")) !== "false";
 
   return (
     <main className="p-6 w-full">
@@ -119,6 +121,32 @@ export default async function AutomationPage() {
           </form>
         ) : (
           <span className="font-mono text-sm">{weeklyArticles || "no cap"}</span>
+        )}
+      </div>
+
+      {/* SEO with every draft — the autonomous-mode switch the user asked for.
+          The publish gate REQUIRES meta title/description/slug, so OFF means
+          every autopilot draft arrives at review with those checks failing
+          until someone clicks Generate in the editor. */}
+      <div className="card mb-5 flex flex-wrap items-center gap-3">
+        <Search className="w-5 h-5" style={{ color: autoSeo ? "var(--green-on)" : "var(--mute)" }} />
+        <div className="flex-1 min-w-48">
+          <div className="text-sm font-semibold">SEO metadata with every draft {autoSeo ? "— on" : "— off"}</div>
+          <div className="text-xs text-[var(--mute)]">
+            Each autopilot draft gets its meta title, meta description and URL slug generated with the article
+            (the publish checks require all three). Only empty fields are filled — hand-tuned metadata is never
+            overwritten. The Generate button in the post editor works either way.
+          </div>
+        </div>
+        {admin ? (
+          <form action={toggleAutoSeoAction}>
+            <input type="hidden" name="enable" value={autoSeo ? "false" : "true"} />
+            <SubmitButton className={autoSeo ? "btn" : "btn primary"} pendingText="Saving…">
+              {autoSeo ? "Turn off" : "Turn on"}
+            </SubmitButton>
+          </form>
+        ) : (
+          <span className="font-mono text-sm">{autoSeo ? "on" : "off"}</span>
         )}
       </div>
 

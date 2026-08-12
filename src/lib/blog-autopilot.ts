@@ -913,6 +913,7 @@ export type CycleReport = {
   variantPosts: number;
   postsGenerated: number;
   imagesGenerated: number;
+  seoOptimized: number;
   published: number;
   videosPackaged: number;
   videosRendered: number;
@@ -926,6 +927,7 @@ export async function runAutopilotCycle(workspaceId: string): Promise<CycleRepor
     variantPosts: 0,
     postsGenerated: 0,
     imagesGenerated: 0,
+    seoOptimized: 0,
     published: 0,
     videosPackaged: 0,
     videosRendered: 0,
@@ -1016,6 +1018,22 @@ export async function runAutopilotCycle(workspaceId: string): Promise<CycleRepor
           report.imagesGenerated += await generateBlogImagesCore(workspaceId, post.id);
         } catch (e) {
           console.error(`[autopilot] image generation failed for ${post.id}:`, e instanceof Error ? e.message : e);
+        }
+        // SEO metadata rides it too — the publish gate REQUIRES meta title,
+        // description and slug, so a draft without them is a stall, not a
+        // choice. `blog:auto_seo` (absent = ON, "false" = off; toggle on
+        // Blog → Automation) is the user's autonomous-mode switch. Fill-only:
+        // a re-run can never clobber a human's hand-tuned meta.
+        try {
+          const autoSeo = await getSetting("blog:auto_seo", workspaceId).catch(() => "");
+          if (autoSeo !== "false") {
+            const { generateSeoMetaCore } = await import("@/lib/blog-seo");
+            const seo = await generateSeoMetaCore(workspaceId, post.id, { onlyFillEmpty: true });
+            if (seo.ok) report.seoOptimized++;
+            else if (seo.reason === "mock") console.warn(`[autopilot] SEO meta for ${post.id} fell back to mock — skipped`);
+          }
+        } catch (e) {
+          console.error(`[autopilot] SEO meta failed for ${post.id}:`, e instanceof Error ? e.message : e);
         }
       }
     }
@@ -1109,7 +1127,8 @@ export async function runAutopilotCycle(workspaceId: string): Promise<CycleRepor
 
   const activity =
     report.ideasCreated + report.drafted + report.variantPosts + report.postsGenerated +
-    report.imagesGenerated + report.published + report.videosPackaged + report.videosRendered;
+    report.imagesGenerated + report.seoOptimized + report.published + report.videosPackaged +
+    report.videosRendered;
   if (activity > 0) {
     await writeAudit({
       workspaceId,

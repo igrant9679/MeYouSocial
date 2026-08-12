@@ -140,51 +140,12 @@ export async function applyTitleAction(formData: FormData) {
 export async function generateMetaAction(formData: FormData) {
   const id = String(formData.get("id"));
   const { workspace } = await requireRole("EDITOR");
-  if (await isGloballyPaused(workspace.id)) return;
-  const post = await db.blogPost.findFirst({ where: { id, workspaceId: workspace.id } });
-  if (!post) return;
-  const [motifs, guardrails] = await Promise.all([
-    motifPromptFor(workspace.id, post, "short"),
-    brandGuardrailBlock(workspace.id),
-  ]);
-  const res = await llm.complete({
-    model: post.model ?? workspace.defaultModel ?? llm.defaultModel,
-    system:
-      'Generate SEO metadata. Respond ONLY with JSON: {"metaTitle": string (≤60 chars), "metaDescription": string (≤155 chars, compelling, ends with a benefit), "slug": string (lowercase-hyphenated, ≤6 words)}.',
-    messages: [
-      {
-        role: "user",
-        content: [
-          `Title: "${post.title}"`,
-          motifs,
-          guardrails,
-          post.focusKeyword ? `Focus keyword (must appear in metaTitle and slug): ${post.focusKeyword}` : null,
-          post.body ? `Content: ${post.body.replace(/<[^>]+>/g, " ").slice(0, 800)}` : null,
-        ]
-          .filter(Boolean)
-          .join("\n"),
-      },
-    ],
-    maxTokens: 300,
-    workspaceId: workspace.id,
-  });
-  let meta: { metaTitle?: string; metaDescription?: string; slug?: string } = {};
-  try {
-    const m = res.content.match(/\{[\s\S]*\}/);
-    meta = m ? JSON.parse(m[0]) : {};
-  } catch {
-    meta = {};
-  }
-  const slug = typeof meta.slug === "string" ? meta.slug.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 80) : null;
-  await db.blogPost.update({
-    where: { id: post.id },
-    data: {
-      metaTitle: typeof meta.metaTitle === "string" ? meta.metaTitle.slice(0, 60) : post.metaTitle,
-      metaDescription: typeof meta.metaDescription === "string" ? meta.metaDescription.slice(0, 155) : post.metaDescription,
-      slug: slug || post.slug,
-    },
-  });
-  await writeAudit({ workspaceId: workspace.id, action: "blog.meta_generated", entityType: "blog_post", entityId: post.id });
+  // One implementation with the autopilot's SEO pass (lib/blog-seo). The
+  // manual click regenerates everything; the unattended caller fills only
+  // empty fields. Both refuse the router's silent mock fallback — mock meta
+  // would sail through the publish gate onto a real site.
+  const { generateSeoMetaCore } = await import("@/lib/blog-seo");
+  await generateSeoMetaCore(workspace.id, id);
   revalidatePath(`/blog/${id}`);
 }
 
