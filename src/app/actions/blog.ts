@@ -137,6 +137,44 @@ export async function advanceBlogStatusAction(formData: FormData) {
     ]);
     if (!requiredChecksPass(runBlogChecks(post, unverified, assets, editorial))) return;
   }
+
+  // ⚠ With a WordPress connection, "publish" must MEAN publish. This action
+  // used to flip the status and stop — the app said "published" while the
+  // site got nothing (found by the user on the first real publish,
+  // 2026-08-12). The bare status flip remains ONLY for installs with no WP
+  // connection, where publishing genuinely happens elsewhere (HTML export).
+  if (next === "published" && dir > 0 && !post.wpPostId) {
+    const conn = await db.wordPressConnection.findUnique({ where: { workspaceId: workspace.id } });
+    if (conn) {
+      const { publishCore } = await import("@/lib/blog-autopilot");
+      let failure: string | null = null;
+      let ok = false;
+      try {
+        ok = await publishCore(workspace.id, post.id);
+      } catch (e) {
+        failure = e instanceof Error ? e.message : String(e);
+      }
+      if (!ok) {
+        // Status unchanged — the state stays true. Name the failure.
+        redirect(
+          `/blog/${post.id}?flashErr=${encodeURIComponent(
+            `WordPress publish failed — the post was NOT marked published. ${failure ?? "Check the connection on Distribute → Website."}`.slice(0, 300),
+          )}`,
+        );
+      }
+      // publishCore set status/publishedUrl/wpPostId (or left it at final
+      // approval for a draft handoff) and wrote its own audit.
+      const after = await db.blogPost.findUnique({ where: { id: post.id }, select: { status: true, publishedUrl: true } });
+      redirect(
+        `/blog/${post.id}?flash=${encodeURIComponent(
+          after?.status === "published"
+            ? `Published to WordPress: ${after.publishedUrl ?? "link pending"}`
+            : "Handed off as a WordPress draft — publish it on the site when ready.",
+        )}`,
+      );
+    }
+  }
+
   await db.blogPost.update({
     where: { id: post.id },
     data: {

@@ -6,6 +6,8 @@ import { runBlogChecks, requiredChecksPass } from "@/lib/blog-checks";
 import { decryptSecret, type Encrypted } from "@/lib/blog-crypto";
 import {
   wpCreatePost,
+  wpUploadMediaBytes,
+  sniffImageMime,
   wpReadPost,
   wpResolveAuthor,
   wpResolveTerms,
@@ -471,7 +473,27 @@ export async function publishCore(workspaceId: string, postId: string): Promise<
   const ogImage = images.find((i) => i.role === "og");
 
   // Featured image goes into the media library rather than being hotlinked.
-  const media = featured ? await wpUploadMedia(creds, featured.url, featured.altText) : null;
+  // Stored images live at session-gated RELATIVE urls a server-side fetch
+  // cannot read (the first real publish went out imageless because of this) —
+  // resolve those to bytes from storage; only external urls are fetched.
+  let media: { id: number; sourceUrl: string } | null = null;
+  if (featured) {
+    const storedKey = featured.url.match(/\/(?:uploads|api\/files)\/([^"'\s)]+)/)?.[1];
+    if (storedKey) {
+      const { storage } = await import("@/lib/storage");
+      const buf = await storage.get(decodeURIComponent(storedKey)).catch(() => null);
+      if (buf) {
+        const bytes = new Uint8Array(buf);
+        const mime = sniffImageMime(bytes);
+        if (mime) {
+          const ext = mime.split("/")[1].replace("jpeg", "jpg");
+          media = await wpUploadMediaBytes(creds, bytes, `${post.slug || post.id}-featured.${ext}`, mime, featured.altText);
+        }
+      }
+    } else {
+      media = await wpUploadMedia(creds, featured.url, featured.altText);
+    }
+  }
 
   // Taxonomy: the post's own terms, falling back to the connection defaults.
   const postCategories = parseStringArray(post.categories);

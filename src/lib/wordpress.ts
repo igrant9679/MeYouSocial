@@ -271,13 +271,49 @@ export async function wpUploadMedia(
   imageUrl: string,
   altText: string | null,
 ): Promise<{ id: number; sourceUrl: string } | null> {
+  // ⚠ Only for EXTERNAL http(s) urls. Our own stored images live at
+  // session-gated RELATIVE urls (/api/files/…) that a server-side fetch cannot
+  // read — Node rejects the relative URL outright, this returned null, and the
+  // first real publish (2026-08-12) went out with no featured image while the
+  // report quietly said featuredUploadFailed. publishCore now resolves stored
+  // keys to bytes itself and calls wpUploadMediaBytes below.
   try {
+    if (!/^https?:\/\//i.test(imageUrl)) return null;
     const src = await fetch(imageUrl, { signal: AbortSignal.timeout(20000), redirect: "follow" });
     if (!src.ok) return null;
     const buf = await src.arrayBuffer();
-    if (!buf.byteLength || buf.byteLength > 15 * 1024 * 1024) return null;
+    if (!buf.byteLength) return null;
     const { name, mime } = filenameFor(imageUrl);
     const contentType = src.headers.get("content-type")?.split(";")[0] || mime;
+    return await wpUploadMediaBytes(c, new Uint8Array(buf), name, contentType, altText);
+  } catch {
+    return null;
+  }
+}
+
+/** Image mime from magic bytes — for stored files whose keys carry no extension. */
+export function sniffImageMime(b: Uint8Array): string | null {
+  if (b.length > 4 && b[0] === 0x89 && b[1] === 0x50) return "image/png";
+  if (b.length > 2 && b[0] === 0xff && b[1] === 0xd8) return "image/jpeg";
+  if (b.length > 12 && b[8] === 0x57 && b[9] === 0x45 && b[10] === 0x42 && b[11] === 0x50) return "image/webp";
+  if (b.length > 2 && b[0] === 0x47 && b[1] === 0x49) return "image/gif";
+  return null;
+}
+
+/** Upload raw image bytes into the WP media library and set alt text. */
+export async function wpUploadMediaBytes(
+  c: WpCredentials,
+  bytes: Uint8Array,
+  filename: string,
+  contentType: string,
+  altText: string | null,
+): Promise<{ id: number; sourceUrl: string } | null> {
+  try {
+    if (!bytes.byteLength || bytes.byteLength > 15 * 1024 * 1024) return null;
+    const name = filename;
+    // Copy into a plain ArrayBuffer: TS's BodyInit doesn't accept a bare
+    // Uint8Array view (it may sit over a SharedArrayBuffer).
+    const buf = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
 
     const res = await fetch(api(c, "/media"), {
       method: "POST",
