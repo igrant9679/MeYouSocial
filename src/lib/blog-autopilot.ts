@@ -532,7 +532,11 @@ export async function publishCore(workspaceId: string, postId: string): Promise<
 
   const status = conn.publishAsDraft ? "draft" : "publish";
   const created = await wpCreatePost(creds, {
-    title: post.metaTitle ?? post.title,
+    // The EDITORIAL title is the on-page headline (user's call 2026-08-12 —
+    // the first live publish surprised them with the 39-char SEO title as
+    // its h1). The meta title still reaches search engines through the SEO
+    // plugin's fields (seoValues.title, below) when one is configured.
+    title: post.title,
     slug: post.slug,
     content,
     excerpt: post.metaDescription,
