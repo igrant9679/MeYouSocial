@@ -15,7 +15,7 @@ import {
   type WpCredentials,
 } from "@/lib/wordpress";
 import { buildSeoMeta, effectiveFieldMap, isSeoPlugin, verifySeoMeta } from "@/lib/seo-plugins";
-import { renderForPublish } from "@/lib/blog-render";
+import { renderForPublish, stripLeadingH1 } from "@/lib/blog-render";
 import { isRenderProfile, parseRenderRules } from "@/lib/design-render";
 import { smePromptFor } from "@/lib/sme";
 import { loadEditorialContext } from "@/lib/blog-slop";
@@ -522,7 +522,8 @@ export async function publishCore(workspaceId: string, postId: string): Promise<
 
   // Structured data rides inside the content (works on any WP theme/plugin).
   const jsonLd = `\n<script type="application/ld+json">${buildJsonLd(post, workspace?.name ?? "MeYouSocial")}</script>`;
-  const rendered = renderForPublish(post.body, {
+  // The theme renders the headline; the body's leading h1 would duplicate it.
+  const rendered = renderForPublish(stripLeadingH1(post.body), {
     headingSpec: brand.headingSpec,
     footerCredit: brand.footerCredit,
     renderProfile: isRenderProfile(brand.renderProfile) ? brand.renderProfile : "html",

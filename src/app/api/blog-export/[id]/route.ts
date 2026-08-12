@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import { storage } from "@/lib/storage";
 import { getBrandKit } from "@/lib/motifs";
 import { buildJsonLd } from "@/lib/blog-jsonld";
-import { renderForPublish } from "@/lib/blog-render";
+import { renderForPublish, stripLeadingH1 } from "@/lib/blog-render";
 import { isRenderProfile, parseRenderRules } from "@/lib/design-render";
 import { writeAudit } from "@/lib/governance";
 
@@ -62,7 +62,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   if (!post || !post.body) return new NextResponse("Not found", { status: 404 });
 
   const brand = await getBrandKit(workspace.id);
-  const rendered = renderForPublish(post.body, {
+  // The export adds its own <h1> below — the body's leading h1 would duplicate it.
+  const rendered = renderForPublish(stripLeadingH1(post.body), {
     headingSpec: brand.headingSpec,
     footerCredit: brand.footerCredit,
     renderProfile: isRenderProfile(brand.renderProfile) ? brand.renderProfile : "html",

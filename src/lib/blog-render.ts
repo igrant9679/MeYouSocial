@@ -63,6 +63,20 @@ export function appendFooterCredit(html: string, credit: string | null | undefin
 }
 
 /**
+ * Drop the body's LEADING h1 — and only a leading one.
+ *
+ * Drafts open with an h1 that repeats the title, and every publish surface
+ * already renders a headline of its own (the WP theme's, the HTML export's) —
+ * the first live publish (2026-08-12) shipped two identical h1s. The stored
+ * body keeps its h1 (the editor and the heading-level check read it); the
+ * strip happens at the publish boundary only. An h1 that is NOT the first
+ * element is left alone — that's a content choice, not the title duplicate.
+ */
+export function stripLeadingH1(body: string): string {
+  return body.replace(/^\s*<h1\b[^>]*>[\s\S]*?<\/h1>\s*/i, "");
+}
+
+/**
  * The full publish-time transform: design-system mapping (FR-18), then the
  * heading spec, then the footer credit. Order matters — the pattern detectors
  * read clean semantic markup, so they run before inline styles are attached.
