@@ -337,6 +337,33 @@ export async function attachImageCore(
 }
 
 /**
+ * Alt text from an art-direction brief: its first sentence, which describes
+ * the subject ("Tactile 3D render of a tarnished brass coin-meter…"). Capped
+ * at a word boundary under the 200-char column limit.
+ *
+ * Exists because images generated WITHOUT alt text dead-end the workflow: the
+ * asset gate requires alt (WCAG), so every autopilot article stalled at an ✕
+ * no amount of approving could clear (found by the user on the first real
+ * walk-through, 2026-08-12). A derived default the human can edit beats an
+ * empty field only the human can notice.
+ */
+export function altFromBrief(brief: string): string | null {
+  const first = brief.trim().split(/(?<=[.!?])\s+/)[0] ?? "";
+  let clean = first.replace(/\s+/g, " ").trim();
+  // Briefs speak to a painter ("Create a high-end macro still-life…"); alt
+  // text speaks to a reader. Strip the leading imperative so it describes.
+  clean = clean.replace(
+    /^(?:create|render|generate|produce|design|make|illustrate|compose|depict|show(?:case)?|paint|craft)\b[\s:,-]*(?:an?\s+|the\s+)?/i,
+    "",
+  );
+  clean = clean.charAt(0).toUpperCase() + clean.slice(1);
+  if (!clean) return null;
+  if (clean.length <= 200) return clean;
+  const cut = clean.slice(0, 200);
+  return cut.slice(0, cut.lastIndexOf(" ") > 120 ? cut.lastIndexOf(" ") : 200).trim();
+}
+
+/**
  * Generate an image from the brief. Lands as `pending`: AI imagery always goes
  * through human review before it can satisfy the publish gate.
  */
@@ -379,28 +406,24 @@ export async function generateImageCore(workspaceId: string, postId: string, rol
     return false;
   }
 
+  // Alt text ships WITH the image — an empty alt fails the asset gate and the
+  // ✕ it produces cannot be cleared by approving (the trap the user hit on the
+  // first real walk-through). The brief's own subject sentence is the default;
+  // the reviewer can edit it on the image card.
+  const data = {
+    url: out.url,
+    width: out.width,
+    height: out.height,
+    source: "ai",
+    status: "pending",
+    branded: role === "og",
+    brief: brief.slice(0, 2000),
+    altText: altFromBrief(brief),
+  };
   await db.blogImage.upsert({
     where: { postId_role: { postId, role } },
-    update: {
-      url: out.url,
-      width: out.width,
-      height: out.height,
-      source: "ai",
-      status: "pending",
-      branded: role === "og",
-      brief: brief.slice(0, 2000),
-    },
-    create: {
-      postId,
-      role,
-      url: out.url,
-      width: out.width,
-      height: out.height,
-      source: "ai",
-      status: "pending",
-      branded: role === "og",
-      brief: brief.slice(0, 2000),
-    },
+    update: data,
+    create: { postId, role, ...data },
   });
   await writeAudit({
     workspaceId,

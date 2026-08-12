@@ -9,6 +9,7 @@ import {
   generateImageBriefsCore,
   generateImageCore,
   isImageRole,
+  parseImageDimensions,
   probeImageDimensions,
 } from "@/lib/blog-images";
 
@@ -89,11 +90,25 @@ export async function remeasureBlogImageAction(formData: FormData) {
   const { workspace } = await requireRole("EDITOR");
   const img = await db.blogImage.findFirst({ where: { id, post: { workspaceId: workspace.id } } });
   if (!img) return;
-  const dims = await probeImageDimensions(img.url);
-  await db.blogImage.update({
-    where: { id },
-    data: { width: dims?.width ?? null, height: dims?.height ?? null },
-  });
+  // Our own stored images live at session-gated RELATIVE urls (/uploads/…,
+  // /api/files/…) that an HTTP probe can never read — measure those straight
+  // from storage bytes. Only external http(s) urls go through the probe.
+  // ⚠ This action once wrote `dims ?? null`, so clicking Re-measure on a
+  // stored image ERASED good dimensions and wedged the asset gate at "size
+  // unknown" with no way back (found by the user on the first real
+  // walk-through, 2026-08-12). A failed measurement now changes nothing.
+  let dims: { width: number; height: number } | null = null;
+  const storedKey = img.url.match(/\/(?:uploads|api\/files)\/([^"'\s)]+)/)?.[1];
+  if (storedKey) {
+    const { storage } = await import("@/lib/storage");
+    const buf = await storage.get(decodeURIComponent(storedKey)).catch(() => null);
+    if (buf) dims = parseImageDimensions(new Uint8Array(buf));
+  } else {
+    dims = await probeImageDimensions(img.url);
+  }
+  if (dims) {
+    await db.blogImage.update({ where: { id }, data: { width: dims.width, height: dims.height } });
+  }
   revalidatePath(`/blog/${img.postId}`);
 }
 
