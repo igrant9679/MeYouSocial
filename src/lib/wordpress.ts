@@ -42,6 +42,10 @@ export type WpPublishInput = {
   tags?: number[];
   author?: number;
   featuredMedia?: number;
+  /** Theme post-template file (e.g. "template-fullwidth.php"). WP silently
+   *  falls back to the default template when the file doesn't exist in the
+   *  active theme — the read-back report is what tells the truth. */
+  template?: string;
 };
 
 /** Create the post. Returns the WP post id + public link. */
@@ -63,6 +67,7 @@ export async function wpCreatePost(
       tags: input.tags?.length ? input.tags : undefined,
       author: input.author ?? undefined,
       featured_media: input.featuredMedia ?? undefined,
+      template: input.template || undefined,
     }),
     signal: AbortSignal.timeout(30000),
   });

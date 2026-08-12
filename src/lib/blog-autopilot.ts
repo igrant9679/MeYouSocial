@@ -520,6 +520,7 @@ export async function publishCore(workspaceId: string, postId: string): Promise<
     tags: tags.ids,
     author: authorId ?? undefined,
     featuredMedia: media?.id,
+    template: conn.template || undefined,
   });
 
   // "Sent" is not "stored": WordPress drops meta keys that aren't registered

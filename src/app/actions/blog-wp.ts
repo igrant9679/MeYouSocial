@@ -54,7 +54,7 @@ export async function connectWordPressAction(formData: FormData) {
       status: test.ok ? "connected" : "error",
     },
   });
-  revalidatePath("/blog/settings");
+  revalidatePath("/website");
 }
 
 /**
@@ -95,6 +95,11 @@ export async function savePublishSettingsAction(formData: FormData) {
     prefix: String(formData.get("slugPrefix") ?? "").trim() || null,
   });
 
+  // A theme-relative file path, nothing else — a stray URL or shell-ish string
+  // here would ride into every future publish payload.
+  const templateRaw = String(formData.get("template") ?? "").trim();
+  const template = /^[A-Za-z0-9._/-]{0,100}$/.test(templateRaw) ? templateRaw : "";
+
   await db.wordPressConnection.update({
     where: { workspaceId: workspace.id },
     data: {
@@ -105,6 +110,7 @@ export async function savePublishSettingsAction(formData: FormData) {
       defaultAuthor: String(formData.get("defaultAuthor") ?? "").trim() || null,
       publishAsDraft: formData.get("publishAsDraft") === "on",
       slugRules,
+      template,
     },
   });
   await writeAudit({
@@ -114,13 +120,13 @@ export async function savePublishSettingsAction(formData: FormData) {
     entityType: "wordpress_connection",
     meta: { seoPlugin, overrides: Object.keys(overrides) },
   });
-  revalidatePath("/blog/settings");
+  revalidatePath("/website");
 }
 
 export async function disconnectWordPressAction() {
   const { workspace } = await requireRole("ADMIN");
   await db.wordPressConnection.deleteMany({ where: { workspaceId: workspace.id } });
-  revalidatePath("/blog/settings");
+  revalidatePath("/website");
 }
 
 export async function publishToWordPressAction(formData: FormData) {

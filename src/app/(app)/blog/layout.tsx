@@ -26,7 +26,7 @@ export default async function BlogLayout({ children }: { children: React.ReactNo
     { href: "/blog/automation", label: "Automation" },
     { href: "/blog/brand", label: "Brand" },
     { href: "/blog/organization", label: "Organization" },
-    { href: "/blog/settings", label: "Settings" },
+    { href: "/website", label: "Website" },
   ];
 
   return (

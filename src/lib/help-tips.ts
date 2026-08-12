@@ -22,6 +22,7 @@ export const NAV_TIPS: Record<string, string> = {
   "/insights": "What actually happened after you published: engagement, search and traffic, once those are connected.",
   "/videos": "Turn a post or idea into a rendered video. Packaging first, then rendering.",
   "/social": "Compose once, post to your connected social accounts — now, at a time you pick, or into a recurring slot.",
+  "/website": "Publish articles to your website: WordPress connected directly, or any site via HTML export.",
   "/brand": "The things every generation should obey: colours, logo, company info, topics, personas and tone.",
   "/chat": "A general assistant with your channel's context already loaded.",
   "/thumbnails": "Thumbnail concepts and images for a video.",
@@ -129,7 +130,7 @@ export const BLOG_TAB_TIPS: Record<string, string> = {
   "/blog/automation": "How much the app may do unattended, per function — and the global pause that stops all of it.",
   "/blog/brand": "Tone of voice (the 7 Motifs) and the image policy that gates publishing.",
   "/blog/organization": "Company details that ground drafts in who you actually are.",
-  "/blog/settings": "WordPress connection and publishing options.",
+  "/website": "WordPress connection, theme template, and HTML export for any other site.",
 };
 
 /**

@@ -403,6 +403,9 @@ model WordPressConnection {
   defaultAuthor  String?  // WP username or numeric id; blank = the connection's own user
   publishAsDraft Boolean  @default(false)  // draft-in-WP handoff instead of going live
   slugRules      String   @default("{}")   // JSON {maxWords, stripStopWords, prefix}
+  /** Theme post-template file (WP REST `template`, e.g. "template-fullwidth.php").
+   *  Empty = the theme's default single-post template. Applied to every publish. */
+  template       String   @default("")
   updatedAt      DateTime @updatedAt
 }
 

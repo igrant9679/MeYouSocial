@@ -88,7 +88,9 @@ export default function GuidePage() {
             <b>Connect where it publishes.</b>{" "}
             <Link href="/admin/connections" className="underline">Admin → Connections</Link>: social accounts
             (use this app&apos;s Connect buttons, not the provider&apos;s own dashboard) and a mailbox, which is how
-            notification and digest email leaves.
+            notification and digest email leaves. Your website connects under{" "}
+            <Link href="/website" className="underline">Distribute → Website</Link> — WordPress directly (with your
+            theme&apos;s own post template), or any other site via per-article HTML export.
           </li>
           <li>
             <b>Teach it your voice.</b> <Link href="/blog/brand" className="underline">Blog → Brand</Link>: the

@@ -453,7 +453,7 @@ export default async function BlogPostPage({
             </>
           ) : (
             <span className="text-xs text-[var(--mute)]">
-              No site connected — <Link href="/blog/settings" className="underline">connect WordPress</Link> to publish directly.
+              No site connected — <Link href="/website" className="underline">connect WordPress</Link> to publish directly.
             </span>
           )}
         </div>

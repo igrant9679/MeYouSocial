@@ -143,14 +143,14 @@ export async function addSitePageAction(formData: FormData) {
     update: { title, topic: String(formData.get("topic") ?? "").trim() || null },
     create: { workspaceId: workspace.id, url, title, topic: String(formData.get("topic") ?? "").trim() || null },
   });
-  revalidatePath("/blog/settings");
+  revalidatePath("/website");
 }
 
 export async function deleteSitePageAction(formData: FormData) {
   const id = String(formData.get("id"));
   const { workspace } = await requireRole("EDITOR");
   await db.sitePage.deleteMany({ where: { id, workspaceId: workspace.id } });
-  revalidatePath("/blog/settings");
+  revalidatePath("/website");
 }
 
 /** Import this workspace's published posts (with URLs) into the page inventory. */
@@ -167,7 +167,7 @@ export async function importPublishedAsPagesAction(): Promise<void> {
       create: { workspaceId: workspace.id, url: p.publishedUrl!, title: p.title, topic: p.focusKeyword },
     });
   }
-  revalidatePath("/blog/settings");
+  revalidatePath("/website");
 }
 
 export async function suggestInternalLinksAction(formData: FormData) {
