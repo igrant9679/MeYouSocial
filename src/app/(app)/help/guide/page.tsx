@@ -165,11 +165,14 @@ export default function GuidePage() {
             dismiss the rest. Approved ideas are what autopilot drafts from, on your weekly budget — an empty
             approved pool means no new articles, however high the dial.
           </Step>
-          <Step icon={Check} title="Review what was drafted — words and pictures together.">
+          <Step icon={Check} title="Review what was drafted — words, pictures and SEO together.">
             <Link href="/blog/board" className="underline">Blog → Board</Link>: each drafted article arrives with
-            its featured and social-preview images already generated from an art-direction brief, waiting as{" "}
-            <i>pending</i>. Approve or replace them in the post&apos;s editor; an article can&apos;t publish until its
-            images pass.
+            its featured and social-preview images (generated from an art-direction brief, waiting as{" "}
+            <i>pending</i>) and its SEO metadata — meta title, description and URL slug — already filled in.
+            Approve, replace or edit any of it in the post&apos;s editor; an article can&apos;t publish until its
+            images and SEO checks pass. Both automations have switches on{" "}
+            <Link href="/blog/automation" className="underline">Blog → Automation</Link> and{" "}
+            <Link href="/blog/brand" className="underline">Brand</Link>.
           </Step>
           <Step icon={Check} title="Approve and queue the social week.">
             <Link href="/social/approvals" className="underline">Social → Approvals</Link> for anything held, then{" "}
