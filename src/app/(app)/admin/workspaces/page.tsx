@@ -105,7 +105,11 @@ export default async function PlatformWorkspacesPage() {
                         <form action={platformChangeRoleAction} className="inline-flex items-center gap-1">
                           <input type="hidden" name="workspaceId" value={ws.id} />
                           <input type="hidden" name="membershipId" value={m.id} />
-                          <select name="role" defaultValue={m.role} className="border border-[var(--line-2)] rounded-md px-2 py-1 text-xs font-mono">
+                          {/* key={m.role}: React 19 resets the form to its
+                              last-rendered default after the action — without
+                              the remount a successful save snaps back visually
+                              and reads as "won't save" (same fix as /admin). */}
+                          <select key={m.role} name="role" defaultValue={m.role} className="border border-[var(--line-2)] rounded-md px-2 py-1 text-xs font-mono">
                             {ROLES.map((r) => <option key={r} value={r}>{r[0] + r.slice(1).toLowerCase()}</option>)}
                           </select>
                           <button type="submit" className="btn sm">Save</button>

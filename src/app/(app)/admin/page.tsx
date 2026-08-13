@@ -3,6 +3,8 @@ import { SubmitButton } from "@/components/SubmitButton";
 import { db } from "@/lib/db";
 import { DeleteButton } from "@/components/DeleteButton";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import { writeAudit } from "@/lib/governance";
 import { z } from "zod";
 import { emailFor } from "@/lib/email";
 import { nanoid } from "nanoid";
@@ -52,16 +54,30 @@ async function inviteAction(formData: FormData) {
 
 async function changeRoleAction(formData: FormData) {
   "use server";
-  const { workspace, membership: me } = await requireRole("ADMIN");
+  const { workspace, membership: me, user: actor } = await requireRole("ADMIN");
   const userId = String(formData.get("userId") ?? "");
   const role = String(formData.get("role") ?? "");
   if (!["ADMIN", "EDITOR", "VIEWER"].includes(role)) return;
-  if (userId === me.userId) return; // can't change own role here
+  // Refusals must SAY so — this returned silently and read as "won't save".
+  if (userId === me.userId) {
+    redirect(`/admin?flashErr=${encodeURIComponent("You can't change your own role — another admin has to.")}`);
+  }
   await db.membership.updateMany({
     where: { workspaceId: workspace.id, userId },
     data: { role: role as "ADMIN" | "EDITOR" | "VIEWER" },
   });
+  const target = await db.user.findUnique({ where: { id: userId }, select: { email: true } });
+  // A role change is governance — it gets an audit row like every other one.
+  await writeAudit({
+    workspaceId: workspace.id,
+    actorId: actor.id,
+    action: "membership.role_changed",
+    entityType: "membership",
+    entityId: userId,
+    meta: { email: target?.email, role },
+  });
   revalidatePath("/admin");
+  redirect(`/admin?flash=${encodeURIComponent(`${target?.email ?? "Member"} is now ${role}.`)}`);
 }
 
 async function revokeAction(formData: FormData) {
@@ -150,7 +166,13 @@ export default async function AdminUsersPage() {
                 <td>
                   <form action={changeRoleAction} className="inline-flex items-center gap-1">
                     <input type="hidden" name="userId" value={m.userId} />
-                    <select name="role" defaultValue={m.role} className="border border-[var(--line-2)] rounded-md px-2 py-1 text-xs font-mono">
+                    {/* key={m.role} is LOAD-BEARING: React 19 auto-resets a
+                        form after its action, restoring the select to the
+                        LAST-RENDERED default — so a successful save visibly
+                        snapped back to the old role and read as "won't save"
+                        (user report 2026-08-13). Keying by role remounts the
+                        select when the saved value changes. */}
+                    <select key={m.role} name="role" defaultValue={m.role} className="border border-[var(--line-2)] rounded-md px-2 py-1 text-xs font-mono">
                       <option value="ADMIN">Admin</option>
                       <option value="EDITOR">Editor</option>
                       <option value="VIEWER">Viewer</option>
