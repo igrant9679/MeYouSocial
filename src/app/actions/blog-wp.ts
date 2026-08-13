@@ -142,7 +142,7 @@ export async function pushSeoMetaAction(formData: FormData) {
   const postId = String(formData.get("postId"));
   const { user, workspace } = await requireRole("ADMIN");
   const back = (msg: string, ok = false): never =>
-    redirect(`/blog/${postId}?${ok ? "flash" : "flashErr"}=${encodeURIComponent(msg.slice(0, 300))}`);
+    redirect(`/blog/${postId}?tab=distribute&${ok ? "flash" : "flashErr"}=${encodeURIComponent(msg.slice(0, 300))}`);
 
   const post = await db.blogPost.findFirst({ where: { id: postId, workspaceId: workspace.id } });
   if (!post) return;
@@ -173,7 +173,16 @@ export async function pushSeoMetaAction(formData: FormData) {
 
   const { wpUpdatePostMeta, wpReadPost } = await import("@/lib/wordpress");
   const sent = await wpUpdatePostMeta(creds!, post!.wpPostId!, meta);
-  if (!sent) back("The site rejected the meta update — check the connection on Distribute → Website.");
+  if (!sent.ok) {
+    // `rest_invalid_param` on meta keys = no plugin registered them = the
+    // plugin isn't installed (or is outdated) on the site. Say that.
+    const looksUnregistered = /rest_invalid_param|not one of/i.test(sent.detail ?? "");
+    back(
+      looksUnregistered
+        ? `The site refused the ${plugin} meta fields — that usually means ${plugin} isn't installed (or is outdated) on the site. Site said: ${sent.detail}`
+        : `The site rejected the meta update. Site said: ${sent.detail ?? "no detail"}`,
+    );
+  }
 
   const readBack = await wpReadPost(creds!, post!.wpPostId!);
   const outcomes = verifySeoMeta(fieldMap, seoValues, readBack?.meta ?? null);

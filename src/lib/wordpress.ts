@@ -79,12 +79,19 @@ export async function wpCreatePost(
   return { id: post.id, link: post.link };
 }
 
-/** Update only a post's `meta` (SEO plugin fields). Returns false on any failure. */
+/**
+ * Update only a post's `meta` (SEO plugin fields). The failure DETAIL matters
+ * here more than most places: WordPress answers 400 `rest_invalid_param` when
+ * the meta object carries keys no plugin registered — which is exactly how
+ * "Yoast isn't installed on the site" presents. Swallowing that into a bare
+ * false made the two very different fixes (install the plugin vs unblock the
+ * firewall) indistinguishable.
+ */
 export async function wpUpdatePostMeta(
   c: WpCredentials,
   id: number,
   meta: Record<string, string>,
-): Promise<boolean> {
+): Promise<{ ok: boolean; detail?: string }> {
   try {
     const res = await fetch(api(c, `/posts/${id}`), {
       method: "POST",
@@ -92,9 +99,15 @@ export async function wpUpdatePostMeta(
       body: JSON.stringify({ meta }),
       signal: AbortSignal.timeout(30000),
     });
-    return res.ok;
-  } catch {
-    return false;
+    if (res.ok) return { ok: true };
+    let detail = `HTTP ${res.status}`;
+    try {
+      const body = (await res.json()) as { code?: string; message?: string };
+      if (body.message) detail = `HTTP ${res.status} ${body.code ?? ""}: ${body.message}`.slice(0, 200);
+    } catch { /* keep the status line */ }
+    return { ok: false, detail };
+  } catch (e) {
+    return { ok: false, detail: e instanceof Error ? e.message.slice(0, 200) : "network failure" };
   }
 }
 
