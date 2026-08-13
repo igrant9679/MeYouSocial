@@ -79,7 +79,7 @@ import {
   updateBlogPostAction,
   verifyCitationAction,
 } from "@/app/actions/blog";
-import { publishToWordPressAction } from "@/app/actions/blog-wp";
+import { publishToWordPressAction, pushSeoMetaAction } from "@/app/actions/blog-wp";
 import {
   deleteSocialVariantAction,
   generateSocialVariantsAction,
@@ -448,6 +448,16 @@ export default async function BlogPostPage({
                     <input type="hidden" name="postId" value={post.id} />
                     <SubmitButton className="btn primary" pendingText="Publishing…">Publish to WordPress</SubmitButton>
                   </form>
+                  {post.wpPostId != null && (
+                    // For posts already on the site: send the current SEO
+                    // metadata to the plugin's fields (e.g. after switching
+                    // the SEO plugin on Distribute → Website). Reads back and
+                    // reports what the site actually stored.
+                    <form action={pushSeoMetaAction}>
+                      <input type="hidden" name="postId" value={post.id} />
+                      <SubmitButton className="btn" pendingText="Pushing…">Re-push SEO meta</SubmitButton>
+                    </form>
+                  )}
                 </>
               )}
             </>

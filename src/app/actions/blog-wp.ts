@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { requireRole } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { encryptSecret, decryptSecret, type Encrypted } from "@/lib/blog-crypto";
@@ -127,6 +128,72 @@ export async function disconnectWordPressAction() {
   const { workspace } = await requireRole("ADMIN");
   await db.wordPressConnection.deleteMany({ where: { workspaceId: workspace.id } });
   revalidatePath("/website");
+}
+
+/**
+ * Re-push the SEO metadata to an ALREADY-PUBLISHED post — for when the SEO
+ * plugin choice (or the meta itself) changed after the article went out.
+ * Runs on the SERVER, which matters: site firewalls that block desktop/probe
+ * IPs have already accepted publishes from this host. Reads the post back and
+ * reports how many fields the site actually stored — WP silently drops keys
+ * no plugin registered, so the read-back is the only honest verdict.
+ */
+export async function pushSeoMetaAction(formData: FormData) {
+  const postId = String(formData.get("postId"));
+  const { user, workspace } = await requireRole("ADMIN");
+  const back = (msg: string, ok = false): never =>
+    redirect(`/blog/${postId}?${ok ? "flash" : "flashErr"}=${encodeURIComponent(msg.slice(0, 300))}`);
+
+  const post = await db.blogPost.findFirst({ where: { id: postId, workspaceId: workspace.id } });
+  if (!post) return;
+  if (!post.wpPostId) back("This post isn't on WordPress yet — publish it first.");
+  const conn = await db.wordPressConnection.findUnique({ where: { workspaceId: workspace.id } });
+  const creds = conn && (await credentialsFor(workspace.id));
+  if (!conn || !creds) back("No WordPress connection — set one up on Distribute → Website.");
+
+  const { effectiveFieldMap, buildSeoMeta, verifySeoMeta, isSeoPlugin: isPlugin } = await import("@/lib/seo-plugins");
+  const plugin = isPlugin(conn!.seoPlugin) ? conn!.seoPlugin : "none";
+  if (plugin === "none") back("Pick your site's SEO plugin on Distribute → Website first — with None selected there is nowhere to put the metadata.");
+
+  const fieldMap = effectiveFieldMap(plugin, conn!.seoFieldMap);
+  const seoValues = {
+    title: post!.metaTitle ?? post!.title,
+    description: post!.metaDescription ?? undefined,
+    focusKeyword: post!.focusKeyword ?? undefined,
+    canonical: post!.canonicalUrl ?? undefined,
+    ogTitle: post!.ogTitle ?? post!.metaTitle ?? post!.title,
+    ogDescription: post!.ogDescription ?? post!.metaDescription ?? undefined,
+    // No ogImage: our stored image urls are session-gated and meaningless to
+    // the outside world — Yoast falls back to the featured image, which IS in
+    // the WP media library.
+    ogImage: undefined,
+  };
+  const meta = buildSeoMeta(fieldMap, seoValues);
+  if (!Object.keys(meta).length) back("Nothing to push — the post has no SEO metadata yet.");
+
+  const { wpUpdatePostMeta, wpReadPost } = await import("@/lib/wordpress");
+  const sent = await wpUpdatePostMeta(creds!, post!.wpPostId!, meta);
+  if (!sent) back("The site rejected the meta update — check the connection on Distribute → Website.");
+
+  const readBack = await wpReadPost(creds!, post!.wpPostId!);
+  const outcomes = verifySeoMeta(fieldMap, seoValues, readBack?.meta ?? null);
+  const landed = outcomes.filter((o) => o.accepted).length;
+  await writeAudit({
+    workspaceId: workspace.id,
+    actorId: user.id,
+    action: "blog.seo_meta_pushed",
+    entityType: "blog_post",
+    entityId: post!.id,
+    meta: { plugin, sent: outcomes.length, landed, dropped: outcomes.filter((o) => !o.accepted).map((o) => o.field) },
+  });
+  if (landed === outcomes.length) {
+    back(`SEO meta pushed — the site stored all ${landed} field(s).`, true);
+  }
+  back(
+    landed === 0
+      ? `The site stored NONE of the ${outcomes.length} fields — is ${plugin} actually installed and up to date on the site?`
+      : `Partial: ${landed} of ${outcomes.length} fields stored. Dropped: ${outcomes.filter((o) => !o.accepted).map((o) => o.field).join(", ")}.`,
+  );
 }
 
 export async function publishToWordPressAction(formData: FormData) {

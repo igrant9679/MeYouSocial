@@ -79,6 +79,25 @@ export async function wpCreatePost(
   return { id: post.id, link: post.link };
 }
 
+/** Update only a post's `meta` (SEO plugin fields). Returns false on any failure. */
+export async function wpUpdatePostMeta(
+  c: WpCredentials,
+  id: number,
+  meta: Record<string, string>,
+): Promise<boolean> {
+  try {
+    const res = await fetch(api(c, `/posts/${id}`), {
+      method: "POST",
+      headers: { Authorization: authHeader(c), "Content-Type": "application/json" },
+      body: JSON.stringify({ meta }),
+      signal: AbortSignal.timeout(30000),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
 /** Read a created post back with edit context so `meta` is exposed. */
 export async function wpReadPost(
   c: WpCredentials,
