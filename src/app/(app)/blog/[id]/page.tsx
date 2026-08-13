@@ -428,9 +428,21 @@ export default async function BlogPostPage({
         <div className="card mb-4 flex flex-wrap items-center gap-2 text-sm">
           <b>WordPress:</b>
           {post.publishedUrl ? (
-            <a href={post.publishedUrl} target="_blank" rel="noreferrer" className="underline text-[var(--blue-on)] break-all">
-              {post.publishedUrl}
-            </a>
+            <>
+              <a href={post.publishedUrl} target="_blank" rel="noreferrer" className="underline text-[var(--blue-on)] break-all">
+                {post.publishedUrl}
+              </a>
+              <span className="flex-1" />
+              {/* Published is exactly when re-pushing meta matters (the SEO
+                  plugin choice changed after the article went out) — the
+                  button must live in THIS branch, not the unpublished one. */}
+              {admin && wpConn && post.wpPostId != null && (
+                <form action={pushSeoMetaAction}>
+                  <input type="hidden" name="postId" value={post.id} />
+                  <SubmitButton className="btn sm" pendingText="Pushing…">Re-push SEO meta</SubmitButton>
+                </form>
+              )}
+            </>
           ) : wpConn ? (
             <>
               <span className="font-mono text-xs px-2 py-0.5 rounded-full" style={wpConn.status === "connected" ? { background: "var(--green-soft)", color: "var(--green-on)" } : { background: "var(--rose-soft)", color: "var(--rose-on)" }}>
