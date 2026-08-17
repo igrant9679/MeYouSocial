@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import { runBlogChecks, requiredChecksPass } from "@/lib/blog-checks";
 import { writeAudit } from "@/lib/governance";
 import { generateDraftCore } from "@/lib/blog-autopilot";
+import { jobs } from "@/lib/jobs";
 import { readMotifWeights, serializeMotifs } from "@/lib/motifs";
 import { loadAssetGate } from "@/lib/blog-images";
 import { loadEditorialContext } from "@/lib/blog-slop";
@@ -257,7 +258,12 @@ export async function generateBlogDraftAction(formData: FormData) {
   const { workspace } = await requireRole("EDITOR");
   // Guardrails (global pause, protect-from-rewrite), grounding, and citation
   // extraction live in the core — shared with the autopilot scheduler.
-  await generateDraftCore(workspace.id, id);
+  if (await generateDraftCore(workspace.id, id)) {
+    // …and so is finishing: park at review (only from `drafting`, so a re-draft
+    // of a published post can't be dragged backwards), images, SEO meta. In a
+    // job so the editor's button returns as soon as the prose exists.
+    await jobs.enqueue("blog.finishdraft", { workspaceId: workspace.id, postId: id }, { refId: id, workspaceId: workspace.id });
+  }
   revalidatePath(`/blog/${id}`);
 }
 

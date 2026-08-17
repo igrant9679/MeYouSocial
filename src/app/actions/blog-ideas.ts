@@ -6,6 +6,7 @@ import { requireRole } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { isGloballyPaused, writeAudit } from "@/lib/governance";
 import { discoverIdeasCore, generateDraftCore } from "@/lib/blog-autopilot";
+import { jobs } from "@/lib/jobs";
 import { rescoreIdeas } from "@/lib/blog-idea-scoring";
 import { readMotifWeights, serializeMotifs } from "@/lib/motifs";
 
@@ -173,7 +174,13 @@ export async function draftFromIdeaAction(formData: FormData) {
   });
   await db.blogIdea.update({ where: { id: idea.id }, data: { status: "drafted", postId: post.id } });
 
-  await generateDraftCore(workspace.id, post.id);
+  // Finish it the way the autopilot does — park at review, images, SEO meta —
+  // in a background job so the click doesn't wait on two image renders. Without
+  // this the draft sat at `drafting`: in no review queue, and unpublishable
+  // when someone finally found it. See completeFreshDraftCore.
+  if (await generateDraftCore(workspace.id, post.id)) {
+    await jobs.enqueue("blog.finishdraft", { workspaceId: workspace.id, postId: post.id }, { refId: post.id, workspaceId: workspace.id });
+  }
   revalidatePath("/blog");
   redirect(`/blog/${post.id}`);
 }
@@ -198,7 +205,9 @@ export async function autoDraftApprovedAction() {
       },
     });
     await db.blogIdea.update({ where: { id: idea.id }, data: { status: "drafted", postId: post.id } });
-    await generateDraftCore(workspace.id, post.id);
+    if (await generateDraftCore(workspace.id, post.id)) {
+      await jobs.enqueue("blog.finishdraft", { workspaceId: workspace.id, postId: post.id }, { refId: post.id, workspaceId: workspace.id });
+    }
   }
   revalidatePath("/blog");
 }

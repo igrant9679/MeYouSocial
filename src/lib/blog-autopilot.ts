@@ -369,6 +369,73 @@ export async function generateDraftCore(workspaceId: string, postId: string): Pr
   return true;
 }
 
+/**
+ * Everything a freshly generated draft needs before it can sit at review:
+ * park it at the `draft_review` checkpoint, render its featured/OG images, and
+ * fill the SEO meta the publish gate requires.
+ *
+ * ⚠ THIS USED TO LIVE INSIDE THE AUTOPILOT CYCLE ONLY, and that was a stall
+ * factory on the human side. A draft generated from Blog → Ideas ("Draft this",
+ * "Auto-draft approved") or the editor's Generate-draft button kept
+ * `status: "drafting"` — invisible to the review queue AND to Home's decision
+ * list — with no images and no meta title/description, all three of which the
+ * publish gate requires. Prod carried two such drafts for days with nothing
+ * anywhere saying they were stuck (LSI "SEO in Non-Government Organization",
+ * 08-12; CF "AI Grants Management", 08-16, which the owner then walked through
+ * every step of by hand). It is the same defect the autopilot had before
+ * 2026-08-12 — "a draft without them is a stall, not a choice" — one door over.
+ *
+ * Order and isolation are deliberate: the status flip happens FIRST and on its
+ * own, so an image-provider outage or a mock LLM cannot undo a draft that just
+ * succeeded. Both extras are best-effort and both are already idempotent —
+ * images skip any role a human owns or approved, and SEO is fill-only.
+ *
+ * The status flip is a conditional `updateMany` on `status: "drafting"`, so
+ * re-running the editor's button on a post that has moved on (in review, final
+ * approval, published) can never drag it backwards.
+ */
+export async function completeFreshDraftCore(
+  workspaceId: string,
+  postId: string,
+): Promise<{ advanced: boolean; imagesGenerated: number; seoOptimized: number }> {
+  const out = { advanced: false, imagesGenerated: 0, seoOptimized: 0 };
+
+  const moved = await db.blogPost.updateMany({
+    where: { id: postId, workspaceId, status: "drafting" },
+    data: { status: "draft_review" },
+  });
+  out.advanced = moved.count > 0;
+
+  // Images ride the draft: briefs + featured/OG, landing `pending` at the same
+  // review the article itself just parked at — one stop for the human, and with
+  // requireImagesToPublish on (the default) the article can't publish without
+  // them anyway. Gated on brand.aiImagesEnabled inside the core.
+  try {
+    out.imagesGenerated = await generateBlogImagesCore(workspaceId, postId);
+  } catch (e) {
+    console.error(`[blog] image generation failed for ${postId}:`, e instanceof Error ? e.message : e);
+  }
+
+  // SEO metadata too — the publish gate REQUIRES meta title, description and
+  // slug. `blog:auto_seo` (absent = ON, "false" = off; toggle on Blog →
+  // Automation) is the owner's switch. Fill-only: a re-run can never clobber
+  // hand-tuned meta or a slug something has already been published under.
+  try {
+    const { getSetting } = await import("@/lib/settings");
+    const autoSeo = await getSetting("blog:auto_seo", workspaceId).catch(() => "");
+    if (autoSeo !== "false") {
+      const { generateSeoMetaCore } = await import("@/lib/blog-seo");
+      const seo = await generateSeoMetaCore(workspaceId, postId, { onlyFillEmpty: true });
+      if (seo.ok) out.seoOptimized = 1;
+      else if (seo.reason === "mock") console.warn(`[blog] SEO meta for ${postId} fell back to mock — skipped`);
+    }
+  } catch (e) {
+    console.error(`[blog] SEO meta failed for ${postId}:`, e instanceof Error ? e.message : e);
+  }
+
+  return out;
+}
+
 export async function generateVariantsCore(workspaceId: string, postId: string): Promise<number> {
   const post = await db.blogPost.findFirst({ where: { id: postId, workspaceId } });
   if (!post || !post.body) return 0;
@@ -1034,35 +1101,13 @@ export async function runAutopilotCycle(workspaceId: string): Promise<CycleRepor
       await db.blogIdea.update({ where: { id: idea.id }, data: { status: "drafted", postId: post.id } });
       const ok = await generateDraftCore(workspaceId, post.id);
       if (ok) {
-        await db.blogPost.update({ where: { id: post.id }, data: { status: "draft_review" } });
         report.drafted++;
-        // Images ride the draft: briefs + featured/OG, landing `pending` at the
-        // same review the article itself just parked at — one stop for the
-        // human, and with requireImagesToPublish on (the default) the article
-        // can't publish without them anyway. Gated on brand.aiImagesEnabled
-        // inside the core; isolated so an image-provider outage can't undo the
-        // draft that just succeeded.
-        try {
-          report.imagesGenerated += await generateBlogImagesCore(workspaceId, post.id);
-        } catch (e) {
-          console.error(`[autopilot] image generation failed for ${post.id}:`, e instanceof Error ? e.message : e);
-        }
-        // SEO metadata rides it too — the publish gate REQUIRES meta title,
-        // description and slug, so a draft without them is a stall, not a
-        // choice. `blog:auto_seo` (absent = ON, "false" = off; toggle on
-        // Blog → Automation) is the user's autonomous-mode switch. Fill-only:
-        // a re-run can never clobber a human's hand-tuned meta.
-        try {
-          const autoSeo = await getSetting("blog:auto_seo", workspaceId).catch(() => "");
-          if (autoSeo !== "false") {
-            const { generateSeoMetaCore } = await import("@/lib/blog-seo");
-            const seo = await generateSeoMetaCore(workspaceId, post.id, { onlyFillEmpty: true });
-            if (seo.ok) report.seoOptimized++;
-            else if (seo.reason === "mock") console.warn(`[autopilot] SEO meta for ${post.id} fell back to mock — skipped`);
-          }
-        } catch (e) {
-          console.error(`[autopilot] SEO meta failed for ${post.id}:`, e instanceof Error ? e.message : e);
-        }
+        // Park at review, images, SEO meta — shared with the human "Draft this"
+        // buttons (via the blog.finishdraft job) so both doors finish a draft
+        // the same way. See completeFreshDraftCore.
+        const finished = await completeFreshDraftCore(workspaceId, post.id);
+        report.imagesGenerated += finished.imagesGenerated;
+        report.seoOptimized += finished.seoOptimized;
       }
     }
   }
