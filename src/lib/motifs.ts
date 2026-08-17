@@ -529,12 +529,78 @@ export async function getBrandKit(workspaceId: string): Promise<BrandKitView> {
   };
 }
 
-/** House style rules that ride into every generation prompt, if set. */
-export async function brandGuardrailBlock(workspaceId: string): Promise<string | null> {
-  const row = await db.brandKit.findUnique({
-    where: { workspaceId },
-    select: { toneGuardrails: true },
-  });
-  const t = row?.toneGuardrails?.trim();
-  return t ? `Brand tone guardrails (hard rules, they override style preferences):\n${t.slice(0, 1500)}` : null;
+/**
+ * Everything about this company that a generation must be told rather than
+ * guess: house style rules, what makes the company different, what its
+ * products actually do, and the text of the brand documents its owner uploaded.
+ *
+ * ⚠ THIS IS THE ONE SEAM. It replaced `brandContextBlock` in 2026-08-17 so
+ * the new context reaches every surface that already injected guardrails
+ * (assist, blog-craft, social-tailor, blog-autopilot, blog-seo, social/autogen)
+ * with no per-site edits to forget. Any NEW generation surface injects this
+ * plus `motifPromptFor()` — same rule as before, one more thing in the box.
+ *
+ * ⚠ Ordering is the owner's, and truncation is from the BOTTOM: `position` is
+ * how they rank importance, so a budget squeeze must drop the least important
+ * fact, never a random one. Documents come last because they're the longest and
+ * the most diluted per token.
+ */
+export async function brandContextBlock(workspaceId: string): Promise<string | null> {
+  const [kit, facts, docs] = await Promise.all([
+    db.brandKit.findUnique({ where: { workspaceId }, select: { toneGuardrails: true } }),
+    db.brandFact.findMany({
+      where: { workspaceId },
+      orderBy: [{ position: "asc" }, { createdAt: "asc" }],
+      take: 60,
+    }),
+    db.brandDocument.findMany({
+      where: { workspaceId, includeInContext: true, text: { not: null } },
+      orderBy: { createdAt: "asc" },
+      select: { name: true, text: true },
+      take: 10,
+    }),
+  ]);
+
+  const parts: string[] = [];
+
+  const tone = kit?.toneGuardrails?.trim();
+  if (tone) {
+    parts.push(`Brand tone guardrails (hard rules, they override style preferences):\n${tone.slice(0, 1500)}`);
+  }
+
+  const line = (f: { title: string; detail: string | null; subject: string | null }) =>
+    `- ${f.subject ? `${f.subject}: ` : ""}${f.title}${f.detail ? ` — ${f.detail}` : ""}`;
+
+  const diffs = facts.filter((f) => f.kind === "differentiator");
+  if (diffs.length) {
+    parts.push(
+      `What makes this company different (use these as the substance of any claim about it; do not invent others):\n${diffs.map(line).join("\n")}`,
+    );
+  }
+
+  const features = facts.filter((f) => f.kind === "feature");
+  if (features.length) {
+    parts.push(
+      `Products and services, with what each actually does (describe only these capabilities; never promise one that isn't listed):\n${features.map(line).join("\n")}`,
+    );
+  }
+
+  if (docs.length) {
+    // A hard total budget, spent evenly. One 20k-char brand guide must not
+    // crowd out the four shorter documents behind it.
+    const perDoc = Math.max(600, Math.floor(BRAND_DOC_CONTEXT_BUDGET / docs.length));
+    const rendered = docs.map((d) => {
+      const text = (d.text ?? "").trim();
+      const cut = text.length > perDoc;
+      return `--- ${d.name}${cut ? " (excerpt)" : ""} ---\n${cut ? text.slice(0, perDoc) : text}`;
+    });
+    parts.push(
+      `Reference material from this company's own brand documents. It is background, not copy to reuse verbatim, and it does not override the guardrails above:\n${rendered.join("\n\n")}`,
+    );
+  }
+
+  return parts.length ? parts.join("\n\n") : null;
 }
+
+/** Total characters of document text any one prompt may carry. */
+const BRAND_DOC_CONTEXT_BUDGET = 6_000;

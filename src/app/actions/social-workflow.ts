@@ -103,6 +103,35 @@ export async function approveSocialPostAction(formData: FormData) {
   // Honor the time the author asked for, if it's still ahead of us. A past
   // requested time doesn't auto-send — approval means "may go", not "goes now".
   const scheduleIt = post!.scheduledAt && post!.scheduledAt.getTime() > Date.now() - 60_000;
+
+  /**
+   * Auto-queue: an approved post with no time of its own takes the next free
+   * slot, instead of landing back in the draft pile.
+   *
+   * ⚠ THIS EXISTS BECAUSE APPROVAL IS NOT QUEUEING, and that cost a week of
+   * silence. On 2026-08-17 LSI held five approved posts — one approved six days
+   * earlier — and nothing had gone out since 10 Aug, because autogen mints
+   * drafts, a human approves them, and then a THIRD click ("Queue all") was
+   * still required with nothing anywhere saying so.
+   *
+   * OPT-IN per workspace (`social:autoqueue` = "true", default OFF) — same
+   * convention as `social:evergreen_fill`, and for the same reason: turning it
+   * on means approving a post is the last human act before it reaches an
+   * audience, which is a decision the owner makes deliberately, not a default
+   * they discover afterwards.
+   */
+  let queuedAt: Date | null = null;
+  if (!scheduleIt) {
+    const { getSetting } = await import("@/lib/settings");
+    if ((await getSetting("social:autoqueue", workspace.id).catch(() => "")) === "true") {
+      const { nextFreeSlot } = await import("@/lib/social/slots");
+      // Category rules are honored by nextFreeSlot — a categorized post prefers
+      // its own lane. A full calendar leaves it a draft and SAYS so below,
+      // rather than inventing a time no slot asked for.
+      queuedAt = await nextFreeSlot(workspace.id, post!.id, post!.category);
+    }
+  }
+
   await db.socialPost.update({
     where: { id: post!.id },
     data: {
@@ -110,18 +139,20 @@ export async function approveSocialPostAction(formData: FormData) {
       approvedById: user.id,
       approvedAt: new Date(),
       reviewNote: null,
-      status: scheduleIt ? "scheduled" : "draft",
+      ...(queuedAt ? { scheduledAt: queuedAt } : {}),
+      status: scheduleIt || queuedAt ? "scheduled" : "draft",
     },
   });
   await writeAudit({
     workspaceId: workspace.id, actorId: user.id, action: "social.approved",
     entityType: "social_post", entityId: post!.id,
+    meta: queuedAt ? { autoQueuedAt: queuedAt.toISOString() } : {},
   });
   if (post!.createdById && post!.createdById !== user.id) {
     await notify({
       workspaceId: workspace.id,
       kind: "approval_decided",
-      title: scheduleIt ? "Your post was approved and scheduled" : "Your post was approved",
+      title: scheduleIt || queuedAt ? "Your post was approved and scheduled" : "Your post was approved",
       body: post!.text.slice(0, 140),
       path: "/social",
       entityType: "social_post",
@@ -130,7 +161,22 @@ export async function approveSocialPostAction(formData: FormData) {
     });
   }
   revalidatePath("/social", "layout");
-  backTo(scheduleIt ? "Approved — it keeps its scheduled time." : "Approved — it's a draft, ready to queue or send.", "ok");
+  if (scheduleIt) backTo("Approved — it keeps its scheduled time.", "ok");
+  if (queuedAt) {
+    const { formatInZone, resolveTimeZone } = await import("@/lib/social/slots");
+    const { timeZone } = await resolveTimeZone(workspace.id);
+    backTo(`Approved and queued for ${formatInZone(queuedAt, timeZone)}.`, "ok");
+  }
+  // Auto-queue on and still a draft = the calendar is full. Say which it is:
+  // "ready to queue" reads as a choice, and the owner needs to know it isn't.
+  const autoqueueOn =
+    (await (await import("@/lib/settings")).getSetting("social:autoqueue", workspace.id).catch(() => "")) === "true";
+  backTo(
+    autoqueueOn
+      ? "Approved — but every upcoming slot is taken, so it's still a draft. Add slots on Social → Settings."
+      : "Approved — it's a draft, ready to queue or send.",
+    "ok",
+  );
 }
 
 export async function requestChangesSocialPostAction(formData: FormData) {
@@ -201,6 +247,7 @@ export async function saveSocialWorkflowSettingsAction(formData: FormData) {
   const { workspace } = await requireRole("ADMIN");
   const approval = String(formData.get("requireApproval") ?? "") === "on";
   const evergreen = String(formData.get("evergreenFill") ?? "") === "on";
+  const autoqueue = String(formData.get("autoQueue") ?? "") === "on";
   const autoImage = String(formData.get("autoImage") ?? "") === "on";
   const autogen = String(formData.get("autogen") ?? "") === "on";
   const autogenWeekly = Math.min(50, Math.max(1, parseInt(String(formData.get("autogenWeekly") ?? "5"), 10) || 5));
@@ -210,6 +257,7 @@ export async function saveSocialWorkflowSettingsAction(formData: FormData) {
     : "";
   await setWorkspaceSetting(workspace.id, "social:require_approval", approval ? "true" : "false");
   await setWorkspaceSetting(workspace.id, "social:evergreen_fill", evergreen ? "true" : "false");
+  await setWorkspaceSetting(workspace.id, "social:autoqueue", autoqueue ? "true" : "false");
   // ⚠ Default-ON semantics: absent means on, so the OFF state must be written
   // explicitly — clearing the row would silently turn it back on.
   await setWorkspaceSetting(workspace.id, "social:auto_image", autoImage ? "true" : "false");
@@ -218,7 +266,7 @@ export async function saveSocialWorkflowSettingsAction(formData: FormData) {
   await setWorkspaceSetting(workspace.id, "social:autogen_campaign", autogenCampaign);
   revalidatePath("/social", "layout");
   backTo(
-    `Approval ${approval ? "on" : "off"} · evergreen fill ${evergreen ? "on" : "off"} · auto-image ${autoImage ? "on" : "off"} · auto-generate ${autogen ? `${autogenWeekly}/week` : "off"}.`,
+    `Approval ${approval ? "on" : "off"} · auto-queue on approval ${autoqueue ? "on" : "off"} · evergreen fill ${evergreen ? "on" : "off"} · auto-image ${autoImage ? "on" : "off"} · auto-generate ${autogen ? `${autogenWeekly}/week` : "off"}.`,
     "ok",
   );
 }

@@ -56,10 +56,72 @@ model Workspace {
   topics          Topic[]
   campaigns       Campaign[]
   intelChannels   IntelChannel[]
+  brandFacts      BrandFact[]
+  brandDocuments  BrandDocument[]
 
   // This workspace's Zernio profile — Zernio's tenant boundary. Created lazily
   // the first time an account is connected, then reused.
   zernioProfileId String?
+}
+
+// ---- Brand context: what the AI cannot infer --------------------------------
+//
+// The Motifs steer HOW this workspace sounds; these rows are WHAT it knows.
+// Every generation surface injects them through `brandContextBlock()`, which is
+// why they live in ordered rows rather than one blob: the owner reorders by
+// importance, and the block is truncated from the bottom under a token budget.
+//
+// ⚠ Assist deliberately REFUSES to draft from nothing (the company name is not
+// grounding — that produced "LSI Media is a company."). These rows are the
+// grounding that fixes that, so they must never be AI-assisted themselves: a
+// differentiator invented by the model is exactly the fabrication the refusal
+// exists to prevent.
+model BrandFact {
+  id          String   @id @default(cuid())
+  workspaceId String
+  kind        String   // differentiator | feature
+  title       String
+  detail      String?
+  // Features only: which product or service this belongs to. Null = the company
+  // as a whole, which is also the right answer for most differentiators.
+  subject     String?
+  position    Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, kind, position])
+}
+
+// A brand document (positioning deck, style guide, product one-pager) whose
+// TEXT feeds generation. Bytes are kept so a human can re-read the source;
+// only `text` ever reaches a prompt.
+model BrandDocument {
+  id          String   @id @default(cuid())
+  workspaceId String
+  name        String
+  // Storage key when a file was uploaded; null when the text was pasted.
+  storageKey  String?
+  mimeType    String?
+  bytes       Int?
+  /// Extracted (or pasted) plain text — the only field a prompt sees.
+  /// ⚠ NULL means this document contributes NOTHING, and `extractError` says
+  /// why. A stored file that silently adds no context is the mock-fallback bug
+  /// in another costume: the owner must be able to see that it isn't working.
+  text        String?
+  extractError String?
+  chars       Int      @default(0)
+  // extracting | ready | failed — `extracting` only exists while the
+  // brand.extractdoc job is in flight for a format that needs one.
+  state       String   @default("ready")
+  includeInContext Boolean @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
 }
 
 // ---- Blog (ported from Spark's article pipeline; slice 1) --------------------

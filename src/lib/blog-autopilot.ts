@@ -30,7 +30,7 @@ import { templateGuidance, trackLabel, trackWordTarget } from "@/lib/blog-templa
 import { buildJsonLd } from "@/lib/blog-jsonld";
 import { loadAssetGate, generateBlogImagesCore } from "@/lib/blog-images";
 import {
-  brandGuardrailBlock,
+  brandContextBlock,
   ensureMotifDirectives,
   getBrandKit,
   getPlatformMotifs,
@@ -284,7 +284,7 @@ export async function generateDraftCore(workspaceId: string, postId: string): Pr
   // tier/audience) is the tone engine — it replaced the old 4-option tone field.
   const [motifs, guardrails, sme] = await Promise.all([
     motifPromptFor(workspaceId, post),
-    brandGuardrailBlock(workspaceId),
+    brandContextBlock(workspaceId),
     smePromptFor(workspaceId, post),
   ]);
 
@@ -456,7 +456,7 @@ export async function generateVariantsCore(workspaceId: string, postId: string):
   const articleWeights = await resolveMotifs(workspaceId, post);
   const [channelMotifs, guardrails] = await Promise.all([
     platformMotifBlock(workspaceId, ["linkedin", "x", "instagram", "facebook"], articleWeights),
-    brandGuardrailBlock(workspaceId),
+    brandContextBlock(workspaceId),
   ]);
 
   const prompt = [

@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
 import { llm } from "@/lib/llm";
 import { isGloballyPaused, writeAudit } from "@/lib/governance";
-import { brandGuardrailBlock, motifPromptFor } from "@/lib/motifs";
+import { brandContextBlock, motifPromptFor } from "@/lib/motifs";
 
 /**
  * SEO metadata generation — ONE implementation for the manual button and the
@@ -41,7 +41,7 @@ export async function generateSeoMetaCore(
 
   const [motifs, guardrails] = await Promise.all([
     motifPromptFor(workspaceId, post, "short"),
-    brandGuardrailBlock(workspaceId),
+    brandContextBlock(workspaceId),
   ]);
 
   const res = await llm.complete({

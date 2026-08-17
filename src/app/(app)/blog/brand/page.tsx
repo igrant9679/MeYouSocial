@@ -34,19 +34,36 @@ import {
   parseRenderRules,
 } from "@/lib/design-render";
 import { AiAssist } from "@/components/AiAssist";
+import { BrandContextSection } from "@/components/BrandContextSection";
 
 // FR-2 — Brand, typography & the 7 Motifs tone engine. Everything on this page
 // steers generation: the directives are the actual prompt text, not decoration.
 
-export default async function BrandPage() {
+type SP = { ok?: string; err?: string };
+
+export default async function BrandPage({ searchParams }: { searchParams: Promise<SP> }) {
   const { workspace, membership } = await requireMembership();
   const admin = canAdmin(membership.role);
-  const [brand, directives, defaults, platformMap] = await Promise.all([
+  const { ok, err } = await searchParams;
+  const [brand, directives, defaults, platformMap, facts, documents] = await Promise.all([
     getBrandKit(workspace.id),
     ensureMotifDirectives(workspace.id),
     db.motifDefault.findMany({ where: { workspaceId: workspace.id }, orderBy: [{ tier: "asc" }, { createdAt: "asc" }] }),
     getPlatformMotifs(workspace.id),
+    db.brandFact.findMany({
+      where: { workspaceId: workspace.id },
+      orderBy: [{ position: "asc" }, { createdAt: "asc" }],
+    }),
+    db.brandDocument.findMany({
+      where: { workspaceId: workspace.id },
+      orderBy: { createdAt: "asc" },
+    }),
   ]);
+  const differentiators = facts.filter((f) => f.kind === "differentiator");
+  const features = facts.filter((f) => f.kind === "feature");
+  const contextChars =
+    differentiators.concat(features).reduce((n, f) => n + f.title.length + (f.detail?.length ?? 0), 0) +
+    documents.filter((d) => d.includeInContext && d.text).reduce((n, d) => n + d.chars, 0);
   const renderRules = parseRenderRules(brand.renderRules);
   const history = await db.motifDirectiveVersion.findMany({
     where: { directiveId: { in: directives.map((d) => d.id) } },
@@ -76,6 +93,25 @@ export default async function BrandPage() {
           <p className="text-xs text-[var(--mute)]">These settings are read-only for your role — an admin can change them.</p>
         </div>
       )}
+
+      {ok && (
+        <div className="card mb-4" style={{ background: "var(--green-soft)", color: "var(--green-on)" }}>
+          <p className="text-xs">{ok}</p>
+        </div>
+      )}
+      {err && (
+        <div className="card mb-4" style={{ background: "var(--rose-soft)", color: "var(--rose-on)" }}>
+          <p className="text-xs">{err}</p>
+        </div>
+      )}
+
+      <BrandContextSection
+        admin={admin}
+        differentiators={differentiators}
+        features={features}
+        documents={documents}
+        contextChars={contextChars}
+      />
 
       {/* ---- Brand kit ---- */}
       <form action={saveBrandKitAction} className="card flex flex-col gap-4">

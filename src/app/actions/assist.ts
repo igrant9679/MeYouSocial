@@ -3,7 +3,7 @@
 import { requireRole } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { llm, resolveUsableModel } from "@/lib/llm";
-import { motifPromptFor, brandGuardrailBlock } from "@/lib/motifs";
+import { motifPromptFor, brandContextBlock } from "@/lib/motifs";
 import { ASSIST_FIELDS, isAssistField, type AssistField } from "@/lib/assist/fields";
 
 /**
@@ -149,7 +149,7 @@ export async function draftFieldAction(input: {
   const [motifs, guardrails] = await Promise.all([
     spec.context.includes("motifs") ? motifPromptFor(workspace.id, {}, "short") : null,
     spec.context.includes("brand") || spec.context.includes("motifs")
-      ? brandGuardrailBlock(workspace.id)
+      ? brandContextBlock(workspace.id)
       : null,
   ]);
 

@@ -6,7 +6,7 @@ import { db } from "@/lib/db";
 import { llm } from "@/lib/llm";
 import { isGloballyPaused, writeAudit } from "@/lib/governance";
 import { generateOutlineCore } from "@/lib/blog-autopilot";
-import { brandGuardrailBlock, motifPromptFor } from "@/lib/motifs";
+import { brandContextBlock, motifPromptFor } from "@/lib/motifs";
 
 /**
  * Craft actions (Wave A′): outline, per-section regenerate, A/B titles,

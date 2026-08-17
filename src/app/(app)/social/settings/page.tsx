@@ -49,8 +49,9 @@ export default async function SocialSettingsPage({ searchParams }: { searchParam
     analyseBestTimes(workspace.id),
   ]);
 
-  const [requireApproval, evergreenFill, autoImage, autogenOn, autogenWeekly, autogenCampaign] = await Promise.all([
+  const [requireApproval, autoQueue, evergreenFill, autoImage, autogenOn, autogenWeekly, autogenCampaign] = await Promise.all([
     getSetting("social:require_approval", workspace.id).catch(() => "").then((v) => v === "true"),
+    getSetting("social:autoqueue", workspace.id).catch(() => "").then((v) => v === "true"),
     getSetting("social:evergreen_fill", workspace.id).catch(() => "").then((v) => v === "true"),
     // Default-ON: only an explicit "false" turns auto-image off.
     getSetting("social:auto_image", workspace.id).catch(() => "").then((v) => v !== "false"),
@@ -191,6 +192,9 @@ export default async function SocialSettingsPage({ searchParams }: { searchParam
             <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: requireApproval ? "var(--green-soft)" : "var(--zebra)", color: requireApproval ? "var(--green-on)" : "var(--mute)" }}>
               approval {requireApproval ? "on" : "off"}
             </span>
+            <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: autoQueue ? "var(--green-soft)" : "var(--zebra)", color: autoQueue ? "var(--green-on)" : "var(--mute)" }}>
+              auto-queue {autoQueue ? "on" : "off"}
+            </span>
             <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: evergreenFill ? "var(--green-soft)" : "var(--zebra)", color: evergreenFill ? "var(--green-on)" : "var(--mute)" }}>
               evergreen fill {evergreenFill ? "on" : "off"}
             </span>
@@ -207,6 +211,16 @@ export default async function SocialSettingsPage({ searchParams }: { searchParam
               <span>
                 <b>Require approval.</b> Posts by non-admins are held until an admin approves them —
                 nothing unapproved can be sent, scheduled, queued or dragged onto the calendar.
+              </span>
+            </label>
+            <label className="inline-flex items-start gap-2 text-xs cursor-pointer">
+              <input type="checkbox" name="autoQueue" defaultChecked={autoQueue} className="mt-0.5" />
+              <span>
+                <b>Queue on approval.</b> Approving a post drops it straight into the next free slot
+                ({nextFreeLabel ? <>next is <b>{nextFreeLabel}</b></> : "no free slot right now"}) instead
+                of leaving it in the draft pile. Off by default: with it on, approving is the last
+                human act before a post reaches an audience. If every upcoming slot is taken the post
+                stays a draft and says so.
               </span>
             </label>
             <label className="inline-flex items-start gap-2 text-xs cursor-pointer">

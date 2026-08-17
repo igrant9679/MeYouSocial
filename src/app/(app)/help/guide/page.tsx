@@ -99,6 +99,13 @@ export default function GuidePage() {
             either way).
           </li>
           <li>
+            <b>Tell it what you actually do.</b> Same page, <i>Brand context for the AI</i>: your
+            differentiators, your products and what each one does, and your brand documents (upload a .docx,
+            .pdf, .txt — or paste the text). Every AI feature reads this before it writes, so it stops
+            describing you in generic terms. Nothing here is AI-generated on purpose: a differentiator the
+            model invented would be repeated as fact everywhere afterwards.
+          </li>
+          <li>
             <b>Set the clock.</b> <Link href="/social/settings" className="underline">Social → Settings</Link>:
             your timezone and posting slots — the recurring times the queue sends at. Slots are wall-clock, so
             09:00 stays 09:00 through daylight-saving changes.
@@ -106,7 +113,9 @@ export default function GuidePage() {
           <li>
             <b>Choose your gates.</b> Same page: <i>require approval</i> keeps every social post held until an
             admin approves it (recommended with a team). On the blog side, articles always park at review —
-            that gate isn&apos;t optional.
+            that gate isn&apos;t optional. <i>Queue on approval</i> decides what happens next: with it on,
+            approving a post drops it straight into the next free slot; with it off (the default) approving
+            leaves it a draft that still needs queueing.
           </li>
           <li>
             <b>Set the autonomy dials.</b> <Link href="/blog/automation" className="underline">Blog → Automation</Link>{" "}
@@ -180,7 +189,8 @@ export default function GuidePage() {
             <Link href="/social/approvals" className="underline">Social → Approvals</Link> for anything held, then{" "}
             <Link href="/social/calendar" className="underline">Calendar</Link> to queue approved drafts into free
             slots. <b>An approved draft that was never queued will never send</b> — approval and scheduling are
-            separate decisions, and Home warns when drafts sit idle.
+            separate decisions by default, and Home warns when drafts sit idle. Turn on <i>queue on approval</i>
+            in <Link href="/social/settings" className="underline">Settings</Link> to collapse the two into one.
           </Step>
           <Step icon={Check} title="Glance at what the numbers are saying.">
             <Link href="/social/performance" className="underline">Social → Performance</Link> for per-network

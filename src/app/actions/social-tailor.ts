@@ -2,7 +2,7 @@
 
 import { requireRole } from "@/lib/acl";
 import { llm, resolveUsableModel } from "@/lib/llm";
-import { motifPromptFor, brandGuardrailBlock } from "@/lib/motifs";
+import { motifPromptFor, brandContextBlock } from "@/lib/motifs";
 import { networkFor } from "@/lib/social/networks";
 
 /**
@@ -84,7 +84,7 @@ export async function tailorPostForNetworksAction(input: {
 
   const [motifs, guardrails] = await Promise.all([
     motifPromptFor(workspace.id, {}, "short").catch(() => null),
-    brandGuardrailBlock(workspace.id).catch(() => null),
+    brandContextBlock(workspace.id).catch(() => null),
   ]);
   const guidance = String(input.guidance ?? "").trim().slice(0, 300);
 

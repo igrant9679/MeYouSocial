@@ -4,7 +4,7 @@ import { readJson, writeJson } from "@/lib/db/json";
 import { writeAudit } from "@/lib/governance";
 import { notify } from "@/lib/notify";
 import { llm, resolveUsableModel } from "@/lib/llm";
-import { motifPromptFor, brandGuardrailBlock } from "@/lib/motifs";
+import { motifPromptFor, brandContextBlock } from "@/lib/motifs";
 import { networkFor } from "@/lib/social/networks";
 import { claimNextFreeSlot } from "@/lib/social/slots";
 
@@ -65,7 +65,7 @@ export async function generateSocialPostForWorkspace(workspaceId: string): Promi
       orderBy: { updatedAt: "desc" }, take: 3, select: { title: true },
     }),
     motifPromptFor(workspaceId, {}, "short").catch(() => null),
-    brandGuardrailBlock(workspaceId).catch(() => null),
+    brandContextBlock(workspaceId).catch(() => null),
     db.workspace.findUnique({ where: { id: workspaceId }, select: { name: true, defaultModel: true } }),
   ]);
   if (!workspace) return false;
