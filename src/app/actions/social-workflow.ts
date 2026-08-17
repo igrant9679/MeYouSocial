@@ -167,16 +167,23 @@ export async function approveSocialPostAction(formData: FormData) {
     const { timeZone } = await resolveTimeZone(workspace.id);
     backTo(`Approved and queued for ${formatInZone(queuedAt, timeZone)}.`, "ok");
   }
-  // Auto-queue on and still a draft = the calendar is full. Say which it is:
-  // "ready to queue" reads as a choice, and the owner needs to know it isn't.
+  // Auto-queue on and still a draft: name the actual cause. ⚠ These are two
+  // different faults and they were one message until a fixture run caught it —
+  // slots RECUR, so `free` spans weeks ahead and is essentially never empty.
+  // In practice "nothing was queued" means NO SLOTS EXIST, and telling that
+  // owner the calendar is full sends them looking for a queue to clear.
   const autoqueueOn =
     (await (await import("@/lib/settings")).getSetting("social:autoqueue", workspace.id).catch(() => "")) === "true";
-  backTo(
-    autoqueueOn
-      ? "Approved — but every upcoming slot is taken, so it's still a draft. Add slots on Social → Settings."
-      : "Approved — it's a draft, ready to queue or send.",
-    "ok",
-  );
+  if (autoqueueOn) {
+    const slots = await db.postingSlot.count({ where: { workspaceId: workspace.id, enabled: true } });
+    backTo(
+      slots === 0
+        ? "Approved — but this workspace has no posting slots, so there was nowhere to queue it. Add slots on Social → Settings."
+        : "Approved — but every upcoming slot is taken, so it's still a draft. Add slots on Social → Settings.",
+      "ok",
+    );
+  }
+  backTo("Approved — it's a draft, ready to queue or send.", "ok");
 }
 
 export async function requestChangesSocialPostAction(formData: FormData) {
