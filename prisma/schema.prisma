@@ -58,6 +58,7 @@ model Workspace {
   intelChannels   IntelChannel[]
   brandFacts      BrandFact[]
   brandDocuments  BrandDocument[]
+  orgProfile      OrgProfile?
 
   // This workspace's Zernio profile — Zernio's tenant boundary. Created lazily
   // the first time an account is connected, then reused.
@@ -234,6 +235,11 @@ model SitePage {
 }
 
 // Spark's org profile — "what this client does"; grounds every generation.
+// ⚠ The relation is what makes deletion clean up after itself. Without it this
+// was a bare `workspaceId` column with no foreign key, so deleting a workspace
+// left its profile behind — found 2026-08-18 when a deleted fixture's row
+// survived and was still counted by `orgProfile.findMany()`. Twenty-odd other
+// workspace-scoped models still have the same shape.
 model OrgProfile {
   id          String   @id @default(cuid())
   workspaceId String   @unique
@@ -250,6 +256,8 @@ model OrgProfile {
   services    String   @default("[]") // JSON array of strings
   audience    String?
   updatedAt   DateTime @updatedAt
+
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 }
 
 // ---- FR-2: brand kit, typography & the 7 Motifs tone engine ------------------
