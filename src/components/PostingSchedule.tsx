@@ -154,7 +154,7 @@ export function PostingSchedule({
                 {canEdit && list.length > 0 && (
                   <form action={clearWeekdaySlotsAction}>
                     <input type="hidden" name="weekday" value={n} />
-                    <button className="text-[var(--mute)] hover:text-[var(--rose-on)]" title={`Clear every ${label} slot`}>
+                    <button className="text-[var(--mute)] hover:text-[var(--rose-on)]" title={`Clear every ${label} slot — anything scheduled in them goes back to Approvals for a new time`}>
                       <Trash2 className="w-3 h-3" />
                     </button>
                   </form>
@@ -179,13 +179,13 @@ export function PostingSchedule({
                     <>
                       <form action={togglePostingSlotAction}>
                         <input type="hidden" name="id" value={s.id} />
-                        <button className="text-[var(--mute)] hover:text-[var(--ink)]" title={s.enabled ? "Pause this slot" : "Resume this slot"}>
+                        <button className="text-[var(--mute)] hover:text-[var(--ink)]" title={s.enabled ? "Pause this slot — posts already scheduled in it still go out" : "Resume this slot"}>
                           {s.enabled ? <Pause className="w-2.5 h-2.5" /> : <Play className="w-2.5 h-2.5" />}
                         </button>
                       </form>
                       <form action={deletePostingSlotAction}>
                         <input type="hidden" name="id" value={s.id} />
-                        <button className="text-[var(--mute)] hover:text-[var(--rose-on)]" title="Remove this slot">
+                        <button className="text-[var(--mute)] hover:text-[var(--rose-on)]" title="Remove this slot — anything scheduled in it goes back to Approvals for a new time">
                           <Trash2 className="w-2.5 h-2.5" />
                         </button>
                       </form>

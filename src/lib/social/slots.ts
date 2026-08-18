@@ -326,3 +326,60 @@ export async function claimNextFreeSlot(
   if (!slot) return { error: "full" };
   return { at: slot.at };
 }
+
+// ---- Removing a slot -----------------------------------------------------------
+
+/**
+ * Posts scheduled into a slot that is being DELETED go back to the queue, and
+ * back through approval.
+ *
+ * ⚠ A deleted slot must not leave posts stranded on an instant the schedule no
+ * longer has. Before this, removing a slot left every post already sitting in
+ * it scheduled at a time the calendar no longer showed — they would still have
+ * gone out at that moment, from a slot the owner believed they had deleted.
+ *
+ * "Back to the queue" means all three of:
+ *   · `scheduledAt` cleared and `status` back to `draft`, so the post is
+ *     genuinely unscheduled rather than pointing at a ghost time;
+ *   · `approval` set to `pending`, which is what the owner asked for — the
+ *     schedule changed under this post, so someone should look at it again.
+ *     ⚠ The sweep's claim treats pending as unsendable regardless of the
+ *     workspace's `require_approval` setting, so this reliably stops the send
+ *     even where approval is otherwise off;
+ *   · a `reviewNote` saying why, because a post that silently reappears in
+ *     Approvals with no explanation reads as a bug.
+ * Re-assignment then happens the normal way: approving it queues it into the
+ * next free slot when `social:autoqueue` is on, or the owner queues it.
+ *
+ * Only FUTURE, still-scheduled posts are touched. Anything already `posted`,
+ * `failed` or mid-flight in `publishing` is history or in someone else's hands.
+ */
+export async function releasePostsFromSlots(
+  workspaceId: string,
+  removed: Array<{ weekday: number; minute: number }>,
+  reason: string,
+): Promise<{ released: number; posts: Array<{ id: string; at: Date }> }> {
+  if (removed.length === 0) return { released: 0, posts: [] };
+  const timeZone = await getPostingTimeZone(workspaceId);
+  const wanted = new Set(removed.map((s) => `${s.weekday}:${s.minute}`));
+
+  const scheduled = await db.socialPost.findMany({
+    where: { workspaceId, status: "scheduled", scheduledAt: { gte: new Date() } },
+    select: { id: true, scheduledAt: true },
+  });
+  const hit = scheduled.filter((p) => {
+    if (!p.scheduledAt) return false;
+    const parts = zonedParts(p.scheduledAt, timeZone);
+    return wanted.has(`${parts.weekday}:${parts.minute}`);
+  });
+  if (hit.length === 0) return { released: 0, posts: [] };
+
+  await db.socialPost.updateMany({
+    // Re-check the status in the write: the sweep may have claimed one for
+    // publishing between the read above and here, and a post already going out
+    // must not be dragged back to draft underneath it.
+    where: { id: { in: hit.map((p) => p.id) }, status: "scheduled" },
+    data: { status: "draft", scheduledAt: null, approval: "pending", approvedById: null, approvedAt: null, reviewNote: reason },
+  });
+  return { released: hit.length, posts: hit.map((p) => ({ id: p.id, at: p.scheduledAt! })) };
+}

@@ -5,14 +5,18 @@ import { redirect } from "next/navigation";
 import { requireRole } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { setWorkspaceSetting } from "@/lib/settings";
+import { writeAudit } from "@/lib/governance";
 import {
   claimNextFreeSlot,
+  WEEKDAY_LABELS,
   formatInZone,
+  formatMinute,
   getPostingTimeZone,
   getQueue,
   isValidTimeZone,
   parseMinute,
   queueFailureMessage,
+  releasePostsFromSlots,
 } from "@/lib/social/slots";
 
 /**
@@ -81,12 +85,33 @@ export async function addPostingSlotsAction(formData: FormData) {
 
 export async function deletePostingSlotAction(formData: FormData) {
   const backTo: Flash = tabFlash("/social/settings");
-  const { workspace } = await requireRole("ADMIN");
+  const { workspace, user } = await requireRole("ADMIN");
   const id = String(formData.get("id") ?? "");
+  // Read it before deleting: releasing its posts needs the weekday and minute.
+  const slot = await db.postingSlot.findFirst({ where: { id, workspaceId: workspace.id } });
+  if (!slot) backTo("Slot not found.");
   // Scoped delete — a slot id from another workspace matches nothing.
   await db.postingSlot.deleteMany({ where: { id, workspaceId: workspace.id } });
+
+  const { released } = await releasePostsFromSlots(
+    workspace.id,
+    [{ weekday: slot!.weekday, minute: slot!.minute }],
+    `The ${formatMinute(slot!.minute)} slot on ${WEEKDAY_LABELS[slot!.weekday]} was removed, so this post needs a new time.`,
+  );
+  if (released) {
+    await writeAudit({
+      workspaceId: workspace.id, actorId: user.id, action: "social.slot_removed",
+      entityType: "posting_slot", entityId: id,
+      meta: { weekday: slot!.weekday, minute: slot!.minute, postsReleased: released },
+    });
+  }
   revalidatePath("/social", "layout");
-  backTo("Slot removed.", "ok");
+  backTo(
+    released
+      ? `Slot removed. ${released} scheduled post${released === 1 ? "" : "s"} went back to Approvals for a new time.`
+      : "Slot removed.",
+    "ok",
+  );
 }
 
 /**
@@ -108,12 +133,31 @@ export async function togglePostingSlotAction(formData: FormData) {
 /** Remove every slot on one weekday — the column header's clear button. */
 export async function clearWeekdaySlotsAction(formData: FormData) {
   const backTo: Flash = tabFlash("/social/settings");
-  const { workspace } = await requireRole("ADMIN");
+  const { workspace, user } = await requireRole("ADMIN");
   const weekday = Number(formData.get("weekday"));
   if (!Number.isInteger(weekday) || weekday < 0 || weekday > 6) backTo("Unknown day.");
+  const slots = await db.postingSlot.findMany({ where: { workspaceId: workspace.id, weekday } });
   const { count } = await db.postingSlot.deleteMany({ where: { workspaceId: workspace.id, weekday } });
+
+  const { released } = await releasePostsFromSlots(
+    workspace.id,
+    slots.map((s) => ({ weekday: s.weekday, minute: s.minute })),
+    `Every slot on ${WEEKDAY_LABELS[weekday]} was cleared, so this post needs a new time.`,
+  );
+  if (released) {
+    await writeAudit({
+      workspaceId: workspace.id, actorId: user.id, action: "social.slots_cleared",
+      entityType: "posting_slot", meta: { weekday, slotsRemoved: count, postsReleased: released },
+    });
+  }
   revalidatePath("/social", "layout");
-  backTo(count ? `Cleared ${count} slot${count === 1 ? "" : "s"}.` : "Nothing to clear.", "ok");
+  if (!count) backTo("Nothing to clear.", "ok");
+  backTo(
+    released
+      ? `Cleared ${count} slot${count === 1 ? "" : "s"}. ${released} scheduled post${released === 1 ? "" : "s"} went back to Approvals for a new time.`
+      : `Cleared ${count} slot${count === 1 ? "" : "s"}.`,
+    "ok",
+  );
 }
 
 /**
