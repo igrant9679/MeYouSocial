@@ -300,3 +300,11 @@ html[data-theme="dark"] .btn.primary { background-color: var(--accent) !importan
   .btn { min-height: 44px; }
   .btn.sm { min-height: 40px; }
 }
+
+/* Rich text editor: a contentEditable has no placeholder of its own. */
+.rich-surface:empty::before,
+.rich-surface > p:only-child:empty::before {
+  content: attr(data-placeholder);
+  color: var(--mute);
+  pointer-events: none;
+}

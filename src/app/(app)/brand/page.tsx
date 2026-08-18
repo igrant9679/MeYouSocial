@@ -11,7 +11,7 @@ import { SubmitButton } from "@/components/SubmitButton";
 import { HelpTip } from "@/components/HelpTip";
 import { BRAND_TIPS } from "@/lib/help-tips";
 import { saveOrgProfileAction } from "@/app/actions/blog";
-import { BlockEditor } from "@/components/BlockEditor";
+import { RichTextEditor } from "@/components/RichTextEditor";
 import {
   saveBrandIdentityAction,
   createTopicAction,
@@ -118,14 +118,16 @@ export default async function BrandPage({ searchParams }: { searchParams: Promis
       <form action={saveOrgProfileAction} className="card mb-6 flex flex-col gap-3">
         <div className="text-sm">
           <span className="block text-xs text-[var(--mute)] mb-1">What they do, for whom, and what makes them different</span>
-          {/* Block editor. It submits `description` (plain text) as a hidden
-              field, which is both what AiAssist targets and what the server
-              re-derives from the blocks on save. */}
-          <BlockEditor
-            initialBlocks={org?.descriptionBlocks ?? null}
+          {/* WYSIWYG. `plainName` submits the plain-text projection, which is
+              what AiAssist targets by name; the server re-derives it from the
+              sanitized HTML on save regardless. */}
+          <RichTextEditor
+            name="descriptionHtml"
+            plainName="description"
+            initialHtml={org?.descriptionHtml ?? null}
             initialText={org?.description ?? ""}
             disabled={!editor}
-            emptyHint="Empty — add a block below. What this company does, for whom, and what makes it different."
+            minHeight={180}
             placeholder="e.g. LSI Media is a digital agency helping nonprofits grow through content-led SEO…"
           />
         </div>

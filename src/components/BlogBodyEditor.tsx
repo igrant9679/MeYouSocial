@@ -1,32 +1,26 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Blocks, Code2, Eye, PencilLine } from "lucide-react";
+import { Code2, Eye, PencilLine } from "lucide-react";
 import { autosaveBlogBodyAction } from "@/app/actions/blog";
-import { BlockList } from "@/components/BlockEditor";
-import { RICH_BLOCK_TYPES, type Block, blocksToHtml, htmlToBlocks } from "@/lib/blocks";
+import { RichTextEditor } from "@/components/RichTextEditor";
 
 /**
- * Blog body editor (Wave A′): HTML source, a BLOCK editor, and a rendered
- * preview, plus live word count / reading time and debounced autosave (3s
- * idle). The <textarea> is named "body" so the surrounding form's explicit Save
- * still works and creates a version; autosave writes body only (no version
- * churn). Preview sanitization: scripts/iframes/event handlers stripped
- * client-side.
+ * Blog body editor: a WYSIWYG surface, the HTML source, and a rendered preview,
+ * plus live word count / reading time and debounced autosave (3s idle). The
+ * field is named "body" so the surrounding form's explicit Save still works and
+ * creates a version; autosave writes body only (no version churn).
  *
- * ⚠ HTML IS THE CANONICAL FORM, BLOCKS ARE A VIEW OVER IT. `BlogPost.body` is
- * what publishCore sends to WordPress, what the HTML export embeds and what the
- * checks read, so the block mode converts on the way in and out rather than
- * storing anything of its own. Anything blocks can't model — an image, a
- * figure, a table, an embed, a nested list — round-trips VERBATIM inside an
- * `html` block (see src/lib/blocks.ts). A lossy pass over a published article
- * is precisely the kind of silent damage this codebase keeps finding, and it
- * doesn't get to happen here.
+ * ⚠ HTML IS THE STORED FORM AND THE EDITOR EDITS IT DIRECTLY. `BlogPost.body`
+ * is what publishCore sends to WordPress, what the HTML export embeds and what
+ * the checks read — so rich text here is not a conversion layer, it is that
+ * same HTML with a toolbar over it. Nothing is transformed on the way in or
+ * out, and an article nobody edits stays byte-identical.
  *
- * ⚠ Switching INTO blocks does not touch `body`. Conversion alone would rewrite
- * a hand-tuned article's whitespace and attribute order the moment someone
- * clicked the tab out of curiosity; the body is only rewritten once a block is
- * actually edited.
+ * ⚠ The rich surface is REMOUNTED BY KEY when you come back to it from HTML.
+ * It is uncontrolled by design — a contentEditable rewritten from state moves
+ * the caret to the end on every keystroke — so a fresh mount is the only safe
+ * way to load edits made in the other tab.
  */
 
 function sanitize(html: string): string {
@@ -42,7 +36,7 @@ function sanitize(html: string): string {
   return doc.body.innerHTML;
 }
 
-type Mode = "source" | "blocks" | "preview";
+type Mode = "rich" | "source" | "preview";
 
 export function BlogBodyEditor({
   postId,
@@ -54,8 +48,8 @@ export function BlogBodyEditor({
   disabled?: boolean;
 }) {
   const [body, setBody] = useState(initialBody);
-  const [mode, setMode] = useState<Mode>("source");
-  const [blocks, setBlocks] = useState<Block[]>([]);
+  const [mode, setMode] = useState<Mode>("rich");
+  const [mountKey, setMountKey] = useState(0);
   const [saveState, setSaveState] = useState<"idle" | "pending" | "saved">("idle");
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSaved = useRef(initialBody);
@@ -88,15 +82,10 @@ export function BlogBodyEditor({
   }, [body, postId, disabled]);
 
   function toMode(next: Mode) {
-    // Entering blocks: parse the CURRENT body. Leaving it: keep whatever the
-    // blocks produced, which `onBlocks` has already written into body.
-    if (next === "blocks") setBlocks(htmlToBlocks(body));
+    // Coming back to the surface, remount it so it picks up edits made in the
+    // HTML tab. See the key warning above.
+    if (next === "rich" && mode !== "rich") setMountKey((k) => k + 1);
     setMode(next);
-  }
-
-  function onBlocks(next: Block[]) {
-    setBlocks(next);
-    setBody(blocksToHtml(next));
   }
 
   const tab = (m: Mode, label: string, icon: React.ReactNode) => (
@@ -114,15 +103,15 @@ export function BlogBodyEditor({
   return (
     <div>
       <div className="flex items-center gap-2 mb-1 flex-wrap">
-        <span className="block text-xs text-[var(--mute)]">Body {mode === "source" ? "(HTML)" : mode === "blocks" ? "(blocks)" : "(preview)"}</span>
+        <span className="block text-xs text-[var(--mute)]">Body</span>
         <span className="font-mono text-[10px] text-[var(--mute)]">
           {words.toLocaleString()} words · ~{minutes} min read
           {saveState === "pending" && " · saving…"}
           {saveState === "saved" && " · autosaved"}
         </span>
         <span className="flex-1" />
-        {tab("source", "Source", <Code2 className="w-3.5 h-3.5" />)}
-        {tab("blocks", "Blocks", <Blocks className="w-3.5 h-3.5" />)}
+        {tab("rich", "Edit", <PencilLine className="w-3.5 h-3.5" />)}
+        {tab("source", "HTML", <Code2 className="w-3.5 h-3.5" />)}
         {tab("preview", "Preview", <Eye className="w-3.5 h-3.5" />)}
       </div>
 
@@ -133,22 +122,16 @@ export function BlogBodyEditor({
         />
       )}
 
-      {mode === "blocks" && (
-        <div className="rounded-lg border border-[var(--line)] p-2 max-h-[560px] overflow-y-auto">
-          <p className="text-[10px] text-[var(--mute)] mb-2">
-            Editing as blocks. Links and bold stay as inline HTML inside a block; images, tables and
-            anything else are kept whole in an <b>HTML</b> block so nothing is lost on the way back.
-          </p>
-          <BlockList
-            blocks={blocks}
-            onChange={onBlocks}
-            disabled={disabled}
-            allowed={RICH_BLOCK_TYPES}
-            placeholder="Write here, or generate a grounded AI draft below."
-            emptyHint="No blocks yet — add one below, or switch to Source if the article is empty."
-            minRows={4}
-          />
-        </div>
+      {mode === "rich" && (
+        <RichTextEditor
+          key={mountKey}
+          name="body"
+          initialHtml={body}
+          disabled={disabled}
+          minHeight={380}
+          placeholder="Write here, or generate a grounded AI draft below."
+          onChange={setBody}
+        />
       )}
 
       {mode === "source" && (
@@ -162,8 +145,8 @@ export function BlogBodyEditor({
           disabled={disabled}
         />
       )}
-      {/* The form must submit the body from every mode, not just Source. */}
-      {mode !== "source" && <input type="hidden" name="body" value={body} />}
+      {/* Preview has no field of its own, so the form still needs the body. */}
+      {mode === "preview" && <input type="hidden" name="body" value={body} />}
     </div>
   );
 }

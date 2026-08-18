@@ -7,7 +7,7 @@ import { db } from "@/lib/db";
 import { runBlogChecks, requiredChecksPass } from "@/lib/blog-checks";
 import { writeAudit } from "@/lib/governance";
 import { generateDraftCore } from "@/lib/blog-autopilot";
-import { blocksToPlainText, parseBlocks, serializeBlocks } from "@/lib/blocks";
+import { richTextToPlainText, sanitizeRichHtml } from "@/lib/richtext";
 import { jobs } from "@/lib/jobs";
 import { readMotifWeights, serializeMotifs } from "@/lib/motifs";
 import { loadAssetGate } from "@/lib/blog-images";
@@ -389,22 +389,22 @@ export async function saveOrgProfileAction(formData: FormData) {
   const { workspace } = await requireRole("EDITOR");
   const str = (k: string) => String(formData.get(k) ?? "").trim() || null;
 
-  // The block editor submits both its blocks and a plain-text copy. ⚠ The
-  // PLAIN TEXT IS RE-DERIVED HERE rather than trusted: `description` is what
-  // every prompt in the app is grounded in, and a stale or hand-crafted hidden
-  // field would silently teach the model something the author never wrote.
-  // No blocks (JS off, or an older form) means the textarea is the truth, so
-  // the field degrades instead of blanking.
-  const rawBlocks = String(formData.get("descriptionBlocks") ?? "").trim();
-  const blocks = rawBlocks ? parseBlocks(rawBlocks) : [];
-  const description = blocks.length ? blocksToPlainText(blocks) || null : str("description");
-  const descriptionBlocks = blocks.length ? serializeBlocks(blocks) : rawBlocks ? null : undefined;
+  // The editor submits rich HTML. ⚠ IT IS SANITIZED AND THE PLAIN TEXT IS
+  // RE-DERIVED HERE, never trusted from the client: `description` is what every
+  // prompt in the app is grounded in, and this HTML is rendered back into a
+  // page. A stale or hand-crafted hidden field would otherwise teach the model
+  // something the author never wrote — or store a script tag.
+  // No HTML (JS off, or an older form) means the textarea is the truth, so the
+  // field degrades instead of blanking.
+  const rawHtml = String(formData.get("descriptionHtml") ?? "").trim();
+  const descriptionHtml = rawHtml ? sanitizeRichHtml(rawHtml) : "";
+  const description = descriptionHtml ? richTextToPlainText(descriptionHtml) || null : str("description");
 
   const data = {
     description,
     industry: str("industry"),
     audience: str("audience"),
-    ...(descriptionBlocks === undefined ? {} : { descriptionBlocks }),
+    ...(rawHtml ? { descriptionHtml: descriptionHtml || null } : {}),
   };
   await db.orgProfile.upsert({
     where: { workspaceId: workspace.id },

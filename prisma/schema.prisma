@@ -242,10 +242,10 @@ model OrgProfile {
   /// `descriptionBlocks` on the server at save time when blocks are present,
   /// so the authored form and the prompt form can never drift.
   description String?  // what they do, for whom, differentiation
-  /// The block editor's authored content (JSON, see src/lib/blocks.ts). Null
-  /// for a profile written before the editor existed — the editor opens those
-  /// by parsing `description` into blocks.
-  descriptionBlocks String?
+  /// The rich-text editor's authored content (HTML, see src/lib/richtext.ts).
+  /// Null for a profile written before the editor existed — the editor opens
+  /// those by wrapping `description`'s paragraphs.
+  descriptionHtml String?
   industry    String?
   services    String   @default("[]") // JSON array of strings
   audience    String?
