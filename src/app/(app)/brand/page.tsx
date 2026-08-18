@@ -11,6 +11,7 @@ import { SubmitButton } from "@/components/SubmitButton";
 import { HelpTip } from "@/components/HelpTip";
 import { BRAND_TIPS } from "@/lib/help-tips";
 import { saveOrgProfileAction } from "@/app/actions/blog";
+import { BlockEditor } from "@/components/BlockEditor";
 import {
   saveBrandIdentityAction,
   createTopicAction,
@@ -115,12 +116,19 @@ export default async function BrandPage({ searchParams }: { searchParams: Promis
       <SectionHead icon={<Building2 className="w-4 h-4" style={{ color: "var(--teal-on)" }} />} title="Company info"
         note="What this company does, for whom. Every AI draft is grounded in this." />
       <form action={saveOrgProfileAction} className="card mb-6 flex flex-col gap-3">
-        <label className="text-sm">
+        <div className="text-sm">
           <span className="block text-xs text-[var(--mute)] mb-1">What they do, for whom, and what makes them different</span>
-          <textarea name="description" rows={4} defaultValue={org?.description ?? ""} disabled={!editor}
+          {/* Block editor. It submits `description` (plain text) as a hidden
+              field, which is both what AiAssist targets and what the server
+              re-derives from the blocks on save. */}
+          <BlockEditor
+            initialBlocks={org?.descriptionBlocks ?? null}
+            initialText={org?.description ?? ""}
+            disabled={!editor}
+            emptyHint="Empty — add a block below. What this company does, for whom, and what makes it different."
             placeholder="e.g. LSI Media is a digital agency helping nonprofits grow through content-led SEO…"
-            className="w-full text-sm leading-relaxed" />
-        </label>
+          />
+        </div>
         {editor && (
           <AiAssist
             field="workspace.description"

@@ -237,7 +237,15 @@ model SitePage {
 model OrgProfile {
   id          String   @id @default(cuid())
   workspaceId String   @unique
+  /// PLAIN TEXT, and it stays that way: this string is injected verbatim into
+  /// idea discovery, drafting, SEO and the assist prompts. It is DERIVED from
+  /// `descriptionBlocks` on the server at save time when blocks are present,
+  /// so the authored form and the prompt form can never drift.
   description String?  // what they do, for whom, differentiation
+  /// The block editor's authored content (JSON, see src/lib/blocks.ts). Null
+  /// for a profile written before the editor existed — the editor opens those
+  /// by parsing `description` into blocks.
+  descriptionBlocks String?
   industry    String?
   services    String   @default("[]") // JSON array of strings
   audience    String?
