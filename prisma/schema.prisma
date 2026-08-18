@@ -59,6 +59,26 @@ model Workspace {
   brandFacts      BrandFact[]
   brandDocuments  BrandDocument[]
   orgProfile      OrgProfile?
+  keywords        Keyword[]
+  sitePages       SitePage[]
+  brandKit        BrandKit?
+  motifDirectives MotifDirective[]
+  motifDefaults   MotifDefault[]
+  platformMotifs  PlatformMotif[]
+  smeProfiles     SmeProfile[]
+  blogIdeas       BlogIdea[]
+  wordPressConnection WordPressConnection?
+  functionModes   FunctionMode[]
+  notifications   Notification[]
+  notificationPreferences NotificationPreference[]
+  contentAuditItems ContentAuditItem[]
+  reportConfigs   ReportConfig[]
+  automationState AutomationState?
+  videoRenders    VideoRender[]
+  brandedShorts   BrandedShort[]
+  metricSnapshots MetricSnapshot[]
+  recommendations Recommendation[]
+  jobs            Job[]
 
   // This workspace's Zernio profile — Zernio's tenant boundary. Created lazily
   // the first time an account is connected, then reused.
@@ -218,6 +238,8 @@ model Keyword {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
   @@unique([workspaceId, phrase])
   @@index([workspaceId, cluster])
 }
@@ -230,6 +252,8 @@ model SitePage {
   title       String
   topic       String?  // short description of what the page covers
   createdAt   DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@unique([workspaceId, url])
 }
@@ -289,6 +313,8 @@ model BrandKit {
   aiImagesEnabled        Boolean @default(false) // AI generation, always human-reviewed
   brandInBodyImages      Boolean @default(false) // OG is always branded; opt in for the rest
   updatedAt      DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 }
 
 // FR-8: an article needs a featured image and a branded Open Graph image, both
@@ -332,6 +358,8 @@ model MotifDirective {
 
   versions MotifDirectiveVersion[]
 
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
   @@unique([workspaceId, key])
 }
 
@@ -361,6 +389,8 @@ model MotifDefault {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
   @@index([workspaceId])
 }
 
@@ -372,6 +402,8 @@ model PlatformMotif {
   platform    String   // linkedin | x | instagram | facebook | video
   motifKey    String
   updatedAt   DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@unique([workspaceId, platform])
 }
@@ -412,6 +444,8 @@ model SmeProfile {
   updatedAt   DateTime @updatedAt
 
   versions SmeProfileVersion[]
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([workspaceId, status])
 }
@@ -462,6 +496,8 @@ model BlogIdea {
   // Deleting a topic must not delete the ideas that referenced it.
   topic     Topic?   @relation(fields: [topicId], references: [id], onDelete: SetNull)
 
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
   @@index([workspaceId, status])
 }
 
@@ -485,6 +521,8 @@ model WordPressConnection {
    *  Empty = the theme's default single-post template. Applied to every publish. */
   template       String   @default("")
   updatedAt      DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 }
 
 // Per-platform social copy for a published post (Spark FR-12).
@@ -533,6 +571,8 @@ model FunctionMode {
   mode        String   @default("manual") // manual | assisted | auto
   updatedAt   DateTime @updatedAt
 
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
   @@unique([workspaceId, function])
 }
 
@@ -553,6 +593,8 @@ model Notification {
   emailedAt   DateTime?
   createdAt   DateTime  @default(now())
 
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
   @@index([workspaceId, userId, readAt])
 }
 
@@ -564,6 +606,8 @@ model NotificationPreference {
   inApp       Boolean @default(true)
   email       Boolean @default(false)
   updatedAt   DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@unique([workspaceId, userId, kind])
 }
@@ -604,6 +648,8 @@ model ContentAuditItem {
   status      String   @default("open") // open | actioned | dismissed
   auditedAt   DateTime @default(now())
 
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
   @@unique([workspaceId, url])
   @@index([workspaceId, status])
 }
@@ -623,6 +669,8 @@ model ReportConfig {
   isCustom      Boolean  @default(false)
   updatedAt     DateTime @updatedAt
 
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
   @@unique([workspaceId, key])
 }
 
@@ -632,6 +680,8 @@ model AutomationState {
   workspaceId String  @unique
   globalPause Boolean @default(false)
   updatedAt   DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 }
 
 // Phase 4 — a rendered (or queued) short-form video derived from content.
@@ -669,6 +719,8 @@ model VideoRender {
   // Deleting a topic must not delete the renders that referenced it.
   topic        Topic?   @relation(fields: [topicId], references: [id], onDelete: SetNull)
 
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
   @@index([workspaceId, status])
 }
 
@@ -691,6 +743,8 @@ model BrandedShort {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
   @@index([workspaceId, createdAt])
 }
 
@@ -712,6 +766,8 @@ model MetricSnapshot {
   source      String   @default("owned")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@unique([workspaceId, day, key])
   @@index([workspaceId, key, day])
@@ -744,6 +800,8 @@ model Recommendation {
   dismissedReason String?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([workspaceId, status, createdAt])
   @@index([workspaceId, fingerprint])
@@ -812,6 +870,8 @@ model Job {
   finishedAt  DateTime?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+
+  workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([state, createdAt])
   @@index([name, refId, createdAt])
