@@ -13,9 +13,10 @@ import { plainTextToRichHtml, looksLikeHtml, richTextToPlainText } from "@/lib/r
  * ⚠ THE SURFACE IS UNCONTROLLED, AND THAT IS NOT LAZINESS. A contentEditable
  * whose innerHTML is written from React state on every keystroke moves the
  * caret to the end of the document as you type — the classic rich-text bug.
- * So the HTML is injected ONCE on mount, the DOM owns it afterwards, and the
- * parent is notified through `onChange`. To load different content, change the
- * component's `key` so it remounts; never push new HTML into a live surface.
+ * So the HTML is rendered ONCE (server-side, from a captured seed), the DOM
+ * owns it afterwards, and the parent is notified through `onChange`. To load
+ * different content, change the component's `key` so it remounts; never push
+ * new HTML into a live surface.
  *
  * ⚠ `document.execCommand` is deprecated and still the only thing every browser
  * implements for this. The replacement (a Selection/Range engine per command)
@@ -59,14 +60,20 @@ export function RichTextEditor({
   const [linkOpen, setLinkOpen] = useState(false);
   const [linkUrl, setLinkUrl] = useState("");
   const savedRange = useRef<Range | null>(null);
-  const plainRef = useRef<HTMLInputElement>(null);
+  const plainRef = useRef<HTMLTextAreaElement>(null);
   const lastPlain = useRef<string>("");
 
-  // Inject once. See the caret warning above.
-  useEffect(() => {
-    if (ref.current && ref.current.innerHTML !== html) ref.current.innerHTML = html;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  /**
+   * ⚠ The initial HTML is rendered by the SERVER, not injected by an effect.
+   * An effect-only version showed an EMPTY editor until hydration finished —
+   * and stayed empty if the client bundle never ran, while a hidden field held
+   * the real article. An author looking at an empty box retypes their work.
+   *
+   * `seed` is captured once and never changes, so React sees the same
+   * `__html` on every render and leaves the live DOM alone — which is what
+   * keeps the surface uncontrolled and the caret still.
+   */
+  const seed = useRef(html).current;
 
   // Keep the plain projection in step, through the prototype setter so React's
   // _valueTracker doesn't swallow it…
@@ -75,7 +82,7 @@ export function RichTextEditor({
     if (!el) return;
     const text = richTextToPlainText(html);
     lastPlain.current = text;
-    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+    const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")?.set;
     setter?.call(el, text);
   }, [html]);
 
@@ -186,7 +193,10 @@ export function RichTextEditor({
           anything written from outside — otherwise "Use it" would update a
           field nobody can see while the writing surface ignored it. */}
       {plainName && (
-        <input ref={plainRef} name={plainName} defaultValue={richTextToPlainText(html)} hidden readOnly aria-hidden tabIndex={-1} />
+        // ⚠ A TEXTAREA, not an <input>: an input's value cannot contain line
+        // breaks, so the projection arrived at the server as one run-on line —
+        // which is what the no-JS fallback would then store as the grounding.
+        <textarea ref={plainRef} name={plainName} defaultValue={richTextToPlainText(html)} hidden readOnly aria-hidden tabIndex={-1} />
       )}
 
       {!disabled && (
@@ -250,6 +260,7 @@ export function RichTextEditor({
         onKeyUp={remember}
         onMouseUp={remember}
         onPaste={onPaste}
+        dangerouslySetInnerHTML={{ __html: seed }}
         data-placeholder={placeholder}
         role="textbox"
         aria-multiline="true"
