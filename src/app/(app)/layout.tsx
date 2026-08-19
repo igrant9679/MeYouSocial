@@ -36,6 +36,9 @@ import { relevantSteps, outstandingSetup, availableTracks, type SetupState } fro
 //    reached through a channel still lands in Research/Create.
 const NAV: (LeftRailItem & { adminOnly?: boolean })[] = [
   { href: "/dashboard",   label: "Home",        icon: "Home",          color: "#E5482F", soft: "#FDE7E1" },
+  // Ungrouped, directly under Home: it reaches across every group, so filing it
+  // inside one of them would understate it.
+  { href: "/assistant",   label: "Assistant",   icon: "Bot",           color: "#6D28D9", soft: "#EDE7FB" },
   { href: "/intel",       label: "Intel",       icon: "Telescope",     color: "#2563EB", soft: "#E5EDFD", group: "Research" },
   { href: "/ideas",       label: "Ideas",       icon: "Sparkles",      color: "#D97706", soft: "#FBEED5", group: "Research" },
   { href: "/chat",        label: "Chat",        icon: "MessageCircle", color: "#6D28D9", soft: "#EDE7FB", group: "Research" },

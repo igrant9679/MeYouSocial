@@ -59,6 +59,7 @@ model Workspace {
   brandFacts      BrandFact[]
   brandDocuments  BrandDocument[]
   orgProfile      OrgProfile?
+  assistantThreads AssistantThread[]
   keywords        Keyword[]
   sitePages       SitePage[]
   brandKit        BrandKit?
@@ -83,6 +84,40 @@ model Workspace {
   // This workspace's Zernio profile — Zernio's tenant boundary. Created lazily
   // the first time an account is connected, then reused.
   zernioProfileId String?
+}
+
+// ---- The cross-app assistant ------------------------------------------------
+//
+// One thread per user per workspace, kept so a conversation survives a reload
+// and so "why does this draft exist" can be answered from the transcript as
+// well as from the audit rows the tools write.
+model AssistantThread {
+  id          String   @id @default(cuid())
+  workspaceId String
+  userId      String
+  title       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace   Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  messages    AssistantMessage[]
+
+  @@index([workspaceId, userId, updatedAt])
+}
+
+model AssistantMessage {
+  id        String   @id @default(cuid())
+  threadId  String
+  role      String   // user | assistant
+  content   String
+  /// JSON array of the tool calls this turn made, so the UI can show its work
+  /// instead of asking the reader to trust a summary.
+  steps     String   @default("[]")
+  createdAt DateTime @default(now())
+
+  thread    AssistantThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  @@index([threadId, createdAt])
 }
 
 // ---- Brand context: what the AI cannot infer --------------------------------
