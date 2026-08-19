@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import {
   Bold, Italic, Link2, Link2Off, List, ListOrdered, Quote, Redo2, RemoveFormatting, Underline, Undo2,
 } from "lucide-react";
@@ -10,13 +10,24 @@ import { plainTextToRichHtml, looksLikeHtml, richTextToPlainText } from "@/lib/r
  * A traditional WYSIWYG editor: one writing surface, a formatting toolbar, and
  * what you see is what gets saved.
  *
- * ⚠ THE SURFACE IS UNCONTROLLED, AND THAT IS NOT LAZINESS. A contentEditable
- * whose innerHTML is written from React state on every keystroke moves the
- * caret to the end of the document as you type — the classic rich-text bug.
- * So the HTML is rendered ONCE (server-side, from a captured seed), the DOM
- * owns it afterwards, and the parent is notified through `onChange`. To load
- * different content, change the component's `key` so it remounts; never push
- * new HTML into a live surface.
+ * ⚠ THE SURFACE IS UNCONTROLLED, AND KEEPING IT THAT WAY TOOK A `memo` THAT
+ * NEVER RE-RENDERS. A contentEditable whose innerHTML comes from React state
+ * fights the user: the caret jumps, or worse.
+ *
+ * The first cut rendered the seed with `dangerouslySetInnerHTML` and assumed an
+ * unchanged `__html` string meant React would leave the DOM alone. It does not.
+ * Every keystroke ran onInput → setHtml → re-render, and the re-render RESTORED
+ * THE SEED OVER WHAT THE USER HAD JUST TYPED. On production, in real Chrome,
+ * that read exactly as the owner reported it: "even when I delete the text and
+ * paste the new one, it's not making changes" — their words reverted on screen
+ * and the hidden field trailed one edit behind, so saving stored the old copy.
+ *
+ * So the editable element lives in `Surface`, memoised with a comparator that
+ * ALWAYS returns true: after mount React never touches it again, and the DOM
+ * belongs to the person typing. Handlers reach it through a ref, because a memo
+ * that never re-renders would otherwise hold the first render's closures. To
+ * load different content, change the component's `key` so it remounts; never
+ * push new HTML into a live surface.
  *
  * ⚠ `document.execCommand` is deprecated and still the only thing every browser
  * implements for this. The replacement (a Selection/Range engine per command)
@@ -27,6 +38,50 @@ import { plainTextToRichHtml, looksLikeHtml, richTextToPlainText } from "@/lib/r
  * otherwise drags in font tags, MSO comments and style attributes that then get
  * stored and published.
  */
+/**
+ * The editable element, isolated so React can never re-render it.
+ *
+ * ⚠ The comparator returns TRUE unconditionally — "nothing ever changed" — which
+ * is the whole point: after mount the DOM inside belongs to the person typing,
+ * and any re-render would restore `seed` over their words. `disabled` and the
+ * other props cannot change without a page load, so freezing them costs
+ * nothing. Handlers arrive through a ref because a component that never
+ * re-renders would otherwise be stuck with the first render's closures.
+ */
+const Surface = memo(
+  function Surface({
+    innerRef, editable, seed, placeholder, minHeight, handlers,
+  }: {
+    innerRef: React.RefObject<HTMLDivElement | null>;
+    editable: boolean;
+    seed: string;
+    placeholder?: string;
+    minHeight: number;
+    handlers: React.RefObject<{ sync: () => void; remember: () => void; onPaste: (e: React.ClipboardEvent<HTMLDivElement>) => void }>;
+  }) {
+    return (
+      <div
+        ref={innerRef}
+        contentEditable={editable}
+        suppressContentEditableWarning
+        onInput={() => handlers.current?.sync()}
+        onBlur={() => { handlers.current?.remember(); handlers.current?.sync(); }}
+        onKeyUp={() => handlers.current?.remember()}
+        onMouseUp={() => handlers.current?.remember()}
+        onPaste={(e) => handlers.current?.onPaste(e)}
+        dangerouslySetInnerHTML={{ __html: seed }}
+        data-placeholder={placeholder}
+        role="textbox"
+        aria-multiline="true"
+        aria-label="Rich text editor"
+        className="rich-surface w-full rounded-lg border border-[var(--line)] px-3 py-2 text-sm leading-relaxed overflow-y-auto focus:outline-none [&_h2]:text-lg [&_h2]:font-bold [&_h2]:mt-3 [&_h3]:font-semibold [&_h3]:mt-2 [&_h4]:font-semibold [&_p]:my-2 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_a]:underline [&_blockquote]:border-l-2 [&_blockquote]:border-[var(--line)] [&_blockquote]:pl-3 [&_blockquote]:italic [&_img]:max-w-full [&_table]:w-full [&_td]:border [&_td]:border-[var(--line)] [&_td]:px-1 [&_th]:border [&_th]:border-[var(--line)] [&_th]:px-1"
+        style={{ minHeight, maxHeight: 560 }}
+      />
+    );
+  },
+  () => true,
+);
+
 export function RichTextEditor({
   name,
   initialHtml,
@@ -165,6 +220,11 @@ export function RichTextEditor({
     exec("createLink", href);
   }
 
+  // Surface never re-renders, so it reads its handlers from here instead of
+  // from the closure it mounted with.
+  const handlersRef = useRef({ sync, remember, onPaste });
+  handlersRef.current = { sync, remember, onPaste };
+
   const words = richTextToPlainText(html).split(/\s+/).filter(Boolean).length;
 
   const Tool = ({
@@ -251,22 +311,13 @@ export function RichTextEditor({
         </div>
       )}
 
-      <div
-        ref={ref}
-        contentEditable={!disabled}
-        suppressContentEditableWarning
-        onInput={sync}
-        onBlur={() => { remember(); sync(); }}
-        onKeyUp={remember}
-        onMouseUp={remember}
-        onPaste={onPaste}
-        dangerouslySetInnerHTML={{ __html: seed }}
-        data-placeholder={placeholder}
-        role="textbox"
-        aria-multiline="true"
-        aria-label="Rich text editor"
-        className="rich-surface w-full rounded-lg border border-[var(--line)] px-3 py-2 text-sm leading-relaxed overflow-y-auto focus:outline-none [&_h2]:text-lg [&_h2]:font-bold [&_h2]:mt-3 [&_h3]:font-semibold [&_h3]:mt-2 [&_h4]:font-semibold [&_p]:my-2 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_a]:underline [&_blockquote]:border-l-2 [&_blockquote]:border-[var(--line)] [&_blockquote]:pl-3 [&_blockquote]:italic [&_img]:max-w-full [&_table]:w-full [&_td]:border [&_td]:border-[var(--line)] [&_td]:px-1 [&_th]:border [&_th]:border-[var(--line)] [&_th]:px-1"
-        style={{ minHeight, maxHeight: 560 }}
+      <Surface
+        innerRef={ref}
+        editable={!disabled}
+        seed={seed}
+        placeholder={placeholder}
+        minHeight={minHeight}
+        handlers={handlersRef}
       />
     </div>
   );

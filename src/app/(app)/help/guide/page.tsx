@@ -69,6 +69,35 @@ export default function GuidePage() {
         </div>
       </section>
 
+      {/* ── 1b · The assistant ──────────────────────────────────────────── */}
+      <section className="card mb-4">
+        <h2 className="font-mono font-bold text-[15px] mb-2 flex items-center gap-2">
+          <Bot className="w-4 h-4" style={{ color: "var(--violet-on)" }} /> Asking instead of hunting
+        </h2>
+        <p className="text-sm leading-[1.65] mb-3">
+          <Link href="/assistant" className="underline">Assistant</Link> is a chat that can actually do the work,
+          not just talk about it. Ask <i>&ldquo;what needs my attention?&rdquo;</i>,{" "}
+          <i>&ldquo;which articles are missing SEO metadata?&rdquo;</i>,{" "}
+          <i>&ldquo;find three ideas about donor retention&rdquo;</i> or{" "}
+          <i>&ldquo;draft the article about zero-volume keywords&rdquo;</i> — it looks things up, writes them,
+          and tells you plainly what it did. It shows every step it took, so you can check its work rather than
+          trust a summary.
+        </p>
+        <p className="text-sm leading-[1.65] mb-3">
+          <b>Everything it makes lands exactly where your own click would leave it</b> — an article at review, a
+          social post as an unscheduled draft, images pending your approval. That is the whole design:{" "}
+          <b>it cannot publish, send, schedule, queue or approve anything</b>, and it cannot delete anything or
+          change a setting, a key or a role. Ask it to publish an article and it will tell you where the button
+          is instead. Approving stays the last human act before an audience sees anything, which is only true if
+          nothing else can do it.
+        </p>
+        <p className="text-sm leading-[1.65]">
+          It writes an article in about a minute — leave the tab open while it works. If the workspace has no
+          working AI key it refuses the turn outright rather than guessing, because a confident answer built on
+          nothing is worse than no answer.
+        </p>
+      </section>
+
       {/* ── 2 · Onboarding ──────────────────────────────────────────────── */}
       <section className="card mb-4">
         <h2 className="font-mono font-bold text-[15px] mb-1 flex items-center gap-2">
@@ -153,6 +182,11 @@ export default function GuidePage() {
             <Link href="/dashboard" className="underline">Home</Link> puts the urgent items first: posts held for
             approval, failed sends to retry, accounts that stopped publishing. Each card has its own button;
             when the list is empty you&apos;re caught up everywhere.
+          </Step>
+          <Step icon={Bot} title="Ask, if you'd rather not hunt.">
+            <Link href="/assistant" className="underline">Assistant</Link> answers &ldquo;what needs my
+            attention?&rdquo; from the same data Home does, and will do the next step for you — draft the idea,
+            fill in the missing SEO — while leaving every result at the gate you review it from.
           </Step>
           <Step icon={AlertTriangle} title="Answer people the day they write.">
             <Link href="/social/engage" className="underline">Social → Engage</Link> — comments, DMs and reviews.
