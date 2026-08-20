@@ -7,7 +7,7 @@ import { db } from "@/lib/db";
 import { runBlogChecks, requiredChecksPass } from "@/lib/blog-checks";
 import { writeAudit } from "@/lib/governance";
 import { generateDraftCore } from "@/lib/blog-autopilot";
-import { richTextToPlainText, sanitizeRichHtml } from "@/lib/richtext";
+import { richTextToPlainText, sanitizeRichHtml, unwrapBlockParagraphs } from "@/lib/richtext";
 import { jobs } from "@/lib/jobs";
 import { readMotifWeights, serializeMotifs } from "@/lib/motifs";
 import { loadAssetGate } from "@/lib/blog-images";
@@ -59,7 +59,9 @@ export async function updateBlogPostAction(formData: FormData) {
   };
   const str = (v: FormDataEntryValue | null) => String(v ?? "").trim() || null;
 
-  const newBody = str(formData.get("body"));
+  // Same normalisation as autosave — see autosaveBlogBodyAction.
+  const rawBody = str(formData.get("body"));
+  const newBody = rawBody ? unwrapBlockParagraphs(rawBody) : null;
   const pick = (k: string, allowed: string[]) => {
     const v = str(formData.get(k));
     return v && allowed.includes(v) ? v : null;
@@ -271,7 +273,11 @@ export async function generateBlogDraftAction(formData: FormData) {
 /** Debounced autosave from the editor — body only, no version churn. */
 export async function autosaveBlogBodyAction(formData: FormData) {
   const id = String(formData.get("id"));
-  const body = String(formData.get("body") ?? "");
+  // ⚠ Normalised on the way in. Chrome's list command returns
+  // `<p><ul><li>…</li></ul></p>` — invalid HTML that every reader re-parses
+  // differently, and this body is what publishCore sends to WordPress. Proven
+  // by clicking the toolbar on production and reading the row back.
+  const body = unwrapBlockParagraphs(String(formData.get("body") ?? ""));
   const { workspace } = await requireRole("EDITOR");
   await db.blogPost.updateMany({
     where: { id, workspaceId: workspace.id },
