@@ -1180,7 +1180,12 @@ export async function runAutopilotCycle(workspaceId: string): Promise<CycleRepor
         workspaceId,
         status: "draft",
         scheduledAt: null,
-        approval: { notIn: ["pending", "changes"] },
+        // ⚠ OR [null, "approved"], NEVER `notIn`. SQL NOT IN drops NULL rows,
+        // so `approval notIn ['pending','changes']` silently matches nothing
+        // for ordinary posts — which have approval NULL. This file's own module
+        // docs warn about it for the publish sweep; the first cut of this query
+        // did it anyway and queued zero posts on a fixture that had one waiting.
+        OR: [{ approval: null }, { approval: "approved" }],
       },
       orderBy: { createdAt: "asc" },
       take: 10,
