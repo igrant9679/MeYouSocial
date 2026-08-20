@@ -1,5 +1,7 @@
 "use server";
 
+import { redirect } from "next/navigation";
+
 import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/acl";
 import { db } from "@/lib/db";
@@ -79,6 +81,39 @@ export async function toggleAutoSeoAction(formData: FormData) {
     meta: { enabled: enable },
   });
   revalidatePath("/blog/automation");
+}
+
+/**
+ * The full-autonomy switch: social posting and blog generation run end to end
+ * with nobody clicking.
+ *
+ * ADMIN, and confirmed by a typed word, because of what it means rather than
+ * what it costs: with it on, text this app wrote reaches a real audience with
+ * no person in between. Every other destructive-ish control in the app asks for
+ * the same deliberateness, and this one deserves it more than most.
+ */
+export async function toggleFullAutonomyAction(formData: FormData) {
+  const { user, workspace } = await requireRole("ADMIN");
+  const { isFullyAutonomous, enableFullAutonomy, disableFullAutonomy } = await import("@/lib/autonomy");
+  const on = await isFullyAutonomous(workspace.id);
+
+  if (!on) {
+    // Turning it ON is the one direction that needs the typed confirmation —
+    // switching it off is always safe and must never be obstructed.
+    const typed = String(formData.get("confirm") ?? "").trim().toUpperCase();
+    if (typed !== "AUTONOMOUS") {
+      redirect(`/blog/automation?err=${encodeURIComponent('Type AUTONOMOUS to confirm — with this on, posts and articles go out with nobody reviewing them.')}`);
+    }
+    await enableFullAutonomy(workspace.id, user.id);
+  } else {
+    await disableFullAutonomy(workspace.id, user.id);
+  }
+
+  revalidatePath("/blog/automation");
+  revalidatePath("/social", "layout");
+  redirect(`/blog/automation?ok=${encodeURIComponent(on
+    ? "Full autonomy is OFF. Your previous automation settings are back."
+    : "Full autonomy is ON. Ideas, drafts, images, SEO, queueing and publishing now run unattended — the truthfulness gates still hold.")}`);
 }
 
 export async function toggleGlobalPauseAction() {

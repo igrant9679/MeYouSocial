@@ -213,6 +213,10 @@ export default async function SocialSettingsPage({ searchParams }: { searchParam
                 nothing unapproved can be sent, scheduled, queued or dragged onto the calendar.
               </span>
             </label>
+            <p className="text-[10px] text-[var(--mute)]">
+              Want the whole loop unattended — written, queued and sent with nobody clicking? That is one switch,
+              on <a href="/blog/automation" className="underline">Blog → Automation</a>; it drives these dials for you.
+            </p>
             <label className="inline-flex items-start gap-2 text-xs cursor-pointer">
               <input type="checkbox" name="autoQueue" defaultChecked={autoQueue} className="mt-0.5" />
               <span>

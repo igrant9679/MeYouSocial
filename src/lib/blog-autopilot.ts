@@ -44,6 +44,7 @@ import {
   serializeMotifs,
 } from "@/lib/motifs";
 import { rescoreIdeas } from "@/lib/blog-idea-scoring";
+import { isFullyAutonomous } from "@/lib/autonomy";
 
 /**
  * Autopilot cores + the Phase-3 scheduler cycle. Every function here is
@@ -1009,6 +1010,10 @@ export type CycleReport = {
   postsGenerated: number;
   imagesGenerated: number;
   seoOptimized: number;
+  /** Full autonomy only: drafts moved past review because their gates passed. */
+  autoAdvanced: number;
+  /** Full autonomy only: social drafts given a slot with nobody clicking. */
+  autoQueued: number;
   published: number;
   videosPackaged: number;
   videosRendered: number;
@@ -1023,6 +1028,8 @@ export async function runAutopilotCycle(workspaceId: string): Promise<CycleRepor
     postsGenerated: 0,
     imagesGenerated: 0,
     seoOptimized: 0,
+    autoAdvanced: 0,
+    autoQueued: 0,
     published: 0,
     videosPackaged: 0,
     videosRendered: 0,
@@ -1132,6 +1139,69 @@ export async function runAutopilotCycle(workspaceId: string): Promise<CycleRepor
       if (await generateSocialPostForWorkspace(workspaceId)) report.postsGenerated++;
     } catch (e) {
       console.error(`[social-autogen] failed for ${workspaceId}:`, e instanceof Error ? e.message : e);
+    }
+  }
+
+  // 3¾. FULL AUTONOMY ONLY — the two links that had no automatic step, and so
+  // kept a workspace that looked fully configured from ever running itself.
+  //
+  // ⚠ Neither of these lowers a bar. Advancing runs the SAME `requiredChecksPass`
+  // a human advancing the post has to clear: an unresolved [NEEDS SOURCE], an
+  // unverified citation, a missing featured image or absent SEO metadata still
+  // stops the article, indefinitely if that is what the content deserves.
+  // Queueing still refuses anything held for approval.
+  if (await isFullyAutonomous(workspaceId)) {
+    // Blog: draft_review → final_approval, which is what the publisher reads.
+    const atReview = await db.blogPost.findMany({
+      where: { workspaceId, status: "draft_review" },
+      orderBy: { updatedAt: "asc" },
+      take: 3,
+    });
+    for (const post of atReview) {
+      const unverified = await db.blogCitation.count({ where: { postId: post.id, verified: false } });
+      const [assets, editorial] = await Promise.all([
+        loadAssetGate(workspaceId, post.id),
+        loadEditorialContext(workspaceId, post),
+      ]);
+      if (!requiredChecksPass(runBlogChecks(post, unverified, assets, editorial))) continue;
+      await db.blogPost.update({ where: { id: post.id }, data: { status: "final_approval" } });
+      await writeAudit({
+        workspaceId, action: "blog.auto_advanced", entityType: "blog_post", entityId: post.id,
+        meta: { from: "draft_review", to: "final_approval", via: "full autonomy" },
+      });
+      report.autoAdvanced++;
+    }
+
+    // Social: give unscheduled drafts a slot. Approval-held posts are skipped —
+    // `require_approval` still means what it says, even here.
+    const { getQueue, pickFreeSlot } = await import("@/lib/social/slots");
+    const drafts = await db.socialPost.findMany({
+      where: {
+        workspaceId,
+        status: "draft",
+        scheduledAt: null,
+        approval: { notIn: ["pending", "changes"] },
+      },
+      orderBy: { createdAt: "asc" },
+      take: 10,
+      select: { id: true, category: true },
+    });
+    if (drafts.length) {
+      const { free } = await getQueue(workspaceId, { limit: 200 });
+      let remaining = free;
+      for (const d of drafts) {
+        const slot = pickFreeSlot(remaining, d.category);
+        if (!slot) break; // calendar full — the rest wait for a slot, not a person
+        await db.socialPost.update({ where: { id: d.id }, data: { scheduledAt: slot.at, status: "scheduled" } });
+        remaining = remaining.filter((f) => f.at.getTime() !== slot.at.getTime());
+        report.autoQueued++;
+      }
+      if (report.autoQueued) {
+        await writeAudit({
+          workspaceId, action: "social.auto_queued", entityType: "social_post",
+          meta: { count: report.autoQueued, via: "full autonomy" },
+        });
+      }
     }
   }
 

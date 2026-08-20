@@ -4,7 +4,8 @@ import { requireMembership, canAdmin } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { GOVERNED_FUNCTIONS, FUNCTION_LABELS, MODES, getModes, isGloballyPaused } from "@/lib/governance";
 import { SubmitButton } from "@/components/SubmitButton";
-import { runAutopilotNowAction, setFunctionModeAction, toggleGlobalPauseAction, saveWeeklyArticleTargetAction, toggleAutoSeoAction } from "@/app/actions/blog-governance";
+import { runAutopilotNowAction, setFunctionModeAction, toggleGlobalPauseAction, saveWeeklyArticleTargetAction, toggleAutoSeoAction, toggleFullAutonomyAction } from "@/app/actions/blog-governance";
+import { autonomyStatus } from "@/lib/autonomy";
 import { getSetting } from "@/lib/settings";
 
 // The three-mode autonomy dial + kill switch. Admin-writable; visible to all.
@@ -15,8 +16,11 @@ const MODE_HELP: Record<(typeof MODES)[number], string> = {
   auto: "End-to-end unattended (scheduler lands in Phase 3)",
 };
 
-export default async function AutomationPage() {
+type SP = { ok?: string; err?: string };
+
+export default async function AutomationPage({ searchParams }: { searchParams: Promise<SP> }) {
   const { workspace, membership } = await requireMembership();
+  const { ok, err } = await searchParams;
   const admin = canAdmin(membership.role);
   const [modes, paused, recentAudit, lastCycle] = await Promise.all([
     getModes(workspace.id),
@@ -36,6 +40,7 @@ export default async function AutomationPage() {
   const weeklyArticles = await getSetting("autopilot:weekly_articles", workspace.id).catch(() => "");
   // auto_image convention: absent = on, off is the explicit string "false".
   const autoSeo = (await getSetting("blog:auto_seo", workspace.id).catch(() => "")) !== "false";
+  const autonomy = await autonomyStatus(workspace.id);
 
   return (
     <main className="p-6 w-full">
@@ -147,6 +152,68 @@ export default async function AutomationPage() {
           </form>
         ) : (
           <span className="font-mono text-sm">{autoSeo ? "on" : "off"}</span>
+        )}
+      </div>
+
+      {ok && <div className="card mb-4" style={{ background: "var(--green-soft)", color: "var(--green-on)" }}><p className="text-xs">{ok}</p></div>}
+      {err && <div className="card mb-4" style={{ background: "var(--rose-soft)", color: "var(--rose-on)" }}><p className="text-xs">{err}</p></div>}
+
+      {/* Full autonomy — the master switch */}
+      <div className="card mb-4" style={autonomy.on ? { borderColor: "var(--green-on)" } : undefined}>
+        <h2 className="text-sm font-semibold mb-1 flex items-center gap-2">
+          Run completely autonomously
+          <span
+            className="font-mono text-[10px] px-1.5 py-0.5 rounded-full"
+            style={{
+              background: autonomy.on ? "var(--green-soft)" : "var(--zebra)",
+              color: autonomy.on ? "var(--green-on)" : "var(--mute)",
+            }}
+          >
+            {autonomy.on ? "ON" : "off"}
+          </span>
+        </h2>
+        <p className="text-xs text-[var(--mute)] mb-2">
+          One switch for the whole loop: ideas are discovered, articles are drafted with their images and SEO,
+          social posts are written, both are queued, and articles publish — with nobody clicking.
+          {autonomy.on ? " It is running now." : " Off by default."}
+        </p>
+        <p className="text-xs mb-3">
+          <b>What still stops a post:</b> the truthfulness gates. An unresolved <span className="font-mono">[NEEDS SOURCE]</span>,
+          an unverified citation, a missing featured image or absent SEO metadata holds an article at review
+          indefinitely — this makes the app press the buttons you would, it doesn&apos;t lower what they check.
+          {autonomy.requireApproval && (
+            <> Social posts here are also held by <b>require approval</b>, so they wait for an admin even with this on —
+            turn that off on Social → Settings if you want them to go out unattended.</>
+          )}
+        </p>
+        <div className="rounded-lg bg-[var(--zebra)] px-3 py-2 mb-3">
+          <p className="font-mono text-[10px] text-[var(--mute)]">
+            {autonomy.modes.map((m) => `${m.fn}=${m.mode}`).join(" · ")} · auto-queue {autonomy.autoqueue ? "on" : "off"} ·{" "}
+            {autonomy.weeklyArticles === "unset" ? "articles uncapped" : `${autonomy.weeklyArticles} articles/wk`} ·{" "}
+            {autonomy.weeklySocial} social/wk
+          </p>
+        </div>
+        {admin ? (
+          <form action={toggleFullAutonomyAction} className="flex flex-wrap items-center gap-2">
+            {!autonomy.on && (
+              <input
+                name="confirm"
+                placeholder="Type AUTONOMOUS to confirm"
+                className="text-xs"
+                aria-label="Type AUTONOMOUS to confirm"
+              />
+            )}
+            <SubmitButton className={autonomy.on ? "btn" : "btn primary"}>
+              {autonomy.on ? "Turn full autonomy off" : "Turn full autonomy on"}
+            </SubmitButton>
+            <span className="text-[10px] text-[var(--mute)]">
+              {autonomy.on
+                ? "Switching off restores the exact automation settings you had before."
+                : "Turning this on sets the four functions below to auto and queues on approval."}
+            </span>
+          </form>
+        ) : (
+          <p className="text-xs text-[var(--mute)]">An admin can change this.</p>
         )}
       </div>
 
