@@ -24,6 +24,9 @@ export const NOTIFICATION_KINDS = [
   "assigned",
   "comment",
   "account_broken",
+  // An unattended AI generation failed and was refused (mock fallback /
+  // provider down). The autopilot retries on its own, so this is chatty-tier.
+  "generation_failed",
   // Email-only, sent by src/lib/digest.ts (never through notify() — Home IS
   // the in-app digest, so a bell item would be spam). Listed here so the
   // preference row and its toggle exist in the Notifications UI.
@@ -40,6 +43,7 @@ export const KIND_LABELS: Record<NotificationKind, string> = {
   assigned: "I was assigned a review",
   comment: "A comment on something I'm on",
   account_broken: "A connected account stopped working",
+  generation_failed: "An AI generation failed and was refused",
   daily_digest: "The morning digest of what needs me (admins, email only)",
 };
 
@@ -55,6 +59,10 @@ const EMAIL_DEFAULT: Record<NotificationKind, boolean> = {
   // Emailed by default: this one is silent until a post fails, which is the
   // exact failure mode it exists to prevent.
   account_broken: true,
+  // In-app only by default: the autopilot retries every cycle, and a provider
+  // blip should not email anyone. Persistent failure surfaces via the digest's
+  // stalled-content checks.
+  generation_failed: false,
   // Default-on: it only ever sends when a warn-severity decision is waiting,
   // so the quiet-day cost is zero. digest.ts reads this preference directly.
   daily_digest: true,

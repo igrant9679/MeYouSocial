@@ -155,8 +155,15 @@ export async function discoverIdeasCore(workspaceId: string, topicId?: string | 
     // the step silently produced nothing on every cycle since the workspaces
     // moved to Gemini — found 2026-08-04.
     maxTokens: 8000,
+    timeoutMs: 120_000,
     workspaceId,
   });
+  // ⚠ Unattended: mock "ideas" are fluent garbage rows a human then curates.
+  // Same rule as autogen/SEO/images — refuse, audit, produce nothing.
+  if (res.provider === "mock") {
+    await writeAudit({ workspaceId, action: "blog.ideation_failed", entityType: "workspace", meta: { provider: "mock", reason: "provider unavailable — refused to store mock ideas" } });
+    return 0;
+  }
 
   type RawIdea = {
     title?: string;
@@ -251,6 +258,9 @@ export async function generateOutlineCore(workspaceId: string, postId: string): 
     maxTokens: 1200,
     workspaceId,
   });
+  // Mock outline text would be fed verbatim into the draft prompt as "this
+  // approved outline" — refuse; drafting falls back to its generic structure.
+  if (res.provider === "mock") return false;
   let outline: Array<{ heading?: string; points?: string[] }> = [];
   try {
     const m = res.content.match(/\[[\s\S]*\]/);
@@ -341,8 +351,26 @@ export async function generateDraftCore(workspaceId: string, postId: string): Pr
     system,
     messages: [{ role: "user", content: prompt }],
     maxTokens: 4000,
+    // A 4000-token article on claude-sonnet takes longer than the router's
+    // default 45s — that timeout is what turned CF's first two autonomous
+    // drafts into stored mock prose on 2026-08-21.
+    timeoutMs: 180_000,
     workspaceId,
   });
+  // ⚠ The mock is fluent, and this body goes to review, WordPress and the
+  // social variants. It must never be stored — not by the autopilot, not by a
+  // human's Draft button. Fail with an audit trail instead; the caller decides
+  // what happens to the empty post.
+  if (res.provider === "mock") {
+    await writeAudit({
+      workspaceId,
+      action: "blog.draft_failed",
+      entityType: "blog_post",
+      entityId: post.id,
+      meta: { model: post.model ?? workspace.defaultModel ?? llm.defaultModel, provider: "mock", reason: "provider unavailable — refused to store mock output" },
+    });
+    return false;
+  }
 
   // Version history: preserve what generation is about to overwrite.
   if (post.body) {
@@ -365,7 +393,10 @@ export async function generateDraftCore(workspaceId: string, postId: string): Pr
     action: "blog.draft_generated",
     entityType: "blog_post",
     entityId: post.id,
-    meta: { model: res.model, claimsFlagged: claims.length },
+    // ⚠ provider, not just model: `model` is what was ASKED FOR. The 08-21
+    // mock drafts audited as "claude-sonnet" while the mock had answered —
+    // the ledger must record who actually replied.
+    meta: { model: res.model, provider: res.provider, claimsFlagged: claims.length },
   });
   return true;
 }
@@ -480,8 +511,16 @@ export async function generateVariantsCore(workspaceId: string, postId: string):
     // the step silently produced nothing on every cycle since the workspaces
     // moved to Gemini — found 2026-08-04.
     maxTokens: 8000,
+    timeoutMs: 120_000,
     workspaceId,
   });
+  // ⚠ These variants are social copy that auto-queues and SENDS under full
+  // autonomy — mock text here reaches a real feed. Refuse before the delete
+  // below can wipe good variants in favour of nothing.
+  if (res.provider === "mock") {
+    await writeAudit({ workspaceId, action: "social.variants_failed", entityType: "blog_post", entityId: post.id, meta: { provider: "mock", reason: "provider unavailable — refused to store mock variants" } });
+    return 0;
+  }
 
   let parsed: Record<string, unknown> = {};
   try {
@@ -721,6 +760,8 @@ export async function packageVideoCore(workspaceId: string, blogPostId: string):
     maxTokens: 900,
     workspaceId,
   });
+  // A mock storyboard would go on to spend real Veo money rendering nonsense.
+  if (res.provider === "mock") return null;
   let parsed: { title?: string; prompt?: string; scenes?: unknown } = {};
   try {
     const match = res.content.match(/\{[\s\S]*\}/);
@@ -1115,6 +1156,30 @@ export async function runAutopilotCycle(workspaceId: string): Promise<CycleRepor
         const finished = await completeFreshDraftCore(workspaceId, post.id);
         report.imagesGenerated += finished.imagesGenerated;
         report.seoOptimized += finished.seoOptimized;
+      } else {
+        // Refused draft (mock fallback / provider down). Don't leave the
+        // documented stall shape — an empty `drafting` post in no queue — and
+        // don't burn the idea: put it back so the next cycle retries. The
+        // delete is guarded on status+empty body so a post that somehow got
+        // content can't be swept away.
+        await db.blogPost.deleteMany({ where: { id: post.id, workspaceId, status: "drafting", body: null } });
+        await db.blogIdea.update({ where: { id: idea.id }, data: { status: "approved", postId: null } }).catch(() => {});
+        // One notification per idea per 6h — a provider outage retries every
+        // cycle and must not page someone every 30 minutes.
+        const already = await db.notification.count({
+          where: { workspaceId, kind: "generation_failed", entityId: idea.id, createdAt: { gte: new Date(Date.now() - 6 * 3600_000) } },
+        });
+        if (already === 0) {
+          await notify({
+            workspaceId,
+            kind: "generation_failed",
+            title: `Couldn't draft "${idea.title.slice(0, 80)}"`,
+            body: "The AI provider didn't answer (timeout or error) and the mock stand-in was refused, so nothing was stored. The idea is back at Approved; the autopilot will retry.",
+            path: "/blog/ideas",
+            entityType: "blog_idea",
+            entityId: idea.id,
+          });
+        }
       }
     }
   }

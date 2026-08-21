@@ -56,9 +56,9 @@ function hash(s: string): string {
 function wrapWithFallback(real: LLMProvider, providerId: string): LLMProvider {
   const TIMEOUT_MS = 45_000;
 
-  function withTimeout<T>(p: Promise<T>): Promise<T> {
+  function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
     return new Promise<T>((resolve, reject) => {
-      const t = setTimeout(() => reject(new Error(`${providerId} timed out after ${TIMEOUT_MS}ms`)), TIMEOUT_MS);
+      const t = setTimeout(() => reject(new Error(`${providerId} timed out after ${ms}ms`)), ms);
       p.then((v) => { clearTimeout(t); resolve(v); }, (e) => { clearTimeout(t); reject(e); });
     });
   }
@@ -68,7 +68,9 @@ function wrapWithFallback(real: LLMProvider, providerId: string): LLMProvider {
     supports: real.supports,
     async complete(req: LLMRequest): Promise<LLMResponse> {
       try {
-        const out = await withTimeout(real.complete(req));
+        // req.timeoutMs: long-form callers (article drafting) need more than
+        // 45s — see the field's doc for the incident that proved it.
+        const out = await withTimeout(real.complete(req), req.timeoutMs ?? TIMEOUT_MS);
         return { ...out, provider: providerId };
       } catch (e) {
         // eslint-disable-next-line no-console
@@ -83,7 +85,7 @@ function wrapWithFallback(real: LLMProvider, providerId: string): LLMProvider {
     async *stream(req: LLMRequest) {
       try {
         const iter = real.stream(req)[Symbol.asyncIterator]();
-        const first = await withTimeout(iter.next());
+        const first = await withTimeout(iter.next(), req.timeoutMs ?? TIMEOUT_MS);
         if (first.done) return;
         yield first.value;
         let next = await iter.next();

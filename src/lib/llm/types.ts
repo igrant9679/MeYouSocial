@@ -16,6 +16,15 @@ export type LLMRequest = {
   /** Multi-tenant: resolve the provider key for THIS workspace (its own key
    *  wins over the platform's). Omitted = platform/global key. */
   workspaceId?: string;
+  /**
+   * Hard timeout for the provider call. Default 45s — right for interactive
+   * surfaces, WRONG for long-form generation: claude-sonnet writing a
+   * 4000-token article takes longer than that, and on 2026-08-21 both of CF's
+   * first autonomous drafts timed out at 45s, fell back to the mock, and the
+   * canned mock prose was stored as real articles. Callers producing articles
+   * or multi-part output should pass 120–180s.
+   */
+  timeoutMs?: number;
 };
 
 export type LLMResponse = {

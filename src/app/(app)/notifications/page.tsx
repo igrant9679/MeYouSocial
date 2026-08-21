@@ -23,6 +23,7 @@ const KIND_HUE: Record<NotificationKind, string> = {
   assigned: "amber",
   comment: "cyan",
   account_broken: "rose",
+  generation_failed: "rose",
   daily_digest: "teal",
 };
 
@@ -166,5 +167,6 @@ const DEFAULT_EMAIL: Record<NotificationKind, boolean> = {
   assigned: true,
   comment: false,
   account_broken: true,
+  generation_failed: false,
   daily_digest: true,
 };
