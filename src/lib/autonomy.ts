@@ -109,15 +109,18 @@ export async function autonomyStatus(workspaceId: string): Promise<{
   weeklyArticles: string;
   weeklySocial: string;
   requireApproval: boolean;
+  /** Weekday name auto-publishing is held to, or "any day". */
+  publishDay: string;
 }> {
   const rows = await db.functionMode.findMany({ where: { workspaceId } });
   const byFn = new Map(rows.map((r) => [r.function, r.mode]));
-  const [on, autoqueue, weeklyArticles, weeklySocial, requireApproval] = await Promise.all([
+  const [on, autoqueue, weeklyArticles, weeklySocial, requireApproval, publishDayRaw] = await Promise.all([
     isFullyAutonomous(workspaceId),
     getSetting("social:autoqueue", workspaceId).catch(() => "").then((v) => v === "true"),
     getSetting("autopilot:weekly_articles", workspaceId).catch(() => "").then((v) => v || "unset"),
     getSetting("social:autogen_weekly", workspaceId).catch(() => "").then((v) => v || "5"),
     getSetting("social:require_approval", workspaceId).catch(() => "").then((v) => v === "true"),
+    getSetting("autopilot:publish_day", workspaceId).catch(() => ""),
   ]);
   return {
     on,
@@ -126,5 +129,6 @@ export async function autonomyStatus(workspaceId: string): Promise<{
     weeklyArticles,
     weeklySocial,
     requireApproval,
+    publishDay: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][parseInt(publishDayRaw, 10)] ?? "any day",
   };
 }

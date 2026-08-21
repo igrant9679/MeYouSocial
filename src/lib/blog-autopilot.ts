@@ -1215,16 +1215,30 @@ export async function runAutopilotCycle(workspaceId: string): Promise<CycleRepor
   // an admin setting the time was the human approval. Manual: nothing.
   if (modes.publishing === "auto" || modes.publishing === "assisted") {
     const now = new Date();
+    // `autopilot:publish_day` (Date#getDay 0–6, unset = any day) — the owner's
+    // "articles go out on Wednesdays" dial. On every other day auto mode
+    // behaves like assisted: a time a human set on a post is still honoured,
+    // but gate-passing unscheduled posts wait at final_approval for the day.
+    // The weekday is read in the workspace's posting timezone, never the
+    // server's — Railway runs in UTC and "Wednesday" means the owner's.
+    let autoToday = modes.publishing === "auto";
+    if (autoToday) {
+      const { getSetting } = await import("@/lib/settings");
+      const day = parseInt(await getSetting("autopilot:publish_day", workspaceId).catch(() => ""), 10);
+      if (Number.isInteger(day) && day >= 0 && day <= 6) {
+        const { getPostingTimeZone, zonedParts } = await import("@/lib/social/slots");
+        autoToday = zonedParts(now, await getPostingTimeZone(workspaceId)).weekday === day;
+      }
+    }
     const ready = await db.blogPost.findMany({
-      where:
-        modes.publishing === "auto"
-          ? {
-              workspaceId,
-              status: "final_approval",
-              wpPostId: null,
-              OR: [{ scheduledAt: null }, { scheduledAt: { lte: now } }],
-            }
-          : { workspaceId, status: "final_approval", wpPostId: null, scheduledAt: { lte: now } },
+      where: autoToday
+        ? {
+            workspaceId,
+            status: "final_approval",
+            wpPostId: null,
+            OR: [{ scheduledAt: null }, { scheduledAt: { lte: now } }],
+          }
+        : { workspaceId, status: "final_approval", wpPostId: null, scheduledAt: { lte: now } },
       orderBy: { updatedAt: "asc" },
       take: 2,
     });

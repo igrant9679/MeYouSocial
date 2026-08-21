@@ -38,6 +38,8 @@ export default async function AutomationPage({ searchParams }: { searchParams: P
   const intervalMin = Math.max(5, parseInt(process.env.AUTOPILOT_INTERVAL_MIN ?? "30", 10) || 30);
   const autopilotOff = process.env.AUTOPILOT === "off";
   const weeklyArticles = await getSetting("autopilot:weekly_articles", workspace.id).catch(() => "");
+  // Publish day: Date#getDay 0–6 as a string, "" = any day (the old behavior).
+  const publishDay = await getSetting("autopilot:publish_day", workspace.id).catch(() => "");
   // auto_image convention: absent = on, off is the explicit string "false".
   const autoSeo = (await getSetting("blog:auto_seo", workspace.id).catch(() => "")) !== "false";
   const autonomy = await autonomyStatus(workspace.id);
@@ -102,16 +104,18 @@ export default async function AutomationPage({ searchParams }: { searchParams: P
         )}
       </div>
 
-      {/* Volume — how much the autopilot writes, independent of HOW attended
-          it is (the mode dial below). */}
+      {/* Volume & cadence — how much the autopilot writes and which day it
+          publishes, independent of HOW attended it is (the mode dial below). */}
       <div className="card mb-5 flex flex-wrap items-center gap-3">
         <div className="flex-1 min-w-48">
-          <div className="text-sm font-semibold">Weekly article target</div>
+          <div className="text-sm font-semibold">Weekly article target & publish day</div>
           <div className="text-xs text-[var(--mute)]">
-            Caps how many articles the autopilot drafts in any rolling 7 days (each still parks at the
-            review checkpoint unless publishing is on auto). Empty = no cap — bounded only by approved
-            ideas and the daily AI budget of 20 generations. Auto-generated <b>social posts</b> have
-            their own weekly dial on the Social page under Workflow.
+            The target caps how many articles the autopilot drafts in any rolling 7 days (each still parks
+            at the review checkpoint unless publishing is on auto). Empty = no cap — bounded only by approved
+            ideas and the daily AI budget of 20 generations. The publish day holds auto-publishing to one
+            weekday (in your posting timezone): articles that pass their checks wait for it, while a date you
+            set on a post by hand is always honoured. Auto-generated <b>social posts</b> have their own weekly
+            dial on the Social page under Workflow; their days are the posting schedule&apos;s slots.
           </div>
         </div>
         {admin ? (
@@ -121,11 +125,29 @@ export default async function AutomationPage({ searchParams }: { searchParams: P
               defaultValue={weeklyArticles || ""}
               placeholder="∞"
               className="w-20 border border-[var(--line-2)] rounded-lg p-2 text-sm font-mono"
+              aria-label="Articles per week"
             />
+            <select
+              name="publishDay"
+              defaultValue={publishDay}
+              className="border border-[var(--line-2)] rounded-lg p-2 text-sm"
+              aria-label="Publish day"
+            >
+              <option value="">Any day</option>
+              <option value="1">Monday</option>
+              <option value="2">Tuesday</option>
+              <option value="3">Wednesday</option>
+              <option value="4">Thursday</option>
+              <option value="5">Friday</option>
+              <option value="6">Saturday</option>
+              <option value="0">Sunday</option>
+            </select>
             <SubmitButton className="btn sm" pendingText="Saving…">Save</SubmitButton>
           </form>
         ) : (
-          <span className="font-mono text-sm">{weeklyArticles || "no cap"}</span>
+          <span className="font-mono text-sm">
+            {weeklyArticles || "no cap"} · {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][parseInt(publishDay, 10)] ?? "any day"}
+          </span>
         )}
       </div>
 
@@ -190,7 +212,7 @@ export default async function AutomationPage({ searchParams }: { searchParams: P
           <p className="font-mono text-[10px] text-[var(--mute)]">
             {autonomy.modes.map((m) => `${m.fn}=${m.mode}`).join(" · ")} · auto-queue {autonomy.autoqueue ? "on" : "off"} ·{" "}
             {autonomy.weeklyArticles === "unset" ? "articles uncapped" : `${autonomy.weeklyArticles} articles/wk`} ·{" "}
-            {autonomy.weeklySocial} social/wk
+            publishes {autonomy.publishDay} · {autonomy.weeklySocial} social/wk
           </p>
         </div>
         {admin ? (
