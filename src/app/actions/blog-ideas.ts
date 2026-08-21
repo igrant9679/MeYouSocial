@@ -162,6 +162,7 @@ export async function draftFromIdeaAction(formData: FormData) {
   const { user, workspace } = await requireRole("EDITOR");
   const idea = await db.blogIdea.findFirst({ where: { id, workspaceId: workspace.id } });
   if (!idea || idea.status === "drafted") return;
+  const previousStatus = idea.status;
 
   const post = await db.blogPost.create({
     data: {
@@ -180,6 +181,13 @@ export async function draftFromIdeaAction(formData: FormData) {
   // when someone finally found it. See completeFreshDraftCore.
   if (await generateDraftCore(workspace.id, post.id)) {
     await jobs.enqueue("blog.finishdraft", { workspaceId: workspace.id, postId: post.id }, { refId: post.id, workspaceId: workspace.id });
+  } else {
+    // The core refused (mock fallback / provider down) and stored nothing —
+    // don't leave an empty post; put the idea back where it was.
+    const { revertRefusedDraft } = await import("@/lib/blog-autopilot");
+    await revertRefusedDraft(workspace.id, post.id, idea, previousStatus);
+    revalidatePath("/blog");
+    redirect("/blog/ideas");
   }
   revalidatePath("/blog");
   redirect(`/blog/${post.id}`);
@@ -207,6 +215,10 @@ export async function autoDraftApprovedAction() {
     await db.blogIdea.update({ where: { id: idea.id }, data: { status: "drafted", postId: post.id } });
     if (await generateDraftCore(workspace.id, post.id)) {
       await jobs.enqueue("blog.finishdraft", { workspaceId: workspace.id, postId: post.id }, { refId: post.id, workspaceId: workspace.id });
+    } else {
+      // Refused draft — no empty post, idea back to approved (see the cycle).
+      const { revertRefusedDraft } = await import("@/lib/blog-autopilot");
+      await revertRefusedDraft(workspace.id, post.id, idea);
     }
   }
   revalidatePath("/blog");

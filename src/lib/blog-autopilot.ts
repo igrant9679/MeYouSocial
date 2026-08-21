@@ -276,6 +276,39 @@ export async function generateOutlineCore(workspaceId: string, postId: string): 
   return true;
 }
 
+/**
+ * A draft the core refused (mock fallback / provider down) must not linger as
+ * an empty `drafting` post — that is the documented stall shape: in no review
+ * queue, unpublishable, invisible. Shared by the cycle and the human Draft
+ * buttons: deletes the empty post (guarded on status + null body so a post
+ * that somehow got content can't be swept away), restores the idea, and
+ * notifies — once per idea per 6h, because the autopilot retries every cycle
+ * and a provider outage must not page someone every 30 minutes.
+ */
+export async function revertRefusedDraft(
+  workspaceId: string,
+  postId: string,
+  idea: { id: string; title: string },
+  restoreStatus: string = "approved",
+): Promise<void> {
+  await db.blogPost.deleteMany({ where: { id: postId, workspaceId, status: "drafting", body: null } });
+  await db.blogIdea.update({ where: { id: idea.id }, data: { status: restoreStatus, postId: null } }).catch(() => {});
+  const already = await db.notification.count({
+    where: { workspaceId, kind: "generation_failed", entityId: idea.id, createdAt: { gte: new Date(Date.now() - 6 * 3600_000) } },
+  });
+  if (already === 0) {
+    await notify({
+      workspaceId,
+      kind: "generation_failed",
+      title: `Couldn't draft "${idea.title.slice(0, 80)}"`,
+      body: "The AI provider didn't answer (timeout or error) and the mock stand-in was refused, so nothing was stored. The idea is back on the board; drafting will be retried.",
+      path: "/blog/ideas",
+      entityType: "blog_idea",
+      entityId: idea.id,
+    });
+  }
+}
+
 export async function generateDraftCore(workspaceId: string, postId: string): Promise<boolean> {
   const post = await db.blogPost.findFirst({ where: { id: postId, workspaceId } });
   if (!post || post.protectedFromRewrite) return false;
@@ -1159,27 +1192,8 @@ export async function runAutopilotCycle(workspaceId: string): Promise<CycleRepor
       } else {
         // Refused draft (mock fallback / provider down). Don't leave the
         // documented stall shape — an empty `drafting` post in no queue — and
-        // don't burn the idea: put it back so the next cycle retries. The
-        // delete is guarded on status+empty body so a post that somehow got
-        // content can't be swept away.
-        await db.blogPost.deleteMany({ where: { id: post.id, workspaceId, status: "drafting", body: null } });
-        await db.blogIdea.update({ where: { id: idea.id }, data: { status: "approved", postId: null } }).catch(() => {});
-        // One notification per idea per 6h — a provider outage retries every
-        // cycle and must not page someone every 30 minutes.
-        const already = await db.notification.count({
-          where: { workspaceId, kind: "generation_failed", entityId: idea.id, createdAt: { gte: new Date(Date.now() - 6 * 3600_000) } },
-        });
-        if (already === 0) {
-          await notify({
-            workspaceId,
-            kind: "generation_failed",
-            title: `Couldn't draft "${idea.title.slice(0, 80)}"`,
-            body: "The AI provider didn't answer (timeout or error) and the mock stand-in was refused, so nothing was stored. The idea is back at Approved; the autopilot will retry.",
-            path: "/blog/ideas",
-            entityType: "blog_idea",
-            entityId: idea.id,
-          });
-        }
+        // don't burn the idea: put it back so the next cycle retries.
+        await revertRefusedDraft(workspaceId, post.id, idea);
       }
     }
   }
