@@ -85,6 +85,15 @@ const STYLE_PROMPT =
  * the caller decides what to tell the user, and must not pretend it looked.
  */
 export async function describeImageStyle(img: ReferenceImage, workspaceId?: string): Promise<string> {
+  return askAboutImage(img, STYLE_PROMPT, workspaceId);
+}
+
+/**
+ * Ask a vision model a question about an image. Same provider order and the
+ * same contract as describeImageStyle: throws when no vision-capable key
+ * resolves, so a caller can never mistake "nobody looked" for an answer.
+ */
+export async function askAboutImage(img: ReferenceImage, prompt: string, workspaceId?: string): Promise<string> {
   const googleKey = await getApiKey("google", workspaceId).catch(() => "");
   if (googleKey) {
     const { GoogleGenAI } = await import("@google/genai");
@@ -96,7 +105,7 @@ export async function describeImageStyle(img: ReferenceImage, workspaceId?: stri
           role: "user",
           parts: [
             { inlineData: { mimeType: img.mimeType, data: img.bytes.toString("base64") } },
-            { text: STYLE_PROMPT },
+            { text: prompt },
           ],
         },
       ],
@@ -116,7 +125,7 @@ export async function describeImageStyle(img: ReferenceImage, workspaceId?: stri
           {
             role: "user",
             content: [
-              { type: "text", text: STYLE_PROMPT },
+              { type: "text", text: prompt },
               {
                 type: "image_url",
                 image_url: { url: `data:${img.mimeType};base64,${img.bytes.toString("base64")}` },

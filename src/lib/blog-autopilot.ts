@@ -1086,6 +1086,10 @@ export type CycleReport = {
   seoOptimized: number;
   /** Full autonomy only: drafts moved past review because their gates passed. */
   autoAdvanced: number;
+  /** Full autonomy only: pending AI images approved after a real vision look. */
+  imagesAutoApproved: number;
+  /** Full autonomy only: citations verified against a live-searched source. */
+  citationsAutoVerified: number;
   /** Full autonomy only: social drafts given a slot with nobody clicking. */
   autoQueued: number;
   published: number;
@@ -1103,6 +1107,8 @@ export async function runAutopilotCycle(workspaceId: string): Promise<CycleRepor
     imagesGenerated: 0,
     seoOptimized: 0,
     autoAdvanced: 0,
+    imagesAutoApproved: 0,
+    citationsAutoVerified: 0,
     autoQueued: 0,
     published: 0,
     videosPackaged: 0,
@@ -1221,28 +1227,44 @@ export async function runAutopilotCycle(workspaceId: string): Promise<CycleRepor
     }
   }
 
-  // 3¾. FULL AUTONOMY ONLY — the two links that had no automatic step, and so
-  // kept a workspace that looked fully configured from ever running itself.
+  // 3¾. FULL AUTONOMY ONLY — the links that had no automatic step, and so kept
+  // a workspace that looked fully configured from ever running itself.
   //
-  // ⚠ Neither of these lowers a bar. Advancing runs the SAME `requiredChecksPass`
-  // a human advancing the post has to clear: an unresolved [NEEDS SOURCE], an
-  // unverified citation, a missing featured image or absent SEO metadata still
-  // stops the article, indefinitely if that is what the content deserves.
+  // ⚠ None of this lowers a bar. Auto-review (owner's ask 2026-08-25) presses
+  // the REVIEW buttons a human would: it fills missing SEO, renders missing
+  // images, has a vision model actually look at pending renders before
+  // approving them, and sources flagged claims from live search — verifying a
+  // citation only when a source genuinely supports it. Advancing then runs the
+  // SAME `requiredChecksPass` a human advancing the post has to clear, so what
+  // auto-review could not satisfy honestly (an unsourceable claim, an image
+  // that keeps failing inspection) still stops the article — and notifies.
   // Queueing still refuses anything held for approval.
   if (await isFullyAutonomous(workspaceId)) {
-    // Blog: draft_review → final_approval, which is what the publisher reads.
+    // Blog: try to SATISFY the gates, then advance what passes.
     const atReview = await db.blogPost.findMany({
       where: { workspaceId, status: "draft_review" },
       orderBy: { updatedAt: "asc" },
       take: 3,
     });
     for (const post of atReview) {
+      try {
+        const { autoReviewCore } = await import("@/lib/blog-autoreview");
+        const reviewed = await autoReviewCore(workspaceId, post.id);
+        report.imagesAutoApproved += reviewed.imagesApproved;
+        report.citationsAutoVerified += reviewed.citationsVerified;
+        if (reviewed.seoFilled) report.seoOptimized++;
+      } catch (e) {
+        console.error(`[auto-review] failed for ${post.id}:`, e instanceof Error ? e.message : e);
+      }
+      // Re-read: auto-review may have edited the body and meta.
+      const fresh = await db.blogPost.findFirst({ where: { id: post.id, workspaceId } });
+      if (!fresh) continue;
       const unverified = await db.blogCitation.count({ where: { postId: post.id, verified: false } });
       const [assets, editorial] = await Promise.all([
         loadAssetGate(workspaceId, post.id),
-        loadEditorialContext(workspaceId, post),
+        loadEditorialContext(workspaceId, fresh),
       ]);
-      if (!requiredChecksPass(runBlogChecks(post, unverified, assets, editorial))) continue;
+      if (!requiredChecksPass(runBlogChecks(fresh, unverified, assets, editorial))) continue;
       await db.blogPost.update({ where: { id: post.id }, data: { status: "final_approval" } });
       await writeAudit({
         workspaceId, action: "blog.auto_advanced", entityType: "blog_post", entityId: post.id,

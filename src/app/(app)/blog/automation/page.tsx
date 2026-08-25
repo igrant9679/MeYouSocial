@@ -200,9 +200,12 @@ export default async function AutomationPage({ searchParams }: { searchParams: P
           {autonomy.on ? " It is running now." : " Off by default."}
         </p>
         <p className="text-xs mb-3">
-          <b>What still stops a post:</b> the truthfulness gates. An unresolved <span className="font-mono">[NEEDS SOURCE]</span>,
-          an unverified citation, a missing featured image or absent SEO metadata holds an article at review
-          indefinitely — this makes the app press the buttons you would, it doesn&apos;t lower what they check.
+          <b>The gates review as well as block:</b> with this on, the app does the review work itself — it fills
+          missing SEO, renders missing images and has a vision model <i>look</i> at every AI image before approving
+          it, and sources <span className="font-mono">[NEEDS SOURCE]</span> claims from live web search, verifying a
+          citation only when the source genuinely supports the claim. <b>What still stops a post:</b> a claim no real
+          source backs, an image that keeps failing inspection, or a provider outage — those hold at review and
+          notify you, because that&apos;s the gates working, not failing.
           {autonomy.requireApproval && (
             <> Social posts here are also held by <b>require approval</b>, so they wait for an admin even with this on —
             turn that off on Social → Settings if you want them to go out unattended.</>
