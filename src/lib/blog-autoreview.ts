@@ -63,13 +63,19 @@ export async function autoReviewCore(workspaceId: string, postId: string): Promi
 
 // ── Images ───────────────────────────────────────────────────────────────────
 
-const REVIEW_PROMPT =
+// Brand-aware on purpose: a render for CommunityForce came back branded
+// "GRYPHON & BISHOP EST. 1876" — an invented company — and a reviewer that
+// doesn't know whose image it is cannot call that a defect.
+const reviewPrompt = (brandName: string) =>
   "You are reviewing an AI-generated marketing image before publication. Look for concrete defects only: " +
   "text or a logo that is CUT OFF by the frame edge or partially hidden; garbled, misspelled or nonsense lettering; " +
-  "watermark or artifact patterns; or heavy visual glitches. Tasteful abstract imagery with no text is fine. " +
+  "watermark or artifact patterns; or heavy visual glitches. " +
+  `The image belongs to the brand "${brandName}" — the ONLY acceptable readable text is that brand's own lockup; ` +
+  "any other company name, invented brand, or unrelated wording is a defect. Tasteful abstract imagery with no text is fine. " +
   'Reply ONLY with JSON: {"ok": boolean, "problems": [string]} — ok=false whenever any defect above is visible.';
 
 async function autoReviewImages(workspaceId: string, postId: string, postTitle: string): Promise<number> {
+  const brandName = (await db.workspace.findUnique({ where: { id: workspaceId }, select: { name: true } }))?.name ?? "the workspace";
   // Missing roles first — the existing unattended core renders briefs +
   // featured + OG and never overwrites a human's choice or an approval.
   const have = await db.blogImage.findMany({ where: { postId } });
@@ -80,16 +86,12 @@ async function autoReviewImages(workspaceId: string, postId: string, postTitle: 
   const rows = await db.blogImage.findMany({ where: { postId, status: "pending", source: "ai" } });
   let approved = 0;
   for (const img of rows) {
-    // Two auto-rejections in a week = stop spending and hand it to a human.
-    const rejections = await db.auditLog.count({
-      where: { workspaceId, action: "blog.image_auto_rejected", entityId: img.id, createdAt: { gte: new Date(Date.now() - 7 * 86_400_000) } },
-    });
-    if (rejections >= 2) {
-      await notifyOnce(workspaceId, img.id, `An image for "${postTitle.slice(0, 60)}" keeps failing review`,
-        "Two AI renders in a row had visible defects. It stays pending — pick or approve one on the article page.", `/blog/${postId}`);
-      continue;
-    }
-
+    // ⚠ The strike count gates the SPEND (below), never the LOOK. The first
+    // cut checked it up here and skipped review entirely once two old renders
+    // had been rejected — which silently blocked the fresh, clean render that
+    // followed a brief fix from ever being seen (CF, 2026-08-25: v3 sat
+    // pending forever while the brake counted v1/v2's rejections against it).
+    // A pending render is always reviewed; only regeneration is rationed.
     const key = img.url.match(/\/(?:uploads|api\/files)\/([^"'\s)]+)/)?.[1];
     const bytes = key ? await storage.get(decodeURIComponent(key)).catch(() => null) : null;
     if (!bytes) {
@@ -99,7 +101,7 @@ async function autoReviewImages(workspaceId: string, postId: string, postTitle: 
 
     let verdict: { ok?: boolean; problems?: string[] } = {};
     try {
-      const raw = await askAboutImage({ bytes, mimeType: "image/png", source: img.url }, REVIEW_PROMPT, workspaceId);
+      const raw = await askAboutImage({ bytes, mimeType: "image/png", source: img.url }, reviewPrompt(brandName), workspaceId);
       const m = raw.match(/\{[\s\S]*\}/);
       verdict = m ? (JSON.parse(m[0]) as typeof verdict) : {};
       if (verdict.ok === undefined) console.warn(`[auto-review] vision reply for ${img.id} had no verdict: ${raw.slice(0, 120)}`);
@@ -119,12 +121,23 @@ async function autoReviewImages(workspaceId: string, postId: string, postTitle: 
       });
       approved++;
     } else if (verdict.ok === false) {
+      // Prior strikes BEFORE recording this one: 0 or 1 → regenerate (at most
+      // three auto renders a week per role); 2+ → stop spending and tell a
+      // human, but keep reviewing whatever lands here next.
+      const priorRejections = await db.auditLog.count({
+        where: { workspaceId, action: "blog.image_auto_rejected", entityId: img.id, createdAt: { gte: new Date(Date.now() - 7 * 86_400_000) } },
+      });
       await writeAudit({
         workspaceId, action: "blog.image_auto_rejected", entityType: "blog_image", entityId: img.id,
         meta: { role: img.role, problems: (verdict.problems ?? []).slice(0, 5) },
       });
-      // One fresh render; it lands pending and is reviewed next cycle.
-      await generateImageCore(workspaceId, postId, img.role as "featured" | "og").catch(() => false);
+      if (priorRejections >= 2) {
+        await notifyOnce(workspaceId, img.id, `An image for "${postTitle.slice(0, 60)}" keeps failing review`,
+          "Several AI renders in a row had visible defects. It stays pending — pick or approve one on the article page.", `/blog/${postId}`);
+      } else {
+        // One fresh render; it lands pending and is reviewed next cycle.
+        await generateImageCore(workspaceId, postId, img.role as "featured" | "og").catch(() => false);
+      }
     }
     // verdict.ok undefined → treated as "didn't get a real look"; skip.
   }

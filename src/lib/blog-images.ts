@@ -263,7 +263,7 @@ export async function generateImageBriefsCore(workspaceId: string, postId: strin
     // paperwork" briefs produced misspelled nonsense on every render
     // (2026-08-25, caught twice by the vision review). Don't ask for what the
     // renderer cannot deliver.
-    `Subject rule: never build the scene from readable text — no documents, forms, sticky notes, whiteboards, screens of writing or signage. Image models garble lettering, and garbled text fails review. The ONLY text allowed anywhere is the brand logo lockup itself; express concepts through objects, materials, light and composition instead.`,
+    `Subject rule: never build the scene from readable text — no documents, forms, sticky notes, whiteboards, screens of writing or signage. Image models garble lettering, and garbled text fails review. The ONLY text allowed anywhere is the brand logo lockup itself — reading EXACTLY the brand's real name, never an invented company (a render once shipped branded "GRYPHON & BISHOP", a business that does not exist); express concepts through objects, materials, light and composition instead.`,
   ]
     .filter(Boolean)
     .join("\n");

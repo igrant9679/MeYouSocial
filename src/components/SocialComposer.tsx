@@ -101,7 +101,7 @@ export function SocialComposer({
   const [variants, setVariants] = useState<Record<string, string>>(initial?.variants ?? {});
   const [customizing, setCustomizing] = useState<Set<string>>(new Set(Object.keys(initial?.variants ?? {})));
   const [when, setWhen] = useState<"now" | "schedule" | "draft" | "queue">(
-    initial ? (initial.scheduledAtIso ? "schedule" : "draft") : "now",
+    initial ? (initial.scheduledAtIso ? "schedule" : "draft") : accounts.length === 0 ? "draft" : "now",
   );
   const [clearMedia, setClearMedia] = useState(false);
   const [files, setFiles] = useState<File[]>([]);
@@ -247,14 +247,13 @@ export function SocialComposer({
       return next;
     });
 
-  if (accounts.length === 0) {
-    return (
-      <div className="card mb-6 text-sm text-[var(--mute)]">
-        No social accounts connected yet. Connect LinkedIn, Instagram or X under{" "}
-        <a href="/admin/connections" className="underline" style={{ color: "var(--accent)" }}>Admin → Connections</a> to start posting.
-      </div>
-    );
-  }
+  // No accounts connected: the composer still works, in DRAFT-ONLY mode — the
+  // CSV import and autogen already create account-less drafts, and the page's
+  // own banner promises "you can still write and save drafts" (it used to lie:
+  // this early-returned a dead card, caught in the 2026-08-25 walkthrough).
+  // Send/schedule/queue need somewhere to send, so only Save-as-draft is
+  // offered until an account exists.
+  const noAccounts = accounts.length === 0;
 
   return (
     <form data-elsie="social-composer" action={editing ? updateSocialPostAction : createSocialPostAction} className="card mb-6 flex flex-col gap-3" encType="multipart/form-data">
@@ -662,14 +661,20 @@ export function SocialComposer({
           </>
         ) : (
           <>
-            <label className="inline-flex items-center gap-1.5 text-sm cursor-pointer">
-              <input type="radio" name="when" value="now" checked={when === "now"} onChange={() => setWhen("now")} /> Post now
-            </label>
-            <HelpTip text={SOCIAL_TIPS.postNow} />
-            <label className="inline-flex items-center gap-1.5 text-sm cursor-pointer">
-              <input type="radio" name="when" value="schedule" checked={when === "schedule"} onChange={() => setWhen("schedule")} /> Schedule
-            </label>
-            <HelpTip text={SOCIAL_TIPS.schedule} />
+            {/* Without an account there is nowhere to send — draft is the only
+                honest option, so the send choices don't render at all. */}
+            {!noAccounts && (
+              <>
+                <label className="inline-flex items-center gap-1.5 text-sm cursor-pointer">
+                  <input type="radio" name="when" value="now" checked={when === "now"} onChange={() => setWhen("now")} /> Post now
+                </label>
+                <HelpTip text={SOCIAL_TIPS.postNow} />
+                <label className="inline-flex items-center gap-1.5 text-sm cursor-pointer">
+                  <input type="radio" name="when" value="schedule" checked={when === "schedule"} onChange={() => setWhen("schedule")} /> Schedule
+                </label>
+                <HelpTip text={SOCIAL_TIPS.schedule} />
+              </>
+            )}
             <label className="inline-flex items-center gap-1.5 text-sm cursor-pointer">
               <input type="radio" name="when" value="draft" checked={when === "draft"} onChange={() => setWhen("draft")} /> Save as draft
             </label>

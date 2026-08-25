@@ -174,12 +174,15 @@ export async function createSocialPostAction(formData: FormData) {
   const when = String(formData.get("when") ?? "now"); // now | schedule | queue
   const scheduledRaw = String(formData.get("scheduledAt") ?? "");
 
-  if (accountIds.length === 0) backTo("Pick at least one account to post to.");
+  // Account-less DRAFTS are legal — the CSV import already creates them, and
+  // the composer runs in draft-only mode before any account is connected.
+  // Anything that actually SENDS still needs somewhere to send.
+  if (accountIds.length === 0 && when !== "draft") backTo("Pick at least one account to post to — or save it as a draft.");
   const mediaKeys = [...(await storeMedia(formData.getAll("media"))), ...generatedKeysFrom(formData)];
   if (!text && mediaKeys.length === 0) backTo("Write something or attach an image.");
 
-  const accounts = await resolveSelectedAccounts(workspace.id, accountIds);
-  if (accounts.length === 0) backTo("Those accounts aren't connected. Connect one under Admin → Connections.");
+  const accounts = accountIds.length === 0 ? [] : await resolveSelectedAccounts(workspace.id, accountIds);
+  if (accountIds.length > 0 && accounts.length === 0) backTo("Those accounts aren't connected. Connect one under Admin → Connections.");
 
   // Optional workspace Topic — validated against this workspace so a stale or
   // foreign id can never be attached.
