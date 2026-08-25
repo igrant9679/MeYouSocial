@@ -92,9 +92,16 @@ export function troubleWith(a: {
     };
   }
   // Past expiry with no other complaint means the refresh simply hasn't run
-  // yet. Say it quietly rather than raising an alarm we can't substantiate.
-  if (a.tokenExpiresAt && a.tokenExpiresAt < new Date()) {
-    return { severity: "info", reason: "its access token is past its expiry and hasn't been refreshed yet" };
+  // yet — and for X, whose short-lived tokens Zernio refreshes LAZILY, that is
+  // the normal state for much of the day. Probed 2026-08-25 after the owner
+  // read this note as a breakage: both tenants' X sat past expiry while
+  // Zernio's own health endpoint said tokenValid: true, canPost: true,
+  // needsReconnect: false, "auto-refresh pending" — and that morning's X legs
+  // had posted fine. A note that fires on a routine condition trains people to
+  // ignore it, so expiry only earns a mention once the refresh has had a full
+  // day to run and hasn't — that is a stuck refresh, not a lazy one.
+  if (a.tokenExpiresAt && a.tokenExpiresAt.getTime() < Date.now() - 24 * 3_600_000) {
+    return { severity: "info", reason: "its access token expired over a day ago and hasn't been refreshed — worth checking in Zernio" };
   }
   return null;
 }
