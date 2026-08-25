@@ -128,7 +128,27 @@ async function autoReviewImages(workspaceId: string, postId: string, postTitle: 
 
 type PostRow = { id: string; body: string | null; title: string; model: string | null };
 
+const normText = (s: string) => s.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().toLowerCase();
+const normTail = (s: string) => normText(s).slice(-60);
+
 async function autoSourceCitations(workspaceId: string, post: PostRow): Promise<number> {
+  // ⚠ Markers without citation rows first. A [NEEDS SOURCE] in the body whose
+  // row was deleted (or that predates the row sync) would otherwise hold the
+  // post FOREVER with nothing for auto-review to work on — LSI's "SEO in NGO"
+  // draft sat exactly like that. Recreate rows from the marker sentences (the
+  // same extraction the drafting core uses) so every marker is workable.
+  if (post.body) {
+    const existing = await db.blogCitation.findMany({ where: { postId: post.id }, select: { claim: true } });
+    const known = new Set(existing.map((c) => normTail(c.claim)));
+    const claims = [...post.body.replace(/<[^>]+>/g, " ").matchAll(/([^.!?]*[.!?]?)\s*\[NEEDS SOURCE\]/g)]
+      .map((m) => m[1].trim().slice(-300))
+      .filter((c) => c.length > 8);
+    const missing = claims.filter((c) => !known.has(normTail(c))).slice(0, 3);
+    if (missing.length) {
+      await db.blogCitation.createMany({ data: missing.map((claim) => ({ postId: post.id, claim })) });
+    }
+  }
+
   const open = await db.blogCitation.findMany({
     where: { postId: post.id, verified: false },
     orderBy: { createdAt: "asc" },
@@ -168,10 +188,18 @@ async function autoSourceCitations(workspaceId: string, post: PostRow): Promise<
         ].join("\n\n"),
       }],
       maxTokens: 4000,
+      // Reasoning models spend the budget thinking before emitting — the
+      // default 45s wrap is exactly what turned CF's drafts into mock (see
+      // LLMRequest.timeoutMs). The judge gets the same headroom.
+      timeoutMs: 120_000,
       workspaceId,
     });
-    // Never verify a citation on a stand-in's word.
-    if (res.provider === "mock") continue;
+    // Never verify a citation on a stand-in's word. Loudly, though — a silent
+    // skip here made the first live cycle look like auto-review hadn't run.
+    if (res.provider === "mock") {
+      console.warn(`[auto-review] citation judge fell back to mock for ${post.id} — skipping this cycle`);
+      continue;
+    }
 
     let judged: { url?: string | null; reason?: string } = {};
     try {
@@ -217,14 +245,13 @@ async function holdUnsourceable(workspaceId: string, post: PostRow, citationId: 
 async function resolveMarker(post: PostRow, claim: string, url: string): Promise<void> {
   const body = (await db.blogPost.findUnique({ where: { id: post.id }, select: { body: true } }))?.body;
   if (!body) return;
-  const norm = (s: string) => s.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().toLowerCase();
-  const tail = norm(claim).slice(-60);
+  const tail = normTail(claim);
 
   let firstIdx = -1;
   let matchIdx = -1;
   for (let i = body.indexOf(MARKER); i !== -1; i = body.indexOf(MARKER, i + 1)) {
     if (firstIdx === -1) firstIdx = i;
-    if (tail && norm(body.slice(Math.max(0, i - 400), i)).endsWith(tail)) { matchIdx = i; break; }
+    if (tail && normText(body.slice(Math.max(0, i - 400), i)).endsWith(tail)) { matchIdx = i; break; }
   }
   const idx = matchIdx !== -1 ? matchIdx : firstIdx;
   if (idx === -1) return;
