@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import { postMessageAction, addChatContextAction } from "@/app/actions/chat";
 import { UploadButton } from "@/components/UploadButton";
 import { PromptLibrary } from "@/components/PromptLibrary";
+import { MarkdownMessage } from "@/components/MarkdownMessage";
 
 // Chat thread (MU-07)./11 — messages with channel context.
 
@@ -54,13 +55,15 @@ export default async function ChatThreadPage({ params }: { params: Promise<{ id:
               )}
               <div
                 className={
-                  "rounded-2xl px-4 py-2.5 text-sm whitespace-pre-wrap max-w-[80%] " +
+                  "rounded-2xl px-4 py-2.5 text-sm max-w-[80%] " +
                   (m.role === "user"
-                    ? "bg-[var(--accent)] text-white"
+                    // Humans typing *asterisks* mean asterisks — user bubbles
+                    // stay plain text; only the model's replies render.
+                    ? "bg-[var(--accent)] text-white whitespace-pre-wrap"
                     : "bg-[var(--zebra)] border border-[var(--line)]")
                 }
               >
-                {m.content}
+                {m.role === "user" ? m.content : <MarkdownMessage content={m.content} />}
                 {m.model && m.role === "assistant" && (
                   <div className="mt-1 text-[10px] font-mono uppercase tracking-wider opacity-60">{m.model}</div>
                 )}
