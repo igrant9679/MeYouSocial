@@ -110,6 +110,11 @@ export default async function AdminUsersPage() {
     // if the UI can resolve what will happen, it should say so.
     resolveEmailSender(workspace.id).catch(() => null),
   ]);
+  // For the pending-invitation join links below — on a workspace with no
+  // connected mailbox the invitation email is only LOGGED, and until these
+  // links rendered there was no way at all to hand an invite over (the
+  // 2026-08-25 walkthrough dead-ended exactly here).
+  const origin = await getPublicUrl();
 
   return (
     <div className="w-full">
@@ -214,6 +219,13 @@ export default async function AdminUsersPage() {
                 <span className="flex-1">{inv.email}</span>
                 <span className="text-xs text-[var(--mute)]">expires {new Date(inv.expiresAt).toLocaleDateString()}</span>
                 <DeleteButton kind="invitation" id={inv.id} name={inv.email} returnTo="/admin" label="Revoke invite" />
+                {/* The join link itself, selectable (click-to-select-all) so it
+                    can be passed along by hand when the email can't deliver.
+                    Deliberately NOT an <a>: clicking one would walk the ADMIN
+                    into the accept flow as the wrong signed-in user. */}
+                <code className="basis-full text-[11px] text-[var(--mute)] select-all break-all">
+                  {origin}/invitations/{inv.token}
+                </code>
               </li>
             ))}
           </ul>
