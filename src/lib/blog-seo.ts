@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { llm } from "@/lib/llm";
+import { llm, resolveUsableModel } from "@/lib/llm";
 import { isGloballyPaused, writeAudit } from "@/lib/governance";
 import { brandContextBlock, motifPromptFor } from "@/lib/motifs";
 
@@ -45,7 +45,7 @@ export async function generateSeoMetaCore(
   ]);
 
   const res = await llm.complete({
-    model: post.model ?? workspace.defaultModel ?? llm.defaultModel,
+    model: await resolveUsableModel(post.model ?? workspace.defaultModel ?? llm.defaultModel, workspaceId),
     system:
       'Generate SEO metadata. Respond ONLY with JSON: {"metaTitle": string (≤60 chars), "metaDescription": string (≤155 chars, compelling, ends with a benefit), "slug": string (lowercase-hyphenated, ≤6 words)}.',
     messages: [

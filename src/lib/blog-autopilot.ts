@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { env } from "@/lib/env";
-import { llm } from "@/lib/llm";
+import { llm, resolveUsableModel } from "@/lib/llm";
 import { readJson } from "@/lib/db/json";
 import { runBlogChecks, requiredChecksPass } from "@/lib/blog-checks";
 import { decryptSecret, type Encrypted } from "@/lib/blog-crypto";
@@ -146,7 +146,11 @@ export async function discoverIdeasCore(workspaceId: string, topicId?: string | 
     .join("\n\n");
 
   const res = await llm.complete({
-    model: workspace.defaultModel ?? llm.defaultModel,
+    // ⚠ resolveUsableModel, not the raw chain: a stored model whose provider
+    // has no key here resolves to the MOCK and the guard then refuses every
+    // generation forever (Demo: defaultModel gemini-2.5-pro, only an env
+    // anthropic key — caught in the 2026-08-25 flow walkthrough).
+    model: await resolveUsableModel(workspace.defaultModel ?? llm.defaultModel, workspaceId),
     system,
     messages: [{ role: "user", content: prompt }],
     // ⚠ 8000, not 1500: gemini-2.5-pro is a REASONING model that spends its
@@ -252,7 +256,7 @@ export async function generateOutlineCore(workspaceId: string, postId: string): 
   ].filter(Boolean).join("\n");
 
   const res = await llm.complete({
-    model: post.model ?? workspace.defaultModel ?? llm.defaultModel,
+    model: await resolveUsableModel(post.model ?? workspace.defaultModel ?? llm.defaultModel, workspaceId),
     system,
     messages: [{ role: "user", content: prompt }],
     maxTokens: 1200,
@@ -380,7 +384,7 @@ export async function generateDraftCore(workspaceId: string, postId: string): Pr
     .join("\n");
 
   const res = await llm.complete({
-    model: post.model ?? workspace.defaultModel ?? llm.defaultModel,
+    model: await resolveUsableModel(post.model ?? workspace.defaultModel ?? llm.defaultModel, workspaceId),
     system,
     messages: [{ role: "user", content: prompt }],
     maxTokens: 4000,
@@ -535,7 +539,11 @@ export async function generateVariantsCore(workspaceId: string, postId: string):
     .join("\n\n");
 
   const res = await llm.complete({
-    model: workspace.defaultModel ?? llm.defaultModel,
+    // ⚠ resolveUsableModel, not the raw chain: a stored model whose provider
+    // has no key here resolves to the MOCK and the guard then refuses every
+    // generation forever (Demo: defaultModel gemini-2.5-pro, only an env
+    // anthropic key — caught in the 2026-08-25 flow walkthrough).
+    model: await resolveUsableModel(workspace.defaultModel ?? llm.defaultModel, workspaceId),
     system,
     messages: [{ role: "user", content: prompt }],
     // ⚠ 8000, not 1500: gemini-2.5-pro is a REASONING model that spends its
@@ -780,7 +788,11 @@ export async function packageVideoCore(workspaceId: string, blogPostId: string):
     "(subject, setting, camera movement, mood). `text` is that scene's on-screen caption (≤8 words) — scene 1 is the hook, " +
     "the last scene is the call to action. No statistics, no invented claims, no brand logos.";
   const res = await llm.complete({
-    model: workspace.defaultModel ?? llm.defaultModel,
+    // ⚠ resolveUsableModel, not the raw chain: a stored model whose provider
+    // has no key here resolves to the MOCK and the guard then refuses every
+    // generation forever (Demo: defaultModel gemini-2.5-pro, only an env
+    // anthropic key — caught in the 2026-08-25 flow walkthrough).
+    model: await resolveUsableModel(workspace.defaultModel ?? llm.defaultModel, workspaceId),
     system,
     messages: [
       {

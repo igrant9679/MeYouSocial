@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { llm } from "@/lib/llm";
+import { llm, resolveUsableModel } from "@/lib/llm";
 import { writeAudit, isGloballyPaused } from "@/lib/governance";
 import { notify } from "@/lib/notify";
 import { getSearchProvider } from "@/lib/search";
@@ -180,7 +180,7 @@ async function autoSourceCitations(workspaceId: string, post: PostRow): Promise<
     }
 
     const res = await llm.complete({
-      model: post.model ?? workspace?.defaultModel ?? llm.defaultModel,
+      model: await resolveUsableModel(post.model ?? workspace?.defaultModel ?? llm.defaultModel, workspaceId),
       system:
         "You judge whether a source SUPPORTS a factual claim. Support means the source's content states or evidences " +
         "the claim — topical overlap, or a source that merely discusses the subject, is NOT support; a source that " +
