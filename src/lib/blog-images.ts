@@ -253,6 +253,12 @@ export async function generateImageBriefsCore(workspaceId: string, postId: strin
       brand.brandInBodyImages ? "branded with the logo lockup" : "clean and unbranded"
     }.`,
     `The Open Graph image is ${brand.ogImageWidth}×${brand.ogImageHeight} for social and search previews; it is ALWAYS branded — specify where the logo lockup sits and keep the safe area clear of small text.`,
+    // ⚠ The provider renders at a coarser size (e.g. 1536×1024) and the
+    // pipeline cover-crops to the exact target, cutting the top and bottom
+    // edges. Briefs that placed the lockup at the top edge produced a clipped
+    // logo on EVERY render (found on the first autonomous draft's OG,
+    // 2026-08-25) — the brief writer has to know about the crop.
+    `Placement rule for BOTH images: the final crop removes the top and bottom edges of the frame, so the logo lockup and any text must sit fully within the middle 60% of the frame's height — never in the top fifth or bottom fifth.`,
   ]
     .filter(Boolean)
     .join("\n");
