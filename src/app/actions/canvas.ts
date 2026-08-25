@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requireRole } from "@/lib/acl";
 import { db } from "@/lib/db";
@@ -35,6 +36,56 @@ function voiceText(script: { voiceProfileId: string | null; channel: { voiceProf
 function templateName(script: { template: { name: string; structure: string } | null }): string {
   if (!script.template) return "Flexible";
   return script.template.name;
+}
+
+// ── Creating a script ─────────────────────────────────────────────────────
+
+/**
+ * Create a blank script and open its editor. The "+ New script" buttons had
+ * always pointed at /scripts/new, which never existed — every script before
+ * this was born from an idea, a chat, or the API, and the buttons 404'd
+ * (reported by the owner 2026-08-22). This is the page's action.
+ */
+export async function createScriptAction(formData: FormData) {
+  const { user, workspace } = await requireRole("EDITOR");
+  const channelId = String(formData.get("channelId") ?? "");
+  const channel = await db.channel.findFirst({ where: { id: channelId, workspaceId: workspace.id } });
+  if (!channel) redirect("/scripts");
+  const title = String(formData.get("title") ?? "").trim().slice(0, 200) || "Untitled script";
+  const workflow = String(formData.get("workflow")) === "builder" ? "builder" : "canvas";
+
+  const script = await db.script.create({
+    data: {
+      channelId: channel!.id,
+      authorId: user.id,
+      title,
+      workflow,
+      language: channel!.defaultLanguage,
+      templateId: channel!.defaultTemplateId,
+      model: channel!.defaultModel,
+    },
+  });
+  if (workflow === "canvas") {
+    // One-chat-one-script, same as the idea → Canvas path: the chat pane is
+    // the canvas's left rail, so a fresh script gets its thread up front.
+    await db.chat.create({
+      data: {
+        channelId: channel!.id,
+        userId: user.id,
+        type: "canvas",
+        scriptId: script.id,
+        title,
+        messages: {
+          create: {
+            role: "assistant",
+            content: `New script: **${title}**\n\nHead to the Plan tab, answer the planning questions, and generate an outline — or just start writing.`,
+          },
+        },
+      },
+    });
+  }
+  revalidatePath("/scripts");
+  redirect(workflow === "builder" ? `/scripts/${script.id}/builder` : `/scripts/${script.id}`);
 }
 
 // ── Plan Q&A ──────────────────────────────────────────────────────────────
