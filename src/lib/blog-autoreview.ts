@@ -92,15 +92,22 @@ async function autoReviewImages(workspaceId: string, postId: string, postTitle: 
 
     const key = img.url.match(/\/(?:uploads|api\/files)\/([^"'\s)]+)/)?.[1];
     const bytes = key ? await storage.get(decodeURIComponent(key)).catch(() => null) : null;
-    if (!bytes) continue;
+    if (!bytes) {
+      console.warn(`[auto-review] no bytes for ${img.role} image ${img.id} (key=${key ?? "none"}) — skipping`);
+      continue;
+    }
 
     let verdict: { ok?: boolean; problems?: string[] } = {};
     try {
       const raw = await askAboutImage({ bytes, mimeType: "image/png", source: img.url }, REVIEW_PROMPT, workspaceId);
       const m = raw.match(/\{[\s\S]*\}/);
       verdict = m ? (JSON.parse(m[0]) as typeof verdict) : {};
-    } catch {
-      // No vision key or an unparseable reply: nothing is approved unseen.
+      if (verdict.ok === undefined) console.warn(`[auto-review] vision reply for ${img.id} had no verdict: ${raw.slice(0, 120)}`);
+    } catch (e) {
+      // No vision key, a provider error, or an unparseable reply: nothing is
+      // approved unseen — but say so, or a skipped review looks like a cycle
+      // that never ran (that ambiguity cost a diagnosis on 08-25).
+      console.warn(`[auto-review] vision look failed for ${img.role} image ${img.id}:`, e instanceof Error ? e.message : e);
       continue;
     }
 
