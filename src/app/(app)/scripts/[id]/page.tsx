@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import { readJson } from "@/lib/db/json";
 import { MODELS } from "@/lib/llm/models";
 import { formatDuration } from "@/lib/canvas/duration";
+import { MarkdownMessage } from "@/components/MarkdownMessage";
 import { ScriptEditor } from "./ScriptEditor";
 import { StartOverButton } from "./StartOverButton";
 import { AgentPanel } from "./AgentPanel";
@@ -74,8 +75,9 @@ export default async function CanvasPage({
               )}
               {script.chat.messages.map((m) => (
                 <div key={m.id} className={"flex " + (m.role === "user" ? "justify-end" : "")}>
-                  <div className={"rounded-2xl px-3 py-2 max-w-[85%] whitespace-pre-wrap " + (m.role === "user" ? "bg-[var(--accent)] text-white text-xs" : "bg-[var(--zebra)] border border-[var(--line)] text-xs")}>
-                    {m.content}
+                  <div className={"rounded-2xl px-3 py-2 max-w-[85%] " + (m.role === "user" ? "bg-[var(--accent)] text-white text-xs whitespace-pre-wrap" : "bg-[var(--zebra)] border border-[var(--line)] text-xs")}>
+                    {/* User bubbles stay plain text — only the model's replies render as markdown. */}
+                    {m.role === "user" ? m.content : <MarkdownMessage content={m.content} className="text-xs" />}
                   </div>
                 </div>
               ))}

@@ -5,6 +5,7 @@ import { requireRole } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { readJson } from "@/lib/db/json";
 import { AssistantComposer } from "@/components/AssistantComposer";
+import { MarkdownMessage } from "@/components/MarkdownMessage";
 import type { AssistantStep } from "@/lib/assistant/run";
 
 /** One conversation. Tool calls are shown, not summarised — the point is that
@@ -37,7 +38,11 @@ export default async function AssistantThreadPage({ params }: { params: Promise<
                   : <Bot className="w-3.5 h-3.5" style={{ color: "var(--violet-on)" }} />}
                 <span className="font-mono text-[10px] uppercase tracking-wider text-[var(--mute)]">{m.role}</span>
               </div>
-              <p className="text-sm whitespace-pre-wrap leading-relaxed">{m.content}</p>
+              {m.role === "user"
+                // Humans typing *asterisks* mean asterisks — only the model's
+                // replies render as markdown.
+                ? <p className="text-sm whitespace-pre-wrap leading-relaxed">{m.content}</p>
+                : <MarkdownMessage content={m.content} />}
               {tools.length > 0 && (
                 <details className="mt-2">
                   <summary className="cursor-pointer text-[10px] font-mono text-[var(--mute)] inline-flex items-center gap-1">
