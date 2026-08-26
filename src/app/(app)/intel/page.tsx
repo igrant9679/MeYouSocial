@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Telescope, TrendingUp, Bookmark, Sparkles, Eye } from "lucide-react";
 import { requireMembership } from "@/lib/acl";
 import { db } from "@/lib/db";
-import { searchIntel, outlierBand, isFastGrowing, formatNum } from "@/lib/intel";
+import { searchIntel, outlierBand, isFastGrowing, formatNum, intelThumbUrl } from "@/lib/intel";
 import { toggleBookmarkAction } from "@/app/actions/bookmarks";
 import { autoIndexHandleAction, indexSearchResultsAction } from "@/app/actions/intel";
 import { SubmitButton } from "@/components/SubmitButton";
@@ -117,6 +117,10 @@ export default async function IntelPage({ searchParams }: { searchParams: Promis
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {trending.map((v) => (
                   <Link key={v.id} href={`/intel/videos/${v.id}`} className="card border hover:border-[var(--accent)] hover:shadow-md transition">
+                    {intelThumbUrl(v) && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={intelThumbUrl(v)!} alt="" className="rounded-lg mb-2 w-full aspect-video object-cover border border-[var(--line)]" />
+                    )}
                     <div className="flex items-center gap-2 mb-2">
                       <OutlierBadge score={v.outlierScore ?? 0} />
                       <span className="text-xs text-[var(--mute)] font-mono">{v.format}</span>
@@ -207,6 +211,10 @@ export default async function IntelPage({ searchParams }: { searchParams: Promis
           <ul className="m-0 p-0">
             {videos.map((v) => (
               <li key={v.id} className="border-t border-[var(--line)] first:border-t-0 py-3 flex items-center gap-3">
+                {intelThumbUrl(v) && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={intelThumbUrl(v)!} alt="" className="w-20 h-11 rounded-md object-cover border border-[var(--line)] shrink-0" />
+                )}
                 <OutlierBadge score={v.outlierScore ?? 0} />
                 <div className="flex-1 min-w-0">
                   <div className="font-semibold text-sm truncate">{v.title}</div>

@@ -1,6 +1,19 @@
 import { db } from "@/lib/db";
 import type { Prisma } from "@prisma/client";
 
+/**
+ * A video's thumbnail URL. The sync has never actually stored `thumbnailUrl`
+ * (all 99 CF rows were null when the owner asked "why can't I see this
+ * short?", 2026-08-26), but YouTube thumbs are derivable from the id —
+ * `hqdefault` always exists where `maxres` may not (the same fallback
+ * vision.ts documents). A stored value wins if the sync ever starts writing
+ * one.
+ */
+export function intelThumbUrl(v: { thumbnailUrl: string | null; youtubeId: string }): string | null {
+  if (v.thumbnailUrl) return v.thumbnailUrl;
+  return /^[A-Za-z0-9_-]{6,20}$/.test(v.youtubeId) ? `https://i.ytimg.com/vi/${v.youtubeId}/hqdefault.jpg` : null;
+}
+
 // severity bands.
 export function outlierBand(score: number | null | undefined): { color: string; soft: string; label: string } {
   const s = score ?? 0;

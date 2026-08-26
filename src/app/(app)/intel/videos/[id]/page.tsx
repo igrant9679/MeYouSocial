@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, Bookmark, Eye, ThumbsUp, MessageSquare, Calendar } from "lucide-react";
 import { requireMembership } from "@/lib/acl";
 import { db } from "@/lib/db";
-import { outlierBand, viewsPerSubBand, formatNum } from "@/lib/intel";
+import { outlierBand, viewsPerSubBand, formatNum, intelThumbUrl } from "@/lib/intel";
 import { toggleBookmarkAction } from "@/app/actions/bookmarks";
 import { chatWithEntityAction } from "@/app/actions/intel";
 import { MessageCircle } from "lucide-react";
@@ -29,19 +29,54 @@ export default async function IntelVideoPage({ params }: { params: Promise<{ id:
       <Link href={`/intel/channels/${video.intelChannelId}`} className="text-xs font-mono text-[var(--mute)] hover:text-[var(--accent)] flex items-center gap-1 mb-3"><ArrowLeft className="w-3 h-3" /> {video.intelChannel.name}</Link>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Hero */}
+        {/* Hero — the VIDEO, which is what this page is for. It used to render
+            only a gradient score tile, and even that was invisible: band
+            colors are CSS var() tokens, and `band.color + "AA"` is not valid
+            CSS, so the background dropped and white text sat on a white card
+            (owner's report, 2026-08-26: "why can't I see this short?"). The
+            score keeps its sidebar card; the player takes the hero. Shorts get
+            a 9:16 frame instead of a pillarboxed 16:9. */}
         <section className="card lg:col-span-2">
-          <div className="aspect-video rounded-xl mb-4 grid place-items-center text-white font-mono font-bold text-lg" style={{ background: "linear-gradient(135deg," + band.color + "," + band.color + "AA)" }}>
-            <div className="text-center">
-              <div className="text-3xl">{video.outlierScore?.toFixed(1)}x</div>
-              <div className="text-xs opacity-80 uppercase tracking-wider">{band.label}</div>
+          {video.youtubeId && /^[A-Za-z0-9_-]{6,20}$/.test(video.youtubeId) ? (
+            <div className={video.format === "short" ? "mb-4 grid place-items-center" : "mb-4"}>
+              <iframe
+                src={`https://www.youtube-nocookie.com/embed/${video.youtubeId}`}
+                title={video.title}
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                allowFullScreen
+                className={
+                  video.format === "short"
+                    ? "rounded-xl border border-[var(--line)] w-[270px] h-[480px]"
+                    : "rounded-xl border border-[var(--line)] w-full aspect-video"
+                }
+              />
             </div>
-          </div>
+          ) : intelThumbUrl(video) ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={intelThumbUrl(video)!} alt={video.title} className="rounded-xl mb-4 w-full" />
+          ) : (
+            <div className="aspect-video rounded-xl mb-4 grid place-items-center font-mono font-bold text-lg" style={{ background: band.soft, color: band.color }}>
+              <div className="text-center">
+                <div className="text-3xl">{video.outlierScore?.toFixed(1)}x</div>
+                <div className="text-xs opacity-80 uppercase tracking-wider">{band.label}</div>
+              </div>
+            </div>
+          )}
           <h1 className="font-mono font-bold text-xl leading-snug mb-2">{video.title}</h1>
           <div className="flex flex-wrap items-center gap-3 text-xs text-[var(--mute)]">
             <span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> {video.publishedAt?.toISOString().slice(0, 10) ?? "—"}</span>
             <span>{video.format}</span>
             <span>{Math.floor((video.durationSeconds ?? 0) / 60)}:{String((video.durationSeconds ?? 0) % 60).padStart(2, "0")}</span>
+            {video.youtubeId && (
+              <a
+                href={video.format === "short" ? `https://www.youtube.com/shorts/${video.youtubeId}` : `https://www.youtube.com/watch?v=${video.youtubeId}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline hover:text-[var(--accent)]"
+              >
+                Watch on YouTube ↗
+              </a>
+            )}
           </div>
         </section>
 

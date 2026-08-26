@@ -3,7 +3,7 @@ import { Bookmark, ArrowLeft, Eye, Calendar, TrendingUp } from "lucide-react";
 import { notFound } from "next/navigation";
 import { requireMembership } from "@/lib/acl";
 import { db } from "@/lib/db";
-import { outlierBand, isFastGrowing, formatNum } from "@/lib/intel";
+import { outlierBand, isFastGrowing, formatNum, intelThumbUrl } from "@/lib/intel";
 import { toggleBookmarkAction } from "@/app/actions/bookmarks";
 import { findSimilarChannelsAction, chatWithEntityAction } from "@/app/actions/intel";
 import { MessageCircle, GitBranch } from "lucide-react";
@@ -101,6 +101,12 @@ export default async function IntelChannelPage({ params, searchParams }: { param
           <ul className="m-0 p-0">
             {channel.videos.map((v) => (
               <li key={v.id} className="border-t border-[var(--line)] first:border-t-0 py-2.5 flex items-center gap-3">
+                {/* The thumbnail is the video's face — derived from the
+                    YouTube id, since the sync never stored one (2026-08-26). */}
+                {intelThumbUrl(v) && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={intelThumbUrl(v)!} alt="" className="w-20 h-11 rounded-md object-cover border border-[var(--line)] shrink-0" />
+                )}
                 <span className="font-mono font-bold text-[11px] px-2 py-1 rounded-md whitespace-nowrap" style={{ background: outlierBand(v.outlierScore).soft, color: outlierBand(v.outlierScore).color }}>
                   {v.outlierScore?.toFixed(1)}x
                 </span>
