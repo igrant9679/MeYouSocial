@@ -4,6 +4,7 @@ import { ArrowLeft, Bookmark, Eye, ThumbsUp, MessageSquare, Calendar } from "luc
 import { requireMembership } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { outlierBand, viewsPerSubBand, formatNum, intelThumbUrl } from "@/lib/intel";
+import { ChannelAvatar } from "@/components/ChannelAvatar";
 import { toggleBookmarkAction } from "@/app/actions/bookmarks";
 import { chatWithEntityAction } from "@/app/actions/intel";
 import { MessageCircle } from "lucide-react";
@@ -83,7 +84,7 @@ export default async function IntelVideoPage({ params }: { params: Promise<{ id:
         {/* Sidebar stats */}
         <aside className="flex flex-col gap-3">
           <div className="card flex items-center gap-3">
-            <span className="w-12 h-12 rounded-xl text-white grid place-items-center font-mono font-bold" style={{ background: "linear-gradient(135deg,#6D28D9,#4F46E5)" }}>{(video.intelChannel.name ?? "??").slice(0, 2).toUpperCase()}</span>
+            <ChannelAvatar name={video.intelChannel.name} url={video.intelChannel.thumbnailUrl} size={48} />
             <div className="flex-1 min-w-0">
               <div className="font-semibold text-sm truncate">{video.intelChannel.name}</div>
               <div className="text-xs text-[var(--mute)]">{formatNum(video.intelChannel.subscribers)} subs</div>

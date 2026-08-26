@@ -3,6 +3,7 @@ import { Telescope, TrendingUp, Bookmark, Sparkles, Eye } from "lucide-react";
 import { requireMembership } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { searchIntel, outlierBand, isFastGrowing, formatNum, intelThumbUrl } from "@/lib/intel";
+import { ChannelAvatar } from "@/components/ChannelAvatar";
 import { toggleBookmarkAction } from "@/app/actions/bookmarks";
 import { autoIndexHandleAction, indexSearchResultsAction } from "@/app/actions/intel";
 import { SubmitButton } from "@/components/SubmitButton";
@@ -142,6 +143,7 @@ export default async function IntelPage({ searchParams }: { searchParams: Promis
                 <ul className="m-0 p-0">
                   {hotChannels.map((c) => (
                     <li key={c.id} className="border-t border-[var(--line)] first:border-t-0 py-2 flex items-center gap-2 text-xs">
+                      <ChannelAvatar name={c.name} url={c.thumbnailUrl} size={24} />
                       <span className="font-mono font-bold text-[10px] px-1.5 py-0.5 rounded" style={{ background: "var(--brand-soft)", color: "var(--brand-on)" }}>{c.velocityScore?.toFixed(1)}</span>
                       <Link href={`/intel/channels/${c.id}`} className="flex-1 truncate hover:text-[var(--accent)]">{c.name}</Link>
                       <span className="text-[var(--mute)]">{formatNum(c.subscribers)}</span>
@@ -179,7 +181,7 @@ export default async function IntelPage({ searchParams }: { searchParams: Promis
           <ul className="m-0 p-0 grid grid-cols-1 md:grid-cols-2 gap-2">
             {channels.map((c) => (
               <li key={c.id} className="border border-[var(--line)] rounded-xl p-3 flex items-center gap-3 hover:border-[var(--accent)] transition">
-                <span className="w-10 h-10 rounded-xl text-white grid place-items-center font-mono font-bold text-sm" style={{ background: "linear-gradient(135deg,#6D28D9,#4F46E5)" }}>{(c.name ?? "??").slice(0, 2).toUpperCase()}</span>
+                <ChannelAvatar name={c.name} url={c.thumbnailUrl} size={40} />
                 <div className="flex-1 min-w-0">
                   <div className="font-semibold text-sm truncate flex items-center gap-1.5">
                     {c.name}

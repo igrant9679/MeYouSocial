@@ -20,7 +20,10 @@ export async function findSimilarChannelsAction(formData: FormData) {
   for (const c of candidates) {
     await db.intelChannel.upsert({
       where: { workspaceId_youtubeId: { workspaceId: workspace.id, youtubeId: c.id } },
-      update: {},
+      // The API supplies the avatar on every fetch, but the sync dropped it
+      // for months — every row was null (owner's ask, 2026-08-26). Heal on
+      // update; `?? undefined` so a missing thumb never nulls a stored one.
+      update: { thumbnailUrl: c.thumbnailUrl ?? undefined },
       create: {
         workspaceId: workspace.id,
         youtubeId: c.id,
@@ -31,6 +34,7 @@ export async function findSimilarChannelsAction(formData: FormData) {
         videoCount: c.videoCount,
         language: c.language ?? null,
         category: c.category ?? source.category ?? null,
+        thumbnailUrl: c.thumbnailUrl ?? null,
         lastIndexedAt: new Date(),
       },
     });
@@ -48,12 +52,12 @@ export async function findSimilarChannelsAction(formData: FormData) {
  */
 async function indexIntelChannel(
   workspaceId: string,
-  source: { id: string; handle?: string; name: string; subscribers: number; videoCount: number; totalViews: number; language?: string; category?: string },
+  source: { id: string; handle?: string; name: string; subscribers: number; videoCount: number; totalViews: number; language?: string; category?: string; thumbnailUrl?: string },
   videoLimit = 8,
 ) {
   const upserted = await db.intelChannel.upsert({
     where: { workspaceId_youtubeId: { workspaceId, youtubeId: source.id } },
-    update: { lastIndexedAt: new Date() },
+    update: { lastIndexedAt: new Date(), thumbnailUrl: source.thumbnailUrl ?? undefined },
     create: {
       workspaceId,
       youtubeId: source.id,
@@ -64,6 +68,7 @@ async function indexIntelChannel(
       videoCount: source.videoCount,
       language: source.language ?? null,
       category: source.category ?? null,
+      thumbnailUrl: source.thumbnailUrl ?? null,
       lastIndexedAt: new Date(),
     },
   });
@@ -82,7 +87,7 @@ async function indexIntelChannel(
   for (const v of videos) {
     await db.intelVideo.upsert({
       where: { intelChannelId_youtubeId: { intelChannelId: upserted.id, youtubeId: v.id } },
-      update: {},
+      update: { thumbnailUrl: v.thumbnailUrl ?? undefined },
       create: {
         intelChannelId: upserted.id,
         youtubeId: v.id,
@@ -92,6 +97,7 @@ async function indexIntelChannel(
         views: BigInt(v.views),
         likes: v.likes ?? null,
         format: v.format,
+        thumbnailUrl: v.thumbnailUrl ?? null,
         outlierScore: Math.round((v.views / Math.max(1, avg)) * 10) / 10,
         viewsPerSub: Math.round((v.views / Math.max(1, source.subscribers)) * 100) / 100,
       },

@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { requireMembership } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { outlierBand, isFastGrowing, formatNum, intelThumbUrl } from "@/lib/intel";
+import { ChannelAvatar } from "@/components/ChannelAvatar";
 import { toggleBookmarkAction } from "@/app/actions/bookmarks";
 import { findSimilarChannelsAction, chatWithEntityAction } from "@/app/actions/intel";
 import { MessageCircle, GitBranch } from "lucide-react";
@@ -40,9 +41,7 @@ export default async function IntelChannelPage({ params, searchParams }: { param
 
       {/* Header */}
       <div className="card mb-5 flex items-start gap-4">
-        <span className="w-16 h-16 rounded-2xl text-white grid place-items-center font-mono font-bold text-xl shadow-md" style={{ background: "linear-gradient(135deg,#6D28D9,#4F46E5)" }}>
-          {channel.name?.slice(0, 2).toUpperCase()}
-        </span>
+        <ChannelAvatar name={channel.name} url={channel.thumbnailUrl} size={64} />
         <div className="flex-1 min-w-0">
           <h1 className="font-mono font-bold text-2xl leading-tight flex items-center gap-2">
             {channel.name}

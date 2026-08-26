@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { readJson } from "@/lib/db/json";
 import { youtubeFor } from "@/lib/youtube";
 import { addCompetitorAction, removeCompetitorAction } from "@/app/actions/competitors";
+import { ChannelAvatar } from "@/components/ChannelAvatar";
 
 // Add / search / remove tracked competitor channels.
 //
@@ -73,6 +74,7 @@ export default async function ChannelCompetitorsPage({
                 const tracked = trackedIds.has(r.id);
                 return (
                   <li key={r.id} className="flex items-center gap-3 border-t border-[var(--line)] first:border-t-0 pt-2 first:pt-0">
+                    <ChannelAvatar name={r.name} url={r.thumbnailUrl} size={40} />
                     <div className="flex-1 min-w-0">
                       <div className="font-semibold text-sm truncate">{r.name}</div>
                       <div className="text-[11px] text-[var(--mute)] font-mono truncate">
@@ -120,9 +122,10 @@ export default async function ChannelCompetitorsPage({
       )}
       <ul className="m-0 p-0">
         {competitors.map((c) => {
-          const m = readJson<{ subs?: number; views?: number; name?: string }>(c.metricsSnapshot, {});
+          const m = readJson<{ subs?: number; views?: number; name?: string; thumb?: string }>(c.metricsSnapshot, {});
           return (
             <li key={c.id} className="card flex items-center gap-3 mb-2">
+              <ChannelAvatar name={m.name ?? c.youtubeHandle} url={m.thumb} size={40} />
               <div className="flex-1 min-w-0">
                 <div className="font-semibold text-sm truncate">{m.name ?? c.youtubeHandle ?? c.youtubeId}</div>
                 <div className="text-xs text-[var(--mute)] font-mono">

@@ -4,6 +4,7 @@ import { requireMembership } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { readJson } from "@/lib/db/json";
 import { outlierBand, formatNum } from "@/lib/intel";
+import { ChannelAvatar } from "@/components/ChannelAvatar";
 import { toggleBookmarkAction, updateBookmarkAction } from "@/app/actions/bookmarks";
 import { AiAssist } from "@/components/AiAssist";
 
@@ -64,14 +65,14 @@ export default async function BookmarksPage() {
   );
 }
 
-function BookmarkRow({ bookmark, kind }: { bookmark: { id: string; tags: string; notes: string | null; intelChannel: { id: string; name: string | null; handle: string | null; subscribers: number | null } | null; intelVideo: { id: string; title: string; outlierScore: number | null; views: bigint | null; intelChannel: { name: string | null } } | null }; kind: "channel" | "video" }) {
+function BookmarkRow({ bookmark, kind }: { bookmark: { id: string; tags: string; notes: string | null; intelChannel: { id: string; name: string | null; handle: string | null; subscribers: number | null; thumbnailUrl: string | null } | null; intelVideo: { id: string; title: string; outlierScore: number | null; views: bigint | null; intelChannel: { name: string | null } } | null }; kind: "channel" | "video" }) {
   const tags = readJson<string[]>(bookmark.tags, []);
   if (kind === "channel" && bookmark.intelChannel) {
     const c = bookmark.intelChannel;
     return (
       <li className="border border-[var(--line)] rounded-xl p-3 flex flex-col gap-2">
         <div className="flex items-center gap-3">
-          <span className="w-10 h-10 rounded-xl text-white grid place-items-center font-mono font-bold text-sm" style={{ background: "linear-gradient(135deg,#6D28D9,#4F46E5)" }}>{c.name?.slice(0, 2).toUpperCase()}</span>
+          <ChannelAvatar name={c.name} url={c.thumbnailUrl} size={40} />
           <div className="flex-1 min-w-0">
             <Link href={`/intel/channels/${c.id}`} className="font-semibold text-sm hover:text-[var(--accent)]">{c.name}</Link>
             <div className="text-xs text-[var(--mute)]">{c.handle} · {formatNum(c.subscribers)} subs</div>

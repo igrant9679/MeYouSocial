@@ -47,7 +47,7 @@ export async function addCompetitorAction(formData: FormData) {
       channelId,
       youtubeHandle: found!.handle ?? (handle || null),
       youtubeId: found!.id,
-      metricsSnapshot: writeJson({ subs: found!.subscribers, views: found!.totalViews, name: found!.name }),
+      metricsSnapshot: writeJson({ subs: found!.subscribers, views: found!.totalViews, name: found!.name, thumb: found!.thumbnailUrl ?? undefined }),
     },
   });
   revalidatePath(`/channels/${channelId}/competitors`);
