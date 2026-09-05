@@ -58,6 +58,7 @@ model Workspace {
   intelChannels   IntelChannel[]
   brandFacts      BrandFact[]
   brandDocuments  BrandDocument[]
+  findings        BlogFinding[]
   orgProfile      OrgProfile?
   assistantThreads AssistantThread[]
   keywords        Keyword[]
@@ -236,6 +237,7 @@ model BlogPost {
   // Deleting a topic must not delete the posts that referenced it.
   topic     Topic?         @relation(fields: [topicId], references: [id], onDelete: SetNull)
   citations BlogCitation[]
+  findings  BlogFinding[]
   comments  BlogComment[]
   images    BlogImage[]
   variants  SocialVariant[]
@@ -498,6 +500,37 @@ model SmeProfileVersion {
   profile SmeProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
 
   @@index([profileId, version])
+}
+
+// Optimize findings as ACTIONS (the One-Loop redesign, step 1). E-E-A-T,
+// content-gap and entity-coverage output lands here as cards with a kind
+// (mechanical → apply a diff · knowledge → answer questions · strategic → add
+// to ideas) and a state, so a dismissed finding is never re-raised for that
+// article. Cascaded from Workspace and BlogPost by construction.
+model BlogFinding {
+  id           String    @id @default(cuid())
+  workspaceId  String
+  postId       String
+  source       String    // eeat | content_gap | entity_coverage
+  kind         String    // mechanical | knowledge | strategic
+  title        String
+  detail       String?   // why it matters / evidence
+  proposal     String?   // HTML to insert — mechanical from the start, knowledge once answered and woven
+  anchor       String?   // text of the h2 the proposal belongs after; null/"" = end of article
+  questions    String    @default("[]") // knowledge: JSON [{q, intakeId}]
+  answers      String?   // knowledge: JSON string[] once answered
+  status       String    @default("open") // open | answered | applied | added | dismissed
+  reason       String?   // dismiss reason, or why weaving is pending
+  fingerprint  String
+  createdAt    DateTime  @default(now())
+  resolvedAt   DateTime?
+  resolvedById String?
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  post      BlogPost  @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, fingerprint])
+  @@index([workspaceId, status])
 }
 
 // Blog idea engine (Spark FR-5): discovered → approved/rejected → drafted.

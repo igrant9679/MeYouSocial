@@ -61,11 +61,10 @@ import {
   addFaqSectionAction,
   addKeyTakeawaysAction,
   applyInternalLinkAction,
-  contentGapAction,
-  eeatReviewAction,
-  entityCoverageAction,
   suggestInternalLinksAction,
 } from "@/app/actions/blog-optimize";
+import { FindingCards } from "@/components/FindingCards";
+import { getSearchProvider } from "@/lib/search";
 import { SubmitButton } from "@/components/SubmitButton";
 import { BlogBodyEditor } from "@/components/BlogBodyEditor";
 import {
@@ -174,22 +173,18 @@ export default async function BlogPostPage({
   const checks = runBlogChecks(post, unverified, assets, editorial);
   const gatesPass = requiredChecksPass(checks);
   const score = contentScore(post, checks);
-  const [titlesSetting, linksSetting, gapsSetting] = await Promise.all([
+  const [titlesSetting, linksSetting, findings, searchInfo] = await Promise.all([
     db.setting.findUnique({ where: { key: `blog:titles:${post.id}` } }),
     db.setting.findUnique({ where: { key: `blog:links:${post.id}` } }),
-    db.setting.findUnique({ where: { key: `blog:gaps:${post.id}` } }),
+    // Optimize → "Address these": the article's finding cards (all states —
+    // the component folds resolved ones away).
+    db.blogFinding.findMany({ where: { postId: post.id }, orderBy: { createdAt: "asc" } }),
+    getSearchProvider(workspace.id),
   ]);
   let titleVariants: string[] = [];
   try { titleVariants = titlesSetting ? (JSON.parse(titlesSetting.value) as string[]) : []; } catch { titleVariants = []; }
   let linkSuggestions: Array<{ url: string; anchorText: string }> = [];
   try { linkSuggestions = linksSetting ? JSON.parse(linksSetting.value) : []; } catch { linkSuggestions = []; }
-  let gaps: { needsKey?: boolean; missing?: Array<{ subtopic: string; why: string }> } | null = null;
-  try { gaps = gapsSetting ? JSON.parse(gapsSetting.value) : null; } catch { gaps = null; }
-  const entitiesSetting = await db.setting.findUnique({ where: { key: `blog:entities:${post.id}` } });
-  let entities: { covered?: string[]; missing?: string[] } | null = null;
-  try { entities = entitiesSetting ? JSON.parse(entitiesSetting.value) : null; } catch { entities = null; }
-  let eeat: { summary?: string; findings?: Array<{ dimension: string; finding: string; suggestion: string }> } | null = null;
-  try { eeat = post.eeatReview ? JSON.parse(post.eeatReview) : null; } catch { eeat = null; }
   let outline: Array<{ heading: string; points: string[] }> = [];
   try { outline = post.outline ? JSON.parse(post.outline) : []; } catch { outline = []; }
   let secondaryKw: string[] = [];
@@ -1191,15 +1186,26 @@ export default async function BlogPostPage({
       </>)}
 
       {is("optimize") && (<>
-      {/* Optimize (Wave B′): E-E-A-T, snippet blocks, internal links, gaps */}
+      {/* Optimize → "Address these": findings as cards (One-Loop step 1). The
+          E-E-A-T review, content gaps and entity coverage used to end in a
+          paragraph of advice; they now end in Apply / Answer / Add to ideas. */}
+      {post.body && (
+        <div className="card mt-4">
+          <h2 className="text-sm font-semibold mb-2">Address these</h2>
+          <FindingCards
+            postId={post.id}
+            findings={findings}
+            searchReal={searchInfo.real}
+            canEdit={editor}
+          />
+        </div>
+      )}
+
+      {/* Quick additions — one-click mechanical edits that predate the cards. */}
       {editor && post.body && (
         <div className="card mt-4">
-          <h2 className="text-sm font-semibold mb-2">Optimize</h2>
+          <h2 className="text-sm font-semibold mb-2">Quick additions</h2>
           <div className="flex flex-wrap items-center gap-2 mb-3">
-            <form action={eeatReviewAction}>
-              <input type="hidden" name="id" value={post.id} />
-              <SubmitButton className="btn" pendingText="Reviewing…">E-E-A-T review</SubmitButton>
-            </form>
             <form action={addFaqSectionAction}>
               <input type="hidden" name="id" value={post.id} />
               <SubmitButton className="btn" pendingText="Writing FAQ…">Add FAQ section</SubmitButton>
@@ -1212,32 +1218,7 @@ export default async function BlogPostPage({
               <input type="hidden" name="id" value={post.id} />
               <SubmitButton className="btn" pendingText="Matching…">Suggest internal links</SubmitButton>
             </form>
-            <form action={contentGapAction}>
-              <input type="hidden" name="id" value={post.id} />
-              <SubmitButton className="btn" pendingText="Analyzing…">Content gaps</SubmitButton>
-            </form>
-            <form action={entityCoverageAction}>
-              <input type="hidden" name="id" value={post.id} />
-              <SubmitButton className="btn" pendingText="Mapping…">Entity coverage</SubmitButton>
-            </form>
           </div>
-
-          {eeat && (
-            <details className="mb-2" open>
-              <summary className="text-xs font-semibold cursor-pointer">E-E-A-T findings ({eeat.findings?.length ?? 0})</summary>
-              {eeat.summary && <p className="text-xs text-[var(--slate)] my-1">{eeat.summary}</p>}
-              <ul className="text-xs flex flex-col gap-1">
-                {(eeat.findings ?? []).map((f, i) => (
-                  <li key={i}>
-                    <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full mr-1" style={{ background: "var(--violet-soft)", color: "var(--violet-on)" }}>
-                      {f.dimension}
-                    </span>
-                    {f.finding} <span className="text-[var(--mute)]">→ {f.suggestion}</span>
-                  </li>
-                ))}
-              </ul>
-            </details>
-          )}
 
           {linkSuggestions.length > 0 && (
             <div className="mb-2">
@@ -1258,35 +1239,6 @@ export default async function BlogPostPage({
             </div>
           )}
 
-          {gaps?.needsKey && (
-            <p className="text-xs text-[var(--mute)]">
-              Content-gap analysis needs real search data. Add a Tavily or Serper key under <Link href="/admin/api-keys" className="underline">Admin → API keys</Link> — it takes effect within ~30 seconds, then run this again.
-            </p>
-          )}
-          {entities && (
-            <div className="mb-2">
-              <p className="text-xs font-semibold mb-1">Entity coverage <span className="font-normal text-[var(--mute)]">(AI-derived)</span>:</p>
-              <div className="flex flex-wrap gap-1">
-                {(entities.covered ?? []).map((e) => (
-                  <span key={e} className="font-mono text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "var(--green-soft)", color: "var(--green-on)" }}>✓ {e}</span>
-                ))}
-                {(entities.missing ?? []).map((e) => (
-                  <span key={e} className="font-mono text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }}>+ {e}</span>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {gaps?.missing && gaps.missing.length > 0 && (
-            <div>
-              <p className="text-xs font-semibold mb-1">Subtopics competitors cover that this post doesn&apos;t:</p>
-              <ul className="text-xs list-disc pl-4 flex flex-col gap-0.5">
-                {gaps.missing.map((g) => (
-                  <li key={g.subtopic}><b>{g.subtopic}</b> <span className="text-[var(--mute)]">— {g.why}</span></li>
-                ))}
-              </ul>
-            </div>
-          )}
         </div>
       )}
 

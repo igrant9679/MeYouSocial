@@ -1102,6 +1102,8 @@ export type CycleReport = {
   imagesAutoApproved: number;
   /** Full autonomy only: citations verified against a live-searched source. */
   citationsAutoVerified: number;
+  /** Full autonomy only: mechanical Optimize findings applied to the body. */
+  findingsAutoApplied: number;
   /** Full autonomy only: social drafts given a slot with nobody clicking. */
   autoQueued: number;
   published: number;
@@ -1121,6 +1123,7 @@ export async function runAutopilotCycle(workspaceId: string): Promise<CycleRepor
     autoAdvanced: 0,
     imagesAutoApproved: 0,
     citationsAutoVerified: 0,
+    findingsAutoApplied: 0,
     autoQueued: 0,
     published: 0,
     videosPackaged: 0,
@@ -1264,6 +1267,7 @@ export async function runAutopilotCycle(workspaceId: string): Promise<CycleRepor
         const reviewed = await autoReviewCore(workspaceId, post.id);
         report.imagesAutoApproved += reviewed.imagesApproved;
         report.citationsAutoVerified += reviewed.citationsVerified;
+        report.findingsAutoApplied += reviewed.findingsApplied;
         if (reviewed.seoFilled) report.seoOptimized++;
       } catch (e) {
         console.error(`[auto-review] failed for ${post.id}:`, e instanceof Error ? e.message : e);

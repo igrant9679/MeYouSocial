@@ -38,10 +38,10 @@ import { generateSeoMetaCore } from "@/lib/blog-seo";
 
 const MARKER = "[NEEDS SOURCE]";
 
-export type AutoReviewResult = { imagesApproved: number; citationsVerified: number; seoFilled: boolean };
+export type AutoReviewResult = { imagesApproved: number; citationsVerified: number; seoFilled: boolean; findingsApplied: number };
 
 export async function autoReviewCore(workspaceId: string, postId: string): Promise<AutoReviewResult> {
-  const result: AutoReviewResult = { imagesApproved: 0, citationsVerified: 0, seoFilled: false };
+  const result: AutoReviewResult = { imagesApproved: 0, citationsVerified: 0, seoFilled: false, findingsApplied: 0 };
   if (await isGloballyPaused(workspaceId)) return result;
   const post = await db.blogPost.findFirst({ where: { id: postId, workspaceId } });
   if (!post) return result;
@@ -57,6 +57,12 @@ export async function autoReviewCore(workspaceId: string, postId: string): Promi
 
   // 3. Citations.
   result.citationsVerified = await autoSourceCitations(workspaceId, post);
+
+  // 4. Findings (Optimize → "Address these"): generated once per article,
+  //    and only the MECHANICAL cards are applied unattended — a knowledge card
+  //    is the author's to answer, a strategic one is a decision.
+  const { autoFindingsCore } = await import("@/lib/blog-findings");
+  result.findingsApplied = (await autoFindingsCore(workspaceId, post.id)).applied;
 
   return result;
 }
