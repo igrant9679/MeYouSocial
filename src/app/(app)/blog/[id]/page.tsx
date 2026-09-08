@@ -3,7 +3,8 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, Check, ChevronLeft, ChevronRight, CircleAlert, ShieldCheck, Sparkles, Trash2, X, Send } from "lucide-react";
 import { requireMembership, canEdit, canAdmin } from "@/lib/acl";
 import { db } from "@/lib/db";
-import { runBlogChecks, requiredChecksPass } from "@/lib/blog-checks";
+import { runBlogChecks } from "@/lib/blog-checks";
+import { gatesSatisfied } from "@/lib/blog-gates";
 import { contentScore } from "@/lib/blog-score";
 import { BLOG_TEMPLATES } from "@/lib/blog-templates";
 import {
@@ -171,7 +172,7 @@ export default async function BlogPostPage({
     loadEditorialContext(workspace.id, post),
   ]);
   const checks = runBlogChecks(post, unverified, assets, editorial);
-  const gatesPass = requiredChecksPass(checks);
+  const gatesPass = gatesSatisfied(post, checks);
   const score = contentScore(post, checks);
   const [titlesSetting, linksSetting, findings, searchInfo] = await Promise.all([
     db.setting.findUnique({ where: { key: `blog:titles:${post.id}` } }),

@@ -4,7 +4,7 @@ import { networkFor } from "@/lib/social/networks";
 import type { InboxData } from "@/lib/inbox";
 import { approveSocialPostAction, requestChangesSocialPostAction } from "@/app/actions/social-workflow";
 import { answerFindingAction, dismissFindingAction } from "@/app/actions/blog-findings";
-import { deleteCitationAction, verifyCitationAction } from "@/app/actions/blog";
+import { deleteCitationAction, overrideGateAction, verifyCitationAction } from "@/app/actions/blog";
 import { approveBlogImageAction } from "@/app/actions/blog-images";
 
 /**
@@ -188,6 +188,16 @@ export function NeedsYouGroups({
                 </div>
               </div>
               <Link href={`/blog/${a.id}`} className="btn sm">Open</Link>
+              {/* The owner's override (2026-09-08): a person outranks the checks.
+                  Recorded with name and reason; carries through the sweep and
+                  publishing, so the article does not stall a step later. */}
+              {admin && a.failing.length > 0 && (
+                <form action={overrideGateAction} className="basis-full flex items-center gap-1.5 flex-wrap pt-1">
+                  <input type="hidden" name="id" value={a.id} />
+                  <input name="reason" placeholder="why you're overriding (optional)" className="text-[11px] min-w-56 flex-1" aria-label="Reason for overriding the checks" />
+                  <SubmitButton className="btn sm primary" pendingText="Advancing…" title="Override the checks named above and move the article to final approval now — recorded with your name and reason">Advance anyway</SubmitButton>
+                </form>
+              )}
             </li>
           ))}
         </Group>

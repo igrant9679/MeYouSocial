@@ -226,6 +226,12 @@ model BlogPost {
   smeProfileId    String?   // FR-3: the expert this draft speaks as
   reviewerId      String?   // FR-10: who owns the review of this draft
   wpPostId        Int?      // set on publish; lets a later slice update in place
+  // An admin's explicit override of the required checks ("Advance anyway"):
+  // recorded, not silent — who, when, why. While set, the gates are treated
+  // as satisfied for advancing and publishing this post.
+  gateOverrideAt     DateTime?
+  gateOverrideById   String?
+  gateOverrideReason String?
   // JSON — what WordPress actually accepted on the last publish, read back from
   // the API. We report the truth rather than assuming the payload landed.
   publishReport   String?

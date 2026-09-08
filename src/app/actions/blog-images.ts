@@ -1,5 +1,6 @@
 "use server";
 
+import { advanceIfReadyCore } from "@/lib/blog-gates";
 import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/acl";
 import { db } from "@/lib/db";
@@ -68,7 +69,12 @@ export async function approveBlogImageAction(formData: FormData) {
     entityId: id,
     meta: { role: img.role, source: img.source },
   });
+  // Approving the image that held the article moves it now, not next sweep.
+  await advanceIfReadyCore(workspace.id, img.postId, "approved an image");
   revalidatePath(`/blog/${img.postId}`);
+  revalidatePath("/inbox");
+  revalidatePath("/review");
+  revalidatePath("/publish");
 }
 
 export async function saveImageAltAction(formData: FormData) {

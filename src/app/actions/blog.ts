@@ -4,7 +4,8 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/acl";
 import { db } from "@/lib/db";
-import { runBlogChecks, requiredChecksPass } from "@/lib/blog-checks";
+import { runBlogChecks } from "@/lib/blog-checks";
+import { advanceIfReadyCore, gatesSatisfied, overrideGateCore } from "@/lib/blog-gates";
 import { writeAudit } from "@/lib/governance";
 import { removeMarkerForClaim } from "@/lib/blog-autoreview";
 import { generateDraftCore } from "@/lib/blog-autopilot";
@@ -140,7 +141,8 @@ export async function advanceBlogStatusAction(formData: FormData) {
       loadAssetGate(workspace.id, post.id),
       loadEditorialContext(workspace.id, post),
     ]);
-    if (!requiredChecksPass(runBlogChecks(post, unverified, assets, editorial))) return;
+    // An admin's "Advance anyway" override counts as passing (lib/blog-gates.ts).
+    if (!gatesSatisfied(post, runBlogChecks(post, unverified, assets, editorial))) return;
   }
 
   // ⚠ With a WordPress connection, "publish" must MEAN publish. This action
@@ -378,7 +380,32 @@ export async function verifyCitationAction(formData: FormData) {
     where: { id },
     data: { verified: true, sourceUrl: sourceUrl || cit.sourceUrl },
   });
+  // Verifying the claim that held the article moves it now, not next sweep.
+  await advanceIfReadyCore(workspace.id, cit.postId, "verified a claim");
   revalidatePath(`/blog/${cit.postId}`);
+  revalidatePath("/inbox");
+  revalidatePath("/review");
+  revalidatePath("/publish");
+}
+
+/**
+ * "Advance anyway" — an admin overrides the required checks on a held
+ * article. Recorded on the post and in the audit log with the reason; the
+ * article moves to final approval now, and the override carries through the
+ * sweep's advance and publishing (lib/blog-gates.ts).
+ */
+export async function overrideGateAction(formData: FormData) {
+  const id = String(formData.get("id") ?? "");
+  const reason = String(formData.get("reason") ?? "").trim();
+  const { workspace, user } = await requireRole("ADMIN");
+  const result = await overrideGateCore(workspace.id, id, user.id, reason);
+  if (!result) return;
+  revalidatePath(`/blog/${id}`);
+  revalidatePath("/inbox");
+  revalidatePath("/review");
+  revalidatePath("/publish");
+  const what = result.failing.length ? ` Overrode: ${result.failing.join("; ")}.` : "";
+  redirect(`/inbox?flash=${encodeURIComponent(result.moved ? `Advanced to final approval on your say-so — recorded with your name.${what}` : `Override recorded, but the article is not at review, so nothing moved.${what}`)}`);
 }
 
 export async function deleteCitationAction(formData: FormData) {
@@ -399,9 +426,12 @@ export async function deleteCitationAction(formData: FormData) {
     entityId: cit.postId,
     meta: { citationId: id, claim: cit.claim.slice(0, 200), markerRemoved },
   });
+  // Dropping the claim that held the article moves it now, not next sweep.
+  await advanceIfReadyCore(workspace.id, cit.postId, "dropped a claim");
   revalidatePath(`/blog/${cit.postId}`);
   revalidatePath("/inbox");
   revalidatePath("/review");
+  revalidatePath("/publish");
 }
 
 // ---- Org profile -------------------------------------------------------------

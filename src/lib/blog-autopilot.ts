@@ -2,7 +2,8 @@ import { db } from "@/lib/db";
 import { env } from "@/lib/env";
 import { llm, resolveUsableModel } from "@/lib/llm";
 import { readJson } from "@/lib/db/json";
-import { runBlogChecks, requiredChecksPass } from "@/lib/blog-checks";
+import { runBlogChecks } from "@/lib/blog-checks";
+import { gatesSatisfied } from "@/lib/blog-gates";
 import { decryptSecret, type Encrypted } from "@/lib/blog-crypto";
 import {
   wpCreatePost,
@@ -600,7 +601,9 @@ export async function publishCore(workspaceId: string, postId: string): Promise<
     loadAssetGate(workspaceId, post.id),
     loadEditorialContext(workspaceId, post),
   ]);
-  if (!requiredChecksPass(runBlogChecks(post, unverified, assets, editorial))) return false;
+  // An admin's override (lib/blog-gates.ts) carries through to publishing —
+  // otherwise "Advance anyway" would move a post one step and strand it here.
+  if (!gatesSatisfied(post, runBlogChecks(post, unverified, assets, editorial))) return false;
 
   const conn = await db.wordPressConnection.findUnique({ where: { workspaceId } });
   if (!conn) return false;
@@ -1281,7 +1284,9 @@ export async function runAutopilotCycle(workspaceId: string): Promise<CycleRepor
         loadAssetGate(workspaceId, post.id),
         loadEditorialContext(workspaceId, fresh),
       ]);
-      if (!requiredChecksPass(runBlogChecks(fresh, unverified, assets, editorial))) continue;
+      // gatesSatisfied, not requiredChecksPass: an admin's "Advance anyway"
+      // override (lib/blog-gates.ts) counts as passing here too.
+      if (!gatesSatisfied(fresh, runBlogChecks(fresh, unverified, assets, editorial))) continue;
       await db.blogPost.update({ where: { id: post.id }, data: { status: "final_approval" } });
       await writeAudit({
         workspaceId, action: "blog.auto_advanced", entityType: "blog_post", entityId: post.id,

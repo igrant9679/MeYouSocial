@@ -1,5 +1,6 @@
 "use server";
 
+import { advanceIfReadyCore } from "@/lib/blog-gates";
 import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/acl";
 import { db } from "@/lib/db";
@@ -43,7 +44,11 @@ export async function answerFindingAction(formData: FormData) {
   if (!postId) return;
   const answers = [0, 1, 2].map((i) => String(formData.get(`a${i}`) ?? ""));
   await answerFindingCore(workspace.id, id, answers, { id: user.id, name: user.name ?? null, email: user.email });
+  await advanceIfReadyCore(workspace.id, postId, "answered a question");
   revalidatePath(`/blog/${postId}`);
+  revalidatePath("/inbox");
+  revalidatePath("/review");
+  revalidatePath("/publish");
 }
 
 export async function weaveFindingAction(formData: FormData) {
@@ -62,7 +67,13 @@ export async function dismissFindingAction(formData: FormData) {
   const postId = await findingPost(workspace.id, id);
   if (!postId) return;
   await dismissFindingCore(workspace.id, id, user.id, reason);
+  // A dismissal is a decision: if it was the last thing holding the article,
+  // the article moves now, not on the next sweep.
+  await advanceIfReadyCore(workspace.id, postId, "dismissed a question");
   revalidatePath(`/blog/${postId}`);
+  revalidatePath("/inbox");
+  revalidatePath("/review");
+  revalidatePath("/publish");
 }
 
 export async function addFindingToIdeasAction(formData: FormData) {
