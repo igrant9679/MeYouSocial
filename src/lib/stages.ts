@@ -58,7 +58,7 @@ export const STAGES: Record<(typeof STAGE_HREFS)[number], StageDef> = {
       { href: "/blog/board", label: "Board" },
       ...(studio
         ? [
-            { href: channelId ? `/channels//scripts` : "/scripts", label: "Scripts", also: ["/scripts", "/channels/*/scripts"] },
+            { href: channelId ? `/channels/${channelId}/scripts` : "/scripts", label: "Scripts", also: ["/scripts", "/channels/*/scripts"] },
             { href: "/thumbnails", label: "Thumbnails" },
             { href: "/videos", label: "Videos" },
             { href: "/production", label: "Production" },
