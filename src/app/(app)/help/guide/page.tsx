@@ -332,6 +332,13 @@ export default function GuidePage() {
             advances to final approval → the publish day (or <i>Publish now</i>) → Publish shows the live link → social
             variants follow under the social mode.
           </Step>
+          <Step icon={ListChecks} title="A held article you want out anyway (admin).">
+            Inbox or Review → the held-article card → an optional reason → <i>Advance anyway</i>. It records who,
+            when and why on the article and in the audit log, moves it to final approval now, and carries through
+            the sweep and publishing. Every clearing act — answering or dismissing a question, verifying or
+            dropping a claim, approving an image — also moves the article at once when it was the last thing
+            holding it; nothing waits for the next sweep.
+          </Step>
           <Step icon={ListChecks} title="A held image.">
             Inbox → <i>Images that need your eye</i> → Approve, or <i>Pick or upload instead</i> in the article. The
             brake means auto-review already spent up to three renders on it.

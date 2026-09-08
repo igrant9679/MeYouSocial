@@ -110,7 +110,7 @@ Per workspace, in order: **ideation** tops up the discovered pool when it is bel
 
 ### 3.3 The gates (`runBlogChecks`)
 
-Required: meta title ≤ 60 · meta description ≤ 155 · slug (lowercase, hyphenated) · focus keyword in title or meta title · a body · alt text on every image · no unresolved `[NEEDS SOURCE]` markers · every citation verified · a branded Open Graph image attached (1200×630) and a featured image. Optional (shown, never blocking): keyword in body, heading levels don't skip, length near target, readability ≥ 50, no generic filler, grounded in an expert profile. The Inbox's "Articles held" card names the failing required check.
+Required: meta title ≤ 60 · meta description ≤ 155 · slug (lowercase, hyphenated) · focus keyword in title or meta title · a body · alt text on every image · no unresolved `[NEEDS SOURCE]` markers · every citation verified · a branded Open Graph image attached (1200×630) and a featured image. Optional (shown, never blocking): keyword in body, heading levels don't skip, length near target, readability ≥ 50, no generic filler, grounded in an expert profile. The Inbox's "Articles held" card names the failing required check. A person outranks the checks: clearing acts advance the article immediately, and an admin can "Advance anyway" (recorded: who, when, why; honoured by the sweep and by publishing).
 
 ### 3.4 What still stops a post, deliberately
 
@@ -169,6 +169,8 @@ Notifications (bell) carry holds and failures with a link. The **digest** (`dige
 **Onboard a new workspace from zero.** Admin → API keys (paste an AI key, set the default model to match) → Settings → Connections (social accounts via this app's Connect buttons, a mailbox) → Publish → Website (WordPress) → Brand → Tone & motifs and Organization (voice, topics, guardrails, brand kit, AI brand context) → Settings → Schedule (timezone, slots) → Settings → People (invite; require approval if there is a team) → Settings → Automation (start with modes on assisted and low targets; raise later) → Admin → Analytics (Search Console + GA4). Then run Elsie's short tour.
 
 **Publish an article end to end.** Ideas (approve) → the sweep drafts it, or "Send to draft" → auto-review fills SEO, renders images, sources claims → Inbox shows anything it could not fix → fix or answer → auto-advance to final approval → publish day (or Publish now) → Publish → recently published shows the live link → social variants follow under the social mode.
+
+**Override a held article (admin).** Inbox or Review → the held-article card → optional reason → **Advance anyway**. Records who, when and why on the article and in the audit log, moves it to final approval now, and carries through the sweep and publishing. Every clearing act (answer or dismiss a question, verify or drop a claim, approve an image) also advances the article at once when it was the last blocker — nothing waits for the next sweep.
 
 **Handle a held image.** Inbox → "Images that need your eye" → Approve, or "Pick or upload instead" in the article's editor. The brake means auto-review already spent up to three renders.
 

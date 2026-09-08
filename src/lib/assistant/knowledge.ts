@@ -72,7 +72,8 @@ Full autonomy (Settings → Automation; confirm by typing AUTONOMOUS) sets ideat
     keywords: ["gate", "checks", "held", "stuck", "final approval", "why isn't", "blocked", "requirements", "seo", "alt text", "citation"],
     body: `Required (an article cannot reach final approval or publish until all pass): meta title present and ≤ 60 characters · meta description present and ≤ 155 · URL slug set (lowercase, hyphenated) · focus keyword in the title or meta title · a draft body · alt text on every image · no unresolved [NEEDS SOURCE] markers · every citation verified · a branded Open Graph image (1200×630) and a featured image attached and approved.
 Optional (shown, never blocking): focus keyword in the body, heading levels don't skip, length near the template target, readability ≥ 50, no generic filler, grounded in an expert profile.
-The Inbox's "Articles held at review" card names the failing required check. Under full autonomy the app does the review work itself and only holds what it cannot fix; it advances the article on the next sweep once everything passes.`,
+The Inbox's "Articles held at review" card names the failing required check. Under full autonomy the app does the review work itself and only holds what it cannot fix.
+A person outranks the checks. Any clearing act — answering or dismissing a question, verifying or dropping a claim, approving an image — re-runs the checks at once and moves the article to final approval the moment they pass, not on the next sweep. And an admin can override: the held card's "Advance anyway" (with an optional reason) records who, when and why on the article and in the audit log, moves it to final approval now, and carries through the sweep and publishing so it does not stall a step later. Dismissing a question alone moves the article only if that question was the last thing holding it; otherwise the card still names the failing check, and Advance anyway is the override.`,
   },
   {
     id: "claims",
