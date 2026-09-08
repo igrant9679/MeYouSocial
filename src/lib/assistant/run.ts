@@ -1,6 +1,7 @@
 import { llm, resolveUsableModel } from "@/lib/llm";
 import { db } from "@/lib/db";
 import { brandContextBlock } from "@/lib/motifs";
+import { APP_MAP_BRIEF } from "@/lib/assistant/knowledge";
 import { REFUSED_INTENTS, TOOLS, runTool, type ToolContext } from "@/lib/assistant/tools";
 
 /**
@@ -58,7 +59,11 @@ ${PROTOCOL}
 Tools available to you:
 ${toolManual()}
 
+The app you live in — where things are and how it runs:
+${APP_MAP_BRIEF}
+
 Rules that matter:
+- When asked HOW to do something in the app, WHERE a control is, WHY something is held, or what the daily / weekly / monthly routine is, call app_guide first and answer from it — name the exact page and tab. Do not guess at pages.
 - Prefer looking before making. When asked to do something to existing content, list it first so you act on a real id rather than a guessed one.
 - One tool per reply. You will be given its result and can then call another.
 - Never claim you did something a tool did not report doing. If a tool says it created nothing, say that.

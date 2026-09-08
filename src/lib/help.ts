@@ -1,5 +1,10 @@
 // Searchable Help / FAQ content.
 // Plain data so the UI is purely client-side searchable.
+//
+// The "Running the loop" category is BUILT FROM the assistant's knowledge
+// topics (lib/assistant/knowledge.ts), so the Help Center and the assistant
+// answer "how do I…" the same way. Change the topic there; both follow.
+import { APP_GUIDE } from "@/lib/assistant/knowledge";
 
 export type FaqEntry = {
   q: string;
@@ -36,18 +41,16 @@ export const HELP_CATEGORIES: FaqCategory[] = [
       },
       {
         q: "What are all the icons on the left bar?",
-        a: "Top to bottom: **Home** (dashboard), **Channels**, **Intel** (research outliers), **Ideas**, **Scripts**, **Blog** (the article workspace), **Reports**, **Insights** (what happened after you published), **Videos**, **Social**, **Brand** (colours, topics, tone), **Chat**, **Thumbnails**, **Production**, **Help** (you are here), **Admin** (admins only). At the bottom: your profile and sign out.\n\nYou don't have to memorise any of it — **hover any rail entry and a bubble tells you what that module is for**. The rail collapses to icons on a narrow window, and the same hover still names it.",
+        a: "The rail is the loop, in the order work moves. Top to bottom: **Inbox** (everything waiting on a person — the landing page), **Assistant**, then the seven stages — **Research** (Intel, bookmarks, competitors, chat), **Ideas** (the one board), **Drafts** (articles, the board, and the video studio when it is on), **Review** (approvals, audit), **Publish** (website, blog calendar), **Distribute** (compose, calendar, engage), **Measure** (reports, insights, analytics) — then the **Setup** group for admins (**Settings**, **Channels**, **Brand**, **Admin**), and **Help**. At the bottom: your profile and sign out. Inside a stage, a strip along the top shows its Overview and tabs with count badges.\n\nYou don't have to memorise any of it — **hover any rail entry and a bubble tells you what that module is for**. The rail collapses to icons on a narrow window, and the same hover still names it.",
         tags: ["nav", "rail", "icons", "hover", "tooltip"],
       },
       {
         q: "Honestly — what IS this app? Give me the mental model.",
-        a: "One sentence: it turns research into content, publishes that content, and then measures it — for one or more companies at once.\n\nThe loop, in the order you'd actually walk it:\n\n**1. Set up** — a key so the AI works, and the accounts you'll publish to (Admin).\n**2. Decide what you're about** — a Channel (for video) and Topics + tone (Brand).\n**3. Find something worth saying** — Intel finds videos that beat their own channel's average; those become Ideas.\n**4. Make it** — Scripts for video, Blog for articles, Social for short posts.\n**5. Publish it** — now, at a set time, or into a recurring slot.\n**6. See what happened** — Insights and Reports.\n\nYou can stop at any stage. Plenty of people only ever use Social, or only ever use Blog.",
-        tags: ["orientation", "mental model", "what is this", "confused", "lost"],
+        a: "One sentence: it turns research into content, publishes that content, and then measures it — for one or more companies at once.\n\nThe loop, in the order the rail reads it:\n\n**1. Set up** — a key so the AI works, and the accounts you publish to (Settings → Connections).\n**2. Decide what you are about** — a Channel (for video) and Topics + tone (Brand).\n**3. Research** — Intel finds videos that beat their own channel’s average; the best become **Ideas** on one board.\n**4. Drafts** — the autopilot writes approved ideas: articles with images and SEO, scripts for video when the studio is on.\n**5. Review** — the gates: nothing goes out until its checks pass; the Inbox shows what a person must decide.\n**6. Publish** to your site on the publish day (or by HTML export), then **Distribute** — social posts into your posting slots.\n**7. Measure** — what ranked and what got clicked, measured or a dash, never invented.\n\nYou can stop at any stage. Plenty of people only ever use Distribute, or only ever use the blog side.",
       },
       {
         q: "I don't know where to start. What's the shortest path to something real?",
-        a: "Post one thing to one network. It exercises the whole publishing spine and takes about two minutes:\n\n**1.** Go to **Social**.\n**2.** Under *Post to*, click **one** account — pick LinkedIn, Facebook or X. (Instagram, Pinterest and YouTube can't accept a text-only post, so avoid those for this first run.)\n**3.** Type a sentence in the text box.\n**4.** Leave it on **Post now**, or pick **Schedule** and choose a time if you'd rather it didn't go out yet.\n**5.** Press the button.\n\nThen open the **Agenda** tab lower down the same page. *Scheduled* shows anything waiting; *History* shows what went out, with a separate status per network.",
-        links: [{ label: "Open Distribute →", href: "/distribute" }],
+        a: "Post one thing to one network. It exercises the whole publishing spine and takes about two minutes:\n\n**1.** Go to **Distribute → Compose**.\n**2.** Under *Post to*, click **one** account — pick LinkedIn, Facebook or X. (Instagram, Pinterest and YouTube cannot accept a text-only post, so avoid those for this first run.)\n**3.** Type a sentence in the text box.\n**4.** Leave it on **Post now**, or pick **Schedule** and choose a time if you would rather it did not go out yet.\n**5.** Press the button.\n\nThen open **Distribute**: the queue shows anything waiting, and Recently published shows what went out, with a separate status per network.",
         tags: ["first", "start", "lost", "quick win", "publish"],
       },
       {
@@ -770,6 +773,46 @@ export const HELP_CATEGORIES: FaqCategory[] = [
         q: "What keyboard shortcuts exist?",
         a: "**Ctrl/⌘+/** — Open the Prompt Library in chat.\n**Esc** — Close any modal (Prompt Library, Improve dialog).\nForm fields support Tab and Shift+Tab as expected.",
         tags: ["shortcuts", "keyboard"],
+      },
+    ],
+  },
+  {
+    id: "operating",
+    label: "Running the loop",
+    color: "#15924B",
+    soft: "#E0F2E8",
+    entries: [
+      ...APP_GUIDE.map((t) => ({ q: t.title, a: t.body, tags: t.keywords })),
+      {
+        q: "What do the badges on the stage strip mean?",
+        a: "The strip at the top of every stage page shows the stage, its Overview and its tabs. A **red** badge counts things a person must act on — articles held at review (Drafts → Articles), posts awaiting approval (Review → Approvals), open audit items (Review → Audit), replies nobody has opened (Distribute → Engage). A **muted** badge is news — scheduled posts (Distribute → Calendar), discovered ideas (Ideas overview), articles at final approval (Publish overview), pending invitations (Settings → People). A badge shows only above zero. Where the Inbox knows more than a count can, the badge deliberately under-counts rather than nag about something that isn't there.",
+        tags: ["badge", "count", "strip", "red", "number"],
+      },
+      {
+        q: "What are the cards in the Inbox, and what does each button do?",
+        a: "One card per thing waiting on a person, the action on the card:\n\n**Posts waiting for approval** — Approve (queues it if queue-on-approval is on) or Request changes with a note. Admins only.\n**Questions only you can answer** — a knowledge finding from an article's Optimize tab; answer in your own words, only what you'd stand behind if quoted. Saved to the Experts profile and asked once. Dismiss with a reason if it doesn't apply.\n**Claims with no source** — live search found nothing that supports the sentence. Verify with a URL that does, or Drop the claim (removes the marker and the record; edit the sentence in the article if it should go).\n**Images that need your eye** — auto-review rejected the render and the ones before it and stopped spending. Approve it, or pick or upload another in the article.\n**Articles held at review** — names the failing required check; Open goes to the editor.\n**Invitations not yet accepted** — the join link to hand over by hand when the email can't deliver.\n\nBelow the cards: category conditions (accounts, slots, analytics), the pipeline strip, coming up, what the engine did, results and quick tiles.",
+        tags: ["inbox", "cards", "approve", "answer", "verify", "drop", "held"],
+      },
+      {
+        q: "What do the statuses mean?",
+        a: "**Articles**: drafting → draft_review (auto-review runs here) → final_approval (waits for the publish day or an admin's Publish) → published.\n**Article ideas**: discovered → approved → drafted (or rejected / merged). Only approved ideas are drafted.\n**Video ideas**: new (Discovered) · approved (Approved) · in_progress / scripted (Drafted) · archived (Rejected).\n**Images**: pending → approved; roles featured and og.\n**Citations**: verified or not, each tied to a [NEEDS SOURCE] marker.\n**Social posts**: draft → scheduled → posted / partial / failed, with approval pending / approved / changes requested when the approval workflow is on; one post fans out to one target per network, each with its own status.\n**Function modes**: manual (AI acts only on clicks) · assisted (AI runs, queues at a human checkpoint) · auto (unattended).",
+        tags: ["status", "statuses", "draft_review", "final_approval", "discovered", "approved", "pending"],
+      },
+      {
+        q: "What is the video studio switch?",
+        a: "Scripts, Thumbnails, Videos and Production — the scripting studio — show as tabs under Drafts only when a YouTube channel exists and the **Video studio** switch on the Settings overview is on. Turning it off hides the tabs and the video-idea controls on the Ideas board; nothing is deleted, existing video cards stay, and direct links still work. Packaging an article into a short or a Veo render is not the studio and is never gated.",
+        tags: ["studio", "scripts", "thumbnails", "videos", "production", "hide", "youtube channel"],
+      },
+      {
+        q: "There's no WordPress connection — how do I get an article onto my site?",
+        a: "On the Publish stage every article at final approval has **Download HTML**: a self-contained file with the meta title, description, canonical and Open Graph tags, a little CSS, and the article with its images embedded (the app's own image links need a session, so embedding keeps the file standing on its own). Add `?fragment=1` to the link for just the article body, for pasting into a CMS block. Once it's on your site, **Mark as published** with the live URL records it as published so social variants, analytics and the board move on. For social previews, upload the Open Graph image to your site and point og:image at its public URL — crawlers ignore embedded images.",
+        links: [{ label: "Publish →", href: "/publish" }],
+        tags: ["html", "export", "download", "wordpress", "manual", "mark as published"],
+      },
+      {
+        q: "Where did Blog → Automation, Social → Settings, the Social overview and Blog → Ideas go?",
+        a: "Into the stages. Blog → Automation is **Settings → Automation**; Social → Settings is **Settings → Schedule** (its auto-dials are under Automation, and require-approval under People); the Social overview is **Distribute**; Blog → Ideas and a channel's Ideas are the one **Ideas** board; Home is the **Inbox**. Every old link redirects to the new place, and every module page (Posts, Board, Calendar, Engage, Intel…) kept its URL as a tab inside its stage.",
+        tags: ["moved", "where is", "old", "automation", "social settings", "blog ideas", "home", "dashboard"],
       },
     ],
   },

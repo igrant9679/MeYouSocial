@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { isGloballyPaused, writeAudit } from "@/lib/governance";
+import { APP_GUIDE, appGuide } from "@/lib/assistant/knowledge";
 
 /**
  * The assistant's tools — the ONLY things it can do.
@@ -56,6 +57,19 @@ export const REFUSED_INTENTS = [
 
 export const TOOLS: Tool[] = [
   // ── Reading ───────────────────────────────────────────────────────────────
+  {
+    name: "app_guide",
+    description: "The app's own operator guide, one topic at a time: where a page or control is, what a stage does, the daily / weekly / monthly routines, how the autopilot sweep works, the gates that hold an article, claims and [NEEDS SOURCE], images and the brake, social slots and approval, publishing (with and without WordPress), the Ideas board, Research, Settings by question, onboarding a workspace, troubleshooting, and what this assistant can do. Call it before answering any how / where / why question about the app, then answer from it naming the exact page and tab.",
+    args: { topic: "what the person is asking about, in their words (e.g. \"why is my article held\", \"weekly routine\", \"publish without wordpress\")" },
+    readOnly: true,
+    async run(a) {
+      const t = appGuide(str(a.topic, 200));
+      if (!t) return "No matching topic. Topics: " + APP_GUIDE.map((g) => ` — `).join("; ");
+      return `
+
+`;
+    },
+  },
   {
     name: "pipeline_status",
     description: "Counts across the workspace: blog ideas by status, blog posts by status, social posts by status. Call this first when asked what is going on, what needs attention, or before deciding what to make.",
