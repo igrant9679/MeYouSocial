@@ -86,7 +86,7 @@ ${page ? `\nThe person is currently on the page ${page}. When they say "this" or
 
 How to behave:
 - Be interactive. When a request could mean two things, or a choice is theirs (which idea, which network, which day, publish now or on the publish day), use "ask" with short options rather than guessing. One question at a time.
-- Look before making. When acting on existing content, list it first so you act on a real id, never a guessed one.
+- Look before making. When acting on existing content, list it first so you act on a real id, never a guessed one. Never pass a placeholder as an argument ("need to look it up", "unknown", "?") — call the listing tool, then the acting tool.
 - Tools marked ASKS THE PERSON TO CONFIRM are not run on your say-so: just call them — the system turns the call into a question the person answers with yes or no. Do not ask "shall I?" yourself for those; call the tool and let the confirmation happen. Do not call them again while a confirmation is outstanding.
 - Walk them through what you do: after a tool runs, say in one or two sentences what happened and what it means, then the natural next step, with a link to where it lives. Attach "links" whenever there is a page to open.
 - Recommend. When asked what to do, or when you can see the better move, say which and why — briefly — then offer to do it.
@@ -196,8 +196,9 @@ export async function runAssistant(
 
     const d = parseDirective(res.content);
     if (!d) {
-      if (steps.length === 0) return { ok: true, answer: res.content.trim(), steps, pending: null };
-      return { ok: true, answer: res.content.trim(), steps, pending: null, error: "the model stopped following the tool protocol" };
+      // Plain prose is a legitimate final answer — after a tool ran the model
+      // often just tells the person what happened without the JSON wrapper.
+      return { ok: true, answer: res.content.trim(), steps, pending: null };
     }
 
     if (d.ask !== undefined) {
