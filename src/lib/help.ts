@@ -36,12 +36,12 @@ export const HELP_CATEGORIES: FaqCategory[] = [
       },
       {
         q: "What does “Run Agent” do, and do I have to sit and watch it?",
-        a: "Open a script and press **Run Agent** in the toolbar. It queues a background job that works through research → outline → script → QA on its own.\n\nBecause it's a background job, **you can close the tab** — it keeps going server-side, and it survives redeploys. Come back to the script and the run's status is on the page, with **Cancel** while it's in flight and **Re-run Agent** afterwards.\n\nWhen it finishes successfully you also get an **email** (“Your script is ready”) — sent through your workspace's connected mailbox, so it only arrives if one is connected under Admin → Connections. No mailbox, no email; the script page is always the source of truth either way. (If the result reads bland, see the question about placeholder output: a missing API key is the usual cause.)",
+        a: "Open a script and press **Run Agent** in the toolbar. It queues a background job that works through research → outline → script → QA on its own.\n\nBecause it's a background job, **you can close the tab** — it keeps going server-side, and it survives redeploys. Come back to the script and the run's status is on the page, with **Cancel** while it's in flight and **Re-run Agent** afterwards.\n\nWhen it finishes successfully you also get an **email** (“Your script is ready”) — sent through your workspace's connected mailbox, so it only arrives if one is connected under Publish Admin → Connections. No mailbox, no email; the script page is always the source of truth either way. (If the result reads bland, see the question about placeholder output: a missing API key is the usual cause.)",
         tags: ["agent", "draft", "background", "run agent", "email"],
       },
       {
         q: "What are all the icons on the left bar?",
-        a: "The rail is the loop, in the order work moves. Top to bottom: **Inbox** (everything waiting on a person — the landing page), **Assistant**, then the seven stages — **Research** (Intel, bookmarks, competitors), **Ideas** (the one board), **Drafts** (articles, the board, and the video studio when it is on), **Review** (approvals, audit), **Publish** (website, blog calendar), **Distribute** (compose, calendar, engage), **Measure** (reports, insights, analytics) — then the **Setup** group for admins (**Settings**, **Channels**, **Brand**, **Admin**), and **Help**. At the bottom: your profile and sign out. Inside a stage, a strip along the top shows its Overview and tabs with count badges.\n\nYou don't have to memorise any of it — **hover any rail entry and a bubble tells you what that module is for**. The rail collapses to icons on a narrow window, and the same hover still names it.",
+        a: "The rail is the loop, in the order work moves. Top to bottom: **Inbox** (everything waiting on a person — the landing page), **Assistant**, then the seven stages — **Research** (Intel, bookmarks, competitors), **Ideas** (the one board), **Drafts** (articles, the board, and the video studio when it is on), **Review** (approvals, audit), **Publish** (website, blog calendar), **Distribute** (compose, calendar, engage), **Measure** (reports, insights, analytics) — then the **Setup** group for admins (**Settings**, **Channels**, **Brand**, **Publish Admin**), and **Help**. At the bottom: your profile and sign out. Inside a stage, a strip along the top shows its Overview and tabs with count badges.\n\nYou don't have to memorise any of it — **hover any rail entry and a bubble tells you what that module is for**. The rail collapses to icons on a narrow window, and the same hover still names it.",
         tags: ["nav", "rail", "icons", "hover", "tooltip"],
       },
       {
@@ -55,8 +55,8 @@ export const HELP_CATEGORIES: FaqCategory[] = [
       },
       {
         q: "Why does the AI output look generic or obviously fake?",
-        a: "Almost always because no working API key resolved for the workspace you're in, so the app fell back to **placeholder text** instead of failing outright. That fallback is deliberate — a missing key shouldn't break every page — but it does mean bad output can look like real output.\n\nTell-tale signs: text that mentions *mock*, ideas labelled `[mock N: no API key]`, or copy that could describe any channel.\n\nFix: **Admin → API keys**, paste a key for the workspace you're actually in, and make sure the model you've selected belongs to that provider. Keys are **per workspace** — one company's key is never used by another, so a new workspace starts with none.",
-        links: [{ label: "Admin → API keys →", href: "/admin/api-keys" }],
+        a: "Almost always because no working API key resolved for the workspace you're in, so the app fell back to **placeholder text** instead of failing outright. That fallback is deliberate — a missing key shouldn't break every page — but it does mean bad output can look like real output.\n\nTell-tale signs: text that mentions *mock*, ideas labelled `[mock N: no API key]`, or copy that could describe any channel.\n\nFix: **Publish Admin → API keys**, paste a key for the workspace you're actually in, and make sure the model you've selected belongs to that provider. Keys are **per workspace** — one company's key is never used by another, so a new workspace starts with none.",
+        links: [{ label: "Publish Admin → API keys →", href: "/admin/api-keys" }],
         tags: ["mock", "fake", "placeholder", "generic", "api key", "not working"],
       },
       {
@@ -71,8 +71,8 @@ export const HELP_CATEGORIES: FaqCategory[] = [
       },
       {
         q: "Everything is empty and nothing seems to happen. Is it broken?",
-        a: "Probably not — a fresh workspace genuinely has nothing in it, and this app deliberately shows an honest blank rather than filling the screen with sample data. A dash means **no data**, never zero.\n\nRun down these in order:\n\n**1. Is there a working AI key?** No key means generations quietly produce placeholder text. *Admin → API keys.*\n**2. Am I in the right workspace?** Keys, accounts, content and team are all per company. Check the switcher in the top bar.\n**3. Is there anything to measure?** Insights and Reports stay empty until something has actually been published — they're reporting surfaces, not generators.\n**4. Are the analytics connected?** Search traffic needs Search Console and GA4 connected; engagement needs a social account connected and posts that have gone out.\n\nIf all four are fine and a page is still blank, that page is telling you the truth about your data.",
-        links: [{ label: "Admin → API keys →", href: "/admin/api-keys" }, { label: "Admin → Connections →", href: "/admin/connections" }],
+        a: "Probably not — a fresh workspace genuinely has nothing in it, and this app deliberately shows an honest blank rather than filling the screen with sample data. A dash means **no data**, never zero.\n\nRun down these in order:\n\n**1. Is there a working AI key?** No key means generations quietly produce placeholder text. *Publish Admin → API keys.*\n**2. Am I in the right workspace?** Keys, accounts, content and team are all per company. Check the switcher in the top bar.\n**3. Is there anything to measure?** Insights and Reports stay empty until something has actually been published — they're reporting surfaces, not generators.\n**4. Are the analytics connected?** Search traffic needs Search Console and GA4 connected; engagement needs a social account connected and posts that have gone out.\n\nIf all four are fine and a page is still blank, that page is telling you the truth about your data.",
+        links: [{ label: "Publish Admin → API keys →", href: "/admin/api-keys" }, { label: "Publish Admin → Connections →", href: "/admin/connections" }],
         tags: ["empty", "blank", "broken", "nothing", "no data", "not working"],
       },
       {
@@ -82,8 +82,8 @@ export const HELP_CATEGORIES: FaqCategory[] = [
       },
       {
         q: "Why are my thumbnails and featured images unrelated stock photos?",
-        a: "Because your workspace is on the **mock image provider** — no image key resolved, so every render returns a stock photo picked from your prompt instead of a real generation. It's worth knowing this looks like success rather than failure: you get a real, good-looking photo, just not one that has anything to do with your title. Thumbnail Studio shows a banner whenever the provider actually resolving is the mock.\n\n**Real image generation is built in** — paste an **OpenAI** or **Google** key under Admin → API keys and the *Image generation* switch picks it up (Auto prefers OpenAI's gpt-image-1 because it renders legible text more reliably, which thumbnails need). Renders are stored durably with your other files, and the studio's Clone analysis genuinely *looks at* the reference image.\n\nWith a real provider the `Require images to publish` gate under Blog → Brand does exactly what it says; on the mock it can gate a post behind an image that only ever will be stock — turn it off there if that blocks you.",
-        links: [{ label: "Admin → API keys →", href: "/admin/api-keys" }, { label: "Thumbnail Studio →", href: "/thumbnails" }, { label: "Blog → Brand →", href: "/blog/brand" }],
+        a: "Because your workspace is on the **mock image provider** — no image key resolved, so every render returns a stock photo picked from your prompt instead of a real generation. It's worth knowing this looks like success rather than failure: you get a real, good-looking photo, just not one that has anything to do with your title. Thumbnail Studio shows a banner whenever the provider actually resolving is the mock.\n\n**Real image generation is built in** — paste an **OpenAI** or **Google** key under Publish Admin → API keys and the *Image generation* switch picks it up (Auto prefers OpenAI's gpt-image-1 because it renders legible text more reliably, which thumbnails need). Renders are stored durably with your other files, and the studio's Clone analysis genuinely *looks at* the reference image.\n\nWith a real provider the `Require images to publish` gate under Blog → Brand does exactly what it says; on the mock it can gate a post behind an image that only ever will be stock — turn it off there if that blocks you.",
+        links: [{ label: "Publish Admin → API keys →", href: "/admin/api-keys" }, { label: "Thumbnail Studio →", href: "/thumbnails" }, { label: "Blog → Brand →", href: "/blog/brand" }],
         tags: ["thumbnail", "image", "placeholder", "stock photo", "gpt-image-1", "provider", "generation"],
       },
       {
@@ -333,8 +333,8 @@ export const HELP_CATEGORIES: FaqCategory[] = [
       },
       {
         q: "How do I switch from mock video to real (Veo)?",
-        a: "Admin → **API keys** → *Media & video*: paste a Google key and set the **Video renderer** to Auto or Veo. Auto uses Veo whenever a key is present; Mock never spends. Real renders count against the daily cap shown on the Videos page, and outputs are persisted to storage because Veo links expire in ~2 days.",
-        links: [{ label: "Admin → API keys →", href: "/admin/api-keys" }],
+        a: "Publish Admin → **API keys** → *Media & video*: paste a Google key and set the **Video renderer** to Auto or Veo. Auto uses Veo whenever a key is present; Mock never spends. Real renders count against the daily cap shown on the Videos page, and outputs are persisted to storage because Veo links expire in ~2 days.",
+        links: [{ label: "Publish Admin → API keys →", href: "/admin/api-keys" }],
         tags: ["veo", "provider", "mock", "cost"],
       },
       {
@@ -370,7 +370,7 @@ export const HELP_CATEGORIES: FaqCategory[] = [
       {
         q: "Where do the images on my social posts come from?",
         a: "Any image you attach in the composer is used as-is. A post composed **without** one gets an image **generated automatically** in the background by your workspace's image provider (the AI derives it from the post's text, square when Instagram/Pinterest are targeted, wide otherwise) — it lands on the post within a minute or so, well before a scheduled send. Two honest rules: your own attachment always wins over generation, and if the workspace has no real image provider the post simply stays text-only — the mock never fakes it with a stock photo. Turn the default off per workspace under Social → **Workflow** (\"Auto-generate an image\"); note real renders cost the provider's per-image fee.",
-        links: [{ label: "Distribute →", href: "/distribute" }, { label: "Admin → API keys →", href: "/admin/api-keys" }],
+        links: [{ label: "Distribute →", href: "/distribute" }, { label: "Publish Admin → API keys →", href: "/admin/api-keys" }],
         tags: ["auto-image", "image", "generate", "thumbnail", "social", "media"],
       },
       {
@@ -410,31 +410,31 @@ export const HELP_CATEGORIES: FaqCategory[] = [
       },
       {
         q: "Where do I connect Search Console, GA4 and YouTube?",
-        a: "Admin → **Analytics**. **Search Console** and **GA4** use a Google *service account* (no OAuth): paste its JSON — or reuse the platform one shown at the top of the page — then grant that address access in Search Console (Settings → Users and permissions) and GA4 (Admin → Property access management). **YouTube** is different: channel-owned data needs real **OAuth**, so create an OAuth client in Google Cloud Console, paste the ID/secret, add the redirect URI the page shows you, and hit Connect. Every save runs a **live check** against the real API, so a wrong ID or a missing permission is caught immediately rather than showing up later as empty data.",
-        links: [{ label: "Admin → Analytics →", href: "/admin/analytics" }],
+        a: "Publish Admin → **Analytics**. **Search Console** and **GA4** use a Google *service account* (no OAuth): paste its JSON — or reuse the platform one shown at the top of the page — then grant that address access in Search Console (Settings → Users and permissions) and GA4 (Admin → Property access management). **YouTube** is different: channel-owned data needs real **OAuth**, so create an OAuth client in Google Cloud Console, paste the ID/secret, add the redirect URI the page shows you, and hit Connect. Every save runs a **live check** against the real API, so a wrong ID or a missing permission is caught immediately rather than showing up later as empty data.",
+        links: [{ label: "Publish Admin → Analytics →", href: "/admin/analytics" }],
         tags: ["gsc", "search console", "ga4", "analytics", "youtube", "oauth", "connect"],
       },
       {
         q: "Why does the YouTube API key not give me my own channel's data?",
-        a: "An API key only reads **public** data (search, public video/channel metadata) — that's the key under Admin → API keys, used for Intel lookups. Anything your channel *owns* — uploading, or your own view/watch-time analytics — requires **OAuth** consent, because Google won't let an arbitrary credential act on a channel. Connect that separately under Admin → **Analytics**. Both can be set up at once; they do different jobs.",
-        links: [{ label: "Admin → Analytics →", href: "/admin/analytics" }],
+        a: "An API key only reads **public** data (search, public video/channel metadata) — that's the key under Publish Admin → API keys, used for Intel lookups. Anything your channel *owns* — uploading, or your own view/watch-time analytics — requires **OAuth** consent, because Google won't let an arbitrary credential act on a channel. Connect that separately under Publish Admin → **Analytics**. Both can be set up at once; they do different jobs.",
+        links: [{ label: "Publish Admin → Analytics →", href: "/admin/analytics" }],
         tags: ["youtube", "oauth", "api key", "channel", "upload"],
       },
       {
         q: "What's a branded short, and how is it different from a video package?",
         a: "A **branded short** is a 6-second vertical title card — your post's headline over this workspace's brand colours, name and footer — rendered on HeyGen's HyperFrames cloud (no Chrome/ffmpeg here; it's designed motion graphics, not generated footage). A **video package** is the Veo route: an AI-generated multi-scene storyboard. Use branded shorts for exact, on-brand promos; use packages for generated video. The **Render branded short** button is on a post's Distribute tab once it's approved/published.",
-        links: [{ label: "Admin → API keys →", href: "/admin/api-keys" }],
+        links: [{ label: "Publish Admin → API keys →", href: "/admin/api-keys" }],
         tags: ["branded short", "hyperframes", "heygen", "title card"],
       },
       {
         q: "How do I enable branded shorts?",
-        a: "Two ways to render. **Free (local):** run the app where Chrome is installed — it renders on this server with local Chrome + ffmpeg, no key, no cost. **Cloud:** paste a **HeyGen** key (Admin → API keys → *Media & video*; app.heygen.com → Settings → API) and it renders on HeyGen's HyperFrames cloud (pay-per-credit). It picks local automatically when Chrome is present, else cloud. Either way the short pulls its colours and footer from this workspace's **Brand** hub, falling back to the app's own coral tokens when unset. Finished MP4s are persisted to storage.",
-        links: [{ label: "Brand hub →", href: "/brand" }, { label: "Admin → API keys →", href: "/admin/api-keys" }],
+        a: "Two ways to render. **Free (local):** run the app where Chrome is installed — it renders on this server with local Chrome + ffmpeg, no key, no cost. **Cloud:** paste a **HeyGen** key (Publish Admin → API keys → *Media & video*; app.heygen.com → Settings → API) and it renders on HeyGen's HyperFrames cloud (pay-per-credit). It picks local automatically when Chrome is present, else cloud. Either way the short pulls its colours and footer from this workspace's **Brand** hub, falling back to the app's own coral tokens when unset. Finished MP4s are persisted to storage.",
+        links: [{ label: "Brand hub →", href: "/brand" }, { label: "Publish Admin → API keys →", href: "/admin/api-keys" }],
         tags: ["branded short", "heygen", "hyperframes", "brand", "cost"],
       },
       {
         q: "Can it generate a voiceover?",
-        a: "Yes — the **Generate voiceover** button on a storyboard reads the scene texts as a narration script. With the mock TTS it stores that script as clearly-labeled text; paste an ElevenLabs key and switch the TTS provider (Admin → API keys) for real audio.",
+        a: "Yes — the **Generate voiceover** button on a storyboard reads the scene texts as a narration script. With the mock TTS it stores that script as clearly-labeled text; paste an ElevenLabs key and switch the TTS provider (Publish Admin → API keys) for real audio.",
         tags: ["voiceover", "tts", "elevenlabs", "audio"],
       },
       {
@@ -445,8 +445,8 @@ export const HELP_CATEGORIES: FaqCategory[] = [
       },
       {
         q: "Where are uploads, voiceovers and renders stored?",
-        a: "Admin → **API keys** → *Storage*. **Local disk** is the dev default, but on Railway the disk is wiped on every redeploy — files don't survive. **Google Drive** keeps them durably: create a service account, share a Drive folder with it as Editor, paste both in, and the app runs a real write test before switching. Files stay private — they're streamed only to signed-in members, never public-by-link. Note: on a free personal Drive, uploads count against the *service account's own* 15 GB quota (shown live on the Storage card); a Workspace Shared Drive pools quota instead.",
-        links: [{ label: "Admin → API keys →", href: "/admin/api-keys" }],
+        a: "Publish Admin → **API keys** → *Storage*. **Local disk** is the dev default, but on Railway the disk is wiped on every redeploy — files don't survive. **Google Drive** keeps them durably: create a service account, share a Drive folder with it as Editor, paste both in, and the app runs a real write test before switching. Files stay private — they're streamed only to signed-in members, never public-by-link. Note: on a free personal Drive, uploads count against the *service account's own* 15 GB quota (shown live on the Storage card); a Workspace Shared Drive pools quota instead.",
+        links: [{ label: "Publish Admin → API keys →", href: "/admin/api-keys" }],
         tags: ["storage", "gdrive", "google drive", "uploads", "railway", "persistence"],
       },
       {
@@ -504,7 +504,7 @@ export const HELP_CATEGORIES: FaqCategory[] = [
     entries: [
       {
         q: "How do I invite a teammate?",
-        a: "Admin → **Users** → enter email + role (Admin / Editor / Viewer) → **Send invitation**. They get an email link; on accept, they join your workspace.",
+        a: "Publish Admin → **Users** → enter email + role (Admin / Editor / Viewer) → **Send invitation**. They get an email link; on accept, they join your workspace.",
         tags: ["invite", "team"],
       },
       {
@@ -514,35 +514,35 @@ export const HELP_CATEGORIES: FaqCategory[] = [
       },
       {
         q: "Is there a cost?",
-        a: "No. MeYouSocial Publish has no billing, no credits, no payments. AI usage is unmetered for invited members. Admins can optionally set soft monthly limits per user (under Admin → Soft limits) to bound shared infrastructure cost.",
+        a: "No. MeYouSocial Publish has no billing, no credits, no payments. AI usage is unmetered for invited members. Admins can optionally set soft monthly limits per user (under Publish Admin → Soft limits) to bound shared infrastructure cost.",
         tags: ["cost", "billing", "limits"],
       },
       {
         q: "How do soft limits work?",
-        a: "Admin → Soft limits → set caps for scripts/month, thumbnails/month, agent runs/month, channels per workspace. Leave blank or 0 for unlimited. They're operational guards, never a paywall.",
+        a: "Publish Admin → Soft limits → set caps for scripts/month, thumbnails/month, agent runs/month, channels per workspace. Leave blank or 0 for unlimited. They're operational guards, never a paywall.",
         tags: ["limits", "caps"],
       },
       {
         q: "Can several companies share one install?",
-        a: "Yes — each company lives in its own **workspace** with fully separate content, team, API keys, SMTP and branding. Signing up creates your company's workspace (rename it under Admin → Workspace); invite teammates from Admin. Someone invited to your workspace who signs up via the invite link joins **your** workspace directly. People who belong to several companies get a workspace switcher in the header.",
+        a: "Yes — each company lives in its own **workspace** with fully separate content, team, API keys, SMTP and branding. Signing up creates your company's workspace (rename it under Publish Admin → Workspace); invite teammates from Admin. Someone invited to your workspace who signs up via the invite link joins **your** workspace directly. People who belong to several companies get a workspace switcher in the header.",
         tags: ["multi-tenant", "companies", "workspaces", "teams"],
       },
       {
         q: "Whose API keys does my workspace use?",
-        a: "Your own, when you've pasted them: everything under Admin → **API keys** (LLMs, search, ElevenLabs, image/video/TTS switches) is saved **per workspace**. If your workspace hasn't set a key, it falls back to the platform's shared key — the card shows which one is in effect. The one deliberate exception is the **YouTube Data API key**: it only reads public data, so a single platform-provided key serves every workspace and its card says so (there's nothing for you to set up). Same for **SMTP**: your notification and invitation emails go out through the server you configure under Admin → Email, visible only to your workspace.",
-        links: [{ label: "Admin → API keys →", href: "/admin/api-keys" }, { label: "Admin → Email →", href: "/admin/email" }],
+        a: "Your own, when you've pasted them: everything under Publish Admin → **API keys** (LLMs, search, ElevenLabs, image/video/TTS switches) is saved **per workspace**. If your workspace hasn't set a key, it falls back to the platform's shared key — the card shows which one is in effect. The one deliberate exception is the **YouTube Data API key**: it only reads public data, so a single platform-provided key serves every workspace and its card says so (there's nothing for you to set up). Same for **SMTP**: your notification and invitation emails go out through the server you configure under Publish Admin → Email, visible only to your workspace.",
+        links: [{ label: "Publish Admin → API keys →", href: "/admin/api-keys" }, { label: "Publish Admin → Email →", href: "/admin/email" }],
         tags: ["api keys", "smtp", "per-workspace", "tenant"],
       },
       {
         q: "How do I schedule social posts (like Buffer/Hootsuite)?",
-        a: "Open **Social** in the sidebar. Pick which connected accounts to post to, write once (a live counter warns when you exceed the tightest network's limit), optionally attach images, then **Post now**, **Schedule** for a date/time, or **Add to queue** to take the next free slot on your posting schedule. Scheduled posts publish automatically within about a minute of their time. The queue below the composer shows what's scheduled (grouped by day), your drafts, and history — each post shows per-network status, so if one network fails you can **Retry** just that leg, or **Duplicate** to repost. The rest of the Buffer-style toolkit lives on the same page: **campaigns** (a named series with its own UTM tag), **evergreen recycling**, **slot categories**, an optional **approval workflow**, and **CSV import** — each has its own question in this Help centre. Connect accounts first under Admin → Connections.",
-        links: [{ label: "Open Distribute →", href: "/distribute" }, { label: "Admin → Connections →", href: "/admin/connections" }],
+        a: "Open **Social** in the sidebar. Pick which connected accounts to post to, write once (a live counter warns when you exceed the tightest network's limit), optionally attach images, then **Post now**, **Schedule** for a date/time, or **Add to queue** to take the next free slot on your posting schedule. Scheduled posts publish automatically within about a minute of their time. The queue below the composer shows what's scheduled (grouped by day), your drafts, and history — each post shows per-network status, so if one network fails you can **Retry** just that leg, or **Duplicate** to repost. The rest of the Buffer-style toolkit lives on the same page: **campaigns** (a named series with its own UTM tag), **evergreen recycling**, **slot categories**, an optional **approval workflow**, and **CSV import** — each has its own question in this Help centre. Connect accounts first under Publish Admin → Connections.",
+        links: [{ label: "Open Distribute →", href: "/distribute" }, { label: "Publish Admin → Connections →", href: "/admin/connections" }],
         tags: ["social", "schedule", "buffer", "hootsuite", "posting", "queue", "calendar"],
       },
       {
         q: "How do we send email and post to social?",
-        a: "Admin → **Connections**. Social profiles connect through **Zernio** — LinkedIn, X/Twitter, Facebook, Instagram, Threads, Bluesky, TikTok, YouTube, Pinterest, Reddit, Google Business, Telegram, Snapchat, WhatsApp and Discord — via a guided OAuth pop-up, so no passwords are stored in the app. Your mailbox connects separately through **Unipile** (Gmail, Outlook, or any IMAP), because email is a different channel: notifications send from your connected mailbox over HTTPS, which is the reliable path here since the server blocks direct SMTP. Blog social variants gain a **Post now** button on the Distribute tab that publishes to the matching connected profile. Each company connects its own accounts; nothing is shared, and a default account per platform is used when you have more than one.",
-        links: [{ label: "Admin → Connections →", href: "/admin/connections" }],
+        a: "Publish Admin → **Connections**. Social profiles connect through **Zernio** — LinkedIn, X/Twitter, Facebook, Instagram, Threads, Bluesky, TikTok, YouTube, Pinterest, Reddit, Google Business, Telegram, Snapchat, WhatsApp and Discord — via a guided OAuth pop-up, so no passwords are stored in the app. Your mailbox connects separately through **Unipile** (Gmail, Outlook, or any IMAP), because email is a different channel: notifications send from your connected mailbox over HTTPS, which is the reliable path here since the server blocks direct SMTP. Blog social variants gain a **Post now** button on the Distribute tab that publishes to the matching connected profile. Each company connects its own accounts; nothing is shared, and a default account per platform is used when you have more than one.",
+        links: [{ label: "Publish Admin → Connections →", href: "/admin/connections" }],
         tags: ["email", "smtp", "social", "posting", "zernio", "unipile", "connections", "linkedin", "facebook", "twitter"],
       },
       {
@@ -559,8 +559,8 @@ export const HELP_CATEGORIES: FaqCategory[] = [
       },
       {
         q: "Can we use our own logo and colors?",
-        a: "Admin → **Workspace** → *Branding*: pick an accent color (presets or any hex) and upload a logo. The whole app chrome — buttons, active states, sidebar mark and menu — re-tints for members of your workspace only; other companies keep their own look. Note this styles the **app**; the brand used in generated blog content lives separately under Blog → Brand.",
-        links: [{ label: "Admin → Workspace →", href: "/admin/settings" }],
+        a: "Publish Admin → **Workspace** → *Branding*: pick an accent color (presets or any hex) and upload a logo. The whole app chrome — buttons, active states, sidebar mark and menu — re-tints for members of your workspace only; other companies keep their own look. Note this styles the **app**; the brand used in generated blog content lives separately under Blog → Brand.",
+        links: [{ label: "Publish Admin → Workspace →", href: "/admin/settings" }],
         tags: ["branding", "logo", "colors", "accent", "personalization"],
       },
     ],
@@ -640,8 +640,8 @@ export const HELP_CATEGORIES: FaqCategory[] = [
       },
       {
         q: "Insights is empty. Is it broken?",
-        a: "Almost certainly not — it needs published content and connected analytics before it has anything to say. Connect Search Console, GA4 or YouTube under Admin → Analytics, and publish a few posts; the panels fill in as the data arrives.",
-        links: [{ label: "Admin → Analytics →", href: "/admin/analytics" }],
+        a: "Almost certainly not — it needs published content and connected analytics before it has anything to say. Connect Search Console, GA4 or YouTube under Publish Admin → Analytics, and publish a few posts; the panels fill in as the data arrives.",
+        links: [{ label: "Publish Admin → Analytics →", href: "/admin/analytics" }],
         tags: ["empty", "no data", "analytics", "setup"],
       },
     ],
@@ -655,7 +655,7 @@ export const HELP_CATEGORIES: FaqCategory[] = [
       {
         q: "Why did my uploaded images disappear?",
         a: "If storage is still set to **local disk**, files live on the server's own disk — and this host wipes that on every redeploy. Images, voiceovers and rendered video all go with it. Switching storage to Google Drive keeps them permanently.",
-        links: [{ label: "Admin → API keys → Storage →", href: "/admin/api-keys#storage" }],
+        links: [{ label: "Publish Admin → API keys → Storage →", href: "/admin/api-keys#storage" }],
         tags: ["files", "missing", "uploads", "disappeared", "redeploy"],
       },
       {

@@ -164,7 +164,7 @@ export default function GuidePage() {
         </p>
         <ol className="m-0 pl-5 list-decimal text-sm space-y-2.5 leading-[1.55]">
           <li>
-            <b>Give it a brain.</b> <Link href="/admin/api-keys" className="underline">Admin → API keys</Link>:
+            <b>Give it a brain.</b> <Link href="/admin/api-keys" className="underline">Publish Admin → API keys</Link>:
             paste an AI provider key and set the default model to match it. Without one the app produces clearly
             fake placeholder text rather than erroring — if output ever reads generic, check here first. A live
             web search key (Tavily or Serper) is what lets it source claims.
@@ -205,7 +205,7 @@ export default function GuidePage() {
             Start low; raise once you trust what arrives at review.
           </li>
           <li>
-            <b>Wire up measurement.</b> <Link href="/admin/analytics" className="underline">Admin → Analytics</Link>:
+            <b>Wire up measurement.</b> <Link href="/admin/analytics" className="underline">Publish Admin → Analytics</Link>:
             Search Console site + GA4 property, with the service account granted on both. Until then Measure shows
             dashes — a dash means &ldquo;not measured&rdquo;, never zero.
           </li>
@@ -390,12 +390,12 @@ export default function GuidePage() {
           <LifeBuoy className="w-4 h-4" style={{ color: "var(--rose-on)" }} /> When something looks wrong
         </h2>
         <ul className="m-0 pl-5 list-disc text-sm space-y-2 leading-[1.55]">
-          <li><b>Output reads generic or mentions &ldquo;mock&rdquo;</b> — no working AI key for this workspace. Admin → API keys, and match the model.</li>
+          <li><b>Output reads generic or mentions &ldquo;mock&rdquo;</b> — no working AI key for this workspace. Publish Admin → API keys, and match the model.</li>
           <li><b>Nothing is being drafted</b> — the Approved column is empty, the weekly target or daily budget is reached, drafting is on manual, or global pause is on. Settings → Automation says which.</li>
           <li><b>An article is held with nothing to act on</b> — the Inbox card names the failing check. A flagged claim needs a live-search key to be sourced; give it one sweep, then verify or remove the sentence yourself.</li>
           <li><b>At final approval but never publishes</b> — not the publish day yet, or no WordPress (Download HTML + Mark as published), or publishing isn&apos;t on auto.</li>
           <li><b>Social posts never send</b> — no slots or timezone, a post awaiting approval, approved but never queued, or a broken account (the chip on Distribute is red on the provider&apos;s own verdict, never on a token-expiry note alone).</li>
-          <li><b>Measure shows dashes</b> — analytics not connected, or the Search Console property is missing the service account; Admin → Analytics runs the live probe that says which.</li>
+          <li><b>Measure shows dashes</b> — analytics not connected, or the Search Console property is missing the service account; Publish Admin → Analytics runs the live probe that says which.</li>
           <li><b>A button does nothing after an update</b> — a tab held open across a deployment. Reload.</li>
           <li><b>Trust the dashes.</b> A dash with a reason means &ldquo;not measured yet&rdquo; — this app never invents a number to fill a card, so the numbers you do see are real.</li>
         </ul>

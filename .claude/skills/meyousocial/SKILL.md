@@ -19,7 +19,7 @@ This skill makes any Claude an expert operator of the app: as a *user* (what eve
 
 ## 1. The mental model
 
-**One loop, seven stages.** Research → Ideas → Drafts → Review → Publish → Distribute → Measure. The left rail is that loop, in order, with **Inbox** above it (what needs a person, one card per item, the action on the card) and **Setup** below it (Settings · Channels · Brand · Admin, admins only). **Assistant** and **Help** sit outside the loop. The assistant is also the **Ask dock** top-right on every page (Ctrl+/): it can do nearly everything a person can, asks when unsure, ranks the next moves on "what should I do next?", and proposes anything outward-facing before running it on a yes.
+**One loop, seven stages.** Research → Ideas → Drafts → Review → Publish → Distribute → Measure. The left rail is that loop, in order, with **Inbox** above it (what needs a person, one card per item, the action on the card) and **Setup** below it (Settings · Channels · Brand · Publish Admin, admins only). **Assistant** and **Help** sit outside the loop. The assistant is also the **Ask dock** top-right on every page (Ctrl+/): it can do nearly everything a person can, asks when unsure, ranks the next moves on "what should I do next?", and proposes anything outward-facing before running it on a yes.
 
 **The engine works while nobody is looking.** A 30-minute *autopilot sweep* discovers ideas, drafts approved ones, generates images and SEO, reviews its own work (a vision model looks at every AI image; live web search sources every flagged claim), advances what passes, publishes on the publish day, writes social posts, queues them into posting slots, recycles evergreen posts, and syncs engagement and analytics. Every one of those has a dial under **Settings**, and a master switch — **full autonomy** — that turns all of them on.
 
@@ -166,7 +166,7 @@ Notifications (bell) carry holds and failures with a link. The **digest** (`dige
 
 ### 5.4 Repeatable processes (recipes)
 
-**Onboard a new workspace from zero.** Admin → API keys (paste an AI key, set the default model to match) → Settings → Connections (social accounts via this app's Connect buttons, a mailbox) → Publish → Website (WordPress) → Brand → Tone & motifs and Organization (voice, topics, guardrails, brand kit, AI brand context) → Settings → Schedule (timezone, slots) → Settings → People (invite; require approval if there is a team) → Settings → Automation (start with modes on assisted and low targets; raise later) → Admin → Analytics (Search Console + GA4). Then run Elsie's short tour.
+**Onboard a new workspace from zero.** Publish Admin → API keys (paste an AI key, set the default model to match) → Settings → Connections (social accounts via this app's Connect buttons, a mailbox) → Publish → Website (WordPress) → Brand → Tone & motifs and Organization (voice, topics, guardrails, brand kit, AI brand context) → Settings → Schedule (timezone, slots) → Settings → People (invite; require approval if there is a team) → Settings → Automation (start with modes on assisted and low targets; raise later) → Publish Admin → Analytics (Search Console + GA4). Then run Elsie's short tour.
 
 **Publish an article end to end.** Ideas (approve) → the sweep drafts it, or "Send to draft" → auto-review fills SEO, renders images, sources claims → Inbox shows anything it could not fix → fix or answer → auto-advance to final approval → publish day (or Publish now) → Publish → recently published shows the live link → social variants follow under the social mode.
 
@@ -196,14 +196,14 @@ Notifications (bell) carry holds and failures with a link. The **digest** (`dige
 
 | Symptom | Cause | Fix |
 |---|---|---|
-| Output reads generic, mentions "mock", or `[mock N: no API key]` | No working AI key resolved for this workspace; the app fell back to placeholders | Admin → API keys: paste a key for *this* workspace, set the model to match. Keys are per workspace. |
+| Output reads generic, mentions "mock", or `[mock N: no API key]` | No working AI key resolved for this workspace; the app fell back to placeholders | Publish Admin → API keys: paste a key for *this* workspace, set the model to match. Keys are per workspace. |
 | The Assistant refuses every turn ("no working AI key") | Same as above (it refuses rather than guesses) | Same fix. |
 | Nothing is being drafted | Approved pool is empty, the weekly target is reached, the daily budget is spent, drafting mode is manual, or global pause is on | Approve ideas; check Settings → Automation. |
 | Article held at review, card names "No unresolved [NEEDS SOURCE] markers" and there is no claim card | A marker with no citation row (now auto-reconciled each sweep) or no live-search key | Wait one sweep; check Settings → Connections for a search key; otherwise open the article, verify or remove the marker's sentence. |
 | Article at final approval, nothing publishes | Not the publish day yet; or no WordPress connection; or publishing mode not auto | Publish stage sentence says which; Download HTML + Mark as published if no site. |
 | Social posts never send | No slots or timezone; post awaiting approval; approved but never queued; account broken | Settings → Schedule; Review → Approvals; Distribute → Calendar; Distribute accounts chips. |
 | "Token expiry" note on an account while the provider says connected | Zernio refreshes short-lived tokens; the note is informational | Only act if the account chip is red (Zernio's own verdict). |
-| Measure shows dashes | Analytics not connected, or Search Console permission missing for the property | Admin → Analytics runs a live probe; add the service account to the Search Console property; a disabled API and a missing grant both return 403. |
+| Measure shows dashes | Analytics not connected, or Search Console permission missing for the property | Publish Admin → Analytics runs a live probe; add the service account to the Search Console property; a disabled API and a missing grant both return 403. |
 | A button does nothing or errors after an update | A tab held open across a deployment | Reload the page. |
 | Elsie's welcome tour covers the page for a new user | First visit, by design | Close it ("not now") or take the short tour. |
 | The autopilot looks dead (no cycle for hours) | Idle sweeps write nothing | Look for other system rows (analytics, performance syncs) or run a cycle now; a real failure logs "cycle failed". |

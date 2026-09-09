@@ -56,7 +56,7 @@ const when = (d: Date | null | undefined) => (d ? d.toISOString().slice(0, 16).r
 
 /** Things people will ask for that this assistant deliberately cannot do. */
 export const REFUSED_INTENTS = [
-  "entering or changing API keys, passwords or connection credentials (Admin → API keys, Admin → Connections — a person pastes those)",
+  "entering or changing API keys, passwords or connection credentials (Publish Admin → API keys, Publish Admin → Connections — a person pastes those)",
   "deleting a workspace, a channel or a person's account (Admin)",
   "sending email",
 ];
