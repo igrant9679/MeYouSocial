@@ -195,7 +195,7 @@ export async function runAssistant(
     if (res.provider === "mock") {
       return {
         ok: false, answer: "", steps,
-        error: "This workspace has no working AI key, so I'd be guessing rather than thinking — and I'm not going to run anything against your content on a guess. Add a key under Admin → API keys.",
+        error: "This workspace has no working AI key, so I'd be guessing rather than thinking — and I'm not going to run anything against your content on a guess. Add a key under Publish Admin → API keys.",
       };
     }
 

@@ -141,7 +141,7 @@ export default async function AdminSettingsPage({ searchParams }: { searchParams
         </div>
         <p className="text-[10px] text-[var(--mute)] mt-2">
           Heads-up: logos are stored in the app&apos;s file storage — on the Local backend they vanish on redeploy.
-          Configure Google Drive under Admin → API keys → Storage for a logo that survives.
+          Configure Google Drive under Publish Admin → API keys → Storage for a logo that survives.
         </p>
       </form>
     </div>

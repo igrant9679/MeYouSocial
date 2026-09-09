@@ -8,7 +8,7 @@ import { changeRoleAction, inviteAction, revokeAction } from "@/app/actions/peop
 
 /**
  * Members, roles and invitations — ONE panel rendered by Settings → People and
- * by Admin → Users (the old location keeps working for a release). Server
+ * by Publish Admin → Users (the old location keeps working for a release). Server
  * component: every verb is a server-action form. `returnTo` tells the actions
  * where to flash back to.
  */

@@ -5,7 +5,7 @@ import { env } from "@/lib/env";
 
 // Storage layer (uploads, voiceovers, persisted video renders).
 // Backends: local | gdrive. Which backend receives NEW files is the Setting
-// `storage:backend` (Admin → API keys → Storage), DB-first with STORAGE_BACKEND
+// `storage:backend` (Publish Admin → API keys → Storage), DB-first with STORAGE_BACKEND
 // env fallback — same pattern as `video:provider`. Reads dispatch on the KEY
 // (gdrive keys are `gdrive:<fileId>`, local keys are bare `<nanoid><ext>`), so
 // files stored under either backend keep resolving after a switch.

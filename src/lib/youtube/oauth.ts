@@ -7,7 +7,7 @@ import { encryptSecret, decryptSecret, type Encrypted } from "@/lib/blog-crypto"
  * Why OAuth and not a service account like GSC/GA4: YouTube does not let you
  * grant an arbitrary principal access to a channel. Anything channel-owned —
  * uploading, or reading your own channel's analytics — requires a real user
- * consent flow and a refresh token. The Data API *key* under Admin → API keys
+ * consent flow and a refresh token. The Data API *key* under Publish Admin → API keys
  * is a different thing: it only reads public data.
  *
  * The refresh token is long-lived and grants upload rights, so it is stored

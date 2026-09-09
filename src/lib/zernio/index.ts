@@ -63,7 +63,7 @@ async function zernioFetch(path: string, init: FetchInit = {}): Promise<Response
   const cfg = init.cfg ?? (await getZernioConfig(init.workspaceId));
   if (!cfg) {
     throw new ZernioError(
-      "Zernio isn't configured — the platform operator must add the API key under Admin → Connections.",
+      "Zernio isn't configured — the platform operator must add the API key under Publish Admin → Connections.",
       0,
     );
   }

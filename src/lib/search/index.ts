@@ -20,7 +20,7 @@ const mock: SearchProvider = {
     return Array.from({ length: limit }, (_, i) => ({
       title: `Result ${i + 1} for "${query}" (mock)`,
       url: `https://example.com/r/${i + 1}?q=${encodeURIComponent(query)}`,
-      snippet: "This is a mock search result. Add a Tavily or Serper key under Admin → API keys to get real results.",
+      snippet: "This is a mock search result. Add a Tavily or Serper key under Publish Admin → API keys to get real results.",
     }));
   },
 };

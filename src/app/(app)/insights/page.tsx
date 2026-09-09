@@ -364,7 +364,7 @@ export default async function InsightsPage({
           <Info className="w-4 h-4 shrink-0 mt-0.5" style={{ color: "var(--amber-on)" }} />
           <span>
             No performance data yet. Connect Search Console and GA4 under{" "}
-            <Link href="/admin/analytics" className="underline">Admin → Analytics</Link> and these fill in automatically —
+            <Link href="/admin/analytics" className="underline">Publish Admin → Analytics</Link> and these fill in automatically —
             until then they stay blank rather than showing zeros.
           </span>
         </div>
@@ -380,7 +380,7 @@ export default async function InsightsPage({
           <Info className="w-4 h-4 shrink-0 mt-0.5" style={{ color: "var(--amber-on)" }} />
           <span>
             No engagement pulled back yet. Connect a social account under{" "}
-            <Link href="/admin/connections" className="underline">Admin → Connections</Link>; once posts have gone out,
+            <Link href="/admin/connections" className="underline">Publish Admin → Connections</Link>; once posts have gone out,
             engagement is pulled in automatically and these fill in. Blank means unknown, not zero.
           </span>
         </div>

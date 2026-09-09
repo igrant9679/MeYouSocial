@@ -182,7 +182,7 @@ export async function createSocialPostAction(formData: FormData) {
   if (!text && mediaKeys.length === 0) backTo("Write something or attach an image.");
 
   const accounts = accountIds.length === 0 ? [] : await resolveSelectedAccounts(workspace.id, accountIds);
-  if (accountIds.length > 0 && accounts.length === 0) backTo("Those accounts aren't connected. Connect one under Admin → Connections.");
+  if (accountIds.length > 0 && accounts.length === 0) backTo("Those accounts aren't connected. Connect one under Publish Admin → Connections.");
 
   // Optional workspace Topic — validated against this workspace so a stale or
   // foreign id can never be attached.
@@ -443,7 +443,7 @@ export async function updateSocialPostAction(formData: FormData) {
   if (accountIds.length === 0) backTo("Pick at least one account to post to.");
 
   const accounts = await resolveSelectedAccounts(workspace.id, accountIds);
-  if (accounts.length === 0) backTo("Those accounts aren't connected. Connect one under Admin → Connections.");
+  if (accounts.length === 0) backTo("Those accounts aren't connected. Connect one under Publish Admin → Connections.");
 
   // Media: keep what's there unless explicitly cleared or replaced. Newly
   // generated AI images count as "new media" exactly like uploads do.

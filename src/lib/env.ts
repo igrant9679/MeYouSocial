@@ -38,20 +38,20 @@ export const env = {
   MINIMAX_API_KEY: str(process.env.MINIMAX_API_KEY),
 
   // Default FALSE, for the same reason USE_MOCK_YOUTUBE and USE_MOCK_SEARCH
-  // are: a key pasted under Admin → API keys should activate the real provider
+  // are: a key pasted under Publish Admin → API keys should activate the real provider
   // with no redeploy. While this defaulted TRUE it silently won over a
   // perfectly good OpenAI key, which is the identical bug described just below
   // — an install serving fabricated output after the operator had already paid
   // for the real thing. Set it to "true" explicitly to force placeholders.
   USE_MOCK_IMAGES: bool(process.env.USE_MOCK_IMAGES, false),
-  // Default FALSE, like USE_MOCK_SEARCH: a key pasted under Admin → API keys
+  // Default FALSE, like USE_MOCK_SEARCH: a key pasted under Publish Admin → API keys
   // activates the real API with no redeploy. It defaulted true, which meant a
   // production install served hashed-up fake subscriber counts even after a
   // real key was supplied — the env flag silently won. Set it to "true"
   // explicitly for local demos; with no key at all the provider now reports
   // nothing rather than inventing figures.
   USE_MOCK_YOUTUBE: bool(process.env.USE_MOCK_YOUTUBE, false),
-  // Search activates on key presence (Admin → API keys); default false so an
+  // Search activates on key presence (Publish Admin → API keys); default false so an
   // in-app key is sufficient. Set USE_MOCK_SEARCH=true to force the mock.
   USE_MOCK_SEARCH: bool(process.env.USE_MOCK_SEARCH, false),
   TAVILY_API_KEY: str(process.env.TAVILY_API_KEY),

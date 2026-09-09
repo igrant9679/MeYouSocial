@@ -252,7 +252,7 @@ export function explainInboxSendError(raw: string): string {
     return "Instagram and Facebook only let you reply within 24 hours of someone's last message, and this thread is past that. They'd have to message again to reopen it — or reply from the network itself.";
   }
   if (s.includes("http 401") || s.includes("http 403")) {
-    return `The network refused this account. It may need reconnecting under Admin → Connections. (${raw.slice(0, 200)})`;
+    return `The network refused this account. It may need reconnecting under Publish Admin → Connections. (${raw.slice(0, 200)})`;
   }
   if (s.includes("http 429") || s.includes("rate limit")) {
     return "The network is rate-limiting this account right now — try again shortly.";

@@ -74,7 +74,7 @@ export default async function VideosPage() {
             Storyboards → scene renders → captions → voiceover. Provider:{" "}
             <b>{providerSetting === "mock" ? "mock (no cost)" : providerSetting === "veo" ? "Veo" : "auto"}</b>
             <HelpTip text={VIDEO_TIPS.provider} side="bottom" wide className="mx-1" />
-            {" "}(<Link href="/admin/api-keys" className="underline">change in Admin → API keys</Link>) ·
+            {" "}(<Link href="/admin/api-keys" className="underline">change in Publish Admin → API keys</Link>) ·
             ≤{env.VIDEO_MAX_SECONDS}s per scene.
           </p>
         </div>
@@ -137,7 +137,7 @@ export default async function VideosPage() {
           </form>
         ) : !brandedReadiness.ready ? (
           <p className="text-xs px-2.5 py-1.5 rounded-lg inline-block" style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }}>
-            Add a HeyGen key under <Link href="/admin/api-keys" className="underline">Admin → API keys</Link>, or run the app where Chrome is installed for free local rendering.
+            Add a HeyGen key under <Link href="/admin/api-keys" className="underline">Publish Admin → API keys</Link>, or run the app where Chrome is installed for free local rendering.
           </p>
         ) : null}
 

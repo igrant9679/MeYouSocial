@@ -30,7 +30,7 @@ import {
 } from "@/app/actions/connections";
 
 /**
- * Admin → Connections.
+ * Publish Admin → Connections.
  *
  * TWO providers, deliberately, each doing the one thing it's good at:
  *   • Zernio — all social publishing, account connection and analytics, across

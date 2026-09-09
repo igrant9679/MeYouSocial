@@ -55,9 +55,9 @@ export default async function EmailSettingsPage({ searchParams }: { searchParams
       {error === "send"    && <Banner kind="err" text={`Test send failed: ${msg ?? "(no error message)"}.`} />}
 
       {/* Delivery reality: this host blocks outbound SMTP. Point admins at the
-          Unipile path (Admin → Connections), which sends over HTTPS. */}
+          Unipile path (Publish Admin → Connections), which sends over HTTPS. */}
       <div className="card mb-4 text-xs leading-relaxed" style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }}>
-        <p className="mb-1"><strong>Heads-up: this server blocks outbound SMTP.</strong> Direct SMTP sends time out here regardless of the mailbox. The reliable way to send your workspace&apos;s email is to <strong>connect a mailbox under <a href="/admin/connections" className="underline">Admin → Connections</a></strong> — it sends over HTTPS (Gmail, Outlook, or any IMAP mailbox).</p>
+        <p className="mb-1"><strong>Heads-up: this server blocks outbound SMTP.</strong> Direct SMTP sends time out here regardless of the mailbox. The reliable way to send your workspace&apos;s email is to <strong>connect a mailbox under <a href="/admin/connections" className="underline">Publish Admin → Connections</a></strong> — it sends over HTTPS (Gmail, Outlook, or any IMAP mailbox).</p>
         <p>The SMTP form below still works if you later host somewhere that permits outbound SMTP. IMAP isn&apos;t needed — the app only sends.</p>
       </div>
 

@@ -86,7 +86,7 @@ function buildMockReply(req: LLMRequest): string {
     return Array.from(
       { length: 10 },
       (_, i) =>
-        `[mock ${i + 1}: no API key] Placeholder idea, not generated — add a key under Admin → API keys to generate for real.`,
+        `[mock ${i + 1}: no API key] Placeholder idea, not generated — add a key under Publish Admin → API keys to generate for real.`,
     ).join("\n");
   }
 

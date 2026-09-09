@@ -377,7 +377,7 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
                   <div className="text-[11px] mt-1 px-2.5 py-1.5 rounded-lg" style={{ background: "var(--panel)", color: "var(--mute)" }}>
                     {isPlatformOperator
                       ? "One key serves every workspace — it reads public channel data by id, so it isn't tied to any one channel. Changing it here changes it for all tenants, and the daily quota is shared between them."
-                      : "Provided by the platform and shared with every workspace — there's nothing to set up here. Your own channel's analytics and uploads are a separate connection under Admin → Analytics."}
+                      : "Provided by the platform and shared with every workspace — there's nothing to set up here. Your own channel's analytics and uploads are a separate connection under Publish Admin → Analytics."}
                   </div>
                 )}
                 {dbVal && editable && <div className="text-[11px] font-mono text-[var(--mute)] mt-0.5">Current: {mask(dbVal)}</div>}

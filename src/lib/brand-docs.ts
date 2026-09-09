@@ -209,7 +209,7 @@ const PDF_PROMPT =
 export async function extractBrandDocPdf(bytes: Buffer, workspaceId: string): Promise<ExtractResult> {
   const key = await getApiKey("google", workspaceId).catch(() => "");
   if (!key) {
-    return { error: "Reading a PDF needs a Google API key for this workspace (Admin → API keys). Paste the text, or upload .docx, instead." };
+    return { error: "Reading a PDF needs a Google API key for this workspace (Publish Admin → API keys). Paste the text, or upload .docx, instead." };
   }
   try {
     const { GoogleGenAI } = await import("@google/genai");

@@ -7,7 +7,7 @@ import { setWorkspaceSetting } from "@/lib/settings";
 import { getPublicUrl } from "@/lib/public-url";
 
 /**
- * Admin → Analytics: connect Google Search Console, GA4 and YouTube.
+ * Publish Admin → Analytics: connect Google Search Console, GA4 and YouTube.
  *
  * Per-workspace by design — each company has its own site, property and
  * channel. Saving runs a LIVE probe (same pattern as the Drive storage card)

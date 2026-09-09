@@ -215,7 +215,7 @@ const connectAnalytics: Rule = {
     if (!published || (published.value ?? 0) < 1) return null;
     return {
       title: "No search or traffic data connected",
-      detail: "Connect Search Console and GA4 under Admin → Analytics so performance stops being a blind spot.",
+      detail: "Connect Search Console and GA4 under Publish Admin → Analytics so performance stops being a blind spot.",
       rationale:
         "Posts are being published, but nothing measures what they do afterwards. Everything on Insights is currently production-side only — the search and traffic panels stay blank rather than showing zeros.",
       severity: "info",
@@ -232,7 +232,7 @@ const connectSearchKey: Rule = {
     if (hasSearchKey) return null;
     return {
       title: "No search provider configured",
-      detail: "Add a Tavily or Serper key under Admin → API keys → Search.",
+      detail: "Add a Tavily or Serper key under Publish Admin → API keys → Search.",
       rationale:
         "Keyword research, content-gap analysis and external-link suggestions all fall back to mock output without a search key. It is the cheapest unlock for real research input.",
       severity: "info",

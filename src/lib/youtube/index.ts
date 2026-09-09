@@ -158,7 +158,7 @@ const mock: YouTubeProvider = {
 const YT = "https://www.googleapis.com/youtube/v3";
 
 async function ytGet<T>(path: string, params: Record<string, string>, workspaceId?: string): Promise<T> {
-  // Multi-tenant key resolution: the workspace's own key (Admin → API keys →
+  // Multi-tenant key resolution: the workspace's own key (Publish Admin → API keys →
   // YouTube) → platform Setting → env — so admins never need Railway access.
   const { getApiKey } = await import("@/lib/llm/keys");
   const key = (await getApiKey("youtube", workspaceId)) || env.YOUTUBE_API_KEY;

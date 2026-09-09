@@ -226,7 +226,7 @@ export async function analyticsCredentialToken(
   if (cred.kind === "oauth") {
     if (!workspaceId) throw new Error("OAuth analytics credentials are workspace-scoped.");
     const token = await analyticsOauthAccessToken(workspaceId);
-    if (!token) throw new Error("The connected Google account's token could not be refreshed — reconnect it under Admin → Analytics.");
+    if (!token) throw new Error("The connected Google account's token could not be refreshed — reconnect it under Publish Admin → Analytics.");
     return token;
   }
   return googleAccessToken(cred.sa, scope);

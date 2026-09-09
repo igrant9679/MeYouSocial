@@ -41,7 +41,7 @@ export async function generateComposerImageAction(input: {
   if (provider.name === "mock") {
     return {
       ok: false,
-      error: "No image provider is configured for this workspace — add an OpenAI or Google key under Admin → API keys.",
+      error: "No image provider is configured for this workspace — add an OpenAI or Google key under Publish Admin → API keys.",
     };
   }
 

@@ -18,7 +18,7 @@ export default async function MeasureStage() {
     <div>
       <StageHeader
         title="Measure"
-        sentence={hasAnalytics ? "Search impressions and clicks from Search Console; engagement from the networks." : "No search analytics yet — connect Search Console and GA4 under Admin → Analytics and the numbers appear as snapshots accrue."}
+        sentence={hasAnalytics ? "Search impressions and clicks from Search Console; engagement from the networks." : "No search analytics yet — connect Search Console and GA4 under Publish Admin → Analytics and the numbers appear as snapshots accrue."}
         counts={[
           { label: "impressions, latest week", n: hasAnalytics ? latest.impressions : null, href: "/blog/analytics", hue: "blue" },
           { label: "clicks, latest week", n: hasAnalytics ? latest.clicks : null, href: "/blog/analytics", hue: "green" },

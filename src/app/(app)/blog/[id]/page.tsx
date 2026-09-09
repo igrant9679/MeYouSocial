@@ -1282,7 +1282,7 @@ export default async function BlogPostPage({
               </form>
             ) : (
               <span className="text-xs px-2.5 py-1 rounded-lg" style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }}>
-                Add a HeyGen key under <Link href="/admin/api-keys" className="underline">Admin → API keys</Link> (or run where Chrome is installed for free local rendering) to enable.
+                Add a HeyGen key under <Link href="/admin/api-keys" className="underline">Publish Admin → API keys</Link> (or run where Chrome is installed for free local rendering) to enable.
               </span>
             )}
           </div>

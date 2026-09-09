@@ -115,7 +115,7 @@ export default async function EditSocialPostPage({ params }: { params: Promise<{
       {accounts.length === 0 ? (
         <div className="card text-sm">
           No connected social accounts. Connect one under{" "}
-          <Link href="/admin/connections" className="underline">Admin → Connections</Link> before editing targets.
+          <Link href="/admin/connections" className="underline">Publish Admin → Connections</Link> before editing targets.
         </div>
       ) : (
         <SocialComposer

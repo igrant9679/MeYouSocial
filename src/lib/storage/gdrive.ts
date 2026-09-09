@@ -4,7 +4,7 @@ import type { StoredFile, StorageProvider } from "@/lib/storage";
 
 // Google Drive storage backend (FR: durable media on Railway, whose local disk
 // is wiped on every redeploy). House pattern throughout: config lives in the
-// Setting table (Admin → API keys → Storage), env vars are the fallback, no SDK
+// Setting table (Publish Admin → API keys → Storage), env vars are the fallback, no SDK
 // dependency — Drive v3 REST + a service-account JWT signed with node:crypto.
 //
 // Files are uploaded into ONE Drive folder shared with the service account and
@@ -200,7 +200,7 @@ export async function resolveDriveAccess(): Promise<DriveAccess | null> {
 function requireAccess(access: DriveAccess | null): DriveAccess {
   if (!access) {
     throw new Error(
-      "Google Drive storage is selected but not connected — set it up under Admin → API keys → Storage" +
+      "Google Drive storage is selected but not connected — set it up under Publish Admin → API keys → Storage" +
       " (connect a Google account, or paste a service account JSON and folder).",
     );
   }

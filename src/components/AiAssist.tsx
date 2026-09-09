@@ -180,7 +180,7 @@ export function AiAssist({
               style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }}
             >
               ⚠ Placeholder text — no working AI key resolved for this workspace, so this is a stand-in, not a real
-              suggestion. Add a key under Admin → API keys.
+              suggestion. Add a key under Publish Admin → API keys.
             </div>
           )}
           {!isMock && isThin && (

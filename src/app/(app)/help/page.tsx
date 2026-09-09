@@ -11,7 +11,7 @@ import { TRACKS, ELSIE_NAME } from "@/lib/guide/steps";
 // Quick starts describe the app as it is now — a content engine that also
 // publishes and measures — rather than the YouTube-scripting tool it began as.
 const QUICK_START = [
-  { role: "Setting the app up",       steps: ["Admin → API keys: paste a provider key", "Set the model to match that key", "Admin → Connections: social + a mailbox", "Admin → Storage: switch off local disk"] },
+  { role: "Setting the app up",       steps: ["Publish Admin → API keys: paste a provider key", "Set the model to match that key", "Publish Admin → Connections: social + a mailbox", "Publish Admin → Storage: switch off local disk"] },
   { role: "New creator (solo)",       steps: ["Link your YouTube channel", "Add two or three Topics in Brand", "Browse the generated ideas", "Click Write, then run the agent"] },
   { role: "Publishing regularly",     steps: ["Set your posting slots + timezone", "Compose once, pick the accounts", "Queue drafts into the next free slot", "Check History for per-network results"] },
   { role: "Agency / team lead",       steps: ["Invite the team under Settings → People", "One workspace per client — keys stay separate", "Per-channel default models & templates", "Track work on the Production board"] },
@@ -52,7 +52,7 @@ export default async function HelpPage() {
           You don&apos;t have to use all of it. Many people only ever use <b>Social</b>, or only ever use <b>Blog</b>.
         </p>
         <ol className="m-0 pl-5 list-decimal text-sm space-y-1.5 leading-[1.55] mb-3">
-          <li><b>Set up</b> — an AI key so generation works, plus the accounts you publish to. <span className="text-[var(--mute)]">Admin → API keys, Admin → Connections.</span></li>
+          <li><b>Set up</b> — an AI key so generation works, plus the accounts you publish to. <span className="text-[var(--mute)]">Publish Admin → API keys, Publish Admin → Connections.</span></li>
           <li><b>Say what you&apos;re about</b> — a Channel for video; Topics and tone in Brand.</li>
           <li><b>Find something worth saying</b> — Intel surfaces videos that beat their own channel&apos;s average; those become Ideas.</li>
           <li><b>Make it</b> — Scripts for video, Blog for articles, Social for short posts.</li>
@@ -71,7 +71,7 @@ export default async function HelpPage() {
             <div className="text-sm font-semibold mb-0.5">If the output looks fake, it probably is</div>
             <div className="text-[12px] text-[var(--mute)] leading-snug">
               With no working API key the app falls back to placeholder text rather than erroring. Keys are per
-              workspace — check <Link href="/admin/api-keys" className="underline">Admin → API keys</Link>.
+              workspace — check <Link href="/admin/api-keys" className="underline">Publish Admin → API keys</Link>.
             </div>
           </div>
         </div>

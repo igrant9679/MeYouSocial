@@ -67,7 +67,7 @@ export async function syncWorkspaceSocialPerformance(
   if (!cfg) {
     return {
       ok: true, skipped: true, targetsPolled: 0, rowsWritten: 0, failures: 0,
-      message: "Zernio isn't configured, so there's nothing to pull. Add the API key under Admin → Connections.",
+      message: "Zernio isn't configured, so there's nothing to pull. Add the API key under Publish Admin → Connections.",
     };
   }
   const ws = await db.workspace.findUnique({ where: { id: workspaceId }, select: { zernioProfileId: true } });

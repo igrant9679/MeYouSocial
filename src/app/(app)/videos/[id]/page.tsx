@@ -245,7 +245,7 @@ export default async function StoryboardPage({ params }: { params: Promise<{ id:
           {render.voiceoverUrl.endsWith(".txt") || render.voiceoverUrl.includes("voiceover-script") ? (
             <p className="text-xs text-[var(--mute)]">
               Mock TTS — the narration script is stored as text (<a href={render.voiceoverUrl} className="underline">view</a>).
-              Configure ElevenLabs under <Link href="/admin/api-keys" className="underline">Admin → API keys</Link> for real audio.
+              Configure ElevenLabs under <Link href="/admin/api-keys" className="underline">Publish Admin → API keys</Link> for real audio.
             </p>
           ) : (
             <audio src={render.voiceoverUrl} controls className="w-full max-w-sm" />

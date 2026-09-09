@@ -143,5 +143,5 @@ export async function askAboutImage(img: ReferenceImage, prompt: string, workspa
     }
   }
 
-  throw new Error("No vision-capable key is configured for this workspace (Admin → API keys → Google or OpenAI).");
+  throw new Error("No vision-capable key is configured for this workspace (Publish Admin → API keys → Google or OpenAI).");
 }

@@ -218,7 +218,7 @@ export async function launchVideoProductionAction(formData: FormData) {
   //
   // Real audio lives elsewhere: `getTtsProvider()` in src/lib/tts, reached from
   // app/actions/videos.ts, activated by the Setting `tts:provider` plus
-  // `api_key:elevenlabs` under Admin → API keys. There is no env flag involved —
+  // `api_key:elevenlabs` under Publish Admin → API keys. There is no env flag involved —
   // this comment used to say to set `env.USE_MOCK_PRODUCTION=false`, which was
   // read by nothing and so did nothing.
   await jobs.enqueue("agent.run", { runId: run.id, scriptId: script.id }, { refId: run.id, workspaceId: workspace.id });

@@ -65,7 +65,7 @@ const veoProvider: VideoProvider = {
   name: "veo",
   async render(req) {
     const apiKey = await getApiKey("google", req.workspaceId);
-    if (!apiKey) throw new Error("No Google API key configured (Admin → API keys → Google)");
+    if (!apiKey) throw new Error("No Google API key configured (Publish Admin → API keys → Google)");
 
     const { GoogleGenAI } = await import("@google/genai");
     const ai = new GoogleGenAI({ apiKey });
@@ -101,7 +101,7 @@ const veoProvider: VideoProvider = {
 
 // ── Selection ────────────────────────────────────────────────────────────────
 // DB-first: the admin picks the provider in-app (Setting `video:provider` =
-// auto | mock | veo, set under Admin → API keys). Env USE_MOCK_VIDEO stays as
+// auto | mock | veo, set under Publish Admin → API keys). Env USE_MOCK_VIDEO stays as
 // the fallback for installs that never touched the setting. "auto" = veo when
 // a Google key resolves, else mock.
 
@@ -122,7 +122,7 @@ export async function getVideoProvider(workspaceId?: string): Promise<VideoProvi
   if (setting === "mock") return mockProvider;
   const key = await getApiKey("google", workspaceId).catch(() => "");
   if (setting === "veo") {
-    if (!key) throw new Error("Video provider is set to Veo but no Google key is configured (Admin → API keys)");
+    if (!key) throw new Error("Video provider is set to Veo but no Google key is configured (Publish Admin → API keys)");
     return veoProvider;
   }
   return key ? veoProvider : mockProvider;

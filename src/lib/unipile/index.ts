@@ -53,7 +53,7 @@ export async function unipileConfigured(): Promise<boolean> {
 }
 
 function requireConfig(cfg: UnipileConfig | null): UnipileConfig {
-  if (!cfg) throw new Error("Unipile is not configured — the platform operator must set the DSN + API key under Admin → API keys → Unipile.");
+  if (!cfg) throw new Error("Unipile is not configured — the platform operator must set the DSN + API key under Publish Admin → API keys → Unipile.");
   return cfg;
 }
 
