@@ -2,6 +2,7 @@ import Link from "next/link";
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { BrandLogo } from "@/components/BrandLogo";
+import { BRAND, PRODUCT_SHORT, PRODUCT_TAGLINE } from "@/lib/product";
 
 export default async function Home() {
   const session = await auth();
@@ -12,9 +13,9 @@ export default async function Home() {
       <div className="card max-w-lg w-full text-center">
         <div className="font-mono text-2xl font-bold tracking-tight mb-2 flex items-center justify-center gap-3">
           <BrandLogo size={36} />
-          MeYouSocial
+          <span>{BRAND} <span className="font-normal text-[var(--mute)]">{PRODUCT_SHORT}</span></span>
         </div>
-        <p className="text-sm text-[var(--mute)] mb-6">AI-powered blog &amp; video content — mostly on autopilot.</p>
+        <p className="text-sm text-[var(--mute)] mb-6">{PRODUCT_TAGLINE}</p>
         <div className="flex gap-3 justify-center">
           <Link href="/signin" className="btn primary">Sign in</Link>
           <Link href="/signup" className="btn">Create account</Link>

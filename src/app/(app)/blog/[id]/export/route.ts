@@ -1,6 +1,7 @@
 import { requireMembership } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { storage } from "@/lib/storage";
+import { PRODUCT } from "@/lib/product";
 
 /**
  * The no-WordPress fallback (owner's ask, 2026-09-06): a self-contained HTML
@@ -92,7 +93,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
       `<meta property="og:type" content="article">\n<meta property="og:title" content="${esc(post.metaTitle || post.title)}">\n` +
       (post.metaDescription ? `<meta property="og:description" content="${esc(post.metaDescription)}">\n` : "") +
       (ogSrc ? `<meta property="og:image" content="${ogSrc}">\n` : "") +
-      `<!--\n  Exported from MeYouSocial (${esc(workspace.name)}) on ${new Date().toISOString().slice(0, 10)}.\n` +
+      `<!--\n  Exported from ${PRODUCT} (${esc(workspace.name)}) on ${new Date().toISOString().slice(0, 10)}.\n` +
       `  Images are embedded so this file stands on its own. For social previews, upload the Open Graph image\n` +
       `  to your site and point og:image at its public URL — crawlers ignore data URIs.\n-->\n` +
       `<style>\n  body{margin:0;background:#fff;color:#1a1d26;font-family:system-ui,-apple-system,"Segoe UI",Helvetica,Arial,sans-serif;line-height:1.6}\n` +

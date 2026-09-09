@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/governance";
 import { APP_GUIDE, appGuide } from "@/lib/assistant/knowledge";
+import { PRODUCT } from "@/lib/product";
 
 /**
  * The assistant's tools — what it can do. Since 2026-09-08 that is nearly
@@ -1036,7 +1037,7 @@ export const TOOLS: Tool[] = [
       await db.invitation.create({ data: { workspaceId: ctx.workspaceId, email, role: role as "ADMIN" | "EDITOR" | "VIEWER", token, expiresAt: new Date(Date.now() + 7 * 86_400_000) } });
       const [{ emailFor }, { getPublicUrl }] = await Promise.all([import("@/lib/email"), import("@/lib/public-url")]);
       const origin = await getPublicUrl();
-      await emailFor(ctx.workspaceId).send({ to: email, subject: `You've been invited to ${ws?.name ?? "MeYouSocial"} on MeYouSocial`, html: `<p>You've been invited to join <b>${ws?.name ?? ""}</b> as a <b>${role}</b>.</p><p><a href="${origin}/invitations/${token}">Accept the invitation</a></p>` }).catch(() => null);
+      await emailFor(ctx.workspaceId).send({ to: email, subject: `You've been invited to ${ws?.name ?? PRODUCT} on ${PRODUCT}`, html: `<p>You've been invited to join <b>${ws?.name ?? ""}</b> as a <b>${role}</b>.</p><p><a href="${origin}/invitations/${token}">Accept the invitation</a></p>` }).catch(() => null);
       await writeAudit({ workspaceId: ctx.workspaceId, actorId: ctx.userId, action: "membership.invited", entityType: "invitation", meta: { email, role, via: "assistant" } });
       return `invited ${email} as ${role}; join link ${origin}/invitations/${token} (the email only delivers if a mailbox is connected)`;
     },

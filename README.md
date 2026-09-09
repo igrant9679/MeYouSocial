@@ -1,4 +1,6 @@
-# MeYouSocial
+# MeYouSocial Publish
+
+_MeYouSocial is the family brand; this app is **MeYouSocial Publish** (renamed 2026-09-09; names in `src/lib/product.ts`)._
 
 AI-powered **blog & video content platform** — the merge of **Spark** (multi-tenant
 blog/SEO pipeline: idea → grounded draft → SEO/WCAG gates → WordPress publish →

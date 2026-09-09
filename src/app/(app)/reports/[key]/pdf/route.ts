@@ -3,6 +3,7 @@ import { requireMembership } from "@/lib/acl";
 import { getReport } from "@/lib/report-defs";
 import { homeStats, postPerformance, weeklySeries, hasSeriesData } from "@/lib/dashboard-data";
 import { db } from "@/lib/db";
+import { PRODUCT } from "@/lib/product";
 
 /**
  * PDF export — the client-deliverable version of a report. Text and tables
@@ -47,7 +48,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ key: string }>
   doc.restore();
   doc.fillColor(ink).font("Helvetica-Bold").fontSize(18).text(report.name, 84, 50);
   doc.fillColor(mute).font("Helvetica").fontSize(9)
-    .text(`${workspace.name} · last ${weeks} weeks · generated ${new Date().toISOString().slice(0, 10)} · MeYouSocial`, 84, 72);
+    .text(`${workspace.name} · last ${weeks} weeks · generated ${new Date().toISOString().slice(0, 10)} · ${PRODUCT}`, 84, 72);
   doc.moveTo(48, 90).lineTo(547, 90).strokeColor("#E7E9EE").stroke();
   doc.y = 104;
   doc.x = 48;
@@ -130,7 +131,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ key: string }>
 
   doc.moveDown(1.2);
   doc.fillColor(mute).fontSize(8).text(
-    "Data note: figures come from snapshots recorded in MeYouSocial and cover posts published through it. Nothing in this report is estimated.",
+    `Data note: figures come from snapshots recorded in ${PRODUCT} and cover posts published through it. Nothing in this report is estimated.`,
   );
 
   doc.end();

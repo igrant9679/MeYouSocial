@@ -4,10 +4,10 @@
 
 _Last updated: 2026-08-02._
 
-**MeYouSocial** is a multi-tenant AI content engine: it turns research into content, publishes
+**MeYouSocial Publish** (the product — since 2026-09-09 **MeYouSocial** is the family brand for this app and its siblings; names live in `src/lib/product.ts`) is a multi-tenant AI content engine: it turns research into content, publishes
 it, and measures what happened — for several companies on one install. (It began as CreateUp, a
 YouTube research/scripting tool, and absorbed Spark's blog/SEO pipeline. Older docs and some
-code comments still say "CreateUp"; the product is MeYouSocial.)
+code comments still say "CreateUp"; the product is MeYouSocial Publish.)
 
 Next.js 16 (App Router) + React 19 + TypeScript + Tailwind v4, Prisma 6 + PostgreSQL,
 Auth.js v5 (JWT). Hosted on **Railway**; `prisma migrate deploy` runs on boot.

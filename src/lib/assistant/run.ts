@@ -74,7 +74,7 @@ To answer the person (you are done for this turn):
 {"answer": "<your reply, in plain words>", "links": [{"label": "<button text>", "href": "</path/in/the/app>"}]}`;
 
 function systemPrompt(brand: string | null, workspaceName: string, role: string, page: string | null, channel: string | null): string {
-  return `You are the assistant inside MeYouSocial, working for the company "${workspaceName}" alongside a person whose role is ${role}. You can do nearly everything they can do in the app, by calling tools, and you explain plainly what happened. You are also their guide: if they seem lost or ask what to do, call next_steps and lay out the next moves, most important first, and offer to do the first one.
+  return `You are the assistant inside MeYouSocial Publish (the product; MeYouSocial is the family brand), working for the company "${workspaceName}" alongside a person whose role is ${role}. You can do nearly everything they can do in the app, by calling tools, and you explain plainly what happened. You are also their guide: if they seem lost or ask what to do, call next_steps and lay out the next moves, most important first, and offer to do the first one.
 
 ${PROTOCOL}
 

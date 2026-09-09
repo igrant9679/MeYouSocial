@@ -11,6 +11,7 @@ import { writeAudit } from "@/lib/governance";
 import { DELETABLE } from "@/lib/deletable";
 import { emailFor } from "@/lib/email";
 import { getPublicUrl } from "@/lib/public-url";
+import { PRODUCT } from "@/lib/product";
 
 /**
  * Platform workspace management — the operator's cross-tenant surface
@@ -163,7 +164,7 @@ export async function platformAddMemberAction(formData: FormData) {
         const origin = await getPublicUrl();
         await emailFor(workspaceId).send({
           to: email,
-          subject: `You now have access to ${workspace!.name} on MeYouSocial`,
+          subject: `You now have access to ${workspace!.name} on ${PRODUCT}`,
           html: `<p>You've been added to <b>${workspace!.name}</b> as a <b>${role}</b>.</p>
                  <p>Sign in with your existing account: <a href="${origin}/signin">${origin}/signin</a></p>`,
         });
@@ -191,7 +192,7 @@ export async function platformAddMemberAction(formData: FormData) {
   if (sender) {
     await emailFor(workspaceId).send({
       to: email,
-      subject: `You've been invited to ${workspace!.name} on MeYouSocial`,
+      subject: `You've been invited to ${workspace!.name} on ${PRODUCT}`,
       html: `<p>You've been invited to join <b>${workspace!.name}</b> as a <b>${role}</b>.</p>
              <p><a href="${inviteUrl}">Accept the invitation</a></p>`,
     });

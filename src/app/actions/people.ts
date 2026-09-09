@@ -9,6 +9,7 @@ import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/governance";
 import { emailFor } from "@/lib/email";
 import { getPublicUrl } from "@/lib/public-url";
+import { PRODUCT } from "@/lib/product";
 
 // Members, roles and invitations — moved out of the Admin users page (One-Loop
 // step 5) so the same panel renders under Settings → People and Admin → Users.
@@ -50,7 +51,7 @@ export async function inviteAction(formData: FormData) {
   const origin = await getPublicUrl();
   await emailFor(workspace.id).send({
     to: parsed.data.email,
-    subject: `You've been invited to ${workspace.name} on MeYouSocial`,
+    subject: `You've been invited to ${workspace.name} on ${PRODUCT}`,
     html: `<p>You've been invited to join <b>${workspace.name}</b> as a <b>${parsed.data.role}</b>.</p>
            <p><a href="${origin}/invitations/${token}">Accept the invitation</a></p>`,
   });

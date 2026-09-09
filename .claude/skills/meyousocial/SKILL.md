@@ -1,17 +1,17 @@
 ---
 name: meyousocial
-description: "Operate, manage, verify and explain MeYouSocial — the multi-tenant AI content engine (research → ideas → drafts → review → publish → distribute → measure). Use for any question or task about the app: what a page does, which dial to change, why an article is held, the daily/weekly/monthly routines, repeatable processes (publish an article, onboard a workspace, handle a held image or an unsourced claim, publish without WordPress), troubleshooting, and — for Claude working in the repo — the house rules, deploy flow and production verification recipes. Triggers: MeYouSocial, autopilot, Inbox, stage strip, Ideas board, Drafts, Review, Publish, Distribute, Measure, Settings, full autonomy, publish day, posting slots, Zernio, Intel, findings, citations, NEEDS SOURCE, HTML export, Elsie."
+description: "Operate, manage, verify and explain MeYouSocial Publish (the product; MeYouSocial is the family brand) — the multi-tenant AI content engine (research → ideas → drafts → review → publish → distribute → measure). Use for any question or task about the app: what a page does, which dial to change, why an article is held, the daily/weekly/monthly routines, repeatable processes (publish an article, onboard a workspace, handle a held image or an unsourced claim, publish without WordPress), troubleshooting, and — for Claude working in the repo — the house rules, deploy flow and production verification recipes. Triggers: MeYouSocial, autopilot, Inbox, stage strip, Ideas board, Drafts, Review, Publish, Distribute, Measure, Settings, full autonomy, publish day, posting slots, Zernio, Intel, findings, citations, NEEDS SOURCE, HTML export, Elsie."
 argument-hint: "[question | task | 'routine daily|weekly|monthly' | 'process <name>' | 'troubleshoot <symptom>']"
 metadata:
   author: Idris Grant / Claude
   version: "1.0.0"
-  app: MeYouSocial (Next.js 16, Prisma, Railway)
+  app: MeYouSocial Publish (Next.js 16, Prisma, Railway)
   updated: 2026-09-08
 ---
 
-# MeYouSocial — the operator's skill
+# MeYouSocial Publish — the operator's skill
 
-MeYouSocial is a content engine that runs mostly on its own, for several companies on one install. It researches what is worth saying, drafts articles and social posts (with their images and SEO), holds everything at review gates, publishes to a website and to social networks on a schedule, and pulls the results back in. **A person's job is decisions, not production.**
+**MeYouSocial Publish** is a content engine that runs mostly on its own, for several companies on one install. (MeYouSocial is the family brand for it and its sibling apps — renamed 2026-09-09; the names live in `src/lib/product.ts`; the API header `X-MeYouSocial-Token` and the Drive folder name are contracts and did not change.) It researches what is worth saying, drafts articles and social posts (with their images and SEO), holds everything at review gates, publishes to a website and to social networks on a schedule, and pulls the results back in. **A person's job is decisions, not production.**
 
 This skill makes any Claude an expert operator of the app: as a *user* (what every page and dial does, the routines that get the most out of it) and, in §7, as the *engineer* who maintains it (repo rules, deploy, production verification). Read §1–§3 before answering anything about the app; jump to §5 for routines and processes; §6 for "why is X stuck".
 

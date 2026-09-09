@@ -24,6 +24,7 @@ import { AssistantDock, AssistantDockButton } from "@/components/AssistantDock";
 import { FlashBanner } from "@/components/FlashBanner";
 import { getGuideState } from "@/app/actions/guide";
 import { relevantSteps, outstandingSetup, availableTracks, type SetupState } from "@/lib/guide/steps";
+import { BRAND, PRODUCT, PRODUCT_SHORT } from "@/lib/product";
 
 // Each nav item carries its own brand color so the rail reads as a vibrant chip strip
 // (mirrors the CreateUp_Mockups.html per-module accent palette).
@@ -85,7 +86,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // chrome. The tenant's identity should lead, but the product it runs on
   // shouldn't vanish: `isBranded` drives a byline that keeps both visible.
   const isBranded = Boolean(accent || logoUrl);
-  const brandName = isBranded ? workspace.name : "MeYouSocial";
+  const brandName = isBranded ? workspace.name : BRAND;
+  // The byline under the wordmark: the product. A branded install shows the
+  // full product name under the tenant's; an unbranded one already says the
+  // family brand above, so just the product word.
+  const byline = isBranded ? PRODUCT : PRODUCT_SHORT;
   // The alias tokens (--accent*, --brand-on…) capture :root's --brand at
   // definition time, so every derived token must be restated here, per theme.
   const brandCss = accent ? `
@@ -192,7 +197,7 @@ html[data-theme="dark"] .ws-brand {
         <Link
           href="/inbox"
           className="flex items-center justify-center @6xl:justify-start gap-2.5 px-0 @6xl:px-2 py-1.5 mb-2 rounded-xl"
-          title={isBranded ? `${workspace.name} on MeYouSocial · Inbox` : "MeYouSocial · Inbox"}
+          title={isBranded ? `${workspace.name} on ${PRODUCT} · Inbox` : `${PRODUCT} · Inbox`}
         >
           <span className="flex-shrink-0 shadow-lg shadow-[#15181D]/25 rounded-xl">
             {logoUrl ? (
@@ -204,15 +209,12 @@ html[data-theme="dark"] .ws-brand {
           </span>
           <span className="hidden @6xl:flex flex-col min-w-0">
             <span className="font-mono font-bold text-[17px] tracking-tight truncate max-w-[160px] leading-tight">{brandName}</span>
-            {/* The product byline. Only when the workspace has its own branding
-                — an unbranded install already says MeYouSocial above, and
-                repeating it would just be noise. Hidden with the wordmark when
-                the rail collapses to icons; there is no room for either. */}
-            {isBranded && (
-              <span className="flex items-center gap-1 text-[10px] font-mono uppercase tracking-wider text-[var(--mute)] leading-tight mt-0.5">
-                <BrandLogo size={11} /> MeYouSocial
-              </span>
-            )}
+            {/* The product byline — "Publish" under the family wordmark, or the
+                full product name under a tenant's own name. Hidden with the
+                wordmark when the rail collapses to icons; there is no room. */}
+            <span className="flex items-center gap-1 text-[10px] font-mono uppercase tracking-wider text-[var(--mute)] leading-tight mt-0.5">
+              {isBranded && <BrandLogo size={11} />} {byline}
+            </span>
           </span>
         </Link>
 

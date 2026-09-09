@@ -56,7 +56,7 @@ export async function fetchPageText(url: string, maxChars = 6000): Promise<{ ok:
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 12_000);
   try {
-    const res = await fetch(u.toString(), { signal: ctrl.signal, redirect: "follow", headers: { "user-agent": "Mozilla/5.0 (compatible; MeYouSocial assistant)", accept: "text/html,application/xhtml+xml,text/plain;q=0.9,*/*;q=0.5" } });
+    const res = await fetch(u.toString(), { signal: ctrl.signal, redirect: "follow", headers: { "user-agent": "Mozilla/5.0 (compatible; MeYouSocial Publish assistant)", accept: "text/html,application/xhtml+xml,text/plain;q=0.9,*/*;q=0.5" } });
     if (!res.ok) return { ok: false, reason: `the page answered ${res.status}` };
     const type = res.headers.get("content-type") ?? "";
     if (!/text\/html|text\/plain|application\/xhtml/.test(type)) return { ok: false, reason: `not a readable page (${type.split(";")[0] || "unknown type"})` };

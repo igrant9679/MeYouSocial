@@ -16,7 +16,7 @@ import {
  * change this page (and lib/assistant/knowledge.ts) in the same commit.
  */
 
-export const metadata = { title: "Owner's guide — MeYouSocial" };
+export const metadata = { title: "Owner's guide — MeYouSocial Publish" };
 
 export default function GuidePage() {
   return (
@@ -42,7 +42,7 @@ export default function GuidePage() {
           <Compass className="w-4 h-4" style={{ color: "var(--blue-on)" }} /> What this app is, in one paragraph
         </h2>
         <p className="text-sm leading-[1.65] mb-3">
-          MeYouSocial is a content engine that runs mostly on its own: it researches what&apos;s worth saying,
+          MeYouSocial Publish is a content engine that runs mostly on its own: it researches what&apos;s worth saying,
           drafts articles and social posts (with their images and SEO), reviews its own work, schedules and
           publishes what passes, and pulls the results back in. <b>Your job is decisions, not production</b> —
           approving, answering, adjusting, occasionally steering. The whole interface is one loop: the left rail

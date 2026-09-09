@@ -4,6 +4,7 @@ import { env } from "@/lib/env";
 import { redirect } from "next/navigation";
 import { SubmitButton } from "@/components/SubmitButton";
 import { ValidatedInput } from "@/components/ValidatedInput";
+import { PRODUCT } from "@/lib/product";
 
 /**
  * Only ever bounce to a path INSIDE this app. `next` is attacker-writable (it
@@ -46,7 +47,7 @@ export default async function SignInPage({ searchParams }: { searchParams: Promi
     <div className="flex-1 grid place-items-center p-6">
       <div className="card w-full max-w-md">
         <h1 className="font-mono font-bold text-xl mb-1">Sign in</h1>
-        <p className="text-sm text-[var(--mute)] mb-5">to your MeYouSocial workspace</p>
+        <p className="text-sm text-[var(--mute)] mb-5">to {PRODUCT}</p>
         {error && <p className="text-sm text-[var(--brand)] mb-3">Invalid email or password.</p>}
         {reset === "1" && <p className="text-sm bg-[var(--green-soft)] text-[var(--green)] rounded-md px-3 py-2 mb-3">Password updated. Sign in with your new password.</p>}
         <form action={signinAction} className="flex flex-col gap-3">

@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { isNavActive, type LeftRailItem } from "@/components/LeftRailNav";
 import { BrandLogo } from "@/components/BrandLogo";
+import { BRAND, PRODUCT, PRODUCT_SHORT } from "@/lib/product";
 
 // Mobile slide-in drawer that mirrors the desktop left rail, but with visible
 // labels (icon-only nav is fine on hover-capable desktop, not on touch).
@@ -23,7 +24,7 @@ export function MobileNav({
   userLabel,
   signOutAction,
   logoUrl,
-  brandName = "MeYouSocial",
+  brandName = BRAND,
   coBranded = false,
 }: {
   items: LeftRailItem[];
@@ -65,11 +66,9 @@ export function MobileNav({
               <span className="flex flex-col min-w-0">
                 <span className="font-mono font-bold text-[15px] truncate leading-tight">{brandName}</span>
                 {/* Matches the rail: the tenant leads, the product stays visible. */}
-                {coBranded && (
-                  <span className="flex items-center gap-1 text-[9px] font-mono uppercase tracking-wider text-[var(--mute)] leading-tight mt-0.5">
-                    <BrandLogo size={10} /> MeYouSocial
-                  </span>
-                )}
+                <span className="flex items-center gap-1 text-[9px] font-mono uppercase tracking-wider text-[var(--mute)] leading-tight mt-0.5">
+                  {coBranded && <BrandLogo size={10} />} {coBranded ? PRODUCT : PRODUCT_SHORT}
+                </span>
               </span>
               <span className="flex-1" />
               <button

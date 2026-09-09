@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { emailFor as mailerFor } from "@/lib/email";
 import { getPublicUrl } from "@/lib/public-url";
+import { PRODUCT } from "@/lib/product";
 
 /**
  * FR-16 — notifications.
@@ -159,7 +160,7 @@ export async function notify(input: NotifyInput): Promise<number> {
                 html: [
                   `<p>${escapeHtml(input.title)}</p>`,
                   input.body ? `<p style="color:#555">${escapeHtml(input.body)}</p>` : "",
-                  `<p><a href="${link}">Open in MeYouSocial</a></p>`,
+                  `<p><a href="${link}">Open in ${PRODUCT}</a></p>`,
                   `<p style="color:#888;font-size:12px">You can turn this email off under Notifications.</p>`,
                 ].join("\n"),
                 text: `${input.title}\n\n${input.body ?? ""}\n\n${link}`,

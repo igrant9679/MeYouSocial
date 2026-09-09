@@ -1,4 +1,5 @@
 import type { MetadataRoute } from "next";
+import { PRODUCT, PRODUCT_SHORT, PRODUCT_TAGLINE } from "@/lib/product";
 
 // Web app manifest — drives Android Chrome's "Add to Home Screen" experience
 // and the iOS standalone display once added. Next auto-injects the manifest
@@ -6,9 +7,9 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "MeYouSocial",
-    short_name: "MeYouSocial",
-    description: "AI-powered blog & video content platform",
+    name: PRODUCT,
+    short_name: PRODUCT_SHORT,
+    description: PRODUCT_TAGLINE,
     start_url: "/",
     display: "standalone",
     background_color: "#0F1218",

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { PRODUCT } from "@/lib/product";
 
 // Minimal API surface so external clients (incl. MCP servers) can drive
 // MeYouSocial. v1 is read-only and exposes channels/scripts/ideas for the authenticated workspace.
@@ -9,7 +10,7 @@ import { db } from "@/lib/db";
 // Discovery: GET /api/v1 returns the catalog of endpoints.
 
 const CATALOG = {
-  name: "MeYouSocial API",
+  name: `${PRODUCT} API`,
   version: "1.0",
   authentication: "session cookie (browser) or per-workspace token (header X-MeYouSocial-Token).",
   endpoints: [

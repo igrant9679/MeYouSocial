@@ -3,6 +3,7 @@ import { IBM_Plex_Sans, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 import { getContentSize, getTheme } from "@/app/actions/theme";
 import { SIZE_ZOOM } from "@/lib/ui-size";
+import { PRODUCT, PRODUCT_TAGLINE } from "@/lib/product";
 
 const plexSans = IBM_Plex_Sans({
   weight: ["400", "500", "600", "700"],
@@ -17,14 +18,14 @@ const plexMono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "MeYouSocial",
-  description: "AI-powered blog & video content platform",
+  title: PRODUCT,
+  description: PRODUCT_TAGLINE,
   // Drives the iOS Home Screen label + standalone (fullscreen) display when
   // someone uses Safari → Share → Add to Home Screen. The actual icon comes
   // from src/app/apple-icon.tsx.
   appleWebApp: {
     capable: true,
-    title: "MeYouSocial",
+    title: PRODUCT,
     statusBarStyle: "black-translucent",
   },
 };

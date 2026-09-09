@@ -100,7 +100,7 @@ export const STEPS: GuideStep[] = [
     track: "essentials",
     title: `Hello, I'm ${ELSIE_NAME}`,
     body:
-      "Your guide to MeYouSocial, from LSI Media. I'll flag anything still worth setting up, then you can pick a tour — " +
+      "Your guide to MeYouSocial Publish, from LSI Media. I'll flag anything still worth setting up, then you can pick a tour — " +
       "each one is short. Stop any time; I'm the button in the top bar whenever you want me back.",
   },
 

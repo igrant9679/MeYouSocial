@@ -16,7 +16,7 @@ function num(v: string | undefined): number | undefined {
 export const env = {
   NODE_ENV: str(process.env.NODE_ENV, "development"),
   APP_URL: str(process.env.APP_URL, "http://localhost:3000"),
-  APP_NAME: str(process.env.APP_NAME, "MeYouSocial"),
+  APP_NAME: str(process.env.APP_NAME, "MeYouSocial Publish"),
   BOOTSTRAP_ADMIN_EMAIL: str(process.env.BOOTSTRAP_ADMIN_EMAIL).toLowerCase(),
 
   DATABASE_URL: str(process.env.DATABASE_URL),
