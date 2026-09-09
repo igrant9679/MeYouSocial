@@ -124,19 +124,28 @@ export default function GuidePage() {
           <Bot className="w-4 h-4" style={{ color: "var(--violet-on)" }} /> Asking instead of hunting
         </h2>
         <p className="text-sm leading-[1.65] mb-3">
-          <Link href="/assistant" className="underline">Assistant</Link> — and the Ask box at the bottom of every
-          stage — is a chat that can do the work, not just talk about it. Ask <i>&ldquo;what needs my
-          attention?&rdquo;</i>, <i>&ldquo;which articles are missing SEO metadata?&rdquo;</i>,{" "}
-          <i>&ldquo;find three ideas about donor retention&rdquo;</i>, <i>&ldquo;draft the article about zero-volume
-          keywords&rdquo;</i>, or <i>&ldquo;how do I change the publish day?&rdquo;</i> — it looks things up, writes
-          them, knows this guide, and shows every step it took.
+          The <b>Ask</b> button top-right (or <kbd>Ctrl</kbd>+<kbd>/</kbd>) opens the assistant as a dock over
+          whatever page you are on; <Link href="/assistant" className="underline">Assistant</Link> is the same
+          conversation with more room. It can do <b>nearly everything you can do here</b>: find, add, approve and
+          reject ideas; discover keywords and topics; draft articles and scripts; write SEO and images; run Optimize
+          and answer or dismiss its findings; verify or drop claims; approve images; advance an article; draft, queue,
+          schedule and send social posts; publish, export HTML or record a manual publish; read the numbers and
+          the reports; change the dials, slots, timezone and people. It knows this guide, so <i>&ldquo;how do I…&rdquo;</i>{" "}
+          and <i>&ldquo;why is … held?&rdquo;</i> get the page and the reason.
+        </p>
+        <p className="text-sm leading-[1.65] mb-3">
+          <b>If you are ever lost, ask &ldquo;what should I do next?&rdquo;</b> — it reads the Inbox, the pipeline,
+          the connections and the dials, and ranks the moves for you, offering to do each one. It asks questions when
+          a request is ambiguous (tap a choice), and walks you through what it did with the steps under every reply
+          and links to what it made.
         </p>
         <p className="text-sm leading-[1.65]">
-          <b>Everything it makes lands exactly where your own click would leave it</b> — an article at review, a
-          social post as an unscheduled draft, images pending your approval. <b>It cannot publish, send, schedule,
-          queue or approve anything</b>, delete anything, or change a setting, a key or a role; ask it to and it will
-          name the page instead. Approving stays the last human act before an audience sees anything. With no
-          working AI key it refuses the turn rather than guessing.
+          <b>Anything outward-facing or hard to undo is proposed first</b> — publishing, sending, queueing,
+          approving, an override, a setting, an invitation — as <i>&ldquo;I&apos;m about to: … Go ahead?&rdquo;</i>, and runs
+          only when you say yes; the proposal waits on the thread until you answer. Admin-only acts refuse for an
+          editor, exactly as the page would, and every action is written to the audit log. It still cannot enter
+          API keys or connection credentials, delete a workspace or an account, or send email. With no working AI
+          key it refuses the turn rather than guessing.
         </p>
       </section>
 
@@ -230,9 +239,9 @@ export default function GuidePage() {
             <b>24 hours</b> of the person&apos;s message.
           </Step>
           <Step icon={Bot} title="Ask, if you'd rather not hunt.">
-            <Link href="/assistant" className="underline">Assistant</Link> answers &ldquo;what needs my
-            attention?&rdquo; from the same data and will do the next step — draft the idea, fill in the missing
-            SEO — while leaving every result at the gate you review it from.
+            The <b>Ask</b> dock (top-right on every page) answers &ldquo;what should I do next?&rdquo; from the
+            same data, ranks the moves, and does them with you — draft the idea, fill the SEO, queue the post,
+            publish — proposing anything outward-facing first and running it on your yes.
           </Step>
         </ul>
       </section>

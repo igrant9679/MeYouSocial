@@ -20,6 +20,7 @@ import { storage } from "@/lib/storage";
 import { db } from "@/lib/db";
 import { Elsie } from "@/components/Elsie";
 import { AiActivity } from "@/components/AiActivity";
+import { AssistantDock, AssistantDockButton } from "@/components/AssistantDock";
 import { FlashBanner } from "@/components/FlashBanner";
 import { getGuideState } from "@/app/actions/guide";
 import { relevantSteps, outstandingSetup, availableTracks, type SetupState } from "@/lib/guide/steps";
@@ -285,6 +286,7 @@ html[data-theme="dark"] .ws-brand {
           <Link href="/channels" className="btn !hidden @min-[88rem]:!inline-flex" title="Manage all channels">Manage channels</Link>
           <LiveTicker initial={ticker} timeZone={tickerZone} />
           <div className="flex-1" />
+          <AssistantDockButton />
           <AiActivity />
           <Elsie steps={elsieSteps} tracks={elsieTracks} enabled={guide.enabled} outstanding={elsieOutstanding} snoozed={guide.snoozed} />
           <Link
@@ -318,6 +320,7 @@ html[data-theme="dark"] .ws-brand {
           <Suspense fallback={null}><FlashBanner /></Suspense>
           {children}
         </main>
+        <AssistantDock />
       </div>
     </div>
   );

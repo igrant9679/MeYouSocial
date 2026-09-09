@@ -97,6 +97,10 @@ model AssistantThread {
   workspaceId String
   userId      String
   title       String?
+  /// JSON of an action the assistant proposed and is waiting for the person
+  /// to confirm ({tool, args, summary}) — the interactive half of "publish,
+  /// send, approve, change a setting" (2026-09-08). Cleared on yes or no.
+  pending     String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
