@@ -30,7 +30,6 @@ export const NAV_TIPS: Record<string, string> = {
   "/social": "Compose once, post to your connected social accounts — now, at a time you pick, or into a recurring slot.",
   "/website": "Publish articles to your website: WordPress connected directly, or any site via HTML export.",
   "/brand": "The things every generation should obey: colours, logo, company info, topics, personas and tone.",
-  "/chat": "A general assistant with your channel's context already loaded.",
   "/thumbnails": "Thumbnail concepts and images for a video.",
   "/production": "A board for the work itself — who's doing what, and what's blocked.",
   "/help": "Guides, FAQs and search. Start here if you're new.",
@@ -196,13 +195,6 @@ export const REPORT_TIPS = {
 };
 
 /** Chat. */
-export const CHAT_TIPS = {
-  chat:
-    "A conversation with your channel's voice, audience and memory already loaded, so you don't have to re-explain the channel each time. Good for thinking out loud before committing to a script.",
-  scoped:
-    "Chats belong to the channel that was active when you started them — switch channels and you'll see that channel's chats instead.",
-};
-
 /**
  * Blog post editor tabs, keyed by tab key.
  *

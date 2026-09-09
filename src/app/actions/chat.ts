@@ -7,25 +7,9 @@ import { requireRole } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { readJson } from "@/lib/db/json";
 import { llm } from "@/lib/llm";
-import { getActiveChannel } from "@/lib/channel";
 
-/** Channel-scoped: require active channel before chatting. */
-export async function createChatAction(formData: FormData) {
-  const { user, workspace } = await requireRole("EDITOR");
-  let channelId = String(formData.get("channelId") ?? "");
-  if (!channelId) {
-    const { active } = await getActiveChannel();
-    if (!active) redirect("/onboarding/channel/new");
-    channelId = active!.id;
-  }
-  const ok = await db.channel.findFirst({ where: { id: channelId, workspaceId: workspace.id } });
-  if (!ok) redirect("/chat");
-
-  const chat = await db.chat.create({
-    data: { channelId, userId: user.id, type: "ideation" },
-  });
-  redirect(`/chat/${chat.id}`);
-}
+// createChatAction retired 2026-09-09: the ideation chat is the assistant now.
+// What remains serves the canvas chat that belongs to a script (/chat/<id>).
 
 const postSchema = z.object({
   chatId: z.string(),

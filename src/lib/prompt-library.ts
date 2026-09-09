@@ -77,4 +77,4 @@ export const PROMPT_LIBRARY: PromptCategory[] = [
 ];
 
 // For the keyboard shortcut hint
-export const PROMPT_SHORTCUT = "Ctrl+/";
+export const PROMPT_SHORTCUT = "Ctrl+Shift+/";

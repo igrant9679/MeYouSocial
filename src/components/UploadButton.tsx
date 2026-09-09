@@ -3,7 +3,15 @@
 import { useState, useRef } from "react";
 import { Paperclip, Loader2 } from "lucide-react";
 
-export function UploadButton({ chatId, scriptId, channelId, onDone }: { chatId?: string; scriptId?: string; channelId?: string; onDone?: () => void }) {
+export type UploadResult = { id: string; title: string; words: number };
+
+/**
+ * Upload a file (≤10MB: PDF / Word / text / image) as research on a channel,
+ * a script or a chat. By default the page reloads afterwards so a
+ * server-rendered context list refreshes; pass `reload={false}` and use
+ * `onDone` where the caller can show the result itself (the assistant).
+ */
+export function UploadButton({ chatId, scriptId, channelId, onDone, reload = true, compact = false }: { chatId?: string; scriptId?: string; channelId?: string; onDone?: (r: UploadResult) => void; reload?: boolean; compact?: boolean }) {
   const ref = useRef<HTMLInputElement | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -18,11 +26,11 @@ export function UploadButton({ chatId, scriptId, channelId, onDone }: { chatId?:
       if (scriptId) fd.set("scriptId", scriptId);
       if (channelId) fd.set("channelId", channelId);
       const res = await fetch("/api/uploads", { method: "POST", body: fd });
-      const json = await res.json();
+      const json = (await res.json()) as { error?: string; id?: string; words?: number; title?: string };
       if (!res.ok) throw new Error(json.error ?? "Upload failed");
-      onDone?.();
-      // Reload so server-rendered context list refreshes.
-      window.location.reload();
+      onDone?.({ id: json.id ?? "", title: json.title ?? file.name, words: json.words ?? 0 });
+      // Reload so a server-rendered context list refreshes.
+      if (reload) window.location.reload();
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Upload failed");
     } finally {
@@ -38,9 +46,10 @@ export function UploadButton({ chatId, scriptId, channelId, onDone }: { chatId?:
         disabled={busy}
         onClick={() => ref.current?.click()}
         className="btn sm flex items-center gap-1.5"
+        title="Attach a file (≤10MB · PDF / Word / text / image) — it is saved as research on the channel"
       >
         {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Paperclip className="w-3.5 h-3.5" />}
-        {busy ? "Uploading…" : "Upload file"}
+        {busy ? "Uploading…" : compact ? "Attach" : "Upload file"}
       </button>
       <input
         ref={ref}
@@ -53,7 +62,7 @@ export function UploadButton({ chatId, scriptId, channelId, onDone }: { chatId?:
         }}
       />
       {err && <span className="text-[10px] text-[var(--brand)]">{err}</span>}
-      <span className="text-[10px] text-[var(--mute)]">≤10MB · PDF / Word / text / image</span>
+      {!compact && <span className="text-[10px] text-[var(--mute)]">≤10MB · PDF / Word / text / image</span>}
     </div>
   );
 }

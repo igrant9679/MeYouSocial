@@ -7,7 +7,8 @@ import { PROMPT_LIBRARY, PROMPT_SHORTCUT } from "@/lib/prompt-library";
 /**
  * Prompt Library. A floating panel of categorized prompts that
  * inserts the selected one into the target textarea (#composer-textarea by
- * default). Toggled with Ctrl+/ from anywhere on the page.
+ * default). Toggled with Ctrl+Shift+/ from anywhere on the page (plain Ctrl+/
+ * opens the Ask dock — the assistant — since 2026-09-09).
  */
 export function PromptLibrary({ targetId = "composer-textarea" }: { targetId?: string }) {
   const [open, setOpen] = useState(false);
@@ -15,7 +16,7 @@ export function PromptLibrary({ targetId = "composer-textarea" }: { targetId?: s
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if ((e.ctrlKey || e.metaKey) && e.key === "/") {
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === "/" || e.key === "?")) {
         e.preventDefault();
         setOpen((o) => !o);
       } else if (e.key === "Escape" && open) {
@@ -33,9 +34,13 @@ export function PromptLibrary({ targetId = "composer-textarea" }: { targetId?: s
     } else {
       const before = el.value.slice(0, el.selectionStart ?? el.value.length);
       const after = el.value.slice(el.selectionEnd ?? el.value.length);
-      el.value = (before ? before + (before.endsWith("\n") ? "" : "\n") : "") + body + (after ? "\n" + after : "");
+      const next = (before ? before + (before.endsWith("\n") ? "" : "\n") : "") + body + (after ? "\n" + after : "");
+      // Assign through the prototype's setter: React's value tracker otherwise
+      // thinks nothing changed and a controlled textarea reverts on the next key.
+      const proto = el instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+      const setter = Object.getOwnPropertyDescriptor(proto, "value")?.set;
+      if (setter) setter.call(el, next); else el.value = next;
       el.focus();
-      // dispatch input event so React's controlled value picks up the change
       el.dispatchEvent(new Event("input", { bubbles: true }));
     }
     setOpen(false);

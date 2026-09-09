@@ -2,6 +2,7 @@ import { requireRole } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { readJson } from "@/lib/db/json";
 import { runTurn } from "@/lib/assistant/session";
+import { getActiveChannel } from "@/lib/channel";
 import type { AssistantStep } from "@/lib/assistant/run";
 
 /**
@@ -32,6 +33,7 @@ export async function POST(req: Request) {
   const body = (await req.json().catch(() => ({}))) as { threadId?: string; message?: string; page?: string };
   const message = String(body.message ?? "").trim();
   if (!message) return Response.json({ error: "empty message" }, { status: 400 });
+  const { active } = await getActiveChannel();
   const out = await runTurn({
     workspaceId: workspace.id,
     userId: user.id,
@@ -39,6 +41,7 @@ export async function POST(req: Request) {
     threadId: body.threadId ?? null,
     message,
     page: typeof body.page === "string" && body.page.startsWith("/") ? body.page.slice(0, 200) : null,
+    channelId: active?.id ?? null,
   });
   if (!out) return Response.json({ error: "no thread" }, { status: 404 });
   const r = out.result;

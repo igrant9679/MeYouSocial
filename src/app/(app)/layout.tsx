@@ -320,7 +320,7 @@ html[data-theme="dark"] .ws-brand {
           <Suspense fallback={null}><FlashBanner /></Suspense>
           {children}
         </main>
-        <AssistantDock />
+        <AssistantDock activeChannelId={active?.id ?? null} />
       </div>
     </div>
   );

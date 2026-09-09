@@ -16,6 +16,8 @@ export type TurnInput = {
   message: string;
   /** The app path the person is on, so "walk me through this" has a this. */
   page?: string | null;
+  /** The active YouTube channel — "my channel" in the conversation; where video ideas and scripts land. */
+  channelId?: string | null;
 };
 
 export type TurnOutput = { threadId: string; result: AssistantResult };
@@ -40,7 +42,7 @@ export async function runTurn(input: TurnInput): Promise<TurnOutput | null> {
 
   const pending = thread.pending ? readJson<PendingAction | null>(thread.pending, null) : null;
   const result = await runAssistant(
-    { workspaceId: input.workspaceId, userId: input.userId, role: input.role, page: input.page ?? null },
+    { workspaceId: input.workspaceId, userId: input.userId, role: input.role, page: input.page ?? null, channelId: input.channelId ?? null },
     prior.map((m) => ({ role: m.role === "user" ? ("user" as const) : ("assistant" as const), content: m.content })),
     message,
     pending,

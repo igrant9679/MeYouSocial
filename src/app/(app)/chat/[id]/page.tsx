@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { SubmitButton } from "@/components/SubmitButton";
 import { ArrowLeft, MessageCircle, Link2, Send, PenLine } from "lucide-react";
-import { notFound } from "next/navigation";
+import { redirect } from "next/navigation";
 import { requireMembership } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { postMessageAction, addChatContextAction } from "@/app/actions/chat";
@@ -22,7 +22,8 @@ export default async function ChatThreadPage({ params }: { params: Promise<{ id:
       contextItems: { orderBy: { createdAt: "asc" } },
     },
   });
-  if (!chat) notFound();
+  // Ideation chats were folded into the assistant (2026-09-09); a stale link lands there.
+  if (!chat) redirect("/assistant");
 
   return (
     // Full width; context sidebar appears when the CONTENT area (container
@@ -31,7 +32,7 @@ export default async function ChatThreadPage({ params }: { params: Promise<{ id:
       <main className="card flex flex-col p-0 overflow-hidden">
         {/* Header */}
         <div className="px-5 py-3 border-b border-[var(--line)] flex items-center gap-2">
-          <Link href="/chat" className="text-xs font-mono text-[var(--mute)] hover:text-[var(--accent)] flex items-center gap-1"><ArrowLeft className="w-3 h-3" /> All chats</Link>
+          <Link href={chat.scriptId ? `/scripts/${chat.scriptId}` : "/assistant"} className="text-xs font-mono text-[var(--mute)] hover:text-[var(--accent)] flex items-center gap-1"><ArrowLeft className="w-3 h-3" /> {chat.scriptId ? "Back to the script" : "Assistant"}</Link>
           <span className="flex-1" />
           <span className="text-xs text-[var(--mute)]">Channel: <b>{chat.channel.name}</b></span>
         </div>

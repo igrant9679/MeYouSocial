@@ -6,8 +6,8 @@ import { db } from "@/lib/db";
 import { outlierBand, isFastGrowing, formatNum, intelThumbUrl } from "@/lib/intel";
 import { ChannelAvatar } from "@/components/ChannelAvatar";
 import { toggleBookmarkAction } from "@/app/actions/bookmarks";
-import { findSimilarChannelsAction, chatWithEntityAction } from "@/app/actions/intel";
-import { MessageCircle, GitBranch } from "lucide-react";
+import { findSimilarChannelsAction } from "@/app/actions/intel";
+import { Bot, GitBranch } from "lucide-react";
 
 // Channel detail view: subscriber/growth trends, total & average views,
 // upload frequency/consistency, top videos sortable by views/outlier, and outlier list.
@@ -59,13 +59,13 @@ export default async function IntelChannelPage({ params, searchParams }: { param
               {bookmarked ? "Bookmarked" : "Bookmark"}
             </button>
           </form>
-          <form action={chatWithEntityAction}>
-            <input type="hidden" name="kind" value="channel" />
-            <input type="hidden" name="entityId" value={channel.id} />
-            <button type="submit" className="btn flex items-center gap-2" title="Open a chat scoped to this channel">
-              <MessageCircle className="w-4 h-4" /> Chat with channel
-            </button>
-          </form>
+          <Link
+            href={`/assistant?q=${encodeURIComponent(`Let's talk about the YouTube channel "${channel.name ?? channel.handle ?? channel.youtubeId}" (intel channel ${channel.id}): what is working for them, and how could I remix it for my channel?`)}`}
+            className="btn flex items-center gap-2"
+            title="Ask the assistant about this channel — it reads its stats and outliers"
+          >
+            <Bot className="w-4 h-4" /> Ask about this channel
+          </Link>
           <form action={findSimilarChannelsAction}>
             <input type="hidden" name="intelChannelId" value={channel.id} />
             <button type="submit" className="btn flex items-center gap-2" title="Find similar channels in this niche">

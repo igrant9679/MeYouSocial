@@ -162,45 +162,5 @@ export async function autoIndexHandleAction(formData: FormData) {
   redirect(`/intel/channels/${upserted.id}`);
 }
 
-// Chat with channel / video: open a new chat with the entity pre-loaded
-// as context. Requires an active channel (the user's own — chat is channel-scoped).
-export async function chatWithEntityAction(formData: FormData) {
-  const { user, workspace } = await requireRole("EDITOR");
-  const kind = String(formData.get("kind"));           // "channel" | "video"
-  const entityId = String(formData.get("entityId"));
-  const { getActiveChannel } = await import("@/lib/channel");
-  const { active } = await getActiveChannel();
-  if (!active) redirect("/onboarding/channel/new");
-
-  let title = "Chat";
-  let ref = entityId;
-  let url = "";
-  if (kind === "channel") {
-    const e = await db.intelChannel.findFirst({ where: { id: entityId, workspaceId: workspace.id } });
-    if (!e) return;
-    title = `Chat about ${e.name ?? e.handle}`;
-    ref = e.youtubeId;
-    url = `intel://channel/${e.id}`;
-  } else if (kind === "video") {
-    const e = await db.intelVideo.findFirst({
-      where: { id: entityId, intelChannel: { workspaceId: workspace.id } },
-      include: { intelChannel: true },
-    });
-    if (!e) return;
-    title = `Chat about "${e.title}"`;
-    ref = e.youtubeId;
-    url = `intel://video/${e.id}`;
-  }
-
-  const chat = await db.chat.create({
-    data: {
-      channelId: active!.id,
-      userId: user.id,
-      type: "ideation",
-      title,
-      contextItems: { create: { kind: kind === "channel" ? "youtube_channel" : "youtube_url", ref, metadata: JSON.stringify({ url }) } },
-      messages: { create: { role: "assistant", content: `Loaded ${kind}: **${title.replace(/^Chat about /, "")}**. Ask me anything about its content strategy, outliers, posting patterns, or how to remix it for your channel.` } },
-    },
-  });
-  redirect(`/chat/${chat.id}`);
-}
+// "Chat with channel / video" (chatWithEntityAction) retired 2026-09-09 — the
+// Intel pages link to the assistant with the entity in the opening message.

@@ -6,8 +6,7 @@ import { db } from "@/lib/db";
 import { outlierBand, viewsPerSubBand, formatNum, intelThumbUrl } from "@/lib/intel";
 import { ChannelAvatar } from "@/components/ChannelAvatar";
 import { toggleBookmarkAction } from "@/app/actions/bookmarks";
-import { chatWithEntityAction } from "@/app/actions/intel";
-import { MessageCircle } from "lucide-react";
+import { Bot } from "lucide-react";
 
 // Video detail view: views/engagement, outlier, views/sub, title, thumbnail.
 
@@ -123,13 +122,13 @@ export default async function IntelVideoPage({ params }: { params: Promise<{ id:
               {bookmarked ? "Bookmarked" : "Bookmark"}
             </button>
           </form>
-          <form action={chatWithEntityAction}>
-            <input type="hidden" name="kind" value="video" />
-            <input type="hidden" name="entityId" value={video.id} />
-            <button type="submit" className="btn w-full flex items-center justify-center gap-2" title="Open a chat scoped to this video">
-              <MessageCircle className="w-4 h-4" /> Chat with video
-            </button>
-          </form>
+          <Link
+            href={`/assistant?q=${encodeURIComponent(`Let's talk about the video "${video.title}" (intel video ${video.id}): break down why it worked and how I could remix it for my channel.`)}`}
+            className="btn w-full flex items-center justify-center gap-2"
+            title="Ask the assistant about this video — it reads the stats and the transcript"
+          >
+            <Bot className="w-4 h-4" /> Ask about this video
+          </Link>
         </aside>
       </div>
     </div>

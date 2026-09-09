@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Bot, User as UserIcon, Wrench, ExternalLink, HelpCircle, ShieldQuestion } from "lucide-react";
 import { requireRole } from "@/lib/acl";
+import { getActiveChannel } from "@/lib/channel";
 import { db } from "@/lib/db";
 import { readJson } from "@/lib/db/json";
 import { AssistantComposer } from "@/components/AssistantComposer";
@@ -17,6 +18,7 @@ import { sendAssistantMessageAction as sendQuick } from "@/app/actions/assistant
 export default async function AssistantThreadPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { workspace, user } = await requireRole("EDITOR");
+  const { active } = await getActiveChannel();
   const thread = await db.assistantThread.findFirst({
     where: { id, workspaceId: workspace.id, userId: user.id },
     include: { messages: { orderBy: { createdAt: "asc" } } },
@@ -89,7 +91,7 @@ export default async function AssistantThreadPage({ params }: { params: Promise<
         </div>
       )}
 
-      <AssistantComposer threadId={thread.id} />
+      <AssistantComposer threadId={thread.id} channelId={active?.id ?? null} />
       <p className="text-[10px] text-[var(--mute)] mt-2 inline-flex items-center gap-1"><HelpCircle className="w-3 h-3" /> Anything outward-facing or hard to undo is proposed first and runs only when you say yes. The same conversation is in the Ask dock on every page.</p>
     </main>
   );

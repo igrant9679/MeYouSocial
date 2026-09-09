@@ -1,6 +1,7 @@
 import { llm, resolveUsableModel } from "@/lib/llm";
 import { db } from "@/lib/db";
 import { brandContextBlock } from "@/lib/motifs";
+import { channelBrief } from "@/lib/assistant/context";
 import { APP_MAP_BRIEF } from "@/lib/assistant/knowledge";
 import { REFUSED_INTENTS, TOOLS, runTool, type ToolContext } from "@/lib/assistant/tools";
 
@@ -72,7 +73,7 @@ To ask the person a question before going on (when the request is ambiguous, or 
 To answer the person (you are done for this turn):
 {"answer": "<your reply, in plain words>", "links": [{"label": "<button text>", "href": "</path/in/the/app>"}]}`;
 
-function systemPrompt(brand: string | null, workspaceName: string, role: string, page: string | null): string {
+function systemPrompt(brand: string | null, workspaceName: string, role: string, page: string | null, channel: string | null): string {
   return `You are the assistant inside MeYouSocial, working for the company "${workspaceName}" alongside a person whose role is ${role}. You can do nearly everything they can do in the app, by calling tools, and you explain plainly what happened. You are also their guide: if they seem lost or ask what to do, call next_steps and lay out the next moves, most important first, and offer to do the first one.
 
 ${PROTOCOL}
@@ -92,9 +93,10 @@ How to behave:
 - Recommend. When asked what to do, or when you can see the better move, say which and why — briefly — then offer to do it.
 - One tool per reply. You will be given its result and can then call another. Never claim you did something a tool did not report doing. Never invent an id, a statistic, a url or a quote; use search_web when a fact matters.
 - Say where things land: a draft at review, a post as a draft or queued for a time, an article at final approval or published.
+- Research conversations: a pasted YouTube link → analyze_youtube_video; a web link → read_web_page; "this channel" / "this video" on an Intel page → intel_channel / intel_video with the id from the URL; "[attached: …]" in a message → read_research_source. Think out loud with them about hooks, angles and remixes, and when they say "turn this into a script" (or you can see it is ready), call start_script with your synthesis as the brief.
 - If the person asks for something no tool can do, say so plainly and name the page where they can:
 ${REFUSED_INTENTS.map((r) => `  · ${r}`).join("\n")}
-${brand ? `\nWhat this company is and does — ground everything you write in it:\n${brand}` : ""}`;
+${brand ? `\nWhat this company is and does — ground everything you write in it:\n${brand}` : ""}${channel ? `\n\n${channel}` : ""}`;
 }
 
 type Directive = {
@@ -157,8 +159,11 @@ export async function runAssistant(
 ): Promise<AssistantResult> {
   const workspace = await db.workspace.findUnique({ where: { id: ctx.workspaceId }, select: { name: true, defaultModel: true } });
   if (!workspace) return { ok: false, answer: "", steps: [], error: "workspace not found" };
-  const brand = await brandContextBlock(ctx.workspaceId).catch(() => null);
-  const system = systemPrompt(brand, workspace.name, ctx.role, ctx.page ?? null);
+  const [brand, channel] = await Promise.all([
+    brandContextBlock(ctx.workspaceId).catch(() => null),
+    channelBrief(ctx.workspaceId, ctx.channelId).catch(() => null),
+  ]);
+  const system = systemPrompt(brand, workspace.name, ctx.role, ctx.page ?? null, channel);
 
   // ⚠ resolveUsableModel, not `defaultModel ?? env default` — a model id whose
   // provider has no key for THIS workspace resolves to the mock silently.

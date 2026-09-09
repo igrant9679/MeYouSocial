@@ -41,7 +41,7 @@ export const HELP_CATEGORIES: FaqCategory[] = [
       },
       {
         q: "What are all the icons on the left bar?",
-        a: "The rail is the loop, in the order work moves. Top to bottom: **Inbox** (everything waiting on a person — the landing page), **Assistant**, then the seven stages — **Research** (Intel, bookmarks, competitors, chat), **Ideas** (the one board), **Drafts** (articles, the board, and the video studio when it is on), **Review** (approvals, audit), **Publish** (website, blog calendar), **Distribute** (compose, calendar, engage), **Measure** (reports, insights, analytics) — then the **Setup** group for admins (**Settings**, **Channels**, **Brand**, **Admin**), and **Help**. At the bottom: your profile and sign out. Inside a stage, a strip along the top shows its Overview and tabs with count badges.\n\nYou don't have to memorise any of it — **hover any rail entry and a bubble tells you what that module is for**. The rail collapses to icons on a narrow window, and the same hover still names it.",
+        a: "The rail is the loop, in the order work moves. Top to bottom: **Inbox** (everything waiting on a person — the landing page), **Assistant**, then the seven stages — **Research** (Intel, bookmarks, competitors), **Ideas** (the one board), **Drafts** (articles, the board, and the video studio when it is on), **Review** (approvals, audit), **Publish** (website, blog calendar), **Distribute** (compose, calendar, engage), **Measure** (reports, insights, analytics) — then the **Setup** group for admins (**Settings**, **Channels**, **Brand**, **Admin**), and **Help**. At the bottom: your profile and sign out. Inside a stage, a strip along the top shows its Overview and tabs with count badges.\n\nYou don't have to memorise any of it — **hover any rail entry and a bubble tells you what that module is for**. The rail collapses to icons on a narrow window, and the same hover still names it.",
         tags: ["nav", "rail", "icons", "hover", "tooltip"],
       },
       {
@@ -107,7 +107,7 @@ export const HELP_CATEGORIES: FaqCategory[] = [
       },
       {
         q: "How do I switch between channels?",
-        a: "Use the **Active channel** pill in the topbar — pick from the dropdown and click **Switch**. The whole app then scopes to that channel: Ideas, Scripts, Chat, Thumbnails, etc. all show only that channel's content.",
+        a: "Use the **Active channel** pill in the topbar — pick from the dropdown and click **Switch**. The whole app then scopes to that channel: Ideas, Scripts, Thumbnails, etc. show only that channel's content, and the assistant carries that channel's niche, audience, voice and memory into every reply.",
         tags: ["switch", "active channel"],
       },
       {
@@ -204,7 +204,7 @@ export const HELP_CATEGORIES: FaqCategory[] = [
       },
       {
         q: "What's the Prompt Library?",
-        a: "Press **Ctrl+/** (or ⌘+/) anywhere in chat to open it. 20+ categorized ready-made prompts for ideation, research, writing, structure, packaging. Click any to insert into the composer.",
+        a: "Press **Ctrl+Shift+/** (or ⌘+Shift+/) in the assistant or a script's canvas chat to open it — or click **Prompts** next to the composer. 20+ categorized ready-made prompts for ideation, research, writing, structure, packaging. Click any to insert into the composer. (Plain **Ctrl+/** opens the Ask dock — the assistant — on any page.)",
         tags: ["prompt library", "shortcut"],
       },
     ],
@@ -232,7 +232,7 @@ export const HELP_CATEGORIES: FaqCategory[] = [
       },
       {
         q: "How do I chat about a specific channel or video?",
-        a: "Open the channel or video detail page in Intel → **Chat with channel** or **Chat with video** button. Creates a new chat scoped to that entity with the right context pre-attached.",
+        a: "Open the channel or video in Intel → **Ask about this channel** / **Ask about this video**. It opens the assistant with the entity in the opening message; the assistant reads its stats, outliers and (for a video) the transcript, thinks it through with you — hook, structure, remix angles — and can **turn the conversation into a script** on the canvas. Paste any YouTube or web link straight into the assistant for the same treatment; the paperclip attaches a file as research on your channel.\n\nThe old Research → Chat tab was folded into the assistant on 2026-09-09; its conversations moved into your assistant history.",
         tags: ["chat", "intel"],
       },
     ],
@@ -771,7 +771,7 @@ export const HELP_CATEGORIES: FaqCategory[] = [
       },
       {
         q: "What keyboard shortcuts exist?",
-        a: "**Ctrl/⌘+/** — Open the Prompt Library in chat.\n**Esc** — Close any modal (Prompt Library, Improve dialog).\nForm fields support Tab and Shift+Tab as expected.",
+        a: "**Ctrl/⌘+/** — Open the Ask dock (the assistant) on any page.\n**Ctrl/⌘+Shift+/** — Open the Prompt Library in the assistant or a canvas chat.\n**Esc** — Close any modal (Prompt Library, Improve dialog).\nForm fields support Tab and Shift+Tab as expected.",
         tags: ["shortcuts", "keyboard"],
       },
     ],

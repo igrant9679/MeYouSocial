@@ -85,7 +85,7 @@ export default function GuidePage() {
           Blog → Ideas) all redirect to the right stage.
         </p>
         <ul className="m-0 p-0 text-sm space-y-2">
-          <Stage href="/research" name="Research" tabs="Intel · Bookmarks · Competitors · Chat">
+          <Stage href="/research" name="Research" tabs="Intel · Bookmarks · Competitors">
             Competitor channels and the videos that beat their own average (2× is strong, 5× exceptional — measured
             or a dash, never estimated). &ldquo;Make it an idea&rdquo; turns an outlier into an article idea.
           </Stage>
@@ -131,7 +131,10 @@ export default function GuidePage() {
           and answer or dismiss its findings; verify or drop claims; approve images; advance an article; draft, queue,
           schedule and send social posts; publish, export HTML or record a manual publish; read the numbers and
           the reports; change the dials, slots, timezone and people. It knows this guide, so <i>&ldquo;how do I…&rdquo;</i>{" "}
-          and <i>&ldquo;why is … held?&rdquo;</i> get the page and the reason.
+          and <i>&ldquo;why is … held?&rdquo;</i> get the page and the reason. It is also the <b>research conversation</b>: it
+          carries your active channel&apos;s niche, audience, voice and memory; <b>Ask about this channel / video</b> on any
+          Intel page opens it with the stats and transcript loaded; paste a YouTube or web link, or attach a file with the
+          paperclip; say <i>&ldquo;turn this into a script&rdquo;</i> and it starts one on the canvas.
         </p>
         <p className="text-sm leading-[1.65] mb-3">
           <b>If you are ever lost, ask &ldquo;what should I do next?&rdquo;</b> — it reads the Inbox, the pipeline,

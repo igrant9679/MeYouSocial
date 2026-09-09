@@ -21,7 +21,7 @@ import { APP_GUIDE, appGuide } from "@/lib/assistant/knowledge";
  * credentials), deleting a workspace or a person's account, sending email.
  */
 
-export type ToolContext = { workspaceId: string; userId: string; role: string; page?: string | null };
+export type ToolContext = { workspaceId: string; userId: string; role: string; page?: string | null; channelId?: string | null };
 
 export type Tool = {
   name: string;
@@ -1069,6 +1069,107 @@ export const TOOLS: Tool[] = [
       const { runAutopilotCycle } = await import("@/lib/blog-autopilot");
       const r = await runAutopilotCycle(ctx.workspaceId);
       return `cycle ran: ${JSON.stringify(r).slice(0, 300)}`;
+    },
+  },
+
+  // ── Research conversation (the old Research chat, folded in 2026-09-09) ──
+  {
+    name: "intel_channel",
+    description: "An indexed competitor channel from Intel: handle, size, cadence and its strongest outliers with ids. Use when the person asks about a channel on /intel/channels/<id>, or says 'this channel' there.",
+    args: { intelChannelId: "the Intel channel id (from /intel/channels/<id>)" },
+    readOnly: true,
+    async run(a, ctx) {
+      const ch = await db.intelChannel.findFirst({ where: { id: str(a.intelChannelId, 40), workspaceId: ctx.workspaceId }, include: { videos: { orderBy: { outlierScore: "desc" }, take: 8, select: { id: true, title: true, outlierScore: true, views: true, publishedAt: true, format: true } } } });
+      if (!ch) return "no such Intel channel in this workspace (list_outliers shows indexed videos; research_competitor finds a new channel)";
+      return [
+        `${ch.name ?? ch.handle ?? ch.youtubeId}${ch.handle ? ` (${ch.handle})` : ""} — ${ch.subscribers?.toLocaleString() ?? "—"} subscribers, ${ch.videoCount ?? "—"} videos, ${ch.uploadFrequency != null ? `${ch.uploadFrequency.toFixed(1)}/week` : "cadence —"}${ch.category ? `, ${ch.category}` : ""}${ch.lastIndexedAt ? `, indexed ${when(ch.lastIndexedAt)}` : ""}`,
+        `Strongest videos (outlier × = views ÷ this channel's average):`,
+        ...ch.videos.map((v) => `  ${v.id} ${v.outlierScore != null ? `${v.outlierScore.toFixed(1)}×` : "—"} "${v.title}" (${v.views != null ? Number(v.views).toLocaleString() : "—"} views${v.format ? `, ${v.format}` : ""}${v.publishedAt ? `, ${v.publishedAt.toISOString().slice(0, 10)}` : ""}) — intel_video for its transcript`),
+      ].join("\n");
+    },
+  },
+  {
+    name: "intel_video",
+    description: "One indexed video from Intel: stats, outlier score, description and the transcript (excerpt) — for breaking down why it worked and how to remix it.",
+    args: { intelVideoId: "the Intel video id (from /intel/videos/<id>)" },
+    readOnly: true,
+    async run(a, ctx) {
+      const v = await db.intelVideo.findFirst({ where: { id: str(a.intelVideoId, 40), intelChannel: { workspaceId: ctx.workspaceId } }, include: { intelChannel: { select: { name: true, handle: true } } } });
+      if (!v) return "no such Intel video in this workspace";
+      const t = v.transcript?.trim();
+      return [
+        `"${v.title}" — ${v.intelChannel.name ?? v.intelChannel.handle} · https://www.youtube.com/watch?v=${v.youtubeId}`,
+        `${v.views != null ? Number(v.views).toLocaleString() : "—"} views · ${v.likes ?? "—"} likes · ${v.comments ?? "—"} comments · ${v.durationSeconds ? `${Math.round(v.durationSeconds / 60)} min` : "—"} · ${v.format ?? ""} · outlier ${v.outlierScore != null ? `${v.outlierScore.toFixed(1)}×` : "not measured"} · published ${v.publishedAt ? v.publishedAt.toISOString().slice(0, 10) : "—"}`,
+        v.description ? `Description: ${v.description.slice(0, 600)}` : "",
+        t ? `Transcript (${t.length.toLocaleString()} chars, first ${Math.min(t.length, 7000).toLocaleString()}):\n${t.slice(0, 7000)}` : "Transcript: not fetched (analyze_youtube_video can try YouTube directly)",
+      ].filter(Boolean).join("\n");
+    },
+  },
+  {
+    name: "analyze_youtube_video",
+    description: "A YouTube URL the person pasted: finds it in Intel if indexed (stats + transcript), otherwise fetches the transcript from YouTube. Returns text to analyse — hook, structure, retention beats, remix angles are yours to write.",
+    args: { url: "a YouTube URL or 11-character video id" },
+    readOnly: true,
+    async run(a, ctx) {
+      const { youtubeVideoId } = await import("@/lib/assistant/context");
+      const id = youtubeVideoId(str(a.url, 300));
+      if (!id) return "that is not a YouTube video URL";
+      const indexed = await db.intelVideo.findFirst({ where: { youtubeId: id, intelChannel: { workspaceId: ctx.workspaceId } }, select: { id: true } });
+      if (indexed) return TOOLS_BY_NAME.get("intel_video")!.run({ intelVideoId: indexed.id }, ctx);
+      const { youtubeFor } = await import("@/lib/youtube");
+      const t = (await youtubeFor(ctx.workspaceId).getTranscript(id).catch(() => null))?.trim();
+      if (!t) return `video ${id} is not indexed in Intel and YouTube returned no transcript (captions off, or no YouTube key). Index its channel under /intel to get stats; or ask the person what it is about.`;
+      return `https://www.youtube.com/watch?v=${id} — not indexed in Intel (no stats). Transcript (${t.length.toLocaleString()} chars, first 7000):\n${t.slice(0, 7000)}`;
+    },
+  },
+  {
+    name: "read_web_page",
+    description: "Fetch a public web page the person pointed at and return its title and text (first ~6000 characters) so you can summarise, critique or draw on it. Not for private/internal addresses.",
+    args: { url: "https://… the page" },
+    readOnly: true,
+    async run(a) {
+      const { fetchPageText } = await import("@/lib/assistant/context");
+      const r = await fetchPageText(str(a.url, 500));
+      if (!r.ok) return `could not read it: ${r.reason}`;
+      return `${r.title || "(no title)"} — ${r.chars.toLocaleString()} chars${r.chars > r.text.length ? " (truncated)" : ""}\n\n${r.text}`;
+    },
+  },
+  {
+    name: "list_research_sources",
+    description: "Files and pages saved as research on a channel (uploads from the composer's paperclip land here): id, kind, title, words, starred.",
+    args: { channelId: "optional; the active channel when omitted", limit: "optional, default 20" },
+    readOnly: true,
+    async run(a, ctx) {
+      const channelId = str(a.channelId, 40) || ctx.channelId || "";
+      if (!channelId) return "no channel — give a channelId (list_channels)";
+      const rows = await db.researchSource.findMany({ where: { channelId, channel: { workspaceId: ctx.workspaceId } }, orderBy: { createdAt: "desc" }, take: num(a.limit, 20, 50), select: { id: true, kind: true, title: true, ref: true, wordCount: true, starred: true, createdAt: true } });
+      return rows.length ? rows.map((r) => `${r.id} [${r.kind}${r.starred ? " ★" : ""}] ${r.title ?? r.ref} — ${r.wordCount} words, ${when(r.createdAt)}`).join("\n") : "no research sources on this channel yet — the paperclip in the composer adds one";
+    },
+  },
+  {
+    name: "read_research_source",
+    description: "The extracted text of one research source (an upload or saved page), first ~8000 characters.",
+    args: { sourceId: "the research source id" },
+    readOnly: true,
+    async run(a, ctx) {
+      const r = await db.researchSource.findFirst({ where: { id: str(a.sourceId, 40), channel: { workspaceId: ctx.workspaceId } }, select: { title: true, kind: true, content: true, wordCount: true } });
+      if (!r) return "no such research source";
+      return `${r.title ?? "(untitled)"} [${r.kind}] — ${r.wordCount} words\n\n${(r.content ?? "(no text was extracted)").slice(0, 8000)}`;
+    },
+  },
+  {
+    name: "start_script",
+    description: "'Turn this into a script': create a video script on the canvas from the conversation, with your synthesis as its opening brief. Lands at /scripts/<id> (Plan → Outline → Script). Nothing is published.",
+    args: { title: "a working title", brief: "your synthesis of the conversation so far — the angle, the hook, the beats, the sources (this seeds the canvas chat)", channelId: "optional; the active channel when omitted" },
+    async run(a, ctx) {
+      const channelId = str(a.channelId, 40) || ctx.channelId || "";
+      const ch = channelId ? await db.channel.findFirst({ where: { id: channelId, workspaceId: ctx.workspaceId } }) : null;
+      if (!ch) return "refused: a script needs a channel — list_channels, or the person can pick one in the top bar";
+      const title = str(a.title, 120) || "Untitled script";
+      const brief = str(a.brief, 6000);
+      const script = await db.script.create({ data: { channelId: ch.id, authorId: ctx.userId, title, workflow: "canvas", language: ch.defaultLanguage, templateId: ch.defaultTemplateId, model: ch.defaultModel } });
+      await db.chat.create({ data: { channelId: ch.id, userId: ctx.userId, type: "canvas", scriptId: script.id, title, messages: { create: { role: "assistant", content: `Started from a conversation with the assistant.\n\n${brief || "(no brief)"}\n\nWhen you're ready, head to the Plan tab, answer the planning questions, and generate an outline.` } } } });
+      return `script ${script.id} "${title}" created on ${ch.name}'s canvas with the brief as its opening note — /scripts/${script.id}`;
     },
   },
 ];

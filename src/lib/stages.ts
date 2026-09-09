@@ -36,7 +36,7 @@ export const STAGES: Record<(typeof STAGE_HREFS)[number], StageDef> = {
       { href: "/intel", label: "Intel" },
       { href: "/intel/bookmarks", label: "Bookmarks" },
       ...(channelId ? [{ href: `/channels/${channelId}/competitors`, label: "Competitors", also: ["/channels/*/competitors", "/channels/*/research"] }] : []),
-      { href: "/chat", label: "Chat" },
+      // The Chat tab retired 2026-09-09 — the assistant (Ask, on every page) is the research conversation now.
     ],
   },
   "/ideas": {

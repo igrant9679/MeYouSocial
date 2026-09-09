@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Bot, Loader2, SendHorizonal, X, Wrench, ExternalLink, Sparkles } from "lucide-react";
 import { MarkdownMessage } from "@/components/MarkdownMessage";
+import { UploadButton } from "@/components/UploadButton";
 import type { AssistantStep } from "@/lib/assistant/run";
 
 /**
@@ -29,7 +30,7 @@ const SUGGESTIONS = [
   "What's going out this week?",
 ];
 
-export function AssistantDock() {
+export function AssistantDock({ activeChannelId = null }: { activeChannelId?: string | null }) {
   const pathname = usePathname() ?? "/";
   const [open, setOpen] = useState(false);
   const [threadId, setThreadId] = useState<string | null>(null);
@@ -65,7 +66,7 @@ export function AssistantDock() {
   // Open from anywhere: the header button dispatches this; Ctrl+/ too.
   useEffect(() => {
     const onOpen = () => setOpen(true);
-    const onKey = (e: KeyboardEvent) => { if ((e.ctrlKey || e.metaKey) && e.key === "/") { e.preventDefault(); setOpen((o) => !o); } };
+    const onKey = (e: KeyboardEvent) => { if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key === "/") { e.preventDefault(); setOpen((o) => !o); } };
     window.addEventListener("assistant:open", onOpen);
     window.addEventListener("keydown", onKey);
     return () => { window.removeEventListener("assistant:open", onOpen); window.removeEventListener("keydown", onKey); };
@@ -182,9 +183,19 @@ export function AssistantDock() {
               disabled={busy}
               onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void send(text); } }}
             />
-            <button type="submit" className="btn primary sm" disabled={busy || !text.trim()} aria-label="Send">
-              {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <SendHorizonal className="w-3.5 h-3.5" />}
-            </button>
+            <div className="flex flex-col gap-1 items-end">
+              <button type="submit" className="btn primary sm" disabled={busy || !text.trim()} aria-label="Send">
+                {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <SendHorizonal className="w-3.5 h-3.5" />}
+              </button>
+              {activeChannelId && !busy && (
+                <UploadButton
+                  channelId={activeChannelId}
+                  reload={false}
+                  compact
+                  onDone={(r) => setText((t) => (t.trim() ? t.replace(/\s+$/, "") + "\n" : "") + `[attached: ${r.title} (research source ${r.id}, ${r.words} words)]`)}
+                />
+              )}
+            </div>
           </form>
         </aside>
       )}

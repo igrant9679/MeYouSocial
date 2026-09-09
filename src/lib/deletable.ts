@@ -182,8 +182,8 @@ export const DELETABLE: Record<DeletableKind, Deletable> = {
     find: (id, workspaceId) => db.chat.findFirst({ where: { id, channel: { workspaceId } }, select: { id: true, title: true } })
       .then((r) => (r ? { id: r.id, name: r.title ?? "chat" } : null)),
     async remove(id, workspaceId) { await db.chat.deleteMany({ where: { id, channel: { workspaceId } } }); },
-    redirectTo: () => "/chat",
-    revalidate: ["/chat"],
+    redirectTo: () => "/scripts",
+    revalidate: ["/scripts"],
   },
 
   thumbnail: {

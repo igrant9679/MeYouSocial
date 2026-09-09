@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireRole } from "@/lib/acl";
 import { runTurn } from "@/lib/assistant/session";
+import { getActiveChannel } from "@/lib/channel";
 
 /**
  * The full-page assistant. One turn runs INSIDE the action because the person
@@ -19,6 +20,7 @@ export async function sendAssistantMessageAction(formData: FormData) {
   const page = String(formData.get("page") ?? "").trim();
   if (!message) redirect(threadId ? `/assistant/${threadId}` : "/assistant");
 
+  const { active } = await getActiveChannel();
   const out = await runTurn({
     workspaceId: workspace.id,
     userId: user.id,
@@ -26,6 +28,7 @@ export async function sendAssistantMessageAction(formData: FormData) {
     threadId: threadId || null,
     message,
     page: page.startsWith("/") ? page.slice(0, 200) : null,
+    channelId: active?.id ?? null,
   });
   if (!out) redirect("/assistant");
 
