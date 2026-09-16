@@ -629,21 +629,42 @@ export async function publishCore(workspaceId: string, postId: string): Promise<
   // cannot read (the first real publish went out imageless because of this) —
   // resolve those to bytes from storage; only external urls are fetched.
   let media: { id: number; sourceUrl: string } | null = null;
+  let featuredUploadError: string | null = null;
   if (featured) {
     const storedKey = featured.url.match(/\/(?:uploads|api\/files)\/([^"'\s)]+)/)?.[1];
     if (storedKey) {
       const { storage } = await import("@/lib/storage");
       const buf = await storage.get(decodeURIComponent(storedKey)).catch(() => null);
       if (buf) {
-        const bytes = new Uint8Array(buf);
-        const mime = sniffImageMime(bytes);
-        if (mime) {
-          const ext = mime.split("/")[1].replace("jpeg", "jpg");
-          media = await wpUploadMediaBytes(creds, bytes, `${post.slug || post.id}-featured.${ext}`, mime, featured.altText);
+        // ⚠ Re-encode for the host. A 1920×1080 gpt-image PNG is ~4.7 MB and
+        // lsi-media.com answers 413 above its upload limit — EVERY autonomous
+        // publish from 2026-08-26 to 09-16 went out without a featured image
+        // while the helper turned the 413 into a silent null. A JPEG at the
+        // same pixels is ~10× smaller; the app keeps its PNG, WordPress gets
+        // the JPEG. On a 413 even so, one retry at 1280 wide, lower quality.
+        const sharp = (await import("sharp")).default;
+        const attempts: Array<{ bytes: Uint8Array; name: string }> = [];
+        try {
+          attempts.push({ bytes: new Uint8Array(await sharp(buf).jpeg({ quality: 84, mozjpeg: true }).toBuffer()), name: `${post.slug || post.id}-featured.jpg` });
+          attempts.push({ bytes: new Uint8Array(await sharp(buf).resize({ width: 1280, withoutEnlargement: true }).jpeg({ quality: 76, mozjpeg: true }).toBuffer()), name: `${post.slug || post.id}-featured-1280.jpg` });
+        } catch {
+          const bytes = new Uint8Array(buf);
+          const mime = sniffImageMime(bytes);
+          if (mime) attempts.push({ bytes, name: `${post.slug || post.id}-featured.${mime.split("/")[1].replace("jpeg", "jpg")}` });
         }
+        for (const a of attempts) {
+          const r = await wpUploadMediaBytes(creds, a.bytes, a.name, a.name.endsWith(".jpg") ? "image/jpeg" : sniffImageMime(a.bytes) ?? "image/png", featured.altText);
+          if (r.ok) { media = { id: r.id, sourceUrl: r.sourceUrl }; featuredUploadError = null; break; }
+          featuredUploadError = `${r.error} (${Math.round(a.bytes.byteLength / 1024)} KB)`;
+          if (!/413|too large/i.test(r.error)) break; // only a size refusal is worth a smaller retry
+        }
+      } else {
+        featuredUploadError = "stored bytes could not be read";
       }
     } else {
-      media = await wpUploadMedia(creds, featured.url, featured.altText);
+      const r = await wpUploadMedia(creds, featured.url, featured.altText);
+      if (r.ok) media = { id: r.id, sourceUrl: r.sourceUrl };
+      else featuredUploadError = r.error;
     }
   }
 
@@ -717,6 +738,9 @@ export async function publishCore(workspaceId: string, postId: string): Promise<
     seoUnverified: readBack ? false : true,
     featuredMedia: media ? { id: media.id, applied: readBack ? readBack.featuredMedia === media.id : null } : null,
     featuredUploadFailed: !!featured && !media,
+    // The reason, not just the fact — "featuredUploadFailed: true" sat in six
+    // reports before anyone learned it was a 413.
+    featuredUploadError,
     categories: { requested: categoryNames, applied: readBack?.categories.length ?? cats.ids.length, missed: cats.missed },
     tags: { requested: tagNames, applied: readBack?.tags.length ?? tags.ids.length, missed: tags.missed },
     author: conn.defaultAuthor ? { requested: conn.defaultAuthor, resolved: authorId } : null,
@@ -743,6 +767,8 @@ export async function publishCore(workspaceId: string, postId: string): Promise<
       link: created.link,
       seoAccepted: seoOutcomes.filter((o) => o.accepted).length,
       seoSent: seoOutcomes.length,
+      featuredMedia: media?.id ?? null,
+      featuredUploadError,
     },
   });
   return true;

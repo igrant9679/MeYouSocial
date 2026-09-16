@@ -210,6 +210,7 @@ export default async function BlogPostPage({
     seo: Array<{ key: string; accepted: boolean; stored: string | null }>;
     seoUnverified: boolean;
     featuredUploadFailed: boolean;
+    featuredUploadError?: string | null;
     categories: { missed: string[] };
     tags: { missed: string[] };
   } | null = null;
@@ -639,7 +640,7 @@ export default async function BlogPostPage({
                   <li className="text-[var(--mute)]">No SEO plugin mapped — only the post content was sent.</li>
                 )}
                 {publishReport.featuredUploadFailed && (
-                  <li style={{ color: "var(--rose-on)" }}>Featured image upload to the media library failed.</li>
+                  <li style={{ color: "var(--rose-on)" }}>Featured image upload to the media library failed{publishReport.featuredUploadError ? `: ${publishReport.featuredUploadError}` : ""}. The post is live without it — set the featured image in WordPress by hand, or fix the cause (a host upload limit, a bad file) before the next publish.</li>
                 )}
                 {publishReport.categories.missed.length > 0 && (
                   <li style={{ color: "var(--amber-on)" }}>Categories not applied: {publishReport.categories.missed.join(", ")}</li>

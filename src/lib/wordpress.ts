@@ -298,11 +298,14 @@ function filenameFor(url: string): { name: string; mime: string } {
  * Mirror an image into the WordPress media library and return its id, so the
  * post can carry a real featured image rather than a hotlink.
  */
+/** An upload either lands (with the media id) or says exactly why it did not. */
+export type WpUploadResult = { ok: true; id: number; sourceUrl: string } | { ok: false; error: string };
+
 export async function wpUploadMedia(
   c: WpCredentials,
   imageUrl: string,
   altText: string | null,
-): Promise<{ id: number; sourceUrl: string } | null> {
+): Promise<WpUploadResult> {
   // ⚠ Only for EXTERNAL http(s) urls. Our own stored images live at
   // session-gated RELATIVE urls (/api/files/…) that a server-side fetch cannot
   // read — Node rejects the relative URL outright, this returned null, and the
@@ -310,16 +313,16 @@ export async function wpUploadMedia(
   // report quietly said featuredUploadFailed. publishCore now resolves stored
   // keys to bytes itself and calls wpUploadMediaBytes below.
   try {
-    if (!/^https?:\/\//i.test(imageUrl)) return null;
+    if (!/^https?:\/\//i.test(imageUrl)) return { ok: false, error: "not an http(s) url" };
     const src = await fetch(imageUrl, { signal: AbortSignal.timeout(20000), redirect: "follow" });
-    if (!src.ok) return null;
+    if (!src.ok) return { ok: false, error: `source fetch HTTP ${src.status}` };
     const buf = await src.arrayBuffer();
-    if (!buf.byteLength) return null;
+    if (!buf.byteLength) return { ok: false, error: "source fetch returned no bytes" };
     const { name, mime } = filenameFor(imageUrl);
     const contentType = src.headers.get("content-type")?.split(";")[0] || mime;
     return await wpUploadMediaBytes(c, new Uint8Array(buf), name, contentType, altText);
-  } catch {
-    return null;
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message.slice(0, 200) : String(e) };
   }
 }
 
@@ -339,9 +342,13 @@ export async function wpUploadMediaBytes(
   filename: string,
   contentType: string,
   altText: string | null,
-): Promise<{ id: number; sourceUrl: string } | null> {
+): Promise<WpUploadResult> {
+  // ⚠ Never a silent null. Six publish reports said "featuredUploadFailed"
+  // (2026-08-12 → 09-16) before a probe showed the host answering 413 to a
+  // 4.7 MB PNG — the status was right there and this function threw it away.
   try {
-    if (!bytes.byteLength || bytes.byteLength > 15 * 1024 * 1024) return null;
+    if (!bytes.byteLength) return { ok: false, error: "no bytes" };
+    if (bytes.byteLength > 15 * 1024 * 1024) return { ok: false, error: `file is ${Math.round(bytes.byteLength / 1048576)} MB — over the 15 MB cap` };
     const name = filename;
     // Copy into a plain ArrayBuffer: TS's BodyInit doesn't accept a bare
     // Uint8Array view (it may sit over a SharedArrayBuffer).
@@ -357,7 +364,11 @@ export async function wpUploadMediaBytes(
       body: buf,
       signal: AbortSignal.timeout(60000),
     });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      const said = (() => { try { return (JSON.parse(text) as { message?: string }).message; } catch { return undefined; } })();
+      return { ok: false, error: `HTTP ${res.status}${res.status === 413 ? " Payload Too Large — the host's upload limit is below this file" : ""}${said ? `: ${said.slice(0, 160)}` : ""}` };
+    }
     const media = (await res.json()) as { id: number; source_url: string };
 
     if (altText?.trim()) {
@@ -368,8 +379,8 @@ export async function wpUploadMediaBytes(
         signal: AbortSignal.timeout(15000),
       }).catch(() => {});
     }
-    return { id: media.id, sourceUrl: media.source_url };
-  } catch {
-    return null;
+    return { ok: true, id: media.id, sourceUrl: media.source_url };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? `${e.name}: ${e.message.slice(0, 200)}` : String(e) };
   }
 }
