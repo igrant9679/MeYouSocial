@@ -312,6 +312,12 @@ export const HELP_CATEGORIES: FaqCategory[] = [
         tags: ["publish", "blocked", "gates", "images", "citations"],
       },
       {
+        q: "Where do the search volumes on the keyword page come from?",
+        a: "From a **search-data provider** you connect under **Publish Admin → API keys**: **DataForSEO** (login:password; Google Ads volume, up to 1,000 phrases a refresh) or **Keywords Everywhere** (an API key; one credit per phrase). With a key in place, **Refresh volumes** on Ideas → Keywords fetches monthly volume, a 12-month trend, competition (0–100) and CPC for every active keyword, for the country you pick; a newly added or AI-discovered keyword is looked up on the spot. Without a key the columns show a dash — the app never invents a number, and intent/cluster labels stay AI-classified either way. The assistant can run the same refresh (`refresh_keyword_volumes`) and reads the numbers back in `list_keywords`.",
+        links: [{ label: "Keywords →", href: "/blog/keywords" }, { label: "API keys →", href: "/admin/api-keys" }],
+        tags: ["keywords", "search volume", "dataforseo", "keywords everywhere", "competition", "cpc", "seo"],
+      },
+      {
         q: "What are the 7 Motifs?",
         a: "The tone engine. Each motif (Visionary, Competitive, Succinct, Sincere, Exclusive, Social, Informative) is an editable, versioned style directive that steers every generation. Pick a single motif or a weighted blend per post — the strongest weight sets structure and voice, the rest color the intro and CTA. Configure directives, defaults by tier/audience, and per-channel mappings under **Blog → Brand**.",
         links: [{ label: "Brand & motifs →", href: "/blog/brand" }],

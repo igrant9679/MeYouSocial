@@ -224,12 +224,34 @@ export const TOOLS: Tool[] = [
   },
   {
     name: "list_keywords",
-    description: "The keyword strategy: phrase, tier (1 head … 4 long-tail), intent, cluster.",
+    description: "The keyword strategy: phrase, tier (1 head … 4 long-tail), intent, cluster, and — when a search-data provider is connected — monthly volume, competition (0–100) and CPC. A missing volume means not fetched or no provider, never zero.",
     args: { limit: "optional, default 30" },
     readOnly: true,
     async run(a, ctx) {
-      const rows = await db.keyword.findMany({ where: { workspaceId: ctx.workspaceId }, orderBy: [{ tier: "asc" }, { phrase: "asc" }], take: num(a.limit, 30, 100) });
-      return rows.length ? rows.map((k) => `${k.phrase} (tier ${k.tier}${k.intent ? `, ${k.intent}` : ""}${k.cluster ? `, ${k.cluster}` : ""})`).join("\n") : "no keywords yet — discover_keywords or add_keyword";
+      const rows = await db.keyword.findMany({ where: { workspaceId: ctx.workspaceId }, orderBy: [{ volume: { sort: "desc", nulls: "last" } }, { tier: "asc" }, { phrase: "asc" }], take: num(a.limit, 30, 100) });
+      if (!rows.length) return "no keywords yet — discover_keywords or add_keyword";
+      const measured = rows.some((k) => k.volumeAt);
+      const lines = rows.map((k) => {
+        const data = k.volume != null
+          ? `, ${k.volume.toLocaleString()}/mo${k.competition != null ? `, competition ${Math.round(k.competition * 100)}` : ""}${k.cpc != null ? `, cpc $${k.cpc.toFixed(2)}` : ""}`
+          : k.volumeAt ? ", no volume data" : "";
+        return `${k.phrase} (tier ${k.tier}${k.intent ? `, ${k.intent}` : ""}${k.cluster ? `, ${k.cluster}` : ""}${data})`;
+      });
+      return (measured ? `volumes from ${rows.find((k) => k.volumeSource)?.volumeSource ?? "the search-data provider"}\n` : "no search volumes — refresh_keyword_volumes fetches them when a provider is connected\n") + lines.join("\n");
+    },
+  },
+  {
+    name: "refresh_keyword_volumes",
+    description: "Fetch real monthly search volume, CPC and competition for every active keyword from the connected search-data provider (DataForSEO or Keywords Everywhere; spends the vendor's credits). Lands on /blog/keywords. Refuses when no provider key is set.",
+    args: {},
+    confirm: true,
+    async run(_a, ctx) {
+      const { syncKeywordVolumes } = await import("@/lib/keyword-volumes");
+      const res = await syncKeywordVolumes(ctx.workspaceId);
+      if (res.ok) return `${res.vendor} returned volumes for ${res.updated} keywords (${res.noData} with no data), country ${res.country} — /blog/keywords`;
+      if (res.reason === "no_provider") return "no search-data provider — an admin adds a DataForSEO or Keywords Everywhere key at /admin/api-keys";
+      if (res.reason === "nothing_to_fetch") return "no active keywords to look up";
+      return `refresh failed: ${res.error}`;
     },
   },
   {

@@ -38,6 +38,22 @@ const EXPECTED_PREFIX: Record<string, { prefix: string; label: string }> = {
 export function checkKeyFormat(provider: string, value: string): KeyFormatProblem | null {
   if (!value) return null;
 
+  // DataForSEO has no API key: it authenticates with the account login (an
+  // email) and an API password, which we store as one `login:password` value.
+  // The universal checks below would refuse it for containing "@", so it gets
+  // its own shape check instead.
+  if (provider === "dataforseo") {
+    if (/\s/.test(value)) return { reason: "That contains a space or line break." };
+    const i = value.indexOf(":");
+    if (i < 1 || i === value.length - 1) {
+      return {
+        reason: "DataForSEO needs both halves as one value: login:password.",
+        hint: "app.dataforseo.com → API Access shows the login (your email) and the API password — paste them joined by a colon.",
+      };
+    }
+    return null;
+  }
+
   // Universal red flags. These are not vendor-specific guesses — no API key of
   // any vendor is a URL, and none contains whitespace.
   if (/^https?:\/\//i.test(value)) {

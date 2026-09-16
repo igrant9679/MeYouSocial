@@ -1170,7 +1170,7 @@ _The one-line explanations that appear when you hover a control or a rail entry.
 
 - **/blog** — Every article, at whatever stage it's reached. The badge counts the ones waiting on you.
 - **/blog/ideas** — Article ideas — now on the one Ideas board, filtered to articles.
-- **/blog/keywords** — The phrases you're targeting, grouped into clusters — labelled by intent, with no invented search volumes.
+- **/blog/keywords** — The phrases you’re targeting, grouped into clusters — labelled by intent, with monthly volume and competition from a connected search-data provider (a dash until one is).
 - **/blog/experts** — Subject-matter expert profiles, so a draft can be written in a named person's voice and credentials.
 - **/blog/audit** — Existing content flagged for refresh or repair.
 - **/blog/analytics** — Search and traffic for published articles. Needs Search Console and GA4 connected.

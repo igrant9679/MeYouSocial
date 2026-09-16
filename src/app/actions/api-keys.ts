@@ -48,7 +48,9 @@ export async function saveMediaSettingAction(formData: FormData) {
   redirect(`/admin/api-keys?ok=${encodeURIComponent(setting)}`);
 }
 
-const SEARCH_VENDORS = ["tavily", "serper"] as const;
+// Web search (tavily, serper — lib/search) and search data / keyword volume
+// (dataforseo, keywordseverywhere — lib/search-data) share this one save path.
+const SEARCH_VENDORS = ["tavily", "serper", "dataforseo", "keywordseverywhere"] as const;
 
 /** Admin-only: save / clear a search provider key (same DB-first pattern). */
 export async function saveSearchKeyAction(formData: FormData) {

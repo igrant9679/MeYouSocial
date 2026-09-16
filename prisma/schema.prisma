@@ -282,6 +282,14 @@ model Keyword {
   cluster     String?  // topical cluster name
   notes       String?
   status      String   @default("active") // active | paused
+  // Search data from a real provider (lib/search-data) — never invented.
+  // Null = not fetched (no provider, or the vendor had no row for the phrase).
+  volume       Int?      // average monthly searches
+  cpc          Float?    // in the vendor's currency (USD as configured)
+  competition  Float?    // 0..1, the vendor's paid-competition index
+  trend        String?   // JSON [{year, month, volume}] oldest → newest, ≤12
+  volumeSource String?   // "dataforseo · us" — vendor and country the numbers came from
+  volumeAt     DateTime?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

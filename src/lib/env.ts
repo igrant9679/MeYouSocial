@@ -56,6 +56,9 @@ export const env = {
   USE_MOCK_SEARCH: bool(process.env.USE_MOCK_SEARCH, false),
   TAVILY_API_KEY: str(process.env.TAVILY_API_KEY),
   SERPER_API_KEY: str(process.env.SERPER_API_KEY),
+  // Search data (keyword volume) — lib/search-data. DataForSEO is `login:password`.
+  DATAFORSEO_AUTH: str(process.env.DATAFORSEO_AUTH),
+  KEYWORDS_EVERYWHERE_API_KEY: str(process.env.KEYWORDS_EVERYWHERE_API_KEY),
   // NOTE: there is deliberately no USE_MOCK_EMAIL and no USE_MOCK_PRODUCTION.
   // Both existed, both defaulted true, and both were read by NOTHING — while the
   // UI and a code comment told operators to set them false to "send for real" /

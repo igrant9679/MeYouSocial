@@ -203,15 +203,18 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
         <div>
           <h1 className="font-mono font-bold text-lg leading-tight">Search API keys</h1>
           <p className="text-xs text-[var(--mute)]">
-            One key turns on real web search: content-gap analysis, competitor comparison, research.
-            Tavily is checked first, then Serper. No env changes needed — takes effect within ~30s.
+            A web-search key turns on live search: content-gap analysis, competitor comparison, research, sourcing claims
+            (Tavily is checked first, then Serper). A search-data key puts real monthly volume, CPC and competition on the
+            keyword strategy (DataForSEO first, then Keywords Everywhere). No env changes needed — takes effect within ~30s.
           </p>
         </div>
       </div>
       {(
         [
-          { vendor: "tavily", label: "Tavily", envVar: "TAVILY_API_KEY", envValue: env.TAVILY_API_KEY, helpUrl: "https://app.tavily.com", helpText: "app.tavily.com (free tier available)" },
-          { vendor: "serper", label: "Serper (Google results)", envVar: "SERPER_API_KEY", envValue: env.SERPER_API_KEY, helpUrl: "https://serper.dev", helpText: "serper.dev (free tier available)" },
+          { vendor: "tavily", label: "Tavily", envVar: "TAVILY_API_KEY", envValue: env.TAVILY_API_KEY, helpUrl: "https://app.tavily.com", helpText: "app.tavily.com (free tier available)", note: "Web search." },
+          { vendor: "serper", label: "Serper (Google results)", envVar: "SERPER_API_KEY", envValue: env.SERPER_API_KEY, helpUrl: "https://serper.dev", helpText: "serper.dev (free tier available)", note: "Web search." },
+          { vendor: "dataforseo", label: "DataForSEO (keyword volume)", envVar: "DATAFORSEO_AUTH", envValue: env.DATAFORSEO_AUTH, helpUrl: "https://app.dataforseo.com/api-access", helpText: "app.dataforseo.com → API Access", note: "Search data: Google Ads monthly volume, CPC and competition for the keyword strategy, up to 1,000 phrases per refresh. Paste login and API password as one value: login:password." },
+          { vendor: "keywordseverywhere", label: "Keywords Everywhere (keyword volume)", envVar: "KEYWORDS_EVERYWHERE_API_KEY", envValue: env.KEYWORDS_EVERYWHERE_API_KEY, helpUrl: "https://keywordseverywhere.com/api-documentation.html", helpText: "keywordseverywhere.com → API", note: "Search data: Google Keyword Planner volume, CPC and competition, 100 phrases per call, one credit per phrase. Used when no DataForSEO login is set." },
         ] as const
       ).map((row) => {
         const dbVal = byKey.get(`api_key:${row.vendor}`) ?? "";
@@ -234,6 +237,7 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
                   ) : null}
                 </div>
                 <div className="text-[11px] text-[var(--mute)] font-mono mt-0.5">{row.envVar}</div>
+                <div className="text-[11px] text-[var(--mute)] mt-0.5">{row.note}</div>
                 {dbVal && <div className="text-[11px] font-mono text-[var(--mute)] mt-0.5">Current: {mask(dbVal)}</div>}
                 <StoredKeyWarning provider={row.vendor} value={dbVal} />
                 <Link href={row.helpUrl} target="_blank" rel="noopener noreferrer" className="text-[11px] inline-flex items-center gap-1 mt-1" style={{ color: "var(--accent)" }}>

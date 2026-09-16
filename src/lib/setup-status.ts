@@ -22,12 +22,14 @@ const hasValue = (v: string | null | undefined) => !!(v && v.trim());
 
 export async function connectionRows(workspaceId: string): Promise<ConnRow[]> {
   const [
-    llmKeys, tavily, serper, elevenlabs, heygen, youtube, imageProvider, videoProvider, ttsProvider, storageRow,
+    llmKeys, tavily, serper, dataforseo, keywordsEverywhere, elevenlabs, heygen, youtube, imageProvider, videoProvider, ttsProvider, storageRow,
     social, socialConnected, mailboxes, wp, gscSite, gaToken, channels, ytChannels,
   ] = await Promise.all([
     Promise.all(KEY_PROVIDERS.map(async (p) => ({ p, ok: hasValue(await getApiKey(p, workspaceId).catch(() => "")) }))),
     getSetting("api_key:tavily", workspaceId).catch(() => ""),
     getSetting("api_key:serper", workspaceId).catch(() => ""),
+    getSetting("api_key:dataforseo", workspaceId).catch(() => ""),
+    getSetting("api_key:keywordseverywhere", workspaceId).catch(() => ""),
     getSetting("api_key:elevenlabs", workspaceId).catch(() => ""),
     getSetting("api_key:heygen", workspaceId).catch(() => ""),
     getSetting("api_key:youtube", workspaceId).catch(() => ""),
@@ -57,6 +59,11 @@ export async function connectionRows(workspaceId: string): Promise<ConnRow[]> {
       key: "search", label: "Live web search (citations)", href: "/admin/api-keys",
       state: hasValue(tavily) || hasValue(serper) ? "ok" : "missing",
       detail: [hasValue(tavily) && "Tavily", hasValue(serper) && "Serper"].filter(Boolean).join(" · ") || "no search key — [NEEDS SOURCE] claims cannot be auto-sourced",
+    },
+    {
+      key: "search-data", label: "Keyword volume (search data)", href: "/admin/api-keys",
+      state: hasValue(dataforseo) || hasValue(keywordsEverywhere) ? "ok" : "missing",
+      detail: [hasValue(dataforseo) && "DataForSEO", hasValue(keywordsEverywhere) && "Keywords Everywhere"].filter(Boolean).join(" · ") || "no search-data key — the keyword strategy shows no volume or competition (optional)",
     },
     {
       key: "images", label: "Images", href: "/admin/api-keys",

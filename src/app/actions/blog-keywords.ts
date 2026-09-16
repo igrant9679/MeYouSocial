@@ -1,17 +1,44 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { requireRole } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { llm } from "@/lib/llm";
 import { isGloballyPaused, writeAudit } from "@/lib/governance";
+import { setWorkspaceSetting } from "@/lib/settings";
+import { isSearchDataCountry, searchDataVendorLabel } from "@/lib/search-data";
+import { keywordCountry, syncKeywordVolumes, syncNewPhrases } from "@/lib/keyword-volumes";
 
 /**
- * Keyword strategy (Wave A′). Honesty rule: we have no search-volume data
- * source, so tiers/intent/clusters are strategy labels — tier is editorial
- * priority (1 head … 4 long-tail), intent and clusters are LLM-classified and
- * the UI says so. Real volume/difficulty arrives with a search-data provider.
+ * Keyword strategy (Wave A′). Honesty rule: tier is editorial priority (1 head
+ * … 4 long-tail), intent and clusters are LLM-classified and the UI says so.
+ * Volume / CPC / competition come ONLY from a real search-data provider
+ * (lib/search-data: DataForSEO or Keywords Everywhere, via
+ * lib/keyword-volumes) — with no key they stay null and render as a dash with
+ * the reason. Nothing here invents a number.
  */
+
+/** The Refresh button: optionally records the country, then syncs every active keyword. */
+export async function refreshKeywordVolumesAction(formData: FormData) {
+  const { workspace } = await requireRole("EDITOR");
+  const country = String(formData.get("country") ?? "").trim().toLowerCase();
+  if (country && isSearchDataCountry(country) && country !== (await keywordCountry(workspace.id))) {
+    await setWorkspaceSetting(workspace.id, "keywords:country", country);
+  }
+  const res = await syncKeywordVolumes(workspace.id);
+  revalidatePath("/blog/keywords");
+  if (res.ok) {
+    redirect(`/blog/keywords?ok=${encodeURIComponent(`${searchDataVendorLabel(res.vendor)} returned volumes for ${res.updated} keyword${res.updated === 1 ? "" : "s"}${res.noData ? ` (${res.noData} with no data)` : ""}.`)}`);
+  }
+  const msg =
+    res.reason === "no_provider"
+      ? "No search-data provider is connected. Add a DataForSEO or Keywords Everywhere key under Publish Admin → API keys."
+      : res.reason === "nothing_to_fetch"
+        ? "No active keywords to look up."
+        : `Volume refresh failed: ${res.error ?? "unknown error"}`;
+  redirect(`/blog/keywords?err=${encodeURIComponent(msg)}`);
+}
 
 export async function addKeywordAction(formData: FormData) {
   const phrase = String(formData.get("phrase") ?? "").trim().toLowerCase();
@@ -23,6 +50,7 @@ export async function addKeywordAction(formData: FormData) {
     update: { tier },
     create: { workspaceId: workspace.id, phrase, tier, cluster: String(formData.get("cluster") ?? "").trim() || null },
   });
+  await syncNewPhrases(workspace.id, [phrase]);
   revalidatePath("/blog/keywords");
 }
 
@@ -65,7 +93,7 @@ export async function discoverKeywordsAction() {
     "You are an SEO strategist. Respond ONLY with a JSON array: " +
     '[{"phrase": string, "tier": 1|2|3|4, "intent": "informational"|"commercial"|"transactional"|"navigational", "cluster": string}]. ' +
     "Tier 1 = head terms, 4 = specific long-tail. Cluster = short topical group name. " +
-    "No search-volume numbers — you do not have that data. Lowercase phrases.";
+    "No search-volume numbers — you do not have that data (a search-data provider fills them in afterwards). Lowercase phrases.";
   const prompt = [
     org?.description
       ? `Organization: ${org.description}${org.industry ? ` Industry: ${org.industry}.` : ""}${org.audience ? ` Audience: ${org.audience}.` : ""}`
@@ -91,9 +119,11 @@ export async function discoverKeywordsAction() {
     rows = [];
   }
   let created = 0;
+  const written: string[] = [];
   for (const r of rows.slice(0, 12)) {
     const phrase = typeof r.phrase === "string" ? r.phrase.trim().toLowerCase().slice(0, 120) : "";
     if (!phrase) continue;
+    written.push(phrase);
     await db.keyword.upsert({
       where: { workspaceId_phrase: { workspaceId: workspace.id, phrase } },
       update: {},
@@ -113,6 +143,8 @@ export async function discoverKeywordsAction() {
     entityType: "keyword",
     meta: { created },
   });
+  // The model proposes phrases; only the provider may attach numbers to them.
+  await syncNewPhrases(workspace.id, written);
   revalidatePath("/blog/keywords");
 }
 
