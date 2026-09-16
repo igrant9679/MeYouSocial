@@ -72,13 +72,16 @@ export async function autoReviewCore(workspaceId: string, postId: string): Promi
 
 // Brand-aware on purpose: a render for CommunityForce came back branded
 // "GRYPHON & BISHOP EST. 1876" — an invented company — and a reviewer that
-// doesn't know whose image it is cannot call that a defect.
+// doesn't know whose image it is cannot call that a defect. Since 2026-09-16
+// the lockup is composited by us (lib/images/lockup) in the bottom-left
+// corner, so the reviewer is told exactly what to expect there and that
+// anything else legible is the model's — and a defect.
 const reviewPrompt = (brandName: string) =>
   "You are reviewing an AI-generated marketing image before publication. Look for concrete defects only: " +
   "text or a logo that is CUT OFF by the frame edge or partially hidden; garbled, misspelled or nonsense lettering; " +
   "watermark or artifact patterns; or heavy visual glitches. " +
-  `The image belongs to the brand "${brandName}" — the ONLY acceptable readable text is that brand's own lockup; ` +
-  "any other company name, invented brand, or unrelated wording is a defect. Tasteful abstract imagery with no text is fine. " +
+  `The image belongs to the brand "${brandName}". Its lockup — a small dark rounded pill in the BOTTOM-LEFT corner holding the brand's mark and the name "${brandName}" in clean white type — is added by the publisher and is correct; do not report it. ` +
+  "ANY other readable text, logo, badge, sign, or company name anywhere else in the image was painted by the model and is a defect, whatever it says. Imagery with no text outside that pill is fine. " +
   'Reply ONLY with JSON: {"ok": boolean, "problems": [string]} — ok=false whenever any defect above is visible.';
 
 async function autoReviewImages(workspaceId: string, postId: string, postTitle: string): Promise<number> {

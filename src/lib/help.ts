@@ -318,6 +318,12 @@ export const HELP_CATEGORIES: FaqCategory[] = [
         tags: ["keywords", "search volume", "dataforseo", "keywords everywhere", "competition", "cpc", "seo"],
       },
       {
+        q: "Why does the OG image carry a dark pill with my logo — and why is there no text in the picture itself?",
+        a: "Because the app puts the brand on the image, not the AI. Image models cannot spell a name they were only told — for weeks every branded render came back with a lockup for a company that does not exist — so since 2026-09-16 the model paints a **text-free** scene and the app composites the real lockup afterwards: your workspace logo (when it is at least 96px) and your workspace name in clean type, bottom-left, on a translucent pill. The Open Graph image always gets it; the featured image only when **Brand → Asset policy → brand in body images** is on. The reviewer knows that pill is ours and rejects any *other* lettering the model painted. If the composite ever fails (no logo file, a bad image), the OG lands **unbranded** and the publish gate holds it rather than pretending — regenerate it, or tick *branded* on the card if you have added the mark yourself. To change the mark, upload a logo under Settings → Workspace (200px or larger works best).",
+        links: [{ label: "Brand & asset policy →", href: "/blog/brand" }],
+        tags: ["og image", "lockup", "logo", "branded", "images", "gate"],
+      },
+      {
         q: "What are the 7 Motifs?",
         a: "The tone engine. Each motif (Visionary, Competitive, Succinct, Sincere, Exclusive, Social, Informative) is an editable, versioned style directive that steers every generation. Pick a single motif or a weighted blend per post — the strongest weight sets structure and voice, the rest color the intro and CTA. Configure directives, defaults by tier/audience, and per-channel mappings under **Blog → Brand**.",
         links: [{ label: "Brand & motifs →", href: "/blog/brand" }],

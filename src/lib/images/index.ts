@@ -54,6 +54,13 @@ export type ImageGenRequest = {
    * never turn a paid render into nothing).
    */
   output?: { width: number; height: number };
+  /**
+   * Last step before storing, after the resize: e.g. compositing the brand
+   * lockup (lib/images/lockup). Best-effort like the resize — on a throw the
+   * un-finished bytes are stored and `finished` is false, so the caller can
+   * say "not branded" rather than believe it is.
+   */
+  finish?: (bytes: Buffer) => Promise<Buffer>;
 };
 
 export type ImageGenResult = {
@@ -62,6 +69,8 @@ export type ImageGenResult = {
   height: number;
   /** "mock" | "openai" | "google" — surface this; a placeholder must be nameable. */
   provider: string;
+  /** True when `finish` ran and its output is what was stored. */
+  finished?: boolean;
   /** StorageProvider key for the stored bytes. Absent for the mock, whose
    *  "image" is a hot-linked stock URL with no stored bytes behind it. */
   key?: string;
@@ -121,8 +130,9 @@ async function store(
   provider: string,
   mimeType = "image/png",
   output?: { width: number; height: number },
+  finish?: (bytes: Buffer) => Promise<Buffer>,
 ): Promise<ImageGenResult> {
-  let buf = Buffer.from(bytes);
+  let buf: Buffer = Buffer.from(bytes);
   if (output && output.width > 0 && output.height > 0) {
     try {
       const sharp = (await import("sharp")).default;
@@ -135,11 +145,20 @@ async function store(
       console.warn("[images] output transform failed — storing original bytes:", e instanceof Error ? e.message : e);
     }
   }
+  let finished = false;
+  if (finish) {
+    try {
+      buf = await finish(buf);
+      finished = true;
+    } catch (e) {
+      console.warn("[images] finish step failed — storing un-finished bytes:", e instanceof Error ? e.message : e);
+    }
+  }
   // Measured from what we actually stored, never echoed from the request.
   const [w, h] = dimsOfBytes(buf) ?? dimsFor(aspect);
   const ext = mimeType.includes("jpeg") ? "jpg" : mimeType.includes("webp") ? "webp" : "png";
   const file = await storage.put(`${provider}-${Date.now()}.${ext}`, buf, mimeType);
-  return { url: file.url, width: w, height: h, provider, key: file.key };
+  return { url: file.url, width: w, height: h, provider, key: file.key, finished };
 }
 
 // ── Mock ─────────────────────────────────────────────────────────────────────
@@ -235,11 +254,11 @@ const openaiProvider: ImageProvider = {
     const first = body.data?.[0];
     // gpt-image-1 always returns base64; older models could return a URL, so
     // accept that too rather than breaking on a model swap.
-    if (first?.b64_json) return store(Buffer.from(first.b64_json, "base64"), aspect, "openai", "image/png", req.output);
+    if (first?.b64_json) return store(Buffer.from(first.b64_json, "base64"), aspect, "openai", "image/png", req.output, req.finish);
     if (first?.url) {
       const img = await fetch(first.url, { signal: AbortSignal.timeout(OPENAI_TIMEOUT_MS) });
       if (!img.ok) throw new Error(`Could not download the generated image (HTTP ${img.status}).`);
-      return store(new Uint8Array(await img.arrayBuffer()), aspect, "openai", "image/png", req.output);
+      return store(new Uint8Array(await img.arrayBuffer()), aspect, "openai", "image/png", req.output, req.finish);
     }
     throw new Error("OpenAI returned no image data.");
   },
@@ -306,7 +325,7 @@ const googleProvider: ImageProvider = {
           : "Google returned no image — the prompt may have been refused by its safety filters.",
       );
     }
-    return store(Buffer.from(inline.data, "base64"), aspect, "google", inline.mimeType ?? "image/png", req.output);
+    return store(Buffer.from(inline.data, "base64"), aspect, "google", inline.mimeType ?? "image/png", req.output, req.finish);
   },
 };
 

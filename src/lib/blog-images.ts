@@ -249,21 +249,19 @@ export async function generateImageBriefsCore(workspaceId: string, postId: strin
     motifs,
     brandLine ? `Brand kit: ${brandLine}.` : null,
     post.body ? `Article summary: ${post.body.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").slice(0, 900)}` : null,
-    `The featured image is ${brand.featuredImageWidth}×${brand.featuredImageHeight} and sits at the top of the article; keep it ${
-      brand.brandInBodyImages ? "branded with the logo lockup" : "clean and unbranded"
-    }.`,
-    `The Open Graph image is ${brand.ogImageWidth}×${brand.ogImageHeight} for social and search previews; it is ALWAYS branded — specify where the logo lockup sits and keep the safe area clear of small text.`,
+    `The featured image is ${brand.featuredImageWidth}×${brand.featuredImageHeight} and sits at the top of the article.`,
+    `The Open Graph image is ${brand.ogImageWidth}×${brand.ogImageHeight} for social and search previews.`,
     // ⚠ The provider renders at a coarser size (e.g. 1536×1024) and the
     // pipeline cover-crops to the exact target, cutting the top and bottom
-    // edges. Briefs that placed the lockup at the top edge produced a clipped
-    // logo on EVERY render (found on the first autonomous draft's OG,
-    // 2026-08-25) — the brief writer has to know about the crop.
-    `Placement rule for BOTH images: the final crop removes the top and bottom edges of the frame, so the logo lockup and any text must sit fully within the middle 60% of the frame's height — never in the top fifth or bottom fifth.`,
+    // edges — so the subject must sit in the middle of the frame.
+    `Placement rule for BOTH images: the final crop removes the top and bottom edges of the frame, so the subject and any focal detail must sit within the middle 60% of the frame's height. The brand lockup is NOT part of the render — it is composited afterwards in the bottom-left corner — so leave the bottom-left area visually calm and never describe a logo, wordmark or lockup.`,
     // Image models garble lettering: CF's "sticky notes and simulated
-    // paperwork" briefs produced misspelled nonsense on every render
-    // (2026-08-25, caught twice by the vision review). Don't ask for what the
-    // renderer cannot deliver.
-    `Subject rule: never build the scene from readable text — no documents, forms, sticky notes, whiteboards, screens of writing or signage. Image models garble lettering, and garbled text fails review. The ONLY text allowed anywhere is the brand logo lockup itself — reading EXACTLY the brand's real name, never an invented company (a render once shipped branded "GRYPHON & BISHOP", a business that does not exist); express concepts through objects, materials, light and composition instead.`,
+    // paperwork" briefs produced misspelled nonsense on every render, and
+    // every "place the logo lockup" brief produced a lockup for an INVENTED
+    // company ("GRYPHON & BISHOP", "ARC-TEC MODELING SYSTEMS", "COMPASS",
+    // "QForms" — 2026-08-25 → 09-11, each refused by review). Don't ask for
+    // what the renderer cannot deliver: no text of any kind.
+    `Subject rule: never build the scene from readable text — no documents, forms, sticky notes, whiteboards, screens of writing, signage, badges or labels, and NO brand name, logo or lettering of any kind. Image models garble lettering and invent company names, and either fails review; express concepts through objects, materials, light and composition instead.`,
   ]
     .filter(Boolean)
     .join("\n");
@@ -391,6 +389,25 @@ export async function generateImageCore(workspaceId: string, postId: string, rol
   const spec = specFor(role, brand);
   const ratio = spec.width / spec.height;
   const aspect: "16:9" | "1:1" | "9:16" = ratio > 1.3 ? "16:9" : ratio < 0.85 ? "9:16" : "1:1";
+
+  // Branding is COMPOSITED, never painted (lib/images/lockup): the OG is
+  // always branded, the featured image only when the brand opts in. The
+  // model is told to leave every surface text-free — briefs written before
+  // this change still ask it to "place the logo lockup", so the rule is
+  // appended at render time rather than trusted to the stored brief.
+  const branded = role === "og" || brand.brandInBodyImages;
+  const workspace = branded ? await db.workspace.findUnique({ where: { id: workspaceId }, select: { name: true } }) : null;
+  const finish = branded
+    ? async (bytes: Buffer) => {
+        const { applyBrandLockup, loadBrandLogo } = await import("@/lib/images/lockup");
+        return applyBrandLockup(bytes, { brandName: workspace?.name ?? "", logo: await loadBrandLogo(workspaceId), width: spec.width, height: spec.height });
+      }
+    : undefined;
+  const textRule =
+    "\n\nHard rule: render NO text, letters, numbers, logos, wordmarks, badges or signage anywhere in the image — not even the brand's own name. " +
+    (branded
+      ? "The brand lockup is added afterwards in the bottom-left corner, so keep the bottom-left area visually calm (no focal detail there)."
+      : "Express the idea through objects, materials, light and composition only.");
   // A real provider THROWS rather than substituting a placeholder (see
   // lib/images). This core runs unattended from autopilot, where an uncaught
   // throw would take down the whole cycle — so it degrades to "no image made"
@@ -407,10 +424,11 @@ export async function generateImageCore(workspaceId: string, postId: string, rol
   let out;
   try {
     out = await imageProvider.generate({
-      prompt: brief.slice(0, 1200),
+      prompt: brief.slice(0, 1200) + textRule,
       aspectRatio: aspect,
       workspaceId,
       output: spec,
+      finish,
     });
   } catch (e) {
     console.warn("[blog-images] generation failed:", e instanceof Error ? e.message : e);
@@ -421,16 +439,23 @@ export async function generateImageCore(workspaceId: string, postId: string, rol
   // ✕ it produces cannot be cleared by approving (the trap the user hit on the
   // first real walk-through). The brief's own subject sentence is the default;
   // the reviewer can edit it on the image card.
+  // `branded` is what actually happened: true only when the lockup composite
+  // ran and its bytes were stored. If it failed (no font, a bad logo file),
+  // the OG lands un-branded and the publish gate holds it honestly instead of
+  // trusting a flag — a person can still tick "branded" on the image card.
   const data = {
     url: out.url,
     width: out.width,
     height: out.height,
     source: "ai",
     status: "pending",
-    branded: role === "og",
+    branded: branded && out.finished === true,
     brief: brief.slice(0, 2000),
     altText: altFromBrief(brief),
   };
+  if (branded && out.finished !== true) {
+    console.warn(`[blog-images] ${role} image for ${postId} stored WITHOUT the brand lockup (composite failed) — gate will hold it`);
+  }
   await db.blogImage.upsert({
     where: { postId_role: { postId, role } },
     update: data,
@@ -441,7 +466,7 @@ export async function generateImageCore(workspaceId: string, postId: string, rol
     action: "blog.image_generated",
     entityType: "blog_post",
     entityId: postId,
-    meta: { role, provider: out.provider, status: "pending_review" },
+    meta: { role, provider: out.provider, status: "pending_review", lockup: branded ? (out.finished === true ? "composited" : "FAILED") : "none" },
   });
   return true;
 }
