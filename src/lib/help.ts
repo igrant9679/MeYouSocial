@@ -645,6 +645,12 @@ export const HELP_CATEGORIES: FaqCategory[] = [
         tags: ["engagement", "window", "lifetime", "social stats"],
       },
       {
+        q: "What does the YouTube audit show, and where do its numbers come from?",
+        a: "**Measure → YouTube audit** reads your **own** channel through the YouTube Analytics API (the same connection as Publish Admin → Analytics → YouTube; the channel owner or a Brand Account manager signs in once). Pick 7, 28, 90 or 365 days: tiles for views, watch time, retention (how much of a video people watch), net subscribers, engagement and uploads — each against the window before — a daily views chart, then two columns of findings with the evidence under each: **what needs work** (new uploads under half the window's median, videos that lose viewers well before the typical point, long gaps in uploading — each with a *fix it →* link that asks the assistant for stronger titles and a thumbnail direction) and **what to keep doing** (the videos carrying the channel, the fastest movers by views per hour, the best holders of attention, the strongest subscriber converters, Shorts vs long-form). Below that, every video with a view in the window, with lifetime views/hour. Figures are cached for a day; **Refresh** pulls them again. YouTube's data lags about two days, so the window ends yesterday. **Ask for a plan** opens the assistant on the same numbers for a 90-day plan. **Impressions, click-through rate and estimated revenue are not on the page**: the first two exist only in YouTube Studio, revenue needs a separate monetary consent the connection doesn't ask for — the page says so rather than showing a blank.",
+        links: [{ label: "YouTube audit →", href: "/youtube" }, { label: "Connect YouTube →", href: "/admin/analytics" }],
+        tags: ["youtube", "audit", "channel", "analytics", "retention", "subscribers", "shorts", "ctr", "impressions"],
+      },
+      {
         q: "Insights is empty. Is it broken?",
         a: "Almost certainly not — it needs published content and connected analytics before it has anything to say. Connect Search Console, GA4 or YouTube under Publish Admin → Analytics, and publish a few posts; the panels fill in as the data arrives.",
         links: [{ label: "Publish Admin → Analytics →", href: "/admin/analytics" }],

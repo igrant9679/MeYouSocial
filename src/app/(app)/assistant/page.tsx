@@ -12,6 +12,7 @@ const STARTERS = [
   "Which articles are missing SEO metadata?",
   "What's going out on social this week?",
   "Show me this month's results",
+  "Audit my YouTube channel and give me a 90-day plan",
 ];
 
 /**

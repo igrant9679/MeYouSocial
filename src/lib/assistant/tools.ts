@@ -241,6 +241,32 @@ export const TOOLS: Tool[] = [
     },
   },
   {
+    name: "youtube_audit",
+    description: "The workspace's own YouTube channel over a window (7, 28, 90 or 365 days) from the YouTube Analytics API: views, watch time, retention, subscribers, engagement, uploads, the findings (what needs work / what to keep doing, fastest movers by views/hour) and the top videos. Use it for 'audit my channel', 'why are views down', 'what should I make next on YouTube', a 90-day plan. Says so when YouTube is not connected. Lands on /youtube.",
+    args: { days: "optional: 7 | 28 | 90 (default) | 365", videos: "optional: how many top videos to list, default 10, max 50" },
+    readOnly: true,
+    async run(a, ctx) {
+      const { AUDIT_WINDOWS, youtubeAuditFor, youtubeAuditFindings } = await import("@/lib/youtube/analytics");
+      const d = num(a.days, 90, 365);
+      const days = (AUDIT_WINDOWS as readonly number[]).includes(d) ? (d as 7 | 28 | 90 | 365) : 90;
+      const res = await youtubeAuditFor(ctx.workspaceId, days);
+      if (res.state === "not_connected") return "YouTube is not connected for this workspace — an admin connects it under Publish Admin → Analytics (/admin/analytics); the channel owner or a Brand Account manager must sign in.";
+      if (res.state === "error") return `YouTube did not answer: ${res.message}`;
+      const au = res.audit;
+      const t = au.totals, p = au.prev;
+      const lines = [
+        `${au.channel.title} — ${au.start} to ${au.end} (${days} days; pulled ${au.fetchedAt.slice(0, 16).replace("T", " ")}Z)`,
+        `views ${t.views} (prev ${p.views}) · watch ${Math.round(t.minutesWatched)} min (prev ${Math.round(p.minutesWatched)}) · avg view ${t.avgViewSec == null ? "n/a" : Math.round(t.avgViewSec) + "s"} · retention ${t.avgViewPct == null ? "n/a" : Math.round(t.avgViewPct) + "%"} (prev ${p.avgViewPct == null ? "n/a" : Math.round(p.avgViewPct) + "%"}) · subs +${t.subsGained}/−${t.subsLost} (prev +${p.subsGained}/−${p.subsLost}) · likes ${t.likes} · comments ${t.comments} · shares ${t.shares} · uploads ${au.uploadsInWindow} (prev ${au.uploadsPrev})`,
+        "findings:",
+        ...youtubeAuditFindings(au).map((f) => `- [${f.kind}] ${f.title} — ${f.detail}${f.videos?.length ? ` (${f.videos.map((v) => `"${v.title}" ${v.note}`).join("; ")})` : ""}`),
+        `top videos (${au.videos.length} in window):`,
+        ...au.videos.slice(0, num(a.videos, 10, 50)).map((v) => `- ${v.title} [${v.id}] ${v.views} views in window${v.viewsPerHour != null ? `, ${v.viewsPerHour >= 10 ? Math.round(v.viewsPerHour) : v.viewsPerHour.toFixed(1)} views/hr lifetime` : ""}${v.avgViewPct != null ? `, ${Math.round(v.avgViewPct)}% watched` : ""}, +${v.subsGained} subs${v.isShort ? ", short" : ""}${v.inWindow ? ", new" : ""}`),
+        "not available from the API: impressions and impressions CTR (YouTube Studio only) and estimated revenue (monetary scope not requested). Page: /youtube",
+      ];
+      return lines.join("\n");
+    },
+  },
+  {
     name: "refresh_keyword_volumes",
     description: "Fetch real monthly search volume, CPC and competition for every active keyword from the connected search-data provider (DataForSEO or Keywords Everywhere; spends the vendor's credits). Lands on /blog/keywords. Refuses when no provider key is set.",
     args: {},

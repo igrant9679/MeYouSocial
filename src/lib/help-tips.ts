@@ -152,6 +152,7 @@ export const SOCIAL_TAB_TIPS: Record<string, string> = {
   "/social/approvals": "Posts held for review. Nothing here can be sent until an admin approves it.",
   "/social/engage": "Direct messages and comments Zernio can read. Facebook and Instagram have both; LinkedIn has comments only; X exposes no inbox at all.",
   "/social/performance": "What went out, per network, and the engagement pulled back from each.",
+  "/youtube": "Your own YouTube channel audited over 28, 90 or 365 days — what pulled views, what held attention, what fell flat — from the YouTube Analytics API.",
   "/social/settings": "Moved to Settings → Schedule.",
 };
 

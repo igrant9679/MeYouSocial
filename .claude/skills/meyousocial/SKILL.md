@@ -49,7 +49,7 @@ This skill makes any Claude an expert operator of the app: as a *user* (what eve
 | Review `/review` | What waits on a person after auto-review did what it could. | The Inbox's review subset (same cards). Tabs: Approvals · Audit. |
 | Publish `/publish` | What's at final approval, when it goes, what went live. | Rows with Publish now (admin, WordPress connected), **Download HTML** (always), **Mark as published** (admin, no WordPress). Tabs: Website · Blog calendar. |
 | Distribute `/distribute` | The social queue and accounts. | Accounts with health (coloured by real trouble), this stage's Needs you / Worth knowing, the queue in the workspace's zone, recently published (failed legs called out). Tabs: Compose · Calendar · Engage. |
-| Measure `/measure` | Measured numbers only. | Impressions/clicks chart, tracked posts with position deltas. Tabs: Reports · Insights · Blog analytics · Blog report · Social performance. |
+| Measure `/measure` | Measured numbers only. | Impressions/clicks chart, tracked posts with position deltas. Tabs: Reports · Insights · Blog analytics · Blog report · Social performance · YouTube audit (`/youtube`: the own channel over 7/28/90/365 days from the YouTube Analytics API — tiles (views, watch time, retention, subs, engagement, uploads) vs the previous window, daily views, findings "needs work / keep doing" with evidence (fastest movers = lifetime views/hour), every video in the window with views/hr, "Ask for a plan" and per-video "fix it →" into the assistant; cached a day, Refresh pulls live; impressions/CTR/revenue are not in the API-as-connected and the page says so). |
 | Settings `/setup` | Every dial, under the question it answers. | Overview sentences per question. Tabs: People · Automation · Schedule · Connections. Plus the **Video studio** switch. |
 | Channels `/channels` | YouTube channels (the video side's unit). | Per channel: Home, Audience, Voice, Templates, Memory, Submissions, Settings (its own sub-nav; the stage strip takes over on Scripts / Competitors / Research). Switcher on the channel header when there is more than one. |
 | Brand `/brand` | Identity: colours, company info, personas, topics, keywords, connected accounts. | Strip tabs: Tone & motifs (`/blog/brand`, the 7 Motifs + brand kit + image specs + AI brand context) · Organization (`/blog/organization`). |
@@ -69,7 +69,7 @@ This skill makes any Claude an expert operator of the app: as a *user* (what eve
 - Review: `/social/approvals` · `/blog/audit` (content audit: refresh / merge / retire recommendations).
 - Publish: `/website` (WordPress connection, theme template) · `/blog/calendar` · `/blog/[id]/export` (self-contained HTML; `?fragment=1` = body only).
 - Distribute: `/social/compose` · `/social/calendar` (slot grid; drag; queue) · `/social/engage` (comments, DMs, reviews — the 24-hour DM window) · `/social/[id]/edit`.
-- Measure: `/reports`, `/reports/[key]`, `/reports/[key]/pdf` · `/insights` · `/blog/analytics` · `/blog/report` · `/social/performance`.
+- Measure: `/reports`, `/reports/[key]`, `/reports/[key]/pdf` · `/insights` · `/blog/analytics` · `/blog/report` · `/social/performance` · `/youtube` (channel audit, `lib/youtube/analytics.ts`).
 - Setup: `/setup`, `/setup/people`, `/setup/automation`, `/setup/schedule`, `/setup/connections` · `/channels`, `/channels/[id]/…` · `/brand`, `/blog/brand`, `/blog/organization` · `/admin/*`.
 - Onboarding: `/onboarding/channel/new` (wizard: niche, style, YouTube link, competitors, differentiation → voice + audience + 10 starter ideas in the background).
 

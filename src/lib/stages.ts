@@ -100,6 +100,7 @@ export const STAGES: Record<(typeof STAGE_HREFS)[number], StageDef> = {
       { href: "/blog/analytics", label: "Blog analytics" },
       { href: "/blog/report", label: "Blog report" },
       { href: "/social/performance", label: "Social performance" },
+      { href: "/youtube", label: "YouTube audit" },
     ],
   },
   "/brand": {
@@ -131,7 +132,7 @@ export function stageFor(pathname: string): (typeof STAGE_HREFS)[number] | null 
   if (/^\/blog\/(keywords|experts)(\/|$)/.test(p) || /^\/channels\/[^/]+\/ideas(\/|$)/.test(p)) return "/ideas";
   if (/^\/social\/approvals(\/|$)/.test(p) || /^\/blog\/audit(\/|$)/.test(p)) return "/review";
   if (/^\/website(\/|$)/.test(p) || /^\/blog\/(calendar|automation)(\/|$)/.test(p)) return "/publish";
-  if (/^\/(reports|insights)(\/|$)/.test(p) || /^\/blog\/(analytics|report)(\/|$)/.test(p) || /^\/social\/performance(\/|$)/.test(p)) return "/measure";
+  if (/^\/(reports|insights|youtube)(\/|$)/.test(p) || /^\/blog\/(analytics|report)(\/|$)/.test(p) || /^\/social\/performance(\/|$)/.test(p)) return "/measure";
   if (/^\/social(\/|$)/.test(p)) return "/distribute";
   if (/^\/(scripts|thumbnails|videos|production)(\/|$)/.test(p) || /^\/channels\/[^/]+\/scripts(\/|$)/.test(p) || /^\/blog(\/|$)/.test(p)) return "/drafts";
   return null;
