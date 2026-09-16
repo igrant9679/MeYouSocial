@@ -2,7 +2,7 @@ import Link from "next/link";
 import { requireMembership, canEdit } from "@/lib/acl";
 import { getActiveChannel } from "@/lib/channel";
 import { db } from "@/lib/db";
-import { intelThumbUrl, outlierBand, formatNum } from "@/lib/intel";
+import { intelThumbUrl, outlierBand, formatNum, formatVph } from "@/lib/intel";
 import { ChannelAvatar } from "@/components/ChannelAvatar";
 import { SubmitButton } from "@/components/SubmitButton";
 import { addBlogIdeaAction } from "@/app/actions/blog-ideas";
@@ -51,6 +51,7 @@ export default async function ResearchStage() {
                 <img src={thumb} alt="" className="w-20 h-11 rounded-md object-cover border border-[var(--line)] shrink-0" />
               )}
               <StateChip label={`${v.outlierScore?.toFixed(1)}× ${band.label}`} hue={band.label === "exceptional" ? "brand" : band.label === "strong" ? "amber" : "blue"} />
+              {v.viewsPerHour != null && <StateChip label={`${formatVph(v.viewsPerHour)}/hr`} hue="zebra" />}
               <div className="flex-1 min-w-48">
                 <Link href={`/intel/videos/${v.id}`} className="text-sm font-semibold hover:underline line-clamp-1">{v.title}</Link>
                 <div className="text-[11px] text-[var(--mute)] flex items-center gap-1.5">

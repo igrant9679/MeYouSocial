@@ -84,7 +84,12 @@ async function indexIntelChannel(
   // Outlier score is views over THIS channel's own average — the same
   // definition used for idea seeds. Never a fabricated figure.
   const avg = videos.reduce((a, v) => a + v.views, 0) / Math.max(1, videos.length);
+  const now = Date.now();
   for (const v of videos) {
+    // Views per hour = views ÷ hours since publish, measured NOW (this is the
+    // moment the views were read). Null when the maths can't be done.
+    const hours = v.publishedAt ? (now - Date.parse(v.publishedAt)) / 3_600_000 : NaN;
+    const viewsPerHour = Number.isFinite(hours) && hours > 0 ? Math.round((v.views / Math.max(1, hours)) * 100) / 100 : null;
     await db.intelVideo.upsert({
       where: { intelChannelId_youtubeId: { intelChannelId: upserted.id, youtubeId: v.id } },
       update: { thumbnailUrl: v.thumbnailUrl ?? undefined },
@@ -100,6 +105,7 @@ async function indexIntelChannel(
         thumbnailUrl: v.thumbnailUrl ?? null,
         outlierScore: Math.round((v.views / Math.max(1, avg)) * 10) / 10,
         viewsPerSub: Math.round((v.views / Math.max(1, source.subscribers)) * 100) / 100,
+        viewsPerHour,
       },
     });
   }

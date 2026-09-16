@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, Bookmark, Eye, ThumbsUp, MessageSquare, Calendar } from "lucide-react";
 import { requireMembership } from "@/lib/acl";
 import { db } from "@/lib/db";
-import { outlierBand, viewsPerSubBand, formatNum, intelThumbUrl } from "@/lib/intel";
+import { outlierBand, viewsPerSubBand, formatNum, intelThumbUrl, formatVph } from "@/lib/intel";
 import { ChannelAvatar } from "@/components/ChannelAvatar";
 import { toggleBookmarkAction } from "@/app/actions/bookmarks";
 import { Bot } from "lucide-react";
@@ -102,6 +102,13 @@ export default async function IntelVideoPage({ params }: { params: Promise<{ id:
               <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: band.soft, color: band.color }}>{band.label}</span>
             </div>
             <p className="text-xs text-[var(--mute)] mt-2">Views ÷ avg of surrounding videos on the same channel.</p>
+          </div>
+          <div className="card">
+            <div className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)] mb-1">Views per hour</div>
+            <div className="font-mono font-bold text-2xl" title={video.viewsPerHour == null ? "Not measured — needs views and a publish date" : undefined}>
+              {video.viewsPerHour == null ? "—" : `${formatVph(video.viewsPerHour)}/hr`}
+            </div>
+            <p className="text-xs text-[var(--mute)] mt-2">Views ÷ hours since publish, at the moment the views were read ({video.createdAt.toISOString().slice(0, 10)}). One lifetime average — not a 48-hour pulse.</p>
           </div>
 
           {vsBand && (

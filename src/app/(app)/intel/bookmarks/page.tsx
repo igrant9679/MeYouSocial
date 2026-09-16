@@ -3,7 +3,7 @@ import { Bookmark, ArrowLeft } from "lucide-react";
 import { requireMembership } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { readJson } from "@/lib/db/json";
-import { outlierBand, formatNum } from "@/lib/intel";
+import { outlierBand, formatNum, formatVph } from "@/lib/intel";
 import { ChannelAvatar } from "@/components/ChannelAvatar";
 import { toggleBookmarkAction, updateBookmarkAction } from "@/app/actions/bookmarks";
 import { AiAssist } from "@/components/AiAssist";
@@ -65,7 +65,7 @@ export default async function BookmarksPage() {
   );
 }
 
-function BookmarkRow({ bookmark, kind }: { bookmark: { id: string; tags: string; notes: string | null; intelChannel: { id: string; name: string | null; handle: string | null; subscribers: number | null; thumbnailUrl: string | null } | null; intelVideo: { id: string; title: string; outlierScore: number | null; views: bigint | null; intelChannel: { name: string | null } } | null }; kind: "channel" | "video" }) {
+function BookmarkRow({ bookmark, kind }: { bookmark: { id: string; tags: string; notes: string | null; intelChannel: { id: string; name: string | null; handle: string | null; subscribers: number | null; thumbnailUrl: string | null } | null; intelVideo: { id: string; title: string; outlierScore: number | null; views: bigint | null; viewsPerHour: number | null; intelChannel: { name: string | null } } | null }; kind: "channel" | "video" }) {
   const tags = readJson<string[]>(bookmark.tags, []);
   if (kind === "channel" && bookmark.intelChannel) {
     const c = bookmark.intelChannel;
@@ -93,7 +93,7 @@ function BookmarkRow({ bookmark, kind }: { bookmark: { id: string; tags: string;
       <li className="border-t border-[var(--line)] first:border-t-0 py-3 flex items-center gap-3 flex-wrap">
         <span className="font-mono font-bold text-[11px] px-2 py-1 rounded-md" style={{ background: band.soft, color: band.color }}>{v.outlierScore?.toFixed(1)}x</span>
         <Link href={`/intel/videos/${v.id}`} className="font-semibold text-sm hover:text-[var(--accent)] flex-1 min-w-0 truncate">{v.title}</Link>
-        <span className="text-xs text-[var(--mute)]">{v.intelChannel.name} · {formatNum(v.views)} views</span>
+        <span className="text-xs text-[var(--mute)]">{v.intelChannel.name} · {formatNum(v.views)} views{v.viewsPerHour != null && <span title="Views per hour since publish"> · {formatVph(v.viewsPerHour)}/hr</span>}</span>
         <form action={toggleBookmarkAction}>
           <input type="hidden" name="intelVideoId" value={v.id} />
           <button type="submit" className="btn sm" title="Remove"><Bookmark className="w-3.5 h-3.5" fill="currentColor" /></button>

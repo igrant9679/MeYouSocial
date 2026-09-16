@@ -307,7 +307,7 @@ export const TOOLS: Tool[] = [
     readOnly: true,
     async run(a, ctx) {
       const rows = await db.intelVideo.findMany({ where: { intelChannel: { workspaceId: ctx.workspaceId }, outlierScore: { gte: num(a.minScore, 2, 50) } }, orderBy: { outlierScore: "desc" }, take: num(a.limit, 10, 30), include: { intelChannel: { select: { name: true } } } });
-      return rows.length ? rows.map((v) => `${v.id} ${v.outlierScore?.toFixed(1)}× "${v.title}" — ${v.intelChannel.name} (/intel/videos/${v.id})`).join("\n") : "no outliers indexed yet — add competitors under /intel";
+      return rows.length ? rows.map((v) => `${v.id} ${v.outlierScore?.toFixed(1)}×${v.viewsPerHour != null ? ` · ${v.viewsPerHour >= 10 ? Math.round(v.viewsPerHour) : v.viewsPerHour.toFixed(1)} views/hr` : ""} "${v.title}" — ${v.intelChannel.name} (/intel/videos/${v.id})`).join("\n") : "no outliers indexed yet — add competitors under /intel";
     },
   },
   {
@@ -1128,12 +1128,12 @@ export const TOOLS: Tool[] = [
     args: { intelChannelId: "the Intel channel id (from /intel/channels/<id>)" },
     readOnly: true,
     async run(a, ctx) {
-      const ch = await db.intelChannel.findFirst({ where: { id: str(a.intelChannelId, 40), workspaceId: ctx.workspaceId }, include: { videos: { orderBy: { outlierScore: "desc" }, take: 8, select: { id: true, title: true, outlierScore: true, views: true, publishedAt: true, format: true } } } });
+      const ch = await db.intelChannel.findFirst({ where: { id: str(a.intelChannelId, 40), workspaceId: ctx.workspaceId }, include: { videos: { orderBy: { outlierScore: "desc" }, take: 8, select: { id: true, title: true, outlierScore: true, views: true, viewsPerHour: true, publishedAt: true, format: true } } } });
       if (!ch) return "no such Intel channel in this workspace (list_outliers shows indexed videos; research_competitor finds a new channel)";
       return [
         `${ch.name ?? ch.handle ?? ch.youtubeId}${ch.handle ? ` (${ch.handle})` : ""} — ${ch.subscribers?.toLocaleString() ?? "—"} subscribers, ${ch.videoCount ?? "—"} videos, ${ch.uploadFrequency != null ? `${ch.uploadFrequency.toFixed(1)}/week` : "cadence —"}${ch.category ? `, ${ch.category}` : ""}${ch.lastIndexedAt ? `, indexed ${when(ch.lastIndexedAt)}` : ""}`,
-        `Strongest videos (outlier × = views ÷ this channel's average):`,
-        ...ch.videos.map((v) => `  ${v.id} ${v.outlierScore != null ? `${v.outlierScore.toFixed(1)}×` : "—"} "${v.title}" (${v.views != null ? Number(v.views).toLocaleString() : "—"} views${v.format ? `, ${v.format}` : ""}${v.publishedAt ? `, ${v.publishedAt.toISOString().slice(0, 10)}` : ""}) — intel_video for its transcript`),
+        `Strongest videos (outlier × = views ÷ this channel's average; /hr = views per hour since publish, measured at index time):`,
+        ...ch.videos.map((v) => `  ${v.id} ${v.outlierScore != null ? `${v.outlierScore.toFixed(1)}×` : "—"} "${v.title}" (${v.views != null ? Number(v.views).toLocaleString() : "—"} views${v.viewsPerHour != null ? `, ${v.viewsPerHour >= 10 ? Math.round(v.viewsPerHour) : v.viewsPerHour.toFixed(1)}/hr` : ""}${v.format ? `, ${v.format}` : ""}${v.publishedAt ? `, ${v.publishedAt.toISOString().slice(0, 10)}` : ""}) — intel_video for its transcript`),
       ].join("\n");
     },
   },
@@ -1148,7 +1148,7 @@ export const TOOLS: Tool[] = [
       const t = v.transcript?.trim();
       return [
         `"${v.title}" — ${v.intelChannel.name ?? v.intelChannel.handle} · https://www.youtube.com/watch?v=${v.youtubeId}`,
-        `${v.views != null ? Number(v.views).toLocaleString() : "—"} views · ${v.likes ?? "—"} likes · ${v.comments ?? "—"} comments · ${v.durationSeconds ? `${Math.round(v.durationSeconds / 60)} min` : "—"} · ${v.format ?? ""} · outlier ${v.outlierScore != null ? `${v.outlierScore.toFixed(1)}×` : "not measured"} · published ${v.publishedAt ? v.publishedAt.toISOString().slice(0, 10) : "—"}`,
+        `${v.views != null ? Number(v.views).toLocaleString() : "—"} views · ${v.likes ?? "—"} likes · ${v.comments ?? "—"} comments · ${v.durationSeconds ? `${Math.round(v.durationSeconds / 60)} min` : "—"} · ${v.format ?? ""} · outlier ${v.outlierScore != null ? `${v.outlierScore.toFixed(1)}×` : "not measured"} · ${v.viewsPerHour != null ? `${v.viewsPerHour >= 10 ? Math.round(v.viewsPerHour) : v.viewsPerHour.toFixed(1)} views/hr since publish (lifetime average at index time)` : "views/hr not measured"} · published ${v.publishedAt ? v.publishedAt.toISOString().slice(0, 10) : "—"}`,
         v.description ? `Description: ${v.description.slice(0, 600)}` : "",
         t ? `Transcript (${t.length.toLocaleString()} chars, first ${Math.min(t.length, 7000).toLocaleString()}):\n${t.slice(0, 7000)}` : "Transcript: not fetched (analyze_youtube_video can try YouTube directly)",
       ].filter(Boolean).join("\n");

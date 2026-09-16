@@ -23,6 +23,12 @@ export function outlierBand(score: number | null | undefined): { color: string; 
   return { color: "var(--mute)", soft: "var(--zebra)", label: "under" };
 }
 
+/** Views per hour for display: whole numbers from 10 up, one decimal below. */
+export function formatVph(n: number | null | undefined): string {
+  if (n == null || !Number.isFinite(n)) return "—";
+  return n >= 10 ? formatNum(Math.round(n)) : n.toFixed(1);
+}
+
 // flag fast-growing channels.
 export function isFastGrowing(velocityScore: number | null | undefined): boolean {
   return (velocityScore ?? 0) >= 5;
@@ -43,13 +49,15 @@ export type IntelSearchParams = {
   subsMin?: number;
   subsMax?: number;
   velocityMin?: number;
+  /** Minimum views per hour (IntelVideo.viewsPerHour) — videos only. */
+  vphMin?: number;
   language?: string;
   format?: "short" | "long" | "";
 };
 
 /**
  * Parse advanced query syntax embedded in the free-text q:
- *   subs:>100k  subs:<1m  velocity:>5  engagement:>0.05  views:>1m
+ *   subs:>100k  subs:<1m  velocity:>5  engagement:>0.05  views:>1m  vph:>100
  *   format:short  format:long  lang:en
  * Returns the cleaned text (with the tokens stripped) plus the extracted filters.
  */
@@ -78,6 +86,9 @@ export function parseAdvancedQuery(raw: string): { cleaned: string; extra: Parti
         return "";
       case "views":
         if (op.startsWith(">") && Number.isFinite(v)) extra.viewsMin = v;
+        return "";
+      case "vph":      case "viewsperhour":
+        if (op.startsWith(">") && Number.isFinite(v)) extra.vphMin = v;
         return "";
       case "format":
         if (valRaw === "short" || valRaw === "long") extra.format = valRaw;
@@ -151,6 +162,7 @@ async function searchIntelRaw(params: IntelSearchParams) {
         ? { OR: tokens.map((t) => ({ title: { contains: t, mode: "insensitive" as const } })) }
         : {},
       params.format ? { format: params.format } : {},
+      params.vphMin != null ? { viewsPerHour: { gte: params.vphMin } } : {},
       params.velocityMin != null ? { intelChannel: { velocityScore: { gte: params.velocityMin } } } : {},
       params.language ? { intelChannel: { language: params.language } } : {},
       params.subsMin != null ? { intelChannel: { subscribers: { gte: params.subsMin } } } : {},

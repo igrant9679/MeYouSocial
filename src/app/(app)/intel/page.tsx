@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Telescope, TrendingUp, Bookmark, Sparkles, Eye } from "lucide-react";
 import { requireMembership } from "@/lib/acl";
 import { db } from "@/lib/db";
-import { searchIntel, outlierBand, isFastGrowing, formatNum, intelThumbUrl } from "@/lib/intel";
+import { searchIntel, outlierBand, isFastGrowing, formatNum, intelThumbUrl, formatVph } from "@/lib/intel";
 import { ChannelAvatar } from "@/components/ChannelAvatar";
 import { toggleBookmarkAction } from "@/app/actions/bookmarks";
 import { autoIndexHandleAction, indexSearchResultsAction } from "@/app/actions/intel";
@@ -127,7 +127,7 @@ export default async function IntelPage({ searchParams }: { searchParams: Promis
                       <span className="text-xs text-[var(--mute)] font-mono">{v.format}</span>
                     </div>
                     <div className="font-semibold text-sm leading-snug mb-2 line-clamp-2">{v.title}</div>
-                    <div className="text-xs text-[var(--mute)]">{v.intelChannel.name} · {formatNum(v.views)} views</div>
+                    <div className="text-xs text-[var(--mute)]">{v.intelChannel.name} · {formatNum(v.views)} views{v.viewsPerHour != null && <span title="Views per hour since publish"> · {formatVph(v.viewsPerHour)}/hr</span>}</div>
                   </Link>
                 ))}
               </div>
@@ -221,7 +221,7 @@ export default async function IntelPage({ searchParams }: { searchParams: Promis
                 <div className="flex-1 min-w-0">
                   <div className="font-semibold text-sm truncate">{v.title}</div>
                   <div className="text-xs text-[var(--mute)]">
-                    {v.intelChannel.name} · {formatNum(v.views)} views · {v.format}
+                    {v.intelChannel.name} · {formatNum(v.views)} views{v.viewsPerHour != null && <span title="Views per hour since publish"> · {formatVph(v.viewsPerHour)}/hr</span>} · {v.format}
                     {v.viewsPerSub != null && <span> · v/s {v.viewsPerSub.toFixed(2)}</span>}
                   </div>
                 </div>

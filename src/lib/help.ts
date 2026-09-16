@@ -217,8 +217,8 @@ export const HELP_CATEGORIES: FaqCategory[] = [
     entries: [
       {
         q: "What does outlier score mean?",
-        a: "A video's views ÷ the average views of up to 10 surrounding videos on the same channel. Severity bands: **≥5x exceptional** (red), **2-5x strong** (amber), **1-2x average** (blue), **<1x under** (grey).",
-        tags: ["outlier", "score"],
+        a: "A video's views ÷ the average views of up to 10 surrounding videos on the same channel. Severity bands: **≥5x exceptional** (red), **2-5x strong** (amber), **1-2x average** (blue), **<1x under** (grey).\n\nNext to it, **views per hour** (`/hr`) is the video's views ÷ the hours since it was published, measured when Intel read its views — the pace it moves at, so a week-old video at 40/hr and a three-year-old one at 40/hr are equally fast even though their totals differ enormously. It is one lifetime average, not a 48-hour pulse; the figure is fixed at index time, the same as the view count. Search rows, trending cards, channel pages (sortable by it), video pages and the Research overview show it; `vph:>100` filters the Intel search; a dash means it couldn't be measured.",
+        tags: ["outlier", "score", "views per hour", "vph"],
       },
       {
         q: "Can I use advanced search syntax?",

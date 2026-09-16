@@ -3,7 +3,7 @@ import { Bookmark, ArrowLeft, Eye, Calendar, TrendingUp } from "lucide-react";
 import { notFound } from "next/navigation";
 import { requireMembership } from "@/lib/acl";
 import { db } from "@/lib/db";
-import { outlierBand, isFastGrowing, formatNum, intelThumbUrl } from "@/lib/intel";
+import { outlierBand, isFastGrowing, formatNum, intelThumbUrl, formatVph } from "@/lib/intel";
 import { ChannelAvatar } from "@/components/ChannelAvatar";
 import { toggleBookmarkAction } from "@/app/actions/bookmarks";
 import { findSimilarChannelsAction } from "@/app/actions/intel";
@@ -22,7 +22,7 @@ export default async function IntelChannelPage({ params, searchParams }: { param
     where: { id, workspaceId: workspace.id },
     include: {
       videos: {
-        orderBy: sort === "views" ? { views: "desc" } : { outlierScore: "desc" },
+        orderBy: sort === "views" ? { views: "desc" } : sort === "vph" ? { viewsPerHour: { sort: "desc", nulls: "last" } } : { outlierScore: "desc" },
         take: 20,
       },
     },
@@ -94,6 +94,7 @@ export default async function IntelChannelPage({ params, searchParams }: { param
               <select name="sort" defaultValue={sort} className="border border-[var(--line-2)] rounded-md px-2 py-1 text-xs font-mono">
                 <option value="outlier">Highest outlier</option>
                 <option value="views">Most views</option>
+                <option value="vph">Most views per hour</option>
               </select>
             </form>
           </div>
@@ -114,6 +115,7 @@ export default async function IntelChannelPage({ params, searchParams }: { param
                   <div className="text-xs text-[var(--mute)] flex items-center gap-2">
                     <span><Calendar className="inline w-3 h-3" /> {v.publishedAt?.toISOString().slice(0, 10) ?? "—"}</span>
                     <span>· {formatNum(v.views)} views</span>
+                    {v.viewsPerHour != null && <span title="Views per hour since publish, at the moment the views were measured">· {formatVph(v.viewsPerHour)}/hr</span>}
                     <span>· {v.format}</span>
                   </div>
                 </div>

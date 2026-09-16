@@ -14,7 +14,7 @@
 export const NAV_TIPS: Record<string, string> = {
   "/inbox": "Everything waiting on a person — approvals, questions, claims, images, invitations — with the action on the card, and how the pipeline is doing beneath.",
   "/channels": "One YouTube channel per entry. Each carries its own voice, audience, ideas and scripts — switch channels and the whole app follows.",
-  "/intel": "Research: pull in other people's videos and find the outliers — the ones that beat their own channel's average.",
+  "/intel": "Research: pull in other people's videos and find the outliers — the ones that beat their own channel's average — with views per hour beside each.",
   "/research": "Competitor channels and the outlier videos that beat their own average — Intel, bookmarks, competitors and chat live here. Turn an outlier into an idea from the row.",
   "/ideas": "One stage for every idea: blog ideas by state with approve and draft on the row, and each channel's video ideas a tab away.",
   "/drafts": "Everything being written or rendered — articles drafting or in review, scripts, video renders.",

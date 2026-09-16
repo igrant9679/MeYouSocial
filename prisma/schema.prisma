@@ -1206,6 +1206,11 @@ model IntelVideo {
   transcript      String?  // may be large
   outlierScore    Float?
   viewsPerSub     Float?
+  // Views ÷ hours between publish and the moment `views` was measured — the
+  // pace a video moves at, on average, over its life. Stored at index time
+  // like outlierScore (a stat needs the measurement moment, which is when
+  // this row's views were read). Null when views or publishedAt are unknown.
+  viewsPerHour    Float?
   format          String?  // "short" | "long"
   createdAt       DateTime @default(now())
 
