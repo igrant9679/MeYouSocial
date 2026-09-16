@@ -254,7 +254,10 @@ export async function generateImageBriefsCore(workspaceId: string, postId: strin
     // ⚠ The provider renders at a coarser size (e.g. 1536×1024) and the
     // pipeline cover-crops to the exact target, cutting the top and bottom
     // edges — so the subject must sit in the middle of the frame.
-    `Placement rule for BOTH images: the final crop removes the top and bottom edges of the frame, so the subject and any focal detail must sit within the middle 60% of the frame's height. The brand lockup is NOT part of the render — it is composited afterwards in the bottom-left corner — so leave the bottom-left area visually calm and never describe a logo, wordmark or lockup.`,
+    // ⚠ Do NOT mention the lockup, a logo, or where branding goes — even to
+    // forbid it. A brief that said "the lockup is composited bottom-left"
+    // produced a render with a blank badge painted in that corner.
+    `Placement rule for BOTH images: the final crop removes the top and bottom edges of the frame, so the subject and any focal detail must sit within the middle 60% of the frame's height, and the lower-left quarter of the frame should stay simple and uncluttered (plain surface or soft background).`,
     // Image models garble lettering: CF's "sticky notes and simulated
     // paperwork" briefs produced misspelled nonsense on every render, and
     // every "place the logo lockup" brief produced a lockup for an INVENTED
@@ -403,11 +406,14 @@ export async function generateImageCore(workspaceId: string, postId: string, rol
         return applyBrandLockup(bytes, { brandName: workspace?.name ?? "", logo: await loadBrandLogo(workspaceId), width: spec.width, height: spec.height });
       }
     : undefined;
+  // ⚠ Never tell the model WHERE the lockup will go. The first render under
+  // this rule said "the lockup is added afterwards in the bottom-left" — and
+  // the model painted a small blank badge in exactly that corner (LSI,
+  // 2026-09-16). Naming a logo, even to forbid it, is a placement cue.
   const textRule =
-    "\n\nHard rule: render NO text, letters, numbers, logos, wordmarks, badges or signage anywhere in the image — not even the brand's own name. " +
-    (branded
-      ? "The brand lockup is added afterwards in the bottom-left corner, so keep the bottom-left area visually calm (no focal detail there)."
-      : "Express the idea through objects, materials, light and composition only.");
+    "\n\nHard rule: render NO text, letters, numbers, badges, labels or signage anywhere in the image. " +
+    "Express the idea through objects, materials, light and composition only." +
+    (branded ? " Keep the lower-left quarter of the frame simple and uncluttered — plain surface or soft background, no small objects there." : "");
   // A real provider THROWS rather than substituting a placeholder (see
   // lib/images). This core runs unattended from autopilot, where an uncaught
   // throw would take down the whole cycle — so it degrades to "no image made"
