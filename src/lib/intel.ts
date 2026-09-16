@@ -23,9 +23,12 @@ export function outlierBand(score: number | null | undefined): { color: string; 
   return { color: "var(--mute)", soft: "var(--zebra)", label: "under" };
 }
 
-/** Views per hour for display: whole numbers from 10 up, one decimal below. */
+/** Views per hour for display: whole numbers from 10 up, one decimal below,
+ *  and "<0.1" for the long tail — an old ten-view video is a real 0.0006/hr,
+ *  which must not read as "0.0" (that would be a zero nobody measured). */
 export function formatVph(n: number | null | undefined): string {
   if (n == null || !Number.isFinite(n)) return "—";
+  if (n < 0.05) return "<0.1";
   return n >= 10 ? formatNum(Math.round(n)) : n.toFixed(1);
 }
 

@@ -87,9 +87,12 @@ async function indexIntelChannel(
   const now = Date.now();
   for (const v of videos) {
     // Views per hour = views ÷ hours since publish, measured NOW (this is the
-    // moment the views were read). Null when the maths can't be done.
+    // moment the views were read). Null when the maths can't be done. ⚠ Stored
+    // at full precision: a ten-view video from two years ago is 0.0006/hr,
+    // and rounding to two decimals turned that measured rate into a stored
+    // zero (found on the first real index, 2026-09-16). Display rounds.
     const hours = v.publishedAt ? (now - Date.parse(v.publishedAt)) / 3_600_000 : NaN;
-    const viewsPerHour = Number.isFinite(hours) && hours > 0 ? Math.round((v.views / Math.max(1, hours)) * 100) / 100 : null;
+    const viewsPerHour = Number.isFinite(hours) && hours > 0 ? v.views / Math.max(1, hours) : null;
     await db.intelVideo.upsert({
       where: { intelChannelId_youtubeId: { intelChannelId: upserted.id, youtubeId: v.id } },
       update: { thumbnailUrl: v.thumbnailUrl ?? undefined },
