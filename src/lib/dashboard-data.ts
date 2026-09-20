@@ -182,17 +182,32 @@ export async function autopilotFeed(workspaceId: string, take = 5): Promise<Feed
  * moments, newest first. Titles are resolved so the ticker reads like news,
  * not like log lines.
  */
-export async function tickerEvents(workspaceId: string, take = 12): Promise<Array<{ label: string; tone: FeedEvent["tone"]; href: string | null; at: string }>> {
-  const ACTIONS: Record<string, { verb: string; tone: FeedEvent["tone"] }> = {
-    "blog.draft_generated": { verb: "AUTOPILOT drafted", tone: "info" },
-    "blog.published_wordpress": { verb: "PUBLISHED", tone: "ok" },
-    "blog.drafted_to_wordpress": { verb: "WP DRAFT", tone: "info" },
-    "blog.published": { verb: "PUBLISHED", tone: "ok" },
-    "blog.status_final_approval": { verb: "AT APPROVAL", tone: "info" },
-    "ideas.ai_discovery": { verb: "IDEAS discovered", tone: "info" },
-    "social.variants_generated": { verb: "SOCIAL queued", tone: "info" },
-    "video.rendered": { verb: "RENDERED", tone: "ok" },
-    "video.render_failed": { verb: "RENDER FAILED", tone: "warn" },
+/** One thing the engine did, in words a person can read without a decoder. */
+export type EngineEvent = {
+  /** A plain sentence: "published an article". Never an all-caps token. */
+  what: string;
+  /** What it acted on, when there is one — shown in quotes, full length. */
+  title: string | null;
+  tone: FeedEvent["tone"];
+  href: string | null;
+  at: string;
+};
+
+export async function tickerEvents(workspaceId: string, take = 12): Promise<EngineEvent[]> {
+  // ⚠ Sentences, not tokens. These used to be "RENDERED", "SOCIAL queued",
+  // "AT APPROVAL" — scrolling past in a marquee, one of them truncated to
+  // nonsense, in the most valuable strip on every page. Nobody could say what
+  // "RENDERED 12:13" meant (audit A7). The verb is now what it sounds like.
+  const ACTIONS: Record<string, { what: string; tone: FeedEvent["tone"] }> = {
+    "blog.draft_generated": { what: "drafted an article", tone: "info" },
+    "blog.published_wordpress": { what: "published an article", tone: "ok" },
+    "blog.drafted_to_wordpress": { what: "sent a draft to the website", tone: "info" },
+    "blog.published": { what: "published an article", tone: "ok" },
+    "blog.status_final_approval": { what: "moved an article to final approval", tone: "info" },
+    "ideas.ai_discovery": { what: "found new ideas", tone: "info" },
+    "social.variants_generated": { what: "wrote social posts", tone: "info" },
+    "video.rendered": { what: "finished a video render", tone: "ok" },
+    "video.render_failed": { what: "couldn't finish a video render", tone: "warn" },
   };
   const rows = await db.auditLog.findMany({
     where: { workspaceId, action: { in: Object.keys(ACTIONS) } },
@@ -206,7 +221,10 @@ export async function tickerEvents(workspaceId: string, take = 12): Promise<Arra
     const meta = ACTIONS[r.action]!;
     const title = r.entityType === "blog_post" && r.entityId ? titleOf.get(r.entityId) : undefined;
     return {
-      label: title ? `${meta.verb} “${title.slice(0, 60)}”` : meta.verb,
+      what: meta.what,
+      // Full title, not a 60-character stump. The pill shows one line and the
+      // panel behind it has room for the whole thing.
+      title: title ?? null,
       tone: meta.tone,
       href: r.entityType === "blog_post" && r.entityId ? `/blog/${r.entityId}` : r.entityType === "video_render" ? "/videos" : null,
       at: r.createdAt.toISOString(),

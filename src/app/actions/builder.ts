@@ -8,6 +8,7 @@ import { readJson, writeJson } from "@/lib/db/json";
 import { systemForScript } from "@/lib/canvas/prompts";
 import { countWords, durationSeconds, MAX_WORDS } from "@/lib/canvas/duration";
 import { RESEARCH_DEPTHS } from "@/lib/canvas/builder-const";
+import { cleanTitle } from "@/lib/list-marker";
 
 //..12 — Script Builder Classic. 10-step alternative workflow:
 //   1 Research · 2 Frame · 3 Title · 4 Thumbnail · 5 Hook · 6 Payoffs · 7 Draft · 8 Edit · 9 Export · 10 Publish.
@@ -121,13 +122,16 @@ export async function suggestBuilderTitlesAction(formData: FormData) {
     messages: [{ role: "user", content: `Niche: ${script.channel.nicheDescription}\nFraming: ${JSON.stringify(state.frame)}\nResearch summary: ${state.research.items.map((i) => i.title).join("; ")}\nCurrent working title: ${script.title}` }],
     workspaceId: script.channel.workspaceId,
   });
-  state.titleVariants = completion.content.split("\n").map((s) => s.replace(/^[*\-\d.\s]+/, "").trim()).filter(Boolean).slice(0, 6);
+  // cleanTitle, not /^[*\-\d.\s]+/: the greedy class also ate the sign off a
+  // title that opens with one ("-40% in 30 days" → "40% in 30 days"), and left
+  // wrapping quotes and ** alone (audit A3).
+  state.titleVariants = completion.content.split("\n").map((s) => cleanTitle(s, 200)).filter(Boolean).slice(0, 6);
   await save(scriptId, state);
 }
 
 export async function pickBuilderTitleAction(formData: FormData) {
   const scriptId = String(formData.get("scriptId"));
-  const title = String(formData.get("title") ?? "").trim();
+  const title = cleanTitle(String(formData.get("title") ?? ""), 200);
   if (!title) return;
   const { state } = await load(scriptId);
   state.title = title;

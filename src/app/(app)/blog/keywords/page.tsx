@@ -81,7 +81,10 @@ export default async function KeywordsPage({ searchParams }: { searchParams: Pro
   for (const list of clusters.values()) {
     list.sort((a, b) => (b.volume ?? -1) - (a.volume ?? -1) || a.tier - b.tier || a.phrase.localeCompare(b.phrase));
   }
-  const missingIntent = keywords.filter((k) => !k.intent).length;
+  // Unclassified = no intent OR no cluster. Counting only intent hid the other
+  // half of the problem: 42 rows all sitting in one "unclustered" heap (A4).
+  const unclassified = keywords.filter((k) => !k.intent || !k.cluster).length;
+  const noneClassified = keywords.length > 0 && unclassified === keywords.length;
   const fetched = keywords.filter((k) => k.volumeAt);
   const lastFetch = fetched.reduce<Date | null>((m, k) => (k.volumeAt && (!m || k.volumeAt > m) ? k.volumeAt : m), null);
   const source = fetched[0]?.volumeSource ?? null;
@@ -93,8 +96,11 @@ export default async function KeywordsPage({ searchParams }: { searchParams: Pro
 
   return (
     <main className="p-6 w-full">
-      <Link href="/blog" className="inline-flex items-center gap-1 text-xs text-[var(--mute)] hover:text-[var(--ink)] mb-3">
-        <ArrowLeft className="w-3.5 h-3.5" /> Blog
+      {/* Keywords is a tab of Ideas, so back goes to Ideas. These links still
+          said "Blog" — the pre-September module hierarchy leaking through the
+          stage one, and sending people to the wrong stage (audit B1.6). */}
+      <Link href="/ideas" className="inline-flex items-center gap-1 text-xs text-[var(--mute)] hover:text-[var(--ink)] mb-3">
+        <ArrowLeft className="w-3.5 h-3.5" /> Ideas
       </Link>
       <div className="flex items-center gap-3 mb-1.5">
         <span className="w-12 h-12 rounded-2xl grid place-items-center" style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }}>
@@ -138,10 +144,13 @@ export default async function KeywordsPage({ searchParams }: { searchParams: Pro
               <Sparkles className="w-4 h-4" /> Discover keywords (AI)
             </SubmitButton>
           </form>
-          {missingIntent > 0 && (
+          {/* When some rows are classified this is one tidy-up among several.
+              When NONE are, it is the only thing worth pressing — so it moves
+              out of the toolbar into the banner below and is not repeated. */}
+          {unclassified > 0 && !noneClassified && (
             <form action={classifyIntentsAction}>
               <SubmitButton className="btn" pendingText="Classifying…">
-                <Wand2 className="w-4 h-4" /> Classify intent ({missingIntent})
+                <Wand2 className="w-4 h-4" /> Classify intent ({unclassified})
               </SubmitButton>
             </form>
           )}
@@ -167,9 +176,39 @@ export default async function KeywordsPage({ searchParams }: { searchParams: Pro
         </div>
       )}
 
+      {/* ⚠ The one-action empty state (audit B6/D4). A table of dashes with a
+          quiet secondary button nobody pressed is how 42 CommunityForce
+          keywords sat unclassified for a month. Say what the dashes mean, name
+          the single next step, and make it the primary button on the page. */}
+      {noneClassified && editor && (
+        <div className="card mb-3 flex flex-wrap items-center gap-3" style={{ background: "var(--amber-soft)" }}>
+          <Lightbulb className="w-5 h-5 flex-shrink-0" style={{ color: "var(--amber-on)" }} aria-hidden />
+          <p className="text-xs flex-1 min-w-60" style={{ color: "var(--amber-on)" }}>
+            <strong>None of these {keywords.length} keywords are classified yet.</strong> Intent and clusters are what
+            turn a flat list into a strategy — they decide which ideas get priority. One AI pass fills both.
+          </p>
+          <form action={classifyIntentsAction}>
+            <SubmitButton className="btn primary" pendingText="Classifying…">
+              <Wand2 className="w-4 h-4" /> Classify all {keywords.length}
+            </SubmitButton>
+          </form>
+        </div>
+      )}
+
       {keywords.length === 0 ? (
         <div className="card text-center py-10">
-          <p className="text-sm text-[var(--mute)]">No keywords yet. Discover a starter set with AI — grounded in your organization profile.</p>
+          <p className="text-sm mb-1">No keywords yet.</p>
+          <p className="text-xs text-[var(--mute)] mb-4">
+            Keywords decide which ideas get written first. Discover a starter set grounded in your organization
+            profile, or add one by hand above.
+          </p>
+          {editor && (
+            <form action={discoverKeywordsAction}>
+              <SubmitButton className="btn primary" pendingText="Discovering…">
+                <Sparkles className="w-4 h-4" /> Discover keywords with AI
+              </SubmitButton>
+            </form>
+          )}
         </div>
       ) : (
         [...clusters.entries()].map(([cluster, list]) => (
@@ -209,7 +248,7 @@ export default async function KeywordsPage({ searchParams }: { searchParams: Pro
                               {k.intent}
                             </span>
                           ) : (
-                            <span className="text-[var(--mute)]">—</span>
+                            <Dash reason="Not classified yet — press Classify intent." />
                           )}
                         </td>
                         <td className="py-1.5 pr-3 font-mono text-right">

@@ -74,8 +74,8 @@ export default async function BlogReportPage() {
 
   return (
     <main className="p-6 w-full">
-      <Link href="/blog" className="inline-flex items-center gap-1 text-xs text-[var(--mute)] hover:text-[var(--ink)] mb-3">
-        <ArrowLeft className="w-3.5 h-3.5" /> Blog
+      <Link href="/measure" className="inline-flex items-center gap-1 text-xs text-[var(--mute)] hover:text-[var(--ink)] mb-3">
+        <ArrowLeft className="w-3.5 h-3.5" /> Measure
       </Link>
       <div className="flex flex-wrap items-center gap-3 mb-1">
         <span className="w-12 h-12 rounded-2xl grid place-items-center" style={{ background: "var(--blue-soft)", color: "var(--blue-on)" }}>

@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/governance";
 import { APP_GUIDE, appGuide } from "@/lib/assistant/knowledge";
 import { PRODUCT } from "@/lib/product";
+import { cleanTitle, stripListMarker } from "@/lib/list-marker";
 
 /**
  * The assistant's tools — what it can do. Since 2026-09-08 that is nearly
@@ -420,7 +421,9 @@ export const TOOLS: Tool[] = [
     description: "Add one idea the person described — an article idea (default) or a video idea on a channel. Lands as discovered on the Ideas board.",
     args: { title: "the idea's title", format: "optional: article (default) | video", channelId: "video only: the channel id", angle: "optional: the hook / why it works", keyword: "optional focus keyword (articles)", topicId: "optional topic id" },
     async run(a, ctx) {
-      const title = str(a.title, 200);
+      // The assistant's own reply is model text, so it carries the same list
+      // furniture the discovery parser does (audit A3).
+      const title = cleanTitle(str(a.title, 200), 200);
       if (!title) return "refused: an idea needs a title";
       const topicId = str(a.topicId, 40) ? (await db.topic.findFirst({ where: { id: str(a.topicId, 40), workspaceId: ctx.workspaceId }, select: { id: true } }))?.id ?? null : null;
       if (str(a.format, 10) === "video") {
@@ -502,7 +505,7 @@ export const TOOLS: Tool[] = [
     description: "Add a keyword to the strategy (tier 1 head term … 4 long-tail). Drives idea priority.",
     args: { phrase: "the keyword phrase", tier: "optional 1-4, default 3", cluster: "optional topical cluster name" },
     async run(a, ctx) {
-      const phrase = str(a.phrase, 120).toLowerCase();
+      const phrase = stripListMarker(str(a.phrase, 120)).toLowerCase();
       if (!phrase) return "refused: no phrase";
       const tier = Math.min(4, Math.max(1, num(a.tier, 3, 4)));
       await db.keyword.upsert({ where: { workspaceId_phrase: { workspaceId: ctx.workspaceId, phrase } }, update: { tier }, create: { workspaceId: ctx.workspaceId, phrase, tier, cluster: str(a.cluster, 60) || null } });
@@ -540,7 +543,8 @@ export const TOOLS: Tool[] = [
     args: { ideaId: "id of the idea to draft (preferred)", title: "or a title, if there is no idea yet", keyword: "optional focus keyword when drafting from a title" },
     async run(a, ctx) {
       let idea = str(a.ideaId, 40) ? await db.blogIdea.findFirst({ where: { id: str(a.ideaId, 40), workspaceId: ctx.workspaceId } }) : null;
-      if (!idea && str(a.title, 200)) idea = await db.blogIdea.create({ data: { workspaceId: ctx.workspaceId, title: str(a.title, 200), keyword: str(a.keyword, 100) || null, source: "manual", status: "approved" } });
+      const freshTitle = cleanTitle(str(a.title, 200), 200);
+      if (!idea && freshTitle) idea = await db.blogIdea.create({ data: { workspaceId: ctx.workspaceId, title: freshTitle, keyword: str(a.keyword, 100) || null, source: "manual", status: "approved" } });
       if (!idea) return "refused: give an ideaId (list_ideas) or a title";
       if (idea.status === "drafted" && idea.postId) return `that idea was already drafted as article ${idea.postId} (/blog/${idea.postId})`;
       const post = await db.blogPost.create({ data: { workspaceId: ctx.workspaceId, title: idea.title, focusKeyword: idea.keyword, topicId: idea.topicId, status: "drafting", createdById: ctx.userId } });

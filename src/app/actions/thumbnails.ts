@@ -8,6 +8,7 @@ import { llm } from "@/lib/llm";
 import { images } from "@/lib/images";
 import { describeImageStyle, fetchReferenceImage } from "@/lib/vision";
 import { readJson, writeJson } from "@/lib/db/json";
+import { stripListMarker } from "@/lib/list-marker";
 
 type Concept = { id: string; label: string; description: string; url: string; sawReference?: boolean };
 
@@ -32,9 +33,11 @@ LABELs should cover 4 proven formats: 1) Face + reaction, 2) Object + tight crop
     workspaceId: workspace.id,
   });
 
+  // stripListMarker, not the greedy class: the em-dash split below needs the
+  // rest of the line intact (audit A3).
   const lines = completion.content
     .split("\n")
-    .map((l) => l.replace(/^[*\-\d.\s]+/, "").trim())
+    .map((l) => stripListMarker(l))
     .filter(Boolean)
     .slice(0, 4);
 

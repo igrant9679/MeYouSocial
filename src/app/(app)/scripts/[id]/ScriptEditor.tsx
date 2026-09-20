@@ -55,7 +55,10 @@ export function ScriptEditor({ scriptId, initialBody }: { scriptId: string; init
       <div className="flex flex-wrap items-center gap-2">
         <SaveBadge state={saved} />
         <span className="text-xs font-mono text-[var(--mute)]">
-          <b className={words >= MAX_WORDS ? "text-[var(--brand)]" : ""}>{words.toLocaleString()}</b> / {MAX_WORDS.toLocaleString()} words · {dur}
+          {/* suppressHydrationWarning on both counts: viewer-locale grouping,
+              intended, and a React #418 without it (audit A2). */}
+          <b className={words >= MAX_WORDS ? "text-[var(--brand)]" : ""} suppressHydrationWarning>{words.toLocaleString()}</b> /{" "}
+          <span suppressHydrationWarning>{MAX_WORDS.toLocaleString()}</span> words · {dur}
         </span>
         <div className="flex-1 min-w-[40px] h-1.5 rounded-full bg-[var(--line)] overflow-hidden">
           <div className="h-full rounded-full" style={{ width: wordPct + "%", background: wordPct > 90 ? "var(--brand)" : "var(--accent)" }} />

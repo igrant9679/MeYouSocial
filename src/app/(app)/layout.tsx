@@ -3,8 +3,10 @@ import Link from "next/link";
 import { Bell, LogOut, Layers, User } from "lucide-react";
 import { unreadCount } from "@/lib/notify";
 import { BrandLogo } from "@/components/BrandLogo";
-import { LiveTicker } from "@/components/LiveTicker";
+import { EngineStatus } from "@/components/EngineStatus";
 import { tickerEvents } from "@/lib/dashboard-data";
+import { isGloballyPaused } from "@/lib/governance";
+import { isFullyAutonomous } from "@/lib/autonomy";
 import { signOut } from "@/auth";
 import { getActiveChannel } from "@/lib/channel";
 import { isPlatformOperator } from "@/lib/acl";
@@ -118,7 +120,7 @@ html[data-theme="dark"] .ws-brand {
     --accent-on: color-mix(in srgb, ${accent} 62%, white);
   }
 }` : null;
-  const [unread, ticker, studio, counts, tickerZone] = await Promise.all([
+  const [unread, ticker, studio, counts, tickerZone, enginePaused, engineAutonomous] = await Promise.all([
     unreadCount(workspace.id, user.id),
     tickerEvents(workspace.id, 12),
     // Whether the video studio's tabs show (lib/studio.ts) and the strip's
@@ -126,9 +128,13 @@ html[data-theme="dark"] .ws-brand {
     // is in the shell.
     studioState(workspace.id),
     stripCounts(workspace.id),
-    // The ticker formats times in this zone on both server and client (see
-    // LiveTicker) — the workspace's posting zone, UTC when none is set.
+    // The pill formats times in this zone on both server and client (see
+    // EngineStatus) — the workspace's posting zone, UTC when none is set.
     getPostingTimeZone(workspace.id).catch(() => "UTC"),
+    // Both are 30s-cached setting reads (lib/settings.ts), so the pill can say
+    // "Paused" or "Running on its own" without a second trip.
+    isGloballyPaused(workspace.id),
+    isFullyAutonomous(workspace.id),
   ]);
 
   // Elsie, the guide. Her setup steps are filtered against what this workspace
@@ -286,7 +292,7 @@ html[data-theme="dark"] .ws-brand {
               (which the user wants wide) only gets space these two give up;
               this link duplicates the workspace-name link anyway. */}
           <Link href="/channels" className="btn !hidden @min-[88rem]:!inline-flex" title="Manage all channels">Manage channels</Link>
-          <LiveTicker initial={ticker} timeZone={tickerZone} />
+          <EngineStatus initial={ticker} timeZone={tickerZone} state={{ paused: enginePaused, autonomous: engineAutonomous }} />
           <div className="flex-1" />
           <AssistantDockButton />
           <AiActivity />

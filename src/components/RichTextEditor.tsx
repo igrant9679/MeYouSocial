@@ -292,7 +292,10 @@ export function RichTextEditor({
           <Tool onClick={() => exec("undo")} title="Undo"><Undo2 className="w-3.5 h-3.5" /></Tool>
           <Tool onClick={() => exec("redo")} title="Redo"><Redo2 className="w-3.5 h-3.5" /></Tool>
           <span className="flex-1" />
-          <span className="font-mono text-[10px] text-[var(--mute)] px-1">{words.toLocaleString()} words</span>
+          {/* suppressHydrationWarning: viewer-locale number grouping differs
+              from the server's — intended, and a React #418 without this
+              (audit A2; the rule is documented in BlogBodyEditor.tsx). */}
+          <span className="font-mono text-[10px] text-[var(--mute)] px-1" suppressHydrationWarning>{words.toLocaleString()} words</span>
         </div>
       )}
 

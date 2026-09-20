@@ -4,6 +4,7 @@ import { getSearchProvider } from "@/lib/search";
 import { isGloballyPaused, writeAudit } from "@/lib/governance";
 import { sanitizeRichHtml, unwrapBlockParagraphs } from "@/lib/richtext";
 import { INTAKE_IDS, parseAnswers, selectSmeProfile } from "@/lib/sme";
+import { cleanTitle } from "@/lib/list-marker";
 
 /**
  * Optimize → "Address these" (One-Loop redesign, step 1).
@@ -231,18 +232,24 @@ export async function generateFindingsCore(
   }
 
   if (drafts.length) {
-    const rows = drafts.slice(0, 12).map(({ source, f }) => ({
-      workspaceId,
-      postId: post.id,
-      source,
-      kind: f.kind,
-      title: f.title,
-      detail: f.detail || null,
-      proposal: f.proposal,
-      anchor: f.anchor,
-      questions: JSON.stringify(f.questions),
-      fingerprint: fingerprintOf(source, f.title),
-    }));
+    // cleanTitle before the fingerprint, not after: the two must agree or a
+    // dismissed finding comes back. A title with no list furniture is returned
+    // unchanged, so existing fingerprints are untouched (audit A3).
+    const rows = drafts.slice(0, 12).map(({ source, f }) => {
+      const title = cleanTitle(f.title, 500);
+      return {
+        workspaceId,
+        postId: post.id,
+        source,
+        kind: f.kind,
+        title,
+        detail: f.detail || null,
+        proposal: f.proposal,
+        anchor: f.anchor,
+        questions: JSON.stringify(f.questions),
+        fingerprint: fingerprintOf(source, title),
+      };
+    });
     // skipDuplicates on (postId, fingerprint): a dismissed or resolved finding
     // with the same fingerprint is left exactly as it is.
     const { count } = await db.blogFinding.createMany({ data: rows, skipDuplicates: true });

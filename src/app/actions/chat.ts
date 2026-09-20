@@ -7,6 +7,7 @@ import { requireRole } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { readJson } from "@/lib/db/json";
 import { llm } from "@/lib/llm";
+import { cleanTitle } from "@/lib/list-marker";
 
 // createChatAction retired 2026-09-09: the ideation chat is the assistant now.
 // What remains serves the canvas chat that belongs to a script (/chat/<id>).
@@ -109,7 +110,8 @@ ${contextLines || "(none)"}`;
       messages: history.concat([{ role: "user", content: parsed.data.content }]),
       workspaceId: workspace.id,
     });
-    const title = synthesis.content.split("\n")[0].slice(0, 120) || "Untitled script";
+    // The model's first line is routinely "**Title**" or "- Title" (audit A3).
+    const title = cleanTitle(synthesis.content.split("\n")[0] ?? "", 120) || "Untitled script";
 
     const script = await db.script.create({
       data: {

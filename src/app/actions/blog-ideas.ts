@@ -9,6 +9,7 @@ import { discoverIdeasCore, generateDraftCore } from "@/lib/blog-autopilot";
 import { jobs } from "@/lib/jobs";
 import { rescoreIdeas } from "@/lib/blog-idea-scoring";
 import { readMotifWeights, serializeMotifs } from "@/lib/motifs";
+import { cleanTitle } from "@/lib/list-marker";
 
 /**
  * Blog idea engine (Spark FR-5 port): AI discovery grounded in the org profile,
@@ -18,7 +19,9 @@ import { readMotifWeights, serializeMotifs } from "@/lib/motifs";
  */
 
 export async function addBlogIdeaAction(formData: FormData) {
-  const title = String(formData.get("title") ?? "").trim();
+  // cleanTitle also covers the paste-from-a-list case: someone copying a bullet
+  // out of a doc lands the same "- " the model used to (A3).
+  const title = cleanTitle(String(formData.get("title") ?? ""), 200);
   if (!title) return;
   const { workspace } = await requireRole("EDITOR");
   const rawTopic = String(formData.get("topicId") ?? "").trim();
@@ -75,7 +78,7 @@ export async function updateBlogIdeaAction(formData: FormData) {
   await db.blogIdea.update({
     where: { id },
     data: {
-      title: String(formData.get("title") ?? "").trim().slice(0, 200) || idea.title,
+      title: cleanTitle(String(formData.get("title") ?? ""), 200) || idea.title,
       angle: text("angle", 500),
       keyword: text("keyword", 80),
       audience: text("audience", 120),

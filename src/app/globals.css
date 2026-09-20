@@ -243,11 +243,11 @@ html[data-theme="dark"] .btn.primary { background-color: var(--accent) !importan
   .anim-draw { stroke-dashoffset: 0; animation: none; }
 }
 
-/* --- Live ticker (header) --- */
-.ticker-clip { overflow: hidden; white-space: nowrap; mask-image: linear-gradient(90deg, transparent, #000 5%, #000 95%, transparent); }
-.ticker-track { display: inline-block; padding: 5px 0; animation: mys-tick 40s linear infinite; }
-.ticker-clip:hover .ticker-track { animation-play-state: paused; }
-@keyframes mys-tick { to { transform: translateX(-50%); } }
+/* The header's scrolling ticker retired 2026-09-20 (audit A7) — its marquee
+   never held still long enough to read and truncated titles mid-word. The
+   header status pill (components/EngineStatus.tsx) says the same thing in a
+   sentence and needs no animation, so .ticker-* and @keyframes mys-tick went
+   with it. */
 
 /* --- Skeleton shimmer for route loading states --- */
 .shimmer { border-radius: 8px; background: linear-gradient(90deg, var(--line) 25%, var(--zebra) 50%, var(--line) 75%); background-size: 200% 100%; animation: mys-shim 1.3s linear infinite; }
@@ -265,7 +265,6 @@ html[data-theme="dark"] .btn.primary { background-color: var(--accent) !importan
 .btn:active { transform: scale(0.97); }
 
 @media (prefers-reduced-motion: reduce) {
-  .ticker-track { animation: none; }
   .shimmer { animation: none; }
   .page-enter { animation: none; }
   .badge-pop { animation: none; }

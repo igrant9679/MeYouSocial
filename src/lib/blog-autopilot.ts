@@ -28,6 +28,7 @@ import { getModes, isGloballyPaused, writeAudit } from "@/lib/governance";
 import { getVideoProvider, estimateCostUsd } from "@/lib/video";
 import { getApiKey } from "@/lib/llm/keys";
 import { templateGuidance, trackLabel, trackWordTarget } from "@/lib/blog-templates";
+import { cleanTitle, stripListMarker } from "@/lib/list-marker";
 import { buildJsonLd } from "@/lib/blog-jsonld";
 import { loadAssetGate, generateBlogImagesCore } from "@/lib/blog-images";
 import {
@@ -189,16 +190,24 @@ export async function discoverIdeasCore(workspaceId: string, topicId?: string | 
     ideas = [];
   }
   const pageUrls = new Set(pages.map((p) => p.url));
-  const text = (v: unknown, max: number) => (typeof v === "string" && v.trim() ? v.trim().slice(0, max) : null);
+  // ⚠ The model is asked for JSON and returns JSON — but it still writes list
+  // furniture INSIDE the values ("-\tNo-code workflow automation…"). `.trim()`
+  // never removed it, so the dash rode an idea all the way into a published
+  // title (audit A3). Strip it here, at the parse boundary.
+  const text = (v: unknown, max: number) => {
+    if (typeof v !== "string" || !v.trim()) return null;
+    const cleaned = stripListMarker(v).slice(0, max).trim();
+    return cleaned || null;
+  };
   const rows = ideas
-    .filter((i) => typeof i.title === "string" && i.title.trim().length > 3)
+    .filter((i) => typeof i.title === "string" && cleanTitle(i.title, 200).length > 3)
     .slice(0, 6)
     .map((i) => {
       const tierNum = Number(i.tier);
       const targetPage = text(i.targetPage, 500);
       return {
         workspaceId,
-        title: i.title!.trim().slice(0, 200),
+        title: cleanTitle(i.title!, 200),
         angle: text(i.angle, 500),
         keyword: text(i.keyword, 80),
         tier: Number.isFinite(tierNum) && tierNum >= 1 && tierNum <= 4 ? Math.round(tierNum) : null,

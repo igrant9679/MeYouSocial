@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { MessagesSquare, MessageCircle, ExternalLink, Info, AlertTriangle, ArrowLeft, Heart, BellRing, Star } from "lucide-react";
+import { MessagesSquare, MessageCircle, ExternalLink, Info, AlertTriangle, ArrowLeft, Heart, BellRing, Star, Archive, Undo2 } from "lucide-react";
 import { requireRole, canAdmin } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { getSetting } from "@/lib/settings";
@@ -19,7 +19,7 @@ import {
 } from "@/lib/zernio/inbox";
 import { Banner, SocialHeader } from "@/components/SocialPostCard";
 import { SubmitButton } from "@/components/SubmitButton";
-import { markInboxEventsReadAction } from "@/app/actions/social-inbox-events";
+import { dismissInboxItemAction, markInboxEventsReadAction, restoreInboxItemAction } from "@/app/actions/social-inbox-events";
 import { InboxReply } from "@/components/InboxReply";
 import { DeleteButton } from "@/components/DeleteButton";
 import { commentRef } from "@/lib/deletable";
@@ -89,7 +89,7 @@ export default async function EngagePage({ searchParams }: { searchParams: Promi
 
   // One thread at a time: a message list needs its conversation's accountId,
   // and comments need their post's — Zernio 400s without them, it won't guess.
-  const [conversations, posts, thread, comments, unseen, unseenTotal, reviews, reviewDrafts] = await Promise.all([
+  const [conversations, posts, thread, comments, unseen, unseenTotal, reviews, reviewDrafts, dismissals] = await Promise.all([
     listInboxConversations({ workspaceId: workspace.id, platform: net, limit: 50 }).catch(() => [] as InboxConversation[]),
     listCommentablePosts({ workspaceId: workspace.id, platform: net, limit: 100 }).catch(() => [] as InboxCommentablePost[]),
     dm && acct
@@ -110,9 +110,16 @@ export default async function EngagePage({ searchParams }: { searchParams: Promi
     // Answers written but not sent. Ours, not Zernio's — a draft exists only
     // here, which is the whole point of it.
     db.inboxReplyDraft.findMany({ where: { workspaceId: workspace.id, kind: "review" } }),
+    // Items this workspace decided not to answer. Also ours only: the review
+    // stays public and the API keeps returning it (audit A5).
+    db.socialInboxDismissal.findMany({ where: { workspaceId: workspace.id } }),
   ]);
 
   const draftFor = new Map(reviewDrafts.map((d) => [d.targetId, d]));
+  const setAside = new Map(dismissals.map((d) => [`${d.kind}:${d.targetId}`, d]));
+  const isSetAside = (kind: string, id: string) => setAside.has(`${kind}:${id}`);
+  const openReviews = reviews.filter((r) => !isSetAside("review", r.id));
+  const asideReviews = reviews.filter((r) => isSetAside("review", r.id));
 
   const withComments = posts.filter((p) => p.commentCount > 0);
   const quiet = posts.length - withComments.length;
@@ -211,8 +218,10 @@ export default async function EngagePage({ searchParams }: { searchParams: Promi
           <div className="flex items-center gap-2 mb-2">
             <Star className="w-4 h-4" style={{ color: "var(--amber-on)" }} />
             <h2 className="font-mono font-bold text-sm">Reviews</h2>
+            {/* Set-aside reviews are excluded: the count must mean "waiting on
+                a person", or it nags about a decision already made (A5). */}
             <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "var(--panel)", color: "var(--mute)" }}>
-              {reviews.filter((r) => !r.hasReply).length} unanswered
+              {openReviews.filter((r) => !r.hasReply).length} unanswered
             </span>
             {/* Counted separately, never folded into "unanswered": a drafted
                 reply is still an unanswered review until someone sends it. */}
@@ -223,7 +232,7 @@ export default async function EngagePage({ searchParams }: { searchParams: Promi
             )}
           </div>
           <div className="flex flex-col gap-2">
-            {reviews.map((r) => (
+            {openReviews.map((r) => (
               <div key={`${r.platform}-${r.id}`} className="card">
                 <div className="flex items-start gap-2 mb-1.5">
                   <span className="pt-1"><NetDot platform={r.platform} /></span>
@@ -276,11 +285,68 @@ export default async function EngagePage({ searchParams }: { searchParams: Promi
                       placeholder={`Reply to ${r.reviewerName ?? "this review"}…`}
                       publicNote="public, and shown under the review for as long as it stands"
                     />
+                    {/* "Not going to answer this" is a real answer, and until
+                        now the app had no way to hear it (audit A5). */}
+                    <form action={dismissInboxItemAction} className="flex flex-wrap items-center gap-2 mt-2">
+                      <input type="hidden" name="kind" value="review" />
+                      <input type="hidden" name="targetId" value={r.id} />
+                      <input type="hidden" name="back" value="/social/engage" />
+                      <input
+                        name="reason"
+                        placeholder="why not (optional)"
+                        className="text-[11px] w-44"
+                        aria-label="Why this review is being set aside"
+                      />
+                      <SubmitButton className="btn sm" pendingText="Setting aside…" title="Stop offering this review as work. It stays public — nothing changes on the network.">
+                        <Archive className="w-3 h-3" /> Set aside
+                      </SubmitButton>
+                    </form>
                   </>
                 )}
               </div>
             ))}
           </div>
+
+          {/* Set aside: visible, collapsed, and reversible. Hiding them
+              outright would be the app deciding what the record is. */}
+          {asideReviews.length > 0 && (
+            <details className="mt-2">
+              <summary className="text-xs text-[var(--mute)] cursor-pointer select-none">
+                Set aside ({asideReviews.length}) — still public, no longer counted as work
+              </summary>
+              <div className="flex flex-col gap-2 mt-2">
+                {asideReviews.map((r) => {
+                  const d = setAside.get(`review:${r.id}`);
+                  return (
+                    <div key={`aside-${r.platform}-${r.id}`} className="card" style={{ opacity: 0.7 }}>
+                      <div className="flex items-start gap-2">
+                        <span className="pt-1"><NetDot platform={r.platform} /></span>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-xs font-semibold">{r.reviewerName ?? "Anonymous"}</span>
+                            <span className="font-mono text-[9.5px] text-[var(--mute)]">{when(r.created)}</span>
+                          </div>
+                          <p className="text-xs text-[var(--slate)] whitespace-pre-wrap mt-1 line-clamp-2">{r.text}</p>
+                          <p className="font-mono text-[9.5px] text-[var(--mute)] mt-1">
+                            Set aside by {d?.actorName ?? "someone"}
+                            {d?.reason ? ` — “${d.reason}”` : ""}
+                          </p>
+                        </div>
+                        <form action={restoreInboxItemAction} className="flex-shrink-0">
+                          <input type="hidden" name="kind" value="review" />
+                          <input type="hidden" name="targetId" value={r.id} />
+                          <input type="hidden" name="back" value="/social/engage" />
+                          <SubmitButton className="btn sm" pendingText="…" title="Put this back in the queue">
+                            <Undo2 className="w-3 h-3" /> Bring back
+                          </SubmitButton>
+                        </form>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </details>
+          )}
         </section>
       )}
 

@@ -105,7 +105,16 @@ export function BlogBodyEditor({
       <div className="flex items-center gap-2 mb-1 flex-wrap">
         <span className="block text-xs text-[var(--mute)]">Body</span>
         <span className="font-mono text-[10px] text-[var(--mute)]">
-          {words.toLocaleString()} words · ~{minutes} min read
+          {/* ⚠ suppressHydrationWarning is load-bearing, not decoration.
+              `toLocaleString()` with no locale resolves to the CONTAINER's ICU
+              default on the server (en-US on Railway) and to navigator.language
+              in the browser, so a reader whose locale groups with "." or a thin
+              space gets different text than the SSR HTML — React #418, and the
+              whole editor tree is thrown away and re-rendered (audit A2). The
+              viewer's own grouping is the behaviour we want; this tells React
+              the difference is intended. Same rule at RichTextEditor.tsx,
+              ScriptEditor.tsx and SocialCalendar.tsx. */}
+          <span suppressHydrationWarning>{words.toLocaleString()}</span> words · ~{minutes} min read
           {saveState === "pending" && " · saving…"}
           {saveState === "saved" && " · autosaved"}
         </span>

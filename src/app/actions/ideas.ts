@@ -6,6 +6,7 @@ import { requireRole } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { registerOnboardingJobs } from "@/lib/jobs/onboarding";
 import { addBlogIdeaAction } from "@/app/actions/blog-ideas";
+import { cleanTitle } from "@/lib/list-marker";
 
 registerOnboardingJobs();
 
@@ -27,7 +28,7 @@ export async function addIdeaAction(formData: FormData) {
   const raw = String(formData.get("format") ?? "article");
   if (!raw.startsWith("video:")) return addBlogIdeaAction(formData);
   const channelId = raw.slice("video:".length);
-  const title = String(formData.get("title") ?? "").trim().slice(0, 200);
+  const title = cleanTitle(String(formData.get("title") ?? ""), 200);
   if (!title) return;
   const { workspace } = await requireRole("EDITOR");
   const channel = await db.channel.findFirst({ where: { id: channelId, workspaceId: workspace.id }, select: { id: true } });

@@ -16,6 +16,7 @@ import { loadAssetGate } from "@/lib/blog-images";
 import { loadEditorialContext } from "@/lib/blog-slop";
 import { notify } from "@/lib/notify";
 import { autoTaskForAssets, autoTaskForReview } from "@/lib/auto-tasks";
+import { cleanTitle } from "@/lib/list-marker";
 
 /**
  * Blog module (ported from Spark's article pipeline — slice 1).
@@ -33,7 +34,7 @@ function isStatus(s: string): s is BlogStatus {
 }
 
 export async function createBlogPostAction(formData: FormData) {
-  const title = String(formData.get("title") ?? "").trim();
+  const title = cleanTitle(String(formData.get("title") ?? ""), 300);
   if (!title) return;
   const { user, workspace } = await requireRole("EDITOR");
   const post = await db.blogPost.create({
@@ -90,7 +91,9 @@ export async function updateBlogPostAction(formData: FormData) {
   await db.blogPost.update({
     where: { id: post.id },
     data: {
-      title: str(formData.get("title")) ?? post.title,
+      // The last line of defence for an article title: whatever route it took
+      // to get here, list furniture never reaches a reader (audit A3).
+      title: cleanTitle(String(formData.get("title") ?? ""), 300) || post.title,
       slug: str(formData.get("slug")),
       metaTitle: str(formData.get("metaTitle")),
       metaDescription: str(formData.get("metaDescription")),

@@ -23,8 +23,8 @@ export default async function BlogBoardPage() {
 
   return (
     <main className="p-6 w-full">
-      <Link href="/blog" className="inline-flex items-center gap-1 text-xs text-[var(--mute)] hover:text-[var(--ink)] mb-3">
-        <ArrowLeft className="w-3.5 h-3.5" /> Blog
+      <Link href="/drafts" className="inline-flex items-center gap-1 text-xs text-[var(--mute)] hover:text-[var(--ink)] mb-3">
+        <ArrowLeft className="w-3.5 h-3.5" /> Drafts
       </Link>
       <div className="flex items-center gap-3 mb-5">
         <span className="w-12 h-12 rounded-2xl grid place-items-center" style={{ background: "var(--pink-soft)", color: "var(--pink-on)" }}>

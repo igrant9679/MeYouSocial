@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { youtubeFor } from "@/lib/youtube";
 import { llm } from "@/lib/llm";
 import { writeJson } from "@/lib/db/json";
+import { cleanTitle, stripListMarker } from "@/lib/list-marker";
 
 // Onboarding background jobs.
 //   • voice    — trains a VoiceProfile from the channel's top videos.
@@ -300,14 +301,17 @@ export function registerOnboardingJobs() {
         workspaceId: channel.workspaceId,
       });
 
+      // stripListMarker, not /^[*\-\d.\s]+/: the old greedy class ate the sign
+      // off a title that opens with one ("-40% churn" became "40% churn").
       const lines = completion.content
         .split("\n")
-        .map((l) => l.replace(/^[*\-\d.\s]+/, "").trim())
+        .map((l) => stripListMarker(l))
         .filter(Boolean)
         .slice(0, 10);
 
       for (let i = 0; i < lines.length; i++) {
-        const [title, strategy] = lines[i].split("—").map((s) => s.trim());
+        const [rawTitle, strategy] = lines[i].split("—").map((s) => s.trim());
+        const title = cleanTitle(rawTitle ?? "", 200);
         if (!title) continue;
         await db.idea.create({
           data: {

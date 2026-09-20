@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight, Pencil, CalendarClock } from "lucide-react";
 import { rescheduleSocialPostAction } from "@/app/actions/social";
@@ -172,6 +172,21 @@ export function SocialCalendar({ posts, freeSlots = [] }: { posts: CalendarPost[
   // `cursor` is a plain anchor date: month view reads its month, week view reads
   // the Monday-start week containing it. One piece of state, two framings.
   const [cursor, setCursor] = useState(() => new Date());
+  // ⚠ This grid cannot be server-rendered honestly, and pretending otherwise
+  // was a React #418 on every load of /social/calendar (audit A2). Two things
+  // here are viewer-dependent by design: the clock reading (12h or 24h, their
+  // preference — see timeLabel) and, more seriously, WHICH CELL a post lands
+  // in, because placement runs through local-time getters. On the server
+  // "local" is the container's UTC; in the browser it is the reader's zone, so
+  // a 23:30 post is on a different DAY in the two renders — a structural
+  // mismatch no suppressHydrationWarning can excuse, and one that makes React
+  // throw the whole tree away and re-render it.
+  //
+  // So it renders nothing until it is mounted. The calendar is a drag-and-drop
+  // surface that does nothing without JavaScript anyway, and the same queue is
+  // listed, server-rendered, on Distribute.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
   const [mode, setMode] = useState<Mode>("month");
   const [allHours, setAllHours] = useState(false);
   const [items, setItems] = useState(posts);
@@ -359,6 +374,19 @@ export function SocialCalendar({ posts, freeSlots = [] }: { posts: CalendarPost[
       </div>
     );
   };
+
+  // Same height as the month grid, so the page doesn't jump when it arrives.
+  if (!mounted) {
+    return (
+      <div className="mb-6" data-elsie="social-calendar">
+        <div className="flex items-center gap-2 mb-2">
+          <CalendarClock className="w-4 h-4" style={{ color: "var(--blue-on)" }} />
+          <h2 className="font-mono font-bold text-sm text-[var(--mute)]">Calendar</h2>
+        </div>
+        <div className="shimmer h-[26rem] w-full rounded-xl" aria-busy="true" aria-label="Loading the calendar" />
+      </div>
+    );
+  }
 
   return (
     <div className="mb-6" data-elsie="social-calendar">

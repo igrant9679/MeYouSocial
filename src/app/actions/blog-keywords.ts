@@ -9,6 +9,7 @@ import { isGloballyPaused, writeAudit } from "@/lib/governance";
 import { setWorkspaceSetting } from "@/lib/settings";
 import { isSearchDataCountry, searchDataVendorLabel } from "@/lib/search-data";
 import { keywordCountry, syncKeywordVolumes, syncNewPhrases } from "@/lib/keyword-volumes";
+import { stripListMarker } from "@/lib/list-marker";
 
 /**
  * Keyword strategy (Wave A′). Honesty rule: tier is editorial priority (1 head
@@ -108,9 +109,26 @@ export async function discoverKeywordsAction() {
     model: workspace.defaultModel ?? llm.defaultModel,
     system,
     messages: [{ role: "user", content: prompt }],
-    maxTokens: 1500,
+    // ⚠ 8000, not 1500 — the documented reasoning-model trap (CLAUDE.md). Both
+    // real tenants sit on a gemini `-pro` model, which spends its budget
+    // thinking before it emits: at 1500 this returned EMPTY, the JSON match
+    // failed, and the action silently created nothing. The audit trail agrees —
+    // `keywords.ai_discovery` has never been written in any workspace.
+    maxTokens: 8000,
+    timeoutMs: 120_000,
     workspaceId: workspace.id,
   });
+  // ⚠ Mock keywords are fluent garbage a person would then build a strategy on.
+  // Same rule as ideation and SEO: refuse, say so, store nothing.
+  if (res.provider === "mock") {
+    await writeAudit({
+      workspaceId: workspace.id,
+      action: "keywords.discovery_failed",
+      entityType: "keyword",
+      meta: { provider: "mock", reason: "provider unavailable — refused to store mock keywords" },
+    });
+    redirect(`/blog/keywords?err=${encodeURIComponent("No working AI key for this workspace, so nothing was generated — add one under Publish Admin → API keys.")}`);
+  }
   let rows: Array<{ phrase?: string; tier?: number; intent?: string; cluster?: string }> = [];
   try {
     const m = res.content.match(/\[[\s\S]*\]/);
@@ -121,7 +139,9 @@ export async function discoverKeywordsAction() {
   let created = 0;
   const written: string[] = [];
   for (const r of rows.slice(0, 12)) {
-    const phrase = typeof r.phrase === "string" ? r.phrase.trim().toLowerCase().slice(0, 120) : "";
+    // stripListMarker: the model writes JSON but still leaves "- " inside the
+    // value — the same artefact that put a dash in a published title (A3).
+    const phrase = typeof r.phrase === "string" ? stripListMarker(r.phrase).toLowerCase().slice(0, 120).trim() : "";
     if (!phrase) continue;
     written.push(phrase);
     await db.keyword.upsert({
@@ -148,37 +168,80 @@ export async function discoverKeywordsAction() {
   revalidatePath("/blog/keywords");
 }
 
-/** LLM intent classification for keywords that lack it (labeled as AI-classified). */
+/**
+ * LLM intent + cluster classification for keywords that lack them.
+ *
+ * ⚠ Keywords only arrive pre-classified when AI discovery wrote them. Anything
+ * added by hand, by the assistant's `add_keyword`, or in bulk lands with no
+ * intent and no cluster — which is how CommunityForce ended up with 42 rows
+ * reading as ten columns of dashes (audit A4). This is the one button that
+ * fixes that, so it also fills the cluster now, not just the intent.
+ */
 export async function classifyIntentsAction() {
   const { workspace } = await requireRole("EDITOR");
   if (await isGloballyPaused(workspace.id)) return;
   const missing = await db.keyword.findMany({
-    where: { workspaceId: workspace.id, intent: null },
-    take: 30,
+    where: { workspaceId: workspace.id, OR: [{ intent: null }, { cluster: null }] },
+    take: 40,
   });
   if (!missing.length) return;
+  const remaining = await db.keyword.count({
+    where: { workspaceId: workspace.id, OR: [{ intent: null }, { cluster: null }] },
+  });
   const res = await llm.complete({
     model: workspace.defaultModel ?? llm.defaultModel,
     system:
-      'Classify search intent. Respond ONLY with a JSON object mapping phrase to one of "informational", "commercial", "transactional", "navigational".',
+      "You are an SEO strategist. For every phrase given, return its search intent and a short topical cluster name. " +
+      'Respond ONLY with a JSON object mapping each phrase to {"intent": "informational"|"commercial"|"transactional"|"navigational", "cluster": string}. ' +
+      "Cluster names must be reused across related phrases — aim for 3-6 clusters in total, not one per phrase.",
     messages: [{ role: "user", content: missing.map((k) => k.phrase).join("\n") }],
-    maxTokens: 800,
+    // ⚠ 4000, not 800 — same reasoning-model cushion as discovery above. At 800
+    // a `-pro` model returns empty, the JSON match fails and the button appears
+    // to do nothing at all, which is exactly what the owner saw.
+    maxTokens: 4000,
+    timeoutMs: 120_000,
     workspaceId: workspace.id,
   });
-  let map: Record<string, string> = {};
+  if (res.provider === "mock") {
+    redirect(`/blog/keywords?err=${encodeURIComponent("No working AI key for this workspace, so nothing was classified — add one under Publish Admin → API keys.")}`);
+  }
+  let map: Record<string, { intent?: string; cluster?: string }> = {};
   try {
     const m = res.content.match(/\{[\s\S]*\}/);
     map = m ? JSON.parse(m[0]) : {};
   } catch {
     map = {};
   }
+  const INTENTS = ["informational", "commercial", "transactional", "navigational"];
+  let classified = 0;
   for (const k of missing) {
-    const intent = map[k.phrase];
-    if (["informational", "commercial", "transactional", "navigational"].includes(intent)) {
-      await db.keyword.update({ where: { id: k.id }, data: { intent } });
-    }
+    const hit = map[k.phrase];
+    if (!hit || typeof hit !== "object") continue;
+    const intent = typeof hit.intent === "string" && INTENTS.includes(hit.intent) ? hit.intent : null;
+    const cluster = typeof hit.cluster === "string" ? stripListMarker(hit.cluster).slice(0, 80) || null : null;
+    if (!intent && !cluster) continue;
+    await db.keyword.update({
+      where: { id: k.id },
+      // Never overwrite something already set by hand.
+      data: { ...(intent && !k.intent ? { intent } : {}), ...(cluster && !k.cluster ? { cluster } : {}) },
+    });
+    classified++;
   }
+  await writeAudit({
+    workspaceId: workspace.id,
+    action: "keywords.classified",
+    entityType: "keyword",
+    meta: { classified, offered: missing.length },
+  });
   revalidatePath("/blog/keywords");
+  const left = remaining - classified;
+  redirect(
+    `/blog/keywords?ok=${encodeURIComponent(
+      classified === 0
+        ? "The model returned nothing usable — try again, or set the intent by hand."
+        : `Classified ${classified} keyword${classified === 1 ? "" : "s"}.${left > 0 ? ` ${left} still to go — press again.` : ""}`,
+    )}`,
+  );
 }
 
 /** Spin a blog idea directly from a keyword. */
