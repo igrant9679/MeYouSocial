@@ -36,11 +36,20 @@ function formatValue(m: Metric): string {
   return String(m.value);
 }
 
-function MetricCard({ m }: { m: Metric }) {
+function MetricCard({ m, reasonInBanner = false }: { m: Metric; reasonInBanner?: boolean }) {
   const hasData = m.value !== null;
   // A count is exact, so its confidence badge would be noise; only flag the
   // reliability of rates and medians, where sample size actually matters.
   const showConfidence = hasData && m.unit !== "count" && m.confidence !== "high";
+  // ⚠ When the section above already carries this exact sentence AND the
+  // button that fixes it, printing it again under all four tiles is noise,
+  // not honesty — one reason, read four times, with nothing to do about it
+  // three of them. The dash does NOT lose its reason: it moves onto the dash
+  // itself, where a hover still finds it, and the banner states it once for
+  // everyone. A tile that is blank for its OWN reason (say "snapshots exist
+  // but none recorded a position") still prints it, because that is the case
+  // the banner cannot speak for.
+  const echoesBanner = reasonInBanner && !hasData;
   return (
     <div className="rounded-xl border border-[var(--line)] p-3 flex flex-col gap-1">
       <div className="flex items-start gap-2">
@@ -52,7 +61,12 @@ function MetricCard({ m }: { m: Metric }) {
         )}
       </div>
       <div className="flex items-baseline gap-2">
-        <span className={`font-mono font-bold ${hasData ? "text-2xl" : "text-xl text-[var(--mute)]"}`}>{formatValue(m)}</span>
+        <span
+          className={`font-mono font-bold ${hasData ? "text-2xl" : "text-xl text-[var(--mute)]"}`}
+          title={echoesBanner ? m.evidence : undefined}
+        >
+          {formatValue(m)}
+        </span>
         {showConfidence && (
           <span
             className="font-mono text-[9px] font-bold px-1.5 py-0.5 rounded-full"
@@ -63,7 +77,7 @@ function MetricCard({ m }: { m: Metric }) {
           </span>
         )}
       </div>
-      <p className="text-[10px] text-[var(--mute)] leading-snug">{m.evidence}</p>
+      {!echoesBanner && <p className="text-[10px] text-[var(--mute)] leading-snug">{m.evidence}</p>}
     </div>
   );
 }
@@ -374,7 +388,7 @@ export default async function InsightsPage({
         />
       )}
       <div className="grid grid-cols-1 @xl:grid-cols-2 @4xl:grid-cols-4 gap-3 mb-4">
-        {performance.map((m) => <MetricCard key={m.key} m={m} />)}
+        {performance.map((m) => <MetricCard key={m.key} m={m} reasonInBanner={!hasPerformance} />)}
       </div>
 
       {/* Social performance — the distribution side of the same question */}
@@ -389,7 +403,7 @@ export default async function InsightsPage({
         />
       )}
       <div className="grid grid-cols-1 @xl:grid-cols-2 @4xl:grid-cols-4 gap-3 mb-3">
-        {social.map((m) => <MetricCard key={m.key} m={m} />)}
+        {social.map((m) => <MetricCard key={m.key} m={m} reasonInBanner={!hasSocial} />)}
       </div>
 
       {/* Per-network split — the reason UTM tagging separates the sources. */}
