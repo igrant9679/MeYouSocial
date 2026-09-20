@@ -3,6 +3,7 @@ import { ArrowLeft, ChartLine, Lock, LockOpen } from "lucide-react";
 import { requireMembership, canEdit } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { toggleProtectAction, recordSnapshotAction } from "@/app/actions/blog-analytics";
+import { EmptyState } from "@/components/EmptyState";
 
 // Blog analytics (Spark FR-14 port): manual snapshots per published post,
 // aggregate tiles, refresh candidates (position > 10), top performers, and the
@@ -91,7 +92,7 @@ export default async function BlogAnalyticsPage() {
           <div className="card">
             <h2 className="text-sm font-semibold mb-2">Top performers <span className="text-xs font-normal text-[var(--mute)]">(by clicks — consider protecting)</span></h2>
             {topPerformers.length === 0 ? (
-              <p className="text-xs text-[var(--mute)]">Record snapshots to populate.</p>
+              <p className="text-xs text-[var(--mute)]">Nothing ranked yet — record a snapshot below and the best performers appear here.</p>
             ) : (
               <ul className="text-xs flex flex-col gap-1">
                 {topPerformers.map((x) => (
@@ -108,9 +109,11 @@ export default async function BlogAnalyticsPage() {
 
       {/* Per-post table + inline snapshot entry */}
       {posts.length === 0 ? (
-        <div className="card text-center py-10">
-          <p className="text-sm text-[var(--mute)]">No published posts yet — analytics start once something ships.</p>
-        </div>
+        <EmptyState
+          line="Nothing has been published yet, so there is no post to record numbers against."
+          note="Analytics here are per published post — they start once something ships."
+          action={{ label: "See what's waiting to publish", href: "/publish" }}
+        />
       ) : (
         <div className="card overflow-x-auto">
           <table className="w-full text-xs">

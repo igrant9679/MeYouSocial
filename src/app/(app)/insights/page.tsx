@@ -1,6 +1,5 @@
-import Link from "next/link";
 import { LineChart, TrendingUp, Info, Lightbulb, CheckCircle2, AlertTriangle, RefreshCw } from "lucide-react";
-import { requireMembership, canEdit } from "@/lib/acl";
+import { requireMembership, canEdit, canAdmin } from "@/lib/acl";
 import { collectWorkspaceMetrics, type Metric, type Confidence } from "@/lib/metrics";
 import { readingsForWorkspace, byNetwork } from "@/lib/social/performance";
 import { networkFor } from "@/lib/social/networks";
@@ -12,6 +11,7 @@ import {
   dismissRecommendationAction,
   refreshRecommendationsAction,
 } from "@/app/actions/recommendations";
+import { EmptyState } from "@/components/EmptyState";
 
 // Insights — the read-only face of the metrics spine (src/lib/metrics).
 //
@@ -78,6 +78,7 @@ export default async function InsightsPage({
   const { workspace, membership } = await requireMembership();
   const { ok, err } = await searchParams;
   const editor = canEdit(membership.role);
+  const admin = canAdmin(membership.role);
   const [data, recs, resolved, socialReadings] = await Promise.all([
     collectWorkspaceMetrics(workspace.id, RANGE_DAYS),
     openRecommendations(workspace.id),
@@ -129,10 +130,11 @@ export default async function InsightsPage({
       )}
 
       {data.empty && (
-        <div className="card mb-4 text-sm">
-          Nothing to measure yet. Capture some ideas and publish a post, and this page fills in on its own —
-          <Link href="/ideas" className="underline"> start with Ideas</Link>.
-        </div>
+        <EmptyState
+          line="Nothing has been published from this workspace yet, so there is nothing here to measure."
+          note="This page reports; it does not generate. It fills in on its own once something has shipped."
+          action={{ label: "Find something to write", href: "/ideas" }}
+        />
       )}
 
       {/* ── Recommendations ─────────────────────────────────────────────── */}
@@ -153,10 +155,11 @@ export default async function InsightsPage({
       </div>
 
       {recs.length === 0 ? (
-        <div className="card mb-4 text-xs text-[var(--mute)]">
-          Nothing to suggest right now. Rules stay silent unless the data clears their threshold — a thin sample
-          produces no recommendation rather than a confident guess.
-        </div>
+        <EmptyState
+          line="Nothing to suggest right now."
+          note="Rules stay silent unless the data clears their threshold — a thin sample produces no recommendation rather than a confident guess."
+          action={editor ? { label: "Re-check now", run: refreshRecommendationsAction, pendingText: "Checking…" } : null}
+        />
       ) : (
         <div className="flex flex-col gap-3 mb-4">
           {recs.map((r) => {
@@ -310,10 +313,12 @@ export default async function InsightsPage({
       <h2 className="font-mono text-[13px] font-bold mb-2">Topics</h2>
       <div className="card mb-4">
         {data.topics.length === 0 ? (
-          <p className="text-xs text-[var(--mute)]">
-            No active Topics yet. Define them in <Link href="/brand" className="underline">Brand</Link> and tag content —
-            then this table shows which ones actually reach publication.
-          </p>
+          <EmptyState
+            variant="inline"
+            line="No active Topics yet, so there is nothing to compare."
+            note="Define them under Brand and tag content with them; this table then shows which ones actually reach publication."
+            action={{ label: "Add topics", href: "/brand" }}
+          />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
@@ -360,14 +365,13 @@ export default async function InsightsPage({
       {/* Performance */}
       <h2 className="font-mono text-[13px] font-bold mb-2">Search &amp; traffic</h2>
       {!hasPerformance && (
-        <div className="card mb-3 text-xs flex items-start gap-2" style={{ background: "var(--amber-soft)" }}>
-          <Info className="w-4 h-4 shrink-0 mt-0.5" style={{ color: "var(--amber-on)" }} />
-          <span>
-            No performance data yet. Connect Search Console and GA4 under{" "}
-            <Link href="/admin/analytics" className="underline">Settings → Analytics</Link> and these fill in automatically —
-            until then they stay blank rather than showing zeros.
-          </span>
-        </div>
+        <EmptyState
+          tone="attention"
+          icon={<Info className="w-5 h-5" style={{ color: "var(--amber-on)" }} />}
+          line="No search performance has been recorded yet, so the tiles below stay blank rather than showing zeros."
+          note={admin ? "Connecting Search Console and GA4 also needs someone to grant access on Google's side." : "An admin connects Search Console and GA4."}
+          action={admin ? { label: "Connect analytics", href: "/admin/analytics" } : null}
+        />
       )}
       <div className="grid grid-cols-1 @xl:grid-cols-2 @4xl:grid-cols-4 gap-3 mb-4">
         {performance.map((m) => <MetricCard key={m.key} m={m} />)}
@@ -376,14 +380,13 @@ export default async function InsightsPage({
       {/* Social performance — the distribution side of the same question */}
       <h2 className="font-mono text-[13px] font-bold mb-2">Social performance</h2>
       {!hasSocial && (
-        <div className="card mb-3 text-xs flex items-start gap-2" style={{ background: "var(--amber-soft)" }}>
-          <Info className="w-4 h-4 shrink-0 mt-0.5" style={{ color: "var(--amber-on)" }} />
-          <span>
-            No engagement pulled back yet. Connect a social account under{" "}
-            <Link href="/admin/connections" className="underline">Settings → Connections</Link>; once posts have gone out,
-            engagement is pulled in automatically and these fill in. Blank means unknown, not zero.
-          </span>
-        </div>
+        <EmptyState
+          tone="attention"
+          icon={<Info className="w-5 h-5" style={{ color: "var(--amber-on)" }} />}
+          line="No engagement has been pulled back yet — blank here means unknown, not zero."
+          note="Once an account is connected and posts have gone out, engagement syncs on its own."
+          action={admin ? { label: "Connect an account", href: "/admin/connections" } : null}
+        />
       )}
       <div className="grid grid-cols-1 @xl:grid-cols-2 @4xl:grid-cols-4 gap-3 mb-3">
         {social.map((m) => <MetricCard key={m.key} m={m} />)}

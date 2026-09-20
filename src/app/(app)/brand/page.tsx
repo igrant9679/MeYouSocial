@@ -21,6 +21,7 @@ import {
 } from "@/app/actions/brand-hub";
 import { networkFor } from "@/lib/social/networks";
 import { AiAssist } from "@/components/AiAssist";
+import { EmptyState } from "@/components/EmptyState";
 
 // Brand — the workspace's identity in one place: colours, company info,
 // personas, topics, keywords and connected social accounts. Everything here is
@@ -159,11 +160,17 @@ export default async function BrandPage({ searchParams }: { searchParams: Promis
             <span className="block text-xs text-[var(--mute)] mb-1">Related phrases (comma-separated, optional)</span>
             <input name="keywords" placeholder="donor retention, giving days" className="w-full" />
           </label>
-          <SubmitButton className="btn primary">Add topic</SubmitButton>
+          <SubmitButton className="btn primary" id="add-topic">Add topic</SubmitButton>
         </form>
       )}
       {topics.length === 0 ? (
-        <div className="card mb-6 text-xs text-[var(--mute)]">No topics yet. Add the themes this company writes and posts about.</div>
+        <div className="mb-6">
+          <EmptyState
+            line="No topics yet."
+            note="Topics are the themes this company writes and posts about — idea discovery, drafting and the social autogen all read them, so an empty list means the engine has nothing to aim at."
+            action={editor ? { label: "Add the first topic", href: "#add-topic" } : null}
+          />
+        </div>
       ) : (
         <ul className="flex flex-col gap-2 mb-6">
           {topics.map((t) => {
@@ -245,7 +252,12 @@ export default async function BrandPage({ searchParams }: { searchParams: Promis
         note="The experts this company's content speaks as — voice, credentials, and what they never claim." />
       <div className="card mb-6">
         {personas.length === 0 ? (
-          <p className="text-xs text-[var(--mute)] mb-2">No personas yet. They give drafts a credible, consistent voice.</p>
+          <EmptyState
+            variant="inline"
+            line="No personas yet."
+            note="A persona gives drafts a credible, consistent voice — who the content speaks as, their credentials, and what they never claim."
+            action={editor ? { label: "Add a persona", href: "/blog/experts#add-expert" } : null}
+          />
         ) : (
           <ul className="flex flex-wrap gap-2 mb-2">
             {personas.map((p) => (

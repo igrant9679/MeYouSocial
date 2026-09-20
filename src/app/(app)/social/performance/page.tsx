@@ -9,6 +9,7 @@ import { readingsForWorkspace, byNetwork } from "@/lib/social/performance";
 import { networkFor } from "@/lib/social/networks";
 import { syncSocialPerformanceAction } from "@/app/actions/social-slots";
 import { Banner, Empty, PostCard, Section, SocialHeader } from "@/components/SocialPostCard";
+import { EmptyState } from "@/components/EmptyState";
 
 // What went out, and what came back. Engagement is pulled on demand rather than
 // polled, so an empty panel means "not asked yet" — and says so.
@@ -62,11 +63,11 @@ export default async function SocialPerformancePage({ searchParams }: { searchPa
 
       {/* Per-network rollup — 90 days. */}
       {networks.length === 0 ? (
-        <div className="card mb-4 text-xs text-[var(--mute)]">
-          {/* Blank ≠ zero. Say which of the two this is. */}
-          No engagement figures yet. Networks are asked for them on demand — hit <b>Pull engagement</b> above once
-          something has been published. Figures that a network doesn&apos;t report stay blank rather than becoming zero.
-        </div>
+        <EmptyState
+          line="No engagement figures yet — nothing has been published for a network to report on."
+          note="Blank is not zero: figures a network does not report stay blank. Pull engagement appears here once there is history to pull."
+          action={{ label: "Compose a post", href: "/social/compose" }}
+        />
       ) : (
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 mb-6">
           {networks.map((n) => {
@@ -93,7 +94,7 @@ export default async function SocialPerformancePage({ searchParams }: { searchPa
 
       <Section icon={<Send className="w-4 h-4" style={{ color: "var(--green-on)" }} />} title="History" count={history.length} />
       {history.length === 0 ? (
-        <Empty text="Posts you publish appear here with per-network status." />
+        <Empty text="Nothing has been published from this workspace yet." note="Each post appears here with its own status per network." to="/social/compose" cta="Compose a post" />
       ) : (
         <div className="flex flex-col gap-2">
           {history.map((p) => (

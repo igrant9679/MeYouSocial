@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowLeft, CalendarDays } from "lucide-react";
 import { requireMembership } from "@/lib/acl";
 import { db } from "@/lib/db";
+import { EmptyState } from "@/components/EmptyState";
 
 // Publishing calendar (Spark port): posts grouped by month of publishedAt
 // (or updatedAt for in-flight work), newest month first.
@@ -36,9 +37,11 @@ export default async function BlogCalendarPage() {
       </div>
 
       {byMonth.size === 0 ? (
-        <div className="card text-center py-10">
-          <p className="text-sm text-[var(--mute)]">Nothing yet — the calendar fills as posts are created and published.</p>
-        </div>
+        <EmptyState
+          line="No article has a date yet, so the calendar has nothing to place."
+          note="It fills in on its own as articles are written, scheduled and published."
+          action={{ label: "Open Articles", href: "/blog" }}
+        />
       ) : (
         [...byMonth.entries()].map(([month, list]) => (
           <section key={month} className="mb-4">

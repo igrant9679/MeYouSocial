@@ -6,6 +6,7 @@ import { AreaChart } from "@/components/charts";
 import { Banner, SocialHeader } from "@/components/SocialPostCard";
 import { AUDIT_WINDOWS, youtubeAuditFindings, youtubeAuditFor, type AuditFinding, type AuditWindow } from "@/lib/youtube/analytics";
 import { refreshYoutubeAuditAction } from "@/app/actions/youtube-audit";
+import { EmptyState } from "@/components/EmptyState";
 
 // Measure → YouTube: the channel audit. What the workspace's own channel did
 // over the window, from the YouTube Analytics API, and what to do about it.
@@ -124,7 +125,11 @@ export default async function YoutubeAuditPage({ searchParams }: { searchParams:
             </p>
 
             {noData ? (
-              <div className="card text-sm text-[var(--mute)]">No views and no uploads in this window. The channel is connected and answering — there is simply nothing to audit for these {days} days. Try a longer window.</div>
+              <EmptyState
+                line={`No views and no uploads in the last ${days} days.`}
+                note="The channel is connected and answering — there is simply nothing to audit in this window."
+                action={days < 365 ? { label: `Try ${days < 90 ? 90 : 365} days`, href: `/youtube?days=${days < 90 ? 90 : 365}` } : null}
+              />
             ) : (
               <>
                 <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 mb-4">

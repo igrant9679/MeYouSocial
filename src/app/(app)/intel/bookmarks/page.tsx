@@ -7,6 +7,7 @@ import { outlierBand, formatNum, formatVph } from "@/lib/intel";
 import { ChannelAvatar } from "@/components/ChannelAvatar";
 import { toggleBookmarkAction, updateBookmarkAction } from "@/app/actions/bookmarks";
 import { AiAssist } from "@/components/AiAssist";
+import { EmptyState } from "@/components/EmptyState";
 
 // Bookmarks page. Team-shared per-workspace.
 
@@ -36,7 +37,12 @@ export default async function BookmarksPage() {
 
       {items.length === 0 && (
         <div className="card text-center py-12">
-          <p className="text-sm text-[var(--mute)]">No bookmarks yet. Hit the <Bookmark className="inline w-3.5 h-3.5" /> on any channel or video in Intel.</p>
+          <EmptyState
+            variant="inline"
+            line="Nothing bookmarked yet."
+            note="Hit the bookmark icon on any channel or video in Intel and it is kept here."
+            action={{ label: "Open Intel", href: "/intel" }}
+          />
         </div>
       )}
 

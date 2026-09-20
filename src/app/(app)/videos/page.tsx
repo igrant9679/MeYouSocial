@@ -10,6 +10,7 @@ import { renderStandaloneBrandedShortAction, deleteBrandedShortAction } from "@/
 import { brandedShortReadiness } from "@/lib/branded-video";
 import { HelpTip } from "@/components/HelpTip";
 import { VIDEO_TIPS } from "@/lib/help-tips";
+import { EmptyState } from "@/components/EmptyState";
 
 // Phase 4 — short-form video renders. Queue → render → play. Mock provider by
 // default; Veo activates via USE_MOCK_VIDEO=false + a Google key.
@@ -171,11 +172,11 @@ export default async function VideosPage() {
       </div>
 
       {renders.length === 0 ? (
-        <div className="card text-center py-10">
-          <p className="text-sm text-[var(--mute)]">
-            No videos yet. Open a published blog post and hit “Create video package”.
-          </p>
-        </div>
+        <EmptyState
+          line="No videos have been rendered yet."
+          note="A render starts from a published article — open one and use Create video package on its Distribute tab."
+          action={{ label: "Open Articles", href: "/blog" }}
+        />
       ) : (
         <ul className="flex flex-col gap-3">
           {renders.map((r) => (

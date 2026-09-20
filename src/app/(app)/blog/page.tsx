@@ -6,6 +6,7 @@ import { SubmitButton } from "@/components/SubmitButton";
 import { createBlogPostAction } from "@/app/actions/blog";
 import { discoverBlogIdeasAction } from "@/app/actions/blog-ideas";
 import { motifSummaryLabel, parseMotifs } from "@/lib/motifs";
+import { EmptyState } from "@/components/EmptyState";
 
 // Blog home — the full-width workspace. Pipeline as a kanban board (cards link
 // into the tabbed editor), a week-ahead calendar ribbon, quick create. The
@@ -293,7 +294,12 @@ export default async function BlogPage({ searchParams }: { searchParams: Promise
           <Link href="/ideas?format=article" className="text-xs font-mono text-[var(--accent)] font-semibold hover:underline">idea board →</Link>
         </div>
         {topIdeas.length === 0 ? (
-          <p className="text-xs text-[var(--mute)]">No open ideas — run discovery or add one on the idea board.</p>
+          <EmptyState
+            variant="inline"
+            line="No open ideas — nothing is queued to be written."
+            note="Discovery reads your organisation profile and keyword strategy and proposes titles."
+            action={editor ? { label: "Discover article ideas", run: discoverBlogIdeasAction, pendingText: "Discovering…" } : { label: "Open the Ideas board", href: "/ideas" }}
+          />
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-2">
             {topIdeas.map((i) => (

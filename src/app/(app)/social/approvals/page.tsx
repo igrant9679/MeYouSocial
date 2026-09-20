@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { getSetting } from "@/lib/settings";
 import { getQueue } from "@/lib/social/slots";
 import { Banner, PostCard, Section, SocialHeader } from "@/components/SocialPostCard";
+import { EmptyState } from "@/components/EmptyState";
 
 // The review queue. A queue nobody sees is a queue nobody clears, which is why
 // it gets its own tab with an urgent badge rather than a section three screens
@@ -63,10 +64,13 @@ export default async function SocialApprovalsPage({ searchParams }: { searchPara
       )}
 
       {awaiting.length === 0 && changes.length === 0 ? (
-        <div className="card text-xs flex items-center gap-2" style={{ borderColor: "var(--green)" }}>
-          <Check className="w-4 h-4" style={{ color: "var(--green-on)" }} />
-          Nothing waiting for review.
-        </div>
+        <EmptyState
+          tone="clear"
+          icon={<Check className="w-5 h-5" style={{ color: "var(--green-on)" }} />}
+          line="No post is waiting for review."
+          note="Posts land here only while the approval workflow is on and something is pending."
+          action={{ label: "Compose a post", href: "/social/compose" }}
+        />
       ) : (
         <>
           {awaiting.length > 0 && (

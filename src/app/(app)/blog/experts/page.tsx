@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { SubmitButton } from "@/components/SubmitButton";
 import { createSmeProfileAction } from "@/app/actions/sme";
 import { completeness, parseAnswers, parseTopics } from "@/lib/sme";
+import { EmptyState } from "@/components/EmptyState";
 
 // FR-3 — the expert roster. Each profile is captured once and replayed into
 // every draft that matches its topics.
@@ -35,7 +36,7 @@ export default async function SmeListPage() {
       </div>
 
       {editor && (
-        <form action={createSmeProfileAction} className="card mb-5 flex flex-wrap items-end gap-3">
+        <form id="add-expert" action={createSmeProfileAction} className="card mb-5 flex flex-wrap items-end gap-3">
           <label className="flex-1 min-w-40 text-sm">
             <span className="block text-xs text-[var(--mute)] mb-1">Name</span>
             <input name="name" required placeholder="e.g. Idris Grant" className="w-full" />
@@ -49,12 +50,11 @@ export default async function SmeListPage() {
       )}
 
       {profiles.length === 0 ? (
-        <div className="card">
-          <p className="text-xs text-[var(--mute)]">
-            No experts yet. Without one, drafts are grounded only in the organization profile — competent, but not
-            anyone in particular.
-          </p>
-        </div>
+        <EmptyState
+          line="No experts yet."
+          note="Without one, drafts are grounded only in the organization profile — competent, but not anyone in particular. Answers you give in the Inbox bank here automatically."
+          action={editor ? { label: "Add an expert", href: "#add-expert" } : null}
+        />
       ) : (
         <ul className="flex flex-col gap-2">
           {profiles.map((p) => {

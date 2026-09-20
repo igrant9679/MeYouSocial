@@ -8,6 +8,7 @@ import { SubmitButton } from "@/components/SubmitButton";
 import { getQueue } from "@/lib/social/slots";
 import { queueAllDraftsAction } from "@/app/actions/social-slots";
 import { Banner, Empty, PostCard, Section, SocialHeader } from "@/components/SocialPostCard";
+import { EmptyState } from "@/components/EmptyState";
 
 // The queue: everything scheduled or drafted, on a grid you can drag, with the
 // agenda as the same data listed by day.
@@ -111,7 +112,7 @@ export default async function SocialCalendarPage({ searchParams }: { searchParam
         <>
           <Section icon={<CalendarClock className="w-4 h-4" style={{ color: "var(--blue-on)" }} />} title="Scheduled" count={scheduled.length} />
           {scheduled.length === 0 ? (
-            <Empty text="Nothing scheduled. Compose a post and pick “Schedule”, or queue a draft." />
+            <Empty text="Nothing is scheduled." note="Compose a post and pick Schedule, or queue an approved draft into the next free slot." to="/social/compose" cta="Compose a post" />
           ) : (
             [...byDay.entries()].map(([day, items]) => (
               <div key={day} className="mb-4">

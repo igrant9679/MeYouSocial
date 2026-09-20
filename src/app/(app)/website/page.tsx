@@ -14,6 +14,7 @@ import {
   parseSlugRules,
 } from "@/lib/seo-plugins";
 import { addSitePageAction, deleteSitePageAction, importPublishedAsPagesAction } from "@/app/actions/blog-optimize";
+import { EmptyState } from "@/components/EmptyState";
 
 /**
  * Website — the Distribute-side home of "publish articles to my site".
@@ -255,10 +256,12 @@ export default async function WebsitePage() {
           can&apos;t serve that role, so set the preview image in your CMS after import.
         </p>
         {exportable.length === 0 ? (
-          <p className="text-xs text-[var(--mute)]">
-            Nothing to export yet — articles appear here once they reach final approval on the{" "}
-            <Link href="/blog?view=list" className="underline">Blog board</Link>.
-          </p>
+          <EmptyState
+            variant="inline"
+            line="Nothing is at final approval, so there is nothing to export."
+            note="An article appears here once every required check has passed."
+            action={{ label: "See what's being written", href: "/drafts" }}
+          />
         ) : (
           <ul className="text-xs flex flex-col gap-1">
             {exportable.map((p) => (
@@ -307,7 +310,12 @@ export default async function WebsitePage() {
           </form>
         )}
         {pages.length === 0 ? (
-          <p className="text-xs text-[var(--mute)]">No pages yet — add key pages or import your published posts.</p>
+          <EmptyState
+            variant="inline"
+            line="No site pages recorded yet."
+            note="The audit and internal-link suggestions read this inventory — add your key pages above, or import everything already published."
+            action={canEdit(membership.role) ? { label: "Import published posts", run: importPublishedAsPagesAction, pendingText: "Importing…" } : null}
+          />
         ) : (
           <ul className="text-xs flex flex-col gap-1">
             {pages.map((p) => (

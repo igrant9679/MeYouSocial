@@ -17,6 +17,7 @@ import {
   deleteSocialPostAction,
   duplicateSocialPostAction,
 } from "@/app/actions/social";
+import { EmptyState } from "@/components/EmptyState";
 
 /**
  * The post card, and the small shared chrome around it.
@@ -282,8 +283,17 @@ export function Section({ icon, title, count }: { icon: React.ReactNode; title: 
   );
 }
 
-export function Empty({ text }: { text: string }) {
-  return <div className="card text-xs text-[var(--mute)] mb-2">{text}</div>;
+/**
+ * ⚠ `text`-only until 2026-09-20, which made a next step structurally
+ * impossible on every social surface that used it (audit B6). `to`/`cta` are
+ * optional so existing callers are unchanged.
+ */
+export function Empty({ text, note, to, cta }: { text: string; note?: string; to?: string; cta?: string }) {
+  return (
+    <div className="mb-2">
+      <EmptyState line={text} note={note} action={to && cta ? { label: cta, href: to } : null} />
+    </div>
+  );
 }
 
 export function Banner({ kind, text }: { kind: "ok" | "err"; text: string }) {

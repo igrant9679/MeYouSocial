@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { hasSeriesData, postPerformance, weeklySeries } from "@/lib/dashboard-data";
 import { AreaChart, HBars } from "@/components/charts";
 import { MOTIF_SEED_BY_KEY, parseMotifs } from "@/lib/motifs";
+import { EmptyState } from "@/components/EmptyState";
 
 // The client-facing content report (Spark's agency deliverable, reborn).
 // Impressions and clicks are separate panels on purpose — their scales differ
@@ -119,7 +120,7 @@ export default async function BlogReportPage() {
         <section className="card anim-rise ad-3">
           <h2 className="font-mono text-[13px] font-bold mb-2">Top content</h2>
           {topContent.length === 0 ? (
-            <p className="text-xs text-[var(--mute)] py-6 text-center">Nothing published yet.</p>
+            <EmptyState variant="inline" line="Nothing has been published yet, so there is no content to rank." action={{ label: "See what's waiting", href: "/publish" }} />
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-xs border-collapse">
@@ -160,7 +161,7 @@ export default async function BlogReportPage() {
           <section className="card anim-rise ad-4">
             <h2 className="font-mono text-[13px] font-bold mb-2">Keyword positions</h2>
             {positions.length === 0 ? (
-              <p className="text-xs text-[var(--mute)]">No position data yet — record snapshots under Analytics.</p>
+              <EmptyState variant="inline" line="No post has a recorded search position yet." action={{ label: "Add this week's numbers", href: "/blog/analytics" }} />
             ) : (
               <HBars rows={buckets} />
             )}
@@ -194,10 +195,12 @@ export default async function BlogReportPage() {
       <section className="card anim-rise ad-6 mb-4">
         <h2 className="font-mono text-[13px] font-bold mb-2">Voice mix — published posts by dominant motif</h2>
         {motifRows.length === 0 ? (
-          <p className="text-xs text-[var(--mute)]">
-            No published posts carry a motif blend yet{motifUnset > 0 ? ` (${motifUnset} published without one)` : ""}.
-            Set blends per post or defaults under Brand &amp; motifs.
-          </p>
+          <EmptyState
+            variant="inline"
+            line={`No published post carries a motif blend yet${motifUnset > 0 ? ` (${motifUnset} published without one)` : ""}.`}
+            note="Set a blend per post, or a default for the workspace."
+            action={{ label: "Set the default blend", href: "/blog/brand" }}
+          />
         ) : (
           <div className="max-w-lg">
             <HBars rows={motifRows} />
@@ -217,8 +220,11 @@ export default async function BlogReportPage() {
 
 function EmptyChart() {
   return (
-    <p className="text-xs text-[var(--mute)] py-8 text-center">
-      No snapshots yet — add weekly numbers under <Link href="/blog/analytics" className="underline">Analytics</Link>.
-    </p>
+    <EmptyState
+      variant="inline"
+      line="No weekly numbers have been recorded, so there is no curve to draw."
+      note="A blank chart means not measured, never zero."
+      action={{ label: "Add this week's numbers", href: "/blog/analytics" }}
+    />
   );
 }

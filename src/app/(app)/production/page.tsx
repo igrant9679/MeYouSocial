@@ -78,7 +78,7 @@ export default async function ProductionBoardPage() {
                 <span className="text-xs text-[var(--mute)]">({items.length})</span>
               </div>
               <ul className="m-0 p-0 flex flex-col gap-2">
-                {items.length === 0 && <li className="text-[11px] text-[var(--mute)] py-3 text-center">—</li>}
+                {items.length === 0 && <li className="text-[11px] text-[var(--mute)] py-3 text-center" title="No project is in this stage">—</li>}
                 {items.map((p) => (
                   <li key={p.id} className="bg-[var(--bg)] border border-[var(--line)] rounded-lg p-2.5">
                     <div className="flex items-center gap-1.5 mb-1">

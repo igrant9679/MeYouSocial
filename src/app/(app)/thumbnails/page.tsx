@@ -10,6 +10,7 @@ import { readJson } from "@/lib/db/json";
 import { HelpTip } from "@/components/HelpTip";
 import { IMAGE_TIPS } from "@/lib/help-tips";
 import { resolveImageProviderName } from "@/lib/images";
+import { EmptyState } from "@/components/EmptyState";
 
 // MU-08 — AI Thumbnail Studio. Brainstorm + Clone modes + history.
 
@@ -130,7 +131,7 @@ export default async function ThumbnailsPage({ searchParams }: { searchParams: P
       <section className="card">
         <h2 className="font-mono font-bold text-[14px] mb-3 flex items-center gap-2"><History className="w-4 h-4" style={{ color: "#DB2777" }} /> History <span className="text-xs text-[var(--mute)] font-normal">({history.length})</span></h2>
         {history.length === 0 ? (
-          <p className="text-sm text-[var(--mute)] py-6 text-center">No thumbnails yet.</p>
+          <EmptyState variant="inline" line="No thumbnails yet — the generator above makes the first set." />
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
             {history.map((t) => {
