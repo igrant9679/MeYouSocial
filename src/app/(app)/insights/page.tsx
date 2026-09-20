@@ -114,6 +114,15 @@ export default async function InsightsPage({
   const maxFunnel = Math.max(1, ...data.funnel.map((s) => s.count));
   const maxWeek = Math.max(1, ...data.cadence.map((p) => p.published));
   const hasPerformance = performance.some((m) => m.value !== null);
+  // ⚠ When every tile in a section is blank they share one `evidence` string
+  // (lib/metrics), and it is the PRECISE reason — "Nothing was posted to
+  // social in the last 90 days" is a different fact from "no account is
+  // connected", and the banner must not assert the wrong one. Show that exact
+  // sentence once, at the top, instead of four times underneath.
+  const sharedReason = (list: Metric[]) =>
+    list.length > 0 && list.every((m) => m.value === null && m.evidence === list[0].evidence) ? list[0].evidence : null;
+  const performanceReason = sharedReason(performance);
+  const socialReason = sharedReason(social);
 
   return (
     <main className="w-full">
@@ -382,8 +391,8 @@ export default async function InsightsPage({
         <EmptyState
           tone="attention"
           icon={<Info className="w-5 h-5" style={{ color: "var(--amber-on)" }} />}
-          line="No search performance has been recorded yet, so the tiles below stay blank rather than showing zeros."
-          note={admin ? "Connecting Search Console and GA4 also needs someone to grant access on Google's side." : "An admin connects Search Console and GA4."}
+          line={performanceReason ?? "No search performance has been recorded yet, so the tiles below stay blank rather than showing zeros."}
+          note={admin ? "The tiles stay blank rather than showing zeros. Connecting Search Console and GA4 also needs someone to grant access on Google's side." : "The tiles stay blank rather than showing zeros. An admin connects Search Console and GA4."}
           action={admin ? { label: "Connect analytics", href: "/admin/analytics" } : null}
         />
       )}
@@ -397,9 +406,9 @@ export default async function InsightsPage({
         <EmptyState
           tone="attention"
           icon={<Info className="w-5 h-5" style={{ color: "var(--amber-on)" }} />}
-          line="No engagement has been pulled back yet — blank here means unknown, not zero."
-          note="Once an account is connected and posts have gone out, engagement syncs on its own."
-          action={admin ? { label: "Connect an account", href: "/admin/connections" } : null}
+          line={socialReason ?? "No engagement has been pulled back yet."}
+          note="Blank here means unknown, never zero. Engagement syncs on its own once an account is connected and posts have actually gone out."
+          action={{ label: "Open Distribute", href: "/distribute" }}
         />
       )}
       <div className="grid grid-cols-1 @xl:grid-cols-2 @4xl:grid-cols-4 gap-3 mb-3">
