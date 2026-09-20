@@ -6,7 +6,8 @@ import { intelThumbUrl, outlierBand, formatNum, formatVph } from "@/lib/intel";
 import { ChannelAvatar } from "@/components/ChannelAvatar";
 import { SubmitButton } from "@/components/SubmitButton";
 import { addBlogIdeaAction } from "@/app/actions/blog-ideas";
-import { AskDrawer, StageHeader, StageList, StageRow, StateChip } from "@/components/StageShell";
+import { StageHeader, StageList, StageRow, StateChip } from "@/components/StageShell";
+import { EmptyState } from "@/components/EmptyState";
 
 // Research stage: Intel (kept by name — the owner's decision), bookmarks, the
 // tracked competitors, chat. The overview is the outliers that matter most
@@ -40,7 +41,10 @@ export default async function ResearchStage() {
         ]}
       />
 
-      <StageList title="Outlier videos worth an idea" empty="Nothing above 2× yet. Add competitors under Intel and the outliers appear as their videos are indexed.">
+      <StageList
+        title="Outlier videos worth an idea"
+        empty={<EmptyState variant="inline" line="No indexed competitor video has beaten its own channel's average by 2× yet." note="Outliers appear on their own as a competitor's videos are indexed." action={{ label: "Add a competitor", href: "/intel" }} />}
+      >
         {outliers.length > 0 ? outliers.map((v) => {
           const band = outlierBand(v.outlierScore);
           const thumb = intelThumbUrl(v);
@@ -71,7 +75,6 @@ export default async function ResearchStage() {
         }) : undefined}
       </StageList>
 
-      <AskDrawer stage="research" placeholder="e.g. Which competitor topics from the last month have we not covered?" />
     </div>
   );
 }

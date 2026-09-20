@@ -19,12 +19,26 @@ import type { StripCounts } from "@/lib/stage-counts";
  * Renders nothing outside a stage (Inbox, Assistant, Setup, Help). Client-side
  * purely for usePathname; the stage data itself is plain and shared.
  */
-export function StageStrip({ activeChannelId, studio, counts }: { activeChannelId: string | null; studio: boolean; counts: StripCounts }) {
+export function StageStrip({
+  activeChannelId,
+  studio,
+  counts,
+  admin,
+  operator,
+}: {
+  activeChannelId: string | null;
+  studio: boolean;
+  counts: StripCounts;
+  /** Both decided on the SERVER (app/(app)/layout.tsx) so the client never
+   *  guesses at a role. Cosmetic only — every admin page keeps its own gate. */
+  admin: boolean;
+  operator: boolean;
+}) {
   const pathname = usePathname() ?? "";
   const key = stageFor(pathname);
   if (!key) return null;
   const stage = STAGES[key];
-  const tabs = stage.tabs({ channelId: activeChannelId, studio });
+  const tabs = stage.tabs({ channelId: activeChannelId, studio, admin, operator });
   const onOverview = pathname === stage.href;
   const current = onOverview ? null : currentTab(pathname, tabs);
 

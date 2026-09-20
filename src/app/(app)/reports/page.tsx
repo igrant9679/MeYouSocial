@@ -1,11 +1,13 @@
 import Link from "next/link";
 import { FileBarChart, Plus } from "lucide-react";
-import { requireMembership, canEdit } from "@/lib/acl";
+import { requireMembership, canEdit, canAdmin } from "@/lib/acl";
 import { SubmitButton } from "@/components/SubmitButton";
 import { createCustomReportAction } from "@/app/actions/reports";
 import { listReports } from "@/lib/report-defs";
+import { db } from "@/lib/db";
 import { HelpTip } from "@/components/HelpTip";
 import { REPORT_TIPS } from "@/lib/help-tips";
+import { EmptyState } from "@/components/EmptyState";
 
 // The Reports hub: ten stock reports plus this workspace's custom ones. Every
 // report is an ordered list of blocks — customizing writes a per-workspace
@@ -13,8 +15,16 @@ import { REPORT_TIPS } from "@/lib/help-tips";
 
 export default async function ReportsHubPage() {
   const { workspace, membership } = await requireMembership();
-  const reports = await listReports(workspace.id);
   const editor = canEdit(membership.role);
+  const admin = canAdmin(membership.role);
+  // One COUNT, not a series: all ten tiles read from BlogSnapshot, so "is
+  // there a single recorded number anywhere" is the honest test for whether
+  // this whole page is about to be a wall of dashes (audit B6).
+  const [reports, snapshots] = await Promise.all([
+    listReports(workspace.id),
+    db.blogSnapshot.count({ where: { post: { workspaceId: workspace.id } } }),
+  ]);
+  const hasAnyData = snapshots > 0;
 
   return (
     <main className="w-full">
@@ -32,6 +42,18 @@ export default async function ReportsHubPage() {
           </p>
         </div>
       </div>
+
+      {/* ⚠ Ten tiles that will each read as dashes is worse than one honest
+          sentence saying why (audit B6). Shown only when there is genuinely
+          nothing recorded — it must not nag a workspace that has data. */}
+      {!hasAnyData && (
+        <EmptyState
+          tone="attention"
+          line="No search or click numbers have been recorded for this workspace yet, so every report below will read as dashes."
+          note="A dash means not measured, never zero. Connecting Search Console and GA4 also needs someone to grant access on Google's side."
+          action={admin ? { label: "Connect analytics", href: "/admin/analytics" } : { label: "Enter numbers by hand", href: "/blog/analytics" }}
+        />
+      )}
 
       <div className="grid grid-cols-1 @xl:grid-cols-2 @4xl:grid-cols-3 @6xl:grid-cols-4 gap-3">
         {reports.map((r) => (

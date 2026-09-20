@@ -51,7 +51,7 @@ type ZernioEvent = {
 export async function POST(req: NextRequest) {
   const secret = await getSetting("zernio:webhook_secret");
   if (!secret) {
-    // Fail closed. Configure the secret under Publish Admin → Connections.
+    // Fail closed. Configure the secret under Settings → Connections.
     return NextResponse.json({ error: "webhook secret not configured" }, { status: 503 });
   }
 

@@ -10,6 +10,7 @@ import {
   setAuditItemStatusAction,
 } from "@/app/actions/content-audit";
 import { RECOMMENDATION_HUE, parseFindings, type Recommendation } from "@/lib/content-audit";
+import { EmptyState } from "@/components/EmptyState";
 
 // FR-15 — the existing-content audit. Recommendations only: this page cannot
 // delete, rewrite or republish anything on the live site.
@@ -34,8 +35,8 @@ export default async function ContentAuditPage() {
 
   return (
     <main className="p-6 w-full">
-      <Link href="/review" className="inline-flex items-center gap-1 text-xs text-[var(--mute)] hover:text-[var(--ink)] mb-3">
-        <ArrowLeft className="w-3.5 h-3.5" /> Review
+      <Link href="/publish" className="inline-flex items-center gap-1 text-xs text-[var(--mute)] hover:text-[var(--ink)] mb-3">
+        <ArrowLeft className="w-3.5 h-3.5" /> Publish
       </Link>
       <div className="flex items-center gap-3 mb-5">
         <span className="w-12 h-12 rounded-2xl grid place-items-center" style={{ background: "var(--indigo-soft)", color: "var(--indigo-on)" }}>
@@ -96,12 +97,15 @@ export default async function ContentAuditPage() {
       </div>
 
       {items.length === 0 ? (
-        <div className="card">
-          <p className="text-xs text-[var(--mute)]">
-            No audit yet. Running one crawls your published posts and scores them with the same checks the pre-publish
-            gate uses.
-          </p>
-        </div>
+        <EmptyState
+          line="Nothing has been audited yet — a run scores your live posts with the same checks the pre-publish gate uses."
+          note={
+            conn
+              ? "It crawls the posts published through this app."
+              : "Without a WordPress connection it can only read the pages in your site inventory, which is slower and sees less — an admin connects WordPress under Publish → Website."
+          }
+          action={editor ? { label: "Run the audit", run: runContentAuditAction, pendingText: "Auditing…" } : null}
+        />
       ) : (
         <ul className="flex flex-col gap-2">
           {items.map((item) => {

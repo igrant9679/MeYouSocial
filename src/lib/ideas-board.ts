@@ -16,11 +16,15 @@ import { ensureMotifDirectives } from "@/lib/motifs";
 
 export type BoardState = "discovered" | "approved" | "drafted" | "rejected";
 
-export const STATES: { state: BoardState; title: string; hue: string; blurb: string }[] = [
-  { state: "discovered", title: "Discovered", hue: "amber", blurb: "waiting for a yes or no" },
-  { state: "approved", title: "Approved", hue: "blue", blurb: "next to be written" },
-  { state: "drafted", title: "Drafted", hue: "green", blurb: "an article or script exists" },
-  { state: "rejected", title: "Rejected", hue: "rose", blurb: "won't come back" },
+// `empty` is the column's own sentence when it has nothing in it. Four columns
+// all reading "Empty" said nothing about which of them mattered (audit B6);
+// there is deliberately no button here — the board has ONE primary action, not
+// four competing ones.
+export const STATES: { state: BoardState; title: string; hue: string; blurb: string; empty: string }[] = [
+  { state: "discovered", title: "Discovered", hue: "amber", blurb: "waiting for a yes or no", empty: "Nothing waiting on a yes or no." },
+  { state: "approved", title: "Approved", hue: "blue", blurb: "next to be written", empty: "Nothing approved yet — say yes to one on the left and the engine writes it." },
+  { state: "drafted", title: "Drafted", hue: "green", blurb: "an article or script exists", empty: "Approved ideas land here once they have been written." },
+  { state: "rejected", title: "Rejected", hue: "rose", blurb: "won't come back", empty: "Nothing rejected." },
 ];
 
 /** Video-idea statuses (the table's own vocabulary) → the board's four states. */

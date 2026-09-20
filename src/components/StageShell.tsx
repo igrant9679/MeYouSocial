@@ -1,7 +1,4 @@
 import Link from "next/link";
-import { MessageCircle } from "lucide-react";
-import { SubmitButton } from "@/components/SubmitButton";
-import { sendAssistantMessageAction } from "@/app/actions/assistant";
 
 /**
  * The stage-page skeleton (One-Loop redesign, step 3). Every stage shares it
@@ -54,12 +51,25 @@ export function StageHeader({
   );
 }
 
-/** A row of items in a stage. Only rendered when non-empty by the caller. */
-export function StageList({ title, children, empty }: { title: string; children?: React.ReactNode; empty?: string }) {
+/**
+ * A row of items in a stage.
+ *
+ * ⚠ `empty` was typed `string`, which made a button structurally impossible —
+ * so all five stage overviews inherited an empty state with nowhere to go
+ * (audit B6). Widening it to ReactNode lets a caller pass an <EmptyState/>;
+ * every existing string caller keeps working unchanged.
+ */
+export function StageList({ title, children, empty }: { title: string; children?: React.ReactNode; empty?: React.ReactNode }) {
   return (
     <section className="card mb-4">
       <h2 className="font-mono text-[13px] font-bold mb-2">{title}</h2>
-      {children ? <ul className="m-0 p-0 flex flex-col">{children}</ul> : <p className="text-xs text-[var(--mute)] m-0">{empty}</p>}
+      {children ? (
+        <ul className="m-0 p-0 flex flex-col">{children}</ul>
+      ) : typeof empty === "string" ? (
+        <p className="text-xs text-[var(--mute)] m-0">{empty}</p>
+      ) : (
+        empty
+      )}
     </section>
   );
 }
@@ -76,22 +86,9 @@ export function StateChip({ label, hue }: { label: string; hue: string }) {
   );
 }
 
-export function AskDrawer({ stage, placeholder }: { stage: string; placeholder: string }) {
-  return (
-    <section className="card mt-2" style={{ borderStyle: "dashed" }}>
-      <h2 className="font-mono text-[13px] font-bold mb-1 flex items-center gap-1.5">
-        <MessageCircle className="w-4 h-4" style={{ color: "var(--violet-on)" }} /> Ask
-      </h2>
-      <p className="text-[11px] text-[var(--mute)] mb-2 mt-0">
-        The assistant reads this workspace and can draft — it can&apos;t publish, send, schedule, approve or delete. The answer opens as a thread you can keep.
-      </p>
-      <form action={sendAssistantMessageAction} className="flex flex-col gap-2">
-        <textarea name="message" rows={2} required maxLength={4000} placeholder={placeholder} className="w-full text-sm" aria-label={`Ask about ${stage}`} />
-        <div className="flex items-center gap-2">
-          <SubmitButton className="btn sm primary" pendingText="Working…">Ask</SubmitButton>
-          <span className="text-[10px] text-[var(--mute)]">May run several steps — don&apos;t reload.</span>
-        </div>
-      </form>
-    </section>
-  );
-}
+// ⚠ AskDrawer lived here and sat at the bottom of all seven stage pages, a
+// third "Ask" on a screen that already had the header button and the floating
+// dock pill — each with different placeholder copy (audit B1.5). It also told
+// people the assistant "can't publish, send, schedule, approve or delete",
+// which stopped being true on 2026-09-08. The dock is the assistant now:
+// Ctrl+/ anywhere, one conversation that follows you between pages.

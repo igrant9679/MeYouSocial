@@ -171,11 +171,34 @@ but it means **bad output can look like real output**. Rules learned the hard wa
 - **Shared UI** `SubmitButton`, `MobileNav`, `ChannelSwitcher`, `ValidatedInput`, `DeleteButton`
   (one registry in `src/lib/deletable.ts`, one action, 15 kinds — don't add bespoke delete actions).
 
-## Admin surfaces (sidebar → Admin)
-Users · Workspace · Soft limits · Usage · Channels · **API keys** (`/admin/api-keys`: LLM, search,
-images, video, TTS, storage) · **Connections** (`/admin/connections`: social via Zernio, mailboxes
-via Unipile) · **Analytics** (`/admin/analytics`) · **Email** (`/admin/email`). All configurable
-in-app without touching Railway.
+## Admin surfaces (Settings → the admin tabs; there is no "Publish Admin" any more)
+⚠ **2026-09-20 (audit B1.4): the operator pages kept every `/admin/*` URL and lost their own
+nav.** `AdminSubNav` is deleted, `stageFor()` maps `/admin/*` to `/setup`, and the StageStrip
+renders them as Settings tabs — gated by an `admin` / `operator` flag decided on the server in
+`app/(app)/layout.tsx`. That flag is COSMETIC: `admin/layout.tsx` still does
+`requireRole("ADMIN")`, `/admin/workspaces` keeps its own operator check, and the
+platform-key gating stays in `actions/api-keys.ts`. `/admin` itself redirects to `/setup/people`.
+Don't move the page files — roughly thirty actions `redirect()` to `/admin/*` URLs.
+
+Tabs: **Keys** (`/admin/api-keys`: LLM, search, images, video, TTS, storage) · **Analytics**
+(`/admin/analytics`) · **Email** (`/admin/email`) · **Workspace** (`/admin/settings`) · **Usage**
+(`/admin/usage`, with `/admin/limits` riding it). Not tabs, reached from the pages that own them:
+`/admin/connections` (from Settings → Connections), `/admin/channels` (Channels rail entry),
+`/admin/workspaces` (operator only). All configurable in-app without touching Railway.
+
+## ⚠ Nav invariants after the 2026-09-20 UX audit
+- **The rail is 12 entries, not 14.** `Review` and `Publish Admin` are gone. Review WAS the Inbox
+  — both rendered the same `<NeedsYouGroups>` — so `/review` redirects to `/inbox`, and its tabs
+  (Approvals, Audit) are Publish's.
+- **One Articles page.** `/blog` takes `?view=board` (default) or `?view=list`; `/blog/board`
+  redirects. `stages.ts` has ONE Drafts tab for it, with `also: ["/blog/board"]`.
+- **Every retired URL still resolves** via a page-level `redirect()` — there is no `redirects()`
+  block in `next.config.ts` and never has been. `/dashboard`, `/review`, `/blog/board`, `/admin`,
+  `/blog/automation`, `/blog/settings`, `/social`, `/social/settings`.
+- **One "Ask" at any width**: header button `md:` and up, floating dock pill below it. The stage
+  Ask drawer is deleted. `.btn` is unlayered, so the header button needs `!hidden md:!inline-flex`.
+- **Empty states go through `components/EmptyState.tsx`** — one sentence saying WHY, and at most
+  one primary button. `action={null}` with a `note` when the viewer genuinely can't act.
 
 ## Open items / things the user still owns
 - **Analytics: APIs enabled 2026-08-03** (Search Console + GA Admin + GA Data, on project

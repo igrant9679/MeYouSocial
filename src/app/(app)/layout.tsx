@@ -50,14 +50,19 @@ const NAV: (LeftRailItem & { adminOnly?: boolean })[] = [
   { href: "/research",    label: "Research",    icon: "Telescope",     color: "#2563EB", soft: "#E5EDFD" },
   { href: "/ideas",       label: "Ideas",       icon: "Sparkles",      color: "#D97706", soft: "#FBEED5" },
   { href: "/drafts",      label: "Drafts",      icon: "PenLine",       color: "#15924B", soft: "#E0F2E8" },
-  { href: "/review",      label: "Review",      icon: "ShieldCheck",   color: "#E11D48", soft: "#FBDFE6" },
+  // ⚠ "Review" left the rail on 2026-09-20 (audit B1.1). It was the Inbox card
+  // for card — the same <NeedsYouGroups> over the same data — so the rail held
+  // two entries to one screen. Its tabs (Approvals, Audit) are Publish's now.
   { href: "/publish",     label: "Publish",     icon: "Globe",         color: "#21759B", soft: "#E0EDF3" },
   { href: "/distribute",  label: "Distribute",  icon: "Share2",        color: "#0A66C2", soft: "#E5EDFD" },
   { href: "/measure",     label: "Measure",     icon: "LineChart",     color: "#4F46E5", soft: "#E7E6FB" },
   { href: "/setup",       label: "Settings",    icon: "SlidersHorizontal", color: "#6D28D9", soft: "#EDE7FB", group: "Setup", adminOnly: true },
   { href: "/channels",    label: "Channels",    icon: "Layers",        color: "#7C3AED", soft: "#EEE7FC", group: "Setup", adminOnly: true },
   { href: "/brand",       label: "Brand",       icon: "Palette",       color: "#DB2777", soft: "#FBE2EF", group: "Setup", adminOnly: true },
-  { href: "/admin",       label: `${PRODUCT_SHORT} Admin`, icon: "Settings",      color: "#4F46E5", soft: "#E7E6FB", group: "Setup", adminOnly: true },
+  // ⚠ "Publish Admin" left the rail on 2026-09-20 (audit B1.4). It was the
+  // second settings surface — ten tabs beside Settings' four, with People in
+  // both and "Connections" naming a different page in each. Its pages are
+  // Settings tabs now, at the same /admin/* URLs.
   { href: "/help",        label: "Help",        icon: "HelpCircle",    color: "#0891B2", soft: "#D8EFF5" },
 ];
 
@@ -324,7 +329,13 @@ html[data-theme="dark"] .ws-brand {
         <main className="flex-1 overflow-auto bg-[var(--panel)] p-6 @container">
           {/* The persistent stage strip: Overview + the stage's tabs on every
               page a stage owns, so entering a tab never loses the tabs. */}
-          <StageStrip activeChannelId={active?.id ?? null} studio={studio.show} counts={counts} />
+          <StageStrip
+            activeChannelId={active?.id ?? null}
+            studio={studio.show}
+            counts={counts}
+            admin={membership.role === "ADMIN"}
+            operator={canCreateWorkspace}
+          />
           <Suspense fallback={null}><FlashBanner /></Suspense>
           {children}
         </main>

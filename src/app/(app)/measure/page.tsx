@@ -2,7 +2,8 @@ import Link from "next/link";
 import { requireMembership } from "@/lib/acl";
 import { hasSeriesData, postPerformance, weeklySeries } from "@/lib/dashboard-data";
 import { AreaChart } from "@/components/charts";
-import { AskDrawer, StageHeader } from "@/components/StageShell";
+import { StageHeader } from "@/components/StageShell";
+import { EmptyState } from "@/components/EmptyState";
 
 // Measure stage: the measured numbers only, never invented curves — the same
 // Results block Home showed, promoted to a stage with Reports, Insights and
@@ -18,7 +19,7 @@ export default async function MeasureStage() {
     <div>
       <StageHeader
         title="Measure"
-        sentence={hasAnalytics ? "Search impressions and clicks from Search Console; engagement from the networks." : "No search analytics yet — connect Search Console and GA4 under Publish Admin → Analytics and the numbers appear as snapshots accrue."}
+        sentence={hasAnalytics ? "Search impressions and clicks from Search Console; engagement from the networks." : "No search analytics yet — connect Search Console and GA4 under Settings → Analytics and the numbers appear as snapshots accrue."}
         counts={[
           { label: "impressions, latest week", n: hasAnalytics ? latest.impressions : null, href: "/blog/analytics", hue: "blue" },
           { label: "clicks, latest week", n: hasAnalytics ? latest.clicks : null, href: "/blog/analytics", hue: "green" },
@@ -30,8 +31,18 @@ export default async function MeasureStage() {
         {hasAnalytics ? (
           <AreaChart points={series.map((p) => ({ label: p.label, value: p.impressions }))} color="var(--blue)" title="Blog impressions — last 8 weeks" />
         ) : (
-          <p className="text-sm text-[var(--mute)] py-6 text-center m-0">
-            Charts light up from real data, never invented curves. <Link href="/admin/analytics" className="underline">Set up analytics</Link>.
+          <EmptyState
+            variant="inline"
+            line="No search numbers have been recorded for this workspace, so there is no curve to draw."
+            note="A dash here means not measured, never zero — this app does not invent a number it has not been given."
+            action={{ label: "Connect analytics", href: "/admin/analytics" }}
+          />
+        )}
+        {/* A table where every position is a dash reads as "nothing happened".
+            Say which it is before the reader guesses (audit B6). */}
+        {perf.length > 0 && perf.every((p) => p.position == null) && (
+          <p className="text-[11px] text-[var(--mute)] mt-3 mb-0">
+            None of these posts has a recorded position yet — the dashes below are unmeasured, not zero.
           </p>
         )}
         {perf.length > 0 && (
@@ -65,7 +76,6 @@ export default async function MeasureStage() {
         )}
       </section>
 
-      <AskDrawer stage="measure" placeholder="e.g. Which article gained the most positions this month?" />
     </div>
   );
 }

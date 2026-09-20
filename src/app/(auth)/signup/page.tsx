@@ -91,7 +91,7 @@ async function signupAction(formData: FormData) {
   }
 
   // Otherwise every user starts with a workspace of their own (their company's
-  // first workspace — rename it under Publish Admin → Workspace).
+  // first workspace — rename it under Settings → Workspace).
   if (!joinedInvite) {
     const personal = await db.workspace.create({
       data: { name: `${parsed.data.name}'s workspace` },

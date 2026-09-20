@@ -105,7 +105,7 @@ export async function getHomeData(workspaceId: string): Promise<HomeData> {
       severity: "warn",
       title: `${blogReviewPosts} blog post${blogReviewPosts === 1 ? "" : "s"} waiting for your review`,
       detail: "Drafted and stopped at the review gate. Nothing publishes until you've read it.",
-      href: "/blog/board",
+      href: "/blog?view=list",
       cta: "Review",
     });
   }
@@ -196,17 +196,17 @@ export async function getHomeData(workspaceId: string): Promise<HomeData> {
       label: "Drafting",
       total: blogDrafting + socialDrafts,
       parts: [
-        { label: "blog", n: blogDrafting, href: "/blog/board" },
+        { label: "blog", n: blogDrafting, href: "/blog?view=list" },
         { label: "social", n: socialDrafts, href: "/social/calendar" },
       ],
-      href: "/blog/board",
+      href: "/blog?view=list",
     },
     {
       key: "approve",
       label: "Approve",
       total: approveBlog + approveSocial,
       parts: [
-        { label: "blog", n: approveBlog, href: "/blog/board" },
+        { label: "blog", n: approveBlog, href: "/blog?view=list" },
         { label: "social", n: approveSocial, href: "/social/approvals" },
       ],
       href: "/social/approvals",

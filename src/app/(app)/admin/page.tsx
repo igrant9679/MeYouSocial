@@ -1,20 +1,15 @@
-import Link from "next/link";
-import { requireRole } from "@/lib/acl";
-import { PeoplePanel } from "@/components/PeoplePanel";
+import { redirect } from "next/navigation";
 
-// MU-14 — Users & Roles (Admin). Since One-Loop step 5 the panel itself lives
-// in components/PeoplePanel and also renders under Settings → People; this
-// location keeps working for a release.
-
-export default async function AdminUsersPage() {
-  const { workspace } = await requireRole("ADMIN");
-  return (
-    <div className="w-full">
-      <h1 className="font-mono font-bold text-xl mb-1">Users & Roles</h1>
-      <p className="text-sm text-[var(--mute)] mb-5">
-        Workspace: <b>{workspace.name}</b> · also under <Link href="/setup/people" className="underline">Settings → People</Link>, with the approval dial.
-      </p>
-      <PeoplePanel workspaceId={workspace.id} workspaceName={workspace.name} returnTo="/admin" />
-    </div>
-  );
+// MU-14 Users & Roles lived here and at Settings → People, mounting the same
+// PeoplePanel — the duplicate this file's own comment promised would go "after
+// a release" (audit B1.3). /setup/people is the survivor: it has everything
+// this page had, plus the social-approval dial.
+//
+// ?ok= / ?err= are forwarded because /setup/people renders them as a banner.
+export default async function AdminUsersPage({ searchParams }: { searchParams: Promise<{ ok?: string; err?: string }> }) {
+  const { ok, err } = await searchParams;
+  const qs = new URLSearchParams();
+  if (ok) qs.set("ok", ok);
+  if (err) qs.set("err", err);
+  redirect(`/setup/people${qs.size ? `?${qs}` : ""}`);
 }

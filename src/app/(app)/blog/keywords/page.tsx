@@ -92,7 +92,7 @@ export default async function KeywordsPage({ searchParams }: { searchParams: Pro
 
   const noVolumeReason = provider
     ? "Not fetched yet — press Refresh volumes."
-    : "No search-data provider connected — add a DataForSEO or Keywords Everywhere key under Publish Admin → API keys.";
+    : "No search-data provider connected — add a DataForSEO or Keywords Everywhere key under Settings → Keys.";
 
   return (
     <main className="p-6 w-full">

@@ -12,7 +12,7 @@ import { getPublicUrl } from "@/lib/public-url";
 import { PRODUCT } from "@/lib/product";
 
 // Members, roles and invitations — moved out of the Admin users page (One-Loop
-// step 5) so the same panel renders under Settings → People and Publish Admin → Users.
+// step 5) so the same panel renders under Settings → People and Settings → People.
 // Every form carries `returnTo` (a same-site path) so the flash lands on the
 // page the person was on.
 

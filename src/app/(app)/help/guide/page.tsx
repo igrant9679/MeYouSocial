@@ -46,9 +46,10 @@ export default function GuidePage() {
           drafts articles and social posts (with their images and SEO), reviews its own work, schedules and
           publishes what passes, and pulls the results back in. <b>Your job is decisions, not production</b> —
           approving, answering, adjusting, occasionally steering. The whole interface is one loop: the left rail
-          reads <b>Research → Ideas → Drafts → Review → Publish → Distribute → Measure</b>, with{" "}
-          <Link href="/inbox" className="underline">Inbox</Link> above it (exactly what&apos;s waiting on you) and
-          Setup below it (Settings, Channels, Brand, Admin — admins only).
+          reads <b>Research → Ideas → Drafts → Publish → Distribute → Measure</b>, with{" "}
+          <Link href="/inbox" className="underline">Inbox</Link> above it (exactly what&apos;s waiting on you —
+          reviewing happens there, not in a stage of its own) and Setup below it (Settings, Channels, Brand —
+          admins only).
         </p>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-[12.5px]">
           <div className="border rounded-lg px-3 py-2" style={{ borderColor: "var(--line)" }}>
@@ -98,11 +99,7 @@ export default function GuidePage() {
             Everything being written or rendered. The four studio tabs appear only when a YouTube channel exists and
             the Video studio switch under Settings is on.
           </Stage>
-          <Stage href="/review" name="Review" tabs="Approvals · Audit">
-            What still waits on a person after auto-review did what it could — the same cards as the Inbox, the
-            action on each. Approvals for social posts; Audit for refresh / merge / retire recommendations.
-          </Stage>
-          <Stage href="/publish" name="Publish" tabs="Website · Blog calendar">
+          <Stage href="/publish" name="Publish" tabs="Approvals · Audit · Website · Blog calendar">
             Articles at final approval, when they go (the publish day, or a date you set), and what went live.
             With no WordPress: <b>Download HTML</b> and <b>Mark as published</b> on the row.
           </Stage>
@@ -164,7 +161,7 @@ export default function GuidePage() {
         </p>
         <ol className="m-0 pl-5 list-decimal text-sm space-y-2.5 leading-[1.55]">
           <li>
-            <b>Give it a brain.</b> <Link href="/admin/api-keys" className="underline">Publish Admin → API keys</Link>:
+            <b>Give it a brain.</b> <Link href="/admin/api-keys" className="underline">Settings → Keys</Link>:
             paste an AI provider key and set the default model to match it. Without one the app produces clearly
             fake placeholder text rather than erroring — if output ever reads generic, check here first. A live
             web search key (Tavily or Serper) is what lets it source claims.
@@ -205,7 +202,7 @@ export default function GuidePage() {
             Start low; raise once you trust what arrives at review.
           </li>
           <li>
-            <b>Wire up measurement.</b> <Link href="/admin/analytics" className="underline">Publish Admin → Analytics</Link>:
+            <b>Wire up measurement.</b> <Link href="/admin/analytics" className="underline">Settings → Analytics</Link>:
             Search Console site + GA4 property, with the service account granted on both. Until then Measure shows
             dashes — a dash means &ldquo;not measured&rdquo;, never zero.
           </li>
@@ -264,13 +261,13 @@ export default function GuidePage() {
             no new articles, however high the dial. Keep three to five approved.
           </Step>
           <Step icon={Check} title="Read what was drafted — words, pictures and SEO together.">
-            <Link href="/blog/board" className="underline">Drafts → Board</Link>: each article arrives with its
+            <Link href="/blog?view=list" className="underline">Drafts → Articles</Link>: each article arrives with its
             featured and social-preview images and its SEO filled in, and auto-review has already fixed what it
             could. In the article&apos;s <b>Optimize</b> tab, answer the knowledge cards and decide the strategic
             ones; the mechanical ones apply on their own.
           </Step>
           <Step icon={Check} title="Approve and queue the social week.">
-            <Link href="/social/approvals" className="underline">Review → Approvals</Link> for anything held, then{" "}
+            <Link href="/social/approvals" className="underline">Publish → Approvals</Link> for anything held, then{" "}
             <Link href="/social/calendar" className="underline">Distribute → Calendar</Link> to queue approved drafts
             into free slots. <b>An approved draft that was never queued will never send</b>; turn on <i>queue on
             approval</i> under <Link href="/setup/automation" className="underline">Settings → Automation</Link> to
@@ -325,7 +322,7 @@ export default function GuidePage() {
             joined or left.
           </Step>
           <Step icon={Check} title="Run a content audit.">
-            <Link href="/blog/audit" className="underline">Review → Audit</Link>: act on the refresh, merge and retire
+            <Link href="/blog/audit" className="underline">Publish → Audit</Link>: act on the refresh, merge and retire
             recommendations before the archive goes stale.
           </Step>
         </ul>
@@ -345,7 +342,7 @@ export default function GuidePage() {
             variants follow under the social mode.
           </Step>
           <Step icon={ListChecks} title="A held article you want out anyway (admin).">
-            Inbox or Review → the held-article card → an optional reason → <i>Advance anyway</i>. It records who,
+            Inbox → the held-article card → an optional reason → <i>Advance anyway</i>. It records who,
             when and why on the article and in the audit log, moves it to final approval now, and carries through
             the sweep and publishing. Every clearing act — answering or dismissing a question, verifying or
             dropping a claim, approving an image — also moves the article at once when it was the last thing
@@ -390,12 +387,12 @@ export default function GuidePage() {
           <LifeBuoy className="w-4 h-4" style={{ color: "var(--rose-on)" }} /> When something looks wrong
         </h2>
         <ul className="m-0 pl-5 list-disc text-sm space-y-2 leading-[1.55]">
-          <li><b>Output reads generic or mentions &ldquo;mock&rdquo;</b> — no working AI key for this workspace. Publish Admin → API keys, and match the model.</li>
+          <li><b>Output reads generic or mentions &ldquo;mock&rdquo;</b> — no working AI key for this workspace. Settings → Keys, and match the model.</li>
           <li><b>Nothing is being drafted</b> — the Approved column is empty, the weekly target or daily budget is reached, drafting is on manual, or global pause is on. Settings → Automation says which.</li>
           <li><b>An article is held with nothing to act on</b> — the Inbox card names the failing check. A flagged claim needs a live-search key to be sourced; give it one sweep, then verify or remove the sentence yourself.</li>
           <li><b>At final approval but never publishes</b> — not the publish day yet, or no WordPress (Download HTML + Mark as published), or publishing isn&apos;t on auto.</li>
           <li><b>Social posts never send</b> — no slots or timezone, a post awaiting approval, approved but never queued, or a broken account (the chip on Distribute is red on the provider&apos;s own verdict, never on a token-expiry note alone).</li>
-          <li><b>Measure shows dashes</b> — analytics not connected, or the Search Console property is missing the service account; Publish Admin → Analytics runs the live probe that says which.</li>
+          <li><b>Measure shows dashes</b> — analytics not connected, or the Search Console property is missing the service account; Settings → Analytics runs the live probe that says which.</li>
           <li><b>A button does nothing after an update</b> — a tab held open across a deployment. Reload.</li>
           <li><b>Trust the dashes.</b> A dash with a reason means &ldquo;not measured yet&rdquo; — this app never invents a number to fill a card, so the numbers you do see are real.</li>
         </ul>

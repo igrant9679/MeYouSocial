@@ -89,7 +89,7 @@ export default async function YoutubeAuditPage({ searchParams }: { searchParams:
           {admin ? (
             <Link href="/admin/analytics" className="btn sm primary inline-flex items-center gap-1">Connect YouTube <ArrowUpRight className="w-3.5 h-3.5" /></Link>
           ) : (
-            <p className="m-0 text-xs text-[var(--mute)]">Ask an admin to connect it under Publish Admin → Analytics.</p>
+            <p className="m-0 text-xs text-[var(--mute)]">Ask an admin to connect it under Settings → Analytics.</p>
           )}
         </div>
       )}

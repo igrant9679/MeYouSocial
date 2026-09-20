@@ -34,7 +34,7 @@ export async function refreshKeywordVolumesAction(formData: FormData) {
   }
   const msg =
     res.reason === "no_provider"
-      ? "No search-data provider is connected. Add a DataForSEO or Keywords Everywhere key under Publish Admin → API keys."
+      ? "No search-data provider is connected. Add a DataForSEO or Keywords Everywhere key under Settings → Keys."
       : res.reason === "nothing_to_fetch"
         ? "No active keywords to look up."
         : `Volume refresh failed: ${res.error ?? "unknown error"}`;
@@ -127,7 +127,7 @@ export async function discoverKeywordsAction() {
       entityType: "keyword",
       meta: { provider: "mock", reason: "provider unavailable — refused to store mock keywords" },
     });
-    redirect(`/blog/keywords?err=${encodeURIComponent("No working AI key for this workspace, so nothing was generated — add one under Publish Admin → API keys.")}`);
+    redirect(`/blog/keywords?err=${encodeURIComponent("No working AI key for this workspace, so nothing was generated — add one under Settings → Keys.")}`);
   }
   let rows: Array<{ phrase?: string; tier?: number; intent?: string; cluster?: string }> = [];
   try {
@@ -203,7 +203,7 @@ export async function classifyIntentsAction() {
     workspaceId: workspace.id,
   });
   if (res.provider === "mock") {
-    redirect(`/blog/keywords?err=${encodeURIComponent("No working AI key for this workspace, so nothing was classified — add one under Publish Admin → API keys.")}`);
+    redirect(`/blog/keywords?err=${encodeURIComponent("No working AI key for this workspace, so nothing was classified — add one under Settings → Keys.")}`);
   }
   let map: Record<string, { intent?: string; cluster?: string }> = {};
   try {

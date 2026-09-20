@@ -105,7 +105,12 @@ export function AssistantDock({ activeChannelId = null }: { activeChannelId?: st
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="fixed bottom-5 right-5 z-40 rounded-full shadow-lg px-4 py-2.5 flex items-center gap-2 text-sm font-semibold text-white"
+          // ⚠ md:hidden — on a desktop the header already carries an "Ask"
+          // button that opens this same dock, and having both made "Ask"
+          // appear twice on one screen (audit B1.5; the stage drawer was the
+          // third). Below md the header collapses to MobileNav and this pill
+          // is the ONLY way in, so it must not simply be deleted.
+          className="md:hidden fixed bottom-5 right-5 z-40 rounded-full shadow-lg px-4 py-2.5 flex items-center gap-2 text-sm font-semibold text-white"
           style={{ background: "#6D28D9" }}
           title="Ask the assistant (Ctrl+/)"
           aria-label="Open the assistant"
@@ -203,13 +208,19 @@ export function AssistantDock({ activeChannelId = null }: { activeChannelId?: st
   );
 }
 
-/** The header's button — opens the dock from anywhere. */
+/**
+ * The header's button — opens the dock from anywhere.
+ *
+ * ⚠ `!hidden md:!inline-flex` is the other half of the pill's `md:hidden`:
+ * exactly one "Ask" is offered at any width (audit B1.5). The `!` marks are
+ * load-bearing — `.btn` is unlayered in globals.css and beats a plain `hidden`.
+ */
 export function AssistantDockButton() {
   return (
     <button
       type="button"
       onClick={() => window.dispatchEvent(new CustomEvent("assistant:open"))}
-      className="btn sm inline-flex items-center gap-1.5"
+      className="btn sm !hidden md:!inline-flex items-center gap-1.5"
       title="Ask the assistant anything, or what to do next (Ctrl+/)"
     >
       <Bot className="w-3.5 h-3.5" style={{ color: "var(--violet-on)" }} /> Ask

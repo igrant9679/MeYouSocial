@@ -21,7 +21,7 @@ import {
   syncAnalyticsNowAction,
 } from "@/app/actions/analytics-connections";
 
-// Publish Admin → Analytics: the real-data inputs (Search Console, GA4, YouTube).
+// Settings → Analytics: the real-data inputs (Search Console, GA4, YouTube).
 // Deliberately separate from API keys: these are per-workspace *connections* to
 // the company's own properties, not provider credentials.
 

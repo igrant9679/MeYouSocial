@@ -57,7 +57,7 @@ const when = (d: Date | null | undefined) => (d ? d.toISOString().slice(0, 16).r
 
 /** Things people will ask for that this assistant deliberately cannot do. */
 export const REFUSED_INTENTS = [
-  "entering or changing API keys, passwords or connection credentials (Publish Admin → API keys, Publish Admin → Connections — a person pastes those)",
+  "entering or changing API keys, passwords or connection credentials (Settings → Keys, Settings → Connections — a person pastes those)",
   "deleting a workspace, a channel or a person's account (Admin)",
   "sending email",
 ];
@@ -251,7 +251,7 @@ export const TOOLS: Tool[] = [
       const d = num(a.days, 90, 365);
       const days = (AUDIT_WINDOWS as readonly number[]).includes(d) ? (d as 7 | 28 | 90 | 365) : 90;
       const res = await youtubeAuditFor(ctx.workspaceId, days);
-      if (res.state === "not_connected") return "YouTube is not connected for this workspace — an admin connects it under Publish Admin → Analytics (/admin/analytics); the channel owner or a Brand Account manager must sign in.";
+      if (res.state === "not_connected") return "YouTube is not connected for this workspace — an admin connects it under Settings → Analytics (/admin/analytics); the channel owner or a Brand Account manager must sign in.";
       if (res.state === "error") return `YouTube did not answer: ${res.message}`;
       const au = res.audit;
       const t = au.totals, p = au.prev;

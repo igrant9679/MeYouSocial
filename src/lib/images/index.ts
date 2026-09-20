@@ -214,7 +214,7 @@ const openaiProvider: ImageProvider = {
   name: "openai",
   async generate(req) {
     const apiKey = await getApiKey("openai", req.workspaceId);
-    if (!apiKey) throw new Error("No OpenAI key configured (Publish Admin → API keys → OpenAI)");
+    if (!apiKey) throw new Error("No OpenAI key configured (Settings → Keys → OpenAI)");
     const aspect = req.aspectRatio ?? "16:9";
 
     const res = await fetch("https://api.openai.com/v1/images/generations", {
@@ -244,7 +244,7 @@ const openaiProvider: ImageProvider = {
       if (res.status === 429 && /limit[:\s]*0/i.test(detail)) {
         throw new Error(
           `This OpenAI organization has no ${OPENAI_MODEL} quota (limit 0) — image models need a VERIFIED OpenAI organization. ` +
-          `Verify it at platform.openai.com → Settings → Organization → Verification, or add a Google key under Publish Admin → API keys to use Gemini images instead.`,
+          `Verify it at platform.openai.com → Settings → Organization → Verification, or add a Google key under Settings → Keys to use Gemini images instead.`,
         );
       }
       throw new Error(`OpenAI image generation failed (HTTP ${res.status}): ${detail}`);
@@ -282,7 +282,7 @@ const googleProvider: ImageProvider = {
   name: "google",
   async generate(req) {
     const apiKey = await getApiKey("google", req.workspaceId);
-    if (!apiKey) throw new Error("No Google key configured (Publish Admin → API keys → Google)");
+    if (!apiKey) throw new Error("No Google key configured (Settings → Keys → Google)");
     const aspect = req.aspectRatio ?? "16:9";
 
     const { GoogleGenAI } = await import("@google/genai");

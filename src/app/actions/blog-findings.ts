@@ -47,7 +47,46 @@ export async function answerFindingAction(formData: FormData) {
   await advanceIfReadyCore(workspace.id, postId, "answered a question");
   revalidatePath(`/blog/${postId}`);
   revalidatePath("/inbox");
-  revalidatePath("/review");
+  revalidatePath("/publish");
+}
+
+/**
+ * Answer every question on ONE article in a single submit (audit D6).
+ *
+ * The Inbox used to render one card per finding, each with up to three
+ * textareas — on CommunityForce that was three cards and nine text boxes above
+ * the fold, all for the same article. They are one card now, and this is its
+ * one button.
+ *
+ * ⚠ Same cores, same order, same invariant: each finding still goes through
+ * `answerFindingCore`, and `advanceIfReadyCore` still runs — once, at the end,
+ * rather than per finding — so answering the last open question still advances
+ * the article immediately instead of waiting for the next sweep. A finding
+ * whose boxes were all left empty is skipped, not answered blank.
+ */
+export async function answerFindingsAction(formData: FormData) {
+  const ids = String(formData.get("ids") ?? "").split(",").map((s) => s.trim()).filter(Boolean).slice(0, 20);
+  if (!ids.length) return;
+  const { workspace, user } = await requireRole("EDITOR");
+
+  let postId: string | null = null;
+  let answered = 0;
+  for (const id of ids) {
+    const owner = await findingPost(workspace.id, id);
+    // Tenancy and grouping in one: a finding from another workspace — or from
+    // a different article than the card claims — is simply not answered.
+    if (!owner || (postId && owner !== postId)) continue;
+    postId = owner;
+    const answers = [0, 1, 2].map((i) => String(formData.get(`a_${id}_${i}`) ?? ""));
+    if (!answers.some((a) => a.trim())) continue;
+    await answerFindingCore(workspace.id, id, answers, { id: user.id, name: user.name ?? null, email: user.email });
+    answered++;
+  }
+  if (!postId || !answered) return;
+
+  await advanceIfReadyCore(workspace.id, postId, answered === 1 ? "answered a question" : `answered ${answered} questions`);
+  revalidatePath(`/blog/${postId}`);
+  revalidatePath("/inbox");
   revalidatePath("/publish");
 }
 
@@ -72,7 +111,7 @@ export async function dismissFindingAction(formData: FormData) {
   await advanceIfReadyCore(workspace.id, postId, "dismissed a question");
   revalidatePath(`/blog/${postId}`);
   revalidatePath("/inbox");
-  revalidatePath("/review");
+  revalidatePath("/inbox");
   revalidatePath("/publish");
 }
 

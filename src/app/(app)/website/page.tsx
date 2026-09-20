@@ -257,7 +257,7 @@ export default async function WebsitePage() {
         {exportable.length === 0 ? (
           <p className="text-xs text-[var(--mute)]">
             Nothing to export yet — articles appear here once they reach final approval on the{" "}
-            <Link href="/blog/board" className="underline">Blog board</Link>.
+            <Link href="/blog?view=list" className="underline">Blog board</Link>.
           </p>
         ) : (
           <ul className="text-xs flex flex-col gap-1">

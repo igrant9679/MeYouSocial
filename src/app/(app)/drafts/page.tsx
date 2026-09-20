@@ -4,7 +4,8 @@ import { requireMembership, canAdmin } from "@/lib/acl";
 import { getActiveChannel } from "@/lib/channel";
 import { db } from "@/lib/db";
 import { studioState } from "@/lib/studio";
-import { AskDrawer, StageHeader, StageList, StageRow, StateChip } from "@/components/StageShell";
+import { StageHeader, StageList, StageRow, StateChip } from "@/components/StageShell";
+import { EmptyState } from "@/components/EmptyState";
 
 // Drafts stage: everything being written or rendered, by format — articles
 // always; scripts and video renders when the video studio is shown (a YouTube
@@ -17,7 +18,7 @@ export default async function DraftsStage() {
   const { active } = await getActiveChannel();
   const admin = canAdmin(membership.role);
   const studio = await studioState(workspace.id);
-  const [posts, scripts, renders, counts] = await Promise.all([
+  const [posts, scripts, renders, counts, approvedIdeas] = await Promise.all([
     db.blogPost.findMany({
       where: { workspaceId: workspace.id, status: { in: ["drafting", "draft_review"] } },
       orderBy: { updatedAt: "desc" },
@@ -41,6 +42,10 @@ export default async function DraftsStage() {
         })
       : Promise.resolve([]),
     db.blogPost.groupBy({ by: ["status"], where: { workspaceId: workspace.id, status: { in: ["drafting", "draft_review"] } }, _count: { _all: true } }),
+    // ⚠ The empty state has to say WHY nothing is being written, and there are
+    // two different answers: the queue is empty, or the queue is full and the
+    // autopilot simply hasn't got to it (audit B6/D4).
+    db.blogIdea.count({ where: { workspaceId: workspace.id, status: "approved" } }),
   ]);
   const n = (s: string) => counts.find((c) => c.status === s)?._count._all ?? 0;
 
@@ -48,10 +53,16 @@ export default async function DraftsStage() {
     <div>
       <StageHeader
         title="Drafts"
-        sentence={posts.length ? `${posts.length} article${posts.length === 1 ? "" : "s"} in progress — review happens one stage on.` : "Nothing being written right now."}
+        sentence={
+          posts.length
+            ? `${posts.length} article${posts.length === 1 ? "" : "s"} in progress — review happens one stage on.`
+            : approvedIdeas > 0
+              ? `Nothing is being written yet — ${approvedIdeas} approved idea${approvedIdeas === 1 ? " is" : "s are"} queued, and the autopilot drafts them on its weekly allowance.`
+              : "Nothing is being written, because no idea has been approved yet."
+        }
         counts={[
-          { label: "drafting", n: n("drafting"), href: "/blog/board", hue: "amber" },
-          { label: "in review", n: n("draft_review"), href: "/review", hue: "blue" },
+          { label: "drafting", n: n("drafting"), href: "/blog?view=list", hue: "amber" },
+          { label: "in review", n: n("draft_review"), href: "/inbox", hue: "blue" },
           ...(studio.show
             ? [
                 { label: "scripts", n: scripts.length, href: active ? `/channels/${active.id}/scripts` : "/scripts", hue: "green" },
@@ -61,7 +72,16 @@ export default async function DraftsStage() {
         ]}
       />
 
-      <StageList title="Articles" empty="No articles are drafting or in review.">
+      <StageList
+        title="Articles"
+        empty={
+          <EmptyState
+            variant="inline"
+            line={approvedIdeas > 0 ? "No article is drafting or in review right now." : "No article is drafting, because the approved pool is empty — drafting only ever consumes approved ideas."}
+            action={{ label: approvedIdeas > 0 ? "See the approved ideas" : "Approve an idea", href: "/ideas" }}
+          />
+        }
+      >
         {posts.length > 0 ? posts.map((p) => (
           <StageRow key={p.id}>
             <StateChip label={p.status === "draft_review" ? "in review" : "drafting"} hue={BLOG_HUE[p.status] ?? "zebra"} />
@@ -112,7 +132,6 @@ export default async function DraftsStage() {
         </p>
       )}
 
-      <AskDrawer stage="drafts" placeholder="e.g. Draft the article for the approved idea about donor fatigue." />
     </div>
   );
 }

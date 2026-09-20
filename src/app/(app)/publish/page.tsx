@@ -7,7 +7,8 @@ import { SubmitButton } from "@/components/SubmitButton";
 import { advanceBlogStatusAction } from "@/app/actions/blog";
 import { markPublishedManuallyAction } from "@/app/actions/blog-export";
 import { Banner } from "@/components/SocialPostCard";
-import { AskDrawer, StageHeader, StageList, StageRow, StateChip } from "@/components/StageShell";
+import { StageHeader, StageList, StageRow, StateChip } from "@/components/StageShell";
+import { EmptyState } from "@/components/EmptyState";
 
 // Publish stage: what's at final approval, when it goes (the publish-day
 // gate, or a hand-set date), and what went live. Website, the blog calendar
@@ -51,7 +52,10 @@ export default async function PublishStage({ searchParams }: { searchParams: Pro
       {ok && <Banner kind="ok" text={ok} />}
       {err && <Banner kind="err" text={err} />}
 
-      <StageList title="Waiting to go out" empty="Nothing at final approval. Articles arrive here once every required check passes.">
+      <StageList
+        title="Waiting to go out"
+        empty={<EmptyState variant="inline" tone="clear" line="Nothing is at final approval — articles arrive here once every required check passes." action={{ label: "See what's being written", href: "/drafts" }} />}
+      >
         {ready.length > 0 ? ready.map((p) => (
           <StageRow key={p.id}>
             <StateChip label="final approval" hue="blue" />
@@ -111,7 +115,6 @@ export default async function PublishStage({ searchParams }: { searchParams: Pro
         </StageList>
       )}
 
-      <AskDrawer stage="publish" placeholder="e.g. What's publishing this Wednesday and is anything holding it?" />
     </div>
   );
 }

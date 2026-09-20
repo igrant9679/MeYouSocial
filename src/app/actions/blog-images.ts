@@ -73,7 +73,7 @@ export async function approveBlogImageAction(formData: FormData) {
   await advanceIfReadyCore(workspace.id, img.postId, "approved an image");
   revalidatePath(`/blog/${img.postId}`);
   revalidatePath("/inbox");
-  revalidatePath("/review");
+  revalidatePath("/inbox");
   revalidatePath("/publish");
 }
 

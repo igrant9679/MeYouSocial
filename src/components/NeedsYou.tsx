@@ -3,14 +3,19 @@ import { SubmitButton } from "@/components/SubmitButton";
 import { networkFor } from "@/lib/social/networks";
 import type { InboxData } from "@/lib/inbox";
 import { approveSocialPostAction, requestChangesSocialPostAction } from "@/app/actions/social-workflow";
-import { answerFindingAction, dismissFindingAction } from "@/app/actions/blog-findings";
+import { answerFindingsAction, dismissFindingAction } from "@/app/actions/blog-findings";
 import { deleteCitationAction, overrideGateAction, verifyCitationAction } from "@/app/actions/blog";
 import { approveBlogImageAction } from "@/app/actions/blog-images";
 
 /**
  * The item cards of "Needs you" — one card per thing waiting on a person,
- * the action on the card. Shared by the Inbox (everything) and the Review
- * stage (the review-stage subset), so the two never drift.
+ * the action on the card.
+ *
+ * ⚠ This was shared by the Inbox and the Review stage "so the two never
+ * drift" — which is exactly why they were pixel-identical and why the rail
+ * carried two entries to one screen. Review folded into the Inbox on
+ * 2026-09-20 (audit B1.1); `include` stays because the shape is still useful
+ * to anything that wants a subset.
  */
 
 export function Group({ title, hue, count, children }: { title: string; hue: string; count: number; children: React.ReactNode }) {
@@ -41,6 +46,16 @@ export function NeedsYouGroups({
   include?: Array<"posts" | "questions" | "citations" | "images" | "articles" | "invitations">;
 }) {
   const on = (k: (typeof include)[number]) => include.includes(k);
+
+  // Questions collapsed onto the article they are about (audit D6). Insertion
+  // order is preserved, so the first article with a question still comes first.
+  const questionsByPost: Array<{ postId: string; postTitle: string; findings: InboxData["questions"] }> = [];
+  for (const q of inbox.questions) {
+    const existing = questionsByPost.find((g) => g.postId === q.postId);
+    if (existing) existing.findings.push(q);
+    else questionsByPost.push({ postId: q.postId, postTitle: q.postTitle, findings: [q] });
+  }
+
   return (
     <>
       {on("posts") && inbox.socialPosts.length > 0 && (
@@ -79,37 +94,84 @@ export function NeedsYouGroups({
         </Group>
       )}
 
-      {on("questions") && inbox.questions.length > 0 && (
+      {/* ⚠ ONE CARD PER ARTICLE, not one per finding (audit D6). Three separate
+          cards, each with up to three textareas, put NINE text boxes above the
+          fold for a single article on CommunityForce — the work looked three
+          times bigger than it was, and each card had its own Answer button.
+          Grouped by the article they belong to, with one "Answer all".
+
+          ⚠ The dismiss form used to be nested INSIDE the answer form. Nested
+          <form> is invalid HTML: the parser drops the inner one, so "Dismiss"
+          submitted the ANSWER action with empty boxes — the opposite of what it
+          said. They are siblings now. */}
+      {on("questions") && questionsByPost.length > 0 && (
         <Group title="Questions only you can answer" hue="amber" count={inbox.questions.length}>
-          {inbox.questions.map((q) => (
-            <li key={q.findingId} className="card">
-              <div className="text-[11px] text-[var(--mute)] mb-1">
-                For <Link href={`/blog/${q.postId}?tab=optimize`} className="underline">{q.postTitle}</Link>
+          {questionsByPost.map(({ postId, postTitle, findings }) => (
+            <li key={postId} className="card">
+              <div className="text-[11px] text-[var(--mute)] mb-2">
+                For <Link href={`/blog/${postId}?tab=optimize`} className="underline">{postTitle}</Link>
+                {findings.length > 1 && <> · {findings.length} questions</>}
               </div>
-              <div className="text-sm font-semibold leading-snug">{q.title}</div>
-              {q.detail && <p className="text-xs text-[var(--mute)] mt-0.5 mb-0">{q.detail}</p>}
+
               {editor ? (
-                <form action={answerFindingAction} className="mt-2 flex flex-col gap-2">
-                  <input type="hidden" name="id" value={q.findingId} />
-                  {q.questions.map((qq, i) => (
-                    <label key={i} className="text-xs flex flex-col gap-1">
-                      <span>{qq.q}</span>
-                      <textarea name={`a${i}`} rows={2} className="w-full text-sm" placeholder="In your own words — only what you can stand behind if quoted." />
-                    </label>
-                  ))}
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <SubmitButton className="btn primary sm" pendingText="Saving and writing…">Answer</SubmitButton>
-                    <span className="text-[10px] text-[var(--mute)]">Saved to the Experts profile — asked once.</span>
-                    <span className="flex-1" />
-                    <form action={dismissFindingAction} className="flex items-center gap-1.5">
-                      <input type="hidden" name="id" value={q.findingId} />
-                      <input name="reason" placeholder="why? (optional)" className="text-[11px] w-32" aria-label="Reason for dismissing" />
-                      <SubmitButton className="btn sm" pendingText="…">Dismiss</SubmitButton>
-                    </form>
+                <>
+                  <form action={answerFindingsAction} className="flex flex-col gap-3">
+                    <input type="hidden" name="ids" value={findings.map((f) => f.findingId).join(",")} />
+                    {findings.map((f, idx) => (
+                      // The first is open; the rest are one click away. All of
+                      // them post together, open or not — a <details> hides its
+                      // fields visually, it does not remove them from the form.
+                      <details key={f.findingId} open={idx === 0} className="border-t border-[var(--line)] first:border-0 pt-2 first:pt-0">
+                        <summary className="text-sm font-semibold leading-snug cursor-pointer select-none">{f.title}</summary>
+                        {f.detail && <p className="text-xs text-[var(--mute)] mt-0.5 mb-0">{f.detail}</p>}
+                        <div className="flex flex-col gap-2 mt-2">
+                          {f.questions.map((qq, i) => (
+                            <label key={i} className="text-xs flex flex-col gap-1">
+                              <span>{qq.q}</span>
+                              <textarea
+                                name={`a_${f.findingId}_${i}`}
+                                rows={2}
+                                className="w-full text-sm"
+                                placeholder="In your own words — only what you can stand behind if quoted."
+                              />
+                            </label>
+                          ))}
+                        </div>
+                      </details>
+                    ))}
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <SubmitButton className="btn primary sm" pendingText="Saving and writing…">
+                        {findings.length > 1 ? "Answer all" : "Answer"}
+                      </SubmitButton>
+                      <span className="text-[10px] text-[var(--mute)]">
+                        Saved to the Experts profile — asked once. Anything left blank is skipped.
+                      </span>
+                    </div>
+                  </form>
+
+                  {/* Siblings of the answer form, never children of it. */}
+                  <div className="flex flex-wrap items-center gap-2 mt-2 pt-2 border-t border-[var(--line)]">
+                    {findings.map((f) => (
+                      <form key={f.findingId} action={dismissFindingAction} className="flex items-center gap-1.5">
+                        <input type="hidden" name="id" value={f.findingId} />
+                        <input name="reason" placeholder="why? (optional)" className="text-[11px] w-32" aria-label={`Reason for dismissing: ${f.title}`} />
+                        <SubmitButton className="btn sm" pendingText="…" title={`Dismiss: ${f.title}`}>
+                          {findings.length > 1 ? `Dismiss “${f.title.slice(0, 28)}${f.title.length > 28 ? "…" : ""}”` : "Dismiss"}
+                        </SubmitButton>
+                      </form>
+                    ))}
                   </div>
-                </form>
+                </>
               ) : (
-                <p className="text-[11px] text-[var(--mute)] mt-1 mb-0">An editor answers this.</p>
+                <>
+                  {findings.map((f) => (
+                    <div key={f.findingId} className="border-t border-[var(--line)] first:border-0 pt-2 first:pt-0">
+                      <div className="text-sm font-semibold leading-snug">{f.title}</div>
+                      {f.detail && <p className="text-xs text-[var(--mute)] mt-0.5 mb-0">{f.detail}</p>}
+                    </div>
+                  ))}
+                  <p className="text-[11px] text-[var(--mute)] mt-1 mb-0">An editor answers {findings.length > 1 ? "these" : "this"}.</p>
+                </>
               )}
             </li>
           ))}

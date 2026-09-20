@@ -4,6 +4,7 @@ import { autopilotFeed, hasSeriesData, homeStats, postPerformance, weeklySeries 
 import { AreaChart, HBars } from "@/components/charts";
 import { MOTIF_SEED_BY_KEY, parseMotifs } from "@/lib/motifs";
 import type { BlockKey } from "@/lib/report-defs";
+import { EmptyState } from "@/components/EmptyState";
 
 /**
  * Report blocks — each one is an async server component that loads its own
@@ -22,8 +23,19 @@ function Card({ title, children }: { title: string; children: React.ReactNode })
   );
 }
 
-function Empty({ children }: { children: React.ReactNode }) {
-  return <p className="text-xs text-[var(--mute)] py-4 text-center">{children}</p>;
+/**
+ * ⚠ Every report block's blank panel used to be a muted sentence with nothing
+ * to press — ten tiles all saying "no data" (audit B6). `to`/`cta` give each
+ * one the single next step, through the shared EmptyState.
+ */
+function Empty({ children, to, cta }: { children: React.ReactNode; to?: string; cta?: string }) {
+  return (
+    <EmptyState
+      variant="inline"
+      line={<span className="text-xs text-[var(--mute)]">{children}</span>}
+      action={to && cta ? { label: cta, href: to } : null}
+    />
+  );
 }
 
 export async function ReportBlock({ block, workspaceId, weeks }: { block: BlockKey; workspaceId: string; weeks: number }) {
@@ -56,7 +68,7 @@ export async function ReportBlock({ block, workspaceId, weeks }: { block: BlockK
           {hasSeriesData(series) ? (
             <AreaChart points={series.map((p) => ({ label: p.label, value: p.impressions }))} color="var(--blue)" title="Impressions" />
           ) : (
-            <Empty>No snapshots yet — add weekly numbers under <Link href="/blog/analytics" className="underline">Measure → Blog analytics</Link>.</Empty>
+            <Empty to="/blog/analytics" cta="Add this week's numbers">No weekly impressions have been recorded, so there is no curve to draw — blank here means not measured, not zero.</Empty>
           )}
         </Card>
       );
@@ -69,7 +81,7 @@ export async function ReportBlock({ block, workspaceId, weeks }: { block: BlockK
           {hasSeriesData(series) ? (
             <AreaChart points={series.map((p) => ({ label: p.label, value: p.clicks }))} color="var(--teal)" title="Clicks" />
           ) : (
-            <Empty>No snapshots yet.</Empty>
+            <Empty to="/blog/analytics" cta="Add this week's numbers">No weekly clicks have been recorded yet.</Empty>
           )}
         </Card>
       );
@@ -85,7 +97,7 @@ export async function ReportBlock({ block, workspaceId, weeks }: { block: BlockK
       return (
         <Card title="Biggest movers">
           {withDelta.length === 0 ? (
-            <Empty>Needs two snapshots per post to compute movement.</Empty>
+            <Empty to="/blog/analytics" cta="Add this week's numbers">Movement needs two snapshots of the same post — only one week has been recorded so far.</Empty>
           ) : (
             <ul className="m-0 p-0">
               {withDelta.map((p) => (
@@ -108,7 +120,7 @@ export async function ReportBlock({ block, workspaceId, weeks }: { block: BlockK
       return (
         <Card title="Content">
           {perf.length === 0 ? (
-            <Empty>Nothing published yet.</Empty>
+            <Empty to="/publish" cta="See what's waiting">Nothing has been published from this workspace yet, so there is no content to rank.</Empty>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-xs border-collapse">
@@ -151,7 +163,7 @@ export async function ReportBlock({ block, workspaceId, weeks }: { block: BlockK
       ];
       return (
         <Card title="Keyword positions">
-          {positions.length === 0 ? <Empty>No position data yet.</Empty> : <HBars rows={rows} />}
+          {positions.length === 0 ? <Empty to="/blog/analytics" cta="Add this week's numbers">No post has a recorded search position yet.</Empty> : <HBars rows={rows} />}
         </Card>
       );
     }
@@ -241,7 +253,7 @@ export async function ReportBlock({ block, workspaceId, weeks }: { block: BlockK
       return (
         <Card title="Autopilot activity">
           {feed.length === 0 ? (
-            <Empty>Idle — set modes under <Link href="/setup/automation" className="underline">Settings → Automation</Link>.</Empty>
+            <Empty to="/setup/automation" cta="Open Automation">The autopilot has not acted in this window — it runs only where a function is set to assisted or auto.</Empty>
           ) : (
             <ul className="m-0 p-0 text-xs">
               {feed.map((e, i) => (
@@ -309,7 +321,7 @@ export async function ReportBlock({ block, workspaceId, weeks }: { block: BlockK
       return (
         <Card title="Voice mix — dominant motif of published posts">
           {rows.length === 0 ? (
-            <Empty>No published posts carry a motif blend yet{unset ? ` (${unset} without one)` : ""}.</Empty>
+            <Empty to="/blog/brand" cta="Set the default blend">No published posts carry a motif blend yet{unset ? ` (${unset} without one)` : ""}.</Empty>
           ) : (
             <div className="max-w-lg">
               <HBars rows={rows} />
@@ -329,7 +341,7 @@ export async function ReportBlock({ block, workspaceId, weeks }: { block: BlockK
       return (
         <Card title="Social variants">
           {variants.length === 0 ? (
-            <Empty>No variants yet — they generate when posts publish (social mode assisted/auto).</Empty>
+            <Empty to="/social/compose" cta="Compose a post">No social variants yet — they generate when posts publish, under an assisted or auto social mode.</Empty>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-xs border-collapse">
@@ -364,7 +376,7 @@ export async function ReportBlock({ block, workspaceId, weeks }: { block: BlockK
       return (
         <Card title="Video renders">
           {renders.length === 0 ? (
-            <Empty>No renders yet — package a published post from its Distribute tab.</Empty>
+            <Empty to="/distribute" cta="Open Distribute">No renders yet — a published post is packaged into one from its Distribute tab.</Empty>
           ) : (
             <>
               <p className="text-[11px] text-[var(--mute)] mb-2">
@@ -395,7 +407,7 @@ export async function ReportBlock({ block, workspaceId, weeks }: { block: BlockK
       return (
         <Card title="Content-audit summary">
           {items.length === 0 ? (
-            <Empty>No audit yet — run one under <Link href="/blog/audit" className="underline">Review → Audit</Link>.</Empty>
+            <Empty to="/blog/audit" cta="Open Content audit">Nothing has been audited yet — a run scores your live posts with the pre-publish checks.</Empty>
           ) : (
             <>
               <HBars rows={[

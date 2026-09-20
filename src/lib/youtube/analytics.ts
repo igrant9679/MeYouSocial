@@ -86,7 +86,7 @@ export type AuditResult =
 const ANALYTICS = "https://youtubeanalytics.googleapis.com/v2/reports";
 const DATA = "https://www.googleapis.com/youtube/v3";
 const GRANT_HINT =
-  "Reconnect YouTube under Publish Admin → Analytics — whoever connects must be able to act as the channel (its owner or a Brand Account manager), and the consent must include YouTube Analytics.";
+  "Reconnect YouTube under Settings → Analytics — whoever connects must be able to act as the channel (its owner or a Brand Account manager), and the consent must include YouTube Analytics.";
 
 const isoDay = (d: Date) => d.toISOString().slice(0, 10);
 const addDays = (d: Date, n: number) => new Date(d.getTime() + n * 86_400_000);

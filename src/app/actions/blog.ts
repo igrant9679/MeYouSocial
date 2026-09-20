@@ -387,7 +387,7 @@ export async function verifyCitationAction(formData: FormData) {
   await advanceIfReadyCore(workspace.id, cit.postId, "verified a claim");
   revalidatePath(`/blog/${cit.postId}`);
   revalidatePath("/inbox");
-  revalidatePath("/review");
+  revalidatePath("/inbox");
   revalidatePath("/publish");
 }
 
@@ -405,7 +405,7 @@ export async function overrideGateAction(formData: FormData) {
   if (!result) return;
   revalidatePath(`/blog/${id}`);
   revalidatePath("/inbox");
-  revalidatePath("/review");
+  revalidatePath("/inbox");
   revalidatePath("/publish");
   const what = result.failing.length ? ` Overrode: ${result.failing.join("; ")}.` : "";
   redirect(`/inbox?flash=${encodeURIComponent(result.moved ? `Advanced to final approval on your say-so — recorded with your name.${what}` : `Override recorded, but the article is not at review, so nothing moved.${what}`)}`);
@@ -433,7 +433,7 @@ export async function deleteCitationAction(formData: FormData) {
   await advanceIfReadyCore(workspace.id, cit.postId, "dropped a claim");
   revalidatePath(`/blog/${cit.postId}`);
   revalidatePath("/inbox");
-  revalidatePath("/review");
+  revalidatePath("/inbox");
   revalidatePath("/publish");
 }
 

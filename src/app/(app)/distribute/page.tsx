@@ -6,7 +6,8 @@ import { getPostingTimeZone, formatInZone } from "@/lib/social/slots";
 import { networkFor } from "@/lib/social/networks";
 import { getSocialOverview, type AttentionItem } from "@/lib/social/overview";
 import { Banner } from "@/components/SocialPostCard";
-import { AskDrawer, StageHeader, StageList, StageRow, StateChip } from "@/components/StageShell";
+import { StageHeader, StageList, StageRow, StateChip } from "@/components/StageShell";
+import { EmptyState } from "@/components/EmptyState";
 
 // Distribute stage: the queue on the slot grid, the accounts and their
 // health, what needs a person here, and what went out. Since One-Loop step 6
@@ -72,7 +73,7 @@ export default async function DistributeStage({ searchParams }: { searchParams: 
           <Link href="/admin/connections" className="btn sm">Manage</Link>
         </div>
         {accounts.length === 0 ? (
-          <p className="text-xs text-[var(--mute)] m-0">None connected yet — use this app&apos;s Connect buttons under <Link href="/admin/connections" className="underline">Connections</Link>, not Zernio&apos;s dashboard.</p>
+          <EmptyState variant="inline" line="No social account is connected yet, so there is nowhere for a post to go." note="Use this app's Connect buttons — not Zernio's dashboard, which leaves duplicate accounts behind." action={{ label: "Connect an account", href: "/admin/connections" }} />
         ) : (
           <div className="flex flex-wrap gap-1.5">
             {accounts.map((a) => {
@@ -124,7 +125,10 @@ export default async function DistributeStage({ searchParams }: { searchParams: 
         </section>
       )}
 
-      <StageList title="The queue" empty="Nothing scheduled.">
+      <StageList
+        title="The queue"
+        empty={<EmptyState variant="inline" line="Nothing is scheduled — an approved draft takes the next free slot in its category." action={{ label: "Compose a post", href: "/social/compose" }} />}
+      >
         {scheduled.length > 0 ? scheduled.map((p) => (
           <StageRow key={p.id}>
             <StateChip label={formatInZone(p.scheduledAt!, tz)} hue="blue" />
@@ -166,7 +170,6 @@ export default async function DistributeStage({ searchParams }: { searchParams: 
         </p>
       )}
 
-      <AskDrawer stage="distribute" placeholder="e.g. Draft a LinkedIn post about this week's article." />
     </div>
   );
 }

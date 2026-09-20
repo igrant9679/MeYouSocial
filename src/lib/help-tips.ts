@@ -18,8 +18,7 @@ export const NAV_TIPS: Record<string, string> = {
   "/research": "Competitor channels and the outlier videos that beat their own average — Intel, bookmarks, competitors and chat live here. Turn an outlier into an idea from the row.",
   "/ideas": "One stage for every idea: blog ideas by state with approve and draft on the row, and each channel's video ideas a tab away.",
   "/drafts": "Everything being written or rendered — articles drafting or in review, scripts, video renders.",
-  "/review": "What waits on a person after auto-review has done what it can: approvals, questions, unsourced claims, images, held articles — the action on each card.",
-  "/publish": "Articles at final approval, when they go out (the publish day, or a date you set), and what went live.",
+  "/publish": "The two gates in front of going out — social approvals and the content audit — then articles at final approval, when they go (the publish day, or a date you set), and what went live.",
   "/distribute": "The queue on your posting slots, the drafts behind it, and replies waiting. Compose, calendar, engage and performance are tabs.",
   "/measure": "Search impressions and clicks, engagement, reports — measured numbers only, never invented curves.",
   "/scripts": "Long-form scripts. Open one to write with the AI, or run the agent end to end.",
@@ -33,7 +32,6 @@ export const NAV_TIPS: Record<string, string> = {
   "/thumbnails": "Thumbnail concepts and images for a video.",
   "/production": "A board for the work itself — who's doing what, and what's blocked.",
   "/help": "Guides, FAQs and search. Start here if you're new.",
-  "/admin": "Keys, connections, team, limits and usage. Most one-time setup lives here.",
 };
 
 /** Social composer + scheduler. */
@@ -125,14 +123,14 @@ export const CHANNEL_TIPS = {
  * can't be styled, which is the trade for working at all here.
  */
 export const BLOG_TAB_TIPS: Record<string, string> = {
-  "/blog": "Every article, at whatever stage it's reached. The badge counts the ones waiting on you.",
+  "/blog": "Every article, at whatever stage it's reached — as a board or a list, your choice. The badge counts the ones waiting on you.",
   "/blog/ideas": "Article ideas — now on the one Ideas board, filtered to articles.",
   "/blog/keywords": "The phrases you're targeting, grouped into clusters — labelled by intent, with monthly volume and competition from a connected search-data provider (a dash until one is).",
   "/blog/experts": "Subject-matter expert profiles, so a draft can be written in a named person's voice and credentials.",
   "/blog/audit": "Existing content flagged for refresh or repair.",
   "/blog/analytics": "Search and traffic for published articles. Needs Search Console and GA4 connected.",
   "/blog/report": "A client-ready summary you can export.",
-  "/setup": "Every dial, under the question it answers: who can do what, what runs by itself, when things go out, keys and connections, brand and voice.",
+  "/setup": "Every dial, under the question it answers: who can do what, what runs by itself, when things go out, what is connected — plus the operator tabs (keys, analytics, email, workspace, usage) for admins.",
   "/blog/automation": "Moved to Settings → Automation.",
   "/blog/brand": "Tone of voice (the 7 Motifs) and the image policy that gates publishing.",
   "/blog/organization": "Company details that ground drafts in who you actually are.",

@@ -11,16 +11,34 @@ import { motifSummaryLabel, parseMotifs } from "@/lib/motifs";
 // into the tabbed editor), a week-ahead calendar ribbon, quick create. The
 // sub-nav above (layout.tsx) replaces the old button row.
 
+// One sentence per column when it is empty — four panels all saying "Empty"
+// told a reader nothing about which of them was a problem (audit B6).
 const COLUMNS = [
-  { status: "drafting", title: "Drafting", hue: "amber" },
-  { status: "draft_review", title: "In review", hue: "blue" },
-  { status: "final_approval", title: "Final approval", hue: "violet" },
-  { status: "published", title: "Published", hue: "green" },
+  { status: "drafting", title: "Drafting", hue: "amber", empty: "Nothing is being written." },
+  { status: "draft_review", title: "In review", hue: "blue", empty: "Nothing is waiting on its checks." },
+  { status: "final_approval", title: "Final approval", hue: "violet", empty: "Nothing is cleared to go out." },
+  { status: "published", title: "Published", hue: "green", empty: "Nothing has gone live yet." },
 ] as const;
 
-export default async function BlogPage() {
+// ⚠ ONE Articles page, two framings (audit B1.2). Until 2026-09-20 the same
+// four columns existed twice: this page as a rich kanban, and /blog/board as a
+// plain list — two tabs of Drafts showing the same posts under two names, with
+// "Board" being the one that wasn't a board. They are now `?view=`; /blog/board
+// redirects here, because old URLs keep working.
+const VIEWS = ["board", "list"] as const;
+type View = (typeof VIEWS)[number];
+
+const STATUS_LABEL: Record<string, { title: string; hue: string }> = {
+  drafting: { title: "Drafting", hue: "amber" },
+  draft_review: { title: "In review", hue: "blue" },
+  final_approval: { title: "Final approval", hue: "violet" },
+  published: { title: "Published", hue: "green" },
+};
+
+export default async function BlogPage({ searchParams }: { searchParams: Promise<{ view?: string }> }) {
   const { workspace, membership } = await requireMembership();
   const editor = canEdit(membership.role);
+  const view: View = (await searchParams).view === "list" ? "list" : "board";
 
   const now = new Date();
   const weekEnd = new Date(now);
@@ -77,8 +95,22 @@ export default async function BlogPage() {
           <FileText className="w-5 h-5" strokeWidth={2.25} />
         </span>
         <div className="min-w-40 flex-1">
-          <h1 className="font-mono font-bold text-2xl leading-tight">Posts</h1>
+          <h1 className="font-mono font-bold text-2xl leading-tight">Articles</h1>
           <p className="text-xs text-[var(--mute)]">Idea → grounded draft → gates → publish. Cards open the editor.</p>
+        </div>
+        {/* The toggle that replaced the second page. */}
+        <div className="flex items-center rounded-lg border border-[var(--line)] overflow-hidden" role="group" aria-label="How to show the articles">
+          {VIEWS.map((v) => (
+            <Link
+              key={v}
+              href={v === "board" ? "/blog" : `/blog?view=${v}`}
+              aria-current={view === v ? "true" : undefined}
+              className="px-2.5 py-1.5 text-xs font-semibold capitalize transition-colors"
+              style={view === v ? { background: "var(--accent-soft)", color: "var(--accent-on)" } : { color: "var(--mute)" }}
+            >
+              {v}
+            </Link>
+          ))}
         </div>
         {editor && (
           <form action={createBlogPostAction} className="flex items-end gap-2">
@@ -91,7 +123,52 @@ export default async function BlogPage() {
         )}
       </div>
 
+      {/* List view — every article in one dense, scannable column, newest
+          edit first. This is what /blog/board used to be, minus the pretence
+          of being a board. */}
+      {view === "list" && (
+        <section className="card mb-4">
+          {posts.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-sm mb-1">No articles yet.</p>
+              <p className="text-xs text-[var(--mute)]">
+                Approve an idea on the <Link href="/ideas" className="underline">Ideas board</Link> and the engine writes
+                the first one — or create one above.
+              </p>
+            </div>
+          ) : (
+            <ul className="flex flex-col">
+              {posts.map((p) => {
+                const s = STATUS_LABEL[p.status] ?? { title: p.status, hue: "cyan" };
+                return (
+                  <li key={p.id} className="flex flex-wrap items-center gap-2 py-2 border-b border-[var(--line)] last:border-0">
+                    <span
+                      className="font-mono text-[10px] px-1.5 py-0.5 rounded-full flex-shrink-0 w-28 text-center"
+                      style={{ background: `var(--${s.hue}-soft)`, color: `var(--${s.hue}-on)` }}
+                    >
+                      {s.title}
+                    </span>
+                    <Link href={`/blog/${p.id}`} className="text-sm font-semibold hover:underline flex-1 min-w-60 truncate">
+                      {p.title}
+                    </Link>
+                    {p.citations.length > 0 && (
+                      <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }}>
+                        {p.citations.length} unverified
+                      </span>
+                    )}
+                    <span className="font-mono text-[10px] text-[var(--mute)] w-16 text-right">
+                      {p.updatedAt.toLocaleDateString("en-GB", { day: "2-digit", month: "short" })}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </section>
+      )}
+
       {/* Kanban — full width */}
+      {view === "board" && (
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 mb-4">
         {COLUMNS.map((col) => {
           const items = posts.filter((p) => p.status === col.status);
@@ -106,7 +183,7 @@ export default async function BlogPage() {
               </h2>
               <div className="flex flex-col gap-2">
                 {shown.length === 0 && (
-                  <div className="card text-center text-xs text-[var(--mute)] py-5">Empty</div>
+                  <div className="card text-[11px] text-[var(--mute)] py-4 leading-snug">{col.empty}</div>
                 )}
                 {shown.map((p) => {
                   const missingImages =
@@ -162,8 +239,8 @@ export default async function BlogPage() {
                   );
                 })}
                 {col.status === "published" && items.length > shown.length && (
-                  <Link href="/blog/board" className="text-[11px] text-[var(--mute)] underline px-1">
-                    + {items.length - shown.length} more on the board
+                  <Link href="/blog?view=list" className="text-[11px] text-[var(--mute)] underline px-1">
+                    + {items.length - shown.length} more — see the list
                   </Link>
                 )}
               </div>
@@ -171,6 +248,7 @@ export default async function BlogPage() {
           );
         })}
       </div>
+      )}
 
       {/* Week ribbon */}
       <section className="card mb-4">

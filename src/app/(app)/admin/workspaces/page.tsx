@@ -14,7 +14,7 @@ import {
   platformRemoveMembershipAction,
 } from "@/app/actions/platform-workspaces";
 
-// Publish Admin → Workspaces: the PLATFORM operator's cross-tenant surface. Everything
+// Settings → Workspaces: the PLATFORM operator's cross-tenant surface. Everything
 // here works on any workspace regardless of the operator's own memberships —
 // the per-workspace /admin pages stay the tenant admins' home. Flash messages
 // ride the layout's FlashBanner (flash / flashErr params).

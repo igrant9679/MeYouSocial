@@ -17,7 +17,14 @@ export type StageTab = {
   also?: string[];
 };
 
-export type StageCtx = { channelId: string | null; studio: boolean };
+export type StageCtx = {
+  channelId: string | null;
+  studio: boolean;
+  /** Settings shows the operator pages as tabs only to a workspace ADMIN. */
+  admin: boolean;
+  /** Creating/switching workspaces is the platform operator's, not an admin's. */
+  operator: boolean;
+};
 
 export type StageDef = {
   href: string;
@@ -26,7 +33,10 @@ export type StageDef = {
   tabs: (ctx: StageCtx) => StageTab[];
 };
 
-export const STAGE_HREFS = ["/research", "/ideas", "/drafts", "/review", "/publish", "/distribute", "/measure", "/brand", "/setup"] as const;
+// ⚠ "/review" left this list on 2026-09-20 (audit B1.1): its overview was the
+// Inbox, card for card, and its two real tabs belong to Publish. /review still
+// resolves — it redirects to /inbox.
+export const STAGE_HREFS = ["/research", "/ideas", "/drafts", "/publish", "/distribute", "/measure", "/brand", "/setup"] as const;
 
 export const STAGES: Record<(typeof STAGE_HREFS)[number], StageDef> = {
   "/research": {
@@ -54,8 +64,9 @@ export const STAGES: Record<(typeof STAGE_HREFS)[number], StageDef> = {
     // studio switch under Settings is on (lib/studio.ts) — the owner's
     // "optional as a studio". Articles and the board are always there.
     tabs: ({ channelId, studio }) => [
-      { href: "/blog", label: "Articles" },
-      { href: "/blog/board", label: "Board" },
+      // One tab, not two: /blog and /blog/board were the same four columns
+      // under two names (audit B1.2). The board/list toggle lives on the page.
+      { href: "/blog", label: "Articles", also: ["/blog/board"] },
       ...(studio
         ? [
             { href: channelId ? `/channels/${channelId}/scripts` : "/scripts", label: "Scripts", also: ["/scripts", "/channels/*/scripts"] },
@@ -66,18 +77,14 @@ export const STAGES: Record<(typeof STAGE_HREFS)[number], StageDef> = {
         : []),
     ],
   },
-  "/review": {
-    href: "/review",
-    label: "Review",
-    tabs: () => [
-      { href: "/social/approvals", label: "Approvals" },
-      { href: "/blog/audit", label: "Audit" },
-    ],
-  },
   "/publish": {
     href: "/publish",
     label: "Publish",
+    // Approvals and Audit came here from the retired Review stage: both gate
+    // what goes out, which is this stage's whole job.
     tabs: () => [
+      { href: "/social/approvals", label: "Approvals" },
+      { href: "/blog/audit", label: "Audit" },
       { href: "/website", label: "Website" },
       { href: "/blog/calendar", label: "Blog calendar" },
     ],
@@ -114,11 +121,37 @@ export const STAGES: Record<(typeof STAGE_HREFS)[number], StageDef> = {
   "/setup": {
     href: "/setup",
     label: "Settings",
-    tabs: () => [
+    // ⚠ There used to be TWO settings surfaces with two rail entries and two
+    // tab strips: Settings (4 tabs) and "Publish Admin" (10), with People
+    // duplicated between them and "Connections" naming a different page in
+    // each (audit B1.3/B1.4). The admin pages keep their /admin/* URLs — some
+    // thirty actions redirect to them — only the NAVIGATION moved here.
+    //
+    // ⚠ `admin` is the ONLY thing stopping an EDITOR or VIEWER being shown
+    // five tabs that all bounce to /forbidden: /setup itself is
+    // requireMembership, not requireRole.
+    //
+    // Deliberately NOT a tab: /admin/connections (the Zernio/Unipile connect
+    // machinery) — /setup/connections is the read-only "what's missing" list
+    // and every row links to the page that fixes it, so it stays one entry
+    // rather than two called the same thing. `also` keeps it lit there.
+    // /admin/limits rides Usage, and /admin/channels has the Channels rail
+    // entry of its own.
+    tabs: ({ admin, operator }) => [
       { href: "/setup/people", label: "People" },
       { href: "/setup/automation", label: "Automation" },
       { href: "/setup/schedule", label: "Schedule" },
-      { href: "/setup/connections", label: "Connections" },
+      { href: "/setup/connections", label: "Connections", also: ["/admin/connections"] },
+      ...(admin
+        ? [
+            { href: "/admin/api-keys", label: "Keys" },
+            { href: "/admin/analytics", label: "Analytics" },
+            { href: "/admin/email", label: "Email" },
+            { href: "/admin/settings", label: "Workspace" },
+            { href: "/admin/usage", label: "Usage", also: ["/admin/limits"] },
+          ]
+        : []),
+      ...(operator ? [{ href: "/admin/workspaces", label: "Workspaces" }] : []),
     ],
   },
 };
@@ -127,10 +160,13 @@ export const STAGES: Record<(typeof STAGE_HREFS)[number], StageDef> = {
 export function stageFor(pathname: string): (typeof STAGE_HREFS)[number] | null {
   const p = pathname;
   for (const h of STAGE_HREFS) if (p === h || p.startsWith(h + "/")) return h;
+  // Every operator page is a Settings tab now (audit B1.4). Placed before the
+  // other clauses for clarity; /admin is not a STAGE_HREF, so no collision.
+  if (/^\/admin(\/|$)/.test(p)) return "/setup";
   if (/^\/blog\/(brand|organization)(\/|$)/.test(p)) return "/brand";
   if (/^\/(intel|chat)(\/|$)/.test(p) || /^\/channels\/[^/]+\/(competitors|research)(\/|$)/.test(p)) return "/research";
   if (/^\/blog\/(keywords|experts)(\/|$)/.test(p) || /^\/channels\/[^/]+\/ideas(\/|$)/.test(p)) return "/ideas";
-  if (/^\/social\/approvals(\/|$)/.test(p) || /^\/blog\/audit(\/|$)/.test(p)) return "/review";
+  if (/^\/social\/approvals(\/|$)/.test(p) || /^\/blog\/audit(\/|$)/.test(p)) return "/publish";
   if (/^\/website(\/|$)/.test(p) || /^\/blog\/(calendar|automation)(\/|$)/.test(p)) return "/publish";
   if (/^\/(reports|insights|youtube)(\/|$)/.test(p) || /^\/blog\/(analytics|report)(\/|$)/.test(p) || /^\/social\/performance(\/|$)/.test(p)) return "/measure";
   if (/^\/social(\/|$)/.test(p)) return "/distribute";

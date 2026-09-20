@@ -12,6 +12,7 @@ import { AreaChart } from "@/components/charts";
 import { networkFor } from "@/lib/social/networks";
 import { getPublicUrl } from "@/lib/public-url";
 import { NeedsYouGroups } from "@/components/NeedsYou";
+import { EmptyState } from "@/components/EmptyState";
 
 /**
  * Inbox — the landing page (One-Loop redesign, step 2; the owner's decision
@@ -36,7 +37,7 @@ export default async function InboxPage() {
   const admin = canAdmin(membership.role);
   const editor = canEdit(membership.role);
 
-  const [inbox, stats, series, perf, feed, channels, origin] = await Promise.all([
+  const [inbox, stats, series, perf, feed, channels, origin, auditOpen] = await Promise.all([
     getInboxData(workspace.id, { admin }),
     homeStats(workspace.id),
     weeklySeries(workspace.id, 8),
@@ -44,6 +45,9 @@ export default async function InboxPage() {
     autopilotFeed(workspace.id, 6),
     db.channel.findMany({ where: { workspaceId: workspace.id }, orderBy: { createdAt: "asc" }, take: 6 }),
     getPublicUrl(),
+    // Same count the strip badges (lib/stage-counts.ts) — kept in step so the
+    // Inbox link and the Publish → Audit badge never disagree.
+    db.contentAuditItem.count({ where: { workspaceId: workspace.id, status: "open", recommendation: { not: "keep" } } }),
   ]);
   const { home } = inbox;
   const warn = inbox.conditions.filter((d) => d.severity === "warn");
@@ -67,10 +71,32 @@ export default async function InboxPage() {
       </div>
 
       {nothing && (
-        <div className="card text-xs flex items-center gap-2 mb-5" style={{ borderColor: "var(--green)" }}>
-          <Check className="w-4 h-4" style={{ color: "var(--green-on)" }} />
-          No approvals, questions, claims, images or connections are waiting. Come back when the bell rings.
-        </div>
+        <EmptyState
+          tone="clear"
+          icon={<Check className="w-5 h-5" style={{ color: "var(--green-on)" }} />}
+          line="No approvals, questions, claims, images or connections are waiting."
+          note="Silence means all clear — if something urgent shows up, the bell rings and the morning digest says so."
+          action={{ label: "Find something to write", href: "/ideas" }}
+        />
+      )}
+
+      {/* The two surfaces the retired Review stage carried (audit B1.1). They
+          are Publish's tabs now, but the queues they hold are reviewing work,
+          so they stay one click from the landing page. Shown only when there
+          is something in them — an empty link is another place to look. */}
+      {(inbox.socialPosts.length > 0 || auditOpen > 0) && (
+        <p className="text-xs text-[var(--mute)] mb-4 flex flex-wrap items-center gap-x-3 gap-y-1">
+          {inbox.socialPosts.length > 0 && (
+            <Link href="/social/approvals" className="underline hover:text-[var(--ink)]">
+              Approve posts together ({inbox.socialPosts.length})
+            </Link>
+          )}
+          {auditOpen > 0 && (
+            <Link href="/blog/audit" className="underline hover:text-[var(--ink)]">
+              Content audit ({auditOpen})
+            </Link>
+          )}
+        </p>
       )}
 
       {/* ── 1 · Needs you — items ───────────────────────────────────────── */}

@@ -18,7 +18,7 @@ import {
   updateBlogIdeaAction,
 } from "@/app/actions/blog-ideas";
 import { addIdeaAction, regenerateIdeasAction, setIdeaTopicAction, updateIdeaStatusAction, writeIdeaToCanvasAction } from "@/app/actions/ideas";
-import { AskDrawer, StageHeader } from "@/components/StageShell";
+import { StageHeader } from "@/components/StageShell";
 
 // The Ideas stage IS the one board (One-Loop step 4). Article and video ideas
 // share four columns and one vocabulary; the format chip on each card says
@@ -139,7 +139,7 @@ export default async function IdeasBoard({ searchParams }: { searchParams: Promi
               </h2>
               <p className="text-[10px] text-[var(--mute)] mb-2">{col.blurb}</p>
               {items.length === 0 ? (
-                <p className="text-xs text-[var(--mute)] py-2 text-center">Empty</p>
+                <p className="text-[11px] text-[var(--mute)] py-2 leading-snug">{col.empty}</p>
               ) : (
                 <ul className="flex flex-col gap-2">
                   {items.map((c) =>
@@ -173,7 +173,6 @@ export default async function IdeasBoard({ searchParams }: { searchParams: Promi
       )}
 
       <div className="mt-4">
-        <AskDrawer stage="ideas" placeholder="e.g. Add an idea about grant reporting deadlines for small nonprofits." />
       </div>
     </div>
   );

@@ -492,7 +492,7 @@ export const STEPS: GuideStep[] = [
       "and keeps their history; Remove deletes the membership. The last admin can't be removed — that would lock everyone out.",
     anchor: "nav/admin",
     route: "/admin",
-    cta: { label: "Open Users", href: "/admin" },
+    cta: { label: "Open Users", href: "/setup/people" },
   },
   {
     id: "admin-delete",

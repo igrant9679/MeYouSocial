@@ -246,14 +246,14 @@ The **Ask** button top-right (or Ctrl+/) opens the assistant as a dock over what
 
 In order; each step unlocks the next. A workspace is one company: its keys, accounts, voice, slots and content are its own, invisible to every other workspace. Check the workspace switcher (top left) before acting.
 
-1. **Give it a brain.** Publish Admin → API keys: paste an AI provider key and set the default model to match it. Without one the app produces clearly fake placeholder text rather than erroring; if output ever reads generic, check here first. A live web search key (Tavily or Serper) is what lets it source claims.
+1. **Give it a brain.** Settings → Keys: paste an AI provider key and set the default model to match it. Without one the app produces clearly fake placeholder text rather than erroring; if output ever reads generic, check here first. A live web search key (Tavily or Serper) is what lets it source claims.
 2. **Connect where it publishes.** Settings → Connections shows every connection the loop needs and which are missing: social accounts (use this app's Connect buttons, not the provider's dashboard), a mailbox (how invitations and digests leave), your website under Publish → Website (WordPress, or per-article HTML export), analytics.
 3. **Teach it your voice.** Brand → Tone & motifs: the seven Motifs (your tone, editable and versioned), topics, guardrails, and the brand kit: colours, image dimensions, and whether AI may generate imagery (it lands as pending for review either way).
 4. **Tell it what you actually do.** Same page, Brand context for the AI: differentiators, products and what each does, brand documents. Every AI feature reads this before it writes. Nothing here is AI-generated on purpose: an invented differentiator would be repeated as fact everywhere afterwards.
 5. **Set the clock.** Settings → Schedule: timezone and posting slots, the recurring times the queue sends at. Slots are wall-clock, so 09:00 stays 09:00 through daylight-saving changes.
 6. **Choose your gates.** Settings → People: require approval holds every social post until an admin approves it (recommended with a team). Articles always park at review; that gate isn't optional. Queue on approval under Automation makes approving the last act: with it off, an approved post still needs queueing.
 7. **Set the autonomy dials.** Settings → Automation: how many articles a week and on which day, how many social posts, whether evergreen recycles, the four function modes, or one switch, **full autonomy**, which sets them all and remembers what you had. Start low; raise once you trust what arrives at review.
-8. **Wire up measurement.** Publish Admin → Analytics: Search Console site + GA4 property, with the service account granted on both. Until then Measure shows dashes; a dash means "not measured", never zero.
+8. **Wire up measurement.** Settings → Analytics: Search Console site + GA4 property, with the service account granted on both. Until then Measure shows dashes; a dash means "not measured", never zero.
 9. **Invite the team.** Settings → People. Editors write, draft, answer and propose; admins approve, publish and configure. Everyone can turn the digest email off for themselves under Notifications.
 
 ### Daily: about five minutes
@@ -270,8 +270,8 @@ Most days this is reading one email, or opening one page. The routine is a check
 The weekly pass is where you steer. Everything here feeds the engine's next seven days.
 
 - **Triage the discovered ideas.** Ideas: approve the ones worth writing, reject the rest. Approved ideas are what the autopilot drafts from on your weekly target; an empty Approved column means no new articles, however high the dial. Keep three to five approved.
-- **Read what was drafted, words, pictures and SEO together.** Drafts → Board: each article arrives with its featured and social-preview images and its SEO filled in, and auto-review has already fixed what it could. In the article's Optimize tab, answer the knowledge cards and decide the strategic ones; the mechanical ones apply on their own.
-- **Approve and queue the social week.** Review → Approvals for anything held, then Distribute → Calendar to queue approved drafts into free slots. **An approved draft that was never queued will never send**; turn on queue on approval under Settings → Automation to collapse the two.
+- **Read what was drafted, words, pictures and SEO together.** Drafts → Articles: each article arrives with its featured and social-preview images and its SEO filled in, and auto-review has already fixed what it could. In the article's Optimize tab, answer the knowledge cards and decide the strategic ones; the mechanical ones apply on their own.
+- **Approve and queue the social week.** Publish → Approvals for anything held, then Distribute → Calendar to queue approved drafts into free slots. **An approved draft that was never queued will never send**; turn on queue on approval under Settings → Automation to collapse the two.
 - **Confirm the publish day's article is ready.** Publish: the article due should be at final approval. With no WordPress, download the HTML, add it to the site, and Mark as published with the live link.
 - **Glance at what the numbers are saying.** Measure → Social performance for per-network engagement, and the best-time-to-post section under Settings → Schedule once enough posts are measured; it stays silent below its sample size rather than guessing.
 - **Skim the outliers.** Research: the strong ones, and whether any fits a Topic well enough to become an idea.
@@ -284,7 +284,7 @@ The monthly pass looks backwards to adjust the machine, not the individual posts
 - **Tune the voice and the topics.** Brand → Tone & motifs: adjust Motif weights, retire topics that ran dry, add what the numbers say is working, refresh the brand context. The engine only sounds like this month's you if you tell it what changed.
 - **Reconsider the dials.** Settings → Automation: raise the weekly article or social targets if review has been consistently easy; turn on evergreen recycling once you have a body of posts worth resurfacing; lower anything producing more than you can honestly review.
 - **Check the plumbing.** Settings → Connections for anything missing or nearing reconnection, API keys for provider billing surprises, Analytics still pointing at the right properties, and People for anyone who joined or left.
-- **Run a content audit.** Review → Audit: act on the refresh, merge and retire recommendations before the archive goes stale.
+- **Run a content audit.** Publish → Audit: act on the refresh, merge and retire recommendations before the archive goes stale.
 
 ### Repeatable processes
 
@@ -302,12 +302,12 @@ The same few sequences, every time. Each one ends at a gate you can see.
 
 ### When something looks wrong
 
-- **Output reads generic or mentions "mock"**: no working AI key for this workspace. Publish Admin → API keys, and match the model.
+- **Output reads generic or mentions "mock"**: no working AI key for this workspace. Settings → Keys, and match the model.
 - **Nothing is being drafted**: the Approved column is empty, the weekly target or daily budget is reached, drafting is on manual, or global pause is on. Settings → Automation says which.
 - **An article is held with nothing to act on**: the Inbox card names the failing check. A flagged claim needs a live-search key to be sourced; give it one sweep, then verify or remove the sentence yourself.
 - **At final approval but never publishes**: not the publish day yet, or no WordPress (Download HTML + Mark as published), or publishing isn't on auto.
 - **Social posts never send**: no slots or timezone, a post awaiting approval, approved but never queued, or a broken account (the chip on Distribute is red on the provider's own verdict, never on a token-expiry note alone).
-- **Measure shows dashes**: analytics not connected, or the Search Console property is missing the service account; Publish Admin → Analytics runs the live probe that says which.
+- **Measure shows dashes**: analytics not connected, or the Search Console property is missing the service account; Settings → Analytics runs the live probe that says which.
 - **A button does nothing after an update**: a tab held open across a deployment. Reload.
 - **Trust the dashes.** A dash with a reason means "not measured yet"; this app never invents a number to fill a card, so the numbers you do see are real.
 
@@ -332,7 +332,7 @@ Open a script and press **Run Agent** in the toolbar. It queues a background job
 
 Because it's a background job, **you can close the tab** — it keeps going server-side, and it survives redeploys. Come back to the script and the run's status is on the page, with **Cancel** while it's in flight and **Re-run Agent** afterwards.
 
-When it finishes successfully you also get an **email** (“Your script is ready”) — sent through your workspace's connected mailbox, so it only arrives if one is connected under Publish Admin → Connections. No mailbox, no email; the script page is always the source of truth either way. (If the result reads bland, see the question about placeholder output: a missing API key is the usual cause.)
+When it finishes successfully you also get an **email** (“Your script is ready”) — sent through your workspace's connected mailbox, so it only arrives if one is connected under Settings → Connections. No mailbox, no email; the script page is always the source of truth either way. (If the result reads bland, see the question about placeholder output: a missing API key is the usual cause.)
 
 **What are all the icons on the left bar?**
 
@@ -374,9 +374,9 @@ Almost always because no working API key resolved for the workspace you're in, s
 
 Tell-tale signs: text that mentions *mock*, ideas labelled `[mock N: no API key]`, or copy that could describe any channel.
 
-Fix: **Publish Admin → API keys**, paste a key for the workspace you're actually in, and make sure the model you've selected belongs to that provider. Keys are **per workspace** — one company's key is never used by another, so a new workspace starts with none.
+Fix: **Settings → Keys**, paste a key for the workspace you're actually in, and make sure the model you've selected belongs to that provider. Keys are **per workspace** — one company's key is never used by another, so a new workspace starts with none.
 
-_Go to: Publish Admin → API keys (/admin/api-keys)_
+_Go to: Settings → Keys (/admin/api-keys)_
 
 **How do I know when the AI is working on something?**
 
@@ -398,14 +398,14 @@ Probably not — a fresh workspace genuinely has nothing in it, and this app del
 
 Run down these in order:
 
-**1. Is there a working AI key?** No key means generations quietly produce placeholder text. *Publish Admin → API keys.*
+**1. Is there a working AI key?** No key means generations quietly produce placeholder text. *Settings → Keys.*
 **2. Am I in the right workspace?** Keys, accounts, content and team are all per company. Check the switcher in the top bar.
 **3. Is there anything to measure?** Insights and Reports stay empty until something has actually been published — they're reporting surfaces, not generators.
 **4. Are the analytics connected?** Search traffic needs Search Console and GA4 connected; engagement needs a social account connected and posts that have gone out.
 
 If all four are fine and a page is still blank, that page is telling you the truth about your data.
 
-_Go to: Publish Admin → API keys (/admin/api-keys) · Publish Admin → Connections (/admin/connections)_
+_Go to: Settings → Keys (/admin/api-keys) · Settings → Connections (/admin/connections)_
 
 **What do the blog stages mean — drafting, review, approval, published?**
 
@@ -422,11 +422,11 @@ The split matters because automation is allowed to move a post *into* review, bu
 
 Because your workspace is on the **mock image provider** — no image key resolved, so every render returns a stock photo picked from your prompt instead of a real generation. It's worth knowing this looks like success rather than failure: you get a real, good-looking photo, just not one that has anything to do with your title. Thumbnail Studio shows a banner whenever the provider actually resolving is the mock.
 
-**Real image generation is built in** — paste an **OpenAI** or **Google** key under Publish Admin → API keys and the *Image generation* switch picks it up (Auto prefers OpenAI's gpt-image-1 because it renders legible text more reliably, which thumbnails need). Renders are stored durably with your other files, and the studio's Clone analysis genuinely *looks at* the reference image.
+**Real image generation is built in** — paste an **OpenAI** or **Google** key under Settings → Keys and the *Image generation* switch picks it up (Auto prefers OpenAI's gpt-image-1 because it renders legible text more reliably, which thumbnails need). Renders are stored durably with your other files, and the studio's Clone analysis genuinely *looks at* the reference image.
 
 With a real provider the `Require images to publish` gate under Blog → Brand does exactly what it says; on the mock it can gate a post behind an image that only ever will be stock — turn it off there if that blocks you.
 
-_Go to: Publish Admin → API keys (/admin/api-keys) · Thumbnail Studio (/thumbnails) · Blog → Brand (/blog/brand)_
+_Go to: Settings → Keys (/admin/api-keys) · Thumbnail Studio (/thumbnails) · Blog → Brand (/blog/brand)_
 
 **Is there hover help on the buttons themselves?**
 
@@ -617,9 +617,9 @@ _Go to: Videos (/videos)_
 
 **How do I switch from mock video to real (Veo)?**
 
-Publish Admin → **API keys** → *Media & video*: paste a Google key and set the **Video renderer** to Auto or Veo. Auto uses Veo whenever a key is present; Mock never spends. Real renders count against the daily cap shown on the Videos page, and outputs are persisted to storage because Veo links expire in ~2 days.
+Settings → **Keys** → *Media & video*: paste a Google key and set the **Video renderer** to Auto or Veo. Auto uses Veo whenever a key is present; Mock never spends. Real renders count against the daily cap shown on the Videos page, and outputs are persisted to storage because Veo links expire in ~2 days.
 
-_Go to: Publish Admin → API keys (/admin/api-keys)_
+_Go to: Settings → Keys (/admin/api-keys)_
 
 **Can I edit a social post after writing it?**
 
@@ -661,7 +661,7 @@ _Go to: Distribute (/distribute) · Notifications (/notifications)_
 
 Any image you attach in the composer is used as-is. A post composed **without** one gets an image **generated automatically** in the background by your workspace's image provider (the AI derives it from the post's text, square when Instagram/Pinterest are targeted, wide otherwise) — it lands on the post within a minute or so, well before a scheduled send. Two honest rules: your own attachment always wins over generation, and if the workspace has no real image provider the post simply stays text-only — the mock never fakes it with a stock photo. Turn the default off per workspace under Social → **Workflow** ("Auto-generate an image"); note real renders cost the provider's per-image fee.
 
-_Go to: Distribute (/distribute) · Publish Admin → API keys (/admin/api-keys)_
+_Go to: Distribute (/distribute) · Settings → Keys (/admin/api-keys)_
 
 **Can I import many social posts at once?**
 
@@ -699,31 +699,31 @@ Because they mean different things and conflating them is how dashboards mislead
 
 **Where do I connect Search Console, GA4 and YouTube?**
 
-Publish Admin → **Analytics**. **Search Console** and **GA4** use a Google *service account* (no OAuth): paste its JSON — or reuse the platform one shown at the top of the page — then grant that address access in Search Console (Settings → Users and permissions) and GA4 (Admin → Property access management). **YouTube** is different: channel-owned data needs real **OAuth**, so create an OAuth client in Google Cloud Console, paste the ID/secret, add the redirect URI the page shows you, and hit Connect. Every save runs a **live check** against the real API, so a wrong ID or a missing permission is caught immediately rather than showing up later as empty data.
+Settings → **Analytics**. **Search Console** and **GA4** use a Google *service account* (no OAuth): paste its JSON — or reuse the platform one shown at the top of the page — then grant that address access in Search Console (Settings → Users and permissions) and GA4 (Admin → Property access management). **YouTube** is different: channel-owned data needs real **OAuth**, so create an OAuth client in Google Cloud Console, paste the ID/secret, add the redirect URI the page shows you, and hit Connect. Every save runs a **live check** against the real API, so a wrong ID or a missing permission is caught immediately rather than showing up later as empty data.
 
-_Go to: Publish Admin → Analytics (/admin/analytics)_
+_Go to: Settings → Analytics (/admin/analytics)_
 
 **Why does the YouTube API key not give me my own channel's data?**
 
-An API key only reads **public** data (search, public video/channel metadata) — that's the key under Publish Admin → API keys, used for Intel lookups. Anything your channel *owns* — uploading, or your own view/watch-time analytics — requires **OAuth** consent, because Google won't let an arbitrary credential act on a channel. Connect that separately under Publish Admin → **Analytics**. Both can be set up at once; they do different jobs.
+An API key only reads **public** data (search, public video/channel metadata) — that's the key under Settings → Keys, used for Intel lookups. Anything your channel *owns* — uploading, or your own view/watch-time analytics — requires **OAuth** consent, because Google won't let an arbitrary credential act on a channel. Connect that separately under Settings → **Analytics**. Both can be set up at once; they do different jobs.
 
-_Go to: Publish Admin → Analytics (/admin/analytics)_
+_Go to: Settings → Analytics (/admin/analytics)_
 
 **What's a branded short, and how is it different from a video package?**
 
 A **branded short** is a 6-second vertical title card — your post's headline over this workspace's brand colours, name and footer — rendered on HeyGen's HyperFrames cloud (no Chrome/ffmpeg here; it's designed motion graphics, not generated footage). A **video package** is the Veo route: an AI-generated multi-scene storyboard. Use branded shorts for exact, on-brand promos; use packages for generated video. The **Render branded short** button is on a post's Distribute tab once it's approved/published.
 
-_Go to: Publish Admin → API keys (/admin/api-keys)_
+_Go to: Settings → Keys (/admin/api-keys)_
 
 **How do I enable branded shorts?**
 
-Two ways to render. **Free (local):** run the app where Chrome is installed — it renders on this server with local Chrome + ffmpeg, no key, no cost. **Cloud:** paste a **HeyGen** key (Publish Admin → API keys → *Media & video*; app.heygen.com → Settings → API) and it renders on HeyGen's HyperFrames cloud (pay-per-credit). It picks local automatically when Chrome is present, else cloud. Either way the short pulls its colours and footer from this workspace's **Brand** hub, falling back to the app's own coral tokens when unset. Finished MP4s are persisted to storage.
+Two ways to render. **Free (local):** run the app where Chrome is installed — it renders on this server with local Chrome + ffmpeg, no key, no cost. **Cloud:** paste a **HeyGen** key (Settings → Keys → *Media & video*; app.heygen.com → Settings → API) and it renders on HeyGen's HyperFrames cloud (pay-per-credit). It picks local automatically when Chrome is present, else cloud. Either way the short pulls its colours and footer from this workspace's **Brand** hub, falling back to the app's own coral tokens when unset. Finished MP4s are persisted to storage.
 
-_Go to: Brand hub (/brand) · Publish Admin → API keys (/admin/api-keys)_
+_Go to: Brand hub (/brand) · Settings → Keys (/admin/api-keys)_
 
 **Can it generate a voiceover?**
 
-Yes — the **Generate voiceover** button on a storyboard reads the scene texts as a narration script. With the mock TTS it stores that script as clearly-labeled text; paste an ElevenLabs key and switch the TTS provider (Publish Admin → API keys) for real audio.
+Yes — the **Generate voiceover** button on a storyboard reads the scene texts as a narration script. With the mock TTS it stores that script as clearly-labeled text; paste an ElevenLabs key and switch the TTS provider (Settings → Keys) for real audio.
 
 **How do I get ONE video file instead of separate scene clips?**
 
@@ -733,9 +733,9 @@ _Go to: Videos (/videos)_
 
 **Where are uploads, voiceovers and renders stored?**
 
-Publish Admin → **API keys** → *Storage*. **Local disk** is the dev default, but on Railway the disk is wiped on every redeploy — files don't survive. **Google Drive** keeps them durably: create a service account, share a Drive folder with it as Editor, paste both in, and the app runs a real write test before switching. Files stay private — they're streamed only to signed-in members, never public-by-link. Note: on a free personal Drive, uploads count against the *service account's own* 15 GB quota (shown live on the Storage card); a Workspace Shared Drive pools quota instead.
+Settings → **Keys** → *Storage*. **Local disk** is the dev default, but on Railway the disk is wiped on every redeploy — files don't survive. **Google Drive** keeps them durably: create a service account, share a Drive folder with it as Editor, paste both in, and the app runs a real write test before switching. Files stay private — they're streamed only to signed-in members, never public-by-link. Note: on a free personal Drive, uploads count against the *service account's own* 15 GB quota (shown live on the Storage card); a Workspace Shared Drive pools quota instead.
 
-_Go to: Publish Admin → API keys (/admin/api-keys)_
+_Go to: Settings → Keys (/admin/api-keys)_
 
 **A render failed — now what?**
 
@@ -777,7 +777,7 @@ _Go to: Calendar (/production/calendar)_
 
 **How do I invite a teammate?**
 
-Publish Admin → **Users** → enter email + role (Admin / Editor / Viewer) → **Send invitation**. They get an email link; on accept, they join your workspace.
+Settings → **People** → enter email + role (Admin / Editor / Viewer) → **Send invitation**. They get an email link; on accept, they join your workspace.
 
 **What can each role do?**
 
@@ -787,33 +787,33 @@ Publish Admin → **Users** → enter email + role (Admin / Editor / Viewer) →
 
 **Is there a cost?**
 
-No. MeYouSocial Publish has no billing, no credits, no payments. AI usage is unmetered for invited members. Admins can optionally set soft monthly limits per user (under Publish Admin → Soft limits) to bound shared infrastructure cost.
+No. MeYouSocial Publish has no billing, no credits, no payments. AI usage is unmetered for invited members. Admins can optionally set soft monthly limits per user (under Settings → Usage) to bound shared infrastructure cost.
 
 **How do soft limits work?**
 
-Publish Admin → Soft limits → set caps for scripts/month, thumbnails/month, agent runs/month, channels per workspace. Leave blank or 0 for unlimited. They're operational guards, never a paywall.
+Settings → Usage → set caps for scripts/month, thumbnails/month, agent runs/month, channels per workspace. Leave blank or 0 for unlimited. They're operational guards, never a paywall.
 
 **Can several companies share one install?**
 
-Yes — each company lives in its own **workspace** with fully separate content, team, API keys, SMTP and branding. Signing up creates your company's workspace (rename it under Publish Admin → Workspace); invite teammates from Admin. Someone invited to your workspace who signs up via the invite link joins **your** workspace directly. People who belong to several companies get a workspace switcher in the header.
+Yes — each company lives in its own **workspace** with fully separate content, team, API keys, SMTP and branding. Signing up creates your company's workspace (rename it under Settings → Workspace); invite teammates from Admin. Someone invited to your workspace who signs up via the invite link joins **your** workspace directly. People who belong to several companies get a workspace switcher in the header.
 
 **Whose API keys does my workspace use?**
 
-Your own, when you've pasted them: everything under Publish Admin → **API keys** (LLMs, search, ElevenLabs, image/video/TTS switches) is saved **per workspace**. If your workspace hasn't set a key, it falls back to the platform's shared key — the card shows which one is in effect. The one deliberate exception is the **YouTube Data API key**: it only reads public data, so a single platform-provided key serves every workspace and its card says so (there's nothing for you to set up). Same for **SMTP**: your notification and invitation emails go out through the server you configure under Publish Admin → Email, visible only to your workspace.
+Your own, when you've pasted them: everything under Settings → **Keys** (LLMs, search, ElevenLabs, image/video/TTS switches) is saved **per workspace**. If your workspace hasn't set a key, it falls back to the platform's shared key — the card shows which one is in effect. The one deliberate exception is the **YouTube Data API key**: it only reads public data, so a single platform-provided key serves every workspace and its card says so (there's nothing for you to set up). Same for **SMTP**: your notification and invitation emails go out through the server you configure under Settings → Email, visible only to your workspace.
 
-_Go to: Publish Admin → API keys (/admin/api-keys) · Publish Admin → Email (/admin/email)_
+_Go to: Settings → Keys (/admin/api-keys) · Settings → Email (/admin/email)_
 
 **How do I schedule social posts (like Buffer/Hootsuite)?**
 
-Open **Social** in the sidebar. Pick which connected accounts to post to, write once (a live counter warns when you exceed the tightest network's limit), optionally attach images, then **Post now**, **Schedule** for a date/time, or **Add to queue** to take the next free slot on your posting schedule. Scheduled posts publish automatically within about a minute of their time. The queue below the composer shows what's scheduled (grouped by day), your drafts, and history — each post shows per-network status, so if one network fails you can **Retry** just that leg, or **Duplicate** to repost. The rest of the Buffer-style toolkit lives on the same page: **campaigns** (a named series with its own UTM tag), **evergreen recycling**, **slot categories**, an optional **approval workflow**, and **CSV import** — each has its own question in this Help centre. Connect accounts first under Publish Admin → Connections.
+Open **Social** in the sidebar. Pick which connected accounts to post to, write once (a live counter warns when you exceed the tightest network's limit), optionally attach images, then **Post now**, **Schedule** for a date/time, or **Add to queue** to take the next free slot on your posting schedule. Scheduled posts publish automatically within about a minute of their time. The queue below the composer shows what's scheduled (grouped by day), your drafts, and history — each post shows per-network status, so if one network fails you can **Retry** just that leg, or **Duplicate** to repost. The rest of the Buffer-style toolkit lives on the same page: **campaigns** (a named series with its own UTM tag), **evergreen recycling**, **slot categories**, an optional **approval workflow**, and **CSV import** — each has its own question in this Help centre. Connect accounts first under Settings → Connections.
 
-_Go to: Open Distribute (/distribute) · Publish Admin → Connections (/admin/connections)_
+_Go to: Open Distribute (/distribute) · Settings → Connections (/admin/connections)_
 
 **How do we send email and post to social?**
 
-Publish Admin → **Connections**. Social profiles connect through **Zernio** — LinkedIn, X/Twitter, Facebook, Instagram, Threads, Bluesky, TikTok, YouTube, Pinterest, Reddit, Google Business, Telegram, Snapchat, WhatsApp and Discord — via a guided OAuth pop-up, so no passwords are stored in the app. Your mailbox connects separately through **Unipile** (Gmail, Outlook, or any IMAP), because email is a different channel: notifications send from your connected mailbox over HTTPS, which is the reliable path here since the server blocks direct SMTP. Blog social variants gain a **Post now** button on the Distribute tab that publishes to the matching connected profile. Each company connects its own accounts; nothing is shared, and a default account per platform is used when you have more than one.
+Settings → **Connections**. Social profiles connect through **Zernio** — LinkedIn, X/Twitter, Facebook, Instagram, Threads, Bluesky, TikTok, YouTube, Pinterest, Reddit, Google Business, Telegram, Snapchat, WhatsApp and Discord — via a guided OAuth pop-up, so no passwords are stored in the app. Your mailbox connects separately through **Unipile** (Gmail, Outlook, or any IMAP), because email is a different channel: notifications send from your connected mailbox over HTTPS, which is the reliable path here since the server blocks direct SMTP. Blog social variants gain a **Post now** button on the Distribute tab that publishes to the matching connected profile. Each company connects its own accounts; nothing is shared, and a default account per platform is used when you have more than one.
 
-_Go to: Publish Admin → Connections (/admin/connections)_
+_Go to: Settings → Connections (/admin/connections)_
 
 **Where do we set our company's brand, personas and topics?**
 
@@ -835,9 +835,9 @@ _Go to: Manage topics (/brand)_
 
 **Can we use our own logo and colors?**
 
-Publish Admin → **Workspace** → *Branding*: pick an accent color (presets or any hex) and upload a logo. The whole app chrome — buttons, active states, sidebar mark and menu — re-tints for members of your workspace only; other companies keep their own look. Note this styles the **app**; the brand used in generated blog content lives separately under Blog → Brand.
+Settings → **Workspace** → *Branding*: pick an accent color (presets or any hex) and upload a logo. The whole app chrome — buttons, active states, sidebar mark and menu — re-tints for members of your workspace only; other companies keep their own look. Note this styles the **app**; the brand used in generated blog content lives separately under Blog → Brand.
 
-_Go to: Publish Admin → Workspace (/admin/settings)_
+_Go to: Settings → Workspace (/admin/settings)_
 
 
 ### Social & scheduling
@@ -899,9 +899,9 @@ The window means **posts sent in that window**, not engagement earned in it — 
 
 **Insights is empty. Is it broken?**
 
-Almost certainly not — it needs published content and connected analytics before it has anything to say. Connect Search Console, GA4 or YouTube under Publish Admin → Analytics, and publish a few posts; the panels fill in as the data arrives.
+Almost certainly not — it needs published content and connected analytics before it has anything to say. Connect Search Console, GA4 or YouTube under Settings → Analytics, and publish a few posts; the panels fill in as the data arrives.
 
-_Go to: Publish Admin → Analytics (/admin/analytics)_
+_Go to: Settings → Analytics (/admin/analytics)_
 
 
 ### Storage & files
@@ -910,7 +910,7 @@ _Go to: Publish Admin → Analytics (/admin/analytics)_
 
 If storage is still set to **local disk**, files live on the server's own disk — and this host wipes that on every redeploy. Images, voiceovers and rendered video all go with it. Switching storage to Google Drive keeps them permanently.
 
-_Go to: Publish Admin → API keys → Storage (/admin/api-keys#storage)_
+_Go to: Settings → Keys → Storage (/admin/api-keys#storage)_
 
 **Connect a Google account, or use a service account?**
 
@@ -1020,8 +1020,8 @@ Ask me "what needs my attention?" and I will read the same data and can do the n
 **The weekly routine (about thirty minutes, best the day before the publish day)**
 
 1. Ideas: triage Discovered — approve what is worth writing, reject the rest. Only approved ideas are drafted; an empty Approved pool means no new articles whatever the dial says. Keep three to five approved.
-2. Drafts → Board: read what arrived — words, images and SEO together — and fix only what auto-review could not. In the article's Optimize tab, answer the knowledge cards, decide the strategic ones; mechanical ones apply on their own.
-3. Review → Approvals, then Distribute → Calendar: approve the social week and make sure approved drafts are queued into slots. An approved draft that was never queued never sends (turn on "queue on approval" under Settings → Automation to collapse the two).
+2. Drafts → Articles: read what arrived — words, images and SEO together — and fix only what auto-review could not. In the article's Optimize tab, answer the knowledge cards, decide the strategic ones; mechanical ones apply on their own.
+3. Publish → Approvals, then Distribute → Calendar: approve the social week and make sure approved drafts are queued into slots. An approved draft that was never queued never sends (turn on "queue on approval" under Settings → Automation to collapse the two).
 4. Publish: confirm the article due on the publish day is at final approval. With no WordPress, Download HTML, add it to the site, then Mark as published with the live URL.
 5. Measure → Social performance, and the best-time-to-post section under Settings → Schedule once enough posts are measured.
 6. Research: skim the strong outliers; turn one into an idea if it fits a Topic.
@@ -1033,7 +1033,7 @@ Ask me "what needs my attention?" and I will read the same data and can do the n
 3. Settings → Automation: raise the weekly article and social targets if review has been consistently easy; lower anything producing more than can be honestly reviewed; consider evergreen recycling once there is a body of posts worth resurfacing.
 4. Settings → Connections: everything the loop needs still connected; provider billing; analytics still pointing at the right properties.
 5. Settings → People: joiners, leavers, pending invitations.
-6. Review → Audit: run a content audit and act on the refresh / merge / retire recommendations.
+6. Publish → Audit: run a content audit and act on the refresh / merge / retire recommendations.
 
 **What the autopilot does every sweep**
 
@@ -1053,7 +1053,7 @@ Drafts flag every statement the writer could not stand behind with a [NEEDS SOUR
 
 **Images: generation, review and the brake**
 
-Every article gets a featured image and an Open Graph image (1200×630, branded) from an art-direction brief that uses the brand kit's specs and the workspace's real brand name. AI renders land as pending. Under full autonomy a vision model looks at each render for concrete defects — cut-off text, garbled lettering, an invented brand name, watermarks, glitches — and approves only what passes; a failed render is regenerated once, and after two rejections the brake stops spending and the Inbox shows "Images that need your eye" with Approve and "Pick or upload instead". An unchanged rejected render is judged once, not every sweep. Your own uploads always win over generated images. Provider: gpt-image-1 or a Gemini image model, chosen under Publish Admin → API keys; a mock provider attaches nothing rather than faking it.
+Every article gets a featured image and an Open Graph image (1200×630, branded) from an art-direction brief that uses the brand kit's specs and the workspace's real brand name. AI renders land as pending. Under full autonomy a vision model looks at each render for concrete defects — cut-off text, garbled lettering, an invented brand name, watermarks, glitches — and approves only what passes; a failed render is regenerated once, and after two rejections the brake stops spending and the Inbox shows "Images that need your eye" with Approve and "Pick or upload instead". An unchanged rejected render is judged once, not every sweep. Your own uploads always win over generated images. Provider: gpt-image-1 or a Gemini image model, chosen under Settings → Keys; a mock provider attaches nothing rather than faking it.
 
 **Social: slots, approval, queueing, evergreen, engage**
 
@@ -1082,11 +1082,11 @@ Video studio — a switch on the Settings overview: Scripts, Thumbnails, Videos 
 
 **Setting a workspace up from zero**
 
-In order: Publish Admin → API keys (paste an AI provider key; set the default model to match; keys are per workspace) → Settings → Connections (social accounts through this app's Connect buttons; a mailbox, which is how invitations and digests leave — the host blocks direct mail) → Publish → Website (WordPress, or plan to use Download HTML) → Brand → Tone & motifs and Organization (voice, topics, guardrails, brand kit, and the AI brand context: differentiators, products, documents) → Settings → Schedule (timezone and posting slots) → Settings → People (invite the team; require approval if there is one) → Settings → Automation (start with assisted modes and low weekly targets; raise them once review is easy; or turn full autonomy on) → Publish Admin → Analytics (Search Console site and GA4 property; a dash on Measure means not measured). Then take Elsie's short tour (the compass button).
+In order: Settings → Keys (paste an AI provider key; set the default model to match; keys are per workspace) → Settings → Connections (social accounts through this app's Connect buttons; a mailbox, which is how invitations and digests leave — the host blocks direct mail) → Publish → Website (WordPress, or plan to use Download HTML) → Brand → Tone & motifs and Organization (voice, topics, guardrails, brand kit, and the AI brand context: differentiators, products, documents) → Settings → Schedule (timezone and posting slots) → Settings → People (invite the team; require approval if there is one) → Settings → Automation (start with assisted modes and low weekly targets; raise them once review is easy; or turn full autonomy on) → Settings → Analytics (Search Console site and GA4 property; a dash on Measure means not measured). Then take Elsie's short tour (the compass button).
 
 **When something looks wrong**
 
-Generic or "mock" output → no working AI key for this workspace; paste one under Publish Admin → API keys and match the model. Nothing being drafted → the Approved pool is empty, the weekly target or daily budget is reached, drafting is on manual, or global pause is on. An article held with nothing to act on → the Inbox card names the failing check; a [NEEDS SOURCE] claim needs a live-search key to be sourced; wait one sweep, then verify or remove the sentence. An article at final approval that never publishes → not the publish day yet, or no WordPress (use Download HTML and Mark as published), or publishing not on auto. Social posts never send → no slots or timezone, a post awaiting approval, approved but never queued, or a broken account. Measure shows dashes → analytics not connected, or the Search Console property is missing the service account (a live probe under Publish Admin → Analytics says which). A button does nothing after an update → reload the tab. The autopilot seems idle → idle sweeps are silent; other system activity (analytics and performance syncs) shows the scheduler is alive, and Run cycle now proves it. Images keep failing review → the reviewer found a real defect; approve a render or upload one, and check the brand kit's image specs.
+Generic or "mock" output → no working AI key for this workspace; paste one under Settings → Keys and match the model. Nothing being drafted → the Approved pool is empty, the weekly target or daily budget is reached, drafting is on manual, or global pause is on. An article held with nothing to act on → the Inbox card names the failing check; a [NEEDS SOURCE] claim needs a live-search key to be sourced; wait one sweep, then verify or remove the sentence. An article at final approval that never publishes → not the publish day yet, or no WordPress (use Download HTML and Mark as published), or publishing not on auto. Social posts never send → no slots or timezone, a post awaiting approval, approved but never queued, or a broken account. Measure shows dashes → analytics not connected, or the Search Console property is missing the service account (a live probe under Settings → Analytics says which). A button does nothing after an update → reload the tab. The autopilot seems idle → idle sweeps are silent; other system activity (analytics and performance syncs) shows the scheduler is alive, and Run cycle now proves it. Images keep failing review → the reviewer found a real defect; approve a render or upload one, and check the brand kit's image specs.
 
 **What the assistant can do (nearly everything you can)**
 
@@ -1095,7 +1095,7 @@ How I behave: when a request is ambiguous I ask, with choices you can tap. When 
 
 **What do the badges on the stage strip mean?**
 
-The strip at the top of every stage page shows the stage, its Overview and its tabs. A **red** badge counts things a person must act on — articles held at review (Drafts → Articles), posts awaiting approval (Review → Approvals), open audit items (Review → Audit), replies nobody has opened (Distribute → Engage). A **muted** badge is news — scheduled posts (Distribute → Calendar), discovered ideas (Ideas overview), articles at final approval (Publish overview), pending invitations (Settings → People). A badge shows only above zero. Where the Inbox knows more than a count can, the badge deliberately under-counts rather than nag about something that isn't there.
+The strip at the top of every stage page shows the stage, its Overview and its tabs. A **red** badge counts things a person must act on — articles held at review (Drafts → Articles), posts awaiting approval (Publish → Approvals), open audit items (Publish → Audit), replies nobody has opened (Distribute → Engage). A **muted** badge is news — scheduled posts (Distribute → Calendar), discovered ideas (Ideas overview), articles at final approval (Publish overview), pending invitations (Settings → People). A badge shows only above zero. Where the Inbox knows more than a count can, the badge deliberately under-counts rather than nag about something that isn't there.
 
 **What are the cards in the Inbox, and what does each button do?**
 
