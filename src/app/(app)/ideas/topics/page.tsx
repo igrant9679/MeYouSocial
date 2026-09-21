@@ -71,7 +71,9 @@ export default async function TopicsPage({ searchParams }: { searchParams: Promi
 
       {untagged > 0 && (
         <p className="text-[11px] text-[var(--mute)] mb-3">
-          {untagged} idea{untagged === 1 ? "" : "s"} came before Topics and sit in the board&apos;s <Link href="/ideas" className="underline">No topic yet</Link> lane — tag each one and it moves to its Topic.
+          {untagged === 1
+            ? <>1 idea came before Topics and sits in the board&apos;s <Link href="/ideas" className="underline">No topic yet</Link> lane — tag it and it moves to its Topic.</>
+            : <>{untagged} ideas came before Topics and sit in the board&apos;s <Link href="/ideas" className="underline">No topic yet</Link> lane — tag each one and it moves to its Topic.</>}
         </p>
       )}
 
