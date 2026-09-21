@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { MessagesSquare, MessageCircle, ExternalLink, Info, AlertTriangle, ArrowLeft, Heart, BellRing, Star, Archive, Undo2 } from "lucide-react";
+import { MessagesSquare, MessageCircle, ExternalLink, Info, AlertTriangle, ArrowLeft, Heart, BellRing, Star } from "lucide-react";
 import { requireRole, canAdmin } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { getSetting } from "@/lib/settings";
@@ -19,7 +19,8 @@ import {
 } from "@/lib/zernio/inbox";
 import { Banner, SocialHeader } from "@/components/SocialPostCard";
 import { SubmitButton } from "@/components/SubmitButton";
-import { dismissInboxItemAction, markInboxEventsReadAction, restoreInboxItemAction } from "@/app/actions/social-inbox-events";
+import { markInboxEventsReadAction } from "@/app/actions/social-inbox-events";
+import { InboxItemState } from "@/components/InboxItemState";
 import { InboxReply } from "@/components/InboxReply";
 import { DeleteButton } from "@/components/DeleteButton";
 import { commentRef } from "@/lib/deletable";
@@ -112,16 +113,21 @@ export default async function EngagePage({ searchParams }: { searchParams: Promi
     db.inboxReplyDraft.findMany({ where: { workspaceId: workspace.id, kind: "review" } }),
     // Items this workspace decided not to answer. Also ours only: the review
     // stays public and the API keeps returning it (audit A5).
-    db.socialInboxDismissal.findMany({ where: { workspaceId: workspace.id } }),
+    db.socialInboxItemState.findMany({ where: { workspaceId: workspace.id } }),
   ]);
 
   const draftFor = new Map(reviewDrafts.map((d) => [d.targetId, d]));
-  const setAside = new Map(dismissals.map((d) => [`${d.kind}:${d.targetId}`, d]));
-  const isSetAside = (kind: string, id: string) => setAside.has(`${kind}:${id}`);
-  const openReviews = reviews.filter((r) => !isSetAside("review", r.id));
-  const asideReviews = reviews.filter((r) => isSetAside("review", r.id));
+  const stateOf = new Map(dismissals.map((d) => [`${d.kind}:${d.targetId}`, d]));
+  const itemState = (kind: string, id: string) => (stateOf.get(`${kind}:${id}`)?.state ?? null) as "read" | "aside" | null;
+  const openReviews = reviews.filter((r) => itemState("review", r.id) !== "aside");
+  const asideReviews = reviews.filter((r) => itemState("review", r.id) === "aside");
+  const asideConvos = conversations.filter((c) => itemState("conversation", c.id) === "aside");
+  const openConvos = conversations.filter((c) => itemState("conversation", c.id) !== "aside");
+  // The link every form comes back to, so a state change keeps your place.
+  const backHere = net ? `/social/engage?net=${net}` : "/social/engage";
 
-  const withComments = posts.filter((p) => p.commentCount > 0);
+  const withComments = posts.filter((p) => p.commentCount > 0 && itemState("comment", p.id) !== "aside");
+  const asideComments = posts.filter((p) => p.commentCount > 0 && itemState("comment", p.id) === "aside");
   const quiet = posts.length - withComments.length;
   const openConvo = conversations.find((c) => c.id === dm);
   const openPost = posts.find((p) => p.id === post);
@@ -213,6 +219,10 @@ export default async function EngagePage({ searchParams }: { searchParams: Promi
           Their own section rather than a third column: a review is attached to
           the business, not to a post or a person, and it stays visible for
           years. */}
+      {/* ⚠ Said once, plainly, so "Set aside" is never mistaken for a delete.
+          A comment on our own post CAN be removed (the network decides, per
+          comment); somebody else's review or message cannot be, by us or by
+          anyone but them. */}
       {reviews.length > 0 && (
         <section className="mb-4">
           <div className="flex items-center gap-2 mb-2">
@@ -231,6 +241,13 @@ export default async function EngagePage({ searchParams }: { searchParams: Promi
               </span>
             )}
           </div>
+          {/* Visible, not just a tooltip: "Set aside" must never be mistaken
+              for a delete. */}
+          <p className="text-[11px] text-[var(--mute)] mb-2 mt-0">
+            <b>Set aside</b> stops a review asking — it stays public on the network either way. A review can&apos;t be
+            deleted from here, or by anyone but the person who wrote it; the same goes for a direct message. A comment
+            on your own post <i>can</i> be deleted, and shows a delete button where the network allows it.
+          </p>
           <div className="flex flex-col gap-2">
             {openReviews.map((r) => (
               <div key={`${r.platform}-${r.id}`} className="card">
@@ -285,22 +302,12 @@ export default async function EngagePage({ searchParams }: { searchParams: Promi
                       placeholder={`Reply to ${r.reviewerName ?? "this review"}…`}
                       publicNote="public, and shown under the review for as long as it stands"
                     />
-                    {/* "Not going to answer this" is a real answer, and until
-                        now the app had no way to hear it (audit A5). */}
-                    <form action={dismissInboxItemAction} className="flex flex-wrap items-center gap-2 mt-2">
-                      <input type="hidden" name="kind" value="review" />
-                      <input type="hidden" name="targetId" value={r.id} />
-                      <input type="hidden" name="back" value="/social/engage" />
-                      <input
-                        name="reason"
-                        placeholder="why not (optional)"
-                        className="text-[11px] w-44"
-                        aria-label="Why this review is being set aside"
-                      />
-                      <SubmitButton className="btn sm" pendingText="Setting aside…" title="Stop offering this review as work. It stays public — nothing changes on the network.">
-                        <Archive className="w-3 h-3" /> Set aside
-                      </SubmitButton>
-                    </form>
+                    {/* "I've seen it" and "I'm not going to answer this" are
+                        both real answers, and until now the app could hear
+                        neither (audit A5). */}
+                    <div className="mt-2">
+                      <InboxItemState kind="review" targetId={r.id} back={backHere} state={itemState("review", r.id)} />
+                    </div>
                   </>
                 )}
               </div>
@@ -316,7 +323,7 @@ export default async function EngagePage({ searchParams }: { searchParams: Promi
               </summary>
               <div className="flex flex-col gap-2 mt-2">
                 {asideReviews.map((r) => {
-                  const d = setAside.get(`review:${r.id}`);
+                  const d = stateOf.get(`review:${r.id}`);
                   return (
                     <div key={`aside-${r.platform}-${r.id}`} className="card" style={{ opacity: 0.7 }}>
                       <div className="flex items-start gap-2">
@@ -332,14 +339,9 @@ export default async function EngagePage({ searchParams }: { searchParams: Promi
                             {d?.reason ? ` — “${d.reason}”` : ""}
                           </p>
                         </div>
-                        <form action={restoreInboxItemAction} className="flex-shrink-0">
-                          <input type="hidden" name="kind" value="review" />
-                          <input type="hidden" name="targetId" value={r.id} />
-                          <input type="hidden" name="back" value="/social/engage" />
-                          <SubmitButton className="btn sm" pendingText="…" title="Put this back in the queue">
-                            <Undo2 className="w-3 h-3" /> Bring back
-                          </SubmitButton>
-                        </form>
+                        <div className="flex-shrink-0">
+                          <InboxItemState kind="review" targetId={r.id} back={backHere} state="aside" actorName={d?.actorName} reason={d?.reason} />
+                        </div>
                       </div>
                     </div>
                   );
@@ -434,29 +436,72 @@ export default async function EngagePage({ searchParams }: { searchParams: Promi
           ) : conversations.length === 0 ? (
             <EmptyOrUnsupported connected={connected} filtered={net} kind="dms" />
           ) : (
-            <div className="card flex flex-col divide-y divide-[var(--line)]">
-              {conversations.map((c) => (
-                <Link
-                  key={`${c.platform}-${c.id}`}
-                  href={`/social/engage?dm=${encodeURIComponent(c.id)}&acct=${encodeURIComponent(c.accountId)}${net ? `&net=${net}` : ""}`}
-                  className="flex items-start gap-2 py-2 first:pt-0 last:pb-0 group"
-                >
-                  <span className="pt-1"><NetDot platform={c.platform} /></span>
-                  <span className="flex-1 min-w-0">
-                    <span className="flex items-center gap-1.5">
-                      <span className="text-xs font-semibold truncate group-hover:underline">{c.participantName ?? "Unknown sender"}</span>
-                      {c.unreadCount > 0 && (
-                        <span className="font-mono text-[9px] px-1.5 rounded-full" style={{ background: "var(--rose-soft)", color: "var(--rose-on)" }}>
-                          {c.unreadCount}
+            <>
+              <div className="card flex flex-col divide-y divide-[var(--line)]">
+                {openConvos.map((c) => {
+                  const st = itemState("conversation", c.id);
+                  return (
+                    // ⚠ The row is a flex CONTAINER; the link is one child and
+                    // the state buttons another. They used to be one <Link>
+                    // wrapping everything, and a button inside an anchor is
+                    // invalid HTML the parser reshuffles — the same nesting
+                    // trap that made the Inbox's Dismiss submit the wrong
+                    // action.
+                    <div key={`${c.platform}-${c.id}`} className="flex items-start gap-2 py-2 first:pt-0 last:pb-0" style={st === "read" ? { opacity: 0.72 } : undefined}>
+                      <Link
+                        href={`/social/engage?dm=${encodeURIComponent(c.id)}&acct=${encodeURIComponent(c.accountId)}${net ? `&net=${net}` : ""}`}
+                        className="flex items-start gap-2 flex-1 min-w-0 group"
+                      >
+                        <span className="pt-1"><NetDot platform={c.platform} /></span>
+                        <span className="flex-1 min-w-0">
+                          <span className="flex items-center gap-1.5">
+                            <span className={`text-xs truncate group-hover:underline ${st === "read" ? "font-normal" : "font-semibold"}`}>{c.participantName ?? "Unknown sender"}</span>
+                            {c.unreadCount > 0 && (
+                              <span className="font-mono text-[9px] px-1.5 rounded-full" style={{ background: "var(--rose-soft)", color: "var(--rose-on)" }}>
+                                {c.unreadCount}
+                              </span>
+                            )}
+                          </span>
+                          <span className="block text-[11px] text-[var(--mute)] truncate">{c.lastMessage ?? "—"}</span>
                         </span>
-                      )}
-                    </span>
-                    <span className="block text-[11px] text-[var(--mute)] truncate">{c.lastMessage ?? "—"}</span>
-                  </span>
-                  <span className="font-mono text-[9.5px] text-[var(--mute)] flex-shrink-0 pt-1">{when(c.updatedTime)}</span>
-                </Link>
-              ))}
-            </div>
+                        <span className="font-mono text-[9.5px] text-[var(--mute)] flex-shrink-0 pt-1">{when(c.updatedTime)}</span>
+                      </Link>
+                      <span className="flex-shrink-0 pt-0.5">
+                        <InboxItemState kind="conversation" targetId={c.id} back={backHere} state={st} compact />
+                      </span>
+                    </div>
+                  );
+                })}
+                {openConvos.length === 0 && (
+                  <p className="text-xs text-[var(--mute)] py-2 m-0">Every thread has been set aside.</p>
+                )}
+              </div>
+
+              {asideConvos.length > 0 && (
+                <details className="mt-2">
+                  <summary className="text-xs text-[var(--mute)] cursor-pointer select-none">
+                    Set aside ({asideConvos.length}) — still in the other person&apos;s inbox, no longer counted as work
+                  </summary>
+                  <div className="card flex flex-col divide-y divide-[var(--line)] mt-2" style={{ opacity: 0.7 }}>
+                    {asideConvos.map((c) => {
+                      const d = stateOf.get(`conversation:${c.id}`);
+                      return (
+                        <div key={`aside-${c.platform}-${c.id}`} className="flex items-start gap-2 py-2 first:pt-0 last:pb-0">
+                          <span className="pt-1"><NetDot platform={c.platform} /></span>
+                          <span className="flex-1 min-w-0">
+                            <span className="text-xs font-semibold truncate">{c.participantName ?? "Unknown sender"}</span>
+                            <span className="block text-[11px] text-[var(--mute)] truncate">{c.lastMessage ?? "—"}</span>
+                          </span>
+                          <span className="flex-shrink-0">
+                            <InboxItemState kind="conversation" targetId={c.id} back={backHere} state="aside" actorName={d?.actorName} reason={d?.reason} />
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </details>
+              )}
+            </>
           )}
         </section>
 
@@ -502,7 +547,12 @@ export default async function EngagePage({ searchParams }: { searchParams: Promi
                             is true for our own comments and for others' on a page
                             we administer. A button that always 403s would read as
                             broken rather than as governed. */}
-                        {c.canDelete && (
+                        {/* ⚠ BOTH gates. `canDelete` is the NETWORK's verdict;
+                            DELETABLE.zernioComment.role is "ADMIN", and
+                            deleteEntityAction redirects a non-admin to
+                            /forbidden — so an EDITOR was shown a button that
+                            threw them off the page. */}
+                        {c.canDelete && isAdmin && (
                           <DeleteButton
                             kind="zernioComment"
                             id={commentRef(openPost.id, c.id, openPost.accountId)}
@@ -512,7 +562,13 @@ export default async function EngagePage({ searchParams }: { searchParams: Promi
                             className="btn sm flex-shrink-0"
                           />
                         )}
+                        {c.canDelete && !isAdmin && (
+                          <span className="font-mono text-[9.5px] text-[var(--mute)] flex-shrink-0 pt-0.5" title="deleteEntityAction requires ADMIN">
+                            admin removes
+                          </span>
+                        )}
                       </div>
+
                     </div>
                   ))}
                 </div>
@@ -545,25 +601,58 @@ export default async function EngagePage({ searchParams }: { searchParams: Promi
           ) : (
             <>
               <div className="card flex flex-col divide-y divide-[var(--line)]">
-                {withComments.map((p) => (
-                  <Link
-                    key={`${p.platform}-${p.id}`}
-                    href={`/social/engage?post=${encodeURIComponent(p.id)}&acct=${encodeURIComponent(p.accountId)}${net ? `&net=${net}` : ""}`}
-                    className="flex items-start gap-2 py-2 first:pt-0 last:pb-0 group"
-                  >
-                    <span className="pt-1"><NetDot platform={p.platform} /></span>
-                    <span className="flex-1 min-w-0 text-xs text-[var(--slate)] truncate group-hover:underline">{p.content}</span>
-                    <span className="flex items-center gap-2 flex-shrink-0 font-mono text-[9.5px] text-[var(--mute)] pt-0.5">
-                      <span className="inline-flex items-center gap-0.5"><MessageCircle className="w-3 h-3" />{p.commentCount}</span>
-                      {p.likeCount > 0 && <span className="inline-flex items-center gap-0.5"><Heart className="w-3 h-3" />{p.likeCount}</span>}
-                    </span>
-                  </Link>
-                ))}
+                {/* ⚠ State lives on the POST, not on each comment, because a
+                    comment webhook stores the POST id as its threadId
+                    (api/zernio/webhook/route.ts:180). Keyed per comment it
+                    would match no event, hide nothing, and still report
+                    success — a button that does nothing. */}
+                {withComments.map((p) => {
+                  const st = itemState("comment", p.id);
+                  return (
+                    <div key={`${p.platform}-${p.id}`} className="flex items-start gap-2 py-2 first:pt-0 last:pb-0" style={st === "read" ? { opacity: 0.72 } : undefined}>
+                      <Link
+                        href={`/social/engage?post=${encodeURIComponent(p.id)}&acct=${encodeURIComponent(p.accountId)}${net ? `&net=${net}` : ""}`}
+                        className="flex items-start gap-2 flex-1 min-w-0 group"
+                      >
+                        <span className="pt-1"><NetDot platform={p.platform} /></span>
+                        <span className="flex-1 min-w-0 text-xs text-[var(--slate)] truncate group-hover:underline">{p.content}</span>
+                        <span className="flex items-center gap-2 flex-shrink-0 font-mono text-[9.5px] text-[var(--mute)] pt-0.5">
+                          <span className="inline-flex items-center gap-0.5"><MessageCircle className="w-3 h-3" />{p.commentCount}</span>
+                          {p.likeCount > 0 && <span className="inline-flex items-center gap-0.5"><Heart className="w-3 h-3" />{p.likeCount}</span>}
+                        </span>
+                      </Link>
+                      <span className="flex-shrink-0 pt-0.5">
+                        <InboxItemState kind="comment" targetId={p.id} back={backHere} state={st} compact />
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
               {quiet > 0 && (
                 <p className="text-[11px] text-[var(--mute)] mt-2">
                   {quiet} more published post{quiet === 1 ? "" : "s"} have no comments yet.
                 </p>
+              )}
+              {asideComments.length > 0 && (
+                <details className="mt-2">
+                  <summary className="text-xs text-[var(--mute)] cursor-pointer select-none">
+                    Set aside ({asideComments.length}) — the comments are still on the post
+                  </summary>
+                  <div className="card flex flex-col divide-y divide-[var(--line)] mt-2" style={{ opacity: 0.7 }}>
+                    {asideComments.map((p) => {
+                      const d = stateOf.get(`comment:${p.id}`);
+                      return (
+                        <div key={`aside-${p.platform}-${p.id}`} className="flex items-start gap-2 py-2 first:pt-0 last:pb-0">
+                          <span className="pt-1"><NetDot platform={p.platform} /></span>
+                          <span className="flex-1 min-w-0 text-xs text-[var(--slate)] truncate">{p.content}</span>
+                          <span className="flex-shrink-0">
+                            <InboxItemState kind="comment" targetId={p.id} back={backHere} state="aside" actorName={d?.actorName} reason={d?.reason} />
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </details>
               )}
             </>
           )}

@@ -52,7 +52,7 @@ model Workspace {
   socialPosts     SocialPost[]
   inboxEvents     SocialInboxEvent[]
   inboxDrafts     InboxReplyDraft[]
-  inboxDismissals SocialInboxDismissal[]
+  inboxDismissals SocialInboxItemState[]
   postingSlots    PostingSlot[]
   topics          Topic[]
   campaigns       Campaign[]
@@ -1668,13 +1668,22 @@ model SocialInboxEvent {
  * something waiting on a person, and its reply box stays shut until someone
  * brings it back.
  */
-model SocialInboxDismissal {
+model SocialInboxItemState {
   id          String   @id @default(cuid())
   workspaceId String
   /** review | conversation | comment — matches InboxReplyDraft.kind. */
   kind        String
   /** The network's own id. Opaque: numeric on Facebook, path-shaped on Google. */
   targetId    String
+  /**
+   * `read`  — seen, nothing to do; stays in the normal list, just not bold.
+   * `aside` — decided not to act; moves into a collapsed group and stops
+   *           counting as work.
+   * One row per item: setting one replaces the other, because an item cannot
+   * be both "I've seen this" and "I've decided about this" at once — the
+   * second is a strictly stronger statement.
+   */
+  state       String   @default("aside")
   /** Why, in the person's words. Optional — "no reason given" is a real answer. */
   reason      String?
   /** Snapshot, like an audit row: survives the user being removed. */
@@ -1686,6 +1695,14 @@ model SocialInboxDismissal {
 
   @@unique([workspaceId, kind, targetId])
   @@index([workspaceId, kind])
+  /**
+   * ⚠ Still the `SocialInboxDismissal` TABLE. The model was renamed when it
+   * grew a second state — "Dismissal" stopped being the truth once a row could
+   * mean "read" — but renaming the table would be a data migration for a
+   * cosmetic gain. @@map keeps the honest name in code and the existing table
+   * on disk.
+   */
+  @@map("SocialInboxDismissal")
 }
 
 model InboxReplyDraft {
