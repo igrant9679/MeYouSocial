@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { ArrowLeft, KeyRound, Lightbulb, Plus, RefreshCw, Sparkles, Trash2, Wand2 } from "lucide-react";
+import { ArrowLeft, KeyRound, Lightbulb, Plus, RefreshCw, Sparkles, Tags, Trash2, Wand2 } from "lucide-react";
+import { createTopicAction } from "@/app/actions/brand-hub";
 import { requireMembership, canEdit } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { SubmitButton } from "@/components/SubmitButton";
@@ -62,13 +63,14 @@ export default async function KeywordsPage({ searchParams }: { searchParams: Pro
   const { workspace, membership } = await requireMembership();
   const editor = canEdit(membership.role);
   const { ok, err } = await searchParams;
-  const [keywords, provider, country] = await Promise.all([
+  const [keywords, provider, country, topicNames] = await Promise.all([
     db.keyword.findMany({
       where: { workspaceId: workspace.id },
       orderBy: [{ cluster: "asc" }, { tier: "asc" }, { phrase: "asc" }],
     }),
     getSearchDataProvider(workspace.id),
     keywordCountry(workspace.id),
+    db.topic.findMany({ where: { workspaceId: workspace.id }, select: { name: true } }).then((r) => new Set(r.map((t) => t.name.toLowerCase()))),
   ]);
 
   const clusters = new Map<string, typeof keywords>();
@@ -213,8 +215,22 @@ export default async function KeywordsPage({ searchParams }: { searchParams: Pro
       ) : (
         [...clusters.entries()].map(([cluster, list]) => (
           <section key={cluster} className="card mb-3">
-            <h2 className="text-xs font-semibold uppercase tracking-wide text-[var(--mute)] mb-2">
+            <h2 className="text-xs font-semibold uppercase tracking-wide text-[var(--mute)] mb-2 flex items-center gap-2 flex-wrap">
               {cluster} <span className="font-mono">({list.length})</span>
+              {/* A cluster is a Topic that hasn't been named yet (Topics as
+                  the spine, 2026-09-21). One click names it, with the
+                  cluster's phrases as the Topic's related phrases. */}
+              {editor && cluster !== "unclustered" && !topicNames.has(cluster.toLowerCase()) && (
+                <form action={createTopicAction} className="normal-case tracking-normal">
+                  <input type="hidden" name="name" value={cluster.slice(0, 120)} />
+                  <input type="hidden" name="keywords" value={list.slice(0, 30).map((k) => k.phrase).join(", ")} />
+                  <input type="hidden" name="back" value="/blog/keywords" />
+                  <SubmitButton className="btn sm" pendingText="Adding…" title="Make this cluster a Topic — discovery, the board and Measure all organise by Topic"><Tags className="w-3 h-3" /> Make it a Topic</SubmitButton>
+                </form>
+              )}
+              {cluster !== "unclustered" && topicNames.has(cluster.toLowerCase()) && (
+                <Link href="/ideas/topics" className="font-normal normal-case tracking-normal text-[11px] underline">a Topic</Link>
+              )}
             </h2>
             <div className="overflow-x-auto">
               <table className="w-full text-xs">

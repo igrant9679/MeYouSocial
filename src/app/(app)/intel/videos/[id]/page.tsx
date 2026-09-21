@@ -1,7 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Bookmark, Eye, ThumbsUp, MessageSquare, Calendar } from "lucide-react";
-import { requireMembership } from "@/lib/acl";
+import { requireMembership, canEdit } from "@/lib/acl";
+import { matchTopic, prepareTopics } from "@/lib/topic-match";
+import { studioState } from "@/lib/studio";
+import { ResearchIdeaForm } from "@/components/ResearchIdeaForm";
 import { db } from "@/lib/db";
 import { outlierBand, viewsPerSubBand, formatNum, intelThumbUrl, formatVph } from "@/lib/intel";
 import { ChannelAvatar } from "@/components/ChannelAvatar";
@@ -10,9 +13,10 @@ import { Bot } from "lucide-react";
 
 // Video detail view: views/engagement, outlier, views/sub, title, thumbnail.
 
-export default async function IntelVideoPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function IntelVideoPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ ok?: string }> }) {
   const { id } = await params;
-  const { workspace } = await requireMembership();
+  const { ok } = await searchParams;
+  const { workspace, membership } = await requireMembership();
   // Tenancy via the parent channel — Intel rows belong to one workspace.
   const video = await db.intelVideo.findFirst({
     where: { id, intelChannel: { workspaceId: workspace.id } },
@@ -20,13 +24,22 @@ export default async function IntelVideoPage({ params }: { params: Promise<{ id:
   });
   if (!video) notFound();
 
-  const bookmarked = await db.bookmark.findFirst({ where: { workspaceId: workspace.id, intelVideoId: id } });
+  const [bookmarked, topics, studio, ownChannels] = await Promise.all([
+    db.bookmark.findFirst({ where: { workspaceId: workspace.id, intelVideoId: id } }),
+    db.topic.findMany({ where: { workspaceId: workspace.id, status: "active" }, orderBy: [{ priority: "desc" }, { name: "asc" }], select: { id: true, name: true, keywords: true } }),
+    studioState(workspace.id),
+    db.channel.findMany({ where: { workspaceId: workspace.id }, orderBy: { createdAt: "asc" }, select: { id: true, name: true } }),
+  ]);
+  const editor = canEdit(membership.role);
+  // Pre-filled Topic for the chooser: a keyword match, labelled as such.
+  const matchedTopic = matchTopic(`${video.title} ${video.description ?? ""}`.slice(0, 600), prepareTopics(topics));
   const band = outlierBand(video.outlierScore);
   const vsBand = viewsPerSubBand(video.viewsPerSub);
 
   return (
     <div>
       <Link href={`/intel/channels/${video.intelChannelId}`} className="text-xs font-mono text-[var(--mute)] hover:text-[var(--accent)] flex items-center gap-1 mb-3"><ArrowLeft className="w-3 h-3" /> {video.intelChannel.name}</Link>
+      {ok && <p className="text-xs mb-3 px-3 py-2 rounded-lg" style={{ background: "var(--green-soft)", color: "var(--green-on)" }}>{ok} <Link href="/ideas" className="underline">Open the board</Link></p>}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Hero — the VIDEO, which is what this page is for. It used to render
@@ -122,6 +135,13 @@ export default async function IntelVideoPage({ params }: { params: Promise<{ id:
             </div>
           )}
 
+          {editor && (
+            <div className="card">
+              <div className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)] mb-1.5">Make it an idea</div>
+              <ResearchIdeaForm videoId={video.id} topics={topics.map((t) => ({ id: t.id, name: t.name }))} channels={studio.show ? ownChannels : []} matchedTopicId={matchedTopic?.id ?? null} back={`/intel/videos/${video.id}`} />
+              <p className="text-[11px] text-[var(--mute)] mt-1.5 m-0">{matchedTopic ? `Topic “${matchedTopic.name}” matched by keyword — change it if that is wrong.` : topics.length ? "No Topic matched by keyword — pick one, or none." : "No Topics yet."}</p>
+            </div>
+          )}
           <form action={toggleBookmarkAction}>
             <input type="hidden" name="intelVideoId" value={video.id} />
             <button type="submit" className="btn w-full flex items-center justify-center gap-2">

@@ -103,6 +103,49 @@ export async function setBoardIdeaTopicAction(formData: FormData) {
 }
 
 /**
+ * Research → the board, in any format, with its Topic and its source
+ * (components/ResearchIdeaForm.tsx). `format` is "article", "social" or
+ * "video:<channelId>". The idea keeps `sourceVideoId` so it always points
+ * back at the evidence; a video idea also carries the measured outlier.
+ */
+export async function ideaFromResearchAction(formData: FormData) {
+  const { user, workspace } = await requireRole("EDITOR");
+  const videoId = String(formData.get("videoId") ?? "").trim();
+  const video = await db.intelVideo.findFirst({
+    where: { id: videoId, intelChannel: { workspaceId: workspace.id } },
+    select: { id: true, title: true, outlierScore: true, intelChannel: { select: { name: true } } },
+  });
+  if (!video) return;
+  const topicId = await ownTopicId(workspace.id, formData.get("topicId"));
+  const raw = String(formData.get("format") ?? "article");
+  const title = cleanTitle(video.title, 200);
+  if (!title) return;
+  const angle = video.outlierScore != null
+    ? `Beat ${video.intelChannel.name ?? "its channel"}'s average by ${video.outlierScore.toFixed(1)}× — remix the hook, not the subject.`
+    : `From ${video.intelChannel.name ?? "a competitor"} — remix the hook, not the subject.`;
+
+  let made = "article idea";
+  if (raw.startsWith("video:")) {
+    const channel = await db.channel.findFirst({ where: { id: raw.slice("video:".length), workspaceId: workspace.id }, select: { id: true } });
+    if (!channel) return;
+    await db.idea.create({ data: { channelId: channel.id, title, strategy: angle, sourceVideoId: video.id, outlierScore: video.outlierScore, topicId, status: "new" } });
+    revalidatePath(`/channels/${channel.id}`);
+    made = "video idea";
+  } else if (raw === "social") {
+    await db.socialIdea.create({ data: { workspaceId: workspace.id, hook: cleanTitle(video.title, 240), angle, sourceVideoId: video.id, topicId, source: "research", createdById: user.id } });
+    made = "social idea";
+  } else {
+    await db.blogIdea.create({ data: { workspaceId: workspace.id, title, angle, sourceVideoId: video.id, topicId, source: "research" } });
+  }
+  revalidatePath("/ideas", "layout");
+  revalidatePath("/inbox");
+  const back = String(formData.get("back") ?? "/research");
+  const to = /^\/(research|intel)(\/|$)/.test(back) ? back.split("?")[0] : "/research";
+  const { redirect } = await import("next/navigation");
+  redirect(`${to}?ok=${encodeURIComponent(`Added as ${made === "article idea" ? "an" : "a"} ${made}${topicId ? " with its Topic" : ""} — it is on the board as discovered.`)}`);
+}
+
+/**
  * The board's primary action: discover ideas per Topic. With a `topicId` the
  * run is that one Topic; without, the emptiest Topic × format cells go first
  * (lib/ideation.ts). `formats` is a comma list; default article.

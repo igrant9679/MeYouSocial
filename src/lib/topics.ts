@@ -114,6 +114,46 @@ export async function untaggedIdeaCount(workspaceId: string): Promise<number> {
   return a + v + s;
 }
 
+export type TopicSuggestion = { name: string; phrases: string[]; keywords: number; videos: number };
+
+/**
+ * Topics the workspace has not named yet: keyword clusters (the Keywords tab's
+ * AI-classified groups) with no Topic of the same name, minus the ones a
+ * person discarded. `videos` is how many indexed competitor videos the
+ * cluster's phrases match by keyword — computed here, labelled as such where
+ * shown, never stored.
+ */
+export async function topicSuggestions(workspaceId: string): Promise<TopicSuggestion[]> {
+  const { getSetting } = await import("@/lib/settings");
+  const { matchTopic, prepareTopics } = await import("@/lib/topic-match");
+  const [keywords, topics, dismissedRaw, titles] = await Promise.all([
+    db.keyword.findMany({ where: { workspaceId, status: "active", cluster: { not: null } }, select: { phrase: true, cluster: true, tier: true }, orderBy: { tier: "asc" }, take: 400 }),
+    db.topic.findMany({ where: { workspaceId }, select: { name: true } }),
+    getSetting("topics:dismissed_suggestions", workspaceId).catch(() => ""),
+    db.intelVideo.findMany({ where: { intelChannel: { workspaceId } }, select: { title: true }, orderBy: { outlierScore: "desc" }, take: 400 }),
+  ]);
+  let dismissed: string[] = [];
+  try { dismissed = JSON.parse(dismissedRaw || "[]"); } catch { dismissed = []; }
+  const taken = new Set([...topics.map((t) => t.name.toLowerCase()), ...dismissed.map((d) => d.toLowerCase())]);
+  const clusters = new Map<string, string[]>();
+  for (const k of keywords) {
+    const c = (k.cluster ?? "").trim();
+    if (!c || taken.has(c.toLowerCase())) continue;
+    clusters.set(c, [...(clusters.get(c) ?? []), k.phrase]);
+  }
+  if (clusters.size === 0) return [];
+  const prepared = prepareTopics([...clusters.entries()].map(([name, phrases]) => ({ id: name, name, keywords: phrases })));
+  const videos = new Map<string, number>();
+  for (const v of titles) {
+    const m = matchTopic(v.title, prepared);
+    if (m) videos.set(m.id, (videos.get(m.id) ?? 0) + 1);
+  }
+  return [...clusters.entries()]
+    .map(([name, phrases]) => ({ name, phrases: phrases.slice(0, 12), keywords: phrases.length, videos: videos.get(name) ?? 0 }))
+    .sort((a, b) => b.videos - a.videos || b.keywords - a.keywords)
+    .slice(0, 8);
+}
+
 /** Resolve a topic id the caller received from a form to one this workspace owns, or null. */
 export async function ownTopicId(workspaceId: string, raw: unknown): Promise<string | null> {
   const id = typeof raw === "string" ? raw.trim() : "";

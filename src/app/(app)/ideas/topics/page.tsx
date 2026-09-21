@@ -5,8 +5,8 @@ import { SubmitButton } from "@/components/SubmitButton";
 import { EmptyState } from "@/components/EmptyState";
 import { AiAssist } from "@/components/AiAssist";
 import { StageHeader } from "@/components/StageShell";
-import { topicLedgers, untaggedIdeaCount } from "@/lib/topics";
-import { createTopicAction, deleteTopicAction, toggleTopicStatusAction, updateTopicAction } from "@/app/actions/brand-hub";
+import { topicLedgers, topicSuggestions, untaggedIdeaCount } from "@/lib/topics";
+import { createTopicAction, deleteTopicAction, dismissTopicSuggestionAction, toggleTopicStatusAction, updateTopicAction } from "@/app/actions/brand-hub";
 import { discoverIdeasAction } from "@/app/actions/ideas";
 
 // Topics — the spine (2026-09-21). Moved here from Brand because a Topic is
@@ -23,7 +23,7 @@ export default async function TopicsPage({ searchParams }: { searchParams: Promi
   const { workspace, membership } = await requireMembership();
   const { ok, err } = await searchParams;
   const editor = canEdit(membership.role);
-  const [ledgers, untagged] = await Promise.all([topicLedgers(workspace.id), untaggedIdeaCount(workspace.id)]);
+  const [ledgers, untagged, suggestions] = await Promise.all([topicLedgers(workspace.id), untaggedIdeaCount(workspace.id), topicSuggestions(workspace.id)]);
   const active = ledgers.filter((t) => t.status === "active");
   const archived = ledgers.filter((t) => t.status !== "active");
   const quiet = active.filter((t) => t.ideas.article + t.ideas.video + t.ideas.social === 0);
@@ -73,6 +73,38 @@ export default async function TopicsPage({ searchParams }: { searchParams: Promi
         <p className="text-[11px] text-[var(--mute)] mb-3">
           {untagged} idea{untagged === 1 ? "" : "s"} came before Topics and sit in the board&apos;s <Link href="/ideas" className="underline">No topic yet</Link> lane — tag each one and it moves to its Topic.
         </p>
+      )}
+
+      {/* Suggested: keyword clusters with no Topic of that name. The video
+          count is a keyword match against indexed titles — computed, labelled,
+          never stored. A person activates or discards; nothing here is
+          created on its own. */}
+      {editor && suggestions.length > 0 && (
+        <section className="card mb-4" style={{ background: "var(--zebra)" }}>
+          <h2 className="font-mono text-[12px] font-bold mb-0.5">Suggested from your keywords</h2>
+          <p className="text-[11px] text-[var(--mute)] mb-2">Each is a keyword cluster that is not a Topic yet. Videos = indexed competitor titles its phrases match, by keyword.</p>
+          <ul className="flex flex-col gap-1.5">
+            {suggestions.map((sg) => (
+              <li key={sg.name} className="flex items-center gap-2 flex-wrap text-xs">
+                <span className="font-semibold">{sg.name}</span>
+                <span className="font-mono text-[10px] text-[var(--mute)]">{sg.keywords} keyword{sg.keywords === 1 ? "" : "s"} · {sg.videos} video{sg.videos === 1 ? "" : "s"} matched</span>
+                <span className="text-[10px] text-[var(--mute)] truncate max-w-md">{sg.phrases.slice(0, 6).join(" · ")}</span>
+                <span className="flex-1" />
+                <form action={createTopicAction}>
+                  <input type="hidden" name="name" value={sg.name} />
+                  <input type="hidden" name="keywords" value={sg.phrases.join(", ")} />
+                  <input type="hidden" name="back" value={BACK} />
+                  <SubmitButton className="btn sm primary" pendingText="Adding…">Add as Topic</SubmitButton>
+                </form>
+                <form action={dismissTopicSuggestionAction}>
+                  <input type="hidden" name="name" value={sg.name} />
+                  <input type="hidden" name="back" value={BACK} />
+                  <SubmitButton className="btn sm" pendingText="…" title="Stop suggesting this cluster">Discard</SubmitButton>
+                </form>
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
 
       {ledgers.length === 0 ? (

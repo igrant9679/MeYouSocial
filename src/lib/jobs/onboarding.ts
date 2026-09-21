@@ -309,6 +309,14 @@ export function registerOnboardingJobs() {
         .filter(Boolean)
         .slice(0, 10);
 
+      // Every engine-written idea carries a Topic (Topics as the spine,
+      // 2026-09-21): matched by keyword against the workspace's active Topics,
+      // computed here and labelled on the board as such. No match = untagged,
+      // which the "No topic yet" lane shows; never a guess stored as a fact.
+      const { matchTopic, prepareTopics } = await import("@/lib/topic-match");
+      const preparedTopics = prepareTopics(
+        await db.topic.findMany({ where: { workspaceId: channel.workspaceId, status: "active" }, select: { id: true, name: true, keywords: true } }),
+      );
       for (let i = 0; i < lines.length; i++) {
         const [rawTitle, strategy] = lines[i].split("—").map((s) => s.trim());
         const title = cleanTitle(rawTitle ?? "", 200);
@@ -317,6 +325,7 @@ export function registerOnboardingJobs() {
           data: {
             channelId,
             title,
+            topicId: matchTopic(`${title} ${strategy ?? ""}`, preparedTopics)?.id ?? null,
             strategy: strategy ?? "Counter-intuitive hook with research-backed payoff.",
             // The score is the SEED's real outlier ratio (competitor views over
             // that competitor's average), carried onto the idea it inspired.

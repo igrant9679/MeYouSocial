@@ -1,6 +1,9 @@
 import Link from "next/link";
 import { Bookmark, ArrowLeft } from "lucide-react";
-import { requireMembership } from "@/lib/acl";
+import { requireMembership, canEdit } from "@/lib/acl";
+import { matchTopic, prepareTopics } from "@/lib/topic-match";
+import { studioState } from "@/lib/studio";
+import { ResearchIdeaForm } from "@/components/ResearchIdeaForm";
 import { db } from "@/lib/db";
 import { readJson } from "@/lib/db/json";
 import { outlierBand, formatNum, formatVph } from "@/lib/intel";
@@ -11,13 +14,23 @@ import { EmptyState } from "@/components/EmptyState";
 
 // Bookmarks page. Team-shared per-workspace.
 
-export default async function BookmarksPage() {
-  const { workspace } = await requireMembership();
-  const items = await db.bookmark.findMany({
-    where: { workspaceId: workspace.id },
-    include: { intelChannel: true, intelVideo: { include: { intelChannel: true } } },
-    orderBy: { createdAt: "desc" },
-  });
+export default async function BookmarksPage({ searchParams }: { searchParams: Promise<{ ok?: string }> }) {
+  const { workspace, membership } = await requireMembership();
+  const { ok } = await searchParams;
+  const editor = canEdit(membership.role);
+  const [items, topics, studio, ownChannels] = await Promise.all([
+    db.bookmark.findMany({
+      where: { workspaceId: workspace.id },
+      include: { intelChannel: true, intelVideo: { include: { intelChannel: true } } },
+      orderBy: { createdAt: "desc" },
+    }),
+    db.topic.findMany({ where: { workspaceId: workspace.id, status: "active" }, orderBy: [{ priority: "desc" }, { name: "asc" }], select: { id: true, name: true, keywords: true } }),
+    studioState(workspace.id),
+    db.channel.findMany({ where: { workspaceId: workspace.id }, orderBy: { createdAt: "asc" }, select: { id: true, name: true } }),
+  ]);
+  // The on-ramp's inputs: Topic options, the video channels (studio on), and
+  // a keyword matcher for the pre-filled Topic (labelled as a match).
+  const ramp = editor ? { topics: topics.map((t) => ({ id: t.id, name: t.name })), channels: studio.show ? ownChannels : [], prepared: prepareTopics(topics) } : null;
 
   const channels = items.filter((b) => b.intelChannel);
   const videos = items.filter((b) => b.intelVideo);
@@ -34,6 +47,7 @@ export default async function BookmarksPage() {
           <p className="text-xs text-[var(--mute)]">Shared across your whole workspace.</p>
         </div>
       </div>
+      {ok && <p className="text-xs mb-3 px-3 py-2 rounded-lg" style={{ background: "var(--green-soft)", color: "var(--green-on)" }}>{ok} <Link href="/ideas" className="underline">Open the board</Link></p>}
 
       {items.length === 0 && (
         <div className="card text-center py-12">
@@ -62,7 +76,7 @@ export default async function BookmarksPage() {
           <h2 className="font-mono text-[14px] font-bold mb-3">Videos</h2>
           <ul className="m-0 p-0">
             {videos.map((b) => (
-              <BookmarkRow key={b.id} bookmark={b} kind="video" />
+              <BookmarkRow key={b.id} bookmark={b} kind="video" ramp={ramp} />
             ))}
           </ul>
         </section>
@@ -71,7 +85,9 @@ export default async function BookmarksPage() {
   );
 }
 
-function BookmarkRow({ bookmark, kind }: { bookmark: { id: string; tags: string; notes: string | null; intelChannel: { id: string; name: string | null; handle: string | null; subscribers: number | null; thumbnailUrl: string | null } | null; intelVideo: { id: string; title: string; outlierScore: number | null; views: bigint | null; viewsPerHour: number | null; intelChannel: { name: string | null } } | null }; kind: "channel" | "video" }) {
+type Ramp = { topics: Array<{ id: string; name: string }>; channels: Array<{ id: string; name: string }>; prepared: ReturnType<typeof prepareTopics> } | null;
+
+function BookmarkRow({ bookmark, kind, ramp = null }: { ramp?: Ramp; bookmark: { id: string; tags: string; notes: string | null; intelChannel: { id: string; name: string | null; handle: string | null; subscribers: number | null; thumbnailUrl: string | null } | null; intelVideo: { id: string; title: string; outlierScore: number | null; views: bigint | null; viewsPerHour: number | null; intelChannel: { name: string | null } } | null }; kind: "channel" | "video" }) {
   const tags = readJson<string[]>(bookmark.tags, []);
   if (kind === "channel" && bookmark.intelChannel) {
     const c = bookmark.intelChannel;
@@ -100,6 +116,7 @@ function BookmarkRow({ bookmark, kind }: { bookmark: { id: string; tags: string;
         <span className="font-mono font-bold text-[11px] px-2 py-1 rounded-md" style={{ background: band.soft, color: band.color }}>{v.outlierScore?.toFixed(1)}x</span>
         <Link href={`/intel/videos/${v.id}`} className="font-semibold text-sm hover:text-[var(--accent)] flex-1 min-w-0 truncate">{v.title}</Link>
         <span className="text-xs text-[var(--mute)]">{v.intelChannel.name} · {formatNum(v.views)} views{v.viewsPerHour != null && <span title="Views per hour since publish"> · {formatVph(v.viewsPerHour)}/hr</span>}</span>
+        {ramp && <ResearchIdeaForm videoId={v.id} topics={ramp.topics} channels={ramp.channels} matchedTopicId={matchTopic(v.title, ramp.prepared)?.id ?? null} back="/intel/bookmarks" compact />}
         <form action={toggleBookmarkAction}>
           <input type="hidden" name="intelVideoId" value={v.id} />
           <button type="submit" className="btn sm" title="Remove"><Bookmark className="w-3.5 h-3.5" fill="currentColor" /></button>

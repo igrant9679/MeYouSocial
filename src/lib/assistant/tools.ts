@@ -90,6 +90,9 @@ export const TOOLS: Tool[] = [
       for (const a of inbox.articles) push(a.failing.length ? `Article "${a.title}" (${a.id}) is held by: ${a.failing.join("; ")} — fix it, or advance_article / override_gate (admin). Page /blog/${a.id}` : `Article "${a.title}" (${a.id}) passes every check — advance_article moves it to final approval now.`);
       const approved = n(ideas, "approved"), discovered = n(ideas, "discovered");
       if (approved === 0) push(discovered > 0 ? `The Approved pool is empty but ${discovered} idea(s) are discovered — approve the best (list_ideas, approve_idea) or nothing new gets drafted.` : "No ideas at all — discover_ideas, or add_idea from something the person knows.");
+      // Topics with nothing about them: the spine has a gap.
+      const quietTopics = (await (await import("@/lib/topics")).topicLedgers(ctx.workspaceId)).filter((t) => t.status === "active" && t.ideas.article + t.ideas.video + t.ideas.social === 0);
+      for (const t of quietTopics.slice(0, 2)) push(`Topic "${t.name}" (${t.id}) has no ideas in any format — discover_ideas topicId=${t.id}, or topic_summary to see what research matches it. Page /ideas/topics/${t.id}`);
       const finals = n(posts, "final_approval");
       if (finals > 0) push(`${finals} article(s) at final approval — ${o.connections.find((c) => c.key === "wordpress")?.state === "ok" ? `they publish ${o.publishDayLabel ? `on ${o.publishDayLabel}s` : "on the next cycle"} (publish_article for now)` : "no WordPress: export_html_link, then mark_published"}.`);
       const drafts = n(social, "draft"), scheduled = n(social, "scheduled");
@@ -154,13 +157,18 @@ export const TOOLS: Tool[] = [
   // ── Reading ───────────────────────────────────────────────────────────────
   {
     name: "list_ideas",
-    description: "Article ideas with id, status, title, keyword. Statuses: discovered → approved → drafted (or rejected).",
-    args: { status: "optional: discovered | approved | rejected | drafted", limit: "optional, default 20" },
+    description: "Ideas on the board with id, format, status, title and Topic. Default format is article; pass format=social for social post ideas (video ideas: list_video_ideas). Statuses: discovered → approved → drafted (or rejected). Filter by topicId to see one Topic's lane.",
+    args: { format: "optional: article (default) | social", status: "optional: discovered | approved | rejected | drafted", topicId: "optional: only this Topic (list_topics)", limit: "optional, default 20" },
     readOnly: true,
     async run(a, ctx) {
       const status = str(a.status, 20);
-      const rows = await db.blogIdea.findMany({ where: { workspaceId: ctx.workspaceId, ...(status ? { status } : {}) }, orderBy: [{ priority: "desc" }, { createdAt: "desc" }], take: num(a.limit, 20, 50), select: { id: true, title: true, status: true, keyword: true, priority: true } });
-      return rows.length ? rows.map((r) => `${r.id} [${r.status}${r.priority != null ? ` p${r.priority}` : ""}] ${r.title}${r.keyword ? ` (keyword: ${r.keyword})` : ""}`).join("\n") : "no ideas match";
+      const topicId = str(a.topicId, 40) || undefined;
+      if (str(a.format, 10) === "social") {
+        const rows = await db.socialIdea.findMany({ where: { workspaceId: ctx.workspaceId, ...(status ? { status } : {}), ...(topicId ? { topicId } : {}) }, orderBy: [{ priority: "desc" }, { createdAt: "desc" }], take: num(a.limit, 20, 50), select: { id: true, hook: true, status: true, source: true, topic: { select: { name: true } } } });
+        return rows.length ? rows.map((r) => `${r.id} [social ${r.status}] ${r.hook}${r.topic ? ` (topic: ${r.topic.name})` : " (no topic)"} · ${r.source}`).join("\n") : "no social ideas match";
+      }
+      const rows = await db.blogIdea.findMany({ where: { workspaceId: ctx.workspaceId, ...(status ? { status } : {}), ...(topicId ? { topicId } : {}) }, orderBy: [{ priority: "desc" }, { createdAt: "desc" }], take: num(a.limit, 20, 50), select: { id: true, title: true, status: true, keyword: true, priority: true, topic: { select: { name: true } } } });
+      return rows.length ? rows.map((r) => `${r.id} [article ${r.status}${r.priority != null ? ` p${r.priority}` : ""}] ${r.title}${r.keyword ? ` (keyword: ${r.keyword})` : ""}${r.topic ? ` (topic: ${r.topic.name})` : " (no topic)"}`).join("\n") : "no ideas match";
     },
   },
   {
@@ -283,12 +291,49 @@ export const TOOLS: Tool[] = [
   },
   {
     name: "list_topics",
-    description: "The workspace's Topics (what the autopilot writes about) with id and status.",
+    description: "The workspace's Topics — the spine everything hangs off — with id, status, priority and each one's ledger: ideas by format, to triage, made, out. Managed at /ideas/topics.",
     args: {},
     readOnly: true,
     async run(_a, ctx) {
-      const rows = await db.topic.findMany({ where: { workspaceId: ctx.workspaceId }, orderBy: { name: "asc" }, select: { id: true, name: true, status: true, description: true } });
-      return rows.length ? rows.map((t) => `${t.id} [${t.status}] ${t.name}${t.description ? ` — ${t.description.slice(0, 80)}` : ""}`).join("\n") : "no topics yet — add_topic";
+      const { topicLedgers } = await import("@/lib/topics");
+      const rows = await topicLedgers(ctx.workspaceId);
+      return rows.length
+        ? rows.map((t) => `${t.id} [${t.status}${t.priority ? ` p${t.priority}` : ""}] ${t.name}${t.description ? ` — ${t.description.slice(0, 80)}` : ""} · ideas ${t.ideas.article}a/${t.ideas.video}v/${t.ideas.social}s (${t.ideas.discovered} to triage) · made ${t.made.articles + t.made.scripts + t.made.posts} · out ${t.out.articles + t.out.posts}`).join("\n")
+        : "no topics yet — add_topic";
+    },
+  },
+  {
+    name: "topic_summary",
+    description: "One Topic from the inside: what it is, the research matched to it (by keyword), its ideas by format and state, what was made and went out. The per-Topic page /ideas/topics/<id> in text.",
+    args: { topicId: "the Topic id (list_topics)" },
+    readOnly: true,
+    async run(a, ctx) {
+      const id = str(a.topicId, 40);
+      const topic = await db.topic.findFirst({ where: { id, workspaceId: ctx.workspaceId } });
+      if (!topic) return "no such Topic in this workspace";
+      const [{ topicLedgers }, { matchTopic, prepareTopics }] = await Promise.all([import("@/lib/topics"), import("@/lib/topic-match")]);
+      const [ledger, aIdeas, sIdeas, vIdeas, articles, posts, titles] = await Promise.all([
+        topicLedgers(ctx.workspaceId).then((rows) => rows.find((r) => r.id === id)),
+        db.blogIdea.findMany({ where: { workspaceId: ctx.workspaceId, topicId: id }, orderBy: { createdAt: "desc" }, take: 8, select: { id: true, title: true, status: true } }),
+        db.socialIdea.findMany({ where: { workspaceId: ctx.workspaceId, topicId: id }, orderBy: { createdAt: "desc" }, take: 8, select: { id: true, hook: true, status: true } }),
+        db.idea.findMany({ where: { channel: { workspaceId: ctx.workspaceId }, topicId: id }, orderBy: { createdAt: "desc" }, take: 8, select: { id: true, title: true, status: true } }),
+        db.blogPost.findMany({ where: { workspaceId: ctx.workspaceId, topicId: id }, orderBy: { updatedAt: "desc" }, take: 6, select: { id: true, title: true, status: true } }),
+        db.socialPost.findMany({ where: { workspaceId: ctx.workspaceId, topicId: id }, orderBy: { createdAt: "desc" }, take: 6, select: { id: true, text: true, status: true } }),
+        db.intelVideo.findMany({ where: { intelChannel: { workspaceId: ctx.workspaceId }, outlierScore: { gte: 2 } }, orderBy: { outlierScore: "desc" }, take: 200, select: { id: true, title: true, outlierScore: true } }),
+      ]);
+      const prepared = prepareTopics([{ id: topic.id, name: topic.name, keywords: topic.keywords }]);
+      const evidence = titles.filter((v) => matchTopic(v.title, prepared)).slice(0, 6);
+      return [
+        `${topic.name} [${topic.status}${topic.priority ? ` priority ${topic.priority}` : ""}]${topic.description ? ` — ${topic.description}` : ""}`,
+        ledger ? `ideas: ${ledger.ideas.article} article, ${ledger.ideas.video} video, ${ledger.ideas.social} social (${ledger.ideas.discovered} to triage, ${ledger.ideas.approved} approved) · made: ${ledger.made.articles} articles, ${ledger.made.scripts} scripts, ${ledger.made.posts} posts · out: ${ledger.out.articles} articles, ${ledger.out.posts} posts` : "",
+        evidence.length ? `research matched by keyword (${evidence.length} of the strongest outliers):\n${evidence.map((v) => `  ${v.id} ${v.outlierScore?.toFixed(1)}× ${v.title}`).join("\n")}` : "research: no strong outlier matches this Topic's name or phrases by keyword",
+        aIdeas.length ? `article ideas:\n${aIdeas.map((i) => `  ${i.id} [${i.status}] ${i.title}`).join("\n")}` : "",
+        vIdeas.length ? `video ideas:\n${vIdeas.map((i) => `  ${i.id} [${i.status}] ${i.title}`).join("\n")}` : "",
+        sIdeas.length ? `social ideas:\n${sIdeas.map((i) => `  ${i.id} [${i.status}] ${i.hook}`).join("\n")}` : "",
+        articles.length ? `articles:\n${articles.map((p) => `  ${p.id} [${p.status}] ${p.title}`).join("\n")}` : "",
+        posts.length ? `social posts:\n${posts.map((p) => `  ${p.id} [${p.status}] ${p.text.slice(0, 80)}`).join("\n")}` : "",
+        `page: /ideas/topics/${topic.id}`,
+      ].filter(Boolean).join("\n");
     },
   },
   {
@@ -422,8 +467,8 @@ export const TOOLS: Tool[] = [
   // ── Ideas, keywords, topics ───────────────────────────────────────────────
   {
     name: "add_idea",
-    description: "Add one idea the person described — an article idea (default) or a video idea on a channel. Lands as discovered on the Ideas board.",
-    args: { title: "the idea's title", format: "optional: article (default) | video", channelId: "video only: the channel id", angle: "optional: the hook / why it works", keyword: "optional focus keyword (articles)", topicId: "optional topic id" },
+    description: "Add one idea the person described — an article idea (default), a video idea on a channel, or a social post idea. Lands as discovered on the Ideas board, in its Topic's lane when topicId is given.",
+    args: { title: "the idea's title (for social: the post's hook in one line)", format: "optional: article (default) | video | social", channelId: "video only: the channel id", angle: "optional: the hook / why it works", keyword: "optional focus keyword (articles)", topicId: "optional topic id (list_topics)" },
     async run(a, ctx) {
       // The assistant's own reply is model text, so it carries the same list
       // furniture the discovery parser does (audit A3).
@@ -437,26 +482,39 @@ export const TOOLS: Tool[] = [
         const idea = await db.idea.create({ data: { channelId: ch.id, title, strategy: str(a.angle, 500) || null, topicId, status: "new" } });
         return `added video idea ${idea.id} ("${title}") on ${ch.name}, discovered — approve_video_idea or write_script next. Board: /ideas?channel=${ch.id}`;
       }
+      if (str(a.format, 10) === "social") {
+        const hook = cleanTitle(str(a.title, 240), 240);
+        const idea = await db.socialIdea.create({ data: { workspaceId: ctx.workspaceId, hook, angle: str(a.angle, 300) || null, topicId, source: "manual", createdById: ctx.userId } });
+        return `added social idea ${idea.id} ("${hook}"), discovered — approve_idea format=social next; the engine drafts approved social ideas into the queue. Board: /ideas?format=social`;
+      }
       const idea = await db.blogIdea.create({ data: { workspaceId: ctx.workspaceId, title, angle: str(a.angle, 500) || null, keyword: str(a.keyword, 100) || null, topicId, source: "manual" } });
       return `added article idea ${idea.id} ("${title}"), discovered — approve_idea then draft_article, or draft_article straight away. Board: /ideas`;
     },
   },
   {
     name: "approve_idea",
-    description: "Approve an article idea (the autopilot drafts approved ideas on its weekly target).",
-    args: { ideaId: "the idea id" },
+    description: "Approve an article idea (default) or a social idea (format=social). The engine makes approved ideas on its weekly allowances. Video ideas: approve_video_idea.",
+    args: { ideaId: "the idea id", format: "optional: article (default) | social" },
     async run(a, ctx) {
       const id = str(a.ideaId, 40);
+      if (str(a.format, 10) === "social") {
+        const r = await db.socialIdea.updateMany({ where: { id, workspaceId: ctx.workspaceId, status: { in: ["discovered", "rejected"] } }, data: { status: "approved", approvedAt: new Date() } });
+        return r.count ? `social idea ${id} approved — the engine drafts it into the queue on its weekly social allowance` : "nothing changed (no such social idea, or it is already approved / drafted)";
+      }
       const r = await db.blogIdea.updateMany({ where: { id, workspaceId: ctx.workspaceId, status: { in: ["discovered", "rejected"] } }, data: { status: "approved" } });
       return r.count ? `idea ${id} approved — it is next in line for the autopilot, or draft_article now` : "nothing changed (no such idea, or it is already approved / drafted)";
     },
   },
   {
     name: "reject_idea",
-    description: "Reject an article idea so it stops coming back.",
-    args: { ideaId: "the idea id" },
+    description: "Reject an article idea (default) or a social idea (format=social) so it stops coming back.",
+    args: { ideaId: "the idea id", format: "optional: article (default) | social" },
     async run(a, ctx) {
       const id = str(a.ideaId, 40);
+      if (str(a.format, 10) === "social") {
+        const r = await db.socialIdea.updateMany({ where: { id, workspaceId: ctx.workspaceId, status: { in: ["discovered", "approved"] } }, data: { status: "rejected" } });
+        return r.count ? `social idea ${id} rejected` : "nothing changed (no such social idea, or it is already drafted)";
+      }
       const r = await db.blogIdea.updateMany({ where: { id, workspaceId: ctx.workspaceId, status: { in: ["discovered", "approved"] } }, data: { status: "rejected" } });
       return r.count ? `idea ${id} rejected` : "nothing changed (no such idea, or it is already drafted)";
     },
@@ -474,12 +532,17 @@ export const TOOLS: Tool[] = [
   },
   {
     name: "discover_ideas",
-    description: "Generate new article ideas grounded in the workspace profile, topics and keywords. They land as discovered for approval.",
-    args: { topicId: "optional topic id to focus on" },
+    description: "Discover ideas per Topic — article (default) or social — grounded in the workspace profile, the Topic's phrases and keywords. With no topicId the emptiest Topics go first; every idea lands as discovered, tagged with its Topic. A workspace with no Topics gets one untagged article run.",
+    args: { format: "optional: article (default) | social | article,social", topicId: "optional: one Topic only (list_topics)" },
     async run(a, ctx) {
-      const { discoverIdeasCore } = await import("@/lib/blog-autopilot");
-      const created = await discoverIdeasCore(ctx.workspaceId, str(a.topicId, 40) || null);
-      return created ? `created ${created} idea(s), all discovered — list_ideas to see them, approve_idea for the good ones` : "created nothing (the model returned no usable ideas, or generation is paused)";
+      const { runIdeation } = await import("@/lib/ideation");
+      const { isIdeaFormat } = await import("@/lib/ideas-board");
+      const formats = str(a.format, 30).split(",").map((s) => s.trim()).filter(isIdeaFormat).filter((f) => f !== "video");
+      const topicId = str(a.topicId, 40) || null;
+      const run = await runIdeation(ctx.workspaceId, { formats: formats.length ? formats : ["article"], topicId, maxCells: topicId ? 2 : 3 });
+      if (!run.created) return run.untargeted ? "created nothing — no Topics exist and the untargeted run returned no usable ideas (add_topic first)" : "created nothing (the model returned no usable ideas, generation is paused, or the Topic is archived)";
+      const per = run.cells.filter((c) => c.created).map((c) => `${c.created} ${c.format} for "${c.topicName}"`).join(", ");
+      return `created ${run.created} idea(s), all discovered${per ? ` — ${per}` : " (untagged: no Topics yet)"}. list_ideas to see them, approve_idea for the good ones`;
     },
   },
   {
@@ -1159,6 +1222,7 @@ export const TOOLS: Tool[] = [
         `${v.views != null ? Number(v.views).toLocaleString() : "—"} views · ${v.likes ?? "—"} likes · ${v.comments ?? "—"} comments · ${v.durationSeconds ? `${Math.round(v.durationSeconds / 60)} min` : "—"} · ${v.format ?? ""} · outlier ${v.outlierScore != null ? `${v.outlierScore.toFixed(1)}×` : "not measured"} · ${v.viewsPerHour != null ? `${v.viewsPerHour >= 10 ? Math.round(v.viewsPerHour) : v.viewsPerHour.toFixed(1)} views/hr since publish (lifetime average at index time)` : "views/hr not measured"} · published ${v.publishedAt ? v.publishedAt.toISOString().slice(0, 10) : "—"}`,
         v.description ? `Description: ${v.description.slice(0, 600)}` : "",
         t ? `Transcript (${t.length.toLocaleString()} chars, first ${Math.min(t.length, 7000).toLocaleString()}):\n${t.slice(0, 7000)}` : "Transcript: not fetched (analyze_youtube_video can try YouTube directly)",
+        `Make it an idea: add_idea with format article | video (channelId) | social and a topicId from list_topics — the page /intel/videos/${v.id} has the same chooser with the Topic matched by keyword.`,
       ].filter(Boolean).join("\n");
     },
   },

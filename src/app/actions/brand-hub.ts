@@ -65,7 +65,9 @@ function topicRevalidate() {
 }
 function topicBack(formData: FormData, msg: string, kind: "ok" | "err" = "ok", opts?: { deleted?: boolean }): never {
   const raw = String(formData.get("back") ?? "/ideas/topics");
-  let to = raw.startsWith("/ideas") || raw.startsWith("/brand") ? raw.split("?")[0] : "/ideas/topics";
+  // The places a Topic form can be: the Topics tab and page, Brand's
+  // pointer, and the two Research surfaces that suggest one.
+  let to = /^\/(ideas|brand|blog\/keywords|research)(\/|$)/.test(raw) ? raw.split("?")[0] : "/ideas/topics";
   // A deleted Topic's own page no longer exists.
   if (opts?.deleted && /^\/ideas\/topics\/.+/.test(to)) to = "/ideas/topics";
   redirect(`${to}?${kind}=${encodeURIComponent(msg)}`);
@@ -142,4 +144,23 @@ export async function deleteTopicAction(formData: FormData) {
   await db.topic.deleteMany({ where: { id, workspaceId: workspace.id } });
   topicRevalidate();
   topicBack(formData, "Topic deleted.", "ok", { deleted: true });
+}
+
+/**
+ * A suggested Topic (a keyword cluster that is not a Topic yet) the person
+ * decided against. Remembered per workspace in `topics:dismissed_suggestions`
+ * so /ideas/topics stops offering it; adding a Topic by that name later is
+ * still allowed.
+ */
+export async function dismissTopicSuggestionAction(formData: FormData) {
+  const { workspace } = await requireRole("EDITOR");
+  const name = String(formData.get("name") ?? "").trim().slice(0, 120);
+  if (!name) topicBack(formData, "Nothing to discard.", "err");
+  const { getSetting, setWorkspaceSetting } = await import("@/lib/settings");
+  let list: string[] = [];
+  try { list = JSON.parse((await getSetting("topics:dismissed_suggestions", workspace.id).catch(() => "")) || "[]"); } catch { list = []; }
+  if (!list.includes(name)) list.push(name);
+  await setWorkspaceSetting(workspace.id, "topics:dismissed_suggestions", JSON.stringify(list.slice(-100)));
+  topicRevalidate();
+  topicBack(formData, `“${name}” won't be suggested again.`);
 }
