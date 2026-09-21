@@ -1,0 +1,15 @@
+{
+  "out": ".",
+  "name": "settings-tour",
+  "workspace": "CommunityForce Inc.",
+  "url": "/setup/automation",
+  "wait": 2000,
+  "hide": ["text=@communityforce.com", "text=@gmail.com"],
+  "actions": [
+    { "mouse": [900, 500], "steps": 20 }, { "wait": 2200 },
+    { "scroll": 350 }, { "wait": 1600 }, { "scroll": 350 }, { "wait": 1600 },
+    { "click": "a[href='/setup/schedule']" }, { "wait": 3000 },
+    { "click": "a[href='/measure']" }, { "wait": 3000 }
+  ],
+  "tail": 1500
+}

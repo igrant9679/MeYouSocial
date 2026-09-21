@@ -1,0 +1,16 @@
+{
+  "out": ".",
+  "name": "ask-dock",
+  "workspace": "CommunityForce Inc.",
+  "url": "/inbox",
+  "wait": 1800,
+  "hide": ["card:text=Invitations not yet accepted", "text=@communityforce.com", "text=@gmail.com"],
+  "actions": [
+    { "mouse": [1500, 300], "steps": 20 }, { "wait": 800 },
+    { "click": "button[aria-label='Open the assistant'], button[title*='Ask the assistant']" }, { "wait": 1500 },
+    { "click": "textarea, input[placeholder*='Ask anything']" }, { "wait": 400 },
+    { "type": "What should I do next?", "delay": 60 }, { "wait": 600 },
+    { "press": "Enter" }, { "wait": 16000 }
+  ],
+  "tail": 3000
+}

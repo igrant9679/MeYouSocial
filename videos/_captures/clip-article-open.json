@@ -1,0 +1,16 @@
+{
+  "out": ".",
+  "name": "article-open",
+  "workspace": "CommunityForce Inc.",
+  "url": "/blog?view=board",
+  "wait": 1800,
+  "hide": ["text=@communityforce.com", "text=@gmail.com"],
+  "actions": [
+    { "mouse": [400, 300], "steps": 20 }, { "wait": 1200 },
+    { "hover": "text=Research administration" }, { "wait": 600 },
+    { "click": "text=Research administration" }, { "wait": 2500 },
+    { "scroll": 300 }, { "wait": 1200 }, { "scroll": 300 }, { "wait": 1200 }, { "scroll": 300 }, { "wait": 1500 },
+    { "scroll": 400 }, { "wait": 1500 }
+  ],
+  "tail": 1500
+}

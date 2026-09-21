@@ -1,0 +1,37 @@
+{
+  "s01": {
+    "hash": "7f366f3bfbd2",
+    "duration": 9.323,
+    "text": "Nothing AI-made reaches an audience until its required checks pass. That is a rule, not a setting. Here is what the gates actually check."
+  },
+  "s02": {
+    "hash": "802037d26c8b",
+    "duration": 20.693,
+    "text": "Every article carries a checklist. Metadata, slug and focus keyword. Alt text on every image. No unsourced claims. Every citation verified. A branded social preview image. Under full autonomy the app does that review work itself, and only holds what it genuinely cannot fix."
+  },
+  "s03": {
+    "hash": "aa012d7cb343",
+    "duration": 21.312,
+    "text": "Claims are sourced, not asserted. The writer marks factual claims. Live web search looks for a real source, and an independent judge has to agree that the source actually supports the sentence. Topical overlap is not support. A claim with no support waits for you, with two buttons: verify with a link, or drop it."
+  },
+  "s04": {
+    "hash": "ef0ffd19a46c",
+    "duration": 15.659,
+    "text": "Every AI image is looked at. A vision model inspects each render for cut-off text, wrong brand names and glitches. After two failed renders it stops spending and asks a person. Approve it, or pick or upload another."
+  },
+  "s05": {
+    "hash": "2e4fa9257aba",
+    "duration": 15.723,
+    "text": "When an article needs knowledge only you have, the question is asked once, in your Inbox. Your answer is woven into the article and banked to the expert profile, so it is never asked again. Every clearing act moves the article at once."
+  },
+  "s06": {
+    "hash": "e1aad9fa82ce",
+    "duration": 18.069,
+    "text": "And the same honesty runs through the numbers. A dash means not measured, never zero. Outlier ratios, best time to post, search and engagement figures are measured or absent. This app never invents a number to fill a card, so the numbers you do see are real."
+  },
+  "s07": {
+    "hash": "41f82e540998",
+    "duration": 7.915,
+    "text": "Sourced claims. Inspected images. Measured numbers. Me You Social Publisher. Gates that review as well as block."
+  }
+}

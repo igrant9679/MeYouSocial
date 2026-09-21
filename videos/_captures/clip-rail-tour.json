@@ -1,0 +1,18 @@
+{
+  "out": ".",
+  "name": "rail-tour",
+  "workspace": "CommunityForce Inc.",
+  "url": "/inbox",
+  "wait": 1500,
+  "hide": ["card:text=Invitations not yet accepted", "text=@communityforce.com", "text=@gmail.com"],
+  "actions": [
+    { "mouse": [32, 250], "steps": 30 }, { "wait": 400 },
+    { "click": "a[href='/research']" }, { "wait": 2200 },
+    { "click": "a[href='/ideas']" }, { "wait": 2400 },
+    { "click": "a[href='/drafts']" }, { "wait": 2400 },
+    { "click": "a[href='/publish']" }, { "wait": 2200 },
+    { "click": "a[href='/distribute']" }, { "wait": 2400 },
+    { "click": "a[href='/measure']" }, { "wait": 2400 }
+  ],
+  "tail": 1200
+}

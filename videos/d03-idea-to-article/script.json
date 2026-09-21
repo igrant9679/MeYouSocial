@@ -1,0 +1,103 @@
+{
+  "id": "d03-idea-to-article",
+  "title": "From idea to published article",
+  "kind": "demo",
+  "voice": "am_michael",
+  "speed": 1,
+  "message": "Only approved ideas are drafted, and every gate between an idea and a live article is visible",
+  "audience": "Marketers and owners evaluating an AI content pipeline",
+  "scenes": [
+    {
+      "id": "s01",
+      "type": "title",
+      "kicker": "Demo · 03",
+      "headline": "From idea to *published.*",
+      "sub": "One article, end to end, with a person at every gate.",
+      "narration": "Here is one article, end to end. From an idea the engine found, to a live page on your website, with a person at every gate.",
+      "headlineAt": 1.2,
+      "subAt": "q:with a person"
+    },
+    {
+      "id": "s02",
+      "type": "screen",
+      "chapter": "01 · Ideas",
+      "clip": { "src": "ideas-scroll.mp4", "start": 0.5, "rate": 0.75 },
+      "headline": "Approving is your *act.*",
+      "narration": "It starts on the Ideas board. The engine discovers article ideas grounded in your company profile, your Topics and your keyword strategy, and lands them in the Discovered column. You approve the ones worth writing and reject the rest. Only approved ideas are drafted.",
+      "headlineAt": "q:You approve",
+      "callouts": [
+        { "kind": "chips", "items": ["Discovered", "Approved", "Drafted", "Rejected"], "on": 0, "at": "q:lands them" },
+        { "kind": "card", "label": "Grounded in", "title": "Company profile · Topics · keywords", "at": "q:grounded in" },
+        { "kind": "quote", "text": "Only approved ideas are drafted.", "at": "q:Only approved" }
+      ]
+    },
+    {
+      "id": "s03",
+      "type": "screen",
+      "chapter": "02 · The sweep drafts it",
+      "still": "articles-board.png",
+      "headline": "Drafting → In review → Final approval → *Published.*",
+      "narration": "Every thirty minutes the sweep picks up approved ideas, inside the weekly target you set. It writes the article from your brand context, tone and expert profiles, then moves it across the board: drafting, in review, final approval, published.",
+      "headlineAt": "q:then moves it",
+      "callouts": [
+        { "kind": "card", "label": "Every", "value": "30 min", "title": "the sweep drafts approved ideas", "at": "q:Every thirty" },
+        { "kind": "card", "label": "Written from", "title": "Brand context · Motifs · expert profiles", "at": "q:It writes" }
+      ],
+      "punch": { "x": 700, "y": 240, "scale": 1.3, "at": "q:then moves it", "dur": 1.5, "hold": 3.5 }
+    },
+    {
+      "id": "s04",
+      "type": "screen",
+      "chapter": "03 · The article",
+      "clip": { "src": "article-open.mp4", "start": 1.5, "rate": 0.9 },
+      "headline": "SEO and images, already *filled in.*",
+      "narration": "Open it and everything is already there. A focus keyword, meta title, meta description and slug. A featured image and a branded social preview, generated from your brand kit, or uploaded. Metadata you write by hand is never overwritten.",
+      "spoken": "Open it and everything is already there. A focus keyword, meta title, meta description and slug. A featured image and a branded social preview, generated from your brand kit, or uploaded. Metadata you write by hand is never overwritten.",
+      "headlineAt": "q:A featured image",
+      "callouts": [
+        { "kind": "chips", "items": ["Focus keyword", "Meta title", "Meta description", "Slug"], "at": "q:A focus keyword" },
+        { "kind": "card", "label": "Images", "title": "Featured + 1200×630 social preview", "note": "from your brand kit, or uploaded", "at": "q:A featured image" },
+        { "kind": "quote", "text": "Metadata you write by hand is never overwritten.", "at": "q:Metadata you write" }
+      ]
+    },
+    {
+      "id": "s05",
+      "type": "screen",
+      "chapter": "04 · The checklist",
+      "still": "article-checklist.png",
+      "headline": "Every gate, and whether it *passes.*",
+      "narration": "The checklist shows every gate and whether it passes. Metadata, slug, focus keyword, alt text on every image, no unsourced claims, every citation verified, a branded preview image. Auto-review fixes what it can. Whatever it cannot fix parks in your Inbox, with the action on the card.",
+      "headlineAt": "q:Auto-review fixes",
+      "callouts": [
+        { "kind": "chips", "items": ["Metadata", "Slug", "Focus keyword", "Alt text", "No unsourced claims", "Citations verified", "Preview image"], "at": "q:Metadata, slug" },
+        { "kind": "quote", "text": "Whatever it cannot fix parks in your Inbox.", "at": "q:Whatever it cannot" }
+      ],
+      "punch": { "x": 1560, "y": 300, "scale": 1.35, "at": "q:The checklist shows", "dur": 1.6, "hold": 5.0 }
+    },
+    {
+      "id": "s06",
+      "type": "screen",
+      "seam": "arrival",
+      "chapter": "05 · Publish",
+      "still": "publish.png",
+      "headline": "On your publish day, or right *now.*",
+      "narration": "At final approval it waits for your publish day, in your timezone. Or set a date for this one article. Or publish it right now. WordPress connected directly. No WordPress? Download a self-contained HTML file, add it to any site, and mark the article as published with the live link.",
+      "spoken": "At final approval it waits for your publish day, in your timezone. Or set a date for this one article. Or publish it right now. WordPress connected directly. No WordPress? Download a self-contained H T M L file, add it to any site, and mark the article as published with the live link.",
+      "headlineAt": "q:Or publish it",
+      "callouts": [
+        { "kind": "chips", "items": ["Publish day", "A date you set", "Publish now"], "on": 0, "at": "q:it waits for" },
+        { "kind": "card", "label": "No WordPress?", "title": "Download HTML → add it to any site → Mark as published", "at": "q:No WordPress" }
+      ],
+      "punch": { "x": 1500, "y": 330, "scale": 1.3, "at": "q:WordPress connected", "dur": 1.5, "hold": 4.0 }
+    },
+    {
+      "id": "s07",
+      "type": "close",
+      "line": "One article. Every gate *visible.*",
+      "narration": "From an approved idea to a live article, with every gate visible and a person deciding at each one. MeYouSocial Publisher.",
+      "spoken": "From an approved idea to a live article, with every gate visible and a person deciding at each one. Me You Social Publisher.",
+      "lineAt": 0.8,
+      "lockupAt": "q:Me You Social"
+    }
+  ]
+}

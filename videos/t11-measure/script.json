@@ -1,0 +1,105 @@
+{
+  "id": "t11-measure",
+  "title": "Measuring results",
+  "kind": "training",
+  "captions": true,
+  "voice": "am_michael",
+  "speed": 1,
+  "message": "Connect Search Console and GA4 once; read Search, Traffic, Social performance and best time; a dash means not measured, never zero",
+  "audience": "Admins and marketers reading the month",
+  "scenes": [
+    {
+      "id": "s01",
+      "type": "title",
+      "kicker": "Training · 11",
+      "headline": "Measuring *results.*",
+      "sub": "Analytics setup, the Measure pages, Reports and Insights.",
+      "narration": "Measure pulls the results back in, and it shows measured numbers only. This video covers connecting analytics once, reading Search, Traffic and Social performance, the best time to post, and the Reports and Insights pages.",
+      "headlineAt": 1.2,
+      "subAt": "q:This video covers"
+    },
+    {
+      "id": "s02",
+      "type": "screen",
+      "chapter": "01 · Connect analytics",
+      "still": "analytics-setup.png",
+      "headline": "A live probe says which side is *missing.*",
+      "narration": "Settings, then Analytics. Enter the Search Console site and the GA4 property, and grant the service account on both: as a user in Search Console, as a Viewer in GA4. The page runs a live probe and tells you which side is missing. A disabled API and a missing grant both return permission denied; the probe separates them. Until this is done, Measure shows dashes.",
+      "spoken": "Settings, then Analytics. Enter the Search Console site and the G A 4 property, and grant the service account on both: as a user in Search Console, as a Viewer in G A 4. The page runs a live probe and tells you which side is missing. A disabled A P I and a missing grant both return permission denied; the probe separates them. Until this is done, Measure shows dashes.",
+      "headlineAt": "q:The page runs",
+      "callouts": [
+        { "kind": "card", "label": "Search Console", "title": "Site URL · service account added as a user", "at": "q:Enter the Search" },
+        { "kind": "card", "label": "GA4", "title": "Property id · service account as Viewer", "at": "q:as a Viewer" },
+        { "kind": "quote", "text": "The probe separates a disabled API from a missing grant.", "at": "q:the probe separates" }
+      ],
+      "punch": { "x": 700, "y": 360, "scale": 1.3, "at": "q:Enter the Search", "dur": 1.5, "hold": 7.0 }
+    },
+    {
+      "id": "s03",
+      "type": "screen",
+      "chapter": "02 · Search and Traffic",
+      "still": "measure.png",
+      "headline": "A dash means not measured, never *zero.*",
+      "narration": "Measure's overview shows search impressions and clicks by week, and tracked posts with their positions and deltas. Blog analytics adds traffic from GA4. A blank is never a zero. A blank means we do not know; a zero means we measured nothing happening. Every dash comes with the reason it is a dash, and every figure carries its sample size and source.",
+      "spoken": "Measure's overview shows search impressions and clicks by week, and tracked posts with their positions and deltas. Blog analytics adds traffic from G A 4. A blank is never a zero. A blank means we do not know; a zero means we measured nothing happening. Every dash comes with the reason it is a dash, and every figure carries its sample size and source.",
+      "headlineAt": "q:A blank is never",
+      "callouts": [
+        { "kind": "chips", "items": ["Impressions", "Clicks", "Positions", "Deltas", "Traffic"], "at": "q:shows search impressions" },
+        { "kind": "quote", "text": "A blank means we do not know. A zero means we measured nothing.", "at": "q:A blank means" }
+      ],
+      "punch": { "x": 1400, "y": 420, "scale": 1.3, "at": "q:tracked posts", "dur": 1.5, "hold": 5.0 }
+    },
+    {
+      "id": "s04",
+      "type": "screen",
+      "chapter": "03 · Social performance",
+      "still": "social-performance.png",
+      "headline": "Posts sent in the window, not engagement *earned in it.*",
+      "narration": "Measure, then Social performance: engagement by network, synced on a schedule or on demand. Read the window carefully. It means posts sent in that window, not engagement earned in it, because networks report lifetime totals per post. The evidence line under each figure says so. Best time to post is measured from real engagement, and it stays silent below its sample size rather than guessing.",
+      "headlineAt": "q:Read the window",
+      "callouts": [
+        { "kind": "chips", "items": ["By network", "Synced on schedule", "Sync now"], "at": "q:engagement by network" },
+        { "kind": "card", "label": "Best time to post", "title": "Measured from real engagement; silent below its sample size", "at": "q:Best time to post" }
+      ],
+      "punch": { "x": 640, "y": 300, "scale": 1.3, "at": "q:engagement by network", "dur": 1.5, "hold": 6.0 }
+    },
+    {
+      "id": "s05",
+      "type": "screen",
+      "chapter": "04 · Reports",
+      "still": "reports.png",
+      "headline": "Real rows, exported as *PDF.*",
+      "narration": "Reports holds ten stock reports: Traffic overview, Content performance, Keyword rankings, Pipeline velocity, Autopilot operations, Editorial compliance, Voice and motifs, Social distribution, Video production and Content audit, plus any custom reports you build. Open one and Customize adds or removes blocks, reorders them, and sets the date range. Every report has a PDF button; blocks without data say so instead of drawing a curve.",
+      "spoken": "Reports holds ten stock reports: Traffic overview, Content performance, Keyword rankings, Pipeline velocity, Autopilot operations, Editorial compliance, Voice and motifs, Social distribution, Video production and Content audit, plus any custom reports you build. Open one and Customize adds or removes blocks, reorders them, and sets the date range. Every report has a P D F button; blocks without data say so instead of drawing a curve.",
+      "headlineAt": "q:Every report has",
+      "callouts": [
+        { "kind": "card", "label": "Stock reports", "value": "10", "title": "plus your custom ones", "at": "q:Reports holds" },
+        { "kind": "chips", "items": ["Customize", "Reorder", "Date range", "PDF"], "at": "q:Open one" },
+        { "kind": "quote", "text": "Blocks without data say so instead of drawing a curve.", "at": "q:blocks without data" }
+      ]
+    },
+    {
+      "id": "s06",
+      "type": "screen",
+      "seam": "arrival",
+      "chapter": "05 · Insights and Topics",
+      "still": "insights.png",
+      "headline": "Pipeline and performance, shown *apart.*",
+      "narration": "Insights measures two different things and shows them apart on purpose: your pipeline, what you made and what stalled, which the app knows exactly; and performance, which it knows only as well as your connected analytics allow. Recommendations are deterministic rules that refuse to fire below a usable sample. And Measure, Topics, shows what each Topic earned per format. Read it monthly, and decide what to do more of.",
+      "headlineAt": "q:Recommendations are",
+      "callouts": [
+        { "kind": "card", "label": "Pipeline", "title": "What you made, how long it took, what stalled", "at": "q:your pipeline" },
+        { "kind": "card", "label": "Performance", "title": "Only as good as your connected analytics", "at": "q:and performance" },
+        { "kind": "quote", "text": "Thin data produces silence, not confident advice.", "at": "q:Recommendations are" }
+      ]
+    },
+    {
+      "id": "s07",
+      "type": "close",
+      "line": "Measured, or a *dash.*",
+      "narration": "Connect once, read weekly, decide monthly, and trust the dashes. Next: the assistant, the team, and troubleshooting.",
+      "lineAt": 0.8,
+      "lockupAt": "q:Next"
+    }
+  ]
+}

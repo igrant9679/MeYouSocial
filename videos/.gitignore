@@ -1,0 +1,24 @@
+# Logged-in Chrome profile for the capture tool — never commit
+_tools/.profile/
+_tools/node_modules/
+
+# Real app captures and recordings (owner's company data; regenerate with capture.mjs)
+_captures/*.png
+_captures/*.mp4
+_captures/*.jpg
+_captures/.rec/
+
+# Rendered MP4s and synthesized narration (large; regenerate with build.mjs / render)
+_deliverables/
+_samples/
+*/renders/
+*/assets/vo/*.wav
+*/assets/vo/*.txt
+*/assets/stills/
+*/assets/clips/
+*/snapshots/
+*/.hyperframes/
+*/node_modules/
+
+# per-project brand copies (build.mjs re-copies them from _kit/assets)
+*/assets/brand/

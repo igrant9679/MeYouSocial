@@ -1,0 +1,23 @@
+{
+  "out": ".",
+  "workspace": "CommunityForce Inc.",
+  "scale": 1,
+  "hide": ["card:text=Invitations not yet accepted", "text=@communityforce.com", "text=@gmail.com"],
+  "shots": [
+    { "name": "article-images", "url": "/blog?view=board", "wait": 1500, "actions": [{ "click": "text=Research administration" }, { "wait": 1800 }, { "scroll": 1100 }, { "wait": 700 }] },
+    { "name": "article-citations", "url": "/blog?view=board", "wait": 1500, "actions": [{ "click": "text=Research administration" }, { "wait": 1800 }, { "scroll": 2200 }, { "wait": 700 }] },
+    { "name": "engage", "url": "/social/engage", "wait": 1800 },
+    { "name": "approvals", "url": "/social/approvals", "wait": 1500 },
+    { "name": "schedule", "url": "/setup/schedule", "wait": 1500 },
+    { "name": "workspace-settings", "url": "/admin/settings", "wait": 1500 },
+    { "name": "connections", "url": "/setup/connections", "wait": 1800 },
+    { "name": "reports", "url": "/reports", "wait": 1800 },
+    { "name": "insights", "url": "/insights", "wait": 1800 },
+    { "name": "measure-topics", "url": "/measure/topics", "wait": 1800 },
+    { "name": "brand", "url": "/brand", "wait": 1500 },
+    { "name": "brand-motifs", "url": "/blog/brand", "wait": 1500 },
+    { "name": "assistant", "url": "/assistant", "wait": 1800 },
+    { "name": "blog-calendar", "url": "/blog/calendar", "wait": 1800 },
+    { "name": "intel", "url": "/intel", "wait": 2000 }
+  ]
+}

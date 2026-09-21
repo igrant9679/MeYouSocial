@@ -1,0 +1,98 @@
+{
+  "fps": 30,
+  "current": "LEFT",
+  "seams": [
+    {
+      "id": "s01→s02",
+      "cut": 17.2,
+      "technique": "cut-the-curve LEFT",
+      "exit": {
+        "selector": "#el-s01",
+        "axis": "x",
+        "dir": -1
+      },
+      "entry": {
+        "selector": "#el-s02",
+        "axis": "x",
+        "dir": -1
+      }
+    },
+    {
+      "id": "s02→s03",
+      "cut": 35.3,
+      "technique": "cut-the-curve LEFT",
+      "exit": {
+        "selector": "#el-s02",
+        "axis": "x",
+        "dir": -1
+      },
+      "entry": {
+        "selector": "#el-s03",
+        "axis": "x",
+        "dir": -1
+      }
+    },
+    {
+      "id": "s03→s04",
+      "cut": 53.9,
+      "technique": "cut-the-curve LEFT",
+      "exit": {
+        "selector": "#el-s03",
+        "axis": "x",
+        "dir": -1
+      },
+      "entry": {
+        "selector": "#el-s04",
+        "axis": "x",
+        "dir": -1
+      }
+    },
+    {
+      "id": "s04→s05",
+      "cut": 77.4,
+      "technique": "inverse zoom-through",
+      "exit": {
+        "selector": "#el-s04",
+        "axis": "z",
+        "dir": -1
+      },
+      "entry": {
+        "selector": "#el-s05",
+        "axis": "z",
+        "dir": -1,
+        "scanRoot": "#el-s05"
+      },
+      "blur": 18
+    },
+    {
+      "id": "s05→s06",
+      "cut": 107.2,
+      "technique": "cut-the-curve LEFT",
+      "exit": {
+        "selector": "#el-s05",
+        "axis": "x",
+        "dir": -1
+      },
+      "entry": {
+        "selector": "#el-s06",
+        "axis": "x",
+        "dir": -1
+      }
+    },
+    {
+      "id": "s06→s07",
+      "cut": 130.9,
+      "technique": "cut-the-curve UP",
+      "exit": {
+        "selector": "#el-s06",
+        "axis": "y",
+        "dir": -1
+      },
+      "entry": {
+        "selector": "#el-s07",
+        "axis": "y",
+        "dir": -1
+      }
+    }
+  ]
+}

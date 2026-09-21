@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <title>Reading a draft, and Optimize</title>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      body { margin: 0; background: #15181D; }
+      #root { position: relative; width: 100%; height: 100%; overflow: hidden; background: #15181D; /* opaque stage ground — white-flash guard */ }
+      #root > div[data-composition-src] { position: absolute; inset: 0; will-change: transform, opacity, filter; }
+      @font-face { font-family: 'IBM Plex Mono'; font-style: normal; font-weight: 500; font-display: block; src: url('assets/brand/fonts/IBMPlexMono-500.woff2') format('woff2'); }
+@font-face { font-family: 'IBM Plex Mono'; font-style: normal; font-weight: 600; font-display: block; src: url('assets/brand/fonts/IBMPlexMono-600.woff2') format('woff2'); }
+@font-face { font-family: 'IBM Plex Mono'; font-style: normal; font-weight: 700; font-display: block; src: url('assets/brand/fonts/IBMPlexMono-700.woff2') format('woff2'); }
+@font-face { font-family: 'IBM Plex Sans'; font-style: normal; font-weight: 400; font-display: block; src: url('assets/brand/fonts/IBMPlexSans-400.woff2') format('woff2'); }
+@font-face { font-family: 'IBM Plex Sans'; font-style: normal; font-weight: 500; font-display: block; src: url('assets/brand/fonts/IBMPlexSans-500.woff2') format('woff2'); }
+@font-face { font-family: 'IBM Plex Sans'; font-style: normal; font-weight: 600; font-display: block; src: url('assets/brand/fonts/IBMPlexSans-600.woff2') format('woff2'); }
+@font-face { font-family: 'IBM Plex Sans'; font-style: normal; font-weight: 700; font-display: block; src: url('assets/brand/fonts/IBMPlexSans-700.woff2') format('woff2'); }
+
+      .cap { position: absolute; left: 260px; width: 1400px; bottom: 26px; display: flex; justify-content: center; align-items: flex-end; pointer-events: none; }
+      .cap span { display: inline-block; max-width: 1200px; padding: 9px 24px 11px; border-radius: 12px; background: rgba(255,255,255,.94); box-shadow: 0 8px 30px rgba(21,24,29,.15); text-align: center; font-family: 'IBM Plex Sans', 'IBM Plex Mono', system-ui, sans-serif; font-weight: 600; font-size: 34px; line-height: 1.25; color: #15181D; }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-width="1920" data-height="1080" data-duration="154.9">
+      <div id="el-s01" data-composition-id="s01" data-composition-src="compositions/s01.html" data-start="0" data-duration="15" data-track-index="1" data-width="1920" data-height="1080"></div>
+      <div id="el-s02" data-composition-id="s02" data-composition-src="compositions/s02.html" data-start="15" data-duration="28.2" data-track-index="1" data-width="1920" data-height="1080"></div>
+      <div id="el-s03" data-composition-id="s03" data-composition-src="compositions/s03.html" data-start="43.2" data-duration="21" data-track-index="1" data-width="1920" data-height="1080"></div>
+      <div id="el-s04" data-composition-id="s04" data-composition-src="compositions/s04.html" data-start="64.2" data-duration="25.5" data-track-index="1" data-width="1920" data-height="1080"></div>
+      <div id="el-s05" data-composition-id="s05" data-composition-src="compositions/s05.html" data-start="89.7" data-duration="25.6" data-track-index="1" data-width="1920" data-height="1080"></div>
+      <div id="el-s06" data-composition-id="s06" data-composition-src="compositions/s06.html" data-start="115.3" data-duration="28.9" data-track-index="1" data-width="1920" data-height="1080"></div>
+      <div id="el-s07" data-composition-id="s07" data-composition-src="compositions/s07.html" data-start="144.2" data-duration="10.7" data-track-index="1" data-width="1920" data-height="1080"></div>
+
+      <!-- Narration: one Kokoro line per scene (am_michael); lead-in baked into data-start -->
+      <audio id="vo-s01" src="assets/vo/s01.wav" data-start="0.5" data-duration="13.099" data-track-index="10" data-volume="1"></audio>
+      <audio id="vo-s02" src="assets/vo/s02.wav" data-start="15.5" data-duration="26.347" data-track-index="10" data-volume="1"></audio>
+      <audio id="vo-s03" src="assets/vo/s03.wav" data-start="43.7" data-duration="19.051" data-track-index="10" data-volume="1"></audio>
+      <audio id="vo-s04" src="assets/vo/s04.wav" data-start="64.7" data-duration="23.637" data-track-index="10" data-volume="1"></audio>
+      <audio id="vo-s05" src="assets/vo/s05.wav" data-start="90.2" data-duration="23.701" data-track-index="10" data-volume="1"></audio>
+      <audio id="vo-s06" src="assets/vo/s06.wav" data-start="115.8" data-duration="27.029" data-track-index="10" data-volume="1"></audio>
+      <audio id="vo-s07" src="assets/vo/s07.wav" data-start="144.7" data-duration="8.384" data-track-index="10" data-volume="1"></audio>
+      <div id="cap-0" class="clip cap" data-start="0.5" data-duration="2.38" data-track-index="5" data-layout-allow-overlap><span>Once a week, read what was drafted,</span></div>
+      <div id="cap-1" class="clip cap" data-start="3.76" data-duration="2.12" data-track-index="5" data-layout-allow-overlap><span>words, pictures, and SEO together.</span></div>
+      <div id="cap-2" class="clip cap" data-start="6.48" data-duration="4.24" data-track-index="5" data-layout-allow-overlap><span>This video walks the article page tab by tab, then the optimized</span></div>
+      <div id="cap-3" class="clip cap" data-start="10.72" data-duration="2.56" data-track-index="5" data-layout-allow-overlap><span>pass and the three kinds of finding it produces.</span></div>
+      <div id="cap-4" class="clip cap" data-start="15.5" data-duration="2.08" data-track-index="5" data-layout-allow-overlap><span>Drafts then articles is the board.</span></div>
+      <div id="cap-5" class="clip cap" data-start="18.08" data-duration="3.18" data-track-index="5" data-layout-allow-overlap><span>A post moves along one track drafting being written.</span></div>
+      <div id="cap-6" class="clip cap" data-start="21.64" data-duration="2.54" data-track-index="5" data-layout-allow-overlap><span>In review, the AI has finished and parked it.</span></div>
+      <div id="cap-7" class="clip cap" data-start="24.36" data-duration="1.74" data-track-index="5" data-layout-allow-overlap><span>This is where a human reads it.</span></div>
+      <div id="cap-8" class="clip cap" data-start="26.48" data-duration="2.74" data-track-index="5" data-layout-allow-overlap><span>Final approval, reviewed and queued to go out.</span></div>
+      <div id="cap-9" class="clip cap" data-start="29.94" data-duration="3.6" data-track-index="5" data-layout-allow-overlap><span>Published live. The two middle stages are separate on purpose.</span></div>
+      <div id="cap-10" class="clip cap" data-start="34.22" data-duration="3.54" data-track-index="5" data-layout-allow-overlap><span>Automation may move a post into review, but only full autonomy</span></div>
+      <div id="cap-11" class="clip cap" data-start="37.76" data-duration="3.9" data-track-index="5" data-layout-allow-overlap><span>publishes from approval. And even then the gates rerun first.</span></div>
+      <div id="cap-12" class="clip cap" data-start="43.7" data-duration="2.88" data-track-index="5" data-layout-allow-overlap><span>Open a card and the editor has five tabs.</span></div>
+      <div id="cap-13" class="clip cap" data-start="47.26" data-duration="3.72" data-track-index="5" data-layout-allow-overlap><span>Write holds the title, the motif blend this article uses, the</span></div>
+      <div id="cap-14" class="clip cap" data-start="50.98" data-duration="3.38" data-track-index="5" data-layout-allow-overlap><span>body and its versions, so you can always go back.</span></div>
+      <div id="cap-15" class="clip cap" data-start="54.92" data-duration="2.86" data-track-index="5" data-layout-allow-overlap><span>Every article is written from your brand context,</span></div>
+      <div id="cap-16" class="clip cap" data-start="58.4" data-duration="4.1" data-track-index="5" data-layout-allow-overlap><span>tone, and expert profiles, and it cites its sources as it goes.</span></div>
+      <div id="cap-17" class="clip cap" data-start="64.7" data-duration="4.82" data-track-index="5" data-layout-allow-overlap><span>The SEO panel carries the focus keyword, meta title, meta</span></div>
+      <div id="cap-18" class="clip cap" data-start="69.52" data-duration="3.06" data-track-index="5" data-layout-allow-overlap><span>description and slug, filled in by the engine.</span></div>
+      <div id="cap-19" class="clip cap" data-start="73.12" data-duration="2.86" data-track-index="5" data-layout-allow-overlap><span>Anything you write by hand here is never overwritten.</span></div>
+      <div id="cap-20" class="clip cap" data-start="76.72" data-duration="3.42" data-track-index="5" data-layout-allow-overlap><span>Assets holds the featured image and the branded social preview</span></div>
+      <div id="cap-21" class="clip cap" data-start="80.14" data-duration="1.54" data-track-index="5" data-layout-allow-overlap><span>at your workspace dimensions.</span></div>
+      <div id="cap-22" class="clip cap" data-start="81.68" data-duration="5.24" data-track-index="5" data-layout-allow-overlap><span>AI images land as pending for review, and the vision model has</span></div>
+      <div id="cap-23" class="clip cap" data-start="86.92" data-duration="1.4" data-track-index="5" data-layout-allow-overlap><span>already looked at each one.</span></div>
+      <div id="cap-24" class="clip cap" data-start="90.2" data-duration="3.02" data-track-index="5" data-layout-allow-overlap><span>The gate sidebar on the right shows the published contract from</span></div>
+      <div id="cap-25" class="clip cap" data-start="93.22" data-duration="4.82" data-track-index="5" data-layout-allow-overlap><span>every tab. SEO meta present. All citations verified.</span></div>
+      <div id="cap-26" class="clip cap" data-start="98.62" data-duration="1.82" data-track-index="5" data-layout-allow-overlap><span>No need source markers left.</span></div>
+      <div id="cap-27" class="clip cap" data-start="100.94" data-duration="3.72" data-track-index="5" data-layout-allow-overlap><span>Descriptive link text. An approved featured image and a branded</span></div>
+      <div id="cap-28" class="clip cap" data-start="104.66" data-duration="4.02" data-track-index="5" data-layout-allow-overlap><span>preview image. Each failing gate links to the tab where you fix</span></div>
+      <div id="cap-29" class="clip cap" data-start="108.68" data-duration="4.44" data-track-index="5" data-layout-allow-overlap><span>it. Admins can relax the image requirement under Brand, Asset</span></div>
+      <div id="cap-30" class="clip cap" data-start="113.12" data-duration="5.9" data-track-index="5" data-layout-allow-overlap><span>Policy. Optimize runs and analysis paths for expertise and trust</span></div>
+      <div id="cap-31" class="clip cap" data-start="119.02" data-duration="3.86" data-track-index="5" data-layout-allow-overlap><span>signals, entity coverage and content gaps, and sorts what it</span></div>
+      <div id="cap-32" class="clip cap" data-start="122.88" data-duration="1.54" data-track-index="5" data-layout-allow-overlap><span>finds into three kinds.</span></div>
+      <div id="cap-33" class="clip cap" data-start="125.3" data-duration="1.7" data-track-index="5" data-layout-allow-overlap><span>Mechanical findings apply themselves.</span></div>
+      <div id="cap-34" class="clip cap" data-start="127.94" data-duration="3.24" data-track-index="5" data-layout-allow-overlap><span>Knowledge findings ask you a question only you can answer, and</span></div>
+      <div id="cap-35" class="clip cap" data-start="131.18" data-duration="2.52" data-track-index="5" data-layout-allow-overlap><span>your answer is banked to the expert profile.</span></div>
+      <div id="cap-36" class="clip cap" data-start="134.68" data-duration="4.38" data-track-index="5" data-layout-allow-overlap><span>Strategic findings ask for a decision, apply, or dismiss with a</span></div>
+      <div id="cap-37" class="clip cap" data-start="139.06" data-duration="3.7" data-track-index="5" data-layout-allow-overlap><span>reason. Nothing here rewrites your article without your say.</span></div>
+      <div id="cap-38" class="clip cap" data-start="144.7" data-duration="3.56" data-track-index="5" data-layout-allow-overlap><span>Read the draft, check the gates, answer the knowledge cards,</span></div>
+      <div id="cap-39" class="clip cap" data-start="148.26" data-duration="1.66" data-track-index="5" data-layout-allow-overlap><span>decide the strategic ones.</span></div>
+      <div id="cap-40" class="clip cap" data-start="150.48" data-duration="2.26" data-track-index="5" data-layout-allow-overlap><span>Next, clearing the gates from the inbox.</span></div>
+    </div>
+
+    <script>
+      const tl = gsap.timeline({ paused: true });
+      window.__timelines["main"] = tl;
+      // <seams:auto> — generated by seam-stamp.mjs from ledger.json; do not hand-edit.
+      // Regenerate: node <motion-doctrine>/scripts/seam-stamp.mjs --ledger ledger.json --write index.html
+      gsap.set("#el-s01", { autoAlpha: 1, xPercent: 0, yPercent: 0, scale: 1, filter: "blur(0px)", transformOrigin: "50% 50%" });
+      gsap.set(["#el-s02","#el-s03","#el-s04","#el-s05","#el-s07"], { autoAlpha: 0, xPercent: 0, yPercent: 0, scale: 1, filter: "blur(0px)", transformOrigin: "50% 50%" });
+      gsap.set("#el-s06", { autoAlpha: 0, scale: 1.25, filter: "blur(18px)", xPercent: 0, yPercent: 0, transformOrigin: "50% 50%" });
+      
+      // SEAM — s01→s02 : cut-the-curve LEFT (cut @15)
+      tl.to("#el-s01", { xPercent: -12, autoAlpha: 0, duration: 0.34, ease: "power3.in" }, 14.66);
+      tl.set("#el-s01", { autoAlpha: 0 }, 15);
+      tl.fromTo("#el-s02", { xPercent: 10, autoAlpha: 0.35 }, { xPercent: 0, autoAlpha: 1, duration: 0.42, ease: "power4.out", immediateRender: false }, 15);
+      
+      // SEAM — s02→s03 : cut-the-curve LEFT (cut @43.2)
+      tl.to("#el-s02", { xPercent: -12, autoAlpha: 0, duration: 0.34, ease: "power3.in" }, 42.86);
+      tl.set("#el-s02", { autoAlpha: 0 }, 43.2);
+      tl.fromTo("#el-s03", { xPercent: 10, autoAlpha: 0.35 }, { xPercent: 0, autoAlpha: 1, duration: 0.42, ease: "power4.out", immediateRender: false }, 43.2);
+      
+      // SEAM — s03→s04 : cut-the-curve LEFT (cut @64.2)
+      tl.to("#el-s03", { xPercent: -12, autoAlpha: 0, duration: 0.34, ease: "power3.in" }, 63.86);
+      tl.set("#el-s03", { autoAlpha: 0 }, 64.2);
+      tl.fromTo("#el-s04", { xPercent: 10, autoAlpha: 0.35 }, { xPercent: 0, autoAlpha: 1, duration: 0.42, ease: "power4.out", immediateRender: false }, 64.2);
+      
+      // SEAM — s04→s05 : cut-the-curve LEFT (cut @89.7)
+      tl.to("#el-s04", { xPercent: -12, autoAlpha: 0, duration: 0.34, ease: "power3.in" }, 89.36);
+      tl.set("#el-s04", { autoAlpha: 0 }, 89.7);
+      tl.fromTo("#el-s05", { xPercent: 10, autoAlpha: 0.35 }, { xPercent: 0, autoAlpha: 1, duration: 0.42, ease: "power4.out", immediateRender: false }, 89.7);
+      
+      // SEAM — s05→s06 : inverse zoom-through (cut @115.3)
+      tl.to("#el-s05", { scale: 0.8, filter: "blur(18px)", duration: 0.21, ease: "power3.in" }, 115.09);
+      tl.to("#el-s05", { autoAlpha: 0, duration: 0.21, ease: "none" }, 115.09);
+      tl.set("#el-s05", { autoAlpha: 0 }, 115.3);
+      tl.fromTo("#el-s06", { autoAlpha: 0.15, scale: 1.25, filter: "blur(18px)" }, { autoAlpha: 1, scale: 1.0, filter: "blur(0px)", duration: 0.5, ease: "expo.out", immediateRender: false }, 115.3);
+      
+      // SEAM — s06→s07 : cut-the-curve UP (cut @144.2)
+      tl.to("#el-s06", { yPercent: -12, autoAlpha: 0, duration: 0.34, ease: "power3.in" }, 143.86);
+      tl.set("#el-s06", { autoAlpha: 0 }, 144.2);
+      tl.fromTo("#el-s07", { yPercent: 10, autoAlpha: 0.35 }, { yPercent: 0, autoAlpha: 1, duration: 0.42, ease: "power4.out", immediateRender: false }, 144.2);
+      
+      // </seams:auto>
+      tl.set({}, {}, 154.9);
+    </script>
+  </body>
+</html>

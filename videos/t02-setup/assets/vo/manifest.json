@@ -1,0 +1,50 @@
+{
+  "s01": {
+    "hash": "dd290949afda",
+    "duration": 17.963,
+    "text": "A workspace is one company. Its keys, accounts, voice, slots and content are its own, invisible to every other workspace. This video walks the setup once, in order, because each step unlocks the next. Before you start, check the workspace switcher at the top left.",
+    "wordsHash": "dd290949afda"
+  },
+  "s02": {
+    "hash": "afa2534bf32d",
+    "duration": 25.429,
+    "text": "Step one: give it a brain. Settings, then Keys. Paste an AI provider key, Anthropic Claude or Google Gemini, and set the default model to match the provider. Without a working key the app does not error; it produces clearly fake placeholder text instead. So if output ever reads generic, or mentions the word mock, check here first. Keys are per workspace: a new workspace starts with none.",
+    "wordsHash": "afa2534bf32d"
+  },
+  "s03": {
+    "hash": "80749f8e3c65",
+    "duration": 23.936,
+    "text": "On the same page: a live web search key, Tavily or Serper. That is what lets the engine source claims from the real web. Without one, a flagged claim waits for you instead. Then image generation, OpenAI or Google, and vision review, which is what looks at every image before you do. Every key is pasted here, per workspace, without touching a server.",
+    "wordsHash": "80749f8e3c65"
+  },
+  "s04": {
+    "hash": "f1936466938f",
+    "duration": 25.408,
+    "text": "Step two: connect where it publishes. Settings, then Connections, shows every connection the loop needs and which are missing. Social accounts: use this app's Connect buttons, not the provider's own dashboard, or the account ends up owned by the wrong user. A mailbox, which is how invitations and digests leave. Your website, under Publish, WordPress or per-article H T M L export. And analytics.",
+    "wordsHash": "f1936466938f"
+  },
+  "s05": {
+    "hash": "c24b4c25c558",
+    "duration": 19.477,
+    "text": "Wire up measurement under Settings, then Analytics: the Search Console site and the G A 4 property, with the service account granted on both. The page runs a live probe and tells you which side is missing. Until then, Measure shows dashes, and a dash means not measured, never zero.",
+    "wordsHash": "c24b4c25c558"
+  },
+  "s06": {
+    "hash": "db075d11695f",
+    "duration": 29.227,
+    "text": "Then three quick dials, each covered in its own video. Set the clock: Settings, Schedule, your timezone and posting slots. Choose your gates: require approval holds every social post until an admin approves it; articles always park at review, that gate is not optional. And set the autonomy dials under Automation: articles per week, the publish day, social posts per week, and the four function modes. Start low, and raise once you trust what arrives at review.",
+    "wordsHash": "db075d11695f"
+  },
+  "s07": {
+    "hash": "82a17e1d7eec",
+    "duration": 21.013,
+    "text": "Last, invite the team under Settings, People. Editors write, draft, answer and propose. Admins approve, publish and configure. Everyone can turn the morning digest off for themselves under Notifications. That is the setup. From here the engine has a brain, places to publish, a clock, and people at the gates.",
+    "wordsHash": "82a17e1d7eec"
+  },
+  "s08": {
+    "hash": "600da636d095",
+    "duration": 7.787,
+    "text": "Keys, connections, analytics, schedule, gates, dials, people. Next: teaching it your voice, and setting up Topics.",
+    "wordsHash": "600da636d095"
+  }
+}

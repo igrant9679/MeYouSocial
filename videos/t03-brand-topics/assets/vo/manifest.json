@@ -1,0 +1,50 @@
+{
+  "s01": {
+    "hash": "11683b10f5af",
+    "duration": 19.84,
+    "text": "Brand holds the things every generation should obey, so you set them once instead of restating them in each prompt. Your tone, your colours and logo, your company facts, your Topics, your guardrails and your experts. If output keeps coming back sounding wrong, this is the page to fix, not the prompt.",
+    "wordsHash": "11683b10f5af"
+  },
+  "s02": {
+    "hash": "3443b574adf5",
+    "duration": 27.008,
+    "text": "Tone lives in Brand, Tone and motifs, as the seven Motifs: Visionary, Competitive, Succinct, Sincere, Exclusive, Social and Informative. Each is an editable, versioned style directive. Every piece resolves a weighted blend of them: the strongest weight sets structure and voice, the rest colour the intro and the call to action. Change a Motif and every future generation changes with it, without touching a prompt.",
+    "wordsHash": "3443b574adf5"
+  },
+  "s03": {
+    "hash": "aa3152d9879c",
+    "duration": 25.771,
+    "text": "On the same page, the brand kit: colours, logo, image dimensions, and the asset policy, which decides whether AI may generate imagery at all. Either way, AI images land as pending for review. The Require images to publish gate lives here too. If your workspace has no real image key yet, turn that gate off, or it will hold every article behind a placeholder.",
+    "wordsHash": "aa3152d9879c"
+  },
+  "s04": {
+    "hash": "edd223f5a29b",
+    "duration": 26.219,
+    "text": "Brand context is what the AI reads before it writes: your differentiators, your products and what each does, brand documents, personas. Nothing here is AI-generated, on purpose. An invented differentiator would be repeated as fact in every article afterwards. Write these yourself, plainly. Guardrails are the rules it must obey, and Experts are the subject-matter profiles the writing quotes.",
+    "wordsHash": "edd223f5a29b"
+  },
+  "s05": {
+    "hash": "b36e7f844334",
+    "duration": 25.173,
+    "text": "Experts are the people whose knowledge the writing draws on. When an article needs something only you know, the question is asked once, in the Inbox. Your answer, in your own words, is woven into the article and banked to the expert profile. These fields deliberately have no Draft with AI button: an answer must be a real person's own words, or the profile trained on it is poisoned.",
+    "wordsHash": "b36e7f844334"
+  },
+  "s06": {
+    "hash": "229f0fe18346",
+    "duration": 29.909,
+    "text": "Topics live under Ideas. A Topic is a theme this company publishes about. It is the one tag that spans every content surface: article ideas, social posts and video ideas all carry the same Topic, which is what lets Reports and Insights group everything on a theme instead of showing six unrelated lists. The engine ideates per Topic, so every idea it writes carries one. Deleting a Topic only clears the tag; it never deletes content.",
+    "wordsHash": "229f0fe18346"
+  },
+  "s07": {
+    "hash": "8e43e11e8323",
+    "duration": 23.232,
+    "text": "Open a Topic and you see everything that hangs off it, in every format, and later under Measure, Topics, what each Topic earned per format: measured, or a dash with the reason. One reminder: Brand and Topics are per company. Check the workspace switcher before editing, because it is easy to change the wrong company's identity when you run more than one.",
+    "wordsHash": "8e43e11e8323"
+  },
+  "s08": {
+    "hash": "c58a246d1f9c",
+    "duration": 8.832,
+    "text": "Motifs for tone, brand context for facts, experts for knowledge, Topics for the spine. Next: research and the Ideas board.",
+    "wordsHash": "c58a246d1f9c"
+  }
+}

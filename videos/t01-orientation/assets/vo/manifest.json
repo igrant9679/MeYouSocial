@@ -1,0 +1,56 @@
+{
+  "s01": {
+    "hash": "c42543bcfb4a",
+    "duration": 13.653,
+    "text": "Welcome to Me You Social Publisher. In the next few minutes you will learn how the interface is laid out, where your work waits for you, and the three places to get help when you are unsure. You do not need to memorise any of it.",
+    "wordsHash": "c42543bcfb4a"
+  },
+  "s02": {
+    "hash": "9fd57fe74942",
+    "duration": 22.805,
+    "text": "One sentence first. Publisher turns research into content, publishes that content, and then measures it, for one or more companies at once. The left rail is that loop, in the order work moves. Research, Ideas, Drafts, Review, Publish, Distribute, Measure. You can stop at any stage. Plenty of teams only use Distribute, or only the blog side.",
+    "wordsHash": "9fd57fe74942"
+  },
+  "s03": {
+    "hash": "b27b101ff124",
+    "duration": 26.688,
+    "text": "Top to bottom: Inbox is the landing page, everything waiting on a person. Assistant is the conversation with the app. Then the seven stages. Below them, the Setup group for admins: Settings, Channels and Brand. Then Help. At the bottom, your profile and sign out. Hover any rail entry and a bubble tells you what that module is for. On a narrow window the rail collapses to icons, and the same hover still names it.",
+    "wordsHash": "b27b101ff124"
+  },
+  "s04": {
+    "hash": "82f32b3d6bca",
+    "duration": 27.691,
+    "text": "The Inbox puts the urgent items first, each with its own button. Questions only you can answer. Claims with no source. Images that need your eye. Held articles, with the failing check named on the card. Below that, the pipeline strip shows how things are: ideas, drafting, approve, scheduled, published. And what the engine did, so you can see it working while you were away. If the header count is zero, there is nothing to do, and that is the system working.",
+    "wordsHash": "82f32b3d6bca"
+  },
+  "s05": {
+    "hash": "4ef8c6d1afcd",
+    "duration": 20.373,
+    "text": "Open any stage and a strip runs along the top. Overview first, then the stage's tabs, each with a count badge. A red badge means a person must act. A muted badge is just news. The Overview lists the stage's own rows with the verb on each row, so you can act without opening anything else.",
+    "wordsHash": "4ef8c6d1afcd"
+  },
+  "s06": {
+    "hash": "8807d8723f86",
+    "duration": 21.333,
+    "text": "Elsie is the in-app guide. The Elsie button in the top bar flags what is still worth setting up in your workspace, and offers short tours: an overview, making content, publishing, measuring, and running the install. She points at the actual controls on the page you are on. Turn her off from the same button when you no longer need her.",
+    "wordsHash": "8807d8723f86"
+  },
+  "s07": {
+    "hash": "a2a6b592799d",
+    "duration": 21.184,
+    "text": "The Help Center has role-based paths, searchable answers by category, keyboard shortcuts, and the owner's guide: the whole machine on one page, with the daily, weekly and monthly routines. Anything with a small question mark next to it has a one-line explanation on hover, and it works on keyboard focus too.",
+    "wordsHash": "a2a6b592799d"
+  },
+  "s08": {
+    "hash": "9507a42d5f27",
+    "duration": 24.512,
+    "text": "And when you would rather not hunt, press Ask in the top bar, or Control and slash, on any page. The assistant opens as a dock over what you are looking at, knows which page you are on, and can do nearly everything you can. Ask, what should I do next, and it reads the whole situation and ranks the moves. Anything outward-facing is proposed first and runs only when you say yes.",
+    "wordsHash": "9507a42d5f27"
+  },
+  "s09": {
+    "hash": "cdc369bad35a",
+    "duration": 12.373,
+    "text": "That is the layout. One loop on the left, the Inbox for what needs you, badges for what needs a person, and Elsie, Help and Ask whenever you are unsure. Next: setting a workspace up.",
+    "wordsHash": "cdc369bad35a"
+  }
+}

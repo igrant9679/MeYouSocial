@@ -1,0 +1,14 @@
+{
+  "out": ".",
+  "name": "ideas-scroll",
+  "workspace": "CommunityForce Inc.",
+  "url": "/ideas",
+  "wait": 2000,
+  "hide": ["text=@communityforce.com", "text=@gmail.com"],
+  "actions": [
+    { "mouse": [900, 500], "steps": 20 }, { "wait": 1500 },
+    { "scroll": 250 }, { "wait": 1400 }, { "scroll": 250 }, { "wait": 1400 }, { "scroll": 250 }, { "wait": 1400 },
+    { "scroll": 300 }, { "wait": 1600 }
+  ],
+  "tail": 1500
+}

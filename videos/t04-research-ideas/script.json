@@ -1,0 +1,115 @@
+{
+  "id": "t04-research-ideas",
+  "title": "Research and the Ideas board",
+  "kind": "training",
+  "captions": true,
+  "voice": "am_michael",
+  "speed": 1,
+  "message": "Intel measures what beat its own average; the Ideas board turns it into approved ideas; approving is your act",
+  "audience": "Editors and marketers running the weekly triage",
+  "scenes": [
+    {
+      "id": "s01",
+      "type": "title",
+      "kicker": "Training · 04",
+      "headline": "Research and the Ideas *board.*",
+      "sub": "From competitor outliers to approved ideas.",
+      "narration": "Research is where raw material comes from, and Ideas is where you decide what gets written. This video covers both: reading competitor outliers in Intel, and the weekly triage on the Ideas board.",
+      "headlineAt": 1.2,
+      "subAt": "q:This video covers"
+    },
+    {
+      "id": "s02",
+      "type": "screen",
+      "chapter": "01 · Intel",
+      "still": "intel.png",
+      "headline": "Views divided by the channel's own *average.*",
+      "narration": "Intel indexes public YouTube channels by handle or keyword. Every video gets an outlier score: its views divided by the average of the surrounding videos on the same channel. Five times or more is exceptional. Two to five is strong. Under one is below average. And a dash means not yet measured, never estimated.",
+      "headlineAt": "q:Five times",
+      "callouts": [
+        { "kind": "card", "label": "Outlier score", "title": "Views ÷ the channel's own average", "at": "q:Every video gets" },
+        { "kind": "chips", "items": ["≥5× exceptional", "2–5× strong", "1–2× average", "<1× under"], "at": "q:Five times" },
+        { "kind": "quote", "text": "A dash means not yet measured, never estimated.", "at": "q:And a dash" }
+      ],
+      "punch": { "x": 900, "y": 560, "scale": 1.3, "at": "q:Every video gets", "dur": 1.5, "hold": 7.0 }
+    },
+    {
+      "id": "s03",
+      "type": "screen",
+      "chapter": "02 · Channels, bookmarks, competitors",
+      "still": "intel-channel.png",
+      "headline": "Ask about this *channel.*",
+      "narration": "Open a channel to see its videos ranked by outlier score. Bookmarks keep the videos worth returning to. Competitors is the set each channel's outliers are measured against. Search accepts tokens too: subs greater than one hundred thousand, velocity greater than five, format short. And Ask about this channel, or Ask about this video, opens the assistant with the stats, outliers and transcript already loaded, so you can work out why something performed and how to remix it.",
+      "headlineAt": "q:And Ask about",
+      "callouts": [
+        { "kind": "chips", "items": ["Bookmarks", "Competitors", "Auto-index"], "at": "q:Bookmarks keep" },
+        { "kind": "card", "label": "Search tokens", "title": "subs:>100k · velocity:>5 · format:short", "at": "q:Search accepts" },
+        { "kind": "card", "label": "Ask about this…", "title": "Stats, outliers and transcript preloaded", "at": "q:And Ask about" }
+      ]
+    },
+    {
+      "id": "s04",
+      "type": "screen",
+      "chapter": "03 · Make it an idea",
+      "still": "intel-video.png",
+      "headline": "One click, from outlier to *idea.*",
+      "narration": "When a strong outlier fits one of your Topics, Make it an idea turns it into an article idea in one click. It lands on the Ideas board in the Discovered column, tagged to the Topic, ready for the same triage as everything else.",
+      "headlineAt": "q:It lands",
+      "callouts": [
+        { "kind": "card", "label": "Make it an idea", "title": "Outlier → article idea, tagged to a Topic", "at": "q:Make it an idea" },
+        { "kind": "chips", "items": ["Discovered"], "on": 0, "at": "q:in the Discovered" }
+      ]
+    },
+    {
+      "id": "s05",
+      "type": "screen",
+      "chapter": "04 · The board",
+      "clip": { "src": "ideas-scroll.mp4", "start": 0.5, "rate": 0.7 },
+      "headline": "Topics are the *lanes.*",
+      "narration": "The Ideas board is one board for article, social and video ideas, four columns: Discovered, Approved, Drafted, Rejected. Topics are the lanes. Each card carries a format chip and a priority score, and Recompute priorities shows every score's working. Discover article ideas grounds new ones in your company profile, Topics and keyword strategy. Generate video ideas does the same per channel.",
+      "headlineAt": "q:Topics are the",
+      "callouts": [
+        { "kind": "chips", "items": ["Discovered", "Approved", "Drafted", "Rejected"], "at": "q:four columns" },
+        { "kind": "chips", "items": ["Article", "Social", "Video"], "at": "q:Each card carries" },
+        { "kind": "card", "label": "Buttons", "title": "Discover article ideas · Generate video ideas · Recompute priorities", "at": "q:Discover article" }
+      ]
+    },
+    {
+      "id": "s06",
+      "type": "screen",
+      "chapter": "05 · The weekly triage",
+      "still": "ideas.png",
+      "headline": "Keep three to five *approved.*",
+      "narration": "Once a week, the day before your publish day, triage the Discovered column. Approve the ones worth writing, reject the rest. Approved ideas are what the autopilot drafts from, inside your weekly target. An empty Approved column means no new articles, however high the dial. Keep three to five approved. Only approved ideas are drafted, and approving is your act.",
+      "headlineAt": "q:Keep three",
+      "callouts": [
+        { "kind": "card", "label": "Weekly", "title": "Triage Discovered the day before publish day", "at": "q:Once a week" },
+        { "kind": "quote", "text": "An empty Approved column means no new articles, however high the dial.", "at": "q:An empty Approved" },
+        { "kind": "card", "label": "Target", "value": "3–5", "title": "ideas approved at any time", "at": "q:Keep three" }
+      ],
+      "punch": { "x": 1000, "y": 560, "scale": 1.3, "at": "q:Approve the ones", "dur": 1.5, "hold": 6.0 }
+    },
+    {
+      "id": "s07",
+      "type": "screen",
+      "seam": "arrival",
+      "chapter": "06 · Keywords",
+      "still": "keywords.png",
+      "headline": "Tiered keywords drive *priority.*",
+      "narration": "Under Ideas, Keywords holds a tiered keyword strategy, discovered by the app or added by hand. It drives idea priority and each article's focus keyword. Add the terms you actually want to rank for, and the board's scores follow.",
+      "headlineAt": "q:It drives",
+      "callouts": [
+        { "kind": "chips", "items": ["Discovered by the app", "Added by hand"], "at": "q:discovered by" },
+        { "kind": "card", "label": "Drives", "title": "Idea priority · each article's focus keyword", "at": "q:It drives" }
+      ]
+    },
+    {
+      "id": "s08",
+      "type": "close",
+      "line": "Approving is your *act.*",
+      "narration": "Outliers in, approved ideas out, and the engine writes only what you said yes to. Next: reading a draft, and Optimize.",
+      "lineAt": 0.8,
+      "lockupAt": "q:Next"
+    }
+  ]
+}

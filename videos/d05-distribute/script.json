@@ -1,0 +1,102 @@
+{
+  "id": "d05-distribute",
+  "title": "Social on a schedule you set once",
+  "kind": "demo",
+  "voice": "am_michael",
+  "speed": 1,
+  "message": "Fifteen networks through one connection, on posting slots you set once — with approval enforced on the server",
+  "audience": "Marketers running a daily social presence for one or several brands",
+  "scenes": [
+    {
+      "id": "s01",
+      "type": "title",
+      "kicker": "Demo · 05",
+      "headline": "Social, on a schedule you set *once.*",
+      "sub": "Distribute, in MeYouSocial Publisher.",
+      "narration": "A daily social presence, across every network you use, without a daily chore. This is Distribute.",
+      "headlineAt": 1.2,
+      "subAt": "q:This is Distribute"
+    },
+    {
+      "id": "s02",
+      "type": "screen",
+      "chapter": "01 · One connection",
+      "clip": { "src": "social-tour.mp4", "start": 0.5, "rate": 0.75 },
+      "headline": "Fifteen networks, one *connection.*",
+      "narration": "Fifteen networks through one connection. LinkedIn, X, Facebook, Instagram, Threads, Bluesky, TikTok, YouTube, Pinterest, Reddit, Google Business Profile, Telegram, Snapchat, WhatsApp and Discord. One post fans out to every selected account, and each keeps its own status afterwards. Account health is coloured by the network's own verdict.",
+      "headlineAt": "q:One post fans",
+      "callouts": [
+        { "kind": "card", "label": "Networks", "value": "0", "count": 15, "title": "through one connection", "at": "q:Fifteen networks" },
+        { "kind": "chips", "items": ["LinkedIn", "X", "Facebook", "Instagram", "Threads", "Bluesky", "TikTok", "YouTube", "Pinterest", "Reddit", "Google Business", "Telegram", "Snapchat", "WhatsApp", "Discord"], "at": "q:LinkedIn," },
+        { "kind": "quote", "text": "Each account keeps its own status.", "at": "q:and each keeps" }
+      ]
+    },
+    {
+      "id": "s03",
+      "type": "screen",
+      "chapter": "02 · Compose once",
+      "still": "compose.png",
+      "headline": "Compose once. Send *everywhere.*",
+      "narration": "Compose once. Where a network needs its own version, override the text or the image for that network alone. Character counts run against each network's real limit, and image requirements are enforced before you send. Then queue it into the next free slot, schedule it for a time you pick, or post it now.",
+      "headlineAt": "q:Then queue it",
+      "callouts": [
+        { "kind": "card", "label": "Per network", "title": "Text and image overrides where a network needs its own version", "at": "q:Where a network" },
+        { "kind": "card", "label": "Enforced", "title": "Real character limits · image requirements", "at": "q:Character counts" },
+        { "kind": "chips", "items": ["Queue", "Schedule", "Post now"], "on": 0, "at": "q:Then queue it" }
+      ],
+      "punch": { "x": 700, "y": 420, "scale": 1.3, "at": "q:Character counts", "dur": 1.5, "hold": 4.0 }
+    },
+    {
+      "id": "s04",
+      "type": "screen",
+      "chapter": "03 · Slots you set once",
+      "still": "schedule.png",
+      "headline": "09:00 stays 09:00 through *daylight saving.*",
+      "narration": "Posting slots are recurring send times, stored as wall clock in your timezone, so nine o'clock stays nine o'clock through daylight-saving changes. Queue drops a post into the next free slot. Set the slots once, and the queue has times to send at.",
+      "spoken": "Posting slots are recurring send times, stored as wall clock in your timezone, so nine o'clock stays nine o'clock through daylight-saving changes. Queue drops a post into the next free slot. Set the slots once, and the queue has times to send at.",
+      "headlineAt": "q:so nine",
+      "callouts": [
+        { "kind": "card", "label": "Stored as", "title": "Wall clock, in your timezone", "note": "weekday + minute, so DST never shifts a slot", "at": "q:stored as wall" },
+        { "kind": "quote", "text": "Queue drops a post into the next free slot.", "at": "q:Queue drops" }
+      ],
+      "punch": { "x": 700, "y": 400, "scale": 1.3, "at": "q:Posting slots are", "dur": 1.5, "hold": 4.5 }
+    },
+    {
+      "id": "s05",
+      "type": "screen",
+      "chapter": "04 · Calendar, campaigns, evergreen",
+      "still": "calendar.png",
+      "headline": "Drag it. Campaign it. *Recycle it.*",
+      "narration": "The calendar shows the month; drag a post to reschedule it. Auto-generated posts come from your Topics, up to a weekly quota you choose, optionally under a named campaign with its own tracking parameters. And evergreen recycling clones a post that performed into free slots after its cooldown. Opt in, and a recycled post is never itself recycled.",
+      "headlineAt": "q:And evergreen",
+      "callouts": [
+        { "kind": "chips", "items": ["Drag to reschedule", "Weekly quota", "Campaigns", "UTM tagging"], "at": "q:drag a post" },
+        { "kind": "card", "label": "Evergreen", "title": "A post that performed is cloned into free slots after its cooldown", "note": "opt-in; a recycled post is never itself recycled", "at": "q:And evergreen" }
+      ]
+    },
+    {
+      "id": "s06",
+      "type": "screen",
+      "seam": "arrival",
+      "chapter": "05 · Approval, enforced",
+      "still": "approvals.png",
+      "headline": "Enforced on the server, not just the *screen.*",
+      "narration": "Turn on the approval workflow and a pending post cannot be sent, scheduled, queued or dragged. That is enforced on the server, not just in the interface. Queue on approval makes approving the last human act. And Engage keeps comments, direct messages and reviews in one place, with the twenty-four-hour reply window for Facebook and Instagram made visible.",
+      "headlineAt": "q:That is enforced",
+      "callouts": [
+        { "kind": "chips", "items": ["Cannot send", "Cannot schedule", "Cannot queue", "Cannot drag"], "at": "q:cannot be sent" },
+        { "kind": "card", "label": "Queue on approval", "title": "Approving becomes the last human act", "at": "q:Queue on approval" },
+        { "kind": "card", "label": "Engage", "value": "24 h", "title": "DM reply window, Facebook and Instagram", "at": "q:And Engage" }
+      ]
+    },
+    {
+      "id": "s07",
+      "type": "close",
+      "line": "Set the slots once. *Then decide.*",
+      "narration": "Fifteen networks, one connection, slots you set once. MeYouSocial Publisher. Your job is decisions, not production.",
+      "spoken": "Fifteen networks, one connection, slots you set once. Me You Social Publisher. Your job is decisions, not production.",
+      "lineAt": 0.8,
+      "lockupAt": "q:Me You Social"
+    }
+  ]
+}

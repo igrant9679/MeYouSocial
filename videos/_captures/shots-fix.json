@@ -1,0 +1,11 @@
+{
+  "out": ".",
+  "workspace": "CommunityForce Inc.",
+  "scale": 1,
+  "hide": ["card:text=Invitations not yet accepted", "text=@communityforce.com", "text=@gmail.com", "text=@lsi-media.com", "text=@outlook.com", "text=@yahoo.com", "text=Current:", "card:text=Pending invitations", "main a[href*='/invitations/']", "text=/invitations/"],
+  "shots": [
+    { "name": "keys", "url": "/admin/api-keys", "wait": 1800, "hide": ["input[type='password']", "code"] },
+    { "name": "keys-models", "url": "/admin/api-keys", "wait": 1800, "hide": ["input[type='password']", "code"], "actions": [{ "scroll": 700 }, { "wait": 600 }] },
+    { "name": "people", "url": "/setup/people", "wait": 1800 }
+  ]
+}

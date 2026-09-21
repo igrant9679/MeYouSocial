@@ -1,0 +1,135 @@
+{
+  "id": "d01-the-loop",
+  "title": "MeYouSocial Publisher in two minutes",
+  "kind": "demo",
+  "voice": "am_michael",
+  "speed": 1,
+  "message": "One loop from research to results, mostly on its own — your job is decisions, not production",
+  "audience": "Companies without a content team, agencies, creators, teams that need control",
+  "scenes": [
+    {
+      "id": "s01",
+      "type": "title",
+      "kicker": "Demo · 01",
+      "headline": "A machine, with a person at the *gates.*",
+      "sub": "MeYouSocial Publisher, in two minutes.",
+      "narration": "Most content tools hand you a blank page and a calendar. MeYouSocial Publisher hands you a machine, with a person at the gates.",
+      "spoken": "Most content tools hand you a blank page and a calendar. Me You Social Publisher hands you a machine, with a person at the gates.",
+      "headlineAt": 1.2,
+      "subAt": "q:hands you a machine"
+    },
+    {
+      "id": "s02",
+      "type": "screen",
+      "chapter": "01 · The Inbox",
+      "still": "inbox.png",
+      "headline": "Whatever it can't fix waits for *you.*",
+      "narration": "Every thirty minutes a sweep runs. It discovers ideas, drafts the ones you approved, gives each article its images and SEO, sources every claim, and advances what passes. Whatever it cannot fix waits here, in your Inbox, with the action on the card.",
+      "spoken": "Every thirty minutes a sweep runs. It discovers ideas, drafts the ones you approved, gives each article its images and S E O, sources every claim, and advances what passes. Whatever it cannot fix waits here, in your Inbox, with the action on the card.",
+      "headlineAt": "q:Whatever it cannot",
+      "callouts": [
+        { "kind": "card", "label": "Every", "value": "30 min", "title": "one autopilot sweep", "at": "q:Every thirty" },
+        { "kind": "chips", "items": ["Discovers ideas", "Drafts approved ideas", "Images + SEO", "Sources every claim", "Advances what passes"], "at": "q:It discovers" },
+        { "kind": "quote", "text": "The action is on the card.", "at": "q:with the action" }
+      ],
+      "punch": { "x": 640, "y": 380, "scale": 1.3, "at": "q:waits here", "dur": 1.5, "hold": 3.0 }
+    },
+    {
+      "id": "s03",
+      "type": "screen",
+      "chapter": "02 · One loop",
+      "clip": { "src": "rail-tour.mp4", "start": 5.2, "rate": 0.85 },
+      "headline": "One loop, from research to *results.*",
+      "narration": "The whole interface is one loop. Research, Ideas, Drafts, Review, Publish, Distribute, Measure. The Inbox above it shows exactly what is waiting on you. Setup beneath it holds the dials.",
+      "headlineAt": "q:The Inbox above",
+      "callouts": [
+        { "kind": "chips", "items": ["Research", "Ideas", "Drafts", "Review", "Publish", "Distribute", "Measure"], "at": "q:Research," },
+        { "kind": "card", "label": "Above the loop", "title": "Inbox — what is waiting on you", "at": "q:The Inbox above" },
+        { "kind": "card", "label": "Beneath it", "title": "Setup — the dials", "at": "q:Setup beneath" }
+      ]
+    },
+    {
+      "id": "s04",
+      "type": "screen",
+      "chapter": "03 · Ideas",
+      "still": "ideas.png",
+      "headline": "Only approved ideas are *drafted.*",
+      "narration": "Ideas hang off your Topics, on one board for articles, social posts and video. The engine discovers them. You approve them. Only approved ideas are drafted, and approving is your act.",
+      "headlineAt": "q:Only approved",
+      "callouts": [
+        { "kind": "chips", "items": ["Discovered", "Approved", "Drafted", "Rejected"], "on": 1, "at": "q:on one board" },
+        { "kind": "card", "label": "Formats", "title": "Article · Social · Video", "note": "one board, three formats, Topics as the lanes", "at": "q:for articles" },
+        { "kind": "quote", "text": "Approving is your act.", "at": "q:and approving" }
+      ],
+      "punch": { "x": 700, "y": 520, "scale": 1.3, "at": "q:You approve", "dur": 1.5, "hold": 2.6 }
+    },
+    {
+      "id": "s05",
+      "type": "screen",
+      "chapter": "04 · Drafts",
+      "still": "article.png",
+      "headline": "Every gate, *visible.*",
+      "narration": "Drafts arrive grounded in your brand and your experts, with a focus keyword, meta title, description and slug filled in, a featured image, a branded social preview, and a checklist that shows every gate and whether it passes.",
+      "headlineAt": "q:and a checklist",
+      "callouts": [
+        { "kind": "card", "label": "Per article", "title": "Focus keyword · meta title · description · slug", "note": "Metadata you write by hand is never overwritten", "at": "q:with a focus" },
+        { "kind": "card", "label": "Images", "title": "Featured + 1200×630 social preview", "note": "AI images land as pending for review", "at": "q:a featured image" },
+        { "kind": "chips", "items": ["Metadata", "Slug", "Alt text", "Sourced claims", "Preview image"], "at": "q:every gate" }
+      ],
+      "punch": { "x": 1540, "y": 300, "scale": 1.35, "at": "q:with a focus", "dur": 1.6, "hold": 4.0 }
+    },
+    {
+      "id": "s06",
+      "type": "screen",
+      "chapter": "05 · Review",
+      "still": "inbox-questions.png",
+      "headline": "Gates review as well as *block.*",
+      "narration": "Review is what still needs a person. A claim with no source: verify it with a link, or drop it. An image that needs your eye. A question only you can answer, asked once and banked to the expert profile. Every clearing act moves the article at once.",
+      "headlineAt": "q:Every clearing",
+      "callouts": [
+        { "kind": "chips", "items": ["Verify with a URL", "Drop the claim"], "on": 0, "at": "q:verify it" },
+        { "kind": "card", "label": "Asked once", "title": "Your answer is banked to the expert profile", "at": "q:asked once" },
+        { "kind": "quote", "text": "Every clearing act moves the article at once.", "at": "q:Every clearing" }
+      ],
+      "punch": { "x": 520, "y": 330, "scale": 1.3, "at": "q:A question only", "dur": 1.5, "hold": 3.0 }
+    },
+    {
+      "id": "s07",
+      "type": "screen",
+      "chapter": "06 · Publish & Distribute",
+      "still": "distribute.png",
+      "headline": "Fifteen networks, one *connection.*",
+      "narration": "Publish sends the article to your website on your publish day, or right now with one click. Distribute fans one post out to fifteen networks through a single connection, on posting slots you set once, in your own timezone.",
+      "headlineAt": "q:fifteen networks",
+      "callouts": [
+        { "kind": "card", "label": "Networks", "value": "0", "count": 15, "title": "through one connection", "at": "q:fifteen networks" },
+        { "kind": "chips", "items": ["Queue", "Schedule", "Post now"], "on": 0, "at": "q:on posting slots" },
+        { "kind": "quote", "text": "09:00 stays 09:00 through daylight-saving changes.", "at": "q:in your own" }
+      ],
+      "punch": { "x": 700, "y": 400, "scale": 1.25, "at": "q:Distribute fans", "dur": 1.5, "hold": 3.5 }
+    },
+    {
+      "id": "s08",
+      "type": "screen",
+      "seam": "arrival",
+      "chapter": "07 · Measure",
+      "still": "measure.png",
+      "headline": "Never an invented *number.*",
+      "narration": "And Measure pulls the results back in. Search impressions and clicks, traffic, engagement by network, and the best time to post. Measured numbers only. A dash means not measured. Never zero, and never a guess.",
+      "headlineAt": "q:Measured numbers",
+      "callouts": [
+        { "kind": "chips", "items": ["Search", "Traffic", "Social performance", "Best time to post"], "at": "q:Search impressions" },
+        { "kind": "quote", "text": "A dash means not measured, never zero.", "at": "q:A dash" }
+      ]
+    },
+    {
+      "id": "s09",
+      "type": "close",
+      "line": "Your job is decisions, not *production.*",
+      "narration": "MeYouSocial Publisher. One loop from research to results, mostly on its own. Your job is decisions, not production.",
+      "spoken": "Me You Social Publisher. One loop from research to results, mostly on its own. Your job is decisions, not production.",
+      "lineAt": "q:Your job",
+      "lockupAt": "q:One loop"
+    }
+  ]
+}

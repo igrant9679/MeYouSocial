@@ -1,0 +1,15 @@
+{
+  "out": ".",
+  "name": "social-tour",
+  "workspace": "CommunityForce Inc.",
+  "url": "/distribute",
+  "wait": 2000,
+  "hide": ["text=@communityforce.com", "text=@gmail.com"],
+  "actions": [
+    { "mouse": [700, 400], "steps": 20 }, { "wait": 2000 },
+    { "click": "a[href='/social/compose']" }, { "wait": 2800 },
+    { "click": "a[href='/social/calendar']" }, { "wait": 3000 },
+    { "click": "a[href='/social/engage']" }, { "wait": 2800 }
+  ],
+  "tail": 1500
+}

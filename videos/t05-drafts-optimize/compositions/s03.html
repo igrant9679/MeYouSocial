@@ -1,0 +1,85 @@
+<!doctype html>
+<html>
+  <head><meta charset="UTF-8" /></head>
+  <body>
+    <template>
+      <style>
+  @font-face { font-family: 'IBM Plex Mono'; font-style: normal; font-weight: 500; font-display: block; src: url('assets/brand/fonts/IBMPlexMono-500.woff2') format('woff2'); }
+@font-face { font-family: 'IBM Plex Mono'; font-style: normal; font-weight: 600; font-display: block; src: url('assets/brand/fonts/IBMPlexMono-600.woff2') format('woff2'); }
+@font-face { font-family: 'IBM Plex Mono'; font-style: normal; font-weight: 700; font-display: block; src: url('assets/brand/fonts/IBMPlexMono-700.woff2') format('woff2'); }
+@font-face { font-family: 'IBM Plex Sans'; font-style: normal; font-weight: 400; font-display: block; src: url('assets/brand/fonts/IBMPlexSans-400.woff2') format('woff2'); }
+@font-face { font-family: 'IBM Plex Sans'; font-style: normal; font-weight: 500; font-display: block; src: url('assets/brand/fonts/IBMPlexSans-500.woff2') format('woff2'); }
+@font-face { font-family: 'IBM Plex Sans'; font-style: normal; font-weight: 600; font-display: block; src: url('assets/brand/fonts/IBMPlexSans-600.woff2') format('woff2'); }
+@font-face { font-family: 'IBM Plex Sans'; font-style: normal; font-weight: 700; font-display: block; src: url('assets/brand/fonts/IBMPlexSans-700.woff2') format('woff2'); }
+
+  #root { position: absolute; inset: 0; overflow: hidden; background: #FBF7F5; color: #15181D; font-family: 'IBM Plex Sans', 'IBM Plex Mono', system-ui, sans-serif; }
+  .grid { position: absolute; inset: 0; background-image: linear-gradient(rgba(21,24,29,.06) 1px, transparent 1px), linear-gradient(90deg, rgba(21,24,29,.06) 1px, transparent 1px); background-size: 96px 96px; }
+  .glow { position: absolute; width: 1400px; height: 1400px; border-radius: 50%; background: radial-gradient(circle, rgba(229,72,47,.22) 0%, rgba(229,72,47,0) 60%); left: -300px; top: -500px; will-change: transform; }
+  .eyebrow { position: absolute; font-family: 'IBM Plex Mono', monospace; font-weight: 600; font-size: 22px; letter-spacing: .16em; text-transform: uppercase; color: #B5371F; }
+  .eyebrow .w, .hl .w, .sub .w, .line .w { display: inline-block; opacity: 0; will-change: transform; }
+  .hl .w, .line .w { margin-right: .22em; }
+  .accent { color: #E5482F; }
+
+  .tag { left: 1460px; top: 110px; }
+  .win { position: absolute; left: 80px; top: 110px; width: 1320px; height: 742px; overflow: hidden; border-radius: 18px; border: 2px solid rgba(21,24,29,.18); box-shadow: 0 30px 80px rgba(21,24,29,.18); background: #fff; }
+  .zo { position: absolute; inset: 0; transform-origin: 50% 50%; will-change: transform; }
+  .zi { position: absolute; inset: 0; will-change: transform; }
+  .win img, .win video { position: absolute; left: 0; top: 0; width: 1320px; height: 742px; display: block; object-fit: cover; object-position: top left; }
+  .cursor { position: absolute; left: 48%; top: 118%; width: 96px; height: 96px; z-index: 20; filter: drop-shadow(0 4px 6px rgba(0,0,0,.3)); pointer-events: none; will-change: transform; }
+  .cursor svg { width: 100%; height: 100%; display: block; }
+  .ring { position: absolute; width: 90px; height: 90px; border-radius: 50%; border: 4px solid #E5482F; opacity: 0; transform: translate(-50%,-50%) scale(.3); pointer-events: none; z-index: 19; }
+  .col { position: absolute; left: 1460px; top: 170px; width: 380px; display: flex; flex-direction: column; gap: 22px; }
+  .card { background: #fff; border: 2px solid rgba(21,24,29,.18); border-radius: 14px; padding: 22px 26px 24px; opacity: 0; box-sizing: border-box; }
+  .card .k { font-family: 'IBM Plex Mono', monospace; font-weight: 600; font-size: 18px; letter-spacing: .14em; text-transform: uppercase; color: #4A4F58; margin-bottom: 8px; }
+  .card .v { font-weight: 700; font-size: 64px; letter-spacing: -.03em; line-height: 1; color: #E5482F; font-variant-numeric: tabular-nums; }
+  .card .t { font-weight: 600; font-size: 30px; line-height: 1.15; letter-spacing: -.01em; color: #15181D; }
+  .card .n { font-size: 22px; line-height: 1.3; color: #4A4F58; margin-top: 8px; }
+  .quote { background: #FDE7E1; border: 2px solid rgba(229,72,47,.35); border-radius: 14px; padding: 20px 24px; font-size: 26px; line-height: 1.3; font-weight: 500; color: #15181D; opacity: 0; box-sizing: border-box; }
+  .quote::before { content: "“"; color: #E5482F; font-weight: 700; }
+  .quote::after { content: "”"; color: #E5482F; font-weight: 700; }
+  .chips { display: flex; flex-wrap: wrap; gap: 10px; }
+  .chip { font-family: 'IBM Plex Sans', 'IBM Plex Mono', system-ui, sans-serif; font-weight: 600; font-size: 21px; padding: 10px 16px; border-radius: 999px; border: 2px solid #15181D; background: #fff; color: #15181D; opacity: 0; will-change: transform; }
+  .chip.on { background: #15181D; color: #fff; }
+  .hlband { position: absolute; left: 80px; top: 866px; width: 1400px; font-weight: 700; font-size: 58px; line-height: 1.02; letter-spacing: -.025em; color: #15181D; }
+  .hlband .w { display: inline-block; opacity: 0; will-change: transform; margin-right: .22em; }
+  </style>
+      <div id="root" data-composition-id="s03" data-width="1920" data-height="1080" data-duration="21">
+
+        <div class="grid"></div>
+        <div class="glow" id="s03-glow" data-layout-allow-overflow></div>
+        <div class="eyebrow tag" id="s03-tag" data-layout-allow-overlap><span class="w" data-layout-allow-overlap>02</span> <span class="w" data-layout-allow-overlap>·</span> <span class="w" data-layout-allow-overlap>Write</span></div>
+        <div class="win" id="s03-win">
+          <div class="zo" id="s03-zo" data-layout-allow-overflow><div class="zi" id="s03-zi" data-layout-allow-overflow><video id="s03-vid" class="clip" src="assets/clips/article-open.mp4" data-start="0" data-duration="21" data-media-start="1.5" data-playback-rate="0.7" muted playsinline></video></div></div>
+          
+        </div>
+        <div class="col" id="s03-col">
+          <div class="chips" id="s03-c0"><span class="chip on" id="s03-c0-0">Write</span><span class="chip" id="s03-c0-1">Optimize</span><span class="chip" id="s03-c0-2">Assets</span><span class="chip" id="s03-c0-3">Distribute</span><span class="chip" id="s03-c0-4">Review</span></div>
+          <div class="card" id="s03-c1"><div class="k">Write tab</div><div class="t">Title · motif blend · body · versions</div></div>
+        </div>
+        <div class="hlband" id="s03-hl" data-layout-allow-overlap><span class="w" data-layout-allow-overlap>Title,</span> <span class="w" data-layout-allow-overlap>motif</span> <span class="w" data-layout-allow-overlap>blend,</span> <span class="w" data-layout-allow-overlap>body,</span> <span class="w accent" data-layout-allow-overlap>versions.</span></div>
+      </div>
+      <script>
+        (() => {
+          const tl = gsap.timeline({ paused: true });
+          
+  const F = 1 / 30;
+  function waterfall(sel, t0, opts = {}) {
+    const ws = gsap.utils.toArray(sel + " .w"); let t = t0;
+    ws.forEach((w, i) => { const a = i === 0; const y = a ? 80 : (opts.y || 48); const d = a ? 0.2 : (opts.d || 0.15);
+      tl.set(w, { opacity: 1, y }, t); tl.to(w, { y: 0, duration: d, ease: "power4.out" }, t); t += d - (a ? -1 * F : 1.5 * F); });
+    return t;
+  }
+  function glowDrift(sel, dur) { tl.fromTo(sel, { x: 0, y: 0 }, { x: 420, y: 160, duration: dur, ease: "none" }, 0); }
+
+          
+          glowDrift("#s03-glow", 21);
+          waterfall("#s03-tag", 0.3, { y: 36, d: 0.12 });
+          waterfall("#s03-hl", 11.72);
+          gsap.utils.toArray("#s03-c0 .chip").forEach((el, j) => tl.fromTo(el, { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.4, ease: "power3.out" }, 1.62 + j * 0.07));
+          tl.fromTo("#s03-c1", { opacity: 0, x: -30 }, { opacity: 1, x: 0, duration: 0.45, ease: "power3.out" }, 4.06);
+          window.__timelines["s03"] = tl;
+        })();
+      </script>
+    </template>
+  </body>
+</html>

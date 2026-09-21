@@ -1,0 +1,44 @@
+{
+  "s01": {
+    "hash": "111330c90502",
+    "duration": 15.296,
+    "text": "Publish is where articles at final approval wait, when they go, and what went live. This video covers the publish day, publishing one article on its own date or right now, WordPress, and the path for a site without WordPress.",
+    "wordsHash": "111330c90502"
+  },
+  "s02": {
+    "hash": "481850e9a780",
+    "duration": 16.192,
+    "text": "The Publish overview has two lists. Waiting to go out: articles at final approval, each with the day it is due. Recently published: what went live, with its link. Publishing an article is always an admin's act, whatever the dials say.",
+    "wordsHash": "481850e9a780"
+  },
+  "s03": {
+    "hash": "f7472032a5fb",
+    "duration": 16.747,
+    "text": "Three ways an article goes out. On your publish day, in your timezone, set under Settings, Automation, along with the weekly target. On a date you set for this one article. Or right now, with one click. The blog calendar shows what is due and when.",
+    "wordsHash": "f7472032a5fb"
+  },
+  "s04": {
+    "hash": "12be5697115d",
+    "duration": 21.611,
+    "text": "With WordPress connected directly under Publish, Website, articles publish themselves on the publish day, or when you press Publish now. Structured data and social preview tags are written for you. Under full autonomy the publish gates still re-run first, so a post with an unverified citation can never go out unattended.",
+    "wordsHash": "12be5697115d"
+  },
+  "s05": {
+    "hash": "43e91f957317",
+    "duration": 27.947,
+    "text": "No WordPress? No problem. On the row, Download H T M L gives you a self-contained file: metadata, Open Graph tags and images embedded. Add fragment equals one to the address for just the body, for a C M S block. Add it to any site, then Mark as published with the live link, and the article moves to published with that U R L. Upload the Open Graph image to the site as well; crawlers ignore embedded images.",
+    "wordsHash": "43e91f957317"
+  },
+  "s06": {
+    "hash": "f0563824b067",
+    "duration": 21.781,
+    "text": "If an article sits at final approval and never publishes, it is one of three things. It is not the publish day yet. There is no WordPress, so it needs Download HTML and Mark as published. Or publishing is not on auto under Settings, Automation. Social variants of a published article follow under the social mode.",
+    "wordsHash": "f0563824b067"
+  },
+  "s07": {
+    "hash": "3b6ae53b81ac",
+    "duration": 4.437,
+    "text": "That is publishing. Next: composing and scheduling social posts.",
+    "wordsHash": "3b6ae53b81ac"
+  }
+}

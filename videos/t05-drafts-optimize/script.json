@@ -1,0 +1,103 @@
+{
+  "id": "t05-drafts-optimize",
+  "title": "Reading a draft, and Optimize",
+  "kind": "training",
+  "captions": true,
+  "voice": "am_michael",
+  "speed": 1,
+  "message": "Read words, pictures and SEO together; the Gates sidebar tells you what blocks publishing; Optimize asks you only what a person can answer",
+  "audience": "Editors reviewing drafted articles",
+  "scenes": [
+    {
+      "id": "s01",
+      "type": "title",
+      "kicker": "Training · 05",
+      "headline": "Reading a *draft.*",
+      "sub": "The article page, the Gates sidebar, and Optimize.",
+      "narration": "Once a week, read what was drafted: words, pictures and SEO together. This video walks the article page tab by tab, then the Optimize pass and the three kinds of finding it produces.",
+      "headlineAt": 1.2,
+      "subAt": "q:This video walks"
+    },
+    {
+      "id": "s02",
+      "type": "screen",
+      "chapter": "01 · The board",
+      "still": "articles-board.png",
+      "headline": "Two middle stages, on *purpose.*",
+      "narration": "Drafts, then Articles, is the board. A post moves along one track: Drafting, being written. In review, the AI has finished and parked it; this is where a human reads it. Final approval, reviewed and queued to go out. Published, live. The two middle stages are separate on purpose: automation may move a post into review, but only full autonomy publishes from approval, and even then the gates re-run first.",
+      "headlineAt": "q:The two middle",
+      "callouts": [
+        { "kind": "chips", "items": ["Drafting", "In review", "Final approval", "Published"], "at": "q:A post moves" },
+        { "kind": "quote", "text": "Even under full autonomy the gates re-run before publishing.", "at": "q:and even then" }
+      ],
+      "punch": { "x": 700, "y": 240, "scale": 1.3, "at": "q:A post moves", "dur": 1.5, "hold": 6.0 }
+    },
+    {
+      "id": "s03",
+      "type": "screen",
+      "chapter": "02 · Write",
+      "clip": { "src": "article-open.mp4", "start": 1.5, "rate": 0.7 },
+      "headline": "Title, motif blend, body, *versions.*",
+      "narration": "Open a card and the editor has five tabs. Write holds the title, the motif blend this article uses, the body, and its versions, so you can always go back. Every article is written from your brand context, tone and expert profiles, and it cites its sources as it goes.",
+      "headlineAt": "q:Every article",
+      "callouts": [
+        { "kind": "chips", "items": ["Write", "Optimize", "Assets", "Distribute", "Review"], "on": 0, "at": "q:the editor has" },
+        { "kind": "card", "label": "Write tab", "title": "Title · motif blend · body · versions", "at": "q:Write holds" }
+      ]
+    },
+    {
+      "id": "s04",
+      "type": "screen",
+      "chapter": "03 · SEO and images",
+      "still": "article.png",
+      "headline": "Never *overwritten.*",
+      "narration": "The SEO panel carries the focus keyword, meta title, meta description and slug, filled in by the engine. Anything you write by hand here is never overwritten. Assets holds the featured image and the branded social preview at your workspace dimensions. AI images land as pending for review, and the vision model has already looked at each one.",
+      "spoken": "The S E O panel carries the focus keyword, meta title, meta description and slug, filled in by the engine. Anything you write by hand here is never overwritten. Assets holds the featured image and the branded social preview at your workspace dimensions. AI images land as pending for review, and the vision model has already looked at each one.",
+      "headlineAt": "q:Anything you write",
+      "callouts": [
+        { "kind": "chips", "items": ["Focus keyword", "Meta title", "Meta description", "Slug"], "at": "q:carries the focus" },
+        { "kind": "card", "label": "Assets", "title": "Featured image + branded social preview", "note": "AI images land as pending for review", "at": "q:Assets holds" }
+      ],
+      "punch": { "x": 1540, "y": 300, "scale": 1.35, "at": "q:carries the focus", "dur": 1.5, "hold": 5.0 }
+    },
+    {
+      "id": "s05",
+      "type": "screen",
+      "chapter": "04 · The Gates sidebar",
+      "still": "article-checklist.png",
+      "headline": "If something blocks, it says *where.*",
+      "narration": "The Gates sidebar on the right shows the publish contract from every tab. SEO meta present. All citations verified. No needs-source markers left. Descriptive link text. An approved featured image and a branded preview image. Each failing gate links to the tab where you fix it. Admins can relax the image requirement under Brand, Asset policy.",
+      "headlineAt": "q:Each failing gate",
+      "callouts": [
+        { "kind": "chips", "items": ["SEO meta", "Citations verified", "No NEEDS SOURCE", "Link text", "Featured image", "Preview image"], "at": "q:SEO meta present" },
+        { "kind": "quote", "text": "Each failing gate links to the tab where you fix it.", "at": "q:Each failing gate" }
+      ],
+      "punch": { "x": 1560, "y": 380, "scale": 1.35, "at": "q:The Gates sidebar", "dur": 1.5, "hold": 7.0 }
+    },
+    {
+      "id": "s06",
+      "type": "screen",
+      "seam": "arrival",
+      "chapter": "05 · Optimize",
+      "still": "article-optimize.png",
+      "headline": "Mechanical. Knowledge. *Strategic.*",
+      "narration": "Optimize runs an analysis pass for expertise and trust signals, entity coverage and content gaps, and sorts what it finds into three kinds. Mechanical findings apply themselves. Knowledge findings ask you a question only you can answer, and your answer is banked to the expert profile. Strategic findings ask for a decision: apply, or dismiss with a reason. Nothing here rewrites your article without your say.",
+      "headlineAt": "q:Mechanical findings",
+      "callouts": [
+        { "kind": "card", "label": "Mechanical", "title": "Apply themselves", "at": "q:Mechanical findings" },
+        { "kind": "card", "label": "Knowledge", "title": "Ask you a question; the answer is banked", "at": "q:Knowledge findings" },
+        { "kind": "card", "label": "Strategic", "title": "Ask for a decision: apply or dismiss", "at": "q:Strategic findings" }
+      ],
+      "punch": { "x": 900, "y": 460, "scale": 1.3, "at": "q:Optimize runs", "dur": 1.5, "hold": 6.0 }
+    },
+    {
+      "id": "s07",
+      "type": "close",
+      "line": "Words, pictures and SEO, *together.*",
+      "narration": "Read the draft, check the gates, answer the knowledge cards, decide the strategic ones. Next: clearing the gates from the Inbox.",
+      "spoken": "Read the draft, check the gates, answer the knowledge cards, decide the strategic ones. Next: clearing the gates from the Inbox.",
+      "lineAt": 0.8,
+      "lockupAt": "q:Next"
+    }
+  ]
+}

@@ -1,0 +1,103 @@
+{
+  "id": "d04-gates",
+  "title": "Gates that review as well as block",
+  "kind": "demo",
+  "voice": "am_michael",
+  "speed": 1,
+  "message": "Nothing AI-made reaches an audience until its checks pass — claims are sourced, images are looked at, and no number is ever invented",
+  "audience": "Teams that need to trust AI-generated content",
+  "scenes": [
+    {
+      "id": "s01",
+      "type": "title",
+      "kicker": "Demo · 04",
+      "headline": "Gates that review, as well as *block.*",
+      "sub": "How MeYouSocial Publisher earns trust.",
+      "narration": "Nothing AI-made reaches an audience until its required checks pass. That is a rule, not a setting. Here is what the gates actually check.",
+      "headlineAt": 1.2,
+      "subAt": "q:That is a rule"
+    },
+    {
+      "id": "s02",
+      "type": "screen",
+      "chapter": "01 · The checks",
+      "still": "article-checklist.png",
+      "headline": "Seven checks before anything goes *live.*",
+      "narration": "Every article carries a checklist. Metadata, slug and focus keyword. Alt text on every image. No unsourced claims. Every citation verified. A branded social preview image. Under full autonomy the app does that review work itself, and only holds what it genuinely cannot fix.",
+      "headlineAt": "q:Under full autonomy",
+      "callouts": [
+        { "kind": "chips", "items": ["Metadata", "Slug", "Focus keyword", "Alt text", "No unsourced claims", "Citations verified", "Preview image"], "at": "q:Metadata, slug" },
+        { "kind": "quote", "text": "It only holds what it genuinely cannot fix.", "at": "q:and only holds" }
+      ],
+      "punch": { "x": 1560, "y": 300, "scale": 1.35, "at": "q:Every article carries", "dur": 1.6, "hold": 6.0 }
+    },
+    {
+      "id": "s03",
+      "type": "screen",
+      "chapter": "02 · Claims are sourced",
+      "still": "inbox-questions.png",
+      "headline": "Sourced, not *asserted.*",
+      "narration": "Claims are sourced, not asserted. The writer marks factual claims. Live web search looks for a real source, and an independent judge has to agree that the source actually supports the sentence. Topical overlap is not support. A claim with no support waits for you, with two buttons: verify with a link, or drop it.",
+      "headlineAt": "q:Topical overlap",
+      "callouts": [
+        { "kind": "card", "label": "Step 1", "title": "The writer marks factual claims", "at": "q:The writer marks" },
+        { "kind": "card", "label": "Step 2", "title": "Live web search finds a source; an independent judge must agree", "at": "q:Live web search" },
+        { "kind": "chips", "items": ["Verify with a URL", "Drop the claim"], "at": "q:with two buttons" }
+      ],
+      "punch": { "x": 560, "y": 330, "scale": 1.3, "at": "q:A claim with no", "dur": 1.5, "hold": 4.0 }
+    },
+    {
+      "id": "s04",
+      "type": "screen",
+      "chapter": "03 · Images are looked at",
+      "still": "article-images.png",
+      "headline": "Every AI image is *looked at.*",
+      "narration": "Every AI image is looked at. A vision model inspects each render for cut-off text, wrong brand names and glitches. After two failed renders it stops spending and asks a person. Approve it, or pick or upload another.",
+      "headlineAt": "q:After two",
+      "callouts": [
+        { "kind": "chips", "items": ["Cut-off text", "Wrong brand names", "Glitches"], "at": "q:for cut-off" },
+        { "kind": "card", "label": "The brake", "value": "2", "title": "failed renders, then it asks a person", "at": "q:After two" },
+        { "kind": "chips", "items": ["Approve", "Pick another", "Upload"], "at": "q:Approve it" }
+      ]
+    },
+    {
+      "id": "s05",
+      "type": "screen",
+      "chapter": "04 · Questions only you can answer",
+      "still": "inbox-questions.png",
+      "headline": "Asked once. Banked *forever.*",
+      "narration": "When an article needs knowledge only you have, the question is asked once, in your Inbox. Your answer is woven into the article and banked to the expert profile, so it is never asked again. Every clearing act moves the article at once.",
+      "headlineAt": "q:so it is never",
+      "callouts": [
+        { "kind": "card", "label": "Asked", "value": "once", "title": "then banked to the expert profile", "at": "q:the question is asked" },
+        { "kind": "quote", "text": "Every clearing act moves the article at once.", "at": "q:Every clearing" }
+      ],
+      "punch": { "x": 560, "y": 380, "scale": 1.3, "at": "q:the question is asked", "dur": 1.5, "hold": 4.0 }
+    },
+    {
+      "id": "s06",
+      "type": "screen",
+      "seam": "arrival",
+      "chapter": "05 · Never an invented number",
+      "still": "measure.png",
+      "headline": "A dash means *not measured.*",
+      "narration": "And the same honesty runs through the numbers. A dash means not measured, never zero. Outlier ratios, best time to post, search and engagement figures are measured or absent. This app never invents a number to fill a card, so the numbers you do see are real.",
+      "headlineAt": "q:A dash means",
+      "callouts": [
+        { "kind": "quote", "text": "A dash means not measured, never zero.", "at": "q:A dash means" },
+        { "kind": "chips", "items": ["Outlier ratios", "Best time to post", "Search", "Engagement"], "at": "q:Outlier ratios" },
+        { "kind": "card", "label": "So", "title": "The numbers you do see are real", "at": "q:so the numbers" }
+      ],
+      "punch": { "x": 1400, "y": 420, "scale": 1.3, "at": "q:Outlier ratios", "dur": 1.5, "hold": 4.0 }
+    },
+    {
+      "id": "s07",
+      "type": "close",
+      "line": "Trust is a *gate,* not a promise.",
+      "narration": "Sourced claims. Inspected images. Measured numbers. MeYouSocial Publisher. Gates that review as well as block.",
+      "spoken": "Sourced claims. Inspected images. Measured numbers. Me You Social Publisher. Gates that review as well as block.",
+      "lineAt": 0.8,
+      "lockupAt": "q:Me You Social"
+    }
+  ]
+}

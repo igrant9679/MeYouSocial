@@ -1,0 +1,44 @@
+{
+  "s01": {
+    "hash": "88fc7430c4bf",
+    "duration": 15.083,
+    "text": "Measure pulls the results back in, and it shows measured numbers only. This video covers connecting analytics once, reading Search, Traffic and Social performance, the best time to post, and the Reports and Insights pages.",
+    "wordsHash": "88fc7430c4bf"
+  },
+  "s02": {
+    "hash": "ac5d48b3e00d",
+    "duration": 25.152,
+    "text": "Settings, then Analytics. Enter the Search Console site and the G A 4 property, and grant the service account on both: as a user in Search Console, as a Viewer in G A 4. The page runs a live probe and tells you which side is missing. A disabled A P I and a missing grant both return permission denied; the probe separates them. Until this is done, Measure shows dashes.",
+    "wordsHash": "ac5d48b3e00d"
+  },
+  "s03": {
+    "hash": "83ea9262ad7b",
+    "duration": 24.064,
+    "text": "Measure's overview shows search impressions and clicks by week, and tracked posts with their positions and deltas. Blog analytics adds traffic from G A 4. A blank is never a zero. A blank means we do not know; a zero means we measured nothing happening. Every dash comes with the reason it is a dash, and every figure carries its sample size and source.",
+    "wordsHash": "83ea9262ad7b"
+  },
+  "s04": {
+    "hash": "ba3d9408357a",
+    "duration": 26.048,
+    "text": "Measure, then Social performance: engagement by network, synced on a schedule or on demand. Read the window carefully. It means posts sent in that window, not engagement earned in it, because networks report lifetime totals per post. The evidence line under each figure says so. Best time to post is measured from real engagement, and it stays silent below its sample size rather than guessing.",
+    "wordsHash": "ba3d9408357a"
+  },
+  "s05": {
+    "hash": "493a706c9558",
+    "duration": 28.757,
+    "text": "Reports holds ten stock reports: Traffic overview, Content performance, Keyword rankings, Pipeline velocity, Autopilot operations, Editorial compliance, Voice and motifs, Social distribution, Video production and Content audit, plus any custom reports you build. Open one and Customize adds or removes blocks, reorders them, and sets the date range. Every report has a P D F button; blocks without data say so instead of drawing a curve.",
+    "wordsHash": "493a706c9558"
+  },
+  "s06": {
+    "hash": "881a9c29e8e0",
+    "duration": 26.389,
+    "text": "Insights measures two different things and shows them apart on purpose: your pipeline, what you made and what stalled, which the app knows exactly; and performance, which it knows only as well as your connected analytics allow. Recommendations are deterministic rules that refuse to fire below a usable sample. And Measure, Topics, shows what each Topic earned per format. Read it monthly, and decide what to do more of.",
+    "wordsHash": "881a9c29e8e0"
+  },
+  "s07": {
+    "hash": "bc68a0f259a8",
+    "duration": 7.424,
+    "text": "Connect once, read weekly, decide monthly, and trust the dashes. Next: the assistant, the team, and troubleshooting.",
+    "wordsHash": "bc68a0f259a8"
+  }
+}

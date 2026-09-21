@@ -1,0 +1,44 @@
+{
+  "s01": {
+    "hash": "67b72ce37104",
+    "duration": 13.76,
+    "text": "Two things a team needs from social: a gate before anything goes out, and a place to answer the people who write back. This video covers the approval workflow, queue on approval, Engage, and account health.",
+    "wordsHash": "67b72ce37104"
+  },
+  "s02": {
+    "hash": "367b87e8356e",
+    "duration": 26.773,
+    "text": "Settings, then People. At the top: social posts need an admin's approval. Turn it on and a post by a non-admin is held until an admin approves it. Nothing unapproved can be sent, scheduled, queued or dragged onto the calendar. That is enforced on the server, not just in the interface. Under full autonomy, the autopilot's own posts wait here too. Publishing an article is an admin's act regardless.",
+    "wordsHash": "367b87e8356e"
+  },
+  "s03": {
+    "hash": "c954c83f8d96",
+    "duration": 14.912,
+    "text": "Held posts appear in the Inbox and under Publish, Approvals. Approve, or request changes with a note for the author. A post with changes requested goes back to its author and cannot be sent until it is approved again.",
+    "wordsHash": "c954c83f8d96"
+  },
+  "s04": {
+    "hash": "774163468a34",
+    "duration": 18.112,
+    "text": "One trap to know. An approved draft that was never queued will never send. Queue on approval, under Settings, Automation, collapses the two: the moment an admin approves, the post takes the next free slot. Turn it on with a team, and approving becomes the last human act.",
+    "wordsHash": "774163468a34"
+  },
+  "s05": {
+    "hash": "0c12ce90886d",
+    "duration": 31.445,
+    "text": "Distribute, then Engage: comments, direct messages and reviews across every account this workspace can read, in one place. Answer people the day they write. The one hard deadline in the whole app lives here: Facebook and Instagram only accept a direct message reply within twenty-four hours of the person's message. Set aside stops a review asking without deleting it. The panel also says plainly what each network exposes; a missing count is a limit of the integration, not a quiet audience.",
+    "wordsHash": "0c12ce90886d"
+  },
+  "s06": {
+    "hash": "a887858e7f0e",
+    "duration": 24.427,
+    "text": "On the Distribute overview, each account's health is coloured by the network's own verdict, never by a token-expiry note alone. When a post fails on one network, the history says exactly which. Retry re-sends only that target, and duplicate sends are guarded, so a retry cannot double-post. Reconnect accounts from Settings, Connections, using this app's Connect buttons.",
+    "wordsHash": "a887858e7f0e"
+  },
+  "s07": {
+    "hash": "00d0f00ac5ff",
+    "duration": 6.763,
+    "text": "Approval on the server, queue on approval, and Engage the day they write. Next: the autonomy dials.",
+    "wordsHash": "00d0f00ac5ff"
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "s01": {
+    "hash": "efce0d21c4c2",
+    "duration": 6.464,
+    "text": "A daily social presence, across every network you use, without a daily chore. This is Distribute."
+  },
+  "s02": {
+    "hash": "80f4f0a3c4e0",
+    "duration": 22.72,
+    "text": "Fifteen networks through one connection. LinkedIn, X, Facebook, Instagram, Threads, Bluesky, TikTok, YouTube, Pinterest, Reddit, Google Business Profile, Telegram, Snapchat, WhatsApp and Discord. One post fans out to every selected account, and each keeps its own status afterwards. Account health is coloured by the network's own verdict."
+  },
+  "s03": {
+    "hash": "b3cb2b617680",
+    "duration": 20.181,
+    "text": "Compose once. Where a network needs its own version, override the text or the image for that network alone. Character counts run against each network's real limit, and image requirements are enforced before you send. Then queue it into the next free slot, schedule it for a time you pick, or post it now."
+  },
+  "s04": {
+    "hash": "52c4bfa56778",
+    "duration": 17.259,
+    "text": "Posting slots are recurring send times, stored as wall clock in your timezone, so nine o'clock stays nine o'clock through daylight-saving changes. Queue drops a post into the next free slot. Set the slots once, and the queue has times to send at."
+  },
+  "s05": {
+    "hash": "9253094bd5eb",
+    "duration": 23.936,
+    "text": "The calendar shows the month; drag a post to reschedule it. Auto-generated posts come from your Topics, up to a weekly quota you choose, optionally under a named campaign with its own tracking parameters. And evergreen recycling clones a post that performed into free slots after its cooldown. Opt in, and a recycled post is never itself recycled."
+  },
+  "s06": {
+    "hash": "a41ac6a77906",
+    "duration": 23.851,
+    "text": "Turn on the approval workflow and a pending post cannot be sent, scheduled, queued or dragged. That is enforced on the server, not just in the interface. Queue on approval makes approving the last human act. And Engage keeps comments, direct messages and reviews in one place, with the twenty-four-hour reply window for Facebook and Instagram made visible."
+  },
+  "s07": {
+    "hash": "5c5fdf60a2fe",
+    "duration": 8.171,
+    "text": "Fifteen networks, one connection, slots you set once. Me You Social Publisher. Your job is decisions, not production."
+  }
+}

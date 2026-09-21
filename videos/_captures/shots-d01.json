@@ -1,0 +1,24 @@
+{
+  "out": ".",
+  "workspace": "CommunityForce Inc.",
+  "scale": 1,
+  "hide": ["card:text=Invitations not yet accepted", "text=@communityforce.com", "text=@gmail.com"],
+  "shots": [
+    { "name": "inbox", "url": "/inbox", "wait": 1500 },
+    { "name": "inbox-questions", "url": "/inbox", "wait": 1500, "actions": [{ "scroll": 260 }, { "wait": 600 }] },
+    { "name": "ideas", "url": "/ideas", "wait": 1500 },
+    { "name": "ideas-topics", "url": "/ideas/topics", "wait": 1500 },
+    { "name": "articles-board", "url": "/blog?view=board", "wait": 1500 },
+    { "name": "article", "url": "/blog?view=board", "wait": 1500, "actions": [{ "click": "text=Research administration" }, { "wait": 1800 }] },
+    { "name": "article-checklist", "url": "/blog?view=board", "wait": 1500, "actions": [{ "click": "text=Research administration" }, { "wait": 1800 }, { "scroll": 500 }, { "wait": 600 }] },
+    { "name": "research", "url": "/research", "wait": 1500 },
+    { "name": "publish", "url": "/publish", "wait": 1500 },
+    { "name": "distribute", "url": "/distribute", "wait": 1500 },
+    { "name": "compose", "url": "/social/compose", "wait": 1500 },
+    { "name": "calendar", "url": "/social/calendar", "wait": 1800 },
+    { "name": "measure", "url": "/measure", "wait": 1500 },
+    { "name": "social-performance", "url": "/social/performance", "wait": 1800 },
+    { "name": "automation", "url": "/setup/automation", "wait": 1500 },
+    { "name": "help", "url": "/help", "wait": 1500 }
+  ]
+}

@@ -1,0 +1,132 @@
+{
+  "id": "t01-orientation",
+  "title": "Getting oriented in MeYouSocial Publisher",
+  "kind": "training",
+  "captions": true,
+  "voice": "am_michael",
+  "speed": 1,
+  "message": "The interface is one loop; the Inbox shows what needs you; hover, Elsie, Help and Ask mean you never have to memorise it",
+  "audience": "New users on their first day",
+  "scenes": [
+    {
+      "id": "s01",
+      "type": "title",
+      "kicker": "Training · 01",
+      "headline": "Getting *oriented.*",
+      "sub": "The rail, the Inbox, the stage strip, and where to get help.",
+      "narration": "Welcome to MeYouSocial Publisher. In the next few minutes you will learn how the interface is laid out, where your work waits for you, and the three places to get help when you are unsure. You do not need to memorise any of it.",
+      "spoken": "Welcome to Me You Social Publisher. In the next few minutes you will learn how the interface is laid out, where your work waits for you, and the three places to get help when you are unsure. You do not need to memorise any of it.",
+      "headlineAt": 1.2,
+      "subAt": "q:In the next"
+    },
+    {
+      "id": "s02",
+      "type": "screen",
+      "chapter": "01 · The mental model",
+      "clip": { "src": "rail-tour.mp4", "start": 5.2, "rate": 0.8 },
+      "headline": "One loop, in the order work *moves.*",
+      "narration": "One sentence first. Publisher turns research into content, publishes that content, and then measures it, for one or more companies at once. The left rail is that loop, in the order work moves. Research, Ideas, Drafts, Review, Publish, Distribute, Measure. You can stop at any stage. Plenty of teams only use Distribute, or only the blog side.",
+      "headlineAt": "q:The left rail",
+      "callouts": [
+        { "kind": "chips", "items": ["Research", "Ideas", "Drafts", "Review", "Publish", "Distribute", "Measure"], "at": "q:Research, Ideas" },
+        { "kind": "quote", "text": "You can stop at any stage.", "at": "q:You can stop" }
+      ]
+    },
+    {
+      "id": "s03",
+      "type": "screen",
+      "chapter": "02 · The rail",
+      "still": "inbox.png",
+      "headline": "Hover any entry and it tells you what it's *for.*",
+      "narration": "Top to bottom: Inbox is the landing page, everything waiting on a person. Assistant is the conversation with the app. Then the seven stages. Below them, the Setup group for admins: Settings, Channels and Brand. Then Help. At the bottom, your profile and sign out. Hover any rail entry and a bubble tells you what that module is for. On a narrow window the rail collapses to icons, and the same hover still names it.",
+      "headlineAt": "q:Hover any rail",
+      "callouts": [
+        { "kind": "card", "label": "Top", "title": "Inbox — everything waiting on a person", "at": "q:Inbox is the" },
+        { "kind": "card", "label": "Admins", "title": "Setup: Settings · Channels · Brand", "at": "q:Below them" },
+        { "kind": "card", "label": "Bottom", "title": "Help · your profile · sign out", "at": "q:Then Help" }
+      ],
+      "punch": { "x": 130, "y": 420, "scale": 1.5, "at": "q:Top to bottom", "dur": 1.6, "hold": 9.0 }
+    },
+    {
+      "id": "s04",
+      "type": "screen",
+      "chapter": "03 · The Inbox",
+      "still": "inbox-questions.png",
+      "headline": "If the count is zero, you are *done.*",
+      "narration": "The Inbox puts the urgent items first, each with its own button. Questions only you can answer. Claims with no source. Images that need your eye. Held articles, with the failing check named on the card. Below that, the pipeline strip shows how things are: ideas, drafting, approve, scheduled, published. And what the engine did, so you can see it working while you were away. If the header count is zero, there is nothing to do, and that is the system working.",
+      "headlineAt": "q:If the header",
+      "callouts": [
+        { "kind": "chips", "items": ["Questions", "Claims with no source", "Images", "Held articles"], "at": "q:Questions only" },
+        { "kind": "card", "label": "Pipeline strip", "title": "Ideas → Drafting → Approve → Scheduled → Published", "at": "q:Below that" },
+        { "kind": "quote", "text": "Zero means the system is working.", "at": "q:If the header" }
+      ],
+      "punch": { "x": 560, "y": 300, "scale": 1.3, "at": "q:Questions only", "dur": 1.5, "hold": 6.0 }
+    },
+    {
+      "id": "s05",
+      "type": "screen",
+      "chapter": "04 · Inside a stage",
+      "still": "distribute.png",
+      "headline": "Red badge: a person must *act.*",
+      "narration": "Open any stage and a strip runs along the top. Overview first, then the stage's tabs, each with a count badge. A red badge means a person must act. A muted badge is just news. The Overview lists the stage's own rows with the verb on each row, so you can act without opening anything else.",
+      "headlineAt": "q:A red badge",
+      "callouts": [
+        { "kind": "chips", "items": ["Overview", "Compose", "Calendar", "Engage"], "on": 0, "at": "q:Overview first" },
+        { "kind": "card", "label": "Red badge", "title": "A person must act", "at": "q:A red badge" },
+        { "kind": "card", "label": "Muted badge", "title": "Just news", "at": "q:A muted badge" }
+      ],
+      "punch": { "x": 640, "y": 140, "scale": 1.6, "at": "q:Open any stage", "dur": 1.5, "hold": 6.0 }
+    },
+    {
+      "id": "s06",
+      "type": "screen",
+      "chapter": "05 · Elsie",
+      "still": "help.png",
+      "headline": "Short tours, not a *slideshow.*",
+      "narration": "Elsie is the in-app guide. The Elsie button in the top bar flags what is still worth setting up in your workspace, and offers short tours: an overview, making content, publishing, measuring, and running the install. She points at the actual controls on the page you are on. Turn her off from the same button when you no longer need her.",
+      "headlineAt": "q:She points",
+      "callouts": [
+        { "kind": "chips", "items": ["Overview", "Making content", "Publishing", "Measuring", "Running the install"], "at": "q:and offers short" },
+        { "kind": "quote", "text": "She points at the actual controls on the page you are on.", "at": "q:She points" }
+      ]
+    },
+    {
+      "id": "s07",
+      "type": "screen",
+      "chapter": "06 · Help Center",
+      "still": "help-guide.png",
+      "headline": "The whole machine on one *page.*",
+      "narration": "The Help Center has role-based paths, searchable answers by category, keyboard shortcuts, and the owner's guide: the whole machine on one page, with the daily, weekly and monthly routines. Anything with a small question mark next to it has a one-line explanation on hover, and it works on keyboard focus too.",
+      "headlineAt": "q:the owner's guide",
+      "callouts": [
+        { "kind": "chips", "items": ["Role-based paths", "Searchable answers", "Shortcuts", "The owner's guide"], "at": "q:role-based" },
+        { "kind": "card", "label": "Routines", "title": "Daily · weekly · monthly", "at": "q:with the daily" },
+        { "kind": "quote", "text": "Anything with a ? explains itself on hover.", "at": "q:Anything with" }
+      ]
+    },
+    {
+      "id": "s08",
+      "type": "screen",
+      "seam": "arrival",
+      "chapter": "07 · Ask",
+      "clip": { "src": "ask-dock.mp4", "start": 3.0, "rate": 0.85 },
+      "headline": "What should I do *next?*",
+      "narration": "And when you would rather not hunt, press Ask in the top bar, or Control and slash, on any page. The assistant opens as a dock over what you are looking at, knows which page you are on, and can do nearly everything you can. Ask what should I do next, and it reads the whole situation and ranks the moves. Anything outward-facing is proposed first and runs only when you say yes.",
+      "spoken": "And when you would rather not hunt, press Ask in the top bar, or Control and slash, on any page. The assistant opens as a dock over what you are looking at, knows which page you are on, and can do nearly everything you can. Ask, what should I do next, and it reads the whole situation and ranks the moves. Anything outward-facing is proposed first and runs only when you say yes.",
+      "headlineAt": "q:Ask what should",
+      "callouts": [
+        { "kind": "card", "label": "Shortcut", "value": "Ctrl + /", "title": "opens Ask on any page", "at": "q:or Control" },
+        { "kind": "quote", "text": "What should I do next?", "at": "q:Ask what should" },
+        { "kind": "card", "label": "Safety", "title": "Outward-facing acts are proposed first; they run on your yes", "at": "q:Anything outward-facing" }
+      ]
+    },
+    {
+      "id": "s09",
+      "type": "close",
+      "line": "You never have to *memorise it.*",
+      "narration": "That is the layout. One loop on the left, the Inbox for what needs you, badges for what needs a person, and Elsie, Help and Ask whenever you are unsure. Next: setting a workspace up.",
+      "lineAt": 0.8,
+      "lockupAt": "q:and Elsie"
+    }
+  ]
+}

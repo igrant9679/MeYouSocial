@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <title>Measuring results</title>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      body { margin: 0; background: #15181D; }
+      #root { position: relative; width: 100%; height: 100%; overflow: hidden; background: #15181D; /* opaque stage ground — white-flash guard */ }
+      #root > div[data-composition-src] { position: absolute; inset: 0; will-change: transform, opacity, filter; }
+      @font-face { font-family: 'IBM Plex Mono'; font-style: normal; font-weight: 500; font-display: block; src: url('assets/brand/fonts/IBMPlexMono-500.woff2') format('woff2'); }
+@font-face { font-family: 'IBM Plex Mono'; font-style: normal; font-weight: 600; font-display: block; src: url('assets/brand/fonts/IBMPlexMono-600.woff2') format('woff2'); }
+@font-face { font-family: 'IBM Plex Mono'; font-style: normal; font-weight: 700; font-display: block; src: url('assets/brand/fonts/IBMPlexMono-700.woff2') format('woff2'); }
+@font-face { font-family: 'IBM Plex Sans'; font-style: normal; font-weight: 400; font-display: block; src: url('assets/brand/fonts/IBMPlexSans-400.woff2') format('woff2'); }
+@font-face { font-family: 'IBM Plex Sans'; font-style: normal; font-weight: 500; font-display: block; src: url('assets/brand/fonts/IBMPlexSans-500.woff2') format('woff2'); }
+@font-face { font-family: 'IBM Plex Sans'; font-style: normal; font-weight: 600; font-display: block; src: url('assets/brand/fonts/IBMPlexSans-600.woff2') format('woff2'); }
+@font-face { font-family: 'IBM Plex Sans'; font-style: normal; font-weight: 700; font-display: block; src: url('assets/brand/fonts/IBMPlexSans-700.woff2') format('woff2'); }
+
+      .cap { position: absolute; left: 260px; width: 1400px; bottom: 26px; display: flex; justify-content: center; align-items: flex-end; pointer-events: none; }
+      .cap span { display: inline-block; max-width: 1200px; padding: 9px 24px 11px; border-radius: 12px; background: rgba(255,255,255,.94); box-shadow: 0 8px 30px rgba(21,24,29,.15); text-align: center; font-family: 'IBM Plex Sans', 'IBM Plex Mono', system-ui, sans-serif; font-weight: 600; font-size: 34px; line-height: 1.25; color: #15181D; }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-width="1920" data-height="1080" data-duration="166.7">
+      <div id="el-s01" data-composition-id="s01" data-composition-src="compositions/s01.html" data-start="0" data-duration="17" data-track-index="1" data-width="1920" data-height="1080"></div>
+      <div id="el-s02" data-composition-id="s02" data-composition-src="compositions/s02.html" data-start="17" data-duration="27.1" data-track-index="1" data-width="1920" data-height="1080"></div>
+      <div id="el-s03" data-composition-id="s03" data-composition-src="compositions/s03.html" data-start="44.1" data-duration="26" data-track-index="1" data-width="1920" data-height="1080"></div>
+      <div id="el-s04" data-composition-id="s04" data-composition-src="compositions/s04.html" data-start="70.1" data-duration="27.9" data-track-index="1" data-width="1920" data-height="1080"></div>
+      <div id="el-s05" data-composition-id="s05" data-composition-src="compositions/s05.html" data-start="98" data-duration="30.7" data-track-index="1" data-width="1920" data-height="1080"></div>
+      <div id="el-s06" data-composition-id="s06" data-composition-src="compositions/s06.html" data-start="128.7" data-duration="28.3" data-track-index="1" data-width="1920" data-height="1080"></div>
+      <div id="el-s07" data-composition-id="s07" data-composition-src="compositions/s07.html" data-start="157" data-duration="9.7" data-track-index="1" data-width="1920" data-height="1080"></div>
+
+      <!-- Narration: one Kokoro line per scene (am_michael); lead-in baked into data-start -->
+      <audio id="vo-s01" src="assets/vo/s01.wav" data-start="0.5" data-duration="15.083" data-track-index="10" data-volume="1"></audio>
+      <audio id="vo-s02" src="assets/vo/s02.wav" data-start="17.5" data-duration="25.152" data-track-index="10" data-volume="1"></audio>
+      <audio id="vo-s03" src="assets/vo/s03.wav" data-start="44.6" data-duration="24.064" data-track-index="10" data-volume="1"></audio>
+      <audio id="vo-s04" src="assets/vo/s04.wav" data-start="70.6" data-duration="26.048" data-track-index="10" data-volume="1"></audio>
+      <audio id="vo-s05" src="assets/vo/s05.wav" data-start="98.5" data-duration="28.757" data-track-index="10" data-volume="1"></audio>
+      <audio id="vo-s06" src="assets/vo/s06.wav" data-start="129.2" data-duration="26.389" data-track-index="10" data-volume="1"></audio>
+      <audio id="vo-s07" src="assets/vo/s07.wav" data-start="157.5" data-duration="7.424" data-track-index="10" data-volume="1"></audio>
+      <div id="cap-0" class="clip cap" data-start="0.5" data-duration="3.44" data-track-index="5" data-layout-allow-overlap><span>Measure pulls the results back in and it shows measured numbers</span></div>
+      <div id="cap-1" class="clip cap" data-start="3.94" data-duration="5.38" data-track-index="5" data-layout-allow-overlap><span>only. This video covers connecting analytics once, reading search,</span></div>
+      <div id="cap-2" class="clip cap" data-start="9.6" data-duration="4.02" data-track-index="5" data-layout-allow-overlap><span>traffic and social performance, the best time to post, and the</span></div>
+      <div id="cap-3" class="clip cap" data-start="13.62" data-duration="1.66" data-track-index="5" data-layout-allow-overlap><span>reports and insights pages.</span></div>
+      <div id="cap-4" class="clip cap" data-start="17.5" data-duration="1.46" data-track-index="5" data-layout-allow-overlap><span>Settings, then Analytics.</span></div>
+      <div id="cap-5" class="clip cap" data-start="19.56" data-duration="3.46" data-track-index="5" data-layout-allow-overlap><span>Enter the Search Console site in the G of 4 property and grant</span></div>
+      <div id="cap-6" class="clip cap" data-start="23.02" data-duration="4.22" data-track-index="5" data-layout-allow-overlap><span>the service account on both, as a user in Search Console, as a</span></div>
+      <div id="cap-7" class="clip cap" data-start="27.24" data-duration="4.44" data-track-index="5" data-layout-allow-overlap><span>viewer in G of 4. The page runs a live probe and tells you which</span></div>
+      <div id="cap-8" class="clip cap" data-start="31.68" data-duration="4.32" data-track-index="5" data-layout-allow-overlap><span>side is missing. A disabled, a PI, and a missing grant both</span></div>
+      <div id="cap-9" class="clip cap" data-start="36" data-duration="3.34" data-track-index="5" data-layout-allow-overlap><span>return permission denied. The probe separates them.</span></div>
+      <div id="cap-10" class="clip cap" data-start="39.74" data-duration="2.68" data-track-index="5" data-layout-allow-overlap><span>Until this is done, measure shows dashes.</span></div>
+      <div id="cap-11" class="clip cap" data-start="44.6" data-duration="3.58" data-track-index="5" data-layout-allow-overlap><span>Measures Overview shows search impressions and clicks by week,</span></div>
+      <div id="cap-12" class="clip cap" data-start="48.46" data-duration="2.74" data-track-index="5" data-layout-allow-overlap><span>and tracked posts with their positions and deltas.</span></div>
+      <div id="cap-13" class="clip cap" data-start="52.02" data-duration="2.68" data-track-index="5" data-layout-allow-overlap><span>Blog Analytics adds traffic from G of 4.</span></div>
+      <div id="cap-14" class="clip cap" data-start="55.04" data-duration="3.8" data-track-index="5" data-layout-allow-overlap><span>A blank is never a zero. A blank means we do not know.</span></div>
+      <div id="cap-15" class="clip cap" data-start="59.32" data-duration="2.4" data-track-index="5" data-layout-allow-overlap><span>A zero means we measured nothing happening.</span></div>
+      <div id="cap-16" class="clip cap" data-start="62.26" data-duration="3.88" data-track-index="5" data-layout-allow-overlap><span>Every dash comes with the reason it is a dash, and every figure</span></div>
+      <div id="cap-17" class="clip cap" data-start="66.14" data-duration="2.34" data-track-index="5" data-layout-allow-overlap><span>carries its sample size and source.</span></div>
+      <div id="cap-18" class="clip cap" data-start="70.6" data-duration="1.86" data-track-index="5" data-layout-allow-overlap><span>Measure then social performance.</span></div>
+      <div id="cap-19" class="clip cap" data-start="72.98" data-duration="3.3" data-track-index="5" data-layout-allow-overlap><span>Engagement by network synced on a schedule or on demand.</span></div>
+      <div id="cap-20" class="clip cap" data-start="76.74" data-duration="3.7" data-track-index="5" data-layout-allow-overlap><span>Read the window carefully. It means posts sent in that window,</span></div>
+      <div id="cap-21" class="clip cap" data-start="80.68" data-duration="3.58" data-track-index="5" data-layout-allow-overlap><span>not engagement earned in it, because networks report lifetime</span></div>
+      <div id="cap-22" class="clip cap" data-start="84.26" data-duration="4.56" data-track-index="5" data-layout-allow-overlap><span>totals per post. The evidence line under each figure says so.</span></div>
+      <div id="cap-23" class="clip cap" data-start="89.4" data-duration="3.96" data-track-index="5" data-layout-allow-overlap><span>Best time to post is measured from real engagement and it stays</span></div>
+      <div id="cap-24" class="clip cap" data-start="93.36" data-duration="3.12" data-track-index="5" data-layout-allow-overlap><span>silent below its sample size rather than guessing.</span></div>
+      <div id="cap-25" class="clip cap" data-start="98.5" data-duration="2.1" data-track-index="5" data-layout-allow-overlap><span>Reports holds 10 stock reports.</span></div>
+      <div id="cap-26" class="clip cap" data-start="101.12" data-duration="3.06" data-track-index="5" data-layout-allow-overlap><span>Traffic overview content performance, keyword rankings, pipeline</span></div>
+      <div id="cap-27" class="clip cap" data-start="104.18" data-duration="4.4" data-track-index="5" data-layout-allow-overlap><span>velocity, autopilot operations, editorial compliance, voice and</span></div>
+      <div id="cap-28" class="clip cap" data-start="108.58" data-duration="4.02" data-track-index="5" data-layout-allow-overlap><span>motifs, social distribution, video production and content audit,</span></div>
+      <div id="cap-29" class="clip cap" data-start="112.78" data-duration="1.78" data-track-index="5" data-layout-allow-overlap><span>plus any custom reports you build.</span></div>
+      <div id="cap-30" class="clip cap" data-start="115.14" data-duration="4.28" data-track-index="5" data-layout-allow-overlap><span>Open one and customize ads or removes blocks, reorders them and</span></div>
+      <div id="cap-31" class="clip cap" data-start="119.42" data-duration="4.1" data-track-index="5" data-layout-allow-overlap><span>sets the date range. Every report has a PDF button.</span></div>
+      <div id="cap-32" class="clip cap" data-start="124.26" data-duration="2.78" data-track-index="5" data-layout-allow-overlap><span>Blocks without data say so instead of drawing a curve.</span></div>
+      <div id="cap-33" class="clip cap" data-start="129.2" data-duration="3.08" data-track-index="5" data-layout-allow-overlap><span>Insights measures two different things and shows them apart on</span></div>
+      <div id="cap-34" class="clip cap" data-start="132.28" data-duration="3.64" data-track-index="5" data-layout-allow-overlap><span>purpose. Your pipeline, what you made and what stalled, which</span></div>
+      <div id="cap-35" class="clip cap" data-start="135.92" data-duration="4.08" data-track-index="5" data-layout-allow-overlap><span>the app knows exactly. And performance, which it knows only as</span></div>
+      <div id="cap-36" class="clip cap" data-start="140" data-duration="2.14" data-track-index="5" data-layout-allow-overlap><span>well as your connected analytics allow.</span></div>
+      <div id="cap-37" class="clip cap" data-start="143.1" data-duration="3.26" data-track-index="5" data-layout-allow-overlap><span>Recommendations are deterministic rules that refuse to fire</span></div>
+      <div id="cap-38" class="clip cap" data-start="146.36" data-duration="4.36" data-track-index="5" data-layout-allow-overlap><span>below a usable sample. And measure, topics, shows what each</span></div>
+      <div id="cap-39" class="clip cap" data-start="150.72" data-duration="4.22" data-track-index="5" data-layout-allow-overlap><span>topic earned per format. Read it monthly and decide what to do</span></div>
+      <div id="cap-40" class="clip cap" data-start="154.94" data-duration="6.28" data-track-index="5" data-layout-allow-overlap><span>more of. love. Connect once, read weekly, decide monthly, and trust the dashes.</span></div>
+      <div id="cap-41" class="clip cap" data-start="161.82" data-duration="2.98" data-track-index="5" data-layout-allow-overlap><span>Next, the assistant, the team, and troubleshooting.</span></div>
+    </div>
+
+    <script>
+      const tl = gsap.timeline({ paused: true });
+      window.__timelines["main"] = tl;
+      // <seams:auto> — generated by seam-stamp.mjs from ledger.json; do not hand-edit.
+      // Regenerate: node <motion-doctrine>/scripts/seam-stamp.mjs --ledger ledger.json --write index.html
+      gsap.set("#el-s01", { autoAlpha: 1, xPercent: 0, yPercent: 0, scale: 1, filter: "blur(0px)", transformOrigin: "50% 50%" });
+      gsap.set(["#el-s02","#el-s03","#el-s04","#el-s05","#el-s07"], { autoAlpha: 0, xPercent: 0, yPercent: 0, scale: 1, filter: "blur(0px)", transformOrigin: "50% 50%" });
+      gsap.set("#el-s06", { autoAlpha: 0, scale: 1.25, filter: "blur(18px)", xPercent: 0, yPercent: 0, transformOrigin: "50% 50%" });
+      
+      // SEAM — s01→s02 : cut-the-curve LEFT (cut @17)
+      tl.to("#el-s01", { xPercent: -12, autoAlpha: 0, duration: 0.34, ease: "power3.in" }, 16.66);
+      tl.set("#el-s01", { autoAlpha: 0 }, 17);
+      tl.fromTo("#el-s02", { xPercent: 10, autoAlpha: 0.35 }, { xPercent: 0, autoAlpha: 1, duration: 0.42, ease: "power4.out", immediateRender: false }, 17);
+      
+      // SEAM — s02→s03 : cut-the-curve LEFT (cut @44.1)
+      tl.to("#el-s02", { xPercent: -12, autoAlpha: 0, duration: 0.34, ease: "power3.in" }, 43.76);
+      tl.set("#el-s02", { autoAlpha: 0 }, 44.1);
+      tl.fromTo("#el-s03", { xPercent: 10, autoAlpha: 0.35 }, { xPercent: 0, autoAlpha: 1, duration: 0.42, ease: "power4.out", immediateRender: false }, 44.1);
+      
+      // SEAM — s03→s04 : cut-the-curve LEFT (cut @70.1)
+      tl.to("#el-s03", { xPercent: -12, autoAlpha: 0, duration: 0.34, ease: "power3.in" }, 69.76);
+      tl.set("#el-s03", { autoAlpha: 0 }, 70.1);
+      tl.fromTo("#el-s04", { xPercent: 10, autoAlpha: 0.35 }, { xPercent: 0, autoAlpha: 1, duration: 0.42, ease: "power4.out", immediateRender: false }, 70.1);
+      
+      // SEAM — s04→s05 : cut-the-curve LEFT (cut @98)
+      tl.to("#el-s04", { xPercent: -12, autoAlpha: 0, duration: 0.34, ease: "power3.in" }, 97.66);
+      tl.set("#el-s04", { autoAlpha: 0 }, 98);
+      tl.fromTo("#el-s05", { xPercent: 10, autoAlpha: 0.35 }, { xPercent: 0, autoAlpha: 1, duration: 0.42, ease: "power4.out", immediateRender: false }, 98);
+      
+      // SEAM — s05→s06 : inverse zoom-through (cut @128.7)
+      tl.to("#el-s05", { scale: 0.8, filter: "blur(18px)", duration: 0.21, ease: "power3.in" }, 128.49);
+      tl.to("#el-s05", { autoAlpha: 0, duration: 0.21, ease: "none" }, 128.49);
+      tl.set("#el-s05", { autoAlpha: 0 }, 128.7);
+      tl.fromTo("#el-s06", { autoAlpha: 0.15, scale: 1.25, filter: "blur(18px)" }, { autoAlpha: 1, scale: 1.0, filter: "blur(0px)", duration: 0.5, ease: "expo.out", immediateRender: false }, 128.7);
+      
+      // SEAM — s06→s07 : cut-the-curve UP (cut @157)
+      tl.to("#el-s06", { yPercent: -12, autoAlpha: 0, duration: 0.34, ease: "power3.in" }, 156.66);
+      tl.set("#el-s06", { autoAlpha: 0 }, 157);
+      tl.fromTo("#el-s07", { yPercent: 10, autoAlpha: 0.35 }, { yPercent: 0, autoAlpha: 1, duration: 0.42, ease: "power4.out", immediateRender: false }, 157);
+      
+      // </seams:auto>
+      tl.set({}, {}, 166.7);
+    </script>
+  </body>
+</html>

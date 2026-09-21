@@ -1,0 +1,44 @@
+{
+  "s01": {
+    "hash": "6a130339f441",
+    "duration": 13.312,
+    "text": "Last in the series. First, working with the assistant. Then roles, invitations, notifications, workspaces and the audit log. And finally, the short list of things to check when something looks wrong.",
+    "wordsHash": "6a130339f441"
+  },
+  "s02": {
+    "hash": "8d734d3a3f19",
+    "duration": 32.469,
+    "text": "Press Ask, or Control and slash, on any page. The assistant knows which page you are on and reads everything: the pipeline, the Inbox, ideas, articles and their checks, social posts, keywords, Topics, connections, dials, results, the live web, and the app's own guide. And it does the work: finds and approves ideas, drafts articles, writes S E O, runs Optimize, verifies claims, queues and sends posts, publishes, changes the dials. Ask, what should I do next, and it ranks the moves and offers to do each one.",
+    "wordsHash": "8d734d3a3f19"
+  },
+  "s03": {
+    "hash": "81bda04d8a9a",
+    "duration": 33.237,
+    "text": "Anything outward-facing or hard to undo is proposed first: publishing, sending, queueing, approving, an override, a setting, an invitation. It says: I am about to. And asks: go ahead? It runs only when you say yes, and the proposal waits on the thread until you answer. Admin-only acts refuse for an editor, exactly as the page would. The steps it took sit under every reply. It will not enter A P I keys, delete a workspace or an account, or send email; and with no working A I key it refuses the turn rather than guessing.",
+    "wordsHash": "81bda04d8a9a"
+  },
+  "s04": {
+    "hash": "355acaf121dc",
+    "duration": 29.483,
+    "text": "Settings, then People. Invite by email with a role. Admins approve, publish, send and configure. Editors write, draft, answer and propose. Viewers read. Publishing an article and approving a social post are always an admin's act. Revoke suspends a membership and keeps its history; Remove deletes it. You cannot remove the last active admin; promote someone first. There is no billing anywhere: access is roles, plus optional soft limits under Usage.",
+    "wordsHash": "355acaf121dc"
+  },
+  "s05": {
+    "hash": "835bf06c5880",
+    "duration": 39.787,
+    "text": "Each company is a sealed workspace: keys, accounts, voice, content, slots and dials are its own, and the switcher at the top left decides whose everything the pages show. Under Settings, Workspace, an accent colour and logo re-tint the app for your members only: co-branded, never white-labelled. Admins get one morning digest on the days something needs them, and everyone can turn it off for themselves under Notifications. And an audit log records everything: what the autopilot did and why, what a person clicked, what the assistant ran and with which arguments, and every deletion, named before it disappears.",
+    "wordsHash": "835bf06c5880"
+  },
+  "s06": {
+    "hash": "428b6ada3b52",
+    "duration": 47.232,
+    "text": "When something looks wrong, it is usually one of seven things. Output reads generic or mentions mock: no working A I key for this workspace. Nothing is being drafted: the Approved column is empty, the target or budget is reached, drafting is on manual, or global pause is on. An article is held with nothing to act on: the card names the check; a claim needs a live-search key. At final approval but never publishes: not the day, no WordPress, or publishing not on auto. Social never sends: no slots, awaiting approval, approved but never queued, or a broken account. Measure shows dashes: analytics not connected. A button does nothing after an update: reload the tab. And always: trust the dashes.",
+    "wordsHash": "428b6ada3b52"
+  },
+  "s07": {
+    "hash": "9f0a15ed2a27",
+    "duration": 9.216,
+    "text": "That completes the series. One loop, a person at the gates, an assistant that asks first, and numbers you can trust. Me You Social Publisher.",
+    "wordsHash": "9f0a15ed2a27"
+  }
+}
