@@ -70,6 +70,7 @@ model Workspace {
   platformMotifs  PlatformMotif[]
   smeProfiles     SmeProfile[]
   blogIdeas       BlogIdea[]
+  socialIdeas     SocialIdea[]
   wordPressConnection WordPressConnection?
   functionModes   FunctionMode[]
   notifications   Notification[]
@@ -252,6 +253,7 @@ model BlogPost {
   comments  BlogComment[]
   images    BlogImage[]
   variants  SocialVariant[]
+  socialIdeas SocialIdea[]
   snapshots BlogSnapshot[]
   versions  BlogPostVersion[]
 
@@ -561,8 +563,12 @@ model BlogIdea {
   angle     String?  // the hook / why it works
   keyword   String?
   status    String   @default("discovered") // discovered | approved | rejected | drafted | merged
-  source    String   @default("manual") // manual | ai | refresh | seasonal
+  source    String   @default("manual") // manual | ai | refresh | seasonal | research
   postId    String?  // set when drafted
+  // The competitor video this idea came from (Research → "Make it an idea"),
+  // so an idea keeps its link back to the evidence that produced it — the
+  // same field the video-idea table has always had.
+  sourceVideoId String?
   // FR-5 auto-tagging
   tier         Int?     // 1..4 content tier
   audience     String?
@@ -582,10 +588,56 @@ model BlogIdea {
 
   // Deleting a topic must not delete the ideas that referenced it.
   topic     Topic?   @relation(fields: [topicId], references: [id], onDelete: SetNull)
+  // Evidence can be re-indexed; the idea it produced must not vanish with it.
+  sourceVideo IntelVideo? @relation(fields: [sourceVideoId], references: [id], onDelete: SetNull)
 
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([workspaceId, status])
+  @@index([topicId])
+}
+
+// A social post's idea stage — the third format on the one Ideas board
+// ("Topics as the spine", 2026-09-21). Before this a social post had no idea:
+// autogen picked a Topic by rotation and wrote a post straight into the queue,
+// so social was the one format a person could not steer at the start.
+//
+// Same vocabulary as BlogIdea (discovered → approved → drafted | rejected), so
+// the board, the badge, the Inbox card and the assistant's verbs need no third
+// set of words. A third TABLE rather than a merged one for the reason in
+// lib/ideas-board.ts: the two existing tables have FKs from scripts, the
+// public API and the delete registry, and adding beside them is smaller than
+// moving them.
+//
+// ⚠ topicId is nullable so a hurried manual idea can exist untagged, but every
+// ENGINE-written row carries one — the invariant lives where ideas are born,
+// not in the column. Queries by Topic must remember Prisma's NOT/notIn drops
+// NULL rows (CLAUDE.md).
+model SocialIdea {
+  id               String   @id @default(cuid())
+  workspaceId      String
+  topicId          String?
+  hook             String   // the post in one line, ≤ 240 chars
+  angle            String?  // why it works / what it is for
+  status           String   @default("discovered") // discovered | approved | drafted | rejected
+  source           String   @default("manual") // manual | discovered | research | article
+  sourceVideoId    String?  // Research → "Make it a social idea"
+  sourceBlogPostId String?  // a published article's social angles
+  socialPostId     String?  @unique // set when drafted into the queue
+  priority         Int?
+  createdById      String?  // null = the engine
+  approvedAt       DateTime?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  workspace      Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  topic          Topic?      @relation(fields: [topicId], references: [id], onDelete: SetNull)
+  sourceVideo    IntelVideo? @relation(fields: [sourceVideoId], references: [id], onDelete: SetNull)
+  sourceBlogPost BlogPost?   @relation(fields: [sourceBlogPostId], references: [id], onDelete: SetNull)
+  socialPost     SocialPost? @relation(fields: [socialPostId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId, status])
+  @@index([topicId])
 }
 
 // WordPress connection (Spark FR-11); appPassword stored AES-GCM encrypted.
@@ -1218,6 +1270,8 @@ model IntelVideo {
   intelChannel    IntelChannel @relation(fields: [intelChannelId], references: [id], onDelete: Cascade)
   bookmarks       Bookmark[]
   sourcedIdeas    Idea[]
+  sourcedBlogIdeas   BlogIdea[]
+  sourcedSocialIdeas SocialIdea[]
 
   @@unique([intelChannelId, youtubeId])
 }
@@ -1838,6 +1892,9 @@ model SocialPost {
   recycledFrom  SocialPost?  @relation("RecycleClones", fields: [recycledFromId], references: [id], onDelete: SetNull)
   recycleClones SocialPost[] @relation("RecycleClones")
   targets     SocialPostTarget[]
+  // The idea this post was drafted from, when it had one (autogen since the
+  // Topics-as-spine change; manual Compose has none).
+  idea        SocialIdea?
 
   @@index([workspaceId, status])
   @@index([status, scheduledAt])
@@ -1971,6 +2028,7 @@ model Topic {
   socialPosts SocialPost[]
   blogPosts     BlogPost[]
   blogIdeas     BlogIdea[]
+  socialIdeas   SocialIdea[]
   channelIdeas  Idea[]
   videoRenders  VideoRender[]
   projects      ContentProject[]

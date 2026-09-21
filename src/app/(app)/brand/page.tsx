@@ -1,24 +1,17 @@
 import Link from "next/link";
 import {
-  Palette, Building2, Users, Tags, Hash, Share2, Check, X, Archive, Trash2,
+  Palette, Building2, Users, Tags, Hash, Share2, Check, X,
   ExternalLink, Sparkles,
 } from "lucide-react";
 import { requireMembership, canEdit, canAdmin } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { storage } from "@/lib/storage";
-import { readJson } from "@/lib/db/json";
 import { SubmitButton } from "@/components/SubmitButton";
 import { HelpTip } from "@/components/HelpTip";
 import { BRAND_TIPS } from "@/lib/help-tips";
 import { saveOrgProfileAction } from "@/app/actions/blog";
 import { RichTextEditor } from "@/components/RichTextEditor";
-import {
-  saveBrandIdentityAction,
-  createTopicAction,
-  updateTopicAction,
-  toggleTopicStatusAction,
-  deleteTopicAction,
-} from "@/app/actions/brand-hub";
+import { saveBrandIdentityAction } from "@/app/actions/brand-hub";
 import { networkFor } from "@/lib/social/networks";
 import { AiAssist } from "@/components/AiAssist";
 import { EmptyState } from "@/components/EmptyState";
@@ -37,11 +30,12 @@ export default async function BrandPage({ searchParams }: { searchParams: Promis
   const editor = canEdit(membership.role);
   const admin = canAdmin(membership.role);
 
-  const [kit, org, personas, topics, keywordCount, clusters, socials] = await Promise.all([
+  const [kit, org, personas, activeTopics, archivedTopics, keywordCount, clusters, socials] = await Promise.all([
     db.brandKit.findUnique({ where: { workspaceId: workspace.id } }),
     db.orgProfile.findUnique({ where: { workspaceId: workspace.id } }),
     db.smeProfile.findMany({ where: { workspaceId: workspace.id, status: "active" }, orderBy: { createdAt: "asc" }, take: 12 }),
-    db.topic.findMany({ where: { workspaceId: workspace.id }, orderBy: [{ status: "asc" }, { name: "asc" }] }),
+    db.topic.count({ where: { workspaceId: workspace.id, status: "active" } }),
+    db.topic.count({ where: { workspaceId: workspace.id, status: { not: "active" } } }),
     db.keyword.count({ where: { workspaceId: workspace.id } }),
     db.keyword.findMany({ where: { workspaceId: workspace.id, cluster: { not: null } }, select: { cluster: true }, take: 200 }),
     db.zernioAccount.findMany({ where: { workspaceId: workspace.id, status: "connected" }, orderBy: { createdAt: "asc" } }),
@@ -146,106 +140,20 @@ export default async function BrandPage({ searchParams }: { searchParams: Promis
         {editor && <SubmitButton className="btn primary self-start">Save company info</SubmitButton>}
       </form>
 
-      {/* ── Topics ──────────────────────────────────────────────────────── */}
+      {/* ── Topics — moved to Ideas → Topics on 2026-09-21 ("Topics as the spine").
+          A one-line pointer stays so nobody hunting for them here is stranded;
+          /brand#topics deep links land on it. */}
       <SectionHead icon={<Tags className="w-4 h-4" style={{ color: "var(--violet-on)" }} />} title="Topics"
-        note="The themes this company publishes about — used to steer ideation and posts."
+        note="The themes this company publishes about — now managed under Ideas, where they organise the board."
         tip={BRAND_TIPS.topics} />
-      {editor && (
-        <form action={createTopicAction} className="card mb-3 flex flex-wrap items-end gap-2">
-          <label className="text-sm flex-1 min-w-[180px]">
-            <span className="block text-xs text-[var(--mute)] mb-1">Topic</span>
-            <input name="name" required maxLength={120} placeholder="e.g. Nonprofit fundraising" className="w-full" />
-          </label>
-          <label className="text-sm flex-[2] min-w-[220px]">
-            <span className="block text-xs text-[var(--mute)] mb-1">Related phrases (comma-separated, optional)</span>
-            <input name="keywords" placeholder="donor retention, giving days" className="w-full" />
-          </label>
-          <SubmitButton className="btn primary" id="add-topic">Add topic</SubmitButton>
-        </form>
-      )}
-      {topics.length === 0 ? (
-        <div className="mb-6">
-          <EmptyState
-            line="No topics yet."
-            note="Topics are the themes this company writes and posts about — idea discovery, drafting and the social autogen all read them, so an empty list means the engine has nothing to aim at."
-            action={editor ? { label: "Add the first topic", href: "#add-topic" } : null}
-          />
-        </div>
-      ) : (
-        <ul className="flex flex-col gap-2 mb-6">
-          {topics.map((t) => {
-            const kw = readJson<string[]>(t.keywords, []);
-            const archived = t.status !== "active";
-            return (
-              <li key={t.id} className="card" style={archived ? { opacity: 0.6 } : undefined}>
-                <div className="flex items-center gap-2 flex-wrap mb-1">
-                  <span className="font-semibold text-sm">{t.name}</span>
-                  {archived && <span className="font-mono text-[10px] uppercase px-1.5 py-0.5 rounded-full" style={{ background: "var(--panel)", color: "var(--mute)" }}>archived</span>}
-                  {/* A raised priority used to be invisible everywhere: only the
-                      recommendation engine set it, and nothing displayed it. */}
-                  {t.priority > 0 && (
-                    <span
-                      className="font-mono text-[10px] px-1.5 py-0.5 rounded-full"
-                      style={{ background: "var(--violet-soft)", color: "var(--violet-on)" }}
-                      title={`Priority ${t.priority} — this topic leads the idea-discovery prompt. Set it back to 0 below to undo.`}
-                    >
-                      priority {t.priority}
-                    </span>
-                  )}
-                  <span className="flex-1" />
-                  {editor && (
-                    <>
-                      <form action={toggleTopicStatusAction}>
-                        <input type="hidden" name="id" value={t.id} />
-                        <button className="btn sm" title={archived ? "Reactivate" : "Archive"}>
-                          {archived ? <Check className="w-3.5 h-3.5" /> : <Archive className="w-3.5 h-3.5" />}
-                        </button>
-                      </form>
-                      <form action={deleteTopicAction}>
-                        <input type="hidden" name="id" value={t.id} />
-                        <button className="btn sm" title="Delete"><Trash2 className="w-3.5 h-3.5" /></button>
-                      </form>
-                    </>
-                  )}
-                </div>
-                {editor ? (
-                  <form action={updateTopicAction} className="flex flex-wrap items-end gap-2">
-                    <input type="hidden" name="id" value={t.id} />
-                    <label className="text-xs flex-1 min-w-[180px]">
-                      <span className="block text-[10px] text-[var(--mute)] mb-1">Description</span>
-                      <input name="description" defaultValue={t.description ?? ""} className="w-full text-xs" placeholder="What this topic covers" />
-                    </label>
-                    <AiAssist field="topic.description" target="description" extra={{ "Topic name": t.name }} label="Draft" className="!mt-0" />
-                    <label className="text-xs flex-1 min-w-[180px]">
-                      <span className="block text-[10px] text-[var(--mute)] mb-1">Related phrases</span>
-                      <input name="keywords" defaultValue={kw.join(", ")} className="w-full text-xs" />
-                    </label>
-                    <label className="text-xs">
-                      <span className="block text-[10px] text-[var(--mute)] mb-1">Priority</span>
-                      <input
-                        name="priority"
-                        type="number"
-                        min={0}
-                        max={10}
-                        step={1}
-                        defaultValue={t.priority}
-                        className="w-16 font-mono text-xs"
-                        title="0–10. Higher topics lead the idea-discovery prompt and win the 25-topic cut. Reset to 0 to undo a “raise priority” recommendation."
-                      />
-                    </label>
-                    <SubmitButton className="btn sm">Save</SubmitButton>
-                  </form>
-                ) : (
-                  <>
-                    {t.description && <p className="text-xs text-[var(--slate)]">{t.description}</p>}
-                    {kw.length > 0 && <p className="text-[11px] font-mono text-[var(--mute)] mt-1">{kw.join(" · ")}</p>}
-                  </>
-                )}
-              </li>
-            );
-          })}
-        </ul>
-      )}
+      <div id="topics" className="card mb-6 flex flex-wrap items-center gap-3">
+        <p className="text-xs flex-1 min-w-48 m-0">
+          {activeTopics === 0
+            ? "No topics yet. Research, ideas in every format, what gets made and what it earns all hang off them."
+            : `${activeTopics} active topic${activeTopics === 1 ? "" : "s"}${archivedTopics ? ` · ${archivedTopics} archived` : ""}.`}
+        </p>
+        <Link href="/ideas/topics" className="btn sm">{activeTopics === 0 ? "Add the first topic" : "Manage topics"} <ExternalLink className="w-3 h-3" /></Link>
+      </div>
 
       {/* ── Personas ────────────────────────────────────────────────────── */}
       <SectionHead icon={<Users className="w-4 h-4" style={{ color: "var(--indigo-on)" }} />} title="Personas"

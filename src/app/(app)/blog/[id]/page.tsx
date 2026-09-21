@@ -1001,7 +1001,7 @@ export default async function BlogPostPage({
           </label>
           <label className="text-sm">
             <span className="block text-xs text-[var(--mute)] mb-1">
-              Topic {topics.length === 0 && <Link href="/brand" className="underline">add topics</Link>}
+              Topic {topics.length === 0 && <Link href="/ideas/topics" className="underline">add topics</Link>}
             </span>
             <select name="topicId" defaultValue={post.topicId ?? ""} className="w-full text-xs" disabled={!editor}>
               <option value="">none</option>

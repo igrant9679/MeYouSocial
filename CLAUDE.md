@@ -200,6 +200,21 @@ Tabs: **Keys** (`/admin/api-keys`: LLM, search, images, video, TTS, storage) · 
 - **Empty states go through `components/EmptyState.tsx`** — one sentence saying WHY, and at most
   one primary button. `action={null}` with a `note` when the viewer genuinely can't act.
 
+## ⚠ Topics are the spine (2026-09-21 — design doc "Topics as the spine")
+- **Topics live under Ideas** (`/ideas/topics`, per-Topic page `/ideas/topics/[id]`), not Brand.
+  Brand keeps a one-line pointer with `id="topics"`. The actions stayed in `actions/brand-hub.ts`
+  and redirect through `topicBack()` — pass a hidden `back` field, held to `/ideas*` or `/brand*`.
+- **Three idea tables, one board.** `BlogIdea` (article), `Idea` (video), `SocialIdea` (social) —
+  `lib/ideas-board.ts` renders them as Topic LANES. Don't merge the tables; don't add a fourth
+  vocabulary. The "No topic yet" lane is `topicId: null` EXPLICITLY (NOT/notIn drops NULLs).
+- **Every engine-written idea carries a Topic.** Ideation runs per Topic × format through
+  `lib/ideation.ts` (`runIdeation`, emptiest cells first, bounded per call); the unfocused
+  `discoverIdeasCore(ws, null)` is the fallback for a workspace with no Topics only. Video ideas
+  are tagged at birth by keyword match (`lib/topic-match.ts`) — computed, labelled, never stored
+  as a fact elsewhere.
+- **Counts across all three formats**: the `/ideas` badge (`stage-counts.ts`), the Inbox
+  "ideas to triage" card and pipeline strip (`home.ts`). A video idea's "discovered" is `new`.
+
 ## Open items / things the user still owns
 - **Analytics: APIs enabled 2026-08-03** (Search Console + GA Admin + GA Data, on project
   `479503233109` = `gen-lang-client-0838901195` = "CreateUp"). Still pending, user-only: add the

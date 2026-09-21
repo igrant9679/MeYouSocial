@@ -344,8 +344,8 @@ export default async function InsightsPage({
           <EmptyState
             variant="inline"
             line="No active Topics yet, so there is nothing to compare."
-            note="Define them under Brand and tag content with them; this table then shows which ones actually reach publication."
-            action={{ label: "Add topics", href: "/brand" }}
+            note="Define them under Ideas → Topics and tag content with them; this table then shows which ones actually reach publication."
+            action={{ label: "Add topics", href: "/ideas/topics" }}
           />
         ) : (
           <div className="overflow-x-auto">

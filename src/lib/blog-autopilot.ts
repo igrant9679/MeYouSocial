@@ -70,7 +70,7 @@ import { claimsFromMarkers } from "@/lib/citations-extract";
  */
 
 const DAILY_AI_BUDGET = 20; // unattended generations per workspace per day
-const GENERATION_ACTIONS = ["blog.draft_generated", "ideas.ai_discovery", "social.variants_generated", "social.post_generated"];
+const GENERATION_ACTIONS = ["blog.draft_generated", "ideas.ai_discovery", "social.variants_generated", "social.post_generated", "social.ideation"];
 
 const clip = (s: string | null | undefined, n = 600) => (s && s !== "{}" && s !== "[]" ? s.slice(0, n) : null);
 
@@ -82,8 +82,15 @@ const clip = (s: string | null | undefined, n = 600) => (s && s !== "{}" && s !=
  * every idea produced is stamped with it). Without one, the workspace's active
  * topics are supplied as steering context so ideas stay on-theme — but nothing
  * is stamped, because we can't reliably map a free-text idea back to a topic.
+ *
+ * ⚠ Since 2026-09-21 the unfocused form is the FALLBACK for a workspace with
+ * no Topics. Everything else — the sweep, the board's button, the assistant —
+ * goes through lib/ideation.ts, which runs this once per Topic so every
+ * engine-written idea carries one. `count` is smaller per Topic (4) than the
+ * old workspace-wide 6, because several Topics run in one go.
  */
-export async function discoverIdeasCore(workspaceId: string, topicId?: string | null): Promise<number> {
+export async function discoverIdeasCore(workspaceId: string, topicId?: string | null, count = 6): Promise<number> {
+  const want = Math.max(1, Math.min(10, Math.round(count)));
   if (await isGloballyPaused(workspaceId)) return 0;
   const workspace = await db.workspace.findUnique({ where: { id: workspaceId } });
   if (!workspace) return 0;
@@ -143,7 +150,7 @@ export async function discoverIdeasCore(workspaceId: string, topicId?: string | 
     keywords.length ? `Keyword strategy (phrase → tier): ${keywords.map((k) => `${k.phrase} → ${k.tier}`).join("; ")}` : null,
     pages.length ? `Service pages that ideas can support:\n${pages.map((p) => `${p.url} — ${p.title}`).join("\n")}` : null,
     existing.length ? `Avoid duplicating these existing ideas: ${existing.map((i) => i.title).join(" | ")}` : null,
-    "Generate 6 blog post ideas.",
+    `Generate ${want} blog post ideas.`,
   ]
     .filter(Boolean)
     .join("\n\n");
@@ -201,7 +208,7 @@ export async function discoverIdeasCore(workspaceId: string, topicId?: string | 
   };
   const rows = ideas
     .filter((i) => typeof i.title === "string" && cleanTitle(i.title, 200).length > 3)
-    .slice(0, 6)
+    .slice(0, want)
     .map((i) => {
       const tierNum = Number(i.tier);
       const targetPage = text(i.targetPage, 500);
@@ -1181,12 +1188,20 @@ export async function runAutopilotCycle(workspaceId: string): Promise<CycleRepor
     return report;
   }
 
-  // 1. Ideation: top up when the open pool is low.
+  // 1. Ideation: top up the emptiest Topic × format cells (lib/ideation.ts).
+  // "Low" is per Topic and per format — fewer than two open ideas for THIS
+  // Topic — so a quiet Topic gets attention instead of being starved by a
+  // busy one. Bounded to two cells a sweep; the 30-minute cadence does the
+  // rest. A workspace with no Topics falls back to the old workspace-wide
+  // run (untagged) when its whole pool is below three.
   if (unattended("ideation")) {
-    const open = await db.blogIdea.count({
-      where: { workspaceId, status: { in: ["discovered", "approved"] } },
-    });
-    if (open < 3) report.ideasCreated = await discoverIdeasCore(workspaceId);
+    const { runIdeation } = await import("@/lib/ideation");
+    const openAll = await db.blogIdea.count({ where: { workspaceId, status: { in: ["discovered", "approved"] } } });
+    const hasTopics = (await db.topic.count({ where: { workspaceId, status: "active" } })) > 0;
+    if (hasTopics || openAll < 3) {
+      const run = await runIdeation(workspaceId, { formats: ["article"], maxCells: 2, floor: 2 });
+      report.ideasCreated += run.created;
+    }
 
     // Wave C′ refresh loop: published posts ranking past position 10 become
     // refresh ideas (once per post; protected posts excluded).

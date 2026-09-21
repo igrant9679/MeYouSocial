@@ -6,7 +6,10 @@ import { requireRole } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { registerOnboardingJobs } from "@/lib/jobs/onboarding";
 import { addBlogIdeaAction } from "@/app/actions/blog-ideas";
+import { addSocialIdeaAction } from "@/app/actions/social-ideas";
 import { cleanTitle } from "@/lib/list-marker";
+import { ownTopicId } from "@/lib/topics";
+import { isIdeaFormat } from "@/lib/ideas-board";
 
 registerOnboardingJobs();
 
@@ -20,12 +23,14 @@ function revalidateBoards(channelId?: string) {
 }
 
 /**
- * One add form for both formats. `format` is "article" or "video:<channelId>";
- * an article idea goes through the existing blog-idea path (keyword, topic,
- * scoring), a video idea lands on its channel as `new`.
+ * One add form for all three formats. `format` is "article", "social" or
+ * "video:<channelId>"; an article idea goes through the existing blog-idea
+ * path (keyword, topic, scoring), a social idea through social-ideas.ts, a
+ * video idea lands on its channel as `new`.
  */
 export async function addIdeaAction(formData: FormData) {
   const raw = String(formData.get("format") ?? "article");
+  if (raw === "social") return addSocialIdeaAction(formData);
   if (!raw.startsWith("video:")) return addBlogIdeaAction(formData);
   const channelId = raw.slice("video:".length);
   const title = cleanTitle(String(formData.get("title") ?? ""), 200);
@@ -70,6 +75,46 @@ export async function setIdeaTopicAction(formData: FormData) {
     : null;
   await db.idea.update({ where: { id: idea.id }, data: { topicId } });
   revalidateBoards(idea.channelId);
+}
+
+/**
+ * The board's one "tag it" control, for any format: set (or clear) the Topic
+ * on an article, video or social idea. This is how the "No topic yet" lane
+ * empties — 92 legacy ideas on the two tenants had no Topic when lanes
+ * arrived (2026-09-21). Tenant boundary on both the idea and the topic.
+ */
+export async function setBoardIdeaTopicAction(formData: FormData) {
+  const format = String(formData.get("format") ?? "");
+  const id = String(formData.get("id") ?? "");
+  if (!isIdeaFormat(format) || !id) return;
+  const { workspace } = await requireRole("EDITOR");
+  const topicId = await ownTopicId(workspace.id, formData.get("topicId"));
+  if (format === "article") {
+    await db.blogIdea.updateMany({ where: { id, workspaceId: workspace.id }, data: { topicId } });
+  } else if (format === "social") {
+    await db.socialIdea.updateMany({ where: { id, workspaceId: workspace.id }, data: { topicId } });
+  } else {
+    const idea = await db.idea.findFirst({ where: { id, channel: { workspaceId: workspace.id } }, select: { id: true, channelId: true } });
+    if (!idea) return;
+    await db.idea.update({ where: { id: idea.id }, data: { topicId } });
+    revalidatePath(`/channels/${idea.channelId}`);
+  }
+  revalidatePath("/ideas", "layout");
+}
+
+/**
+ * The board's primary action: discover ideas per Topic. With a `topicId` the
+ * run is that one Topic; without, the emptiest Topic × format cells go first
+ * (lib/ideation.ts). `formats` is a comma list; default article.
+ */
+export async function discoverIdeasAction(formData?: FormData) {
+  const { workspace } = await requireRole("EDITOR");
+  const topicId = await ownTopicId(workspace.id, formData?.get("topicId"));
+  const formats = String(formData?.get("formats") ?? "article").split(",").map((s) => s.trim()).filter(isIdeaFormat);
+  const { runIdeation } = await import("@/lib/ideation");
+  await runIdeation(workspace.id, { formats: formats.length ? formats : ["article"], maxCells: topicId ? formats.length || 1 : 3, topicId });
+  revalidatePath("/ideas", "layout");
+  revalidatePath("/inbox");
 }
 
 /** Write action: create a Script with the idea's context pre-loaded; open Canvas. */

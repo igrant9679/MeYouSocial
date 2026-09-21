@@ -24,7 +24,7 @@ export type DeletableKind =
   | "channel" | "idea" | "script" | "chat" | "thumbnail" | "contentProject"
   | "task" | "asset" | "wikiDoc" | "audienceSubmission" | "audienceAvatar"
   | "invitation" | "membership" | "zernioAccount" | "workspace" | "campaign"
-  | "zernioComment" | "brandFact" | "brandDocument";
+  | "zernioComment" | "brandFact" | "brandDocument" | "socialIdea";
 
 export type DeletableTarget = { id: string; name: string };
 
@@ -110,6 +110,18 @@ export const DELETABLE: Record<DeletableKind, Deletable> = {
     },
     redirectTo: () => "/admin/channels",
     revalidate: ["/admin/channels", "/channels", "/"],
+  },
+
+  // A social idea on the board (2026-09-21). Its drafted post, if any, is a
+  // separate record with its own delete; SocialIdea.socialPostId is SetNull
+  // from the other side, so deleting the idea never touches the queue.
+  socialIdea: {
+    label: "social idea",
+    role: "EDITOR",
+    find: (id, workspaceId) => db.socialIdea.findFirst({ where: { id, workspaceId }, select: { id: true, hook: true } })
+      .then((r) => (r ? { id: r.id, name: r.hook.slice(0, 80) } : null)),
+    async remove(id, workspaceId) { await db.socialIdea.deleteMany({ where: { id, workspaceId } }); },
+    revalidate: ["/ideas", "/ideas/topics"],
   },
 
   campaign: {

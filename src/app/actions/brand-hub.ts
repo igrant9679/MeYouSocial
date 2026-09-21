@@ -52,11 +52,29 @@ export async function saveBrandIdentityAction(formData: FormData) {
 }
 
 // ── Topics ───────────────────────────────────────────────────────────────────
+//
+// Topics live under Ideas since 2026-09-21 ("Topics as the spine"): the
+// management tab is /ideas/topics and each Topic has its own page. These
+// actions stayed in this file because their callers import from here; only
+// where they SEND you changed. `back` names where the form was, and is held
+// to the two places a Topic form can be.
+
+function topicRevalidate() {
+  revalidatePath("/ideas", "layout");
+  revalidatePath("/brand");
+}
+function topicBack(formData: FormData, msg: string, kind: "ok" | "err" = "ok", opts?: { deleted?: boolean }): never {
+  const raw = String(formData.get("back") ?? "/ideas/topics");
+  let to = raw.startsWith("/ideas") || raw.startsWith("/brand") ? raw.split("?")[0] : "/ideas/topics";
+  // A deleted Topic's own page no longer exists.
+  if (opts?.deleted && /^\/ideas\/topics\/.+/.test(to)) to = "/ideas/topics";
+  redirect(`${to}?${kind}=${encodeURIComponent(msg)}`);
+}
 
 export async function createTopicAction(formData: FormData) {
   const { workspace } = await requireRole("EDITOR");
   const name = String(formData.get("name") ?? "").trim().slice(0, 120);
-  if (!name) back("Give the topic a name.", "err");
+  if (!name) topicBack(formData, "Give the topic a name.", "err");
   const description = String(formData.get("description") ?? "").trim().slice(0, 500) || null;
   const keywords = String(formData.get("keywords") ?? "")
     .split(",")
@@ -65,24 +83,27 @@ export async function createTopicAction(formData: FormData) {
     .slice(0, 30);
 
   const existing = await db.topic.findFirst({ where: { workspaceId: workspace.id, name } });
-  if (existing) back(`“${name}” is already a topic.`, "err");
+  if (existing) topicBack(formData, `“${name}” is already a topic.`, "err");
 
   await db.topic.create({
     data: { workspaceId: workspace.id, name, description, keywords: writeJson(keywords) },
   });
-  revalidatePath("/brand");
-  back("Topic added.");
+  topicRevalidate();
+  topicBack(formData, "Topic added.");
 }
-
 export async function updateTopicAction(formData: FormData) {
   const { workspace } = await requireRole("EDITOR");
   const id = String(formData.get("id") ?? "");
-  const description = String(formData.get("description") ?? "").trim().slice(0, 500) || null;
-  const keywords = String(formData.get("keywords") ?? "")
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean)
-    .slice(0, 30);
+  // Every field is optional so a small form (the per-Topic page's priority
+  // control) can send just the one it owns. A field that is ABSENT leaves the
+  // stored value alone; one that is PRESENT and empty is a deliberate clear.
+  const rawDescription = formData.get("description");
+  const description = rawDescription == null ? undefined : String(rawDescription).trim().slice(0, 500) || null;
+  const rawKeywords = formData.get("keywords");
+  const keywords =
+    rawKeywords == null
+      ? undefined
+      : writeJson(String(rawKeywords).split(",").map((s) => s.trim()).filter(Boolean).slice(0, 30));
   // Priority is the one field the recommendation engine writes on its own
   // (`topic.raise_priority` sets it to 10), and its success message points here
   // to undo that — so this form is the only way back down. A missing field
@@ -94,29 +115,31 @@ export async function updateTopicAction(formData: FormData) {
 
   await db.topic.updateMany({
     where: { id, workspaceId: workspace.id },
-    data: { description, keywords: writeJson(keywords), ...(priority == null ? {} : { priority }) },
+    data: {
+      ...(description === undefined ? {} : { description }),
+      ...(keywords === undefined ? {} : { keywords }),
+      ...(priority === undefined ? {} : { priority }),
+    },
   });
-  revalidatePath("/brand");
-  back("Topic updated.");
+  topicRevalidate();
+  topicBack(formData, "Topic updated.");
 }
-
 export async function toggleTopicStatusAction(formData: FormData) {
   const { workspace } = await requireRole("EDITOR");
   const id = String(formData.get("id") ?? "");
   const topic = await db.topic.findFirst({ where: { id, workspaceId: workspace.id } });
-  if (!topic) back("Not found.", "err");
+  if (!topic) topicBack(formData, "Not found.", "err");
   await db.topic.update({
     where: { id: topic.id },
     data: { status: topic.status === "active" ? "archived" : "active" },
   });
-  revalidatePath("/brand");
-  back(topic.status === "active" ? "Topic archived." : "Topic reactivated.");
+  topicRevalidate();
+  topicBack(formData, topic.status === "active" ? "Topic archived." : "Topic reactivated.");
 }
-
 export async function deleteTopicAction(formData: FormData) {
   const { workspace } = await requireRole("EDITOR");
   const id = String(formData.get("id") ?? "");
   await db.topic.deleteMany({ where: { id, workspaceId: workspace.id } });
-  revalidatePath("/brand");
-  back("Topic deleted.");
+  topicRevalidate();
+  topicBack(formData, "Topic deleted.", "ok", { deleted: true });
 }

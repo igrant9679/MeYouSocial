@@ -66,6 +66,10 @@ export async function getHomeData(workspaceId: string): Promise<HomeData> {
     blogByStatus,
     ideasDiscovered,
     ideasApproved,
+    videoIdeasNew,
+    videoIdeasApproved,
+    socialIdeasNew,
+    socialIdeasApproved,
     blogReviewPosts,
     unseenInbox,
     replyDrafts,
@@ -79,6 +83,10 @@ export async function getHomeData(workspaceId: string): Promise<HomeData> {
     db.blogPost.groupBy({ by: ["status"], where: { workspaceId }, _count: { _all: true } }),
     db.blogIdea.count({ where: { workspaceId, status: "discovered" } }),
     db.blogIdea.count({ where: { workspaceId, status: "approved" } }),
+    db.idea.count({ where: { channel: { workspaceId }, status: "new" } }),
+    db.idea.count({ where: { channel: { workspaceId }, status: "approved" } }),
+    db.socialIdea.count({ where: { workspaceId, status: "discovered" } }),
+    db.socialIdea.count({ where: { workspaceId, status: "approved" } }),
     db.blogPost.count({ where: { workspaceId, status: { in: ["draft_review", "final_approval"] } } }),
     db.socialInboxEvent.count({ where: { workspaceId, readAt: null } }),
     db.inboxReplyDraft.count({ where: { workspaceId } }),
@@ -110,17 +118,26 @@ export async function getHomeData(workspaceId: string): Promise<HomeData> {
     });
   }
 
-  if (ideasDiscovered > 0) {
+  // One card for the three formats (2026-09-21): a person triages the board,
+  // not a table. The breakdown says where the work is.
+  const toTriage = ideasDiscovered + videoIdeasNew + socialIdeasNew;
+  const approvedAll = ideasApproved + videoIdeasApproved + socialIdeasApproved;
+  if (toTriage > 0) {
+    const parts = [
+      ideasDiscovered ? `${ideasDiscovered} article` : "",
+      videoIdeasNew ? `${videoIdeasNew} video` : "",
+      socialIdeasNew ? `${socialIdeasNew} social` : "",
+    ].filter(Boolean);
     decisions.push({
       module: "Blog",
       kind: "blog-ideas",
       severity: "info",
-      title: `${ideasDiscovered} blog idea${ideasDiscovered === 1 ? "" : "s"} to approve or dismiss`,
+      title: `${toTriage} idea${toTriage === 1 ? "" : "s"} to triage${parts.length > 1 ? ` — ${parts.join(", ")}` : ""}`,
       detail:
-        ideasApproved > 0
-          ? `Approved ideas are drafted by autopilot on its weekly budget — ${ideasApproved} already waiting in that line.`
-          : "Approved ideas are drafted by autopilot on its weekly budget; dismissed ones stop coming back.",
-      href: "/ideas?format=article",
+        approvedAll > 0
+          ? `Approved ideas are made by the engine on its weekly allowances — ${approvedAll} already waiting in that line.`
+          : "Approved ideas are made by the engine on its weekly allowances; rejected ones stop coming back.",
+      href: "/ideas",
       cta: "Triage",
     });
   }
@@ -187,9 +204,13 @@ export async function getHomeData(workspaceId: string): Promise<HomeData> {
     {
       key: "ideas",
       label: "Ideas",
-      total: ideasDiscovered + ideasApproved,
-      parts: [{ label: "blog", n: ideasDiscovered + ideasApproved, href: "/ideas?format=article" }],
-      href: "/ideas?format=article",
+      total: ideasDiscovered + ideasApproved + videoIdeasNew + videoIdeasApproved + socialIdeasNew + socialIdeasApproved,
+      parts: [
+        { label: "article", n: ideasDiscovered + ideasApproved, href: "/ideas?format=article" },
+        { label: "video", n: videoIdeasNew + videoIdeasApproved, href: "/ideas?format=video" },
+        { label: "social", n: socialIdeasNew + socialIdeasApproved, href: "/ideas?format=social" },
+      ],
+      href: "/ideas",
     },
     {
       key: "drafting",

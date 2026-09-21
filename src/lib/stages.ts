@@ -52,7 +52,11 @@ export const STAGES: Record<(typeof STAGE_HREFS)[number], StageDef> = {
   "/ideas": {
     href: "/ideas",
     label: "Ideas",
+    // Topics moved here from Brand on 2026-09-21 ("Topics as the spine"): a
+    // tab, not a rail entry, four days after the audit took the rail from
+    // fourteen entries to twelve. The per-Topic page is under it.
     tabs: () => [
+      { href: "/ideas/topics", label: "Topics" },
       { href: "/blog/keywords", label: "Keywords" },
       { href: "/blog/experts", label: "Experts" },
     ],
