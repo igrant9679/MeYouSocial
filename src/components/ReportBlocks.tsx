@@ -97,7 +97,7 @@ export async function ReportBlock({ block, workspaceId, weeks }: { block: BlockK
       return (
         <Card title="Biggest movers">
           {withDelta.length === 0 ? (
-            <Empty to="/blog/analytics" cta="Add this week's numbers">Movement needs two snapshots of the same post — only one week has been recorded so far.</Empty>
+            <Empty to="/blog/analytics" cta="Add this week's numbers">No post has two recorded positions yet, so there is no movement to compare.</Empty>
           ) : (
             <ul className="m-0 p-0">
               {withDelta.map((p) => (

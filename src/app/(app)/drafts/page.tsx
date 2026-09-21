@@ -4,6 +4,7 @@ import { requireMembership, canAdmin } from "@/lib/acl";
 import { getActiveChannel } from "@/lib/channel";
 import { db } from "@/lib/db";
 import { studioState } from "@/lib/studio";
+import { getModes, isGloballyPaused } from "@/lib/governance";
 import { StageHeader, StageList, StageRow, StateChip } from "@/components/StageShell";
 import { EmptyState } from "@/components/EmptyState";
 
@@ -18,7 +19,7 @@ export default async function DraftsStage() {
   const { active } = await getActiveChannel();
   const admin = canAdmin(membership.role);
   const studio = await studioState(workspace.id);
-  const [posts, scripts, renders, counts, approvedIdeas] = await Promise.all([
+  const [posts, scripts, renders, counts, approvedIdeas, paused, modes] = await Promise.all([
     db.blogPost.findMany({
       where: { workspaceId: workspace.id, status: { in: ["drafting", "draft_review"] } },
       orderBy: { updatedAt: "desc" },
@@ -46,7 +47,24 @@ export default async function DraftsStage() {
     // two different answers: the queue is empty, or the queue is full and the
     // autopilot simply hasn't got to it (audit B6/D4).
     db.blogIdea.count({ where: { workspaceId: workspace.id, status: "approved" } }),
+    // ⚠ An empty Articles list does NOT mean the pool is empty — that is only
+    // ONE of the reasons nothing is being written, and the app knows which.
+    // The troubleshooting table lists five (empty pool, weekly target reached,
+    // daily budget spent, drafting set to manual, global pause). Naming the
+    // wrong one sends someone to approve an idea that will then sit there
+    // because the pause is on. Both reads are 30s-cached settings lookups.
+    isGloballyPaused(workspace.id),
+    getModes(workspace.id),
   ]);
+  // Ordered by which blocker actually dominates: a pause stops everything, a
+  // manual mode stops the sweep, and only then does the pool matter.
+  const notDrafting = paused
+    ? { why: "the global pause is on, so no AI action runs at all", label: "Open Automation", href: "/setup/automation" }
+    : modes.blog_drafting === "manual"
+      ? { why: "blog drafting is set to manual, so it only runs when someone asks for it", label: "Open Automation", href: "/setup/automation" }
+      : approvedIdeas === 0
+        ? { why: "no idea has been approved yet — drafting only ever consumes approved ideas", label: "Approve an idea", href: "/ideas" }
+        : null;
   const n = (s: string) => counts.find((c) => c.status === s)?._count._all ?? 0;
 
   return (
@@ -56,9 +74,9 @@ export default async function DraftsStage() {
         sentence={
           posts.length
             ? `${posts.length} article${posts.length === 1 ? "" : "s"} in progress — review happens one stage on.`
-            : approvedIdeas > 0
-              ? `Nothing is being written yet — ${approvedIdeas} approved idea${approvedIdeas === 1 ? " is" : "s are"} queued, and the autopilot drafts them on its weekly allowance.`
-              : "Nothing is being written, because no idea has been approved yet."
+            : notDrafting
+              ? `Nothing is being written: ${notDrafting.why}.`
+              : `Nothing is being written yet — ${approvedIdeas} approved idea${approvedIdeas === 1 ? " is" : "s are"} queued, and the autopilot drafts them on its weekly allowance.`
         }
         counts={[
           { label: "drafting", n: n("drafting"), href: "/blog?view=list", hue: "amber" },
@@ -77,8 +95,8 @@ export default async function DraftsStage() {
         empty={
           <EmptyState
             variant="inline"
-            line={approvedIdeas > 0 ? "No article is drafting or in review right now." : "No article is drafting, because the approved pool is empty — drafting only ever consumes approved ideas."}
-            action={{ label: approvedIdeas > 0 ? "See the approved ideas" : "Approve an idea", href: "/ideas" }}
+            line={notDrafting ? `No article is drafting: ${notDrafting.why}.` : "No article is drafting or in review right now."}
+            action={notDrafting ? { label: notDrafting.label, href: notDrafting.href } : { label: "See the approved ideas", href: "/ideas" }}
           />
         }
       >

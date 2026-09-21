@@ -64,9 +64,9 @@ export default async function SocialPerformancePage({ searchParams }: { searchPa
       {/* Per-network rollup — 90 days. */}
       {networks.length === 0 ? (
         <EmptyState
-          line="No engagement figures yet — nothing has been published for a network to report on."
-          note="Blank is not zero: figures a network does not report stay blank. Pull engagement appears here once there is history to pull."
-          action={{ label: "Compose a post", href: "/social/compose" }}
+          line="No engagement has been recorded for any network in the last 90 days."
+          note="Blank is not zero. Figures are synced from posts that have actually gone out, and anything a network does not report stays blank rather than becoming a number."
+          action={{ label: "Open Distribute", href: "/distribute" }}
         />
       ) : (
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 mb-6">

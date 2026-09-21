@@ -49,7 +49,7 @@ export default async function ReportsHubPage() {
       {!hasAnyData && (
         <EmptyState
           tone="attention"
-          line="No search or click numbers have been recorded for this workspace yet, so every report below will read as dashes."
+          line="No search or click numbers have been recorded for this workspace yet, so the traffic and ranking panels in these reports will read as dashes."
           note="A dash means not measured, never zero. Connecting Search Console and GA4 also needs someone to grant access on Google's side."
           action={admin ? { label: "Connect analytics", href: "/admin/analytics" } : { label: "Enter numbers by hand", href: "/blog/analytics" }}
         />

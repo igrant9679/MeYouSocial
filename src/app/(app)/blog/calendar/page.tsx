@@ -38,7 +38,7 @@ export default async function BlogCalendarPage() {
 
       {byMonth.size === 0 ? (
         <EmptyState
-          line="No article has a date yet, so the calendar has nothing to place."
+          line="No articles yet, so the calendar has nothing to place."
           note="It fills in on its own as articles are written, scheduled and published."
           action={{ label: "Open Articles", href: "/blog" }}
         />
