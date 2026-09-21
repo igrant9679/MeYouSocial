@@ -353,10 +353,11 @@ export default async function InsightsPage({
               <thead>
                 <tr className="text-[10px] uppercase tracking-wider text-[var(--mute)] text-left">
                   <th className="py-1 pr-3">Topic</th>
-                  <th className="py-1 pr-3 text-right">Ideas</th>
-                  <th className="py-1 pr-3 text-right">Posts</th>
-                  <th className="py-1 pr-3 text-right">Published</th>
-                  <th className="py-1 text-right">Publish rate</th>
+                  <th className="py-1 pr-3 text-right" title="All three formats">Ideas</th>
+                  <th className="py-1 pr-3 text-right" title="Published / made">Articles</th>
+                  <th className="py-1 pr-3 text-right" title="Posted / made">Social</th>
+                  <th className="py-1 pr-3 text-right" title="Finished renders">Renders</th>
+                  <th className="py-1 text-right" title="What went out, of the articles and social posts made">Out rate</th>
                 </tr>
               </thead>
               <tbody>
@@ -364,8 +365,9 @@ export default async function InsightsPage({
                   <tr key={t.topicId} className="border-t border-[var(--line)]">
                     <td className="py-1.5 pr-3">{t.name}</td>
                     <td className="py-1.5 pr-3 text-right font-mono tabular-nums">{t.ideas}</td>
-                    <td className="py-1.5 pr-3 text-right font-mono tabular-nums">{t.posts}</td>
-                    <td className="py-1.5 pr-3 text-right font-mono tabular-nums">{t.published}</td>
+                    <td className="py-1.5 pr-3 text-right font-mono tabular-nums">{t.published} / {t.posts}</td>
+                    <td className="py-1.5 pr-3 text-right font-mono tabular-nums">{t.socialPosted} / {t.socialPosts}</td>
+                    <td className="py-1.5 pr-3 text-right font-mono tabular-nums">{t.videoRenders}</td>
                     <td className="py-1.5 text-right font-mono tabular-nums">
                       {t.publishRate === null ? (
                         <span className="text-[var(--mute)]">—</span>

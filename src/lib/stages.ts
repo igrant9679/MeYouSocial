@@ -108,6 +108,8 @@ export const STAGES: Record<(typeof STAGE_HREFS)[number], StageDef> = {
     tabs: () => [
       { href: "/reports", label: "Reports" },
       { href: "/insights", label: "Insights" },
+      // What each Topic earned, per format — the spine's far end (2026-09-21).
+      { href: "/measure/topics", label: "Topics" },
       { href: "/blog/analytics", label: "Blog analytics" },
       { href: "/blog/report", label: "Blog report" },
       { href: "/social/performance", label: "Social performance" },

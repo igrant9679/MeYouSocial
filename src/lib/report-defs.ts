@@ -25,6 +25,7 @@ export const BLOCK_KEYS = [
   "social_table",
   "video_table",
   "audit_summary",
+  "topics",
 ] as const;
 export type BlockKey = (typeof BLOCK_KEYS)[number];
 
@@ -48,6 +49,7 @@ export const BLOCK_LABELS: Record<BlockKey, string> = {
   social_table: "Social variants",
   video_table: "Video renders & spend",
   audit_summary: "Content-audit summary",
+  topics: "Topics — what each earned, per format",
 };
 
 export type StockReport = {
@@ -60,9 +62,9 @@ export type StockReport = {
 
 export const STOCK_REPORTS: StockReport[] = [
   { key: "traffic", name: "Traffic overview", description: "Impressions, clicks, and what moved", hue: "blue", blocks: ["kpis", "impressions_chart", "clicks_chart", "movers"] },
-  { key: "content", name: "Content performance", description: "Every post's position, delta, clicks", hue: "rose", blocks: ["kpis", "posts_table", "movers"] },
+  { key: "content", name: "Content performance", description: "Every post's position, delta, clicks", hue: "rose", blocks: ["kpis", "posts_table", "movers", "topics"] },
   { key: "keywords", name: "Keyword rankings", description: "Position buckets and movers", hue: "cyan", blocks: ["position_buckets", "movers", "posts_table"] },
-  { key: "velocity", name: "Pipeline velocity", description: "How fast ideas become published posts", hue: "amber", blocks: ["velocity", "pipeline_bars"] },
+  { key: "velocity", name: "Pipeline velocity", description: "How fast ideas become published posts", hue: "amber", blocks: ["velocity", "pipeline_bars", "topics"] },
   { key: "autopilot", name: "Autopilot operations", description: "Budget burn, activity, failures", hue: "violet", blocks: ["autopilot_budget", "autopilot_feed"] },
   { key: "compliance", name: "Editorial compliance", description: "Gates, citations, accessibility", hue: "green", blocks: ["compliance", "audit_summary"] },
   { key: "motifs", name: "Voice & motifs", description: "Which voices your content speaks in", hue: "purple", blocks: ["motif_mix", "posts_table"] },

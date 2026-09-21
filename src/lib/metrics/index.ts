@@ -483,16 +483,29 @@ export async function collectSocialPerformance(workspaceId: string, range: Metri
 export type TopicPerformance = {
   topicId: string;
   name: string;
+  /** Ideas in the range, all three formats. */
   ideas: number;
+  /** Articles made / published in the range (kept by name for older readers). */
   posts: number;
   published: number;
+  /** Social posts made / posted in the range. */
+  socialPosts: number;
+  socialPosted: number;
+  /** Video renders finished in the range. */
+  videoRenders: number;
+  /** Everything made (articles + social posts + renders) and everything that went out. */
+  made: number;
+  out: number;
+  /** out ÷ made — the share of what was made about this Topic that reached an audience. */
   publishRate: number | null;
   confidence: Confidence;
 };
 
 /**
- * Which topics actually produce finished work. The question the whole
- * intelligence layer starts from, and it needs no external data at all.
+ * Which topics actually produce finished work — across the three formats
+ * since 2026-09-21 ("Topics as the spine"): a Topic with two articles and six
+ * social posts used to look like a Topic with two posts. The question the
+ * whole intelligence layer starts from, and it needs no external data at all.
  */
 export async function collectTopicPerformance(workspaceId: string, range: MetricsRange): Promise<TopicPerformance[]> {
   const topics = await db.topic.findMany({
@@ -503,30 +516,48 @@ export async function collectTopicPerformance(workspaceId: string, range: Metric
   if (!topics.length) return [];
   const ids = topics.map((t) => t.id);
 
-  const [ideaGroups, postGroups, publishedGroups] = await Promise.all([
+  const [ideaGroups, videoIdeaGroups, socialIdeaGroups, postGroups, publishedGroups, socialGroups, socialPostedGroups, renderGroups] = await Promise.all([
     db.blogIdea.groupBy({ by: ["topicId"], where: { workspaceId, topicId: { in: ids }, createdAt: { gte: range.since } }, _count: { _all: true } }),
+    db.idea.groupBy({ by: ["topicId"], where: { channel: { workspaceId }, topicId: { in: ids }, createdAt: { gte: range.since } }, _count: { _all: true } }),
+    db.socialIdea.groupBy({ by: ["topicId"], where: { workspaceId, topicId: { in: ids }, createdAt: { gte: range.since } }, _count: { _all: true } }),
     db.blogPost.groupBy({ by: ["topicId"], where: { workspaceId, topicId: { in: ids }, createdAt: { gte: range.since } }, _count: { _all: true } }),
     db.blogPost.groupBy({ by: ["topicId"], where: { workspaceId, topicId: { in: ids }, publishedAt: { gte: range.since } }, _count: { _all: true } }),
+    db.socialPost.groupBy({ by: ["topicId"], where: { workspaceId, topicId: { in: ids }, createdAt: { gte: range.since } }, _count: { _all: true } }),
+    db.socialPost.groupBy({ by: ["topicId"], where: { workspaceId, topicId: { in: ids }, status: { in: ["posted", "partial"] }, publishedAt: { gte: range.since } }, _count: { _all: true } }),
+    db.videoRender.groupBy({ by: ["topicId"], where: { workspaceId, topicId: { in: ids }, status: "done", createdAt: { gte: range.since } }, _count: { _all: true } }),
   ]);
   const countOf = (groups: Array<{ topicId: string | null; _count: { _all: number } }>, id: string) =>
     groups.find((g) => g.topicId === id)?._count._all ?? 0;
 
   return topics
     .map((t) => {
-      const ideas = countOf(ideaGroups, t.id);
+      const ideas = countOf(ideaGroups, t.id) + countOf(videoIdeaGroups, t.id) + countOf(socialIdeaGroups, t.id);
       const posts = countOf(postGroups, t.id);
       const published = countOf(publishedGroups, t.id);
+      const socialPosts = countOf(socialGroups, t.id);
+      const socialPosted = countOf(socialPostedGroups, t.id);
+      const videoRenders = countOf(renderGroups, t.id);
+      const made = posts + socialPosts + videoRenders;
+      // A finished render is "out" once it is a render; the app cannot see
+      // whether it was uploaded, so it counts on neither side of the rate.
+      const out = published + socialPosted;
+      const rated = posts + socialPosts;
       return {
         topicId: t.id,
         name: t.name,
         ideas,
         posts,
         published,
-        publishRate: rate(published, posts),
-        confidence: posts > 0 ? confidenceFor(posts) : ("none" as Confidence),
+        socialPosts,
+        socialPosted,
+        videoRenders,
+        made,
+        out,
+        publishRate: rate(out, rated),
+        confidence: rated > 0 ? confidenceFor(rated) : ("none" as Confidence),
       };
     })
-    .sort((a, b) => b.published - a.published || b.posts - a.posts);
+    .sort((a, b) => b.out - a.out || b.made - a.made);
 }
 
 // ── Everything, in one call ──────────────────────────────────────────────────

@@ -150,14 +150,17 @@ const ideaBacklog: Rule = {
 const topicPriority: Rule = {
   key: "topic_priority",
   evaluate({ topics }) {
-    // Only topics with enough posts to mean anything.
-    const eligible = topics.filter((t) => t.posts >= 3 && t.publishRate !== null);
+    // Only topics with enough made to mean anything — articles and social
+    // posts together (Topics as the spine, 2026-09-21): a Topic with two
+    // articles and six posts can finally earn this.
+    const madeOf = (t: (typeof topics)[number]) => t.posts + t.socialPosts;
+    const eligible = topics.filter((t) => madeOf(t) >= 3 && t.publishRate !== null);
     if (eligible.length < 2) return null;
 
-    const totalPosts = eligible.reduce((a, t) => a + t.posts, 0);
-    const totalPublished = eligible.reduce((a, t) => a + t.published, 0);
-    if (totalPosts < 6 || totalPublished === 0) return null;
-    const average = (totalPublished / totalPosts) * 100;
+    const totalMade = eligible.reduce((a, t) => a + madeOf(t), 0);
+    const totalOut = eligible.reduce((a, t) => a + t.out, 0);
+    if (totalMade < 6 || totalOut === 0) return null;
+    const average = (totalOut / totalMade) * 100;
 
     const best = eligible.reduce((a, t) => ((t.publishRate ?? 0) > (a.publishRate ?? 0) ? t : a));
     // Needs a real gap, not noise.
@@ -166,16 +169,16 @@ const topicPriority: Rule = {
     return {
       title: `“${best.name}” converts best — weight discovery toward it`,
       detail: `Raise the discovery priority of “${best.name}” so idea generation leans on it.`,
-      rationale: `${best.name} publishes ${best.publishRate}% of its drafts (${best.published} of ${best.posts}), against a ${Math.round(average)}% average across topics with enough posts to compare. Applying this only reorders what discovery is prompted with — nothing is deleted, and it can be undone by resetting the topic's priority.`,
+      rationale: `${best.name} gets ${best.publishRate}% of what is made about it out (${best.out} of ${madeOf(best)} articles and social posts), against a ${Math.round(average)}% average across topics with enough made to compare. Applying this only reorders what discovery is prompted with — nothing is deleted, and it can be undone by resetting the topic's priority.`,
       severity: "opportunity",
       confidence: best.confidence,
       evidence: [
         {
           key: `topic:${best.topicId}`,
-          label: `Publish rate — ${best.name}`,
+          label: `Out rate — ${best.name}`,
           value: best.publishRate,
-          sample: best.posts,
-          evidence: `${best.published} of ${best.posts} posts published, vs ${Math.round(average)}% average.`,
+          sample: madeOf(best),
+          evidence: `${best.out} of ${madeOf(best)} articles and social posts went out, vs ${Math.round(average)}% average.`,
         },
       ],
       fingerprint: `topic_priority:${best.topicId}`,

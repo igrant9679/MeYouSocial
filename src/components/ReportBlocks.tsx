@@ -422,6 +422,51 @@ export async function ReportBlock({ block, workspaceId, weeks, canAct = true }: 
       );
     }
 
+    case "topics": {
+      // The spine's far end (2026-09-21): one row per Topic, the three formats
+      // side by side, every cell measured or a dash. The full table with its
+      // reasons is Measure → Topics; this is the report's compact reading.
+      const { topicMeasure } = await import("@/lib/topic-measure");
+      const m = await topicMeasure(workspaceId, Math.max(7, weeks * 7));
+      const t = (v: number | null) => (v == null ? <span className="text-[var(--mute)]" title="Not measured">—</span> : <span className={num}>{v.toLocaleString()}</span>);
+      return (
+        <Card title="Topics — what each earned, per format">
+          {m.rows.length === 0 ? (
+            <Empty to="/ideas/topics" cta="Add a Topic" canAct={canAct}>No Topics yet, so nothing to measure by.</Empty>
+          ) : (
+            <>
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs border-collapse">
+                  <thead>
+                    <tr className="text-left text-[var(--mute)]">
+                      <th className="py-1.5 px-2 font-mono text-[9px] uppercase tracking-wider border-b-2 border-[var(--line)]">Topic</th>
+                      <th className="py-1.5 px-2 font-mono text-[9px] uppercase tracking-wider border-b-2 border-[var(--line)] text-right" title="Published / made · clicks">Articles</th>
+                      <th className="py-1.5 px-2 font-mono text-[9px] uppercase tracking-wider border-b-2 border-[var(--line)] text-right" title="Renders · views of channel videos matched by keyword">Video</th>
+                      <th className="py-1.5 px-2 font-mono text-[9px] uppercase tracking-wider border-b-2 border-[var(--line)] text-right" title="Posted / made · engagement">Social</th>
+                      <th className="py-1.5 px-2 font-mono text-[9px] uppercase tracking-wider border-b-2 border-[var(--line)] text-right">Ideas waiting</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {m.rows.map((r) => (
+                      <tr key={r.id}>
+                        <td className="py-1.5 px-2 border-b border-[var(--line)]"><Link href={`/ideas/topics/${r.id}`} className="hover:underline">{r.name}</Link></td>
+                        <td className="py-1.5 px-2 border-b border-[var(--line)] text-right"><span className={num}>{r.articles.published}/{r.articles.made}</span> · {t(r.articles.clicks)}</td>
+                        <td className="py-1.5 px-2 border-b border-[var(--line)] text-right"><span className={num}>{r.video.renders}</span> · {t(r.video.views)}{r.video.views != null && <span className="text-[9px] text-[var(--mute)] ml-0.5">kw</span>}</td>
+                        <td className="py-1.5 px-2 border-b border-[var(--line)] text-right"><span className={num}>{r.social.posted}/{r.social.posts}</span> · {t(r.social.engagement)}</td>
+                        <td className="py-1.5 px-2 border-b border-[var(--line)] text-right"><span className={num}>{r.ideasWaiting}</span></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <p className="text-[10px] text-[var(--mute)] mt-2 mb-0">
+                A dash is not measured, never zero; <span className="font-mono">kw</span> = matched by keyword. Reasons and the full columns: <Link href="/measure/topics" className="underline">Measure → Topics</Link>.
+              </p>
+            </>
+          )}
+        </Card>
+      );
+    }
     case "audit_summary": {
       const items = await db.contentAuditItem.findMany({ where: { workspaceId }, orderBy: { slopScore: "desc" } });
       const open = items.filter((i) => i.status === "open");
