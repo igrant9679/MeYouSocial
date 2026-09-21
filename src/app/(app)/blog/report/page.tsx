@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ArrowLeft, FileBarChart, ShieldCheck, TriangleAlert } from "lucide-react";
 import { requireMembership, canEdit } from "@/lib/acl";
 import { db } from "@/lib/db";
-import { hasSeriesData, postPerformance, weeklySeries } from "@/lib/dashboard-data";
+import { hasSeriesData, postPerformance, unmeasuredWeeks, weeklySeries } from "@/lib/dashboard-data";
 import { AreaChart, HBars } from "@/components/charts";
 import { MOTIF_SEED_BY_KEY, parseMotifs } from "@/lib/motifs";
 import { EmptyState } from "@/components/EmptyState";
@@ -42,6 +42,8 @@ export default async function BlogReportPage() {
     ]);
 
   const hasAnalytics = hasSeriesData(series);
+  const imprGaps = unmeasuredWeeks(series, "impressions");
+  const clickGaps = unmeasuredWeeks(series, "clicks");
   const awaitingAssets = reviewPosts.filter((p) => {
     const ok = (role: string) => p.images.some((i) => i.role === role && i.status === "approved");
     return !ok("featured") || !ok("og");
@@ -105,7 +107,7 @@ export default async function BlogReportPage() {
         <section className="card anim-rise ad-1">
           <h2 className="font-mono text-[13px] font-bold mb-2">Impressions / week</h2>
           {hasAnalytics ? (
-            <AreaChart points={series.map((p) => ({ label: p.label, value: p.impressions }))} color="var(--blue)" title="Impressions per week" height={130} />
+            <><AreaChart points={series.map((p) => ({ label: p.label, value: p.impressions }))} color="var(--blue)" title="Impressions per week" height={130} /><Gaps n={imprGaps} of={series.length} /></>
           ) : (
             <EmptyChart editor={editor} />
           )}
@@ -113,7 +115,7 @@ export default async function BlogReportPage() {
         <section className="card anim-rise ad-2">
           <h2 className="font-mono text-[13px] font-bold mb-2">Clicks / week</h2>
           {hasAnalytics ? (
-            <AreaChart points={series.map((p) => ({ label: p.label, value: p.clicks }))} color="var(--teal)" title="Clicks per week" height={130} />
+            <><AreaChart points={series.map((p) => ({ label: p.label, value: p.clicks }))} color="var(--teal)" title="Clicks per week" height={130} /><Gaps n={clickGaps} of={series.length} /></>
           ) : (
             <EmptyChart editor={editor} />
           )}
@@ -231,6 +233,16 @@ export default async function BlogReportPage() {
         estimates what it can&apos;t measure.
       </p>
     </main>
+  );
+}
+
+/** A run of zeros on a chart is only honest if the unmeasured weeks say so. */
+function Gaps({ n, of }: { n: number; of: number }) {
+  if (n === 0) return null;
+  return (
+    <p className="text-[10px] text-[var(--mute)] mt-1 mb-0">
+      {n} of the {of} weeks recorded nothing — those points sit at zero for want of a measurement, not because the number was zero.
+    </p>
   );
 }
 

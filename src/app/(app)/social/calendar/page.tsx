@@ -22,9 +22,35 @@ export default async function SocialCalendarPage({ searchParams }: { searchParam
   const mode = view === "agenda" ? "agenda" : "calendar";
   const isAdmin = canAdmin(membership.role);
 
-  const [posts, queue, requireApproval] = await Promise.all([
+  // ⚠ Two queries, not one. This was a single `status in [draft, scheduled]`
+  // read ordered by createdAt with `take: 200`, split client-side — so 200
+  // freshly created drafts pushed every scheduled post out of the window and
+  // the agenda announced "Nothing is scheduled" while the queue was full. It
+  // is easy to reach: autogen creates its posts as drafts, and under the
+  // approval workflow they pile up as `pending`.
+  const [scheduled, drafts, queue, requireApproval] = await Promise.all([
     db.socialPost.findMany({
-      where: { workspaceId: workspace.id, status: { in: ["draft", "scheduled"] } },
+      where: { workspaceId: workspace.id, status: "scheduled" },
+      orderBy: { scheduledAt: "asc" },
+      include: {
+        targets: true,
+        topic: { select: { name: true } },
+        campaign: { select: { name: true, color: true } },
+        recycledFrom: { select: { id: true } },
+      },
+      take: 200,
+    }),
+    db.socialPost.findMany({
+      // Held posts live on Approvals, not here — the calendar is for things
+      // that can actually move.
+      // ⚠ `OR [null, not pending]`, never a bare `not` — SQL `<> 'pending'`
+      // drops NULL rows, and an un-reviewed draft has approval NULL. This is
+      // the documented trap that once silently stopped every normal post.
+      where: {
+        workspaceId: workspace.id,
+        status: "draft",
+        OR: [{ approval: null }, { approval: { not: "pending" } }],
+      },
       orderBy: { createdAt: "desc" },
       include: {
         targets: true,
@@ -37,13 +63,6 @@ export default async function SocialCalendarPage({ searchParams }: { searchParam
     getQueue(workspace.id),
     getSetting("social:require_approval", workspace.id).catch(() => "").then((v) => v === "true"),
   ]);
-
-  const scheduled = posts
-    .filter((p) => p.status === "scheduled")
-    .sort((a, b) => (a.scheduledAt?.getTime() ?? 0) - (b.scheduledAt?.getTime() ?? 0));
-  // Held posts live on Approvals, not here — the calendar is for things that
-  // can actually move.
-  const drafts = posts.filter((p) => p.status === "draft" && p.approval !== "pending");
   const hasSlots = queue.slots.some((s) => s.enabled);
 
   // Slot instants are resolved here (the server owns the posting timezone) and

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { requireMembership, canAdmin, canEdit } from "@/lib/acl";
-import { hasSeriesData, postPerformance, weeklySeries } from "@/lib/dashboard-data";
+import { hasSeriesData, postPerformance, unmeasuredWeeks, weeklySeries } from "@/lib/dashboard-data";
 import { AreaChart } from "@/components/charts";
 import { StageHeader } from "@/components/StageShell";
 import { EmptyState } from "@/components/EmptyState";
@@ -15,6 +15,7 @@ export default async function MeasureStage() {
   const editor = canEdit(membership.role);
   const [series, perf] = await Promise.all([weeklySeries(workspace.id, 8), postPerformance(workspace.id, 12)]);
   const hasAnalytics = hasSeriesData(series);
+  const gaps = unmeasuredWeeks(series, "impressions");
   const latest = series[series.length - 1];
 
   return (
@@ -31,7 +32,14 @@ export default async function MeasureStage() {
 
       <section className="card mb-4">
         {hasAnalytics ? (
-          <AreaChart points={series.map((p) => ({ label: p.label, value: p.impressions }))} color="var(--blue)" title="Blog impressions — last 8 weeks" />
+          <>
+            <AreaChart points={series.map((p) => ({ label: p.label, value: p.impressions }))} color="var(--blue)" title="Blog impressions — last 8 weeks" />
+            {gaps > 0 && (
+              <p className="text-[10px] text-[var(--mute)] mt-1 mb-0">
+                {gaps} of the {series.length} weeks recorded nothing — those points sit at zero because there is no measurement, not because the number was zero.
+              </p>
+            )}
+          </>
         ) : (
           <EmptyState
             variant="inline"

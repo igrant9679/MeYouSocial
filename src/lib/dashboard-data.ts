@@ -6,7 +6,26 @@ import { db } from "@/lib/db";
  * the callers render an honest empty state instead of an invented curve.
  */
 
-export type WeekPoint = { label: string; impressions: number; clicks: number };
+/**
+ * ⚠ `measured` is separate from the value ON PURPOSE. A week where an operator
+ * recorded 0 impressions is DATA; a week nobody measured is not, and the two
+ * must never collapse into the same 0. `hasSeriesData` used to test
+ * `impressions > 0 || clicks > 0`, so an honestly recorded zero week was
+ * declared unmeasured and rendered under the words "not measured, never zero"
+ * — the one promise this app makes about numbers, broken by the check meant
+ * to keep it.
+ *
+ * Per metric, not per bucket: a snapshot can carry a position or a session
+ * count and no impressions at all, and that week has genuinely not measured
+ * impressions even though it has rows.
+ */
+export type WeekPoint = {
+  label: string;
+  impressions: number;
+  clicks: number;
+  impressionsMeasured: boolean;
+  clicksMeasured: boolean;
+};
 
 /** Sum snapshots into ISO-week buckets over the trailing `weeks`. */
 export async function weeklySeries(workspaceId: string, weeks = 8): Promise<WeekPoint[]> {
@@ -30,13 +49,22 @@ export async function weeklySeries(workspaceId: string, weeks = 8): Promise<Week
       label: `W${weeks - i}`,
       impressions: inBucket.reduce((a, s) => a + (s.impressions ?? 0), 0),
       clicks: inBucket.reduce((a, s) => a + (s.clicks ?? 0), 0),
+      impressionsMeasured: inBucket.some((s) => s.impressions != null),
+      clicksMeasured: inBucket.some((s) => s.clicks != null),
     });
   }
   return buckets;
 }
 
+/** True when ANY week actually measured impressions or clicks — a recorded zero counts. */
 export function hasSeriesData(series: WeekPoint[]): boolean {
-  return series.some((p) => p.impressions > 0 || p.clicks > 0);
+  return series.some((p) => p.impressionsMeasured || p.clicksMeasured);
+}
+
+/** How many of the weeks on a chart have no measurement at all, so a run of
+ *  zeros can be captioned instead of read as real zeros. */
+export function unmeasuredWeeks(series: WeekPoint[], metric: "impressions" | "clicks"): number {
+  return series.filter((p) => !(metric === "impressions" ? p.impressionsMeasured : p.clicksMeasured)).length;
 }
 
 export type PostPerf = {

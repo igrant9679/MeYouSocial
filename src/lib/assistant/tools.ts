@@ -370,7 +370,11 @@ export const TOOLS: Tool[] = [
       const [series, perf, readings] = await Promise.all([weeklySeries(ctx.workspaceId, 8), postPerformance(ctx.workspaceId, 12), readingsForWorkspace(ctx.workspaceId, new Date(Date.now() - 30 * 86_400_000)).catch(() => [])]);
       const nets = byNetwork(readings as never);
       return [
-        hasSeriesData(series) ? `weekly impressions/clicks: ${series.map((w) => `${w.label} ${w.impressions}/${w.clicks}`).join(", ")}` : "search analytics: not measured (connect Search Console + GA4 under /admin/analytics)",
+        // ⚠ A dash, not a zero, for a week nobody measured — otherwise the
+        // assistant reports "0 impressions" as a fact to the person asking.
+        hasSeriesData(series)
+          ? `weekly impressions/clicks (— = not measured): ${series.map((w) => `${w.label} ${w.impressionsMeasured ? w.impressions : "—"}/${w.clicksMeasured ? w.clicks : "—"}`).join(", ")}`
+          : "search analytics: not measured (connect Search Console + GA4 under /admin/analytics)",
         perf.length ? `posts: ${perf.map((p) => `"${p.title.slice(0, 40)}" pos ${p.position?.toFixed(1) ?? "—"}${p.prevPosition != null && p.position != null ? ` (${p.prevPosition - p.position >= 0 ? "▲" : "▼"}${Math.abs(p.prevPosition - p.position).toFixed(1)})` : ""} clicks ${p.clicks ?? "—"}`).join("; ")}` : "posts: none tracked yet",
         Array.isArray(nets) && nets.length ? `social by network: ${JSON.stringify(nets).slice(0, 400)}` : "social engagement: not measured yet",
       ].join("\n");

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
-import { autopilotFeed, hasSeriesData, homeStats, postPerformance, weeklySeries } from "@/lib/dashboard-data";
+import { autopilotFeed, hasSeriesData, homeStats, postPerformance, unmeasuredWeeks, weeklySeries } from "@/lib/dashboard-data";
 import { AreaChart, HBars } from "@/components/charts";
 import { MOTIF_SEED_BY_KEY, parseMotifs } from "@/lib/motifs";
 import type { BlockKey } from "@/lib/report-defs";
@@ -28,6 +28,16 @@ function Card({ title, children }: { title: string; children: React.ReactNode })
  * to press — ten tiles all saying "no data" (audit B6). `to`/`cta` give each
  * one the single next step, through the shared EmptyState.
  */
+/** Weeks with no measurement, named so their zeros are not read as real. */
+function Gaps({ n, of }: { n: number; of: number }) {
+  if (n === 0) return null;
+  return (
+    <p className="text-[10px] text-[var(--mute)] mt-1 mb-0">
+      {n} of the {of} weeks recorded nothing — those points sit at zero for want of a measurement, not because the number was zero.
+    </p>
+  );
+}
+
 function Empty({ children, to, cta, canAct = true }: { children: React.ReactNode; to?: string; cta?: string; canAct?: boolean }) {
   return (
     <EmptyState
@@ -73,7 +83,7 @@ export async function ReportBlock({ block, workspaceId, weeks, canAct = true }: 
       return (
         <Card title={`Impressions — last ${weeks} weeks`}>
           {hasSeriesData(series) ? (
-            <AreaChart points={series.map((p) => ({ label: p.label, value: p.impressions }))} color="var(--blue)" title="Impressions" />
+            <><AreaChart points={series.map((p) => ({ label: p.label, value: p.impressions }))} color="var(--blue)" title="Impressions" /><Gaps n={unmeasuredWeeks(series, "impressions")} of={series.length} /></>
           ) : (
             <Empty canAct={canAct} to="/blog/analytics" cta="Add this week's numbers">No weekly impressions have been recorded, so there is no curve to draw — blank here means not measured, not zero.</Empty>
           )}
@@ -86,7 +96,7 @@ export async function ReportBlock({ block, workspaceId, weeks, canAct = true }: 
       return (
         <Card title={`Clicks — last ${weeks} weeks`}>
           {hasSeriesData(series) ? (
-            <AreaChart points={series.map((p) => ({ label: p.label, value: p.clicks }))} color="var(--teal)" title="Clicks" />
+            <><AreaChart points={series.map((p) => ({ label: p.label, value: p.clicks }))} color="var(--teal)" title="Clicks" /><Gaps n={unmeasuredWeeks(series, "clicks")} of={series.length} /></>
           ) : (
             <Empty canAct={canAct} to="/blog/analytics" cta="Add this week's numbers">No weekly clicks have been recorded yet.</Empty>
           )}
