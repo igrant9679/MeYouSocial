@@ -180,7 +180,12 @@ export default async function InsightsPage({
       {recs.length === 0 ? (
         <EmptyState
           line="Nothing to suggest right now."
-          note="Rules stay silent unless the data clears their threshold — a thin sample produces no recommendation rather than a confident guess."
+          // Two different silences: nothing cleared the bar, or everything did
+          // and was dealt with. Saying the first when the second is true reads
+          // as "the rules are not working".
+          note={resolved.length > 0
+            ? "The last findings were applied or dismissed — a dismissed one stays quiet for a while before it can return."
+            : "Rules stay silent unless the data clears their threshold — a thin sample produces no recommendation rather than a confident guess."}
           action={editor ? { label: "Re-check now", run: refreshRecommendationsAction, pendingText: "Checking…" } : null}
         />
       ) : (
@@ -406,7 +411,9 @@ export default async function InsightsPage({
         <EmptyState
           tone="attention"
           icon={<Info className="w-5 h-5" style={{ color: "var(--amber-on)" }} />}
-          line={socialReason ?? "No engagement has been pulled back yet."}
+          // ⚠ The fallback must NOT name a cause: it runs when the tiles disagree
+          // about why they are blank, which is exactly when we do not know.
+          line={socialReason ?? "No social engagement figures for this window."}
           note="Blank here means unknown, never zero. Engagement syncs on its own once an account is connected and posts have actually gone out."
           action={{ label: "Open Distribute", href: "/distribute" }}
         />

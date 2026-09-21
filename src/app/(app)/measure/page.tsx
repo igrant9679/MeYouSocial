@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { requireMembership } from "@/lib/acl";
+import { requireMembership, canAdmin, canEdit } from "@/lib/acl";
 import { hasSeriesData, postPerformance, weeklySeries } from "@/lib/dashboard-data";
 import { AreaChart } from "@/components/charts";
 import { StageHeader } from "@/components/StageShell";
@@ -10,7 +10,9 @@ import { EmptyState } from "@/components/EmptyState";
 // the two analytics pages as tabs.
 
 export default async function MeasureStage() {
-  const { workspace } = await requireMembership();
+  const { workspace, membership } = await requireMembership();
+  const admin = canAdmin(membership.role);
+  const editor = canEdit(membership.role);
   const [series, perf] = await Promise.all([weeklySeries(workspace.id, 8), postPerformance(workspace.id, 12)]);
   const hasAnalytics = hasSeriesData(series);
   const latest = series[series.length - 1];
@@ -19,7 +21,7 @@ export default async function MeasureStage() {
     <div>
       <StageHeader
         title="Measure"
-        sentence={hasAnalytics ? "Search impressions and clicks from Search Console; engagement from the networks." : "No search analytics yet — connect Search Console and GA4 under Settings → Analytics and the numbers appear as snapshots accrue."}
+        sentence={hasAnalytics ? "Search impressions and clicks from Search Console; engagement from the networks." : "No search numbers in the last 8 weeks. Connect Search Console and GA4 under Settings → Analytics, or record them by hand, and the curve fills in as snapshots accrue."}
         counts={[
           { label: "impressions, latest week", n: hasAnalytics ? latest.impressions : null, href: "/blog/analytics", hue: "blue" },
           { label: "clicks, latest week", n: hasAnalytics ? latest.clicks : null, href: "/blog/analytics", hue: "green" },
@@ -33,9 +35,17 @@ export default async function MeasureStage() {
         ) : (
           <EmptyState
             variant="inline"
-            line="No search numbers have been recorded for this workspace, so there is no curve to draw."
+            // ⚠ hasSeriesData looks at the last 8 WEEKS only, so this is not an
+            // all-time claim — a workspace whose sync lapsed two months ago has
+            // plenty of recorded numbers and still lands here. And /admin/*
+            // needs ADMIN, so this button bounced everyone else to /forbidden.
+            line="No search numbers in the last 8 weeks, so there is no curve to draw."
             note="A dash here means not measured, never zero — this app does not invent a number it has not been given."
-            action={{ label: "Connect analytics", href: "/admin/analytics" }}
+            action={admin
+              ? { label: "Connect analytics", href: "/admin/analytics" }
+              : editor
+                ? { label: "Enter this week's numbers", href: "/blog/analytics" }
+                : null}
           />
         )}
         {/* A table where every position is a dash reads as "nothing happened".

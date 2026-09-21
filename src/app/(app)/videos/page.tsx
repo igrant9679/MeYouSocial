@@ -174,8 +174,8 @@ export default async function VideosPage() {
       {renders.length === 0 ? (
         <EmptyState
           line="No videos have been rendered yet."
-          note="A render starts from a published article — open one and use Create video package on its Distribute tab."
-          action={{ label: "Open Articles", href: "/blog" }}
+          note={editor ? "A render starts from a published article — open one and use Create video package on its Distribute tab." : "An editor packages a video from an approved or published article."}
+          action={editor ? { label: "Open Articles", href: "/blog" } : null}
         />
       ) : (
         <ul className="flex flex-col gap-3">

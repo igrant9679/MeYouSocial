@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ArrowLeft, FileBarChart, ShieldCheck, TriangleAlert } from "lucide-react";
-import { requireMembership } from "@/lib/acl";
+import { requireMembership, canEdit } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { hasSeriesData, postPerformance, weeklySeries } from "@/lib/dashboard-data";
 import { AreaChart, HBars } from "@/components/charts";
@@ -13,8 +13,12 @@ import { EmptyState } from "@/components/EmptyState";
 // clicks into a floor line. Everything on this page is a real row; where data
 // doesn't exist yet the page says so instead of drawing a curve.
 
+const NO_BLEND_NOTE =
+  "A blend is stored on the article, and only the editor writes it — the workspace default steers generation but is never saved onto the post, so setting it will not fill this chart.";
+
 export default async function BlogReportPage() {
-  const { workspace } = await requireMembership();
+  const { workspace, membership } = await requireMembership();
+  const editor = canEdit(membership.role);
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
   const monthName = now.toLocaleDateString("en-GB", { month: "long", year: "numeric" });
@@ -22,7 +26,8 @@ export default async function BlogReportPage() {
   const [series, perf, publishedThisMonth, citationsTotal, citationsVerified, reviewPosts, publishedPosts] =
     await Promise.all([
       weeklySeries(workspace.id, 8),
-      postPerformance(workspace.id, 40),
+      // published-only in the query: the 40-row take was silently eating them
+      postPerformance(workspace.id, 40, { status: "published" }),
       db.blogPost.count({ where: { workspaceId: workspace.id, status: "published", publishedAt: { gte: monthStart } } }),
       db.blogCitation.count({ where: { post: { workspaceId: workspace.id } } }),
       db.blogCitation.count({ where: { verified: true, post: { workspaceId: workspace.id } } }),
@@ -102,7 +107,7 @@ export default async function BlogReportPage() {
           {hasAnalytics ? (
             <AreaChart points={series.map((p) => ({ label: p.label, value: p.impressions }))} color="var(--blue)" title="Impressions per week" height={130} />
           ) : (
-            <EmptyChart />
+            <EmptyChart editor={editor} />
           )}
         </section>
         <section className="card anim-rise ad-2">
@@ -110,7 +115,7 @@ export default async function BlogReportPage() {
           {hasAnalytics ? (
             <AreaChart points={series.map((p) => ({ label: p.label, value: p.clicks }))} color="var(--teal)" title="Clicks per week" height={130} />
           ) : (
-            <EmptyChart />
+            <EmptyChart editor={editor} />
           )}
         </section>
       </div>
@@ -197,9 +202,20 @@ export default async function BlogReportPage() {
         {motifRows.length === 0 ? (
           <EmptyState
             variant="inline"
-            line={`No published post carries a motif blend yet${motifUnset > 0 ? ` (${motifUnset} published without one)` : ""}.`}
-            note="Set a blend per post, or a default for the workspace."
-            action={{ label: "Set the default blend", href: "/blog/brand" }}
+            // motifRows empty means one of TWO things, and they need different
+            // sentences: nothing published at all, or published posts that
+            // carry no blend. `motifUnset` counts published-without-a-blend,
+            // so it separates them exactly.
+            line={motifUnset > 0
+              ? `${motifUnset} published post${motifUnset === 1 ? " carries" : "s carry"} no motif blend, so there is no voice mix to show.`
+              : "Nothing has been published yet, so there is no voice mix to show."}
+            // ⚠ NOT "set the default blend". BlogPost.motifs is written in
+            // exactly one place — the article editor — and resolveMotifs()
+            // falls back to the workspace default only to build the PROMPT,
+            // never writing it back. Sending someone to /blog/brand to fix
+            // this chart sends them somewhere that cannot fix it.
+            note={motifUnset > 0 ? NO_BLEND_NOTE : undefined}
+            action={motifUnset > 0 ? { label: "Open Articles", href: "/blog?view=list" } : { label: "See what's waiting", href: "/publish" }}
           />
         ) : (
           <div className="max-w-lg">
@@ -218,13 +234,16 @@ export default async function BlogReportPage() {
   );
 }
 
-function EmptyChart() {
+function EmptyChart({ editor }: { editor: boolean }) {
   return (
     <EmptyState
       variant="inline"
       line="No weekly numbers have been recorded, so there is no curve to draw."
-      note="A blank chart means not measured, never zero."
-      action={{ label: "Add this week's numbers", href: "/blog/analytics" }}
+      // ⚠ /blog/analytics opens for any member but hides the snapshot form
+      // behind `editor` — offering a VIEWER the button lands them on a page
+      // with nothing to press.
+      note={editor ? "A blank chart means not measured, never zero." : "A blank chart means not measured, never zero. An editor records the weekly numbers."}
+      action={editor ? { label: "Add this week's numbers", href: "/blog/analytics" } : null}
     />
   );
 }

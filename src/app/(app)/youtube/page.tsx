@@ -148,7 +148,7 @@ export default async function YoutubeAuditPage({ searchParams }: { searchParams:
                 )}
 
                 <div className="grid gap-3 lg:grid-cols-2 mb-4">
-                  {[{ title: "What needs work", list: fixes, empty: "Nothing in this window fell below the channel's own bar." }, { title: "What to keep doing", list: [...wins, ...infos], empty: "Not enough measured videos yet to say what is working." }].map((col) => (
+                  {[{ title: "What needs work", list: fixes, empty: "Nothing measured in this window fell below the channel's own bar — findings need enough videos and a previous window to compare against, so a young channel shows none either way." }, { title: "What to keep doing", list: [...wins, ...infos], empty: "Not enough measured videos yet to say what is working." }].map((col) => (
                     <section key={col.title}>
                       <h2 className="font-mono text-[13px] font-bold mb-2">{col.title}</h2>
                       {col.list.length === 0 ? (

@@ -130,13 +130,12 @@ export default async function BlogPage({ searchParams }: { searchParams: Promise
       {view === "list" && (
         <section className="card mb-4">
           {posts.length === 0 ? (
-            <div className="text-center py-8">
-              <p className="text-sm mb-1">No articles yet.</p>
-              <p className="text-xs text-[var(--mute)]">
-                Approve an idea on the <Link href="/ideas" className="underline">Ideas board</Link> and the engine writes
-                the first one — or create one above.
-              </p>
-            </div>
+            <EmptyState
+              variant="inline"
+              line="No articles yet."
+              note={editor ? "Approve an idea on the Ideas board and the engine writes the first one — or create one with the form above." : "An editor approves an idea or creates an article; drafts appear here on their own."}
+              action={editor ? { label: "Open the Ideas board", href: "/ideas" } : null}
+            />
           ) : (
             <ul className="flex flex-col">
               {posts.map((p) => {

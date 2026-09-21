@@ -77,7 +77,11 @@ export default async function BlogAnalyticsPage() {
           <div className="card">
             <h2 className="text-sm font-semibold mb-2">Refresh candidates <span className="text-xs font-normal text-[var(--mute)]">(position &gt; 10)</span></h2>
             {refreshCandidates.length === 0 ? (
-              <p className="text-xs text-[var(--mute)]">None — nothing ranks worse than position 10.</p>
+              <p className="text-xs text-[var(--mute)]">
+                {tracked.some((x) => x.latest!.position != null)
+                  ? "None of the posts with a recorded position ranks worse than 10."
+                  : "No position has been recorded yet, so there is nothing to compare against 10."}
+              </p>
             ) : (
               <ul className="text-xs flex flex-col gap-1">
                 {refreshCandidates.map((x) => (

@@ -313,7 +313,7 @@ export default async function WebsitePage() {
           <EmptyState
             variant="inline"
             line="No site pages recorded yet."
-            note="The audit and internal-link suggestions read this inventory — add your key pages above, or import everything already published."
+            note={canEdit(membership.role) ? "The audit and internal-link suggestions read this inventory — add your key pages above, or import everything already published." : "The audit and internal-link suggestions read this inventory. An editor records the pages."}
             action={canEdit(membership.role) ? { label: "Import published posts", run: importPublishedAsPagesAction, pendingText: "Importing…" } : null}
           />
         ) : (

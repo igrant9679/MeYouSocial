@@ -18,7 +18,7 @@ export default async function ResearchStage() {
   const { workspace, membership } = await requireMembership();
   const { active } = await getActiveChannel();
   const editor = canEdit(membership.role);
-  const [outliers, channels, bookmarks] = await Promise.all([
+  const [outliers, channels, bookmarks, indexedVideos] = await Promise.all([
     db.intelVideo.findMany({
       where: { intelChannel: { workspaceId: workspace.id }, outlierScore: { gte: 2 } },
       orderBy: { outlierScore: "desc" },
@@ -26,6 +26,10 @@ export default async function ResearchStage() {
       include: { intelChannel: { select: { id: true, name: true, thumbnailUrl: true } } },
     }),
     db.intelChannel.count({ where: { workspaceId: workspace.id } }),
+    // A channel can be indexed with zero videos pulled (indexChannel swallows a
+    // listVideos 404/403), and "nothing beat 2x" would then be a measurement
+    // that never ran.
+    db.intelVideo.count({ where: { intelChannel: { workspaceId: workspace.id } } }),
     db.bookmark.count({ where: { workspaceId: workspace.id } }),
   ]);
 
@@ -43,7 +47,13 @@ export default async function ResearchStage() {
 
       <StageList
         title="Outlier videos worth an idea"
-        empty={<EmptyState variant="inline" line="No indexed competitor video has beaten its own channel's average by 2× yet." note="Outliers appear on their own as a competitor's videos are indexed." action={{ label: "Add a competitor", href: "/intel" }} />}
+        empty={
+          channels === 0
+            ? <EmptyState variant="inline" line="No competitor channels are indexed yet, so there is nothing to compare." action={{ label: "Add a competitor", href: "/intel" }} />
+            : indexedVideos === 0
+              ? <EmptyState variant="inline" line={`${channels} competitor channel${channels === 1 ? " is" : "s are"} indexed, but no videos have been pulled from ${channels === 1 ? "it" : "them"} yet.`} note="Indexing skips a channel whose uploads are not public, or when the YouTube quota is spent — nothing has been measured, so nothing can be ruled out." action={{ label: "Open Intel", href: "/intel" }} />
+              : <EmptyState variant="inline" line={`None of the ${indexedVideos} indexed videos has beaten its own channel's average by 2× yet.`} note="Outliers appear on their own as more of a competitor's videos are indexed." action={{ label: "Add a competitor", href: "/intel" }} />
+        }
       >
         {outliers.length > 0 ? outliers.map((v) => {
           const band = outlierBand(v.outlierScore);

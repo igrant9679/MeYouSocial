@@ -28,17 +28,24 @@ function Card({ title, children }: { title: string; children: React.ReactNode })
  * to press — ten tiles all saying "no data" (audit B6). `to`/`cta` give each
  * one the single next step, through the shared EmptyState.
  */
-function Empty({ children, to, cta }: { children: React.ReactNode; to?: string; cta?: string }) {
+function Empty({ children, to, cta, canAct = true }: { children: React.ReactNode; to?: string; cta?: string; canAct?: boolean }) {
   return (
     <EmptyState
       variant="inline"
       line={<span className="text-xs text-[var(--mute)]">{children}</span>}
-      action={to && cta ? { label: cta, href: to } : null}
+      // ⚠ `canAct` is not decoration. Reports are the one surface a VIEWER is
+      // expected to live on, and every action these blocks offer needs EDITOR:
+      // /social/compose is requireRole("EDITOR") and bounces them to
+      // /forbidden, and /blog/analytics opens but hides the entry form. A
+      // button that cannot work is worse than no button — EmptyState's own
+      // contract says offer nothing and say who can instead.
+      action={canAct && to && cta ? { label: cta, href: to } : null}
+      note={!canAct && to ? "An editor can act on this." : undefined}
     />
   );
 }
 
-export async function ReportBlock({ block, workspaceId, weeks }: { block: BlockKey; workspaceId: string; weeks: number }) {
+export async function ReportBlock({ block, workspaceId, weeks, canAct = true }: { block: BlockKey; workspaceId: string; weeks: number; canAct?: boolean }) {
   switch (block) {
     case "kpis": {
       const stats = await homeStats(workspaceId);
@@ -68,7 +75,7 @@ export async function ReportBlock({ block, workspaceId, weeks }: { block: BlockK
           {hasSeriesData(series) ? (
             <AreaChart points={series.map((p) => ({ label: p.label, value: p.impressions }))} color="var(--blue)" title="Impressions" />
           ) : (
-            <Empty to="/blog/analytics" cta="Add this week's numbers">No weekly impressions have been recorded, so there is no curve to draw — blank here means not measured, not zero.</Empty>
+            <Empty canAct={canAct} to="/blog/analytics" cta="Add this week's numbers">No weekly impressions have been recorded, so there is no curve to draw — blank here means not measured, not zero.</Empty>
           )}
         </Card>
       );
@@ -81,14 +88,15 @@ export async function ReportBlock({ block, workspaceId, weeks }: { block: BlockK
           {hasSeriesData(series) ? (
             <AreaChart points={series.map((p) => ({ label: p.label, value: p.clicks }))} color="var(--teal)" title="Clicks" />
           ) : (
-            <Empty to="/blog/analytics" cta="Add this week's numbers">No weekly clicks have been recorded yet.</Empty>
+            <Empty canAct={canAct} to="/blog/analytics" cta="Add this week's numbers">No weekly clicks have been recorded yet.</Empty>
           )}
         </Card>
       );
     }
 
     case "movers": {
-      const perf = await postPerformance(workspaceId, 40);
+      // Published-only in the query — see the note on postPerformance.
+      const perf = await postPerformance(workspaceId, 40, { status: "published" });
       const withDelta = perf
         .filter((p) => p.position != null && p.prevPosition != null)
         .map((p) => ({ ...p, delta: p.prevPosition! - p.position! }))
@@ -97,7 +105,7 @@ export async function ReportBlock({ block, workspaceId, weeks }: { block: BlockK
       return (
         <Card title="Biggest movers">
           {withDelta.length === 0 ? (
-            <Empty to="/blog/analytics" cta="Add this week's numbers">No post has two recorded positions yet, so there is no movement to compare.</Empty>
+            <Empty canAct={canAct} to="/blog/analytics" cta="Add this week's numbers">No post has two recorded positions yet, so there is no movement to compare.</Empty>
           ) : (
             <ul className="m-0 p-0">
               {withDelta.map((p) => (
@@ -116,11 +124,11 @@ export async function ReportBlock({ block, workspaceId, weeks }: { block: BlockK
     }
 
     case "posts_table": {
-      const perf = (await postPerformance(workspaceId, 40)).filter((p) => p.status === "published").slice(0, 10);
+      const perf = await postPerformance(workspaceId, 10, { status: "published" });
       return (
         <Card title="Content">
           {perf.length === 0 ? (
-            <Empty to="/publish" cta="See what's waiting">Nothing has been published from this workspace yet, so there is no content to rank.</Empty>
+            <Empty canAct={canAct} to="/publish" cta="See what's waiting">Nothing has been published from this workspace yet, so there is no content to rank.</Empty>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-xs border-collapse">
@@ -153,7 +161,7 @@ export async function ReportBlock({ block, workspaceId, weeks }: { block: BlockK
     }
 
     case "position_buckets": {
-      const perf = await postPerformance(workspaceId, 60);
+      const perf = await postPerformance(workspaceId, 60, { status: "published" });
       const positions = perf.filter((p) => p.status === "published" && p.position != null).map((p) => p.position!);
       const rows = [
         { label: "Top 3", value: positions.filter((x) => x <= 3).length, color: "#1D4ED8" },
@@ -163,7 +171,7 @@ export async function ReportBlock({ block, workspaceId, weeks }: { block: BlockK
       ];
       return (
         <Card title="Keyword positions">
-          {positions.length === 0 ? <Empty to="/blog/analytics" cta="Add this week's numbers">No post has a recorded search position yet.</Empty> : <HBars rows={rows} />}
+          {positions.length === 0 ? <Empty canAct={canAct} to="/blog/analytics" cta="Add this week's numbers">No post has a recorded search position yet.</Empty> : <HBars rows={rows} />}
         </Card>
       );
     }
@@ -253,7 +261,7 @@ export async function ReportBlock({ block, workspaceId, weeks }: { block: BlockK
       return (
         <Card title="Autopilot activity">
           {feed.length === 0 ? (
-            <Empty to="/setup/automation" cta="Open Automation">The autopilot has not acted in this window — it runs only where a function is set to assisted or auto.</Empty>
+            <Empty canAct={canAct} to="/setup/automation" cta="Open Automation">No autopilot activity has been recorded. An idle sweep writes nothing on purpose, so this is also what a workspace with nothing to do looks like.</Empty>
           ) : (
             <ul className="m-0 p-0 text-xs">
               {feed.map((e, i) => (
@@ -321,7 +329,11 @@ export async function ReportBlock({ block, workspaceId, weeks }: { block: BlockK
       return (
         <Card title="Voice mix — dominant motif of published posts">
           {rows.length === 0 ? (
-            <Empty to="/blog/brand" cta="Set the default blend">No published posts carry a motif blend yet{unset ? ` (${unset} without one)` : ""}.</Empty>
+            <Empty canAct={canAct} to={unset ? "/blog?view=list" : "/publish"} cta={unset ? "Open Articles" : "See what's waiting"}>
+              {unset
+                ? `${unset} published post${unset === 1 ? " carries" : "s carry"} no motif blend, so there is no voice mix to show. A blend is stored on the article by its editor — the workspace default steers generation but is never saved onto the post.`
+                : "Nothing has been published yet, so there is no voice mix to show."}
+            </Empty>
           ) : (
             <div className="max-w-lg">
               <HBars rows={rows} />
@@ -341,7 +353,7 @@ export async function ReportBlock({ block, workspaceId, weeks }: { block: BlockK
       return (
         <Card title="Social variants">
           {variants.length === 0 ? (
-            <Empty to="/social/compose" cta="Compose a post">No social variants yet — they generate when posts publish, under an assisted or auto social mode.</Empty>
+            <Empty canAct={canAct} to="/social/compose" cta="Compose a post">No social variants yet — they generate when posts publish, under an assisted or auto social mode.</Empty>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-xs border-collapse">
@@ -376,7 +388,7 @@ export async function ReportBlock({ block, workspaceId, weeks }: { block: BlockK
       return (
         <Card title="Video renders">
           {renders.length === 0 ? (
-            <Empty to="/distribute" cta="Open Distribute">No renders yet — a published post is packaged into one from its Distribute tab.</Empty>
+            <Empty canAct={canAct} to="/distribute" cta="Open Distribute">No renders yet — a published post is packaged into one from its Distribute tab.</Empty>
           ) : (
             <>
               <p className="text-[11px] text-[var(--mute)] mb-2">
@@ -407,7 +419,7 @@ export async function ReportBlock({ block, workspaceId, weeks }: { block: BlockK
       return (
         <Card title="Content-audit summary">
           {items.length === 0 ? (
-            <Empty to="/blog/audit" cta="Open Content audit">Nothing has been audited yet — a run scores your live posts with the pre-publish checks.</Empty>
+            <Empty canAct={canAct} to="/blog/audit" cta="Open Content audit">Nothing has been audited yet — a run scores your live posts with the pre-publish checks.</Empty>
           ) : (
             <>
               <HBars rows={[

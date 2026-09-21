@@ -18,14 +18,20 @@ import { EmptyState } from "@/components/EmptyState";
 export default async function ContentAuditPage() {
   const { workspace, membership } = await requireMembership();
   const editor = canEdit(membership.role);
-  const [items, conn] = await Promise.all([
+  const [items, conn, sitePages] = await Promise.all([
     db.contentAuditItem.findMany({
       where: { workspaceId: workspace.id },
       orderBy: [{ status: "asc" }, { slopScore: "desc" }],
       take: 300,
     }),
     db.wordPressConnection.findUnique({ where: { workspaceId: workspace.id } }),
+    // ⚠ A run can only read WordPress posts or the site inventory. With
+    // neither, it completes having scanned nothing and stores nothing — so
+    // offering "Run the audit" is offering a button that cannot change the
+    // page. Say what is missing instead.
+    db.sitePage.count({ where: { workspaceId: workspace.id } }),
   ]);
+  const auditHasSomethingToRead = Boolean(conn) || sitePages > 0;
   const open = items.filter((i) => i.status === "open");
   const counts = (["rewrite", "merge", "retire", "keep"] as const).map((r) => ({
     r,
@@ -98,13 +104,25 @@ export default async function ContentAuditPage() {
 
       {items.length === 0 ? (
         <EmptyState
-          line="Nothing has been audited yet — a run scores your live posts with the same checks the pre-publish gate uses."
-          note={
-            conn
-              ? "It crawls the posts published through this app."
-              : "Without a WordPress connection it can only read the pages in your site inventory, which is slower and sees less — an admin connects WordPress under Publish → Website."
+          line={
+            auditHasSomethingToRead
+              ? "Nothing has been audited yet — a run scores your live posts with the same checks the pre-publish gate uses."
+              : "There is nothing for the audit to read yet."
           }
-          action={editor ? { label: "Run the audit", run: runContentAuditAction, pendingText: "Auditing…" } : null}
+          note={
+            !auditHasSomethingToRead
+              ? "It scans the posts on a connected WordPress site, or the pages in your site inventory. With neither, a run would find nothing to score."
+              : conn
+                ? "It crawls the posts published through this app."
+                : `Without a WordPress connection it reads the ${sitePages} page${sitePages === 1 ? "" : "s"} in your site inventory, which is slower and sees less.`
+          }
+          action={
+            !auditHasSomethingToRead
+              ? { label: "Connect a website", href: "/website" }
+              : editor
+                ? { label: "Run the audit", run: runContentAuditAction, pendingText: "Auditing…" }
+                : null
+          }
         />
       ) : (
         <ul className="flex flex-col gap-2">

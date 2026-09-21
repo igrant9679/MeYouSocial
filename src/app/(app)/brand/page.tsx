@@ -254,7 +254,7 @@ export default async function BrandPage({ searchParams }: { searchParams: Promis
         {personas.length === 0 ? (
           <EmptyState
             variant="inline"
-            line="No personas yet."
+            line="No active persona."
             note="A persona gives drafts a credible, consistent voice — who the content speaks as, their credentials, and what they never claim."
             action={editor ? { label: "Add a persona", href: "/blog/experts#add-expert" } : null}
           />

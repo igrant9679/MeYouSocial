@@ -51,9 +51,17 @@ export type PostPerf = {
 };
 
 /** Latest (and previous) snapshot per post, for tables and deltas. */
-export async function postPerformance(workspaceId: string, take = 24): Promise<PostPerf[]> {
+/**
+ * ⚠ `take` slices the most-recently-UPDATED posts of ANY status, so filtering
+ * the result to `published` afterwards is a trap: a workspace with 40 drafts
+ * touched this week and 15 published articles from last quarter gets 40 drafts
+ * back and nothing published — and every panel built on that then declares
+ * "nothing has been published yet", which is false. Pass `status` so the
+ * filter happens in the QUERY, where the take can't eat the rows first.
+ */
+export async function postPerformance(workspaceId: string, take = 24, opts?: { status?: string }): Promise<PostPerf[]> {
   const posts = await db.blogPost.findMany({
-    where: { workspaceId },
+    where: { workspaceId, ...(opts?.status ? { status: opts.status } : {}) },
     orderBy: { updatedAt: "desc" },
     take,
     select: {

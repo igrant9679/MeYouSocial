@@ -94,7 +94,7 @@ export default async function SocialPerformancePage({ searchParams }: { searchPa
 
       <Section icon={<Send className="w-4 h-4" style={{ color: "var(--green-on)" }} />} title="History" count={history.length} />
       {history.length === 0 ? (
-        <Empty text="Nothing has been published from this workspace yet." note="Each post appears here with its own status per network." to="/social/compose" cta="Compose a post" />
+        <Empty text="No posts have gone out from this workspace yet." note="Each post appears here once it sends, with its own status per network." to="/social/compose" cta="Compose a post" />
       ) : (
         <div className="flex flex-col gap-2">
           {history.map((p) => (

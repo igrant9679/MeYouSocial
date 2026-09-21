@@ -6,6 +6,8 @@ import {
 import { requireMembership, canAdmin, canEdit } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { getInboxData } from "@/lib/inbox";
+import { isGloballyPaused } from "@/lib/governance";
+import { isFullyAutonomous } from "@/lib/autonomy";
 import type { HomeDecision, PipelineStage } from "@/lib/home";
 import { autopilotFeed, hasSeriesData, homeStats, postPerformance, weeklySeries } from "@/lib/dashboard-data";
 import { AreaChart } from "@/components/charts";
@@ -37,7 +39,7 @@ export default async function InboxPage() {
   const admin = canAdmin(membership.role);
   const editor = canEdit(membership.role);
 
-  const [inbox, stats, series, perf, feed, channels, origin, auditOpen] = await Promise.all([
+  const [inbox, stats, series, perf, feed, channels, origin, auditOpen, paused, autonomous] = await Promise.all([
     getInboxData(workspace.id, { admin }),
     homeStats(workspace.id),
     weeklySeries(workspace.id, 8),
@@ -48,6 +50,12 @@ export default async function InboxPage() {
     // Same count the strip badges (lib/stage-counts.ts) — kept in step so the
     // Inbox link and the Publish → Audit badge never disagree.
     db.contentAuditItem.count({ where: { workspaceId: workspace.id, status: "open", recommendation: { not: "keep" } } }),
+    // ⚠ An empty engine feed is not evidence that autonomy is off. The global
+    // pause short-circuits every generation path, so a fully autonomous
+    // workspace with the pause on writes no audit rows at all — and telling
+    // its owner to "turn on autonomy" names the one dial that is already on.
+    isGloballyPaused(workspace.id),
+    isFullyAutonomous(workspace.id),
   ]);
   const { home } = inbox;
   const warn = inbox.conditions.filter((d) => d.severity === "warn");
@@ -167,7 +175,11 @@ export default async function InboxPage() {
           </h2>
           {feed.length === 0 ? (
             <p className="text-xs text-[var(--mute)] m-0">
-              Idle — turn on autonomy under <Link href="/setup/automation" className="underline">Settings → Automation</Link>.
+              {paused
+                ? <>Nothing has run: the global pause is on. <Link href="/setup/automation" className="underline">Resume it</Link>.</>
+                : autonomous
+                  ? <>Nothing has run yet. The engine is on and idle — it writes no audit row when it finds nothing to do.</>
+                  : <>Nothing has run by itself — turn on autonomy under <Link href="/setup/automation" className="underline">Settings → Automation</Link>.</>}
             </p>
           ) : (
             <ul className="m-0 p-0 text-xs">

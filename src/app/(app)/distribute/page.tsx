@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { AlertTriangle, Info, Check } from "lucide-react";
-import { requireMembership } from "@/lib/acl";
+import { requireMembership, canAdmin } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { getPostingTimeZone, formatInZone } from "@/lib/social/slots";
 import { networkFor } from "@/lib/social/networks";
@@ -15,7 +15,8 @@ import { EmptyState } from "@/components/EmptyState";
 // redirects here). Compose, Calendar and Engage are its tabs.
 
 export default async function DistributeStage({ searchParams }: { searchParams: Promise<{ ok?: string; err?: string }> }) {
-  const { workspace } = await requireMembership();
+  const { workspace, membership } = await requireMembership();
+  const admin = canAdmin(membership.role);
   const { ok, err } = await searchParams;
   const now = new Date();
   const [tz, scheduled, drafts, unread, overview, recent] = await Promise.all([
@@ -73,7 +74,10 @@ export default async function DistributeStage({ searchParams }: { searchParams: 
           <Link href="/admin/connections" className="btn sm">Manage</Link>
         </div>
         {accounts.length === 0 ? (
-          <EmptyState variant="inline" line="No social account is connected yet, so there is nowhere for a post to go." note="Use this app's Connect buttons — not Zernio's dashboard, which leaves duplicate accounts behind." action={{ label: "Connect an account", href: "/admin/connections" }} />
+          <EmptyState variant="inline" line="No social account is connected yet, so there is nowhere for a post to go." note="Use this app's Connect buttons — not Zernio's dashboard, which leaves duplicate accounts behind." // ⚠ /admin/* is wrapped in requireRole("ADMIN"), so this button bounces
+          // anyone else to /forbidden. /setup/connections is member-visible and
+          // links on to the page that fixes each row.
+          action={admin ? { label: "Connect an account", href: "/admin/connections" } : { label: "See what's connected", href: "/setup/connections" }} />
         ) : (
           <div className="flex flex-wrap gap-1.5">
             {accounts.map((a) => {
@@ -127,7 +131,13 @@ export default async function DistributeStage({ searchParams }: { searchParams: 
 
       <StageList
         title="The queue"
-        empty={<EmptyState variant="inline" line="Nothing is scheduled — an approved draft takes the next free slot in its category." action={{ label: "Compose a post", href: "/social/compose" }} />}
+        empty={
+          !overview.slotsConfigured
+            ? <EmptyState variant="inline" line="Nothing is scheduled, and no posting slots are set — the queue has no times to send at." action={{ label: "Set posting slots", href: "/setup/schedule" }} />
+            : drafts > 0
+              ? <EmptyState variant="inline" line={`Nothing is scheduled, though ${drafts} draft${drafts === 1 ? " is" : "s are"} waiting.`} note="A draft only claims a slot when someone queues it, or when queue-on-approval is switched on under Automation." action={{ label: "Open the calendar", href: "/social/calendar" }} />
+              : <EmptyState variant="inline" line="Nothing is scheduled and there are no drafts waiting." action={{ label: "Compose a post", href: "/social/compose" }} />
+        }
       >
         {scheduled.length > 0 ? scheduled.map((p) => (
           <StageRow key={p.id}>

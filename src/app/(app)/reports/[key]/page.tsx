@@ -82,7 +82,7 @@ export default async function ReportPage({
               No blocks yet — open Customize and add some.
             </div>
           ) : (
-            report.blocks.map((b) => <ReportBlock key={b} block={b} workspaceId={workspace.id} weeks={weeks} />)
+            report.blocks.map((b) => <ReportBlock key={b} block={b} workspaceId={workspace.id} weeks={weeks} canAct={editor} />)
           )}
         </div>
 
