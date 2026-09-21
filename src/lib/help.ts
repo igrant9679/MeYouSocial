@@ -46,7 +46,7 @@ export const HELP_CATEGORIES: FaqCategory[] = [
       },
       {
         q: "Honestly — what IS this app? Give me the mental model.",
-        a: "One sentence: it turns research into content, publishes that content, and then measures it — for one or more companies at once.\n\nThe loop, in the order the rail reads it:\n\n**1. Set up** — a key so the AI works, and the accounts you publish to (Settings → Connections).\n**2. Decide what you are about** — a Channel (for video) and Topics + tone (Brand).\n**3. Research** — Intel finds videos that beat their own channel’s average; the best become **Ideas** on one board.\n**4. Drafts** — the autopilot writes approved ideas: articles with images and SEO, scripts for video when the studio is on.\n**5. Review** — the gates: nothing goes out until its checks pass; the Inbox shows what a person must decide.\n**6. Publish** to your site on the publish day (or by HTML export), then **Distribute** — social posts into your posting slots.\n**7. Measure** — what ranked and what got clicked, measured or a dash, never invented.\n\nYou can stop at any stage. Plenty of people only ever use Distribute, or only ever use the blog side.",
+        a: "One sentence: it turns research into content, publishes that content, and then measures it — for one or more companies at once.\n\nThe loop, in the order the rail reads it:\n\n**1. Set up** — a key so the AI works, and the accounts you publish to (Settings → Connections).\n**2. Decide what you are about** — Topics (Ideas → Topics: the themes everything hangs off), a Channel (for video) and tone (Brand).\n**3. Research** — Intel finds videos that beat their own channel’s average, grouped under the Topic they match; any one becomes an article, video or social **Idea** on one board, in its Topic’s lane.\n**4. Drafts** — the autopilot writes approved ideas: articles with images and SEO, scripts for video when the studio is on.\n**5. Review** — the gates: nothing goes out until its checks pass; the Inbox shows what a person must decide.\n**6. Publish** to your site on the publish day (or by HTML export), then **Distribute** — social posts into your posting slots.\n**7. Measure** — what ranked and what got clicked, measured or a dash, never invented.\n\nYou can stop at any stage. Plenty of people only ever use Distribute, or only ever use the blog side.",
       },
       {
         q: "I don't know where to start. What's the shortest path to something real?",
@@ -152,19 +152,19 @@ export const HELP_CATEGORIES: FaqCategory[] = [
   },
   {
     id: "brand",
-    label: "Brand & topics",
+    label: "Brand",
     color: "#DB2777",
     soft: "#FBE2EF",
     entries: [
       {
         q: "What is the Brand module actually for?",
-        a: "It holds the things every generation should obey, so you set them once instead of restating them in each prompt: your colours and logo, your company info, your **Topics**, your personas, your keywords, and your tone.\n\nIf output keeps coming back sounding wrong, this is usually the page to fix rather than the prompt.",
+        a: "It holds the things every generation should obey, so you set them once instead of restating them in each prompt: your colours and logo, your company info, your personas, your keywords, and your tone. **Topics** live under Ideas → Topics since they organise the board rather than the identity.\n\nIf output keeps coming back sounding wrong, this is usually the page to fix rather than the prompt.",
         links: [{ label: "Open Brand →", href: "/brand" }],
         tags: ["brand", "identity", "tone", "what is"],
       },
       {
         q: "What's a Topic, and why would I bother?",
-        a: "A Topic is a theme this company publishes about — \"Nonprofit fundraising\", \"Content-led SEO\".\n\nThe payoff is that it's the **one tag that spans every content surface**: social posts, blog posts, channel ideas, videos and production projects can all carry the same Topic. That's what lets Reports and Insights group everything on a theme together instead of showing you six unrelated lists.\n\nDeleting a Topic only clears the tag — it never deletes the content that was tagged with it.",
+        a: "A Topic is a theme this company publishes about — \"Nonprofit fundraising\", \"Content-led SEO\". It is the spine of the whole loop.\n\n· **Research** groups outliers under the Topic they match, and “Make it an idea” pre-fills it.\n· **Ideas** is one board in Topic lanes: article, video and social ideas side by side, and discovery runs per Topic so every idea the engine writes arrives knowing what it is about.\n· **Drafts, Publish, Distribute** carry it onto the article, the script, the post.\n· **Measure → Topics** shows what each one earned, per format — measured or a dash.\n\nManage them under **Ideas → Topics**: name, one line, related phrases (they drive the keyword matching), priority (leads discovery and is filled first), archive. Each Topic has its own page with its ideas, what was made and what went out.\n\nDeleting a Topic only clears the tag — it never deletes the content that was tagged with it.",
         links: [{ label: "Manage topics →", href: "/ideas/topics" }],
         tags: ["topic", "theme", "tagging", "reports"],
       },
@@ -357,7 +357,7 @@ export const HELP_CATEGORIES: FaqCategory[] = [
       },
       {
         q: "Can the app generate posts and articles on a schedule, by itself?",
-        a: "Yes — two dials, one autopilot.\n\n**Articles**: the autopilot (sweeps every 30 min) discovers ideas, drafts approved ones, and can publish gated posts, governed by the per-function mode dials under **Blog → Automation**. Set **Weekly article target** there to cap how many it drafts per rolling 7 days.\n\n**Social posts**: turn on **Auto-generate posts** under Social → Workflow and set a number per week. The autopilot writes fresh posts from your active **Topics** (rotating through them), in your motif tone, one at a time spread across the day — each gets an auto-image and is queued into a free posting slot, or **held for approval** when the approval workflow is on.\n\nSafety rails: everything respects the global pause, counts against the daily AI budget (20 generations/workspace/day), and **placeholder output is never stored** — if no real AI key resolves, nothing is generated rather than something fake. The Social mode dial (Blog → Automation) must be assisted or auto for post generation to run.",
+        a: "Yes — two dials, one autopilot.\n\n**Articles**: the autopilot (sweeps every 30 min) discovers ideas, drafts approved ones, and can publish gated posts, governed by the per-function mode dials under **Blog → Automation**. Set **Weekly article target** there to cap how many it drafts per rolling 7 days.\n\n**Social posts**: turn on **Auto-generate posts** under Settings → Automation and set a number per week. A social post now starts as an **idea**: the autopilot proposes post ideas per Topic (and one per angle of each newly published article), they take the **social idea gate** — *approve themselves* (the default, so the feed keeps running) or *wait for a person* — and one approved idea per sweep becomes a post in your motif tone, with an auto-image, queued into a free posting slot or **held for approval** when the approval workflow is on. Ideas you add yourself always wait for you. Every post carries its Topic and links back to its idea.\n\nSafety rails: everything respects the global pause, counts against the daily AI budget (20 generations/workspace/day), and **placeholder output is never stored** — if no real AI key resolves, nothing is generated rather than something fake. The Social mode dial (Blog → Automation) must be assisted or auto for post generation to run.",
         links: [{ label: "Settings → Automation →", href: "/setup/automation" }, { label: "Settings → Schedule →", href: "/setup/schedule" }],
         tags: ["autopilot", "autonomous", "generate", "schedule", "articles", "posts", "weekly"],
       },
@@ -405,7 +405,7 @@ export const HELP_CATEGORIES: FaqCategory[] = [
       },
       {
         q: "Can the system make changes on its own?",
-        a: "Only one, and only if you opt in. Applying is gated **twice**: the change must be on an explicit allow-list, **and** the governing function's mode dial must be set to **auto**. Today exactly one change qualifies — raising a Topic's discovery priority — because it's the only genuinely safe lever: it reorders which topics idea-generation is prompted with, deletes nothing, and is undone by resetting the priority in Brand. **Publishing and brand identity can't be touched by the engine at all.** Everything else waits in the review queue for you to apply, accept or dismiss. Dismissing silences that finding for two weeks.",
+        a: "Only one, and only if you opt in. Applying is gated **twice**: the change must be on an explicit allow-list, **and** the governing function's mode dial must be set to **auto**. Today exactly one change qualifies — raising a Topic's discovery priority — because it's the only genuinely safe lever: it reorders which topics idea-generation is prompted with, deletes nothing, and is undone by resetting the priority under Ideas → Topics. **Publishing and brand identity can't be touched by the engine at all.** Everything else waits in the review queue for you to apply, accept or dismiss. Dismissing silences that finding for two weeks.",
         links: [{ label: "Automation →", href: "/setup/automation" }],
         tags: ["auto", "autonomy", "apply", "mode dial", "safety", "allow-list"],
       },
@@ -558,14 +558,14 @@ export const HELP_CATEGORIES: FaqCategory[] = [
         tags: ["email", "smtp", "social", "posting", "zernio", "unipile", "connections", "linkedin", "facebook", "twitter"],
       },
       {
-        q: "Where do we set our company's brand, personas and topics?",
-        a: "**Brand** in the sidebar — your workspace's identity in one place: brand colours and fonts (used in generated content), the app's own accent + logo, company info that grounds every AI draft, **Topics** (the themes you publish about), plus live summaries and links for personas, keywords and connected social accounts. All of it is per workspace, so each company on this install keeps its own. Tone of voice (the 7 Motifs) and asset policy stay under Blog → Brand.",
+        q: "Where do we set our company's brand and personas — and where did Topics go?",
+        a: "**Brand** in the sidebar — your workspace's identity in one place: brand colours and fonts (used in generated content), the app's own accent + logo, company info that grounds every AI draft, plus live summaries and links for personas, keywords and connected social accounts. All of it is per workspace, so each company on this install keeps its own. Tone of voice (the 7 Motifs) and asset policy stay under Brand → Tone & motifs.\n\n**Topics** moved to **Ideas → Topics** on 2026-09-21: they are what the loop is about, not part of the identity — Research is matched to them, the board is in Topic lanes, and Measure reports what each earned. Brand keeps a pointer.",
         links: [{ label: "Open Brand →", href: "/brand" }],
         tags: ["brand", "identity", "personas", "topics", "company", "colors", "keywords"],
       },
       {
         q: "Where can I use Topics?",
-        a: "A topic you add under **Brand** is available on every content surface: **channel ideas**, **blog ideas**, **blog posts**, **videos**, **production projects** and **social posts**. Two things make them more than labels:\n\n· **They steer ideation** — on the blog Idea board you can focus a discovery run on one topic, and every idea it generates belongs to that topic. In the social composer, the chosen topic's related phrases appear as click-to-insert chips.\n\n· **They follow the work** — promoting an idea to a draft carries the topic onto the post, and packaging that post into a video carries it again, so you set it once at the start.\n\nDeleting a topic is safe: it clears the tag from anything using it and never deletes your content. Tasks don't have their own topic — they inherit their project's.",
+        a: "A topic you add under **Ideas → Topics** is on every content surface: **article, video and social ideas**, **blog posts**, **videos**, **production projects** and **social posts**. Three things make them more than labels:\n\n· **They steer ideation** — discovery runs per Topic, emptiest first, and every idea it generates belongs to its Topic; the board is one lane per Topic. Research groups outliers under the Topic they match. In the social composer, the chosen topic's related phrases appear as click-to-insert chips.\n\n· **They follow the work** — promoting an idea to a draft carries the topic onto the post, a social idea onto its post, and packaging an article into a video carries it again, so you set it once at the start.\n\n· **They report back** — Measure → Topics shows what each Topic earned per format, measured or a dash.\n\nDeleting a topic is safe: it clears the tag from anything using it and never deletes your content. Tasks don't have their own topic — they inherit their project's.",
         links: [{ label: "Manage topics →", href: "/ideas/topics" }],
         tags: ["topics", "themes", "ideation", "tagging", "content"],
       },

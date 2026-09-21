@@ -88,9 +88,10 @@ export default function GuidePage() {
         <ul className="m-0 p-0 text-sm space-y-2">
           <Stage href="/research" name="Research" tabs="Intel · Bookmarks · Competitors">
             Competitor channels and the videos that beat their own average (2× is strong, 5× exceptional — measured
-            or a dash, never estimated). &ldquo;Make it an idea&rdquo; turns an outlier into an article idea.
+            or a dash, never estimated), grouped under the Topic they match by keyword. &ldquo;Make it an idea&rdquo; turns
+            an outlier into an article, video or social idea, tagged with its Topic.
           </Stage>
-          <Stage href="/ideas" name="Ideas" tabs="Keywords · Experts">
+          <Stage href="/ideas" name="Ideas" tabs="Topics · Keywords · Experts">
             One board for article and video ideas: Discovered → Approved → Drafted → Rejected, a format chip on
             each card. <b>Only approved article ideas are drafted, and approving is your act.</b> Discover ideas,
             generate video ideas, recompute priorities (every score shows its working).
@@ -284,8 +285,8 @@ export default function GuidePage() {
             measured — it stays silent below its sample size rather than guessing.
           </Step>
           <Step icon={Check} title="Skim the outliers.">
-            <Link href="/research" className="underline">Research</Link>: the strong ones, and whether any fits a
-            Topic well enough to become an idea.
+            <Link href="/research" className="underline">Research</Link>: the strong ones sit under the Topic they
+            match; the chooser on each row makes one an article, video or social idea.
           </Step>
         </ul>
       </section>
@@ -364,7 +365,7 @@ export default function GuidePage() {
           </Step>
           <Step icon={ListChecks} title="A new competitor.">
             Research → Intel → add by @handle or keyword → outliers appear as videos index → Bookmark the keepers →
-            <i>Make it an idea</i>, or open the video and chat with its transcript.
+            <i>Make it an idea</i> (article, video or social, with its Topic), or open the video and chat with its transcript.
           </Step>
           <Step icon={ListChecks} title="Changing the cadence.">
             Settings → Automation for the weekly article target and the publish day, and the social posts per week;

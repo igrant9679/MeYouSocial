@@ -214,6 +214,17 @@ Tabs: **Keys** (`/admin/api-keys`: LLM, search, images, video, TTS, storage) · 
   as a fact elsewhere.
 - **Counts across all three formats**: the `/ideas` badge (`stage-counts.ts`), the Inbox
   "ideas to triage" card and pipeline strip (`home.ts`). A video idea's "discovered" is `new`.
+- **A social post starts as an idea.** Sweep step 3 in `blog-autopilot.ts` is ideation
+  (`social/ideation.ts`: per Topic, and a published article's angles) → the gate
+  (`ideas:social_gate`, `social/gate.ts`: `auto` default approves the ENGINE's own ideas in the
+  same sweep; `human` leaves them on the board; a person's ideas always wait for that person) →
+  drafting (`social/drafting.ts`: one approved idea per sweep → a post, written exactly as
+  autogen wrote it, same weekly quota). `social/autogen.ts` (Topic rotation) and
+  `generateVariantsCore` are the ROLLBACK behind `social:source = rotation` — set only by an
+  operator, never from the UI. Full autonomy sets the gate to `auto` and snapshots it.
+- **Measure → Topics** (`lib/topic-measure.ts`, `/measure/topics`): every cell measured or a
+  dash with the reason; YouTube numbers are matched to a Topic BY KEYWORD (`kw`) because no
+  link exists from a render to the uploaded video — labelled, never stored.
 
 ## Open items / things the user still owns
 - **Analytics: APIs enabled 2026-08-03** (Search Console + GA Admin + GA Data, on project
