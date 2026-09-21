@@ -141,6 +141,7 @@ export default async function BlogPostPage({
       comments: { orderBy: { createdAt: "asc" } },
       images: true,
       variants: { orderBy: { platform: "asc" } },
+      _count: { select: { socialIdeas: true } },
       versions: { orderBy: { createdAt: "desc" }, take: 20 },
     },
   });
@@ -1323,6 +1324,17 @@ export default async function BlogPostPage({
         </div>
       )}
 
+      {/* Social ideas from this article (Topics as the spine, 2026-09-21): the
+          engine proposes angles as IDEAS on the board, which take the gate and
+          are drafted into the queue like every other post. The variants panel
+          below stays for the rows that exist and for the manual button. */}
+      {post.status === "published" && (
+        <p className="text-xs text-[var(--mute)] mt-4 mb-0">
+          {post._count.socialIdeas > 0
+            ? <>{post._count.socialIdeas} social idea{post._count.socialIdeas === 1 ? "" : "s"} came from this article — <Link href="/ideas?format=social" className="underline">see them on the board</Link>; the posts they become land on the Calendar with this article&apos;s link.</>
+            : <>The engine proposes this article&apos;s social angles as ideas on the <Link href="/ideas?format=social" className="underline">board</Link> on its next sweep; they are drafted into the queue with the article&apos;s link.</>}
+        </p>
+      )}
       {/* Social variants (FR-12) — once the post reaches approval/published */}
       {(post.status === "final_approval" || post.status === "published") && (
         <div className="card mt-4">

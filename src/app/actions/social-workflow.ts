@@ -269,9 +269,19 @@ export async function saveSocialWorkflowSettingsAction(formData: FormData) {
   await setWorkspaceSetting(workspace.id, "social:autogen", autogen ? "true" : "false");
   await setWorkspaceSetting(workspace.id, "social:autogen_weekly", String(autogenWeekly));
   await setWorkspaceSetting(workspace.id, "social:autogen_campaign", autogenCampaign);
+  // The social idea gate (Topics as the spine): auto | human. Absent = auto.
+  const socialGate = String(formData.get("socialGate") ?? "") === "human" ? "human" : "auto";
+  await setWorkspaceSetting(workspace.id, "ideas:social_gate", socialGate);
+  // Rollback dial: the page only offers "Use ideas" when the workspace is on
+  // rotation; the rotation itself is set by an operator (a script or a DB
+  // row), never from this form, so nobody switches a feed back by accident.
+  if (String(formData.get("socialSourceCurrent") ?? "") === "rotation" && String(formData.get("socialSourceIdeas") ?? "") === "on") {
+    await setWorkspaceSetting(workspace.id, "social:source", "ideas");
+  }
   revalidatePath("/social", "layout");
+  revalidatePath("/ideas", "layout");
   backTo(
-    `Auto-queue on approval ${autoqueue ? "on" : "off"} · evergreen fill ${evergreen ? "on" : "off"} · auto-image ${autoImage ? "on" : "off"} · auto-generate ${autogen ? `${autogenWeekly}/week` : "off"}.`,
+    `Auto-queue on approval ${autoqueue ? "on" : "off"} · evergreen fill ${evergreen ? "on" : "off"} · auto-image ${autoImage ? "on" : "off"} · auto-generate ${autogen ? `${autogenWeekly}/week` : "off"} · social ideas ${socialGate === "human" ? "wait for a person" : "approve themselves"}.`,
     "ok",
   );
 }

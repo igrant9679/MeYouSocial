@@ -1273,26 +1273,83 @@ export async function runAutopilotCycle(workspaceId: string): Promise<CycleRepor
     }
   }
 
-  // 3. Social: generate variants for published posts that lack any.
+  // 3. Social — the idea stage a social post never had ("Topics as the
+  // spine", phase 4, 2026-09-21). Three steps, in the order articles take:
+  //   a. ideation   — a published article's social angles become social
+  //                   IDEAS (one per angle; replaces the per-network
+  //                   SocialVariant rows the engine used to write), and the
+  //                   emptiest Topic × social cells are topped up;
+  //   b. the gate   — `ideas:social_gate` auto approves the engine's own
+  //                   discovered ideas in the same sweep (the default, so the
+  //                   feed's volume and cadence do not change); human leaves
+  //                   them on the board;
+  //   c. drafting   — one approved idea per sweep becomes a post in the
+  //                   queue, written exactly as autogen wrote it, up to the
+  //                   same weekly quota.
+  // `social:source = rotation` is the rollback to the pre-spine generator.
   if (unattended("social")) {
-    const bare = await db.blogPost.findMany({
-      where: { workspaceId, status: "published", variants: { none: {} } },
-      select: { id: true },
-      take: 2,
-    });
-    for (const p of bare) {
-      const n = await generateVariantsCore(workspaceId, p.id);
-      if (n > 0) report.variantPosts++;
-    }
+    const { socialGate, socialSource } = await import("@/lib/social/gate");
+    const { getSetting } = await import("@/lib/settings");
+    const source = await socialSource(workspaceId);
+    const autogenOn = (await getSetting("social:autogen", workspaceId).catch(() => "")) === "true";
 
-    // 3½. De-novo social posts on a weekly quota — same mode dial, same lock,
-    // same daily budget; additionally opt-in via social:autogen. One per
-    // cycle: the 30-minute cadence spreads the quota rather than bursting it.
-    const { generateSocialPostForWorkspace } = await import("@/lib/social/autogen");
-    try {
-      if (await generateSocialPostForWorkspace(workspaceId)) report.postsGenerated++;
-    } catch (e) {
-      console.error(`[social-autogen] failed for ${workspaceId}:`, e instanceof Error ? e.message : e);
+    if (source === "rotation") {
+      // The old two steps, untouched: per-network variants on publish, and a
+      // Topic picked by rotation written straight into the queue.
+      const bare = await db.blogPost.findMany({
+        where: { workspaceId, status: "published", variants: { none: {} } },
+        select: { id: true },
+        take: 2,
+      });
+      for (const p of bare) {
+        const n = await generateVariantsCore(workspaceId, p.id);
+        if (n > 0) report.variantPosts++;
+      }
+      const { generateSocialPostForWorkspace } = await import("@/lib/social/autogen");
+      try {
+        if (await generateSocialPostForWorkspace(workspaceId)) report.postsGenerated++;
+      } catch (e) {
+        console.error(`[social-autogen] failed for ${workspaceId}:`, e instanceof Error ? e.message : e);
+      }
+    } else {
+      const { socialIdeasFromArticle } = await import("@/lib/social/ideation");
+      // a. Ideas from articles published since the spine arrived that have
+      //    none yet — two a sweep. Older articles keep their variants.
+      const bare = await db.blogPost.findMany({
+        where: { workspaceId, status: "published", socialIdeas: { none: {} }, publishedAt: { gte: new Date("2026-09-21T00:00:00Z") } },
+        select: { id: true },
+        orderBy: { publishedAt: "desc" },
+        take: 2,
+      });
+      for (const p of bare) {
+        try {
+          const n = await socialIdeasFromArticle(workspaceId, p.id);
+          if (n > 0) report.variantPosts++;
+        } catch (e) {
+          console.error(`[social-ideation] article ${p.id} failed for ${workspaceId}:`, e instanceof Error ? e.message : e);
+        }
+      }
+      //    Per-Topic social ideation, only where drafting will consume it.
+      if (autogenOn && unattended("ideation")) {
+        const { runIdeation } = await import("@/lib/ideation");
+        const run = await runIdeation(workspaceId, { formats: ["social"], maxCells: 2, floor: 2 });
+        report.ideasCreated += run.created;
+      }
+      // b. The gate: the engine's own ideas approve themselves under `auto`.
+      //    Ideas a person added (manual, research) always wait for that person.
+      if ((await socialGate(workspaceId)) === "auto") {
+        await db.socialIdea.updateMany({
+          where: { workspaceId, status: "discovered", source: { in: ["discovered", "article"] } },
+          data: { status: "approved", approvedAt: new Date() },
+        });
+      }
+      // c. Drafting: one approved idea → one post in the queue.
+      const { draftSocialIdeasForWorkspace } = await import("@/lib/social/drafting");
+      try {
+        if (await draftSocialIdeasForWorkspace(workspaceId)) report.postsGenerated++;
+      } catch (e) {
+        console.error(`[social-drafting] failed for ${workspaceId}:`, e instanceof Error ? e.message : e);
+      }
     }
   }
 

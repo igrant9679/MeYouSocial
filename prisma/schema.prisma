@@ -665,6 +665,11 @@ model WordPressConnection {
 }
 
 // Per-platform social copy for a published post (Spark FR-12).
+// ⚠ Superseded for the ENGINE on 2026-09-21 ("Topics as the spine"): a
+// published article's social angles are now SocialIdea rows (source
+// "article") that take the gate and are drafted into the real queue. The
+// sweep no longer writes here; the editor's manual "Generate variants" button
+// still does, and the rows that exist stay readable. Kept, not deleted.
 model SocialVariant {
   id        String   @id @default(cuid())
   postId    String

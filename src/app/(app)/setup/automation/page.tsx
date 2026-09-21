@@ -27,7 +27,7 @@ export default async function SetupAutomation({ searchParams }: { searchParams: 
   const { workspace, membership } = await requireMembership();
   const { ok, err } = await searchParams;
   const admin = canAdmin(membership.role);
-  const [modes, paused, lastCycle, weeklyArticles, publishDay, autoSeoRaw, autonomy, queue, campaigns, autoQueue, evergreenFill, autoImage, autogenOn, autogenWeekly, autogenCampaign] = await Promise.all([
+  const [modes, paused, lastCycle, weeklyArticles, publishDay, autoSeoRaw, autonomy, queue, campaigns, autoQueue, evergreenFill, autoImage, autogenOn, autogenWeekly, autogenCampaign, socialGate, socialSource] = await Promise.all([
     getModes(workspace.id),
     isGloballyPaused(workspace.id),
     db.auditLog.findFirst({ where: { workspaceId: workspace.id, action: { in: ["autopilot.cycle", "autopilot.manual_run"] } }, orderBy: { createdAt: "desc" } }),
@@ -44,6 +44,8 @@ export default async function SetupAutomation({ searchParams }: { searchParams: 
     getSetting("social:autogen", workspace.id).catch(() => "").then((v) => v === "true"),
     getSetting("social:autogen_weekly", workspace.id).catch(() => "").then((v) => parseInt(v, 10) || 5),
     getSetting("social:autogen_campaign", workspace.id).catch(() => ""),
+    getSetting("ideas:social_gate", workspace.id).catch(() => "").then((v) => (v === "human" ? "human" : "auto")),
+    getSetting("social:source", workspace.id).catch(() => "").then((v) => (v === "rotation" ? "rotation" : "ideas")),
   ]);
   const autoSeo = autoSeoRaw !== "false";
   const intervalMin = Math.max(5, parseInt(process.env.AUTOPILOT_INTERVAL_MIN ?? "30", 10) || 30);
@@ -180,7 +182,7 @@ export default async function SetupAutomation({ searchParams }: { searchParams: 
               <span className="flex-1">
                 The autopilot writes fresh posts from your Topics —{" "}
                 <input type="number" name="autogenWeekly" min={1} max={50} defaultValue={autogenWeekly} className="w-14 border border-[var(--line-2)] rounded px-1 py-0.5 text-xs font-mono inline-block" />{" "}
-                per week, each with an auto-image, queued into free slots (or held for approval). Needs the Social mode below at assisted or auto and active Topics under Brand.
+                per week, each with an auto-image, queued into free slots (or held for approval). Needs the Social mode below at assisted or auto and active Topics under <Link href="/ideas/topics" className="underline">Ideas → Topics</Link>.
                 {campaigns.length > 0 && (
                   <span className="inline-flex items-center gap-1.5 ml-1">Campaign:{" "}
                     <select name="autogenCampaign" defaultValue={autogenCampaign} className="border border-[var(--line-2)] rounded px-1 py-0.5 text-xs">
@@ -191,6 +193,29 @@ export default async function SetupAutomation({ searchParams }: { searchParams: 
                 )}
               </span>
             </div>
+            {/* The social idea gate (Topics as the spine, 2026-09-21). A social
+                post now starts as an idea on the board; this decides whether
+                the engine's own ideas wait for a person. `auto` is the default
+                because the feed was already running unattended. */}
+            <fieldset className="text-xs border-t border-[var(--line)] pt-2 mt-1">
+              <legend className="sr-only">Social ideas</legend>
+              <p className="mb-1"><b>Social ideas the engine discovers</b> — every auto-generated post starts as an idea on the <Link href="/ideas?format=social" className="underline">board</Link>, in its Topic&apos;s lane.</p>
+              <label className="inline-flex items-start gap-2 cursor-pointer mr-4">
+                <input type="radio" name="socialGate" value="auto" defaultChecked={socialGate === "auto"} className="mt-0.5" />
+                <span><b>Approve themselves</b> — drafted into the queue on the next sweep, as before. Ideas you or Research add still wait for you.</span>
+              </label>
+              <label className="inline-flex items-start gap-2 cursor-pointer">
+                <input type="radio" name="socialGate" value="human" defaultChecked={socialGate === "human"} className="mt-0.5" />
+                <span><b>Wait for a person</b> — like article ideas; the Inbox counts them to triage.</span>
+              </label>
+              {socialSource === "rotation" && (
+                <p className="mt-2 mb-0" style={{ color: "var(--amber-on)" }}>
+                  This workspace is on the <b>rotation</b> generator (the pre-idea-stage path: a Topic picked in turn, written straight into the queue, plus per-network variants on publish). Switch it back to ideas here.{" "}
+                  <label className="inline-flex items-center gap-1 cursor-pointer"><input type="checkbox" name="socialSourceIdeas" defaultChecked={false} /> Use ideas</label>
+                </p>
+              )}
+              <input type="hidden" name="socialSourceCurrent" value={socialSource} />
+            </fieldset>
             <div><SubmitButton className="btn sm" pendingText="Saving…">Save</SubmitButton></div>
           </form>
         </div>

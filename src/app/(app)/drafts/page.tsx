@@ -7,6 +7,8 @@ import { studioState } from "@/lib/studio";
 import { getModes, isGloballyPaused } from "@/lib/governance";
 import { StageHeader, StageList, StageRow, StateChip } from "@/components/StageShell";
 import { EmptyState } from "@/components/EmptyState";
+import { SubmitButton } from "@/components/SubmitButton";
+import { queueSocialPostAction } from "@/app/actions/social-slots";
 
 // Drafts stage: everything being written or rendered, by format — articles
 // always; scripts and video renders when the video studio is shown (a YouTube
@@ -19,7 +21,7 @@ export default async function DraftsStage() {
   const { active } = await getActiveChannel();
   const admin = canAdmin(membership.role);
   const studio = await studioState(workspace.id);
-  const [posts, scripts, renders, counts, approvedIdeas, paused, modes] = await Promise.all([
+  const [posts, scripts, renders, counts, socialDrafts, approvedIdeas, paused, modes] = await Promise.all([
     db.blogPost.findMany({
       where: { workspaceId: workspace.id, status: { in: ["drafting", "draft_review"] } },
       orderBy: { updatedAt: "desc" },
@@ -43,6 +45,15 @@ export default async function DraftsStage() {
         })
       : Promise.resolve([]),
     db.blogPost.groupBy({ by: ["status"], where: { workspaceId: workspace.id, status: { in: ["drafting", "draft_review"] } }, _count: { _all: true } }),
+    // Social drafts: posts written but not yet in a slot (Topics as the
+    // spine, 2026-09-21) — the third format's "being made" list. A pending
+    // approval is Publish → Approvals' business, so it is not listed here.
+    db.socialPost.findMany({
+      where: { workspaceId: workspace.id, status: "draft", scheduledAt: null, OR: [{ approval: null }, { approval: { not: "pending" } }] },
+      orderBy: { updatedAt: "desc" },
+      take: 8,
+      select: { id: true, text: true, updatedAt: true, approval: true, topic: { select: { id: true, name: true } }, idea: { select: { id: true, source: true, sourceBlogPost: { select: { id: true, title: true } } } } },
+    }),
     // ⚠ The empty state has to say WHY nothing is being written, and there are
     // two different answers: the queue is empty, or the queue is full and the
     // autopilot simply hasn't got to it (audit B6/D4).
@@ -113,6 +124,31 @@ export default async function DraftsStage() {
           </StageRow>
         )) : undefined}
       </StageList>
+
+      {socialDrafts.length > 0 && (
+        <StageList title="Social posts">
+          {socialDrafts.map((p) => (
+            <StageRow key={p.id}>
+              <StateChip label={p.approval === "changes" ? "changes asked" : "draft"} hue={p.approval === "changes" ? "amber" : "blue"} />
+              <div className="flex-1 min-w-48">
+                <Link href={`/social/${p.id}/edit`} className="text-sm font-semibold hover:underline line-clamp-1">{p.text}</Link>
+                <div className="text-[11px] text-[var(--mute)]">
+                  {p.topic ? <Link href={`/ideas/topics/${p.topic.id}`} className="hover:underline">{p.topic.name}</Link> : "no topic"}
+                  {p.idea ? ` · from ${p.idea.source === "article" && p.idea.sourceBlogPost ? `article: ${p.idea.sourceBlogPost.title}` : p.idea.source === "research" ? "research" : "an idea"}` : " · composed by hand"}
+                  {` · updated ${p.updatedAt.toLocaleDateString("en-GB", { day: "2-digit", month: "short" })}`}
+                </div>
+              </div>
+              {p.approval !== "changes" && (
+                <form action={queueSocialPostAction}>
+                  <input type="hidden" name="id" value={p.id} />
+                  <SubmitButton className="btn sm" pendingText="Queueing…" title="Into the next free posting slot">Queue it</SubmitButton>
+                </form>
+              )}
+              <Link href={`/social/${p.id}/edit`} className="btn sm">Open</Link>
+            </StageRow>
+          ))}
+        </StageList>
+      )}
 
       {studio.show && scripts.length > 0 && (
         <StageList title="Scripts">

@@ -39,7 +39,10 @@ export async function isFullyAutonomous(workspaceId: string): Promise<boolean> {
   return (await getSetting(AUTONOMY_KEY, workspaceId).catch(() => "")) === "true";
 }
 
-type Snapshot = { modes: Partial<Record<GovernedFunction, Mode>>; autoqueue: string };
+// `socialGate` joined the snapshot with the social idea stage (2026-09-21):
+// full autonomy sets `ideas:social_gate` to auto so the engine's social
+// output keeps running unattended, and switching off restores the dial.
+type Snapshot = { modes: Partial<Record<GovernedFunction, Mode>>; autoqueue: string; socialGate?: string };
 
 /**
  * Turn it on: every function this drives goes to `auto`, and approving a social
@@ -54,6 +57,7 @@ export async function enableFullAutonomy(workspaceId: string, userId: string): P
   const snapshot: Snapshot = {
     modes: Object.fromEntries(existing.map((m) => [m.function, m.mode])) as Snapshot["modes"],
     autoqueue: await getSetting("social:autoqueue", workspaceId).catch(() => ""),
+    socialGate: await getSetting("ideas:social_gate", workspaceId).catch(() => ""),
   };
   await setWorkspaceSetting(workspaceId, RESTORE_KEY, JSON.stringify(snapshot));
 
@@ -65,6 +69,7 @@ export async function enableFullAutonomy(workspaceId: string, userId: string): P
     });
   }
   await setWorkspaceSetting(workspaceId, "social:autoqueue", "true");
+  await setWorkspaceSetting(workspaceId, "ideas:social_gate", "auto");
   await setWorkspaceSetting(workspaceId, AUTONOMY_KEY, "true");
   await writeAudit({
     workspaceId, actorId: userId, action: "autonomy.enabled", entityType: "workspace", entityId: workspaceId,
@@ -94,6 +99,9 @@ export async function disableFullAutonomy(workspaceId: string, userId: string): 
     });
   }
   if (snapshot) await setWorkspaceSetting(workspaceId, "social:autoqueue", snapshot.autoqueue);
+  // An older snapshot has no gate value; leaving the row alone is the honest
+  // fallback (the dial is right there under Automation).
+  if (snapshot?.socialGate !== undefined) await setWorkspaceSetting(workspaceId, "ideas:social_gate", snapshot.socialGate);
   await setWorkspaceSetting(workspaceId, AUTONOMY_KEY, "false");
   await writeAudit({
     workspaceId, actorId: userId, action: "autonomy.disabled", entityType: "workspace", entityId: workspaceId,
