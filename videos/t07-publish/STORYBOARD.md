@@ -28,7 +28,7 @@ duration: 18.1
 type: screen
 seam-in: cut-the-curve LEFT
 route: camera with intent + staged reveals
-footage: publish.png
+footage: publish-tour.mp4
 
 > The Publish overview has two lists. Waiting to go out: articles at final approval, each with the day it is due. Recently published: what went live, with its link. Publishing an article is always an admin's act, whatever the dials say.
 

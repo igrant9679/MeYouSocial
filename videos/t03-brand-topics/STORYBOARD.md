@@ -54,7 +54,7 @@ duration: 28.1
 type: screen
 seam-in: cut-the-curve LEFT
 route: camera with intent + staged reveals
-footage: brand.png
+footage: brand-tour.mp4
 
 > Brand context is what the AI reads before it writes: your differentiators, your products and what each does, brand documents, personas. Nothing here is AI-generated, on purpose. An invented differentiator would be repeated as fact in every article afterwards. Write these yourself, plainly. Guardrails are the rules it must obey, and Experts are the subject-matter profiles the writing quotes.
 

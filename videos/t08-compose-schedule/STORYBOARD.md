@@ -28,7 +28,7 @@ duration: 28.1
 type: screen
 seam-in: cut-the-curve LEFT
 route: camera with intent + staged reveals
-footage: compose.png
+footage: compose-type.mp4
 
 > Distribute, then Compose. Pick the accounts under Post to; one post fans out to every selected account. Write once. Where a network needs its own version, Customize overrides the text or the image for that network alone. Character counts run against each network's real limit, and image requirements are enforced before you send. Instagram, Pinterest and YouTube cannot take a text-only post.
 

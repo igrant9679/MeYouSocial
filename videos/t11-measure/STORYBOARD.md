@@ -54,7 +54,7 @@ duration: 27.9
 type: screen
 seam-in: cut-the-curve LEFT
 route: camera with intent + staged reveals
-footage: social-performance.png
+footage: measure-tour.mp4
 
 > Measure, then Social performance: engagement by network, synced on a schedule or on demand. Read the window carefully. It means posts sent in that window, not engagement earned in it, because networks report lifetime totals per post. The evidence line under each figure says so. Best time to post is measured from real engagement, and it stays silent below its sample size rather than guessing.
 

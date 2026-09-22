@@ -27,10 +27,30 @@
       "narration": "Settings, then People. At the top: social posts need an admin's approval. Turn it on and a post by a non-admin is held until an admin approves it. Nothing unapproved can be sent, scheduled, queued or dragged onto the calendar. That is enforced on the server, not just in the interface. Under full autonomy, the autopilot's own posts wait here too. Publishing an article is an admin's act regardless.",
       "headlineAt": "q:That is enforced",
       "callouts": [
-        { "kind": "chips", "items": ["Cannot send", "Cannot schedule", "Cannot queue", "Cannot drag"], "at": "q:Nothing unapproved" },
-        { "kind": "quote", "text": "Under full autonomy the autopilot's own posts wait here too.", "at": "q:Under full autonomy" }
+        {
+          "kind": "chips",
+          "items": [
+            "Cannot send",
+            "Cannot schedule",
+            "Cannot queue",
+            "Cannot drag"
+          ],
+          "at": "q:Nothing unapproved"
+        },
+        {
+          "kind": "quote",
+          "text": "Under full autonomy the autopilot's own posts wait here too.",
+          "at": "q:Under full autonomy"
+        }
       ],
-      "punch": { "x": 700, "y": 210, "scale": 1.35, "at": "q:At the top", "dur": 1.5, "hold": 8.0 }
+      "punch": {
+        "x": 700,
+        "y": 210,
+        "scale": 1.35,
+        "at": "q:At the top",
+        "dur": 1.5,
+        "hold": 8
+      }
     },
     {
       "id": "s03",
@@ -41,8 +61,20 @@
       "narration": "Held posts appear in the Inbox and under Publish, Approvals. Approve, or request changes with a note for the author. A post with changes requested goes back to its author and cannot be sent until it is approved again.",
       "headlineAt": "q:Approve, or",
       "callouts": [
-        { "kind": "chips", "items": ["Approve", "Request changes"], "at": "q:Approve, or" },
-        { "kind": "card", "label": "Changes requested", "title": "Back to the author; cannot send until approved again", "at": "q:A post with" }
+        {
+          "kind": "chips",
+          "items": [
+            "Approve",
+            "Request changes"
+          ],
+          "at": "q:Approve, or"
+        },
+        {
+          "kind": "card",
+          "label": "Changes requested",
+          "title": "Back to the author; cannot send until approved again",
+          "at": "q:A post with"
+        }
       ]
     },
     {
@@ -54,26 +86,72 @@
       "narration": "One trap to know. An approved draft that was never queued will never send. Queue on approval, under Settings, Automation, collapses the two: the moment an admin approves, the post takes the next free slot. Turn it on with a team, and approving becomes the last human act.",
       "headlineAt": "q:Turn it on",
       "callouts": [
-        { "kind": "quote", "text": "An approved draft that was never queued will never send.", "at": "q:An approved draft" },
-        { "kind": "card", "label": "Queue on approval", "title": "Approve → next free slot, automatically", "at": "q:Queue on approval" }
+        {
+          "kind": "quote",
+          "text": "An approved draft that was never queued will never send.",
+          "at": "q:An approved draft"
+        },
+        {
+          "kind": "card",
+          "label": "Queue on approval",
+          "title": "Approve → next free slot, automatically",
+          "at": "q:Queue on approval"
+        }
       ],
-      "punch": { "x": 700, "y": 320, "scale": 1.3, "at": "q:Queue on approval", "dur": 1.5, "hold": 5.0 }
+      "punch": {
+        "x": 700,
+        "y": 320,
+        "scale": 1.3,
+        "at": "q:Queue on approval",
+        "dur": 1.5,
+        "hold": 5
+      }
     },
     {
       "id": "s05",
       "type": "screen",
       "seam": "arrival",
       "chapter": "04 · Engage",
-      "still": "engage.png",
       "headline": "The one hard deadline in the whole *app.*",
       "narration": "Distribute, then Engage: comments, direct messages and reviews across every account this workspace can read, in one place. Answer people the day they write. The one hard deadline in the whole app lives here: Facebook and Instagram only accept a direct message reply within twenty-four hours of the person's message. Set aside stops a review asking without deleting it. The panel also says plainly what each network exposes; a missing count is a limit of the integration, not a quiet audience.",
       "headlineAt": "q:The one hard",
       "callouts": [
-        { "kind": "chips", "items": ["Comments", "Direct messages", "Reviews"], "at": "q:comments, direct" },
-        { "kind": "card", "label": "Facebook · Instagram", "value": "24 h", "title": "to reply to a DM", "at": "q:Facebook and Instagram" },
-        { "kind": "card", "label": "Set aside", "title": "Stops it asking; deletes nothing", "at": "q:Set aside" }
+        {
+          "kind": "chips",
+          "items": [
+            "Comments",
+            "Direct messages",
+            "Reviews"
+          ],
+          "at": "q:comments, direct"
+        },
+        {
+          "kind": "card",
+          "label": "Facebook · Instagram",
+          "value": "24 h",
+          "title": "to reply to a DM",
+          "at": "q:Facebook and Instagram"
+        },
+        {
+          "kind": "card",
+          "label": "Set aside",
+          "title": "Stops it asking; deletes nothing",
+          "at": "q:Set aside"
+        }
       ],
-      "punch": { "x": 700, "y": 640, "scale": 1.3, "at": "q:comments, direct", "dur": 1.5, "hold": 6.0 }
+      "punch": {
+        "x": 700,
+        "y": 640,
+        "scale": 1.3,
+        "at": "q:comments, direct",
+        "dur": 1.5,
+        "hold": 6
+      },
+      "clip": {
+        "src": "engage-tour.mp4",
+        "start": 5.0,
+        "rate": 0.65
+      }
     },
     {
       "id": "s06",
@@ -84,10 +162,26 @@
       "narration": "On the Distribute overview, each account's health is coloured by the network's own verdict, never by a token-expiry note alone. When a post fails on one network, the history says exactly which. Retry re-sends only that target, and duplicate sends are guarded, so a retry cannot double-post. Reconnect accounts from Settings, Connections, using this app's Connect buttons.",
       "headlineAt": "q:When a post fails",
       "callouts": [
-        { "kind": "quote", "text": "Never red on a token-expiry note alone.", "at": "q:never by a token" },
-        { "kind": "card", "label": "Retry", "title": "Re-sends only the failed network; cannot double-post", "at": "q:Retry re-sends" }
+        {
+          "kind": "quote",
+          "text": "Never red on a token-expiry note alone.",
+          "at": "q:never by a token"
+        },
+        {
+          "kind": "card",
+          "label": "Retry",
+          "title": "Re-sends only the failed network; cannot double-post",
+          "at": "q:Retry re-sends"
+        }
       ],
-      "punch": { "x": 600, "y": 230, "scale": 1.3, "at": "q:each account's health", "dur": 1.5, "hold": 5.0 }
+      "punch": {
+        "x": 600,
+        "y": 230,
+        "scale": 1.3,
+        "at": "q:each account's health",
+        "dur": 1.5,
+        "hold": 5
+      }
     },
     {
       "id": "s07",

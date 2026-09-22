@@ -28,7 +28,7 @@ duration: 22.6
 type: screen
 seam-in: cut-the-curve LEFT
 route: camera with intent + staged reveals
-footage: article-checklist.png
+footage: article-review.mp4
 
 > Every article carries a checklist. Metadata, slug and focus keyword. Alt text on every image. No unsourced claims. Every citation verified. A branded social preview image. Under full autonomy the app does that review work itself, and only holds what it genuinely cannot fix.
 

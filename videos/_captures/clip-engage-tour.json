@@ -1,0 +1,2 @@
+{ "out": ".", "name": "engage-tour", "workspace": "CommunityForce Inc.", "url": "/setup/people", "wait": 1800, "hide": ["card:text=Invitations not yet accepted", "text=@communityforce.com", "text=@gmail.com", "text=@lsi-media.com", "text=Current:", "card:text=Pending invitations", "text=/invitations/"],
+  "actions": [ {"mouse":[900,300],"steps":20}, {"wait":2200}, {"goto":"/social/approvals"}, {"wait":2800}, {"goto":"/social/engage"}, {"wait":3000}, {"scroll":250}, {"wait":1800} ], "tail": 1500 }

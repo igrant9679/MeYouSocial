@@ -22,16 +22,40 @@
       "id": "s02",
       "type": "screen",
       "chapter": "01 · Compose",
-      "still": "compose.png",
       "headline": "Real limits, enforced before you *send.*",
       "narration": "Distribute, then Compose. Pick the accounts under Post to; one post fans out to every selected account. Write once. Where a network needs its own version, Customize overrides the text or the image for that network alone. Character counts run against each network's real limit, and image requirements are enforced before you send. Instagram, Pinterest and YouTube cannot take a text-only post.",
       "headlineAt": "q:Character counts",
       "callouts": [
-        { "kind": "card", "label": "Post to", "title": "One post fans out to every selected account", "at": "q:Pick the accounts" },
-        { "kind": "card", "label": "Customize", "title": "Per-network text and image overrides", "at": "q:Where a network" },
-        { "kind": "quote", "text": "Instagram, Pinterest and YouTube need an image.", "at": "q:Instagram, Pinterest" }
+        {
+          "kind": "card",
+          "label": "Post to",
+          "title": "One post fans out to every selected account",
+          "at": "q:Pick the accounts"
+        },
+        {
+          "kind": "card",
+          "label": "Customize",
+          "title": "Per-network text and image overrides",
+          "at": "q:Where a network"
+        },
+        {
+          "kind": "quote",
+          "text": "Instagram, Pinterest and YouTube need an image.",
+          "at": "q:Instagram, Pinterest"
+        }
       ],
-      "punch": { "x": 700, "y": 420, "scale": 1.3, "at": "q:Pick the accounts", "dur": 1.5, "hold": 8.0 }
+      "punch": {
+        "x": 700,
+        "y": 420,
+        "scale": 1.3,
+        "at": "q:Pick the accounts",
+        "dur": 1.5,
+        "hold": 8
+      },
+      "clip": {
+        "src": "compose-type.mp4",
+        "start": 0.5
+      }
     },
     {
       "id": "s03",
@@ -42,11 +66,33 @@
       "narration": "Three ways to send. Queue drops the post into the next free posting slot. Schedule sends it once, at a time you pick. Post now sends immediately. Draft with AI on the text box writes a first version from what the workspace knows and proposes it; nothing touches your text until you accept.",
       "headlineAt": "q:Three ways",
       "callouts": [
-        { "kind": "card", "label": "Queue", "title": "Next free posting slot", "at": "q:Queue drops" },
-        { "kind": "card", "label": "Schedule", "title": "Once, at a time you pick", "at": "q:Schedule sends" },
-        { "kind": "card", "label": "Post now", "title": "Immediately", "at": "q:Post now sends" }
+        {
+          "kind": "card",
+          "label": "Queue",
+          "title": "Next free posting slot",
+          "at": "q:Queue drops"
+        },
+        {
+          "kind": "card",
+          "label": "Schedule",
+          "title": "Once, at a time you pick",
+          "at": "q:Schedule sends"
+        },
+        {
+          "kind": "card",
+          "label": "Post now",
+          "title": "Immediately",
+          "at": "q:Post now sends"
+        }
       ],
-      "punch": { "x": 700, "y": 760, "scale": 1.3, "at": "q:Three ways", "dur": 1.5, "hold": 6.0 }
+      "punch": {
+        "x": 700,
+        "y": 760,
+        "scale": 1.3,
+        "at": "q:Three ways",
+        "dur": 1.5,
+        "hold": 6
+      }
     },
     {
       "id": "s04",
@@ -57,11 +103,32 @@
       "narration": "Settings, then Schedule. Set the workspace timezone and the posting slots: recurring send times, a weekday and a minute. They are stored as wall clock, so nine o'clock stays nine o'clock through daylight-saving changes. Without slots, every post needs a hand-picked date, and Queue has nowhere to put anything. Slot categories let a rule pick which slot a kind of post takes; anything without a match falls back to a general slot, so nothing strands.",
       "headlineAt": "q:They are stored",
       "callouts": [
-        { "kind": "card", "label": "Slots", "title": "Weekday + minute, stored as wall clock", "at": "q:the posting slots" },
-        { "kind": "quote", "text": "Without slots, Queue has nowhere to put anything.", "at": "q:Without slots" },
-        { "kind": "card", "label": "Categories", "title": "Own category → general → any, so nothing strands", "at": "q:Slot categories" }
+        {
+          "kind": "card",
+          "label": "Slots",
+          "title": "Weekday + minute, stored as wall clock",
+          "at": "q:the posting slots"
+        },
+        {
+          "kind": "quote",
+          "text": "Without slots, Queue has nowhere to put anything.",
+          "at": "q:Without slots"
+        },
+        {
+          "kind": "card",
+          "label": "Categories",
+          "title": "Own category → general → any, so nothing strands",
+          "at": "q:Slot categories"
+        }
       ],
-      "punch": { "x": 700, "y": 400, "scale": 1.3, "at": "q:Set the workspace", "dur": 1.5, "hold": 7.0 }
+      "punch": {
+        "x": 700,
+        "y": 400,
+        "scale": 1.3,
+        "at": "q:Set the workspace",
+        "dur": 1.5,
+        "hold": 7
+      }
     },
     {
       "id": "s05",
@@ -72,8 +139,21 @@
       "narration": "Distribute, then Calendar. The month view shows what is queued and scheduled; switch to Week for the detail. Drag a post to another day to reschedule it. The queue list below is in your posting timezone. Recently published shows what went out, with a separate status per network, and any failed network called out.",
       "headlineAt": "q:Drag a post",
       "callouts": [
-        { "kind": "chips", "items": ["Month", "Week"], "on": 0, "at": "q:The month view" },
-        { "kind": "card", "label": "Per network", "title": "A separate status after every send", "at": "q:with a separate" }
+        {
+          "kind": "chips",
+          "items": [
+            "Month",
+            "Week"
+          ],
+          "on": 0,
+          "at": "q:The month view"
+        },
+        {
+          "kind": "card",
+          "label": "Per network",
+          "title": "A separate status after every send",
+          "at": "q:with a separate"
+        }
       ]
     },
     {
@@ -86,9 +166,24 @@
       "narration": "Two dials that run on their own. Auto-generated posts come from your Topics, up to a weekly quota you choose under Settings, Automation, optionally under a named campaign with its own tracking parameter. Every outbound link is tagged. And evergreen recycling clones a post that performed into free slots after its cooldown. It is opt-in, and a recycled post is never itself recycled.",
       "headlineAt": "q:It is opt-in",
       "callouts": [
-        { "kind": "card", "label": "Auto-generated", "title": "From your Topics, up to a weekly quota", "at": "q:Auto-generated posts" },
-        { "kind": "card", "label": "Campaigns", "title": "Own utm_campaign at send; every link tagged", "at": "q:optionally under" },
-        { "kind": "card", "label": "Evergreen", "title": "Clones a performer into free slots after its cooldown", "at": "q:And evergreen" }
+        {
+          "kind": "card",
+          "label": "Auto-generated",
+          "title": "From your Topics, up to a weekly quota",
+          "at": "q:Auto-generated posts"
+        },
+        {
+          "kind": "card",
+          "label": "Campaigns",
+          "title": "Own utm_campaign at send; every link tagged",
+          "at": "q:optionally under"
+        },
+        {
+          "kind": "card",
+          "label": "Evergreen",
+          "title": "Clones a performer into free slots after its cooldown",
+          "at": "q:And evergreen"
+        }
       ]
     },
     {

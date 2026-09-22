@@ -1,0 +1,2 @@
+{ "out": ".", "name": "article-review", "workspace": "CommunityForce Inc.", "url": "/blog?view=board", "wait": 1800, "hide": ["card:text=Invitations not yet accepted", "text=@communityforce.com", "text=@gmail.com", "text=@lsi-media.com", "text=Current:", "card:text=Pending invitations", "text=/invitations/"],
+  "actions": [ {"mouse":[400,300],"steps":20}, {"wait":1200}, {"click":"main a[href^='/blog/c']"}, {"wait":2500}, {"click":"text=Review"}, {"wait":2500}, {"scroll":300}, {"wait":1500}, {"scroll":300}, {"wait":1800} ], "tail": 1500 }

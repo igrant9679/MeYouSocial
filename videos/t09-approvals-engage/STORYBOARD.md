@@ -67,7 +67,7 @@ duration: 33.3
 type: screen
 seam-in: inverse zoom-through
 route: camera with intent + staged reveals
-footage: engage.png
+footage: engage-tour.mp4
 
 > Distribute, then Engage: comments, direct messages and reviews across every account this workspace can read, in one place. Answer people the day they write. The one hard deadline in the whole app lives here: Facebook and Instagram only accept a direct message reply within twenty-four hours of the person's message. Set aside stops a review asking without deleting it. The panel also says plainly what each network exposes; a missing count is a limit of the integration, not a quiet audience.
 

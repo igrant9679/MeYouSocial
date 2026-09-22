@@ -28,7 +28,7 @@ duration: 27.3
 type: screen
 seam-in: cut-the-curve LEFT
 route: camera with intent + staged reveals
-footage: keys.png
+footage: setup-tour.mp4
 
 > Step one: give it a brain. Settings, then Keys. Paste an AI provider key, Anthropic Claude or Google Gemini, and set the default model to match the provider. Without a working key the app does not error; it produces clearly fake placeholder text instead. So if output ever reads generic, or mentions the word mock, check here first. Keys are per workspace: a new workspace starts with none.
 

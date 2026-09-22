@@ -1,0 +1,2 @@
+{ "out": ".", "name": "publish-tour", "workspace": "CommunityForce Inc.", "url": "/publish", "wait": 1800, "hide": ["card:text=Invitations not yet accepted", "text=@communityforce.com", "text=@gmail.com", "text=@lsi-media.com", "text=Current:", "card:text=Pending invitations", "text=/invitations/"],
+  "actions": [ {"mouse":[900,400],"steps":20}, {"wait":2000}, {"hover":"text=Download HTML"}, {"wait":1400}, {"click":"a[href='/blog/calendar']"}, {"wait":3000}, {"click":"a[href='/website']"}, {"wait":3000} ], "tail": 1500 }

@@ -93,7 +93,7 @@ duration: 22.2
 type: screen
 seam-in: inverse zoom-through
 route: staged reveals
-footage: inbox.png
+footage: inbox-scroll.mp4
 
 > Every clearing act moves the article at once. Answer a question, verify or drop a claim, approve an image, and if that was the last thing holding it, the article advances to final approval immediately. Nothing waits for the next sweep. Work the Inbox top to bottom until the header count reads zero.
 

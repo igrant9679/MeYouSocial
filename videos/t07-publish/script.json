@@ -22,15 +22,37 @@
       "id": "s02",
       "type": "screen",
       "chapter": "01 · The Publish page",
-      "still": "publish.png",
       "headline": "Waiting to go out, and recently *published.*",
       "narration": "The Publish overview has two lists. Waiting to go out: articles at final approval, each with the day it is due. Recently published: what went live, with its link. Publishing an article is always an admin's act, whatever the dials say.",
       "headlineAt": "q:Publishing an article",
       "callouts": [
-        { "kind": "chips", "items": ["Waiting to go out", "Recently published"], "at": "q:two lists" },
-        { "kind": "quote", "text": "Publishing an article is always an admin's act.", "at": "q:Publishing an article" }
+        {
+          "kind": "chips",
+          "items": [
+            "Waiting to go out",
+            "Recently published"
+          ],
+          "at": "q:two lists"
+        },
+        {
+          "kind": "quote",
+          "text": "Publishing an article is always an admin's act.",
+          "at": "q:Publishing an article"
+        }
       ],
-      "punch": { "x": 700, "y": 320, "scale": 1.3, "at": "q:Waiting to go out", "dur": 1.5, "hold": 6.0 }
+      "punch": {
+        "x": 700,
+        "y": 320,
+        "scale": 1.3,
+        "at": "q:Waiting to go out",
+        "dur": 1.5,
+        "hold": 6
+      },
+      "clip": {
+        "src": "publish-tour.mp4",
+        "start": 0.5,
+        "rate": 0.94
+      }
     },
     {
       "id": "s03",
@@ -41,8 +63,21 @@
       "narration": "Three ways an article goes out. On your publish day, in your timezone, set under Settings, Automation, along with the weekly target. On a date you set for this one article. Or right now, with one click. The blog calendar shows what is due and when.",
       "headlineAt": "q:Three ways",
       "callouts": [
-        { "kind": "chips", "items": ["Publish day", "A date you set", "Publish now"], "at": "q:Three ways" },
-        { "kind": "card", "label": "Publish day", "title": "Settings → Automation, with the weekly target", "at": "q:set under Settings" }
+        {
+          "kind": "chips",
+          "items": [
+            "Publish day",
+            "A date you set",
+            "Publish now"
+          ],
+          "at": "q:Three ways"
+        },
+        {
+          "kind": "card",
+          "label": "Publish day",
+          "title": "Settings → Automation, with the weekly target",
+          "at": "q:set under Settings"
+        }
       ]
     },
     {
@@ -54,11 +89,34 @@
       "narration": "With WordPress connected directly under Publish, Website, articles publish themselves on the publish day, or when you press Publish now. Structured data and social preview tags are written for you. Under full autonomy the publish gates still re-run first, so a post with an unverified citation can never go out unattended.",
       "headlineAt": "q:Structured data",
       "callouts": [
-        { "kind": "card", "label": "WordPress", "title": "Connected under Publish → Website", "at": "q:With WordPress" },
-        { "kind": "chips", "items": ["Structured data", "Open Graph tags"], "at": "q:Structured data" },
-        { "kind": "quote", "text": "The gates re-run before anything goes out unattended.", "at": "q:Under full autonomy" }
+        {
+          "kind": "card",
+          "label": "WordPress",
+          "title": "Connected under Publish → Website",
+          "at": "q:With WordPress"
+        },
+        {
+          "kind": "chips",
+          "items": [
+            "Structured data",
+            "Open Graph tags"
+          ],
+          "at": "q:Structured data"
+        },
+        {
+          "kind": "quote",
+          "text": "The gates re-run before anything goes out unattended.",
+          "at": "q:Under full autonomy"
+        }
       ],
-      "punch": { "x": 700, "y": 380, "scale": 1.3, "at": "q:With WordPress", "dur": 1.5, "hold": 6.0 }
+      "punch": {
+        "x": 700,
+        "y": 380,
+        "scale": 1.3,
+        "at": "q:With WordPress",
+        "dur": 1.5,
+        "hold": 6
+      }
     },
     {
       "id": "s05",
@@ -71,11 +129,34 @@
       "spoken": "No WordPress? No problem. On the row, Download H T M L gives you a self-contained file: metadata, Open Graph tags and images embedded. Add fragment equals one to the address for just the body, for a C M S block. Add it to any site, then Mark as published with the live link, and the article moves to published with that U R L. Upload the Open Graph image to the site as well; crawlers ignore embedded images.",
       "headlineAt": "q:Add it to any",
       "callouts": [
-        { "kind": "card", "label": "Step 1", "title": "Download HTML — self-contained, images embedded", "note": "?fragment=1 for the body only", "at": "q:Download HTML" },
-        { "kind": "card", "label": "Step 2", "title": "Add it to any site", "at": "q:Add it to any" },
-        { "kind": "card", "label": "Step 3", "title": "Mark as published, with the live link", "at": "q:then Mark as" }
+        {
+          "kind": "card",
+          "label": "Step 1",
+          "title": "Download HTML — self-contained, images embedded",
+          "note": "?fragment=1 for the body only",
+          "at": "q:Download HTML"
+        },
+        {
+          "kind": "card",
+          "label": "Step 2",
+          "title": "Add it to any site",
+          "at": "q:Add it to any"
+        },
+        {
+          "kind": "card",
+          "label": "Step 3",
+          "title": "Mark as published, with the live link",
+          "at": "q:then Mark as"
+        }
       ],
-      "punch": { "x": 1500, "y": 330, "scale": 1.3, "at": "q:On the row", "dur": 1.5, "hold": 7.0 }
+      "punch": {
+        "x": 1500,
+        "y": 330,
+        "scale": 1.3,
+        "at": "q:On the row",
+        "dur": 1.5,
+        "hold": 7
+      }
     },
     {
       "id": "s06",
@@ -86,8 +167,21 @@
       "narration": "If an article sits at final approval and never publishes, it is one of three things. It is not the publish day yet. There is no WordPress, so it needs Download HTML and Mark as published. Or publishing is not on auto under Settings, Automation. Social variants of a published article follow under the social mode.",
       "headlineAt": "q:it is one of",
       "callouts": [
-        { "kind": "chips", "items": ["Not the publish day yet", "No WordPress", "Publishing on manual"], "at": "q:it is one of" },
-        { "kind": "card", "label": "After", "title": "Social variants follow under the social mode", "at": "q:Social variants" }
+        {
+          "kind": "chips",
+          "items": [
+            "Not the publish day yet",
+            "No WordPress",
+            "Publishing on manual"
+          ],
+          "at": "q:it is one of"
+        },
+        {
+          "kind": "card",
+          "label": "After",
+          "title": "Social variants follow under the social mode",
+          "at": "q:Social variants"
+        }
       ]
     },
     {

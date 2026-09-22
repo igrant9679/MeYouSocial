@@ -9,7 +9,7 @@ _captures/*.jpg
 _captures/.rec/
 
 # Rendered MP4s and synthesized narration (large; regenerate with build.mjs / render)
-_deliverables/
+_deliverables/*.mp4
 _samples/
 */renders/
 */assets/vo/*.wav

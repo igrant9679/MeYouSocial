@@ -1,0 +1,2 @@
+{ "out": ".", "name": "measure-tour", "workspace": "CommunityForce Inc.", "url": "/measure", "wait": 1800, "hide": ["card:text=Invitations not yet accepted", "text=@communityforce.com", "text=@gmail.com", "text=@lsi-media.com", "text=Current:", "card:text=Pending invitations", "text=/invitations/"],
+  "actions": [ {"mouse":[900,400],"steps":20}, {"wait":2000}, {"click":"a[href='/social/performance']"}, {"wait":3000}, {"scroll":300}, {"wait":1500}, {"click":"a[href='/reports']"}, {"wait":3000}, {"click":"a[href='/insights']"}, {"wait":3000} ], "tail": 1500 }

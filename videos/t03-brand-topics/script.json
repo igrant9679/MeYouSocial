@@ -27,11 +27,39 @@
       "narration": "Tone lives in Brand, Tone and motifs, as the seven Motifs: Visionary, Competitive, Succinct, Sincere, Exclusive, Social and Informative. Each is an editable, versioned style directive. Every piece resolves a weighted blend of them: the strongest weight sets structure and voice, the rest colour the intro and the call to action. Change a Motif and every future generation changes with it, without touching a prompt.",
       "headlineAt": "q:Each is an",
       "callouts": [
-        { "kind": "chips", "items": ["Visionary", "Competitive", "Succinct", "Sincere", "Exclusive", "Social", "Informative"], "at": "q:Visionary," },
-        { "kind": "card", "label": "Blend", "title": "Strongest weight sets structure and voice; the rest colour intro and CTA", "at": "q:Every piece resolves" },
-        { "kind": "quote", "text": "Change a Motif and every future generation changes with it.", "at": "q:Change a Motif" }
+        {
+          "kind": "chips",
+          "items": [
+            "Visionary",
+            "Competitive",
+            "Succinct",
+            "Sincere",
+            "Exclusive",
+            "Social",
+            "Informative"
+          ],
+          "at": "q:Visionary,"
+        },
+        {
+          "kind": "card",
+          "label": "Blend",
+          "title": "Strongest weight sets structure and voice; the rest colour intro and CTA",
+          "at": "q:Every piece resolves"
+        },
+        {
+          "kind": "quote",
+          "text": "Change a Motif and every future generation changes with it.",
+          "at": "q:Change a Motif"
+        }
       ],
-      "punch": { "x": 700, "y": 380, "scale": 1.3, "at": "q:Visionary,", "dur": 1.5, "hold": 7.0 }
+      "punch": {
+        "x": 700,
+        "y": 380,
+        "scale": 1.3,
+        "at": "q:Visionary,",
+        "dur": 1.5,
+        "hold": 7
+      }
     },
     {
       "id": "s03",
@@ -42,25 +70,76 @@
       "narration": "On the same page, the brand kit: colours, logo, image dimensions, and the asset policy, which decides whether AI may generate imagery at all. Either way, AI images land as pending for review. The Require images to publish gate lives here too. If your workspace has no real image key yet, turn that gate off, or it will hold every article behind a placeholder.",
       "headlineAt": "q:Either way",
       "callouts": [
-        { "kind": "chips", "items": ["Colours", "Logo", "Image dimensions", "Asset policy"], "at": "q:the brand kit" },
-        { "kind": "card", "label": "Gate", "title": "Require images to publish", "note": "turn it off until a real image key is in place", "at": "q:The Require images" }
+        {
+          "kind": "chips",
+          "items": [
+            "Colours",
+            "Logo",
+            "Image dimensions",
+            "Asset policy"
+          ],
+          "at": "q:the brand kit"
+        },
+        {
+          "kind": "card",
+          "label": "Gate",
+          "title": "Require images to publish",
+          "note": "turn it off until a real image key is in place",
+          "at": "q:The Require images"
+        }
       ],
-      "punch": { "x": 700, "y": 760, "scale": 1.3, "at": "q:the brand kit", "dur": 1.5, "hold": 6.0 }
+      "punch": {
+        "x": 700,
+        "y": 760,
+        "scale": 1.3,
+        "at": "q:the brand kit",
+        "dur": 1.5,
+        "hold": 6
+      }
     },
     {
       "id": "s04",
       "type": "screen",
       "chapter": "03 · Brand context for the AI",
-      "still": "brand.png",
       "headline": "Nothing here is AI-generated, on *purpose.*",
       "narration": "Brand context is what the AI reads before it writes: your differentiators, your products and what each does, brand documents, personas. Nothing here is AI-generated, on purpose. An invented differentiator would be repeated as fact in every article afterwards. Write these yourself, plainly. Guardrails are the rules it must obey, and Experts are the subject-matter profiles the writing quotes.",
       "headlineAt": "q:An invented",
       "callouts": [
-        { "kind": "chips", "items": ["Differentiators", "Products", "Brand documents", "Personas"], "at": "q:your differentiators" },
-        { "kind": "quote", "text": "An invented differentiator would be repeated as fact everywhere afterwards.", "at": "q:An invented" },
-        { "kind": "card", "label": "Also here", "title": "Guardrails it must obey · Experts it quotes", "at": "q:Guardrails are" }
+        {
+          "kind": "chips",
+          "items": [
+            "Differentiators",
+            "Products",
+            "Brand documents",
+            "Personas"
+          ],
+          "at": "q:your differentiators"
+        },
+        {
+          "kind": "quote",
+          "text": "An invented differentiator would be repeated as fact everywhere afterwards.",
+          "at": "q:An invented"
+        },
+        {
+          "kind": "card",
+          "label": "Also here",
+          "title": "Guardrails it must obey · Experts it quotes",
+          "at": "q:Guardrails are"
+        }
       ],
-      "punch": { "x": 700, "y": 460, "scale": 1.3, "at": "q:your differentiators", "dur": 1.5, "hold": 6.0 }
+      "punch": {
+        "x": 700,
+        "y": 460,
+        "scale": 1.3,
+        "at": "q:your differentiators",
+        "dur": 1.5,
+        "hold": 6
+      },
+      "clip": {
+        "src": "brand-tour.mp4",
+        "start": 0.5,
+        "rate": 0.73
+      }
     },
     {
       "id": "s05",
@@ -71,8 +150,18 @@
       "narration": "Experts are the people whose knowledge the writing draws on. When an article needs something only you know, the question is asked once, in the Inbox. Your answer, in your own words, is woven into the article and banked to the expert profile. These fields deliberately have no Draft with AI button: an answer must be a real person's own words, or the profile trained on it is poisoned.",
       "headlineAt": "q:These fields",
       "callouts": [
-        { "kind": "card", "label": "Asked", "value": "once", "title": "then banked to the profile", "at": "q:the question is asked" },
-        { "kind": "quote", "text": "No Draft with AI here, on purpose.", "at": "q:These fields" }
+        {
+          "kind": "card",
+          "label": "Asked",
+          "value": "once",
+          "title": "then banked to the profile",
+          "at": "q:the question is asked"
+        },
+        {
+          "kind": "quote",
+          "text": "No Draft with AI here, on purpose.",
+          "at": "q:These fields"
+        }
       ]
     },
     {
@@ -84,9 +173,28 @@
       "narration": "Topics live under Ideas. A Topic is a theme this company publishes about. It is the one tag that spans every content surface: article ideas, social posts and video ideas all carry the same Topic, which is what lets Reports and Insights group everything on a theme instead of showing six unrelated lists. The engine ideates per Topic, so every idea it writes carries one. Deleting a Topic only clears the tag; it never deletes content.",
       "headlineAt": "q:It is the one",
       "callouts": [
-        { "kind": "chips", "items": ["Article ideas", "Social posts", "Video ideas", "Reports", "Insights"], "at": "q:article ideas" },
-        { "kind": "card", "label": "Ideation", "title": "Runs per Topic, so every engine-written idea carries one", "at": "q:The engine ideates" },
-        { "kind": "quote", "text": "Deleting a Topic only clears the tag.", "at": "q:Deleting a Topic" }
+        {
+          "kind": "chips",
+          "items": [
+            "Article ideas",
+            "Social posts",
+            "Video ideas",
+            "Reports",
+            "Insights"
+          ],
+          "at": "q:article ideas"
+        },
+        {
+          "kind": "card",
+          "label": "Ideation",
+          "title": "Runs per Topic, so every engine-written idea carries one",
+          "at": "q:The engine ideates"
+        },
+        {
+          "kind": "quote",
+          "text": "Deleting a Topic only clears the tag.",
+          "at": "q:Deleting a Topic"
+        }
       ]
     },
     {
@@ -99,8 +207,17 @@
       "narration": "Open a Topic and you see everything that hangs off it, in every format, and later under Measure, Topics, what each Topic earned per format: measured, or a dash with the reason. One reminder: Brand and Topics are per company. Check the workspace switcher before editing, because it is easy to change the wrong company's identity when you run more than one.",
       "headlineAt": "q:One reminder",
       "callouts": [
-        { "kind": "card", "label": "Per Topic", "title": "Every format that hangs off it, and what it earned", "at": "q:Open a Topic" },
-        { "kind": "quote", "text": "Brand and Topics are per company. Check the switcher first.", "at": "q:One reminder" }
+        {
+          "kind": "card",
+          "label": "Per Topic",
+          "title": "Every format that hangs off it, and what it earned",
+          "at": "q:Open a Topic"
+        },
+        {
+          "kind": "quote",
+          "text": "Brand and Topics are per company. Check the switcher first.",
+          "at": "q:One reminder"
+        }
       ]
     },
     {

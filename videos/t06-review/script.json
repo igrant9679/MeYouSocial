@@ -27,10 +27,29 @@
       "narration": "Questions only you can answer sit at the top. Each names the article and the sentence that needs your knowledge. Answer inline, in your own words. The answer is woven into the article and banked to the expert profile, so it is asked once. Answer all clears the card in one go. Dismiss, with an optional why, if the question does not apply.",
       "headlineAt": "q:The answer is",
       "callouts": [
-        { "kind": "chips", "items": ["Answer all", "Dismiss"], "at": "q:Answer all" },
-        { "kind": "card", "label": "Banked", "title": "To the expert profile, so it is asked once", "at": "q:and banked" }
+        {
+          "kind": "chips",
+          "items": [
+            "Answer all",
+            "Dismiss"
+          ],
+          "at": "q:Answer all"
+        },
+        {
+          "kind": "card",
+          "label": "Banked",
+          "title": "To the expert profile, so it is asked once",
+          "at": "q:and banked"
+        }
       ],
-      "punch": { "x": 560, "y": 330, "scale": 1.3, "at": "q:Each names", "dur": 1.5, "hold": 7.0 }
+      "punch": {
+        "x": 560,
+        "y": 330,
+        "scale": 1.3,
+        "at": "q:Each names",
+        "dur": 1.5,
+        "hold": 7
+      }
     },
     {
       "id": "s03",
@@ -41,9 +60,25 @@
       "narration": "Claims with no source. The writer marked a factual claim and live search could not find a source an independent judge agreed with. Two buttons. Verify: paste a link that genuinely supports the sentence. Drop: the marker and the record go, and you edit the sentence in the article if it should go too. A claim needs a live-search key to be sourced automatically; give it one sweep, then decide.",
       "headlineAt": "q:Two buttons",
       "callouts": [
-        { "kind": "chips", "items": ["Verify with a URL", "Drop the claim"], "at": "q:Two buttons" },
-        { "kind": "quote", "text": "Topical overlap is not support.", "at": "q:an independent judge" },
-        { "kind": "card", "label": "Needs", "title": "A live-search key (Tavily or Serper) to source claims on its own", "at": "q:A claim needs" }
+        {
+          "kind": "chips",
+          "items": [
+            "Verify with a URL",
+            "Drop the claim"
+          ],
+          "at": "q:Two buttons"
+        },
+        {
+          "kind": "quote",
+          "text": "Topical overlap is not support.",
+          "at": "q:an independent judge"
+        },
+        {
+          "kind": "card",
+          "label": "Needs",
+          "title": "A live-search key (Tavily or Serper) to source claims on its own",
+          "at": "q:A claim needs"
+        }
       ]
     },
     {
@@ -55,8 +90,22 @@
       "narration": "Images that need your eye. The vision model found cut-off text, a wrong brand name or a glitch, and after two failed renders it stopped spending. Approve the image as it is, or open the article and pick or upload another. The brake means auto-review has already spent up to three renders on it.",
       "headlineAt": "q:Approve the image",
       "callouts": [
-        { "kind": "chips", "items": ["Approve", "Pick another", "Upload"], "at": "q:Approve the image" },
-        { "kind": "card", "label": "The brake", "value": "2", "title": "failed renders, then it asks a person", "at": "q:and after two" }
+        {
+          "kind": "chips",
+          "items": [
+            "Approve",
+            "Pick another",
+            "Upload"
+          ],
+          "at": "q:Approve the image"
+        },
+        {
+          "kind": "card",
+          "label": "The brake",
+          "value": "2",
+          "title": "failed renders, then it asks a person",
+          "at": "q:and after two"
+        }
       ]
     },
     {
@@ -68,10 +117,27 @@
       "narration": "Held articles name the failing check on the card. Open the article and the Gates sidebar links to the tab where you fix it. An admin who wants it out regardless has Advance anyway: an optional reason, then it moves to final approval now, and who, when and why are recorded on the article and in the audit log.",
       "headlineAt": "q:An admin who",
       "callouts": [
-        { "kind": "card", "label": "Held", "title": "The failing check is named on the card", "at": "q:Held articles" },
-        { "kind": "card", "label": "Advance anyway", "title": "Admin only · optional reason · recorded: who, when, why", "at": "q:An admin who" }
+        {
+          "kind": "card",
+          "label": "Held",
+          "title": "The failing check is named on the card",
+          "at": "q:Held articles"
+        },
+        {
+          "kind": "card",
+          "label": "Advance anyway",
+          "title": "Admin only · optional reason · recorded: who, when, why",
+          "at": "q:An admin who"
+        }
       ],
-      "punch": { "x": 1560, "y": 380, "scale": 1.35, "at": "q:Open the article", "dur": 1.5, "hold": 5.0 }
+      "punch": {
+        "x": 1560,
+        "y": 380,
+        "scale": 1.35,
+        "at": "q:Open the article",
+        "dur": 1.5,
+        "hold": 5
+      }
     },
     {
       "id": "s06",
@@ -82,8 +148,21 @@
       "narration": "Two more tabs under Publish. Approvals lists social posts waiting for an admin when the approval workflow is on: approve, or request changes with a note for the author. Audit scans the archive and recommends what to refresh, merge or retire, so it never goes stale. Run it monthly.",
       "headlineAt": "q:approve, or request",
       "callouts": [
-        { "kind": "chips", "items": ["Approve", "Request changes"], "at": "q:approve, or request" },
-        { "kind": "card", "label": "Audit", "title": "Refresh · merge · retire recommendations", "note": "run it monthly", "at": "q:Audit scans" }
+        {
+          "kind": "chips",
+          "items": [
+            "Approve",
+            "Request changes"
+          ],
+          "at": "q:approve, or request"
+        },
+        {
+          "kind": "card",
+          "label": "Audit",
+          "title": "Refresh · merge · retire recommendations",
+          "note": "run it monthly",
+          "at": "q:Audit scans"
+        }
       ]
     },
     {
@@ -91,14 +170,28 @@
       "type": "screen",
       "seam": "arrival",
       "chapter": "06 · What happens when you clear",
-      "still": "inbox.png",
       "headline": "Nothing waits for the next *sweep.*",
       "narration": "Every clearing act moves the article at once. Answer a question, verify or drop a claim, approve an image, and if that was the last thing holding it, the article advances to final approval immediately. Nothing waits for the next sweep. Work the Inbox top to bottom until the header count reads zero.",
       "headlineAt": "q:Nothing waits",
       "callouts": [
-        { "kind": "quote", "text": "Every clearing act moves the article at once.", "at": "q:Every clearing" },
-        { "kind": "card", "label": "Goal", "value": "0", "title": "things need you", "at": "q:until the header" }
-      ]
+        {
+          "kind": "quote",
+          "text": "Every clearing act moves the article at once.",
+          "at": "q:Every clearing"
+        },
+        {
+          "kind": "card",
+          "label": "Goal",
+          "value": "0",
+          "title": "things need you",
+          "at": "q:until the header"
+        }
+      ],
+      "clip": {
+        "src": "inbox-scroll.mp4",
+        "start": 0.5,
+        "rate": 0.74
+      }
     },
     {
       "id": "s08",

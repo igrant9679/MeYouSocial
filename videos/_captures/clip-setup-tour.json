@@ -1,0 +1,2 @@
+{ "out": ".", "name": "setup-tour", "workspace": "CommunityForce Inc.", "url": "/admin/api-keys", "wait": 1800, "hide": ["card:text=Invitations not yet accepted", "text=@communityforce.com", "text=@gmail.com", "text=@lsi-media.com", "text=Current:", "card:text=Pending invitations", "text=/invitations/"],
+  "actions": [ {"mouse":[900,400],"steps":20}, {"wait":1800}, {"scroll":400}, {"wait":1600}, {"click":"a[href='/admin/connections']"}, {"wait":3000}, {"scroll":300}, {"wait":1500}, {"click":"a[href='/admin/analytics']"}, {"wait":3000} ], "tail": 1500 }

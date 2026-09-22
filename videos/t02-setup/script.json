@@ -22,16 +22,47 @@
       "id": "s02",
       "type": "screen",
       "chapter": "01 · Give it a brain",
-      "still": "keys.png",
       "headline": "No key means placeholder *text.*",
       "narration": "Step one: give it a brain. Settings, then Keys. Paste an AI provider key, Anthropic Claude or Google Gemini, and set the default model to match the provider. Without a working key the app does not error; it produces clearly fake placeholder text instead. So if output ever reads generic, or mentions the word mock, check here first. Keys are per workspace: a new workspace starts with none.",
       "headlineAt": "q:Without a working",
       "callouts": [
-        { "kind": "chips", "items": ["Anthropic Claude", "Google Gemini", "DeepSeek", "xAI", "Moonshot", "MiniMax"], "at": "q:Paste an AI" },
-        { "kind": "card", "label": "Rule", "title": "The default model must belong to the provider you gave a key for", "at": "q:and set the default" },
-        { "kind": "quote", "text": "Generic output, or the word 'mock', means no working key.", "at": "q:So if output" }
+        {
+          "kind": "chips",
+          "items": [
+            "Anthropic Claude",
+            "Google Gemini",
+            "DeepSeek",
+            "xAI",
+            "Moonshot",
+            "MiniMax"
+          ],
+          "at": "q:Paste an AI"
+        },
+        {
+          "kind": "card",
+          "label": "Rule",
+          "title": "The default model must belong to the provider you gave a key for",
+          "at": "q:and set the default"
+        },
+        {
+          "kind": "quote",
+          "text": "Generic output, or the word 'mock', means no working key.",
+          "at": "q:So if output"
+        }
       ],
-      "punch": { "x": 700, "y": 320, "scale": 1.3, "at": "q:Paste an AI", "dur": 1.5, "hold": 7.0 }
+      "punch": {
+        "x": 700,
+        "y": 320,
+        "scale": 1.3,
+        "at": "q:Paste an AI",
+        "dur": 1.5,
+        "hold": 7
+      },
+      "clip": {
+        "src": "setup-tour.mp4",
+        "start": 0.5,
+        "rate": 0.99
+      }
     },
     {
       "id": "s03",
@@ -42,9 +73,24 @@
       "narration": "On the same page: a live web search key, Tavily or Serper. That is what lets the engine source claims from the real web. Without one, a flagged claim waits for you instead. Then image generation, OpenAI or Google, and vision review, which is what looks at every image before you do. Every key is pasted here, per workspace, without touching a server.",
       "headlineAt": "q:That is what lets",
       "callouts": [
-        { "kind": "card", "label": "Live search", "title": "Tavily or Serper — sources every flagged claim", "at": "q:a live web search" },
-        { "kind": "card", "label": "Images", "title": "OpenAI gpt-image-1 or Google Gemini", "at": "q:Then image generation" },
-        { "kind": "card", "label": "Vision review", "title": "Looks at every render before you do", "at": "q:and vision review" }
+        {
+          "kind": "card",
+          "label": "Live search",
+          "title": "Tavily or Serper — sources every flagged claim",
+          "at": "q:a live web search"
+        },
+        {
+          "kind": "card",
+          "label": "Images",
+          "title": "OpenAI gpt-image-1 or Google Gemini",
+          "at": "q:Then image generation"
+        },
+        {
+          "kind": "card",
+          "label": "Vision review",
+          "title": "Looks at every render before you do",
+          "at": "q:and vision review"
+        }
       ]
     },
     {
@@ -57,11 +103,36 @@
       "spoken": "Step two: connect where it publishes. Settings, then Connections, shows every connection the loop needs and which are missing. Social accounts: use this app's Connect buttons, not the provider's own dashboard, or the account ends up owned by the wrong user. A mailbox, which is how invitations and digests leave. Your website, under Publish, WordPress or per-article H T M L export. And analytics.",
       "headlineAt": "q:use this app's",
       "callouts": [
-        { "kind": "chips", "items": ["Social accounts", "Mailbox", "Website", "Analytics"], "at": "q:shows every connection" },
-        { "kind": "quote", "text": "Connect from here, not from the provider's dashboard.", "at": "q:use this app's" },
-        { "kind": "card", "label": "Mailbox", "title": "How invitations and digests leave the app", "at": "q:A mailbox" }
+        {
+          "kind": "chips",
+          "items": [
+            "Social accounts",
+            "Mailbox",
+            "Website",
+            "Analytics"
+          ],
+          "at": "q:shows every connection"
+        },
+        {
+          "kind": "quote",
+          "text": "Connect from here, not from the provider's dashboard.",
+          "at": "q:use this app's"
+        },
+        {
+          "kind": "card",
+          "label": "Mailbox",
+          "title": "How invitations and digests leave the app",
+          "at": "q:A mailbox"
+        }
       ],
-      "punch": { "x": 640, "y": 380, "scale": 1.3, "at": "q:Social accounts", "dur": 1.5, "hold": 6.0 }
+      "punch": {
+        "x": 640,
+        "y": 380,
+        "scale": 1.3,
+        "at": "q:Social accounts",
+        "dur": 1.5,
+        "hold": 6
+      }
     },
     {
       "id": "s05",
@@ -73,8 +144,21 @@
       "spoken": "Wire up measurement under Settings, then Analytics: the Search Console site and the G A 4 property, with the service account granted on both. The page runs a live probe and tells you which side is missing. Until then, Measure shows dashes, and a dash means not measured, never zero.",
       "headlineAt": "q:Until then",
       "callouts": [
-        { "kind": "chips", "items": ["Search Console site", "GA4 property", "Service account"], "at": "q:the Search Console" },
-        { "kind": "card", "label": "Live probe", "title": "Tells you which side is missing", "at": "q:The page runs" }
+        {
+          "kind": "chips",
+          "items": [
+            "Search Console site",
+            "GA4 property",
+            "Service account"
+          ],
+          "at": "q:the Search Console"
+        },
+        {
+          "kind": "card",
+          "label": "Live probe",
+          "title": "Tells you which side is missing",
+          "at": "q:The page runs"
+        }
       ]
     },
     {
@@ -86,9 +170,24 @@
       "narration": "Then three quick dials, each covered in its own video. Set the clock: Settings, Schedule, your timezone and posting slots. Choose your gates: require approval holds every social post until an admin approves it; articles always park at review, that gate is not optional. And set the autonomy dials under Automation: articles per week, the publish day, social posts per week, and the four function modes. Start low, and raise once you trust what arrives at review.",
       "headlineAt": "q:Start low",
       "callouts": [
-        { "kind": "card", "label": "Schedule", "title": "Timezone and posting slots", "at": "q:Set the clock" },
-        { "kind": "card", "label": "Gates", "title": "Require approval for social; articles always park at review", "at": "q:Choose your gates" },
-        { "kind": "card", "label": "Automation", "title": "Targets, publish day, four function modes", "at": "q:And set the" }
+        {
+          "kind": "card",
+          "label": "Schedule",
+          "title": "Timezone and posting slots",
+          "at": "q:Set the clock"
+        },
+        {
+          "kind": "card",
+          "label": "Gates",
+          "title": "Require approval for social; articles always park at review",
+          "at": "q:Choose your gates"
+        },
+        {
+          "kind": "card",
+          "label": "Automation",
+          "title": "Targets, publish day, four function modes",
+          "at": "q:And set the"
+        }
       ]
     },
     {
@@ -101,9 +200,23 @@
       "narration": "Last, invite the team under Settings, People. Editors write, draft, answer and propose. Admins approve, publish and configure. Everyone can turn the morning digest off for themselves under Notifications. That is the setup. From here the engine has a brain, places to publish, a clock, and people at the gates.",
       "headlineAt": "q:That is the setup",
       "callouts": [
-        { "kind": "card", "label": "Editors", "title": "Write · draft · answer · propose", "at": "q:Editors write" },
-        { "kind": "card", "label": "Admins", "title": "Approve · publish · configure", "at": "q:Admins approve" },
-        { "kind": "quote", "text": "A brain, places to publish, a clock, and people at the gates.", "at": "q:From here" }
+        {
+          "kind": "card",
+          "label": "Editors",
+          "title": "Write · draft · answer · propose",
+          "at": "q:Editors write"
+        },
+        {
+          "kind": "card",
+          "label": "Admins",
+          "title": "Approve · publish · configure",
+          "at": "q:Admins approve"
+        },
+        {
+          "kind": "quote",
+          "text": "A brain, places to publish, a clock, and people at the gates.",
+          "at": "q:From here"
+        }
       ]
     },
     {

@@ -1,0 +1,2 @@
+{ "out": ".", "name": "brand-tour", "workspace": "CommunityForce Inc.", "url": "/brand", "wait": 1800, "hide": ["card:text=Invitations not yet accepted", "text=@communityforce.com", "text=@gmail.com", "text=@lsi-media.com", "text=Current:", "card:text=Pending invitations", "text=/invitations/"],
+  "actions": [ {"mouse":[900,400],"steps":20}, {"wait":1800}, {"scroll":350}, {"wait":1600}, {"goto":"/blog/brand"}, {"wait":2600}, {"scroll":350}, {"wait":1600}, {"goto":"/ideas/topics"}, {"wait":2800} ], "tail": 1500 }

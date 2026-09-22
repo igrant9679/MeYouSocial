@@ -1,0 +1,427 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>MeYouSocial Publisher video library</title>
+<meta name="description" content="Six demo videos and twelve training walkthroughs for MeYouSocial Publisher." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --canvas: #FBF7F5; --panel: #FFFFFF; --ink: #15181D; --ink-2: #4A4F58; --line: rgba(21,24,29,.14);
+    --coral: #E5482F; --coral-deep: #B5371F; --coral-soft: #FDE7E1; --deep: #15181D; --shadow: 0 18px 50px rgba(21,24,29,.12);
+  }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --canvas: #15181D; --panel: #1E2229; --ink: #F4F1EF; --ink-2: #B4B9C2; --line: rgba(255,255,255,.14); --coral-soft: rgba(229,72,47,.18); --shadow: 0 18px 50px rgba(0,0,0,.4); } }
+  :root[data-theme="dark"] { --canvas: #15181D; --panel: #1E2229; --ink: #F4F1EF; --ink-2: #B4B9C2; --line: rgba(255,255,255,.14); --coral-soft: rgba(229,72,47,.18); --shadow: 0 18px 50px rgba(0,0,0,.4); }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body { background: var(--canvas); color: var(--ink); font-family: "IBM Plex Sans", system-ui, sans-serif; line-height: 1.45; }
+  .mono { font-family: "IBM Plex Mono", ui-monospace, monospace; }
+  header.hero { background: var(--deep); color: #fff; padding: 56px 16px 48px; }
+  .wrap { max-width: 1200px; margin: 0 auto; padding: 0 16px; }
+  .brand { display: flex; align-items: center; gap: 14px; font-family: "IBM Plex Mono", monospace; font-weight: 700; font-size: 22px; letter-spacing: -.02em; }
+  .brand em { font-style: normal; font-weight: 500; color: var(--coral); }
+  .brand svg { width: 44px; height: 44px; border-radius: 10px; }
+  .hero h1 { font-size: clamp(32px, 5vw, 56px); line-height: 1.05; letter-spacing: -.03em; margin: 28px 0 12px; max-width: 16ch; }
+  .hero h1 span { color: var(--coral); }
+  .hero p { color: rgba(255,255,255,.78); max-width: 62ch; margin: 0 0 22px; font-size: 18px; }
+  .stats { display: flex; flex-wrap: wrap; gap: 10px 22px; font-family: "IBM Plex Mono", monospace; font-size: 13px; letter-spacing: .12em; text-transform: uppercase; color: rgba(255,255,255,.66); }
+  .stats b { color: #fff; font-weight: 700; }
+  .toolbar { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; padding: 22px 0 6px; position: sticky; top: 0; background: var(--canvas); z-index: 5; }
+  .tabs { display: flex; gap: 6px; background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 4px; }
+  .tabs button { border: 0; background: transparent; color: var(--ink-2); font: inherit; font-weight: 600; font-size: 14px; padding: 8px 16px; border-radius: 999px; cursor: pointer; }
+  .tabs button[aria-pressed="true"] { background: var(--ink); color: #fff; }
+  .search { flex: 1 1 220px; min-width: 200px; display: flex; align-items: center; gap: 8px; background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 8px 14px; }
+  .search input { border: 0; background: transparent; color: var(--ink); font: inherit; font-size: 15px; width: 100%; outline: none; }
+  .search svg { width: 18px; height: 18px; color: var(--ink-2); flex: none; }
+  section.set { padding: 22px 0 10px; }
+  section.set h2 { font-size: 28px; letter-spacing: -.02em; margin: 0 0 4px; }
+  section.set .lede { margin: 0 0 18px; color: var(--ink-2); }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 22px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 1px 0 rgba(21,24,29,.04); transition: transform .18s ease, box-shadow .18s ease; }
+  .card:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
+  .card.hidden { display: none; }
+  .thumb { position: relative; display: block; width: 100%; padding: 0; border: 0; background: #000; cursor: pointer; aspect-ratio: 16 / 9; overflow: hidden; }
+  .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .3s ease; }
+  .thumb:hover img { transform: scale(1.03); }
+  .thumb .dur { position: absolute; right: 10px; bottom: 10px; background: rgba(21,24,29,.85); color: #fff; font-family: "IBM Plex Mono", monospace; font-size: 12px; font-weight: 600; padding: 3px 8px; border-radius: 6px; }
+  .thumb .play { position: absolute; inset: 0; display: grid; place-items: center; opacity: 0; transition: opacity .18s; background: rgba(21,24,29,.25); }
+  .thumb:hover .play, .thumb:focus-visible .play { opacity: 1; }
+  .thumb .play svg { width: 64px; height: 64px; fill: #fff; filter: drop-shadow(0 4px 12px rgba(0,0,0,.4)); }
+  .meta { padding: 16px 18px 18px; display: flex; flex-direction: column; gap: 8px; flex: 1; }
+  .eyebrow { font-family: "IBM Plex Mono", monospace; font-size: 12px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--coral-deep); }
+  .cc { border: 1.5px solid currentColor; border-radius: 4px; padding: 0 4px; font-size: 10px; }
+  .meta h3 { margin: 0; font-size: 19px; line-height: 1.25; letter-spacing: -.01em; }
+  .meta p { margin: 0; color: var(--ink-2); font-size: 15px; }
+  .tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: auto; padding-top: 6px; }
+  .tags span { font-size: 12px; font-weight: 600; color: var(--ink-2); background: var(--canvas); border: 1px solid var(--line); border-radius: 999px; padding: 3px 9px; }
+  .empty { color: var(--ink-2); padding: 30px 0; }
+  footer { padding: 40px 16px 56px; color: var(--ink-2); font-size: 14px; }
+  footer .wrap { border-top: 1px solid var(--line); padding-top: 20px; display: flex; flex-wrap: wrap; gap: 8px 24px; justify-content: space-between; }
+  /* player */
+  dialog.player { border: 0; padding: 0; background: transparent; max-width: min(1200px, 96vw); width: 96vw; }
+  dialog.player::backdrop { background: rgba(21,24,29,.82); backdrop-filter: blur(6px); }
+  .player-inner { background: var(--panel); color: var(--ink); border-radius: 18px; overflow: hidden; display: grid; grid-template-columns: 1fr; box-shadow: 0 40px 120px rgba(0,0,0,.5); }
+  @media (min-width: 960px) { .player-inner { grid-template-columns: minmax(0, 2.2fr) minmax(280px, 1fr); } }
+  .player-inner video { width: 100%; height: auto; display: block; background: #000; aspect-ratio: 16 / 9; }
+  .side { padding: 20px 22px 22px; display: flex; flex-direction: column; gap: 12px; max-height: 70vh; overflow: auto; }
+  .side h2 { margin: 0; font-size: 22px; line-height: 1.2; letter-spacing: -.02em; }
+  .side p { margin: 0; color: var(--ink-2); font-size: 15px; }
+  .side .line { font-size: 15px; font-weight: 500; }
+  .chapters { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+  .chapters button { width: 100%; text-align: left; border: 0; background: transparent; color: var(--ink); font: inherit; font-size: 14px; padding: 7px 10px; border-radius: 8px; cursor: pointer; display: flex; gap: 12px; }
+  .chapters button:hover, .chapters button.active { background: var(--coral-soft); }
+  .chapters .t { font-family: "IBM Plex Mono", monospace; font-weight: 600; color: var(--coral-deep); flex: none; }
+  .side .actions { display: flex; gap: 8px; margin-top: auto; padding-top: 8px; flex-wrap: wrap; }
+  .btn { display: inline-flex; align-items: center; gap: 8px; padding: 9px 14px; border-radius: 999px; font: inherit; font-size: 14px; font-weight: 600; text-decoration: none; cursor: pointer; border: 1px solid var(--line); background: var(--panel); color: var(--ink); }
+  .btn.primary { background: var(--coral); border-color: var(--coral); color: #fff; }
+  .close { position: absolute; top: 10px; right: 10px; width: 40px; height: 40px; border-radius: 50%; border: 0; background: rgba(21,24,29,.7); color: #fff; font-size: 22px; line-height: 1; cursor: pointer; }
+  .playwrap { position: relative; }
+  .kbd { font-family: "IBM Plex Mono", monospace; font-size: 12px; color: var(--ink-2); }
+</style>
+</head>
+<body>
+<header class="hero">
+  <div class="wrap">
+    <div class="brand">
+      <svg viewBox="0 0 520 520" aria-hidden="true"><rect width="520" height="520" rx="110" fill="#15181D" stroke="#fff" stroke-opacity=".18" stroke-width="6"/><path d="M90 410 V140 L225 320 L270 255 V410 Z" fill="#fff"/><path d="M270 255 L315 320 L430 140 V410 H345 V280 Z" fill="#E5482F"/><circle cx="418" cy="418" r="86" fill="#fff" stroke="#15181D" stroke-width="16"/><g fill="none" stroke="#E5482F" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"><path d="M386 450 L450 386"/><path d="M404 386 H450 V432"/></g></svg>
+      <span>MeYouSocial <em>Publisher</em></span>
+    </div>
+    <h1>Video <span>library.</span></h1>
+    <p>Six short demos of what Publisher does, and twelve training walkthroughs of how to run it. Every video shows the real product, with a person's job kept where it belongs: decisions, not production.</p>
+    <div class="stats"><span><b>18</b> videos</span><span><b>47:39</b> total</span><span><b>1080p</b> · 30 fps</span><span><b>Captions</b> on training</span></div>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="toolbar">
+    <div class="tabs" role="tablist" aria-label="Video set">
+      <button type="button" data-filter="all" aria-pressed="true">All</button>
+      <button type="button" data-filter="Demo" aria-pressed="false">Demos</button>
+      <button type="button" data-filter="Training" aria-pressed="false">Training</button>
+    </div>
+    <label class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="q" type="search" placeholder="Search titles, topics, chapters…" aria-label="Search videos" /></label>
+  </div>
+
+  <section class="set" data-set="Demo">
+    <h2>Demos</h2>
+    <p class="lede">Value-first overviews, about two minutes each. Start with D1.</p>
+    <div class="grid">
+      <article class="card" data-set="Demo" data-search="meyousocial publisher in two minutes the whole product in one pass: the autopilot sweep, the inbox, and the seven-stage loop from research to measure, with real screens of every stage. overview inbox loop the inbox one loop ideas drafts review publish &amp; distribute measure" data-id="d01-the-loop">
+        <button class="thumb" type="button" data-play="d01-the-loop" aria-label="Play MeYouSocial Publisher in two minutes">
+          <img src="posters/d01-the-loop.jpg" alt="" loading="lazy" width="960" height="540" />
+          <span class="dur">2:20</span>
+          <span class="play" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></span>
+        </button>
+        <div class="meta">
+          <div class="eyebrow">Demo · D1</div>
+          <h3>MeYouSocial Publisher in two minutes</h3>
+          <p>The whole product in one pass: the autopilot sweep, the Inbox, and the seven-stage loop from Research to Measure, with real screens of every stage.</p>
+          <div class="tags"><span>overview</span><span>inbox</span><span>loop</span></div>
+        </div>
+      </article>
+      <article class="card" data-set="Demo" data-search="five minutes a day what tending publisher actually looks like: the morning digest, working the inbox top to bottom, engage's 24-hour rule, and the assistant that proposes before it acts. daily routine inbox assistant the digest work the inbox engage ask it asks first" data-id="d02-five-minutes">
+        <button class="thumb" type="button" data-play="d02-five-minutes" aria-label="Play Five minutes a day">
+          <img src="posters/d02-five-minutes.jpg" alt="" loading="lazy" width="960" height="540" />
+          <span class="dur">1:55</span>
+          <span class="play" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></span>
+        </button>
+        <div class="meta">
+          <div class="eyebrow">Demo · D2</div>
+          <h3>Five minutes a day</h3>
+          <p>What tending Publisher actually looks like: the morning digest, working the Inbox top to bottom, Engage's 24-hour rule, and the assistant that proposes before it acts.</p>
+          <div class="tags"><span>daily routine</span><span>inbox</span><span>assistant</span></div>
+        </div>
+      </article>
+      <article class="card" data-set="Demo" data-search="from idea to published article one article end to end: an idea the engine found, the approval that lets it be drafted, the seo and images that arrive filled in, the checklist of gates, and publishing with or without wordpress. ideas drafts gates publish ideas the sweep drafts it the article the checklist publish" data-id="d03-idea-to-article">
+        <button class="thumb" type="button" data-play="d03-idea-to-article" aria-label="Play From idea to published article">
+          <img src="posters/d03-idea-to-article.jpg" alt="" loading="lazy" width="960" height="540" />
+          <span class="dur">2:03</span>
+          <span class="play" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></span>
+        </button>
+        <div class="meta">
+          <div class="eyebrow">Demo · D3</div>
+          <h3>From idea to published article</h3>
+          <p>One article end to end: an idea the engine found, the approval that lets it be drafted, the SEO and images that arrive filled in, the checklist of gates, and publishing with or without WordPress.</p>
+          <div class="tags"><span>ideas</span><span>drafts</span><span>gates</span><span>publish</span></div>
+        </div>
+      </article>
+      <article class="card" data-set="Demo" data-search="gates that review as well as block how publisher earns trust: seven required checks before anything goes live, claims sourced by live search and an independent judge, every ai image inspected, and never an invented number. trust claims images measure the checks claims are sourced images are looked at questions only you can answer never an invented number" data-id="d04-gates">
+        <button class="thumb" type="button" data-play="d04-gates" aria-label="Play Gates that review as well as block">
+          <img src="posters/d04-gates.jpg" alt="" loading="lazy" width="960" height="540" />
+          <span class="dur">2:02</span>
+          <span class="play" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></span>
+        </button>
+        <div class="meta">
+          <div class="eyebrow">Demo · D4</div>
+          <h3>Gates that review as well as block</h3>
+          <p>How Publisher earns trust: seven required checks before anything goes live, claims sourced by live search and an independent judge, every AI image inspected, and never an invented number.</p>
+          <div class="tags"><span>trust</span><span>claims</span><span>images</span><span>measure</span></div>
+        </div>
+      </article>
+      <article class="card" data-set="Demo" data-search="social on a schedule you set once social on a schedule you set once: fifteen networks through one connection, per-network overrides, wall-clock posting slots, the calendar, campaigns, evergreen recycling and server-enforced approval. social slots calendar approval one connection compose once slots you set once calendar, campaigns, evergreen approval, enforced" data-id="d05-distribute">
+        <button class="thumb" type="button" data-play="d05-distribute" aria-label="Play Social on a schedule you set once">
+          <img src="posters/d05-distribute.jpg" alt="" loading="lazy" width="960" height="540" />
+          <span class="dur">2:16</span>
+          <span class="play" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></span>
+        </button>
+        <div class="meta">
+          <div class="eyebrow">Demo · D5</div>
+          <h3>Social on a schedule you set once</h3>
+          <p>Social on a schedule you set once: fifteen networks through one connection, per-network overrides, wall-clock posting slots, the calendar, campaigns, evergreen recycling and server-enforced approval.</p>
+          <div class="tags"><span>social</span><span>slots</span><span>calendar</span><span>approval</span></div>
+        </div>
+      </article>
+      <article class="card" data-set="Demo" data-search="dials and dashboards governance and results: four function modes, the full-autonomy switch that remembers your dials, global pause, roles and sealed workspaces, the audit log, and measured numbers only. automation roles workspaces measure function modes one switch, one brake roles and workspaces the audit log measure" data-id="d06-control-measure">
+        <button class="thumb" type="button" data-play="d06-control-measure" aria-label="Play Dials and dashboards">
+          <img src="posters/d06-control-measure.jpg" alt="" loading="lazy" width="960" height="540" />
+          <span class="dur">2:10</span>
+          <span class="play" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></span>
+        </button>
+        <div class="meta">
+          <div class="eyebrow">Demo · D6</div>
+          <h3>Dials and dashboards</h3>
+          <p>Governance and results: four function modes, the full-autonomy switch that remembers your dials, global pause, roles and sealed workspaces, the audit log, and measured numbers only.</p>
+          <div class="tags"><span>automation</span><span>roles</span><span>workspaces</span><span>measure</span></div>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <section class="set" data-set="Training">
+    <h2>Training</h2>
+    <p class="lede">Task walkthroughs with captions, designed to be watched in order. Each one hands off to the next.</p>
+    <div class="grid">
+      <article class="card" data-set="Training" data-search="getting oriented in meyousocial publisher first-day orientation: the mental model, the left rail top to bottom, the inbox, the stage strip and its badges, elsie's tours, the help center, and ask. getting started navigation help the mental model the rail the inbox inside a stage elsie help center ask" data-id="t01-orientation">
+        <button class="thumb" type="button" data-play="t01-orientation" aria-label="Play Getting oriented in MeYouSocial Publisher">
+          <img src="posters/t01-orientation.jpg" alt="" loading="lazy" width="960" height="540" />
+          <span class="dur">3:28</span>
+          <span class="play" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></span>
+        </button>
+        <div class="meta">
+          <div class="eyebrow">Training · T1 · <span class="cc">CC</span></div>
+          <h3>Getting oriented in MeYouSocial Publisher</h3>
+          <p>First-day orientation: the mental model, the left rail top to bottom, the Inbox, the stage strip and its badges, Elsie's tours, the Help Center, and Ask.</p>
+          <div class="tags"><span>getting started</span><span>navigation</span><span>help</span></div>
+        </div>
+      </article>
+      <article class="card" data-set="Training" data-search="setting a workspace up setting a workspace up in order: ai keys and the default model, live search, images and vision, connections, analytics, the clock, the gates, the dials, and inviting the team. setup keys connections analytics give it a brain live search, images, vision connect where it publishes measurement and email clock, gates, dials invite the team" data-id="t02-setup">
+        <button class="thumb" type="button" data-play="t02-setup" aria-label="Play Setting a workspace up">
+          <img src="posters/t02-setup.jpg" alt="" loading="lazy" width="960" height="540" />
+          <span class="dur">3:06</span>
+          <span class="play" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></span>
+        </button>
+        <div class="meta">
+          <div class="eyebrow">Training · T2 · <span class="cc">CC</span></div>
+          <h3>Setting a workspace up</h3>
+          <p>Setting a workspace up in order: AI keys and the default model, live search, images and vision, Connections, Analytics, the clock, the gates, the dials, and inviting the team.</p>
+          <div class="tags"><span>setup</span><span>keys</span><span>connections</span><span>analytics</span></div>
+        </div>
+      </article>
+      <article class="card" data-set="Training" data-search="voice, brand and topics teaching it your voice: the seven motifs, the brand kit and asset policy, brand context that is never ai-written, experts, and topics as the one tag that spans every surface. brand motifs topics experts the seven motifs brand kit and asset policy brand context for the ai experts topics a topic's own page" data-id="t03-brand-topics">
+        <button class="thumb" type="button" data-play="t03-brand-topics" aria-label="Play Voice, brand and Topics">
+          <img src="posters/t03-brand-topics.jpg" alt="" loading="lazy" width="960" height="540" />
+          <span class="dur">3:22</span>
+          <span class="play" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></span>
+        </button>
+        <div class="meta">
+          <div class="eyebrow">Training · T3 · <span class="cc">CC</span></div>
+          <h3>Voice, brand and Topics</h3>
+          <p>Teaching it your voice: the seven Motifs, the brand kit and asset policy, brand context that is never AI-written, Experts, and Topics as the one tag that spans every surface.</p>
+          <div class="tags"><span>brand</span><span>motifs</span><span>topics</span><span>experts</span></div>
+        </div>
+      </article>
+      <article class="card" data-set="Training" data-search="research and the ideas board intel and the outlier score, channels and competitors, make it an idea, the ideas board and its lanes, the weekly triage, and the keyword strategy behind priorities. research intel ideas keywords intel channels, bookmarks, competitors make it an idea the board the weekly triage keywords" data-id="t04-research-ideas">
+        <button class="thumb" type="button" data-play="t04-research-ideas" aria-label="Play Research and the Ideas board">
+          <img src="posters/t04-research-ideas.jpg" alt="" loading="lazy" width="960" height="540" />
+          <span class="dur">2:56</span>
+          <span class="play" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></span>
+        </button>
+        <div class="meta">
+          <div class="eyebrow">Training · T4 · <span class="cc">CC</span></div>
+          <h3>Research and the Ideas board</h3>
+          <p>Intel and the outlier score, channels and competitors, Make it an idea, the Ideas board and its lanes, the weekly triage, and the keyword strategy behind priorities.</p>
+          <div class="tags"><span>research</span><span>intel</span><span>ideas</span><span>keywords</span></div>
+        </div>
+      </article>
+      <article class="card" data-set="Training" data-search="reading a draft, and optimize reading a draft: the board's stages, the editor's five tabs, seo and images, the gates sidebar, and optimize's mechanical, knowledge and strategic findings. drafts editor seo optimize the board write seo and images the gates sidebar optimize" data-id="t05-drafts-optimize">
+        <button class="thumb" type="button" data-play="t05-drafts-optimize" aria-label="Play Reading a draft, and Optimize">
+          <img src="posters/t05-drafts-optimize.jpg" alt="" loading="lazy" width="960" height="540" />
+          <span class="dur">2:35</span>
+          <span class="play" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></span>
+        </button>
+        <div class="meta">
+          <div class="eyebrow">Training · T5 · <span class="cc">CC</span></div>
+          <h3>Reading a draft, and Optimize</h3>
+          <p>Reading a draft: the board's stages, the editor's five tabs, SEO and images, the Gates sidebar, and Optimize's mechanical, knowledge and strategic findings.</p>
+          <div class="tags"><span>drafts</span><span>editor</span><span>seo</span><span>optimize</span></div>
+        </div>
+      </article>
+      <article class="card" data-set="Training" data-search="clearing the gates clearing every kind of hold from the inbox: questions, unsourced claims, held images, held articles and advance anyway, approvals and audit, and why every clearing act moves the article at once. review inbox claims gates questions only you can answer claims with no source images that need your eye held articles approvals and audit what happens when you clear" data-id="t06-review">
+        <button class="thumb" type="button" data-play="t06-review" aria-label="Play Clearing the gates">
+          <img src="posters/t06-review.jpg" alt="" loading="lazy" width="960" height="540" />
+          <span class="dur">2:45</span>
+          <span class="play" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></span>
+        </button>
+        <div class="meta">
+          <div class="eyebrow">Training · T6 · <span class="cc">CC</span></div>
+          <h3>Clearing the gates</h3>
+          <p>Clearing every kind of hold from the Inbox: questions, unsourced claims, held images, held articles and Advance anyway, Approvals and Audit, and why every clearing act moves the article at once.</p>
+          <div class="tags"><span>review</span><span>inbox</span><span>claims</span><span>gates</span></div>
+        </div>
+      </article>
+      <article class="card" data-set="Training" data-search="publishing publishing: the publish page, publish day versus a set date versus now, wordpress, the download html and mark as published path, and why an article might never publish. publish wordpress html export the publish page when it goes wordpress no wordpress if it never publishes" data-id="t07-publish">
+        <button class="thumb" type="button" data-play="t07-publish" aria-label="Play Publishing">
+          <img src="posters/t07-publish.jpg" alt="" loading="lazy" width="960" height="540" />
+          <span class="dur">2:18</span>
+          <span class="play" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></span>
+        </button>
+        <div class="meta">
+          <div class="eyebrow">Training · T7 · <span class="cc">CC</span></div>
+          <h3>Publishing</h3>
+          <p>Publishing: the Publish page, publish day versus a set date versus now, WordPress, the Download HTML and Mark as published path, and why an article might never publish.</p>
+          <div class="tags"><span>publish</span><span>wordpress</span><span>html export</span></div>
+        </div>
+      </article>
+      <article class="card" data-set="Training" data-search="composing and scheduling social posts composing and scheduling social: the composer and per-network overrides, queue, schedule and post now, slots and timezone, the calendar, campaigns and evergreen. social compose slots calendar compose queue, schedule, post now slots and timezone calendar campaigns and evergreen" data-id="t08-compose-schedule">
+        <button class="thumb" type="button" data-play="t08-compose-schedule" aria-label="Play Composing and scheduling social posts">
+          <img src="posters/t08-compose-schedule.jpg" alt="" loading="lazy" width="960" height="540" />
+          <span class="dur">2:36</span>
+          <span class="play" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></span>
+        </button>
+        <div class="meta">
+          <div class="eyebrow">Training · T8 · <span class="cc">CC</span></div>
+          <h3>Composing and scheduling social posts</h3>
+          <p>Composing and scheduling social: the composer and per-network overrides, Queue, Schedule and Post now, slots and timezone, the calendar, campaigns and evergreen.</p>
+          <div class="tags"><span>social</span><span>compose</span><span>slots</span><span>calendar</span></div>
+        </div>
+      </article>
+      <article class="card" data-set="Training" data-search="approvals and engage the approval workflow enforced on the server, the approvals tab, queue on approval, engage and the 24-hour dm window, and account health and failed sends. approval engage social require approval the approvals tab queue on approval engage account health and failures" data-id="t09-approvals-engage">
+        <button class="thumb" type="button" data-play="t09-approvals-engage" aria-label="Play Approvals and Engage">
+          <img src="posters/t09-approvals-engage.jpg" alt="" loading="lazy" width="960" height="540" />
+          <span class="dur">2:30</span>
+          <span class="play" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></span>
+        </button>
+        <div class="meta">
+          <div class="eyebrow">Training · T9 · <span class="cc">CC</span></div>
+          <h3>Approvals and Engage</h3>
+          <p>The approval workflow enforced on the server, the Approvals tab, queue on approval, Engage and the 24-hour DM window, and account health and failed sends.</p>
+          <div class="tags"><span>approval</span><span>engage</span><span>social</span></div>
+        </div>
+      </article>
+      <article class="card" data-set="Training" data-search="the autonomy dials the autonomy dials: manual, assisted and auto per function, targets and cadence, full autonomy, global pause and run cycle now, the social idea gate, and why nothing is being drafted. automation autonomy dials function modes targets and cadence full autonomy global pause and run cycle now social ideas and the gate if nothing is being drafted" data-id="t10-automation">
+        <button class="thumb" type="button" data-play="t10-automation" aria-label="Play The autonomy dials">
+          <img src="posters/t10-automation.jpg" alt="" loading="lazy" width="960" height="540" />
+          <span class="dur">2:52</span>
+          <span class="play" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></span>
+        </button>
+        <div class="meta">
+          <div class="eyebrow">Training · T10 · <span class="cc">CC</span></div>
+          <h3>The autonomy dials</h3>
+          <p>The autonomy dials: manual, assisted and auto per function, targets and cadence, full autonomy, global pause and Run cycle now, the social idea gate, and why nothing is being drafted.</p>
+          <div class="tags"><span>automation</span><span>autonomy</span><span>dials</span></div>
+        </div>
+      </article>
+      <article class="card" data-set="Training" data-search="measuring results measuring results: connecting search console and ga4, search and traffic, social performance and best time to post, the ten stock reports, insights, and why a dash is never a zero. measure analytics reports insights connect analytics search and traffic social performance reports insights and topics" data-id="t11-measure">
+        <button class="thumb" type="button" data-play="t11-measure" aria-label="Play Measuring results">
+          <img src="posters/t11-measure.jpg" alt="" loading="lazy" width="960" height="540" />
+          <span class="dur">2:47</span>
+          <span class="play" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></span>
+        </button>
+        <div class="meta">
+          <div class="eyebrow">Training · T11 · <span class="cc">CC</span></div>
+          <h3>Measuring results</h3>
+          <p>Measuring results: connecting Search Console and GA4, Search and Traffic, Social performance and best time to post, the ten stock Reports, Insights, and why a dash is never a zero.</p>
+          <div class="tags"><span>measure</span><span>analytics</span><span>reports</span><span>insights</span></div>
+        </div>
+      </article>
+      <article class="card" data-set="Training" data-search="the assistant, the team, and troubleshooting working with the assistant and running the workspace: ask and proposals, roles and people, workspaces and branding, the digest and the audit log, and the seven things to check when something looks wrong. assistant team roles troubleshooting ask it asks first people and roles workspaces, digest, audit when something looks wrong" data-id="t12-assistant-team">
+        <button class="thumb" type="button" data-play="t12-assistant-team" aria-label="Play The assistant, the team, and troubleshooting">
+          <img src="posters/t12-assistant-team.jpg" alt="" loading="lazy" width="960" height="540" />
+          <span class="dur">3:38</span>
+          <span class="play" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></span>
+        </button>
+        <div class="meta">
+          <div class="eyebrow">Training · T12 · <span class="cc">CC</span></div>
+          <h3>The assistant, the team, and troubleshooting</h3>
+          <p>Working with the assistant and running the workspace: Ask and proposals, roles and People, workspaces and branding, the digest and the audit log, and the seven things to check when something looks wrong.</p>
+          <div class="tags"><span>assistant</span><span>team</span><span>roles</span><span>troubleshooting</span></div>
+        </div>
+      </article>
+    </div>
+  </section>
+  <p class="empty" id="empty" hidden>No videos match that search.</p>
+</main>
+
+<footer><div class="wrap"><span>MeYouSocial Publisher · 18 videos · 47:39</span><span class="kbd">Space play/pause · ← → seek 5 s · Esc close</span></div></footer>
+
+<dialog class="player" id="player" aria-label="Video player">
+  <div class="player-inner">
+    <div class="playwrap">
+      <video id="vid" controls playsinline preload="metadata"></video>
+      <button class="close" type="button" id="close" aria-label="Close">×</button>
+    </div>
+    <aside class="side">
+      <div class="eyebrow" id="p-eyebrow"></div>
+      <h2 id="p-title"></h2>
+      <p class="line" id="p-message"></p>
+      <p id="p-desc"></p>
+      <div class="eyebrow">Chapters</div>
+      <ul class="chapters" id="p-chapters"></ul>
+      <div class="actions">
+        <a class="btn primary" id="p-download" download>Download MP4</a>
+        <button class="btn" type="button" id="p-copy">Copy link</button>
+      </div>
+    </aside>
+  </div>
+</dialog>
+
+<script>
+  const DATA = [{"id":"d01-the-loop","set":"Demo","number":"D1","title":"MeYouSocial Publisher in two minutes","file":"d01-the-loop.mp4","message":"One loop from research to results, mostly on its own — your job is decisions, not production","description":"The whole product in one pass: the autopilot sweep, the Inbox, and the seven-stage loop from Research to Measure, with real screens of every stage.","chapters":[{"time":"0:10","title":"The Inbox"},{"time":"0:30","title":"One loop"},{"time":"0:45","title":"Ideas"},{"time":"1:00","title":"Drafts"},{"time":"1:17","title":"Review"},{"time":"1:36","title":"Publish & Distribute"},{"time":"1:53","title":"Measure"}],"captions":false,"duration":"2:20"},{"id":"d02-five-minutes","set":"Demo","number":"D2","title":"Five minutes a day","file":"d02-five-minutes.mp4","message":"Your job is decisions, not production — the Inbox shows what needs you, and the assistant does the rest, asking first","description":"What tending Publisher actually looks like: the morning digest, working the Inbox top to bottom, Engage's 24-hour rule, and the assistant that proposes before it acts.","chapters":[{"time":"0:11","title":"The digest"},{"time":"0:28","title":"Work the Inbox"},{"time":"0:49","title":"Engage"},{"time":"1:09","title":"Ask"},{"time":"1:25","title":"It asks first"}],"captions":false,"duration":"1:55"},{"id":"d03-idea-to-article","set":"Demo","number":"D3","title":"From idea to published article","file":"d03-idea-to-article.mp4","message":"Only approved ideas are drafted, and every gate between an idea and a live article is visible","description":"One article end to end: an idea the engine found, the approval that lets it be drafted, the SEO and images that arrive filled in, the checklist of gates, and publishing with or without WordPress.","chapters":[{"time":"0:10","title":"Ideas"},{"time":"0:30","title":"The sweep drafts it"},{"time":"0:49","title":"The article"},{"time":"1:08","title":"The checklist"},{"time":"1:30","title":"Publish"}],"captions":false,"duration":"2:03"},{"id":"d04-gates","set":"Demo","number":"D4","title":"Gates that review as well as block","file":"d04-gates.mp4","message":"Nothing AI-made reaches an audience until its checks pass — claims are sourced, images are looked at, and no number is ever invented","description":"How Publisher earns trust: seven required checks before anything goes live, claims sourced by live search and an independent judge, every AI image inspected, and never an invented number.","chapters":[{"time":"0:11","title":"The checks"},{"time":"0:34","title":"Claims are sourced"},{"time":"0:57","title":"Images are looked at"},{"time":"1:15","title":"Questions only you can answer"},{"time":"1:32","title":"Never an invented number"}],"captions":false,"duration":"2:02"},{"id":"d05-distribute","set":"Demo","number":"D5","title":"Social on a schedule you set once","file":"d05-distribute.mp4","message":"Fifteen networks through one connection, on posting slots you set once — with approval enforced on the server","description":"Social on a schedule you set once: fifteen networks through one connection, per-network overrides, wall-clock posting slots, the calendar, campaigns, evergreen recycling and server-enforced approval.","chapters":[{"time":"0:08","title":"One connection"},{"time":"0:33","title":"Compose once"},{"time":"0:55","title":"Slots you set once"},{"time":"1:14","title":"Calendar, campaigns, evergreen"},{"time":"1:40","title":"Approval, enforced"}],"captions":false,"duration":"2:16"},{"id":"d06-control-measure","set":"Demo","number":"D6","title":"Dials and dashboards","file":"d06-control-measure.mp4","message":"Control at the level you want — function by function, or one switch — and measured numbers only on the other end","description":"Governance and results: four function modes, the full-autonomy switch that remembers your dials, global pause, roles and sealed workspaces, the audit log, and measured numbers only.","chapters":[{"time":"0:08","title":"Function modes"},{"time":"0:30","title":"One switch, one brake"},{"time":"0:56","title":"Roles and workspaces"},{"time":"1:22","title":"The audit log"},{"time":"1:39","title":"Measure"}],"captions":false,"duration":"2:10"},{"id":"t01-orientation","set":"Training","number":"T1","title":"Getting oriented in MeYouSocial Publisher","file":"t01-orientation.mp4","message":"The interface is one loop; the Inbox shows what needs you; hover, Elsie, Help and Ask mean you never have to memorise it","description":"First-day orientation: the mental model, the left rail top to bottom, the Inbox, the stage strip and its badges, Elsie's tours, the Help Center, and Ask.","chapters":[{"time":"0:16","title":"The mental model"},{"time":"0:40","title":"The rail"},{"time":"1:09","title":"The Inbox"},{"time":"1:39","title":"Inside a stage"},{"time":"2:01","title":"Elsie"},{"time":"2:24","title":"Help Center"},{"time":"2:47","title":"Ask"}],"captions":true,"duration":"3:28"},{"id":"t02-setup","set":"Training","number":"T2","title":"Setting a workspace up","file":"t02-setup.mp4","message":"Nine steps, in order; each unlocks the next. A key so the AI works, then the accounts you publish to.","description":"Setting a workspace up in order: AI keys and the default model, live search, images and vision, Connections, Analytics, the clock, the gates, the dials, and inviting the team.","chapters":[{"time":"0:20","title":"Give it a brain"},{"time":"0:47","title":"Live search, images, vision"},{"time":"1:13","title":"Connect where it publishes"},{"time":"1:40","title":"Measurement and email"},{"time":"2:02","title":"Clock, gates, dials"},{"time":"2:33","title":"Invite the team"}],"captions":true,"duration":"3:06"},{"id":"t03-brand-topics","set":"Training","number":"T3","title":"Voice, brand and Topics","file":"t03-brand-topics.mp4","message":"Set your voice, brand facts and Topics once, in Brand, and every generation obeys them; Topics are the one tag that spans every surface","description":"Teaching it your voice: the seven Motifs, the brand kit and asset policy, brand context that is never AI-written, Experts, and Topics as the one tag that spans every surface.","chapters":[{"time":"0:22","title":"The seven Motifs"},{"time":"0:51","title":"Brand kit and asset policy"},{"time":"1:18","title":"Brand context for the AI"},{"time":"1:46","title":"Experts"},{"time":"2:14","title":"Topics"},{"time":"2:45","title":"A Topic's own page"}],"captions":true,"duration":"3:22"},{"id":"t04-research-ideas","set":"Training","number":"T4","title":"Research and the Ideas board","file":"t04-research-ideas.mp4","message":"Intel measures what beat its own average; the Ideas board turns it into approved ideas; approving is your act","description":"Intel and the outlier score, channels and competitors, Make it an idea, the Ideas board and its lanes, the weekly triage, and the keyword strategy behind priorities.","chapters":[{"time":"0:16","title":"Intel"},{"time":"0:40","title":"Channels, bookmarks, competitors"},{"time":"1:13","title":"Make it an idea"},{"time":"1:31","title":"The board"},{"time":"2:00","title":"The weekly triage"},{"time":"2:27","title":"Keywords"}],"captions":true,"duration":"2:56"},{"id":"t05-drafts-optimize","set":"Training","number":"T5","title":"Reading a draft, and Optimize","file":"t05-drafts-optimize.mp4","message":"Read words, pictures and SEO together; the Gates sidebar tells you what blocks publishing; Optimize asks you only what a person can answer","description":"Reading a draft: the board's stages, the editor's five tabs, SEO and images, the Gates sidebar, and Optimize's mechanical, knowledge and strategic findings.","chapters":[{"time":"0:15","title":"The board"},{"time":"0:43","title":"Write"},{"time":"1:04","title":"SEO and images"},{"time":"1:30","title":"The Gates sidebar"},{"time":"1:55","title":"Optimize"}],"captions":true,"duration":"2:35"},{"id":"t06-review","set":"Training","number":"T6","title":"Clearing the gates","file":"t06-review.mp4","message":"Every held item in the Inbox has its own button; every clearing act moves the article at once; Advance anyway is recorded","description":"Clearing every kind of hold from the Inbox: questions, unsourced claims, held images, held articles and Advance anyway, Approvals and Audit, and why every clearing act moves the article at once.","chapters":[{"time":"0:17","title":"Questions only you can answer"},{"time":"0:41","title":"Claims with no source"},{"time":"1:08","title":"Images that need your eye"},{"time":"1:30","title":"Held articles"},{"time":"1:53","title":"Approvals and Audit"},{"time":"2:14","title":"What happens when you clear"}],"captions":true,"duration":"2:45"},{"id":"t07-publish","set":"Training","number":"T7","title":"Publishing","file":"t07-publish.mp4","message":"Articles at final approval go out on the publish day, on a date you set, or now; with no WordPress, export HTML and mark as published","description":"Publishing: the Publish page, publish day versus a set date versus now, WordPress, the Download HTML and Mark as published path, and why an article might never publish.","chapters":[{"time":"0:17","title":"The Publish page"},{"time":"0:35","title":"When it goes"},{"time":"0:54","title":"WordPress"},{"time":"1:17","title":"No WordPress"},{"time":"1:47","title":"If it never publishes"}],"captions":true,"duration":"2:18"},{"id":"t08-compose-schedule","set":"Training","number":"T8","title":"Composing and scheduling social posts","file":"t08-compose-schedule.mp4","message":"Compose once with per-network overrides; slots are wall clock; Queue fills the next free slot; campaigns and evergreen run themselves","description":"Composing and scheduling social: the composer and per-network overrides, Queue, Schedule and Post now, slots and timezone, the calendar, campaigns and evergreen.","chapters":[{"time":"0:16","title":"Compose"},{"time":"0:44","title":"Queue, Schedule, Post now"},{"time":"1:06","title":"Slots and timezone"},{"time":"1:35","title":"Calendar"},{"time":"1:57","title":"Campaigns and evergreen"}],"captions":true,"duration":"2:36"},{"id":"t09-approvals-engage","set":"Training","number":"T9","title":"Approvals and Engage","file":"t09-approvals-engage.mp4","message":"Approval is enforced on the server; queue on approval makes approving the last act; Engage holds the one hard deadline","description":"The approval workflow enforced on the server, the Approvals tab, queue on approval, Engage and the 24-hour DM window, and account health and failed sends.","chapters":[{"time":"0:16","title":"Require approval"},{"time":"0:44","title":"The Approvals tab"},{"time":"1:01","title":"Queue on approval"},{"time":"1:21","title":"Engage"},{"time":"1:55","title":"Account health and failures"}],"captions":true,"duration":"2:30"},{"id":"t10-automation","set":"Training","number":"T10","title":"The autonomy dials","file":"t10-automation.mp4","message":"Four function modes, targets and cadence, one full-autonomy switch that remembers your dials, and a global pause","description":"The autonomy dials: manual, assisted and auto per function, targets and cadence, full autonomy, global pause and Run cycle now, the social idea gate, and why nothing is being drafted.","chapters":[{"time":"0:19","title":"Function modes"},{"time":"0:47","title":"Targets and cadence"},{"time":"1:10","title":"Full autonomy"},{"time":"1:36","title":"Global pause and Run cycle now"},{"time":"2:02","title":"Social ideas and the gate"},{"time":"2:28","title":"If nothing is being drafted"}],"captions":true,"duration":"2:52"},{"id":"t11-measure","set":"Training","number":"T11","title":"Measuring results","file":"t11-measure.mp4","message":"Connect Search Console and GA4 once; read Search, Traffic, Social performance and best time; a dash means not measured, never zero","description":"Measuring results: connecting Search Console and GA4, Search and Traffic, Social performance and best time to post, the ten stock Reports, Insights, and why a dash is never a zero.","chapters":[{"time":"0:17","title":"Connect analytics"},{"time":"0:44","title":"Search and Traffic"},{"time":"1:10","title":"Social performance"},{"time":"1:38","title":"Reports"},{"time":"2:09","title":"Insights and Topics"}],"captions":true,"duration":"2:47"},{"id":"t12-assistant-team","set":"Training","number":"T12","title":"The assistant, the team, and troubleshooting","file":"t12-assistant-team.mp4","message":"The assistant does nearly everything and asks first; roles, workspaces and the audit log keep it accountable; when something looks wrong, the cause is usually one of seven","description":"Working with the assistant and running the workspace: Ask and proposals, roles and People, workspaces and branding, the digest and the audit log, and the seven things to check when something looks wrong.","chapters":[{"time":"0:15","title":"Ask"},{"time":"0:50","title":"It asks first"},{"time":"1:25","title":"People and roles"},{"time":"1:56","title":"Workspaces, digest, audit"},{"time":"2:38","title":"When something looks wrong"}],"captions":true,"duration":"3:38"}];
+  const byId = Object.fromEntries(DATA.map((v) => [v.id, v]));
+  const toSec = (t) => t.split(":").reduce((a, b) => a * 60 + Number(b), 0);
+  const dlg = document.getElementById("player"), vid = document.getElementById("vid");
+  let current = null;
+
+  function open(id, seek) {
+    const v = byId[id]; if (!v) return; current = v;
+    document.getElementById("p-eyebrow").innerHTML = v.set + " · " + v.number + " · " + v.duration + (v.captions ? ' · <span class="cc">CC</span>' : "");
+    document.getElementById("p-title").textContent = v.title;
+    document.getElementById("p-message").textContent = v.message;
+    document.getElementById("p-desc").textContent = v.description;
+    const ul = document.getElementById("p-chapters"); ul.innerHTML = "";
+    v.chapters.forEach((c) => { const li = document.createElement("li"); const b = document.createElement("button"); b.type = "button"; b.innerHTML = '<span class="t">' + c.time + "</span><span>" + c.title + "</span>"; b.dataset.t = toSec(c.time); b.onclick = () => { vid.currentTime = Number(b.dataset.t); vid.play(); }; li.appendChild(b); ul.appendChild(li); });
+    const dl = document.getElementById("p-download"); dl.href = v.file; dl.setAttribute("download", v.file);
+    vid.src = v.file; vid.poster = "posters/" + v.id + ".jpg";
+    if (!dlg.open) dlg.showModal();
+    vid.currentTime = seek || 0; vid.play().catch(() => {});
+    history.replaceState(null, "", "#" + v.id);
+  }
+  function close() { vid.pause(); vid.removeAttribute("src"); vid.load(); dlg.close(); history.replaceState(null, "", location.pathname); }
+  document.querySelectorAll("[data-play]").forEach((b) => b.addEventListener("click", () => open(b.dataset.play)));
+  document.getElementById("close").onclick = close;
+  dlg.addEventListener("click", (e) => { if (e.target === dlg) close(); });
+  dlg.addEventListener("cancel", (e) => { e.preventDefault(); close(); });
+  vid.addEventListener("timeupdate", () => { const t = vid.currentTime; let active = null; document.querySelectorAll("#p-chapters button").forEach((b) => { if (Number(b.dataset.t) <= t) active = b; b.classList.remove("active"); }); if (active) active.classList.add("active"); });
+  document.getElementById("p-copy").onclick = async () => { const url = location.origin + location.pathname + "#" + current.id; try { await navigator.clipboard.writeText(url); document.getElementById("p-copy").textContent = "Copied"; setTimeout(() => (document.getElementById("p-copy").textContent = "Copy link"), 1400); } catch { prompt("Link", url); } };
+  document.addEventListener("keydown", (e) => { if (!dlg.open) return; if (e.key === " " && e.target === document.body) { e.preventDefault(); vid.paused ? vid.play() : vid.pause(); } if (e.key === "ArrowRight") vid.currentTime += 5; if (e.key === "ArrowLeft") vid.currentTime -= 5; });
+
+  // filter + search
+  let filter = "all";
+  const q = document.getElementById("q");
+  function apply() {
+    const term = q.value.trim().toLowerCase(); let shown = 0;
+    document.querySelectorAll(".card").forEach((c) => { const ok = (filter === "all" || c.dataset.set === filter) && (!term || c.dataset.search.includes(term)); c.classList.toggle("hidden", !ok); if (ok) shown++; });
+    document.querySelectorAll("section.set").forEach((s) => { s.hidden = (filter !== "all" && s.dataset.set !== filter) || !s.querySelector(".card:not(.hidden)"); });
+    document.getElementById("empty").hidden = shown > 0;
+  }
+  document.querySelectorAll(".tabs button").forEach((b) => b.addEventListener("click", () => { filter = b.dataset.filter; document.querySelectorAll(".tabs button").forEach((x) => x.setAttribute("aria-pressed", String(x === b))); apply(); }));
+  q.addEventListener("input", apply);
+  try { const saved = localStorage.getItem("mys-gallery-filter"); if (saved) { filter = saved; document.querySelectorAll(".tabs button").forEach((x) => x.setAttribute("aria-pressed", String(x.dataset.filter === saved))); apply(); } } catch {}
+  document.querySelectorAll(".tabs button").forEach((b) => b.addEventListener("click", () => { try { localStorage.setItem("mys-gallery-filter", b.dataset.filter); } catch {} }));
+  if (location.hash && byId[location.hash.slice(1)]) open(location.hash.slice(1));
+</script>
+</body>
+</html>
