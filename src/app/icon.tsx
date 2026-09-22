@@ -1,6 +1,6 @@
 import { ImageResponse } from "next/og";
 
-// Browser-tab favicon — the MeYouSocial Publish mark: the folded-broadsheet M
+// Browser-tab favicon — the MeYouSocial Publisher mark: the folded-broadsheet M
 // (ink badge, white and coral folds) with the product chip at the corner (a
 // white, ink-ringed disc carrying a coral arrow — "out into the world").
 // Favicon-tuned geometry: the M fills more of the badge than the in-app

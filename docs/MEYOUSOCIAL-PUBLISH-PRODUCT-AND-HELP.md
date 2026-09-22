@@ -1,4 +1,4 @@
-# MeYouSocial Publish
+# MeYouSocial Publisher
 
 **The content engine that runs mostly on its own.** It researches what is worth saying, drafts articles and social posts with their images and SEO, reviews its own work, publishes what passes to your website and your social networks on a schedule, and pulls the results back in. Your job is decisions, not production.
 
@@ -8,7 +8,7 @@ _MeYouSocial Publish is part of the MeYouSocial family of apps._
 
 ## One loop, from research to results
 
-Most content tools give you a blank page and a calendar. MeYouSocial Publish gives you a machine with a person at the gates.
+Most content tools give you a blank page and a calendar. MeYouSocial Publisher gives you a machine with a person at the gates.
 
 Every 30 minutes an autopilot sweep discovers ideas, drafts the ones you approved, gives each article featured and social-preview images and SEO metadata, has a vision model look at every image, sources every flagged claim from live web search, applies the mechanical fixes, advances what passes, publishes on your publish day, writes and queues social posts, recycles evergreen content and syncs your results. Everything it cannot fix parks at a gate for you, with the action on the card.
 
@@ -216,7 +216,7 @@ _How the machine works, and what tending it looks like: daily, weekly, monthly. 
 
 ### What this app is, in one paragraph
 
-MeYouSocial Publish is a content engine that runs mostly on its own: it researches what's worth saying, drafts articles and social posts (with their images and SEO), reviews its own work, schedules and publishes what passes, and pulls the results back in. **Your job is decisions, not production**: approving, answering, adjusting, occasionally steering. The whole interface is one loop: the left rail reads **Research → Ideas → Drafts → Review → Publish → Distribute → Measure**, with Inbox above it (exactly what's waiting on you) and Setup below it (Settings, Channels, Brand, Publish Admin; admins only).
+MeYouSocial Publisher is a content engine that runs mostly on its own: it researches what's worth saying, drafts articles and social posts (with their images and SEO), reviews its own work, schedules and publishes what passes, and pulls the results back in. **Your job is decisions, not production**: approving, answering, adjusting, occasionally steering. The whole interface is one loop: the left rail reads **Research → Ideas → Drafts → Review → Publish → Distribute → Measure**, with Inbox above it (exactly what's waiting on you) and Setup below it (Settings, Channels, Brand, Publish Admin; admins only).
 
 **The engine works while you don't.** Every 30 minutes a sweep discovers ideas, drafts the approved ones with featured and social-preview images and SEO, has a vision model look at every image, sources every flagged claim from live web search, applies the mechanical findings, advances what passes, publishes on the publish day, writes and queues social posts, recycles evergreen and syncs results, inside the dials you set under Settings. Everything it cannot fix **parks at a gate for you**.
 
@@ -787,7 +787,7 @@ Settings → **People** → enter email + role (Admin / Editor / Viewer) → **S
 
 **Is there a cost?**
 
-No. MeYouSocial Publish has no billing, no credits, no payments. AI usage is unmetered for invited members. Admins can optionally set soft monthly limits per user (under Settings → Usage) to bound shared infrastructure cost.
+No. MeYouSocial Publisher has no billing, no credits, no payments. AI usage is unmetered for invited members. Admins can optionally set soft monthly limits per user (under Settings → Usage) to bound shared infrastructure cost.
 
 **How do soft limits work?**
 

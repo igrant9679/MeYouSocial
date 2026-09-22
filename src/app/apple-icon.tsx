@@ -1,6 +1,6 @@
 import { ImageResponse } from "next/og";
 
-// iOS Home Screen icon — the MeYouSocial Publish mark (the folded-broadsheet M
+// iOS Home Screen icon — the MeYouSocial Publisher mark (the folded-broadsheet M
 // with the product chip). iOS specifically looks for <link rel="apple-touch-icon">;
 // Next auto-injects it for apple-icon.tsx. 180x180 is Apple's recommended size;
 // iOS rounds the corners itself, so the chip sits just inside that mask.

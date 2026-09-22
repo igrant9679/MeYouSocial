@@ -220,7 +220,7 @@ html[data-theme="dark"] .ws-brand {
           </span>
           <span className="hidden @6xl:flex flex-col min-w-0">
             <span className="font-mono font-bold text-[17px] tracking-tight truncate max-w-[160px] leading-tight">{brandName}</span>
-            {/* The product byline — "Publish" under the family wordmark, or the
+            {/* The product byline — "Publisher" under the family wordmark, or the
                 full product name under a tenant's own name. Hidden with the
                 wordmark when the rail collapses to icons; there is no room. */}
             <span className="flex items-center gap-1 text-[10px] font-mono uppercase tracking-wider text-[var(--mute)] leading-tight mt-0.5">
