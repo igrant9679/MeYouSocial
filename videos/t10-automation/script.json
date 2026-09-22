@@ -22,15 +22,43 @@
       "id": "s02",
       "type": "screen",
       "chapter": "01 · Function modes",
-      "clip": { "src": "settings-tour.mp4", "start": 0.5, "rate": 0.7 },
+      "clip": {
+        "src": "settings-tour.mp4",
+        "start": 0.5,
+        "rate": 0.49
+      },
       "headline": "Manual. Assisted. *Auto.*",
       "narration": "Four functions, each with its own mode: ideation, drafting, social and publishing. Manual: the AI acts only when you click. Assisted: it runs, then queues at a human checkpoint. Auto: unattended. They are independent. A common setup is ideation and drafting on auto, social on assisted, publishing on manual. Start low, and raise a dial once you trust what arrives at review.",
       "headlineAt": "q:Start low",
       "callouts": [
-        { "kind": "chips", "items": ["Ideation", "Drafting", "Social", "Publishing"], "at": "q:ideation, drafting" },
-        { "kind": "card", "label": "Manual", "title": "Acts only when you click", "at": "q:Manual:" },
-        { "kind": "card", "label": "Assisted", "title": "Runs, then queues at a human checkpoint", "at": "q:Assisted:" },
-        { "kind": "card", "label": "Auto", "title": "Unattended", "at": "q:Auto:" }
+        {
+          "kind": "chips",
+          "items": [
+            "Ideation",
+            "Drafting",
+            "Social",
+            "Publishing"
+          ],
+          "at": "q:ideation, drafting"
+        },
+        {
+          "kind": "card",
+          "label": "Manual",
+          "title": "Acts only when you click",
+          "at": "q:Manual:"
+        },
+        {
+          "kind": "card",
+          "label": "Assisted",
+          "title": "Runs, then queues at a human checkpoint",
+          "at": "q:Assisted:"
+        },
+        {
+          "kind": "card",
+          "label": "Auto",
+          "title": "Unattended",
+          "at": "q:Auto:"
+        }
       ]
     },
     {
@@ -43,10 +71,33 @@
       "spoken": "Targets and cadence: articles per week and the publish day, social posts per week, S E O on every draft, auto-image, evergreen recycling, and a daily generation budget. Remember the engine only drafts approved ideas, so an empty Approved column means no new articles, however high the target.",
       "headlineAt": "q:Remember the engine",
       "callouts": [
-        { "kind": "chips", "items": ["Articles / week", "Publish day", "Social posts / week", "SEO on every draft", "Auto-image", "Evergreen", "Daily budget"], "at": "q:articles per week" },
-        { "kind": "quote", "text": "The engine only drafts approved ideas.", "at": "q:Remember the engine" }
+        {
+          "kind": "chips",
+          "items": [
+            "Articles / week",
+            "Publish day",
+            "Social posts / week",
+            "SEO on every draft",
+            "Auto-image",
+            "Evergreen",
+            "Daily budget"
+          ],
+          "at": "q:articles per week"
+        },
+        {
+          "kind": "quote",
+          "text": "The engine only drafts approved ideas.",
+          "at": "q:Remember the engine"
+        }
       ],
-      "punch": { "x": 700, "y": 260, "scale": 1.3, "at": "q:Targets and cadence", "dur": 1.5, "hold": 7.0 }
+      "punch": {
+        "x": 700,
+        "y": 260,
+        "scale": 1.3,
+        "at": "q:Targets and cadence",
+        "dur": 1.5,
+        "hold": 7.0
+      }
     },
     {
       "id": "s04",
@@ -57,10 +108,26 @@
       "narration": "Full autonomy is one switch. It sets every function to auto, turns queue-on-approval on, and remembers what you had, so switching it off restores your previous dials exactly. Under it, the app presses the review buttons a person would: it approves its own ideas, clears what it can, and only holds what it genuinely cannot fix. It does not lower what the gates check.",
       "headlineAt": "q:Under it",
       "callouts": [
-        { "kind": "card", "label": "One switch", "title": "Every function → auto · queue on approval → on · old dials remembered", "at": "q:It sets every" },
-        { "kind": "quote", "text": "It does not lower what the gates check.", "at": "q:It does not lower" }
+        {
+          "kind": "card",
+          "label": "One switch",
+          "title": "Every function → auto · queue on approval → on · old dials remembered",
+          "at": "q:It sets every"
+        },
+        {
+          "kind": "quote",
+          "text": "It does not lower what the gates check.",
+          "at": "q:It does not lower"
+        }
       ],
-      "punch": { "x": 1500, "y": 260, "scale": 1.3, "at": "q:Full autonomy is", "dur": 1.5, "hold": 6.0 }
+      "punch": {
+        "x": 1500,
+        "y": 260,
+        "scale": 1.3,
+        "at": "q:Full autonomy is",
+        "dur": 1.5,
+        "hold": 6.0
+      }
     },
     {
       "id": "s05",
@@ -71,9 +138,25 @@
       "narration": "Global pause is the emergency brake: every AI action stops, manual clicks included, until you release it. Run cycle now runs one sweep immediately; watch Drafts and the Inbox afterwards. An idle sweep is silent by design; other activity, like analytics syncs, shows the scheduler is alive. Every thirty minutes the sweep runs on its own.",
       "headlineAt": "q:Run cycle now",
       "callouts": [
-        { "kind": "card", "label": "Global pause", "title": "Every AI action stops, manual clicks included", "at": "q:Global pause" },
-        { "kind": "card", "label": "Run cycle now", "title": "One sweep, immediately", "at": "q:Run cycle now" },
-        { "kind": "card", "label": "Otherwise", "value": "30 min", "title": "between sweeps", "at": "q:Every thirty" }
+        {
+          "kind": "card",
+          "label": "Global pause",
+          "title": "Every AI action stops, manual clicks included",
+          "at": "q:Global pause"
+        },
+        {
+          "kind": "card",
+          "label": "Run cycle now",
+          "title": "One sweep, immediately",
+          "at": "q:Run cycle now"
+        },
+        {
+          "kind": "card",
+          "label": "Otherwise",
+          "value": "30 min",
+          "title": "between sweeps",
+          "at": "q:Every thirty"
+        }
       ]
     },
     {
@@ -86,9 +169,26 @@
       "narration": "A social post starts as an idea. Each sweep ideates per Topic, and from a published article's angles, then a gate decides. On auto, the engine approves its own social ideas in the same sweep and drafts one approved idea per sweep, inside the weekly quota. On human, they wait on the Ideas board for you. A person's own ideas always wait for that person.",
       "headlineAt": "q:On human",
       "callouts": [
-        { "kind": "chips", "items": ["Per Topic", "From a published article's angles"], "at": "q:Each sweep ideates" },
-        { "kind": "card", "label": "Gate: auto", "title": "The engine approves its own ideas in the same sweep", "at": "q:On auto" },
-        { "kind": "card", "label": "Gate: human", "title": "They wait on the board for you", "at": "q:On human" }
+        {
+          "kind": "chips",
+          "items": [
+            "Per Topic",
+            "From a published article's angles"
+          ],
+          "at": "q:Each sweep ideates"
+        },
+        {
+          "kind": "card",
+          "label": "Gate: auto",
+          "title": "The engine approves its own ideas in the same sweep",
+          "at": "q:On auto"
+        },
+        {
+          "kind": "card",
+          "label": "Gate: human",
+          "title": "They wait on the board for you",
+          "at": "q:On human"
+        }
       ]
     },
     {
@@ -100,7 +200,16 @@
       "narration": "If nothing is being drafted, it is one of four things. The Approved column is empty. The weekly target or the daily budget is reached. Drafting is on manual. Or global pause is on. Settings, Automation, says which.",
       "headlineAt": "q:Settings, Automation",
       "callouts": [
-        { "kind": "chips", "items": ["Approved column empty", "Target or budget reached", "Drafting on manual", "Global pause on"], "at": "q:it is one of" }
+        {
+          "kind": "chips",
+          "items": [
+            "Approved column empty",
+            "Target or budget reached",
+            "Drafting on manual",
+            "Global pause on"
+          ],
+          "at": "q:it is one of"
+        }
       ]
     },
     {

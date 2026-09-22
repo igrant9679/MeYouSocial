@@ -21,15 +21,43 @@
       "id": "s02",
       "type": "screen",
       "chapter": "01 · Function modes",
-      "clip": { "src": "settings-tour.mp4", "start": 0.5, "rate": 0.85 },
+      "clip": {
+        "src": "settings-tour.mp4",
+        "start": 0.5,
+        "rate": 0.63
+      },
       "headline": "Manual. Assisted. *Auto.*",
       "narration": "Four functions, each with its own mode. Ideation, drafting, social and publishing. Manual means the AI acts only when you click. Assisted means it runs and queues at a human checkpoint. Auto means unattended. Start low, and raise a dial once you trust what arrives at review.",
       "headlineAt": "q:Start low",
       "callouts": [
-        { "kind": "chips", "items": ["Ideation", "Drafting", "Social", "Publishing"], "at": "q:Ideation, drafting" },
-        { "kind": "card", "label": "Manual", "title": "The AI acts only when you click", "at": "q:Manual means" },
-        { "kind": "card", "label": "Assisted", "title": "Runs, then queues at a human checkpoint", "at": "q:Assisted means" },
-        { "kind": "card", "label": "Auto", "title": "Unattended", "at": "q:Auto means" }
+        {
+          "kind": "chips",
+          "items": [
+            "Ideation",
+            "Drafting",
+            "Social",
+            "Publishing"
+          ],
+          "at": "q:Ideation, drafting"
+        },
+        {
+          "kind": "card",
+          "label": "Manual",
+          "title": "The AI acts only when you click",
+          "at": "q:Manual means"
+        },
+        {
+          "kind": "card",
+          "label": "Assisted",
+          "title": "Runs, then queues at a human checkpoint",
+          "at": "q:Assisted means"
+        },
+        {
+          "kind": "card",
+          "label": "Auto",
+          "title": "Unattended",
+          "at": "q:Auto means"
+        }
       ]
     },
     {
@@ -41,11 +69,32 @@
       "narration": "Full autonomy is one switch. It sets every function to auto, turns queue-on-approval on, and remembers what you had, so switching it off restores your previous dials exactly. Under it, the app presses the review buttons a person would. It does not lower what they check. Global pause is the emergency brake: every AI action stops, manual clicks included.",
       "headlineAt": "q:so switching",
       "callouts": [
-        { "kind": "card", "label": "Full autonomy", "title": "Every function to auto · queue on approval on · your old dials remembered", "at": "q:It sets every" },
-        { "kind": "quote", "text": "It does not lower what they check.", "at": "q:It does not lower" },
-        { "kind": "card", "label": "Global pause", "title": "Every AI action stops, manual clicks included", "at": "q:Global pause" }
+        {
+          "kind": "card",
+          "label": "Full autonomy",
+          "title": "Every function to auto · queue on approval on · your old dials remembered",
+          "at": "q:It sets every"
+        },
+        {
+          "kind": "quote",
+          "text": "It does not lower what they check.",
+          "at": "q:It does not lower"
+        },
+        {
+          "kind": "card",
+          "label": "Global pause",
+          "title": "Every AI action stops, manual clicks included",
+          "at": "q:Global pause"
+        }
       ],
-      "punch": { "x": 700, "y": 260, "scale": 1.3, "at": "q:Full autonomy is", "dur": 1.5, "hold": 5.0 }
+      "punch": {
+        "x": 700,
+        "y": 260,
+        "scale": 1.3,
+        "at": "q:Full autonomy is",
+        "dur": 1.5,
+        "hold": 5.0
+      }
     },
     {
       "id": "s04",
@@ -56,9 +105,24 @@
       "narration": "Admins approve, publish, send and configure. Editors write, draft, answer and propose. Viewers read. Publishing an article and approving a social post are always an admin's act. And every company is its own sealed workspace: keys, accounts, voice, content, slots and dials are its own. Co-branded for agencies, never white-labelled.",
       "headlineAt": "q:And every company",
       "callouts": [
-        { "kind": "card", "label": "Admins", "title": "Approve · publish · send · configure", "at": "q:Admins approve" },
-        { "kind": "card", "label": "Editors", "title": "Write · draft · answer · propose", "at": "q:Editors write" },
-        { "kind": "card", "label": "Per workspace", "title": "Keys · accounts · voice · content · slots · dials", "at": "q:keys, accounts" }
+        {
+          "kind": "card",
+          "label": "Admins",
+          "title": "Approve · publish · send · configure",
+          "at": "q:Admins approve"
+        },
+        {
+          "kind": "card",
+          "label": "Editors",
+          "title": "Write · draft · answer · propose",
+          "at": "q:Editors write"
+        },
+        {
+          "kind": "card",
+          "label": "Per workspace",
+          "title": "Keys · accounts · voice · content · slots · dials",
+          "at": "q:keys, accounts"
+        }
       ]
     },
     {
@@ -70,8 +134,20 @@
       "narration": "An audit log records everything. What the autopilot did and why, what a person clicked, what the assistant ran and with which arguments. The morning digest lists what needs you, and a quiet morning sends nothing at all.",
       "headlineAt": "q:The morning digest",
       "callouts": [
-        { "kind": "chips", "items": ["Autopilot: what and why", "Person: what was clicked", "Assistant: what ran"], "at": "q:What the autopilot" },
-        { "kind": "quote", "text": "A quiet morning sends nothing at all.", "at": "q:and a quiet" }
+        {
+          "kind": "chips",
+          "items": [
+            "Autopilot: what and why",
+            "Person: what was clicked",
+            "Assistant: what ran"
+          ],
+          "at": "q:What the autopilot"
+        },
+        {
+          "kind": "quote",
+          "text": "A quiet morning sends nothing at all.",
+          "at": "q:and a quiet"
+        }
       ]
     },
     {
@@ -85,10 +161,31 @@
       "spoken": "On the other end, Measure. Search impressions and clicks by week from Search Console. Traffic from Google Analytics. Social performance by network. The best time to post, measured from real engagement, that stays silent below its sample size rather than guessing. Reports built from your own data, exported as P D F.",
       "headlineAt": "q:The best time",
       "callouts": [
-        { "kind": "chips", "items": ["Search Console", "Google Analytics 4", "Social performance", "Best time to post", "Reports"], "at": "q:Search impressions" },
-        { "kind": "quote", "text": "Silent below its sample size rather than guessing.", "at": "q:that stays silent" }
+        {
+          "kind": "chips",
+          "items": [
+            "Search Console",
+            "Google Analytics 4",
+            "Social performance",
+            "Best time to post",
+            "Reports"
+          ],
+          "at": "q:Search impressions"
+        },
+        {
+          "kind": "quote",
+          "text": "Silent below its sample size rather than guessing.",
+          "at": "q:that stays silent"
+        }
       ],
-      "punch": { "x": 640, "y": 300, "scale": 1.3, "at": "q:Social performance by", "dur": 1.5, "hold": 4.0 }
+      "punch": {
+        "x": 640,
+        "y": 300,
+        "scale": 1.3,
+        "at": "q:Social performance by",
+        "dur": 1.5,
+        "hold": 4.0
+      }
     },
     {
       "id": "s07",

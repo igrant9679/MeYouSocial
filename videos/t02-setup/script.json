@@ -141,7 +141,7 @@
       "still": "analytics-setup.png",
       "headline": "A dash means not measured, never *zero.*",
       "narration": "Wire up measurement under Settings, then Analytics: the Search Console site and the GA4 property, with the service account granted on both. The page runs a live probe and tells you which side is missing. Until then, Measure shows dashes, and a dash means not measured, never zero.",
-      "spoken": "Wire up measurement under Settings, then Analytics: the Search Console site and the G A 4 property, with the service account granted on both. The page runs a live probe and tells you which side is missing. Until then, Measure shows dashes, and a dash means not measured, never zero.",
+      "spoken": "Wire up measurement under Settings, then Analytics: the Search Console site and the GA4 property, with the service account granted on both. The page runs a live probe and tells you which side is missing. Until then, Measure shows dashes, and a dash means not measured, never zero.",
       "headlineAt": "q:Until then",
       "callouts": [
         {

@@ -64,7 +64,7 @@
     },
     {
       "id": "s05→s06",
-      "cut": 121.7,
+      "cut": 121.8,
       "technique": "cut-the-curve LEFT",
       "exit": {
         "selector": "#el-s05",
@@ -79,7 +79,7 @@
     },
     {
       "id": "s06→s07",
-      "cut": 152.8,
+      "cut": 152.9,
       "technique": "inverse zoom-through",
       "exit": {
         "selector": "#el-s06",
@@ -96,7 +96,7 @@
     },
     {
       "id": "s07→s08",
-      "cut": 175.7,
+      "cut": 175.8,
       "technique": "cut-the-curve UP",
       "exit": {
         "selector": "#el-s07",

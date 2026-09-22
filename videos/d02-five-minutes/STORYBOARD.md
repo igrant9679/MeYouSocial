@@ -3,7 +3,7 @@ title: Five minutes a day
 message: "Your job is decisions, not production — the Inbox shows what needs you, and the assistant does the rest, asking first"
 audience: "Owners and marketers who don't have a content team"
 mode: autonomous
-duration: 115
+duration: 115.1
 ---
 
 ## Frame 1 — s01
@@ -76,19 +76,19 @@ footage: ask-dock.mp4
 status: animated
 src: compositions/s06.html
 start: 84.8
-duration: 22.1
+duration: 22.2
 type: screen
 seam-in: inverse zoom-through
 route: staged reveals
 footage: assistant.png
 
-> It can do nearly everything you can do here. Anything outward-facing or hard to undo is proposed first, as I am about to, go ahead? It runs only when you say yes. Every action lands in the audit log. And it will never enter an API key, delete a workspace, or send an email on its own.
+> It can do nearly everything you can do here. Anything outward-facing or hard to undo is proposed first, as I am about to, go ahead? It runs only when you say yes. Every action lands in the audit log. And it will never enter API keys, delete a workspace, or send an email on its own.
 
 ## Frame 7 — s07
 
 status: animated
 src: compositions/s07.html
-start: 106.9
+start: 107
 duration: 8.1
 type: close
 seam-in: cut-the-curve UP

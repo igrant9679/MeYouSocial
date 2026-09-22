@@ -413,6 +413,49 @@ for (const sc of script.scenes) {
   writeFileSync(path.join(dir, "compositions", `${sc.id}.html`), html);
 }
 
+
+// ---------- caption text alignment ----------
+// Captions must read as WRITTEN, not as Whisper heard it. Whisper supplies timing only; the words
+// come from the script. Without this the burned-in rail printed "me, you social publisher" for the
+// brand, "G of four" for GA4, and the odd hallucinated phrase on a quiet tail.
+function alignToScript(text, words) {
+  const disp = String(text || "").replace(/\*/g, "").split(/\s+/).filter(Boolean);
+  if (!disp.length || !words || !words.length) return [];
+  const norm = (t) => t.toLowerCase().replace(/[’]/g, "'").replace(/[^a-z0-9']/g, "");
+  const a = disp.map(norm), b = words.map((w) => norm(w.w));
+  const n = a.length, m = b.length;
+  const dp = Array.from({ length: n + 1 }, () => new Uint16Array(m + 1));
+  for (let i = n - 1; i >= 0; i--)
+    for (let j = m - 1; j >= 0; j--)
+      dp[i][j] = a[i] && a[i] === b[j] ? dp[i + 1][j + 1] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1]);
+  const out = disp.map((w) => ({ w, s: null, e: null }));
+  let i = 0, j = 0;
+  while (i < n && j < m) {
+    if (a[i] && a[i] === b[j]) { out[i].s = words[j].s; out[i].e = words[j].e; i++; j++; }
+    else if (dp[i + 1][j] >= dp[i][j + 1]) i++;
+    else j++;
+  }
+  // words the transcript never matched get time interpolated between the nearest anchors
+  const firstT = words[0].s, lastT = words[words.length - 1].e;
+  let prevIdx = -1, prevT = firstT;
+  for (let k = 0; k <= n; k++) {
+    if (k === n || out[k].s != null) {
+      const nextT = k === n ? lastT : out[k].s;
+      const gap = k - prevIdx - 1;
+      if (gap > 0) {
+        const step = (nextT - prevT) / (gap + 1);
+        for (let g = 1; g <= gap; g++) {
+          const t = prevT + step * g;
+          out[prevIdx + g] = { w: out[prevIdx + g].w, s: t, e: t + Math.max(0.08, step * 0.9) };
+        }
+      }
+      if (k < n) { prevIdx = k; prevT = out[k].e; }
+    }
+  }
+  if (out[0].s == null) { out[0].s = firstT; out[0].e = firstT + 0.1; }
+  return out;
+}
+
 // ---------- 5. index.html ----------
 const slots = script.scenes.map((sc) => `      <div id="el-${sc.id}" data-composition-id="${sc.id}" data-composition-src="compositions/${sc.id}.html" data-start="${sc.start}" data-duration="${sc.duration}" data-track-index="1" data-width="1920" data-height="1080"></div>`).join("\n");
 const audios = script.scenes.map((sc) => `      <audio id="vo-${sc.id}" src="assets/vo/${sc.id}.wav" data-start="${r1(sc.start + sc.lead)}" data-duration="${sc.voice.toFixed(3)}" data-track-index="10" data-volume="1"></audio>`).join("\n");
@@ -421,8 +464,12 @@ const audios = script.scenes.map((sc) => `      <audio id="vo-${sc.id}" src="ass
 let captions = "";
 if (script.captions) {
   const cues = [];
+  let swapped = 0;
   for (const sc of script.scenes) {
     if (!sc.words || !sc.words.length) continue;
+    const spoken = alignToScript(sc.narration || sc.line || "", sc.words);
+    const capWords = spoken.length ? spoken : sc.words;
+    if (spoken.length) swapped++;
     const base = sc.start + sc.lead;
     let cur = [];
     const flush = () => {
@@ -431,7 +478,7 @@ if (script.captions) {
       cues.push({ s: r3(s), e: r3(Math.min(e, sc.start + sc.duration)), text: cur.map((w) => w.w).join(" ") });
       cur = [];
     };
-    for (const w of sc.words) {
+    for (const w of capWords) {
       const len = cur.reduce((n, x) => n + x.w.length + 1, 0) + w.w.length;
       const gap = cur.length ? w.s - cur[cur.length - 1].e : 0;
       if (cur.length && (len > 64 || gap > 0.7 || /[.!?]$/.test(cur[cur.length - 1].w) && len > 30)) flush();
@@ -449,7 +496,7 @@ if (script.captions) {
     if (!cues[i + 1] && cues[i].e - cues[i].s < 0.9) cues[i].e = r3(cues[i].s + 0.9);
   }
   captions = cues.map((c, i) => `      <div id="cap-${i}" class="clip cap" data-start="${c.s}" data-duration="${r3(c.e - c.s)}" data-track-index="5" data-layout-allow-overlap><span>${esc(c.text)}</span></div>`).join("\n");
-  console.log(`captions: ${cues.length} cues`);
+  console.log(`captions: ${cues.length} cues (${swapped} scenes aligned to script text)`);
 }
 const capCss = script.captions ? `
       ${FONT_FACES}

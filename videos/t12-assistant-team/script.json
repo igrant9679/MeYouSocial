@@ -22,15 +22,40 @@
       "id": "s02",
       "type": "screen",
       "chapter": "01 · Ask",
-      "clip": { "src": "ask-dock.mp4", "start": 3.0, "rate": 0.8 },
+      "clip": {
+        "src": "ask-dock.mp4",
+        "start": 3.0,
+        "rate": 0.8
+      },
       "headline": "It reads everything. It does the *work.*",
       "narration": "Press Ask, or Control and slash, on any page. The assistant knows which page you are on and reads everything: the pipeline, the Inbox, ideas, articles and their checks, social posts, keywords, Topics, connections, dials, results, the live web, and the app's own guide. And it does the work: finds and approves ideas, drafts articles, writes SEO, runs Optimize, verifies claims, queues and sends posts, publishes, changes the dials. Ask what should I do next and it ranks the moves and offers to do each one.",
       "spoken": "Press Ask, or Control and slash, on any page. The assistant knows which page you are on and reads everything: the pipeline, the Inbox, ideas, articles and their checks, social posts, keywords, Topics, connections, dials, results, the live web, and the app's own guide. And it does the work: finds and approves ideas, drafts articles, writes S E O, runs Optimize, verifies claims, queues and sends posts, publishes, changes the dials. Ask, what should I do next, and it ranks the moves and offers to do each one.",
       "headlineAt": "q:And it does",
       "callouts": [
-        { "kind": "card", "label": "Shortcut", "value": "Ctrl + /", "title": "on any page", "at": "q:or Control" },
-        { "kind": "chips", "items": ["Reads the pipeline", "The Inbox", "Articles and checks", "Connections and dials", "The live web", "The guide"], "at": "q:reads everything" },
-        { "kind": "quote", "text": "What should I do next?", "at": "q:Ask what should" }
+        {
+          "kind": "card",
+          "label": "Shortcut",
+          "value": "Ctrl + /",
+          "title": "on any page",
+          "at": "q:or Control"
+        },
+        {
+          "kind": "chips",
+          "items": [
+            "Reads the pipeline",
+            "The Inbox",
+            "Articles and checks",
+            "Connections and dials",
+            "The live web",
+            "The guide"
+          ],
+          "at": "q:reads everything"
+        },
+        {
+          "kind": "quote",
+          "text": "What should I do next?",
+          "at": "q:Ask what should"
+        }
       ]
     },
     {
@@ -40,14 +65,43 @@
       "still": "assistant.png",
       "headline": "I'm about to. Go *ahead?*",
       "narration": "Anything outward-facing or hard to undo is proposed first: publishing, sending, queueing, approving, an override, a setting, an invitation. It says I am about to, and asks go ahead. It runs only when you say yes, and the proposal waits on the thread until you answer. Admin-only acts refuse for an editor, exactly as the page would. The steps it took sit under every reply. It will not enter API keys, delete a workspace or an account, or send email; and with no working AI key it refuses the turn rather than guessing.",
-      "spoken": "Anything outward-facing or hard to undo is proposed first: publishing, sending, queueing, approving, an override, a setting, an invitation. It says: I am about to. And asks: go ahead? It runs only when you say yes, and the proposal waits on the thread until you answer. Admin-only acts refuse for an editor, exactly as the page would. The steps it took sit under every reply. It will not enter A P I keys, delete a workspace or an account, or send email; and with no working A I key it refuses the turn rather than guessing.",
+      "spoken": "Anything outward-facing or hard to undo is proposed first: publishing, sending, queueing, approving, an override, a setting, an invitation. It says: I am about to. And asks: go ahead? It runs only when you say yes, and the proposal waits on the thread until you answer. Admin-only acts refuse for an editor, exactly as the page would. The steps it took sit under every reply. It will not enter API keys, delete a workspace or an account, or send email; and with no working AI key it refuses the turn rather than guessing.",
       "headlineAt": "q:It says",
       "callouts": [
-        { "kind": "chips", "items": ["Publish", "Send", "Queue", "Approve", "Override", "Setting", "Invitation"], "at": "q:publishing, sending" },
-        { "kind": "card", "label": "Runs only on", "value": "yes", "title": "the proposal waits on the thread", "at": "q:It runs only" },
-        { "kind": "quote", "text": "Never keys, never deletes, never email.", "at": "q:It will not" }
+        {
+          "kind": "chips",
+          "items": [
+            "Publish",
+            "Send",
+            "Queue",
+            "Approve",
+            "Override",
+            "Setting",
+            "Invitation"
+          ],
+          "at": "q:publishing, sending"
+        },
+        {
+          "kind": "card",
+          "label": "Runs only on",
+          "value": "yes",
+          "title": "the proposal waits on the thread",
+          "at": "q:It runs only"
+        },
+        {
+          "kind": "quote",
+          "text": "Never keys, never deletes, never email.",
+          "at": "q:It will not"
+        }
       ],
-      "punch": { "x": 700, "y": 500, "scale": 1.3, "at": "q:Anything outward-facing", "dur": 1.5, "hold": 8.0 }
+      "punch": {
+        "x": 700,
+        "y": 500,
+        "scale": 1.3,
+        "at": "q:Anything outward-facing",
+        "dur": 1.5,
+        "hold": 8.0
+      }
     },
     {
       "id": "s04",
@@ -58,10 +112,32 @@
       "narration": "Settings, then People. Invite by email with a role. Admins approve, publish, send and configure. Editors write, draft, answer and propose. Viewers read. Publishing an article and approving a social post are always an admin's act. Revoke suspends a membership and keeps its history; Remove deletes it. You cannot remove the last active admin; promote someone first. There is no billing anywhere: access is roles, plus optional soft limits under Usage.",
       "headlineAt": "q:Publishing an article",
       "callouts": [
-        { "kind": "card", "label": "Admin", "title": "Approve · publish · send · configure", "at": "q:Admins approve" },
-        { "kind": "card", "label": "Editor", "title": "Write · draft · answer · propose", "at": "q:Editors write" },
-        { "kind": "card", "label": "Viewer", "title": "Read", "at": "q:Viewers read" },
-        { "kind": "chips", "items": ["Revoke keeps history", "Remove deletes"], "at": "q:Revoke suspends" }
+        {
+          "kind": "card",
+          "label": "Admin",
+          "title": "Approve · publish · send · configure",
+          "at": "q:Admins approve"
+        },
+        {
+          "kind": "card",
+          "label": "Editor",
+          "title": "Write · draft · answer · propose",
+          "at": "q:Editors write"
+        },
+        {
+          "kind": "card",
+          "label": "Viewer",
+          "title": "Read",
+          "at": "q:Viewers read"
+        },
+        {
+          "kind": "chips",
+          "items": [
+            "Revoke keeps history",
+            "Remove deletes"
+          ],
+          "at": "q:Revoke suspends"
+        }
       ]
     },
     {
@@ -73,11 +149,37 @@
       "narration": "Each company is a sealed workspace: keys, accounts, voice, content, slots and dials are its own, and the switcher at the top left decides whose everything the pages show. Under Settings, Workspace, an accent colour and logo re-tint the app for your members only: co-branded, never white-labelled. Admins get one morning digest on the days something needs them, and everyone can turn it off for themselves under Notifications. And an audit log records everything: what the autopilot did and why, what a person clicked, what the assistant ran and with which arguments, and every deletion, named before it disappears.",
       "headlineAt": "q:And an audit log",
       "callouts": [
-        { "kind": "card", "label": "Per workspace", "title": "Keys · accounts · voice · content · slots · dials", "at": "q:Each company" },
-        { "kind": "card", "label": "Branding", "title": "Accent + logo for your members only", "at": "q:Under Settings, Workspace" },
-        { "kind": "chips", "items": ["Autopilot: what and why", "Person: what was clicked", "Assistant: what ran", "Deletions, named"], "at": "q:And an audit log" }
+        {
+          "kind": "card",
+          "label": "Per workspace",
+          "title": "Keys · accounts · voice · content · slots · dials",
+          "at": "q:Each company"
+        },
+        {
+          "kind": "card",
+          "label": "Branding",
+          "title": "Accent + logo for your members only",
+          "at": "q:Under Settings, Workspace"
+        },
+        {
+          "kind": "chips",
+          "items": [
+            "Autopilot: what and why",
+            "Person: what was clicked",
+            "Assistant: what ran",
+            "Deletions, named"
+          ],
+          "at": "q:And an audit log"
+        }
       ],
-      "punch": { "x": 700, "y": 760, "scale": 1.3, "at": "q:Under Settings, Workspace", "dur": 1.5, "hold": 5.0 }
+      "punch": {
+        "x": 700,
+        "y": 760,
+        "scale": 1.3,
+        "at": "q:Under Settings, Workspace",
+        "dur": 1.5,
+        "hold": 5.0
+      }
     },
     {
       "id": "s06",
@@ -87,13 +189,33 @@
       "still": "help-guide-daily.png",
       "headline": "Usually one of *seven things.*",
       "narration": "When something looks wrong, it is usually one of seven things. Output reads generic or mentions mock: no working AI key for this workspace. Nothing is being drafted: the Approved column is empty, the target or budget is reached, drafting is on manual, or global pause is on. An article is held with nothing to act on: the card names the check; a claim needs a live-search key. At final approval but never publishes: not the day, no WordPress, or publishing not on auto. Social never sends: no slots, awaiting approval, approved but never queued, or a broken account. Measure shows dashes: analytics not connected. A button does nothing after an update: reload the tab. And always: trust the dashes.",
-      "spoken": "When something looks wrong, it is usually one of seven things. Output reads generic or mentions mock: no working A I key for this workspace. Nothing is being drafted: the Approved column is empty, the target or budget is reached, drafting is on manual, or global pause is on. An article is held with nothing to act on: the card names the check; a claim needs a live-search key. At final approval but never publishes: not the day, no WordPress, or publishing not on auto. Social never sends: no slots, awaiting approval, approved but never queued, or a broken account. Measure shows dashes: analytics not connected. A button does nothing after an update: reload the tab. And always: trust the dashes.",
+      "spoken": "When something looks wrong, it is usually one of seven things. Output reads generic or mentions mock: no working AI key for this workspace. Nothing is being drafted: the Approved column is empty, the target or budget is reached, drafting is on manual, or global pause is on. An article is held with nothing to act on: the card names the check; a claim needs a live-search key. At final approval but never publishes: not the day, no WordPress, or publishing not on auto. Social never sends: no slots, awaiting approval, approved but never queued, or a broken account. Measure shows dashes: analytics not connected. A button does nothing after an update: reload the tab. And always: trust the dashes.",
       "headlineAt": "q:And always",
       "callouts": [
-        { "kind": "card", "label": "Generic output", "title": "No working AI key → Settings → Keys", "at": "q:Output reads" },
-        { "kind": "card", "label": "Nothing drafted", "title": "Empty Approved · target reached · manual · paused", "at": "q:Nothing is being" },
-        { "kind": "card", "label": "Never publishes", "title": "Not the day · no WordPress · publishing on manual", "at": "q:At final approval" },
-        { "kind": "card", "label": "Social never sends", "title": "No slots · awaiting approval · never queued · broken account", "at": "q:Social never sends" }
+        {
+          "kind": "card",
+          "label": "Generic output",
+          "title": "No working AI key → Settings → Keys",
+          "at": "q:Output reads"
+        },
+        {
+          "kind": "card",
+          "label": "Nothing drafted",
+          "title": "Empty Approved · target reached · manual · paused",
+          "at": "q:Nothing is being"
+        },
+        {
+          "kind": "card",
+          "label": "Never publishes",
+          "title": "Not the day · no WordPress · publishing on manual",
+          "at": "q:At final approval"
+        },
+        {
+          "kind": "card",
+          "label": "Social never sends",
+          "title": "No slots · awaiting approval · never queued · broken account",
+          "at": "q:Social never sends"
+        }
       ]
     },
     {

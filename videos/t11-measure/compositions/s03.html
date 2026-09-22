@@ -43,7 +43,7 @@
   .hlband { position: absolute; left: 80px; top: 866px; width: 1400px; font-weight: 700; font-size: 58px; line-height: 1.02; letter-spacing: -.025em; color: #15181D; }
   .hlband .w { display: inline-block; opacity: 0; will-change: transform; margin-right: .22em; }
   </style>
-      <div id="root" data-composition-id="s03" data-width="1920" data-height="1080" data-duration="26">
+      <div id="root" data-composition-id="s03" data-width="1920" data-height="1080" data-duration="26.1">
 
         <div class="grid"></div>
         <div class="glow" id="s03-glow" data-layout-allow-overflow></div>
@@ -72,11 +72,11 @@
   function glowDrift(sel, dur) { tl.fromTo(sel, { x: 0, y: 0 }, { x: 420, y: 160, duration: dur, ease: "none" }, 0); }
 
           
-          glowDrift("#s03-glow", 26);
+          glowDrift("#s03-glow", 26.1);
           waterfall("#s03-tag", 0.3, { y: 36, d: 0.12 });
-          waterfall("#s03-hl", 10.94);
+          waterfall("#s03-hl", 11.18);
           gsap.utils.toArray("#s03-c0 .chip").forEach((el, j) => tl.fromTo(el, { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.4, ease: "power3.out" }, 1.44 + j * 0.07));
-          tl.fromTo("#s03-c1", { opacity: 0, x: -30 }, { opacity: 1, x: 0, duration: 0.45, ease: "power3.out" }, 10.94);
+          tl.fromTo("#s03-c1", { opacity: 0, x: -30 }, { opacity: 1, x: 0, duration: 0.45, ease: "power3.out" }, 11.18);
           tl.to("#s03-zo", { scale: 1.3, duration: 1.5, ease: "power2.inOut" }, 4.5); tl.to("#s03-zi", { x: -152.3, y: 82.3, duration: 1.5, ease: "power2.inOut" }, 4.5);
           tl.to("#s03-zo", { scale: 1, duration: 1.2, ease: "power3.inOut" }, 11); tl.to("#s03-zi", { x: 0, y: 0, duration: 1.2, ease: "power3.inOut" }, 11);
           window.__timelines["s03"] = tl;

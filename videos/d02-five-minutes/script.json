@@ -27,10 +27,27 @@
       "narration": "If something urgent is waiting, the workspace's admins get one morning digest email listing it, one link per item. A quiet morning sends nothing, on purpose. No email and a green Inbox means genuinely nothing to do.",
       "headlineAt": "q:A quiet morning",
       "callouts": [
-        { "kind": "card", "label": "Mornings", "value": "1", "title": "digest email, only on days that matter", "at": "q:one morning digest" },
-        { "kind": "quote", "text": "No email and a green Inbox means genuinely nothing to do.", "at": "q:No email" }
+        {
+          "kind": "card",
+          "label": "Mornings",
+          "value": "1",
+          "title": "digest email, only on days that matter",
+          "at": "q:one morning digest"
+        },
+        {
+          "kind": "quote",
+          "text": "No email and a green Inbox means genuinely nothing to do.",
+          "at": "q:No email"
+        }
       ],
-      "punch": { "x": 500, "y": 200, "scale": 1.3, "at": "q:one morning digest", "dur": 1.5, "hold": 4.5 }
+      "punch": {
+        "x": 500,
+        "y": 200,
+        "scale": 1.3,
+        "at": "q:one morning digest",
+        "dur": 1.5,
+        "hold": 4.5
+      }
     },
     {
       "id": "s03",
@@ -41,11 +58,40 @@
       "narration": "Work the Inbox top to bottom. Approve or request changes on a post. Answer a question in your own words; it is saved to the expert profile and asked once. Verify a claim with a real link, or drop it. Approve or replace a held image. The header count should reach zero.",
       "headlineAt": "q:The header count",
       "callouts": [
-        { "kind": "chips", "items": ["Approve", "Request changes", "Answer", "Verify", "Drop", "Replace image"], "at": "q:Approve or request" },
-        { "kind": "card", "label": "Asked once", "title": "Answers are banked to the expert profile", "at": "q:it is saved" },
-        { "kind": "card", "label": "Goal", "value": "0", "title": "things need you", "at": "q:The header count" }
+        {
+          "kind": "chips",
+          "items": [
+            "Approve",
+            "Request changes",
+            "Answer",
+            "Verify",
+            "Drop",
+            "Replace image"
+          ],
+          "at": "q:Approve or request"
+        },
+        {
+          "kind": "card",
+          "label": "Asked once",
+          "title": "Answers are banked to the expert profile",
+          "at": "q:it is saved"
+        },
+        {
+          "kind": "card",
+          "label": "Goal",
+          "value": "0",
+          "title": "things need you",
+          "at": "q:The header count"
+        }
       ],
-      "punch": { "x": 560, "y": 330, "scale": 1.3, "at": "q:Answer a question", "dur": 1.5, "hold": 5.0 }
+      "punch": {
+        "x": 560,
+        "y": 330,
+        "scale": 1.3,
+        "at": "q:Answer a question",
+        "dur": 1.5,
+        "hold": 5.0
+      }
     },
     {
       "id": "s04",
@@ -56,22 +102,57 @@
       "narration": "Answer people the day they write. Distribute, then Engage, holds comments, direct messages and reviews in one place. The one hard deadline in the whole app is here: Facebook and Instagram only accept a direct message reply within twenty-four hours.",
       "headlineAt": "q:The one hard",
       "callouts": [
-        { "kind": "chips", "items": ["Comments", "Direct messages", "Reviews"], "at": "q:holds comments" },
-        { "kind": "card", "label": "Facebook · Instagram", "value": "24 h", "title": "window to reply to a DM", "at": "q:Facebook and Instagram" }
+        {
+          "kind": "chips",
+          "items": [
+            "Comments",
+            "Direct messages",
+            "Reviews"
+          ],
+          "at": "q:holds comments"
+        },
+        {
+          "kind": "card",
+          "label": "Facebook · Instagram",
+          "value": "24 h",
+          "title": "window to reply to a DM",
+          "at": "q:Facebook and Instagram"
+        }
       ]
     },
     {
       "id": "s05",
       "type": "screen",
       "chapter": "04 · Ask",
-      "clip": { "src": "ask-dock.mp4", "start": 3.0 },
+      "clip": {
+        "src": "ask-dock.mp4",
+        "start": 3.0
+      },
       "headline": "Ask, instead of *hunting.*",
       "narration": "If you would rather not hunt, ask. The Ask button sits on every page. Say what should I do next, and the assistant reads the Inbox, the pipeline, the connections and the dials, ranks the moves, and offers to do each one.",
       "headlineAt": "q:ranks the moves",
       "callouts": [
-        { "kind": "quote", "text": "What should I do next?", "at": "q:Say what should" },
-        { "kind": "chips", "items": ["Inbox", "Pipeline", "Connections", "Dials"], "at": "q:reads the Inbox" },
-        { "kind": "card", "label": "Then", "title": "Ranks the moves and offers to do each one", "at": "q:ranks the moves" }
+        {
+          "kind": "quote",
+          "text": "What should I do next?",
+          "at": "q:Say what should"
+        },
+        {
+          "kind": "chips",
+          "items": [
+            "Inbox",
+            "Pipeline",
+            "Connections",
+            "Dials"
+          ],
+          "at": "q:reads the Inbox"
+        },
+        {
+          "kind": "card",
+          "label": "Then",
+          "title": "Ranks the moves and offers to do each one",
+          "at": "q:ranks the moves"
+        }
       ]
     },
     {
@@ -81,13 +162,30 @@
       "chapter": "05 · It asks first",
       "still": "assistant.png",
       "headline": "I'm about to. Go *ahead?*",
-      "narration": "It can do nearly everything you can do here. Anything outward-facing or hard to undo is proposed first, as I am about to, go ahead? It runs only when you say yes. Every action lands in the audit log. And it will never enter an API key, delete a workspace, or send an email on its own.",
-      "spoken": "It can do nearly everything you can do here. Anything outward-facing or hard to undo is proposed first, as: I am about to. Go ahead? It runs only when you say yes. Every action lands in the audit log. And it will never enter an A P I key, delete a workspace, or send an email on its own.",
+      "narration": "It can do nearly everything you can do here. Anything outward-facing or hard to undo is proposed first, as I am about to, go ahead? It runs only when you say yes. Every action lands in the audit log. And it will never enter API keys, delete a workspace, or send an email on its own.",
+      "spoken": "It can do nearly everything you can do here. Anything outward-facing or hard to undo is proposed first, as: I am about to. Go ahead? It runs only when you say yes. Every action lands in the audit log. And it will never enter API keys, delete a workspace, or send an email on its own.",
       "headlineAt": "q:Anything outward-facing",
       "callouts": [
-        { "kind": "card", "label": "Runs only on", "value": "yes", "title": "your explicit go-ahead", "at": "q:It runs only" },
-        { "kind": "chips", "items": ["Audit log"], "on": 0, "at": "q:Every action" },
-        { "kind": "quote", "text": "Never keys, never deletes, never sends email on its own.", "at": "q:And it will never" }
+        {
+          "kind": "card",
+          "label": "Runs only on",
+          "value": "yes",
+          "title": "your explicit go-ahead",
+          "at": "q:It runs only"
+        },
+        {
+          "kind": "chips",
+          "items": [
+            "Audit log"
+          ],
+          "on": 0,
+          "at": "q:Every action"
+        },
+        {
+          "kind": "quote",
+          "text": "Never keys, never deletes, never sends email on its own.",
+          "at": "q:And it will never"
+        }
       ]
     },
     {

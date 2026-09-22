@@ -6,16 +6,16 @@
     "wordsHash": "88fc7430c4bf"
   },
   "s02": {
-    "hash": "ac5d48b3e00d",
-    "duration": 25.152,
-    "text": "Settings, then Analytics. Enter the Search Console site and the G A 4 property, and grant the service account on both: as a user in Search Console, as a Viewer in G A 4. The page runs a live probe and tells you which side is missing. A disabled A P I and a missing grant both return permission denied; the probe separates them. Until this is done, Measure shows dashes.",
-    "wordsHash": "ac5d48b3e00d"
+    "hash": "dd93b90c588f",
+    "duration": 25.536,
+    "text": "Settings, then Analytics. Enter the Search Console site and the GA4 property, and grant the service account on both: as a user in Search Console, as a Viewer in GA4. The page runs a live probe and tells you which side is missing. A disabled API and a missing grant both return permission denied; the probe separates them. Until this is done, Measure shows dashes.",
+    "wordsHash": "dd93b90c588f"
   },
   "s03": {
-    "hash": "83ea9262ad7b",
-    "duration": 24.064,
-    "text": "Measure's overview shows search impressions and clicks by week, and tracked posts with their positions and deltas. Blog analytics adds traffic from G A 4. A blank is never a zero. A blank means we do not know; a zero means we measured nothing happening. Every dash comes with the reason it is a dash, and every figure carries its sample size and source.",
-    "wordsHash": "83ea9262ad7b"
+    "hash": "80f0585b4fac",
+    "duration": 24.192,
+    "text": "Measure's overview shows search impressions and clicks by week, and tracked posts with their positions and deltas. Blog analytics adds traffic from GA4. A blank is never a zero. A blank means we do not know; a zero means we measured nothing happening. Every dash comes with the reason it is a dash, and every figure carries its sample size and source.",
+    "wordsHash": "80f0585b4fac"
   },
   "s04": {
     "hash": "ba3d9408357a",

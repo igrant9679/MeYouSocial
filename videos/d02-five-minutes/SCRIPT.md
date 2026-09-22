@@ -1,6 +1,6 @@
 # Five minutes a day — narration
 
-_Voice: Kokoro am_michael. Total 115s._
+_Voice: Kokoro am_michael. Total 115.1s._
 
 ## s01 · title (8.6s voice, 10.5s scene, starts 0s)
 
@@ -22,10 +22,10 @@ Answer people the day they write. Distribute, then Engage, holds comments, direc
 
 If you would rather not hunt, ask. The Ask button sits on every page. Say what should I do next, and the assistant reads the Inbox, the pipeline, the connections and the dials, ranks the moves, and offers to do each one.
 
-## s06 · screen · 05 · It asks first (20.2s voice, 22.1s scene, starts 84.8s)
+## s06 · screen · 05 · It asks first (20.3s voice, 22.2s scene, starts 84.8s)
 
-It can do nearly everything you can do here. Anything outward-facing or hard to undo is proposed first, as I am about to, go ahead? It runs only when you say yes. Every action lands in the audit log. And it will never enter an API key, delete a workspace, or send an email on its own.
+It can do nearly everything you can do here. Anything outward-facing or hard to undo is proposed first, as I am about to, go ahead? It runs only when you say yes. Every action lands in the audit log. And it will never enter API keys, delete a workspace, or send an email on its own.
 
-## s07 · close (5.8s voice, 8.1s scene, starts 106.9s)
+## s07 · close (5.8s voice, 8.1s scene, starts 107s)
 
 Five minutes a day. MeYouSocial Publisher. Your job is decisions, not production.

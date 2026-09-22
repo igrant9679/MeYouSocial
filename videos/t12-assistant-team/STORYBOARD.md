@@ -3,7 +3,7 @@ title: The assistant, the team, and troubleshooting
 message: "The assistant does nearly everything and asks first; roles, workspaces and the audit log keep it accountable; when something looks wrong, the cause is usually one of seven"
 audience: "Everyone on the workspace; admins for the team section"
 mode: autonomous
-duration: 218.4
+duration: 219.3
 ---
 
 ## Frame 1 — s01
@@ -37,7 +37,7 @@ footage: ask-dock.mp4
 status: animated
 src: compositions/s03.html
 start: 49.6
-duration: 35.1
+duration: 35.8
 type: screen
 seam-in: cut-the-curve LEFT
 route: camera with intent + staged reveals
@@ -49,7 +49,7 @@ footage: assistant.png
 
 status: animated
 src: compositions/s04.html
-start: 84.7
+start: 85.4
 duration: 31.4
 type: screen
 seam-in: cut-the-curve LEFT
@@ -62,7 +62,7 @@ footage: people.png
 
 status: animated
 src: compositions/s05.html
-start: 116.1
+start: 116.8
 duration: 41.7
 type: screen
 seam-in: cut-the-curve LEFT
@@ -75,8 +75,8 @@ footage: workspace-settings.png
 
 status: animated
 src: compositions/s06.html
-start: 157.8
-duration: 49.1
+start: 158.5
+duration: 49.3
 type: screen
 seam-in: inverse zoom-through
 route: staged reveals
@@ -88,7 +88,7 @@ footage: help-guide-daily.png
 
 status: animated
 src: compositions/s07.html
-start: 206.9
+start: 207.8
 duration: 11.5
 type: close
 seam-in: cut-the-curve UP

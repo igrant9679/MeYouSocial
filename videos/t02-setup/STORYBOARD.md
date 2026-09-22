@@ -3,7 +3,7 @@ title: Setting a workspace up
 message: "Nine steps, in order; each unlocks the next. A key so the AI works, then the accounts you publish to."
 audience: "Admins setting up a new company workspace"
 mode: autonomous
-duration: 185.8
+duration: 185.9
 ---
 
 ## Frame 1 — s01
@@ -63,7 +63,7 @@ footage: connections.png
 status: animated
 src: compositions/s05.html
 start: 100.3
-duration: 21.4
+duration: 21.5
 type: screen
 seam-in: cut-the-curve LEFT
 route: staged reveals
@@ -75,7 +75,7 @@ footage: analytics-setup.png
 
 status: animated
 src: compositions/s06.html
-start: 121.7
+start: 121.8
 duration: 31.1
 type: screen
 seam-in: cut-the-curve LEFT
@@ -88,7 +88,7 @@ footage: schedule.png
 
 status: animated
 src: compositions/s07.html
-start: 152.8
+start: 152.9
 duration: 22.9
 type: screen
 seam-in: inverse zoom-through
@@ -101,7 +101,7 @@ footage: people.png
 
 status: animated
 src: compositions/s08.html
-start: 175.7
+start: 175.8
 duration: 10.1
 type: close
 seam-in: cut-the-curve UP

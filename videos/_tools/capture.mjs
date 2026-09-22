@@ -91,29 +91,79 @@ async function dismissOverlays(page) {
 
 // Hides mask only the matched element. Prefix "card:" to hide its enclosing card instead
 // (nearest section / article / li / .card — never a bare div, which can be the whole page column).
+// Masking runs INSIDE the page and re-arms itself: a MutationObserver re-hides after client-side
+// navigation, and addInitScript re-installs it after a full load. A one-shot applyHides() used to
+// leave every page the clip navigated to unmasked — that leaked the signed-in account chip.
+const HIDE_RUNTIME = `(rules) => {
+  const hideOne = (el, card) => {
+    const t = card ? (el.closest("section, article, li, .card, [class*='rounded-xl']") || el) : el;
+    if (t && t.style) t.style.visibility = "hidden";
+  };
+  const EMAIL = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/;
+  const run = () => {
+    if (!document.body) return;
+    for (const raw of rules) {
+      const card = raw.startsWith("card:");
+      const sel = card ? raw.slice(5) : raw;
+      try {
+        if (sel === "email:auto" || sel.startsWith("text=")) {
+          const needle = sel.startsWith("text=") ? sel.slice(5) : null;
+          const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+          const hits = []; let n;
+          while ((n = w.nextNode())) {
+            const v = n.nodeValue || "";
+            if (needle ? v.includes(needle) : EMAIL.test(v)) hits.push(n);
+          }
+          for (const h of hits) if (h.parentElement) hideOne(h.parentElement, card);
+        } else {
+          document.querySelectorAll(sel).forEach((el) => hideOne(el, card));
+        }
+      } catch (e) {}
+    }
+  };
+  const arm = () => {
+    run();
+    if (window.__hideMO) return;
+    window.__hideMO = new MutationObserver(() => {
+      clearTimeout(window.__hideT);
+      window.__hideT = setTimeout(run, 50);
+    });
+    window.__hideMO.observe(document.documentElement, { childList: true, subtree: true });
+  };
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", arm);
+  else arm();
+  window.__rehide = run;
+}`;
+
+// Always on: never let a signed-in account address reach a capture.
+const PRIVACY_HIDES = ["email:auto"];
+
+async function installHides(page, hides = []) {
+  const rules = [...PRIVACY_HIDES, ...hides];
+  await page.addInitScript({ content: `(${HIDE_RUNTIME})(${JSON.stringify(rules)});` }).catch(() => {});
+  await page.evaluate(`(${HIDE_RUNTIME})(${JSON.stringify(rules)});`).catch(() => {});
+}
+
+// Force a re-hide right now and wait for it to settle (used after an action navigates).
+async function rehide(page) {
+  await page.evaluate(() => window.__rehide && window.__rehide()).catch(() => {});
+  await page.waitForTimeout(120);
+}
+
 async function applyHides(page, hides = []) {
-  for (const raw of hides) {
-    const card = raw.startsWith("card:");
-    const sel = card ? raw.slice(5) : raw;
-    await page
-      .locator(sel)
-      .evaluateAll((els, card) => els.forEach((el) => {
-        const target = card ? (el.closest("section, article, li, .card, [class*='rounded-xl']") || el) : el;
-        target.style.visibility = "hidden";
-      }), card)
-      .catch(() => {});
-  }
+  await installHides(page, hides);
+  await rehide(page);
 }
 
 async function runActions(page, actions = []) {
   for (const a of actions) {
-    if (a.click) { await page.locator(a.click).first().click({ timeout: 8000 }).catch((e) => console.warn("click failed:", a.click, e.message)); await waitReady(page); }
+    if (a.click) { await page.locator(a.click).first().click({ timeout: 8000 }).catch((e) => console.warn("click failed:", a.click, e.message)); await waitReady(page); await rehide(page); }
     if (a.hover) await page.locator(a.hover).first().hover({ timeout: 8000 }).catch(() => {});
     if (a.type) await page.keyboard.type(a.type, { delay: a.delay ?? 45 });
     if (a.press) await page.keyboard.press(a.press);
     if (a.fill) await page.locator(a.fill.selector).first().fill(a.fill.value).catch(() => {});
     if (a.scroll) { await page.mouse.move(1000, 620); await page.mouse.wheel(0, a.scroll); }
-    if (a.goto) { await page.goto(BASE + a.goto, { waitUntil: "networkidle" }).catch(() => {}); await waitReady(page); }
+    if (a.goto) { await page.goto(BASE + a.goto, { waitUntil: "networkidle" }).catch(() => {}); await waitReady(page); await rehide(page); }
     if (a.mouse) await page.mouse.move(a.mouse[0], a.mouse[1], { steps: a.steps ?? 25 });
     if (a.wait) await page.waitForTimeout(a.wait);
   }
@@ -190,12 +240,13 @@ async function cmdClip(file) {
   mkdirSync(tmp, { recursive: true });
   const { ctx, page } = await launch({ scale: 1, record: tmp });
   if (!(await isLoggedIn(page))) throw new Error("Not logged in. Run: node capture.mjs login");
+  await installHides(page, sc.hide || []);   // armed before the first paint of the recorded page
   await ensureWorkspace(page, sc.workspace);
   await page.goto(BASE + sc.url, { waitUntil: "networkidle" }).catch(() => {});
   await waitReady(page);
   await page.waitForTimeout(sc.wait ?? 1500);
   await dismissOverlays(page);
-  await applyHides(page, sc.hide || []);
+  await rehide(page);
   const t0 = Date.now();
   await runActions(page, sc.actions);
   await page.waitForTimeout(sc.tail ?? 1500);

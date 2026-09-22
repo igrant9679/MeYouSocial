@@ -75,9 +75,9 @@
           
           glowDrift("#s03-glow", 15.4);
           waterfall("#s03-tag", 0.3, { y: 36, d: 0.12 });
-          waterfall("#s03-hl", 0.5);
+          waterfall("#s03-hl", 6.343);
           gsap.utils.toArray("#s03-c0 .chip").forEach((el, j) => tl.fromTo(el, { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.4, ease: "power3.out" }, 3.197 + j * 0.07));
-          tl.fromTo("#s03-c1", { opacity: 0, x: -30 }, { opacity: 1, x: 0, duration: 0.45, ease: "power3.out" }, 0.5);
+          tl.fromTo("#s03-c1", { opacity: 0, x: -30 }, { opacity: 1, x: 0, duration: 0.45, ease: "power3.out" }, 6.343);
           tl.fromTo("#s03-c2", { opacity: 0, x: -30 }, { opacity: 1, x: 0, duration: 0.45, ease: "power3.out" }, 11.286);
           window.__timelines["s03"] = tl;
         })();

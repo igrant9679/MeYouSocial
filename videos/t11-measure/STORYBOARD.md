@@ -3,7 +3,7 @@ title: Measuring results
 message: "Connect Search Console and GA4 once; read Search, Traffic, Social performance and best time; a dash means not measured, never zero"
 audience: "Admins and marketers reading the month"
 mode: autonomous
-duration: 166.7
+duration: 167.1
 ---
 
 ## Frame 1 — s01
@@ -24,7 +24,7 @@ footage: —
 status: animated
 src: compositions/s02.html
 start: 17
-duration: 27.1
+duration: 27.4
 type: screen
 seam-in: cut-the-curve LEFT
 route: camera with intent + staged reveals
@@ -36,8 +36,8 @@ footage: analytics-setup.png
 
 status: animated
 src: compositions/s03.html
-start: 44.1
-duration: 26
+start: 44.4
+duration: 26.1
 type: screen
 seam-in: cut-the-curve LEFT
 route: camera with intent + staged reveals
@@ -49,7 +49,7 @@ footage: measure.png
 
 status: animated
 src: compositions/s04.html
-start: 70.1
+start: 70.5
 duration: 27.9
 type: screen
 seam-in: cut-the-curve LEFT
@@ -62,7 +62,7 @@ footage: measure-tour.mp4
 
 status: animated
 src: compositions/s05.html
-start: 98
+start: 98.4
 duration: 30.7
 type: screen
 seam-in: cut-the-curve LEFT
@@ -75,7 +75,7 @@ footage: reports.png
 
 status: animated
 src: compositions/s06.html
-start: 128.7
+start: 129.1
 duration: 28.3
 type: screen
 seam-in: inverse zoom-through
@@ -88,7 +88,7 @@ footage: insights.png
 
 status: animated
 src: compositions/s07.html
-start: 157
+start: 157.4
 duration: 9.7
 type: close
 seam-in: cut-the-curve UP

@@ -75,10 +75,10 @@
           
           glowDrift("#s03-glow", 21.2);
           waterfall("#s03-tag", 0.3, { y: 36, d: 0.12 });
-          waterfall("#s03-hl", 0.871);
+          waterfall("#s03-hl", 17.56);
           gsap.utils.toArray("#s03-c0 .chip").forEach((el, j) => tl.fromTo(el, { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.4, ease: "power3.out" }, 2.725 + j * 0.07));
           tl.fromTo("#s03-c1", { opacity: 0, x: -30 }, { opacity: 1, x: 0, duration: 0.45, ease: "power3.out" }, 7.917);
-          tl.fromTo("#s03-c2", { opacity: 0, x: -30 }, { opacity: 1, x: 0, duration: 0.45, ease: "power3.out" }, 0.871);
+          tl.fromTo("#s03-c2", { opacity: 0, x: -30 }, { opacity: 1, x: 0, duration: 0.45, ease: "power3.out" }, 17.56);
           tl.to("#s03-zo", { scale: 1.3, duration: 1.5, ease: "power2.inOut" }, 5.321); tl.to("#s03-zi", { x: 152.3, y: 85.6, duration: 1.5, ease: "power2.inOut" }, 5.321);
           tl.to("#s03-zo", { scale: 1, duration: 1.2, ease: "power3.inOut" }, 11.8); tl.to("#s03-zi", { x: 0, y: 0, duration: 1.2, ease: "power3.inOut" }, 11.8);
           window.__timelines["s03"] = tl;

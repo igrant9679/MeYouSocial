@@ -25,9 +25,9 @@
     "text": "If you would rather not hunt, ask. The Ask button sits on every page. Say what should I do next, and the assistant reads the Inbox, the pipeline, the connections and the dials, ranks the moves, and offers to do each one."
   },
   "s06": {
-    "hash": "fc9948f126f2",
-    "duration": 20.181,
-    "text": "It can do nearly everything you can do here. Anything outward-facing or hard to undo is proposed first, as: I am about to. Go ahead? It runs only when you say yes. Every action lands in the audit log. And it will never enter an A P I key, delete a workspace, or send an email on its own."
+    "hash": "ff1472c62618",
+    "duration": 20.267,
+    "text": "It can do nearly everything you can do here. Anything outward-facing or hard to undo is proposed first, as: I am about to. Go ahead? It runs only when you say yes. Every action lands in the audit log. And it will never enter API keys, delete a workspace, or send an email on its own."
   },
   "s07": {
     "hash": "dd296caf0bff",

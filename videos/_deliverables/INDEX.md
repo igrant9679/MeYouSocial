@@ -1,6 +1,6 @@
 # MeYouSocial Publisher — video library
 
-Eighteen videos: six demos and twelve training walkthroughs. All are 1920×1080, 30 fps, H.264 MP4 with AAC narration. Narration is a male voice (Michael). Training videos carry verbatim captions burned in. Every video shows the real product: screenshots plus recorded clips of the app in use. Total running time 47:39.
+Eighteen videos: six demos and twelve training walkthroughs. All are 1920×1080, 30 fps, H.264 MP4 with AAC narration. Narration is a male voice (Michael). Training videos carry verbatim captions burned in. Every video shows the real product: screenshots plus recorded clips of the app in use. Total running time 47:40.
 
 > The product is called **MeYouSocial Publisher** in every video. Screens were captured before the in-app rename, so the app chrome still reads "Publish".
 
@@ -10,16 +10,16 @@ Value-first overviews, about two minutes each. Suggested order below.
 
 | # | Title | File | Length | Size | Captions |
 | --- | --- | --- | --- | --- | --- |
-| D1 | MeYouSocial Publisher in two minutes | `d01-the-loop.mp4` | 2:20 | 38 MB | No |
-| D2 | Five minutes a day | `d02-five-minutes.mp4` | 1:55 | 22.6 MB | No |
-| D3 | From idea to published article | `d03-idea-to-article.mp4` | 2:03 | 32.6 MB | No |
-| D4 | Gates that review as well as block | `d04-gates.mp4` | 2:02 | 28 MB | No |
+| D1 | MeYouSocial Publisher in two minutes | `d01-the-loop.mp4` | 2:20 | 38.1 MB | No |
+| D2 | Five minutes a day | `d02-five-minutes.mp4` | 1:55 | 22.5 MB | No |
+| D3 | From idea to published article | `d03-idea-to-article.mp4` | 2:03 | 32.4 MB | No |
+| D4 | Gates that review as well as block | `d04-gates.mp4` | 2:02 | 27.9 MB | No |
 | D5 | Social on a schedule you set once | `d05-distribute.mp4` | 2:16 | 23.2 MB | No |
-| D6 | Dials and dashboards | `d06-control-measure.mp4` | 2:10 | 27.2 MB | No |
+| D6 | Dials and dashboards | `d06-control-measure.mp4` | 2:10 | 27.1 MB | No |
 
 ### D1 · MeYouSocial Publisher in two minutes
 
-**File:** `d01-the-loop.mp4` · **Length:** 2:20 · **Size:** 38 MB · **Footage:** 1 recorded clip, 6 screenshots
+**File:** `d01-the-loop.mp4` · **Length:** 2:20 · **Size:** 38.1 MB · **Footage:** 1 recorded clip, 6 screenshots
 
 The whole product in one pass: the autopilot sweep, the Inbox, and the seven-stage loop from Research to Measure, with real screens of every stage.
 
@@ -33,7 +33,7 @@ The whole product in one pass: the autopilot sweep, the Inbox, and the seven-sta
 
 ### D2 · Five minutes a day
 
-**File:** `d02-five-minutes.mp4` · **Length:** 1:55 · **Size:** 22.6 MB · **Footage:** 1 recorded clip, 4 screenshots
+**File:** `d02-five-minutes.mp4` · **Length:** 1:55 · **Size:** 22.5 MB · **Footage:** 1 recorded clip, 4 screenshots
 
 What tending Publisher actually looks like: the morning digest, working the Inbox top to bottom, Engage's 24-hour rule, and the assistant that proposes before it acts.
 
@@ -47,7 +47,7 @@ What tending Publisher actually looks like: the morning digest, working the Inbo
 
 ### D3 · From idea to published article
 
-**File:** `d03-idea-to-article.mp4` · **Length:** 2:03 · **Size:** 32.6 MB · **Footage:** 2 recorded clips, 3 screenshots
+**File:** `d03-idea-to-article.mp4` · **Length:** 2:03 · **Size:** 32.4 MB · **Footage:** 2 recorded clips, 3 screenshots
 
 One article end to end: an idea the engine found, the approval that lets it be drafted, the SEO and images that arrive filled in, the checklist of gates, and publishing with or without WordPress.
 
@@ -61,7 +61,7 @@ One article end to end: an idea the engine found, the approval that lets it be d
 
 ### D4 · Gates that review as well as block
 
-**File:** `d04-gates.mp4` · **Length:** 2:02 · **Size:** 28 MB · **Footage:** 1 recorded clip, 4 screenshots
+**File:** `d04-gates.mp4` · **Length:** 2:02 · **Size:** 27.9 MB · **Footage:** 1 recorded clip, 4 screenshots
 
 How Publisher earns trust: seven required checks before anything goes live, claims sourced by live search and an independent judge, every AI image inspected, and never an invented number.
 
@@ -89,7 +89,7 @@ Social on a schedule you set once: fifteen networks through one connection, per-
 
 ### D6 · Dials and dashboards
 
-**File:** `d06-control-measure.mp4` · **Length:** 2:10 · **Size:** 27.2 MB · **Footage:** 1 recorded clip, 4 screenshots
+**File:** `d06-control-measure.mp4` · **Length:** 2:10 · **Size:** 27.1 MB · **Footage:** 1 recorded clip, 4 screenshots
 
 Governance and results: four function modes, the full-autonomy switch that remembers your dials, global pause, roles and sealed workspaces, the audit log, and measured numbers only.
 
@@ -107,22 +107,22 @@ Task walkthroughs, two and a half to three and a half minutes each, with caption
 
 | # | Title | File | Length | Size | Captions |
 | --- | --- | --- | --- | --- | --- |
-| T1 | Getting oriented in MeYouSocial Publisher | `t01-orientation.mp4` | 3:28 | 41.6 MB | Yes |
-| T2 | Setting a workspace up | `t02-setup.mp4` | 3:06 | 29.6 MB | Yes |
-| T3 | Voice, brand and Topics | `t03-brand-topics.mp4` | 3:22 | 36.9 MB | Yes |
-| T4 | Research and the Ideas board | `t04-research-ideas.mp4` | 2:56 | 33.4 MB | Yes |
-| T5 | Reading a draft, and Optimize | `t05-drafts-optimize.mp4` | 2:35 | 33 MB | Yes |
-| T6 | Clearing the gates | `t06-review.mp4` | 2:45 | 31 MB | Yes |
-| T7 | Publishing | `t07-publish.mp4` | 2:18 | 25.8 MB | Yes |
-| T8 | Composing and scheduling social posts | `t08-compose-schedule.mp4` | 2:36 | 24.8 MB | Yes |
-| T9 | Approvals and Engage | `t09-approvals-engage.mp4` | 2:30 | 31.1 MB | Yes |
+| T1 | Getting oriented in MeYouSocial Publisher | `t01-orientation.mp4` | 3:28 | 41.5 MB | Yes |
+| T2 | Setting a workspace up | `t02-setup.mp4` | 3:06 | 29.5 MB | Yes |
+| T3 | Voice, brand and Topics | `t03-brand-topics.mp4` | 3:22 | 36.7 MB | Yes |
+| T4 | Research and the Ideas board | `t04-research-ideas.mp4` | 2:56 | 33.7 MB | Yes |
+| T5 | Reading a draft, and Optimize | `t05-drafts-optimize.mp4` | 2:35 | 32.9 MB | Yes |
+| T6 | Clearing the gates | `t06-review.mp4` | 2:45 | 30.8 MB | Yes |
+| T7 | Publishing | `t07-publish.mp4` | 2:18 | 25.6 MB | Yes |
+| T8 | Composing and scheduling social posts | `t08-compose-schedule.mp4` | 2:36 | 24.6 MB | Yes |
+| T9 | Approvals and Engage | `t09-approvals-engage.mp4` | 2:30 | 30.9 MB | Yes |
 | T10 | The autonomy dials | `t10-automation.mp4` | 2:52 | 34.5 MB | Yes |
-| T11 | Measuring results | `t11-measure.mp4` | 2:47 | 28.8 MB | Yes |
-| T12 | The assistant, the team, and troubleshooting | `t12-assistant-team.mp4` | 3:38 | 32.2 MB | Yes |
+| T11 | Measuring results | `t11-measure.mp4` | 2:47 | 28.9 MB | Yes |
+| T12 | The assistant, the team, and troubleshooting | `t12-assistant-team.mp4` | 3:39 | 32 MB | Yes |
 
 ### T1 · Getting oriented in MeYouSocial Publisher
 
-**File:** `t01-orientation.mp4` · **Length:** 3:28 · **Size:** 41.6 MB · **Footage:** 2 recorded clips, 5 screenshots
+**File:** `t01-orientation.mp4` · **Length:** 3:28 · **Size:** 41.5 MB · **Footage:** 2 recorded clips, 5 screenshots
 
 First-day orientation: the mental model, the left rail top to bottom, the Inbox, the stage strip and its badges, Elsie's tours, the Help Center, and Ask.
 
@@ -136,7 +136,7 @@ First-day orientation: the mental model, the left rail top to bottom, the Inbox,
 
 ### T2 · Setting a workspace up
 
-**File:** `t02-setup.mp4` · **Length:** 3:06 · **Size:** 29.6 MB · **Footage:** 1 recorded clip, 6 screenshots
+**File:** `t02-setup.mp4` · **Length:** 3:06 · **Size:** 29.5 MB · **Footage:** 1 recorded clip, 6 screenshots
 
 Setting a workspace up in order: AI keys and the default model, live search, images and vision, Connections, Analytics, the clock, the gates, the dials, and inviting the team.
 
@@ -150,7 +150,7 @@ Setting a workspace up in order: AI keys and the default model, live search, ima
 
 ### T3 · Voice, brand and Topics
 
-**File:** `t03-brand-topics.mp4` · **Length:** 3:22 · **Size:** 36.9 MB · **Footage:** 1 recorded clip, 5 screenshots
+**File:** `t03-brand-topics.mp4` · **Length:** 3:22 · **Size:** 36.7 MB · **Footage:** 1 recorded clip, 5 screenshots
 
 Teaching it your voice: the seven Motifs, the brand kit and asset policy, brand context that is never AI-written, Experts, and Topics as the one tag that spans every surface.
 
@@ -164,7 +164,7 @@ Teaching it your voice: the seven Motifs, the brand kit and asset policy, brand 
 
 ### T4 · Research and the Ideas board
 
-**File:** `t04-research-ideas.mp4` · **Length:** 2:56 · **Size:** 33.4 MB · **Footage:** 1 recorded clip, 5 screenshots
+**File:** `t04-research-ideas.mp4` · **Length:** 2:56 · **Size:** 33.7 MB · **Footage:** 1 recorded clip, 5 screenshots
 
 Intel and the outlier score, channels and competitors, Make it an idea, the Ideas board and its lanes, the weekly triage, and the keyword strategy behind priorities.
 
@@ -178,7 +178,7 @@ Intel and the outlier score, channels and competitors, Make it an idea, the Idea
 
 ### T5 · Reading a draft, and Optimize
 
-**File:** `t05-drafts-optimize.mp4` · **Length:** 2:35 · **Size:** 33 MB · **Footage:** 1 recorded clip, 4 screenshots
+**File:** `t05-drafts-optimize.mp4` · **Length:** 2:35 · **Size:** 32.9 MB · **Footage:** 1 recorded clip, 4 screenshots
 
 Reading a draft: the board's stages, the editor's five tabs, SEO and images, the Gates sidebar, and Optimize's mechanical, knowledge and strategic findings.
 
@@ -192,7 +192,7 @@ Reading a draft: the board's stages, the editor's five tabs, SEO and images, the
 
 ### T6 · Clearing the gates
 
-**File:** `t06-review.mp4` · **Length:** 2:45 · **Size:** 31 MB · **Footage:** 1 recorded clip, 5 screenshots
+**File:** `t06-review.mp4` · **Length:** 2:45 · **Size:** 30.8 MB · **Footage:** 1 recorded clip, 5 screenshots
 
 Clearing every kind of hold from the Inbox: questions, unsourced claims, held images, held articles and Advance anyway, Approvals and Audit, and why every clearing act moves the article at once.
 
@@ -206,7 +206,7 @@ Clearing every kind of hold from the Inbox: questions, unsourced claims, held im
 
 ### T7 · Publishing
 
-**File:** `t07-publish.mp4` · **Length:** 2:18 · **Size:** 25.8 MB · **Footage:** 1 recorded clip, 4 screenshots
+**File:** `t07-publish.mp4` · **Length:** 2:18 · **Size:** 25.6 MB · **Footage:** 1 recorded clip, 4 screenshots
 
 Publishing: the Publish page, publish day versus a set date versus now, WordPress, the Download HTML and Mark as published path, and why an article might never publish.
 
@@ -220,7 +220,7 @@ Publishing: the Publish page, publish day versus a set date versus now, WordPres
 
 ### T8 · Composing and scheduling social posts
 
-**File:** `t08-compose-schedule.mp4` · **Length:** 2:36 · **Size:** 24.8 MB · **Footage:** 1 recorded clip, 4 screenshots
+**File:** `t08-compose-schedule.mp4` · **Length:** 2:36 · **Size:** 24.6 MB · **Footage:** 1 recorded clip, 4 screenshots
 
 Composing and scheduling social: the composer and per-network overrides, Queue, Schedule and Post now, slots and timezone, the calendar, campaigns and evergreen.
 
@@ -234,7 +234,7 @@ Composing and scheduling social: the composer and per-network overrides, Queue, 
 
 ### T9 · Approvals and Engage
 
-**File:** `t09-approvals-engage.mp4` · **Length:** 2:30 · **Size:** 31.1 MB · **Footage:** 1 recorded clip, 5 screenshots
+**File:** `t09-approvals-engage.mp4` · **Length:** 2:30 · **Size:** 30.9 MB · **Footage:** 1 recorded clip, 5 screenshots
 
 The approval workflow enforced on the server, the Approvals tab, queue on approval, Engage and the 24-hour DM window, and account health and failed sends.
 
@@ -262,7 +262,7 @@ The autonomy dials: manual, assisted and auto per function, targets and cadence,
 
 ### T11 · Measuring results
 
-**File:** `t11-measure.mp4` · **Length:** 2:47 · **Size:** 28.8 MB · **Footage:** 1 recorded clip, 5 screenshots
+**File:** `t11-measure.mp4` · **Length:** 2:47 · **Size:** 28.9 MB · **Footage:** 1 recorded clip, 5 screenshots
 
 Measuring results: connecting Search Console and GA4, Search and Traffic, Social performance and best time to post, the ten stock Reports, Insights, and why a dash is never a zero.
 
@@ -270,13 +270,13 @@ Measuring results: connecting Search Console and GA4, Search and Traffic, Social
 
 **Audience:** Admins and marketers
 
-**Chapters:** 0:17 Connect analytics · 0:44 Search and Traffic · 1:10 Social performance · 1:38 Reports · 2:09 Insights and Topics
+**Chapters:** 0:17 Connect analytics · 0:44 Search and Traffic · 1:11 Social performance · 1:38 Reports · 2:09 Insights and Topics
 
 **Tags:** measure, analytics, reports, insights
 
 ### T12 · The assistant, the team, and troubleshooting
 
-**File:** `t12-assistant-team.mp4` · **Length:** 3:38 · **Size:** 32.2 MB · **Footage:** 1 recorded clip, 4 screenshots
+**File:** `t12-assistant-team.mp4` · **Length:** 3:39 · **Size:** 32 MB · **Footage:** 1 recorded clip, 4 screenshots
 
 Working with the assistant and running the workspace: Ask and proposals, roles and People, workspaces and branding, the digest and the audit log, and the seven things to check when something looks wrong.
 
@@ -284,7 +284,7 @@ Working with the assistant and running the workspace: Ask and proposals, roles a
 
 **Audience:** Everyone; admins for the team section
 
-**Chapters:** 0:15 Ask · 0:50 It asks first · 1:25 People and roles · 1:56 Workspaces, digest, audit · 2:38 When something looks wrong
+**Chapters:** 0:15 Ask · 0:50 It asks first · 1:25 People and roles · 1:57 Workspaces, digest, audit · 2:39 When something looks wrong
 
 **Tags:** assistant, team, roles, troubleshooting
 

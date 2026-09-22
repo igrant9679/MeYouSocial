@@ -81,7 +81,7 @@
     },
     {
       "id": "s06→s07",
-      "cut": 106.9,
+      "cut": 107,
       "technique": "cut-the-curve UP",
       "exit": {
         "selector": "#el-s06",

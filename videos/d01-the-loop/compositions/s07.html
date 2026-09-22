@@ -78,7 +78,7 @@
           waterfall("#s07-hl", 9.231);
           tl.fromTo("#s07-c0", { opacity: 0, x: -30 }, { opacity: 1, x: 0, duration: 0.45, ease: "power3.out" }, 9.231);
           { const el = document.querySelector("#s07-c0-v"); const st = { v: 0 }; tl.to(st, { v: 15, duration: 1.2, ease: "power3.out", onUpdate: () => { el.textContent = "" + Math.round(st.v) + ""; } }, 9.231 + 0.1); tl.fromTo("#s07-c0-v", { scale: 0.7, transformOrigin: "0% 100%" }, { scale: 1, duration: 1.2, ease: "power3.out" }, 9.231 + 0.1); }
-          gsap.utils.toArray("#s07-c1 .chip").forEach((el, j) => tl.fromTo(el, { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.4, ease: "power3.out" }, 3.157 + j * 0.07));
+          gsap.utils.toArray("#s07-c1 .chip").forEach((el, j) => tl.fromTo(el, { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.4, ease: "power3.out" }, 11.509 + j * 0.07));
           tl.fromTo("#s07-c2", { opacity: 0, x: -30 }, { opacity: 1, x: 0, duration: 0.45, ease: "power3.out" }, 13.787);
           tl.to("#s07-zo", { scale: 1.25, duration: 1.5, ease: "power2.inOut" }, 6.953); tl.to("#s07-zi", { x: 132, y: 74.2, duration: 1.5, ease: "power2.inOut" }, 6.953);
           tl.to("#s07-zo", { scale: 1, duration: 1.2, ease: "power3.inOut" }, 12); tl.to("#s07-zi", { x: 0, y: 0, duration: 1.2, ease: "power3.inOut" }, 12);
