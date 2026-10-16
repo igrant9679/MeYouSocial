@@ -87,6 +87,7 @@ export default async function TopicPage({ params, searchParams }: { params: Prom
                 <form action={discoverIdeasAction}>
                   <input type="hidden" name="topicId" value={topic.id} />
                   <input type="hidden" name="formats" value="article" />
+                  <input type="hidden" name="back" value={back} />
                   <SubmitButton className="btn primary sm" pendingText="Discovering…"><Sparkles className="w-3.5 h-3.5" /> Discover ideas for this Topic</SubmitButton>
                 </form>
               )}
@@ -117,7 +118,7 @@ export default async function TopicPage({ params, searchParams }: { params: Prom
           <EmptyState
             line="No ideas carry this Topic yet."
             note={topic.status === "active" ? "Discover runs for this Topic alone and every idea it writes is tagged with it. Existing ideas can be tagged on the board." : "It is archived, so discovery skips it."}
-            action={editor && topic.status === "active" ? { label: "Discover ideas for this Topic", run: discoverIdeasAction, pendingText: "Discovering…", fields: { topicId: topic.id, formats: "article" } } : { label: "Open the board", href: "/ideas" }}
+            action={editor && topic.status === "active" ? { label: "Discover ideas for this Topic", run: discoverIdeasAction, pendingText: "Discovering…", fields: { topicId: topic.id, formats: "article", back } } : { label: "Open the board", href: "/ideas" }}
           />
         </div>
       ) : (

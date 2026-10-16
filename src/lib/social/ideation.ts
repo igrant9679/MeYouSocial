@@ -23,7 +23,7 @@ import { stripListMarker } from "@/lib/list-marker";
 
 const MAX_HOOK = 240;
 
-export async function discoverSocialIdeasCore(workspaceId: string, topicId: string, count = 4): Promise<number> {
+export async function discoverSocialIdeasCore(workspaceId: string, topicId: string, count = 4, actorId?: string | null): Promise<number> {
   if (await isGloballyPaused(workspaceId)) return 0;
   const want = Math.max(1, Math.min(8, Math.round(count)));
   const topic = await db.topic.findFirst({ where: { id: topicId, workspaceId, status: "active" } });
@@ -107,9 +107,10 @@ export async function discoverSocialIdeasCore(workspaceId: string, topicId: stri
   if (rows.length) await db.socialIdea.createMany({ data: rows });
   await writeAudit({
     workspaceId,
+    actorId: actorId ?? null,
     action: "social.ideation",
     entityType: "social_idea",
-    meta: { topic: topic.name, created: rows.length, provider: res.provider },
+    meta: { topic: topic.name, created: rows.length, provider: res.provider, by: actorId ? "person" : "sweep" },
   });
   return rows.length;
 }

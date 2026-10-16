@@ -149,15 +149,45 @@ export async function ideaFromResearchAction(formData: FormData) {
  * The board's primary action: discover ideas per Topic. With a `topicId` the
  * run is that one Topic; without, the emptiest Topic × format cells go first
  * (lib/ideation.ts). `formats` is a comma list; default article.
+ *
+ * ⚠ A person's run has a CEILING the sweep doesn't need: a Topic with
+ * MANUAL_CEILING or more open ideas is refused and named, because on
+ * 2026-10-15 four presses of this button put 48 ideas onto an LSI board
+ * that already held 44 unapproved ones. The audit row carries the person.
+ * Lands back where the form was (`back`), with the outcome in the banner.
  */
 export async function discoverIdeasAction(formData?: FormData) {
-  const { workspace } = await requireRole("EDITOR");
+  const { user, workspace } = await requireRole("EDITOR");
   const topicId = await ownTopicId(workspace.id, formData?.get("topicId"));
   const formats = String(formData?.get("formats") ?? "article").split(",").map((s) => s.trim()).filter(isIdeaFormat);
-  const { runIdeation } = await import("@/lib/ideation");
-  await runIdeation(workspace.id, { formats: formats.length ? formats : ["article"], maxCells: topicId ? formats.length || 1 : 3, topicId });
+  const rawBack = String(formData?.get("back") ?? "/ideas");
+  const back = /^\/ideas(\/|$)/.test(rawBack) ? rawBack.split("?")[0] : "/ideas";
+  const { runIdeation, MANUAL_CEILING } = await import("@/lib/ideation");
+  const run = await runIdeation(workspace.id, {
+    formats: formats.length ? formats : ["article"],
+    maxCells: topicId ? formats.length || 1 : 3,
+    topicId,
+    ceiling: MANUAL_CEILING,
+    actorId: user.id,
+  });
   revalidatePath("/ideas", "layout");
   revalidatePath("/inbox");
+  const { redirect } = await import("next/navigation");
+  const n = (v: number, w: string) => `${v} ${w}${v === 1 ? "" : "s"}`;
+  if (run.saturated) {
+    const names = run.skipped.map((c) => `“${c.topicName}” (${c.open})`).join(", ");
+    redirect(`${back}?err=${encodeURIComponent(
+      run.skipped.length === 1
+        ? `${names} already has ${run.skipped[0].open} open ideas — approve or reject some before discovering more.`
+        : `Every Topic already has ${MANUAL_CEILING}+ open ideas — ${names}. Approve or reject some before discovering more.`,
+    )}`);
+  }
+  if (!run.created) {
+    redirect(`${back}?err=${encodeURIComponent(run.untargeted ? "Nothing came back — no Topics exist, and the untargeted run returned no usable ideas. Add a Topic first." : "Nothing came back — the model returned no usable ideas, or generation is paused.")}`);
+  }
+  const per = run.cells.filter((c) => c.created).map((c) => `${c.created} for “${c.topicName}”`).join(", ");
+  const skipped = run.skipped.length ? ` Skipped ${run.skipped.map((c) => `“${c.topicName}” (${c.open} open)`).join(", ")} — at the ${MANUAL_CEILING}-idea ceiling.` : "";
+  redirect(`${back}?ok=${encodeURIComponent(`Discovered ${n(run.created, "idea")}${per ? ` — ${per}` : run.untargeted ? " (untagged: no Topics yet)" : ""}.${skipped}`)}`);
 }
 
 /** Write action: create a Script with the idea's context pre-loaded; open Canvas. */

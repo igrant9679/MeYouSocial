@@ -89,7 +89,7 @@ const clip = (s: string | null | undefined, n = 600) => (s && s !== "{}" && s !=
  * engine-written idea carries one. `count` is smaller per Topic (4) than the
  * old workspace-wide 6, because several Topics run in one go.
  */
-export async function discoverIdeasCore(workspaceId: string, topicId?: string | null, count = 6): Promise<number> {
+export async function discoverIdeasCore(workspaceId: string, topicId?: string | null, count = 6, actorId?: string | null): Promise<number> {
   const want = Math.max(1, Math.min(10, Math.round(count)));
   if (await isGloballyPaused(workspaceId)) return 0;
   const workspace = await db.workspace.findUnique({ where: { id: workspaceId } });
@@ -231,11 +231,15 @@ export async function discoverIdeasCore(workspaceId: string, topicId?: string | 
   if (rows.length) await db.blogIdea.createMany({ data: rows });
   // Priority + dedupe are computed from workspace facts, never asked of the model.
   await rescoreIdeas(workspaceId);
+  // ⚠ actorId distinguishes a person's click from the sweep. Without it, 48
+  // ideas that appeared on LSI in forty minutes (2026-10-15, four presses of
+  // the board's button) were indistinguishable from the engine in the audit.
   await writeAudit({
     workspaceId,
+    actorId: actorId ?? null,
     action: "ideas.ai_discovery",
     entityType: "blog_idea",
-    meta: { created: rows.length },
+    meta: { created: rows.length, topicId: focusTopic?.id ?? null, by: actorId ? "person" : "sweep" },
   });
   return rows.length;
 }

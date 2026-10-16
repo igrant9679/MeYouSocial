@@ -12,6 +12,7 @@ import {
   type ArticleRow, type BoardCard, type BoardState, type IdeaFormat, type Lane, type SocialRow, type VideoRow,
 } from "@/lib/ideas-board";
 import { studioState } from "@/lib/studio";
+import { ideationCells, MANUAL_CEILING } from "@/lib/ideation";
 import {
   deleteBlogIdeaAction,
   draftFromIdeaAction,
@@ -42,7 +43,7 @@ type Topic = { id: string; name: string };
 type Page = { url: string; title: string };
 const OPEN_LANES = 8; // lanes past this many open collapsed, with their counts
 
-export default async function IdeasBoard({ searchParams }: { searchParams: Promise<{ format?: string; channel?: string; ok?: string }> }) {
+export default async function IdeasBoard({ searchParams }: { searchParams: Promise<{ format?: string; channel?: string; ok?: string; err?: string }> }) {
   const { workspace, membership } = await requireMembership();
   const editor = canEdit(membership.role);
   const sp = await searchParams;
@@ -55,6 +56,12 @@ export default async function IdeasBoard({ searchParams }: { searchParams: Promi
   const openArticles = board.cards.filter((c): c is Extract<BoardCard, { format: "article" }> => c.format === "article" && (c.state === "discovered" || c.state === "approved")).map((c) => c.row);
   const filterActive = sp.channel ? `channel:${sp.channel}` : sp.format === "article" ? "article" : sp.format === "video" ? "video" : sp.format === "social" ? "social" : "all";
   const all = totals.article + totals.video + totals.social;
+  // Open article ideas per active Topic, for the Discover guard. Counted from
+  // the whole board (not the current filter) so the guard reads the same on
+  // every view; the board loads up to 200 per table, which is above the
+  // ceiling on every Topic at once.
+  const openArticlesByTopic = (await ideationCells(workspace.id, ["article"])).map((c) => ({ id: c.topicId, name: c.topicName, open: c.open }));
+  const saturated = openArticlesByTopic.length > 0 && openArticlesByTopic.every((t) => t.open >= MANUAL_CEILING);
 
   return (
     <div>
@@ -71,6 +78,7 @@ export default async function IdeasBoard({ searchParams }: { searchParams: Promi
       />
 
       {sp.ok && <p className="text-xs mb-3 px-3 py-2 rounded-lg" style={{ background: "var(--green-soft)", color: "var(--green-on)" }}>{sp.ok}</p>}
+      {sp.err && <p className="text-xs mb-3 px-3 py-2 rounded-lg" style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }}>{sp.err}</p>}
 
       {/* Filter chips — the old boards live on as filters of the one. */}
       {all > 0 && (
@@ -117,17 +125,30 @@ export default async function IdeasBoard({ searchParams }: { searchParams: Promi
           </form>
           <div className="flex flex-wrap items-center gap-2">
             {/* The ONE primary action. Per Topic by construction: with no
-                focus it fills the emptiest lanes first (lib/ideation.ts). */}
-            <form action={discoverIdeasAction} className="flex items-center gap-2">
-              <input type="hidden" name="formats" value="article" />
-              {topics.length > 0 && (
-                <select name="topicId" defaultValue="" className="text-xs border border-[var(--line-2)] rounded-lg px-2 py-1.5" aria-label="Which Topic to discover ideas for">
-                  <option value="">emptiest Topics first</option>
-                  {topics.map((t) => <option key={t.id} value={t.id}>only: {t.name}</option>)}
-                </select>
-              )}
-              <SubmitButton className="btn primary" pendingText="Discovering…"><Sparkles className="w-3.5 h-3.5" /> Discover article ideas</SubmitButton>
-            </form>
+                focus it fills the emptiest lanes first (lib/ideation.ts).
+                ⚠ When every Topic is at the manual ceiling the button gives
+                way to the sentence — on 2026-10-15 four presses put 48 ideas
+                onto a board nobody had approved anything from. */}
+            {saturated ? (
+              <p className="text-xs m-0 px-3 py-2 rounded-lg" style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }}>
+                Every Topic already has {MANUAL_CEILING}+ open article ideas ({openArticlesByTopic.map((t) => `${t.name.slice(0, 28)}: ${t.open}`).join(" · ")}) — approve or reject some before discovering more.
+              </p>
+            ) : (
+              <form action={discoverIdeasAction} className="flex items-center gap-2">
+                <input type="hidden" name="formats" value="article" />
+                <input type="hidden" name="back" value="/ideas" />
+                {topics.length > 0 && (
+                  <select name="topicId" defaultValue="" className="text-xs border border-[var(--line-2)] rounded-lg px-2 py-1.5" aria-label="Which Topic to discover ideas for">
+                    <option value="">emptiest Topics first</option>
+                    {topics.map((t) => {
+                      const open = openArticlesByTopic.find((o) => o.id === t.id)?.open ?? 0;
+                      return <option key={t.id} value={t.id} disabled={open >= MANUAL_CEILING}>only: {t.name}{open >= MANUAL_CEILING ? ` (${open} open — at the ceiling)` : ""}</option>;
+                    })}
+                  </select>
+                )}
+                <SubmitButton className="btn primary" pendingText="Discovering…"><Sparkles className="w-3.5 h-3.5" /> Discover article ideas</SubmitButton>
+              </form>
+            )}
             {channels.length > 0 && (
               <form action={regenerateIdeasAction} className="flex items-center gap-2">
                 {channels.length > 1 ? (
@@ -157,7 +178,7 @@ export default async function IdeasBoard({ searchParams }: { searchParams: Promi
         <EmptyState
           line={topics.length === 0 ? "No Topics and no ideas yet." : "No ideas yet."}
           note={topics.length === 0 ? "A Topic is a theme this company publishes about. Research is matched to it, ideas in every format are discovered per Topic, and Measure reports what each one earned." : undefined}
-          action={editor ? (topics.length === 0 ? { label: "Add the first Topic", href: "/ideas/topics" } : { label: "Discover ideas", run: discoverIdeasAction, pendingText: "Discovering…", fields: { formats: "article" } }) : null}
+          action={editor ? (topics.length === 0 ? { label: "Add the first Topic", href: "/ideas/topics" } : { label: "Discover ideas", run: discoverIdeasAction, pendingText: "Discovering…", fields: { formats: "article", back: "/ideas" } }) : null}
         />
       ) : (
         <div className="flex flex-col gap-3">

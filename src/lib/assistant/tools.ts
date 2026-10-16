@@ -535,14 +535,17 @@ export const TOOLS: Tool[] = [
     description: "Discover ideas per Topic — article (default) or social — grounded in the workspace profile, the Topic's phrases and keywords. With no topicId the emptiest Topics go first; every idea lands as discovered, tagged with its Topic. A workspace with no Topics gets one untagged article run.",
     args: { format: "optional: article (default) | social | article,social", topicId: "optional: one Topic only (list_topics)" },
     async run(a, ctx) {
-      const { runIdeation } = await import("@/lib/ideation");
+      const { runIdeation, MANUAL_CEILING } = await import("@/lib/ideation");
       const { isIdeaFormat } = await import("@/lib/ideas-board");
       const formats = str(a.format, 30).split(",").map((s) => s.trim()).filter(isIdeaFormat).filter((f) => f !== "video");
       const topicId = str(a.topicId, 40) || null;
-      const run = await runIdeation(ctx.workspaceId, { formats: formats.length ? formats : ["article"], topicId, maxCells: topicId ? 2 : 3 });
+      // A person's run: the ceiling applies and the audit names them.
+      const run = await runIdeation(ctx.workspaceId, { formats: formats.length ? formats : ["article"], topicId, maxCells: topicId ? 2 : 3, ceiling: MANUAL_CEILING, actorId: ctx.userId });
+      if (run.saturated) return `refused: ${run.skipped.map((c) => `"${c.topicName}" has ${c.open} open ${c.format} ideas`).join(", ")} — ${MANUAL_CEILING} or more is the ceiling for a manual run. approve_idea or reject_idea some first (list_ideas status=discovered)`;
       if (!run.created) return run.untargeted ? "created nothing — no Topics exist and the untargeted run returned no usable ideas (add_topic first)" : "created nothing (the model returned no usable ideas, generation is paused, or the Topic is archived)";
       const per = run.cells.filter((c) => c.created).map((c) => `${c.created} ${c.format} for "${c.topicName}"`).join(", ");
-      return `created ${run.created} idea(s), all discovered${per ? ` — ${per}` : " (untagged: no Topics yet)"}. list_ideas to see them, approve_idea for the good ones`;
+      const skipped = run.skipped.length ? `; skipped ${run.skipped.map((c) => `"${c.topicName}" (${c.open} open)`).join(", ")} at the ceiling` : "";
+      return `created ${run.created} idea(s), all discovered${per ? ` — ${per}` : " (untagged: no Topics yet)"}${skipped}. list_ideas to see them, approve_idea for the good ones`;
     },
   },
   {

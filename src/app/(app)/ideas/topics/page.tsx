@@ -161,6 +161,7 @@ function TopicRow({ t, editor }: { t: Awaited<ReturnType<typeof topicLedgers>>[n
           <form action={discoverIdeasAction}>
             <input type="hidden" name="topicId" value={t.id} />
             <input type="hidden" name="formats" value="article" />
+            <input type="hidden" name="back" value={BACK} />
             <SubmitButton className="btn sm" pendingText="Discovering…" title="Discover article ideas for this Topic only"><Sparkles className="w-3.5 h-3.5" /> Discover</SubmitButton>
           </form>
         )}

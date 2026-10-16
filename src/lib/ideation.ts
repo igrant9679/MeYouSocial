@@ -16,6 +16,13 @@ import type { IdeaFormat } from "@/lib/ideas-board";
  * otherwise spend the whole daily budget in one sweep. The sweep rotates —
  * the emptiest cells are different next time, because this time filled them.
  *
+ * ⚠ `ceiling` is the guard for a PERSON's run (the board's button, the
+ * assistant). The sweep has a floor (fill below 2) and so never over-fills;
+ * a button has no floor, and on 2026-10-15 four presses in forty minutes put
+ * 48 ideas onto a board that already had 44 open — none of them approved.
+ * A cell at or above the ceiling is skipped and named, so the person is told
+ * to approve or reject before discovering more.
+ *
  * Formats actually generated here: article (blog-autopilot.discoverIdeasCore)
  * and social (social/ideation.discoverSocialIdeasCore). Video ideas stay a
  * background job per channel (onboarding.ideas) and are tagged by keyword
@@ -23,6 +30,9 @@ import type { IdeaFormat } from "@/lib/ideas-board";
  */
 
 export type IdeationCell = { topicId: string; topicName: string; format: IdeaFormat; open: number };
+
+/** Open ideas per Topic above which a person's Discover is refused. */
+export const MANUAL_CEILING = 12;
 
 /** Every Topic × format with its open (discovered + approved) count, emptiest first. */
 export async function ideationCells(workspaceId: string, formats: IdeaFormat[]): Promise<IdeationCell[]> {
@@ -51,41 +61,57 @@ export async function ideationCells(workspaceId: string, formats: IdeaFormat[]):
   return cells.sort((x, y) => x.open - y.open);
 }
 
-export type IdeationRun = { created: number; cells: Array<IdeationCell & { created: number }>; untargeted: boolean };
+export type IdeationRun = {
+  created: number;
+  cells: Array<IdeationCell & { created: number }>;
+  untargeted: boolean;
+  /** Cells a person's ceiling refused, so the message can name them. */
+  skipped: IdeationCell[];
+  /** Every eligible cell was at or above the ceiling — nothing ran. */
+  saturated: boolean;
+};
 
 /**
  * Fill the emptiest cells. `floor` is the open count a cell must be BELOW to
  * be worth filling (the sweep's "low" — per Topic, per format); pass
- * Infinity to fill regardless (a person pressing the button). With no active
- * Topics at all, falls back to one untargeted run, as before, and says so.
+ * Infinity to fill regardless. `ceiling` refuses cells at or above it (a
+ * person's run). With no active Topics at all, falls back to one untargeted
+ * run, as before, and says so.
  */
 export async function runIdeation(
   workspaceId: string,
-  opts: { formats: IdeaFormat[]; maxCells?: number; floor?: number; perCell?: number; topicId?: string | null },
+  opts: { formats: IdeaFormat[]; maxCells?: number; floor?: number; ceiling?: number; perCell?: number; topicId?: string | null; actorId?: string | null },
 ): Promise<IdeationRun> {
   const maxCells = opts.maxCells ?? 4;
   const floor = opts.floor ?? Infinity;
+  const ceiling = opts.ceiling ?? Infinity;
+  const actorId = opts.actorId ?? null;
   const { discoverIdeasCore } = await import("@/lib/blog-autopilot");
   const { discoverSocialIdeasCore } = await import("@/lib/social/ideation");
 
   let cells = await ideationCells(workspaceId, opts.formats);
   if (opts.topicId) cells = cells.filter((c) => c.topicId === opts.topicId);
-  const run: IdeationRun = { created: 0, cells: [], untargeted: false };
+  const run: IdeationRun = { created: 0, cells: [], untargeted: false, skipped: [], saturated: false };
 
   if (cells.length === 0) {
     // No Topics: the old workspace-wide run, untagged. The board's empty
     // state names the fix (add a Topic).
     run.untargeted = true;
-    if (opts.formats.includes("article")) run.created += await discoverIdeasCore(workspaceId, null, opts.perCell ?? 6);
+    if (opts.formats.includes("article")) run.created += await discoverIdeasCore(workspaceId, null, opts.perCell ?? 6, actorId);
     return run;
   }
 
-  for (const cell of cells.filter((c) => c.open < floor).slice(0, maxCells)) {
+  const eligible = cells.filter((c) => c.open < floor);
+  run.skipped = eligible.filter((c) => c.open >= ceiling);
+  const todo = eligible.filter((c) => c.open < ceiling).slice(0, maxCells);
+  run.saturated = eligible.length > 0 && todo.length === 0;
+
+  for (const cell of todo) {
     const created =
       cell.format === "article"
-        ? await discoverIdeasCore(workspaceId, cell.topicId, opts.perCell ?? 4)
+        ? await discoverIdeasCore(workspaceId, cell.topicId, opts.perCell ?? 4, actorId)
         : cell.format === "social"
-          ? await discoverSocialIdeasCore(workspaceId, cell.topicId, opts.perCell ?? 4)
+          ? await discoverSocialIdeasCore(workspaceId, cell.topicId, opts.perCell ?? 4, actorId)
           : 0;
     run.cells.push({ ...cell, created });
     run.created += created;
