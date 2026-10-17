@@ -24,7 +24,8 @@ export type DeletableKind =
   | "channel" | "idea" | "script" | "chat" | "thumbnail" | "contentProject"
   | "task" | "asset" | "wikiDoc" | "audienceSubmission" | "audienceAvatar"
   | "invitation" | "membership" | "zernioAccount" | "workspace" | "campaign"
-  | "zernioComment" | "brandFact" | "brandDocument" | "socialIdea";
+  | "zernioComment" | "brandFact" | "brandDocument" | "socialIdea"
+  | "specialDay" | "captionBatch";
 
 export type DeletableTarget = { id: string; name: string };
 
@@ -115,6 +116,26 @@ export const DELETABLE: Record<DeletableKind, Deletable> = {
   // A social idea on the board (2026-09-21). Its drafted post, if any, is a
   // separate record with its own delete; SocialIdea.socialPostId is SetNull
   // from the other side, so deleting the idea never touches the queue.
+  // Caption Studio (2026-10-17). A special day is a row on the calendar; a
+  // batch is a generation awaiting review. Posts already made from a batch
+  // are separate records with their own delete and are never touched here.
+  specialDay: {
+    label: "special day",
+    role: "EDITOR",
+    find: (id, workspaceId) => db.specialDay.findFirst({ where: { id, workspaceId }, select: { id: true, name: true } }),
+    async remove(id, workspaceId) { await db.specialDay.deleteMany({ where: { id, workspaceId } }); },
+    revalidate: ["/social/captions"],
+  },
+  captionBatch: {
+    label: "caption batch",
+    role: "EDITOR",
+    find: (id, workspaceId) => db.captionBatch.findFirst({ where: { id, workspaceId }, select: { id: true, title: true } })
+      .then((r) => (r ? { id: r.id, name: r.title } : null)),
+    async remove(id, workspaceId) { await db.captionBatch.deleteMany({ where: { id, workspaceId } }); },
+    redirectTo: () => "/social/captions",
+    revalidate: ["/social/captions"],
+  },
+
   socialIdea: {
     label: "social idea",
     role: "EDITOR",

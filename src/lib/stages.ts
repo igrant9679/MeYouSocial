@@ -100,6 +100,8 @@ export const STAGES: Record<(typeof STAGE_HREFS)[number], StageDef> = {
     // same posts as the Calendar, as searchable lists with filters.
     tabs: () => [
       { href: "/social/compose", label: "Compose" },
+      // Caption Studio (2026-10-17): the team's caption scenarios, run here.
+      { href: "/social/captions", label: "Captions" },
       { href: "/social/queue", label: "Queue" },
       { href: "/social/sent", label: "Sent" },
       { href: "/social/drafts", label: "Drafts" },

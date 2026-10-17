@@ -71,6 +71,8 @@ model Workspace {
   smeProfiles     SmeProfile[]
   blogIdeas       BlogIdea[]
   socialIdeas     SocialIdea[]
+  specialDays     SpecialDay[]
+  captionBatches  CaptionBatch[]
   wordPressConnection WordPressConnection?
   functionModes   FunctionMode[]
   notifications   Notification[]
@@ -1843,6 +1845,7 @@ model Campaign {
 
   workspace Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   posts     SocialPost[]
+  captionBatches CaptionBatch[]
 
   @@unique([workspaceId, name])
   @@index([workspaceId, status])
@@ -2063,4 +2066,63 @@ model Topic {
 
   @@unique([workspaceId, name])
   @@index([workspaceId, status])
+}
+
+// ── Caption Studio (Socialmonials parity, phase 3 — 2026-10-17) ─────────────
+// The team's "Caption Prompts & Scenarios" doc, run by the app.
+
+// A special day / holiday on a workspace's calendar — the doc's Excel sheet.
+// `day` is a CALENDAR day ("2026-11-19"), not an instant: it means the same
+// date in every timezone, and the post time is chosen separately.
+model SpecialDay {
+  id          String    @id @default(cuid())
+  workspaceId String
+  name        String
+  day         String
+  // The client's recommendation for this day, fed to the caption prompt.
+  note        String?
+  // A person checked this year's date (observances move — the doc's step 1).
+  verified    Boolean   @default(false)
+  // The client picked it (the doc's step 3: Sabine, Corie, Nia and Judy).
+  selected    Boolean   @default(false)
+  selectedBy  String?
+  selectedAt  DateTime?
+  // "manual" | "pasted" | "rolled" (copied from last year, date unverified).
+  source      String    @default("manual")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, day, name])
+  @@index([workspaceId, day])
+}
+
+// One generation: what was asked (input) and what came back (items), kept
+// for review before anything reaches the queue — and as the history a later
+// campaign batch can read its "previous captions" from.
+model CaptionBatch {
+  id          String    @id @default(cuid())
+  workspaceId String
+  // special_days | campaign | images | countdown
+  scenario    String
+  title       String
+  campaignId  String?
+  // JSON — the ScenarioInput, plus image keys and the post-at minute.
+  input       String
+  // JSON — [{ item, header, body, hashtags, x, flags, day, minute, include,
+  //           mediaKey, specialDayId, postId }]
+  items       String
+  provider    String?
+  // review | saved
+  status      String    @default("review")
+  createdById String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  savedAt     DateTime?
+
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  campaign    Campaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId, createdAt])
 }

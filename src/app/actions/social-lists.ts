@@ -13,7 +13,7 @@ import { writeAudit } from "@/lib/governance";
 // stale checkbox can never delete history or unschedule something already
 // sent.
 
-const LIST_PATH = /^\/social\/(queue|sent|drafts)(\?[\w=&%.-]*)?$/;
+const LIST_PATH = /^\/social\/(queue|sent|drafts)(\?[\w=&%.+-]*)?$/;
 
 function back(formData: FormData, msg: string, kind: "ok" | "err"): never {
   const raw = String(formData.get("back") ?? "/social/queue");

@@ -226,6 +226,29 @@ Tabs: **Keys** (`/admin/api-keys`: LLM, search, images, video, TTS, storage) · 
   dash with the reason; YouTube numbers are matched to a Topic BY KEYWORD (`kw`) because no
   link exists from a render to the uploaded video — labelled, never stored.
 
+## ⚠ Socialmonials parity (2026-10-17 — the team's white-label posting tool, brought in)
+- **`platformSpecificData` is built ONLY in `lib/social/platform-options.ts`** (`buildPlatformData`).
+  Zernio stores unknown keys silently, so every field there is one docs.zernio.com documents:
+  `firstComment` (Facebook, Instagram, LinkedIn, YouTube — not Stories, not X, not TikTok),
+  `tiktokSettings` (privacy has NO default by TikTok's rules; duet/stitch/AI flag only for video),
+  `contentType` (story/reel). "Move link to first comment" runs AFTER UTM tagging.
+- **Optimal = the measured best time only** (`lib/social/optimal.ts` over `best-time.ts`), else the
+  composer says why. Never a guessed hour.
+- **Watermark** is composited at SEND onto the uploaded copy (`lib/social/watermark.ts`); the
+  stored original is untouched. Client components import positions from `watermark-options.ts`
+  — importing `watermark.ts` pulls `sharp` into the browser bundle and the build fails.
+- **Categories** are a workspace list (`social:categories`, `lib/social/categories.ts`), still the
+  slot lane. **`SocialPost.source`** is stamped on every creation path; `post-lists.ts` derives it
+  for older rows. Queue/Sent/Drafts: one component, `components/PostList.tsx`.
+- **⚠ Full autonomy auto-queues every UNSCHEDULED draft** (blog-autopilot 3¾). Anything that
+  saves date-bound drafts (Caption Studio) keeps `scheduledAt` on the draft — a draft with a time
+  is never auto-queued, the same convention the approval workflow uses for held posts.
+- **Caption Studio** (`/social/captions`, `lib/caption-studio/*`, `actions/caption-studio.ts`):
+  the team's "Caption Prompts & Scenarios" doc — special days (SpecialDay rows; pasted dates are
+  never guessed, rolled-forward ones are unverified), weekly campaign, from image descriptions,
+  event countdown. Output is a CaptionBatch reviewed before any post exists; flags come from
+  `checks.ts` and are shown, never auto-fixed. X gets the batch's short version or is left off.
+
 ## Open items / things the user still owns
 - **Analytics: APIs enabled 2026-08-03** (Search Console + GA Admin + GA Data, on project
   `479503233109` = `gen-lang-client-0838901195` = "CreateUp"). Still pending, user-only: add the

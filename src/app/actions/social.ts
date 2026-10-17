@@ -71,7 +71,7 @@ const tabFlash = (to: string): Flash => (msg, kind = "err") => flashTo(to, msg, 
  */
 function listBack(formData: FormData): Flash {
   const raw = String(formData.get("back") ?? "");
-  const ok = /^\/social\/(queue|sent|drafts|calendar)(\?[\w=&%.-]*)?$/.test(raw);
+  const ok = /^\/social\/(queue|sent|drafts|calendar)(\?[\w=&%.+-]*)?$/.test(raw);
   if (!ok) return backTo;
   const [path, query] = raw.split("?");
   // Keep the list's own filters; the flash rides alongside them.
