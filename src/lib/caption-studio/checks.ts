@@ -94,11 +94,18 @@ export function parseReply(content: string, expected: string[]): CaptionItem[] {
   return raw.slice(0, expected.length).map((r, i) => {
     const o = (r ?? {}) as Record<string, unknown>;
     const tags = Array.isArray(o.hashtags) ? o.hashtags.map((h) => clean(h, 60)).filter(Boolean) : [];
+    const header = clean(o.header, 200);
+    let body = clean(o.body, 2000);
+    // ⚠ The model often repeats the header as the body's first line, though
+    // told not to (both CF-style test captions on 2026-10-17 did) — assembled,
+    // the post would show it twice. Dropping an exact echo is structure, not
+    // style; anything else in the body is left for the person.
+    if (header && body.toLowerCase().startsWith(header.toLowerCase())) body = body.slice(header.length).replace(/^[\s:–—-]+/, "");
     return {
       // The label is ours, not the model's — order is the contract.
       item: expected[i],
-      header: clean(o.header, 200),
-      body: clean(o.body, 2000),
+      header,
+      body,
       hashtags: tags.map((h) => (h.startsWith("#") ? h : `#${h}`)).map((h) => h.replace(/\s+/g, "")),
       x: clean(o.x, 400),
     };

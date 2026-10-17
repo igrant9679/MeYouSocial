@@ -106,6 +106,8 @@ export const STAGES: Record<(typeof STAGE_HREFS)[number], StageDef> = {
       { href: "/social/sent", label: "Sent" },
       { href: "/social/drafts", label: "Drafts" },
       { href: "/social/calendar", label: "Calendar" },
+      { href: "/social/media", label: "Media" },
+      { href: "/social/rss", label: "RSS" },
       { href: "/social/engage", label: "Engage" },
     ],
   },

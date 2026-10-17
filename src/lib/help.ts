@@ -584,6 +584,54 @@ export const HELP_CATEGORIES: FaqCategory[] = [
     soft: "#E5EDFD",
     entries: [
       {
+        q: "Coming from Socialmonials — where is everything?",
+        a: "Distribute has it all, under these tabs:\n\n· **Compose** — the Publish screen: pick accounts (Select all / Clear all), write the caption, add images, customise each network, **first comment**, **move links to the first comment**, category, **watermark**, repost (Evergreen), then **Post now · Schedule · Add to queue · Optimal · Save as draft**.\n· **Queue · Sent · Drafts** — the three lists, with search and Category / Type / Social profile / Source filters, and bulk actions.\n· **Captions** — Caption Studio: the caption prompts (special days, weekly campaign, from image descriptions, event countdown) run for you.\n· **Media** — the image library. **RSS** — feeds that bring in ideas or drafts. **Calendar**, **Engage** (Social CRM).\n\nThe client switcher is the workspace switcher top left; Schedule (posting slots), Import (CSV) and Campaigns are under Settings → Schedule.",
+        links: [{ label: "Open Distribute →", href: "/distribute" }],
+        tags: ["socialmonials", "migration", "where is", "publish", "queue", "sent", "drafts"],
+      },
+      {
+        q: "What does “Optimal” schedule at?",
+        a: "The time your own posts have measured best at — never a guess. Publisher looks at the engagement rate of posts it has pulled numbers back for, finds a weekday-and-hour that beats your average by at least 25% with enough posts to judge, and schedules into the earliest free posting slot in that hour (or that hour's next occurrence this week).\n\nUntil there's enough data the option says *not measured yet* and why — how many measured posts it has and how many it needs.",
+        links: [{ label: "Best time to post →", href: "/setup/schedule" }],
+        tags: ["optimal", "best time", "schedule", "engagement"],
+      },
+      {
+        q: "Which networks take a first comment?",
+        a: "Facebook, Instagram, LinkedIn and YouTube — the ones Zernio supports — and never on a Story. X and TikTok have no first comment, so a post there keeps its link in the caption even when *Move links to the first comment* is on. Links moved into the comment keep their UTM tags.\n\nLinkedIn and Instagram both hold back posts with a link in the caption, which is why moving it helps.",
+        links: [{ label: "Compose →", href: "/social/compose" }],
+        tags: ["first comment", "link", "linkedin", "instagram", "facebook"],
+      },
+      {
+        q: "How does TikTok posting work?",
+        a: "When a TikTok account is selected, its card appears: **who can view the video** (TikTok requires you to choose — there is no default), whether others may comment, duet or stitch, the **AI-generated** and **commercial content** disclosures, and **Hold as draft in TikTok** to finish it in the TikTok app. TikTok's music and branded-content declarations are shown before you send, as TikTok requires.",
+        links: [{ label: "Compose →", href: "/social/compose" }],
+        tags: ["tiktok", "privacy", "duet", "stitch", "disclosure"],
+      },
+      {
+        q: "What is Caption Studio?",
+        a: "The team's caption prompts, run inside Publisher instead of a chat window — written for the workspace you're in, using its profile, audience, brand rules and tone:\n\n· **Special days** — keep each month's list (paste it, or copy last year's and check the dates), tick the days the client picked with a note for any day, then write one caption each, scheduled for the day itself.\n· **Weekly campaign** — new posts in the style of the campaign's previous captions, never a copy.\n· **From image descriptions** — one caption per picture, from its description (upload, or pick from Media).\n· **Event countdown** — a dated series from announcement to event day and the thank-you.\n\nEvery caption has a header, the caption and exactly two hashtags, plus a short version for X. The app flags what breaks the house rules (missing hashtags, “Today we celebrate…”, repeated openings or emojis, too close to another caption) for you to fix — it never rewrites them itself. Nothing reaches the queue until you save the batch.",
+        links: [{ label: "Open Caption Studio →", href: "/social/captions" }],
+        tags: ["caption", "captions", "holiday", "special days", "campaign", "countdown", "ai writer"],
+      },
+      {
+        q: "Why do Caption Studio drafts keep a date?",
+        a: "Because a holiday post has to go out on the holiday. Under full autonomy the engine gives every draft *without* a time the next free slot — which would send Halloween's post on whichever day had room. A draft that keeps its proposed time is never queued that way; schedule it, or open it and change the time, when you're ready.",
+        links: [{ label: "Drafts →", href: "/social/drafts" }],
+        tags: ["drafts", "autonomy", "special days", "date"],
+      },
+      {
+        q: "How do RSS feeds work?",
+        a: "Distribute → **RSS**: paste a feed address (most end in /feed, /rss or .xml). Publisher reads it about once an hour, and each new item becomes either a **social idea on the board** — waiting for someone to approve it, and drafted with its link when it is — or a **draft post** (title and link). On a workspace with full autonomy on, drafts go out on their own, and the page says so.\n\nThe first read brings in at most five items from the past week, so following a busy feed can't flood the board.",
+        links: [{ label: "Open RSS →", href: "/social/rss" }],
+        tags: ["rss", "feed", "blog", "news", "auto post"],
+      },
+      {
+        q: "What is the media library?",
+        a: "Distribute → **Media** keeps images for reuse — everything you upload in Compose lands there too. Tick images to start a new post with them, or give each a description and write captions from them in Caption Studio. Deleting an image from the library never removes it from posts that used it.",
+        links: [{ label: "Open Media →", href: "/social/media" }],
+        tags: ["media", "library", "images", "watermark"],
+      },
+      {
         q: "How do I post to several networks at once?",
         a: "Social → **Composer**: write the post once, tick the accounts, and send or schedule. Each account shows its own character count against its own limit, and you can override the text or image per network where it matters — the rest inherit what you wrote.",
         links: [{ label: "Open Distribute →", href: "/distribute" }],

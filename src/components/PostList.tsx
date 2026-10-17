@@ -136,7 +136,9 @@ export async function PostList({
                   tab === "queue" ? (p.status === "publishing" ? "Publishing now" : onSlot ? "Queued" : "Scheduled")
                   : tab === "drafts" ? (p.approval === "pending" ? "Awaiting approval" : p.approval === "changes" ? "Changes requested" : "Draft")
                   : st.label;
-                const when = tab === "sent" ? p.publishedAt ?? p.updatedAt : tab === "queue" ? p.scheduledAt : null;
+                // Drafts can carry a proposed time (Caption Studio, posts held for
+                // approval) — shown so nobody mistakes it for an unscheduled draft.
+                const when = tab === "sent" ? p.publishedAt ?? p.updatedAt : p.scheduledAt;
                 return (
                   <tr key={p.id} className="align-top border-b border-[var(--line)] last:border-0">
                     {editor && tab !== "sent" && (
@@ -177,7 +179,7 @@ export async function PostList({
                         })}
                         {p.targets.length === 0 && <span className="text-[10px] text-[var(--mute)]">no account yet</span>}
                       </div>
-                      {when && <span className="font-mono text-[10px] text-[var(--mute)]">{formatInZone(when, tz)}</span>}
+                      {when && <span className="font-mono text-[10px] text-[var(--mute)]">{tab === "drafts" ? "proposed " : ""}{formatInZone(when, tz)}</span>}
                     </td>
                     <td className="py-2 px-2">
                       {editor && (

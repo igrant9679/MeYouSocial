@@ -3,6 +3,7 @@ import { CalendarDays, Copy, ImageIcon, Megaphone, Sparkles, Timer } from "lucid
 import { requireMembership, canEdit } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { readJson } from "@/lib/db/json";
+import { storage } from "@/lib/storage";
 import { getPostingTimeZone } from "@/lib/social/slots";
 import { SubmitButton } from "@/components/SubmitButton";
 import { DeleteButton } from "@/components/DeleteButton";
@@ -23,7 +24,7 @@ import {
 // app (Socialmonials parity, phase 3, 2026-10-17). Four scenarios; each
 // generates a BATCH a person reviews before anything reaches the queue.
 
-type SP = { s?: string; month?: string; ok?: string; err?: string };
+type SP = { s?: string; month?: string; ok?: string; err?: string; flash?: string };
 const ICONS: Record<Scenario, React.ReactNode> = {
   special_days: <CalendarDays className="w-4 h-4" />,
   campaign: <Megaphone className="w-4 h-4" />,
@@ -43,10 +44,11 @@ export default async function CaptionStudioPage({ searchParams }: { searchParams
   const month = monthRange(sp.month ?? "") ? sp.month! : shiftMonth(today.slice(0, 7), 1);
   const range = monthRange(month)!;
 
-  const [days, campaigns, batches] = await Promise.all([
+  const [days, campaigns, batches, library] = await Promise.all([
     db.specialDay.findMany({ where: { workspaceId: workspace.id, day: { gte: range.from, lte: range.to } }, orderBy: [{ day: "asc" }, { name: "asc" }] }),
     db.campaign.findMany({ where: { workspaceId: workspace.id, status: "active" }, orderBy: { name: "asc" }, select: { id: true, name: true, _count: { select: { posts: true } } } }),
     db.captionBatch.findMany({ where: { workspaceId: workspace.id }, orderBy: { createdAt: "desc" }, take: 12, select: { id: true, title: true, scenario: true, status: true, createdAt: true, items: true } }),
+    db.mediaItem.findMany({ where: { workspaceId: workspace.id }, orderBy: { createdAt: "desc" }, take: 24, select: { id: true, key: true, name: true, description: true } }),
   ]);
   const selectedCount = days.filter((d) => d.selected).length;
   const unverified = days.filter((d) => !d.verified).length;
@@ -58,6 +60,7 @@ export default async function CaptionStudioPage({ searchParams }: { searchParams
         <p className="text-[13px] text-[var(--mute)] m-0">Captions written to the house rules — a header, the caption, exactly two hashtags — for {workspace.name}. Everything lands in a batch you review before it reaches the queue.</p>
       </div>
       {sp.ok && <Banner kind="ok" text={sp.ok} />}
+      {sp.flash && <Banner kind="ok" text={sp.flash} />}
       {sp.err && <Banner kind="err" text={sp.err} />}
 
       <div className="flex flex-wrap gap-1.5 my-3" role="tablist">
@@ -185,6 +188,21 @@ export default async function CaptionStudioPage({ searchParams }: { searchParams
           <input type="hidden" name="scenario" value="images" />
           <CampaignPicker campaigns={campaigns} />
           <p className="text-[11px] text-[var(--mute)] m-0">One caption per picture, written from its description — the doc&apos;s Adult Continuing Education flow. The picture is attached to its post.</p>
+          {library.length > 0 && (
+            <fieldset className="text-xs">
+              <legend className="text-[10px] text-[var(--mute)] mb-1">From the media library — its description is used{library.some((m) => !m.description) ? " (images without one can't be picked until they have one)" : ""}</legend>
+              <div className="flex flex-wrap gap-2">
+                {library.map((m) => (
+                  <label key={m.id} className={`inline-flex items-center gap-1.5 border border-[var(--line-2)] rounded-lg p-1 pr-2 ${m.description ? "cursor-pointer" : "opacity-50"}`} title={m.description ?? "No description yet"}>
+                    <input type="checkbox" name="lib" value={m.id} disabled={!m.description} />
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={storage.url(m.key)} alt="" className="w-10 h-10 object-cover rounded" />
+                    <span className="max-w-40 truncate">{m.description ?? m.name}</span>
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+          )}
           {Array.from({ length: 6 }, (_, i) => (
             <div key={i} className="flex flex-wrap items-start gap-2 border-t border-[var(--line)] pt-2">
               <span className="font-mono text-[10px] text-[var(--mute)] w-14 pt-1.5">Image {i + 1}</span>

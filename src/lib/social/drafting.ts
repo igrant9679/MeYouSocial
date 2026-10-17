@@ -62,6 +62,8 @@ export async function draftSocialIdeasForWorkspace(workspaceId: string): Promise
   if (!workspace) return false;
 
   const phrases = idea.topic ? readJson<string[]>(idea.topic.keywords, []) : [];
+  // The post's one link: the promoted article's, else the RSS item's.
+  const link = idea.sourceBlogPost?.publishedUrl ?? idea.sourceUrl ?? null;
   const facts = [
     `Company: ${workspace.name}`,
     org?.industry ? `Industry: ${org.industry}` : "",
@@ -70,6 +72,7 @@ export async function draftSocialIdeasForWorkspace(workspaceId: string): Promise
     idea.topic ? `Topic: ${idea.topic.name}${phrases.length ? ` (related phrases: ${phrases.slice(0, 5).join(", ")})` : ""}` : "",
     `The post's idea: ${idea.hook}${idea.angle ? ` — ${idea.angle}` : ""}`,
     idea.sourceBlogPost ? `It promotes the article "${idea.sourceBlogPost.title}"${idea.sourceBlogPost.publishedUrl ? ` at ${idea.sourceBlogPost.publishedUrl} — put that link at the end` : ""}.` : "",
+    !idea.sourceBlogPost && idea.sourceUrl ? `It shares this link from a feed the company follows: ${idea.sourceUrl} — put that link at the end.` : "",
   ].filter(Boolean);
 
   const model = await resolveUsableModel(workspace.defaultModel ?? llm.defaultModel, workspaceId);
@@ -78,7 +81,7 @@ export async function draftSocialIdeasForWorkspace(workspaceId: string): Promise
     system:
       "You write ONE social media post for a real company's feed, from the idea you are given. " +
       "Return ONLY the post text — no preamble, no quotation marks around it, no markdown. " +
-      `Hard limits: at most ${MAX_CHARS} characters${idea.sourceBlogPost?.publishedUrl ? " plus the link" : ""}, at most 2 hashtags, ${idea.sourceBlogPost?.publishedUrl ? "the article link only" : "no links"}, no emojis unless the tone calls for one. ` +
+      `Hard limits: at most ${MAX_CHARS} characters${link ? " plus the link" : ""}, at most 2 hashtags, ${link ? "that one link only" : "no links"}, no emojis unless the tone calls for one. ` +
       "⚠ Never invent facts, numbers, statistics, customer names or claims — if a specific isn't in the context, don't use one. " +
       "Say the idea well, in the company's voice.",
     messages: [{
@@ -94,7 +97,7 @@ export async function draftSocialIdeasForWorkspace(workspaceId: string): Promise
     console.warn(`[social-drafting] ${workspaceId}: no real provider resolved (got ${res.provider}) — skipped`);
     return false;
   }
-  const limit = MAX_CHARS + (idea.sourceBlogPost?.publishedUrl ? idea.sourceBlogPost.publishedUrl.length + 1 : 0);
+  const limit = MAX_CHARS + (link ? link.length + 1 : 0);
   let text = res.content.trim().replace(/^["“]|["”]$/g, "").slice(0, limit + 40);
   if (text.length > limit) text = text.slice(0, limit).replace(/\s+\S*$/, "");
 

@@ -1291,6 +1291,17 @@ export async function runAutopilotCycle(workspaceId: string): Promise<CycleRepor
   //                   queue, written exactly as autogen wrote it, up to the
   //                   same weekly quota.
   // `social:source = rotation` is the rollback to the pre-spine generator.
+  // 2½. RSS feeds (Socialmonials parity, phase 4): new items become social
+  // ideas (they wait for a person) or drafts, per feed. Not AI and not a mode
+  // — a feed is a subscription someone made — but inside the cycle, so the
+  // global pause and the sweep lock still hold. At most hourly per feed.
+  try {
+    const { pollDueFeeds } = await import("@/lib/social/rss");
+    report.ideasCreated += await pollDueFeeds(workspaceId);
+  } catch (e) {
+    console.error(`[rss] poll failed for ${workspaceId}:`, e instanceof Error ? e.message : e);
+  }
+
   if (unattended("social")) {
     const { socialGate, socialSource } = await import("@/lib/social/gate");
     const { getSetting } = await import("@/lib/settings");

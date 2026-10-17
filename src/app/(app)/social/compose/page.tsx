@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { readJson } from "@/lib/db/json";
 import { getSetting } from "@/lib/settings";
 import { SocialComposer } from "@/components/SocialComposer";
+import { storage } from "@/lib/storage";
 import { SubmitButton } from "@/components/SubmitButton";
 import { HelpTip } from "@/components/HelpTip";
 import { SOCIAL_TIPS } from "@/lib/help-tips";
@@ -18,11 +19,16 @@ import { Banner, SocialHeader } from "@/components/SocialPostCard";
 // Composing, and the bulk path that skips composing. Everything that CREATES a
 // post lives here; everything that manages one lives on the other tabs.
 
-type SP = { ok?: string; err?: string };
+type SP = { ok?: string; err?: string; media?: string | string[] };
 
 export default async function SocialComposePage({ searchParams }: { searchParams: Promise<SP> }) {
   const { workspace, membership } = await requireRole("EDITOR");
-  const { ok, err } = await searchParams;
+  const { ok, err, media } = await searchParams;
+  // ?media=<id>&media=<id> — images picked on Distribute → Media.
+  const mediaIds = (Array.isArray(media) ? media : media ? [media] : []).slice(0, 4);
+  const picked = mediaIds.length
+    ? await db.mediaItem.findMany({ where: { id: { in: mediaIds }, workspaceId: workspace.id }, select: { key: true } })
+    : [];
 
   const [accounts, topicRows, campaigns, queue, requireApproval] = await Promise.all([
     db.zernioAccount.findMany({
@@ -90,6 +96,7 @@ export default async function SocialComposePage({ searchParams }: { searchParams
         approvalNotice={requireApproval && !canAdmin(membership.role)}
         queue={{ nextFree: nextFreeLabel, hasSlots }}
         watermarkAvailable={watermarkAvailable}
+        preloadMedia={picked.map((m) => ({ key: m.key, url: storage.url(m.key) }))}
         optimal={optimal.ok ? { label: optimal.label, why: optimal.why } : { reason: optimal.reason }}
       />
 

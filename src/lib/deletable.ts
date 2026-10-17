@@ -25,7 +25,7 @@ export type DeletableKind =
   | "task" | "asset" | "wikiDoc" | "audienceSubmission" | "audienceAvatar"
   | "invitation" | "membership" | "zernioAccount" | "workspace" | "campaign"
   | "zernioComment" | "brandFact" | "brandDocument" | "socialIdea"
-  | "specialDay" | "captionBatch";
+  | "specialDay" | "captionBatch" | "rssFeed" | "mediaItem";
 
 export type DeletableTarget = { id: string; name: string };
 
@@ -125,6 +125,25 @@ export const DELETABLE: Record<DeletableKind, Deletable> = {
     find: (id, workspaceId) => db.specialDay.findFirst({ where: { id, workspaceId }, select: { id: true, name: true } }),
     async remove(id, workspaceId) { await db.specialDay.deleteMany({ where: { id, workspaceId } }); },
     revalidate: ["/social/captions"],
+  },
+  // RSS (2026-10-17): unfollowing deletes the feed and its item log; the
+  // ideas and drafts it already made stay where they are.
+  rssFeed: {
+    label: "feed",
+    role: "EDITOR",
+    find: (id, workspaceId) => db.rssFeed.findFirst({ where: { id, workspaceId }, select: { id: true, url: true, title: true } })
+      .then((r) => (r ? { id: r.id, name: r.title ?? r.url } : null)),
+    async remove(id, workspaceId) { await db.rssFeed.deleteMany({ where: { id, workspaceId } }); },
+    revalidate: ["/social/rss"],
+  },
+  // Media library: the row only. The stored file stays, because posts that
+  // used it must keep their image.
+  mediaItem: {
+    label: "library image",
+    role: "EDITOR",
+    find: (id, workspaceId) => db.mediaItem.findFirst({ where: { id, workspaceId }, select: { id: true, name: true } }),
+    async remove(id, workspaceId) { await db.mediaItem.deleteMany({ where: { id, workspaceId } }); },
+    revalidate: ["/social/media"],
   },
   captionBatch: {
     label: "caption batch",

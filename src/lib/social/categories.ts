@@ -47,6 +47,15 @@ export async function listCategories(workspaceId: string, extra: Array<string | 
   return out;
 }
 
+/** Take one off the list. Posts already filed under it keep the label. */
+export async function removeCategory(workspaceId: string, name: string): Promise<boolean> {
+  const current = await listCategories(workspaceId);
+  const next = current.filter((c) => c.toLowerCase() !== name.trim().toLowerCase());
+  if (next.length === current.length) return false;
+  await setWorkspaceSetting(workspaceId, KEY, JSON.stringify(next));
+  return true;
+}
+
 /** Append one, keeping the defaults as the starting list the first time. */
 export async function addCategory(workspaceId: string, name: string): Promise<string | null> {
   const v = name.trim().replace(/\s+/g, " ").slice(0, 40);

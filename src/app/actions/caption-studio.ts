@@ -213,6 +213,14 @@ export async function generateBatchAction(formData: FormData) {
     } catch (e) {
       studio(back, { err: e instanceof Error ? e.message : "Couldn't store an image." });
     }
+    // Picked from the media library: its description is the input.
+    const libIds = formData.getAll("lib").map(String).filter(Boolean).slice(0, 10);
+    if (libIds.length) {
+      const lib = await db.mediaItem.findMany({ where: { id: { in: libIds }, workspaceId: workspace.id } });
+      const bare = lib.filter((m) => !m.description?.trim());
+      if (bare.length) studio(back, { err: `${bare.map((m) => m.name).join(", ")} ${bare.length === 1 ? "has" : "have"} no description in the library — add one there first; it's what the caption is written from.` });
+      for (const m of lib) images.push({ description: m.description!.trim().slice(0, 600), key: m.key });
+    }
     if (images.length === 0) studio(back, { err: "Add at least one image description." });
     const previous = [...(await previousFromCampaign(workspace.id, c.id)), ...splitPasted(String(formData.get("previous") ?? ""))].slice(0, 12);
     input = { scenario, campaign: c.name, images: images.map((im) => ({ description: im.description })), previous, notes };

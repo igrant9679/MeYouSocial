@@ -247,6 +247,27 @@ export async function submitForApprovalAction(formData: FormData) {
   backTo("Submitted for approval.", "ok");
 }
 
+// ---- Post categories (Socialmonials parity, 2026-10-17) ----------------------------
+
+export async function addCategoryAction(formData: FormData) {
+  const backTo: Flash = tabFlash("/setup/schedule");
+  const { workspace } = await requireRole("ADMIN");
+  const { addCategory } = await import("@/lib/social/categories");
+  const added = await addCategory(workspace.id, String(formData.get("name") ?? ""));
+  revalidatePath("/social", "layout");
+  backTo(added ? `Category “${added}” is on the list.` : "Give the category a name.", added ? "ok" : "err");
+}
+
+export async function removeCategoryAction(formData: FormData) {
+  const backTo: Flash = tabFlash("/setup/schedule");
+  const { workspace } = await requireRole("ADMIN");
+  const name = String(formData.get("name") ?? "");
+  const { removeCategory } = await import("@/lib/social/categories");
+  const gone = await removeCategory(workspace.id, name);
+  revalidatePath("/social", "layout");
+  backTo(gone ? `Removed “${name}” from the list — posts already filed under it keep the label.` : "That category isn't on the list.", gone ? "ok" : "err");
+}
+
 // ---- Workflow settings ---------------------------------------------------------
 
 export async function saveSocialWorkflowSettingsAction(formData: FormData) {

@@ -533,6 +533,7 @@ function SocialCard({ idea, editor, topics }: { idea: SocialRow; editor: boolean
   const source =
     idea.source === "article" && idea.sourceBlogPost ? { label: `from article: ${idea.sourceBlogPost.title}`, href: `/blog/${idea.sourceBlogPost.id}` }
     : idea.source === "research" && idea.sourceVideo ? { label: `from research: ${idea.sourceVideo.title}`, href: `/intel/videos/${idea.sourceVideo.id}` }
+    : idea.source === "rss" && idea.sourceUrl ? { label: `from a feed: ${(() => { try { return new URL(idea.sourceUrl).hostname.replace(/^www\./, ""); } catch { return "link"; } })()}`, href: idea.sourceUrl }
     : idea.source === "discovered" ? { label: "discovered", href: null }
     : null;
   return (

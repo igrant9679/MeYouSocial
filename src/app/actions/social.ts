@@ -227,7 +227,15 @@ export async function createSocialPostAction(formData: FormData) {
   // the composer runs in draft-only mode before any account is connected.
   // Anything that actually SENDS still needs somewhere to send.
   if (accountIds.length === 0 && when !== "draft") backTo("Pick at least one account to post to — or save it as a draft.");
-  const mediaKeys = [...(await storeMedia(formData.getAll("media"))), ...generatedKeysFrom(formData)];
+  const uploaded = await storeMedia(formData.getAll("media"));
+  const mediaKeys = [...uploaded, ...generatedKeysFrom(formData)];
+  // Uploads join the workspace's media library (Distribute → Media) for reuse.
+  if (uploaded.length) {
+    await db.mediaItem.createMany({
+      data: uploaded.map((key) => ({ workspaceId: workspace.id, key, name: key.split("/").pop()?.slice(0, 200) || "image", createdById: user.id })),
+      skipDuplicates: true,
+    });
+  }
   if (!text && mediaKeys.length === 0) backTo("Write something or attach an image.");
 
   const accounts = accountIds.length === 0 ? [] : await resolveSelectedAccounts(workspace.id, accountIds);

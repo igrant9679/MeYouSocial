@@ -13,7 +13,8 @@ import { formatInZone, formatMinute, getQueue } from "@/lib/social/slots";
 import { saveUtmSettingsAction } from "@/app/actions/social";
 import { addPostingSlotsAction } from "@/app/actions/social-slots";
 import { analyseBestTimes, MIN_POSTS, MIN_PER_BUCKET, OUTPERFORM, type BestTimeReport } from "@/lib/social/best-time";
-import { createCampaignAction, toggleCampaignAction } from "@/app/actions/social-workflow";
+import { addCategoryAction, createCampaignAction, removeCategoryAction, toggleCampaignAction } from "@/app/actions/social-workflow";
+import { listCategories } from "@/lib/social/categories";
 import { Banner } from "@/components/SocialPostCard";
 
 // Settings → Schedule: when things go out. The posting slots and timezone,
@@ -27,13 +28,14 @@ export default async function SetupSchedule({ searchParams }: { searchParams: Pr
   const { workspace, membership } = await requireMembership();
   const { ok, err } = await searchParams;
   const isAdmin = canAdmin(membership.role);
-  const [campaigns, posts, utm, queue, bestTimes, publishDay] = await Promise.all([
+  const [campaigns, posts, utm, queue, bestTimes, publishDay, categories] = await Promise.all([
     db.campaign.findMany({ where: { workspaceId: workspace.id }, orderBy: [{ status: "asc" }, { name: "asc" }] }),
     db.socialPost.findMany({ where: { workspaceId: workspace.id }, select: { status: true, campaign: { select: { name: true } } }, take: 500 }),
     getUtmConfig(workspace.id),
     getQueue(workspace.id),
     analyseBestTimes(workspace.id),
     getSetting("autopilot:publish_day", workspace.id).catch(() => ""),
+    listCategories(workspace.id),
   ]);
   const activeCampaigns = campaigns.filter((c) => c.status === "active");
   const nextFreeLabel = queue.free[0] ? formatInZone(queue.free[0].at, queue.timeZone) : null;
@@ -56,6 +58,36 @@ export default async function SetupSchedule({ searchParams }: { searchParams: Pr
       <PostingSchedule slots={queue.slots} timeZone={queue.timeZone} timeZoneConfigured={queue.timeZoneConfigured} canEdit={isAdmin} nextFree={nextFreeLabel} />
 
       <BestTimes report={bestTimes} canEdit={isAdmin} />
+
+      {/* Post categories — the list the composer, Caption Studio and the
+          Queue / Sent / Drafts filters offer (social/categories.ts). */}
+      <details className="card mb-6">
+        <summary className="cursor-pointer text-sm font-semibold flex items-center gap-2">
+          Post categories
+          <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "var(--zebra)", color: "var(--mute)" }}>{categories.length}</span>
+          <HelpTip text={SOCIAL_TIPS.slotCategory} side="bottom" wide />
+        </summary>
+        <p className="text-[11px] text-[var(--mute)] mt-2 mb-2">Every post can be filed under one. A posting slot with the same category takes those posts first. Removing one takes it off the list; posts already filed under it keep the label.</p>
+        <ul className="flex flex-wrap gap-1.5 m-0 p-0 list-none mb-2">
+          {categories.map((c) => (
+            <li key={c} className="inline-flex items-center gap-1 font-mono text-[11px] px-2 py-0.5 rounded-full border border-[var(--line-2)]">
+              {c}
+              {isAdmin && (
+                <form action={removeCategoryAction} className="inline">
+                  <input type="hidden" name="name" value={c} />
+                  <button type="submit" className="text-[var(--mute)] hover:text-[var(--rose-on)]" title={`Remove ${c} from the list`} aria-label={`Remove ${c}`}>×</button>
+                </form>
+              )}
+            </li>
+          ))}
+        </ul>
+        {isAdmin && (
+          <form action={addCategoryAction} className="flex items-center gap-2">
+            <input name="name" maxLength={40} placeholder="New category" className="text-xs w-48" />
+            <SubmitButton className="btn sm" pendingText="Adding…">Add</SubmitButton>
+          </form>
+        )}
+      </details>
 
       <details className="card mb-6" open>
         <summary className="cursor-pointer text-sm font-semibold flex items-center gap-2">

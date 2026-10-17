@@ -108,6 +108,7 @@ export function SocialComposer({
   queue,
   watermarkAvailable = false,
   optimal,
+  preloadMedia = [],
 }: {
   accounts: ComposerAccount[];
   topics?: ComposerTopic[];
@@ -122,6 +123,8 @@ export function SocialComposer({
   /** A usable logo is on file, so the watermark can be offered. */
   watermarkAvailable?: boolean;
   optimal?: ComposerOptimal;
+  /** Library images picked on Distribute → Media, attached as base media. */
+  preloadMedia?: Array<{ key: string; url: string }>;
 }) {
   // Editing reuses this component wholesale rather than a parallel form — a
   // second implementation would drift from the composer's per-network rules.
@@ -148,7 +151,9 @@ export function SocialComposer({
   const [variantFiles, setVariantFiles] = useState<Record<string, File[]>>({});
   // AI-generated base images: stored server-side the moment they're generated,
   // attached to the post only on submit (hidden generatedKeys inputs).
-  const [genImages, setGenImages] = useState<GenImage[]>([]);
+  // Library images arrive like AI images: already stored, attached on submit
+  // through the same hidden generatedKeys inputs (and the same server check).
+  const [genImages, setGenImages] = useState<GenImage[]>(preloadMedia.slice(0, 4).map((m) => ({ key: m.key, url: m.url, provider: "library" })));
   const [genBusy, setGenBusy] = useState(false);
   const [genError, setGenError] = useState<string | null>(null);
   const [genGuidance, setGenGuidance] = useState("");

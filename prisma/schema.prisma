@@ -72,6 +72,8 @@ model Workspace {
   blogIdeas       BlogIdea[]
   socialIdeas     SocialIdea[]
   specialDays     SpecialDay[]
+  rssFeeds        RssFeed[]
+  mediaItems      MediaItem[]
   captionBatches  CaptionBatch[]
   wordPressConnection WordPressConnection?
   functionModes   FunctionMode[]
@@ -625,6 +627,8 @@ model SocialIdea {
   source           String   @default("manual") // manual | discovered | research | article
   sourceVideoId    String?  // Research → "Make it a social idea"
   sourceBlogPostId String?  // a published article's social angles
+  // The link an RSS item shared (source "rss"); drafting puts it at the end.
+  sourceUrl        String?
   socialPostId     String?  @unique // set when drafted into the queue
   priority         Int?
   createdById      String?  // null = the engine
@@ -2124,5 +2128,71 @@ model CaptionBatch {
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   campaign    Campaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
 
+  @@index([workspaceId, createdAt])
+}
+
+// ── RSS feeds and the media library (Socialmonials parity, phase 4) ────────
+
+// A feed the workspace follows. New items become social IDEAS on the board
+// (mode "ideas", each waits for a person) or DRAFT posts (mode "drafts" —
+// which full autonomy queues on its own, and the page says so).
+model RssFeed {
+  id            String    @id @default(cuid())
+  workspaceId   String
+  url           String
+  title         String?
+  mode          String    @default("ideas") // ideas | drafts
+  topicId       String?
+  category      String?
+  active        Boolean   @default(true)
+  lastCheckedAt DateTime?
+  lastError     String?
+  createdById   String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  workspace     Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  items         RssItem[]
+
+  @@unique([workspaceId, url])
+}
+
+// One item seen on a feed — seen once, acted on once, however often the feed
+// repeats it.
+model RssItem {
+  id           String    @id @default(cuid())
+  feedId       String
+  guid         String
+  link         String?
+  title        String
+  summary      String?
+  publishedAt  DateTime?
+  // What it became (null = seen on the first read, older than the window).
+  socialIdeaId String?
+  postId       String?
+  createdAt    DateTime  @default(now())
+
+  feed         RssFeed   @relation(fields: [feedId], references: [id], onDelete: Cascade)
+
+  @@unique([feedId, guid])
+  @@index([feedId, createdAt])
+}
+
+// The workspace's media library: images kept for reuse, with the description
+// Caption Studio's "from image descriptions" writes from. Deleting a row never
+// deletes the stored file — posts that used it keep their image.
+model MediaItem {
+  id          String    @id @default(cuid())
+  workspaceId String
+  key         String
+  name        String
+  description String?
+  contentType String?
+  createdById String?
+  createdAt   DateTime  @default(now())
+
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, key])
   @@index([workspaceId, createdAt])
 }
