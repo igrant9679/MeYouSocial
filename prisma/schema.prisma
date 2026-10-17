@@ -1885,6 +1885,19 @@ model SocialPost {
   approvedAt   DateTime?
   reviewNote   String?
 
+  // ── Socialmonials parity (2026-10-17) ─────────────────────────────────────
+  // Posted as the first comment on networks Zernio documents it for (Facebook,
+  // Instagram, LinkedIn, YouTube — `platformSpecificData.firstComment`), never
+  // on a Story. A target's own `firstComment` overrides this one.
+  firstComment       String?
+  // Take the links out of the caption and put them in the first comment, on
+  // the networks that have one — LinkedIn and Instagram both suppress or kill
+  // links in the caption. Networks without a first comment keep the link.
+  linkToFirstComment Boolean  @default(false)
+  // The workspace logo composited onto IMAGE media at send: null = none,
+  // "br" | "bl" | "tr" | "tl" = the corner. The stored original is untouched.
+  watermark          String?
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -1926,6 +1939,12 @@ model SocialPostTarget {
   // default. Only Facebook ("story"|"reel") and Instagram ("story") take one;
   // YouTube and TikTok infer the format from the media. See social/sub-formats.
   subFormat       String?
+  // Per-network first comment; null falls back to the post's.
+  firstComment    String?
+  // Per-network options as JSON, built and read ONLY through
+  // social/platform-options.ts. TikTok today: privacy, comment/duet/stitch,
+  // AI and commercial disclosure, send-to-Creator-Inbox (`tiktokSettings`).
+  options         String?
   status          String    @default("pending") // pending | posted | failed
   providerPostId  String?   // Zernio post _id
   // Public URL of the live post, when the network reports one.

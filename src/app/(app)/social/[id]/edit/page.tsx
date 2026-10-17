@@ -6,6 +6,10 @@ import { db } from "@/lib/db";
 import { readJson } from "@/lib/db/json";
 import { SocialComposer, type ComposerInitial } from "@/components/SocialComposer";
 import { formatInZone, getQueue } from "@/lib/social/slots";
+import { listCategories } from "@/lib/social/categories";
+import { canWatermark } from "@/lib/social/watermark";
+import { optimalTime } from "@/lib/social/optimal";
+import { readTargetOptions } from "@/lib/social/platform-options";
 
 // Editing an unsent post. Reuses the composer wholesale so per-network rules
 // (char limits, variants, per-network images) behave identically to composing.
@@ -58,6 +62,9 @@ export default async function EditSocialPostPage({ params }: { params: Promise<{
   // form fields both use it, and diverging silently drops the value.
   const subFormats: Record<string, string> = {};
   for (const t of post.targets) if (t.subFormat) subFormats[t.provider.toUpperCase()] = t.subFormat;
+  const firstComments: Record<string, string> = {};
+  for (const t of post.targets) if (t.firstComment) firstComments[t.provider.toUpperCase()] = t.firstComment;
+  const tiktokTarget = post.targets.find((t) => t.provider.toLowerCase() === "tiktok");
 
   const initial: ComposerInitial = {
     id: post.id,
@@ -74,6 +81,11 @@ export default async function EditSocialPostPage({ params }: { params: Promise<{
     variants,
     subFormats,
     existingMedia: readJson<string[]>(post.mediaKeys, []).length,
+    firstComment: post.firstComment,
+    linkToFirstComment: post.linkToFirstComment,
+    watermark: post.watermark,
+    firstComments,
+    tiktok: tiktokTarget ? readTargetOptions(tiktokTarget.options).tiktok ?? null : null,
   };
 
   // Re-queueing ignores this post's own slot, so "Add to queue" on an already
@@ -81,6 +93,11 @@ export default async function EditSocialPostPage({ params }: { params: Promise<{
   const queue = await getQueue(workspace.id, { excludePostId: post.id, limit: 60 });
   const nextFree = queue.free[0] ? formatInZone(queue.free[0].at, queue.timeZone) : null;
   const slotCategories = [...new Set(queue.slots.map((s) => s.category).filter((c): c is string => Boolean(c)))];
+  const [categories, watermarkAvailable, optimal] = await Promise.all([
+    listCategories(workspace.id, [...slotCategories, post.category]),
+    canWatermark(workspace.id),
+    optimalTime(workspace.id, post.id).catch(() => ({ ok: false as const, reason: "The best-time report couldn't be read." })),
+  ]);
 
   const droppedTargets = post.targets.length - selectedIds.length;
 
@@ -122,10 +139,12 @@ export default async function EditSocialPostPage({ params }: { params: Promise<{
           accounts={composerAccounts}
           topics={topicRows.map((t) => ({ id: t.id, name: t.name, keywords: readJson<string[]>(t.keywords, []) }))}
           campaigns={campaigns}
-          categories={slotCategories}
+          categories={categories}
           approvalNotice={post.approval === "pending" || post.approval === "changes"}
           initial={initial}
           queue={{ nextFree, hasSlots: queue.slots.some((s) => s.enabled) }}
+          watermarkAvailable={watermarkAvailable}
+          optimal={optimal.ok ? { label: optimal.label, why: optimal.why } : { reason: optimal.reason }}
         />
       )}
     </main>

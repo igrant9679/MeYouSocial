@@ -38,7 +38,7 @@ export const MIN_LOGO_PX = 96;
  * on file or the file is too small to scale up honestly (LSI's stored mark is
  * 76×61 — it would be a blur at 64px on a 1200-wide card).
  */
-export async function loadBrandLogo(workspaceId: string): Promise<Buffer | null> {
+export async function loadBrandLogo(workspaceId: string, minPx = MIN_LOGO_PX): Promise<Buffer | null> {
   const ws = await db.workspace.findUnique({ where: { id: workspaceId }, select: { logoKey: true } });
   const kit = await db.brandKit.findUnique({ where: { workspaceId }, select: { logoUrl: true } });
   const candidates: Array<() => Promise<Buffer | null>> = [];
@@ -60,7 +60,7 @@ export async function loadBrandLogo(workspaceId: string): Promise<Buffer | null>
       const sharp = (await import("sharp")).default;
       const meta = await sharp(buf).metadata();
       if (!meta.width || !meta.height) continue;
-      if (Math.min(meta.width, meta.height) < MIN_LOGO_PX) continue;
+      if (Math.min(meta.width, meta.height) < minPx) continue;
       return buf;
     } catch {
       // try the next source

@@ -3,7 +3,8 @@ import { db } from "@/lib/db";
 import { storage } from "@/lib/storage";
 import { readJson } from "@/lib/db/json";
 import { tagLinksForNetwork } from "@/lib/social/utm";
-import { platformDataFor } from "@/lib/social/sub-formats";
+import { buildPlatformData, readTargetOptions, splitLinks, supportsFirstComment } from "@/lib/social/platform-options";
+import { normaliseWatermark, watermarkerFor } from "@/lib/social/watermark";
 import {
   createZernioPost,
   uploadZernioMedia,
@@ -127,7 +128,9 @@ async function stripImageMetadata(bytes: Uint8Array, contentType: string): Promi
   }
 }
 
-function makeUploader(workspaceId: string): MediaUploader {
+type Watermarker = ((bytes: Uint8Array, contentType: string) => Promise<Uint8Array>) | null;
+
+function makeUploader(workspaceId: string, watermark: Watermarker = null): MediaUploader {
   // Cache by storage key: an image shared by three networks uploads once.
   const cache = new Map<string, ZernioMediaItem | null>();
   return async (keys) => {
@@ -145,7 +148,10 @@ function makeUploader(workspaceId: string): MediaUploader {
               `Can't upload ${key}: its file type ${contentType ? `(${contentType}) ` : ""}isn't one Zernio accepts. Attach a JPEG, PNG, WebP, GIF, MP4, MOV, WebM or PDF.`,
             );
           }
-          const bytes = await stripImageMetadata(raw, contentType);
+          let bytes = await stripImageMetadata(raw, contentType);
+          // The logo goes on the UPLOADED copy only — the stored original
+          // stays clean, so a re-send without a watermark just works.
+          if (watermark) bytes = await watermark(bytes, contentType);
           let filename = key.split("/").pop() || "media";
           if (!filename.includes(".") && EXT_FOR[contentType]) filename += `.${EXT_FOR[contentType]}`;
           cache.set(key, {
@@ -202,7 +208,7 @@ export async function publishSocialPost(postId: string): Promise<void> {
   try {
     if (!(await zernioConfigured(post.workspaceId))) throw new Error("Zernio is not configured");
 
-    const upload = makeUploader(post.workspaceId);
+    const upload = makeUploader(post.workspaceId, await watermarkerFor(post.workspaceId, normaliseWatermark(post.watermark)));
     const baseKeys = readJson<string[]>(post.mediaKeys, []);
     const baseMedia = baseKeys.length ? await upload(baseKeys) : [];
 
@@ -211,14 +217,36 @@ export async function publishSocialPost(postId: string): Promise<void> {
     // text stays the author's and re-editing can't accumulate params.
     const specs: ZernioPostTargetSpec[] = [];
     for (const t of pending) {
-      const text = await tagLinksForNetwork(
+      let text = await tagLinksForNetwork(
         t.text ?? post.text, post.workspaceId, t.provider, post.campaign?.utmCampaign,
       );
       const ownKeys = t.mediaKeys ? readJson<string[]>(t.mediaKeys, []) : null;
-      // Story/Reel rather than a feed post, where the network takes a choice.
-      // Null for everything else, which is how YouTube and TikTok keep working:
-      // they infer the format from the media and take no field at all.
-      const platformSpecificData = platformDataFor(t.provider, t.subFormat);
+      // First comment: the target's own, else the post's — tagged per network
+      // like the caption. "Move link to first comment" runs AFTER tagging, so
+      // a moved link keeps its UTM, and only where a first comment exists
+      // (never a Story, never X or TikTok); elsewhere the link stays put.
+      const ownComment = (t.firstComment ?? post.firstComment ?? "").trim();
+      let firstComment = ownComment
+        ? await tagLinksForNetwork(ownComment, post.workspaceId, t.provider, post.campaign?.utmCampaign)
+        : null;
+      if (post.linkToFirstComment && supportsFirstComment(t.provider, t.subFormat)) {
+        const { caption, links } = splitLinks(text);
+        if (links.length && caption) {
+          text = caption;
+          firstComment = [links.join("\n"), firstComment].filter(Boolean).join("\n\n");
+        }
+      }
+      const effectiveKeys = ownKeys?.length ? ownKeys : baseKeys;
+      const isVideo = effectiveKeys.length > 0 && effectiveKeys.every((k) => (contentTypeFor(k) ?? "").startsWith("video/"));
+      // Story/Reel, first comment, TikTok settings — one documented builder.
+      // Null when the network's defaults are wanted (a plain feed post).
+      const platformSpecificData = buildPlatformData({
+        provider: t.provider,
+        subFormat: t.subFormat,
+        firstComment,
+        options: readTargetOptions(t.options),
+        isVideo,
+      });
       specs.push({
         platform: t.provider.toLowerCase(),
         accountId: t.accountId,

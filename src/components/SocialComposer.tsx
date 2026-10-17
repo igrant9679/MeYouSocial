@@ -8,6 +8,8 @@ import { generateComposerImageAction } from "@/app/actions/social-image-gen";
 import { tailorPostForNetworksAction } from "@/app/actions/social-tailor";
 import { networkFor } from "@/lib/social/networks";
 import { subFormatsFor, AUTOMATIC_SUB_FORMAT } from "@/lib/social/sub-formats";
+import { FIRST_COMMENT_NETWORKS, TIKTOK_COMMERCIAL, TIKTOK_DEFAULTS, TIKTOK_PRIVACY, type TikTokOptions } from "@/lib/social/platform-options";
+import { WATERMARK_POSITIONS } from "@/lib/social/watermark-options";
 import { HelpTip, WithTip } from "@/components/HelpTip";
 import { SOCIAL_TIPS } from "@/lib/help-tips";
 import { AiAssist } from "@/components/AiAssist";
@@ -38,7 +40,35 @@ export type ComposerInitial = {
   subFormats?: Record<string, string>;
   /** How many images the post already has (per base / per provider). */
   existingMedia: number;
+  firstComment?: string | null;
+  linkToFirstComment?: boolean;
+  watermark?: string | null;
+  /** Per-provider first comments, keyed by UPPERCASED slug. */
+  firstComments?: Record<string, string>;
+  tiktok?: TikTokOptions | null;
 };
+
+/** The measured best time for "Optimal", or why there isn't one (social/optimal.ts). */
+export type ComposerOptimal = { label: string; why: string } | { reason: string };
+
+/**
+ * Unicode bold / italic (Mathematical Sans-Serif) — what Socialmonials' B and I
+ * buttons do, since no network takes markup. Letters and digits only; anything
+ * else passes through. Screen readers may spell styled letters out, so the
+ * buttons say "sparingly".
+ */
+export function styleText(s: string, kind: "bold" | "italic"): string {
+  const A = kind === "bold" ? 0x1d5d4 : 0x1d608; // 𝗔 / 𝘈
+  const a = kind === "bold" ? 0x1d5ee : 0x1d622; // 𝗮 / 𝘢
+  const zero = kind === "bold" ? 0x1d7ec : null; // 𝟬 (no italic digits exist)
+  return Array.from(s).map((ch) => {
+    const c = ch.codePointAt(0)!;
+    if (c >= 65 && c <= 90) return String.fromCodePoint(A + c - 65);
+    if (c >= 97 && c <= 122) return String.fromCodePoint(a + c - 97);
+    if (zero && c >= 48 && c <= 57) return String.fromCodePoint(zero + c - 48);
+    return ch;
+  }).join("");
+}
 
 /** State of the workspace's posting schedule, for the "Add to queue" option. */
 export type ComposerQueue = {
@@ -76,17 +106,22 @@ export function SocialComposer({
   approvalNotice = false,
   initial,
   queue,
+  watermarkAvailable = false,
+  optimal,
 }: {
   accounts: ComposerAccount[];
   topics?: ComposerTopic[];
   /** Active campaigns this post can join. */
   campaigns?: ComposerCampaign[];
-  /** Slot categories that exist on the posting schedule, for the picker. */
+  /** The workspace's post categories (social/categories.ts), slot lanes included. */
   categories?: string[];
   /** True when this user's posts are held for approval before sending. */
   approvalNotice?: boolean;
   initial?: ComposerInitial;
   queue?: ComposerQueue;
+  /** A usable logo is on file, so the watermark can be offered. */
+  watermarkAvailable?: boolean;
+  optimal?: ComposerOptimal;
 }) {
   // Editing reuses this component wholesale rather than a parallel form — a
   // second implementation would drift from the composer's per-network rules.
@@ -100,9 +135,14 @@ export function SocialComposer({
   const [evergreen, setEvergreen] = useState(initial?.evergreen ?? false);
   const [variants, setVariants] = useState<Record<string, string>>(initial?.variants ?? {});
   const [customizing, setCustomizing] = useState<Set<string>>(new Set(Object.keys(initial?.variants ?? {})));
-  const [when, setWhen] = useState<"now" | "schedule" | "draft" | "queue">(
+  const [when, setWhen] = useState<"now" | "schedule" | "draft" | "queue" | "optimal">(
     initial ? (initial.scheduledAtIso ? "schedule" : "draft") : accounts.length === 0 ? "draft" : "now",
   );
+  const [category, setCategory] = useState(initial?.category ?? "");
+  const [firstComment, setFirstComment] = useState(initial?.firstComment ?? "");
+  const [tiktok, setTiktok] = useState<TikTokOptions>(initial?.tiktok ?? TIKTOK_DEFAULTS);
+  const textRef = useRef<HTMLTextAreaElement>(null);
+  const optimalPick = optimal && "label" in optimal ? optimal : null;
   const [clearMedia, setClearMedia] = useState(false);
   const [files, setFiles] = useState<File[]>([]);
   const [variantFiles, setVariantFiles] = useState<Record<string, File[]>>({});
@@ -223,7 +263,25 @@ export function SocialComposer({
   // "save as draft and trim later" is the whole point of drafts. Editing an
   // existing post with when="draft" is the same parking action.
   const overBlocks = anyOver && when !== "draft";
+  // TikTok has no default audience by its own rules — a send without one is
+  // refused here AND on the server (platform-options.tiktokRefusal).
+  const tiktokSelected = selectedProviders.includes("TIKTOK");
+  const tiktokBlocks = tiktokSelected && when !== "draft" && !tiktok.privacy;
+  const brandedSelfOnly = tiktokSelected && tiktok.commercial === "brand_content" && tiktok.privacy === "SELF_ONLY";
+  const firstCommentProviders = selectedProviders.filter((p) => FIRST_COMMENT_NETWORKS.has(p.toLowerCase()));
   const topic = topics.find((t) => t.id === topicId);
+
+  /** B / I on the base text: style the selection, or the whole text when nothing is selected. */
+  function applyStyle(kind: "bold" | "italic") {
+    const el = textRef.current;
+    const start = el?.selectionStart ?? 0;
+    const end = el?.selectionEnd ?? 0;
+    if (start === end) {
+      setText((t) => styleText(t, kind));
+      return;
+    }
+    setText((t) => t.slice(0, start) + styleText(t.slice(start, end), kind) + t.slice(end));
+  }
 
   const toggle = (id: string) =>
     setSelected((prev) => {
@@ -262,6 +320,12 @@ export function SocialComposer({
       <div>
         <div className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)] mb-1.5 flex items-center gap-1.5">
           Post to <HelpTip text={SOCIAL_TIPS.postTo} side="bottom" wide />
+          {accounts.length > 1 && (
+            <span className="normal-case tracking-normal inline-flex items-center gap-2 ml-2">
+              <button type="button" className="underline" onClick={() => setSelected(new Set(accounts.map((a) => a.id)))}>Select all</button>
+              <button type="button" className="underline" onClick={() => setSelected(new Set())}>Clear all</button>
+            </span>
+          )}
         </div>
         <div className="flex flex-wrap gap-2">
           {accounts.map((a) => {
@@ -306,8 +370,8 @@ export function SocialComposer({
         </div>
       )}
 
-      {/* Campaign + slot category — both optional, both plain selects. */}
-      {(campaigns.length > 0 || categories.length > 0) && (
+      {/* Campaign + category — both optional, both plain selects. */}
+      {(
         <div className="flex flex-wrap items-center gap-3">
           {campaigns.length > 0 && (
             <>
@@ -324,19 +388,32 @@ export function SocialComposer({
               <HelpTip text={SOCIAL_TIPS.campaign} side="bottom" wide />
             </>
           )}
-          {categories.length > 0 && (
-            <>
-              <label className="inline-flex items-center gap-1.5 text-xs">
-                <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">Slot category</span>
-                <select name="category" defaultValue={initial?.category ?? ""}
-                  className="border border-[var(--line-2)] rounded-lg px-2 py-1 text-xs">
-                  <option value="">— any —</option>
-                  {categories.map((c) => <option key={c} value={c}>{c}</option>)}
-                </select>
-              </label>
-              <HelpTip text={SOCIAL_TIPS.slotCategory} side="bottom" wide />
-            </>
+          {/* Category — Socialmonials' label for filing and filtering posts;
+              it still steers the queue (a slot of the same category first). */}
+          <label className="inline-flex items-center gap-1.5 text-xs">
+            <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">Category</span>
+            <select name="category" value={category} onChange={(e) => setCategory(e.target.value)}
+              className="border border-[var(--line-2)] rounded-lg px-2 py-1 text-xs">
+              <option value="">— none —</option>
+              {categories.map((c) => <option key={c} value={c}>{c}</option>)}
+              <option value="__new__">＋ Add category…</option>
+            </select>
+          </label>
+          {category === "__new__" && (
+            <input name="categoryNew" maxLength={40} autoFocus placeholder="New category name"
+              className="border border-[var(--line-2)] rounded-lg px-2 py-1 text-xs w-44" />
           )}
+          <HelpTip text={SOCIAL_TIPS.slotCategory} side="bottom" wide />
+          {/* Watermark — the workspace logo on images, at send. */}
+          <label className="inline-flex items-center gap-1.5 text-xs" title={watermarkAvailable ? "Composited onto images when the post goes out; the stored original stays clean" : "Add a logo (Settings → Workspace) to watermark images"}>
+            <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">Watermark</span>
+            <select name="watermark" defaultValue={watermarkAvailable ? (initial?.watermark ?? "") : ""} disabled={!watermarkAvailable}
+              className="border border-[var(--line-2)] rounded-lg px-2 py-1 text-xs">
+              <option value="">None</option>
+              {WATERMARK_POSITIONS.map((w) => <option key={w.value} value={w.value}>{w.label}</option>)}
+            </select>
+          </label>
+          {!watermarkAvailable && <span className="text-[10px] text-[var(--mute)]">no logo on file</span>}
         </div>
       )}
 
@@ -361,10 +438,15 @@ export function SocialComposer({
 
       {/* Base composer */}
       <div>
-        <div className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)] mb-1">
+        <div className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)] mb-1 flex items-center gap-2">
           {selectedProviders.length > 1 ? "Base post (used by any network you don’t customize)" : "Text"}
+          <span className="flex-1" />
+          {/* type="button" is load-bearing — these sit inside the form. */}
+          <button type="button" className="btn sm !px-1.5 !py-0.5 font-bold normal-case" onClick={() => applyStyle("bold")} title="Bold the selection (or all the text). No network takes markup, so this uses styled Unicode letters — sparingly: screen readers may spell them out.">B</button>
+          <button type="button" className="btn sm !px-1.5 !py-0.5 italic normal-case" onClick={() => applyStyle("italic")} title="Italicise the selection (or all the text), as styled Unicode letters — sparingly.">I</button>
         </div>
         <textarea
+          ref={textRef}
           name="text"
           value={text}
           onChange={(e) => setText(e.target.value)}
@@ -441,6 +523,81 @@ export function SocialComposer({
           </div>
         )}
       </div>
+
+      {/* First comment — only where Zernio documents one (Facebook, Instagram,
+          LinkedIn, YouTube; never a Story). Each network can override it in
+          its own row below. */}
+      {firstCommentProviders.length > 0 && (
+        <div>
+          <div className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)] mb-1">
+            First comment <span className="normal-case tracking-normal">— posted on {firstCommentProviders.map((p) => networkFor(p)?.label ?? p).join(", ")}{selectedProviders.length > firstCommentProviders.length ? "; the others have no first comment" : ""}</span>
+          </div>
+          <textarea name="firstComment" value={firstComment} onChange={(e) => setFirstComment(e.target.value)} rows={2} maxLength={2000}
+            placeholder="Optional — e.g. the link, or a question to start the conversation"
+            className="w-full border border-[var(--line-2)] rounded-lg p-2 text-sm resize-y" />
+          <label className="inline-flex items-center gap-1.5 text-xs mt-1 cursor-pointer">
+            <input type="checkbox" name="linkToFirstComment" defaultChecked={initial?.linkToFirstComment ?? false} />
+            Move links from the caption to the first comment
+          </label>
+          <span className="text-[10px] text-[var(--mute)] ml-2">LinkedIn and Instagram both hold back posts with a link in the caption. X and TikTok keep the link where it is.</span>
+        </div>
+      )}
+
+      {/* TikTok — its own rules: no default audience, interaction switches,
+          disclosures, and a declaration shown before sending (TikTok's
+          content-posting guidelines; the fields are Zernio's tiktokSettings). */}
+      {tiktokSelected && (
+        <div className="rounded-lg border p-2.5" style={{ borderColor: "#010101" }}>
+          <input type="hidden" name="tiktok_present_TIKTOK" value="1" />
+          <div className="text-xs font-semibold mb-2 flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full" style={{ background: "#010101" }} /> TikTok
+          </div>
+          <div className="flex flex-wrap items-center gap-3 text-xs">
+            <label className="inline-flex items-center gap-1.5">
+              Who can view this video
+              <select name="tiktok_privacy_TIKTOK" value={tiktok.privacy ?? ""} onChange={(e) => setTiktok((t) => ({ ...t, privacy: (e.target.value || null) as TikTokOptions["privacy"] }))}
+                className="border border-[var(--line-2)] rounded-lg px-2 py-1 text-xs">
+                <option value="">Select…</option>
+                {TIKTOK_PRIVACY.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+            </label>
+            <span className="text-[var(--mute)]">Allow users to</span>
+            {(["comment", "duet", "stitch"] as const).map((k) => {
+              const key = k === "comment" ? "allowComment" : k === "duet" ? "allowDuet" : "allowStitch";
+              return (
+                <label key={k} className="inline-flex items-center gap-1 cursor-pointer">
+                  <input type="checkbox" name={`tiktok_${k}_TIKTOK`} checked={tiktok[key]} onChange={(e) => setTiktok((t) => ({ ...t, [key]: e.target.checked }))} />
+                  {k[0].toUpperCase() + k.slice(1)}
+                </label>
+              );
+            })}
+          </div>
+          <div className="flex flex-wrap items-center gap-3 text-xs mt-2">
+            <label className="inline-flex items-center gap-1 cursor-pointer">
+              <input type="checkbox" name="tiktok_ai_TIKTOK" checked={tiktok.aiGenerated} onChange={(e) => setTiktok((t) => ({ ...t, aiGenerated: e.target.checked }))} />
+              AI-generated content
+            </label>
+            <label className="inline-flex items-center gap-1.5">
+              Disclose
+              <select name="tiktok_commercial_TIKTOK" value={tiktok.commercial} onChange={(e) => setTiktok((t) => ({ ...t, commercial: e.target.value as TikTokOptions["commercial"] }))}
+                className="border border-[var(--line-2)] rounded-lg px-2 py-1 text-xs">
+                {TIKTOK_COMMERCIAL.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+            </label>
+            <label className="inline-flex items-center gap-1 cursor-pointer">
+              <input type="checkbox" name="tiktok_draft_TIKTOK" checked={tiktok.draft} onChange={(e) => setTiktok((t) => ({ ...t, draft: e.target.checked }))} />
+              Hold as draft in TikTok (finish it in the app)
+            </label>
+          </div>
+          {brandedSelfOnly && <p className="text-[11px] mt-1.5 mb-0" style={{ color: "var(--rose-on)" }}>Branded content can&apos;t be “Only me” — widen the audience or change the disclosure.</p>}
+          <p className="text-[10px] text-[var(--mute)] mt-2 mb-0">
+            By posting, you agree to TikTok&apos;s{" "}
+            <a href="https://www.tiktok.com/legal/page/global/music-usage-confirmation/en" target="_blank" rel="noreferrer" className="underline">Music Usage Confirmation</a>
+            {tiktok.commercial === "brand_content" && <> and <a href="https://www.tiktok.com/legal/page/global/bc-policy/en" target="_blank" rel="noreferrer" className="underline">Branded Content Policy</a></>}.
+            {" "}It can take a few minutes for a video to appear on the profile.
+          </p>
+        </div>
+      )}
 
       {/* Per-network customization + live counts */}
       {selectedProviders.length > 0 && (
@@ -580,6 +737,16 @@ export function SocialComposer({
                         />
                       </label>
                       {vFiles.length === 0 && <span className="text-[11px] text-[var(--mute)]">using the base image{files.length === 1 ? "" : "s"}</span>}
+                      {FIRST_COMMENT_NETWORKS.has(p.toLowerCase()) && (
+                        <textarea
+                          name={`firstcomment_${p}`}
+                          defaultValue={initial?.firstComments?.[p] ?? ""}
+                          rows={2}
+                          maxLength={2000}
+                          placeholder={`First comment just for ${net?.label ?? p} (blank = the shared one)`}
+                          className="w-full border border-[var(--line-2)] rounded-lg p-2 text-xs resize-y"
+                        />
+                      )}
                       {vFiles.map((f, i) => (
                         <span key={i} className="inline-flex items-center gap-1 text-[11px] font-mono px-2 py-1 rounded-lg" style={{ background: "var(--panel)" }}>
                           {f.name.slice(0, 20)}
@@ -698,6 +865,22 @@ export function SocialComposer({
             Queue full — every slot ahead is taken.
           </span>
         )}
+        {/* Optimal — the MEASURED best time (social/optimal.ts), or a plain
+            statement of why there isn't one yet. Never a guessed hour. */}
+        {!noAccounts && optimalPick && (
+          <>
+            <label className="inline-flex items-center gap-1.5 text-sm cursor-pointer" title={optimalPick.why}>
+              <input type="radio" name="when" value="optimal" checked={when === "optimal"} onChange={() => setWhen("optimal")} />
+              Optimal
+              <span className="font-mono text-[11px] text-[var(--mute)]">{optimalPick.label}</span>
+            </label>
+          </>
+        )}
+        {!noAccounts && optimal && "reason" in optimal && (
+          <WithTip text={optimal.reason} side="top" wide>
+            <span className="text-[11px] text-[var(--mute)] underline decoration-dotted">Optimal: not measured yet</span>
+          </WithTip>
+        )}
         {when === "schedule" && (
           <input
             type="datetime-local"
@@ -717,15 +900,22 @@ export function SocialComposer({
             Over a network&apos;s limit — shorten it, customize that network, or save as draft.
           </span>
         )}
+        {tiktokBlocks && (
+          <span className="text-[11px]" style={{ color: "var(--rose-on)" }}>
+            Choose who can view the TikTok video — or save as draft.
+          </span>
+        )}
         <SubmitButton
           className="btn primary"
-          disabled={selected.size === 0 || overBlocks}
-          pendingText={editing ? "Saving…" : when === "queue" ? "Queueing…" : when === "schedule" ? "Scheduling…" : when === "draft" ? "Saving…" : "Posting…"}
+          disabled={selected.size === 0 || overBlocks || tiktokBlocks || (brandedSelfOnly && when !== "draft")}
+          pendingText={editing ? "Saving…" : when === "queue" ? "Queueing…" : when === "schedule" || when === "optimal" ? "Scheduling…" : when === "draft" ? "Saving…" : "Posting…"}
         >
           {editing ? (
             <><Pencil className="w-4 h-4" /> Save changes</>
           ) : when === "queue" ? (
             <><ListPlus className="w-4 h-4" /> Add to queue</>
+          ) : when === "optimal" ? (
+            <><CalendarClock className="w-4 h-4" /> Schedule at the best time</>
           ) : when === "schedule" ? (
             <><CalendarClock className="w-4 h-4" /> Schedule</>
           ) : when === "draft" ? (

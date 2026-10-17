@@ -9,6 +9,9 @@ import { SubmitButton } from "@/components/SubmitButton";
 import { HelpTip } from "@/components/HelpTip";
 import { SOCIAL_TIPS } from "@/lib/help-tips";
 import { formatInZone, getQueue } from "@/lib/social/slots";
+import { listCategories } from "@/lib/social/categories";
+import { canWatermark } from "@/lib/social/watermark";
+import { optimalTime } from "@/lib/social/optimal";
 import { importSocialCsvAction } from "@/app/actions/social-workflow";
 import { Banner, SocialHeader } from "@/components/SocialPostCard";
 
@@ -49,8 +52,14 @@ export default async function SocialComposePage({ searchParams }: { searchParams
   }));
   const nextFreeLabel = queue.free[0] ? formatInZone(queue.free[0].at, queue.timeZone) : null;
   const hasSlots = queue.slots.some((s) => s.enabled);
-  // Slot categories that actually exist drive the composer's picker.
+  // The workspace's categories (Socialmonials' defaults until it saves its
+  // own), with any slot lane that isn't on the list yet.
   const slotCategories = [...new Set(queue.slots.map((s) => s.category).filter((c): c is string => Boolean(c)))];
+  const [categories, watermarkAvailable, optimal] = await Promise.all([
+    listCategories(workspace.id, slotCategories),
+    canWatermark(workspace.id),
+    optimalTime(workspace.id).catch(() => ({ ok: false as const, reason: "The best-time report couldn't be read." })),
+  ]);
 
   return (
     <div className="p-6 w-full">
@@ -77,9 +86,11 @@ export default async function SocialComposePage({ searchParams }: { searchParams
         accounts={composerAccounts}
         topics={topics}
         campaigns={campaigns.map((c) => ({ id: c.id, name: c.name, color: c.color }))}
-        categories={slotCategories}
+        categories={categories}
         approvalNotice={requireApproval && !canAdmin(membership.role)}
         queue={{ nextFree: nextFreeLabel, hasSlots }}
+        watermarkAvailable={watermarkAvailable}
+        optimal={optimal.ok ? { label: optimal.label, why: optimal.why } : { reason: optimal.reason }}
       />
 
       {/* Bulk import — the path for a month of content in one sitting. */}

@@ -63,7 +63,7 @@ export const SOCIAL_TIPS = {
   campaign:
     "Group this post into a named series. A campaign can carry its own utm_campaign tag, so analytics can report the series as a series.",
   slotCategory:
-    "Route this post to slots of one category (e.g. 'tips' every Tuesday). It falls back to a general slot if its category has none free — nothing ever strands.",
+    "File the post under a category — the queue, sent and drafts lists filter by it. A posting slot with the same category takes the post first; otherwise a general slot does, so nothing ever strands. “Add category” puts a new one on this workspace's list.",
   evergreen:
     "Once this post has gone out, the scheduler may clone it back into a free queue slot after the cooldown — if evergreen auto-fill is switched on below. Clones appear in the queue like any scheduled post and can be edited or cancelled.",
   approvalWorkflow:

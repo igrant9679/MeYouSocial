@@ -9,6 +9,9 @@ import { writeJson, readJson } from "@/lib/db/json";
 import { publishSocialPost } from "@/lib/social/publish";
 import { networkFor } from "@/lib/social/networks";
 import { normaliseSubFormat, subFormatsFor } from "@/lib/social/sub-formats";
+import { readTargetOptions, supportsFirstComment, tiktokOptionsFromForm, tiktokRefusal, type TargetOptions } from "@/lib/social/platform-options";
+import { normaliseWatermark } from "@/lib/social/watermark";
+import { addCategory } from "@/lib/social/categories";
 import { claimNextFreeSlot, formatInZone, getPostingTimeZone, queueFailureMessage } from "@/lib/social/slots";
 
 // Social scheduler actions. A post fans out to one or more connected social
@@ -143,13 +146,45 @@ async function parseCompositionExtras(workspaceId: string, formData: FormData) {
     });
     campaignId = c?.id ?? null;
   }
-  // Slot category — bounded free text; empty = uncategorized.
-  const category = String(formData.get("category") ?? "").trim().slice(0, 40) || null;
+  // Category — bounded free text; empty = uncategorized. "Add category" in
+  // the composer sends `categoryNew`, which joins the workspace's list.
+  let category = String(formData.get("category") ?? "").trim().slice(0, 40) || null;
+  const categoryNew = String(formData.get("categoryNew") ?? "").trim();
+  if (category === "__new__") category = categoryNew ? await addCategory(workspaceId, categoryNew) : null;
   const evergreen = String(formData.get("evergreen") ?? "") === "on";
   const recycleEveryDays = Math.min(
     365, Math.max(1, parseInt(String(formData.get("recycleEveryDays") ?? "30"), 10) || 30),
   );
-  return { campaignId, category, evergreen, recycleEveryDays };
+  // Socialmonials parity: first comment, links → first comment, watermark.
+  const firstComment = String(formData.get("firstComment") ?? "").trim().slice(0, 2000) || null;
+  const linkToFirstComment = String(formData.get("linkToFirstComment") ?? "") === "on";
+  const watermark = normaliseWatermark(formData.get("watermark"));
+  return { campaignId, category, evergreen, recycleEveryDays, firstComment, linkToFirstComment, watermark };
+}
+
+/** firstcomment_<PROVIDER>: a network's own first comment, when it differs from the post's. */
+function firstCommentFor(formData: FormData, provider: string, base: string | null): string | null {
+  if (!supportsFirstComment(provider)) return null;
+  const v = String(formData.get(`firstcomment_${provider.toUpperCase()}`) ?? "").trim().slice(0, 2000);
+  return v && v !== (base ?? "") ? v : null;
+}
+
+/** The target's options JSON (TikTok today), or null when there are none. */
+function optionsFor(formData: FormData, provider: string, existing?: string | null): string | null {
+  const p = provider.toLowerCase();
+  const opts: TargetOptions = readTargetOptions(existing);
+  if (p === "tiktok") {
+    const t = tiktokOptionsFromForm(formData, provider.toUpperCase());
+    if (t) opts.tiktok = t;
+  }
+  return Object.keys(opts).length ? writeJson(opts) : null;
+}
+
+/** Refuse a SEND whose TikTok options TikTok would reject. Drafts are exempt. */
+function assertTikTokReady(formData: FormData, providers: string[], refuse: (msg: string) => never): void {
+  if (!providers.some((p) => p.toLowerCase() === "tiktok")) return;
+  const why = tiktokRefusal(tiktokOptionsFromForm(formData, "TIKTOK"));
+  if (why) refuse(why);
 }
 
 /**
@@ -193,7 +228,7 @@ export async function createSocialPostAction(formData: FormData) {
     topicId = topic?.id ?? null;
   }
 
-  const { campaignId, category, evergreen, recycleEveryDays } = await parseCompositionExtras(workspace.id, formData);
+  const { campaignId, category, evergreen, recycleEveryDays, firstComment, linkToFirstComment, watermark } = await parseCompositionExtras(workspace.id, formData);
   const gate = await resolveApprovalForCreate(workspace.id, membership.role);
 
   let scheduledAt: Date | null = null;
@@ -211,6 +246,14 @@ export async function createSocialPostAction(formData: FormData) {
     const claim = await claimNextFreeSlot(workspace.id, undefined, category);
     if ("error" in claim) backTo(queueFailureMessage(claim.error));
     scheduledAt = claim.at;
+    status = "scheduled";
+  } else if (when === "optimal") {
+    // The MEASURED best time (social/optimal.ts) — refused, with the reason,
+    // when there isn't one yet. Never a guess.
+    const { optimalTime } = await import("@/lib/social/optimal");
+    const pick = await optimalTime(workspace.id);
+    if (!pick.ok) backTo(pick.reason);
+    scheduledAt = pick.at;
     status = "scheduled";
   } else if (when === "draft") {
     status = "draft"; // park it — send later from the drafts list
@@ -254,6 +297,9 @@ export async function createSocialPostAction(formData: FormData) {
     accounts.map((a) => a.provider),
     (p) => readJson<string[]>(mediaByProvider.get(p.toUpperCase()), mediaKeys),
   );
+  // Keyed on what was REQUESTED, not the stored status: a post held for
+  // approval is stored as a draft but will send once approved.
+  if (when !== "draft") assertTikTokReady(formData, accounts.map((a) => a.provider), backTo);
 
   // A Story or a Reel cannot be text — the network rejects it at publish, long
   // after the author has gone. Refuse here, naming the network and the format.
@@ -276,6 +322,9 @@ export async function createSocialPostAction(formData: FormData) {
       category,
       evergreen,
       recycleEveryDays,
+      firstComment,
+      linkToFirstComment,
+      watermark,
       approval: gate.approval,
       text,
       mediaKeys: writeJson(mediaKeys),
@@ -289,6 +338,8 @@ export async function createSocialPostAction(formData: FormData) {
           text: variantFor(a.provider),
           mediaKeys: mediaByProvider.get(a.provider.toUpperCase()) ?? null,
           subFormat: subFormatFor(a.provider),
+          firstComment: firstCommentFor(formData, a.provider, firstComment),
+          options: optionsFor(formData, a.provider),
         })),
       },
     },
@@ -327,9 +378,11 @@ export async function createSocialPostAction(formData: FormData) {
   backTo(
     when === "queue"
       ? `Queued for ${formatInZone(scheduledAt!, await getPostingTimeZone(workspace.id))}.`
-      : when === "draft"
-        ? "Saved to drafts."
-        : "Scheduled.",
+      : when === "optimal"
+        ? `Scheduled at the measured best time, ${formatInZone(scheduledAt!, await getPostingTimeZone(workspace.id))}.`
+        : when === "draft"
+          ? "Saved to drafts."
+          : "Scheduled.",
     "ok",
   );
 }
@@ -404,10 +457,13 @@ export async function duplicateSocialPostAction(formData: FormData) {
       category: src.category,
       text: src.text,
       mediaKeys: src.mediaKeys,
+      firstComment: src.firstComment,
+      linkToFirstComment: src.linkToFirstComment,
+      watermark: src.watermark,
       status: "draft",
       approval: gate.approval,
       targets: {
-        create: src.targets.map((t) => ({ provider: t.provider, accountId: t.accountId, accountName: t.accountName, text: t.text, mediaKeys: t.mediaKeys, subFormat: t.subFormat })),
+        create: src.targets.map((t) => ({ provider: t.provider, accountId: t.accountId, accountName: t.accountName, text: t.text, mediaKeys: t.mediaKeys, subFormat: t.subFormat, firstComment: t.firstComment, options: t.options })),
       },
     },
   });
@@ -460,7 +516,7 @@ export async function updateSocialPostAction(formData: FormData) {
     topicId = topic?.id ?? null;
   }
 
-  const { campaignId, category, evergreen, recycleEveryDays } = await parseCompositionExtras(workspace.id, formData);
+  const { campaignId, category, evergreen, recycleEveryDays, firstComment, linkToFirstComment, watermark } = await parseCompositionExtras(workspace.id, formData);
 
   // Schedule: keep as draft, (re)schedule to a future time, or take a slot.
   const when = String(formData.get("when") ?? "draft");
@@ -479,6 +535,12 @@ export async function updateSocialPostAction(formData: FormData) {
     const claim = await claimNextFreeSlot(workspace.id, post!.id, category);
     if ("error" in claim) backTo(queueFailureMessage(claim.error));
     scheduledAt = claim.at;
+    status = "scheduled";
+  } else if (when === "optimal") {
+    const { optimalTime } = await import("@/lib/social/optimal");
+    const pick = await optimalTime(workspace.id, post!.id);
+    if (!pick.ok) backTo(pick.reason);
+    scheduledAt = pick.at;
     status = "scheduled";
   }
 
@@ -515,6 +577,7 @@ export async function updateSocialPostAction(formData: FormData) {
     normaliseSubFormat(provider, String(formData.get(`subformat_${provider.toUpperCase()}`) ?? ""));
 
   if (status !== "draft") {
+    assertTikTokReady(formData, accounts.map((a) => a.provider), backTo);
     const existingFor = new Map(post!.targets.map((t) => [t.provider, t.mediaKeys]));
     assertMediaWhereRequired(
       accounts.map((a) => a.provider),
@@ -550,6 +613,8 @@ export async function updateSocialPostAction(formData: FormData) {
             accountName: a.name,
             text: variantFor(a.provider),
             subFormat: subFormatFor(a.provider),
+            firstComment: firstCommentFor(formData, a.provider, firstComment),
+            options: optionsFor(formData, a.provider, existing.options),
             // undefined = leave as-is; a fresh upload replaces it.
             ...(overrideMedia === undefined ? {} : { mediaKeys: overrideMedia }),
             status: "pending",
@@ -565,6 +630,8 @@ export async function updateSocialPostAction(formData: FormData) {
             accountName: a.name,
             text: variantFor(a.provider),
             subFormat: subFormatFor(a.provider),
+            firstComment: firstCommentFor(formData, a.provider, firstComment),
+            options: optionsFor(formData, a.provider),
             mediaKeys: overrideMedia ?? null,
           },
         });
@@ -575,6 +642,7 @@ export async function updateSocialPostAction(formData: FormData) {
       data: {
         text, mediaKeys: writeJson(mediaKeys), topicId, scheduledAt, status,
         campaignId, category, evergreen, recycleEveryDays, approval, reviewNote,
+        firstComment, linkToFirstComment, watermark,
       },
     });
   });
@@ -606,7 +674,9 @@ export async function updateSocialPostAction(formData: FormData) {
       ? "Saved — it's waiting for approval before it can go out."
       : when === "queue"
         ? `Saved and queued for ${formatInZone(scheduledAt!, await getPostingTimeZone(workspace.id))}.`
-        : status === "scheduled" ? "Saved and scheduled." : "Saved as a draft.",
+        : when === "optimal"
+          ? `Saved and scheduled at the measured best time, ${formatInZone(scheduledAt!, await getPostingTimeZone(workspace.id))}.`
+          : status === "scheduled" ? "Saved and scheduled." : "Saved as a draft.",
     "ok",
   );
 }
