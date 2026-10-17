@@ -430,6 +430,7 @@ export async function importSocialCsvAction(formData: FormData) {
       data: {
         workspaceId: workspace.id,
         createdById: user.id,
+        source: "import",
         campaignId,
         category,
         evergreen,

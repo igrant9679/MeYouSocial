@@ -1897,6 +1897,10 @@ model SocialPost {
   // The workspace logo composited onto IMAGE media at send: null = none,
   // "br" | "bl" | "tr" | "tl" = the corner. The stored original is untouched.
   watermark          String?
+  // Where the post came from, for the Queue / Sent / Drafts "Source" filter:
+  // manual | import | engine | evergreen | assistant | captions | rss.
+  // Null on rows older than 2026-10-17 — lib/social/post-lists.ts derives it.
+  source             String?
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

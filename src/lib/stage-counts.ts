@@ -20,7 +20,7 @@ export async function stripCounts(workspaceId: string): Promise<StripCounts> {
   const now = new Date();
   // The Ideas badge counts "discovered" across all three formats — a video
   // idea's own word for it is `new`, a social idea's is `discovered`.
-  const [heldArticles, finalApproval, ideasDiscovered, videoIdeasNew, socialIdeasNew, auditOpen, awaiting, scheduled, unseen, invitations] = await Promise.all([
+  const [heldArticles, finalApproval, ideasDiscovered, videoIdeasNew, socialIdeasNew, auditOpen, awaiting, scheduled, socialDrafts, unseen, invitations] = await Promise.all([
     db.blogPost.count({ where: { workspaceId, status: "draft_review" } }),
     db.blogPost.count({ where: { workspaceId, status: "final_approval" } }),
     db.blogIdea.count({ where: { workspaceId, status: "discovered" } }),
@@ -29,6 +29,7 @@ export async function stripCounts(workspaceId: string): Promise<StripCounts> {
     db.contentAuditItem.count({ where: { workspaceId, status: "open", recommendation: { not: "keep" } } }),
     db.socialPost.count({ where: { workspaceId, approval: "pending" } }),
     db.socialPost.count({ where: { workspaceId, status: "scheduled", scheduledAt: { gte: now } } }),
+    db.socialPost.count({ where: { workspaceId, status: "draft" } }),
     db.socialInboxEvent.count({ where: { workspaceId, readAt: null } }),
     db.invitation.count({ where: { workspaceId, acceptedAt: null, expiresAt: { gt: now } } }),
   ]);
@@ -38,7 +39,8 @@ export async function stripCounts(workspaceId: string): Promise<StripCounts> {
     "/publish": { n: finalApproval },
     "/blog/audit": { n: auditOpen, urgent: true },
     "/social/approvals": { n: awaiting, urgent: true },
-    "/social/calendar": { n: scheduled },
+    "/social/queue": { n: scheduled },
+    "/social/drafts": { n: socialDrafts },
     "/social/engage": { n: unseen, urgent: true },
     "/setup/people": { n: invitations },
   };

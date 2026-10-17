@@ -116,6 +116,11 @@ export async function recycleEvergreenPosts(): Promise<number> {
           category: source.category,
           text: source.text,
           mediaKeys: source.mediaKeys,
+          // Same content, same delivery: first comment, link handling, logo.
+          firstComment: source.firstComment,
+          linkToFirstComment: source.linkToFirstComment,
+          watermark: source.watermark,
+          source: "evergreen",
           scheduledAt: slot.at,
           status: "scheduled",
           evergreen: false, // clones never re-recycle — cadence stays on the source
@@ -134,6 +139,8 @@ export async function recycleEvergreenPosts(): Promise<number> {
               // same shape — a source Story that recycled as a feed post would
               // be a different post wearing its name.
               subFormat: t.subFormat,
+              firstComment: t.firstComment,
+              options: t.options,
             })),
           },
         },

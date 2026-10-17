@@ -115,6 +115,7 @@ export async function draftSocialIdeasForWorkspace(workspaceId: string): Promise
     data: {
       workspaceId,
       createdById: null, // system-authored
+      source: "engine",
       topicId: idea.topicId,
       campaignId: campaign?.id ?? null,
       text,

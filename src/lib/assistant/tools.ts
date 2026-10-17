@@ -941,7 +941,7 @@ export const TOOLS: Tool[] = [
       const { getSetting } = await import("@/lib/settings");
       const requireApproval = (await getSetting("social:require_approval", ctx.workspaceId).catch(() => "")) === "true";
       const held = requireApproval && ctx.role !== "ADMIN";
-      const post = await db.socialPost.create({ data: { workspaceId: ctx.workspaceId, text, status: "draft", approval: requireApproval ? (held ? "pending" : "approved") : null, createdById: ctx.userId, targets: { create: targets } } });
+      const post = await db.socialPost.create({ data: { workspaceId: ctx.workspaceId, text, status: "draft", source: "assistant", approval: requireApproval ? (held ? "pending" : "approved") : null, createdById: ctx.userId, targets: { create: targets } } });
       await writeAudit({ workspaceId: ctx.workspaceId, actorId: ctx.userId, action: "social.drafted", entityType: "social_post", entityId: post.id, meta: { via: "assistant", networks: targets.map((t) => t.provider) } });
       return `drafted social post ${post.id} for ${targets.map((t) => t.provider).join(", ") || "no network yet (connect accounts)"}${held ? " — held for an admin's approval" : ""}. /social/${post.id}/edit`;
     },

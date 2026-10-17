@@ -96,8 +96,13 @@ export const STAGES: Record<(typeof STAGE_HREFS)[number], StageDef> = {
   "/distribute": {
     href: "/distribute",
     label: "Distribute",
+    // Queue / Sent / Drafts joined 2026-10-17 (Socialmonials parity): the
+    // same posts as the Calendar, as searchable lists with filters.
     tabs: () => [
       { href: "/social/compose", label: "Compose" },
+      { href: "/social/queue", label: "Queue" },
+      { href: "/social/sent", label: "Sent" },
+      { href: "/social/drafts", label: "Drafts" },
       { href: "/social/calendar", label: "Calendar" },
       { href: "/social/engage", label: "Engage" },
     ],

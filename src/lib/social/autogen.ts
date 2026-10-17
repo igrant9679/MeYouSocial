@@ -128,6 +128,7 @@ export async function generateSocialPostForWorkspace(workspaceId: string): Promi
     data: {
       workspaceId,
       createdById: null, // system-authored
+      source: "engine",
       topicId: topic.id,
       campaignId: campaign?.id ?? null,
       text,

@@ -64,6 +64,20 @@ type Flash = (msg: string, kind?: "err" | "ok") => never;
 
 const tabFlash = (to: string): Flash => (msg, kind = "err") => flashTo(to, msg, kind);
 
+/**
+ * Where a per-post action pressed on a list page lands: back on that list
+ * (Queue / Sent / Drafts / Calendar), else the old default. Held to those
+ * paths so a forged `back` can't send anyone elsewhere.
+ */
+function listBack(formData: FormData): Flash {
+  const raw = String(formData.get("back") ?? "");
+  const ok = /^\/social\/(queue|sent|drafts|calendar)(\?[\w=&%.-]*)?$/.test(raw);
+  if (!ok) return backTo;
+  const [path, query] = raw.split("?");
+  // Keep the list's own filters; the flash rides alongside them.
+  return (msg, kind = "err") => redirect(`${path}?${query ? `${query}&` : ""}${kind === "err" ? "err" : "ok"}=${encodeURIComponent(msg)}`);
+}
+
 function backTo(msg: string, kind: "err" | "ok" = "err"): never {
   return flashTo("/social", msg, kind);
 }
@@ -325,6 +339,7 @@ export async function createSocialPostAction(formData: FormData) {
       firstComment,
       linkToFirstComment,
       watermark,
+      source: "manual",
       approval: gate.approval,
       text,
       mediaKeys: writeJson(mediaKeys),
@@ -409,6 +424,7 @@ async function assertApprovedForSend(
 }
 
 export async function publishNowAction(formData: FormData) {
+  const backTo: Flash = listBack(formData);
   const { workspace, membership } = await requireRole("EDITOR");
   const id = String(formData.get("id") ?? "");
   const post = await db.socialPost.findFirst({ where: { id, workspaceId: workspace.id } });
@@ -432,6 +448,7 @@ export async function cancelScheduledAction(formData: FormData) {
 }
 
 export async function deleteSocialPostAction(formData: FormData) {
+  const backTo: Flash = listBack(formData);
   const { workspace } = await requireRole("EDITOR");
   const id = String(formData.get("id") ?? "");
   await db.socialPost.deleteMany({ where: { id, workspaceId: workspace.id } });
@@ -440,6 +457,7 @@ export async function deleteSocialPostAction(formData: FormData) {
 }
 
 export async function duplicateSocialPostAction(formData: FormData) {
+  const backTo: Flash = listBack(formData);
   const { workspace, user, membership } = await requireRole("EDITOR");
   const id = String(formData.get("id") ?? "");
   const src = await db.socialPost.findFirst({ where: { id, workspaceId: workspace.id }, include: { targets: true } });
@@ -460,6 +478,7 @@ export async function duplicateSocialPostAction(formData: FormData) {
       firstComment: src.firstComment,
       linkToFirstComment: src.linkToFirstComment,
       watermark: src.watermark,
+      source: "manual",
       status: "draft",
       approval: gate.approval,
       targets: {
@@ -683,6 +702,7 @@ export async function updateSocialPostAction(formData: FormData) {
 
 /** Scheduled → draft, without losing the content. */
 export async function unscheduleSocialPostAction(formData: FormData) {
+  const backTo: Flash = listBack(formData);
   const id = String(formData.get("id") ?? "");
   const { workspace } = await requireRole("EDITOR");
   const updated = await db.socialPost.updateMany({

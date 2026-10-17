@@ -907,7 +907,11 @@ export function SocialComposer({
         )}
         <SubmitButton
           className="btn primary"
-          disabled={selected.size === 0 || overBlocks || tiktokBlocks || (brandedSelfOnly && when !== "draft")}
+          // A DRAFT needs no account — the server accepts account-less drafts
+          // and the page promises "you can still write and save drafts". The
+          // button used to be disabled whenever nothing was ticked, so a
+          // workspace with no accounts could never save one (found 2026-10-17).
+          disabled={(selected.size === 0 && when !== "draft") || overBlocks || tiktokBlocks || (brandedSelfOnly && when !== "draft")}
           pendingText={editing ? "Saving…" : when === "queue" ? "Queueing…" : when === "schedule" || when === "optimal" ? "Scheduling…" : when === "draft" ? "Saving…" : "Posting…"}
         >
           {editing ? (
