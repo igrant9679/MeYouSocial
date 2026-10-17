@@ -25,7 +25,9 @@ export default async function RssPage({ searchParams }: { searchParams: Promise<
     db.rssFeed.findMany({
       where: { workspaceId: workspace.id },
       orderBy: { createdAt: "asc" },
-      include: { items: { orderBy: { createdAt: "desc" }, take: 5, select: { id: true, title: true, link: true, socialIdeaId: true, postId: true, createdAt: true } }, _count: { select: { items: true } } },
+      // Newest by the feed's own date: a feed lists newest first, so insertion
+      // order would show the oldest of a read first.
+      include: { items: { orderBy: [{ publishedAt: { sort: "desc", nulls: "last" } }, { createdAt: "desc" }], take: 5, select: { id: true, title: true, link: true, socialIdeaId: true, postId: true, createdAt: true } }, _count: { select: { items: true } } },
     }),
     db.topic.findMany({ where: { workspaceId: workspace.id, status: "active" }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
     listCategories(workspace.id),
@@ -105,7 +107,7 @@ export default async function RssPage({ searchParams }: { searchParams: Promise<
                   {f.items.map((it) => (
                     <li key={it.id}>
                       {it.link ? <a href={it.link} target="_blank" rel="noreferrer" className="hover:underline">{it.title}</a> : it.title}
-                      <span className="text-[10px] text-[var(--mute)]"> · {it.socialIdeaId ? <Link href="/ideas?format=social" className="underline">an idea on the board</Link> : it.postId ? <Link href={`/social/${it.postId}/edit`} className="underline">a draft</Link> : "seen, older than the first read's week"}</span>
+                      <span className="text-[10px] text-[var(--mute)]"> · {it.socialIdeaId ? <Link href="/ideas?format=social" className="underline">an idea on the board</Link> : it.postId ? <Link href={`/social/${it.postId}/edit`} className="underline">a draft</Link> : <span title="Not every item is brought in: the first read takes at most 5 from the past week and each later read at most 10, so a busy feed can't flood the board. The rest are marked seen so they never arrive late.">seen, not brought in</span>}</span>
                     </li>
                   ))}
                 </ul>

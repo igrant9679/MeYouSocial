@@ -249,7 +249,7 @@ function LaneSection({ lane, open, editor, topics, openArticles, directives, pag
         <span className="text-[11px] text-[var(--mute)]">{live === 0 ? "nothing open" : breakdown}{rejected.length ? ` · ${rejected.length} rejected` : ""}</span>
         <span className="flex-1" />
         {t && t.description && <span className="text-[11px] text-[var(--mute)] hidden md:inline truncate max-w-md">{t.description}</span>}
-        {!t && <span className="text-[11px] text-[var(--mute)]">these came before Topics — tag each one and it moves to its lane</span>}
+        {!t && <span className="text-[11px] text-[var(--mute)]">no Topic on these yet — tag each one and it moves to its lane</span>}
       </summary>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3">
