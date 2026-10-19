@@ -121,22 +121,30 @@ export async function getHomeData(workspaceId: string): Promise<HomeData> {
   // One card for the three formats (2026-09-21): a person triages the board,
   // not a table. The breakdown says where the work is.
   const toTriage = ideasDiscovered + videoIdeasNew + socialIdeasNew;
-  const approvedAll = ideasApproved + videoIdeasApproved + socialIdeasApproved;
   if (toTriage > 0) {
     const parts = [
       ideasDiscovered ? `${ideasDiscovered} article` : "",
       videoIdeasNew ? `${videoIdeasNew} video` : "",
       socialIdeasNew ? `${socialIdeasNew} social` : "",
     ].filter(Boolean);
+    // The line waiting is broken down the same way: one total read as "12
+    // articles queued" on a workspace whose 12 were social ideas the gate had
+    // approved, while no article had been approved for four weeks (2026-10-18).
+    const waiting = [
+      ideasApproved ? `${ideasApproved} article` : "",
+      videoIdeasApproved ? `${videoIdeasApproved} video` : "",
+      socialIdeasApproved ? `${socialIdeasApproved} social` : "",
+    ].filter(Boolean);
+    const noArticle = ideasDiscovered > 0 && ideasApproved === 0 ? " No article idea is approved, so the engine has no new article to write." : "";
     decisions.push({
       module: "Blog",
       kind: "blog-ideas",
       severity: "info",
       title: `${toTriage} idea${toTriage === 1 ? "" : "s"} to triage${parts.length > 1 ? ` — ${parts.join(", ")}` : ""}`,
       detail:
-        approvedAll > 0
-          ? `Approved ideas are made by the engine on its weekly allowances — ${approvedAll} already waiting in that line.`
-          : "Approved ideas are made by the engine on its weekly allowances; rejected ones stop coming back.",
+        (waiting.length
+          ? `Approved ideas are made by the engine on its weekly allowances — waiting in that line now: ${waiting.join(", ")}.`
+          : "Approved ideas are made by the engine on its weekly allowances; rejected ones stop coming back.") + noArticle,
       href: "/ideas",
       cta: "Triage",
     });

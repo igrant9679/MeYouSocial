@@ -58,8 +58,22 @@ export async function setBlogIdeaStatusAction(formData: FormData) {
   const id = String(formData.get("id"));
   const status = String(formData.get("status"));
   if (!["discovered", "approved", "rejected"].includes(status)) return;
-  const { workspace } = await requireRole("EDITOR");
+  const { user, workspace } = await requireRole("EDITOR");
+  const idea = await db.blogIdea.findFirst({ where: { id, workspaceId: workspace.id }, select: { status: true, title: true } });
+  if (!idea) return;
   await db.blogIdea.updateMany({ where: { id, workspaceId: workspace.id }, data: { status } });
+  // Approval is the article side's one human gate, so who opened or closed it
+  // is recorded — the row social ideas have always written.
+  if (idea.status !== status) {
+    await writeAudit({
+      workspaceId: workspace.id,
+      actorId: user.id,
+      action: status === "approved" ? "ideas.approved" : status === "rejected" ? "ideas.rejected" : "ideas.restored",
+      entityType: "blog_idea",
+      entityId: id,
+      meta: { from: idea.status, title: idea.title },
+    });
+  }
   revalidatePath("/blog");
   revalidatePath("/ideas");
 }

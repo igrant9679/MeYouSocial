@@ -10,6 +10,7 @@ import { addSocialIdeaAction } from "@/app/actions/social-ideas";
 import { cleanTitle } from "@/lib/list-marker";
 import { ownTopicId } from "@/lib/topics";
 import { isIdeaFormat } from "@/lib/ideas-board";
+import { writeAudit } from "@/lib/governance";
 
 registerOnboardingJobs();
 
@@ -242,9 +243,21 @@ export async function updateIdeaStatusAction(formData: FormData) {
   const ideaId = String(formData.get("ideaId"));
   const status = String(formData.get("status"));
   if (!["new", "approved", "in_progress", "scripted", "archived"].includes(status)) return;
-  const { workspace } = await requireRole("EDITOR");
-  const idea = await db.idea.findFirst({ where: { id: ideaId, channel: { workspaceId: workspace.id } }, select: { id: true, channelId: true } });
+  const { user, workspace } = await requireRole("EDITOR");
+  const idea = await db.idea.findFirst({ where: { id: ideaId, channel: { workspaceId: workspace.id } }, select: { id: true, channelId: true, status: true, title: true } });
   if (!idea) return;
   await db.idea.update({ where: { id: idea.id }, data: { status } });
+  // Same rows as an article idea's (actions/blog-ideas.ts); archived is the
+  // video board's Rejected.
+  if (idea.status !== status) {
+    await writeAudit({
+      workspaceId: workspace.id,
+      actorId: user.id,
+      action: status === "approved" ? "ideas.approved" : status === "archived" ? "ideas.rejected" : status === "new" ? "ideas.restored" : "ideas.status_changed",
+      entityType: "video_idea",
+      entityId: idea.id,
+      meta: { from: idea.status, to: status, title: idea.title },
+    });
+  }
   revalidateBoards(idea.channelId);
 }
