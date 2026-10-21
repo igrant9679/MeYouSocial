@@ -297,29 +297,69 @@ async function holdUnsourceable(workspaceId: string, post: PostRow, citationId: 
  * Replace the [NEEDS SOURCE] marker belonging to this claim with a source
  * link — or, with `url` null, remove it. Markers and citation rows were
  * minted from the same sentences, so the marker whose preceding text ends
- * with the claim is the right one; if the body has been edited since, the
- * first remaining marker is the best match.
+ * with the claim is the right one. If the body has been edited since and no
+ * marker matches, the only marker left is taken — but with several left, none
+ * is: guessing put a source on the wrong claim. The unmatched marker then gets
+ * a fresh row from the orphan reconciliation, which is the honest outcome.
  */
 async function resolveMarker(post: { id: string }, claim: string, url: string | null): Promise<boolean> {
   const body = (await db.blogPost.findUnique({ where: { id: post.id }, select: { body: true } }))?.body;
   if (!body) return false;
-  const tail = normTail(claim);
-
-  let firstIdx = -1;
-  let matchIdx = -1;
-  for (let i = body.indexOf(MARKER); i !== -1; i = body.indexOf(MARKER, i + 1)) {
-    if (firstIdx === -1) firstIdx = i;
-    if (tail && normText(body.slice(Math.max(0, i - 400), i)).endsWith(tail)) { matchIdx = i; break; }
-  }
-  const idx = matchIdx !== -1 ? matchIdx : firstIdx;
-  if (idx === -1) return false;
-
-  const replacement = url ? `<a href="${url}">(source)</a>` : "";
-  // Removing: take the space before the marker with it, so "fund." [NEEDS SOURCE]" reads "fund."".
-  const start = !url && body[idx - 1] === " " ? idx - 1 : idx;
-  const next = body.slice(0, start) + replacement + body.slice(idx + MARKER.length);
+  const next = resolveMarkerIn(body, claim, url);
+  if (next === null) return false;
   await db.blogPost.update({ where: { id: post.id }, data: { body: next } });
   return true;
+}
+
+/** The text half of resolveMarker — the new body, or null when no marker is this claim's. */
+export function resolveMarkerIn(body: string, claim: string, url: string | null): string | null {
+  const tail = normTail(claim);
+
+  const found: number[] = [];
+  let matchIdx = -1;
+  for (let i = body.indexOf(MARKER); i !== -1; i = body.indexOf(MARKER, i + 1)) {
+    found.push(i);
+    if (matchIdx === -1 && tail && normText(body.slice(Math.max(0, i - 400), i)).endsWith(tail)) matchIdx = i;
+  }
+  const idx = matchIdx !== -1 ? matchIdx : found.length === 1 ? found[0] : -1;
+  if (idx === -1) return null;
+
+  // The writer sometimes wraps the marker in a placeholder link —
+  // `<a href="#">[NEEDS SOURCE]</a>` (CommunityForce, 2026-10-19). Replace the
+  // whole anchor, or the source link lands nested inside it.
+  let from = idx;
+  let to = idx + MARKER.length;
+  const wrap = body.slice(Math.max(0, idx - 200), idx).match(/<a\b[^>]*>$/i);
+  if (wrap && body.slice(to, to + 4).toLowerCase() === "</a>") {
+    from = idx - wrap[0].length;
+    to += 4;
+  }
+
+  const replacement = url ? `<a href="${url.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;")}">(source)</a>` : "";
+  // Removing: take the space before the marker with it, so "fund." [NEEDS SOURCE]" reads "fund."".
+  const start = !url && body[from - 1] === " " ? from - 1 : from;
+  return body.slice(0, start) + replacement + body.slice(to);
+}
+
+/**
+ * A person verified this claim with their own source: its marker becomes the
+ * link, exactly as when auto-review finds one. Without this the row said
+ * "verified" while the marker stayed, and "No unresolved [NEEDS SOURCE]
+ * markers" held the article for good (found 2026-10-19).
+ */
+export async function linkMarkerForClaim(postId: string, claim: string, url: string): Promise<boolean> {
+  const safe = webUrl(url);
+  return safe ? resolveMarker({ id: postId }, claim, safe) : false;
+}
+
+/** A person's source becomes a link in the article: http(s) only, normalised. */
+export function webUrl(raw: string): string | null {
+  try {
+    const u = new URL(raw.trim());
+    return u.protocol === "https:" || u.protocol === "http:" ? u.href : null;
+  } catch {
+    return null;
+  }
 }
 
 /**

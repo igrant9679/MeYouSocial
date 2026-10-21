@@ -756,7 +756,10 @@ export const TOOLS: Tool[] = [
       const cit = await db.blogCitation.findFirst({ where: { id: str(a.citationId, 40), post: { workspaceId: ctx.workspaceId } } });
       if (!cit) return "no such citation";
       await db.blogCitation.update({ where: { id: cit.id }, data: { verified: true, sourceUrl: url } });
-      await writeAudit({ workspaceId: ctx.workspaceId, actorId: ctx.userId, action: "blog.citation_verified", entityType: "blog_post", entityId: cit.postId, meta: { citationId: cit.id, sourceUrl: url, via: "assistant" } });
+      // The marker becomes the link — the required check counts markers.
+      const { linkMarkerForClaim } = await import("@/lib/blog-autoreview");
+      const linked = await linkMarkerForClaim(cit.postId, cit.claim, url);
+      await writeAudit({ workspaceId: ctx.workspaceId, actorId: ctx.userId, action: "blog.citation_verified", entityType: "blog_post", entityId: cit.postId, meta: { citationId: cit.id, sourceUrl: url, via: "assistant", markerLinked: linked } });
       const { advanceIfReadyCore } = await import("@/lib/blog-gates");
       const moved = await advanceIfReadyCore(ctx.workspaceId, cit.postId, "verified a claim (assistant)");
       return `verified${moved ? "; the article advanced to final approval" : ""}`;

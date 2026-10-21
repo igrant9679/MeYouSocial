@@ -7,7 +7,7 @@ import { db } from "@/lib/db";
 import { runBlogChecks } from "@/lib/blog-checks";
 import { advanceIfReadyCore, gatesSatisfied, overrideGateCore } from "@/lib/blog-gates";
 import { writeAudit } from "@/lib/governance";
-import { removeMarkerForClaim } from "@/lib/blog-autoreview";
+import { linkMarkerForClaim, removeMarkerForClaim, webUrl } from "@/lib/blog-autoreview";
 import { generateDraftCore } from "@/lib/blog-autopilot";
 import { richTextToPlainText, sanitizeRichHtml, unwrapBlockParagraphs } from "@/lib/richtext";
 import { jobs } from "@/lib/jobs";
@@ -372,16 +372,29 @@ export async function addCitationAction(formData: FormData) {
 export async function verifyCitationAction(formData: FormData) {
   const id = String(formData.get("id"));
   const sourceUrl = String(formData.get("sourceUrl") ?? "").trim();
-  const { workspace } = await requireRole("EDITOR");
+  const { workspace, user } = await requireRole("EDITOR");
   const cit = await db.blogCitation.findFirst({
     where: { id, post: { workspaceId: workspace.id } },
   });
   if (!cit) return;
   // Verification requires a source URL — a claim can't be "verified" against nothing.
-  if (!sourceUrl && !cit.sourceUrl) return;
+  // It is written into the article as a link, so only a web address is taken.
+  const url = webUrl(sourceUrl || cit.sourceUrl || "");
+  if (!url) return;
   await db.blogCitation.update({
     where: { id },
-    data: { verified: true, sourceUrl: sourceUrl || cit.sourceUrl },
+    data: { verified: true, sourceUrl: url },
+  });
+  // The marker becomes the link, as when auto-review sources a claim — the
+  // required check counts markers, so a verified row alone held the article.
+  const markerLinked = await linkMarkerForClaim(cit.postId, cit.claim, url);
+  await writeAudit({
+    workspaceId: workspace.id,
+    actorId: user.id,
+    action: "blog.citation_verified",
+    entityType: "blog_post",
+    entityId: cit.postId,
+    meta: { citationId: id, sourceUrl: url, via: "inbox", markerLinked },
   });
   // Verifying the claim that held the article moves it now, not next sweep.
   await advanceIfReadyCore(workspace.id, cit.postId, "verified a claim");
