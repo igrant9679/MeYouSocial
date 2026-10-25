@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import type { Role } from "@prisma/client";
+import { withdrawInvitationsFor } from "@/lib/invitations";
 
 /**
  * The registry of things a user is allowed to delete, and the ONLY place that
@@ -335,13 +336,16 @@ export const DELETABLE: Record<DeletableKind, Deletable> = {
     async remove(id, workspaceId) {
       // ⚠ Never let a workspace end up with no admin — that locks everyone out
       // of its settings with no in-app way back.
-      const row = await db.membership.findFirst({ where: { id, workspaceId }, select: { role: true } });
+      const row = await db.membership.findFirst({ where: { id, workspaceId }, select: { role: true, status: true, user: { select: { email: true } } } });
       if (!row) return;
-      if (row.role === "ADMIN") {
+      // Only an ACTIVE admin counts — a revoked admin row can always go.
+      if (row.role === "ADMIN" && row.status === "active") {
         const admins = await db.membership.count({ where: { workspaceId, role: "ADMIN", status: "active" } });
         if (admins <= 1) throw new Error("This is the workspace's only admin — promote someone else first, or the workspace would be left with nobody who can administer it.");
       }
       await db.membership.deleteMany({ where: { id, workspaceId } });
+      // Removing someone also withdraws invitations still waiting for them.
+      await withdrawInvitationsFor(workspaceId, row.user.email);
     },
     revalidate: ["/admin"],
   },

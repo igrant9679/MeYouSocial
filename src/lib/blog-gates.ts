@@ -47,9 +47,15 @@ async function checksFor(workspaceId: string, postId: string) {
  * clearing act; a no-op otherwise.
  */
 export async function advanceIfReadyCore(workspaceId: string, postId: string, via: string): Promise<boolean> {
-  const loaded = await checksFor(workspaceId, postId);
+  let loaded = await checksFor(workspaceId, postId);
   if (!loaded || loaded.post.status !== "draft_review") return false;
-  if (!gatesSatisfied(loaded.post, loaded.checks)) return false;
+  // A claim a person verified before the hand-verify fix still has its marker
+  // in the body; link those first (exact sentence matches only), so clearing
+  // the article's last blocker isn't defeated by an invisible one. Dynamic
+  // import: blog-autoreview depends on modules that depend on this one.
+  const { linkVerifiedMarkers } = await import("@/lib/blog-autoreview");
+  if (await linkVerifiedMarkers(postId).catch(() => 0)) loaded = await checksFor(workspaceId, postId);
+  if (!loaded || !gatesSatisfied(loaded.post, loaded.checks)) return false;
   await db.blogPost.update({ where: { id: postId }, data: { status: "final_approval" } });
   await writeAudit({
     workspaceId, action: "blog.auto_advanced", entityType: "blog_post", entityId: postId,

@@ -18,16 +18,30 @@ export const env = {
   APP_URL: str(process.env.APP_URL, "http://localhost:3000"),
   APP_NAME: str(process.env.APP_NAME, "MeYouSocial Publisher"),
   BOOTSTRAP_ADMIN_EMAIL: str(process.env.BOOTSTRAP_ADMIN_EMAIL).toLowerCase(),
+  // Self-service sign-up. OFF by default: an open /signup minted a workspace
+  // for anyone on the internet, and a workspace with no keys of its own runs on
+  // the platform's keys — a stranger could spend the operator's AI budget.
+  // With it off, an account is created only through an invitation link (and
+  // for BOOTSTRAP_ADMIN_EMAIL).
+  ALLOW_OPEN_SIGNUP: bool(process.env.ALLOW_OPEN_SIGNUP, false),
 
   DATABASE_URL: str(process.env.DATABASE_URL),
 
-  AUTH_SECRET: str(process.env.AUTH_SECRET, "dev-only-not-secret"),
+  // ⚠ No fallback. A default here signed every session with a string anyone
+  // can read in the repo whenever the variable went missing — exactly the risk
+  // during a secret rotation. Empty → Auth.js refuses every request
+  // ("Please define a secret"): fail closed, never open.
+  AUTH_SECRET: str(process.env.AUTH_SECRET),
   AUTH_URL: str(process.env.AUTH_URL, "http://localhost:3000"),
   ENABLE_GOOGLE_SSO: bool(process.env.ENABLE_GOOGLE_SSO, false),
   GOOGLE_CLIENT_ID: str(process.env.GOOGLE_CLIENT_ID),
   GOOGLE_CLIENT_SECRET: str(process.env.GOOGLE_CLIENT_SECRET),
 
-  USE_MOCK_LLM: bool(process.env.USE_MOCK_LLM, true),
+  // Default FALSE, like every other USE_MOCK_* flag: with `true` as the default,
+  // losing this variable (a rotation, a re-created service) silently turned
+  // every generation into placeholder text while the Keys page said a pasted
+  // key was live. A provider with no key still falls back to the labelled mock.
+  USE_MOCK_LLM: bool(process.env.USE_MOCK_LLM, false),
   DEFAULT_LLM_MODEL: str(process.env.DEFAULT_LLM_MODEL, "claude-sonnet"),
   ANTHROPIC_API_KEY: str(process.env.ANTHROPIC_API_KEY),
   OPENAI_API_KEY: str(process.env.OPENAI_API_KEY),

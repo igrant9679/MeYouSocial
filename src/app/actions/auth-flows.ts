@@ -101,7 +101,7 @@ export async function requestVerificationForUser(userId: string, userEmail: stri
   await email.send({
     to: userEmail,
     subject: "Verify your MeYouSocial email",
-    html: `<p>Welcome! Confirm your email to unlock all features:</p>
+    html: `<p>Welcome! Confirm this is your email address (it also accepts any invitation sent to it):</p>
            <p><a href="${origin}/verify/${token}">${origin}/verify/${token}</a></p>`,
   });
 }
@@ -113,10 +113,19 @@ export async function verifyEmailAction(formData: FormData) {
     redirect("/verify/expired");
   }
   const userId = record!.identifier.slice(PURPOSE_VERIFY.length);
-  await db.$transaction([
+  const [user] = await db.$transaction([
     db.user.update({ where: { id: userId }, data: { emailVerified: new Date() } }),
     db.verificationToken.delete({ where: { token } }),
   ]);
+  // The address is proven now, so invitations sent to it can be claimed —
+  // the safe replacement for sign-up's old claim-by-typed-email.
+  const { claimInvitationsForVerifiedEmail } = await import("@/lib/invitations");
+  const joined = await claimInvitationsForVerifiedEmail(user.id, user.email);
+  if (joined.length > 0) {
+    const { cookies } = await import("next/headers");
+    const { ACTIVE_WS_COOKIE } = await import("@/lib/acl");
+    (await cookies()).set(ACTIVE_WS_COOKIE, joined[0], { httpOnly: true, sameSite: "lax", path: "/", maxAge: 60 * 60 * 24 * 365 });
+  }
   redirect("/inbox");
 }
 

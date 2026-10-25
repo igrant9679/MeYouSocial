@@ -249,6 +249,32 @@ Tabs: **Keys** (`/admin/api-keys`: LLM, search, images, video, TTS, storage) · 
   event countdown. Output is a CaptionBatch reviewed before any post exists; flags come from
   `checks.ts` and are shown, never auto-fixed. X gets the batch's short version or is left off.
 
+## ⚠ Security invariants (2026-10-25, audit Phase 0 — `docs/AUDIT-2026-10-25.md`)
+- **Fail closed on config.** `AUTH_SECRET` has no default (empty → Auth.js refuses requests);
+  `USE_MOCK_LLM` defaults to false. Never reintroduce a fallback secret or a mock-by-default flag.
+- **Sign-up is by invitation** unless `ALLOW_OPEN_SIGNUP=true` (default off). The form also opens
+  for the very first account on an empty install. An invitation is claimed ONLY with its token
+  (`/signup?invite=…`, `/invitations/<token>` signed in as the invited address) or after the address
+  is verified (`verifyEmailAction`). Never claim by typed email. All three doors go through
+  `lib/invitations.ts` `claimInvitation` — atomic, and it never lowers an existing active role.
+  Revoking/removing a member withdraws their pending invitations.
+- **Stored HTML is stripped of executable markup** by `lib/html-safety.ts` `stripExecutableHtml`:
+  on body save (both actions), in the rich editor's seed, in `renderForPublish` and both exports,
+  and first inside `sanitizeRichHtml`. It is a denylist that keeps sections/styles/ids — don't swap
+  it for the allowlist on the body. ⚠ The Write/Edit tools turn ` `-style escapes into literal
+  characters; that file uses numeric code-point checks on purpose.
+- **Assistant confirmations**: a proposal runs only when the whole reply is a bare yes
+  (`isAffirmative`), expires after 15 minutes, and is claimed atomically from the thread before it
+  runs. `schedule_article` is ADMIN-only; tool times without a zone are read in the posting timezone.
+- **Tenant boundaries on shared platform accounts**: only the operator adopts unclaimed Unipile
+  mailboxes; the hosted-auth callback needs the single-use `<workspaceId>:<nonce>` it was issued
+  and never reassigns an owned account. Analytics never falls back to the shared platform service
+  account unless the operator lists the workspace in the platform Setting
+  `analytics:platform_sa_workspaces`; site/property/OAuth identity keys are workspace-only
+  (`WORKSPACE_ONLY_KEYS` in `lib/settings.ts`). YouTube/Analytics OAuth `state` is a single-use
+  nonce (`lib/google/oauth-state.ts`). SMTP save/test reuse a stored password only from the
+  workspace's own row with the same host+user, and refuse private hosts (`lib/net/public-host.ts`).
+
 ## Open items / things the user still owns
 - **Analytics: APIs enabled 2026-08-03** (Search Console + GA Admin + GA Data, on project
   `479503233109` = `gen-lang-client-0838901195` = "CreateUp"). Still pending, user-only: add the

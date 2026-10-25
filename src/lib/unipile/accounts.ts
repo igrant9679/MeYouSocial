@@ -15,6 +15,48 @@ export async function resolveEmailSender(workspaceId: string): Promise<{ account
   return row ? { accountId: row.accountId, name: row.name } : null;
 }
 
+// ── Hosted-auth state ────────────────────────────────────────────────────────
+// The hosted-auth callback (/api/unipile/webhook) is public. It used to trust
+// the posted `name` as the workspace id and only check that the account existed
+// under the shared Unipile key — which another company's real mailbox does — so
+// a forged POST could hand one tenant's mailbox to another. Now the link carries
+// `<workspaceId>:<nonce>`, the nonce is stored on the workspace for the life of
+// the link, and the callback accepts it once.
+
+const HOSTED_STATE_KEY = "unipile:hosted_state";
+const HOSTED_STATE_TTL_MS = 45 * 60 * 1000; // the link itself lives 30 minutes
+
+export async function issueHostedAuthState(workspaceId: string): Promise<string> {
+  const { randomBytes } = await import("node:crypto");
+  const nonce = randomBytes(18).toString("base64url");
+  await db.workspaceSetting.upsert({
+    where: { workspaceId_key: { workspaceId, key: HOSTED_STATE_KEY } },
+    update: { value: JSON.stringify({ nonce, exp: Date.now() + HOSTED_STATE_TTL_MS }) },
+    create: { workspaceId, key: HOSTED_STATE_KEY, value: JSON.stringify({ nonce, exp: Date.now() + HOSTED_STATE_TTL_MS }) },
+  });
+  return `${workspaceId}:${nonce}`;
+}
+
+/** True once for a `<workspaceId>:<nonce>` this app issued and that hasn't expired. */
+export async function consumeHostedAuthState(name: string): Promise<string | null> {
+  const sep = name.lastIndexOf(":");
+  if (sep <= 0) return null;
+  const workspaceId = name.slice(0, sep);
+  const nonce = name.slice(sep + 1);
+  const row = await db.workspaceSetting.findUnique({ where: { workspaceId_key: { workspaceId, key: HOSTED_STATE_KEY } } });
+  if (!row) return null;
+  let stored: { nonce?: string; exp?: number } = {};
+  try { stored = JSON.parse(row.value) as typeof stored; } catch { return null; }
+  if (!stored.nonce || !stored.exp || stored.exp < Date.now()) return null;
+  const { timingSafeEqual } = await import("node:crypto");
+  const a = Buffer.from(stored.nonce);
+  const b = Buffer.from(nonce);
+  if (a.length !== b.length || !timingSafeEqual(a, b)) return null;
+  // Single use: whoever deletes it is the one callback allowed through.
+  const gone = await db.workspaceSetting.deleteMany({ where: { workspaceId, key: HOSTED_STATE_KEY, value: row.value } });
+  return gone.count === 1 ? workspaceId : null;
+}
+
 /** Unipile account types that carry a mailbox. Anything else is a social/IM account. */
 const MAIL_TYPES = new Set(["MAIL", "GOOGLE", "GMAIL", "OUTLOOK", "IMAP", "EXCHANGE"]);
 
@@ -37,7 +79,8 @@ const MAIL_TYPES = new Set(["MAIL", "GOOGLE", "GMAIL", "OUTLOOK", "IMAP", "EXCHA
  */
 export async function syncUnipileMailboxes(
   workspaceId: string,
-): Promise<{ found: number; adopted: number; skipped: number; addresses: string[] }> {
+  opts: { adoptUnclaimed: boolean },
+): Promise<{ found: number; adopted: number; skipped: number; unclaimed: number; addresses: string[] }> {
   const { listUnipileAccounts } = await import("@/lib/unipile");
   const remote = await listUnipileAccounts();
   const mail = remote.filter((a) => MAIL_TYPES.has(a.type.toUpperCase()));
@@ -50,11 +93,23 @@ export async function syncUnipileMailboxes(
       })
     ).map((r) => r.accountId),
   );
+  const ownIds = new Set(
+    (
+      await db.unipileAccount.findMany({ where: { workspaceId, accountId: { in: mail.map((a) => a.id) } }, select: { accountId: true } })
+    ).map((r) => r.accountId),
+  );
 
+  // ⚠ Only the PLATFORM OPERATOR may adopt a mailbox no workspace claims.
+  // A tenant admin's refresh used to take every unclaimed mailbox on the shared
+  // team — including one another company had just disconnected — make it the
+  // default sender, and list its address back. Tenants now only refresh the
+  // mailboxes already theirs; the rest wait for the operator to assign.
   let adopted = 0;
+  let unclaimed = 0;
   const addresses: string[] = [];
   for (const a of mail) {
     if (claimedElsewhere.has(a.id)) continue;
+    if (!ownIds.has(a.id) && !opts.adoptUnclaimed) { unclaimed++; continue; }
     await db.unipileAccount.upsert({
       where: { workspaceId_accountId: { workspaceId, accountId: a.id } },
       update: { provider: a.type, name: a.name, status: "connected" },
@@ -74,5 +129,5 @@ export async function syncUnipileMailboxes(
     if (first) await db.unipileAccount.update({ where: { id: first.id }, data: { isDefault: true } });
   }
 
-  return { found: mail.length, adopted, skipped: claimedElsewhere.size, addresses };
+  return { found: mail.length, adopted, skipped: claimedElsewhere.size, unclaimed, addresses };
 }

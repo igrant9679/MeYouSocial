@@ -10,6 +10,7 @@ import { writeAudit } from "@/lib/governance";
 import { linkMarkerForClaim, removeMarkerForClaim, webUrl } from "@/lib/blog-autoreview";
 import { generateDraftCore } from "@/lib/blog-autopilot";
 import { richTextToPlainText, sanitizeRichHtml, unwrapBlockParagraphs } from "@/lib/richtext";
+import { stripExecutableHtml } from "@/lib/html-safety";
 import { jobs } from "@/lib/jobs";
 import { readMotifWeights, serializeMotifs } from "@/lib/motifs";
 import { loadAssetGate } from "@/lib/blog-images";
@@ -64,7 +65,7 @@ export async function updateBlogPostAction(formData: FormData) {
 
   // Same normalisation as autosave — see autosaveBlogBodyAction.
   const rawBody = str(formData.get("body"));
-  const newBody = rawBody ? unwrapBlockParagraphs(rawBody) : null;
+  const newBody = rawBody ? stripExecutableHtml(unwrapBlockParagraphs(rawBody)) : null;
   const pick = (k: string, allowed: string[]) => {
     const v = str(formData.get(k));
     return v && allowed.includes(v) ? v : null;
@@ -283,7 +284,10 @@ export async function autosaveBlogBodyAction(formData: FormData) {
   // `<p><ul><li>…</li></ul></p>` — invalid HTML that every reader re-parses
   // differently, and this body is what publishCore sends to WordPress. Proven
   // by clicking the toolbar on production and reading the row back.
-  const body = unwrapBlockParagraphs(String(formData.get("body") ?? ""));
+  // ⚠ And stripped of anything executable: this body is rendered back into
+  // the editor as HTML, so an <img onerror=…> saved here ran as whoever opened
+  // the article next (an admin, or the platform operator). lib/html-safety.ts.
+  const body = stripExecutableHtml(unwrapBlockParagraphs(String(formData.get("body") ?? "")));
   const { workspace } = await requireRole("EDITOR");
   await db.blogPost.updateMany({
     where: { id, workspaceId: workspace.id },

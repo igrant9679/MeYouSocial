@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { env } from "@/lib/env";
 import { signIn } from "@/auth";
 import { requestVerificationForUser } from "@/app/actions/auth-flows";
+import { claimInvitation, pendingInvitationsFor, sameEmail } from "@/lib/invitations";
 import { SubmitButton } from "@/components/SubmitButton";
 import { ValidatedInput } from "@/components/ValidatedInput";
 
@@ -15,25 +16,52 @@ const schema = z.object({
   password: z.string().min(8).max(120),
 });
 
+// ── Who may create an account ───────────────────────────────────────────────
+// Sign-up is by INVITATION unless ALLOW_OPEN_SIGNUP is set. An open form used
+// to mint a workspace for anyone on the internet, and a workspace with no keys
+// of its own runs on the platform's keys — so a stranger could spend the
+// operator's AI budget. The exceptions: a valid invitation link (for exactly
+// the address it was sent to), and BOOTSTRAP_ADMIN_EMAIL on a fresh install.
+//
+// ⚠ Invitations are never claimed by typed email any more. That was how
+// "whoever registers an invited address first joins with its role" worked —
+// the token is the proof, or (open mode) a verified address, which
+// verifyEmailAction claims for. See lib/invitations.ts.
+
+function errorUrl(code: string, invite: string) {
+  return `/signup?error=${code}${invite ? `&invite=${encodeURIComponent(invite)}` : ""}`;
+}
+
 async function signupAction(formData: FormData) {
   "use server";
+  const inviteToken = String(formData.get("invite") ?? "");
   const parsed = schema.safeParse({
     name: formData.get("name"),
     email: formData.get("email"),
     password: formData.get("password"),
   });
-  if (!parsed.success) redirect("/signup?error=invalid");
+  if (!parsed.success) redirect(errorUrl("invalid", inviteToken));
+  const data = parsed.data!;
 
-  const existing = await db.user.findUnique({ where: { email: parsed.data.email } });
-  if (existing) redirect("/signup?error=exists");
+  const invite = inviteToken ? await db.invitation.findUnique({ where: { token: inviteToken } }) : null;
+  const inviteLive = Boolean(invite && !invite.acceptedAt && invite.expiresAt > new Date());
+  const isBootstrap = Boolean(env.BOOTSTRAP_ADMIN_EMAIL) && env.BOOTSTRAP_ADMIN_EMAIL === data.email;
 
-  const passwordHash = await bcrypt.hash(parsed.data.password, 10);
+  if (inviteLive && !sameEmail(invite!.email, data.email)) redirect(errorUrl("wrong-email", inviteToken));
+  if (!inviteLive && !isBootstrap && !env.ALLOW_OPEN_SIGNUP) {
+    redirect(errorUrl(inviteToken ? "invite-gone" : "invite-only", inviteToken));
+  }
+
+  const existing = await db.user.findUnique({ where: { email: data.email } });
+  if (existing) redirect(errorUrl("exists", inviteToken));
+
+  const passwordHash = await bcrypt.hash(data.password, 10);
   const user = await db.user.create({
-    data: { email: parsed.data.email, name: parsed.data.name, passwordHash },
+    data: { email: data.email, name: data.name, passwordHash },
   });
 
   // Bootstrap: first user whose email matches BOOTSTRAP_ADMIN_EMAIL joins the demo workspace as ADMIN.
-  if (env.BOOTSTRAP_ADMIN_EMAIL && env.BOOTSTRAP_ADMIN_EMAIL === parsed.data.email) {
+  if (isBootstrap) {
     const demo = await db.workspace.findFirst({ where: { id: "demo-workspace" } });
     if (demo) {
       await db.membership.upsert({
@@ -44,68 +72,35 @@ async function signupAction(formData: FormData) {
     }
   }
 
-  // Invited teammate signing up? Join THEIR company's workspace instead of
-  // minting a personal one (which used to strand invited users in a stray
-  // tenant). The invite must match the signup email — otherwise ignored, and
-  // the /invitations/<token> page can still be accepted after sign-in.
-  let joinedInvite = false;
-  const inviteToken = String(formData.get("invite") ?? "");
-  if (inviteToken) {
-    const invite = await db.invitation.findUnique({ where: { token: inviteToken } });
-    if (invite && !invite.acceptedAt && invite.expiresAt > new Date() && invite.email === parsed.data.email) {
-      await db.$transaction([
-        db.membership.create({
-          data: { userId: user.id, workspaceId: invite.workspaceId, role: invite.role },
-        }),
-        db.invitation.update({ where: { id: invite.id }, data: { acceptedAt: new Date() } }),
-      ]);
-      joinedInvite = true;
-    }
-  }
+  // The invitation they signed up through — their company's workspace, with
+  // the invited role (never a stray personal one).
+  let joined = false;
+  if (inviteLive) joined = await claimInvitation(user.id, invite!);
 
-  // No token? Claim pending invitations BY EMAIL. Field case (2026-08-07): an
-  // invited teammate signed up bare — straight to /signup, no token — and was
-  // minted a stray personal workspace while her invitation sat unaccepted.
-  // The token only proves what email equality already anchors here: signup
-  // trusts the typed email for account identity anyway, so an invitation
-  // addressed to exactly this email may be claimed by it. (An attacker who
-  // signs up with someone else's invited address gains nothing they wouldn't
-  // get from the same trick without an invitation — the account, not the
-  // mailbox, and the real invitee's link then reports "already accepted",
-  // which is the alarm.)
-  if (!joinedInvite) {
-    const pending = await db.invitation.findMany({
-      where: { email: parsed.data.email, acceptedAt: null, expiresAt: { gt: new Date() } },
-    });
-    for (const invite of pending) {
-      await db.$transaction([
-        db.membership.upsert({
-          where: { userId_workspaceId: { userId: user.id, workspaceId: invite.workspaceId } },
-          update: { role: invite.role, status: "active" },
-          create: { userId: user.id, workspaceId: invite.workspaceId, role: invite.role },
-        }),
-        db.invitation.update({ where: { id: invite.id }, data: { acceptedAt: new Date() } }),
-      ]);
-      joinedInvite = true;
+  // Open sign-up only: a personal workspace, UNLESS invitations are waiting
+  // for this address. Those wait for the address to be verified (the
+  // onboarding page says so) rather than handing the person a stray tenant.
+  if (!joined && !isBootstrap && env.ALLOW_OPEN_SIGNUP) {
+    const waiting = await pendingInvitationsFor(data.email);
+    if (waiting.length === 0) {
+      const personal = await db.workspace.create({ data: { name: `${data.name}'s workspace` } });
+      await db.membership.create({ data: { userId: user.id, workspaceId: personal.id, role: "ADMIN" } });
     }
-  }
-
-  // Otherwise every user starts with a workspace of their own (their company's
-  // first workspace — rename it under Settings → Workspace).
-  if (!joinedInvite) {
-    const personal = await db.workspace.create({
-      data: { name: `${parsed.data.name}'s workspace` },
-    });
-    await db.membership.create({
-      data: { userId: user.id, workspaceId: personal.id, role: "ADMIN" },
-    });
   }
 
   // send verification email on signup
   await requestVerificationForUser(user.id, user.email);
 
-  await signIn("credentials", { email: parsed.data.email, password: parsed.data.password, redirectTo: "/inbox" });
+  await signIn("credentials", { email: data.email, password: data.password, redirectTo: "/inbox" });
 }
+
+const ERRORS: Record<string, string> = {
+  exists: "An account already exists for that email — sign in instead.",
+  invalid: "Please check your details and try again.",
+  "wrong-email": "Use the address this invitation was sent to.",
+  "invite-gone": "That invitation has already been used or has expired. Ask whoever invited you for a new one.",
+  "invite-only": "Accounts are created from an invitation link. Open the link your administrator sent you.",
+};
 
 export default async function SignUpPage({ searchParams }: { searchParams: Promise<{ error?: string; invite?: string }> }) {
   const { error, invite } = await searchParams;
@@ -117,29 +112,45 @@ export default async function SignUpPage({ searchParams }: { searchParams: Promi
         include: { workspace: { select: { name: true } } },
       })
     : null;
+  // A fresh install has nobody to send an invitation, so the form stays open
+  // for the bootstrap admin until the first account exists.
+  const firstRun = !pendingInvite && !env.ALLOW_OPEN_SIGNUP ? (await db.user.count()) === 0 : false;
+  const showForm = Boolean(pendingInvite) || env.ALLOW_OPEN_SIGNUP || firstRun;
+  const message = error ? ERRORS[error] : null;
+
   return (
     <div className="flex-1 grid place-items-center p-6">
       <div className="card w-full max-w-md">
-        <h1 className="font-mono font-bold text-xl mb-1">Create your account</h1>
+        <h1 className="font-mono font-bold text-xl mb-1">{showForm ? "Create your account" : "Sign-up is by invitation"}</h1>
         {pendingInvite ? (
           <p className="text-sm mb-5">
             You&apos;re joining <b>{pendingInvite.workspace.name}</b> as {pendingInvite.role.toLowerCase()}.{" "}
             <span className="text-[var(--mute)]">Sign up with <b>{pendingInvite.email}</b> — the address the invite was sent to.</span>
           </p>
+        ) : showForm ? (
+          <p className="text-sm text-[var(--mute)] mb-5">
+            {firstRun ? "Set up the first account on this install." : "Your company's workspace is created automatically — invite your team from Settings → People once you're in."}
+          </p>
         ) : (
-          <p className="text-sm text-[var(--mute)] mb-5">Your company&apos;s workspace is created automatically — invite your team from Admin once you&apos;re in.</p>
+          <p className="text-sm text-[var(--mute)] mb-5">
+            Accounts on this install are created from an invitation. Open the link in your invitation email — if you
+            can&apos;t find it, an admin of your workspace can copy it for you from Settings → People.
+          </p>
         )}
-        {error === "exists" && <p className="text-sm text-[var(--brand)] mb-3">An account already exists for that email.</p>}
-        {error === "invalid" && <p className="text-sm text-[var(--brand)] mb-3">Please check your details and try again.</p>}
-        <form action={signupAction} className="flex flex-col gap-3">
-          {pendingInvite && <input type="hidden" name="invite" value={invite} />}
-          <ValidatedInput label="Your name" name="name" required maxLength={80} autoComplete="name" className="w-full border border-[var(--line-2)] rounded-lg px-3 py-2 text-sm" />
-          <ValidatedInput label="Email" name="email" type="email" required autoComplete="email" className="w-full border border-[var(--line-2)] rounded-lg px-3 py-2 text-sm" />
-          <ValidatedInput label="Password" name="password" type="password" required minLength={8} autoComplete="new-password" errorMessage="Use at least 8 characters." className="w-full border border-[var(--line-2)] rounded-lg px-3 py-2 text-sm" />
-          <SubmitButton className="btn primary mt-2" pendingText="Creating…">Create account</SubmitButton>
-        </form>
+        {message && <p className="text-sm text-[var(--brand)] mb-3" role="alert">{message}</p>}
+        {showForm ? (
+          <form action={signupAction} className="flex flex-col gap-3">
+            {pendingInvite && <input type="hidden" name="invite" value={invite} />}
+            <ValidatedInput label="Your name" name="name" required maxLength={80} autoComplete="name" className="w-full border border-[var(--line-2)] rounded-lg px-3 py-2 text-sm" />
+            <ValidatedInput label="Email" name="email" type="email" required autoComplete="email" defaultValue={pendingInvite?.email} className="w-full border border-[var(--line-2)] rounded-lg px-3 py-2 text-sm" />
+            <ValidatedInput label="Password" name="password" type="password" required minLength={8} autoComplete="new-password" errorMessage="Use at least 8 characters." className="w-full border border-[var(--line-2)] rounded-lg px-3 py-2 text-sm" />
+            <SubmitButton className="btn primary mt-2" pendingText="Creating…">Create account</SubmitButton>
+          </form>
+        ) : (
+          <Link href="/signin" className="btn primary">Sign in</Link>
+        )}
         <p className="text-xs text-[var(--mute)] mt-4 text-center">
-          Already have an account? <Link href="/signin" className="text-[var(--accent)] font-semibold">Sign in</Link>
+          Already have an account? <Link href={invite ? `/signin?next=${encodeURIComponent(`/invitations/${invite}`)}` : "/signin"} className="text-[var(--accent)] font-semibold">Sign in</Link>
         </p>
       </div>
     </div>

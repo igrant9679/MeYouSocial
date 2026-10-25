@@ -80,10 +80,15 @@ export async function gscVerify(workspaceId?: string | null): Promise<{ ok: bool
       };
     }
     if (!sites.includes(cfg.siteUrl)) {
+      // Name the visible properties only when the credential is this
+      // workspace's own — a shared credential's list belongs to other tenants.
+      const own = cfg.cred.kind !== "platform_sa";
       return {
         ok: false,
-        message: `The service account can see ${sites.length} propert${sites.length === 1 ? "y" : "ies"} (${sites.slice(0, 3).join(", ")}) but not "${cfg.siteUrl}". Copy the identifier exactly as Search Console shows it.`,
-        sites,
+        message: own
+          ? `${cfg.identity} can see ${sites.length} propert${sites.length === 1 ? "y" : "ies"} (${sites.slice(0, 3).join(", ")}) but not "${cfg.siteUrl}". Copy the identifier exactly as Search Console shows it.`
+          : `The credential in use can't see "${cfg.siteUrl}". Copy the identifier exactly as Search Console shows it, and make sure access was granted.`,
+        sites: own ? sites : undefined,
       };
     }
     return { ok: true, message: `Connected to ${cfg.siteUrl}.`, sites };

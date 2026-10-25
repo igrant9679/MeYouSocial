@@ -148,8 +148,33 @@ export function parseDirective(raw: string): Directive | null {
   return null;
 }
 
-const YES = /^\s*(y|yes|yep|yeah|yup|ok|okay|sure|do it|go ahead|go|confirm|confirmed|proceed|please do|yes,? do it|yes,? go ahead)\b/i;
-const NO = /^\s*(n|no|nope|cancel|stop|don'?t|do not|never ?mind|hold off|not now|abort)\b/i;
+// ⚠ A proposal runs only on a reply that is NOTHING BUT a yes. This used to be
+// a prefix test, so "OK, actually no, cancel", "Go to the calendar instead" and
+// "Sure, but change the text" all ran the proposed publish/send/invite. Now the
+// whole message, minus punctuation, has to be one of these; anything else is a
+// decline (if it says no anywhere) or a new request (the proposal lapses).
+const YES_PHRASES = new Set([
+  "y", "yes", "yep", "yeah", "yup", "ok", "okay", "sure", "do it", "go ahead", "go", "confirm",
+  "confirmed", "proceed", "please do", "yes do it", "yes go ahead", "yes please", "ok do it",
+  "okay do it", "yes proceed", "approve", "approved", "go for it", "👍",
+]);
+const NO = /(^|\b)(n|no|nope|cancel|stop|don'?t|do not|never ?mind|hold off|not now|abort|wait)\b/i;
+/** Proposals older than this lapse instead of running on a late "ok". */
+const PROPOSAL_TTL_MS = 15 * 60 * 1000;
+
+export function isAffirmative(message: string): boolean {
+  const normalised = message
+    .toLowerCase()
+    .replace(/[.,!?;:'"“”‘’()\-–—]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return YES_PHRASES.has(normalised);
+}
+
+export function proposalExpired(p: PendingAction, now = Date.now()): boolean {
+  const asked = Date.parse(p.askedAt);
+  return !Number.isFinite(asked) || now - asked > PROPOSAL_TTL_MS;
+}
 
 export async function runAssistant(
   ctx: ToolContext,
@@ -173,8 +198,11 @@ export async function runAssistant(
   const transcript: Array<{ role: "user" | "assistant"; content: string }> = [...history.slice(-12)];
 
   // ── A pending proposal: the person's message is the answer to it ──────────
-  if (pending) {
-    if (YES.test(message)) {
+  if (pending && proposalExpired(pending)) {
+    // A "yes" long after the question is not consent to what was asked then.
+    transcript.push({ role: "user", content: `${message}\n\n[an earlier proposal "${pending.summary}" expired unanswered and was NOT done; if the person is agreeing to it, propose it again so they can confirm it fresh]` });
+  } else if (pending) {
+    if (isAffirmative(message)) {
       const { ok, output } = await runTool(pending.tool, pending.args, ctx, { confirmed: true });
       steps.push({ kind: "tool", tool: pending.tool, args: pending.args, output, ok });
       transcript.push({ role: "assistant", content: JSON.stringify({ tool: pending.tool, args: pending.args, why: pending.summary }) });

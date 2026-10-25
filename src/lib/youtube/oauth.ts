@@ -1,5 +1,6 @@
 import { getSetting, setWorkspaceSetting } from "@/lib/settings";
 import { encryptSecret, decryptSecret, type Encrypted } from "@/lib/blog-crypto";
+import { issueOauthState } from "@/lib/google/oauth-state";
 
 /**
  * YouTube OAuth (per workspace).
@@ -64,7 +65,8 @@ export async function buildYoutubeAuthUrl(workspaceId: string, origin: string): 
     // (e.g. Drive's drive.file) into the request, and YouTube scopes refuse to
     // combine with them — "scopes that cannot be requested together",
     // Error 400 invalid_request. Each connect keeps its own token instead.
-    state: workspaceId,
+    // A single-use nonce, not the (guessable) workspace id — lib/google/oauth-state.ts.
+    state: await issueOauthState(workspaceId, "youtube"),
   });
   return `${AUTH_ENDPOINT}?${params.toString()}`;
 }

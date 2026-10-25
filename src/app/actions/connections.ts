@@ -24,11 +24,14 @@ export async function connectAccountAction() {
   if (!(await unipileConfigured())) redirect("/admin/connections?err=unconfigured");
 
   const origin = await getPublicUrl();
+  // `<workspaceId>:<nonce>` — the callback accepts this exact value once.
+  const { issueHostedAuthState } = await import("@/lib/unipile/accounts");
+  const state = await issueHostedAuthState(workspace.id);
   let url: string;
   try {
     url = await hostedAuthLink({
       providers: EMAIL_PROVIDERS,
-      name: workspace.id,
+      name: state,
       notifyUrl: `${origin}/api/unipile/webhook`,
       successUrl: `${origin}/admin/connections?connected=1`,
       failureUrl: `${origin}/admin/connections?failed=1`,
@@ -105,20 +108,25 @@ export async function syncSocialAccountsAction() {
  * you think.
  */
 export async function syncMailboxesAction() {
-  const { workspace } = await requireRole("ADMIN");
+  const { workspace, user } = await requireRole("ADMIN");
   const { syncUnipileMailboxes } = await import("@/lib/unipile/accounts");
+  // Only the platform operator assigns unclaimed mailboxes (see accounts.ts).
+  const operator = isPlatformOperator(user.email);
   try {
-    const { found, adopted, skipped, addresses } = await syncUnipileMailboxes(workspace.id);
+    const { found, adopted, skipped, unclaimed, addresses } = await syncUnipileMailboxes(workspace.id, { adoptUnclaimed: operator });
     revalidatePath("/admin/connections");
     const detail = addresses.length ? ` (${addresses.join(", ")})` : "";
+    const waiting = unclaimed
+      ? ` ${unclaimed} other mailbox${unclaimed === 1 ? "" : "es"} on the shared account belong${unclaimed === 1 ? "s" : ""} to no workspace yet — the platform administrator assigns those.`
+      : "";
     redirect(
       "/admin/connections?ok=" +
         encodeURIComponent(
           adopted
-            ? `${workspace.name}: mirrored ${adopted} mailbox${adopted === 1 ? "" : "es"} from Unipile${detail}.` +
-              (skipped ? ` ${skipped} already belong to another workspace and were left alone.` : "")
+            ? `${workspace.name}: ${operator ? "mirrored" : "refreshed"} ${adopted} mailbox${adopted === 1 ? "" : "es"} from Unipile${detail}.` +
+              (operator && skipped ? ` ${skipped} already belong to another workspace and were left alone.` : "") + waiting
             : found
-              ? `Unipile has ${found} mailbox${found === 1 ? "" : "es"}, but ${skipped ? "they already belong to another workspace" : "none could be adopted"}.`
+              ? `No mailbox on the shared account is connected to ${workspace.name} yet — connect one with the button below.${waiting}`
               : "Unipile reports no mailboxes yet — connect one with the button below.",
         ),
     );

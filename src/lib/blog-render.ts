@@ -1,4 +1,5 @@
 import { HEADING_LEVELS, type HeadingLevel, type HeadingStyle } from "@/lib/motifs";
+import { stripExecutableHtml } from "@/lib/html-safety";
 import {
   DEFAULT_RENDER_RULES,
   renderDesignSystem,
@@ -92,8 +93,12 @@ export function renderForPublish(
     renderRules?: RenderRules;
   },
 ): { html: string; report: RenderReport } {
+  // Everything that leaves for a customer's site (WordPress, the HTML export)
+  // passes through here — strip executable markup at this boundary too, so a
+  // body written before the save-time check (or by any other writer) can't
+  // carry script onto the published page.
   const { html, report } = renderDesignSystem(
-    body,
+    stripExecutableHtml(body),
     opts.renderProfile ?? "html",
     opts.renderRules ?? DEFAULT_RENDER_RULES,
   );

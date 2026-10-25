@@ -43,6 +43,7 @@ async function googleAction(formData: FormData) {
 export default async function SignInPage({ searchParams }: { searchParams: Promise<{ error?: string; reset?: string; next?: string }> }) {
   const { error, reset, next: nextRaw } = await searchParams;
   const next = safeNext(nextRaw);
+  const inviteToken = next?.match(/^\/invitations\/([A-Za-z0-9_-]{10,80})$/)?.[1] ?? null;
   return (
     <div className="flex-1 grid place-items-center p-6">
       <div className="card w-full max-w-md">
@@ -64,10 +65,14 @@ export default async function SignInPage({ searchParams }: { searchParams: Promi
         )}
         <p className="text-xs text-[var(--mute)] mt-4 text-center flex items-center justify-between">
           <Link href="/forgot" className="text-[var(--mute)] hover:text-[var(--accent)]">Forgot password?</Link>
-          {/* The signup link keeps the return path too — an invitee who lands
-              here without an account would otherwise sign up bare and lose the
-              invite context (the email-claim in signup is the net under this). */}
-          <span>No account? <Link href={next ? `/signup?next=${encodeURIComponent(next)}` : "/signup"} className="text-[var(--accent)] font-semibold">Create one</Link></span>
+          {/* An invitee bounced here from /invitations/<token> keeps the token:
+              sign-up is invitation-only unless ALLOW_OPEN_SIGNUP, and the token
+              is what lets them in. Nobody else is offered a sign-up link. */}
+          {inviteToken ? (
+            <span>No account? <Link href={`/signup?invite=${encodeURIComponent(inviteToken)}`} className="text-[var(--accent)] font-semibold">Create one</Link></span>
+          ) : env.ALLOW_OPEN_SIGNUP ? (
+            <span>No account? <Link href="/signup" className="text-[var(--accent)] font-semibold">Create one</Link></span>
+          ) : null}
         </p>
       </div>
     </div>

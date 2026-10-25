@@ -1,6 +1,7 @@
 import { getSetting, setWorkspaceSetting } from "@/lib/settings";
 import { encryptSecret, decryptSecret, type Encrypted } from "@/lib/blog-crypto";
 import { parseServiceAccount, googleAccessToken, type ServiceAccount } from "@/lib/google/service-account";
+import { issueOauthState } from "@/lib/google/oauth-state";
 
 /**
  * "Sign in with Google" for the analytics connectors (per workspace).
@@ -61,7 +62,8 @@ export async function buildAnalyticsAuthUrl(workspaceId: string, origin: string)
     // ⚠ No include_granted_scopes — see the same note in youtube/oauth.ts:
     // merged prior grants (drive.file, youtube.*) make Google reject the
     // request outright once other consents exist on this project.
-    state: workspaceId,
+    // A single-use nonce, not the (guessable) workspace id — lib/google/oauth-state.ts.
+    state: await issueOauthState(workspaceId, "analytics"),
   });
   return `${AUTH_ENDPOINT}?${params.toString()}`;
 }
@@ -207,6 +209,13 @@ export async function resolveAnalyticsCredential(
     const sa = parseServiceAccount(own);
     return sa ? { kind: "own_sa", identity: sa.client_email, sa } : null;
   }
+  // ⚠ The shared platform service account is granted on SEVERAL tenants'
+  // properties, so letting any workspace fall back to it let one company read
+  // another's Search Console / GA4 just by typing its site URL. It is now used
+  // only for workspaces the operator lists in the platform Setting
+  // `analytics:platform_sa_workspaces` (comma-separated ids). None do today —
+  // every connected tenant uses its own Google account.
+  if (!workspaceId || !(await platformSaAllowed(workspaceId))) return null;
   try {
     const { db } = await import("@/lib/db");
     const row = await db.setting.findUnique({ where: { key: "gdrive:service_account" } });
@@ -214,6 +223,16 @@ export async function resolveAnalyticsCredential(
     return sa ? { kind: "platform_sa", identity: sa.client_email, sa } : null;
   } catch {
     return null;
+  }
+}
+
+async function platformSaAllowed(workspaceId: string): Promise<boolean> {
+  try {
+    const { db } = await import("@/lib/db");
+    const row = await db.setting.findUnique({ where: { key: "analytics:platform_sa_workspaces" } });
+    return (row?.value ?? "").split(",").map((s) => s.trim()).filter(Boolean).includes(workspaceId);
+  } catch {
+    return false;
   }
 }
 

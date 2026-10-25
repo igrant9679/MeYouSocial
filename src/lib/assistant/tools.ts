@@ -55,6 +55,26 @@ const bool = (v: unknown): boolean | null => {
 const DAY = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const when = (d: Date | null | undefined) => (d ? d.toISOString().slice(0, 16).replace("T", " ") + " UTC" : "—");
 
+/**
+ * A time the person (or the model) wrote, as an instant. One with an explicit
+ * zone ("Z", "+01:00") is taken as written; a bare "2026-11-02 09:00" is wall
+ * clock in the workspace's POSTING timezone — what the person meant — not the
+ * server's UTC.
+ */
+async function parseInPostingZone(raw: string, workspaceId: string): Promise<Date | null> {
+  const s = raw.trim();
+  if (/(z|[+-]\d{2}:?\d{2})$/i.test(s)) {
+    const d = new Date(s);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+  const m = /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{1,2}):(\d{2}))?$/.exec(s);
+  if (!m) return null;
+  const { getPostingTimeZone, zonedTimeToUtc } = await import("@/lib/social/slots");
+  const tz = await getPostingTimeZone(workspaceId);
+  const d = zonedTimeToUtc(Number(m[1]), Number(m[2]), Number(m[3]), Number(m[4] ?? 9), Number(m[5] ?? 0), tz);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
 /** Things people will ask for that this assistant deliberately cannot do. */
 export const REFUSED_INTENTS = [
   "entering or changing API keys, passwords or connection credentials (Settings → Keys, Settings → Connections — a person pastes those)",
@@ -897,17 +917,27 @@ export const TOOLS: Tool[] = [
   },
   {
     name: "schedule_article",
-    description: "Set the date an article at final approval publishes (honoured over the publish day), or clear it.",
-    args: { articleId: "the article id", at: "ISO date-time, or 'clear'" },
+    description: "Admin: set the date an article at final approval publishes (honoured over the publish day), or clear it. Times without a zone are read in the workspace's posting timezone.",
+    args: { articleId: "the article id", at: "'YYYY-MM-DD HH:MM' in the workspace timezone (or ISO with an offset), or 'clear'" },
     confirm: true,
+    // ⚠ ADMIN, like the page's scheduleBlogPostAction: in assisted publishing a
+    // set time IS the publish approval, so an editor saying yes to their own
+    // proposal could publish an article.
+    minRole: "ADMIN",
     async run(a, ctx) {
-      const post = await db.blogPost.findFirst({ where: { id: str(a.articleId, 40), workspaceId: ctx.workspaceId }, select: { id: true } });
+      const post = await db.blogPost.findFirst({ where: { id: str(a.articleId, 40), workspaceId: ctx.workspaceId }, select: { id: true, status: true } });
       if (!post) return "no such article";
+      if (post.status !== "final_approval") return `refused: only an article at final approval can be scheduled (this one is ${post.status})`;
       const raw = str(a.at, 40);
-      if (raw === "clear") { await db.blogPost.update({ where: { id: post.id }, data: { scheduledAt: null } }); return "publish date cleared — the publish day rules again"; }
-      const d = new Date(raw);
-      if (Number.isNaN(d.getTime())) return "that is not a valid date-time";
+      if (raw === "clear") {
+        await db.blogPost.update({ where: { id: post.id }, data: { scheduledAt: null } });
+        await writeAudit({ workspaceId: ctx.workspaceId, actorId: ctx.userId, action: "blog.unscheduled", entityType: "blog_post", entityId: post.id, meta: { via: "assistant" } });
+        return "publish date cleared — the publish day rules again";
+      }
+      const d = await parseInPostingZone(raw, ctx.workspaceId);
+      if (!d) return "that is not a valid date-time";
       await db.blogPost.update({ where: { id: post.id }, data: { scheduledAt: d } });
+      await writeAudit({ workspaceId: ctx.workspaceId, actorId: ctx.userId, action: "blog.scheduled", entityType: "blog_post", entityId: post.id, meta: { scheduledAt: d.toISOString(), via: "assistant" } });
       return `set to publish at ${when(d)}`;
     },
   },
@@ -969,7 +999,7 @@ export const TOOLS: Tool[] = [
   },
   {
     name: "schedule_social_post",
-    description: "Schedule a post for a specific time (ISO date-time in UTC, or 'YYYY-MM-DD HH:MM' in the workspace timezone).",
+    description: "Schedule a post for a specific time ('YYYY-MM-DD HH:MM' in the workspace timezone, or ISO with an offset).",
     args: { postId: "the social post id", at: "when" },
     confirm: true,
     async run(a, ctx) {
@@ -977,9 +1007,9 @@ export const TOOLS: Tool[] = [
       if (!post) return "no such post";
       if (post.status !== "draft" && post.status !== "scheduled") return "only unsent posts can be moved";
       if (post.approval === "pending" || post.approval === "changes") return "not approved yet";
-      const raw = str(a.at, 40);
-      const d = new Date(raw.includes("T") || raw.endsWith("Z") ? raw : raw.replace(" ", "T") + "Z");
-      if (Number.isNaN(d.getTime()) || d.getTime() < Date.now() - 60_000) return "that time is invalid or already passed";
+      // Read in the posting timezone — this appended "Z" and sent 09:00 New York at 05:00.
+      const d = await parseInPostingZone(str(a.at, 40), ctx.workspaceId);
+      if (!d || d.getTime() < Date.now() - 60_000) return "that time is invalid or already passed";
       await db.socialPost.update({ where: { id: post.id }, data: { scheduledAt: d, status: "scheduled" } });
       return `scheduled for ${when(d)}`;
     },

@@ -2,6 +2,7 @@ import { requireMembership } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { storage } from "@/lib/storage";
 import { PRODUCT } from "@/lib/product";
+import { stripExecutableHtml } from "@/lib/html-safety";
 
 /**
  * The no-WordPress fallback (owner's ask, 2026-09-06): a self-contained HTML
@@ -68,7 +69,8 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
   const [featuredSrc, ogSrc, body] = await Promise.all([
     featured ? embed(featured.url) : Promise.resolve(null),
     og ? embed(og.url) : Promise.resolve(null),
-    embedInline(post.body ?? ""),
+    // Executable markup never leaves in a file meant for a customer's site.
+    embedInline(stripExecutableHtml(post.body ?? "")),
   ]);
 
   const article =

@@ -150,8 +150,23 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
       <div className="card mb-4 text-xs text-[var(--mute)] leading-relaxed">
         <p className="mb-1"><strong>Two sources, one resolved value:</strong> we read from the database first, then fall back to the env var if no DB value is set.</p>
         <p>To <em>remove</em> a DB-stored key and fall back to env, save with the value field empty.</p>
-        <p className="mt-2">For background generations, also flip <code className="font-mono px-1 rounded" style={{ background: "var(--zebra)" }}>USE_MOCK_LLM=false</code> on Railway.</p>
       </div>
+
+      {/* The install-wide mock switch, shown only when it is actually ON — it
+          overrides every key on this page, so a pasted key would look saved
+          and still produce placeholder text. */}
+      {env.USE_MOCK_LLM && (
+        <div className="card mb-4 flex items-start gap-2 text-sm" style={{ background: "var(--rose-soft)", borderColor: "var(--rose)" }}>
+          <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" style={{ color: "var(--rose-on)" }} />
+          <span>
+            Mock mode is on for this whole install, so every generation returns placeholder text whatever key is
+            saved here.{" "}
+            {isPlatformOperator
+              ? <>Remove <code className="font-mono">USE_MOCK_LLM</code> from the server&apos;s environment (or set it to false) and redeploy.</>
+              : <>Ask the platform administrator to turn it off.</>}
+          </span>
+        </div>
+      )}
 
       {ROWS.map((row) => {
         const dbVal = byKey.get(`api_key:${row.provider}`) ?? "";

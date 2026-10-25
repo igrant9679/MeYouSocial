@@ -1,15 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getUnipileAccount, classifyAccount } from "@/lib/unipile";
+import { consumeHostedAuthState } from "@/lib/unipile/accounts";
 
 // Unipile hosted-auth callback. On a successful connection Unipile POSTs
-// { status: "CREATION_SUCCESS", account_id, name } where name = the workspaceId
-// we passed. We map the account to that workspace and store it.
+// { status: "CREATION_SUCCESS", account_id, name } where name is the
+// `<workspaceId>:<nonce>` connectAccountAction put on the link.
 //
-// Security: the endpoint is public, but a forged payload can't attach a bogus
-// account — we re-fetch the account from Unipile using OUR api key; an id that
-// doesn't exist under our account resolves to null and is rejected. We also
-// require the named workspace to exist.
+// Security: the endpoint is public, so nothing in the payload is trusted on its
+// own.
+// - The name must be a state this app issued, unexpired, and it works ONCE
+//   (consumeHostedAuthState). It used to be the bare workspace id, so a forged
+//   POST could attach any mailbox to any workspace.
+// - The account is re-fetched from Unipile with OUR key; an id that doesn't
+//   exist under our account is rejected.
+// - An account another workspace already owns is never re-assigned here —
+//   that decision belongs to the platform operator.
 
 export const dynamic = "force-dynamic";
 
@@ -23,21 +29,30 @@ export async function POST(req: NextRequest) {
 
   const status = payload.status ?? "";
   const accountId = payload.account_id ?? "";
-  const workspaceId = (payload.name ?? "").trim();
+  const name = (payload.name ?? "").trim();
 
   // Reconnect/other statuses: acknowledge without changes.
-  if (status !== "CREATION_SUCCESS" || !accountId || !workspaceId) {
+  if (status !== "CREATION_SUCCESS" || !accountId || !name) {
     return NextResponse.json({ ok: true, ignored: true });
   }
 
-  const workspace = await db.workspace.findUnique({ where: { id: workspaceId }, select: { id: true } });
-  if (!workspace) return NextResponse.json({ ok: true, ignored: "unknown workspace" });
-
-  // Validate the account really exists under our Unipile key.
+  // Validate the account really exists under our Unipile key BEFORE spending
+  // the single-use state, so a junk POST can't burn a person's live link.
   const info = await getUnipileAccount(accountId);
   if (!info || info.id !== accountId) {
     return NextResponse.json({ ok: true, ignored: "account not found" });
   }
+
+  const owner = await db.unipileAccount.findFirst({ where: { accountId }, select: { workspaceId: true } });
+
+  const workspaceId = await consumeHostedAuthState(name);
+  if (!workspaceId) return NextResponse.json({ ok: true, ignored: "unrecognised or expired state" });
+  if (owner && owner.workspaceId !== workspaceId) {
+    return NextResponse.json({ ok: true, ignored: "account belongs to another workspace" });
+  }
+
+  const workspace = await db.workspace.findUnique({ where: { id: workspaceId }, select: { id: true } });
+  if (!workspace) return NextResponse.json({ ok: true, ignored: "unknown workspace" });
 
   const { kind, provider } = classifyAccount(info.type);
   await db.unipileAccount.upsert({

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireMembership, canAdmin } from "@/lib/acl";
 import { exchangeAnalyticsCode } from "@/lib/google/analytics-oauth";
+import { consumeOauthState } from "@/lib/google/oauth-state";
 import { getPublicUrl } from "@/lib/public-url";
 
 // Google redirects here after the user consents to the Search Console + GA4
@@ -34,8 +35,10 @@ export async function GET(req: NextRequest) {
     return back("Sign in as an admin, then connect Google again.");
   }
 
-  if (state !== workspaceId) {
-    return back("This authorization was started for a different workspace. Try again from this workspace.");
+  // The state must be the single-use nonce THIS workspace was issued when an
+  // admin pressed Connect (a guessable workspace id used to be accepted).
+  if (!(await consumeOauthState(workspaceId, "analytics", state))) {
+    return back("This authorization link has expired or wasn't started from this workspace. Press Connect Google again.");
   }
 
   const result = await exchangeAnalyticsCode(workspaceId, code, publicOrigin);

@@ -32,7 +32,9 @@ const googleProvider = env.ENABLE_GOOGLE_SSO && env.GOOGLE_CLIENT_ID && env.GOOG
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(db),
   session: { strategy: "jwt" },
-  secret: env.AUTH_SECRET,
+  // Empty → undefined, so a missing AUTH_SECRET makes Auth.js refuse requests
+  // rather than sign sessions with something guessable (see lib/env.ts).
+  secret: env.AUTH_SECRET || undefined,
   // Trust the host header so Auth.js derives the canonical URL from the incoming
   // request instead of requiring AUTH_URL to be set per environment. This means
   // switching domains (Railway subdomain → custom domain) needs no env change.

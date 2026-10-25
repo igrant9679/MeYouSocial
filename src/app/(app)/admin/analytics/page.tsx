@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { LineChart, CheckCircle2, AlertTriangle, CirclePlay, Search, BarChart3, RefreshCw, KeyRound, LogIn } from "lucide-react";
-import { requireRole } from "@/lib/acl";
+import { requireRole, isPlatformOperator } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { SubmitButton } from "@/components/SubmitButton";
 import { getGscConfig } from "@/lib/analytics/gsc";
@@ -30,7 +30,8 @@ export default async function AnalyticsConnectionsPage({
 }: {
   searchParams: Promise<{ ok?: string; err?: string }>;
 }) {
-  const { workspace } = await requireRole("ADMIN");
+  const { workspace, user } = await requireRole("ADMIN");
+  const isOperator = isPlatformOperator(user.email);
   const { ok, err } = await searchParams;
 
   const [gsc, ga4, yt, ytCfg, gaOauth, origin, rows, driveSa] = await Promise.all([
@@ -200,11 +201,15 @@ export default async function AnalyticsConnectionsPage({
             {!ytCfg && <span className="text-[11px] text-[var(--mute)] ml-2">Save the OAuth client above first.</span>}
           </form>
         )}
-        {!gaOauth.connected && sharedSaEmail && (
+        {/* The shared platform service account is no longer a fallback for
+            tenants (it was granted on several companies' properties); only
+            the operator can enable it per workspace, so only they see it. */}
+        {!gaOauth.connected && (
           <p className="text-[10px] text-[var(--mute)] mt-2 leading-relaxed">
-            Fallbacks while no account is connected: a service-account JSON pasted below, then the shared platform service
-            account (<code className="font-mono px-1 rounded" style={{ background: "var(--zebra)" }}>{sharedSaEmail}</code>)
-            when it has been granted access.
+            Fallback while no account is connected: a service-account JSON of this workspace&apos;s own, pasted below.
+            {isOperator && sharedSaEmail && (
+              <> The shared platform service account (<code className="font-mono px-1 rounded" style={{ background: "var(--zebra)" }}>{sharedSaEmail}</code>) is used only for workspaces listed in the platform setting <code className="font-mono">analytics:platform_sa_workspaces</code>.</>
+            )}
           </p>
         )}
       </div>

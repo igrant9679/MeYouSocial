@@ -183,6 +183,14 @@ async function autoSourceCitations(workspaceId: string, post: PostRow): Promise<
   // draft sat exactly like that. Recreate rows from the marker sentences (the
   // same extraction the drafting core uses) so every marker is workable.
   if (post.body) {
+    // Markers of claims a person already verified become their links first —
+    // otherwise they'd be "known" below (the row exists) and hold the post
+    // forever. Re-read the body afterwards so extraction sees the repair.
+    if (await linkVerifiedMarkers(post.id)) {
+      post = { ...post, body: (await db.blogPost.findUnique({ where: { id: post.id }, select: { body: true } }))?.body ?? null };
+    }
+  }
+  if (post.body) {
     const existing = await db.blogCitation.findMany({ where: { postId: post.id }, select: { claim: true } });
     const known = new Set(existing.map((c) => normTail(c.claim)));
     // ⚠ claimsFromMarkers, not a local regex: the old one dropped a marker
@@ -312,7 +320,12 @@ async function resolveMarker(post: { id: string }, claim: string, url: string | 
 }
 
 /** The text half of resolveMarker — the new body, or null when no marker is this claim's. */
-export function resolveMarkerIn(body: string, claim: string, url: string | null): string | null {
+export function resolveMarkerIn(
+  body: string,
+  claim: string,
+  url: string | null,
+  opts: { exactOnly?: boolean } = {},
+): string | null {
   const tail = normTail(claim);
 
   const found: number[] = [];
@@ -321,7 +334,9 @@ export function resolveMarkerIn(body: string, claim: string, url: string | null)
     found.push(i);
     if (matchIdx === -1 && tail && normText(body.slice(Math.max(0, i - 400), i)).endsWith(tail)) matchIdx = i;
   }
-  const idx = matchIdx !== -1 ? matchIdx : found.length === 1 ? found[0] : -1;
+  // `exactOnly` refuses the "only marker left" fallback — for repairs, where
+  // the lone marker may belong to a different, still-unverified claim.
+  const idx = matchIdx !== -1 ? matchIdx : found.length === 1 && !opts.exactOnly ? found[0] : -1;
   if (idx === -1) return null;
 
   // The writer sometimes wraps the marker in a placeholder link —
@@ -350,6 +365,34 @@ export function resolveMarkerIn(body: string, claim: string, url: string | null)
 export async function linkMarkerForClaim(postId: string, claim: string, url: string): Promise<boolean> {
   const safe = webUrl(url);
   return safe ? resolveMarker({ id: postId }, claim, safe) : false;
+}
+
+/**
+ * Repair for articles wedged before the hand-verify fix: a citation row a
+ * person VERIFIED (with a source) whose [NEEDS SOURCE] marker is still in the
+ * body. Production marked the row and left the marker until 9506f87, so such
+ * an article stays held on "No unresolved markers" with nothing left to click
+ * — the editor hides Verify for a verified row and auto-sourcing only looks at
+ * unverified ones. Links each marker whose sentence matches its verified
+ * claim exactly; never guesses. Returns how many markers it linked.
+ */
+export async function linkVerifiedMarkers(postId: string): Promise<number> {
+  const post = await db.blogPost.findUnique({ where: { id: postId }, select: { body: true } });
+  if (!post?.body || !post.body.includes(MARKER)) return 0;
+  const verified = await db.blogCitation.findMany({
+    where: { postId, verified: true, sourceUrl: { not: null } },
+    select: { claim: true, sourceUrl: true },
+  });
+  let body = post.body;
+  let linked = 0;
+  for (const c of verified) {
+    const url = webUrl(c.sourceUrl ?? "");
+    if (!url) continue;
+    const next = resolveMarkerIn(body, c.claim, url, { exactOnly: true });
+    if (next !== null) { body = next; linked++; }
+  }
+  if (linked) await db.blogPost.update({ where: { id: postId }, data: { body } });
+  return linked;
 }
 
 /** A person's source becomes a link in the article: http(s) only, normalised. */

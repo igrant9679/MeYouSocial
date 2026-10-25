@@ -5,6 +5,7 @@ import {
   Bold, Italic, Link2, Link2Off, List, ListOrdered, Quote, Redo2, RemoveFormatting, Underline, Undo2,
 } from "lucide-react";
 import { plainTextToRichHtml, looksLikeHtml, richTextToPlainText } from "@/lib/richtext";
+import { stripExecutableHtml } from "@/lib/html-safety";
 
 /**
  * A traditional WYSIWYG editor: one writing surface, a formatting toolbar, and
@@ -105,12 +106,16 @@ export function RichTextEditor({
   onChange?: (html: string) => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  // ⚠ The seed is mounted as live HTML, so it is stripped of anything
+  // executable first — on the server render and in the browser alike (pure
+  // string work, identical output, no hydration mismatch). Stored bodies from
+  // before the save-time check, or from any other writer, can't run here.
   const [html, setHtml] = useState<string>(() => {
     const seed = (initialHtml ?? "").trim();
-    if (seed) return seed;
+    if (seed) return stripExecutableHtml(seed);
     const text = (initialText ?? "").trim();
     if (!text) return "";
-    return looksLikeHtml(text) ? text : plainTextToRichHtml(text);
+    return looksLikeHtml(text) ? stripExecutableHtml(text) : plainTextToRichHtml(text);
   });
   const [linkOpen, setLinkOpen] = useState(false);
   const [linkUrl, setLinkUrl] = useState("");

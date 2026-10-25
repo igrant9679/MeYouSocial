@@ -40,7 +40,18 @@ export async function runTurn(input: TurnInput): Promise<TurnOutput | null> {
 
   await db.assistantMessage.create({ data: { threadId: thread.id, role: "user", content: message } });
 
-  const pending = thread.pending ? readJson<PendingAction | null>(thread.pending, null) : null;
+  // Claim the waiting proposal ATOMICALLY before acting on it. Clearing it only
+  // after the run let a double "yes" (two tabs, a retry, the dock and the full
+  // page) run a confirm tool twice, and a crash mid-run left it waiting for the
+  // next "ok". Whoever clears it is the one turn allowed to answer it.
+  let pending: PendingAction | null = null;
+  if (thread.pending) {
+    const claimed = await db.assistantThread.updateMany({
+      where: { id: thread.id, pending: thread.pending },
+      data: { pending: null },
+    });
+    if (claimed.count === 1) pending = readJson<PendingAction | null>(thread.pending, null);
+  }
   const result = await runAssistant(
     { workspaceId: input.workspaceId, userId: input.userId, role: input.role, page: input.page ?? null, channelId: input.channelId ?? null },
     prior.map((m) => ({ role: m.role === "user" ? ("user" as const) : ("assistant" as const), content: m.content })),

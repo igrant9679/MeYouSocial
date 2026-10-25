@@ -2,9 +2,10 @@ import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { SubmitButton } from "@/components/SubmitButton";
 import Link from "next/link";
-import { auth } from "@/auth";
+import { auth, signOut } from "@/auth";
 import { db } from "@/lib/db";
 import { ACTIVE_WS_COOKIE } from "@/lib/acl";
+import { claimInvitation, sameEmail } from "@/lib/invitations";
 import { PRODUCT } from "@/lib/product";
 
 // Invitee accepts and joins the workspace with the role from the invite.
@@ -29,18 +30,21 @@ async function acceptAction(token: string) {
     // shows the state that actually applies, with its explanation.
     redirect(`/invitations/${token}`);
   }
+  // ⚠ Only the account the invitation was addressed to may accept it. A
+  // forwarded link, or an admin opening it to "see what they'll see", used to
+  // join (or re-role) whoever happened to be signed in.
+  if (!sameEmail(session!.user!.email, invite!.email)) redirect(`/invitations/${token}`);
 
-  await db.$transaction([
-    db.membership.upsert({
-      where: { userId_workspaceId: { userId: session!.user!.id, workspaceId: invite.workspaceId } },
-      update: { role: invite.role, status: "active" },
-      create: { userId: session!.user!.id, workspaceId: invite.workspaceId, role: invite.role },
-    }),
-    db.invitation.update({ where: { id: invite.id }, data: { acceptedAt: new Date() } }),
-  ]);
+  // Atomic, and never lowers a role this account already holds there.
+  await claimInvitation(session!.user!.id, invite!);
   // Land them in the workspace they just joined, not their first membership.
-  (await cookies()).set(ACTIVE_WS_COOKIE, invite.workspaceId, { httpOnly: true, sameSite: "lax", path: "/", maxAge: 60 * 60 * 24 * 365 });
+  (await cookies()).set(ACTIVE_WS_COOKIE, invite!.workspaceId, { httpOnly: true, sameSite: "lax", path: "/", maxAge: 60 * 60 * 24 * 365 });
   redirect("/inbox");
+}
+
+async function switchAccountAction(token: string) {
+  "use server";
+  await signOut({ redirectTo: `/invitations/${token}` });
 }
 
 function Notice({
@@ -98,16 +102,26 @@ export default async function InvitationPage({ params }: { params: Promise<{ tok
     );
   }
 
+  // ⚠ Don't tell the visitor "you've joined": the person opening a used link
+  // may be the real invitee discovering someone else used it. Say what is
+  // known — it was used — and who can check.
   if (invite.acceptedAt) {
     return (
       <Notice
-        title="Already accepted"
-        actions={<Link className="btn primary" href="/inbox">Go to Inbox</Link>}
+        title="This invitation has been used"
+        actions={
+          <>
+            <Link className="btn primary" href="/signin">Sign in</Link>
+            <Link className="btn" href="/">Home</Link>
+          </>
+        }
       >
         <p>
-          You&apos;ve already joined <b>{invite.workspace.name}</b>. Invitations only work once — sign in
-          normally from now on.
+          The invitation to <b>{invite.workspace.name}</b> was accepted on{" "}
+          <b>{invite.acceptedAt.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })}</b>.
+          Invitations only work once — if that was you, sign in as usual.
         </p>
+        <p>If it wasn&apos;t you, tell an admin of {invite.workspace.name}: they can see who joined under Settings → People.</p>
       </Notice>
     );
   }
@@ -125,9 +139,31 @@ export default async function InvitationPage({ params }: { params: Promise<{ tok
       >
         <p>
           Your invitation to <b>{invite.workspace.name}</b> lapsed on{" "}
-          <b>{invite.expiresAt.toLocaleDateString()}</b>. Invitations last seven days.
+          <b>{invite.expiresAt.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })}</b>. Invitations last seven days.
         </p>
         <p>Ask an admin of that workspace to send a new one — nothing is lost, it just needs reissuing.</p>
+      </Notice>
+    );
+  }
+
+  // Signed in as somebody else: say so plainly instead of offering an Accept
+  // that would be refused (or, before, that joined the wrong person).
+  const session = await auth();
+  const signedInAs = session?.user?.email ?? null;
+  if (signedInAs && !sameEmail(signedInAs, invite.email)) {
+    return (
+      <Notice
+        title="This invitation is for someone else"
+        actions={
+          <form action={switchAccountAction.bind(null, token)}>
+            <SubmitButton className="btn primary">Sign out and continue as {invite.email}</SubmitButton>
+          </form>
+        }
+      >
+        <p>
+          You&apos;re signed in as <b>{signedInAs}</b>, but this invitation to <b>{invite.workspace.name}</b> was
+          sent to <b>{invite.email}</b>. Only that account can accept it.
+        </p>
       </Notice>
     );
   }

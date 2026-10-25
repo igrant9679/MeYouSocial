@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { BrandLogo } from "@/components/BrandLogo";
 import { BRAND, PRODUCT_SHORT, PRODUCT_TAGLINE } from "@/lib/product";
+import { env } from "@/lib/env";
 
 export default async function Home() {
   const session = await auth();
@@ -18,9 +19,11 @@ export default async function Home() {
         <p className="text-sm text-[var(--mute)] mb-6">{PRODUCT_TAGLINE}</p>
         <div className="flex gap-3 justify-center">
           <Link href="/signin" className="btn primary">Sign in</Link>
-          <Link href="/signup" className="btn">Create account</Link>
+          {env.ALLOW_OPEN_SIGNUP && <Link href="/signup" className="btn">Create account</Link>}
         </div>
-        <p className="text-xs text-[var(--mute)] mt-6 font-mono">All AI providers are in <b>mock mode</b>. Edit <code>.env</code> and flip <code>USE_MOCK_*=false</code> to go real.</p>
+        {!env.ALLOW_OPEN_SIGNUP && (
+          <p className="text-xs text-[var(--mute)] mt-6">New here? Open the invitation link your administrator sent you.</p>
+        )}
       </div>
     </div>
   );

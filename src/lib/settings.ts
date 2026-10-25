@@ -35,6 +35,28 @@ export function isPlatformManagedKey(key: string): boolean {
   return PLATFORM_MANAGED_KEYS.has(key);
 }
 
+/**
+ * WORKSPACE-ONLY keys — the opposite of PLATFORM_MANAGED_KEYS: a tenant's own
+ * identity (which site and property it measures, which Google account or
+ * service account reads them, which YouTube channel is connected). These never
+ * inherit a global row: a workspace without its own value has NO value.
+ *
+ * ⚠ Why: with the global fallback, a workspace that hadn't configured analytics
+ * would read whatever global row existed — and "disconnect" (which deletes the
+ * workspace row) silently re-exposed it. Combined with the shared platform
+ * service account, one tenant could query another tenant's Search Console.
+ */
+export const WORKSPACE_ONLY_KEYS: ReadonlySet<string> = new Set([
+  "gsc:site_url",
+  "ga4:property_id",
+  "gsc:service_account",
+  "ga4:service_account",
+  "ganalytics_oauth:refresh_token",
+  "ganalytics_oauth:account",
+  "youtube_oauth:refresh_token",
+  "youtube_oauth:channel",
+]);
+
 const CACHE_TTL_MS = 30_000;
 const cache = new Map<string, { value: string; expires: number }>();
 
@@ -57,7 +79,8 @@ export async function getSetting(key: string, workspaceId?: string | null): Prom
       });
       value = ws?.value ?? "";
     }
-    if (!value) {
+    // Workspace-only keys stop here: no global row, ever (see WORKSPACE_ONLY_KEYS).
+    if (!value && !WORKSPACE_ONLY_KEYS.has(key)) {
       const row = await db.setting.findUnique({ where: { key } });
       value = row?.value ?? "";
     }

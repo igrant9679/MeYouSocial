@@ -7,6 +7,7 @@ import { nanoid } from "nanoid";
 import { requireRole } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/governance";
+import { withdrawInvitationsFor } from "@/lib/invitations";
 import { emailFor } from "@/lib/email";
 import { getPublicUrl } from "@/lib/public-url";
 import { PRODUCT } from "@/lib/product";
@@ -94,5 +95,9 @@ export async function revokeAction(formData: FormData) {
     where: { workspaceId: workspace.id, userId },
     data: { status: "revoked" },
   });
+  // An invitation still waiting for this person would let them straight back
+  // in — accepting reactivates a membership. Revoking withdraws it too.
+  const target = await db.user.findUnique({ where: { id: userId }, select: { email: true } });
+  await withdrawInvitationsFor(workspace.id, target?.email);
   revalidateBoth();
 }

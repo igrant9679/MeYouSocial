@@ -4,6 +4,14 @@ import { requireUser, isPlatformOperator } from "@/lib/acl";
 import { SubmitButton } from "@/components/SubmitButton";
 import { ValidatedInput } from "@/components/ValidatedInput";
 import { createWorkspaceAction } from "@/app/actions/workspace-switch";
+import { resendVerificationAction } from "@/app/actions/auth-flows";
+import { pendingInvitationsFor } from "@/lib/invitations";
+import { signOut } from "@/auth";
+
+async function signOutAction() {
+  "use server";
+  await signOut({ redirectTo: "/signin" });
+}
 
 /**
  * Create a workspace.
@@ -35,21 +43,48 @@ export default async function NewWorkspacePage({
   const canCreate = isPlatformOperator(user.email);
 
   if (!canCreate) {
+    // Invitations waiting for this address can't be accepted from here by
+    // email alone (anyone can type an email) — the link proves it, or a
+    // verified address does. Say which applies.
+    const waiting = first ? await pendingInvitationsFor(user.email) : [];
     return (
       <main className="min-h-screen grid place-items-center p-6">
         <div className="w-full max-w-lg card">
           <div className="flex items-center gap-2 mb-2">
             <AlertTriangle className="w-4 h-4 shrink-0" style={{ color: "var(--amber-on)" }} />
-            <h1 className="font-mono font-bold text-base">Workspaces are set up by the administrator</h1>
+            <h1 className="font-mono font-bold text-base">
+              {waiting.length > 0 ? "Your invitation is waiting" : "Workspaces are set up by the administrator"}
+            </h1>
           </div>
-          <p className="text-sm text-[var(--mute)] leading-relaxed mb-3">
-            {first
-              ? "You're signed in, but you're not a member of any workspace yet. Ask your platform administrator to invite you to one — the invitation link will bring you straight in."
-              : "Only the platform administrator can create new workspaces on this install. Ask them to set one up and invite you."}
-          </p>
+          {waiting.length > 0 ? (
+            <div className="text-sm text-[var(--mute)] leading-relaxed mb-3 space-y-2">
+              <p>
+                {waiting.length === 1
+                  ? <>An invitation to <b>{waiting[0].workspace.name}</b> was sent to <b>{user.email}</b>.</>
+                  : <>{waiting.length} invitations were sent to <b>{user.email}</b> ({waiting.map((w) => w.workspace.name).join(", ")}).</>}{" "}
+                Open the link in the invitation to join, or confirm this email address and it&apos;s accepted for you.
+              </p>
+              {user.emailVerified ? null : (
+                <form action={resendVerificationAction}>
+                  <SubmitButton className="btn sm" pendingText="Sending…">Send the confirmation email again</SubmitButton>
+                </form>
+              )}
+            </div>
+          ) : (
+            <p className="text-sm text-[var(--mute)] leading-relaxed mb-3">
+              {first
+                ? "You're signed in, but you're not a member of any workspace yet. Ask your platform administrator to invite you to one — the invitation link will bring you straight in."
+                : "Only the platform administrator can create new workspaces on this install. Ask them to set one up and invite you."}
+            </p>
+          )}
           <div className="flex gap-2">
             {!first && <Link href="/inbox" className="btn sm">Back to the app</Link>}
-            <Link href="/settings" className="btn sm">Your settings</Link>
+            {/* /settings sits inside the app shell, which sends a member of
+                nothing straight back here — so it is offered only to members. */}
+            {!first && <Link href="/settings" className="btn sm">Your settings</Link>}
+            <form action={signOutAction}>
+              <SubmitButton className="btn sm" pendingText="Signing out…">Sign out</SubmitButton>
+            </form>
           </div>
         </div>
       </main>
