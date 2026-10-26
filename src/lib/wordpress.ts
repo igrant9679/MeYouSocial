@@ -111,7 +111,39 @@ export async function wpUpdatePostMeta(
   }
 }
 
-/** Read a created post back with edit context so `meta` is exposed. */
+/**
+ * Replace an existing post's content in place — same id, same URL, same
+ * status. For a refresh: the revision goes where the old version was, so the
+ * URL keeps whatever it had earned. Slug, author, status and template are
+ * deliberately not sent; featured media only when a new image was uploaded.
+ */
+export async function wpUpdatePost(
+  c: WpCredentials,
+  id: number,
+  input: Pick<WpPublishInput, "title" | "content" | "excerpt" | "meta" | "categories" | "tags" | "featuredMedia">,
+): Promise<{ id: number; link: string }> {
+  const res = await fetch(api(c, `/posts/${id}`), {
+    method: "POST",
+    headers: { Authorization: authHeader(c), "Content-Type": "application/json" },
+    body: JSON.stringify({
+      title: input.title,
+      content: input.content,
+      excerpt: input.excerpt ?? undefined,
+      meta: input.meta && Object.keys(input.meta).length ? input.meta : undefined,
+      categories: input.categories?.length ? input.categories : undefined,
+      tags: input.tags?.length ? input.tags : undefined,
+      featured_media: input.featuredMedia ?? undefined,
+    }),
+    signal: AbortSignal.timeout(30000),
+  });
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(`WordPress rejected the update (HTTP ${res.status}): ${body.slice(0, 200)}`);
+  }
+  const post = (await res.json()) as { id: number; link: string };
+  return { id: post.id, link: post.link };
+}
+
 /**
  * A post THIS app most likely created already: same slug, same title, touched
  * in the last two hours, any status. Asked right before creating, because a
@@ -148,6 +180,7 @@ export async function wpFindRecentPostBySlug(
   }
 }
 
+/** Read a created post back with edit context so `meta` is exposed. */
 export async function wpReadPost(
   c: WpCredentials,
   id: number,
@@ -350,7 +383,9 @@ export async function wpUploadMedia(
   // keys to bytes itself and calls wpUploadMediaBytes below.
   try {
     if (!/^https?:\/\//i.test(imageUrl)) return { ok: false, error: "not an http(s) url" };
-    const src = await fetch(imageUrl, { signal: AbortSignal.timeout(20000), redirect: "follow" });
+    // An external image URL: off the private network, every redirect checked.
+    const { safeFetch } = await import("@/lib/net/safe-fetch");
+    const src = await safeFetch(imageUrl, { signal: AbortSignal.timeout(20000) });
     if (!src.ok) return { ok: false, error: `source fetch HTTP ${src.status}` };
     const buf = await src.arrayBuffer();
     if (!buf.byteLength) return { ok: false, error: "source fetch returned no bytes" };

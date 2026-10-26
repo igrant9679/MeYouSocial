@@ -186,6 +186,10 @@ export async function createTaskAction(formData: FormData) {
     contentProjectId: formData.get("contentProjectId") || undefined,
   });
   if (!parsed.success) return;
+  // The project and the assignee are this workspace's, or the task isn't made
+  // (audit SEC-18: both were taken on trust from the form).
+  if (parsed.data.contentProjectId && !(await db.contentProject.findFirst({ where: { id: parsed.data.contentProjectId, channel: { workspaceId: workspace.id } }, select: { id: true } }))) return;
+  if (parsed.data.assigneeId && !(await db.membership.findFirst({ where: { userId: parsed.data.assigneeId, workspaceId: workspace.id }, select: { id: true } }))) return;
   await db.task.create({
     data: {
       workspaceId: workspace.id,
@@ -222,7 +226,7 @@ export async function createAssetAction(formData: FormData) {
     if (!ok) return;
   }
   await db.asset.create({
-    data: { channelId, kind, name, url, tags: writeJson([]) },
+    data: { workspaceId: workspace.id, channelId, kind, name, url, tags: writeJson([]) },
   });
   revalidatePath("/production/assets");
 }
@@ -230,7 +234,7 @@ export async function createAssetAction(formData: FormData) {
 export async function toggleAssetFavoriteAction(formData: FormData) {
   const id = String(formData.get("id"));
   const { workspace } = await requireRole("EDITOR");
-  const a = await db.asset.findFirst({ where: { id, OR: [{ channelId: null }, { channel: { workspaceId: workspace.id } }] } });
+  const a = await db.asset.findFirst({ where: { id, workspaceId: workspace.id } });
   if (!a) return;
   await db.asset.update({ where: { id: a.id }, data: { favorite: !a.favorite } });
   revalidatePath("/production/assets");

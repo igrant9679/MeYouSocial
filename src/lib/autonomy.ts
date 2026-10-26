@@ -53,6 +53,11 @@ type Snapshot = { modes: Partial<Record<GovernedFunction, Mode>>; autoqueue: str
  * workspace that was deliberately all-manual must come back all-manual.
  */
 export async function enableFullAutonomy(workspaceId: string, userId: string): Promise<void> {
+  // Already on: the snapshot taken when it was switched on is the restore
+  // point. Taking another now would record the AUTONOMOUS settings as "what
+  // was there before", and switching off would then restore autonomy
+  // (audit ENG-12).
+  if (await isFullyAutonomous(workspaceId)) return;
   const existing = await db.functionMode.findMany({ where: { workspaceId } });
   const snapshot: Snapshot = {
     modes: Object.fromEntries(existing.map((m) => [m.function, m.mode])) as Snapshot["modes"],

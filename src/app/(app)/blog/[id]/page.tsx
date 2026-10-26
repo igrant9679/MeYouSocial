@@ -431,6 +431,17 @@ export default async function BlogPostPage({
                 {post.publishedUrl}
               </a>
               <span className="flex-1" />
+              {/* A refresh: the live post stays as it is until this revision
+                  is published, which replaces it in place at the same URL. */}
+              {post.refreshStartedAt && (
+                <span className="text-xs text-[var(--mute)]">Being refreshed — the live version stays until this revision is published.</span>
+              )}
+              {admin && wpConn && post.refreshStartedAt && post.status === "final_approval" && (
+                <form action={publishToWordPressAction}>
+                  <input type="hidden" name="postId" value={post.id} />
+                  <SubmitButton className="btn primary" pendingText="Publishing…">Publish the revision</SubmitButton>
+                </form>
+              )}
               {/* Published is exactly when re-pushing meta matters (the SEO
                   plugin choice changed after the article went out) — the
                   button must live in THIS branch, not the unpublished one. */}

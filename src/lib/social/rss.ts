@@ -1,5 +1,5 @@
-import { lookup } from "node:dns/promises";
 import { db } from "@/lib/db";
+import { safeFetch } from "@/lib/net/safe-fetch";
 import { writeAudit } from "@/lib/governance";
 import { cleanTitle } from "@/lib/list-marker";
 
@@ -19,32 +19,12 @@ import { cleanTitle } from "@/lib/list-marker";
  *
  * ⚠ The server fetches a URL a person typed, so it stays off the private
  * network: http(s) only, no localhost / private / link-local names, and the
- * name's DNS answer is checked too (a public name pointing at 10.x is refused).
+ * name's DNS answer is checked too (a public name pointing at 10.x is refused),
+ * on every redirect hop — lib/net/safe-fetch.ts.
  */
 
-const PRIVATE_V4 = /^(127\.|10\.|192\.168\.|169\.254\.|0\.|100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\.)|^172\.(1[6-9]|2\d|3[01])\./;
-
-export async function assertPublicUrl(raw: string): Promise<URL> {
-  let u: URL;
-  try { u = new URL(raw.trim()); } catch { throw new Error("That isn't a valid URL."); }
-  if (u.protocol !== "http:" && u.protocol !== "https:") throw new Error("Only http and https feeds can be followed.");
-  const host = u.hostname.toLowerCase().replace(/^\[|\]$/g, "");
-  if (host === "localhost" || host.endsWith(".localhost") || host.endsWith(".internal") || host.endsWith(".local") || PRIVATE_V4.test(host) || host === "::1" || host.startsWith("fc") || host.startsWith("fd") || host.startsWith("fe80")) {
-    throw new Error("That address isn't reachable from here.");
-  }
-  try {
-    const addrs = await lookup(host, { all: true });
-    for (const a of addrs) {
-      if ((a.family === 4 && PRIVATE_V4.test(a.address)) || (a.family === 6 && (a.address === "::1" || /^(fc|fd|fe80)/i.test(a.address)))) {
-        throw new Error("That address isn't reachable from here.");
-      }
-    }
-  } catch (e) {
-    if (e instanceof Error && e.message.startsWith("That address")) throw e;
-    throw new Error(`Couldn't find ${host}.`);
-  }
-  return u;
-}
+// The guard itself is shared (lib/net/safe-fetch.ts); re-exported for the RSS actions.
+export { assertPublicUrl } from "@/lib/net/safe-fetch";
 
 export type FeedItem = { guid: string; link: string | null; title: string; summary: string | null; publishedAt: Date | null };
 export type ParsedFeed = { title: string | null; items: FeedItem[] };
@@ -86,10 +66,8 @@ export function parseFeed(xml: string): ParsedFeed {
 }
 
 export async function fetchFeed(url: string): Promise<ParsedFeed> {
-  const u = await assertPublicUrl(url);
-  const res = await fetch(u.toString(), {
+  const res = await safeFetch(url, {
     signal: AbortSignal.timeout(15_000),
-    redirect: "follow",
     headers: { "user-agent": "Mozilla/5.0 (compatible; MeYouSocial Publisher feed reader)", accept: "application/rss+xml, application/atom+xml, application/xml, text/xml;q=0.9, */*;q=0.5" },
   });
   if (!res.ok) throw new Error(`The feed answered ${res.status}.`);

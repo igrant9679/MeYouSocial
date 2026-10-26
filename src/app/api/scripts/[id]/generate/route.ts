@@ -72,7 +72,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
           controller.enqueue(encoder.encode(`data: ${JSON.stringify({ delta: chunk })}\n\n`));
         }
 
-        // Persist the final result to the script.
+        // Persist the final result to the script — after keeping what it had.
+        const { snapshotScript } = await import("@/lib/script-versions");
+        await snapshotScript(script, stage === "outline" ? "before streamed outline" : "before streamed script");
         if (stage === "outline") {
           await db.scriptVersion.create({
             data: { scriptId: script.id, label: "outline (streamed)", outline: buffer },

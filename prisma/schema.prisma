@@ -43,6 +43,7 @@ model Workspace {
   bookmarks       Bookmark[]
   usageLogs       UsageLog[]
   tasks           Task[]
+  assets          Asset[]
   swipes          Swipe[]
   wikiDocs        WikiDoc[]
   blogPosts       BlogPost[]
@@ -236,6 +237,10 @@ model BlogPost {
   smeProfileId    String?   // FR-3: the expert this draft speaks as
   reviewerId      String?   // FR-10: who owns the review of this draft
   wpPostId        Int?      // set on publish; lets a later slice update in place
+  // Set while a published post is being revised by a refresh idea (back
+  // through review); its next publish UPDATES the WordPress post in place at
+  // the same URL instead of creating one. Cleared on that publish.
+  refreshStartedAt DateTime?
   // An admin's explicit override of the required checks ("Advance anyway"):
   // recorded, not silent — who, when, why. While set, the gates are treated
   // as satisfied for advancing and publishing this post.
@@ -1552,6 +1557,9 @@ model Task {
 
 model Asset {
   id          String   @id @default(cuid())
+  // The owner. Assets saved for "All channels" used to have no owner at all
+  // and showed to every company on the install (audit SEC-17).
+  workspaceId String?
   channelId   String?  // optional channel scope
   kind        String   // broll | stock | animation | upload | link
   name        String
@@ -1563,7 +1571,10 @@ model Asset {
   createdAt   DateTime @default(now())
 
   channel     Channel? @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  workspace   Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   links       AssetLink[]
+
+  @@index([workspaceId])
 }
 
 model AssetLink {

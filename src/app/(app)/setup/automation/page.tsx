@@ -82,6 +82,7 @@ export default async function SetupAutomation({ searchParams }: { searchParams: 
         </div>
         {admin ? (
           <form action={toggleFullAutonomyAction} className="flex flex-wrap items-center gap-2">
+            <input type="hidden" name="intent" value={autonomy.on ? "off" : "on"} />
             {!autonomy.on && <input name="confirm" placeholder="Type AUTONOMOUS to confirm" className="text-xs" aria-label="Type AUTONOMOUS to confirm" />}
             <SubmitButton className={autonomy.on ? "btn" : "btn primary"}>{autonomy.on ? "Turn full autonomy off" : "Turn full autonomy on"}</SubmitButton>
             <span className="text-[10px] text-[var(--mute)]">{autonomy.on ? "Switching off restores the exact settings you had before." : "Turning this on sets the four functions to auto and queues on approval."}</span>
@@ -99,6 +100,7 @@ export default async function SetupAutomation({ searchParams }: { searchParams: 
           </div>
           {admin && (
             <form action={toggleGlobalPauseAction}>
+              <input type="hidden" name="intent" value={paused ? "resume" : "pause"} />
               <button className={paused ? "btn primary" : "btn"}>{paused ? <><Play className="w-4 h-4" /> Resume</> : <><OctagonPause className="w-4 h-4" /> Pause everything</>}</button>
             </form>
           )}

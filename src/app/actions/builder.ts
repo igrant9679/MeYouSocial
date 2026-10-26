@@ -210,6 +210,8 @@ export async function generateBuilderDraftAction(formData: FormData) {
   // Mirror the assembled body to script.body so the Canvas/Publish tools work on it too.
   const body = sections.map((s) => `**${s.title}**\n\n${s.content}`).join("\n\n");
   const words = countWords(body);
+  const { snapshotScript } = await import("@/lib/script-versions");
+  await snapshotScript(script, "before builder draft");
   await db.script.update({
     where: { id: scriptId },
     data: { body, wordCount: Math.min(words, MAX_WORDS), durationSeconds: durationSeconds(words) },
@@ -240,6 +242,8 @@ export async function regenerateBuilderSectionAction(formData: FormData) {
 
   const body = state.sections.map((s) => `**${s.title}**\n\n${s.content}`).join("\n\n");
   const words = countWords(body);
+  const { snapshotScript } = await import("@/lib/script-versions");
+  await snapshotScript(script, "before regenerating a section");
   await db.script.update({
     where: { id: scriptId },
     data: { body, wordCount: Math.min(words, MAX_WORDS), durationSeconds: durationSeconds(words) },

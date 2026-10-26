@@ -181,7 +181,9 @@ export async function seedSmeFromSourceAction(formData: FormData) {
   let source = pasted;
   if (!source && /^https?:\/\//i.test(url)) {
     try {
-      const res = await fetch(url, { signal: AbortSignal.timeout(15000), redirect: "follow" });
+      // A typed URL: off the private network, every redirect checked.
+      const { safeFetch } = await import("@/lib/net/safe-fetch");
+      const res = await safeFetch(url, { signal: AbortSignal.timeout(15000) });
       if (res.ok) {
         const html = await res.text();
         source = html

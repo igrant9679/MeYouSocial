@@ -5,8 +5,7 @@ import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { isGloballyPaused, writeAudit } from "@/lib/governance";
-import { discoverIdeasCore, generateDraftCore } from "@/lib/blog-autopilot";
-import { jobs } from "@/lib/jobs";
+import { discoverIdeasCore } from "@/lib/blog-autopilot";
 import { rescoreIdeas } from "@/lib/blog-idea-scoring";
 import { readMotifWeights, serializeMotifs } from "@/lib/motifs";
 import { cleanTitle } from "@/lib/list-marker";
@@ -61,7 +60,10 @@ export async function setBlogIdeaStatusAction(formData: FormData) {
   const { user, workspace } = await requireRole("EDITOR");
   const idea = await db.blogIdea.findFirst({ where: { id, workspaceId: workspace.id }, select: { status: true, title: true } });
   if (!idea) return;
-  await db.blogIdea.updateMany({ where: { id, workspaceId: workspace.id }, data: { status } });
+  // Only between the open states: a drafted or merged idea can't be
+  // re-approved into a second article (IDE-06).
+  const r = await db.blogIdea.updateMany({ where: { id, workspaceId: workspace.id, status: { in: ["discovered", "approved", "rejected"] } }, data: { status } });
+  if (!r.count) return;
   // Approval is the article side's one human gate, so who opened or closed it
   // is recorded — the row social ideas have always written.
   if (idea.status !== status) {
@@ -173,70 +175,35 @@ export async function deleteBlogIdeaAction(formData: FormData) {
   revalidatePath("/blog");
 }
 
-/** Create the post from an idea and generate its grounded draft. */
+/**
+ * Draft an idea now — through the same claim and refresh rules as the sweep
+ * (lib/idea-drafting.ts). Lands on the article; a site-change idea (retire,
+ * merge, a rewrite of a page the app didn't write) explains itself instead.
+ */
 export async function draftFromIdeaAction(formData: FormData) {
   const id = String(formData.get("id"));
   const { user, workspace } = await requireRole("EDITOR");
-  const idea = await db.blogIdea.findFirst({ where: { id, workspaceId: workspace.id } });
-  if (!idea || idea.status === "drafted") return;
-  const previousStatus = idea.status;
-
-  const post = await db.blogPost.create({
-    data: {
-      workspaceId: workspace.id,
-      title: idea.title,
-      focusKeyword: idea.keyword,
-      topicId: idea.topicId, // the idea's topic follows it into the draft
-      createdById: user.id,
-    },
-  });
-  await db.blogIdea.update({ where: { id: idea.id }, data: { status: "drafted", postId: post.id } });
-
-  // Finish it the way the autopilot does — park at review, images, SEO meta —
-  // in a background job so the click doesn't wait on two image renders. Without
-  // this the draft sat at `drafting`: in no review queue, and unpublishable
-  // when someone finally found it. See completeFreshDraftCore.
-  if (await generateDraftCore(workspace.id, post.id)) {
-    await jobs.enqueue("blog.finishdraft", { workspaceId: workspace.id, postId: post.id }, { refId: post.id, workspaceId: workspace.id });
-  } else {
-    // The core refused (mock fallback / provider down) and stored nothing —
-    // don't leave an empty post; put the idea back where it was.
-    const { revertRefusedDraft } = await import("@/lib/blog-autopilot");
-    await revertRefusedDraft(workspace.id, post.id, idea, previousStatus);
-    revalidatePath("/blog");
-    redirect("/ideas");
-  }
+  const { draftIdeaCore } = await import("@/lib/idea-drafting");
+  const r = await draftIdeaCore(workspace.id, id, { from: ["discovered", "approved"], actorId: user.id, finish: "job" });
   revalidatePath("/blog");
-  redirect(`/blog/${post.id}`);
+  revalidatePath("/ideas");
+  if (r.ok) redirect(`/blog/${r.postId}`);
+  if (r.postId && r.reason === "taken") redirect(`/blog/${r.postId}`);
+  redirect(`/ideas?err=${encodeURIComponent(r.message)}`);
 }
 
 /** Auto-draft up to 2 approved ideas per run (Spark's pipeline cap). */
 export async function autoDraftApprovedAction() {
   const { user, workspace } = await requireRole("EDITOR");
   if (await isGloballyPaused(workspace.id)) return;
-  const approved = await db.blogIdea.findMany({
+  const { draftIdeaCore, ideaChange } = await import("@/lib/idea-drafting");
+  const approved = (await db.blogIdea.findMany({
     where: { workspaceId: workspace.id, status: "approved" },
     orderBy: { createdAt: "asc" },
-    take: 2,
-  });
+    take: 50,
+  })).filter((i) => ideaChange(i) !== "site_change").slice(0, 2);
   for (const idea of approved) {
-    const post = await db.blogPost.create({
-      data: {
-        workspaceId: workspace.id,
-        title: idea.title,
-        focusKeyword: idea.keyword,
-        topicId: idea.topicId,
-        createdById: user.id,
-      },
-    });
-    await db.blogIdea.update({ where: { id: idea.id }, data: { status: "drafted", postId: post.id } });
-    if (await generateDraftCore(workspace.id, post.id)) {
-      await jobs.enqueue("blog.finishdraft", { workspaceId: workspace.id, postId: post.id }, { refId: post.id, workspaceId: workspace.id });
-    } else {
-      // Refused draft — no empty post, idea back to approved (see the cycle).
-      const { revertRefusedDraft } = await import("@/lib/blog-autopilot");
-      await revertRefusedDraft(workspace.id, post.id, idea);
-    }
+    await draftIdeaCore(workspace.id, idea.id, { from: ["approved"], actorId: user.id, finish: "job" });
   }
   revalidatePath("/blog");
 }

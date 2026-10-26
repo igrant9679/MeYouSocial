@@ -42,12 +42,24 @@ export async function ensureZernioProfile(workspaceId: string): Promise<string> 
   // A single unclaimed profile on the team is unambiguous — adopt it. More than
   // one is a real choice and guessing could bind a tenant to another tenant's
   // accounts, so fall through to creating our own.
+  //
+  // ⚠ Two limits on that (audit SEC-09):
+  //   · Never another workspace's profile. `ws_<id>` is how this app names
+  //     every profile it makes; one that isn't ours belongs to another
+  //     workspace — and a DELETED workspace's profile stays on Zernio with its
+  //     company's pages still connected, "unclaimed" in this table. Adopting it
+  //     posted to that company's pages.
+  //   · Only on this workspace's OWN key. On a key the platform shares, a
+  //     profile nobody here made belongs to whoever owns that key.
   const claimed = new Set(
     (await db.workspace.findMany({ where: { NOT: { zernioProfileId: null } }, select: { zernioProfileId: true } }))
       .map((w) => w.zernioProfileId as string),
   );
-  const unclaimed = existing.filter((p) => p.id && !claimed.has(p.id));
-  if (unclaimed.length === 1) return claim(unclaimed[0].id!);
+  const ownKey = Boolean(
+    (await db.workspaceSetting.findUnique({ where: { workspaceId_key: { workspaceId: ws.id, key: "zernio:api_key" } } }))?.value?.trim(),
+  );
+  const unclaimed = existing.filter((p) => p.id && !claimed.has(p.id) && !(p.name ?? "").startsWith("ws_"));
+  if (ownKey && unclaimed.length === 1) return claim(unclaimed[0].id!);
 
   const profile = await createZernioProfile(`ws_${ws.id}`, ws.name, workspaceId);
   if (!profile.id) throw new Error("Zernio created a profile but returned no id.");

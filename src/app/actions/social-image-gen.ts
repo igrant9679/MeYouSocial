@@ -2,7 +2,7 @@
 
 import { requireRole } from "@/lib/acl";
 import { getImageProvider } from "@/lib/images";
-import { writeAudit } from "@/lib/governance";
+import { isGloballyPaused, writeAudit } from "@/lib/governance";
 
 /**
  * On-demand AI image for the social composer — the foreground sibling of the
@@ -35,6 +35,10 @@ export async function generateComposerImageAction(input: {
   const text = String(input.text ?? "").replace(/https?:\/\/\S+/g, "").trim();
   if (text.length < 10) {
     return { ok: false, error: "Write the post first — the image is generated from what it says." };
+  }
+
+  if (await isGloballyPaused(workspace.id)) {
+    return { ok: false, error: "This workspace is paused (Settings → Automation), so no images are generated. Resume it there first." };
   }
 
   const provider = await getImageProvider(workspace.id);

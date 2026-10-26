@@ -172,9 +172,11 @@ export async function runContentAuditCore(workspaceId: string, maxPosts = 200): 
   // means the audit still works before WordPress is connected.
   if (!candidates.length) {
     const pages = await db.sitePage.findMany({ where: { workspaceId }, take: 50 });
+    // Page URLs are typed by the tenant: off the private network, every hop.
+    const { safeFetch } = await import("@/lib/net/safe-fetch");
     for (const page of pages) {
       try {
-        const res = await fetch(page.url, { signal: AbortSignal.timeout(15000), redirect: "follow" });
+        const res = await safeFetch(page.url, { signal: AbortSignal.timeout(15000) });
         if (!res.ok) continue;
         const html = await res.text();
         const main = html.match(/<(?:article|main)\b[\s\S]*?<\/(?:article|main)>/i)?.[0] ?? html;

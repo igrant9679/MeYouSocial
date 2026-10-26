@@ -11,6 +11,10 @@ export async function toggleBookmarkAction(formData: FormData) {
   const intelChannelId = formData.get("intelChannelId") ? String(formData.get("intelChannelId")) : null;
   const intelVideoId = formData.get("intelVideoId") ? String(formData.get("intelVideoId")) : null;
   if (!intelChannelId && !intelVideoId) return;
+  // Only this workspace's Intel rows (audit SEC-18): a foreign id was saved and
+  // then DISPLAYED, which read another company's research.
+  if (intelChannelId && !(await db.intelChannel.findFirst({ where: { id: intelChannelId, workspaceId: workspace.id }, select: { id: true } }))) return;
+  if (intelVideoId && !(await db.intelVideo.findFirst({ where: { id: intelVideoId, intelChannel: { workspaceId: workspace.id } }, select: { id: true } }))) return;
 
   const existing = await db.bookmark.findFirst({
     where: {

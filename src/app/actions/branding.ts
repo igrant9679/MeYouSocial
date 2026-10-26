@@ -25,11 +25,13 @@ export async function saveWorkspaceAccentAction(formData: FormData) {
   redirect("/admin/settings?ok=accent");
 }
 
+// ⚠ No SVG. An SVG is a document that can carry script; served from the
+// app's own origin, a tenant admin could send the operator a link to one and
+// run it with the operator's session (audit SEC-14). Raster formats only.
 const LOGO_TYPES: Record<string, string> = {
   "image/png": ".png",
   "image/jpeg": ".jpg",
   "image/webp": ".webp",
-  "image/svg+xml": ".svg",
 };
 const LOGO_MAX_BYTES = 2 * 1024 * 1024;
 

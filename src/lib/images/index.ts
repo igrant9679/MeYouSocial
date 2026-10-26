@@ -405,6 +405,11 @@ export async function resolveImageProviderName(workspaceId?: string): Promise<st
 export const images: ImageProvider = {
   name: "dispatch",
   async generate(req) {
+    // The global pause holds here too — images cost money per render.
+    if (req.workspaceId) {
+      const { isGloballyPaused, GenerationPausedError } = await import("@/lib/governance");
+      if (await isGloballyPaused(req.workspaceId)) throw new GenerationPausedError();
+    }
     const provider = await getImageProvider(req.workspaceId);
     return provider.generate(req);
   },

@@ -9,6 +9,7 @@ import { readJson, writeJson } from "@/lib/db/json";
 import { llm } from "@/lib/llm";
 import { countWords, durationSeconds, MAX_WORDS } from "@/lib/canvas/duration";
 import { systemForOutline, systemForScript, systemForImprove, HUMANIZE_SYSTEM } from "@/lib/canvas/prompts";
+import { outlineForRestore, snapshotScript } from "@/lib/script-versions";
 
 // Helper — load + authorize a script.
 async function load(scriptId: string) {
@@ -151,7 +152,8 @@ export async function generateOutlineAction(formData: FormData) {
     workspaceId: script.channel.workspaceId,
   });
 
-  // Snapshot to versions
+  // Keep what was there (hand edits included) before the new outline lands.
+  await snapshotScript(script, "before outline regenerate");
   await db.scriptVersion.create({
     data: { scriptId: script.id, label: "outline", outline: result.content },
   });
@@ -205,6 +207,7 @@ export async function generateScriptAction(formData: FormData) {
   });
 
   const words = countWords(result.content);
+  await snapshotScript(script, "before script regenerate");
   await db.scriptVersion.create({
     data: { scriptId: script.id, label: "script-generated", body: result.content, wordCount: words },
   });
@@ -304,6 +307,32 @@ export async function improveSelectionAction(formData: FormData) {
   revalidatePath(`/scripts/${script.id}`);
 }
 
+/**
+ * Put a snapshot back. What is there now is snapshotted first, so a restore
+ * can itself be undone. A snapshot that holds only an outline (or only a
+ * body) leaves the other half as it is.
+ */
+export async function restoreScriptVersionAction(formData: FormData) {
+  const scriptId = String(formData.get("scriptId"));
+  const versionId = String(formData.get("versionId"));
+  const { script } = await load(scriptId);
+  const v = await db.scriptVersion.findFirst({ where: { id: versionId, scriptId: script.id } });
+  if (!v) return;
+  await snapshotScript(script, "before restore");
+  const body = v.body ?? script.body;
+  const words = countWords(body ?? "");
+  await db.script.update({
+    where: { id: script.id },
+    data: {
+      body,
+      outline: outlineForRestore(v.outline, script.outline),
+      wordCount: Math.min(words, MAX_WORDS),
+      durationSeconds: durationSeconds(words),
+    },
+  });
+  revalidatePath(`/scripts/${script.id}`);
+}
+
 // ── Misc ──────────────────────────────────────────────────────────────────
 
 /** Start over (same topic). Wipes outline + body but keeps title/channel. */
@@ -341,13 +370,21 @@ export async function updateScriptSettingsAction(formData: FormData) {
   });
   if (!parsed.success) return;
   const { script } = await load(parsed.data.scriptId);
+  // A template is this channel's or a built-in; a voice is this channel's
+  // (audit SEC-18: another workspace's ids were accepted).
+  const templateId = parsed.data.templateId
+    ? (await db.template.findFirst({ where: { id: parsed.data.templateId, OR: [{ channelId: script.channelId }, { channelId: null }] }, select: { id: true } }))?.id ?? null
+    : null;
+  const voiceProfileId = parsed.data.voiceProfileId
+    ? (await db.voiceProfile.findFirst({ where: { id: parsed.data.voiceProfileId, channelId: script.channelId }, select: { id: true } }))?.id ?? null
+    : null;
   await db.script.update({
     where: { id: script.id },
     data: {
       title: parsed.data.title,
       model: parsed.data.model || null,
-      templateId: parsed.data.templateId || null,
-      voiceProfileId: parsed.data.voiceProfileId || null,
+      templateId,
+      voiceProfileId,
     },
   });
   revalidatePath(`/scripts/${script.id}`);

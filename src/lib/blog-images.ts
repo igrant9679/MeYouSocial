@@ -112,10 +112,11 @@ export function parseImageDimensions(b: Uint8Array): { width: number; height: nu
 export async function probeImageDimensions(url: string): Promise<{ width: number; height: number } | null> {
   if (!/^https?:\/\//i.test(url)) return null;
   try {
-    const res = await fetch(url, {
+    // An image URL someone pasted: off the private network, every hop.
+    const { safeFetch } = await import("@/lib/net/safe-fetch");
+    const res = await safeFetch(url, {
       headers: { Range: "bytes=0-65535" },
       signal: AbortSignal.timeout(8000),
-      redirect: "follow",
     });
     if (!res.ok && res.status !== 206) return null;
     const head = await readHead(res);

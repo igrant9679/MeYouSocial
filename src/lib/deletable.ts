@@ -283,12 +283,14 @@ export const DELETABLE: Record<DeletableKind, Deletable> = {
   asset: {
     label: "asset",
     role: "EDITOR",
-    find: (id, workspaceId) => db.asset.findFirst({ where: { id, channel: { workspaceId } }, select: { id: true, name: true } }),
+    // By owner, not by channel: an "All channels" asset has no channel and
+    // used to be undeletable (audit SEC-17).
+    find: (id, workspaceId) => db.asset.findFirst({ where: { id, workspaceId }, select: { id: true, name: true } }),
     async impact(id) {
       const links = await db.assetLink.count({ where: { assetId: id } });
       return nonZero([["links from projects", links]]);
     },
-    async remove(id, workspaceId) { await db.asset.deleteMany({ where: { id, channel: { workspaceId } } }); },
+    async remove(id, workspaceId) { await db.asset.deleteMany({ where: { id, workspaceId } }); },
     revalidate: ["/production"],
   },
 

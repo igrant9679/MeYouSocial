@@ -10,6 +10,18 @@ import { localProvider } from "@/lib/storage";
 
 export const dynamic = "force-dynamic";
 
+/**
+ * Tenant-uploaded bytes must never run as a page of this origin (audit
+ * SEC-14): nosniff so the browser keeps our type, and a sandbox CSP so a file
+ * opened directly can't script. PDFs are left out of the sandbox — Chrome
+ * refuses to render a sandboxed PDF — and keep nosniff.
+ */
+function storedFileHeaders(type: string): Record<string, string> {
+  return type.startsWith("application/pdf")
+    ? { "X-Content-Type-Options": "nosniff" }
+    : { "X-Content-Type-Options": "nosniff", "Content-Security-Policy": "sandbox; default-src 'none'; img-src 'self' data:; media-src 'self'; style-src 'unsafe-inline'" };
+}
+
 const EXT_TYPE: Record<string, string> = {
   ".mp4": "video/mp4",
   ".webm": "video/webm",
@@ -40,6 +52,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ key:
     "Content-Type": type,
     "Accept-Ranges": "bytes",
     "Cache-Control": "private, max-age=86400, immutable",
+    ...storedFileHeaders(type),
   });
 
   const range = req.headers.get("range");

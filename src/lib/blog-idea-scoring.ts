@@ -162,7 +162,10 @@ export async function rescoreIdeas(workspaceId: string): Promise<number> {
   ]);
   let changed = 0;
   for (const idea of ideas) {
-    const result = scoreIdea(idea, ctx);
+    const scored = scoreIdea(idea, ctx);
+    // A refresh idea names its post on purpose (the ranking loop, an audit
+    // rewrite); rescoring used to null it, and the idea became a new article.
+    const result = idea.source === "refresh" && idea.refreshPostId ? { ...scored, refreshPostId: idea.refreshPostId } : scored;
     if (
       idea.priority === result.priority &&
       idea.priorityReason === result.priorityReason &&

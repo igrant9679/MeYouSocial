@@ -35,6 +35,14 @@ export type Tool = {
   readOnly?: boolean;
   /** Propose to the person and run only on their yes. */
   confirm?: boolean;
+  /**
+   * Propose-and-wait only in some states: returns why (shown in the proposal)
+   * or null to run straight away. For "draft" tools whose result the engine
+   * sends or publishes on its own under autonomy (audit ENG-02).
+   */
+  confirmWhen?: (args: Record<string, unknown>, ctx: ToolContext) => Promise<string | null>;
+  /** Allowed while the workspace is globally paused: it calms things down. */
+  deescalates?: (args: Record<string, unknown>) => boolean;
   /** Refuse below this role. */
   minRole?: "ADMIN";
   run(args: Record<string, unknown>, ctx: ToolContext): Promise<string>;
@@ -53,6 +61,23 @@ const bool = (v: unknown): boolean | null => {
   return null;
 };
 const DAY = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+/**
+ * Why moving an article to final approval needs a yes here: with publishing on
+ * auto, final approval is the last stop before it goes live unattended.
+ */
+async function publishesUnattended(_a: Record<string, unknown>, ctx: ToolContext): Promise<string | null> {
+  const { getModes } = await import("@/lib/governance");
+  return (await getModes(ctx.workspaceId)).publishing === "auto"
+    ? "publishing is automatic here, so at final approval the article goes live on the next publish day with nobody pressing publish"
+    : null;
+}
+
+/** Whether a tool must be proposed before it runs, and why. */
+export async function confirmReason(tool: Tool, args: Record<string, unknown>, ctx: ToolContext): Promise<string | null> {
+  if (tool.confirm) return "";
+  return tool.confirmWhen ? tool.confirmWhen(args, ctx) : null;
+}
 const when = (d: Date | null | undefined) => (d ? d.toISOString().slice(0, 16).replace("T", " ") + " UTC" : "—");
 
 /**
@@ -529,6 +554,7 @@ export const TOOLS: Tool[] = [
     name: "reject_idea",
     description: "Reject an article idea (default) or a social idea (format=social) so it stops coming back.",
     args: { ideaId: "the idea id", format: "optional: article (default) | social" },
+    deescalates: () => true,
     async run(a, ctx) {
       const id = str(a.ideaId, 40);
       if (str(a.format, 10) === "social") {
@@ -631,19 +657,27 @@ export const TOOLS: Tool[] = [
     name: "draft_article",
     description: "Write a full grounded article from an existing idea (or from a title you pass), then give it images and SEO and park it at review. A minute or two. Never publishes.",
     args: { ideaId: "id of the idea to draft (preferred)", title: "or a title, if there is no idea yet", keyword: "optional focus keyword when drafting from a title" },
+    // Under full autonomy the engine reviews a fresh draft and publishes it on
+    // its own, so "draft it" is in effect "publish it" — ask first (ENG-02).
+    async confirmWhen(_a, ctx) {
+      const { isFullyAutonomous } = await import("@/lib/autonomy");
+      return (await isFullyAutonomous(ctx.workspaceId))
+        ? "full autonomy is on, so once its checks pass the engine publishes this article on its own"
+        : null;
+    },
     async run(a, ctx) {
       let idea = str(a.ideaId, 40) ? await db.blogIdea.findFirst({ where: { id: str(a.ideaId, 40), workspaceId: ctx.workspaceId } }) : null;
       const freshTitle = cleanTitle(str(a.title, 200), 200);
       if (!idea && freshTitle) idea = await db.blogIdea.create({ data: { workspaceId: ctx.workspaceId, title: freshTitle, keyword: str(a.keyword, 100) || null, source: "manual", status: "approved" } });
       if (!idea) return "refused: give an ideaId (list_ideas) or a title";
       if (idea.status === "drafted" && idea.postId) return `that idea was already drafted as article ${idea.postId} (/blog/${idea.postId})`;
-      const post = await db.blogPost.create({ data: { workspaceId: ctx.workspaceId, title: idea.title, focusKeyword: idea.keyword, topicId: idea.topicId, status: "drafting", createdById: ctx.userId } });
-      await db.blogIdea.update({ where: { id: idea.id }, data: { status: "drafted", postId: post.id } });
-      const { generateDraftCore, completeFreshDraftCore } = await import("@/lib/blog-autopilot");
-      const ok = await generateDraftCore(ctx.workspaceId, post.id);
-      if (!ok) return `article ${post.id} was created but drafting failed (paused, or the model returned nothing) — it sits at drafting (/blog/${post.id})`;
-      const done = await completeFreshDraftCore(ctx.workspaceId, post.id);
-      return `drafted article ${post.id} ("${idea.title}") — at draft_review, ${done.imagesGenerated} image(s) generated, SEO ${done.seoOptimized ? "written" : "unchanged"}. Auto-review takes it from here; article_checks says what is left. /blog/${post.id}`;
+      // Same claim and refresh rules as the board and the sweep.
+      const { draftIdeaCore } = await import("@/lib/idea-drafting");
+      const r = await draftIdeaCore(ctx.workspaceId, idea.id, { from: ["discovered", "approved"], actorId: ctx.userId, finish: "inline" });
+      if (!r.ok) return `not drafted: ${r.message}${r.postId ? ` (/blog/${r.postId})` : ""}`;
+      const done = r.finished ?? { imagesGenerated: 0, seoOptimized: 0 };
+      const what = r.change === "refresh" ? `revised the live article ${r.postId} for a refresh (WordPress keeps the current version until the revision is published, which updates it in place)` : `drafted article ${r.postId} ("${idea.title}")`;
+      return `${what} — at draft_review, ${done.imagesGenerated} image(s) generated, SEO ${done.seoOptimized ? "written" : "unchanged"}. Auto-review takes it from here; article_checks says what is left. /blog/${r.postId}`;
     },
   },
   {
@@ -710,6 +744,7 @@ export const TOOLS: Tool[] = [
     name: "answer_finding",
     description: "Answer a knowledge question on the person's behalf WITH THEIR WORDS (ask them first if you don't have the answer); it is woven in and banked to the Experts profile. Then the article advances if that was the last thing holding it.",
     args: { findingId: "the finding id", answers: "the answers, one per question, separated by ' || '" },
+    confirmWhen: publishesUnattended,
     async run(a, ctx) {
       const answers = str(a.answers, 4000).split("||").map((s) => s.trim()).filter(Boolean);
       if (!answers.length) return "refused: no answers given — ask the person";
@@ -726,6 +761,7 @@ export const TOOLS: Tool[] = [
     name: "dismiss_finding",
     description: "Dismiss a finding the person does not want (with their reason). The article advances if that was the last thing holding it.",
     args: { findingId: "the finding id", reason: "optional reason" },
+    confirmWhen: publishesUnattended,
     async run(a, ctx) {
       const f = await db.blogFinding.findFirst({ where: { id: str(a.findingId, 40), workspaceId: ctx.workspaceId }, select: { id: true, postId: true } });
       if (!f) return "no such finding";
@@ -805,6 +841,7 @@ export const TOOLS: Tool[] = [
     name: "advance_article",
     description: "Move an article at review to final approval if its required checks pass; otherwise reports what is failing (then fix it, or override_gate).",
     args: { articleId: "the article id" },
+    confirmWhen: publishesUnattended,
     async run(a, ctx) {
       const id = str(a.articleId, 40);
       const { advanceIfReadyCore } = await import("@/lib/blog-gates");
@@ -855,6 +892,7 @@ export const TOOLS: Tool[] = [
     name: "request_changes_social_post",
     description: "Admin: send a social post back to its author with a note.",
     args: { postId: "the social post id", note: "what to change" },
+    deescalates: () => true,
     minRole: "ADMIN",
     async run(a, ctx) {
       const post = await db.socialPost.findFirst({ where: { id: str(a.postId, 40), workspaceId: ctx.workspaceId } });
@@ -963,8 +1001,17 @@ export const TOOLS: Tool[] = [
   // ── Distribute ────────────────────────────────────────────────────────────
   {
     name: "draft_social_post",
-    description: "Write a social post as a draft (from an article or a brief), optionally aimed at networks by name. Lands as a draft; queue_social_post, schedule_social_post or send_social_post_now moves it.",
+    description: "Write a social post as a draft (from an article or a brief), optionally aimed at networks by name (default: every connected account). Lands as a draft; queue_social_post, schedule_social_post or send_social_post_now moves it. Under full autonomy the engine queues an unscheduled draft into the next free slot by itself, so it is proposed first.",
     args: { text: "the post text (write it yourself, in the brand's voice)", networks: "optional comma-separated network names the workspace has connected (e.g. linkedin, x, facebook)" },
+    async confirmWhen(a, ctx) {
+      const { isFullyAutonomous } = await import("@/lib/autonomy");
+      if (!(await isFullyAutonomous(ctx.workspaceId))) return null;
+      const { getSetting } = await import("@/lib/settings");
+      // Held for an admin's approval: the engine won't queue it, so no yes needed.
+      if ((await getSetting("social:require_approval", ctx.workspaceId).catch(() => "")) === "true" && ctx.role !== "ADMIN") return null;
+      const wanted = str(a.networks, 200);
+      return `full autonomy is on, so the engine queues this draft into the next free slot and it posts to ${wanted ? wanted : "every connected account"} with nobody else looking`;
+    },
     async run(a, ctx) {
       const text = str(a.text, 3000);
       if (!text) return "refused: write the text";
@@ -976,7 +1023,9 @@ export const TOOLS: Tool[] = [
       const held = requireApproval && ctx.role !== "ADMIN";
       const post = await db.socialPost.create({ data: { workspaceId: ctx.workspaceId, text, status: "draft", source: "assistant", approval: requireApproval ? (held ? "pending" : "approved") : null, createdById: ctx.userId, targets: { create: targets } } });
       await writeAudit({ workspaceId: ctx.workspaceId, actorId: ctx.userId, action: "social.drafted", entityType: "social_post", entityId: post.id, meta: { via: "assistant", networks: targets.map((t) => t.provider) } });
-      return `drafted social post ${post.id} for ${targets.map((t) => t.provider).join(", ") || "no network yet (connect accounts)"}${held ? " — held for an admin's approval" : ""}. /social/${post.id}/edit`;
+      const { isFullyAutonomous } = await import("@/lib/autonomy");
+      const autoQueued = !held && (await isFullyAutonomous(ctx.workspaceId));
+      return `drafted social post ${post.id} for ${targets.map((t) => t.provider).join(", ") || "no network yet (connect accounts)"}${held ? " — held for an admin's approval" : autoQueued ? " — full autonomy will queue it into the next free slot and send it" : ""}. /social/${post.id}/edit`;
     },
   },
   {
@@ -1036,6 +1085,7 @@ export const TOOLS: Tool[] = [
     name: "unschedule_social_post",
     description: "Take a scheduled post back to draft.",
     args: { postId: "the social post id" },
+    deescalates: () => true,
     confirm: true,
     async run(a, ctx) {
       const r = await db.socialPost.updateMany({ where: { id: str(a.postId, 40), workspaceId: ctx.workspaceId, status: "scheduled" }, data: { status: "draft", scheduledAt: null } });
@@ -1103,6 +1153,7 @@ export const TOOLS: Tool[] = [
     name: "set_function_mode",
     description: "Admin: a function's mode — ideation | blog_drafting | social | publishing → manual | assisted | auto.",
     args: { function: "the function", mode: "manual | assisted | auto" },
+    deescalates: (a) => str(a.mode, 10) === "manual",
     confirm: true,
     minRole: "ADMIN",
     async run(a, ctx) {
@@ -1118,6 +1169,7 @@ export const TOOLS: Tool[] = [
     name: "set_full_autonomy",
     description: "Admin: turn full autonomy on (everything runs unattended) or off (restores the previous dials).",
     args: { on: "true | false" },
+    deescalates: (a) => bool(a.on) === false,
     confirm: true,
     minRole: "ADMIN",
     async run(a, ctx) {
@@ -1132,6 +1184,7 @@ export const TOOLS: Tool[] = [
     name: "set_global_pause",
     description: "Admin: the emergency brake — pause or resume every AI action.",
     args: { paused: "true | false" },
+    deescalates: () => true,
     confirm: true,
     minRole: "ADMIN",
     async run(a, ctx) {
@@ -1347,10 +1400,13 @@ export async function runTool(
   const tool = TOOLS_BY_NAME.get(name);
   if (!tool) return { ok: false, output: `unknown tool "${name}" — use one of: ${TOOLS.map((t) => t.name).join(", ")}` };
   if (tool.minRole === "ADMIN" && ctx.role !== "ADMIN") return { ok: false, output: "refused: only an admin can do this" };
-  if (tool.confirm && !opts.confirmed) return { ok: false, output: "refused: this needs the person's confirmation first" };
+  if (!opts.confirmed && (await confirmReason(tool, args, ctx)) !== null) return { ok: false, output: "refused: this needs the person's confirmation first" };
   if (!tool.readOnly) {
+    // Paused: refuse anything that adds work, allow what calms things down
+    // (unscheduling, switching autonomy or a function off, the pause itself) —
+    // refusing those while paused was backwards (audit ENG-24).
     const { isGloballyPaused } = await import("@/lib/governance");
-    if (await isGloballyPaused(ctx.workspaceId) && !["set_global_pause"].includes(name)) return { ok: false, output: "refused: the workspace is globally paused (Settings → Automation)" };
+    if (await isGloballyPaused(ctx.workspaceId) && !tool.deescalates?.(args)) return { ok: false, output: "refused: the workspace is globally paused (Settings → Automation) — only calming actions run (unschedule, switch autonomy or a function off, reject an idea, resume)" };
   }
   try {
     const output = await tool.run(args, ctx);

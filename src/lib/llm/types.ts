@@ -25,6 +25,13 @@ export type LLMRequest = {
    * or multi-part output should pass 120–180s.
    */
   timeoutMs?: number;
+  /**
+   * The router refuses every call for a globally paused workspace
+   * (GenerationPausedError). Only the assistant's own conversation sets this:
+   * a paused workspace must still be able to ask what is going on and to
+   * de-escalate — its tools are gated separately (lib/assistant/tools.ts).
+   */
+  allowWhilePaused?: boolean;
 };
 
 export type LLMResponse = {

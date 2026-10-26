@@ -68,7 +68,7 @@ export async function platformDeleteWorkspaceAction(formData: FormData) {
   const id = String(formData.get("id") ?? "").trim();
   const confirm = String(formData.get("confirm") ?? "").trim();
 
-  const workspace = await db.workspace.findUnique({ where: { id }, select: { id: true, name: true } });
+  const workspace = await db.workspace.findUnique({ where: { id }, select: { id: true, name: true, zernioProfileId: true } });
   if (!workspace) back("That workspace no longer exists.", false);
   if (confirm.toLowerCase() !== workspace!.name.trim().toLowerCase()) {
     back("Type the workspace's name exactly to confirm deletion.", false);
@@ -78,7 +78,10 @@ export async function platformDeleteWorkspaceAction(formData: FormData) {
   await writeAudit({
     workspaceId: id, actorId: user.id,
     action: "entity.deleted", entityType: "workspace", entityId: id,
-    meta: { name: workspace!.name, via: "platform" },
+    // The Zernio profile outlives the workspace (its pages stay connected over
+    // there); recorded so an operator can remove it in Zernio. No other
+    // workspace can adopt it (lib/zernio/accounts.ts).
+    meta: { name: workspace!.name, via: "platform", zernioProfileLeft: workspace!.zernioProfileId ?? null },
   });
   await db.workspace.delete({ where: { id } });
 

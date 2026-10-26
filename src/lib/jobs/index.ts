@@ -180,6 +180,14 @@ class DbQueue implements JobQueue {
 
   private async attempt(id: string): Promise<boolean> {
     const { db } = await import("@/lib/db");
+    // A paused workspace's jobs wait, unclaimed and with their attempts intact,
+    // and run when it resumes (the sweep skips them meanwhile). Every job here
+    // is AI generation; the pause is the brake on all of it (audit ENG-03).
+    const owner = await db.job.findUnique({ where: { id }, select: { workspaceId: true } });
+    if (owner?.workspaceId) {
+      const { isGloballyPaused } = await import("@/lib/governance");
+      if (await isGloballyPaused(owner.workspaceId)) return false;
+    }
     if (!(await this.claim(id))) return false;
 
     const job = await db.job.findUnique({ where: { id } });
@@ -285,9 +293,12 @@ class DbQueue implements JobQueue {
       console.warn(`[jobs] recovered stalled ${s.name} (${s.id}) → ${exhausted ? "failed" : "queued"}`);
     }
 
-    // 2. Run what's waiting, oldest first.
+    // 2. Run what's waiting, oldest first — except a paused workspace's, which
+    //    would otherwise sit at the head of the queue and starve everyone else.
+    const { pausedWorkspaceIds } = await import("@/lib/governance");
+    const paused = await pausedWorkspaceIds();
     const queued = await db.job.findMany({
-      where: { state: "queued" },
+      where: { state: "queued", ...(paused.length ? { OR: [{ workspaceId: null }, { workspaceId: { notIn: paused } }] } : {}) },
       orderBy: { createdAt: "asc" },
       select: { id: true },
       take: MAX_PER_SWEEP,

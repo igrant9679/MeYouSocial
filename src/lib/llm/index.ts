@@ -106,10 +106,18 @@ async function selectProvider(model: string, workspaceId?: string): Promise<LLMP
   return getProvider(descriptor.provider, workspaceId);
 }
 
+/** The global pause, enforced where every generation passes. */
+async function refuseIfPaused(req: LLMRequest): Promise<void> {
+  if (!req.workspaceId || req.allowWhilePaused) return;
+  const { isGloballyPaused, GenerationPausedError } = await import("@/lib/governance");
+  if (await isGloballyPaused(req.workspaceId)) throw new GenerationPausedError();
+}
+
 export const llm = {
   models: MODELS,
   defaultModel: env.DEFAULT_LLM_MODEL,
   async complete(req: LLMRequest): Promise<LLMResponse> {
+    await refuseIfPaused(req);
     const p = await selectProvider(req.model, req.workspaceId);
     const out = await p.complete(req);
     // Providers don't set this; the router does. `p` is already the mock when a
@@ -118,6 +126,7 @@ export const llm = {
     return { ...out, provider: out.provider ?? p.id };
   },
   async *stream(req: LLMRequest): AsyncIterable<string> {
+    await refuseIfPaused(req);
     const p = await selectProvider(req.model, req.workspaceId);
     for await (const chunk of p.stream(req)) yield chunk;
   },

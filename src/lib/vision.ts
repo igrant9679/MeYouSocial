@@ -42,7 +42,9 @@ function youtubeId(raw: string): string | null {
 }
 
 async function tryFetchImage(url: string): Promise<ReferenceImage | null> {
-  const res = await fetch(url, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) }).catch(() => null);
+  // A pasted reference: off the private network, every redirect checked.
+  const { safeFetch } = await import("@/lib/net/safe-fetch");
+  const res = await safeFetch(url, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) }).catch(() => null);
   if (!res?.ok) return null;
   const mimeType = res.headers.get("content-type")?.split(";")[0] ?? "";
   if (!mimeType.startsWith("image/")) return null;

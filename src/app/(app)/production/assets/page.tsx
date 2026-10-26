@@ -16,7 +16,8 @@ export default async function AssetsPage({ searchParams }: { searchParams: Promi
   const assets = await db.asset.findMany({
     where: {
       AND: [
-        { OR: [{ channelId: null }, { channel: { workspaceId: workspace.id } }] },
+        // The owner, not "no channel": unowned assets showed to every company.
+        { workspaceId: workspace.id },
         channelId ? { channelId } : {},
         favs === "1" ? { favorite: true } : {},
         q ? { OR: [{ name: { contains: q } }, { url: { contains: q } }] } : {},

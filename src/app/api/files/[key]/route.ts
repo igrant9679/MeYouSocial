@@ -41,6 +41,13 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ key:
     const v = upstream.headers.get(h);
     if (v) headers.set(h, v);
   }
+  // Tenant-uploaded bytes must never run as a page of this origin (audit
+  // SEC-14) — an SVG stored before SVG uploads were refused included. A
+  // sandboxed PDF won't render in Chrome, so PDFs get nosniff only.
+  headers.set("X-Content-Type-Options", "nosniff");
+  if (!(headers.get("content-type") ?? "").startsWith("application/pdf")) {
+    headers.set("Content-Security-Policy", "sandbox; default-src 'none'; img-src 'self' data:; media-src 'self'; style-src 'unsafe-inline'");
+  }
   if (!headers.has("accept-ranges")) headers.set("accept-ranges", "bytes");
   return new NextResponse(upstream.body, { status: upstream.status, headers });
 }

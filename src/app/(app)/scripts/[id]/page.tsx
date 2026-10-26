@@ -13,7 +13,6 @@ import { StartOverButton } from "./StartOverButton";
 import { AgentPanel } from "./AgentPanel";
 import { StreamButton } from "./StreamButton";
 import { launchAgentAction } from "@/app/actions/agent";
-import { launchVideoProductionAction } from "@/app/actions/final-pass";
 import { promoteScriptAction } from "@/app/actions/production";
 import {
   savePlanQuestionsAction,
@@ -21,6 +20,7 @@ import {
   saveOutlineAction,
   generateScriptAction,
   updateScriptSettingsAction,
+  restoreScriptVersionAction,
 } from "@/app/actions/canvas";
 
 // MU-04 — Script Canvas. Implements..15 (15 [Must] items).
@@ -116,13 +116,6 @@ export default async function CanvasPage({
                 Publish →
               </Link>
             )}
-            {/* Optional video production add-on (TTS/avatar/render). Mock until provider keys are wired. */}
-            {script.body && (
-              <form action={launchVideoProductionAction} title="Optional video production pipeline (TTS + avatar + render)">
-                <input type="hidden" name="scriptId" value={script.id} />
-                <button type="submit" className="btn sm">▶ Produce video</button>
-              </form>
-            )}
             {/* promote into a tracked Content Project */}
             <form action={promoteScriptAction}>
               <input type="hidden" name="scriptId" value={script.id} />
@@ -201,13 +194,27 @@ export default async function CanvasPage({
         {script.versions.length > 0 && (
           <details className="border-t border-[var(--line)] px-5 py-2">
             <summary className="text-xs font-mono text-[var(--mute)] cursor-pointer flex items-center gap-1.5"><History className="w-3.5 h-3.5" /> Version snapshots ({script.versions.length})</summary>
-            <ul className="m-0 p-0 mt-2 text-xs grid grid-cols-1 md:grid-cols-2 gap-1">
+            <ul className="m-0 p-0 mt-2 text-xs flex flex-col gap-1 list-none">
               {script.versions.map((v) => (
-                <li key={v.id} className="flex items-center gap-2 text-[var(--mute)]">
-                  <span className="font-mono">{new Date(v.createdAt).toLocaleString()}</span>
-                  <span>·</span>
-                  <span className="truncate">{v.label}</span>
-                  <span className="text-[10px]">({v.wordCount} w)</span>
+                <li key={v.id}>
+                  {/* Each snapshot can be read and put back (a restore keeps
+                      the current text as a snapshot first). */}
+                  <details>
+                    <summary className="flex items-center gap-2 text-[var(--mute)] cursor-pointer">
+                      <span className="font-mono">{new Date(v.createdAt).toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}</span>
+                      <span>·</span>
+                      <span className="truncate">{v.label}</span>
+                      <span className="text-[10px]">({v.body ? `${v.wordCount} w` : "outline"})</span>
+                    </summary>
+                    <div className="mt-1 mb-2 ml-4">
+                      <pre className="whitespace-pre-wrap text-xs max-h-64 overflow-auto p-2 rounded-lg bg-[var(--zebra)] m-0">{(v.body ?? v.outline ?? "").slice(0, 6000) || "(empty)"}</pre>
+                      <form action={restoreScriptVersionAction} className="mt-1">
+                        <input type="hidden" name="scriptId" value={script.id} />
+                        <input type="hidden" name="versionId" value={v.id} />
+                        <SubmitButton className="btn sm" pendingText="Restoring…">Restore this version</SubmitButton>
+                      </form>
+                    </div>
+                  </details>
                 </li>
               ))}
             </ul>

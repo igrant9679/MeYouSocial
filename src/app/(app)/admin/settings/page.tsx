@@ -87,7 +87,7 @@ export default async function AdminSettingsPage({ searchParams }: { searchParams
       {err && (
         <div className="card mb-3 flex items-center gap-2 text-sm" style={{ background: "var(--rose-soft)", borderColor: "var(--rose)" }}>
           <AlertTriangle className="w-4 h-4" style={{ color: "var(--rose-on)" }} />
-          {err === "accent" ? "Accent must be a 6-digit hex color like #2563EB." : err === "logo-size" ? "Logo too large (max 2 MB)." : err === "logo-type" ? "Use PNG, JPEG, WebP or SVG." : "Pick a file first."}
+          {err === "accent" ? "Accent must be a 6-digit hex color like #2563EB." : err === "logo-size" ? "Logo too large (max 2 MB)." : err === "logo-type" ? "Use PNG, JPEG or WebP (SVG isn't accepted — export it as a PNG)." : "Pick a file first."}
         </div>
       )}
 
@@ -133,7 +133,7 @@ export default async function AdminSettingsPage({ searchParams }: { searchParams
           ) : (
             <span className="text-[11px] font-mono text-[var(--mute)]">none set</span>
           )}
-          <input name="logo" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" className="text-xs flex-1" />
+          <input name="logo" type="file" accept="image/png,image/jpeg,image/webp" className="text-xs flex-1" />
           <SubmitButton className="btn primary sm" pendingText="Uploading…">Upload</SubmitButton>
           {workspace.logoKey && (
             <button formAction={clearWorkspaceLogoAction} className="btn sm" formNoValidate>Remove</button>

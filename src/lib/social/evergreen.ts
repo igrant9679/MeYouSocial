@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { getSetting } from "@/lib/settings";
-import { writeAudit } from "@/lib/governance";
+import { isGloballyPaused, writeAudit } from "@/lib/governance";
 import { notify } from "@/lib/notify";
 import { formatInZone, getQueue, pickFreeSlot, type FreeSlot } from "@/lib/social/slots";
 
@@ -52,6 +52,8 @@ export async function recycleEvergreenPosts(): Promise<number> {
   for (const { workspaceId } of wsRows) {
     const enabled = (await getSetting("social:evergreen_fill", workspaceId).catch(() => "")) === "true";
     if (!enabled) continue;
+    // The pause stops the recycler too: it writes posts that then send.
+    if (await isGloballyPaused(workspaceId)) continue;
 
     const now = Date.now();
     const queue = await getQueue(workspaceId, { limit: 120 });

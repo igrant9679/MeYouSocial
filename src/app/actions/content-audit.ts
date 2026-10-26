@@ -38,6 +38,16 @@ export async function auditItemToIdeaAction(formData: FormData) {
   const title = `${verb}: ${item.title}`.slice(0, 200);
   const exists = await db.blogIdea.count({ where: { workspaceId: workspace.id, title } });
   if (!exists) {
+    // A rewrite of an article this app published revises that article in place
+    // (lib/idea-drafting.ts). Any other page — and every merge or retire — is a
+    // change a person makes on the site; the idea says so instead of drafting.
+    const bare = item.url.replace(/\/+$/, "");
+    const own = item.recommendation === "rewrite"
+      ? await db.blogPost.findFirst({
+          where: { workspaceId: workspace.id, status: "published", wpPostId: { not: null }, publishedUrl: { in: [bare, `${bare}/`] } },
+          select: { id: true },
+        })
+      : null;
     await db.blogIdea.create({
       data: {
         workspaceId: workspace.id,
@@ -45,6 +55,7 @@ export async function auditItemToIdeaAction(formData: FormData) {
         angle: item.reason?.slice(0, 500) ?? null,
         source: "refresh",
         targetPage: item.mergeTargetUrl,
+        refreshPostId: own?.id ?? null,
       },
     });
   }

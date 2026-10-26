@@ -52,6 +52,23 @@ export async function isGloballyPaused(workspaceId: string): Promise<boolean> {
   return s?.globalPause ?? false;
 }
 
+/** Every workspace with the global pause on — for sweeps that span workspaces. */
+export async function pausedWorkspaceIds(): Promise<string[]> {
+  return (await db.automationState.findMany({ where: { globalPause: true }, select: { workspaceId: true } })).map((r) => r.workspaceId);
+}
+
+/**
+ * Thrown by the LLM and image routers for a paused workspace. The pause is the
+ * emergency brake and says it blocks every AI action, manual clicks included;
+ * before this only the paths that remembered to ask honoured it (audit ENG-03).
+ */
+export class GenerationPausedError extends Error {
+  constructor() {
+    super("This workspace is paused (Settings → Automation), so no AI generation runs. Resume it there first.");
+    this.name = "GenerationPausedError";
+  }
+}
+
 /** Append-only audit entry. actorId null = system/AI. Never throws. */
 export async function writeAudit(params: {
   workspaceId: string;

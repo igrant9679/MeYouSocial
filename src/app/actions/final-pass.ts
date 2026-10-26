@@ -99,6 +99,7 @@ export async function importMarkersAction(formData: FormData) {
     if (!name) continue;
     await db.asset.create({
       data: {
+        workspaceId: workspace.id,
         channelId,
         kind: "broll",
         name: name.slice(0, 240),
@@ -194,33 +195,3 @@ export async function attachChecklistAction(formData: FormData) {
   revalidatePath(`/production/projects/${contentProjectId}`);
 }
 
-// ── — Optional video production add-on (TTS + avatar + render) ─
-
-export async function launchVideoProductionAction(formData: FormData) {
-  const scriptId = String(formData.get("scriptId"));
-  const { workspace } = await requireRole("EDITOR");
-  const script = await db.script.findFirst({
-    where: { id: scriptId, channel: { workspaceId: workspace.id } },
-  });
-  if (!script || !script.body) return;
-
-  // We re-use the AgentRun row so progress shows on the same panel.
-  const { registerAgentJobs } = await import("@/lib/jobs/agent");
-  const { jobs } = await import("@/lib/jobs");
-  registerAgentJobs();
-
-  const run = await db.agentRun.create({
-    data: { scriptId: script.id, status: "queued" },
-  });
-  // The agent pipeline ends with a "voiceover" step, but that step only
-  // REFORMATS the script for narration via llm.complete — it produces no audio
-  // and branches on nothing.
-  //
-  // Real audio lives elsewhere: `getTtsProvider()` in src/lib/tts, reached from
-  // app/actions/videos.ts, activated by the Setting `tts:provider` plus
-  // `api_key:elevenlabs` under Settings → Keys. There is no env flag involved —
-  // this comment used to say to set `env.USE_MOCK_PRODUCTION=false`, which was
-  // read by nothing and so did nothing.
-  await jobs.enqueue("agent.run", { runId: run.id, scriptId: script.id }, { refId: run.id, workspaceId: workspace.id });
-  revalidatePath(`/scripts/${scriptId}`);
-}

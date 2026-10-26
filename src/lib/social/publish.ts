@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { db } from "@/lib/db";
+import { pausedWorkspaceIds } from "@/lib/governance";
 import { storage } from "@/lib/storage";
 import { readJson } from "@/lib/db/json";
 import { tagLinksForNetwork } from "@/lib/social/utm";
@@ -371,7 +372,7 @@ export async function publishSocialPost(postId: string, opts: { claimed?: boolea
 export async function publishDueSocialPosts(): Promise<number> {
   // ⚠ The global pause is the emergency brake; scheduled sends used to ignore
   // it entirely. (notIn is safe here: workspaceId is never NULL.)
-  const paused = (await db.automationState.findMany({ where: { globalPause: true }, select: { workspaceId: true } })).map((r) => r.workspaceId);
+  const paused = await pausedWorkspaceIds();
   const due = await db.socialPost.findMany({
     // ⚠ The approval filter is spelled as an OR over the two sendable values,
     // NOT `notIn: ["pending","changes"]` — SQL's NOT IN excludes NULL rows,

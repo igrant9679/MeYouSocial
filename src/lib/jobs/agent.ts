@@ -73,6 +73,9 @@ export function registerAgentJobs() {
         },
       });
       if (!script) throw new Error("script not found");
+      // The agent rewrites outline and body; keep the hand-edited draft first.
+      const { snapshotScript } = await import("@/lib/script-versions");
+      await snapshotScript(script, "before agent run");
 
       const voice = script.channel.voiceProfiles[0]?.data ?? "";
       const audienceKQ = readJson<string[]>(script.channel.audience?.keyQuestions ?? null, []);

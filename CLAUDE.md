@@ -292,6 +292,37 @@ Tabs: **Keys** (`/admin/api-keys`: LLM, search, images, video, TTS, storage) · 
   skips globally paused workspaces.
 - `lib/redis.ts` resets `authed` with every new socket — a dropped connection used to leave every lock
   "unavailable" until a restart.
+- **Article ideas become articles only through `draftIdeaCore`** (`lib/idea-drafting.ts`) — the sweep,
+  Draft now, Auto-draft approved and the assistant. It claims the idea (conditional update), copies the
+  Topic, audience, tier and motifs into the post and gives the writer the angle. `ideaChange()` decides
+  what an idea means: a **refresh** (has `refreshPostId`) revises that published post in place —
+  `refreshStartedAt` set, back through review, and its publish **updates the same WordPress post**
+  (`wpUpdatePost`; the publish sweep picks refreshes up too); **Retire / Merge, or a Refresh / Rewrite
+  with no post in the app, are site changes** a person makes in WordPress — never drafted. Rescoring
+  keeps a refresh idea's `refreshPostId`.
+- **Renders are claimed** queued → rendering; a retry skips scenes already `done` with output; a render
+  stuck in "rendering" over an hour is released to **failed** (not queued — a person retries it).
+- **The global pause is enforced at the routers**: `llm.complete/stream` and `images.generate` throw
+  `GenerationPausedError` for a paused workspace. Only the assistant's own conversation passes
+  `allowWhilePaused`; its tools are gated in `runTool`, where a tool marked `deescalates` (unschedule,
+  reject, autonomy/function off, the pause itself) still runs. Paused workspaces' jobs wait unclaimed and
+  the sweep skips them; the evergreen recycler skips them.
+- **Assistant "draft" tools ask first when the engine would ship the result** (`confirmWhen`):
+  draft_social_post and draft_article under full autonomy; advance_article and answer/dismiss_finding
+  when publishing is on auto.
+- The pause and full-autonomy forms post the state they mean (`intent`); a stale tab can't flip them
+  back. `enableFullAutonomy` is a no-op when already on, so the restore point survives.
+- **Any fetch of an outside address goes through `safeFetch`** (`lib/net/safe-fetch.ts`): public hosts
+  only, every redirect hop re-checked. Stored files are served with `nosniff` + a sandbox CSP, and
+  logos are PNG/JPEG/WebP only (an SVG can carry script).
+- Assets have an owner (`Asset.workspaceId`); every asset read and write filters on it. Ids taken from
+  a form (upload chat/script/channel, task project/assignee, bookmark targets, script template/voice)
+  are checked against the workspace before the write.
+- **A script is snapshotted before anything overwrites it** (`snapshotScript`, `lib/script-versions.ts`)
+  — regenerate, stream, the agent, the builder — and every snapshot can be viewed and restored. "▶
+  Produce video" is gone: it re-ran the writing agent and made no video.
+- Zernio: `ensureZernioProfile` never adopts another workspace's `ws_*` profile, and adopts an unclaimed
+  one only on the workspace's own key.
 
 ## Open items / things the user still owns
 - **Analytics: APIs enabled 2026-08-03** (Search Console + GA Admin + GA Data, on project

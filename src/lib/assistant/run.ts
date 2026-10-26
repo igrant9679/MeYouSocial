@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { brandContextBlock } from "@/lib/motifs";
 import { channelBrief } from "@/lib/assistant/context";
 import { APP_MAP_BRIEF } from "@/lib/assistant/knowledge";
-import { REFUSED_INTENTS, TOOLS, runTool, type ToolContext } from "@/lib/assistant/tools";
+import { REFUSED_INTENTS, TOOLS, confirmReason, runTool, type ToolContext } from "@/lib/assistant/tools";
 
 /**
  * The assistant's turn loop.
@@ -57,7 +57,7 @@ export type AssistantResult = {
 function toolManual(): string {
   return TOOLS.map((t) => {
     const args = Object.entries(t.args).map(([k, v]) => `      "${k}": ${v}`).join("\n");
-    const flags = [t.readOnly ? "read-only, cheap" : "", t.confirm ? "ASKS THE PERSON TO CONFIRM before running" : "", t.minRole === "ADMIN" ? "admins only" : ""].filter(Boolean).join("; ");
+    const flags = [t.readOnly ? "read-only, cheap" : "", t.confirm ? "ASKS THE PERSON TO CONFIRM before running" : t.confirmWhen ? "ASKS THE PERSON TO CONFIRM when the engine would otherwise send or publish the result on its own" : "", t.minRole === "ADMIN" ? "admins only" : ""].filter(Boolean).join("; ");
     return `- ${t.name}${flags ? ` (${flags})` : ""}: ${t.description}${args ? `\n    args:\n${args}` : "\n    args: none"}`;
   }).join("\n");
 }
@@ -218,7 +218,10 @@ export async function runAssistant(
   }
 
   for (let step = 0; step < MAX_STEPS; step++) {
-    const res = await llm.complete({ model, system, messages: transcript, workspaceId: ctx.workspaceId, maxTokens: 2000 });
+    // allowWhilePaused: the conversation itself still runs while paused (so the
+    // person can ask what is happening and calm things down); the tools it
+    // calls are gated in runTool.
+    const res = await llm.complete({ model, system, messages: transcript, workspaceId: ctx.workspaceId, maxTokens: 2000, allowWhilePaused: true });
 
     if (res.provider === "mock") {
       return {
@@ -249,14 +252,15 @@ export async function runAssistant(
 
     // A tool that needs the person's yes: propose it and stop.
     const def = TOOLS.find((t) => t.name === d.tool);
-    if (def?.confirm) {
+    const reason = def ? await confirmReason(def, d.args ?? {}, ctx) : null;
+    if (def && reason !== null) {
       if (def.minRole === "ADMIN" && ctx.role !== "ADMIN") {
         transcript.push({ role: "assistant", content: JSON.stringify(d) });
         transcript.push({ role: "user", content: `[tool result: ${d.tool}]\nrefused: only an admin can do this — tell the person plainly and name the page where an admin does it.` });
         steps.push({ kind: "tool", tool: d.tool, args: d.args ?? {}, output: "refused: admins only", ok: false });
         continue;
       }
-      const summary = d.why?.trim() || `${def.description.split(".")[0]}`;
+      const summary = (d.why?.trim() || `${def.description.split(".")[0]}`) + (reason ? ` — ${reason}` : "");
       const proposal: PendingAction = { tool: d.tool, args: d.args ?? {}, summary, askedAt: new Date().toISOString() };
       steps.push({ kind: "confirm", tool: d.tool, args: d.args ?? {}, summary });
       const answer = `I'm about to: **${summary}**. Go ahead?`;

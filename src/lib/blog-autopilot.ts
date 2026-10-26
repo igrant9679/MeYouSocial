@@ -11,6 +11,7 @@ import {
   sniffImageMime,
   wpReadPost,
   wpFindRecentPostBySlug,
+  wpUpdatePost,
   wpResolveAuthor,
   wpResolveTerms,
   wpUploadMedia,
@@ -336,7 +337,14 @@ export async function revertRefusedDraft(
   }
 }
 
-export async function generateDraftCore(workspaceId: string, postId: string): Promise<boolean> {
+/**
+ * What the idea knew that the post row can't carry: the angle that made it
+ * worth writing, and — for a refresh — the version that is live now, so the
+ * writer revises that article instead of starting a different one.
+ */
+export type DraftBrief = { angle?: string | null; refreshOf?: string | null };
+
+export async function generateDraftCore(workspaceId: string, postId: string, brief: DraftBrief = {}): Promise<boolean> {
   const post = await db.blogPost.findFirst({ where: { id: postId, workspaceId } });
   if (!post || post.protectedFromRewrite) return false;
   if (await isGloballyPaused(workspaceId)) return false;
@@ -388,8 +396,12 @@ export async function generateDraftCore(workspaceId: string, postId: string): Pr
     advanced: "expert reading level — technical vocabulary is fine",
   };
 
+  const current = brief.refreshOf ? brief.refreshOf.slice(0, 16_000) : null;
   const prompt = [
-    `Write a blog post draft titled: "${post.title}".`,
+    current
+      ? `Revise the blog post titled "${post.title}". It is already live at its URL and this revision replaces it there, so keep its subject and what still holds; update anything dated, fill the gaps, and expand where it is thin. Keep every link and every sourced statement unless it is wrong.`
+      : `Write a blog post draft titled: "${post.title}".`,
+    brief.angle?.trim() ? `Angle (why this piece is worth writing): ${brief.angle.trim().slice(0, 500)}` : null,
     post.audience ? `Intended audience: ${post.audience}.` : null,
     post.focusKeyword
       ? `Primary SEO keyword: "${post.focusKeyword}" — use it naturally in the opening paragraph and at least one heading.`
@@ -402,6 +414,7 @@ export async function generateDraftCore(workspaceId: string, postId: string): Pr
       : "Structure: strong opening hook, 3–5 h2 sections, actionable close.",
     trackLabel(post.contentTier) ? `This is a ${trackLabel(post.contentTier)} piece.` : null,
     `Length: about ${target} words. HTML only.`,
+    current ? `The version that is live now (HTML):\n${current}` : null,
   ]
     .filter(Boolean)
     .join("\n");
@@ -613,10 +626,13 @@ export async function publishCore(workspaceId: string, postId: string): Promise<
   const post = await db.blogPost.findFirst({ where: { id: postId, workspaceId } });
   if (!post || !post.body) return false;
   if (post.status !== "final_approval" && post.status !== "published") return false;
-  // Already on WordPress (live, or handed off as a draft) — creating another
-  // would duplicate the post over there. (A "published" post with a WordPress
-  // id used to pass this check and could be sent again.)
-  if (post.wpPostId != null) return false;
+  // A refresh (lib/idea-drafting.ts) took a live post back through review; its
+  // publish replaces that WordPress post in place, at the same URL.
+  const isRefresh = post.wpPostId != null && post.refreshStartedAt != null && post.status === "final_approval";
+  // Otherwise already on WordPress (live, or handed off as a draft) — creating
+  // another would duplicate the post over there. (A "published" post with a
+  // WordPress id used to pass this check and could be sent again.)
+  if (post.wpPostId != null && !isRefresh) return false;
 
   const unverified = await db.blogCitation.count({ where: { postId: post.id, verified: false } });
   const [assets, editorial] = await Promise.all([
@@ -648,7 +664,7 @@ export async function publishCore(workspaceId: string, postId: string): Promise<
   // by the sweep after 15 minutes (releaseStalePublishClaims).
   const fromStatus = post.status;
   const claim = await db.blogPost.updateMany({
-    where: { id: post.id, workspaceId, status: fromStatus, wpPostId: null },
+    where: { id: post.id, workspaceId, status: fromStatus, wpPostId: post.wpPostId },
     data: { status: "publishing" },
   });
   if (claim.count !== 1) return false;
@@ -666,7 +682,11 @@ export async function publishCore(workspaceId: string, postId: string): Promise<
     // resolve those to bytes from storage; only external urls are fetched.
     let media: { id: number; sourceUrl: string } | null = null;
     let featuredUploadError: string | null = null;
-    if (featured) {
+    // A refresh keeps the featured image WordPress already has unless the
+    // image changed since the first publish — re-uploading an unchanged one
+    // would leave a duplicate in the media library on every refresh.
+    const featuredChanged = !isRefresh || (featured != null && (!post.publishedAt || featured.updatedAt > post.publishedAt));
+    if (featured && featuredChanged) {
       const storedKey = featured.url.match(/\/(?:uploads|api\/files)\/([^"'\s)]+)/)?.[1];
       if (storedKey) {
         const { storage } = await import("@/lib/storage");
@@ -740,11 +760,22 @@ export async function publishCore(workspaceId: string, postId: string): Promise<
     });
     const content = rendered.html + jsonLd;
 
-    const status = conn.publishAsDraft ? "draft" : "publish";
+    // A refresh replaces a post that is already live and stays live.
+    const status = isRefresh ? "publish" : conn.publishAsDraft ? "draft" : "publish";
     // A create that timed out on our side can still have landed on the host;
     // adopt that post rather than making a second one (wpFindRecentPostBySlug).
-    const adopted = post.slug ? await wpFindRecentPostBySlug(creds, post.slug, post.title) : null;
-    const created = adopted ?? await wpCreatePost(creds, {
+    const adopted = !isRefresh && post.slug ? await wpFindRecentPostBySlug(creds, post.slug, post.title) : null;
+    const created = isRefresh
+      ? await wpUpdatePost(creds, post.wpPostId!, {
+          title: post.title,
+          content,
+          excerpt: post.metaDescription,
+          meta,
+          categories: cats.ids,
+          tags: tags.ids,
+          featuredMedia: media?.id,
+        })
+      : adopted ?? await wpCreatePost(creds, {
       // The EDITORIAL title is the on-page headline (user's call 2026-08-12 —
       // the first live publish surprised them with the 39-char SEO title as
       // its h1). The meta title still reaches search engines through the SEO
@@ -776,7 +807,8 @@ export async function publishCore(workspaceId: string, postId: string): Promise<
       seo: seoOutcomes,
       seoUnverified: readBack ? false : true,
       featuredMedia: media ? { id: media.id, applied: readBack ? readBack.featuredMedia === media.id : null } : null,
-      featuredUploadFailed: !!featured && !media,
+      featuredUploadFailed: !!featured && featuredChanged && !media,
+      refreshed: isRefresh,
       // The reason, not just the fact — "featuredUploadFailed: true" sat in six
       // reports before anyone learned it was a 413.
       featuredUploadError,
@@ -790,15 +822,17 @@ export async function publishCore(workspaceId: string, postId: string): Promise<
       data: {
         // A draft handoff hasn't gone live — don't claim it has.
         status: status === "publish" ? "published" : post.status,
-        publishedAt: status === "publish" ? new Date() : null,
+        // A refresh keeps the date the article first went live.
+        publishedAt: isRefresh ? post.publishedAt ?? new Date() : status === "publish" ? new Date() : null,
         publishedUrl: created.link,
         wpPostId: created.id,
+        refreshStartedAt: null,
         publishReport: JSON.stringify(report),
       },
     });
     await writeAudit({
       workspaceId,
-      action: status === "publish" ? "blog.published_wordpress" : "blog.drafted_to_wordpress",
+      action: isRefresh ? "blog.refreshed_wordpress" : status === "publish" ? "blog.published_wordpress" : "blog.drafted_to_wordpress",
       entityType: "blog_post",
       entityId: post.id,
       meta: {
@@ -1041,7 +1075,14 @@ export async function processRenderCore(workspaceId: string, renderId: string): 
   if ((await rendersToday(workspaceId)) >= env.VIDEO_DAILY_RENDER_CAP) return false;
 
   const provider = await getVideoProvider(workspaceId);
-  await db.videoRender.update({ where: { id: render.id }, data: { status: "rendering", provider: provider.name } });
+  // ⚠ CLAIM: queued → rendering for exactly one caller. findFirst-then-update
+  // let the sweep and "Render now" (or two admins) both start the same board
+  // and both pay the provider for it (audit VID-04).
+  const claim = await db.videoRender.updateMany({
+    where: { id: render.id, workspaceId, status: "queued" },
+    data: { status: "rendering", provider: provider.name },
+  });
+  if (claim.count !== 1) return false;
   const scenes = parseScenes(render.scenes);
   try {
     if (scenes.length > 1) {
@@ -1054,6 +1095,15 @@ export async function processRenderCore(workspaceId: string, renderId: string): 
       // that field to decide whether to warn about provider-URL expiry.
       let firstDurable: string | null = null;
       for (let i = 0; i < scenes.length; i++) {
+        // A retry after a mid-board failure keeps the clips it already paid for
+        // and renders only what is left (audit VID-03). Editing a scene resets
+        // it, so a changed scene is rendered again.
+        const kept = scenes[i].outputUrl;
+        if (scenes[i].status === "done" && kept) {
+          // A stored clip is an app-relative URL; a provider's is absolute.
+          if (i === 0) firstDurable = kept.startsWith("/") ? kept : null;
+          continue;
+        }
         const out = await provider.render({
           prompt: scenes[i].prompt,
           seconds: scenes[i].seconds,
@@ -1135,6 +1185,20 @@ export async function processRenderCore(workspaceId: string, renderId: string): 
  * still a successful render with playable per-scene clips. The reason is
  * recorded on `assemblyError` so the UI can be specific about it.
  */
+/**
+ * A render left in "rendering" by a process that died mid-board (a redeploy)
+ * would sit there for good. After an hour — far past a real board — mark it
+ * failed rather than queued: a person retries it, and the retry keeps every
+ * scene that finished, so nothing is paid for twice.
+ */
+export async function releaseStaleRenderClaims(workspaceId: string): Promise<number> {
+  const r = await db.videoRender.updateMany({
+    where: { workspaceId, status: "rendering", updatedAt: { lt: new Date(Date.now() - 60 * 60_000) } },
+    data: { status: "failed", error: "Interrupted mid-render (the server most likely restarted). Retry renders only the scenes that didn't finish." },
+  });
+  return r.count;
+}
+
 export async function assembleRenderCore(workspaceId: string, renderId: string): Promise<boolean> {
   const render = await db.videoRender.findFirst({ where: { id: renderId, workspaceId } });
   if (!render || render.status !== "done") return false;
@@ -1175,6 +1239,9 @@ export async function assembleRenderCore(workspaceId: string, renderId: string):
 }
 
 // ---- The scheduler cycle ------------------------------------------------------
+
+/** Impressions over 28 days before a post's average position means anything. */
+const REFRESH_MIN_IMPRESSIONS = 100;
 
 async function generationsToday(workspaceId: string): Promise<number> {
   const dayStart = new Date();
@@ -1289,29 +1356,40 @@ async function runAutopilotCycleUnlocked(workspaceId: string): Promise<CycleRepo
     }
 
     // Wave C′ refresh loop: published posts ranking past position 10 become
-    // refresh ideas (once per post; protected posts excluded).
+    // refresh ideas (once per post; protected posts excluded). The position is
+    // the last 28 days weighted by impressions, with a floor — one day's
+    // reading on a post nobody sees used to be enough, and only 20 arbitrary
+    // posts were ever looked at. At most three new refresh ideas a cycle.
+    const since = new Date(Date.now() - 28 * 86_400_000);
     const published = await db.blogPost.findMany({
-      where: { workspaceId, status: "published", protectedFromRewrite: false },
-      include: { snapshots: { orderBy: { capturedAt: "desc" }, take: 1 } },
-      take: 20,
+      where: { workspaceId, status: "published", protectedFromRewrite: false, wpPostId: { not: null } },
+      select: {
+        id: true, title: true, focusKeyword: true,
+        snapshots: { where: { capturedAt: { gte: since }, position: { not: null } }, select: { position: true, impressions: true } },
+      },
     });
+    let refreshIdeas = 0;
     for (const p of published) {
-      const pos = p.snapshots[0]?.position;
-      if (pos == null || pos <= 10) continue;
+      if (refreshIdeas >= 3) break;
+      const seen = p.snapshots.reduce((n, s) => n + (s.impressions ?? 0), 0);
+      if (seen < REFRESH_MIN_IMPRESSIONS) continue;
+      const pos = p.snapshots.reduce((n, s) => n + (s.position ?? 0) * (s.impressions ?? 0), 0) / seen;
+      if (pos <= 10) continue;
       const title = `Refresh: ${p.title}`;
-      const exists = await db.blogIdea.count({ where: { workspaceId, title } });
+      const exists = await db.blogIdea.count({ where: { workspaceId, OR: [{ title }, { source: "refresh", refreshPostId: p.id }] } });
       if (exists) continue;
       await db.blogIdea.create({
         data: {
           workspaceId,
           title,
-          angle: `Ranking at position ${pos.toFixed(1)} — update and expand to recover.`,
+          angle: `Ranking at position ${pos.toFixed(1)} over the last 28 days (${seen} impressions) — update and expand to recover.`,
           keyword: p.focusKeyword,
           source: "refresh",
           postId: p.id,
           refreshPostId: p.id,
         },
       });
+      refreshIdeas++;
       report.ideasCreated++;
     }
   }
@@ -1330,30 +1408,24 @@ async function runAutopilotCycleUnlocked(workspaceId: string): Promise<CycleRepo
       });
       allowance = Math.min(2, Math.max(0, weeklyRaw - draftedThisWeek));
     }
-    const approved = allowance > 0 ? await db.blogIdea.findMany({
-      where: { workspaceId, status: "approved" },
-      orderBy: { createdAt: "asc" },
-      take: allowance,
-    }) : [];
+    // Oldest approved first, skipping the ones that are a change on the live
+    // site (retire / merge, or a refresh with nothing here to revise) — those
+    // wait for a person and must not starve the queue behind them.
+    const { draftIdeaCore, ideaChange } = await import("@/lib/idea-drafting");
+    const approved = allowance > 0
+      ? (await db.blogIdea.findMany({ where: { workspaceId, status: "approved" }, orderBy: { createdAt: "asc" }, take: 50 }))
+          .filter((i) => ideaChange(i) !== "site_change")
+          .slice(0, allowance)
+      : [];
     for (const idea of approved) {
-      const post = await db.blogPost.create({
-        data: { workspaceId, title: idea.title, focusKeyword: idea.keyword, status: "drafting" },
-      });
-      await db.blogIdea.update({ where: { id: idea.id }, data: { status: "drafted", postId: post.id } });
-      const ok = await generateDraftCore(workspaceId, post.id);
-      if (ok) {
+      // Claim, write, and park at review with images and SEO meta — the same
+      // core the human "Draft this" buttons use (lib/idea-drafting.ts). A
+      // refused draft (mock fallback / provider down) puts the idea back.
+      const r = await draftIdeaCore(workspaceId, idea.id, { from: ["approved"], finish: "inline" });
+      if (r.ok) {
         report.drafted++;
-        // Park at review, images, SEO meta — shared with the human "Draft this"
-        // buttons (via the blog.finishdraft job) so both doors finish a draft
-        // the same way. See completeFreshDraftCore.
-        const finished = await completeFreshDraftCore(workspaceId, post.id);
-        report.imagesGenerated += finished.imagesGenerated;
-        report.seoOptimized += finished.seoOptimized;
-      } else {
-        // Refused draft (mock fallback / provider down). Don't leave the
-        // documented stall shape — an empty `drafting` post in no queue — and
-        // don't burn the idea: put it back so the next cycle retries.
-        await revertRefusedDraft(workspaceId, post.id, idea);
+        report.imagesGenerated += r.finished?.imagesGenerated ?? 0;
+        report.seoOptimized += r.finished?.seoOptimized ?? 0;
       }
     }
   }
@@ -1557,15 +1629,18 @@ async function runAutopilotCycleUnlocked(workspaceId: string): Promise<CycleRepo
         autoToday = zonedParts(now, await getPostingTimeZone(workspaceId)).weekday === day;
       }
     }
+    // Not on WordPress yet — or a refresh, whose publish updates its own post
+    // in place (publishCore). A draft handoff (wpPostId set, no refresh) is
+    // never picked up again.
+    const notLive = { OR: [{ wpPostId: null }, { refreshStartedAt: { not: null } }] };
     const ready = await db.blogPost.findMany({
       where: autoToday
         ? {
             workspaceId,
             status: "final_approval",
-            wpPostId: null,
-            OR: [{ scheduledAt: null }, { scheduledAt: { lte: now } }],
+            AND: [notLive, { OR: [{ scheduledAt: null }, { scheduledAt: { lte: now } }] }],
           }
-        : { workspaceId, status: "final_approval", wpPostId: null, scheduledAt: { lte: now } },
+        : { workspaceId, status: "final_approval", ...notLive, scheduledAt: { lte: now } },
       orderBy: { updatedAt: "asc" },
       take: 2,
     });
@@ -1606,6 +1681,8 @@ async function runAutopilotCycleUnlocked(workspaceId: string): Promise<CycleRepo
   }
 
   // 6. Video rendering: process one queued render per cycle (daily cap inside).
+  // Any mode: a render stranded mid-board is released to "failed" either way.
+  await releaseStaleRenderClaims(workspaceId).catch(() => 0);
   if (unattended("video_rendering")) {
     const queued = await db.videoRender.findFirst({
       where: { workspaceId, status: "queued" },

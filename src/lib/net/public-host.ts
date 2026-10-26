@@ -50,15 +50,19 @@ export function isPrivateAddress(ip: string): boolean {
   return true;
 }
 
-/** Throws a readable error unless every address of `host` is public. */
-export async function assertPublicHost(host: string): Promise<void> {
+/**
+ * Throws a readable error unless every address of `host` is public. `hint`
+ * finishes the sentence for whoever typed the host (mail settings by default;
+ * lib/net/safe-fetch.ts passes its own).
+ */
+export async function assertPublicHost(host: string, hint = "use your mail provider's public server name"): Promise<void> {
   const h = host.trim().replace(/\.$/, "").toLowerCase();
   if (!h) throw new Error("No host given.");
   if (h === "localhost" || h.endsWith(".localhost") || h.endsWith(".internal") || h.endsWith(".local") || h.endsWith(".railway.internal")) {
-    throw new Error(`"${host}" is an internal address — use your mail provider's public server name`);
+    throw new Error(`"${host}" is an internal address — ${hint}`);
   }
   if (isIP(h.replace(/^\[|\]$/g, ""))) {
-    if (isPrivateAddress(h)) throw new Error(`"${host}" is a private address — use your mail provider's public server name`);
+    if (isPrivateAddress(h)) throw new Error(`"${host}" is a private address — ${hint}`);
     return;
   }
   const { lookup } = await import("node:dns/promises");
@@ -69,6 +73,6 @@ export async function assertPublicHost(host: string): Promise<void> {
     throw new Error(`"${host}" doesn't resolve — check the server name`);
   }
   if (!addrs.length || addrs.some((a) => isPrivateAddress(a.address))) {
-    throw new Error(`"${host}" points to a private address — use your mail provider's public server name`);
+    throw new Error(`"${host}" points to a private address — ${hint}`);
   }
 }

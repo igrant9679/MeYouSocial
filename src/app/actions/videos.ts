@@ -101,11 +101,16 @@ export async function updateSceneAction(formData: FormData) {
   const scenes = parseScenes(render.scenes);
   if (index < 0 || index >= scenes.length) return;
   const secondsRaw = parseInt(String(formData.get("seconds")), 10);
+  const prompt = String(formData.get("prompt") ?? "").trim().slice(0, 2000) || scenes[index].prompt;
+  const seconds = Number.isFinite(secondsRaw) ? Math.max(2, Math.min(env.VIDEO_MAX_SECONDS, secondsRaw)) : scenes[index].seconds;
+  // A retry skips finished clips; a scene whose picture changed isn't finished.
+  const changed = prompt !== scenes[index].prompt || seconds !== scenes[index].seconds;
   scenes[index] = {
     ...scenes[index],
-    prompt: String(formData.get("prompt") ?? "").trim().slice(0, 2000) || scenes[index].prompt,
+    prompt,
     text: String(formData.get("text") ?? "").trim().slice(0, 120) || null,
-    seconds: Number.isFinite(secondsRaw) ? Math.max(2, Math.min(env.VIDEO_MAX_SECONDS, secondsRaw)) : scenes[index].seconds,
+    seconds,
+    ...(changed ? { outputUrl: null, status: "planned" } : {}),
   };
   await persistScenes(render.id, scenes);
   revalidatePath(`/videos/${id}`);

@@ -45,6 +45,28 @@ export async function POST(req: NextRequest) {
   const kind = TYPE_MAP[file.type];
   if (!kind) return NextResponse.json({ error: "unsupported type" }, { status: 400 });
 
+  // ⚠ Every id from the form is this workspace's, or it is refused — before
+  // anything is stored or paid for. The channel, chat and script used to be
+  // taken on trust, which wrote research sources into another company's
+  // assistant context (audit SEC-18).
+  const chat = parsed.data.chatId
+    ? await db.chat.findFirst({ where: { id: parsed.data.chatId, channel: { workspaceId: workspace.id } }, select: { id: true, channelId: true } })
+    : null;
+  const script = parsed.data.scriptId
+    ? await db.script.findFirst({ where: { id: parsed.data.scriptId, channel: { workspaceId: workspace.id } }, select: { id: true, channelId: true } })
+    : null;
+  const channel = parsed.data.channelId
+    ? await db.channel.findFirst({ where: { id: parsed.data.channelId, workspaceId: workspace.id }, select: { id: true } })
+    : null;
+  if ((parsed.data.chatId && !chat) || (parsed.data.scriptId && !script) || (parsed.data.channelId && !channel)) {
+    return NextResponse.json({ error: "not found" }, { status: 404 });
+  }
+  const channelId = channel?.id ?? chat?.channelId ?? script?.channelId ?? null;
+  if (!channelId) return NextResponse.json({ error: "no channel context" }, { status: 400 });
+  if ((chat && chat.channelId !== channelId) || (script && script.channelId !== channelId)) {
+    return NextResponse.json({ error: "the chat, script and channel don't belong together" }, { status: 400 });
+  }
+
   const bytes = Buffer.from(await file.arrayBuffer());
   const stored = await storage.put(file.name, bytes, file.type);
 
@@ -68,23 +90,11 @@ export async function POST(req: NextRequest) {
   }
   const words = (extractedText.match(/[\p{L}\p{N}]+/gu) ?? []).length;
 
-  // Resolve the parent record
-  let channelId = parsed.data.channelId ?? null;
-  if (!channelId && parsed.data.chatId) {
-    const chat = await db.chat.findFirst({ where: { id: parsed.data.chatId, channel: { workspaceId: workspace.id } } });
-    if (chat) channelId = chat.channelId;
-  }
-  if (!channelId && parsed.data.scriptId) {
-    const s = await db.script.findFirst({ where: { id: parsed.data.scriptId, channel: { workspaceId: workspace.id } } });
-    if (s) channelId = s.channelId;
-  }
-  if (!channelId) return NextResponse.json({ error: "no channel context" }, { status: 400 });
-
   // Persist as a ResearchSource and (optionally) attach to the chat context.
   const research = await db.researchSource.create({
     data: {
       channelId,
-      scriptId: parsed.data.scriptId ?? null,
+      scriptId: script?.id ?? null,
       kind,
       ref: stored.key,
       title: file.name,
@@ -92,10 +102,10 @@ export async function POST(req: NextRequest) {
       wordCount: words,
     },
   });
-  if (parsed.data.chatId) {
+  if (chat) {
     await db.chatContext.create({
       data: {
-        chatId: parsed.data.chatId,
+        chatId: chat.id,
         kind: "upload",
         ref: research.id,
         metadata: JSON.stringify({ title: file.name, mime: file.type, size: file.size, words }),

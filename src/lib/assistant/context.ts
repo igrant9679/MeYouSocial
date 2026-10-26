@@ -45,18 +45,13 @@ export function youtubeVideoId(input: string): string | null {
 
 /** A page as text: title + body, scripts and styles removed, whitespace collapsed. */
 export async function fetchPageText(url: string, maxChars = 6000): Promise<{ ok: true; title: string; text: string; chars: number } | { ok: false; reason: string }> {
-  let u: URL;
-  try { u = new URL(url); } catch { return { ok: false, reason: "not a valid URL" }; }
-  if (u.protocol !== "http:" && u.protocol !== "https:") return { ok: false, reason: "only http(s) pages" };
-  const host = u.hostname.toLowerCase();
-  // The server fetches on the person's behalf; keep it off the private network.
-  if (host === "localhost" || host.endsWith(".localhost") || host.endsWith(".internal") || /^(127\.|10\.|192\.168\.|169\.254\.|0\.|\[?::1\]?$)/.test(host) || /^172\.(1[6-9]|2\d|3[01])\./.test(host)) {
-    return { ok: false, reason: "that address is not reachable from here" };
-  }
+  // The server fetches on the person's behalf; safeFetch keeps it off the
+  // private network on every redirect hop (lib/net/safe-fetch.ts).
+  const { safeFetch, UnsafeUrlError } = await import("@/lib/net/safe-fetch");
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 12_000);
   try {
-    const res = await fetch(u.toString(), { signal: ctrl.signal, redirect: "follow", headers: { "user-agent": "Mozilla/5.0 (compatible; MeYouSocial Publisher assistant)", accept: "text/html,application/xhtml+xml,text/plain;q=0.9,*/*;q=0.5" } });
+    const res = await safeFetch(url, { signal: ctrl.signal, headers: { "user-agent": "Mozilla/5.0 (compatible; MeYouSocial Publisher assistant)", accept: "text/html,application/xhtml+xml,text/plain;q=0.9,*/*;q=0.5" } });
     if (!res.ok) return { ok: false, reason: `the page answered ${res.status}` };
     const type = res.headers.get("content-type") ?? "";
     if (!/text\/html|text\/plain|application\/xhtml/.test(type)) return { ok: false, reason: `not a readable page (${type.split(";")[0] || "unknown type"})` };
@@ -73,6 +68,7 @@ export async function fetchPageText(url: string, maxChars = 6000): Promise<{ ok:
       .replace(/[ \t]+/g, " ").replace(/\s*\n\s*/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
     return { ok: true, title, text: body.slice(0, maxChars), chars: body.length };
   } catch (e) {
+    if (e instanceof UnsafeUrlError) return { ok: false, reason: e.message };
     return { ok: false, reason: e instanceof Error && e.name === "AbortError" ? "the page took too long" : "could not fetch the page" };
   } finally {
     clearTimeout(timer);

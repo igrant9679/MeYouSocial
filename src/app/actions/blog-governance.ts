@@ -108,6 +108,13 @@ export async function toggleFullAutonomyAction(formData: FormData) {
   const { user, workspace } = await requireRole("ADMIN");
   const { isFullyAutonomous, enableFullAutonomy, disableFullAutonomy } = await import("@/lib/autonomy");
   const on = await isFullyAutonomous(workspace.id);
+  // The form says which way it means; a stale tab or a double click used to
+  // flip it back the other way (audit ENG-24). Asking for the state it is
+  // already in changes nothing.
+  const want = String(formData.get("intent") ?? "");
+  if ((want === "on" && on) || (want === "off" && !on)) {
+    redirect(`/setup/automation?ok=${encodeURIComponent(on ? "Full autonomy was already ON — nothing changed." : "Full autonomy was already off — nothing changed.")}`);
+  }
 
   if (!on) {
     // Turning it ON is the one direction that needs the typed confirmation —
@@ -128,10 +135,18 @@ export async function toggleFullAutonomyAction(formData: FormData) {
     : "Full autonomy is ON. Ideas, drafts, images, SEO, queueing and publishing now run unattended — the truthfulness gates still hold.")}`);
 }
 
-export async function toggleGlobalPauseAction() {
+export async function toggleGlobalPauseAction(formData?: FormData) {
   const { user, workspace } = await requireRole("ADMIN");
   const current = await db.automationState.findUnique({ where: { workspaceId: workspace.id } });
-  const next = !(current?.globalPause ?? false);
+  const now = current?.globalPause ?? false;
+  // Explicit, like the autonomy switch: "pause" from a stale tab must not
+  // resume a workspace someone else just paused.
+  const want = String(formData?.get("intent") ?? "");
+  const next = want === "pause" ? true : want === "resume" ? false : !now;
+  if (next === now) {
+    revalidatePath("/setup/automation");
+    return;
+  }
   await db.automationState.upsert({
     where: { workspaceId: workspace.id },
     update: { globalPause: next },
