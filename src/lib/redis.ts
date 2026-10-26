@@ -137,7 +137,12 @@ export class RedisClient {
         // A dropped connection must fail the in-flight command rather than
         // leaving its promise pending forever.
         sock.on("error", (e) => this.fail(e));
-        sock.on("close", () => { this.socket = null; this.fail(new Error("Redis connection closed")); });
+        // ⚠ A new socket is a new, unauthenticated connection. `authed` used to
+        // stay true after a drop, so the next socket skipped AUTH, every
+        // command got NOAUTH, and every sweep lock read "unavailable" until
+        // the process restarted. Reset it with the socket.
+        sock.on("close", () => { this.socket = null; this.authed = false; this.fail(new Error("Redis connection closed")); });
+        this.authed = false;
         this.socket = sock;
         resolve(sock);
       });

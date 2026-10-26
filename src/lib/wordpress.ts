@@ -112,6 +112,42 @@ export async function wpUpdatePostMeta(
 }
 
 /** Read a created post back with edit context so `meta` is exposed. */
+/**
+ * A post THIS app most likely created already: same slug, same title, touched
+ * in the last two hours, any status. Asked right before creating, because a
+ * create that times out on our side (30 s) can still have succeeded on the
+ * host — and retrying it next cycle put a second copy live. A same-slug post
+ * that doesn't match the title or the window is someone else's and is left
+ * alone (WordPress gives a new post a suffixed slug anyway). Null on any error
+ * — the caller then creates, as before.
+ */
+export async function wpFindRecentPostBySlug(
+  c: WpCredentials,
+  slug: string,
+  title: string,
+): Promise<{ id: number; link: string } | null> {
+  if (!slug) return null;
+  try {
+    const res = await fetch(api(c, `/posts?slug=${encodeURIComponent(slug)}&status=any&context=edit&per_page=5`), {
+      headers: { Authorization: authHeader(c) },
+      signal: AbortSignal.timeout(20000),
+    });
+    if (!res.ok) return null;
+    const rows = (await res.json()) as Array<{ id: number; link: string; title?: { raw?: string; rendered?: string }; modified_gmt?: string }>;
+    const norm = (s: string) => s.replace(/<[^>]+>/g, "").replace(/&#?\w+;/g, "").replace(/\s+/g, " ").trim().toLowerCase();
+    const want = norm(title);
+    const recent = Date.now() - 2 * 3_600_000;
+    const hit = rows.find((r) => {
+      const t = norm(r.title?.raw ?? r.title?.rendered ?? "");
+      const modified = r.modified_gmt ? Date.parse(`${r.modified_gmt}Z`) : NaN;
+      return t === want && Number.isFinite(modified) && modified >= recent;
+    });
+    return hit ? { id: hit.id, link: hit.link } : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function wpReadPost(
   c: WpCredentials,
   id: number,

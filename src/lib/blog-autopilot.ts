@@ -10,6 +10,7 @@ import {
   wpUploadMediaBytes,
   sniffImageMime,
   wpReadPost,
+  wpFindRecentPostBySlug,
   wpResolveAuthor,
   wpResolveTerms,
   wpUploadMedia,
@@ -612,9 +613,10 @@ export async function publishCore(workspaceId: string, postId: string): Promise<
   const post = await db.blogPost.findFirst({ where: { id: postId, workspaceId } });
   if (!post || !post.body) return false;
   if (post.status !== "final_approval" && post.status !== "published") return false;
-  // Already handed off as a WordPress draft — creating a second one on the next
-  // scheduler cycle (or a double-click) would duplicate the post over there.
-  if (post.wpPostId != null && post.status !== "published") return false;
+  // Already on WordPress (live, or handed off as a draft) — creating another
+  // would duplicate the post over there. (A "published" post with a WordPress
+  // id used to pass this check and could be sent again.)
+  if (post.wpPostId != null) return false;
 
   const unverified = await db.blogCitation.count({ where: { postId: post.id, verified: false } });
   const [assets, editorial] = await Promise.all([
@@ -638,160 +640,205 @@ export async function publishCore(workspaceId: string, postId: string): Promise<
     return false;
   }
 
-  const workspace = await db.workspace.findUnique({ where: { id: workspaceId } });
-  const brand = await getBrandKit(workspaceId);
-  const images = await db.blogImage.findMany({ where: { postId: post.id } });
-  const featured = images.find((i) => i.role === "featured");
-  const ogImage = images.find((i) => i.role === "og");
+  // ⚠ CLAIM before anything touches WordPress. Nothing here used to stop two
+  // publishes of one post — the sweep, "Run cycle now", Publish now and the
+  // assistant could all pass the checks above and each create a live post.
+  // final_approval/published → "publishing" succeeds for exactly one caller;
+  // every exit below releases it, and a claim stranded by a crash is released
+  // by the sweep after 15 minutes (releaseStalePublishClaims).
+  const fromStatus = post.status;
+  const claim = await db.blogPost.updateMany({
+    where: { id: post.id, workspaceId, status: fromStatus, wpPostId: null },
+    data: { status: "publishing" },
+  });
+  if (claim.count !== 1) return false;
+  let settled = false;
+  try {
+    const workspace = await db.workspace.findUnique({ where: { id: workspaceId } });
+    const brand = await getBrandKit(workspaceId);
+    const images = await db.blogImage.findMany({ where: { postId: post.id } });
+    const featured = images.find((i) => i.role === "featured");
+    const ogImage = images.find((i) => i.role === "og");
 
-  // Featured image goes into the media library rather than being hotlinked.
-  // Stored images live at session-gated RELATIVE urls a server-side fetch
-  // cannot read (the first real publish went out imageless because of this) —
-  // resolve those to bytes from storage; only external urls are fetched.
-  let media: { id: number; sourceUrl: string } | null = null;
-  let featuredUploadError: string | null = null;
-  if (featured) {
-    const storedKey = featured.url.match(/\/(?:uploads|api\/files)\/([^"'\s)]+)/)?.[1];
-    if (storedKey) {
-      const { storage } = await import("@/lib/storage");
-      const buf = await storage.get(decodeURIComponent(storedKey)).catch(() => null);
-      if (buf) {
-        // ⚠ Re-encode for the host. A 1920×1080 gpt-image PNG is ~4.7 MB and
-        // lsi-media.com answers 413 above its upload limit — EVERY autonomous
-        // publish from 2026-08-26 to 09-16 went out without a featured image
-        // while the helper turned the 413 into a silent null. A JPEG at the
-        // same pixels is ~10× smaller; the app keeps its PNG, WordPress gets
-        // the JPEG. On a 413 even so, one retry at 1280 wide, lower quality.
-        const sharp = (await import("sharp")).default;
-        const attempts: Array<{ bytes: Uint8Array; name: string }> = [];
-        try {
-          attempts.push({ bytes: new Uint8Array(await sharp(buf).jpeg({ quality: 84, mozjpeg: true }).toBuffer()), name: `${post.slug || post.id}-featured.jpg` });
-          attempts.push({ bytes: new Uint8Array(await sharp(buf).resize({ width: 1280, withoutEnlargement: true }).jpeg({ quality: 76, mozjpeg: true }).toBuffer()), name: `${post.slug || post.id}-featured-1280.jpg` });
-        } catch {
-          const bytes = new Uint8Array(buf);
-          const mime = sniffImageMime(bytes);
-          if (mime) attempts.push({ bytes, name: `${post.slug || post.id}-featured.${mime.split("/")[1].replace("jpeg", "jpg")}` });
-        }
-        for (const a of attempts) {
-          const r = await wpUploadMediaBytes(creds, a.bytes, a.name, a.name.endsWith(".jpg") ? "image/jpeg" : sniffImageMime(a.bytes) ?? "image/png", featured.altText);
-          if (r.ok) { media = { id: r.id, sourceUrl: r.sourceUrl }; featuredUploadError = null; break; }
-          featuredUploadError = `${r.error} (${Math.round(a.bytes.byteLength / 1024)} KB)`;
-          if (!/413|too large/i.test(r.error)) break; // only a size refusal is worth a smaller retry
+    // Featured image goes into the media library rather than being hotlinked.
+    // Stored images live at session-gated RELATIVE urls a server-side fetch
+    // cannot read (the first real publish went out imageless because of this) —
+    // resolve those to bytes from storage; only external urls are fetched.
+    let media: { id: number; sourceUrl: string } | null = null;
+    let featuredUploadError: string | null = null;
+    if (featured) {
+      const storedKey = featured.url.match(/\/(?:uploads|api\/files)\/([^"'\s)]+)/)?.[1];
+      if (storedKey) {
+        const { storage } = await import("@/lib/storage");
+        const buf = await storage.get(decodeURIComponent(storedKey)).catch(() => null);
+        if (buf) {
+          // ⚠ Re-encode for the host. A 1920×1080 gpt-image PNG is ~4.7 MB and
+          // lsi-media.com answers 413 above its upload limit — EVERY autonomous
+          // publish from 2026-08-26 to 09-16 went out without a featured image
+          // while the helper turned the 413 into a silent null. A JPEG at the
+          // same pixels is ~10× smaller; the app keeps its PNG, WordPress gets
+          // the JPEG. On a 413 even so, one retry at 1280 wide, lower quality.
+          const sharp = (await import("sharp")).default;
+          const attempts: Array<{ bytes: Uint8Array; name: string }> = [];
+          try {
+            attempts.push({ bytes: new Uint8Array(await sharp(buf).jpeg({ quality: 84, mozjpeg: true }).toBuffer()), name: `${post.slug || post.id}-featured.jpg` });
+            attempts.push({ bytes: new Uint8Array(await sharp(buf).resize({ width: 1280, withoutEnlargement: true }).jpeg({ quality: 76, mozjpeg: true }).toBuffer()), name: `${post.slug || post.id}-featured-1280.jpg` });
+          } catch {
+            const bytes = new Uint8Array(buf);
+            const mime = sniffImageMime(bytes);
+            if (mime) attempts.push({ bytes, name: `${post.slug || post.id}-featured.${mime.split("/")[1].replace("jpeg", "jpg")}` });
+          }
+          for (const a of attempts) {
+            const r = await wpUploadMediaBytes(creds, a.bytes, a.name, a.name.endsWith(".jpg") ? "image/jpeg" : sniffImageMime(a.bytes) ?? "image/png", featured.altText);
+            if (r.ok) { media = { id: r.id, sourceUrl: r.sourceUrl }; featuredUploadError = null; break; }
+            featuredUploadError = `${r.error} (${Math.round(a.bytes.byteLength / 1024)} KB)`;
+            if (!/413|too large/i.test(r.error)) break; // only a size refusal is worth a smaller retry
+          }
+        } else {
+          featuredUploadError = "stored bytes could not be read";
         }
       } else {
-        featuredUploadError = "stored bytes could not be read";
+        const r = await wpUploadMedia(creds, featured.url, featured.altText);
+        if (r.ok) media = { id: r.id, sourceUrl: r.sourceUrl };
+        else featuredUploadError = r.error;
       }
-    } else {
-      const r = await wpUploadMedia(creds, featured.url, featured.altText);
-      if (r.ok) media = { id: r.id, sourceUrl: r.sourceUrl };
-      else featuredUploadError = r.error;
+    }
+
+    // Taxonomy: the post's own terms, falling back to the connection defaults.
+    const postCategories = parseStringArray(post.categories);
+    const postTags = parseStringArray(post.tags);
+    const categoryNames = postCategories.length ? postCategories : parseStringArray(conn.defaultCategories);
+    const tagNames = postTags.length ? postTags : parseStringArray(conn.defaultTags);
+    const [cats, tags] = await Promise.all([
+      categoryNames.length ? wpResolveTerms(creds, "categories", categoryNames) : Promise.resolve({ ids: [], missed: [] }),
+      tagNames.length ? wpResolveTerms(creds, "tags", tagNames) : Promise.resolve({ ids: [], missed: [] }),
+    ]);
+    const authorId = conn.defaultAuthor ? await wpResolveAuthor(creds, conn.defaultAuthor) : null;
+
+    // SEO plugin fields, mapped to this install's meta keys.
+    const plugin = isSeoPlugin(conn.seoPlugin) ? conn.seoPlugin : "none";
+    const fieldMap = effectiveFieldMap(plugin, conn.seoFieldMap);
+    const seoValues = {
+      title: post.metaTitle ?? post.title,
+      description: post.metaDescription ?? undefined,
+      focusKeyword: post.focusKeyword ?? undefined,
+      canonical: post.canonicalUrl ?? undefined,
+      ogTitle: post.ogTitle ?? post.metaTitle ?? post.title,
+      ogDescription: post.ogDescription ?? post.metaDescription ?? undefined,
+      ogImage: ogImage?.url ?? undefined,
+    };
+    const meta = buildSeoMeta(fieldMap, seoValues);
+
+    // Structured data rides inside the content (works on any WP theme/plugin).
+    const jsonLd = `\n<script type="application/ld+json">${buildJsonLd(post, workspace?.name ?? "MeYouSocial")}</script>`;
+    // The theme renders the headline; the body's leading h1 would duplicate it.
+    const rendered = renderForPublish(stripLeadingH1(post.body), {
+      headingSpec: brand.headingSpec,
+      footerCredit: brand.footerCredit,
+      renderProfile: isRenderProfile(brand.renderProfile) ? brand.renderProfile : "html",
+      renderRules: parseRenderRules(brand.renderRules),
+    });
+    const content = rendered.html + jsonLd;
+
+    const status = conn.publishAsDraft ? "draft" : "publish";
+    // A create that timed out on our side can still have landed on the host;
+    // adopt that post rather than making a second one (wpFindRecentPostBySlug).
+    const adopted = post.slug ? await wpFindRecentPostBySlug(creds, post.slug, post.title) : null;
+    const created = adopted ?? await wpCreatePost(creds, {
+      // The EDITORIAL title is the on-page headline (user's call 2026-08-12 —
+      // the first live publish surprised them with the 39-char SEO title as
+      // its h1). The meta title still reaches search engines through the SEO
+      // plugin's fields (seoValues.title, below) when one is configured.
+      title: post.title,
+      slug: post.slug,
+      content,
+      excerpt: post.metaDescription,
+      status,
+      meta,
+      categories: cats.ids,
+      tags: tags.ids,
+      author: authorId ?? undefined,
+      featuredMedia: media?.id,
+      template: conn.template || undefined,
+    });
+
+    // "Sent" is not "stored": WordPress drops meta keys that aren't registered
+    // for REST. Read the post back and report what actually landed.
+    const readBack = await wpReadPost(creds, created.id);
+    const seoOutcomes = verifySeoMeta(fieldMap, seoValues, readBack?.meta ?? null);
+    const report = {
+      at: new Date().toISOString(),
+      wpPostId: created.id,
+      status,
+      plugin,
+      renderProfile: brand.renderProfile,
+      rendered: rendered.report,
+      seo: seoOutcomes,
+      seoUnverified: readBack ? false : true,
+      featuredMedia: media ? { id: media.id, applied: readBack ? readBack.featuredMedia === media.id : null } : null,
+      featuredUploadFailed: !!featured && !media,
+      // The reason, not just the fact — "featuredUploadFailed: true" sat in six
+      // reports before anyone learned it was a 413.
+      featuredUploadError,
+      categories: { requested: categoryNames, applied: readBack?.categories.length ?? cats.ids.length, missed: cats.missed },
+      tags: { requested: tagNames, applied: readBack?.tags.length ?? tags.ids.length, missed: tags.missed },
+      author: conn.defaultAuthor ? { requested: conn.defaultAuthor, resolved: authorId } : null,
+    };
+
+    await db.blogPost.update({
+      where: { id: post.id },
+      data: {
+        // A draft handoff hasn't gone live — don't claim it has.
+        status: status === "publish" ? "published" : post.status,
+        publishedAt: status === "publish" ? new Date() : null,
+        publishedUrl: created.link,
+        wpPostId: created.id,
+        publishReport: JSON.stringify(report),
+      },
+    });
+    await writeAudit({
+      workspaceId,
+      action: status === "publish" ? "blog.published_wordpress" : "blog.drafted_to_wordpress",
+      entityType: "blog_post",
+      entityId: post.id,
+      meta: {
+        wpPostId: created.id,
+        link: created.link,
+        seoAccepted: seoOutcomes.filter((o) => o.accepted).length,
+        seoSent: seoOutcomes.length,
+        featuredMedia: media?.id ?? null,
+        featuredUploadError,
+        // True when an earlier, timed-out create had landed and was adopted.
+        adoptedExisting: Boolean(adopted),
+      },
+    });
+    settled = true;
+    return true;
+  } finally {
+    if (!settled) {
+      await db.blogPost.updateMany({ where: { id: post.id, status: "publishing" }, data: { status: fromStatus } }).catch(() => {});
     }
   }
+}
 
-  // Taxonomy: the post's own terms, falling back to the connection defaults.
-  const postCategories = parseStringArray(post.categories);
-  const postTags = parseStringArray(post.tags);
-  const categoryNames = postCategories.length ? postCategories : parseStringArray(conn.defaultCategories);
-  const tagNames = postTags.length ? postTags : parseStringArray(conn.defaultTags);
-  const [cats, tags] = await Promise.all([
-    categoryNames.length ? wpResolveTerms(creds, "categories", categoryNames) : Promise.resolve({ ids: [], missed: [] }),
-    tagNames.length ? wpResolveTerms(creds, "tags", tagNames) : Promise.resolve({ ids: [], missed: [] }),
-  ]);
-  const authorId = conn.defaultAuthor ? await wpResolveAuthor(creds, conn.defaultAuthor) : null;
-
-  // SEO plugin fields, mapped to this install's meta keys.
-  const plugin = isSeoPlugin(conn.seoPlugin) ? conn.seoPlugin : "none";
-  const fieldMap = effectiveFieldMap(plugin, conn.seoFieldMap);
-  const seoValues = {
-    title: post.metaTitle ?? post.title,
-    description: post.metaDescription ?? undefined,
-    focusKeyword: post.focusKeyword ?? undefined,
-    canonical: post.canonicalUrl ?? undefined,
-    ogTitle: post.ogTitle ?? post.metaTitle ?? post.title,
-    ogDescription: post.ogDescription ?? post.metaDescription ?? undefined,
-    ogImage: ogImage?.url ?? undefined,
-  };
-  const meta = buildSeoMeta(fieldMap, seoValues);
-
-  // Structured data rides inside the content (works on any WP theme/plugin).
-  const jsonLd = `\n<script type="application/ld+json">${buildJsonLd(post, workspace?.name ?? "MeYouSocial")}</script>`;
-  // The theme renders the headline; the body's leading h1 would duplicate it.
-  const rendered = renderForPublish(stripLeadingH1(post.body), {
-    headingSpec: brand.headingSpec,
-    footerCredit: brand.footerCredit,
-    renderProfile: isRenderProfile(brand.renderProfile) ? brand.renderProfile : "html",
-    renderRules: parseRenderRules(brand.renderRules),
+/**
+ * A publish claim left behind by a process that died mid-publish (a redeploy)
+ * would hold its article in "publishing" for good. After 15 minutes — far past
+ * any real publish — put it back at final approval; the slug check in
+ * publishCore stops the retry from duplicating a post that did land.
+ */
+export async function releaseStalePublishClaims(workspaceId: string): Promise<number> {
+  const stale = await db.blogPost.findMany({
+    where: { workspaceId, status: "publishing", updatedAt: { lt: new Date(Date.now() - 15 * 60_000) } },
+    select: { id: true },
   });
-  const content = rendered.html + jsonLd;
-
-  const status = conn.publishAsDraft ? "draft" : "publish";
-  const created = await wpCreatePost(creds, {
-    // The EDITORIAL title is the on-page headline (user's call 2026-08-12 —
-    // the first live publish surprised them with the 39-char SEO title as
-    // its h1). The meta title still reaches search engines through the SEO
-    // plugin's fields (seoValues.title, below) when one is configured.
-    title: post.title,
-    slug: post.slug,
-    content,
-    excerpt: post.metaDescription,
-    status,
-    meta,
-    categories: cats.ids,
-    tags: tags.ids,
-    author: authorId ?? undefined,
-    featuredMedia: media?.id,
-    template: conn.template || undefined,
-  });
-
-  // "Sent" is not "stored": WordPress drops meta keys that aren't registered
-  // for REST. Read the post back and report what actually landed.
-  const readBack = await wpReadPost(creds, created.id);
-  const seoOutcomes = verifySeoMeta(fieldMap, seoValues, readBack?.meta ?? null);
-  const report = {
-    at: new Date().toISOString(),
-    wpPostId: created.id,
-    status,
-    plugin,
-    renderProfile: brand.renderProfile,
-    rendered: rendered.report,
-    seo: seoOutcomes,
-    seoUnverified: readBack ? false : true,
-    featuredMedia: media ? { id: media.id, applied: readBack ? readBack.featuredMedia === media.id : null } : null,
-    featuredUploadFailed: !!featured && !media,
-    // The reason, not just the fact — "featuredUploadFailed: true" sat in six
-    // reports before anyone learned it was a 413.
-    featuredUploadError,
-    categories: { requested: categoryNames, applied: readBack?.categories.length ?? cats.ids.length, missed: cats.missed },
-    tags: { requested: tagNames, applied: readBack?.tags.length ?? tags.ids.length, missed: tags.missed },
-    author: conn.defaultAuthor ? { requested: conn.defaultAuthor, resolved: authorId } : null,
-  };
-
-  await db.blogPost.update({
-    where: { id: post.id },
-    data: {
-      // A draft handoff hasn't gone live — don't claim it has.
-      status: status === "publish" ? "published" : post.status,
-      publishedAt: status === "publish" ? new Date() : null,
-      publishedUrl: created.link,
-      wpPostId: created.id,
-      publishReport: JSON.stringify(report),
-    },
-  });
-  await writeAudit({
-    workspaceId,
-    action: status === "publish" ? "blog.published_wordpress" : "blog.drafted_to_wordpress",
-    entityType: "blog_post",
-    entityId: post.id,
-    meta: {
-      wpPostId: created.id,
-      link: created.link,
-      seoAccepted: seoOutcomes.filter((o) => o.accepted).length,
-      seoSent: seoOutcomes.length,
-      featuredMedia: media?.id ?? null,
-      featuredUploadError,
-    },
-  });
-  return true;
+  for (const p of stale) {
+    const r = await db.blogPost.updateMany({ where: { id: p.id, status: "publishing" }, data: { status: "final_approval" } });
+    if (r.count) {
+      await writeAudit({ workspaceId, action: "blog.publish_claim_released", entityType: "blog_post", entityId: p.id, meta: { after: "15 minutes" } });
+    }
+  }
+  return stale.length;
 }
 
 function parseStringArray(json: string | null | undefined): string[] {
@@ -1139,7 +1186,7 @@ async function generationsToday(workspaceId: string): Promise<number> {
 
 export type CycleReport = {
   workspaceId: string;
-  skipped?: "paused" | "budget";
+  skipped?: "paused" | "budget" | "busy";
   ideasCreated: number;
   drafted: number;
   variantPosts: number;
@@ -1161,7 +1208,41 @@ export type CycleReport = {
   videosRendered: number;
 };
 
+/**
+ * One cycle for one workspace — under a PER-WORKSPACE lock shared by every
+ * entry point: the 30-minute sweep, "Run cycle now" and the assistant's
+ * run_autopilot_now. They used to run side by side, drafting one approved
+ * idea twice and racing publishCore. A second caller while a cycle runs gets
+ * `skipped: "busy"` and does nothing.
+ */
 export async function runAutopilotCycle(workspaceId: string): Promise<CycleReport> {
+  const { withLock } = await import("@/lib/lock");
+  const out = await withLock(`autopilot-cycle:${workspaceId}`, () => runAutopilotCycleUnlocked(workspaceId), { ttlMs: 10 * 60_000 });
+  if (out.ran) return out.result;
+  return { ...emptyReport(workspaceId), skipped: "busy" };
+}
+
+function emptyReport(workspaceId: string): CycleReport {
+  return {
+    workspaceId,
+    ideasCreated: 0,
+    drafted: 0,
+    variantPosts: 0,
+    postsGenerated: 0,
+    imagesGenerated: 0,
+    seoOptimized: 0,
+    autoAdvanced: 0,
+    imagesAutoApproved: 0,
+    citationsAutoVerified: 0,
+    findingsAutoApplied: 0,
+    autoQueued: 0,
+    published: 0,
+    videosPackaged: 0,
+    videosRendered: 0,
+  };
+}
+
+async function runAutopilotCycleUnlocked(workspaceId: string): Promise<CycleReport> {
   const report: CycleReport = {
     workspaceId,
     ideasCreated: 0,
@@ -1459,6 +1540,7 @@ export async function runAutopilotCycle(workspaceId: string): Promise<CycleRepor
   // scheduledAt is unset or due. Assisted mode: ONLY due scheduled posts —
   // an admin setting the time was the human approval. Manual: nothing.
   if (modes.publishing === "auto" || modes.publishing === "assisted") {
+    await releaseStalePublishClaims(workspaceId);
     const now = new Date();
     // `autopilot:publish_day` (Date#getDay 0–6, unset = any day) — the owner's
     // "articles go out on Wednesdays" dial. On every other day auto mode

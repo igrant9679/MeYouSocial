@@ -169,12 +169,29 @@ function makeUploader(workspaceId: string, watermark: Watermarker = null): Media
   };
 }
 
-export async function publishSocialPost(postId: string): Promise<void> {
+/**
+ * Send one post to its networks. `claimed` is true only for the scheduler,
+ * which has already moved the row scheduled → publishing. Every other caller
+ * (Post now, Retry, the assistant) gets the same atomic claim here, so two of
+ * them — or one of them and the sweep — can no longer send the same post
+ * twice. Returns quietly when someone else holds the claim or it's already out.
+ */
+export async function publishSocialPost(postId: string, opts: { claimed?: boolean } = {}): Promise<void> {
   const post = await db.socialPost.findUnique({
     where: { id: postId },
     include: { targets: true, campaign: { select: { utmCampaign: true } } },
   });
   if (!post) return;
+
+  // No accounts: there is nowhere to send it. Before, a post with no targets
+  // (RSS drafts, for one) was scheduled, claimed, and left in "publishing"
+  // for good. Put it back in drafts where someone can pick accounts.
+  if (post.targets.length === 0) {
+    if (post.status !== "draft") {
+      await db.socialPost.update({ where: { id: post.id }, data: { status: "draft", scheduledAt: null } });
+    }
+    return;
+  }
 
   // ⚠ Unapproved content must never reach a network, whoever calls this and
   // however the post got here. The sweep's claim already excludes these; this
@@ -203,7 +220,15 @@ export async function publishSocialPost(postId: string): Promise<void> {
     return;
   }
 
-  await db.socialPost.update({ where: { id: post.id }, data: { status: "publishing" } });
+  if (!opts.claimed) {
+    // The claim for direct sends (the sweep claims before calling). Only one
+    // caller moves an unsent post into "publishing"; anyone else stops here.
+    const claim = await db.socialPost.updateMany({
+      where: { id: post.id, status: { in: ["draft", "scheduled", "failed", "partial"] } },
+      data: { status: "publishing" },
+    });
+    if (claim.count !== 1) return;
+  }
 
   try {
     if (!(await zernioConfigured(post.workspaceId))) throw new Error("Zernio is not configured");
@@ -344,12 +369,16 @@ export async function publishSocialPost(postId: string): Promise<void> {
  * second sweep can't grab the same post.
  */
 export async function publishDueSocialPosts(): Promise<number> {
+  // ⚠ The global pause is the emergency brake; scheduled sends used to ignore
+  // it entirely. (notIn is safe here: workspaceId is never NULL.)
+  const paused = (await db.automationState.findMany({ where: { globalPause: true }, select: { workspaceId: true } })).map((r) => r.workspaceId);
   const due = await db.socialPost.findMany({
     // ⚠ The approval filter is spelled as an OR over the two sendable values,
     // NOT `notIn: ["pending","changes"]` — SQL's NOT IN excludes NULL rows,
     // which would silently stop every normal (approval = null) post from ever
     // publishing. `approval` only ever holds null|pending|approved|changes.
     where: {
+      workspaceId: { notIn: paused },
       status: "scheduled",
       scheduledAt: { lte: new Date() },
       OR: [{ approval: null }, { approval: "approved" }],
@@ -366,7 +395,7 @@ export async function publishDueSocialPosts(): Promise<number> {
     });
     if (claim.count === 0) continue; // another sweep took it
     try {
-      await publishSocialPost(id);
+      await publishSocialPost(id, { claimed: true });
       published++;
     } catch {
       await db.socialPost.updateMany({ where: { id, status: "publishing" }, data: { status: "failed" } });

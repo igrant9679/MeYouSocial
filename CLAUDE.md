@@ -275,6 +275,24 @@ Tabs: **Keys** (`/admin/api-keys`: LLM, search, images, video, TTS, storage) · 
   nonce (`lib/google/oauth-state.ts`). SMTP save/test reuse a stored password only from the
   workspace's own row with the same host+user, and refuse private hosts (`lib/net/public-host.ts`).
 
+## ⚠ One actor at a time (2026-10-26, audit Phase 1, first part)
+- **Article publishing is claimed**: `publishCore` moves the post final_approval/published →
+  `"publishing"` with a conditional update before anything touches WordPress, releases it on every
+  failure, and refuses any post that already has a `wpPostId`. Before creating it asks
+  `wpFindRecentPostBySlug` (same slug + title, modified in the last 2 h) and adopts that post, so a
+  create that timed out after succeeding isn't repeated. A claim older than 15 minutes is released by
+  the sweep (`releaseStalePublishClaims`). "publishing" is a transient BlogPost status — lists may not
+  show it.
+- **One autopilot cycle per workspace**: `runAutopilotCycle` takes the lock
+  `autopilot-cycle:<workspaceId>` for every entry point (sweep, "Run cycle now", the assistant); a
+  second caller gets `skipped: "busy"`.
+- **Social sends are claimed**: only the scheduler passes `{ claimed: true }`; every other
+  `publishSocialPost` caller claims draft/scheduled/failed/partial → publishing atomically and stops if
+  it loses. A post with no targets goes back to draft instead of sending. The scheduled-send sweep
+  skips globally paused workspaces.
+- `lib/redis.ts` resets `authed` with every new socket — a dropped connection used to leave every lock
+  "unavailable" until a restart.
+
 ## Open items / things the user still owns
 - **Analytics: APIs enabled 2026-08-03** (Search Console + GA Admin + GA Data, on project
   `479503233109` = `gen-lang-client-0838901195` = "CreateUp"). Still pending, user-only: add the

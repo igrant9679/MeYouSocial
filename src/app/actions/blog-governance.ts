@@ -20,6 +20,14 @@ export async function runAutopilotNowAction() {
     meta: report as unknown as Record<string, unknown>,
   });
   revalidatePath("/setup/automation");
+  // Say what happened — a click that silently did nothing (busy, paused) read
+  // as a broken button.
+  const said =
+    report.skipped === "busy" ? "A cycle is already running for this workspace — nothing was started. Try again in a minute."
+    : report.skipped === "paused" ? "The global pause is on, so the cycle didn't run."
+    : report.skipped === "budget" ? "Today's AI budget is spent, so the cycle stopped before generating anything."
+    : `Cycle ran: ${report.drafted} drafted, ${report.autoAdvanced} advanced, ${report.autoQueued} queued, ${report.published} published.`;
+  redirect(`/setup/automation?${report.skipped === "busy" || report.skipped === "paused" ? "err" : "ok"}=${encodeURIComponent(said)}`);
 }
 
 export async function setFunctionModeAction(formData: FormData) {

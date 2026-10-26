@@ -1224,6 +1224,7 @@ export const TOOLS: Tool[] = [
     async run(_a, ctx) {
       const { runAutopilotCycle } = await import("@/lib/blog-autopilot");
       const r = await runAutopilotCycle(ctx.workspaceId);
+      if (r.skipped === "busy") return "not run: a cycle is already running for this workspace (the sweep or another request) — try again in a minute";
       return `cycle ran: ${JSON.stringify(r).slice(0, 300)}`;
     },
   },
