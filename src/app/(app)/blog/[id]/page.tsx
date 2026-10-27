@@ -4,7 +4,7 @@ import { ArrowLeft, Check, ChevronLeft, ChevronRight, CircleAlert, ShieldCheck, 
 import { requireMembership, canEdit, canAdmin } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { runBlogChecks } from "@/lib/blog-checks";
-import { gatesSatisfied, overrideHolds } from "@/lib/blog-gates";
+import { bodyHash, gatesSatisfied, overrideHolds } from "@/lib/blog-gates";
 import { formatInZone, getPostingTimeZone, toZonedInput } from "@/lib/social/slots";
 import { Banner } from "@/components/SocialPostCard";
 import { contentScore } from "@/lib/blog-score";
@@ -83,6 +83,7 @@ import {
   verifyCitationAction,
 } from "@/app/actions/blog";
 import { publishToWordPressAction, pushSeoMetaAction } from "@/app/actions/blog-wp";
+import { markPublishedManuallyAction } from "@/app/actions/blog-export";
 import {
   deleteSocialVariantAction,
   generateSocialVariantsAction,
@@ -310,7 +311,21 @@ export default async function BlogPostPage({
             <button className="btn" title="Send back a stage"><ChevronLeft className="w-4 h-4" /> Back</button>
           </form>
         )}
-        {editor && idx < FLOW.length - 1 && (!nextIsPublish || admin) && (
+        {/* No website: the app can't publish this itself, so the publish step is
+            the hand-made one — the HTML file, then the live link (ART-12). The
+            old button marked it published with no URL. */}
+        {admin && nextIsPublish && !wpConn && (
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <a href={`/blog/${post.id}/export`} className="btn" title="A self-contained HTML file of this article — add it to your site by hand">Download HTML</a>
+            <form action={markPublishedManuallyAction} className="flex items-center gap-1.5">
+              <input type="hidden" name="id" value={post.id} />
+              <input type="hidden" name="back" value="editor" />
+              <input name="url" type="url" required placeholder="https://… live link" className="text-xs min-w-52" aria-label="Live URL" />
+              <SubmitButton className="btn primary" pendingText="Recording…" title="Record this article as published at that link — social posts and analytics key off it">Mark as published</SubmitButton>
+            </form>
+          </div>
+        )}
+        {editor && idx < FLOW.length - 1 && (!nextIsPublish || (admin && wpConn)) && (
           <form action={advanceBlogStatusAction}>
             <input type="hidden" name="id" value={post.id} />
             <button className={nextIsPublish ? "btn primary" : "btn"} title={nextIsPublish ? "Publish (admin approval)" : "Advance a stage"}>
@@ -1156,7 +1171,7 @@ export default async function BlogPostPage({
           </p>
         </div>
 
-        <BlogBodyEditor postId={post.id} initialBody={post.body ?? ""} disabled={!editor} />
+        <BlogBodyEditor postId={post.id} initialBody={post.body ?? ""} serverHash={bodyHash(post.body)} disabled={!editor} />
 
         {editor && (
           <div className="flex items-center gap-2">

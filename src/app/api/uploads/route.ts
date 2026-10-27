@@ -3,10 +3,10 @@ import { z } from "zod";
 import { requireRole } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { storage } from "@/lib/storage";
-import { llm } from "@/lib/llm";
 
 // / — Upload a file (≤ 10MB) and add it as research / context.
-// Accepts PDF, Word (.doc/.docx), text (.txt/.md/.json/.csv) and images (.jpg/.png/.gif/.webp).
+// Reads text (.txt/.md/.json/.csv) and images (.jpg/.png/.gif/.webp, captioned by a vision model).
+// PDF and Word are recognised and refused with a message — no parser is installed.
 
 const MAX_BYTES = 10 * 1024 * 1024;
 const TYPE_MAP: Record<string, "pdf" | "word" | "text" | "image"> = {
@@ -44,6 +44,15 @@ export async function POST(req: NextRequest) {
   if (file.size > MAX_BYTES) return NextResponse.json({ error: "file too large (>10MB)" }, { status: 400 });
   const kind = TYPE_MAP[file.type];
   if (!kind) return NextResponse.json({ error: "unsupported type" }, { status: 400 });
+  // ⚠ No PDF or Word parser is installed, and a stub sentence stored as the
+  // file's "content" was then handed to the model as research (ENG-14).
+  // Refuse before anything is stored, and say what works instead.
+  if (kind === "pdf" || kind === "word") {
+    return NextResponse.json(
+      { error: `${kind === "pdf" ? "PDF" : "Word"} files can't be read here yet. Paste the text you need, or save it as .txt or .md and upload that.` },
+      { status: 415 },
+    );
+  }
 
   // ⚠ Every id from the form is this workspace's, or it is refused — before
   // anything is stored or paid for. The channel, chat and script used to be
@@ -70,25 +79,27 @@ export async function POST(req: NextRequest) {
   const bytes = Buffer.from(await file.arrayBuffer());
   const stored = await storage.put(file.name, bytes, file.type);
 
-  // Extract usable text. For now: text/json/md/csv are read directly; PDF/Word/image are stubbed
-  // (real implementation will wire up pdf-parse, mammoth, and image-captioning when keys are added).
+  // Extract usable text: text files are read; an image is LOOKED AT by a vision
+  // model. The caption used to be written from the filename alone and stored
+  // as if someone had seen the picture (ENG-14). No vision key → no caption,
+  // and the response says so.
   let extractedText: string | null = null;
+  let note: string | null = null;
   if (kind === "text") {
     extractedText = bytes.toString("utf8").slice(0, 50_000);
-  } else if (kind === "image") {
-    // Have the LLM describe what the image is meant to convey from the filename + caption hint.
-    const captioned = await llm.complete({
-      model: "claude-sonnet",
-      system: "Generate a short caption (1-2 sentences) describing the likely subject of an image attachment, based only on its filename and surrounding context.",
-      messages: [{ role: "user", content: `Filename: ${file.name}` }],
-      workspaceId: workspace.id,
-    });
-    extractedText = captioned.content.slice(0, 600);
   } else {
-    // PDF / Word — placeholder. Wire pdf-parse / mammoth here when ready.
-    extractedText = `(${kind.toUpperCase()} attachment "${file.name}" — text extraction is stubbed in mock mode; real extraction will be wired when a parser is enabled.)`;
+    try {
+      const { askAboutImage } = await import("@/lib/vision");
+      extractedText = (await askAboutImage(
+        { bytes, mimeType: file.type, source: file.name },
+        "Describe what this image shows in one or two plain sentences. Name only what is visible; don't guess at brands, people or places you can't see.",
+        workspace.id,
+      )).slice(0, 600);
+    } catch {
+      note = "Stored without a caption: no vision-capable key (Google or OpenAI) is set for this workspace, so nothing looked at it.";
+    }
   }
-  const words = (extractedText.match(/[\p{L}\p{N}]+/gu) ?? []).length;
+  const words = extractedText ? (extractedText.match(/[\p{L}\p{N}]+/gu) ?? []).length : 0;
 
   // Persist as a ResearchSource and (optionally) attach to the chat context.
   const research = await db.researchSource.create({
@@ -116,5 +127,5 @@ export async function POST(req: NextRequest) {
     data: { workspaceId: workspace.id, actorId: user.id, action: "upload", words },
   });
 
-  return NextResponse.json({ ok: true, id: research.id, words, title: file.name });
+  return NextResponse.json({ ok: true, id: research.id, words, title: file.name, ...(note ? { note } : {}) });
 }

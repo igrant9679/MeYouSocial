@@ -349,7 +349,7 @@ Tabs: **Keys** (`/admin/api-keys`: LLM, search, images, video, TTS, storage) · 
 - **Article variants post through the social pipeline** (ART-11): ADMIN, article published with its URL;
   `postSocialVariantAction` creates a SocialPost and calls `publishSocialPost` (claim, UTM, guards).
 
-## ⚠ Times, mail and the engine's failures (2026-10-28, audit Phase 2, first part)
+## ⚠ Times, mail and the engine's failures (2026-10-27, audit Phase 2, first part)
 - **A typed date-time is wall clock in the POSTING timezone** (`social:timezone`), never the server's UTC:
   `parseZonedInput` / `toZonedInput` in `lib/social/slots.ts` — the composer and edit page, the article
   schedule, CSV import (one shape only, `2026-12-11 09:00`; `11/12/2026` is refused, not guessed) and the
@@ -374,6 +374,39 @@ Tabs: **Keys** (`/admin/api-keys`: LLM, search, images, video, TTS, storage) · 
   `failedSteps` and `autopilot:cycle_status`; the Inbox warns after two cycles. A throw inside drafting
   puts the idea back like a refusal (reason `error`).
 - **Job retries back off** (`Job.runAfter`: 1, 4, 16 min ±20%). The sweep skips a job until then.
+
+## ⚠ What reaches people is real, and nobody's edit is undone (2026-10-27, audit Phase 2, second part)
+- **A placeholder is never stored as output.** The agent job, onboarding (voice, audience, starter ideas)
+  and the canvas chat resolve a model the workspace can reach (`resolveUsableModel`), give long output
+  `timeoutMs`, and stop on `provider === "mock"` before writing — the agent run fails naming the step;
+  the chat stores a "(No answer…)" line; onboarding keeps its baseline, which is flagged `placeholder: true`
+  and labelled on the audience page. Starter ideas are JSON with a seed number: an idea carries the outlier
+  figure of the seed IT adapts or none, and real ideas replace the five generic ones.
+- **Uploads**: images are captioned by a vision model (`askAboutImage`) or stored without a caption and
+  said so; PDF and Word are refused (no parser installed) instead of stored as a stub. Chat context items
+  are read (`fetchPageText`, the research row's content) or labelled unreadable. Mock search is labelled.
+- **Conversations load the NEWEST N messages** (desc + take + reverse) — assistant turn, dock reload, canvas
+  chat, the script page's chat pane.
+- **The article editor never writes over text it didn't start from** (ART-01/03): `BlogBodyEditor` gets
+  `serverHash` (bodyHash of the stored body) and sends `baseHash` with autosave and Save; the server refuses a
+  stale base, keeps the person's text as the version "your edit, kept — the article changed elsewhere", and
+  the editor offers Load the latest / Keep mine. A new stored body with nothing unsaved is simply loaded.
+  Pending typing is flushed on unmount and when the tab hides; leaving with unsaved text warns; a failed
+  autosave says so. Each AI draft is kept as a version.
+- **Source markers** (ART-19/20): ONE tolerant pattern (`markerRegex` / `countMarkers` / `hasMarker` in
+  `lib/citations-extract.ts`) — [Needs Source], [NEEDS SOURCE: …], [NEEDS CITATION], [citation needed] — used
+  by the gate, the extractor, auto-review and the slop check. `syncMarkerRows` (lib/citation-rows.ts) gives
+  every marker its citation row on every edit (it runs inside `returnToReviewAfterEdit`). publishCore and
+  the hand-off publish refuse a body that still has a marker, override or not.
+- **WordPress images** (ART-06): featured, OG and inline app images go to the media library
+  (`uploadImageToWp`, `rewriteInlineImages`); the SEO plugin only ever gets a PUBLIC og:image
+  (`publishReport.ogImageUrl`), inline uploads are remembered per stored file (`Setting wp:media:<ws>:<key>`).
+- **A draft hand-off isn't live** (ART-10): publishedUrl stays null (the draft link is `publishReport.draftLink`);
+  Approve & publish / Publish now runs `publishWordPressDraftCore` — status set on the site, read back, and
+  only `publish` makes it published. Publish labels hand-off rows. A refresh at final approval goes through
+  publishCore (it used to fall through to a bare status flip).
+- **No WordPress, no bare flip** (ART-12): the editor shows Download HTML + Mark as published; the live
+  URL is required (`markPublishedManuallyAction`, `back=editor` returns to the article).
 
 ## Open items / things the user still owns
 - **Analytics: APIs enabled 2026-08-03** (Search Console + GA Admin + GA Data, on project

@@ -181,6 +181,25 @@ export async function wpFindRecentPostBySlug(
 }
 
 /** Read a created post back with edit context so `meta` is exposed. */
+/**
+ * Set a post's status (a hand-off draft → "publish") and report what the site
+ * now says: its status and public link, read back rather than assumed (ART-10).
+ */
+export async function wpSetPostStatus(c: WpCredentials, id: number, status: "publish" | "draft"): Promise<{ status: string; link: string }> {
+  const res = await fetch(api(c, `/posts/${id}`), {
+    method: "POST",
+    headers: { Authorization: authHeader(c), "Content-Type": "application/json" },
+    body: JSON.stringify({ status }),
+    signal: AbortSignal.timeout(30000),
+  });
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(`WordPress refused the status change (HTTP ${res.status}): ${body.slice(0, 200)}`);
+  }
+  const post = (await res.json()) as { status?: string; link?: string };
+  return { status: post.status ?? "unknown", link: post.link ?? "" };
+}
+
 export async function wpReadPost(
   c: WpCredentials,
   id: number,

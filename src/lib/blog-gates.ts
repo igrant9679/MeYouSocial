@@ -156,6 +156,10 @@ export async function clearGateOverrideCore(workspaceId: string, postId: string,
 export async function returnToReviewAfterEdit(
   workspaceId: string, postId: string, via: string, actorId?: string | null,
 ): Promise<"review" | "refresh" | null> {
+  // Every edit path comes through here, so every marker it left gets its row
+  // (and so its Inbox card) now, not only under full autonomy (ART-19).
+  const { syncMarkerRows } = await import("@/lib/citation-rows");
+  await syncMarkerRows(postId).catch(() => 0);
   const back = await db.blogPost.updateMany({
     where: { id: postId, workspaceId, status: "final_approval" },
     data: { ...CLEAR_APPROVAL, status: "draft_review" },

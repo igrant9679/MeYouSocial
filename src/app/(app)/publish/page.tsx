@@ -24,7 +24,7 @@ export default async function PublishStage({ searchParams }: { searchParams: Pro
   const admin = canAdmin(membership.role);
   const tz = await getPostingTimeZone(workspace.id);
   const [ready, published, wp, publishDayRaw, modes] = await Promise.all([
-    db.blogPost.findMany({ where: { workspaceId: workspace.id, status: "final_approval" }, orderBy: { updatedAt: "asc" }, take: 10, select: { id: true, title: true, scheduledAt: true, wpPostId: true } }),
+    db.blogPost.findMany({ where: { workspaceId: workspace.id, status: "final_approval" }, orderBy: { updatedAt: "asc" }, take: 10, select: { id: true, title: true, scheduledAt: true, wpPostId: true, refreshStartedAt: true } }),
     db.blogPost.findMany({ where: { workspaceId: workspace.id, status: "published" }, orderBy: { publishedAt: "desc" }, take: 6, select: { id: true, title: true, publishedAt: true, publishedUrl: true } }),
     db.wordPressConnection.findUnique({ where: { workspaceId: workspace.id }, select: { baseUrl: true } }),
     getSetting("autopilot:publish_day", workspace.id).catch(() => ""),
@@ -77,6 +77,10 @@ export default async function PublishStage({ searchParams }: { searchParams: Pro
                   ? <span style={{ color: "var(--amber-on)" }}>held — no longer passes: {held.get(p.id)!.join("; ")}</span>
                   : !wp
                   ? "no website connected — cannot publish yet"
+                  : p.wpPostId && !p.refreshStartedAt
+                  // A hand-off waits as a DRAFT on the site (ART-10): never picked up
+                  // again by the sweep, and not live until someone publishes it.
+                  ? "handed off to WordPress as a draft — not live yet; Publish now publishes it there"
                   : p.scheduledAt
                     ? `set for ${formatInZone(p.scheduledAt, tz)} ${tz}`
                     : auto
@@ -87,7 +91,7 @@ export default async function PublishStage({ searchParams }: { searchParams: Pro
             {admin && wp && (
               <form action={advanceBlogStatusAction}>
                 <input type="hidden" name="id" value={p.id} />
-                <SubmitButton className="btn primary sm" pendingText="Publishing…" title="Publish to WordPress now, ahead of the gate">Publish now</SubmitButton>
+                <SubmitButton className="btn primary sm" pendingText="Publishing…" title={p.wpPostId && !p.refreshStartedAt ? "Publish the WordPress draft now and confirm it went live" : "Publish to WordPress now, ahead of the gate"}>Publish now</SubmitButton>
               </form>
             )}
             {/* The no-WordPress fallback: a self-contained HTML file (images
@@ -99,7 +103,7 @@ export default async function PublishStage({ searchParams }: { searchParams: Pro
             {admin && !wp && (
               <form action={markPublishedManuallyAction} className="basis-full flex items-center gap-1.5 flex-wrap pt-1">
                 <input type="hidden" name="id" value={p.id} />
-                <input name="url" type="url" placeholder="https://… where it went live (optional)" className="text-xs min-w-64 flex-1" aria-label="Live URL" />
+                <input name="url" type="url" placeholder="https://… where it went live" required className="text-xs min-w-64 flex-1" aria-label="Live URL" />
                 <SubmitButton className="btn sm primary" pendingText="Recording…" title="Record this article as published by hand — social variants and analytics key off it">Mark as published</SubmitButton>
               </form>
             )}

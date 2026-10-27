@@ -1,4 +1,5 @@
 import { trackLabel, trackWordTarget } from "@/lib/blog-templates";
+import { countMarkers } from "@/lib/citations-extract";
 import { editorialChecks, type EditorialContext } from "@/lib/blog-slop";
 
 // Blog pre-publish checks — ported from Spark's lib/checks.ts. Deterministic,
@@ -178,7 +179,8 @@ export function runBlogChecks(
   if (editorial && body) checks.push(...editorialChecks(body, editorial));
 
   // --- Truthfulness (required — Spark hard constraint) ------------------------
-  const markers = (body.match(/\[NEEDS SOURCE\]/g) ?? []).length;
+  // Every spelling — [Needs Source], [NEEDS CITATION], [NEEDS SOURCE: …] (ART-20).
+  const markers = countMarkers(body);
   checks.push({
     id: "needs-source",
     label: "No unresolved [NEEDS SOURCE] markers",

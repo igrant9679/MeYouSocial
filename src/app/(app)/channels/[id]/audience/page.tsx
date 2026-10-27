@@ -67,10 +67,17 @@ export default async function ChannelAudiencePage({ params }: { params: Promise<
 
       <div className="lg:col-span-2 flex flex-col gap-3">
         {SECTIONS.map((s) => {
-          const value = readJson<{ summary?: string }>(audience[s.key] as string, {});
+          const value = readJson<{ summary?: string; placeholder?: boolean }>(audience[s.key] as string, {});
           return (
             <section key={s.key} className="card">
               <h2 className="font-mono text-[15px] mb-3">{s.label}</h2>
+              {/* The onboarding baseline is generic text, not research about this
+                  audience — say so until a generation or a person replaces it. */}
+              {value.placeholder && (
+                <p className="text-[11px] mb-2" style={{ color: "var(--amber-on)" }}>
+                  Placeholder — generic text, not drawn from this channel. Refresh the avatar or write your own.
+                </p>
+              )}
               <form action={updateAudienceSectionAction} className="flex flex-col gap-2">
                 <input type="hidden" name="channelId" value={id} />
                 <input type="hidden" name="section" value={s.key} />

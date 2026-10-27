@@ -6,7 +6,7 @@ import { z } from "zod";
 import { requireRole } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { readJson } from "@/lib/db/json";
-import { llm } from "@/lib/llm";
+import { llm, resolveUsableModel } from "@/lib/llm";
 import { cleanTitle } from "@/lib/list-marker";
 
 // createChatAction retired 2026-09-09: the ideation chat is the assistant now.
@@ -37,7 +37,8 @@ export async function postMessageAction(formData: FormData) {
           research: { where: { starred: true }, take: 6, orderBy: { createdAt: "desc" } },
         },
       },
-      messages: { orderBy: { createdAt: "asc" }, take: 30 },
+      // The latest thirty (ENG-11); put back in order where the history is built.
+      messages: { orderBy: { createdAt: "desc" }, take: 30 },
       contextItems: true,
     },
   });
@@ -67,15 +68,23 @@ export async function postMessageAction(formData: FormData) {
   const webMatch = parsed.data.content.match(/\/(search|web)\s+(.+)/i);
   if (webMatch) {
     const { getSearchProvider } = await import("@/lib/search");
-    const { provider: webSearch } = await getSearchProvider(workspace.id);
-    const results = await webSearch.search(webMatch[2], 5);
-    extraContext += "\n[ quick web search]\n" + results.map((r, i) => `${i + 1}. ${r.title} — ${r.url}\n   ${r.snippet}`).join("\n");
+    const { provider: webSearch, real } = await getSearchProvider(workspace.id);
+    // ⚠ The mock's results were inserted as facts (ENG-14). No key → say so.
+    if (!real) {
+      extraContext += "\n[ quick web search unavailable — no search key (Tavily or Serper) is set for this workspace. Tell the person; don't answer as if you had searched.]";
+    } else {
+      const results = await webSearch.search(webMatch[2], 5);
+      extraContext += "\n[ quick web search]\n" + results.map((r, i) => `${i + 1}. ${r.title} — ${r.url}\n   ${r.snippet}`).join("\n");
+    }
   }
 
   // Build system + context preamble ( — audience injected into chat)
   const voice = chat.channel.voiceProfiles[0];
   const audienceKQ = readJson<string[]>(chat.channel.audience?.keyQuestions ?? null, []);
-  const contextLines = chat.contextItems.map((c) => `[${c.kind}] ${c.ref}`).join("\n");
+  // What each attached item actually SAYS — a bare URL or a research id gave
+  // the model nothing to read, so it wrote as if it had (ENG-14).
+  const { contextText } = await import("@/lib/chat-context");
+  const contextLines = (await Promise.all(chat.contextItems.map((c) => contextText(c, workspace.id)))).join("\n\n");
 
   const memoryLines = chat.channel.memory.map((m) => `- ${m.body}`).join("\n");
   const starredResearch = chat.channel.research
@@ -90,13 +99,27 @@ ${starredResearch ? `\nStarred research (persisted across all scripts,):\n${star
 Attached context items:
 ${contextLines || "(none)"}`;
 
-  const history = chat.messages.map((m) => ({ role: m.role as "user" | "assistant", content: m.content }));
+  const history = [...chat.messages].reverse().map((m) => ({ role: m.role as "user" | "assistant", content: m.content }));
+  // channel → workspace → env, then a model this workspace can actually reach;
+  // the bare channel default sent a configured workspace to a provider it had
+  // no key for, and the router's mock answered as "Claude".
+  const model = await resolveUsableModel(chat.channel.defaultModel ?? workspace.defaultModel ?? "claude-sonnet", workspace.id);
   const reply = await llm.complete({
-    model: chat.channel.defaultModel ?? "claude-sonnet",
+    model,
     system,
     messages: [...history, { role: "user", content: parsed.data.content }],
     workspaceId: workspace.id,
   });
+
+  // ⚠ A placeholder is not a reply: say so instead of storing mock prose as
+  // the assistant's answer.
+  if (reply.provider === "mock") {
+    await db.chatMessage.create({
+      data: { chatId: chat.id, role: "assistant", content: "(No answer: no AI provider this workspace can use replied — a key is missing under Settings → Keys, or the provider is down. Nothing was written.)", model: null },
+    });
+    revalidatePath(`/chat/${chat.id}`);
+    return;
+  }
 
   await db.chatMessage.create({
     data: { chatId: chat.id, role: "assistant", content: reply.content, model: reply.model },
@@ -105,13 +128,13 @@ ${contextLines || "(none)"}`;
   if (turnIntoScript) {
     // spin a Script project from the conversation so far and redirect.
     const synthesis = await llm.complete({
-      model: chat.channel.defaultModel ?? "claude-sonnet",
+      model,
       system: "Synthesize the discussion into a working script title.",
       messages: history.concat([{ role: "user", content: parsed.data.content }]),
       workspaceId: workspace.id,
     });
     // The model's first line is routinely "**Title**" or "- Title" (audit A3).
-    const title = cleanTitle(synthesis.content.split("\n")[0] ?? "", 120) || "Untitled script";
+    const title = (synthesis.provider !== "mock" && cleanTitle(synthesis.content.split("\n")[0] ?? "", 120)) || "Untitled script";
 
     const script = await db.script.create({
       data: {

@@ -18,8 +18,10 @@ export async function GET(req: Request) {
     const threads = await db.assistantThread.findMany({ where: { workspaceId: workspace.id, userId: user.id }, orderBy: { updatedAt: "desc" }, take: 8, select: { id: true, title: true, updatedAt: true } });
     return Response.json({ threads });
   }
-  const thread = await db.assistantThread.findFirst({ where: { id: threadId, workspaceId: workspace.id, userId: user.id }, include: { messages: { orderBy: { createdAt: "asc" }, take: 60 } } });
+  const thread = await db.assistantThread.findFirst({ where: { id: threadId, workspaceId: workspace.id, userId: user.id }, include: { messages: { orderBy: { createdAt: "desc" }, take: 60 } } });
   if (!thread) return Response.json({ error: "not found" }, { status: 404 });
+  // The latest sixty, oldest first — the dock reload used to drop the newest.
+  thread.messages.reverse();
   return Response.json({
     threadId: thread.id,
     title: thread.title,

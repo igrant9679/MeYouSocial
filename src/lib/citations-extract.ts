@@ -13,16 +13,39 @@
  */
 export const NEEDS_SOURCE = "[NEEDS SOURCE]";
 
+/**
+ * Every spelling of the marker a writer (model or person) produces —
+ * [NEEDS SOURCE], [Needs Source], [NEEDS SOURCE: 2023 survey], [NEEDS
+ * CITATION], [needs a source], [citation needed], [SOURCE NEEDED]. Only the
+ * exact upper-case string used to count, so the variants slipped through the
+ * truth gate and were published verbatim (ART-20). One pattern, used by the
+ * gate, the extractor and the code that links or removes markers.
+ */
+const MARKER_SOURCE = String.raw`\[\s*(?:needs?\s+(?:an?\s+)?(?:sources?|citations?|cites?|references?|refs?)|(?:citations?|sources?|references?)\s+needed)\b[^\]\n]{0,200}\]`;
+
+/** A fresh global, case-insensitive matcher (regexes with /g carry state). */
+export function markerRegex(): RegExp {
+  return new RegExp(MARKER_SOURCE, "gi");
+}
+
+export function countMarkers(text: string): number {
+  return (text.match(markerRegex()) ?? []).length;
+}
+
+export function hasMarker(text: string): boolean {
+  return new RegExp(MARKER_SOURCE, "i").test(text);
+}
+
 export function claimsFromMarkers(plainText: string, max = 3): string[] {
   const out: string[] = [];
   const seen = new Set<string>();
-  const re = /\[NEEDS SOURCE\]/g;
+  const re = markerRegex();
   let m: RegExpExecArray | null;
   while ((m = re.exec(plainText))) {
     // Earlier markers are not part of any claim — strip them before looking
     // for the sentence boundary, or the second of two markers would carry the
     // first one's text.
-    const before = plainText.slice(Math.max(0, m.index - 600), m.index).replace(/\[NEEDS SOURCE\]/g, " ").replace(/\s+/g, " ").trimEnd();
+    const before = plainText.slice(Math.max(0, m.index - 600), m.index).replace(markerRegex(), " ").replace(/\s+/g, " ").trimEnd();
     const boundaries = [...before.matchAll(/[.!?]["'”’)\]]*\s+/g)];
     const last = boundaries.length ? boundaries[boundaries.length - 1] : null;
     let claim = before;

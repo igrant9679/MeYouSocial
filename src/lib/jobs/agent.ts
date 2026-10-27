@@ -1,6 +1,7 @@
 import { jobs } from "@/lib/jobs";
 import { db } from "@/lib/db";
-import { llm } from "@/lib/llm";
+import { llm, resolveUsableModel } from "@/lib/llm";
+import type { LLMResponse } from "@/lib/llm";
 import { emailFor } from "@/lib/email";
 import { readJson, writeJson } from "@/lib/db/json";
 import { countWords, durationSeconds, MAX_WORDS } from "@/lib/canvas/duration";
@@ -80,6 +81,20 @@ export function registerAgentJobs() {
       const voice = script.channel.voiceProfiles[0]?.data ?? "";
       const audienceKQ = readJson<string[]>(script.channel.audience?.keyQuestions ?? null, []);
       const templateName = script.template?.name ?? "Flexible";
+      // One model the workspace can actually reach, for every step (ENG-06).
+      // Each step asked for script.model ?? "claude-sonnet", and a step that hit
+      // the router's mock (no key, or the 45 s timeout on a long script)
+      // overwrote the script with placeholder text and still emailed "Your
+      // script is ready".
+      const model = await resolveUsableModel(script.model ?? script.channel.defaultModel ?? "claude-sonnet", script.channel.workspaceId);
+      const call = { model, workspaceId: script.channel.workspaceId, timeoutMs: 240_000, maxTokens: 8000 };
+      /** A placeholder stops the run BEFORE it is written anywhere. */
+      const real = (res: LLMResponse, step: string): string => {
+        if (res.provider === "mock" || !res.content.trim()) {
+          throw new Error(`The AI provider didn't answer at the ${step} step (no usable key, or it timed out), so the run stopped there. Nothing from that step was written; the script as it was before the run is in its version history.`);
+        }
+        return res.content;
+      };
 
       // ── 1. Research ────────────────────────────────────────────────────
       await mark("research", { status: "running", startedAt: new Date().toISOString() });
@@ -94,7 +109,7 @@ export function registerAgentJobs() {
       // ── 2. Outline ─────────────────────────────────────────────────────
       await mark("outline", { status: "running", startedAt: new Date().toISOString() });
       const outlineRes = await llm.complete({
-        model: script.model ?? script.channel.defaultModel ?? "claude-sonnet",
+        ...call,
         system: systemForOutline({
           channelName: script.channel.name,
           niche: script.channel.nicheDescription ?? "",
@@ -104,11 +119,11 @@ export function registerAgentJobs() {
           template: templateName,
         }),
         messages: [{ role: "user", content: `Title: ${script.title}\n\nResearch:\n${researchText}` }],
-        workspaceId: script.channel.workspaceId,
       });
-      await db.scriptVersion.create({ data: { scriptId: script.id, label: "agent: outline", outline: outlineRes.content } });
+      const outline = real(outlineRes, "outline");
+      await db.scriptVersion.create({ data: { scriptId: script.id, label: "agent: outline", outline } });
       const outlineJson = readJson<{ markdown?: string; questions?: unknown; publish?: unknown }>(script.outline ?? null, {});
-      outlineJson.markdown = outlineRes.content;
+      outlineJson.markdown = outline;
       await db.script.update({ where: { id: script.id }, data: { outline: writeJson(outlineJson), status: "planning" } });
       if (await isCancelled()) return await finish("cancelled", "Cancelled after outline.");
       await mark("outline", { status: "done", endedAt: new Date().toISOString() });
@@ -116,7 +131,7 @@ export function registerAgentJobs() {
       // ── 3. Script ──────────────────────────────────────────────────────
       await mark("script", { status: "running", startedAt: new Date().toISOString() });
       const scriptRes = await llm.complete({
-        model: script.model ?? script.channel.defaultModel ?? "claude-sonnet",
+        ...call,
         system: systemForScript({
           channelName: script.channel.name,
           niche: script.channel.nicheDescription ?? "",
@@ -124,10 +139,9 @@ export function registerAgentJobs() {
           template: templateName,
           lengthGuide: "8-12 minutes (~1500-2400 words)",
         }),
-        messages: [{ role: "user", content: `Outline:\n\n${outlineRes.content}\n\nExpand into a full spoken-style script.` }],
-        workspaceId: script.channel.workspaceId,
+        messages: [{ role: "user", content: `Outline:\n\n${outline}\n\nExpand into a full spoken-style script.` }],
       });
-      let body = scriptRes.content;
+      let body = real(scriptRes, "script");
       let wordCount = countWords(body);
       await db.scriptVersion.create({ data: { scriptId: script.id, label: "agent: script-draft", body, wordCount } });
       await db.script.update({ where: { id: script.id }, data: { body, wordCount: Math.min(wordCount, MAX_WORDS), durationSeconds: durationSeconds(wordCount), status: "draft" } });
@@ -137,12 +151,11 @@ export function registerAgentJobs() {
       // ── 4a. QA: retention optimization ─────────────────────────────────
       await mark("qa_retention", { status: "running", startedAt: new Date().toISOString() });
       const retention = await llm.complete({
-        model: script.model ?? "claude-sonnet",
+        ...call,
         system: "Pass over a YouTube script and improve retention: punch up the hook, add curiosity gaps between sections, ensure every 30s makes a promise or pays one off. PRESERVE voice and structure. Return ONLY the rewritten script.",
         messages: [{ role: "user", content: body }],
-        workspaceId: script.channel.workspaceId,
       });
-      body = retention.content;
+      body = real(retention, "retention");
       wordCount = countWords(body);
       await db.script.update({ where: { id: script.id }, data: { body, wordCount: Math.min(wordCount, MAX_WORDS), durationSeconds: durationSeconds(wordCount) } });
       if (await isCancelled()) return await finish("cancelled", "Cancelled mid-QA.");
@@ -151,12 +164,11 @@ export function registerAgentJobs() {
       // ── 4b. QA: humanize ───────────────────────────────────────────────
       await mark("qa_humanize", { status: "running", startedAt: new Date().toISOString() });
       const humanized = await llm.complete({
-        model: script.model ?? "claude-sonnet",
+        ...call,
         system: HUMANIZE_SYSTEM,
         messages: [{ role: "user", content: `Voice: ${voice}\n\nScript:\n${body}` }],
-        workspaceId: script.channel.workspaceId,
       });
-      body = humanized.content;
+      body = real(humanized, "humanize");
       wordCount = countWords(body);
       await db.scriptVersion.create({ data: { scriptId: script.id, label: "agent: humanized", body, wordCount } });
       await db.script.update({ where: { id: script.id }, data: { body, wordCount: Math.min(wordCount, MAX_WORDS), durationSeconds: durationSeconds(wordCount) } });
@@ -166,12 +178,11 @@ export function registerAgentJobs() {
       // ── 4c. QA: repetition cleanup ─────────────────────────────────────
       await mark("qa_repetition", { status: "running", startedAt: new Date().toISOString() });
       const dedup = await llm.complete({
-        model: script.model ?? "claude-sonnet",
+        ...call,
         system: "Pass over a YouTube script and remove repeated points, redundant phrasings, and any place where the same idea is restated within two paragraphs. Keep length within 5% of the original. PRESERVE voice. Return ONLY the rewritten script.",
         messages: [{ role: "user", content: body }],
-        workspaceId: script.channel.workspaceId,
       });
-      body = dedup.content;
+      body = real(dedup, "repetition");
       wordCount = countWords(body);
       await db.script.update({ where: { id: script.id }, data: { body, wordCount: Math.min(wordCount, MAX_WORDS), durationSeconds: durationSeconds(wordCount) } });
       if (await isCancelled()) return await finish("cancelled", "Cancelled mid-QA.");
@@ -180,12 +191,11 @@ export function registerAgentJobs() {
       // ── 5. Voiceover prep ──────────────────────────────────────────────
       await mark("voiceover", { status: "running", startedAt: new Date().toISOString() });
       const vo = await llm.complete({
-        model: script.model ?? "claude-sonnet",
+        ...call,
         system: "Format a script for AI voiceover: 1 sentence per line, no slashes, no parentheticals the narrator would read aloud, no em-dashes (replace with commas), expand 'e.g.'/'i.e.'/etc. Keep section headers as their own lines. Return ONLY the formatted script.",
         messages: [{ role: "user", content: body }],
-        workspaceId: script.channel.workspaceId,
       });
-      body = vo.content;
+      body = real(vo, "voiceover");
       wordCount = countWords(body);
       await db.scriptVersion.create({ data: { scriptId: script.id, label: "agent: voiceover-ready", body, wordCount } });
       await db.script.update({ where: { id: script.id }, data: { body, wordCount: Math.min(wordCount, MAX_WORDS), durationSeconds: durationSeconds(wordCount), status: "ready" } });

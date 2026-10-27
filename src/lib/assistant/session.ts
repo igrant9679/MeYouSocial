@@ -31,12 +31,15 @@ export async function runTurn(input: TurnInput): Promise<TurnOutput | null> {
     : await db.assistantThread.create({ data: { workspaceId: input.workspaceId, userId: input.userId, title: message.slice(0, 80) } });
   if (!thread) return null;
 
-  const prior = await db.assistantMessage.findMany({
+  // The NEWEST twenty, in order (ENG-11): ascending + take kept the opening
+  // exchange forever, so after twenty messages the model never saw the
+  // question it had just asked.
+  const prior = (await db.assistantMessage.findMany({
     where: { threadId: thread.id },
-    orderBy: { createdAt: "asc" },
+    orderBy: { createdAt: "desc" },
     take: 20,
     select: { role: true, content: true },
-  });
+  })).reverse();
 
   await db.assistantMessage.create({ data: { threadId: thread.id, role: "user", content: message } });
 

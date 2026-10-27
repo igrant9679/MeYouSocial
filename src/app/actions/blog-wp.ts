@@ -163,10 +163,17 @@ export async function pushSeoMetaAction(formData: FormData) {
     canonical: post!.canonicalUrl ?? undefined,
     ogTitle: post!.ogTitle ?? post!.metaTitle ?? post!.title,
     ogDescription: post!.ogDescription ?? post!.metaDescription ?? undefined,
-    // No ogImage: our stored image urls are session-gated and meaningless to
-    // the outside world — Yoast falls back to the featured image, which IS in
-    // the WP media library.
-    ogImage: undefined,
+    // Only a PUBLIC og image: the one the last publish put in the media library
+    // (publishReport.ogImageUrl, ART-06). Our stored urls are session-gated; with
+    // none, Yoast falls back to the featured image, which IS in the library.
+    ogImage: (() => {
+      try {
+        const u = (JSON.parse(post!.publishReport ?? "{}") as { ogImageUrl?: unknown }).ogImageUrl;
+        return typeof u === "string" && /^https?:\/\//.test(u) ? u : undefined;
+      } catch {
+        return undefined;
+      }
+    })(),
   };
   const meta = buildSeoMeta(fieldMap, seoValues);
   if (!Object.keys(meta).length) back("Nothing to push — the post has no SEO metadata yet.");

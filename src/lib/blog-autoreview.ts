@@ -3,7 +3,7 @@ import { llm, resolveUsableModel } from "@/lib/llm";
 import { writeAudit, isGloballyPaused } from "@/lib/governance";
 import { notify } from "@/lib/notify";
 import { getSearchProvider } from "@/lib/search";
-import { claimsFromMarkers } from "@/lib/citations-extract";
+import { claimsFromMarkers, hasMarker, markerRegex } from "@/lib/citations-extract";
 import { askAboutImage } from "@/lib/vision";
 import { storage } from "@/lib/storage";
 import { generateImageCore, generateBlogImagesCore } from "@/lib/blog-images";
@@ -37,7 +37,6 @@ import { generateSeoMetaCore } from "@/lib/blog-seo";
  * never "lost".
  */
 
-const MARKER = "[NEEDS SOURCE]";
 
 export type AutoReviewResult = { imagesApproved: number; citationsVerified: number; seoFilled: boolean; findingsApplied: number };
 
@@ -338,22 +337,25 @@ export function resolveMarkerIn(
 ): string | null {
   const tail = normTail(claim);
 
-  const found: number[] = [];
-  let matchIdx = -1;
-  for (let i = body.indexOf(MARKER); i !== -1; i = body.indexOf(MARKER, i + 1)) {
-    found.push(i);
-    if (matchIdx === -1 && tail && normText(body.slice(Math.max(0, i - 400), i)).endsWith(tail)) matchIdx = i;
+  // Every spelling of the marker (ART-20), not just the canonical one.
+  const found: Array<{ i: number; len: number }> = [];
+  let match: { i: number; len: number } | null = null;
+  for (const m of body.matchAll(markerRegex())) {
+    const i = m.index ?? 0;
+    found.push({ i, len: m[0].length });
+    if (!match && tail && normText(body.slice(Math.max(0, i - 400), i)).endsWith(tail)) match = { i, len: m[0].length };
   }
   // `exactOnly` refuses the "only marker left" fallback — for repairs, where
   // the lone marker may belong to a different, still-unverified claim.
-  const idx = matchIdx !== -1 ? matchIdx : found.length === 1 && !opts.exactOnly ? found[0] : -1;
-  if (idx === -1) return null;
+  const hit = match ?? (found.length === 1 && !opts.exactOnly ? found[0] : null);
+  if (!hit) return null;
+  const idx = hit.i;
 
   // The writer sometimes wraps the marker in a placeholder link —
   // `<a href="#">[NEEDS SOURCE]</a>` (CommunityForce, 2026-10-19). Replace the
   // whole anchor, or the source link lands nested inside it.
   let from = idx;
-  let to = idx + MARKER.length;
+  let to = idx + hit.len;
   const wrap = body.slice(Math.max(0, idx - 200), idx).match(/<a\b[^>]*>$/i);
   if (wrap && body.slice(to, to + 4).toLowerCase() === "</a>") {
     from = idx - wrap[0].length;
@@ -388,7 +390,7 @@ export async function linkMarkerForClaim(postId: string, claim: string, url: str
  */
 export async function linkVerifiedMarkers(postId: string): Promise<number> {
   const post = await db.blogPost.findUnique({ where: { id: postId }, select: { body: true } });
-  if (!post?.body || !post.body.includes(MARKER)) return 0;
+  if (!post?.body || !hasMarker(post.body)) return 0;
   const verified = await db.blogCitation.findMany({
     where: { postId, verified: true, sourceUrl: { not: null } },
     select: { claim: true, sourceUrl: true },

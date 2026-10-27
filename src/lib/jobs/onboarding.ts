@@ -1,7 +1,7 @@
 import { jobs } from "@/lib/jobs";
 import { db } from "@/lib/db";
 import { youtubeFor } from "@/lib/youtube";
-import { llm } from "@/lib/llm";
+import { llm, resolveUsableModel } from "@/lib/llm";
 import { writeJson } from "@/lib/db/json";
 import { cleanTitle, stripListMarker } from "@/lib/list-marker";
 
@@ -108,6 +108,9 @@ export function registerOnboardingJobs() {
         await writeVoice();
       } else {
         const basis = transcripts.length ? "transcripts plus video titles and descriptions" : "video titles and descriptions";
+        // A model this workspace can reach (ENG-06): the channel default alone
+        // sent a Gemini-only workspace to Anthropic, and the mock answered.
+        const model = await resolveUsableModel(channel.defaultModel ?? llm.defaultModel, channel.workspaceId);
         try {
           const completion = await llm.complete({
             // ⚠ NOT a hard-coded model. These three jobs used to pin
@@ -116,7 +119,8 @@ export function registerOnboardingJobs() {
             // silently did nothing here, the call went to an Anthropic key that
             // was out of credit, and the router's fallback-to-mock turned a
             // "re-train from real data" into invented text with no error.
-            model: channel.defaultModel ?? llm.defaultModel,
+            model,
+            timeoutMs: 120_000,
             // The system prompt names the evidence and forbids inventing past
             // it. Titles and descriptions show diction, hooks and framing; they
             // show NOTHING about cadence, energy or pacing, and a model asked
@@ -140,11 +144,15 @@ export function registerOnboardingJobs() {
             ],
             workspaceId: channel.workspaceId,
           });
-          voiceData = {
-            ...voiceData,
-            summary: completion.content,
-            source: { trained: true, basis, videos: corpus.length, transcripts: transcripts.length, model: channel.defaultModel ?? llm.defaultModel },
-          };
+          // ⚠ A mock "profile" was stored and marked trained (ENG-06). Only a
+          // real provider's answer trains the voice; the record names who replied.
+          voiceData = completion.provider === "mock" || !completion.content.trim()
+            ? { ...voiceData, source: { trained: false, reason: "No AI provider this workspace can use answered (a key is missing under Settings → Keys, or it timed out), so the voice was not trained." } }
+            : {
+                ...voiceData,
+                summary: completion.content,
+                source: { trained: true, basis, videos: corpus.length, transcripts: transcripts.length, model: completion.model, provider: completion.provider },
+              };
           await writeVoice();
         } catch (e) {
           const message = e instanceof Error ? e.message : String(e);
@@ -163,11 +171,13 @@ export function registerOnboardingJobs() {
     if (!channel) return;
 
     // ALWAYS create a baseline first so the UI doesn't hang if the LLM call fails.
+    // ⚠ It is generic text, not research about this audience — `placeholder`
+    // says so on the page until a real answer (or a person) replaces it.
     const baseline = {
-      demographics:    writeJson({ summary: `Adults interested in ${channel.nicheDescription ?? "this niche"}.` }),
-      psychographics:  writeJson({ summary: "Curious, growth-oriented, time-poor." }),
-      onlineBehavior:  writeJson({ summary: "YouTube + niche communities; deep-dives." }),
-      offlineBehavior: writeJson({ summary: "Commute / WFH / weekend project context." }),
+      demographics:    writeJson({ summary: `Adults interested in ${channel.nicheDescription ?? "this niche"}.`, placeholder: true }),
+      psychographics:  writeJson({ summary: "Curious, growth-oriented, time-poor.", placeholder: true }),
+      onlineBehavior:  writeJson({ summary: "YouTube + niche communities; deep-dives.", placeholder: true }),
+      offlineBehavior: writeJson({ summary: "Commute / WFH / weekend project context.", placeholder: true }),
       keyQuestions:    writeJson([
         "What's the most efficient way to do this?",
         "Whose advice should I actually trust?",
@@ -188,17 +198,37 @@ export function registerOnboardingJobs() {
         ? `Top videos: ${(await youtubeFor(channel.workspaceId).listVideos(channel.linkedYoutubeId, 5)).map((v) => v.title).join("; ")}`
         : `Description: ${channel.nicheDescription}`;
       const completion = await llm.complete({
-        // See the note in onboarding.voice — resolve the channel's model, never
-        // pin one, or a workspace on Gemini silently falls back to mock.
-        model: channel.defaultModel ?? llm.defaultModel,
+        // See the note in onboarding.voice — a model this workspace can reach.
+        model: await resolveUsableModel(channel.defaultModel ?? llm.defaultModel, channel.workspaceId),
         system: "You generate audience avatars with demographics, psychographics, online behavior, offline behavior, and key questions.",
-        messages: [{ role: "user", content: `Niche: ${channel.nicheDescription}\n${source}\n\nDifferentiation: ${channel.differentiation}\n\nProduce a JSON object with fields: demographics, psychographics, onlineBehavior, offlineBehavior, keyQuestions (array of 5 strings).` }],
+        messages: [{ role: "user", content: `Niche: ${channel.nicheDescription}\n${source}\n\nDifferentiation: ${channel.differentiation}\n\nProduce a JSON object with fields: demographics, psychographics, onlineBehavior, offlineBehavior (each a short paragraph), keyQuestions (array of 5 strings). Respond with the JSON object only.` }],
         workspaceId: channel.workspaceId,
+        timeoutMs: 120_000,
       });
-      // Upgrade demographics text with the LLM-enriched version
+      // ⚠ Mock text never replaces the placeholder (ENG-06), and the answer is
+      // read as the JSON it was asked for — the raw JSON string used to land
+      // in Demographics while the other four sections kept the baseline.
+      if (completion.provider === "mock") throw new Error("no AI provider this workspace can use answered");
+      const parsed = (() => {
+        try {
+          const m = completion.content.match(/\{[\s\S]*\}/);
+          return m ? (JSON.parse(m[0]) as Record<string, unknown>) : null;
+        } catch {
+          return null;
+        }
+      })();
+      if (!parsed) throw new Error("the model's answer wasn't the JSON asked for");
+      const text = (v: unknown) => (typeof v === "string" && v.trim() ? writeJson({ summary: v.trim().slice(0, 600) }) : undefined);
+      const questions = Array.isArray(parsed.keyQuestions) ? parsed.keyQuestions.filter((q): q is string => typeof q === "string" && Boolean(q.trim())).slice(0, 5) : [];
       await db.audienceAvatar.update({
         where: { channelId },
-        data: { demographics: writeJson({ summary: completion.content.slice(0, 600) }) },
+        data: {
+          demographics: text(parsed.demographics),
+          psychographics: text(parsed.psychographics),
+          onlineBehavior: text(parsed.onlineBehavior),
+          offlineBehavior: text(parsed.offlineBehavior),
+          ...(questions.length ? { keyQuestions: writeJson(questions) } : {}),
+        },
       });
     } catch (e) {
       ctx.log(`audience: LLM enrichment failed, keeping baseline. ${e instanceof Error ? e.message : e}`);
@@ -243,7 +273,7 @@ export function registerOnboardingJobs() {
           data: {
             channelId,
             title,
-            strategy: "Placeholder — generic hook, not derived from this channel or its competitors.",
+            strategy: PLACEHOLDER_STRATEGY,
             // ⚠ NO INVENTED SCORE. This used to write `2 + Math.random() * 4`,
             // so a placeholder landed in the list wearing a "4.7x outlier"
             // badge indistinguishable from one computed off real competitor
@@ -291,23 +321,46 @@ export function registerOnboardingJobs() {
 
     try {
       const completion = await llm.complete({
-        // See the note in onboarding.voice — resolve the channel's model, never
-        // pin one, or a workspace on Gemini silently falls back to mock.
-        model: channel.defaultModel ?? llm.defaultModel,
+        // See the note in onboarding.voice — a model this workspace can reach.
+        model: await resolveUsableModel(channel.defaultModel ?? llm.defaultModel, channel.workspaceId),
         system: "You convert outlier video titles into 10 fresh idea titles for a creator in a related niche, preserving each one's hook structure.",
         messages: [
-          { role: "user", content: `Creator niche: ${channel.nicheDescription}\nDifferentiation: ${channel.differentiation}${perfHint}\nOutlier seeds:\n${seed.map((s, i) => `${i + 1}. (${s.outlier.toFixed(1)}x) ${s.title}`).join("\n")}\n\nReturn one idea per line: "title — strategy".` },
+          {
+            role: "user",
+            content:
+              `Creator niche: ${channel.nicheDescription}\nDifferentiation: ${channel.differentiation}${perfHint}\n` +
+              (seed.length ? `Outlier seeds:\n${seed.map((s, i) => `${i + 1}. (${s.outlier.toFixed(1)}x) ${s.title}`).join("\n")}\n\n` : "No competitor outliers could be read; work from the niche alone.\n\n") +
+              `Respond with a JSON array only: [{"title": "...", "strategy": "...", "seed": <the seed number it adapts, or null>}].`,
+          },
         ],
         workspaceId: channel.workspaceId,
+        timeoutMs: 120_000,
       });
-
+      // ⚠ Mock ideas were stored next to real ones, each wearing the i-th
+      // seed's outlier figure whichever seed it came from, and a model
+      // preamble ("Here are 10 ideas:") became an idea (IDE-04).
+      if (completion.provider === "mock") throw new Error("no AI provider this workspace can use answered");
+      const items = (() => {
+        try {
+          const m = completion.content.match(/\[[\s\S]*\]/);
+          return m ? (JSON.parse(m[0]) as unknown[]) : [];
+        } catch {
+          return [];
+        }
+      })();
       // stripListMarker, not /^[*\-\d.\s]+/: the old greedy class ate the sign
       // off a title that opens with one ("-40% churn" became "40% churn").
-      const lines = completion.content
-        .split("\n")
-        .map((l) => stripListMarker(l))
-        .filter(Boolean)
+      const lines = items
+        .filter((x): x is { title: string; strategy?: unknown; seed?: unknown } => Boolean(x) && typeof (x as { title?: unknown }).title === "string")
+        .map((x) => ({
+          title: cleanTitle(stripListMarker(x.title), 200),
+          strategy: typeof x.strategy === "string" && x.strategy.trim() ? x.strategy.trim().slice(0, 500) : null,
+          // The seed the model SAYS it adapted, checked against the list.
+          seed: typeof x.seed === "number" && Number.isInteger(x.seed) && x.seed >= 1 && x.seed <= seed.length ? seed[x.seed - 1] : null,
+        }))
+        .filter((x) => x.title)
         .slice(0, 10);
+      if (!lines.length) throw new Error("the model's answer held no ideas in the JSON asked for");
 
       // Every engine-written idea carries a Topic (Topics as the spine,
       // 2026-09-21): matched by keyword against the workspace's active Topics,
@@ -317,34 +370,34 @@ export function registerOnboardingJobs() {
       const preparedTopics = prepareTopics(
         await db.topic.findMany({ where: { workspaceId: channel.workspaceId, status: "active" }, select: { id: true, name: true, keywords: true } }),
       );
-      for (let i = 0; i < lines.length; i++) {
-        const [rawTitle, strategy] = lines[i].split("—").map((s) => s.trim());
-        const title = cleanTitle(rawTitle ?? "", 200);
-        if (!title) continue;
+      for (const { title, strategy, seed: from } of lines) {
         await db.idea.create({
           data: {
             channelId,
             title,
             topicId: matchTopic(`${title} ${strategy ?? ""}`, preparedTopics)?.id ?? null,
-            strategy: strategy ?? "Counter-intuitive hook with research-backed payoff.",
-            // The score is the SEED's real outlier ratio (competitor views over
-            // that competitor's average), carried onto the idea it inspired.
-            // When the model returns more ideas than there were seeds, the
-            // extras have no measurement behind them — `?? 2 + Math.random()*4`
-            // used to invent one, which put a fabricated multiplier in the same
-            // column as a computed one. null renders as "—x".
-            outlierScore: seed[i]?.outlier ?? null,
+            strategy: strategy ?? (from ? `Adapts "${from.title.slice(0, 120)}" (${from.source}).` : null),
+            // The score is the real outlier ratio (competitor views over that
+            // competitor's average) of the seed THIS idea adapts — never the
+            // i-th seed by position. An idea with no seed has no measurement
+            // behind it: null renders as "—x".
+            outlierScore: from?.outlier ?? null,
             suggestedLength: "8–12 min",
             topic: channel.nicheDescription?.slice(0, 80) ?? null,
           },
         });
       }
+      // Real ideas are in: the untouched generic placeholders go.
+      await db.idea.deleteMany({ where: { channelId, status: "new", strategy: PLACEHOLDER_STRATEGY, title: { in: baselineIdeas } } });
     } catch (e) {
       ctx.log(`ideas: LLM enrichment failed, keeping baseline. ${e instanceof Error ? e.message : e}`);
     }
     await ctx.progress(1);
   });
 }
+
+/** Marks the five generic starter ideas, so real ones can replace them. */
+const PLACEHOLDER_STRATEGY = "Placeholder — generic hook, not derived from this channel or its competitors.";
 
 function baselineVoice(niche: string): Record<string, unknown> {
   return {

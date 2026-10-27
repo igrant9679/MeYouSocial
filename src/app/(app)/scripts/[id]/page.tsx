@@ -42,7 +42,8 @@ export default async function CanvasPage({
       channel: true,
       idea: true,
       template: true,
-      chat: { include: { messages: { orderBy: { createdAt: "asc" }, take: 12 } } },
+      // The latest twelve; the pane froze on the opening exchange (ENG-11).
+      chat: { include: { messages: { orderBy: { createdAt: "desc" }, take: 12 } } },
       versions: { orderBy: { createdAt: "desc" }, take: 8 },
       agentRuns: { orderBy: { startedAt: "desc" }, take: 1 },
     },
@@ -73,7 +74,7 @@ export default async function CanvasPage({
               {script.chat.messages.length === 0 && (
                 <p className="text-xs text-[var(--mute)] text-center mt-8">No chat yet — open the full chat to brainstorm with this script as context.</p>
               )}
-              {script.chat.messages.map((m) => (
+              {[...script.chat.messages].reverse().map((m) => (
                 <div key={m.id} className={"flex " + (m.role === "user" ? "justify-end" : "")}>
                   <div className={"rounded-2xl px-3 py-2 max-w-[85%] " + (m.role === "user" ? "bg-[var(--accent)] text-white text-xs whitespace-pre-wrap" : "bg-[var(--zebra)] border border-[var(--line)] text-xs")}>
                     {/* User bubbles stay plain text — only the model's replies render as markdown. */}

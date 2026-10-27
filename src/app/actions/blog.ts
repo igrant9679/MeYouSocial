@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { runBlogChecks } from "@/lib/blog-checks";
-import { advanceIfReadyCore, CLEAR_APPROVAL, clearGateOverrideCore, gatesSatisfied, overrideGateCore, returnToReviewAfterEdit } from "@/lib/blog-gates";
+import { advanceIfReadyCore, bodyHash, CLEAR_APPROVAL, clearGateOverrideCore, gatesSatisfied, overrideGateCore, returnToReviewAfterEdit } from "@/lib/blog-gates";
 import { writeAudit } from "@/lib/governance";
 import { linkMarkerForClaim, removeMarkerForClaim, webUrl } from "@/lib/blog-autoreview";
 import { generateDraftCore } from "@/lib/blog-autopilot";
@@ -104,7 +104,11 @@ export async function updateBlogPostAction(formData: FormData) {
   // What a reader would see change — an approved article goes back to review.
   // The stored body is compared normalised the same way, so saving an
   // untouched AI draft (stored before normalising) isn't mistaken for an edit.
-  const wordsChanged = newBody !== normaliseBody(post.body) || title !== post.title || slug !== post.slug ||
+  // The editor sends the hash of the body it loaded; a different stored body
+  // means someone else wrote it meanwhile, and this save must not undo that.
+  const base = String(formData.get("baseHash") ?? "");
+  const bodyConflict = Boolean(base) && base !== bodyHash(post.body) && newBody !== normaliseBody(post.body);
+  const wordsChanged = (!bodyConflict && newBody !== normaliseBody(post.body)) || title !== post.title || slug !== post.slug ||
     metaTitle !== post.metaTitle || metaDescription !== post.metaDescription;
   await db.blogPost.update({
     where: { id: post.id },
@@ -131,13 +135,22 @@ export async function updateBlogPostAction(formData: FormData) {
       ogDescription: str(formData.get("ogDescription")),
       categories: csvJson(formData.get("categories")),
       tags: csvJson(formData.get("tags")),
-      body: newBody,
+      // The text only if it is still the one the editor opened (ART-03).
+      ...(bodyConflict ? {} : { body: newBody }),
     },
   });
-  if (newBody !== post.body) await snapshotVersion(post.id, "saved", newBody);
+  if (bodyConflict) {
+    // The newer text stays; theirs is kept where they can get it back.
+    await snapshotVersion(post.id, CONFLICT_LABEL, newBody);
+  } else if (newBody !== post.body) {
+    await snapshotVersion(post.id, "saved", newBody);
+  }
   if (wordsChanged) await returnToReviewAfterEdit(workspace.id, post.id, "edit", user.id);
   revalidatePath(`/blog/${post.id}`);
   revalidatePath("/blog");
+  if (bodyConflict) {
+    redirect(`/blog/${post.id}?flashErr=${encodeURIComponent("The article's text changed elsewhere while you were editing (the engine, Verify, or another tab). The newer text was kept; yours is under Versions as “your edit, kept”. Your other fields were saved.")}`);
+  }
 }
 
 /** Move a post one step forward/backward along the review chain. */
@@ -170,7 +183,33 @@ export async function advanceBlogStatusAction(formData: FormData) {
   // site got nothing (found by the user on the first real publish,
   // 2026-08-12). The bare status flip remains ONLY for installs with no WP
   // connection, where publishing genuinely happens elsewhere (HTML export).
-  if (next === "published" && dir > 0 && !post.wpPostId) {
+  if (next === "published" && dir > 0) {
+    const conn = await db.wordPressConnection.findUnique({ where: { workspaceId: workspace.id } });
+    // ⚠ No website: this flipped the article to published with no URL, told
+    // everyone it "was published", and social posts followed with no link
+    // (ART-12, live on CF). Publishing without WordPress is a person's act with
+    // a live link: Download HTML, then Mark as published.
+    if (!conn) {
+      redirect(
+        `/blog/${post.id}?flashErr=${encodeURIComponent(
+          "No website is connected, so the app can't publish this itself. Download the HTML, add it to your site, then use Mark as published with its live link.",
+        )}`,
+      );
+    }
+    // A WordPress draft hand-off: publish it THERE, and only call it published
+    // once the site says it's live (ART-10).
+    if (post.wpPostId && !post.refreshStartedAt) {
+      const { publishWordPressDraftCore } = await import("@/lib/blog-autopilot");
+      const r = await publishWordPressDraftCore(workspace.id, post.id);
+      redirect(
+        r.ok
+          ? `/blog/${post.id}?flash=${encodeURIComponent(`Published on WordPress: ${r.link || "link pending"}`)}`
+          : `/blog/${post.id}?flashErr=${encodeURIComponent(`Not published: ${r.reason}`.slice(0, 300))}`,
+      );
+    }
+  }
+  // A new article, or a refresh of a live one (publishCore updates it in place).
+  if (next === "published" && dir > 0 && (!post.wpPostId || post.refreshStartedAt)) {
     const conn = await db.wordPressConnection.findUnique({ where: { workspaceId: workspace.id } });
     if (conn) {
       const { publishCore } = await import("@/lib/blog-autopilot");
@@ -367,16 +406,34 @@ export async function autosaveBlogBodyAction(formData: FormData) {
   // the editor as HTML, so an <img onerror=…> saved here ran as whoever opened
   // the article next (an admin, or the platform operator). lib/html-safety.ts.
   const body = stripExecutableHtml(unwrapBlockParagraphs(String(formData.get("body") ?? "")));
+  const base = String(formData.get("baseHash") ?? "");
   const { workspace, user } = await requireRole("EDITOR");
   const before = await db.blogPost.findFirst({ where: { id, workspaceId: workspace.id }, select: { body: true } });
-  if (!before) return;
-  await db.blogPost.updateMany({
-    where: { id, workspaceId: workspace.id },
+  if (!before) return { ok: false as const, reason: "gone" as const };
+  // ⚠ The body the editor started from must still be the stored one (ART-03).
+  // Auto-review links, applied findings and Inbox Verify rewrite the body
+  // while a tab is open; the tab's next autosave used to put the old text
+  // back — [NEEDS SOURCE] marker and all. Now it's refused, the person's text
+  // is kept as a version, and the editor says so. The swap is conditional on
+  // the body too, so two writers can't both pass the check.
+  const current = bodyHash(before.body);
+  if (base && base !== current) {
+    const kept = await db.blogPostVersion.findFirst({ where: { postId: id, label: CONFLICT_LABEL, body }, select: { id: true } });
+    if (!kept) await snapshotVersion(id, CONFLICT_LABEL, body || null);
+    return { ok: false as const, reason: "conflict" as const, hash: current };
+  }
+  const saved = await db.blogPost.updateMany({
+    where: { id, workspaceId: workspace.id, body: before.body },
     data: { body: body || null },
   });
+  if (saved.count !== 1) return { ok: false as const, reason: "conflict" as const, hash: bodyHash((await db.blogPost.findUnique({ where: { id }, select: { body: true } }))?.body) };
   // Typing into an approved or live article is an edit like any other (ART-21).
   if ((body || null) !== normaliseBody(before.body)) await returnToReviewAfterEdit(workspace.id, id, "edit", user.id);
+  return { ok: true as const, hash: bodyHash(body || null) };
 }
+
+/** The version label for an edit that met a newer body (ART-03). */
+const CONFLICT_LABEL = "your edit, kept — the article changed elsewhere";
 
 /** Keep the last 20 versions per post. */
 async function snapshotVersion(postId: string, label: string, body: string | null) {

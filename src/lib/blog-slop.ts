@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { hasMarker } from "@/lib/citations-extract";
 import { selectSmeProfile } from "@/lib/sme";
 import type { CheckResult } from "@/lib/blog-checks";
 
@@ -137,7 +138,7 @@ export function findUnsupportedClaims(html: string): Array<{ sentence: string; w
   for (const chunk of chunks) {
     const text = stripTags(chunk);
     if (!text) continue;
-    if (/\[NEEDS SOURCE\]/i.test(chunk)) continue;
+    if (hasMarker(chunk)) continue;
     if (/<a\b[^>]*href/i.test(chunk)) continue;
     for (const { re, what } of CLAIM_PATTERNS) {
       re.lastIndex = 0;

@@ -457,6 +457,8 @@ export async function generateDraftCore(workspaceId: string, postId: string, bri
     });
   }
   await db.blogPost.update({ where: { id: post.id }, data: { body: res.content } });
+  // …and the draft itself, so a stale editor tab can never make it unrecoverable (ART-01).
+  await db.blogPostVersion.create({ data: { postId: post.id, label: "AI draft", body: res.content } });
   await db.blogCitation.deleteMany({ where: { postId: post.id, verified: false } });
   const text = res.content.replace(/<[^>]+>/g, " ");
   // ⚠ Shared extractor (lib/citations-extract.ts): the old local regex dropped
@@ -649,6 +651,13 @@ export async function publishCore(workspaceId: string, postId: string): Promise<
   // An admin's override (lib/blog-gates.ts) carries through to publishing —
   // otherwise "Advance anyway" would move a post one step and strand it here.
   if (!gatesSatisfied(post, runBlogChecks(post, unverified, assets, editorial))) return false;
+  // ⚠ …but never a marker in front of readers (ART-20). An override covers
+  // the checks; it can't make "[NEEDS SOURCE]" a sentence anyone should read.
+  const { hasMarker } = await import("@/lib/citations-extract");
+  if (hasMarker(post.body)) {
+    console.warn(`[publish] ${post.id} still has a source marker in its body — not publishing`);
+    return false;
+  }
 
   const conn = await db.wordPressConnection.findUnique({ where: { workspaceId } });
   if (!conn) return false;
@@ -694,40 +703,27 @@ export async function publishCore(workspaceId: string, postId: string): Promise<
     // would leave a duplicate in the media library on every refresh.
     const featuredChanged = !isRefresh || (featured != null && (!post.publishedAt || featured.updatedAt > post.publishedAt));
     if (featured && featuredChanged) {
-      const storedKey = featured.url.match(/\/(?:uploads|api\/files)\/([^"'\s)]+)/)?.[1];
-      if (storedKey) {
-        const { storage } = await import("@/lib/storage");
-        const buf = await storage.get(decodeURIComponent(storedKey)).catch(() => null);
-        if (buf) {
-          // ⚠ Re-encode for the host. A 1920×1080 gpt-image PNG is ~4.7 MB and
-          // lsi-media.com answers 413 above its upload limit — EVERY autonomous
-          // publish from 2026-08-26 to 09-16 went out without a featured image
-          // while the helper turned the 413 into a silent null. A JPEG at the
-          // same pixels is ~10× smaller; the app keeps its PNG, WordPress gets
-          // the JPEG. On a 413 even so, one retry at 1280 wide, lower quality.
-          const sharp = (await import("sharp")).default;
-          const attempts: Array<{ bytes: Uint8Array; name: string }> = [];
-          try {
-            attempts.push({ bytes: new Uint8Array(await sharp(buf).jpeg({ quality: 84, mozjpeg: true }).toBuffer()), name: `${post.slug || post.id}-featured.jpg` });
-            attempts.push({ bytes: new Uint8Array(await sharp(buf).resize({ width: 1280, withoutEnlargement: true }).jpeg({ quality: 76, mozjpeg: true }).toBuffer()), name: `${post.slug || post.id}-featured-1280.jpg` });
-          } catch {
-            const bytes = new Uint8Array(buf);
-            const mime = sniffImageMime(bytes);
-            if (mime) attempts.push({ bytes, name: `${post.slug || post.id}-featured.${mime.split("/")[1].replace("jpeg", "jpg")}` });
-          }
-          for (const a of attempts) {
-            const r = await wpUploadMediaBytes(creds, a.bytes, a.name, a.name.endsWith(".jpg") ? "image/jpeg" : sniffImageMime(a.bytes) ?? "image/png", featured.altText);
-            if (r.ok) { media = { id: r.id, sourceUrl: r.sourceUrl }; featuredUploadError = null; break; }
-            featuredUploadError = `${r.error} (${Math.round(a.bytes.byteLength / 1024)} KB)`;
-            if (!/413|too large/i.test(r.error)) break; // only a size refusal is worth a smaller retry
-          }
-        } else {
-          featuredUploadError = "stored bytes could not be read";
-        }
-      } else {
-        const r = await wpUploadMedia(creds, featured.url, featured.altText);
-        if (r.ok) media = { id: r.id, sourceUrl: r.sourceUrl };
-        else featuredUploadError = r.error;
+      const r = await uploadImageToWp(creds, featured.url, `${post.slug || post.id}-featured`, featured.altText);
+      if (r.ok) media = { id: r.id, sourceUrl: r.sourceUrl };
+      else featuredUploadError = r.error;
+    }
+
+    // ⚠ The branded OG image went to the SEO plugin as the app's private
+    // /uploads path (ART-06): Yoast / Rank Math stored a broken og:image and
+    // stopped falling back to the featured image. It goes to the media library
+    // like the featured one, and only a public URL is ever sent. On a refresh
+    // an unchanged OG image is not re-uploaded; its earlier public URL is kept.
+    let ogPublicUrl: string | null = null;
+    let ogUploadError: string | null = null;
+    if (ogImage) {
+      const ogChanged = !isRefresh || !post.publishedAt || ogImage.updatedAt > post.publishedAt;
+      const previous = readJson<{ ogImageUrl?: string }>(post.publishReport ?? null, {}).ogImageUrl ?? null;
+      if (!ogChanged && previous) ogPublicUrl = previous;
+      else if (!isAppImage(ogImage.url) && /^https?:\/\//i.test(ogImage.url)) ogPublicUrl = ogImage.url;
+      else {
+        const r = await uploadImageToWp(creds, ogImage.url, `${post.slug || post.id}-og`, ogImage.altText);
+        if (r.ok) ogPublicUrl = r.sourceUrl;
+        else ogUploadError = r.error;
       }
     }
 
@@ -752,7 +748,8 @@ export async function publishCore(workspaceId: string, postId: string): Promise<
       canonical: post.canonicalUrl ?? undefined,
       ogTitle: post.ogTitle ?? post.metaTitle ?? post.title,
       ogDescription: post.ogDescription ?? post.metaDescription ?? undefined,
-      ogImage: ogImage?.url ?? undefined,
+      // Public or nothing — with nothing, the plugin uses the featured image.
+      ogImage: ogPublicUrl ?? undefined,
     };
     const meta = buildSeoMeta(fieldMap, seoValues);
 
@@ -765,7 +762,13 @@ export async function publishCore(workspaceId: string, postId: string): Promise<
       renderProfile: isRenderProfile(brand.renderProfile) ? brand.renderProfile : "html",
       renderRules: parseRenderRules(brand.renderRules),
     });
-    const content = rendered.html + jsonLd;
+    // Images inside the body point at the app's session-gated storage too, so
+    // readers saw broken images (ART-06). Each goes to the media library once
+    // — the public URL is remembered per stored file, so a refresh doesn't
+    // duplicate it — and the src is rewritten. One that won't upload is named
+    // in the report, never silently shipped as a private link.
+    const inline = await rewriteInlineImages(workspaceId, creds, rendered.html, post.slug || post.id);
+    const content = inline.html + jsonLd;
 
     // A refresh replaces a post that is already live and stays live.
     const status = isRefresh ? "publish" : conn.publishAsDraft ? "draft" : "publish";
@@ -808,6 +811,7 @@ export async function publishCore(workspaceId: string, postId: string): Promise<
       at: new Date().toISOString(),
       wpPostId: created.id,
       status,
+      ...(status === "publish" ? {} : { draftLink: created.link }),
       plugin,
       renderProfile: brand.renderProfile,
       rendered: rendered.report,
@@ -819,6 +823,9 @@ export async function publishCore(workspaceId: string, postId: string): Promise<
       // The reason, not just the fact — "featuredUploadFailed: true" sat in six
       // reports before anyone learned it was a 413.
       featuredUploadError,
+      ogImageUrl: ogPublicUrl,
+      ogUploadError,
+      inlineImages: { uploaded: inline.uploaded, failed: inline.failed },
       categories: { requested: categoryNames, applied: readBack?.categories.length ?? cats.ids.length, missed: cats.missed },
       tags: { requested: tagNames, applied: readBack?.tags.length ?? tags.ids.length, missed: tags.missed },
       author: conn.defaultAuthor ? { requested: conn.defaultAuthor, resolved: authorId } : null,
@@ -831,7 +838,9 @@ export async function publishCore(workspaceId: string, postId: string): Promise<
         status: status === "publish" ? "published" : post.status,
         // A refresh keeps the date the article first went live.
         publishedAt: isRefresh ? post.publishedAt ?? new Date() : status === "publish" ? new Date() : null,
-        publishedUrl: created.link,
+        // A draft's link isn't public (ART-10): social posts shared it. It
+        // stays in the report; the public link arrives when it goes live.
+        publishedUrl: status === "publish" ? created.link : null,
         wpPostId: created.id,
         refreshStartedAt: null,
         publishReport: JSON.stringify(report),
@@ -859,6 +868,124 @@ export async function publishCore(workspaceId: string, postId: string): Promise<
     if (!settled) {
       await db.blogPost.updateMany({ where: { id: post.id, status: "publishing" }, data: { status: fromStatus } }).catch(() => {});
     }
+  }
+}
+
+// ── Images for WordPress (ART-06) ────────────────────────────────────────────
+// Stored images live at session-gated app paths a reader (or a WordPress
+// plugin) can't open, so everything that reaches the site goes through its
+// media library first.
+
+const APP_IMAGE = /^(?:https?:\/\/[^/]+)?\/(?:uploads|api\/files)\/([^"'\s)?#]+)/i;
+
+function isAppImage(url: string): boolean {
+  return APP_IMAGE.test(url.trim());
+}
+
+/**
+ * One image into the WordPress media library: an app-stored image from its
+ * bytes, an outside one by URL.
+ *
+ * ⚠ Re-encode for the host. A 1920×1080 gpt-image PNG is ~4.7 MB and
+ * lsi-media.com answers 413 above its upload limit — EVERY autonomous publish
+ * from 2026-08-26 to 09-16 went out without a featured image while the helper
+ * turned the 413 into a silent null. A JPEG at the same pixels is ~10× smaller;
+ * the app keeps its PNG, WordPress gets the JPEG. On a 413 even so, one retry
+ * at 1280 wide, lower quality.
+ */
+async function uploadImageToWp(
+  creds: WpCredentials, url: string, baseName: string, altText: string | null,
+): Promise<{ ok: true; id: number; sourceUrl: string } | { ok: false; error: string }> {
+  const storedKey = url.trim().match(APP_IMAGE)?.[1];
+  if (!storedKey) {
+    const r = await wpUploadMedia(creds, url, altText);
+    return r.ok ? { ok: true, id: r.id, sourceUrl: r.sourceUrl } : { ok: false, error: r.error };
+  }
+  const buf = await storage.get(decodeURIComponent(storedKey)).catch(() => null);
+  if (!buf) return { ok: false, error: "stored bytes could not be read" };
+  const sharp = (await import("sharp")).default;
+  const attempts: Array<{ bytes: Uint8Array; name: string }> = [];
+  try {
+    attempts.push({ bytes: new Uint8Array(await sharp(buf).jpeg({ quality: 84, mozjpeg: true }).toBuffer()), name: `${baseName}.jpg` });
+    attempts.push({ bytes: new Uint8Array(await sharp(buf).resize({ width: 1280, withoutEnlargement: true }).jpeg({ quality: 76, mozjpeg: true }).toBuffer()), name: `${baseName}-1280.jpg` });
+  } catch {
+    const bytes = new Uint8Array(buf);
+    const mime = sniffImageMime(bytes);
+    if (mime) attempts.push({ bytes, name: `${baseName}.${mime.split("/")[1].replace("jpeg", "jpg")}` });
+  }
+  let error = "the image couldn't be prepared for upload";
+  for (const a of attempts) {
+    const r = await wpUploadMediaBytes(creds, a.bytes, a.name, a.name.endsWith(".jpg") ? "image/jpeg" : sniffImageMime(a.bytes) ?? "image/png", altText);
+    if (r.ok) return { ok: true, id: r.id, sourceUrl: r.sourceUrl };
+    error = `${r.error} (${Math.round(a.bytes.byteLength / 1024)} KB)`;
+    if (!/413|too large/i.test(r.error)) break; // only a size refusal is worth a smaller retry
+  }
+  return { ok: false, error };
+}
+
+/** Every app-stored <img> in the body, uploaded once and its src made public. */
+async function rewriteInlineImages(
+  workspaceId: string, creds: WpCredentials, html: string, baseName: string,
+): Promise<{ html: string; uploaded: number; failed: string[] }> {
+  const srcs = [...new Set([...html.matchAll(/<img\b[^>]*\bsrc\s*=\s*["']([^"']+)["']/gi)].map((m) => m[1]).filter(isAppImage))];
+  const map = new Map<string, string>();
+  const failed: string[] = [];
+  let uploaded = 0;
+  for (const [i, src] of srcs.entries()) {
+    const key = src.match(APP_IMAGE)![1];
+    // Remembered per stored file, so a refresh reuses the media item.
+    const cacheKey = `wp:media:${workspaceId}:${key}`.slice(0, 190);
+    const cached = await db.setting.findUnique({ where: { key: cacheKey } });
+    if (cached?.value) { map.set(src, cached.value); continue; }
+    const r = await uploadImageToWp(creds, src, `${baseName}-inline-${i + 1}`, null);
+    if (r.ok) {
+      map.set(src, r.sourceUrl);
+      uploaded++;
+      await db.setting.upsert({ where: { key: cacheKey }, update: { value: r.sourceUrl }, create: { key: cacheKey, value: r.sourceUrl } });
+    } else {
+      failed.push(`${key}: ${r.error}`.slice(0, 200));
+    }
+  }
+  const out = html.replace(/(<img\b[^>]*\bsrc\s*=\s*["'])([^"']+)(["'])/gi, (whole, a: string, src: string, b: string) => (map.has(src) ? `${a}${map.get(src)}${b}` : whole));
+  return { html: out, uploaded, failed };
+}
+
+/**
+ * Publish an article that was handed off to WordPress as a DRAFT (ART-10).
+ * "Approve & publish" used to flip it to published in the app while the site
+ * still had a draft, and the stored link was the draft's non-public one —
+ * which social posts then shared. Now the site is told to publish, its answer
+ * is read back, and only a live post makes the article published, with the
+ * public link. Claimed like publishCore so a double click can't race itself.
+ */
+export async function publishWordPressDraftCore(workspaceId: string, postId: string): Promise<{ ok: true; link: string } | { ok: false; reason: string }> {
+  const post = await db.blogPost.findFirst({ where: { id: postId, workspaceId } });
+  if (!post || post.status !== "final_approval" || post.wpPostId == null || post.refreshStartedAt) return { ok: false, reason: "This article isn't a WordPress draft hand-off at final approval." };
+  const { hasMarker } = await import("@/lib/citations-extract");
+  if (post.body && hasMarker(post.body)) return { ok: false, reason: "The body still has a source marker — resolve it first." };
+  const conn = await db.wordPressConnection.findUnique({ where: { workspaceId } });
+  if (!conn) return { ok: false, reason: "No WordPress connection." };
+  let creds: WpCredentials;
+  try {
+    creds = { baseUrl: conn.baseUrl, username: conn.username, appPassword: decryptSecret(JSON.parse(conn.encAppPassword) as Encrypted) };
+  } catch {
+    return { ok: false, reason: "The WordPress password couldn't be read — reconnect on Distribute → Website." };
+  }
+  const claim = await db.blogPost.updateMany({ where: { id: post.id, workspaceId, status: "final_approval" }, data: { status: "publishing" } });
+  if (claim.count !== 1) return { ok: false, reason: "Another publish of this article is running." };
+  try {
+    const { wpSetPostStatus } = await import("@/lib/wordpress");
+    const after = await wpSetPostStatus(creds, post.wpPostId, "publish");
+    if (after.status !== "publish") {
+      await db.blogPost.updateMany({ where: { id: post.id, status: "publishing" }, data: { status: "final_approval" } });
+      return { ok: false, reason: `WordPress kept it as "${after.status}" (scheduled or pending review there?) — it isn't live, so it wasn't marked published.` };
+    }
+    await db.blogPost.update({ where: { id: post.id }, data: { status: "published", publishedAt: new Date(), publishedUrl: after.link || null } });
+    await writeAudit({ workspaceId, action: "blog.published_wordpress", entityType: "blog_post", entityId: post.id, meta: { wpPostId: post.wpPostId, link: after.link, via: "draft hand-off" } });
+    return { ok: true, link: after.link };
+  } catch (e) {
+    await db.blogPost.updateMany({ where: { id: post.id, status: "publishing" }, data: { status: "final_approval" } });
+    return { ok: false, reason: e instanceof Error ? e.message.slice(0, 300) : "WordPress didn't answer." };
   }
 }
 
