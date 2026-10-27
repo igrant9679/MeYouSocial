@@ -2,7 +2,7 @@
 
 # Project state — handoff for a fresh session
 
-_Last updated: 2026-08-02._
+_Last updated: 2026-10-27._
 
 **MeYouSocial Publisher** (the product, renamed from Publish on 2026-09-22 — since 2026-09-09 **MeYouSocial** is the family brand for this app and its siblings; names live in `src/lib/product.ts`) is a multi-tenant AI content engine: it turns research into content, publishes
 it, and measures what happened — for several companies on one install. (It began as CreateUp, a
@@ -13,6 +13,11 @@ Next.js 16 (App Router) + React 19 + TypeScript + Tailwind v4, Prisma 6 + Postgr
 Auth.js v5 (JWT). Hosted on **Railway**; `prisma migrate deploy` runs on boot.
 
 **Full detail lives in `docs/MEYOUSOCIAL-PLAN.md`.** Read that before a big change.
+
+**Current work (2026-10-27): the audit plan** `docs/AUDIT-2026-10-25.md` (local, untracked) — its
+Progress section says what has shipped and which Phase 2 group is next; the handoff entry is at the top of
+§3 in `MEYOUSOCIAL-NEXT-SESSION.local.md`; the verify-before-push recipe is `.claude/skills/meyousocial`
+§7. Each shipped part's rules are a section below.
 
 ## ⚠ Two repos — every push goes to BOTH
 
