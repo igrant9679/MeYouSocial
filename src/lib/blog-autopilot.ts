@@ -3,7 +3,7 @@ import { env } from "@/lib/env";
 import { llm, resolveUsableModel } from "@/lib/llm";
 import { readJson } from "@/lib/db/json";
 import { runBlogChecks } from "@/lib/blog-checks";
-import { gatesSatisfied } from "@/lib/blog-gates";
+import { blockingChecks, gatesSatisfied } from "@/lib/blog-gates";
 import { decryptSecret, type Encrypted } from "@/lib/blog-crypto";
 import {
   wpCreatePost,
@@ -1535,9 +1535,12 @@ async function runAutopilotCycleUnlocked(workspaceId: string): Promise<CycleRepo
   // Queueing still refuses anything held for approval.
   if (await isFullyAutonomous(workspaceId)) {
     // Blog: try to SATISFY the gates, then advance what passes.
+    // ⚠ Least recently reviewed first (audit ART-08). By updatedAt alone, three
+    // articles auto-review couldn't clear — and so didn't touch — stayed the
+    // oldest and took the three places every cycle; a fourth never got a look.
     const atReview = await db.blogPost.findMany({
       where: { workspaceId, status: "draft_review" },
-      orderBy: { updatedAt: "asc" },
+      orderBy: [{ autoReviewedAt: { sort: "asc", nulls: "first" } }, { updatedAt: "asc" }],
       take: 3,
     });
     for (const post of atReview) {
@@ -1551,6 +1554,7 @@ async function runAutopilotCycleUnlocked(workspaceId: string): Promise<CycleRepo
       } catch (e) {
         console.error(`[auto-review] failed for ${post.id}:`, e instanceof Error ? e.message : e);
       }
+      await db.blogPost.updateMany({ where: { id: post.id, workspaceId }, data: { autoReviewedAt: new Date() } });
       // Re-read: auto-review may have edited the body and meta.
       const fresh = await db.blogPost.findFirst({ where: { id: post.id, workspaceId } });
       if (!fresh) continue;
@@ -1633,7 +1637,10 @@ async function runAutopilotCycleUnlocked(workspaceId: string): Promise<CycleRepo
     // in place (publishCore). A draft handoff (wpPostId set, no refresh) is
     // never picked up again.
     const notLive = { OR: [{ wpPostId: null }, { refreshStartedAt: { not: null } }] };
-    const ready = await db.blogPost.findMany({
+    // ⚠ No site, nothing to publish to — and nothing to report every cycle
+    // (CF parks its articles here and exports them by hand).
+    const hasSite = (await db.wordPressConnection.count({ where: { workspaceId } })) > 0;
+    const candidates = !hasSite ? [] : await db.blogPost.findMany({
       where: autoToday
         ? {
             workspaceId,
@@ -1642,8 +1649,33 @@ async function runAutopilotCycleUnlocked(workspaceId: string): Promise<CycleRepo
           }
         : { workspaceId, status: "final_approval", ...notLive, scheduledAt: { lte: now } },
       orderBy: { updatedAt: "asc" },
-      take: 2,
+      take: 20,
     });
+    // ⚠ The checks run BEFORE the two are picked (audit ART-08). publishCore
+    // re-checks and quietly refuses an article that no longer passes, so with
+    // `take: 2` the two oldest such articles were retried forever while every
+    // article behind them waited and /publish said "next cycle". A held one is
+    // skipped and named (Inbox, /publish), with a notice once a day.
+    const ready: typeof candidates = [];
+    for (const p of candidates) {
+      if (ready.length >= 2) break;
+      const failing = await blockingChecks(workspaceId, p.id);
+      if (failing && failing.length === 0) { ready.push(p); continue; }
+      if (!failing) continue;
+      const since = new Date(Date.now() - 24 * 3_600_000);
+      const told = await db.auditLog.findFirst({ where: { workspaceId, action: "blog.publish_held", entityId: p.id, createdAt: { gte: since } }, select: { id: true } });
+      if (told) continue;
+      await writeAudit({ workspaceId, action: "blog.publish_held", entityType: "blog_post", entityId: p.id, meta: { failing } });
+      await notify({
+        workspaceId,
+        kind: "publish_failed",
+        title: `"${p.title}" is at final approval but won't publish`,
+        body: `It no longer passes: ${failing.join("; ")}. Fix it, or send it back to review.`.slice(0, 400),
+        path: `/blog/${p.id}?tab=review`,
+        entityType: "blog_post",
+        entityId: p.id,
+      });
+    }
     for (const p of ready) {
       try {
         if (await publishCore(workspaceId, p.id)) report.published++;

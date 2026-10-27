@@ -84,9 +84,16 @@ export async function register() {
   // run, and `publishDueSocialPosts` ALSO makes an atomic per-post status claim
   // — belt and braces, because a duplicate here reaches a real audience.
   const socialSweep = guarded("social", 5 * 60_000, async () => {
-    const { publishDueSocialPosts } = await import("@/lib/social/publish");
+    const { publishDueSocialPosts, reconcileStuckSocialPosts } = await import("@/lib/social/publish");
     const n = await publishDueSocialPosts();
     if (n > 0) console.log(`[social] published ${n} due post(s)`);
+    // Posts left in "publishing" (a killed container, a leg never reported)
+    // are settled from Zernio's own record. Reads only — it never sends.
+    const settled = await reconcileStuckSocialPosts().catch((e) => {
+      console.error("[social] reconcile failed:", e instanceof Error ? e.message : e);
+      return 0;
+    });
+    if (settled > 0) console.log(`[social] settled ${settled} post(s) stuck in publishing`);
     // Evergreen refill rides the same lock: it writes scheduled posts, so it
     // must never race the publisher or run on two replicas at once. Opt-in per
     // workspace (social:evergreen_fill) — the sweep no-ops cheaply otherwise.

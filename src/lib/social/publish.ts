@@ -8,11 +8,13 @@ import { buildPlatformData, readTargetOptions, splitLinks, supportsFirstComment 
 import { normaliseWatermark, watermarkerFor } from "@/lib/social/watermark";
 import {
   createZernioPost,
+  getZernioPost,
   uploadZernioMedia,
   zernioConfigured,
   type ZernioMediaItem,
   type ZernioPostTargetSpec,
 } from "@/lib/zernio";
+import { MAY_HAVE_POSTED } from "@/lib/social/unknown-outcome";
 
 /**
  * Publish one composed post to all its pending targets, through Zernio.
@@ -242,6 +244,11 @@ export async function publishSocialPost(postId: string, opts: { claimed?: boolea
     // can tell the sources apart. Tagging happens here, at send, so the stored
     // text stays the author's and re-editing can't accumulate params.
     const specs: ZernioPostTargetSpec[] = [];
+    // What the request id is made of: the same legs with STORAGE KEYS where
+    // the specs carry upload URLs. Every attempt uploads afresh and gets new
+    // URLs, so an id over the specs changed on every retry and Zernio's
+    // duplicate guard never matched one (audit SOC-12).
+    const fingerprint: unknown[] = [];
     for (const t of pending) {
       let text = await tagLinksForNetwork(
         t.text ?? post.text, post.workspaceId, t.provider, post.campaign?.utmCampaign,
@@ -281,10 +288,11 @@ export async function publishSocialPost(postId: string, opts: { claimed?: boolea
         ...(ownKeys?.length ? { customMedia: await upload(ownKeys) } : {}),
         ...(platformSpecificData ? { platformSpecificData } : {}),
       });
+      fingerprint.push([t.provider.toLowerCase(), t.accountId, text, ownKeys ?? null, platformSpecificData ?? null]);
     }
 
     const requestId = createHash("sha256")
-      .update(JSON.stringify({ id: post.id, text: post.text, specs }))
+      .update(JSON.stringify({ id: post.id, text: post.text, media: baseKeys, legs: fingerprint }))
       .digest("hex")
       .slice(0, 40);
 
@@ -295,15 +303,27 @@ export async function publishSocialPost(postId: string, opts: { claimed?: boolea
       select: { zernioProfileId: true },
     });
 
-    const result = await createZernioPost({
-      content: post.text,
-      platforms: specs,
-      mediaItems: baseMedia,
-      publishNow: true,
-      requestId,
-      profileId: ws?.zernioProfileId ?? undefined,
-      workspaceId: post.workspaceId,
-    });
+    // From here the request may reach Zernio. A timeout or abort after this
+    // point is NOT a failure we know of: the post may be live (CF, 23 Oct —
+    // three legs "aborted due to timeout" and offered for Retry).
+    let result: Awaited<ReturnType<typeof createZernioPost>>;
+    try {
+      result = await createZernioPost({
+        content: post.text,
+        platforms: specs,
+        mediaItems: baseMedia,
+        publishNow: true,
+        requestId,
+        profileId: ws?.zernioProfileId ?? undefined,
+        workspaceId: post.workspaceId,
+      });
+    } catch (e) {
+      const name = e instanceof Error ? e.name : "";
+      if (name === "TimeoutError" || name === "AbortError") {
+        throw new Error(`No answer from Zernio in time — this ${MAY_HAVE_POSTED}. Check the network before retrying.`);
+      }
+      throw e;
+    }
 
     // Match Zernio's per-platform report back onto our targets. Fall back to
     // platform alone when accountId is absent from the reply.
@@ -312,9 +332,12 @@ export async function publishSocialPost(postId: string, opts: { claimed?: boolea
 
     for (const t of pending) {
       const leg = byAccount.get(t.accountId) ?? byPlatform.get(t.provider.toLowerCase());
-      // A deduped 409/200 carries no per-platform detail, but it means the
-      // content IS out — recording it as failed would be a lie.
-      const posted = result.deduped || leg?.status === "published" || leg?.status === "publishing";
+      // A 409 (content-hash duplicate) carries no per-platform detail, but it
+      // means the content IS out — recording it as failed would be a lie.
+      // ⚠ A 200 replay of an earlier request DOES carry the legs, and each
+      // keeps its own outcome: marking every leg of a replay posted turned a
+      // leg that had failed into "posted" (audit SOC-12).
+      const posted = leg ? leg.status === "published" || leg.status === "publishing" : result.deduped;
       // ⚠ A MISSING leg is not a success. Zernio accepting the request says
       // nothing about a platform it then didn't report on, and marking that
       // "posted" with a postedAt invents an outcome we were never told — the
@@ -403,4 +426,86 @@ export async function publishDueSocialPosts(): Promise<number> {
     }
   }
   return published;
+}
+
+const STUCK_AFTER_MS = 15 * 60_000;
+const GIVE_UP_AFTER_MS = 24 * 3_600_000;
+const SETTLED_POSTED = new Set(["published"]);
+const SETTLED_FAILED = new Set(["failed", "error", "cancelled", "rejected"]);
+
+/**
+ * Settle posts stuck in "publishing" (audit SOC-11). A container killed
+ * mid-send, or a leg Zernio accepted and never reported on, left "Publishing
+ * now" for good — and the only way out was a re-send.
+ *
+ * Nothing here sends. After 15 quiet minutes:
+ *   · a leg Zernio knows about (it has our providerPostId) takes the status
+ *     Zernio reports for it now — published or failed; still in flight, it
+ *     waits (and after a day it's settled as unknown, said in those words);
+ *   · a leg with no Zernio id was interrupted before we heard back, so it may
+ *     or may not be live — failed, with the warning Retry shows.
+ * Then the post rolls up from its legs, as after a send.
+ */
+export async function reconcileStuckSocialPosts(): Promise<number> {
+  const now = Date.now();
+  const stuck = await db.socialPost.findMany({
+    where: { status: "publishing", updatedAt: { lt: new Date(now - STUCK_AFTER_MS) } },
+    include: { targets: true },
+    orderBy: { updatedAt: "asc" },
+    take: 20,
+  });
+  let settled = 0;
+  for (const post of stuck) {
+    const open = post.targets.filter((t) => t.status === "pending");
+    const stale = now - post.updatedAt.getTime() > GIVE_UP_AFTER_MS;
+    const byZernioPost = new Map<string, typeof open>();
+    for (const t of open) {
+      if (!t.providerPostId) {
+        await db.socialPostTarget.updateMany({
+          where: { id: t.id, status: "pending" },
+          data: { status: "failed", error: `The send was interrupted before Zernio answered — this ${MAY_HAVE_POSTED}. Check the network before retrying.` },
+        });
+        continue;
+      }
+      byZernioPost.set(t.providerPostId, [...(byZernioPost.get(t.providerPostId) ?? []), t]);
+    }
+    for (const [zernioPostId, legs] of byZernioPost) {
+      const remote = await getZernioPost(zernioPostId, post.workspaceId).catch(() => null);
+      const byAccount = new Map((remote?.perPlatform ?? []).filter((p) => p.accountId).map((p) => [p.accountId!, p]));
+      const byPlatform = new Map((remote?.perPlatform ?? []).map((p) => [p.platform, p]));
+      for (const t of legs) {
+        const leg = byAccount.get(t.accountId) ?? byPlatform.get(t.provider.toLowerCase());
+        if (leg && SETTLED_POSTED.has(leg.status)) {
+          await db.socialPostTarget.updateMany({
+            where: { id: t.id, status: "pending" },
+            data: { status: "posted", postedAt: new Date(), error: null, ...(leg.url ? { platformPostUrl: leg.url } : {}) },
+          });
+        } else if (leg && SETTLED_FAILED.has(leg.status)) {
+          await db.socialPostTarget.updateMany({
+            where: { id: t.id, status: "pending" },
+            data: { status: "failed", error: (leg.error ?? `Zernio reports this ${leg.status}.`).slice(0, 500) },
+          });
+        } else if (stale) {
+          await db.socialPostTarget.updateMany({
+            where: { id: t.id, status: "pending" },
+            data: { status: "failed", error: `Zernio hasn't reported on this account in a day — status unknown; this ${MAY_HAVE_POSTED}. Check the network before retrying.` },
+          });
+        }
+      }
+    }
+    // Roll up from the legs, exactly as a send does. A leg still in flight
+    // keeps the post "publishing" for the next pass.
+    const fresh = await db.socialPostTarget.findMany({ where: { postId: post.id }, select: { status: true } });
+    if (fresh.length === 0) continue;
+    const posted = fresh.filter((t) => t.status === "posted").length;
+    const stillPending = fresh.some((t) => t.status === "pending");
+    const status = posted === fresh.length ? "posted" : posted > 0 ? "partial" : stillPending ? "publishing" : "failed";
+    if (status === "publishing") continue;
+    const moved = await db.socialPost.updateMany({
+      where: { id: post.id, status: "publishing" },
+      data: { status, publishedAt: posted > 0 ? post.publishedAt ?? new Date() : null },
+    });
+    settled += moved.count;
+  }
+  return settled;
 }

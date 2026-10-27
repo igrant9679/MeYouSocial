@@ -202,11 +202,21 @@ async function autoSourceCitations(workspaceId: string, post: PostRow): Promise<
     }
   }
 
-  const open = await db.blogCitation.findMany({
+  // ⚠ Claims held as unsourceable in the last day are set aside BEFORE the
+  // three are picked (audit ART-08): taking three and then skipping the held
+  // ones meant three unsourceable claims blocked a fourth that might be
+  // sourceable, for as long as nobody touched them.
+  const candidates = await db.blogCitation.findMany({
     where: { postId: post.id, verified: false },
     orderBy: { createdAt: "asc" },
-    take: 3,
+    take: 30,
   });
+  if (candidates.length === 0) return 0;
+  const heldRows = await db.auditLog.findMany({
+    where: { workspaceId, action: "blog.citation_unsourceable", entityId: post.id, createdAt: { gte: new Date(Date.now() - 24 * 3_600_000) } },
+    select: { meta: true },
+  });
+  const open = candidates.filter((c) => !heldRows.some((h) => (h.meta ?? "").includes(c.id))).slice(0, 3);
   if (open.length === 0) return 0;
 
   // ⚠ Mock search results carry example.com URLs — verifying against them

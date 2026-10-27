@@ -4,7 +4,8 @@ import { ArrowLeft, Check, ChevronLeft, ChevronRight, CircleAlert, ShieldCheck, 
 import { requireMembership, canEdit, canAdmin } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { runBlogChecks } from "@/lib/blog-checks";
-import { gatesSatisfied } from "@/lib/blog-gates";
+import { gatesSatisfied, overrideHolds } from "@/lib/blog-gates";
+import { Banner } from "@/components/SocialPostCard";
 import { contentScore } from "@/lib/blog-score";
 import { BLOG_TEMPLATES } from "@/lib/blog-templates";
 import {
@@ -71,6 +72,7 @@ import { BlogBodyEditor } from "@/components/BlogBodyEditor";
 import {
   addCitationAction,
   advanceBlogStatusAction,
+  clearGateOverrideAction,
   deleteBlogPostAction,
   deleteCitationAction,
   generateBlogDraftAction,
@@ -127,7 +129,7 @@ export default async function BlogPostPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ tab?: string; social_ok?: string; social_err?: string }>;
+  searchParams: Promise<{ tab?: string; social_ok?: string; social_err?: string; flash?: string; flashErr?: string }>;
 }) {
   const { id } = await params;
   const sp = await searchParams;
@@ -174,6 +176,10 @@ export default async function BlogPostPage({
   ]);
   const checks = runBlogChecks(post, unverified, assets, editorial);
   const gatesPass = gatesSatisfied(post, checks);
+  // Passing only because an admin's override covers this exact body (ART-09):
+  // the sidebar must say so rather than "All gates pass" beside red ✕s.
+  const failingCount = checks.filter((c) => c.required && !c.pass).length;
+  const overridden = overrideHolds(post) && failingCount > 0;
   const score = contentScore(post, checks);
   const [titlesSetting, linksSetting, findings, searchInfo] = await Promise.all([
     db.setting.findUnique({ where: { key: `blog:titles:${post.id}` } }),
@@ -313,6 +319,32 @@ export default async function BlogPostPage({
         )}
       </div>
 
+      {sp.flash && <Banner kind="ok" text={sp.flash} />}
+      {sp.flashErr && <Banner kind="err" text={sp.flashErr} />}
+
+      {/* "Advance anyway", on the record — who, when, why, and whether it
+          still covers the text (ART-09). */}
+      {post.gateOverrideAt && (
+        <div className="card mb-4 flex flex-wrap items-center gap-2 text-xs" style={{ borderColor: "var(--amber-on)" }}>
+          <ShieldCheck className="w-4 h-4 shrink-0" style={{ color: "var(--amber-on)" }} />
+          <span>
+            <span className="font-semibold">Checks overridden</span> by {(post.gateOverrideById && memberName.get(post.gateOverrideById)) || "an admin"} on{" "}
+            {post.gateOverrideAt.toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
+            {post.gateOverrideReason ? <> — “{post.gateOverrideReason}”</> : null}.{" "}
+            {overrideHolds(post)
+              ? failingCount > 0 ? `It covers this text, so ${failingCount} failing check${failingCount === 1 ? "" : "s"} won't hold it.` : "Every check passes now anyway."
+              : "It no longer applies: the text changed after it, so the checks decide again."}
+          </span>
+          <span className="flex-1" />
+          {admin && (
+            <form action={clearGateOverrideAction}>
+              <input type="hidden" name="id" value={post.id} />
+              <SubmitButton className="btn sm" pendingText="Clearing…" title="Take the override back — at final approval an article that needed it goes back to review">Clear override</SubmitButton>
+            </form>
+          )}
+        </div>
+      )}
+
       {/* Editor tabs — each is a focused pane; the gates sidebar stays put. */}
       <nav aria-label="Editor sections" className="flex items-center gap-0.5 border-b border-[var(--line)] mb-4 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
         {TABS.map((t) => {
@@ -361,7 +393,9 @@ export default async function BlogPostPage({
           {checks.filter((c) => c.required && c.pass).length}/{checks.filter((c) => c.required).length} pass
         </span>
         <span className="flex-1" />
-        {gatesPass ? (
+        {overridden ? (
+          <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }}>overridden</span>
+        ) : gatesPass ? (
           <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: "var(--green-soft)", color: "var(--green-on)" }}>ready</span>
         ) : (
           <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: "var(--rose-soft)", color: "var(--rose-on)" }}>
@@ -1397,10 +1431,16 @@ export default async function BlogPostPage({
                     )}
                     {editor && v.status === "approved" && (
                       <>
-                        <form action={postSocialVariantAction}>
-                          <input type="hidden" name="id" value={v.id} />
-                          <SubmitButton className="btn primary" pendingText="Posting…"><Send className="w-3.5 h-3.5" /> Post now</SubmitButton>
-                        </form>
+                        {/* Sending is an admin act, and only once the article is
+                            live — before that {{URL}} has nothing to point at (ART-11). */}
+                        {admin && post.status === "published" && post.publishedUrl ? (
+                          <form action={postSocialVariantAction}>
+                            <input type="hidden" name="id" value={v.id} />
+                            <SubmitButton className="btn primary" pendingText="Posting…"><Send className="w-3.5 h-3.5" /> Post now</SubmitButton>
+                          </form>
+                        ) : (
+                          <span className="text-[10px] text-[var(--mute)]">{admin ? "Post now opens once the article is live with its link" : "An admin posts it once the article is live"}</span>
+                        )}
                         <form action={setSocialVariantStatusAction}>
                           <input type="hidden" name="id" value={v.id} />
                           <input type="hidden" name="status" value="posted" />
@@ -1458,15 +1498,27 @@ export default async function BlogPostPage({
 
       {editor && (
         <div className="flex items-center gap-2 mt-4">
-          <form action={generateBlogDraftAction}>
-            <input type="hidden" name="id" value={post.id} />
-            <SubmitButton className="btn">
-              <Sparkles className="w-4 h-4" /> {post.body ? "Regenerate draft" : "Generate draft"}
-            </SubmitButton>
-          </form>
-          <span className="text-xs text-[var(--mute)]">
-            Grounded in your channel voice + audience. Overwrites the body — save your edits first.
-          </span>
+          {post.status === "published" && post.wpPostId == null ? (
+            <span className="text-xs text-[var(--mute)]">
+              Published outside the app — regenerating can&apos;t replace the live page, so it&apos;s off here. Edit by hand, or start a new article.
+            </span>
+          ) : (
+            <>
+              <form action={generateBlogDraftAction}>
+                <input type="hidden" name="id" value={post.id} />
+                <SubmitButton className="btn">
+                  <Sparkles className="w-4 h-4" /> {post.status === "published" ? "Revise the live article" : post.body ? "Regenerate draft" : "Generate draft"}
+                </SubmitButton>
+              </form>
+              <span className="text-xs text-[var(--mute)]">
+                {post.status === "published"
+                  ? "Rewrites from the live text; it goes back through review, and the live page stays as it is until the revision publishes in place."
+                  : post.status === "final_approval"
+                    ? "Overwrites the body and sends it back through review — its publish date doesn't carry over."
+                    : "Grounded in your channel voice + audience. Overwrites the body — save your edits first."}
+              </span>
+            </>
+          )}
           <span className="flex-1" />
           {admin && (
             <form action={deleteBlogPostAction}>
@@ -1504,7 +1556,11 @@ export default async function BlogPostPage({
             ))}
           </ul>
           <div className="mt-2 pt-2 border-t border-[var(--line)] text-[11px]">
-            {gatesPass ? (
+            {overridden ? (
+              <span style={{ color: "var(--amber-on)" }} className="font-semibold">
+                {failingCount} failing — overridden by an admin for this text, so it advances and publishes anyway.
+              </span>
+            ) : gatesPass ? (
               <span style={{ color: "var(--green-on)" }} className="font-semibold">All gates pass — ready to advance.</span>
             ) : (
               <Link href={`/blog/${post.id}?tab=review`} className="underline" style={{ color: "var(--amber-on)" }}>

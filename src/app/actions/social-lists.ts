@@ -59,15 +59,24 @@ export async function bulkPostsAction(formData: FormData) {
     const drafts = await db.socialPost.findMany({
       where: { id: { in: ids }, workspaceId: workspace.id, status: "draft" },
       orderBy: { createdAt: "asc" },
-      select: { id: true, approval: true, category: true, _count: { select: { targets: true } } },
+      select: { id: true, approval: true, category: true, scheduledAt: true, _count: { select: { targets: true } } },
     });
     let queued = 0;
     let held = 0;
     let noTargets = 0;
+    let passed = 0;
     let failure: string | null = null;
     for (const d of drafts) {
       if (d.approval === "pending" || d.approval === "changes" || (requireApproval && d.approval === null && membership.role !== "ADMIN")) { held++; continue; }
       if (d._count.targets === 0) { noTargets++; continue; }
+      // A draft with its own time keeps it (a holiday, a countdown stage) —
+      // never re-slotted (audit SOC-06); a time that has passed is skipped.
+      if (d.scheduledAt) {
+        if (d.scheduledAt.getTime() <= Date.now() + 60_000) { passed++; continue; }
+        await db.socialPost.updateMany({ where: { id: d.id, status: "draft" }, data: { status: "scheduled" } });
+        queued++;
+        continue;
+      }
       const claim = await claimNextFreeSlot(workspace.id, d.id, d.category);
       if ("error" in claim) { failure = queueFailureMessage(claim.error); break; }
       await db.socialPost.update({ where: { id: d.id }, data: { status: "scheduled", scheduledAt: claim.at } });
@@ -77,6 +86,7 @@ export async function bulkPostsAction(formData: FormData) {
     const notes = [
       held ? `${n(held, "post")} held for approval` : "",
       noTargets ? `${n(noTargets, "post")} with no account to post to` : "",
+      passed ? `${n(passed, "post")} whose date has passed` : "",
       failure ? `stopped: ${failure}` : "",
     ].filter(Boolean);
     back(formData, `Queued ${n(queued, "post")}${notes.length ? ` — ${notes.join("; ")}` : ""}.`, queued ? "ok" : "err");

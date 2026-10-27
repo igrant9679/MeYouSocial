@@ -188,7 +188,13 @@ export async function generateBatchAction(formData: FormData) {
     if (days.length === 0) studio({ s: "special_days", month }, { err: `No days are ticked for ${range.label} — tick the ones the client picked first.` });
     input = { scenario, days: days.map((d) => ({ name: d.name, date: d.day, note: d.note })), notes };
     title = `Special days · ${range.label}`;
-    plan = days.map((d) => ({ day: d.day, minute, mediaKey: null, specialDayId: d.id, past: false }));
+    // ⚠ A day whose posting time has gone is PAST, like a countdown stage —
+    // it used to be marked live, saved as a timeless draft and queued by full
+    // autonomy into the next free slot: a holiday post on a random day (SOC-05).
+    plan = days.map((d) => {
+      const at = dayAt(d.day, minute, tz);
+      return { day: d.day, minute, mediaKey: null, specialDayId: d.id, past: !at || at.getTime() < Date.now() + 60_000 };
+    });
   } else if (scenario === "campaign") {
     const c = await campaignFrom();
     if (!c.name) studio(back, { err: "Pick a campaign or give it a name." });
@@ -368,7 +374,12 @@ export async function saveBatchAction(formData: FormData) {
     let scheduledAt: Date | null = null;
     let status = "draft";
     const at = it.day ? dayAt(it.day, it.minute, tz) : null;
-    if (mode === "schedule") {
+    // A caption written for a day (a special day, or a countdown stage) only
+    // ever goes out on that day: never saved without its time, never put in
+    // a slot. Once the day has passed it's skipped, whatever the mode.
+    const dated = it.specialDayId != null || batch.scenario === "special_days" || batch.scenario === "countdown";
+    if (dated && (!at || at.getTime() < Date.now() + 60_000)) { notes.push(`${label}: ${at ? "its day has passed" : "no date"}`); continue; }
+    if (mode === "schedule" || (dated && mode === "queue")) {
       if (!at) { notes.push(`${label}: no date`); continue; }
       if (at.getTime() < Date.now() + 60_000) { notes.push(`${label}: its time has passed`); continue; }
       scheduledAt = at;

@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { llm } from "@/lib/llm";
 import { isGloballyPaused, writeAudit } from "@/lib/governance";
 import { generateOutlineCore } from "@/lib/blog-autopilot";
+import { returnToReviewAfterEdit } from "@/lib/blog-gates";
 import { brandContextBlock, motifPromptFor } from "@/lib/motifs";
 
 /**
@@ -82,6 +83,7 @@ export async function regenerateSectionAction(formData: FormData) {
   await db.blogPostVersion.create({ data: { postId: post.id, label: `before section rewrite: ${heading.slice(0, 40)}`, body: post.body } });
   parts[idx] = replacement + "\n";
   await db.blogPost.update({ where: { id: post.id }, data: { body: parts.join("") } });
+  await returnToReviewAfterEdit(workspace.id, post.id, "section rewrite");
   await writeAudit({ workspaceId: workspace.id, action: "blog.section_regenerated", entityType: "blog_post", entityId: post.id, meta: { heading } });
   revalidatePath(`/blog/${id}`);
 }
@@ -133,6 +135,7 @@ export async function applyTitleAction(formData: FormData) {
     where: { id: post.id },
     data: { title, metaTitle: post.metaTitle ?? title.slice(0, 60) },
   });
+  if (title !== post.title) await returnToReviewAfterEdit(workspace.id, post.id, "title");
   revalidatePath(`/blog/${id}`);
 }
 
@@ -185,5 +188,6 @@ export async function generateAltTextAction(formData: FormData) {
     return tag.replace(/\/?>$/, ` alt="${alt.replace(/"/g, "'").slice(0, 120)}">`);
   });
   await db.blogPost.update({ where: { id: post.id }, data: { body: newBody } });
+  await returnToReviewAfterEdit(workspace.id, post.id, "alt text");
   revalidatePath(`/blog/${id}`);
 }

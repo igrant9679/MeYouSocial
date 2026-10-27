@@ -506,6 +506,23 @@ export async function duplicateSocialPostAction(formData: FormData) {
 
 const EDITABLE = new Set(["draft", "scheduled"]);
 
+/**
+ * What a reviewer approved: the words, the images, the first comment and
+ * where it goes. A change to any of these is new content to the workflow.
+ */
+type ReviewedShape = {
+  text: string; mediaKeys: string; firstComment: string | null; linkToFirstComment: boolean; watermark: string | null;
+  targets: Array<{ accountId: string; text: string | null; mediaKeys: string | null; subFormat: string | null; firstComment: string | null; options: string | null }>;
+};
+function reviewedContent(p: ReviewedShape): string {
+  return JSON.stringify({
+    text: p.text, media: p.mediaKeys, comment: p.firstComment, linkToComment: p.linkToFirstComment, watermark: p.watermark,
+    targets: [...p.targets]
+      .sort((a, b) => a.accountId.localeCompare(b.accountId))
+      .map((t) => [t.accountId, t.text, t.mediaKeys, t.subFormat, t.firstComment, t.options]),
+  });
+}
+
 /** Load a post that is still safe to change, scoped to the workspace. */
 async function loadEditablePost(workspaceId: string, id: string) {
   const post = await db.socialPost.findFirst({ where: { id, workspaceId }, include: { targets: true } });
@@ -517,9 +534,10 @@ async function loadEditablePost(workspaceId: string, id: string) {
 export async function updateSocialPostAction(formData: FormData) {
   const backTo: Flash = tabFlash("/social/calendar");
   const id = String(formData.get("id") ?? "");
-  const { workspace, user } = await requireRole("EDITOR");
+  const { workspace, user, membership } = await requireRole("EDITOR");
   const post = await loadEditablePost(workspace.id, id);
   if (!post) backTo("That post can't be edited — it has already been sent or doesn't exist.");
+  const before = reviewedContent(post!);
 
   const text = String(formData.get("text") ?? "").trim();
   const accountIds = formData.getAll("accountIds").map(String).filter(Boolean);
@@ -582,6 +600,15 @@ export async function updateSocialPostAction(formData: FormData) {
     reviewNote = null;
     status = "draft";
   }
+  // With the workflow on, a non-admin's edit can't carry an approval it didn't
+  // earn (audit SOC-01/SOC-02): changing an approved post's words, images or
+  // networks sends it back for review, and so does scheduling a post that was
+  // never reviewed. Decided after the write below, against what was stored.
+  const { getSetting } = await import("@/lib/settings");
+  const reviewable =
+    membership.role !== "ADMIN" &&
+    (post!.approval === "approved" || post!.approval === null) &&
+    (await getSetting("social:require_approval", workspace.id).catch(() => "")) === "true";
 
   // Uppercased slug on both sides — see the note on the create path above.
   const variantFor = (provider: string): string | null => {
@@ -624,6 +651,7 @@ export async function updateSocialPostAction(formData: FormData) {
   }
 
   const keepIds = new Set(accounts.map((a) => a.accountId));
+  let sentForReview = false;
   await db.$transaction(async (tx) => {
     // Drop targets whose account was deselected.
     await tx.socialPostTarget.deleteMany({
@@ -672,7 +700,20 @@ export async function updateSocialPostAction(formData: FormData) {
         firstComment, linkToFirstComment, watermark,
       },
     });
+    if (reviewable) {
+      const after = await tx.socialPost.findUnique({ where: { id: post!.id }, include: { targets: true } });
+      const changed = !!after && reviewedContent(after) !== before;
+      if (changed || (post!.approval === null && status !== "draft")) {
+        // The requested time stays on scheduledAt for the approver to honour.
+        await tx.socialPost.update({
+          where: { id: post!.id },
+          data: { approval: "pending", approvedById: null, approvedAt: null, reviewNote: null, status: "draft" },
+        });
+        sentForReview = true;
+      }
+    }
   });
+  if (sentForReview) approval = "pending";
 
   // Same default-to-image rule on edit: clearing the images (or never having
   // any) re-queues a generation for an unsent post.
@@ -681,7 +722,19 @@ export async function updateSocialPostAction(formData: FormData) {
     await jobs.enqueue("social.autoimage", { postId: post!.id }, { refId: post!.id, workspaceId: workspace.id });
   }
 
-  if (resubmitted) {
+  if (sentForReview) {
+    const { notify } = await import("@/lib/notify");
+    await notify({
+      workspaceId: workspace.id,
+      kind: "approval_needed",
+      title: post!.approval === "approved" ? "An approved post was changed and needs approval again" : "A social post is waiting for approval",
+      body: text.slice(0, 140),
+      path: "/social/approvals",
+      entityType: "social_post",
+      entityId: post!.id,
+      excludeUserId: user.id,
+    });
+  } else if (resubmitted) {
     const { notify } = await import("@/lib/notify");
     await notify({
       workspaceId: workspace.id,
@@ -744,7 +797,7 @@ export async function saveUtmSettingsAction(formData: FormData) {
  * able to drag from the drafts tray onto the grid.
  */
 export async function rescheduleSocialPostAction(id: string, isoDateTime: string) {
-  const { workspace } = await requireRole("EDITOR");
+  const { workspace, membership } = await requireRole("EDITOR");
   const when = new Date(isoDateTime);
   if (Number.isNaN(when.getTime())) return { ok: false, message: "That isn't a valid date." };
   // A minute of slack absorbs the round-trip; anything genuinely past is refused
@@ -762,6 +815,13 @@ export async function rescheduleSocialPostAction(id: string, isoDateTime: string
   // Dragging onto the calendar is scheduling — same approval gate as the queue.
   if (post.approval === "pending") return { ok: false, message: "Awaiting approval — it can't be scheduled yet." };
   if (post.approval === "changes") return { ok: false, message: "Changes were requested — edit and resubmit it first." };
+  // …and the same rule as the queue for a post nobody reviewed (SOC-02).
+  if (post.approval === null && membership.role !== "ADMIN") {
+    const { getSetting } = await import("@/lib/settings");
+    if ((await getSetting("social:require_approval", workspace.id).catch(() => "")) === "true") {
+      return { ok: false, message: "This workspace requires approval before posts go out — submit it for approval first." };
+    }
+  }
 
   await db.socialPost.update({
     where: { id: post.id },

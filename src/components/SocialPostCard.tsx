@@ -5,6 +5,7 @@ import {
 import { storage } from "@/lib/storage";
 import { networkFor } from "@/lib/social/networks";
 import { subFormatLabel } from "@/lib/social/sub-formats";
+import { mayHavePosted } from "@/lib/social/unknown-outcome";
 import {
   approveSocialPostAction,
   requestChangesSocialPostAction,
@@ -100,6 +101,11 @@ export function PostCard({
   const s = STATUS_STYLE[post.status] ?? STATUS_STYLE.draft;
   const when = post.scheduledAt ?? post.publishedAt;
   const canRetry = post.status === "failed" || post.status === "partial";
+  // Legs whose send timed out or was interrupted may be live already — say so
+  // beside Retry instead of offering a blind re-send.
+  const unsure = canRetry
+    ? [...new Set(post.targets.filter((t) => t.status === "failed" && mayHavePosted(t.error)).map((t) => networkFor(t.provider)?.label ?? t.provider))]
+    : [];
   const held = post.approval === "pending" || post.approval === "changes";
   // Held posts hide the send buttons — the server refuses anyway, but showing
   // controls that always fail reads as broken rather than as governed.
@@ -192,8 +198,13 @@ export function PostCard({
         {canRetry && (
           <form action={publishNowAction}>
             <input type="hidden" name="id" value={post.id} />
-            <button className="btn sm" title="Retry the legs that failed"><RotateCw className="w-3.5 h-3.5" /> Retry</button>
+            <button className="btn sm" title={unsure.length ? `Check ${unsure.join(", ")} first — the send there timed out and may have posted` : "Retry the legs that failed"}><RotateCw className="w-3.5 h-3.5" /> Retry</button>
           </form>
+        )}
+        {unsure.length > 0 && (
+          <span className="basis-full text-[11px]" style={{ color: "var(--amber-on)" }}>
+            We never heard back from {unsure.join(", ")} — {unsure.length === 1 ? "it" : "they"} may have posted. Check {unsure.length === 1 ? "that network" : "those networks"} before you retry, or it may go out twice.
+          </span>
         )}
         {post.status === "scheduled" && (
           <form action={cancelScheduledAction}>

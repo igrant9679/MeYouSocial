@@ -323,6 +323,31 @@ Tabs: **Keys** (`/admin/api-keys`: LLM, search, images, video, TTS, storage) · 
   Produce video" is gone: it re-ran the writing agent and made no video.
 - Zernio: `ensureZernioProfile` never adopts another workspace's `ws_*` profile, and adopts an unclaimed
   one only on the workspace's own key.
+- **An approval covers what was reviewed** (2026-10-27, Phase 1 third part): with `social:require_approval`
+  on, a non-admin's edit that changes an approved post's text, media, first comment or networks sends
+  it back to pending (and so does scheduling a post nobody reviewed — the calendar drag and the
+  assistant's queue/schedule tools refuse it like the Queue button). An auto-image landing on a post a
+  reviewer approved re-pends it. RSS drafts are stamped pending while the workflow is on. The
+  scheduled-send sweep still sends `approval = null` — engine posts carry null and the engine's own
+  idea gate governs them. ⚠ The hold state (SOC-04) is still NOT built — don't add one without the owner.
+- **A dated draft keeps its date**: Queue all drafts / bulk Queue schedule a draft that has a
+  `scheduledAt` AT that time (skipped once past); only undated drafts take slots. Caption Studio never
+  saves a special-day or countdown caption without its time and skips one whose day has passed.
+- **Social sends**: the Zernio request id is built from STORAGE KEYS (upload URLs change per attempt);
+  a 200 replay keeps each leg's own status; a timeout/abort is recorded as "may have posted anyway" and
+  Retry warns (`lib/social/unknown-outcome.ts`). `reconcileStuckSocialPosts` (social sweep) settles posts
+  quiet in "publishing" for 15 min from `GET /posts/{id}` (probed 2026-10-27) — it never sends.
+- **An article's approval covers its words** (ART-09/21): "Advance anyway" is pinned to `gateOverrideHash`
+  (md5 of the body); `returnToReviewAfterEdit` (lib/blog-gates.ts) sends a final-approval article back to
+  review — clearing `scheduledAt` and the override (`CLEAR_APPROVAL`) — after Save, autosave, version
+  restore, Regenerate, the craft/optimize buttons and the assistant's set_article_fields, and turns an
+  edit to a live WordPress article into a refresh. Back out of final approval clears them too. Regenerate
+  on a live article revises it (refresh brief); on one published by hand off the app it's refused.
+- **Held articles are named** (ART-08): auto-review takes the least recently reviewed (`autoReviewedAt`),
+  sets aside day-held claims before taking three, and the publish step runs `blockingChecks` before picking
+  two (skips workspaces with no WordPress); /publish and the Inbox show the failing check at final approval.
+- **Article variants post through the social pipeline** (ART-11): ADMIN, article published with its URL;
+  `postSocialVariantAction` creates a SocialPost and calls `publishSocialPost` (claim, UTM, guards).
 
 ## Open items / things the user still owns
 - **Analytics: APIs enabled 2026-08-03** (Search Console + GA Admin + GA Data, on project

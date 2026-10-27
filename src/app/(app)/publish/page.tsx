@@ -3,6 +3,7 @@ import { requireMembership, canAdmin } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { getSetting } from "@/lib/settings";
 import { getModes } from "@/lib/governance";
+import { blockingChecks } from "@/lib/blog-gates";
 import { SubmitButton } from "@/components/SubmitButton";
 import { advanceBlogStatusAction } from "@/app/actions/blog";
 import { markPublishedManuallyAction } from "@/app/actions/blog-export";
@@ -30,6 +31,14 @@ export default async function PublishStage({ searchParams }: { searchParams: Pro
   const day = parseInt(publishDayRaw, 10);
   const publishDay = Number.isInteger(day) && day >= 0 && day <= 6 ? DAYS[day] : null;
   const auto = modes.publishing === "auto";
+  // The checks are re-run at publish, so an article here can have stopped
+  // passing since it arrived (an edit, a new marker). Say which check, rather
+  // than "goes out on the next cycle" for an article that never will (ART-08).
+  const held = new Map<string, string[]>();
+  for (const p of ready) {
+    const failing = await blockingChecks(workspace.id, p.id);
+    if (failing?.length) held.set(p.id, failing);
+  }
 
   return (
     <div>
@@ -62,7 +71,9 @@ export default async function PublishStage({ searchParams }: { searchParams: Pro
             <div className="flex-1 min-w-48">
               <Link href={`/blog/${p.id}`} className="text-sm font-semibold hover:underline line-clamp-1">{p.title}</Link>
               <div className="text-[11px] text-[var(--mute)]">
-                {!wp
+                {held.has(p.id)
+                  ? <span style={{ color: "var(--amber-on)" }}>held — no longer passes: {held.get(p.id)!.join("; ")}</span>
+                  : !wp
                   ? "no website connected — cannot publish yet"
                   : p.scheduledAt
                     ? `set for ${p.scheduledAt.toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}`

@@ -237,7 +237,7 @@ export function NeedsYouGroups({
       )}
 
       {on("articles") && inbox.articles.length > 0 && (
-        <Group title="Articles held at review" hue="rose" count={inbox.articles.length}>
+        <Group title="Articles held" hue="rose" count={inbox.articles.length}>
           {inbox.articles.map((a) => (
             <li key={a.id} className="card flex items-start gap-3 flex-wrap">
               <div className="flex-1 min-w-56">
@@ -245,7 +245,9 @@ export function NeedsYouGroups({
                 <div className="text-xs text-[var(--mute)] mt-0.5">
                   {a.failing.length === 0
                     ? "Every required check passes — it advances on the next cycle."
-                    : `Held by: ${a.failing.join(" · ")}`}
+                    : a.status === "final_approval"
+                      ? `At final approval, but it won't publish — no longer passes: ${a.failing.join(" · ")}`
+                      : `Held at review by: ${a.failing.join(" · ")}`}
                   {a.openQuestions > 0 && <span> · {a.openQuestions} question{a.openQuestions === 1 ? "" : "s"} above</span>}
                 </div>
               </div>

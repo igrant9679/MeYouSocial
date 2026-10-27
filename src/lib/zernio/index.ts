@@ -400,7 +400,11 @@ function resultOf(body: Record<string, unknown>, deduped: boolean): ZernioPostRe
     deduped,
     perPlatform: (Array.isArray(platforms) ? platforms : []).map((p) => ({
       platform: String(p.platform ?? "").toLowerCase(),
-      accountId: (p.accountId as string) ?? null,
+      // A string id on the wire; tolerate a populated {_id} so a lookup by
+      // account can never key on an object.
+      accountId: typeof p.accountId === "string" ? p.accountId
+        : p.accountId && typeof p.accountId === "object" ? String((p.accountId as Record<string, unknown>)._id ?? "") || null
+          : null,
       status: String(p.status ?? "unknown"),
       url: (p.platformPostUrl as string) ?? null,
       error: (p.errorMessage as string) ?? (p.error as string) ?? null,
@@ -484,6 +488,18 @@ export async function createZernioPost(opts: {
   const body = (await readJsonOrThrow(res, "Creating the post")) as Record<string, unknown>;
   // 200 (rather than 201) means the x-request-id matched an earlier call.
   return resultOf(body, res.status === 200);
+}
+
+/**
+ * Read a post's current state back — what the stuck-send reconciler asks
+ * before it settles anything. GET /posts/{id}, probed read-only 2026-10-27:
+ * `{ post: { status, platforms: [{ platform, accountId, status,
+ * platformPostUrl, … }] } }`, the same shape POST /posts answers with.
+ * Null when Zernio has no such route (its website answers instead).
+ */
+export async function getZernioPost(postId: string, workspaceId?: string | null): Promise<ZernioPostResult | null> {
+  const body = await zernioJson(`/posts/${encodeURIComponent(postId)}`, workspaceId);
+  return body ? resultOf(body, false) : null;
 }
 
 // ── Analytics ────────────────────────────────────────────────────────────────

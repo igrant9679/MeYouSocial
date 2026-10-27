@@ -233,6 +233,11 @@ export async function queueSocialPostAction(formData: FormData) {
  *
  * Partial success is the honest outcome when there are more drafts than slots:
  * queue what fits and say exactly how many didn't, rather than refusing the lot.
+ *
+ * ⚠ A draft that already has a time (a holiday caption, a countdown stage, an
+ * approved post keeping its requested time) is not slot material: it's
+ * scheduled AT that time, or skipped when the time has passed. Re-slotting it
+ * sent a Christmas caption out next Tuesday (audit SOC-06).
  */
 export async function queueAllDraftsAction() {
   const backTo: Flash = tabFlash("/social/calendar");
@@ -240,7 +245,7 @@ export async function queueAllDraftsAction() {
   const all = await db.socialPost.findMany({
     where: { workspaceId: workspace.id, status: "draft" },
     orderBy: { createdAt: "asc" },
-    select: { id: true, approval: true, category: true },
+    select: { id: true, approval: true, category: true, scheduledAt: true, _count: { select: { targets: true } } },
   });
   if (all.length === 0) backTo("No drafts to queue.");
 
@@ -251,41 +256,59 @@ export async function queueAllDraftsAction() {
     const { getSetting } = await import("@/lib/settings");
     requireApproval = (await getSetting("social:require_approval", workspace.id).catch(() => "")) === "true";
   }
-  const drafts = all.filter(
+  const allowed = all.filter(
     (d) => d.approval !== "pending" && d.approval !== "changes" &&
       !(requireApproval && d.approval === null),
   );
-  const held = all.length - drafts.length;
-  if (drafts.length === 0) backTo(`All ${held} draft${held === 1 ? " is" : "s are"} waiting on approval.`);
+  const held = all.length - allowed.length;
+  if (allowed.length === 0) backTo(`All ${held} draft${held === 1 ? " is" : "s are"} waiting on approval.`);
+  const sendable = allowed.filter((d) => d._count.targets > 0);
+  const noTargets = allowed.length - sendable.length;
+  const now = Date.now();
+  const ownTime = sendable.filter((d) => d.scheduledAt && d.scheduledAt.getTime() > now + 60_000);
+  const passed = sendable.filter((d) => d.scheduledAt && d.scheduledAt.getTime() <= now + 60_000).length;
+  const drafts = sendable.filter((d) => !d.scheduledAt);
 
   // One queue read, then assign in order — re-reading per draft would be N
   // round-trips to learn something we already know. Each draft takes the
   // earliest free slot its category allows, and slots claimed earlier in the
   // loop are gone for the drafts after it.
-  const { slots, free } = await getQueue(workspace.id, { limit: 200 });
-  if (slots.filter((s) => s.enabled).length === 0) backTo(queueFailureMessage("no-slots"));
-  if (free.length === 0) backTo(queueFailureMessage("full"));
-
-  const { pickFreeSlot } = await import("@/lib/social/slots");
-  let remaining = free;
-  const pairs: Array<{ id: string; at: Date }> = [];
-  for (const d of drafts) {
-    const slot = pickFreeSlot(remaining, d.category);
-    if (!slot) continue; // nothing this category can take — try the next draft
-    pairs.push({ id: d.id, at: slot.at });
-    remaining = remaining.filter((f) => f.at.getTime() !== slot.at.getTime());
+  const pairs: Array<{ id: string; at: Date }> = ownTime.map((d) => ({ id: d.id, at: d.scheduledAt! }));
+  if (drafts.length) {
+    const { slots, free } = await getQueue(workspace.id, { limit: 200 });
+    if (slots.filter((s) => s.enabled).length === 0 && pairs.length === 0) backTo(queueFailureMessage("no-slots"));
+    const { pickFreeSlot } = await import("@/lib/social/slots");
+    let remaining = free;
+    for (const d of drafts) {
+      const slot = pickFreeSlot(remaining, d.category);
+      if (!slot) continue; // nothing this category can take — try the next draft
+      pairs.push({ id: d.id, at: slot.at });
+      remaining = remaining.filter((f) => f.at.getTime() !== slot.at.getTime());
+    }
   }
-  if (pairs.length === 0) backTo(queueFailureMessage("full"));
+  if (pairs.length === 0) {
+    backTo(
+      drafts.length ? queueFailureMessage("full")
+        : passed ? `Nothing queued — ${passed} draft${passed === 1 ? "'s" : "s'"} date has passed; give ${passed === 1 ? "it" : "them"} a new time.`
+          : "Nothing queued — none of these drafts has an account to post to.",
+    );
+  }
 
+  // Only drafts that are STILL drafts move: a send, an edit or a person's
+  // own schedule since the read above wins.
   await db.$transaction(
     pairs.map((p) =>
-      db.socialPost.update({ where: { id: p.id }, data: { scheduledAt: p.at, status: "scheduled" } }),
+      db.socialPost.updateMany({ where: { id: p.id, workspaceId: workspace.id, status: "draft" }, data: { scheduledAt: p.at, status: "scheduled" } }),
     ),
   );
-  const left = drafts.length - pairs.length;
+  const slotted = pairs.length - ownTime.length;
+  const left = drafts.length - slotted;
   revalidatePath("/social", "layout");
-  const bits = [`Queued ${pairs.length} draft${pairs.length === 1 ? "" : "s"}.`];
+  const bits = [`Queued ${slotted} draft${slotted === 1 ? "" : "s"}.`];
+  if (ownTime.length) bits.push(`${ownTime.length} scheduled at ${ownTime.length === 1 ? "its own" : "their own"} time.`);
   if (left > 0) bits.push(`${left} didn't fit — add more slots.`);
+  if (passed > 0) bits.push(`${passed} skipped — ${passed === 1 ? "its" : "their"} date has passed.`);
+  if (noTargets > 0) bits.push(`${noTargets} skipped — no account to post to.`);
   if (held > 0) bits.push(`${held} skipped (awaiting approval).`);
   backTo(bits.join(" "), "ok");
 }

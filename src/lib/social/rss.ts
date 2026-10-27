@@ -100,8 +100,11 @@ export async function pollFeed(feedId: string): Promise<{ made: number; seen: nu
     ? fresh.filter((i) => !i.publishedAt || i.publishedAt.getTime() >= cutoff).slice(0, FIRST_READ_MAX)
     : fresh.slice(0, PER_POLL_MAX));
   const actIds = new Set(actOn.map((i) => i.guid));
+  const { getSetting } = await import("@/lib/settings");
+  const requireApproval = feed.mode === "drafts" && (await getSetting("social:require_approval", feed.workspaceId).catch(() => "")) === "true";
 
   let made = 0;
+  let held = 0;
   for (const it of fresh) {
     let socialIdeaId: string | null = null;
     let postId: string | null = null;
@@ -117,8 +120,12 @@ export async function pollFeed(feedId: string): Promise<{ made: number; seen: nu
             text: [it.title, it.link].filter(Boolean).join("\n\n"),
             mediaKeys: "[]",
             status: "draft",
+            // Nobody wrote this; with the workflow on, a person approves it
+            // before full autonomy may queue it (audit SOC-02).
+            approval: requireApproval ? "pending" : null,
           },
         });
+        if (requireApproval) held++;
         postId = post.id;
       } else {
         const idea = await db.socialIdea.create({
@@ -141,7 +148,18 @@ export async function pollFeed(feedId: string): Promise<{ made: number; seen: nu
     }).catch(() => undefined); // a concurrent poll already recorded it
   }
   await db.rssFeed.update({ where: { id: feed.id }, data: { lastCheckedAt: new Date(), lastError: null, ...(parsed.title && !feed.title ? { title: parsed.title } : {}) } });
-  if (made) await writeAudit({ workspaceId: feed.workspaceId, action: "social.rss_items", entityType: "rss_feed", entityId: feed.id, meta: { made, mode: feed.mode, firstRead } });
+  if (made) await writeAudit({ workspaceId: feed.workspaceId, action: "social.rss_items", entityType: "rss_feed", entityId: feed.id, meta: { made, mode: feed.mode, firstRead, held } });
+  if (held) {
+    const { notify } = await import("@/lib/notify");
+    await notify({
+      workspaceId: feed.workspaceId,
+      kind: "approval_needed",
+      title: `${held} post${held === 1 ? "" : "s"} from ${feed.title ?? "a feed"} waiting for approval`,
+      path: "/social/approvals",
+      entityType: "rss_feed",
+      entityId: feed.id,
+    });
+  }
   return { made, seen: fresh.length, error: null };
 }
 

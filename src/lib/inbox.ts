@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { runBlogChecks } from "@/lib/blog-checks";
+import { blockingChecks } from "@/lib/blog-gates";
 import { loadAssetGate } from "@/lib/blog-images";
 import { loadEditorialContext } from "@/lib/blog-slop";
 import { isFullyAutonomous } from "@/lib/autonomy";
@@ -135,6 +136,24 @@ export async function getInboxData(workspaceId: string, opts: { admin: boolean }
     const failing = runBlogChecks(post, unverified, assets, editorial)
       .filter((c) => c.required && !c.pass)
       .map((c) => c.label);
+    articles.push({ id: post.id, title: post.title, status: post.status, failing, openQuestions, unverifiedCitations: unverified });
+  }
+  // …and articles at final approval that no longer pass (an edit, a new
+  // marker): publishing re-checks and won't send them, so a person has to
+  // know which check (audit ART-08). An override that covers the text counts.
+  const finals = await db.blogPost.findMany({
+    where: { workspaceId, status: "final_approval" },
+    orderBy: { updatedAt: "asc" },
+    take: 10,
+    select: { id: true, title: true, status: true },
+  });
+  for (const post of finals) {
+    const failing = await blockingChecks(workspaceId, post.id);
+    if (!failing?.length) continue;
+    const [unverified, openQuestions] = await Promise.all([
+      db.blogCitation.count({ where: { postId: post.id, verified: false } }),
+      db.blogFinding.count({ where: { postId: post.id, kind: "knowledge", status: "open" } }),
+    ]);
     articles.push({ id: post.id, title: post.title, status: post.status, failing, openQuestions, unverifiedCitations: unverified });
   }
 

@@ -65,20 +65,42 @@ export function registerSocialImageJobs() {
     if (!img.key) return; // defensive: only real, stored bytes get attached
     await ctx.progress(0.9);
 
+    // ⚠ A reviewer approved this post without the picture (audit SOC-01): the
+    // render finished after their yes. An image nobody looked at must not ride
+    // that approval out, so the post goes back for review with it attached.
+    // An admin's own post (approved at creation, no reviewer) keeps its stamp:
+    // the admin chose the images-on default.
+    const reviewed = post.approval === "approved" && post.approvedById != null;
+
     // Re-check nothing changed while we rendered (author attached their own,
     // or the post went out): the guard ran on a snapshot, the write must not
     // trust it. updateMany with the same conditions makes the race harmless.
-    await db.socialPost.updateMany({
+    const attached = await db.socialPost.updateMany({
       where: { id: post.id, status: { in: ["draft", "scheduled"] }, mediaKeys: "[]" },
-      data: { mediaKeys: writeJson([img.key]) },
+      data: {
+        mediaKeys: writeJson([img.key]),
+        ...(reviewed ? { approval: "pending", approvedById: null, approvedAt: null, status: "draft" } : {}),
+      },
     });
     await writeAudit({
       workspaceId: post.workspaceId,
       action: "social.autoimage",
       entityType: "social_post",
       entityId: post.id,
-      meta: { provider: img.provider, aspect },
+      meta: { provider: img.provider, aspect, ...(reviewed && attached.count ? { backToReview: true } : {}) },
     });
+    if (reviewed && attached.count) {
+      const { notify } = await import("@/lib/notify");
+      await notify({
+        workspaceId: post.workspaceId,
+        kind: "approval_needed",
+        title: "An image was added to an approved post — approve it again",
+        body: post.text.slice(0, 140),
+        path: "/social/approvals",
+        entityType: "social_post",
+        entityId: post.id,
+      });
+    }
     await ctx.progress(1);
   });
 }

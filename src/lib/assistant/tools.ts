@@ -73,6 +73,16 @@ async function publishesUnattended(_a: Record<string, unknown>, ctx: ToolContext
     : null;
 }
 
+/**
+ * A post nobody reviewed, in a workspace that requires review, asked for by a
+ * non-admin — the same refusal the Queue button and the calendar make.
+ */
+async function unreviewedForRole(post: { approval: string | null }, ctx: ToolContext): Promise<boolean> {
+  if (post.approval !== null || ctx.role === "ADMIN") return false;
+  const { getSetting } = await import("@/lib/settings");
+  return (await getSetting("social:require_approval", ctx.workspaceId).catch(() => "")) === "true";
+}
+
 /** Whether a tool must be proposed before it runs, and why. */
 export async function confirmReason(tool: Tool, args: Record<string, unknown>, ctx: ToolContext): Promise<string | null> {
   if (tool.confirm) return "";
@@ -715,7 +725,13 @@ export const TOOLS: Tool[] = [
       for (const k of ["title", "metaTitle", "metaDescription", "slug", "focusKeyword"] as const) { const v = str(a[k], 300); if (v) data[k] = k === "slug" ? v.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") : v; }
       if (!Object.keys(data).length) return "nothing to set";
       await db.blogPost.update({ where: { id: post.id }, data });
-      return `updated ${Object.keys(data).join(", ")} on ${post.id}`;
+      // What a reader sees changed: an approved article goes back to review,
+      // a live one becomes a refresh — the same rule as the editor (ART-21).
+      const { returnToReviewAfterEdit } = await import("@/lib/blog-gates");
+      const moved = Object.keys(data).some((k) => k !== "focusKeyword")
+        ? await returnToReviewAfterEdit(ctx.workspaceId, post.id, "assistant", ctx.userId)
+        : null;
+      return `updated ${Object.keys(data).join(", ")} on ${post.id}${moved === "review" ? " — it was approved, so it went back to review" : moved === "refresh" ? " — it's live, so it's now a revision in review; the live page changes when it publishes" : ""}`;
     },
   },
   {
@@ -1039,6 +1055,7 @@ export const TOOLS: Tool[] = [
       if (post.status !== "draft" && post.status !== "scheduled") return "only unsent posts can be queued";
       if (post.approval === "pending") return "awaiting approval — approve_social_post first (admin)";
       if (post.approval === "changes") return "changes were requested — edit and resubmit first";
+      if (await unreviewedForRole(post, ctx)) return "refused: this workspace requires approval before posts go out — a non-admin's unreviewed post can't be queued";
       const { claimNextFreeSlot, queueFailureMessage, formatInZone, getPostingTimeZone } = await import("@/lib/social/slots");
       const claim = await claimNextFreeSlot(ctx.workspaceId, post.id, post.category);
       if ("error" in claim) return queueFailureMessage(claim.error);
@@ -1056,6 +1073,7 @@ export const TOOLS: Tool[] = [
       if (!post) return "no such post";
       if (post.status !== "draft" && post.status !== "scheduled") return "only unsent posts can be moved";
       if (post.approval === "pending" || post.approval === "changes") return "not approved yet";
+      if (await unreviewedForRole(post, ctx)) return "refused: this workspace requires approval before posts go out — a non-admin's unreviewed post can't be scheduled";
       // Read in the posting timezone — this appended "Z" and sent 09:00 New York at 05:00.
       const d = await parseInPostingZone(str(a.at, 40), ctx.workspaceId);
       if (!d || d.getTime() < Date.now() - 60_000) return "that time is invalid or already passed";

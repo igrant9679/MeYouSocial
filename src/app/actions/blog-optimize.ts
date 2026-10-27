@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { llm } from "@/lib/llm";
 import { getSearchProvider } from "@/lib/search";
 import { isGloballyPaused, writeAudit } from "@/lib/governance";
+import { returnToReviewAfterEdit } from "@/lib/blog-gates";
 
 /**
  * Wave B′ differentiators: E-E-A-T review, featured-snippet blocks, internal
@@ -91,6 +92,7 @@ export async function addFaqSectionAction(formData: FormData) {
     `\n<h2>Frequently asked questions</h2>\n` +
     pairs.map((f) => `<h3>${f.q}</h3>\n<p>${f.a}</p>`).join("\n");
   await db.blogPost.update({ where: { id: post.id }, data: { body: post.body + html } });
+  await returnToReviewAfterEdit(workspace.id, post.id, "FAQ section");
   revalidatePath(`/blog/${id}`);
 }
 
@@ -128,6 +130,7 @@ export async function addKeyTakeawaysAction(formData: FormData) {
       ? post.body.slice(0, firstParaEnd + 4) + "\n" + block + post.body.slice(firstParaEnd + 4)
       : block + post.body;
   await db.blogPost.update({ where: { id: post.id }, data: { body: newBody } });
+  await returnToReviewAfterEdit(workspace.id, post.id, "key takeaways");
   revalidatePath(`/blog/${id}`);
 }
 
@@ -232,6 +235,7 @@ export async function applyInternalLinkAction(formData: FormData) {
   const original = post.body.slice(idx, idx + anchor.length);
   const newBody = post.body.slice(0, idx) + `<a href="${url}">${original}</a>` + post.body.slice(idx + anchor.length);
   await db.blogPost.update({ where: { id: post.id }, data: { body: newBody } });
+  await returnToReviewAfterEdit(workspace.id, post.id, "internal link");
   revalidatePath(`/blog/${id}`);
 }
 

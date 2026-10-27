@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { runBlogChecks } from "@/lib/blog-checks";
-import { advanceIfReadyCore, gatesSatisfied, overrideGateCore } from "@/lib/blog-gates";
+import { advanceIfReadyCore, CLEAR_APPROVAL, clearGateOverrideCore, gatesSatisfied, overrideGateCore, returnToReviewAfterEdit } from "@/lib/blog-gates";
 import { writeAudit } from "@/lib/governance";
 import { linkMarkerForClaim, removeMarkerForClaim, webUrl } from "@/lib/blog-autoreview";
 import { generateDraftCore } from "@/lib/blog-autopilot";
@@ -34,6 +34,11 @@ function isStatus(s: string): s is BlogStatus {
   return (STATUS_FLOW as readonly string[]).includes(s);
 }
 
+/** The body as Save and autosave store it — see autosaveBlogBodyAction. */
+function normaliseBody(body: string | null): string | null {
+  return body ? stripExecutableHtml(unwrapBlockParagraphs(body)) || null : null;
+}
+
 export async function createBlogPostAction(formData: FormData) {
   const title = cleanTitle(String(formData.get("title") ?? ""), 300);
   if (!title) return;
@@ -53,7 +58,7 @@ export async function createBlogPostAction(formData: FormData) {
 
 export async function updateBlogPostAction(formData: FormData) {
   const id = String(formData.get("id"));
-  const { workspace } = await requireRole("EDITOR");
+  const { workspace, user } = await requireRole("EDITOR");
   const post = await db.blogPost.findFirst({ where: { id, workspaceId: workspace.id } });
   if (!post) return;
 
@@ -89,15 +94,24 @@ export async function updateBlogPostAction(formData: FormData) {
   const topicId = topicRaw
     ? (await db.topic.findFirst({ where: { id: topicRaw, workspaceId: workspace.id }, select: { id: true } }))?.id ?? null
     : null;
+  // The last line of defence for an article title: whatever route it took
+  // to get here, list furniture never reaches a reader (audit A3).
+  const title = cleanTitle(String(formData.get("title") ?? ""), 300) || post.title;
+  const slug = str(formData.get("slug"));
+  const metaTitle = str(formData.get("metaTitle"));
+  const metaDescription = str(formData.get("metaDescription"));
+  // What a reader would see change — an approved article goes back to review.
+  // The stored body is compared normalised the same way, so saving an
+  // untouched AI draft (stored before normalising) isn't mistaken for an edit.
+  const wordsChanged = newBody !== normaliseBody(post.body) || title !== post.title || slug !== post.slug ||
+    metaTitle !== post.metaTitle || metaDescription !== post.metaDescription;
   await db.blogPost.update({
     where: { id: post.id },
     data: {
-      // The last line of defence for an article title: whatever route it took
-      // to get here, list furniture never reaches a reader (audit A3).
-      title: cleanTitle(String(formData.get("title") ?? ""), 300) || post.title,
-      slug: str(formData.get("slug")),
-      metaTitle: str(formData.get("metaTitle")),
-      metaDescription: str(formData.get("metaDescription")),
+      title,
+      slug,
+      metaTitle,
+      metaDescription,
       focusKeyword: str(formData.get("focusKeyword")),
       audience: str(formData.get("audience")),
       wordCountTarget: num(formData.get("wordCountTarget")),
@@ -120,6 +134,7 @@ export async function updateBlogPostAction(formData: FormData) {
     },
   });
   if (newBody !== post.body) await snapshotVersion(post.id, "saved", newBody);
+  if (wordsChanged) await returnToReviewAfterEdit(workspace.id, post.id, "edit", user.id);
   revalidatePath(`/blog/${post.id}`);
   revalidatePath("/blog");
 }
@@ -191,6 +206,11 @@ export async function advanceBlogStatusAction(formData: FormData) {
     data: {
       status: next,
       publishedAt: next === "published" ? new Date() : null,
+      // Back out of final approval: the publish date and any override were
+      // part of approving it, so they go too (audit ART-21). Otherwise a date
+      // set before Back published the article on the first sweep after it
+      // was approved again.
+      ...(dir < 0 && post.status === "final_approval" ? CLEAR_APPROVAL : {}),
     },
   });
   await writeAudit({
@@ -265,16 +285,74 @@ export async function deleteBlogPostAction(formData: FormData) {
  */
 export async function generateBlogDraftAction(formData: FormData) {
   const id = String(formData.get("id"));
-  const { workspace } = await requireRole("EDITOR");
+  const { workspace, user } = await requireRole("EDITOR");
+  const post = await db.blogPost.findFirst({
+    where: { id, workspaceId: workspace.id },
+    select: { id: true, status: true, body: true, wpPostId: true, scheduledAt: true },
+  });
+  if (!post) return;
+  // ⚠ Regenerating an approved or live article used to rewrite it in place
+  // (audit ART-21): a final-approval body changed under its approval and
+  // published on the next sweep; a published one drifted from its live page.
+  // Now the article is taken out of its approved state FIRST — before the
+  // writer runs, so no sweep can publish a half-made body — and put back
+  // exactly as it was if the writer doesn't answer.
+  //   · final approval → back through review (the publish date and any
+  //     override don't survive it);
+  //   · live on WordPress → a refresh: the writer revises the live text and
+  //     its publish updates the same post in place;
+  //   · published elsewhere by hand → refused: the copy here would stop
+  //     matching the live page and nothing could publish it.
+  const restore: { status: string; scheduledAt?: Date | null; refreshStartedAt?: null } | null =
+    post.status === "final_approval" ? { status: "final_approval", scheduledAt: post.scheduledAt }
+      : post.status === "published" ? { status: "published", refreshStartedAt: null }
+        : null;
+  if (post.status === "published" && post.wpPostId == null) {
+    redirect(`/blog/${id}?flashErr=${encodeURIComponent("This article was published outside the app, so a regenerated draft couldn't replace the live page. Edit it by hand here and on your site, or start a new article.")}`);
+  }
+  if (restore) {
+    const moved = await db.blogPost.updateMany({
+      where: { id, workspaceId: workspace.id, status: post.status },
+      data: post.status === "published" ? { status: "drafting", refreshStartedAt: new Date() } : { status: "drafting", scheduledAt: null },
+    });
+    if (!moved.count) return; // it changed state just now — leave it to whoever moved it
+  }
   // Guardrails (global pause, protect-from-rewrite), grounding, and citation
   // extraction live in the core — shared with the autopilot scheduler.
-  if (await generateDraftCore(workspace.id, id)) {
-    // …and so is finishing: park at review (only from `drafting`, so a re-draft
-    // of a published post can't be dragged backwards), images, SEO meta. In a
-    // job so the editor's button returns as soon as the prose exists.
-    await jobs.enqueue("blog.finishdraft", { workspaceId: workspace.id, postId: id }, { refId: id, workspaceId: workspace.id });
+  const ok = await generateDraftCore(workspace.id, id, post.status === "published" ? { refreshOf: post.body } : {});
+  if (!ok) {
+    if (restore) await db.blogPost.updateMany({ where: { id, workspaceId: workspace.id, status: "drafting" }, data: restore });
+    revalidatePath(`/blog/${id}`);
+    return;
   }
+  if (restore) {
+    // The new body isn't the one any override was given for; drop it outright.
+    await db.blogPost.update({ where: { id }, data: { gateOverrideAt: null, gateOverrideById: null, gateOverrideReason: null, gateOverrideHash: null } });
+    await writeAudit({
+      workspaceId: workspace.id, actorId: user.id, entityType: "blog_post", entityId: id,
+      action: post.status === "published" ? "blog.refresh_started" : "blog.returned_to_review",
+      meta: { via: "regenerate" },
+    });
+  }
+  // …and so is finishing: park at review (only from `drafting`), images, SEO
+  // meta. In a job so the editor's button returns as soon as the prose exists.
+  await jobs.enqueue("blog.finishdraft", { workspaceId: workspace.id, postId: id }, { refId: id, workspaceId: workspace.id });
   revalidatePath(`/blog/${id}`);
+}
+
+/** An admin takes back their "Advance anyway" (ART-09). */
+export async function clearGateOverrideAction(formData: FormData) {
+  const id = String(formData.get("id") ?? "");
+  const { workspace, user } = await requireRole("ADMIN");
+  const r = await clearGateOverrideCore(workspace.id, id, user.id);
+  revalidatePath(`/blog/${id}`);
+  revalidatePath("/inbox");
+  revalidatePath("/publish");
+  redirect(`/blog/${id}?tab=review&flash=${encodeURIComponent(
+    !r.cleared ? "There was no override to clear."
+      : r.backToReview ? "Override cleared — the article is back at review until its checks pass."
+        : "Override cleared — the checks decide from here.",
+  )}`);
 }
 
 /** Debounced autosave from the editor — body only, no version churn. */
@@ -288,11 +366,15 @@ export async function autosaveBlogBodyAction(formData: FormData) {
   // the editor as HTML, so an <img onerror=…> saved here ran as whoever opened
   // the article next (an admin, or the platform operator). lib/html-safety.ts.
   const body = stripExecutableHtml(unwrapBlockParagraphs(String(formData.get("body") ?? "")));
-  const { workspace } = await requireRole("EDITOR");
+  const { workspace, user } = await requireRole("EDITOR");
+  const before = await db.blogPost.findFirst({ where: { id, workspaceId: workspace.id }, select: { body: true } });
+  if (!before) return;
   await db.blogPost.updateMany({
     where: { id, workspaceId: workspace.id },
     data: { body: body || null },
   });
+  // Typing into an approved or live article is an edit like any other (ART-21).
+  if ((body || null) !== normaliseBody(before.body)) await returnToReviewAfterEdit(workspace.id, id, "edit", user.id);
 }
 
 /** Keep the last 20 versions per post. */
@@ -311,7 +393,7 @@ async function snapshotVersion(postId: string, label: string, body: string | nul
 
 export async function restoreBlogVersionAction(formData: FormData) {
   const versionId = String(formData.get("versionId"));
-  const { workspace } = await requireRole("EDITOR");
+  const { workspace, user } = await requireRole("EDITOR");
   const version = await db.blogPostVersion.findFirst({
     where: { id: versionId, post: { workspaceId: workspace.id } },
     include: { post: { select: { id: true, body: true } } },
@@ -319,6 +401,7 @@ export async function restoreBlogVersionAction(formData: FormData) {
   if (!version) return;
   await snapshotVersion(version.post.id, "before restore", version.post.body);
   await db.blogPost.update({ where: { id: version.post.id }, data: { body: version.body } });
+  if (version.body !== version.post.body) await returnToReviewAfterEdit(workspace.id, version.post.id, "version restore", user.id);
   revalidatePath(`/blog/${version.post.id}`);
 }
 

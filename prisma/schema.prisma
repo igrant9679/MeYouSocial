@@ -242,11 +242,17 @@ model BlogPost {
   // the same URL instead of creating one. Cleared on that publish.
   refreshStartedAt DateTime?
   // An admin's explicit override of the required checks ("Advance anyway"):
-  // recorded, not silent — who, when, why. While set, the gates are treated
-  // as satisfied for advancing and publishing this post.
+  // recorded, not silent — who, when, why. It holds for the BODY it was given
+  // for (`gateOverrideHash`, md5 of the body then): any later change to the
+  // words puts the article back under its checks (lib/blog-gates.ts).
   gateOverrideAt     DateTime?
   gateOverrideById   String?
   gateOverrideReason String?
+  gateOverrideHash   String?
+  // When full autonomy's auto-review last worked on this article. The review
+  // window takes the least recently reviewed first, so articles it can't clear
+  // no longer fill the window for good (audit ART-08).
+  autoReviewedAt     DateTime?
   // JSON — what WordPress actually accepted on the last publish, read back from
   // the API. We report the truth rather than assuming the payload landed.
   publishReport   String?
@@ -686,7 +692,7 @@ model SocialVariant {
   postId    String
   platform  String   // linkedin | x | instagram | facebook
   content   String
-  status    String   @default("draft") // draft | approved | posted
+  status    String   @default("draft") // draft | approved | posting (being sent) | posted
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
