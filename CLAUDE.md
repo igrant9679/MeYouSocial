@@ -349,6 +349,32 @@ Tabs: **Keys** (`/admin/api-keys`: LLM, search, images, video, TTS, storage) · 
 - **Article variants post through the social pipeline** (ART-11): ADMIN, article published with its URL;
   `postSocialVariantAction` creates a SocialPost and calls `publishSocialPost` (claim, UTM, guards).
 
+## ⚠ Times, mail and the engine's failures (2026-10-28, audit Phase 2, first part)
+- **A typed date-time is wall clock in the POSTING timezone** (`social:timezone`), never the server's UTC:
+  `parseZonedInput` / `toZonedInput` in `lib/social/slots.ts` — the composer and edit page, the article
+  schedule, CSV import (one shape only, `2026-12-11 09:00`; `11/12/2026` is refused, not guessed) and the
+  assistant all go through it, and the fields are labelled with the zone. The calendar drag still sends an
+  instant computed in the browser — that one is right as it is.
+- **App mail (reset, verification) leaves from a mailbox of the person's OWN workspace** (`appEmailFor`,
+  `lib/email`) — never another company's. No mailbox → mock, and the forgot page says to ask an admin.
+  Admins have **Reset link** on Settings → People (`lib/password-reset.ts`): refused for yourself, the
+  platform operator, and anyone who also belongs to a workspace the admin doesn't administer — a reset
+  link IS the account. Token helpers live outside the "use server" file on purpose.
+- **A mocked send is not a delivery**: `notify()` stamps `emailedAt` only on mail that left; the digest
+  records `notify.digest_undeliverable` (once a day) instead of `digest_sent`. `publish_failed` is deduped
+  per entity + title for 24 h (`DEDUPE_HOURS` in `lib/notify.ts`).
+- **Analytics sources sync independently** (`lib/analytics/sync.ts`): a failed source keeps its earlier
+  numbers, the other replaces its own; pages are fetched in full (`gscQueryAll` / `ga4RunReportAll`) and URL
+  variants of one post ADD. The last outcome per source is `analytics:sync_status` — the Analytics tab
+  shows it, Insights names a failing sync instead of "connect", the Inbox warns after two failures.
+- **The daily AI budget gates generating only**, counts only unattended work (`actorId: null` — so
+  `blog.draft_generated` / `social.variants_generated` now carry the person who asked) from midnight in the
+  posting timezone. Publishing, advancing and queueing run regardless; the report says `budgetReached`.
+- **Each autopilot step runs on its own** (`step()` in `runAutopilotCycleUnlocked`): a throw is recorded in
+  `failedSteps` and `autopilot:cycle_status`; the Inbox warns after two cycles. A throw inside drafting
+  puts the idea back like a refusal (reason `error`).
+- **Job retries back off** (`Job.runAfter`: 1, 4, 16 min ±20%). The sweep skips a job until then.
+
 ## Open items / things the user still owns
 - **Analytics: APIs enabled 2026-08-03** (Search Console + GA Admin + GA Data, on project
   `479503233109` = `gen-lang-client-0838901195` = "CreateUp"). Still pending, user-only: add the

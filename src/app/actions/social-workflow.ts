@@ -394,6 +394,13 @@ export async function importSocialCsvAction(formData: FormData) {
   const held = requireApproval && membership.role !== "ADMIN";
   const approval = requireApproval ? (held ? "pending" : "approved") : null;
 
+  // Dates are read as wall clock in the posting timezone, in one unambiguous
+  // shape only: new Date() took ISO as server UTC and 11/12/2026 as November (SOC-22).
+  const { getPostingTimeZone, parseZonedInput, formatInZone } = await import("@/lib/social/slots");
+  const tz = await getPostingTimeZone(workspace.id);
+  let firstAt: Date | null = null;
+  let lastAt: Date | null = null;
+
   let created = 0;
   let scheduled = 0;
   const errors: string[] = [];
@@ -435,8 +442,8 @@ export async function importSocialCsvAction(formData: FormData) {
 
     let scheduledAt: Date | null = null;
     if (iWhen >= 0 && (cells[iWhen] ?? "").trim()) {
-      const t = new Date(cells[iWhen].trim());
-      if (Number.isNaN(t.getTime())) { errors.push(`row ${rowNo}: unreadable date “${cells[iWhen].trim()}”`); continue; }
+      const t = parseZonedInput(cells[iWhen], tz);
+      if (!t) { errors.push(`row ${rowNo}: unreadable date “${cells[iWhen].trim()}” — write it as 2026-12-11 09:00`); continue; }
       if (t.getTime() < Date.now() - 60_000) { errors.push(`row ${rowNo}: that time has already passed`); continue; }
       scheduledAt = t;
     }
@@ -472,6 +479,10 @@ export async function importSocialCsvAction(formData: FormData) {
     await jobs.enqueue("social.autoimage", { postId: row.id }, { refId: row.id, workspaceId: workspace.id });
     created++;
     if (scheduledAt && !held) scheduled++;
+    if (scheduledAt) {
+      if (!firstAt || scheduledAt < firstAt) firstAt = scheduledAt;
+      if (!lastAt || scheduledAt > lastAt) lastAt = scheduledAt;
+    }
   }
 
   if (created > 0 && held) {
@@ -491,6 +502,8 @@ export async function importSocialCsvAction(formData: FormData) {
   revalidatePath("/social", "layout");
   const bits = [`Imported ${created} post${created === 1 ? "" : "s"}`];
   if (scheduled > 0) bits.push(`${scheduled} scheduled`);
+  // Say how the dates were read, so a wrong zone shows up before the first send.
+  if (firstAt && lastAt) bits.push(`dates read in ${tz}: ${formatInZone(firstAt, tz)}${lastAt > firstAt ? ` to ${formatInZone(lastAt, tz)}` : ""}`);
   if (held && created > 0) bits.push("all awaiting approval");
   let msg = bits.join(" · ") + ".";
   if (notes.length) msg += ` ${notes.slice(0, 3).join("; ")}${notes.length > 3 ? "…" : ""}.`;

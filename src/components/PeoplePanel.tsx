@@ -5,6 +5,7 @@ import { DeleteButton } from "@/components/DeleteButton";
 import { getPublicUrl } from "@/lib/public-url";
 import { resolveEmailSender } from "@/lib/unipile/accounts";
 import { changeRoleAction, inviteAction, revokeAction } from "@/app/actions/people";
+import { ResetLinkButton } from "@/components/ResetLinkButton";
 
 /**
  * Members, roles and invitations — ONE panel rendered by Settings → People and
@@ -90,6 +91,7 @@ export async function PeoplePanel({ workspaceId, workspaceName, returnTo }: { wo
                     {/* Revoke suspends the membership (row and history kept); Remove
                         deletes it. Removing the last active ADMIN is refused by the action. */}
                     <div className="flex items-center gap-1 justify-end flex-wrap">
+                      {m.status === "active" && <ResetLinkButton userId={m.userId} />}
                       {m.status === "active" && (
                         <form action={revokeAction}>
                           <input type="hidden" name="userId" value={m.userId} />

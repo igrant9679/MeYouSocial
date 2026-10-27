@@ -1027,6 +1027,9 @@ model Job {
 
   claimedAt   DateTime?
   claimedBy   String?
+  // A retry waits until here — exponential backoff with jitter (audit ENG-22);
+  // retrying a rate-limited provider seconds later only spent the attempts.
+  runAfter    DateTime?
   startedAt   DateTime?
   finishedAt  DateTime?
   createdAt   DateTime  @default(now())

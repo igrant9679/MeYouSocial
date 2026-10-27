@@ -32,6 +32,11 @@ async function buildContext(workspaceId: string): Promise<RuleContext> {
     getSetting("api_key:serper", workspaceId).catch(() => ""),
   ]);
   const hasAnalytics = metrics.metrics.some((m) => (m.source === "gsc" || m.source === "ga4") && m.value !== null);
+  // Connected-but-failing is not "not connected" (MEA-06): name the failure.
+  const { readSyncStatus, SOURCE_LABEL } = await import("@/lib/analytics/sync");
+  const [{ gscConfigured }, { ga4Configured }] = await Promise.all([import("@/lib/analytics/gsc"), import("@/lib/analytics/ga4")]);
+  const [gscOn, ga4On, status] = await Promise.all([gscConfigured(workspaceId), ga4Configured(workspaceId), readSyncStatus(workspaceId)]);
+  const failing = (["gsc", "ga4"] as const).filter((s) => status[s] && !status[s]!.ok);
   return {
     workspaceId,
     metrics,
@@ -39,6 +44,8 @@ async function buildContext(workspaceId: string): Promise<RuleContext> {
     topics: metrics.topics,
     hasSearchKey: Boolean(tavily || serper),
     hasAnalytics,
+    analyticsConfigured: gscOn || ga4On,
+    analyticsFailing: failing.length ? failing.map((s) => `${SOURCE_LABEL[s]}: ${status[s]!.message}`).join(" · ") : null,
   };
 }
 

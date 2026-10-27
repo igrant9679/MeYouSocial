@@ -5,6 +5,7 @@ import { requireMembership, canEdit, canAdmin } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { runBlogChecks } from "@/lib/blog-checks";
 import { gatesSatisfied, overrideHolds } from "@/lib/blog-gates";
+import { formatInZone, getPostingTimeZone, toZonedInput } from "@/lib/social/slots";
 import { Banner } from "@/components/SocialPostCard";
 import { contentScore } from "@/lib/blog-score";
 import { BLOG_TEMPLATES } from "@/lib/blog-templates";
@@ -149,6 +150,9 @@ export default async function BlogPostPage({
   });
   if (!post) notFound();
   const wpConn = await db.wordPressConnection.findUnique({ where: { workspaceId: workspace.id } });
+  // Publish times are typed and shown in the posting timezone — the zone the
+  // schedule action reads them in (ART-04). The server's own clock is UTC.
+  const tz = await getPostingTimeZone(workspace.id);
 
   // Branded shorts (HyperFrames) — how a render would run + this post's renders.
   const [brandedReadiness, brandedShorts] = await Promise.all([
@@ -329,7 +333,7 @@ export default async function BlogPostPage({
           <ShieldCheck className="w-4 h-4 shrink-0" style={{ color: "var(--amber-on)" }} />
           <span>
             <span className="font-semibold">Checks overridden</span> by {(post.gateOverrideById && memberName.get(post.gateOverrideById)) || "an admin"} on{" "}
-            {post.gateOverrideAt.toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
+            {formatInZone(post.gateOverrideAt, tz)}
             {post.gateOverrideReason ? <> — “{post.gateOverrideReason}”</> : null}.{" "}
             {overrideHolds(post)
               ? failingCount > 0 ? `It covers this text, so ${failingCount} failing check${failingCount === 1 ? "" : "s"} won't hold it.` : "Every check passes now anyway."
@@ -429,7 +433,7 @@ export default async function BlogPostPage({
           <b>Schedule:</b>
           {post.scheduledAt ? (
             <span className="font-mono text-xs px-2 py-0.5 rounded-full" style={{ background: "var(--blue-soft)", color: "var(--blue-on)" }}>
-              publishes {post.scheduledAt.toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
+              publishes {formatInZone(post.scheduledAt, tz)} {tz}
             </span>
           ) : (
             <span className="text-xs text-[var(--mute)]">not scheduled</span>
@@ -440,9 +444,10 @@ export default async function BlogPostPage({
             <input
               type="datetime-local"
               name="scheduledAt"
-              defaultValue={post.scheduledAt ? new Date(post.scheduledAt.getTime() - post.scheduledAt.getTimezoneOffset() * 60000).toISOString().slice(0, 16) : ""}
+              defaultValue={post.scheduledAt ? toZonedInput(post.scheduledAt, tz) : ""}
               className="text-xs font-mono"
             />
+            <span className="font-mono text-[11px] text-[var(--mute)]">{tz}</span>
             <button className="btn">Set</button>
           </form>
           {post.scheduledAt && (

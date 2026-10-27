@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { CalendarDays, FileText, Plus, Sparkles } from "lucide-react";
 import { requireMembership, canEdit } from "@/lib/acl";
+import { getPostingTimeZone } from "@/lib/social/slots";
 import { db } from "@/lib/db";
 import { SubmitButton } from "@/components/SubmitButton";
 import { createBlogPostAction } from "@/app/actions/blog";
@@ -39,6 +40,7 @@ const STATUS_LABEL: Record<string, { title: string; hue: string }> = {
 export default async function BlogPage({ searchParams }: { searchParams: Promise<{ view?: string }> }) {
   const { workspace, membership } = await requireMembership();
   const editor = canEdit(membership.role);
+  const tz = await getPostingTimeZone(workspace.id);
   const view: View = (await searchParams).view === "list" ? "list" : "board";
 
   const now = new Date();
@@ -231,7 +233,7 @@ export default async function BlogPage({ searchParams }: { searchParams: Promise
                         )}
                         {p.scheduledAt && p.status === "final_approval" && (
                           <span className="font-mono text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: "var(--cyan-soft)", color: "var(--cyan-on)" }}>
-                            {p.scheduledAt.toLocaleDateString("en-GB", { day: "2-digit", month: "short" })}
+                            {p.scheduledAt.toLocaleDateString("en-GB", { day: "2-digit", month: "short", timeZone: tz })}
                           </span>
                         )}
                       </div>

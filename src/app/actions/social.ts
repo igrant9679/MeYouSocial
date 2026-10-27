@@ -12,7 +12,7 @@ import { normaliseSubFormat, subFormatsFor } from "@/lib/social/sub-formats";
 import { readTargetOptions, supportsFirstComment, tiktokOptionsFromForm, tiktokRefusal, type TargetOptions } from "@/lib/social/platform-options";
 import { normaliseWatermark } from "@/lib/social/watermark";
 import { addCategory } from "@/lib/social/categories";
-import { claimNextFreeSlot, formatInZone, getPostingTimeZone, queueFailureMessage } from "@/lib/social/slots";
+import { claimNextFreeSlot, formatInZone, getPostingTimeZone, parseZonedInput, queueFailureMessage } from "@/lib/social/slots";
 
 // Social scheduler actions. A post fans out to one or more connected social
 // accounts (Zernio), either now or at a scheduled time. Media is optional and
@@ -256,7 +256,8 @@ export async function createSocialPostAction(formData: FormData) {
   let scheduledAt: Date | null = null;
   let status = "draft";
   if (when === "schedule") {
-    const t = scheduledRaw ? new Date(scheduledRaw) : null;
+    // Wall clock in the posting timezone — read as server UTC, 09:00 New York went out at 05:00 (SOC-03).
+    const t = scheduledRaw ? parseZonedInput(scheduledRaw, await getPostingTimeZone(workspace.id)) : null;
     if (!t || Number.isNaN(t.getTime())) backTo("Enter a valid date and time to schedule.");
     if (t.getTime() < Date.now() - 60_000) backTo("Scheduled time must be in the future.");
     scheduledAt = t;
@@ -569,7 +570,7 @@ export async function updateSocialPostAction(formData: FormData) {
   let status = "draft";
   if (when === "schedule") {
     const raw = String(formData.get("scheduledAt") ?? "");
-    const t = raw ? new Date(raw) : null;
+    const t = raw ? parseZonedInput(raw, await getPostingTimeZone(workspace.id)) : null;
     if (!t || Number.isNaN(t.getTime())) backTo("Enter a valid date and time to schedule.");
     if (t.getTime() < Date.now() - 60_000) backTo("Scheduled time must be in the future.");
     scheduledAt = t;

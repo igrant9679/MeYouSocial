@@ -110,6 +110,29 @@ export async function gscVerify(workspaceId?: string | null): Promise<{ ok: bool
 
 export type GscRow = { keys: string[]; clicks: number; impressions: number; ctr: number; position: number };
 
+/** The API's own page ceiling. */
+const GSC_PAGE = 25_000;
+
+/**
+ * Every row, page by page (startRow), up to `maxRows`. The sync capped page ×
+ * date at 500 rows, so the long tail — most blog posts — was never matched
+ * (MEA-07).
+ */
+export async function gscQueryAll(
+  workspaceId: string | null | undefined,
+  opts: { startDate: string; endDate: string; dimensions?: string[]; maxRows?: number },
+): Promise<GscRow[]> {
+  const max = opts.maxRows ?? 100_000;
+  const out: GscRow[] = [];
+  while (out.length < max) {
+    const want = Math.min(GSC_PAGE, max - out.length);
+    const page = await gscQuery(workspaceId, { ...opts, rowLimit: want, startRow: out.length });
+    out.push(...page);
+    if (page.length < want) break;
+  }
+  return out;
+}
+
 /**
  * Query Search Analytics. `dimensions` is typically ["query"] or ["page"].
  * Dates are YYYY-MM-DD; GSC data lags ~2 days, so callers should not ask for
@@ -117,7 +140,7 @@ export type GscRow = { keys: string[]; clicks: number; impressions: number; ctr:
  */
 export async function gscQuery(
   workspaceId: string | null | undefined,
-  opts: { startDate: string; endDate: string; dimensions?: string[]; rowLimit?: number },
+  opts: { startDate: string; endDate: string; dimensions?: string[]; rowLimit?: number; startRow?: number },
 ): Promise<GscRow[]> {
   const cfg = await getGscConfig(workspaceId);
   if (!cfg) return [];
@@ -131,7 +154,8 @@ export async function gscQuery(
         startDate: opts.startDate,
         endDate: opts.endDate,
         dimensions: opts.dimensions ?? ["query"],
-        rowLimit: Math.min(opts.rowLimit ?? 100, 500),
+        rowLimit: Math.min(opts.rowLimit ?? 100, GSC_PAGE),
+        ...(opts.startRow ? { startRow: opts.startRow } : {}),
       },
     },
   );

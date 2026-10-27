@@ -69,6 +69,14 @@ const EMAIL_DEFAULT: Record<NotificationKind, boolean> = {
   daily_digest: true,
 };
 
+/**
+ * Kinds that repeat for the same thing until a person acts — the autopilot
+ * retries a failing publish every 30 minutes, and this emailed every admin and
+ * editor each time (ENG-13). One notice per thing per window; a different
+ * title (held → failed) is a different notice.
+ */
+const DEDUPE_HOURS: Partial<Record<NotificationKind, number>> = { publish_failed: 24 };
+
 export function isNotificationKind(k: string): k is NotificationKind {
   return (NOTIFICATION_KINDS as readonly string[]).includes(k);
 }
@@ -122,26 +130,25 @@ export async function notify(input: NotifyInput): Promise<number> {
     recipients = [...new Set(recipients)];
     if (!recipients.length) return 0;
 
+    const dedupeHours = DEDUPE_HOURS[input.kind];
+    if (dedupeHours && input.entityId) {
+      const seen = await db.notification.findFirst({
+        where: {
+          workspaceId: input.workspaceId, kind: input.kind, entityId: input.entityId,
+          title: input.title.slice(0, 200), createdAt: { gte: new Date(Date.now() - dedupeHours * 3_600_000) },
+        },
+        select: { id: true },
+      });
+      if (seen) return 0;
+    }
+
     const prefs = await preferencesFor(input.workspaceId, recipients, input.kind);
     const inAppFor = recipients.filter((id) => prefs.get(id)?.inApp !== false);
     const emailFor = recipients.filter((id) => prefs.get(id)?.email);
 
-    if (inAppFor.length) {
-      await db.notification.createMany({
-        data: inAppFor.map((userId) => ({
-          workspaceId: input.workspaceId,
-          userId,
-          kind: input.kind,
-          title: input.title.slice(0, 200),
-          body: input.body?.slice(0, 1000) ?? null,
-          url: input.path ?? null,
-          entityType: input.entityType ?? null,
-          entityId: input.entityId ?? null,
-          emailedAt: emailFor.length ? new Date() : null,
-        })),
-      });
-    }
-
+    // Email first, so emailedAt marks mail that LEFT — a mocked send (no
+    // mailbox, SMTP blocked) is not delivered and isn't stamped (ENG-20).
+    const delivered = new Set<string>();
     if (emailFor.length) {
       const users = await db.user.findMany({
         where: { id: { in: emailFor } },
@@ -165,10 +172,27 @@ export async function notify(input: NotifyInput): Promise<number> {
                 ].join("\n"),
                 text: `${input.title}\n\n${input.body ?? ""}\n\n${link}`,
               })
+              .then((r) => { if (!r.mocked) delivered.add(u.id); })
               .catch(() => undefined),
           ),
       );
     }
+    if (inAppFor.length) {
+      await db.notification.createMany({
+        data: inAppFor.map((userId) => ({
+          workspaceId: input.workspaceId,
+          userId,
+          kind: input.kind,
+          title: input.title.slice(0, 200),
+          body: input.body?.slice(0, 1000) ?? null,
+          url: input.path ?? null,
+          entityType: input.entityType ?? null,
+          entityId: input.entityId ?? null,
+          emailedAt: delivered.has(userId) ? new Date() : null,
+        })),
+      });
+    }
+
     return inAppFor.length;
   } catch {
     // A notification must never break the thing it reports on.

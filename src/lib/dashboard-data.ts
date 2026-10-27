@@ -129,8 +129,6 @@ export async function homeStats(workspaceId: string): Promise<HomeStats> {
   const prevMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
   const weekStart = new Date(now);
   weekStart.setDate(weekStart.getDate() - 7);
-  const dayStart = new Date(now);
-  dayStart.setHours(0, 0, 0, 0);
 
   const [publishedThisMonth, publishedLastMonth, unverifiedCitations, reviewPosts, weekSnaps, aiBudgetUsedToday] =
     await Promise.all([
@@ -149,13 +147,8 @@ export async function homeStats(workspaceId: string): Promise<HomeStats> {
         where: { post: { workspaceId }, capturedAt: { gte: weekStart } },
         select: { clicks: true },
       }),
-      db.auditLog.count({
-        where: {
-          workspaceId,
-          action: { in: ["blog.draft_generated", "ideas.ai_discovery", "social.variants_generated"] },
-          createdAt: { gte: dayStart },
-        },
-      }),
+      // The autopilot's own count — unattended only, the posting timezone's day.
+      import("@/lib/blog-autopilot").then((m) => m.generationsToday(workspaceId)),
     ]);
 
   const postsMissingAssets = reviewPosts.filter((p) => {

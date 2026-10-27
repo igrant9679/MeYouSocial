@@ -5,8 +5,9 @@ import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { nanoid } from "nanoid";
 import { db } from "@/lib/db";
-import { email } from "@/lib/email";
+import { appEmailFor } from "@/lib/email";
 import { getPublicUrl } from "@/lib/public-url";
+import { createResetToken, PURPOSE_RESET } from "@/lib/password-reset";
 
 // Password reset, email verification, secure session management,
 // per-user activity attribution.
@@ -16,7 +17,6 @@ import { getPublicUrl } from "@/lib/public-url";
 //   "reset:<email>"   — password-reset link
 //   "verify:<userId>" — first-time email verification
 
-const PURPOSE_RESET = "reset:";
 const PURPOSE_VERIFY = "verify:";
 const TOKEN_TTL_MS = 1000 * 60 * 60; // 1 hour
 
@@ -31,16 +31,11 @@ export async function requestPasswordResetAction(formData: FormData) {
 
   const user = await db.user.findUnique({ where: { email: parsed.data.email } });
   if (user) {
-    const token = nanoid(40);
-    await db.verificationToken.create({
-      data: {
-        identifier: PURPOSE_RESET + parsed.data.email,
-        token,
-        expires: new Date(Date.now() + TOKEN_TTL_MS),
-      },
-    });
+    const token = await createResetToken(parsed.data.email);
     const origin = await getPublicUrl();
-    await email.send({
+    // From a mailbox of the person's own workspace — the workspace-less sender
+    // fell to blocked SMTP and the mock (SHL-01).
+    await (await appEmailFor(parsed.data.email)).send({
       to: parsed.data.email,
       subject: "Reset your MeYouSocial password",
       html: `<p>Click below to reset your password (the link expires in 1 hour):</p>
@@ -98,7 +93,7 @@ export async function requestVerificationForUser(userId: string, userEmail: stri
     },
   });
   const origin = await getPublicUrl();
-  await email.send({
+  await (await appEmailFor(userEmail)).send({
     to: userEmail,
     subject: "Verify your MeYouSocial email",
     html: `<p>Welcome! Confirm this is your email address (it also accepts any invitation sent to it):</p>

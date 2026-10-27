@@ -18,6 +18,7 @@ import { loadEditorialContext } from "@/lib/blog-slop";
 import { notify } from "@/lib/notify";
 import { autoTaskForAssets, autoTaskForReview } from "@/lib/auto-tasks";
 import { cleanTitle } from "@/lib/list-marker";
+import { formatInZone, getPostingTimeZone, parseZonedInput } from "@/lib/social/slots";
 
 /**
  * Blog module (ported from Spark's article pipeline — slice 1).
@@ -319,7 +320,7 @@ export async function generateBlogDraftAction(formData: FormData) {
   }
   // Guardrails (global pause, protect-from-rewrite), grounding, and citation
   // extraction live in the core — shared with the autopilot scheduler.
-  const ok = await generateDraftCore(workspace.id, id, post.status === "published" ? { refreshOf: post.body } : {});
+  const ok = await generateDraftCore(workspace.id, id, post.status === "published" ? { refreshOf: post.body, actorId: user.id } : { actorId: user.id });
   if (!ok) {
     if (restore) await db.blogPost.updateMany({ where: { id, workspaceId: workspace.id, status: "drafting" }, data: restore });
     revalidatePath(`/blog/${id}`);
@@ -417,8 +418,11 @@ export async function scheduleBlogPostAction(formData: FormData) {
   const post = await db.blogPost.findFirst({ where: { id, workspaceId: workspace.id } });
   if (!post || post.status !== "final_approval") return;
 
-  const date = when ? new Date(when) : null;
-  if (date && Number.isNaN(date.getTime())) return;
+  // Wall clock in the posting timezone: read as server UTC, 09:00 New York
+  // published at 05:00 while the editor still showed 09:00 (ART-04).
+  const tz = await getPostingTimeZone(workspace.id);
+  const date = when ? parseZonedInput(when, tz) : null;
+  if (when && !date) return;
   await db.blogPost.update({ where: { id: post.id }, data: { scheduledAt: date } });
   await writeAudit({
     workspaceId: workspace.id,
@@ -432,7 +436,7 @@ export async function scheduleBlogPostAction(formData: FormData) {
     await notify({
       workspaceId: workspace.id,
       kind: "scheduled",
-      title: `"${post.title}" is scheduled for ${date.toISOString().slice(0, 16).replace("T", " ")}`,
+      title: `"${post.title}" is scheduled for ${formatInZone(date, tz)} ${tz}`,
       body: "The gates are re-checked at the moment of publish.",
       path: `/blog/${post.id}`,
       entityType: "blog_post",

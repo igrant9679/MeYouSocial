@@ -136,6 +136,13 @@ const STALE_CLAIM_MS = 15 * 60_000;
  *  lock the sweeper holds is released on a predictable cadence. */
 const MAX_PER_SWEEP = 5;
 
+/** Wait before retry N: 1, 4, then 16 minutes, ±20% so a batch that failed
+ *  together doesn't retry together. */
+function retryDelayMs(attempts: number): number {
+  const base = 60_000 * 4 ** Math.max(0, attempts - 1);
+  return Math.round(Math.min(base, 60 * 60_000) * (0.8 + Math.random() * 0.4));
+}
+
 const INSTANCE_ID = `${process.pid}-${Math.random().toString(36).slice(2, 8)}`;
 
 class DbQueue implements JobQueue {
@@ -247,10 +254,10 @@ class DbQueue implements JobQueue {
         where: { id },
         data: exhausted
           ? { state: "failed", error: message, finishedAt: new Date() }
-          : // Back to queued and left for the sweeper rather than retried in a
-            // tight loop here: whatever failed (an API 5xx, a rate limit) is
-            // likelier to have cleared a tick later than a millisecond later.
-            { state: "queued", error: message, claimedAt: null, claimedBy: null },
+          : // Back to queued for the sweeper, after a backoff: three attempts
+            // inside a minute against a rate-limited provider used every
+            // attempt on the same outage (ENG-22).
+            { state: "queued", error: message, claimedAt: null, claimedBy: null, runAfter: new Date(Date.now() + retryDelayMs(fresh?.attempts ?? 1)) },
       });
       console.warn(`[jobs] ${job.name} (${id}) ${exhausted ? "FAILED" : "will retry"}: ${message}`);
       return false;
@@ -298,7 +305,13 @@ class DbQueue implements JobQueue {
     const { pausedWorkspaceIds } = await import("@/lib/governance");
     const paused = await pausedWorkspaceIds();
     const queued = await db.job.findMany({
-      where: { state: "queued", ...(paused.length ? { OR: [{ workspaceId: null }, { workspaceId: { notIn: paused } }] } : {}) },
+      where: {
+        state: "queued",
+        AND: [
+          { OR: [{ runAfter: null }, { runAfter: { lte: new Date() } }] },
+          ...(paused.length ? [{ OR: [{ workspaceId: null }, { workspaceId: { notIn: paused } }] }] : []),
+        ],
+      },
       orderBy: { createdAt: "asc" },
       select: { id: true },
       take: MAX_PER_SWEEP,

@@ -16,9 +16,9 @@ import { generateVariantsCore } from "@/lib/blog-autopilot";
 
 export async function generateSocialVariantsAction(formData: FormData) {
   const postId = String(formData.get("postId"));
-  const { workspace } = await requireRole("EDITOR");
+  const { workspace, user } = await requireRole("EDITOR");
   // Platform prompts, pause guard, parsing, audit — all in the shared core.
-  await generateVariantsCore(workspace.id, postId);
+  await generateVariantsCore(workspace.id, postId, user.id);
   revalidatePath(`/blog/${postId}`);
 }
 

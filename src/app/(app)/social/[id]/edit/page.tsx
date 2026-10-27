@@ -5,7 +5,7 @@ import { requireRole } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { readJson } from "@/lib/db/json";
 import { SocialComposer, type ComposerInitial } from "@/components/SocialComposer";
-import { formatInZone, getQueue } from "@/lib/social/slots";
+import { formatInZone, getQueue, toZonedInput } from "@/lib/social/slots";
 import { listCategories } from "@/lib/social/categories";
 import { canWatermark } from "@/lib/social/watermark";
 import { optimalTime } from "@/lib/social/optimal";
@@ -66,6 +66,10 @@ export default async function EditSocialPostPage({ params }: { params: Promise<{
   for (const t of post.targets) if (t.firstComment) firstComments[t.provider.toUpperCase()] = t.firstComment;
   const tiktokTarget = post.targets.find((t) => t.provider.toLowerCase() === "tiktok");
 
+  // Re-queueing ignores this post's own slot, so "Add to queue" on an already
+  // queued post offers the slot it's in rather than bumping it down the line.
+  const queue = await getQueue(workspace.id, { excludePostId: post.id, limit: 60 });
+
   const initial: ComposerInitial = {
     id: post.id,
     text: post.text,
@@ -74,9 +78,8 @@ export default async function EditSocialPostPage({ params }: { params: Promise<{
     category: post.category,
     evergreen: post.evergreen,
     recycleEveryDays: post.recycleEveryDays,
-    // ISO, not a formatted wall clock: the composer converts it in the browser.
-    // Formatting here would print Railway's UTC clock, not the author's.
-    scheduledAtIso: post.scheduledAt ? post.scheduledAt.toISOString() : null,
+    // Wall clock in the posting timezone — the zone the save reads it back in.
+    scheduledAtLocal: post.scheduledAt ? toZonedInput(post.scheduledAt, queue.timeZone) : null,
     accountIds: selectedIds,
     variants,
     subFormats,
@@ -88,9 +91,6 @@ export default async function EditSocialPostPage({ params }: { params: Promise<{
     tiktok: tiktokTarget ? readTargetOptions(tiktokTarget.options).tiktok ?? null : null,
   };
 
-  // Re-queueing ignores this post's own slot, so "Add to queue" on an already
-  // queued post offers the slot it's in rather than bumping it down the line.
-  const queue = await getQueue(workspace.id, { excludePostId: post.id, limit: 60 });
   const nextFree = queue.free[0] ? formatInZone(queue.free[0].at, queue.timeZone) : null;
   const slotCategories = [...new Set(queue.slots.map((s) => s.category).filter((c): c is string => Boolean(c)))];
   const [categories, watermarkAvailable, optimal] = await Promise.all([
@@ -142,7 +142,7 @@ export default async function EditSocialPostPage({ params }: { params: Promise<{
           categories={categories}
           approvalNotice={post.approval === "pending" || post.approval === "changes"}
           initial={initial}
-          queue={{ nextFree, hasSlots: queue.slots.some((s) => s.enabled) }}
+          queue={{ nextFree, hasSlots: queue.slots.some((s) => s.enabled), timeZone: queue.timeZone }}
           watermarkAvailable={watermarkAvailable}
           optimal={optimal.ok ? { label: optimal.label, why: optimal.why } : { reason: optimal.reason }}
         />

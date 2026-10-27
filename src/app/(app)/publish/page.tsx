@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { requireMembership, canAdmin } from "@/lib/acl";
+import { formatInZone, getPostingTimeZone } from "@/lib/social/slots";
 import { db } from "@/lib/db";
 import { getSetting } from "@/lib/settings";
 import { getModes } from "@/lib/governance";
@@ -21,6 +22,7 @@ export default async function PublishStage({ searchParams }: { searchParams: Pro
   const { workspace, membership } = await requireMembership();
   const { ok, err } = await searchParams;
   const admin = canAdmin(membership.role);
+  const tz = await getPostingTimeZone(workspace.id);
   const [ready, published, wp, publishDayRaw, modes] = await Promise.all([
     db.blogPost.findMany({ where: { workspaceId: workspace.id, status: "final_approval" }, orderBy: { updatedAt: "asc" }, take: 10, select: { id: true, title: true, scheduledAt: true, wpPostId: true } }),
     db.blogPost.findMany({ where: { workspaceId: workspace.id, status: "published" }, orderBy: { publishedAt: "desc" }, take: 6, select: { id: true, title: true, publishedAt: true, publishedUrl: true } }),
@@ -76,7 +78,7 @@ export default async function PublishStage({ searchParams }: { searchParams: Pro
                   : !wp
                   ? "no website connected — cannot publish yet"
                   : p.scheduledAt
-                    ? `set for ${p.scheduledAt.toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}`
+                    ? `set for ${formatInZone(p.scheduledAt, tz)} ${tz}`
                     : auto
                       ? publishDay ? `goes out ${publishDay} with the cycle` : "goes out on the next cycle"
                       : "waiting for a person"}

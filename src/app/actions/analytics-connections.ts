@@ -99,7 +99,14 @@ export async function clearGa4Action() {
 export async function syncAnalyticsNowAction() {
   const { workspace } = await requireRole("ADMIN");
   const { syncWorkspaceAnalytics } = await import("@/lib/analytics/sync");
-  const outcome = await syncWorkspaceAnalytics(workspace.id);
+  let outcome: Awaited<ReturnType<typeof syncWorkspaceAnalytics>>;
+  try {
+    outcome = await syncWorkspaceAnalytics(workspace.id);
+  } catch (e) {
+    // Each source catches its own Google error now; this is the database or
+    // the site index — say so on the tab instead of the error page (MEA-06).
+    return back(`The sync couldn't run: ${e instanceof Error ? e.message : String(e)}`);
+  }
   revalidatePath("/admin/analytics");
   revalidatePath("/insights");
   back(outcome.message, outcome.ok);

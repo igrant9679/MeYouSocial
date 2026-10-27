@@ -10,6 +10,7 @@ import {
   saveNotificationPreferencesAction,
 } from "@/app/actions/notifications";
 import { KIND_LABELS, NOTIFICATION_KINDS, type NotificationKind } from "@/lib/notify";
+import { resolveEmailSender } from "@/lib/unipile/accounts";
 
 // FR-16 — the in-app inbox plus per-kind delivery preferences. Email rides the
 // workspace's existing SMTP config; Slack is a connector, not built here.
@@ -29,13 +30,16 @@ const KIND_HUE: Record<NotificationKind, string> = {
 
 export default async function NotificationsPage() {
   const { user, workspace } = await requireMembership();
-  const [items, prefs] = await Promise.all([
+  const [items, prefs, sender] = await Promise.all([
     db.notification.findMany({
       where: { workspaceId: workspace.id, userId: user.id },
       orderBy: { createdAt: "desc" },
       take: 100,
     }),
     db.notificationPreference.findMany({ where: { workspaceId: workspace.id, userId: user.id } }),
+    // Name the route out. Without a connected mailbox every email below — the
+    // morning digest included — is logged, not delivered (ENG-20).
+    resolveEmailSender(workspace.id).catch(() => null),
   ]);
   const prefBy = new Map(prefs.map((p) => [p.kind, p]));
   const unread = items.filter((i) => !i.readAt).length;
@@ -115,9 +119,17 @@ export default async function NotificationsPage() {
 
       <form action={saveNotificationPreferencesAction} className="card">
         <h2 className="text-sm font-semibold mb-1">Delivery</h2>
-        <p className="text-xs text-[var(--mute)] mb-3">
-          Email uses this workspace&apos;s SMTP settings — if none are configured, mail is logged rather than sent.
-        </p>
+        {sender ? (
+          <p className="text-xs text-[var(--mute)] mb-3">
+            Email goes out from <b>{sender.name ?? "the connected mailbox"}</b>.
+          </p>
+        ) : (
+          <p className="text-xs mb-3" style={{ color: "var(--amber-on)" }}>
+            <b>No mailbox is connected for {workspace.name}</b>, so these emails — and the morning digest — are logged,
+            not delivered. Outbound SMTP is blocked on this host; a connected mailbox is the only route out.{" "}
+            <Link href="/admin/connections" className="underline">Connect one →</Link>
+          </p>
+        )}
         <table className="w-full text-xs">
           <thead>
             <tr className="text-left text-[var(--mute)]">

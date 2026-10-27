@@ -20,6 +20,7 @@ import {
   disconnectGoogleAnalyticsAction,
   syncAnalyticsNowAction,
 } from "@/app/actions/analytics-connections";
+import { readSyncStatus, SOURCE_LABEL } from "@/lib/analytics/sync";
 
 // Settings → Analytics: the real-data inputs (Search Console, GA4, YouTube).
 // Deliberately separate from API keys: these are per-workspace *connections* to
@@ -34,7 +35,7 @@ export default async function AnalyticsConnectionsPage({
   const isOperator = isPlatformOperator(user.email);
   const { ok, err } = await searchParams;
 
-  const [gsc, ga4, yt, ytCfg, gaOauth, origin, rows, driveSa] = await Promise.all([
+  const [gsc, ga4, yt, ytCfg, gaOauth, origin, rows, driveSa, syncStatus] = await Promise.all([
     getGscConfig(workspace.id),
     getGa4Config(workspace.id),
     youtubeOauthConnected(workspace.id),
@@ -48,6 +49,7 @@ export default async function AnalyticsConnectionsPage({
       },
     }),
     db.setting.findUnique({ where: { key: "gdrive:service_account" } }),
+    readSyncStatus(workspace.id),
   ]);
   const val = new Map(rows.map((r) => [r.key, r.value]));
   const sharedSaEmail = (() => {
@@ -329,6 +331,21 @@ export default async function AnalyticsConnectionsPage({
           <form action={syncAnalyticsNowAction}>
             <SubmitButton className="btn" pendingText="Syncing…"><RefreshCw className="w-3.5 h-3.5" /> Sync now</SubmitButton>
           </form>
+          {/* The last run per source (MEA-06) — a failure used to reach only the server log. */}
+          {(syncStatus.gsc || syncStatus.ga4) && (
+            <ul className="basis-full m-0 p-0 list-none text-[11px] flex flex-col gap-0.5">
+              {(["gsc", "ga4"] as const).map((src) => {
+                const st = syncStatus[src];
+                if (!st) return null;
+                return (
+                  <li key={src} style={st.ok ? undefined : { color: "var(--rose-on)" }}>
+                    <b>{SOURCE_LABEL[src]}</b> · last sync {st.at.slice(0, 16).replace("T", " ")} UTC ·{" "}
+                    {st.ok ? st.message : <>failed{st.failures > 1 ? ` ${st.failures} times in a row` : ""}: {st.message}{st.lastOkAt ? ` (last good ${st.lastOkAt.slice(0, 10)})` : " (never succeeded)"}</>}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
         </div>
       )}
 

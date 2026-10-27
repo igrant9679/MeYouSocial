@@ -1,6 +1,8 @@
 import { db } from "@/lib/db";
-import { gscQuery, getGscConfig } from "@/lib/analytics/gsc";
-import { ga4RunReport, getGa4Config } from "@/lib/analytics/ga4";
+import { gscQueryAll, getGscConfig } from "@/lib/analytics/gsc";
+import { ga4RunReportAll, getGa4Config } from "@/lib/analytics/ga4";
+import { explainGoogleError } from "@/lib/google/service-account";
+import { setWorkspaceSetting } from "@/lib/settings";
 import { writeAudit } from "@/lib/governance";
 
 /**
@@ -120,105 +122,200 @@ export async function syncWorkspaceAnalytics(
   const startDate = ymd(new Date(Date.now() - lookbackDays * DAY_MS));
 
   // Accumulate per (postId, day) so both providers merge into one row.
-  const byPostDay = new Map<string, DailyRow>();
+  const fresh = new Map<string, DailyRow & { posWeight?: number }>();
   const unmatched = new Set<string>();
   const key = (postId: string, day: string) => `${postId}|${day}`;
+  // Each source on its own (MEA-05): a GA4 403 used to throw away the Search
+  // Console rows already collected, so nothing was written at all.
+  const outcome: Partial<Record<Source, SourceOutcome>> = {};
 
   if (gsc) {
-    // page + date → one row per URL per day, which is exactly our grain.
-    const rows = await gscQuery(workspaceId, { startDate, endDate, dimensions: ["page", "date"], rowLimit: 500 });
-    for (const r of rows) {
-      const [page, date] = r.keys ?? [];
-      if (!page || !date) continue;
-      const postId = index.get(urlKey(page));
-      if (!postId) {
-        unmatched.add(urlKey(page));
-        continue;
+    try {
+      // page + date → one row per URL per day, every page of them (MEA-07).
+      const rows = await gscQueryAll(workspaceId, { startDate, endDate, dimensions: ["page", "date"] });
+      let matched = 0;
+      for (const r of rows) {
+        const [page, date] = r.keys ?? [];
+        if (!page || !date) continue;
+        const postId = index.get(urlKey(page));
+        if (!postId) {
+          unmatched.add(urlKey(page));
+          continue;
+        }
+        matched++;
+        const k = key(postId, date);
+        const cur = fresh.get(k) ?? {};
+        // ⚠ ADD, don't assign: http/https, www, a trailing slash or a query
+        // string are separate Search Console pages that all mean this post.
+        const imp = r.impressions ?? 0;
+        cur.clicks = (cur.clicks ?? 0) + (r.clicks ?? 0);
+        cur.impressions = (cur.impressions ?? 0) + imp;
+        if (typeof r.position === "number" && imp > 0) {
+          // Impression-weighted, which is how Search Console averages it.
+          const w = (cur.posWeight ?? 0) + imp;
+          cur.position = ((cur.position ?? 0) * (cur.posWeight ?? 0) + r.position * imp) / w;
+          cur.posWeight = w;
+        }
+        fresh.set(k, cur);
       }
-      const k = key(postId, date);
-      const cur = byPostDay.get(k) ?? {};
-      // A page can appear once per day here, so assignment is right (not +=).
-      cur.clicks = r.clicks ?? 0;
-      cur.impressions = r.impressions ?? 0;
-      cur.position = typeof r.position === "number" ? Math.round(r.position * 10) / 10 : undefined;
-      byPostDay.set(k, cur);
+      outcome.gsc = { ok: true, message: `${rows.length} page-day row${rows.length === 1 ? "" : "s"}, ${matched} matched a post`, rows: matched };
+    } catch (e) {
+      outcome.gsc = { ok: false, message: sourceError(e, gsc.cred.kind === "oauth" ? `The connected Google account (${gsc.identity}) needs access to this property in Search Console.` : `Add ${gsc.identity} as a user on this property in Search Console → Settings → Users and permissions.`), rows: 0 };
     }
   }
 
   if (ga4) {
-    const rows = await ga4RunReport(workspaceId, {
-      startDate,
-      endDate,
-      dimensions: ["pagePath", "date"],
-      metrics: ["sessions"],
-      limit: 500,
-    });
-    for (const r of rows) {
-      const [path, rawDate] = r.dimensions;
-      if (!path || !rawDate) continue;
-      const postId = index.get(urlKey(path));
-      if (!postId) {
-        unmatched.add(urlKey(path));
-        continue;
+    try {
+      const rows = await ga4RunReportAll(workspaceId, { startDate, endDate, dimensions: ["pagePath", "date"], metrics: ["sessions"] });
+      let matched = 0;
+      for (const r of rows) {
+        const [path, rawDate] = r.dimensions;
+        if (!path || !rawDate) continue;
+        const postId = index.get(urlKey(path));
+        if (!postId) {
+          unmatched.add(urlKey(path));
+          continue;
+        }
+        matched++;
+        // GA4 returns YYYYMMDD; normalize to match GSC's YYYY-MM-DD.
+        const date = /^\d{8}$/.test(rawDate) ? `${rawDate.slice(0, 4)}-${rawDate.slice(4, 6)}-${rawDate.slice(6)}` : rawDate;
+        const k = key(postId, date);
+        const cur = fresh.get(k) ?? {};
+        cur.sessions = (cur.sessions ?? 0) + Number(r.metrics[0] ?? 0);
+        fresh.set(k, cur);
       }
-      // GA4 returns YYYYMMDD; normalize to match GSC's YYYY-MM-DD.
-      const date = /^\d{8}$/.test(rawDate) ? `${rawDate.slice(0, 4)}-${rawDate.slice(4, 6)}-${rawDate.slice(6)}` : rawDate;
-      const k = key(postId, date);
-      const cur = byPostDay.get(k) ?? {};
-      cur.sessions = Number(r.metrics[0] ?? 0);
-      byPostDay.set(k, cur);
+      outcome.ga4 = { ok: true, message: `${rows.length} path-day row${rows.length === 1 ? "" : "s"}, ${matched} matched a post`, rows: matched };
+    } catch (e) {
+      outcome.ga4 = { ok: false, message: sourceError(e, ga4.cred.kind === "oauth" ? `The connected Google account (${ga4.identity}) needs at least Viewer access to this GA4 property.` : `Grant ${ga4.identity} the Viewer role on this property (GA4 → Admin → Property access management).`), rows: 0 };
     }
   }
 
-  // Replace this sync's own rows for the window, then insert fresh — GSC
-  // revises recent days, and manual rows are protected by the source filter.
-  const windowStart = new Date(`${startDate}T00:00:00.000Z`);
-  const postIds = [...new Set([...byPostDay.keys()].map((k) => k.split("|")[0]))];
-  if (postIds.length) {
-    await db.blogSnapshot.deleteMany({
-      where: { postId: { in: postIds }, source: { in: ["gsc", "ga4", "sync"] }, capturedAt: { gte: windowStart } },
-    });
-  }
-
+  const gscOk = outcome.gsc?.ok === true;
+  const ga4Ok = outcome.ga4?.ok === true;
   let rowsWritten = 0;
-  for (const [k, v] of byPostDay) {
-    const [postId, day] = k.split("|");
-    // Skip empty days rather than storing a row of nulls.
-    if (v.clicks === undefined && v.impressions === undefined && v.sessions === undefined) continue;
-    await db.blogSnapshot.create({
-      data: {
-        postId,
-        capturedAt: new Date(`${day}T00:00:00.000Z`),
-        clicks: v.clicks ?? null,
-        impressions: v.impressions ?? null,
-        position: v.position ?? null,
-        sessions: v.sessions ?? null,
-        source: sources.length === 2 ? "sync" : sources[0],
-      },
+  let postsMatched = 0;
+  if (gscOk || ga4Ok) {
+    // Merge with this sync's own rows for the window: a source that FAILED
+    // keeps the numbers it had (still the best known), a source that
+    // succeeded replaces them — Search Console revises recent days. Manual
+    // rows are protected by the source filter, as before.
+    const windowStart = new Date(`${startDate}T00:00:00.000Z`);
+    const existing = await db.blogSnapshot.findMany({
+      where: { post: { workspaceId }, source: { in: ["gsc", "ga4", "sync"] }, capturedAt: { gte: windowStart } },
+      select: { id: true, postId: true, capturedAt: true, clicks: true, impressions: true, position: true, sessions: true },
     });
-    rowsWritten++;
+    const merged = new Map<string, DailyRow>();
+    for (const row of existing) {
+      merged.set(key(row.postId, ymd(row.capturedAt)), {
+        ...(gscOk ? {} : { clicks: row.clicks ?? undefined, impressions: row.impressions ?? undefined, position: row.position ?? undefined }),
+        ...(ga4Ok ? {} : { sessions: row.sessions ?? undefined }),
+      });
+    }
+    for (const [k, v] of fresh) {
+      const cur = merged.get(k) ?? {};
+      if (gscOk) {
+        cur.clicks = v.clicks;
+        cur.impressions = v.impressions;
+        cur.position = v.position === undefined ? undefined : Math.round(v.position * 10) / 10;
+      }
+      if (ga4Ok) cur.sessions = v.sessions;
+      merged.set(k, cur);
+    }
+    const data = [...merged]
+      // Skip empty days rather than storing a row of nulls.
+      .filter(([, v]) => v.clicks !== undefined || v.impressions !== undefined || v.sessions !== undefined)
+      .map(([k, v]) => {
+        const [postId, day] = k.split("|");
+        const hasSearch = v.clicks !== undefined || v.impressions !== undefined;
+        return {
+          postId,
+          capturedAt: new Date(`${day}T00:00:00.000Z`),
+          clicks: v.clicks ?? null,
+          impressions: v.impressions ?? null,
+          position: v.position ?? null,
+          sessions: v.sessions ?? null,
+          source: hasSearch && v.sessions !== undefined ? "sync" : hasSearch ? "gsc" : "ga4",
+        };
+      });
+    // One transaction, so a crash mid-write can't leave the window half empty.
+    await db.$transaction([
+      db.blogSnapshot.deleteMany({ where: { id: { in: existing.map((r) => r.id) } } }),
+      db.blogSnapshot.createMany({ data }),
+    ]);
+    rowsWritten = data.length;
+    postsMatched = new Set(data.map((d) => d.postId)).size;
   }
 
-  const postsMatched = postIds.length;
+  await recordSyncStatus(workspaceId, outcome);
+  const failed = (Object.entries(outcome) as Array<[Source, SourceOutcome]>).filter(([, o]) => !o.ok);
   if (rowsWritten) {
     await writeAudit({
       workspaceId,
       action: "analytics.synced",
       entityType: "blog_snapshot",
-      meta: { rowsWritten, postsMatched, sources, startDate, endDate },
+      meta: { rowsWritten, postsMatched, sources, startDate, endDate, failed: failed.map(([src]) => src) },
     });
   }
 
+  const failNote = failed.map(([src, o]) => `${SOURCE_LABEL[src]} failed: ${o.message}`).join(" ");
+  const anyOk = gscOk || ga4Ok;
+  const okNote = rowsWritten
+    ? `Synced ${rowsWritten} day-row${rowsWritten === 1 ? "" : "s"} across ${postsMatched} post${postsMatched === 1 ? "" : "s"} (${startDate} → ${endDate}).`
+    : `Connected, but ${sources.filter((x) => outcome[x as Source]?.ok).join(" + ")} returned no data for any known post URL in ${startDate} → ${endDate}.${unmatched.size ? ` ${unmatched.size} other page(s) had traffic but match no post.` : ""}`;
   return {
-    ok: true,
-    message: rowsWritten
-      ? `Synced ${rowsWritten} day-row${rowsWritten === 1 ? "" : "s"} across ${postsMatched} post${postsMatched === 1 ? "" : "s"} (${startDate} → ${endDate}).`
-      : `Connected, but ${sources.join(" + ")} returned no data for any known post URL in ${startDate} → ${endDate}.${unmatched.size ? ` ${unmatched.size} other page(s) had traffic but match no post.` : ""}`,
+    ok: anyOk && failed.length === 0,
+    message: !anyOk ? failNote : failNote ? `${okNote} ${failNote} Its earlier numbers were kept.` : okNote,
     postsMatched,
     rowsWritten,
     unmatchedPages: unmatched.size,
     sources,
   };
+}
+
+// ── Per-source status (MEA-06) ───────────────────────────────────────────────
+// Sync failures only reached the console, so a connected workspace whose GA4
+// 403'd every six hours looked the same as one with no traffic. The last
+// outcome per source is kept on the workspace and read by the Analytics tab,
+// Insights and the Inbox.
+
+type Source = "gsc" | "ga4";
+export type SourceOutcome = { ok: boolean; message: string; rows: number };
+export type SourceStatus = SourceOutcome & { at: string; failures: number; lastOkAt: string | null };
+export type SyncStatus = Partial<Record<Source, SourceStatus>>;
+
+export const SOURCE_LABEL: Record<Source, string> = { gsc: "Search Console", ga4: "GA4" };
+const STATUS_KEY = "analytics:sync_status";
+
+/** What Google said, with the fix the Verify buttons name (same wording). */
+function sourceError(e: unknown, grantHint: string): string {
+  return explainGoogleError(e instanceof Error ? e.message : String(e), { grantHint }).slice(0, 400);
+}
+
+export async function readSyncStatus(workspaceId: string): Promise<SyncStatus> {
+  const row = await db.workspaceSetting.findUnique({ where: { workspaceId_key: { workspaceId, key: STATUS_KEY } } });
+  if (!row) return {};
+  try {
+    return JSON.parse(row.value) as SyncStatus;
+  } catch {
+    return {};
+  }
+}
+
+async function recordSyncStatus(workspaceId: string, outcome: Partial<Record<Source, SourceOutcome>>): Promise<void> {
+  const prev = await readSyncStatus(workspaceId);
+  const at = new Date().toISOString();
+  const next: SyncStatus = {};
+  for (const src of ["gsc", "ga4"] as const) {
+    const o = outcome[src];
+    if (!o) continue; // not connected this run — its old status no longer applies
+    next[src] = {
+      ...o,
+      at,
+      failures: o.ok ? 0 : (prev[src]?.failures ?? 0) + 1,
+      lastOkAt: o.ok ? at : prev[src]?.lastOkAt ?? null,
+    };
+  }
+  await setWorkspaceSetting(workspaceId, STATUS_KEY, Object.keys(next).length ? JSON.stringify(next) : "");
 }
 
 /** Sync every workspace that has a connector configured. For the scheduler. */

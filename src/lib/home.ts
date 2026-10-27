@@ -189,6 +189,45 @@ export async function getHomeData(workspaceId: string): Promise<HomeData> {
     });
   }
 
+  // An autopilot step that threw two cycles running (ENG-21) — the rest of the
+  // cycle carries on now, so without this nobody would know.
+  {
+    const { readCycleStatus } = await import("@/lib/blog-autopilot");
+    const cycle = await readCycleStatus(workspaceId).catch(() => null);
+    for (const [name, st] of Object.entries(cycle?.steps ?? {})) {
+      if (st.failures < 2) continue;
+      decisions.push({
+        module: "Setup",
+        kind: `autopilot-step-failing-${name.replace(/\s+/g, "-")}`,
+        severity: "warn",
+        title: `The autopilot's ${name} step keeps failing`,
+        detail: `${st.failures} cycles in a row since ${st.since.slice(0, 16).replace("T", " ")} UTC: ${st.message}`.slice(0, 300),
+        href: "/setup/automation",
+        cta: "Open Automation",
+      });
+    }
+  }
+
+  // A connected source whose sync keeps failing (MEA-06). Two in a row, so one
+  // Google blip doesn't page anyone; the sync runs every six hours.
+  {
+    const { readSyncStatus, SOURCE_LABEL } = await import("@/lib/analytics/sync");
+    const status = await readSyncStatus(workspaceId).catch(() => ({}) as Awaited<ReturnType<typeof readSyncStatus>>);
+    for (const src of ["gsc", "ga4"] as const) {
+      const st = status[src];
+      if (!st || st.ok || st.failures < 2) continue;
+      decisions.push({
+        module: "Setup",
+        kind: `analytics-sync-failing-${src}`,
+        severity: "warn",
+        title: `${SOURCE_LABEL[src]} sync is failing`,
+        detail: `${st.failures} attempts in a row${st.lastOkAt ? `, last good ${st.lastOkAt.slice(0, 10)}` : ", never succeeded"}: ${st.message}`.slice(0, 300),
+        href: "/admin/analytics",
+        cta: "See why",
+      });
+    }
+  }
+
   // Warn before info; within a band, keep insertion order (Social's own
   // ordering is already deliberate).
   decisions.sort((a, b) => (a.severity === b.severity ? 0 : a.severity === "warn" ? -1 : 1));

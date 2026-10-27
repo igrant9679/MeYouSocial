@@ -44,7 +44,7 @@ export const SITE_CHANGE_MESSAGE =
 
 export type IdeaDraftResult =
   | { ok: true; change: "new" | "refresh"; postId: string; finished: { imagesGenerated: number; seoOptimized: number } | null }
-  | { ok: false; reason: "not_found" | "taken" | "site_change" | "protected" | "refused"; message: string; postId?: string };
+  | { ok: false; reason: "not_found" | "taken" | "site_change" | "protected" | "refused" | "error"; message: string; postId?: string };
 
 /**
  * Draft one idea. `from` is the idea statuses this door may draft (the sweep:
@@ -128,7 +128,15 @@ export async function draftIdeaCore(
   }
   await db.blogIdea.update({ where: { id: idea.id }, data: { postId } });
 
-  const ok = await generateDraftCore(workspaceId, postId, { angle: idea.angle, refreshOf: target?.body ?? null });
+  // A throw is treated like a refusal (ENG-21): it used to leave an empty
+  // post and the idea marked drafted, and abort the whole cycle.
+  let ok = false;
+  let failure: string | null = null;
+  try {
+    ok = await generateDraftCore(workspaceId, postId, { angle: idea.angle, refreshOf: target?.body ?? null, actorId: opts.actorId ?? null });
+  } catch (e) {
+    failure = (e instanceof Error ? e.message : String(e)).slice(0, 300);
+  }
   if (!ok) {
     // Nothing was stored. A refresh goes back to being the live post; a new
     // post is deleted (revertRefusedDraft only deletes an empty one). Either
@@ -137,12 +145,22 @@ export async function draftIdeaCore(
       await db.blogPost.updateMany({ where: { id: target.id, workspaceId, status: "drafting" }, data: { status: "published", refreshStartedAt: null } });
     }
     await revertRefusedDraft(workspaceId, postId, idea, previousStatus);
-    return { ok: false, reason: "refused", message: "The writer didn't answer (paused, or the AI provider is down), so nothing was stored. The idea is back on the board." };
+    return failure
+      ? { ok: false, reason: "error", message: `Drafting failed (${failure}), so nothing was stored. The idea is back on the board.` }
+      : { ok: false, reason: "refused", message: "The writer didn't answer (paused, or the AI provider is down), so nothing was stored. The idea is back on the board." };
   }
 
   let finished: { imagesGenerated: number; seoOptimized: number } | null = null;
   if (opts.finish === "inline") {
-    finished = await completeFreshDraftCore(workspaceId, postId);
+    try {
+      finished = await completeFreshDraftCore(workspaceId, postId);
+    } catch (e) {
+      // The prose is stored; images and SEO are the part that failed. The job
+      // finishes it with retries rather than leaving the post in "drafting".
+      console.error(`[idea-drafting] finishing ${postId} failed, queued as a job:`, e instanceof Error ? e.message : e);
+      const { jobs } = await import("@/lib/jobs");
+      await jobs.enqueue("blog.finishdraft", { workspaceId, postId }, { refId: postId, workspaceId });
+    }
   } else {
     const { jobs } = await import("@/lib/jobs");
     await jobs.enqueue("blog.finishdraft", { workspaceId, postId }, { refId: postId, workspaceId });

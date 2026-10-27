@@ -85,13 +85,32 @@ export async function ga4Verify(workspaceId?: string | null): Promise<{ ok: bool
 
 export type Ga4Row = { dimensions: string[]; metrics: string[] };
 
+/** Comfortably under the Data API's 250k per request. */
+const GA4_PAGE = 100_000;
+
+/** Every row, page by page (offset), up to `maxRows` — same reason as gscQueryAll. */
+export async function ga4RunReportAll(
+  workspaceId: string | null | undefined,
+  opts: { startDate: string; endDate: string; dimensions?: string[]; metrics?: string[]; maxRows?: number },
+): Promise<Ga4Row[]> {
+  const max = opts.maxRows ?? 200_000;
+  const out: Ga4Row[] = [];
+  while (out.length < max) {
+    const want = Math.min(GA4_PAGE, max - out.length);
+    const page = await ga4RunReport(workspaceId, { ...opts, limit: want, offset: out.length });
+    out.push(...page);
+    if (page.length < want) break;
+  }
+  return out;
+}
+
 /**
  * Run a report. Dimensions/metrics are GA4 API names, e.g.
  * dimensions ["pagePath"], metrics ["sessions","totalUsers"].
  */
 export async function ga4RunReport(
   workspaceId: string | null | undefined,
-  opts: { startDate: string; endDate: string; dimensions?: string[]; metrics?: string[]; limit?: number },
+  opts: { startDate: string; endDate: string; dimensions?: string[]; metrics?: string[]; limit?: number; offset?: number },
 ): Promise<Ga4Row[]> {
   const cfg = await getGa4Config(workspaceId);
   if (!cfg) return [];
@@ -107,7 +126,8 @@ export async function ga4RunReport(
         dateRanges: [{ startDate: opts.startDate, endDate: opts.endDate }],
         dimensions: (opts.dimensions ?? ["pagePath"]).map((name) => ({ name })),
         metrics: (opts.metrics ?? ["sessions"]).map((name) => ({ name })),
-        limit: Math.min(opts.limit ?? 100, 500),
+        limit: Math.min(opts.limit ?? 100, GA4_PAGE),
+        ...(opts.offset ? { offset: opts.offset } : {}),
       },
     },
   );

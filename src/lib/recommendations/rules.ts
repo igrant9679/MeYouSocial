@@ -44,6 +44,10 @@ export type RuleContext = {
   /** Setup facts the metrics can't express. */
   hasSearchKey: boolean;
   hasAnalytics: boolean;
+  /** Search Console or GA4 is set up, whether or not data has arrived. */
+  analyticsConfigured?: boolean;
+  /** The last sync's failure per source, when one failed. */
+  analyticsFailing?: string | null;
 };
 
 export type Rule = {
@@ -211,11 +215,24 @@ const slowCycleTime: Rule = {
 /** Setup gaps — no sample gate, because "nothing is connected" is a certainty. */
 const connectAnalytics: Rule = {
   key: "connect_analytics",
-  evaluate({ hasAnalytics, metrics }) {
+  evaluate({ hasAnalytics, analyticsConfigured, analyticsFailing, metrics }) {
     if (hasAnalytics) return null;
     // Only worth raising once there is content whose performance you'd want.
     const published = metrics.metrics.find((m) => m.key === "posts_published");
     if (!published || (published.value ?? 0) < 1) return null;
+    if (analyticsFailing) {
+      return {
+        title: "Search and traffic data isn't arriving",
+        detail: "Analytics is connected, but the sync fails. Settings → Analytics shows the last attempt and what Google said.",
+        rationale: `The last sync failed — ${analyticsFailing}`.slice(0, 500),
+        severity: "warning",
+        confidence: "high",
+        evidence: [ev(published)],
+        fingerprint: "analytics_sync_failing",
+      };
+    }
+    // Connected and syncing, just nothing matched yet — nothing to connect.
+    if (analyticsConfigured) return null;
     return {
       title: "No search or traffic data connected",
       detail: "Connect Search Console and GA4 under Settings → Analytics so performance stops being a blind spot.",

@@ -97,17 +97,16 @@ const when = (d: Date | null | undefined) => (d ? d.toISOString().slice(0, 16).r
  * server's UTC.
  */
 async function parseInPostingZone(raw: string, workspaceId: string): Promise<Date | null> {
-  const s = raw.trim();
-  if (/(z|[+-]\d{2}:?\d{2})$/i.test(s)) {
-    const d = new Date(s);
-    return Number.isNaN(d.getTime()) ? null : d;
-  }
-  const m = /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{1,2}):(\d{2}))?$/.exec(s);
-  if (!m) return null;
-  const { getPostingTimeZone, zonedTimeToUtc } = await import("@/lib/social/slots");
+  const { getPostingTimeZone, parseZonedInput } = await import("@/lib/social/slots");
+  // A bare date means 09:00 that day, as it always has here.
+  return parseZonedInput(raw, await getPostingTimeZone(workspaceId), 9);
+}
+
+/** An instant as the person reads it: posting-timezone wall clock, then UTC. */
+async function whenLocal(d: Date, workspaceId: string): Promise<string> {
+  const { getPostingTimeZone, formatInZone } = await import("@/lib/social/slots");
   const tz = await getPostingTimeZone(workspaceId);
-  const d = zonedTimeToUtc(Number(m[1]), Number(m[2]), Number(m[3]), Number(m[4] ?? 9), Number(m[5] ?? 0), tz);
-  return Number.isNaN(d.getTime()) ? null : d;
+  return `${formatInZone(d, tz)} ${tz} (${when(d)})`;
 }
 
 /** Things people will ask for that this assistant deliberately cannot do. */
@@ -992,7 +991,7 @@ export const TOOLS: Tool[] = [
       if (!d) return "that is not a valid date-time";
       await db.blogPost.update({ where: { id: post.id }, data: { scheduledAt: d } });
       await writeAudit({ workspaceId: ctx.workspaceId, actorId: ctx.userId, action: "blog.scheduled", entityType: "blog_post", entityId: post.id, meta: { scheduledAt: d.toISOString(), via: "assistant" } });
-      return `set to publish at ${when(d)}`;
+      return `set to publish at ${await whenLocal(d, ctx.workspaceId)}`;
     },
   },
   {
@@ -1078,7 +1077,7 @@ export const TOOLS: Tool[] = [
       const d = await parseInPostingZone(str(a.at, 40), ctx.workspaceId);
       if (!d || d.getTime() < Date.now() - 60_000) return "that time is invalid or already passed";
       await db.socialPost.update({ where: { id: post.id }, data: { scheduledAt: d, status: "scheduled" } });
-      return `scheduled for ${when(d)}`;
+      return `scheduled for ${await whenLocal(d, ctx.workspaceId)}`;
     },
   },
   {

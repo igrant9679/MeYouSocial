@@ -101,3 +101,29 @@ export async function revokeAction(formData: FormData) {
   await withdrawInvitationsFor(workspace.id, target?.email);
   revalidateBoth();
 }
+
+export type ResetLinkState = { link?: string; error?: string } | null;
+
+/**
+ * An admin hands a member a password-reset link — the way back in when the
+ * reset email can't arrive (no mailbox connected) or never did (SHL-01). The
+ * link is returned to the admin's screen, never put in a URL, and is the same
+ * one-hour, single-use token the email carries.
+ */
+export async function issueResetLinkAction(_prev: ResetLinkState, formData: FormData): Promise<ResetLinkState> {
+  const { workspace, user: actor } = await requireRole("ADMIN");
+  const userId = String(formData.get("userId") ?? "");
+  const { canIssueResetLink, createResetToken } = await import("@/lib/password-reset");
+  const allowed = await canIssueResetLink(actor.id, workspace.id, userId);
+  if (!allowed.ok) return { error: allowed.reason };
+  const token = await createResetToken(allowed.email);
+  await writeAudit({
+    workspaceId: workspace.id,
+    actorId: actor.id,
+    action: "membership.reset_link_issued",
+    entityType: "membership",
+    entityId: userId,
+    meta: { email: allowed.email },
+  });
+  return { link: `${(await getPublicUrl()).replace(/\/+$/, "")}/reset/${token}` };
+}

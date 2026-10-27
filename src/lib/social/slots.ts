@@ -121,6 +121,41 @@ export function zonedParts(instant: Date, timeZone: string): {
   };
 }
 
+/**
+ * A date-time a person typed, as an instant. One with an explicit zone ("Z",
+ * "+01:00") is taken as written; a bare "2026-11-02 09:00" — what a
+ * `datetime-local` field posts — is wall clock in `timeZone`, never the
+ * server's UTC. Anything else ("11/12/2026", "next Tuesday", 2026-02-31) is
+ * refused rather than guessed. `defaultHour` lets a bare date through at that
+ * hour; null (the default) requires the time.
+ */
+export function parseZonedInput(raw: string, timeZone: string, defaultHour: number | null = null): Date | null {
+  const s = raw.trim();
+  const m = /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{1,2}):(\d{2})(?::(\d{2})(?:\.\d+)?)?)?\s*(z|[+-]\d{2}:?\d{2})?$/i.exec(s);
+  if (!m) return null;
+  const [y, mo, d] = [+m[1], +m[2], +m[3]];
+  if (m[4] === undefined && (defaultHour === null || m[7])) return null;
+  const h = m[4] === undefined ? defaultHour! : +m[4];
+  const mi = m[5] === undefined ? 0 : +m[5];
+  // Date.UTC rolls 31 Feb into March; a date that doesn't come back is not one.
+  const day = new Date(Date.UTC(y, mo - 1, d));
+  if (mo < 1 || mo > 12 || day.getUTCMonth() !== mo - 1 || day.getUTCDate() !== d || h > 23 || mi > 59) return null;
+  if (m[7]) {
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const zone = /^z$/i.test(m[7]) ? "Z" : m[7].replace(/^([+-]\d{2}):?(\d{2})$/, "$1:$2");
+    const t = new Date(`${m[1]}-${m[2]}-${m[3]}T${pad(h)}:${pad(mi)}:${m[6] ?? "00"}${zone}`);
+    return Number.isNaN(t.getTime()) ? null : t;
+  }
+  return zonedTimeToUtc(y, mo, d, h, mi, timeZone);
+}
+
+/** An instant as the `datetime-local` value ("2026-11-02T09:00") for `timeZone`'s wall clock. */
+export function toZonedInput(instant: Date, timeZone: string): string {
+  const z = zonedParts(instant, timeZone);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${z.year}-${pad(z.month)}-${pad(z.day)}T${pad(Math.floor(z.minute / 60))}:${pad(z.minute % 60)}`;
+}
+
 // ---- Slot formatting -----------------------------------------------------------
 
 /** 545 → "09:05". */

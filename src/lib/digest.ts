@@ -73,7 +73,9 @@ async function sendDigestIfDue(workspaceId: string, workspaceName: string): Prom
   const already = await db.auditLog.findFirst({
     where: {
       workspaceId,
-      action: "notify.digest_sent",
+      // An undeliverable day counts too: with no mailbox every tick would
+      // rebuild the digest and log it again.
+      action: { in: ["notify.digest_sent", "notify.digest_undeliverable"] },
       createdAt: { gte: new Date(Date.now() - 20 * 60 * 60 * 1000) },
     },
     select: { id: true },
@@ -104,15 +106,29 @@ async function sendDigestIfDue(workspaceId: string, workspaceName: string): Prom
 
   const mailer = emailFor(workspaceId);
   let delivered = 0;
+  let mocked = 0;
   for (const r of recipients) {
     try {
-      await mailer.send({ to: r.user.email!, subject, html, text });
-      delivered++;
+      const res = await mailer.send({ to: r.user.email!, subject, html, text });
+      // A mocked send is a console line, not an email (ENG-20): with no mailbox
+      // the digest was recorded as sent and "silence means all clear" lied.
+      if (res.mocked) mocked++;
+      else delivered++;
     } catch (e) {
       console.error(`[digest] send to ${r.user.email} failed:`, e instanceof Error ? e.message : e);
     }
   }
-  if (delivered === 0) return false; // nothing left the building — try again next tick
+  if (delivered === 0) {
+    if (mocked > 0) {
+      // Nothing CAN leave (no mailbox, SMTP blocked) — say so once a day where
+      // Notifications reads it, instead of retrying every tick.
+      await writeAudit({
+        workspaceId, actorId: null, action: "notify.digest_undeliverable", entityType: "workspace", entityId: workspaceId,
+        meta: { warn: warn.length, recipients: mocked, reason: "no mailbox" },
+      });
+    }
+    return false; // a real failure retries next tick
+  }
 
   // The once-a-day marker is the audit row — written only after a real send,
   // so a total delivery failure retries on the next tick instead of silently
@@ -157,7 +173,7 @@ function renderHtml(opts: { origin: string; workspaceName: string; warn: HomeDec
       ? `<h3 style="font-size:13px;color:#777;margin-top:20px">Worth a look, not urgent</h3>` +
         `<table style="width:100%;border-collapse:collapse">${info.map((d) => itemHtml(origin, d)).join("")}</table>`
       : "",
-    `<p style="margin-top:20px"><a href="${origin}/dashboard">Open Home</a></p>`,
+    `<p style="margin-top:20px"><a href="${origin}/inbox">Open the Inbox</a></p>`,
     // The honesty line: the reader should know silence is deliberate.
     `<p style="color:#888;font-size:12px">This email only arrives when something needs you — a quiet morning sends nothing. Turn it off under Notifications.</p>`,
     `</div>`,
@@ -174,7 +190,7 @@ function renderText(opts: { origin: string; workspaceName: string; warn: HomeDec
     ...warn.map(line),
     ...(info.length ? [``, `Worth a look, not urgent:`, ...info.map(line)] : []),
     ``,
-    `Home: ${origin}/dashboard`,
+    `Inbox: ${origin}/inbox`,
     `This email only arrives when something needs you — a quiet morning sends nothing.`,
   ].join("\n");
 }

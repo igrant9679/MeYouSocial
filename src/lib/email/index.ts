@@ -161,6 +161,29 @@ export function emailFor(workspaceId?: string): EmailProvider {
 export const email: EmailProvider = emailFor();
 
 /**
+ * App mail for one person (password reset, verification): sent from the
+ * connected mailbox of a workspace they belong to — the only route that
+ * delivers on Railway. Without a workspace it fell to blocked SMTP and then
+ * the mock while the page said the link was on its way (SHL-01). No mailbox
+ * among their workspaces → SMTP/mock as before, and `mocked` says so.
+ * Deliberately never another company's mailbox: a stranger's reset would
+ * name it.
+ */
+export async function appEmailFor(userEmail: string): Promise<EmailProvider> {
+  const { db } = await import("@/lib/db");
+  const { resolveEmailSender } = await import("@/lib/unipile/accounts");
+  const memberships = await db.membership.findMany({
+    where: { status: "active", user: { email: { equals: userEmail.trim(), mode: "insensitive" } } },
+    orderBy: { createdAt: "asc" },
+    select: { workspaceId: true },
+  });
+  for (const m of memberships) {
+    if (await resolveEmailSender(m.workspaceId).catch(() => null)) return emailFor(m.workspaceId);
+  }
+  return emailFor();
+}
+
+/**
  * Send a one-shot test email using the given config (does NOT touch the saved one).
  * Used by the admin "Send test email" button so admins can verify settings BEFORE saving.
  */

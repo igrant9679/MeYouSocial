@@ -25,9 +25,10 @@ export async function runAutopilotNowAction() {
   const said =
     report.skipped === "busy" ? "A cycle is already running for this workspace — nothing was started. Try again in a minute."
     : report.skipped === "paused" ? "The global pause is on, so the cycle didn't run."
-    : report.skipped === "budget" ? "Today's AI budget is spent, so the cycle stopped before generating anything."
-    : `Cycle ran: ${report.drafted} drafted, ${report.autoAdvanced} advanced, ${report.autoQueued} queued, ${report.published} published.`;
-  redirect(`/setup/automation?${report.skipped === "busy" || report.skipped === "paused" ? "err" : "ok"}=${encodeURIComponent(said)}`);
+    : `Cycle ran: ${report.drafted} drafted, ${report.autoAdvanced} advanced, ${report.autoQueued} queued, ${report.published} published.` +
+      (report.budgetReached ? " Today's unattended AI budget is spent, so nothing new was generated." : "") +
+      (report.failedSteps?.length ? ` Failed: ${report.failedSteps.map((f) => `${f.step} (${f.message})`).join("; ")}.` : "");
+  redirect(`/setup/automation?${report.skipped || report.failedSteps?.length ? "err" : "ok"}=${encodeURIComponent(said.slice(0, 600))}`);
 }
 
 export async function setFunctionModeAction(formData: FormData) {

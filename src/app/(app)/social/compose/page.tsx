@@ -94,7 +94,7 @@ export default async function SocialComposePage({ searchParams }: { searchParams
         campaigns={campaigns.map((c) => ({ id: c.id, name: c.name, color: c.color }))}
         categories={categories}
         approvalNotice={requireApproval && !canAdmin(membership.role)}
-        queue={{ nextFree: nextFreeLabel, hasSlots }}
+        queue={{ nextFree: nextFreeLabel, hasSlots, timeZone: queue.timeZone }}
         watermarkAvailable={watermarkAvailable}
         preloadMedia={picked.map((m) => ({ key: m.key, url: storage.url(m.key) }))}
         optimal={optimal.ok ? { label: optimal.label, why: optimal.why } : { reason: optimal.reason }}
@@ -110,7 +110,7 @@ export default async function SocialComposePage({ searchParams }: { searchParams
         <p className="text-[11px] text-[var(--mute)] mt-2 mb-2 leading-relaxed">
           One post per row, up to 200 rows. Header row required; columns:{" "}
           <code className="font-mono">text</code> (required),{" "}
-          <code className="font-mono">scheduledAt</code> (e.g. 2026-08-10T09:00),{" "}
+          <code className="font-mono">scheduledAt</code> (as 2026-08-10 09:00, read in {queue.timeZone}; other date shapes are refused),{" "}
           <code className="font-mono">networks</code> (e.g. facebook|linkedin — empty = all),{" "}
           <code className="font-mono">campaign</code> (by name),{" "}
           <code className="font-mono">category</code>,{" "}

@@ -30,9 +30,10 @@ export type ComposerInitial = {
   category: string | null;
   evergreen: boolean;
   recycleEveryDays: number;
-  /** ISO instant. Converted to a `datetime-local` value HERE, in the browser —
-   *  formatting it on the server would print Railway's UTC wall clock. */
-  scheduledAtIso: string | null;
+  /** The scheduled time as a `datetime-local` value in the workspace's POSTING
+   *  timezone — the zone the action reads it back in (SOC-03). Converting in the
+   *  browser shifted it by the viewer's offset on every save. */
+  scheduledAtLocal: string | null;
   accountIds: string[];
   /** Per-provider text overrides already saved on the post. */
   variants: Record<string, string>;
@@ -76,6 +77,8 @@ export type ComposerQueue = {
   nextFree: string | null;
   /** Whether a schedule exists at all — distinguishes "no slots" from "all full". */
   hasSlots: boolean;
+  /** The posting timezone a typed date-time is read in, shown beside the field. */
+  timeZone?: string;
 };
 
 // Buffer/Hootsuite-style composer: pick accounts, write a base post once, then
@@ -88,14 +91,6 @@ function syncInput(input: HTMLInputElement | null, files: File[]) {
   const dt = new DataTransfer();
   for (const f of files) dt.items.add(f);
   input.files = dt.files;
-}
-
-/** ISO instant → the `datetime-local` value for the viewer's own clock. */
-function toLocalInput(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "";
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 export function SocialComposer({
@@ -139,7 +134,7 @@ export function SocialComposer({
   const [variants, setVariants] = useState<Record<string, string>>(initial?.variants ?? {});
   const [customizing, setCustomizing] = useState<Set<string>>(new Set(Object.keys(initial?.variants ?? {})));
   const [when, setWhen] = useState<"now" | "schedule" | "draft" | "queue" | "optimal">(
-    initial ? (initial.scheduledAtIso ? "schedule" : "draft") : accounts.length === 0 ? "draft" : "now",
+    initial ? (initial.scheduledAtLocal ? "schedule" : "draft") : accounts.length === 0 ? "draft" : "now",
   );
   const [category, setCategory] = useState(initial?.category ?? "");
   const [firstComment, setFirstComment] = useState(initial?.firstComment ?? "");
@@ -887,12 +882,15 @@ export function SocialComposer({
           </WithTip>
         )}
         {when === "schedule" && (
-          <input
-            type="datetime-local"
-            name="scheduledAt"
-            defaultValue={initial?.scheduledAtIso ? toLocalInput(initial.scheduledAtIso) : undefined}
-            className="border border-[var(--line-2)] rounded-lg p-1.5 text-sm font-mono"
-          />
+          <label className="flex items-center gap-1.5">
+            <input
+              type="datetime-local"
+              name="scheduledAt"
+              defaultValue={initial?.scheduledAtLocal ?? undefined}
+              className="border border-[var(--line-2)] rounded-lg p-1.5 text-sm font-mono"
+            />
+            {queue?.timeZone && <span className="font-mono text-[11px] text-[var(--mute)]">{queue.timeZone}</span>}
+          </label>
         )}
         <span className="flex-1" />
         {approvalNotice && (

@@ -342,7 +342,12 @@ export async function revertRefusedDraft(
  * worth writing, and — for a refresh — the version that is live now, so the
  * writer revises that article instead of starting a different one.
  */
-export type DraftBrief = { angle?: string | null; refreshOf?: string | null };
+export type DraftBrief = {
+  angle?: string | null;
+  refreshOf?: string | null;
+  /** Who asked. Null = the engine — only those count against the daily budget (ENG-08). */
+  actorId?: string | null;
+};
 
 export async function generateDraftCore(workspaceId: string, postId: string, brief: DraftBrief = {}): Promise<boolean> {
   const post = await db.blogPost.findFirst({ where: { id: postId, workspaceId } });
@@ -463,6 +468,7 @@ export async function generateDraftCore(workspaceId: string, postId: string, bri
   }
   await writeAudit({
     workspaceId,
+    actorId: brief.actorId ?? null,
     action: "blog.draft_generated",
     entityType: "blog_post",
     entityId: post.id,
@@ -541,7 +547,7 @@ export async function completeFreshDraftCore(
   return out;
 }
 
-export async function generateVariantsCore(workspaceId: string, postId: string): Promise<number> {
+export async function generateVariantsCore(workspaceId: string, postId: string, actorId?: string | null): Promise<number> {
   const post = await db.blogPost.findFirst({ where: { id: postId, workspaceId } });
   if (!post || !post.body) return 0;
   if (await isGloballyPaused(workspaceId)) return 0;
@@ -614,6 +620,7 @@ export async function generateVariantsCore(workspaceId: string, postId: string):
   if (rows.length) await db.socialVariant.createMany({ data: rows });
   await writeAudit({
     workspaceId,
+    actorId: actorId ?? null,
     action: "social.variants_generated",
     entityType: "blog_post",
     entityId: post.id,
@@ -1243,17 +1250,30 @@ export async function assembleRenderCore(workspaceId: string, renderId: string):
 /** Impressions over 28 days before a post's average position means anything. */
 const REFRESH_MIN_IMPRESSIONS = 100;
 
-async function generationsToday(workspaceId: string): Promise<number> {
-  const dayStart = new Date();
-  dayStart.setHours(0, 0, 0, 0);
+/**
+ * Unattended generations since midnight in the workspace's posting timezone
+ * (ENG-08). A person's own Generate / Draft now carries their actorId and
+ * doesn't spend the engine's allowance; the server's UTC midnight was the
+ * wrong day for every workspace west of London.
+ */
+export async function generationsToday(workspaceId: string): Promise<number> {
+  const { getPostingTimeZone, zonedParts, zonedTimeToUtc } = await import("@/lib/social/slots");
+  const tz = await getPostingTimeZone(workspaceId);
+  const z = zonedParts(new Date(), tz);
+  const dayStart = zonedTimeToUtc(z.year, z.month, z.day, 0, 0, tz);
   return db.auditLog.count({
-    where: { workspaceId, action: { in: GENERATION_ACTIONS }, createdAt: { gte: dayStart } },
+    where: { workspaceId, actorId: null, action: { in: GENERATION_ACTIONS }, createdAt: { gte: dayStart } },
   });
 }
 
 export type CycleReport = {
   workspaceId: string;
-  skipped?: "paused" | "budget" | "busy";
+  skipped?: "paused" | "busy";
+  /** Today's unattended AI allowance is spent: generating steps were skipped,
+   *  publishing, queueing and advancing still ran (ENG-08). */
+  budgetReached?: boolean;
+  /** Steps that threw this cycle — the rest still ran (ENG-21). */
+  failedSteps?: Array<{ step: string; message: string }>;
   ideasCreated: number;
   drafted: number;
   variantPosts: number;
@@ -1309,6 +1329,37 @@ function emptyReport(workspaceId: string): CycleReport {
   };
 }
 
+// ── Failed steps, kept where people look (ENG-21) ───────────────────────────
+// One row per workspace: each step that threw, how many cycles in a row, and
+// the last message. A step that runs clean drops out. Read by Automation and
+// by the Inbox, which raises a step failing two cycles running.
+
+export type CycleStatus = { at: string; steps: Record<string, { failures: number; message: string; since: string }> };
+const CYCLE_STATUS_KEY = "autopilot:cycle_status";
+
+export async function readCycleStatus(workspaceId: string): Promise<CycleStatus | null> {
+  const row = await db.workspaceSetting.findUnique({ where: { workspaceId_key: { workspaceId, key: CYCLE_STATUS_KEY } } });
+  if (!row) return null;
+  try {
+    return JSON.parse(row.value) as CycleStatus;
+  } catch {
+    return null;
+  }
+}
+
+async function recordCycleStatus(workspaceId: string, failed: Array<{ step: string; message: string }>): Promise<void> {
+  const prev = await readCycleStatus(workspaceId);
+  if (!failed.length && !prev) return;
+  const at = new Date().toISOString();
+  const steps: CycleStatus["steps"] = {};
+  for (const f of failed) {
+    const before = prev?.steps[f.step];
+    steps[f.step] = { failures: (before?.failures ?? 0) + 1, message: f.message, since: before?.since ?? at };
+  }
+  const { setWorkspaceSetting } = await import("@/lib/settings");
+  await setWorkspaceSetting(workspaceId, CYCLE_STATUS_KEY, failed.length ? JSON.stringify({ at, steps }) : "");
+}
+
 async function runAutopilotCycleUnlocked(workspaceId: string): Promise<CycleReport> {
   const report: CycleReport = {
     workspaceId,
@@ -1335,10 +1386,27 @@ async function runAutopilotCycleUnlocked(workspaceId: string): Promise<CycleRepo
   const modes = await getModes(workspaceId);
   const unattended = (fn: keyof typeof modes) => modes[fn] === "assisted" || modes[fn] === "auto";
 
-  if ((await generationsToday(workspaceId)) >= DAILY_AI_BUDGET) {
-    report.skipped = "budget";
-    return report;
-  }
+  // ⚠ The budget gates GENERATING only (ENG-08). It used to return here, so
+  // twenty generations — a person's included — stopped publishing, advancing
+  // and queueing for the rest of the day and a workspace could miss its
+  // publish day.
+  const overBudget = (await generationsToday(workspaceId)) >= DAILY_AI_BUDGET;
+  if (overBudget) report.budgetReached = true;
+  const generating = (fn: keyof typeof modes) => unattended(fn) && !overBudget;
+
+  // Each step on its own (ENG-21): one throw in ideation used to abort the
+  // cycle, so publishing and queueing were skipped every 30 minutes and only
+  // the server log knew.
+  const failedSteps: Array<{ step: string; message: string }> = [];
+  const step = async (name: string, run: () => Promise<void>) => {
+    try {
+      await run();
+    } catch (e) {
+      const message = (e instanceof Error ? e.message : String(e)).slice(0, 300);
+      failedSteps.push({ step: name, message });
+      console.error(`[autopilot] ${name} failed for ${workspaceId}:`, message);
+    }
+  };
 
   // 1. Ideation: top up the emptiest Topic × format cells (lib/ideation.ts).
   // "Low" is per Topic and per format — fewer than two open ideas for THIS
@@ -1346,89 +1414,98 @@ async function runAutopilotCycleUnlocked(workspaceId: string): Promise<CycleRepo
   // busy one. Bounded to two cells a sweep; the 30-minute cadence does the
   // rest. A workspace with no Topics falls back to the old workspace-wide
   // run (untagged) when its whole pool is below three.
-  if (unattended("ideation")) {
-    const { runIdeation } = await import("@/lib/ideation");
-    const openAll = await db.blogIdea.count({ where: { workspaceId, status: { in: ["discovered", "approved"] } } });
-    const hasTopics = (await db.topic.count({ where: { workspaceId, status: "active" } })) > 0;
-    if (hasTopics || openAll < 3) {
-      const run = await runIdeation(workspaceId, { formats: ["article"], maxCells: 2, floor: 2 });
-      report.ideasCreated += run.created;
-    }
+  await step("ideation", async () => {
+    if (generating("ideation")) {
+      const { runIdeation } = await import("@/lib/ideation");
+      const openAll = await db.blogIdea.count({ where: { workspaceId, status: { in: ["discovered", "approved"] } } });
+      const hasTopics = (await db.topic.count({ where: { workspaceId, status: "active" } })) > 0;
+      if (hasTopics || openAll < 3) {
+        const run = await runIdeation(workspaceId, { formats: ["article"], maxCells: 2, floor: 2 });
+        report.ideasCreated += run.created;
+      }
 
-    // Wave C′ refresh loop: published posts ranking past position 10 become
-    // refresh ideas (once per post; protected posts excluded). The position is
-    // the last 28 days weighted by impressions, with a floor — one day's
-    // reading on a post nobody sees used to be enough, and only 20 arbitrary
-    // posts were ever looked at. At most three new refresh ideas a cycle.
-    const since = new Date(Date.now() - 28 * 86_400_000);
-    const published = await db.blogPost.findMany({
-      where: { workspaceId, status: "published", protectedFromRewrite: false, wpPostId: { not: null } },
-      select: {
-        id: true, title: true, focusKeyword: true,
-        snapshots: { where: { capturedAt: { gte: since }, position: { not: null } }, select: { position: true, impressions: true } },
-      },
-    });
-    let refreshIdeas = 0;
-    for (const p of published) {
-      if (refreshIdeas >= 3) break;
-      const seen = p.snapshots.reduce((n, s) => n + (s.impressions ?? 0), 0);
-      if (seen < REFRESH_MIN_IMPRESSIONS) continue;
-      const pos = p.snapshots.reduce((n, s) => n + (s.position ?? 0) * (s.impressions ?? 0), 0) / seen;
-      if (pos <= 10) continue;
-      const title = `Refresh: ${p.title}`;
-      const exists = await db.blogIdea.count({ where: { workspaceId, OR: [{ title }, { source: "refresh", refreshPostId: p.id }] } });
-      if (exists) continue;
-      await db.blogIdea.create({
-        data: {
-          workspaceId,
-          title,
-          angle: `Ranking at position ${pos.toFixed(1)} over the last 28 days (${seen} impressions) — update and expand to recover.`,
-          keyword: p.focusKeyword,
-          source: "refresh",
-          postId: p.id,
-          refreshPostId: p.id,
+      // Wave C′ refresh loop: published posts ranking past position 10 become
+      // refresh ideas (once per post; protected posts excluded). The position is
+      // the last 28 days weighted by impressions, with a floor — one day's
+      // reading on a post nobody sees used to be enough, and only 20 arbitrary
+      // posts were ever looked at. At most three new refresh ideas a cycle.
+      const since = new Date(Date.now() - 28 * 86_400_000);
+      const published = await db.blogPost.findMany({
+        where: { workspaceId, status: "published", protectedFromRewrite: false, wpPostId: { not: null } },
+        select: {
+          id: true, title: true, focusKeyword: true,
+          snapshots: { where: { capturedAt: { gte: since }, position: { not: null } }, select: { position: true, impressions: true } },
         },
       });
-      refreshIdeas++;
-      report.ideasCreated++;
+      let refreshIdeas = 0;
+      for (const p of published) {
+        if (refreshIdeas >= 3) break;
+        const seen = p.snapshots.reduce((n, s) => n + (s.impressions ?? 0), 0);
+        if (seen < REFRESH_MIN_IMPRESSIONS) continue;
+        const pos = p.snapshots.reduce((n, s) => n + (s.position ?? 0) * (s.impressions ?? 0), 0) / seen;
+        if (pos <= 10) continue;
+        const title = `Refresh: ${p.title}`;
+        const exists = await db.blogIdea.count({ where: { workspaceId, OR: [{ title }, { source: "refresh", refreshPostId: p.id }] } });
+        if (exists) continue;
+        await db.blogIdea.create({
+          data: {
+            workspaceId,
+            title,
+            angle: `Ranking at position ${pos.toFixed(1)} over the last 28 days (${seen} impressions) — update and expand to recover.`,
+            keyword: p.focusKeyword,
+            source: "refresh",
+            postId: p.id,
+            refreshPostId: p.id,
+          },
+        });
+        refreshIdeas++;
+        report.ideasCreated++;
+      }
     }
-  }
+  });
 
   // 2. Drafting: draft approved ideas, park at the draft_review checkpoint.
   // `autopilot:weekly_articles` caps how many articles the autopilot drafts in
   // any rolling 7 days — the owner's "N articles a week" dial. Unset = the old
   // behavior (bounded only by the approved-ideas pool and the daily budget).
-  if (unattended("blog_drafting")) {
-    const { getSetting } = await import("@/lib/settings");
-    const weeklyRaw = parseInt(await getSetting("autopilot:weekly_articles", workspaceId).catch(() => ""), 10);
-    let allowance = 2; // per-cycle cap, as before
-    if (Number.isFinite(weeklyRaw) && weeklyRaw > 0) {
-      const draftedThisWeek = await db.auditLog.count({
-        where: { workspaceId, action: "blog.draft_generated", createdAt: { gte: new Date(Date.now() - 7 * 86_400_000) } },
-      });
-      allowance = Math.min(2, Math.max(0, weeklyRaw - draftedThisWeek));
-    }
-    // Oldest approved first, skipping the ones that are a change on the live
-    // site (retire / merge, or a refresh with nothing here to revise) — those
-    // wait for a person and must not starve the queue behind them.
-    const { draftIdeaCore, ideaChange } = await import("@/lib/idea-drafting");
-    const approved = allowance > 0
-      ? (await db.blogIdea.findMany({ where: { workspaceId, status: "approved" }, orderBy: { createdAt: "asc" }, take: 50 }))
-          .filter((i) => ideaChange(i) !== "site_change")
-          .slice(0, allowance)
-      : [];
-    for (const idea of approved) {
-      // Claim, write, and park at review with images and SEO meta — the same
-      // core the human "Draft this" buttons use (lib/idea-drafting.ts). A
-      // refused draft (mock fallback / provider down) puts the idea back.
-      const r = await draftIdeaCore(workspaceId, idea.id, { from: ["approved"], finish: "inline" });
-      if (r.ok) {
-        report.drafted++;
-        report.imagesGenerated += r.finished?.imagesGenerated ?? 0;
-        report.seoOptimized += r.finished?.seoOptimized ?? 0;
+  await step("drafting", async () => {
+    if (generating("blog_drafting")) {
+      const { getSetting } = await import("@/lib/settings");
+      const weeklyRaw = parseInt(await getSetting("autopilot:weekly_articles", workspaceId).catch(() => ""), 10);
+      let allowance = 2; // per-cycle cap, as before
+      if (Number.isFinite(weeklyRaw) && weeklyRaw > 0) {
+        const draftedThisWeek = await db.auditLog.count({
+          where: { workspaceId, action: "blog.draft_generated", createdAt: { gte: new Date(Date.now() - 7 * 86_400_000) } },
+        });
+        allowance = Math.min(2, Math.max(0, weeklyRaw - draftedThisWeek));
       }
+      // Oldest approved first, skipping the ones that are a change on the live
+      // site (retire / merge, or a refresh with nothing here to revise) — those
+      // wait for a person and must not starve the queue behind them.
+      const { draftIdeaCore, ideaChange } = await import("@/lib/idea-drafting");
+      const approved = allowance > 0
+        ? (await db.blogIdea.findMany({ where: { workspaceId, status: "approved" }, orderBy: { createdAt: "asc" }, take: 50 }))
+            .filter((i) => ideaChange(i) !== "site_change")
+            .slice(0, allowance)
+        : [];
+      const failedDrafts: string[] = [];
+      for (const idea of approved) {
+        // Claim, write, and park at review with images and SEO meta — the same
+        // core the human "Draft this" buttons use (lib/idea-drafting.ts). A
+        // refused draft (mock fallback / provider down) puts the idea back.
+        const r = await draftIdeaCore(workspaceId, idea.id, { from: ["approved"], finish: "inline" });
+        if (r.ok) {
+          report.drafted++;
+          report.imagesGenerated += r.finished?.imagesGenerated ?? 0;
+          report.seoOptimized += r.finished?.seoOptimized ?? 0;
+        } else if (r.reason === "error") {
+          failedDrafts.push(`"${idea.title}": ${r.message}`);
+        }
+      }
+      // The idea went back on the board; the step is still reported as failed.
+      if (failedDrafts.length) throw new Error(failedDrafts.join(" · "));
     }
-  }
+  });
 
   // 3. Social — the idea stage a social post never had ("Topics as the
   // spine", phase 4, 2026-09-21). Three steps, in the order articles take:
@@ -1448,78 +1525,78 @@ async function runAutopilotCycleUnlocked(workspaceId: string): Promise<CycleRepo
   // ideas (they wait for a person) or drafts, per feed. Not AI and not a mode
   // — a feed is a subscription someone made — but inside the cycle, so the
   // global pause and the sweep lock still hold. At most hourly per feed.
-  try {
+  await step("rss", async () => {
     const { pollDueFeeds } = await import("@/lib/social/rss");
     report.ideasCreated += await pollDueFeeds(workspaceId);
-  } catch (e) {
-    console.error(`[rss] poll failed for ${workspaceId}:`, e instanceof Error ? e.message : e);
-  }
+  });
 
-  if (unattended("social")) {
-    const { socialGate, socialSource } = await import("@/lib/social/gate");
-    const { getSetting } = await import("@/lib/settings");
-    const source = await socialSource(workspaceId);
-    const autogenOn = (await getSetting("social:autogen", workspaceId).catch(() => "")) === "true";
+  await step("social", async () => {
+    if (generating("social")) {
+      const { socialGate, socialSource } = await import("@/lib/social/gate");
+      const { getSetting } = await import("@/lib/settings");
+      const source = await socialSource(workspaceId);
+      const autogenOn = (await getSetting("social:autogen", workspaceId).catch(() => "")) === "true";
 
-    if (source === "rotation") {
-      // The old two steps, untouched: per-network variants on publish, and a
-      // Topic picked by rotation written straight into the queue.
-      const bare = await db.blogPost.findMany({
-        where: { workspaceId, status: "published", variants: { none: {} } },
-        select: { id: true },
-        take: 2,
-      });
-      for (const p of bare) {
-        const n = await generateVariantsCore(workspaceId, p.id);
-        if (n > 0) report.variantPosts++;
-      }
-      const { generateSocialPostForWorkspace } = await import("@/lib/social/autogen");
-      try {
-        if (await generateSocialPostForWorkspace(workspaceId)) report.postsGenerated++;
-      } catch (e) {
-        console.error(`[social-autogen] failed for ${workspaceId}:`, e instanceof Error ? e.message : e);
-      }
-    } else {
-      const { socialIdeasFromArticle } = await import("@/lib/social/ideation");
-      // a. Ideas from articles published since the spine arrived that have
-      //    none yet — two a sweep. Older articles keep their variants.
-      const bare = await db.blogPost.findMany({
-        where: { workspaceId, status: "published", socialIdeas: { none: {} }, publishedAt: { gte: new Date("2026-09-21T00:00:00Z") } },
-        select: { id: true },
-        orderBy: { publishedAt: "desc" },
-        take: 2,
-      });
-      for (const p of bare) {
-        try {
-          const n = await socialIdeasFromArticle(workspaceId, p.id);
+      if (source === "rotation") {
+        // The old two steps, untouched: per-network variants on publish, and a
+        // Topic picked by rotation written straight into the queue.
+        const bare = await db.blogPost.findMany({
+          where: { workspaceId, status: "published", variants: { none: {} } },
+          select: { id: true },
+          take: 2,
+        });
+        for (const p of bare) {
+          const n = await generateVariantsCore(workspaceId, p.id);
           if (n > 0) report.variantPosts++;
+        }
+        const { generateSocialPostForWorkspace } = await import("@/lib/social/autogen");
+        try {
+          if (await generateSocialPostForWorkspace(workspaceId)) report.postsGenerated++;
         } catch (e) {
-          console.error(`[social-ideation] article ${p.id} failed for ${workspaceId}:`, e instanceof Error ? e.message : e);
+          console.error(`[social-autogen] failed for ${workspaceId}:`, e instanceof Error ? e.message : e);
+        }
+      } else {
+        const { socialIdeasFromArticle } = await import("@/lib/social/ideation");
+        // a. Ideas from articles published since the spine arrived that have
+        //    none yet — two a sweep. Older articles keep their variants.
+        const bare = await db.blogPost.findMany({
+          where: { workspaceId, status: "published", socialIdeas: { none: {} }, publishedAt: { gte: new Date("2026-09-21T00:00:00Z") } },
+          select: { id: true },
+          orderBy: { publishedAt: "desc" },
+          take: 2,
+        });
+        for (const p of bare) {
+          try {
+            const n = await socialIdeasFromArticle(workspaceId, p.id);
+            if (n > 0) report.variantPosts++;
+          } catch (e) {
+            console.error(`[social-ideation] article ${p.id} failed for ${workspaceId}:`, e instanceof Error ? e.message : e);
+          }
+        }
+        //    Per-Topic social ideation, only where drafting will consume it.
+        if (autogenOn && unattended("ideation")) {
+          const { runIdeation } = await import("@/lib/ideation");
+          const run = await runIdeation(workspaceId, { formats: ["social"], maxCells: 2, floor: 2 });
+          report.ideasCreated += run.created;
+        }
+        // b. The gate: the engine's own ideas approve themselves under `auto`.
+        //    Ideas a person added (manual, research) always wait for that person.
+        if ((await socialGate(workspaceId)) === "auto") {
+          await db.socialIdea.updateMany({
+            where: { workspaceId, status: "discovered", source: { in: ["discovered", "article"] } },
+            data: { status: "approved", approvedAt: new Date() },
+          });
+        }
+        // c. Drafting: one approved idea → one post in the queue.
+        const { draftSocialIdeasForWorkspace } = await import("@/lib/social/drafting");
+        try {
+          if (await draftSocialIdeasForWorkspace(workspaceId)) report.postsGenerated++;
+        } catch (e) {
+          console.error(`[social-drafting] failed for ${workspaceId}:`, e instanceof Error ? e.message : e);
         }
       }
-      //    Per-Topic social ideation, only where drafting will consume it.
-      if (autogenOn && unattended("ideation")) {
-        const { runIdeation } = await import("@/lib/ideation");
-        const run = await runIdeation(workspaceId, { formats: ["social"], maxCells: 2, floor: 2 });
-        report.ideasCreated += run.created;
-      }
-      // b. The gate: the engine's own ideas approve themselves under `auto`.
-      //    Ideas a person added (manual, research) always wait for that person.
-      if ((await socialGate(workspaceId)) === "auto") {
-        await db.socialIdea.updateMany({
-          where: { workspaceId, status: "discovered", source: { in: ["discovered", "article"] } },
-          data: { status: "approved", approvedAt: new Date() },
-        });
-      }
-      // c. Drafting: one approved idea → one post in the queue.
-      const { draftSocialIdeasForWorkspace } = await import("@/lib/social/drafting");
-      try {
-        if (await draftSocialIdeasForWorkspace(workspaceId)) report.postsGenerated++;
-      } catch (e) {
-        console.error(`[social-drafting] failed for ${workspaceId}:`, e instanceof Error ? e.message : e);
-      }
     }
-  }
+  });
 
   // 3¾. FULL AUTONOMY ONLY — the links that had no automatic step, and so kept
   // a workspace that looked fully configured from ever running itself.
@@ -1533,201 +1610,216 @@ async function runAutopilotCycleUnlocked(workspaceId: string): Promise<CycleRepo
   // auto-review could not satisfy honestly (an unsourceable claim, an image
   // that keeps failing inspection) still stops the article — and notifies.
   // Queueing still refuses anything held for approval.
-  if (await isFullyAutonomous(workspaceId)) {
-    // Blog: try to SATISFY the gates, then advance what passes.
-    // ⚠ Least recently reviewed first (audit ART-08). By updatedAt alone, three
-    // articles auto-review couldn't clear — and so didn't touch — stayed the
-    // oldest and took the three places every cycle; a fourth never got a look.
-    const atReview = await db.blogPost.findMany({
-      where: { workspaceId, status: "draft_review" },
-      orderBy: [{ autoReviewedAt: { sort: "asc", nulls: "first" } }, { updatedAt: "asc" }],
-      take: 3,
-    });
-    for (const post of atReview) {
-      try {
-        const { autoReviewCore } = await import("@/lib/blog-autoreview");
-        const reviewed = await autoReviewCore(workspaceId, post.id);
-        report.imagesAutoApproved += reviewed.imagesApproved;
-        report.citationsAutoVerified += reviewed.citationsVerified;
-        report.findingsAutoApplied += reviewed.findingsApplied;
-        if (reviewed.seoFilled) report.seoOptimized++;
-      } catch (e) {
-        console.error(`[auto-review] failed for ${post.id}:`, e instanceof Error ? e.message : e);
-      }
-      await db.blogPost.updateMany({ where: { id: post.id, workspaceId }, data: { autoReviewedAt: new Date() } });
-      // Re-read: auto-review may have edited the body and meta.
-      const fresh = await db.blogPost.findFirst({ where: { id: post.id, workspaceId } });
-      if (!fresh) continue;
-      const unverified = await db.blogCitation.count({ where: { postId: post.id, verified: false } });
-      const [assets, editorial] = await Promise.all([
-        loadAssetGate(workspaceId, post.id),
-        loadEditorialContext(workspaceId, fresh),
-      ]);
-      // gatesSatisfied, not requiredChecksPass: an admin's "Advance anyway"
-      // override (lib/blog-gates.ts) counts as passing here too.
-      if (!gatesSatisfied(fresh, runBlogChecks(fresh, unverified, assets, editorial))) continue;
-      await db.blogPost.update({ where: { id: post.id }, data: { status: "final_approval" } });
-      await writeAudit({
-        workspaceId, action: "blog.auto_advanced", entityType: "blog_post", entityId: post.id,
-        meta: { from: "draft_review", to: "final_approval", via: "full autonomy" },
+  await step("full autonomy", async () => {
+    if (await isFullyAutonomous(workspaceId)) {
+      // Blog: try to SATISFY the gates, then advance what passes.
+      // ⚠ Least recently reviewed first (audit ART-08). By updatedAt alone, three
+      // articles auto-review couldn't clear — and so didn't touch — stayed the
+      // oldest and took the three places every cycle; a fourth never got a look.
+      const atReview = await db.blogPost.findMany({
+        where: { workspaceId, status: "draft_review" },
+        orderBy: [{ autoReviewedAt: { sort: "asc", nulls: "first" } }, { updatedAt: "asc" }],
+        take: 3,
       });
-      report.autoAdvanced++;
-    }
-
-    // Social: give unscheduled drafts a slot. Approval-held posts are skipped —
-    // `require_approval` still means what it says, even here.
-    const { getQueue, pickFreeSlot } = await import("@/lib/social/slots");
-    const drafts = await db.socialPost.findMany({
-      where: {
-        workspaceId,
-        status: "draft",
-        scheduledAt: null,
-        // ⚠ OR [null, "approved"], NEVER `notIn`. SQL NOT IN drops NULL rows,
-        // so `approval notIn ['pending','changes']` silently matches nothing
-        // for ordinary posts — which have approval NULL. This file's own module
-        // docs warn about it for the publish sweep; the first cut of this query
-        // did it anyway and queued zero posts on a fixture that had one waiting.
-        OR: [{ approval: null }, { approval: "approved" }],
-      },
-      orderBy: { createdAt: "asc" },
-      take: 10,
-      select: { id: true, category: true },
-    });
-    if (drafts.length) {
-      const { free } = await getQueue(workspaceId, { limit: 200 });
-      let remaining = free;
-      for (const d of drafts) {
-        const slot = pickFreeSlot(remaining, d.category);
-        if (!slot) break; // calendar full — the rest wait for a slot, not a person
-        await db.socialPost.update({ where: { id: d.id }, data: { scheduledAt: slot.at, status: "scheduled" } });
-        remaining = remaining.filter((f) => f.at.getTime() !== slot.at.getTime());
-        report.autoQueued++;
-      }
-      if (report.autoQueued) {
+      for (const post of atReview) {
+        // Over budget: no new search, vision or rewrites — but an article
+        // whose gates already pass still advances below.
+        if (!overBudget) {
+          try {
+            const { autoReviewCore } = await import("@/lib/blog-autoreview");
+            const reviewed = await autoReviewCore(workspaceId, post.id);
+            report.imagesAutoApproved += reviewed.imagesApproved;
+            report.citationsAutoVerified += reviewed.citationsVerified;
+            report.findingsAutoApplied += reviewed.findingsApplied;
+            if (reviewed.seoFilled) report.seoOptimized++;
+          } catch (e) {
+            console.error(`[auto-review] failed for ${post.id}:`, e instanceof Error ? e.message : e);
+          }
+        }
+        await db.blogPost.updateMany({ where: { id: post.id, workspaceId }, data: { autoReviewedAt: new Date() } });
+        // Re-read: auto-review may have edited the body and meta.
+        const fresh = await db.blogPost.findFirst({ where: { id: post.id, workspaceId } });
+        if (!fresh) continue;
+        const unverified = await db.blogCitation.count({ where: { postId: post.id, verified: false } });
+        const [assets, editorial] = await Promise.all([
+          loadAssetGate(workspaceId, post.id),
+          loadEditorialContext(workspaceId, fresh),
+        ]);
+        // gatesSatisfied, not requiredChecksPass: an admin's "Advance anyway"
+        // override (lib/blog-gates.ts) counts as passing here too.
+        if (!gatesSatisfied(fresh, runBlogChecks(fresh, unverified, assets, editorial))) continue;
+        await db.blogPost.update({ where: { id: post.id }, data: { status: "final_approval" } });
         await writeAudit({
-          workspaceId, action: "social.auto_queued", entityType: "social_post",
-          meta: { count: report.autoQueued, via: "full autonomy" },
+          workspaceId, action: "blog.auto_advanced", entityType: "blog_post", entityId: post.id,
+          meta: { from: "draft_review", to: "final_approval", via: "full autonomy" },
         });
+        report.autoAdvanced++;
+      }
+
+      // Social: give unscheduled drafts a slot. Approval-held posts are skipped —
+      // `require_approval` still means what it says, even here.
+      const { getQueue, pickFreeSlot } = await import("@/lib/social/slots");
+      const drafts = await db.socialPost.findMany({
+        where: {
+          workspaceId,
+          status: "draft",
+          scheduledAt: null,
+          // ⚠ OR [null, "approved"], NEVER `notIn`. SQL NOT IN drops NULL rows,
+          // so `approval notIn ['pending','changes']` silently matches nothing
+          // for ordinary posts — which have approval NULL. This file's own module
+          // docs warn about it for the publish sweep; the first cut of this query
+          // did it anyway and queued zero posts on a fixture that had one waiting.
+          OR: [{ approval: null }, { approval: "approved" }],
+        },
+        orderBy: { createdAt: "asc" },
+        take: 10,
+        select: { id: true, category: true },
+      });
+      if (drafts.length) {
+        const { free } = await getQueue(workspaceId, { limit: 200 });
+        let remaining = free;
+        for (const d of drafts) {
+          const slot = pickFreeSlot(remaining, d.category);
+          if (!slot) break; // calendar full — the rest wait for a slot, not a person
+          await db.socialPost.update({ where: { id: d.id }, data: { scheduledAt: slot.at, status: "scheduled" } });
+          remaining = remaining.filter((f) => f.at.getTime() !== slot.at.getTime());
+          report.autoQueued++;
+        }
+        if (report.autoQueued) {
+          await writeAudit({
+            workspaceId, action: "social.auto_queued", entityType: "social_post",
+            meta: { count: report.autoQueued, via: "full autonomy" },
+          });
+        }
       }
     }
-  }
+  });
 
   // 4. Publishing. Auto mode: any gate-passing final_approval post whose
   // scheduledAt is unset or due. Assisted mode: ONLY due scheduled posts —
   // an admin setting the time was the human approval. Manual: nothing.
-  if (modes.publishing === "auto" || modes.publishing === "assisted") {
-    await releaseStalePublishClaims(workspaceId);
-    const now = new Date();
-    // `autopilot:publish_day` (Date#getDay 0–6, unset = any day) — the owner's
-    // "articles go out on Wednesdays" dial. On every other day auto mode
-    // behaves like assisted: a time a human set on a post is still honoured,
-    // but gate-passing unscheduled posts wait at final_approval for the day.
-    // The weekday is read in the workspace's posting timezone, never the
-    // server's — Railway runs in UTC and "Wednesday" means the owner's.
-    let autoToday = modes.publishing === "auto";
-    if (autoToday) {
-      const { getSetting } = await import("@/lib/settings");
-      const day = parseInt(await getSetting("autopilot:publish_day", workspaceId).catch(() => ""), 10);
-      if (Number.isInteger(day) && day >= 0 && day <= 6) {
-        const { getPostingTimeZone, zonedParts } = await import("@/lib/social/slots");
-        autoToday = zonedParts(now, await getPostingTimeZone(workspaceId)).weekday === day;
+  await step("publishing", async () => {
+    if (modes.publishing === "auto" || modes.publishing === "assisted") {
+      await releaseStalePublishClaims(workspaceId);
+      const now = new Date();
+      // `autopilot:publish_day` (Date#getDay 0–6, unset = any day) — the owner's
+      // "articles go out on Wednesdays" dial. On every other day auto mode
+      // behaves like assisted: a time a human set on a post is still honoured,
+      // but gate-passing unscheduled posts wait at final_approval for the day.
+      // The weekday is read in the workspace's posting timezone, never the
+      // server's — Railway runs in UTC and "Wednesday" means the owner's.
+      let autoToday = modes.publishing === "auto";
+      if (autoToday) {
+        const { getSetting } = await import("@/lib/settings");
+        const day = parseInt(await getSetting("autopilot:publish_day", workspaceId).catch(() => ""), 10);
+        if (Number.isInteger(day) && day >= 0 && day <= 6) {
+          const { getPostingTimeZone, zonedParts } = await import("@/lib/social/slots");
+          autoToday = zonedParts(now, await getPostingTimeZone(workspaceId)).weekday === day;
+        }
       }
-    }
-    // Not on WordPress yet — or a refresh, whose publish updates its own post
-    // in place (publishCore). A draft handoff (wpPostId set, no refresh) is
-    // never picked up again.
-    const notLive = { OR: [{ wpPostId: null }, { refreshStartedAt: { not: null } }] };
-    // ⚠ No site, nothing to publish to — and nothing to report every cycle
-    // (CF parks its articles here and exports them by hand).
-    const hasSite = (await db.wordPressConnection.count({ where: { workspaceId } })) > 0;
-    const candidates = !hasSite ? [] : await db.blogPost.findMany({
-      where: autoToday
-        ? {
-            workspaceId,
-            status: "final_approval",
-            AND: [notLive, { OR: [{ scheduledAt: null }, { scheduledAt: { lte: now } }] }],
-          }
-        : { workspaceId, status: "final_approval", ...notLive, scheduledAt: { lte: now } },
-      orderBy: { updatedAt: "asc" },
-      take: 20,
-    });
-    // ⚠ The checks run BEFORE the two are picked (audit ART-08). publishCore
-    // re-checks and quietly refuses an article that no longer passes, so with
-    // `take: 2` the two oldest such articles were retried forever while every
-    // article behind them waited and /publish said "next cycle". A held one is
-    // skipped and named (Inbox, /publish), with a notice once a day.
-    const ready: typeof candidates = [];
-    for (const p of candidates) {
-      if (ready.length >= 2) break;
-      const failing = await blockingChecks(workspaceId, p.id);
-      if (failing && failing.length === 0) { ready.push(p); continue; }
-      if (!failing) continue;
-      const since = new Date(Date.now() - 24 * 3_600_000);
-      const told = await db.auditLog.findFirst({ where: { workspaceId, action: "blog.publish_held", entityId: p.id, createdAt: { gte: since } }, select: { id: true } });
-      if (told) continue;
-      await writeAudit({ workspaceId, action: "blog.publish_held", entityType: "blog_post", entityId: p.id, meta: { failing } });
-      await notify({
-        workspaceId,
-        kind: "publish_failed",
-        title: `"${p.title}" is at final approval but won't publish`,
-        body: `It no longer passes: ${failing.join("; ")}. Fix it, or send it back to review.`.slice(0, 400),
-        path: `/blog/${p.id}?tab=review`,
-        entityType: "blog_post",
-        entityId: p.id,
+      // Not on WordPress yet — or a refresh, whose publish updates its own post
+      // in place (publishCore). A draft handoff (wpPostId set, no refresh) is
+      // never picked up again.
+      const notLive = { OR: [{ wpPostId: null }, { refreshStartedAt: { not: null } }] };
+      // ⚠ No site, nothing to publish to — and nothing to report every cycle
+      // (CF parks its articles here and exports them by hand).
+      const hasSite = (await db.wordPressConnection.count({ where: { workspaceId } })) > 0;
+      const candidates = !hasSite ? [] : await db.blogPost.findMany({
+        where: autoToday
+          ? {
+              workspaceId,
+              status: "final_approval",
+              AND: [notLive, { OR: [{ scheduledAt: null }, { scheduledAt: { lte: now } }] }],
+            }
+          : { workspaceId, status: "final_approval", ...notLive, scheduledAt: { lte: now } },
+        orderBy: { updatedAt: "asc" },
+        take: 20,
       });
-    }
-    for (const p of ready) {
-      try {
-        if (await publishCore(workspaceId, p.id)) report.published++;
-      } catch (e) {
-        // WP outage or rejection — leave the post at final_approval for the next
-        // cycle, but tell someone. A silent retry loop is how a broken
-        // integration goes unnoticed for a week.
+      // ⚠ The checks run BEFORE the two are picked (audit ART-08). publishCore
+      // re-checks and quietly refuses an article that no longer passes, so with
+      // `take: 2` the two oldest such articles were retried forever while every
+      // article behind them waited and /publish said "next cycle". A held one is
+      // skipped and named (Inbox, /publish), with a notice once a day.
+      const ready: typeof candidates = [];
+      for (const p of candidates) {
+        if (ready.length >= 2) break;
+        const failing = await blockingChecks(workspaceId, p.id);
+        if (failing && failing.length === 0) { ready.push(p); continue; }
+        if (!failing) continue;
+        const since = new Date(Date.now() - 24 * 3_600_000);
+        const told = await db.auditLog.findFirst({ where: { workspaceId, action: "blog.publish_held", entityId: p.id, createdAt: { gte: since } }, select: { id: true } });
+        if (told) continue;
+        await writeAudit({ workspaceId, action: "blog.publish_held", entityType: "blog_post", entityId: p.id, meta: { failing } });
         await notify({
           workspaceId,
           kind: "publish_failed",
-          title: `Publishing "${p.title}" failed`,
-          body: e instanceof Error ? e.message.slice(0, 400) : "WordPress rejected the request.",
-          path: `/blog/${p.id}`,
+          title: `"${p.title}" is at final approval but won't publish`,
+          body: `It no longer passes: ${failing.join("; ")}. Fix it, or send it back to review.`.slice(0, 400),
+          path: `/blog/${p.id}?tab=review`,
           entityType: "blog_post",
           entityId: p.id,
         });
       }
+      for (const p of ready) {
+        try {
+          if (await publishCore(workspaceId, p.id)) report.published++;
+        } catch (e) {
+          // WP outage or rejection — leave the post at final_approval for the next
+          // cycle, but tell someone. A silent retry loop is how a broken
+          // integration goes unnoticed for a week.
+          await notify({
+            workspaceId,
+            kind: "publish_failed",
+            title: `Publishing "${p.title}" failed`,
+            body: e instanceof Error ? e.message.slice(0, 400) : "WordPress rejected the request.",
+            path: `/blog/${p.id}`,
+            entityType: "blog_post",
+            entityId: p.id,
+          });
+        }
+      }
     }
-  }
+  });
 
   // 5. Video packaging: turn published posts without a package into queued renders.
-  if (unattended("video_packaging")) {
-    const unpackaged = await db.blogPost.findMany({
-      where: { workspaceId, status: "published" },
-      select: { id: true },
-      take: 5,
-    });
-    for (const p of unpackaged) {
-      const has = await db.videoRender.count({ where: { workspaceId, blogPostId: p.id } });
-      if (has > 0) continue;
-      const id = await packageVideoCore(workspaceId, p.id);
-      if (id) report.videosPackaged++;
-      break; // one package per cycle
+  await step("video packaging", async () => {
+    if (generating("video_packaging")) {
+      const unpackaged = await db.blogPost.findMany({
+        where: { workspaceId, status: "published" },
+        select: { id: true },
+        take: 5,
+      });
+      for (const p of unpackaged) {
+        const has = await db.videoRender.count({ where: { workspaceId, blogPostId: p.id } });
+        if (has > 0) continue;
+        const id = await packageVideoCore(workspaceId, p.id);
+        if (id) report.videosPackaged++;
+        break; // one package per cycle
+      }
     }
-  }
+  });
 
   // 6. Video rendering: process one queued render per cycle (daily cap inside).
   // Any mode: a render stranded mid-board is released to "failed" either way.
   await releaseStaleRenderClaims(workspaceId).catch(() => 0);
-  if (unattended("video_rendering")) {
-    const queued = await db.videoRender.findFirst({
-      where: { workspaceId, status: "queued" },
-      orderBy: { createdAt: "asc" },
-    });
-    if (queued && (await processRenderCore(workspaceId, queued.id))) report.videosRendered++;
-  }
+  await step("video rendering", async () => {
+    if (generating("video_rendering")) {
+      const queued = await db.videoRender.findFirst({
+        where: { workspaceId, status: "queued" },
+        orderBy: { createdAt: "asc" },
+      });
+      if (queued && (await processRenderCore(workspaceId, queued.id))) report.videosRendered++;
+    }
+  });
+
+  if (failedSteps.length) report.failedSteps = failedSteps;
+  await recordCycleStatus(workspaceId, failedSteps).catch(() => undefined);
 
   const activity =
     report.ideasCreated + report.drafted + report.variantPosts + report.postsGenerated +
     report.imagesGenerated + report.seoOptimized + report.published + report.videosPackaged +
     report.videosRendered;
-  if (activity > 0) {
+  if (activity > 0 || failedSteps.length) {
     await writeAudit({
       workspaceId,
       action: "autopilot.cycle",
