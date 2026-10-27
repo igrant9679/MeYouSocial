@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import type { Role } from "@prisma/client";
 import { withdrawInvitationsFor } from "@/lib/invitations";
+import { DELETABLE_POST_STATUSES } from "@/lib/social/post-lists";
 
 /**
  * The registry of things a user is allowed to delete, and the ONLY place that
@@ -26,7 +27,7 @@ export type DeletableKind =
   | "task" | "asset" | "wikiDoc" | "audienceSubmission" | "audienceAvatar"
   | "invitation" | "membership" | "zernioAccount" | "workspace" | "campaign"
   | "zernioComment" | "brandFact" | "brandDocument" | "socialIdea"
-  | "specialDay" | "captionBatch" | "rssFeed" | "mediaItem";
+  | "specialDay" | "captionBatch" | "rssFeed" | "mediaItem" | "socialPost";
 
 export type DeletableTarget = { id: string; name: string };
 
@@ -137,6 +138,24 @@ export const DELETABLE: Record<DeletableKind, Deletable> = {
     async remove(id, workspaceId) { await db.rssFeed.deleteMany({ where: { id, workspaceId } }); },
     revalidate: ["/social/rss"],
   },
+  // A social post, while it has never reached anyone. The status filter is in
+  // the delete itself, so a post that started sending after the page loaded
+  // is refused too (SOC-20: sent posts used to go with one click).
+  socialPost: {
+    label: "post",
+    role: "EDITOR",
+    find: (id, workspaceId) => db.socialPost.findFirst({ where: { id, workspaceId }, select: { id: true, text: true } })
+      .then((r) => (r ? { id: r.id, name: r.text.replace(/\s+/g, " ").trim().slice(0, 60) || "(image only)" } : null)),
+    async remove(id, workspaceId) {
+      const r = await db.socialPost.deleteMany({ where: { id, workspaceId, status: { in: DELETABLE_POST_STATUSES } } });
+      if (r.count === 0) {
+        throw new Error("That post has gone out (or is going out now), so it stays as the record. Duplicate it to post it again.");
+      }
+    },
+    redirectTo: () => "/social/drafts",
+    revalidate: ["/social/drafts", "/social/queue", "/social/sent", "/social/calendar", "/social/approvals", "/social/performance"],
+  },
+
   // Media library: the row only. The stored file stays, because posts that
   // used it must keep their image.
   mediaItem: {

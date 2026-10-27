@@ -54,7 +54,7 @@ export default async function ConnectionsPage({ searchParams }: { searchParams: 
   const { ok, err, connected, failed } = await searchParams;
 
   const isPlatformOperator = isOperator(user.email);
-  const [emailReady, socialReady, emailAccounts, socialAccounts, origin, ownZernioKey] = await Promise.all([
+  const [emailReady, socialReady, emailAccounts, socialAccounts, origin, ownZernioKey, ownWebhookSecret] = await Promise.all([
     unipileConfigured(),
     zernioConfigured(workspace.id),
     db.unipileAccount.findMany({
@@ -67,6 +67,7 @@ export default async function ConnectionsPage({ searchParams }: { searchParams: 
     }),
     getPublicUrl(),
     getWorkspaceSettingRaw(workspace.id, "zernio:api_key"),
+    getWorkspaceSettingRaw(workspace.id, "zernio:webhook_secret"),
   ]);
 
   const cfgRows = isPlatformOperator
@@ -319,6 +320,21 @@ export default async function ConnectionsPage({ searchParams }: { searchParams: 
             name="apiKey"
             type="password"
             placeholder={ownZernioKey ? "Paste a new key to replace it" : "sk_… (from the Zernio account that owns this workspace's social logins)"}
+            className="border border-[var(--line-2)] rounded-lg p-2 text-sm font-mono"
+            autoComplete="off"
+          />
+        </label>
+        {/* A webhook in THIS workspace's own Zernio account, so its post
+            outcomes arrive too (SOC-15). Deliveries it signs can only change
+            this workspace. */}
+        <label className="flex flex-col gap-1">
+          <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">
+            Webhook secret (optional) {ownWebhookSecret && <span className="text-[var(--green-on)]">· set</span>}
+          </span>
+          <input
+            name="webhookSecret"
+            type="password"
+            placeholder={ownWebhookSecret ? "Leave blank to keep the stored secret" : `Signing secret of a webhook in this workspace's Zernio account, pointed at ${origin}/api/zernio/webhook`}
             className="border border-[var(--line-2)] rounded-lg p-2 text-sm font-mono"
             autoComplete="off"
           />

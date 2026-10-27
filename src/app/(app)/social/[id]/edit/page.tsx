@@ -15,7 +15,8 @@ import { readTargetOptions } from "@/lib/social/platform-options";
 // (char limits, variants, per-network images) behave identically to composing.
 //
 // Only draft | scheduled are editable: once a target has posted, the record is
-// history and must keep saying what actually went out.
+// history and must keep saying what actually went out. Anything else opens the
+// read-only post page (`/social/[id]`) instead of bouncing with an error (SOC-20).
 
 const EDITABLE = new Set(["draft", "scheduled"]);
 
@@ -43,7 +44,7 @@ export default async function EditSocialPostPage({ params }: { params: Promise<{
   ]);
   if (!post) notFound();
   if (!EDITABLE.has(post.status)) {
-    redirect(`/social?err=${encodeURIComponent("That post has already been sent, so it can't be edited.")}`);
+    redirect(`/social/${post.id}`);
   }
 
   // Targets store the Zernio account id; the picker works in local row ids.
@@ -64,6 +65,7 @@ export default async function EditSocialPostPage({ params }: { params: Promise<{
   for (const t of post.targets) if (t.subFormat) subFormats[t.provider.toUpperCase()] = t.subFormat;
   const firstComments: Record<string, string> = {};
   for (const t of post.targets) if (t.firstComment) firstComments[t.provider.toUpperCase()] = t.firstComment;
+  const ownMedia = [...new Set(post.targets.filter((t) => readJson<string[]>(t.mediaKeys, []).length > 0).map((t) => t.provider.toUpperCase()))];
   const tiktokTarget = post.targets.find((t) => t.provider.toLowerCase() === "tiktok");
 
   // Re-queueing ignores this post's own slot, so "Add to queue" on an already
@@ -88,6 +90,7 @@ export default async function EditSocialPostPage({ params }: { params: Promise<{
     linkToFirstComment: post.linkToFirstComment,
     watermark: post.watermark,
     firstComments,
+    ownMedia,
     tiktok: tiktokTarget ? readTargetOptions(tiktokTarget.options).tiktok ?? null : null,
   };
 

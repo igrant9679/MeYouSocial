@@ -105,6 +105,9 @@ export type ZernioPlatform = {
    *  the composer's counter rather than something the API enforces. */
   charLimit: number;
   requiresMedia?: boolean;
+  /** Takes a video and nothing else (YouTube). The app attaches images only, so
+   *  such a leg can't succeed until video upload exists (SOC-13). */
+  requiresVideo?: boolean;
   color: string;
 };
 
@@ -116,7 +119,7 @@ export const ZERNIO_PLATFORMS: ZernioPlatform[] = [
   { slug: "threads", label: "Threads", charLimit: 500, color: "#000000" },
   { slug: "bluesky", label: "Bluesky", charLimit: 300, color: "#0285FF" },
   { slug: "tiktok", label: "TikTok", charLimit: 2200, requiresMedia: true, color: "#010101" },
-  { slug: "youtube", label: "YouTube", charLimit: 5000, requiresMedia: true, color: "#FF0000" },
+  { slug: "youtube", label: "YouTube", charLimit: 5000, requiresMedia: true, requiresVideo: true, color: "#FF0000" },
   { slug: "pinterest", label: "Pinterest", charLimit: 500, requiresMedia: true, color: "#E60023" },
   { slug: "reddit", label: "Reddit", charLimit: 40000, color: "#FF4500" },
   { slug: "googlebusiness", label: "Google Business", charLimit: 1500, color: "#4285F4" },

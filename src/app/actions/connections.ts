@@ -239,6 +239,18 @@ export async function saveWorkspaceZernioKeyAction(formData: FormData) {
 
   const apiKey = String(formData.get("apiKey") ?? "").trim();
   const force = String(formData.get("force") ?? "") === "on";
+  // The signing secret of a webhook in THIS workspace's own Zernio account
+  // (SOC-15). Deliveries it verifies can only change this workspace.
+  const webhookSecret = String(formData.get("webhookSecret") ?? "").trim();
+  if (!apiKey && webhookSecret) {
+    const { getWorkspaceSettingRaw } = await import("@/lib/settings");
+    if (!(await getWorkspaceSettingRaw(workspace.id, "zernio:api_key"))) {
+      redirect("/admin/connections?err=" + encodeURIComponent("Save this workspace's own Zernio key first — the webhook secret belongs with it."));
+    }
+    await setWorkspaceSetting(workspace.id, "zernio:webhook_secret", webhookSecret);
+    revalidatePath("/admin/connections");
+    redirect("/admin/connections?ok=" + encodeURIComponent(`Webhook secret saved for ${workspace.name}.`));
+  }
   if (!apiKey) redirect("/admin/connections?err=" + encodeURIComponent("Paste the Zernio API key for this workspace."));
 
   const probe = await probeZernioCredentials(apiKey);
@@ -246,6 +258,7 @@ export async function saveWorkspaceZernioKeyAction(formData: FormData) {
     redirect("/admin/connections?err=" + encodeURIComponent(`Not saved — ${probe.message}`));
   }
   await setWorkspaceSetting(workspace.id, "zernio:api_key", apiKey);
+  if (webhookSecret) await setWorkspaceSetting(workspace.id, "zernio:webhook_secret", webhookSecret);
   revalidatePath("/admin/connections");
   revalidatePath("/social", "layout");
   redirect(
@@ -260,6 +273,7 @@ export async function clearWorkspaceZernioKeyAction() {
   const { workspace } = await requireRole("ADMIN");
   const { setWorkspaceSetting } = await import("@/lib/settings");
   await setWorkspaceSetting(workspace.id, "zernio:api_key", "");
+  await setWorkspaceSetting(workspace.id, "zernio:webhook_secret", "");
   revalidatePath("/admin/connections");
   redirect("/admin/connections?ok=" + encodeURIComponent(`${workspace.name} falls back to the platform Zernio key.`));
 }

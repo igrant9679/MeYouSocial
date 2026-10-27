@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import { storage } from "@/lib/storage";
 import { writeJson, readJson } from "@/lib/db/json";
 import { publishSocialPost } from "@/lib/social/publish";
+import { legProblem, scheduleRefusal } from "@/lib/social/validate";
 import { networkFor } from "@/lib/social/networks";
 import { normaliseSubFormat, subFormatsFor } from "@/lib/social/sub-formats";
 import { readTargetOptions, supportsFirstComment, tiktokOptionsFromForm, tiktokRefusal, type TargetOptions } from "@/lib/social/platform-options";
@@ -71,7 +72,8 @@ const tabFlash = (to: string): Flash => (msg, kind = "err") => flashTo(to, msg, 
  */
 function listBack(formData: FormData): Flash {
   const raw = String(formData.get("back") ?? "");
-  const ok = /^\/social\/(queue|sent|drafts|calendar)(\?[\w=&%.+-]*)?$/.test(raw);
+  // The list tabs, or one post's page (a cuid — lowercase letters and digits).
+  const ok = /^\/social\/(queue|sent|drafts|calendar|c[a-z0-9]{20,32})(\?[\w=&%.+-]*)?$/.test(raw);
   if (!ok) return backTo;
   const [path, query] = raw.split("?");
   // Keep the list's own filters; the flash rides alongside them.
@@ -102,8 +104,10 @@ function assertMediaWhereRequired(
   providers: string[],
   mediaFor: (provider: string) => string[],
 ): void {
+  // A video-only network (YouTube) is left to assertNetworkRules, which says
+  // it needs a VIDEO — "attach an image" would be the wrong advice.
   const missing = [...new Set(providers)]
-    .filter((p) => networkFor(p)?.requiresMedia && mediaFor(p).length === 0)
+    .filter((p) => networkFor(p)?.requiresMedia && !networkFor(p)?.requiresVideo && mediaFor(p).length === 0)
     .map((p) => networkFor(p)?.label ?? p);
   if (missing.length === 0) return;
   const list =
@@ -113,6 +117,25 @@ function assertMediaWhereRequired(
   backTo(
     `${list} ${missing.length === 1 ? "needs" : "need"} an image — attach one, or deselect ${missing.length === 1 ? "it" : "them"}.`,
   );
+}
+
+/**
+ * The rest of the network rules, from the one check every other path uses
+ * (lib/social/validate.ts, SOC-13/14): a video where nothing else will do
+ * (YouTube, a Facebook Reel) and the network's length limit. Images, Stories
+ * and TikTok are refused above with their own messages first.
+ */
+function assertNetworkRules(
+  providers: string[],
+  leg: (provider: string) => { text: string | null; mediaKeys: string | null; subFormat: string | null },
+  post: { text: string; mediaKeys: string | null },
+  formData: FormData,
+): void {
+  for (const provider of new Set(providers)) {
+    const tiktok = tiktokOptionsFromForm(formData, provider.toUpperCase());
+    const problem = legProblem({ provider, ...leg(provider), options: tiktok ? JSON.stringify({ tiktok }) : null }, post);
+    if (problem) backTo(problem);
+  }
 }
 
 async function storeMedia(files: FormDataEntryValue[]): Promise<string[]> {
@@ -315,25 +338,33 @@ export async function createSocialPostAction(formData: FormData) {
   const subFormatFor = (provider: string): string | null =>
     normaliseSubFormat(provider, String(formData.get(`subformat_${provider.toUpperCase()}`) ?? ""));
 
-  // Every path here either publishes now or schedules, so check before storing.
-  assertMediaWhereRequired(
-    accounts.map((a) => a.provider),
-    (p) => readJson<string[]>(mediaByProvider.get(p.toUpperCase()), mediaKeys),
-  );
   // Keyed on what was REQUESTED, not the stored status: a post held for
-  // approval is stored as a draft but will send once approved.
-  if (when !== "draft") assertTikTokReady(formData, accounts.map((a) => a.provider), backTo);
-
-  // A Story or a Reel cannot be text — the network rejects it at publish, long
-  // after the author has gone. Refuse here, naming the network and the format.
-  for (const provider of new Set(accounts.map((a) => a.provider))) {
-    const sf = subFormatFor(provider);
-    if (!sf) continue;
-    const opt = subFormatsFor(provider).find((o) => o.value === sf);
-    const keys = readJson<string[]>(mediaByProvider.get(provider.toUpperCase()), mediaKeys);
-    if (opt?.requiresMedia && keys.length === 0) {
-      backTo(`A ${opt.label.toLowerCase()} on ${networkFor(provider)?.label ?? provider} needs an image or video — attach one, or switch it back to a feed post.`);
+  // approval is stored as a draft but will send once approved. A draft is
+  // exempt (SOC-19) — an image can arrive before it goes out, and every path
+  // that schedules or sends it checks again (lib/social/validate.ts).
+  if (when !== "draft") {
+    assertMediaWhereRequired(
+      accounts.map((a) => a.provider),
+      (p) => readJson<string[]>(mediaByProvider.get(p.toUpperCase()), mediaKeys),
+    );
+    assertTikTokReady(formData, accounts.map((a) => a.provider), backTo);
+    // A Story or a Reel cannot be text — the network rejects it at publish, long
+    // after the author has gone. Refuse here, naming the network and the format.
+    for (const provider of new Set(accounts.map((a) => a.provider))) {
+      const sf = subFormatFor(provider);
+      if (!sf) continue;
+      const opt = subFormatsFor(provider).find((o) => o.value === sf);
+      const keys = readJson<string[]>(mediaByProvider.get(provider.toUpperCase()), mediaKeys);
+      if (opt?.requiresMedia && !opt.requiresVideo && keys.length === 0) {
+        backTo(`A ${opt.label.toLowerCase()} on ${networkFor(provider)?.label ?? provider} needs an image or video — attach one, or switch it back to a feed post.`);
+      }
     }
+    assertNetworkRules(
+      accounts.map((a) => a.provider),
+      (p) => ({ text: variantFor(p), mediaKeys: mediaByProvider.get(p.toUpperCase()) ?? null, subFormat: subFormatFor(p) }),
+      { text, mediaKeys: writeJson(mediaKeys) },
+      formData,
+    );
   }
 
   const post = await db.socialPost.create({
@@ -353,6 +384,8 @@ export async function createSocialPostAction(formData: FormData) {
       text,
       mediaKeys: writeJson(mediaKeys),
       scheduledAt,
+      // A person picked this time (or Optimal did); a queued post sits in a slot (SOC-17).
+      timeChosen: when === "schedule" || when === "optimal",
       status,
       targets: {
         create: accounts.map((a) => ({
@@ -456,14 +489,8 @@ export async function cancelScheduledAction(formData: FormData) {
   backTo("Moved to drafts.", "ok");
 }
 
-export async function deleteSocialPostAction(formData: FormData) {
-  const backTo: Flash = listBack(formData);
-  const { workspace } = await requireRole("EDITOR");
-  const id = String(formData.get("id") ?? "");
-  await db.socialPost.deleteMany({ where: { id, workspaceId: workspace.id } });
-  revalidatePath("/social", "layout");
-  backTo("Deleted.", "ok");
-}
+// Deleting a post goes through the registry (`socialPost` in lib/deletable.ts):
+// a confirmation, an audit row, and no delete once it has gone out (SOC-20).
 
 export async function duplicateSocialPostAction(formData: FormData) {
   const backTo: Flash = listBack(formData);
@@ -622,7 +649,11 @@ export async function updateSocialPostAction(formData: FormData) {
   const mediaByProvider = new Map<string, string | null | undefined>();
   for (const provider of new Set(accounts.map((a) => a.provider.toUpperCase()))) {
     const keys = await storeMedia(formData.getAll(`media_${provider}`));
-    mediaByProvider.set(provider, keys.length ? writeJson(keys) : undefined);
+    // A new upload replaces. No upload: a network switched back to "Use base"
+    // loses its own images (null); one still customized keeps them (undefined).
+    // Only forms that mark their customized networks get the clear (SOC-18).
+    const useBase = formData.get("perNetworkMarks") === "1" && formData.get(`custom_${provider}`) !== "1";
+    mediaByProvider.set(provider, keys.length ? writeJson(keys) : useBase ? null : undefined);
   }
 
   // Only when it's actually going out — a draft may legitimately have no image
@@ -634,9 +665,15 @@ export async function updateSocialPostAction(formData: FormData) {
   if (status !== "draft") {
     assertTikTokReady(formData, accounts.map((a) => a.provider), backTo);
     const existingFor = new Map(post!.targets.map((t) => [t.provider, t.mediaKeys]));
+    // What a network will send after this save: a new upload, a cleared slot
+    // (null — the base images), or what it already had.
+    const effectiveMedia = (p: string): string | null => {
+      const m = mediaByProvider.get(p.toUpperCase());
+      return m === undefined ? existingFor.get(p) ?? null : m;
+    };
     assertMediaWhereRequired(
       accounts.map((a) => a.provider),
-      (p) => readJson<string[]>(mediaByProvider.get(p.toUpperCase()) ?? existingFor.get(p), mediaKeys),
+      (p) => readJson<string[]>(effectiveMedia(p), mediaKeys),
     );
     // Same rule as the composer: a Story or Reel with no media is refused here
     // rather than by the network, hours later, with the author long gone.
@@ -644,11 +681,17 @@ export async function updateSocialPostAction(formData: FormData) {
       const sf = subFormatFor(provider);
       if (!sf) continue;
       const opt = subFormatsFor(provider).find((o) => o.value === sf);
-      const keys = readJson<string[]>(mediaByProvider.get(provider.toUpperCase()) ?? existingFor.get(provider), mediaKeys);
-      if (opt?.requiresMedia && keys.length === 0) {
+      const keys = readJson<string[]>(effectiveMedia(provider), mediaKeys);
+      if (opt?.requiresMedia && !opt.requiresVideo && keys.length === 0) {
         backTo(`A ${opt.label.toLowerCase()} on ${networkFor(provider)?.label ?? provider} needs an image or video — attach one, or switch it back to a feed post.`);
       }
     }
+    assertNetworkRules(
+      accounts.map((a) => a.provider),
+      (p) => ({ text: variantFor(p), mediaKeys: effectiveMedia(p), subFormat: subFormatFor(p) }),
+      { text, mediaKeys: writeJson(mediaKeys) },
+      formData,
+    );
   }
 
   const keepIds = new Set(accounts.map((a) => a.accountId));
@@ -697,6 +740,7 @@ export async function updateSocialPostAction(formData: FormData) {
       where: { id: post!.id },
       data: {
         text, mediaKeys: writeJson(mediaKeys), topicId, scheduledAt, status,
+        timeChosen: when === "schedule" || when === "optimal",
         campaignId, category, evergreen, recycleEveryDays, approval, reviewNote,
         firstComment, linkToFirstComment, watermark,
       },
@@ -823,10 +867,15 @@ export async function rescheduleSocialPostAction(id: string, isoDateTime: string
       return { ok: false, message: "This workspace requires approval before posts go out — submit it for approval first." };
     }
   }
+  // …and the networks' own rules: a post they'd certainly reject isn't
+  // scheduled to fail later (SOC-14).
+  const refusal = await scheduleRefusal(post.id);
+  if (refusal) return { ok: false, message: refusal };
 
   await db.socialPost.update({
     where: { id: post.id },
-    data: { scheduledAt: when, status: "scheduled" },
+    // Dropped on a time by hand — no longer a slot the queue placed (SOC-17).
+    data: { scheduledAt: when, status: "scheduled", timeChosen: true },
   });
   revalidatePath("/social", "layout");
   return { ok: true, message: "Moved." };

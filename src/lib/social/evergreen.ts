@@ -2,7 +2,7 @@ import { db } from "@/lib/db";
 import { getSetting } from "@/lib/settings";
 import { isGloballyPaused, writeAudit } from "@/lib/governance";
 import { notify } from "@/lib/notify";
-import { formatInZone, getQueue, pickFreeSlot, type FreeSlot } from "@/lib/social/slots";
+import { claimFree, formatInZone, getQueue, type FreeSlot } from "@/lib/social/slots";
 
 /**
  * Evergreen recycling — refill free queue slots with content that has already
@@ -56,7 +56,7 @@ export async function recycleEvergreenPosts(): Promise<number> {
     if (await isGloballyPaused(workspaceId)) continue;
 
     const now = Date.now();
-    const queue = await getQueue(workspaceId, { limit: 120 });
+    const queue = await getQueue(workspaceId, { limit: 2000 });
     let free: FreeSlot[] = queue.free.filter((s) => s.at.getTime() <= now + FILL_HORIZON_DAYS * DAY_MS);
     if (free.length === 0) continue;
 
@@ -103,7 +103,8 @@ export async function recycleEvergreenPosts(): Promise<number> {
     let clonedHere = 0;
     for (const source of eligible) {
       if (clonedHere >= MAX_CLONES_PER_WORKSPACE_PER_SWEEP) break;
-      const slot = pickFreeSlot(free, source.category);
+      // Reserved, like every other claim — the queue may be filling too (SOC-16).
+      const slot = await claimFree(workspaceId, free, source.category);
       if (!slot) break; // nothing this or any fallback category can take
 
       const targets = source.targets.filter((t) => connected.has(t.accountId));

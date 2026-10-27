@@ -1785,7 +1785,7 @@ async function runAutopilotCycleUnlocked(workspaceId: string): Promise<CycleRepo
 
       // Social: give unscheduled drafts a slot. Approval-held posts are skipped —
       // `require_approval` still means what it says, even here.
-      const { getQueue, pickFreeSlot } = await import("@/lib/social/slots");
+      const { getQueue, claimFree } = await import("@/lib/social/slots");
       const drafts = await db.socialPost.findMany({
         where: {
           workspaceId,
@@ -1799,18 +1799,26 @@ async function runAutopilotCycleUnlocked(workspaceId: string): Promise<CycleRepo
           OR: [{ approval: null }, { approval: "approved" }],
         },
         orderBy: { createdAt: "asc" },
-        take: 10,
+        // Read past the ten it may queue: drafts a network would reject are
+        // skipped, and ten of them at the front must not stall the rest.
+        take: 100,
         select: { id: true, category: true },
       });
       if (drafts.length) {
-        const { free } = await getQueue(workspaceId, { limit: 200 });
+        const { free } = await getQueue(workspaceId, { limit: 2000 });
         let remaining = free;
+        const { scheduleRefusal } = await import("@/lib/social/validate");
         for (const d of drafts) {
-          const slot = pickFreeSlot(remaining, d.category);
+          // A draft its networks would certainly reject waits instead of taking
+          // a slot to fail in (SOC-14) — often an auto-image still on its way.
+          if (await scheduleRefusal(d.id)) continue;
+          // Reserved, so a person queueing at the same moment can't take it too.
+          const slot = await claimFree(workspaceId, remaining, d.category);
           if (!slot) break; // calendar full — the rest wait for a slot, not a person
-          await db.socialPost.update({ where: { id: d.id }, data: { scheduledAt: slot.at, status: "scheduled" } });
+          await db.socialPost.update({ where: { id: d.id }, data: { scheduledAt: slot.at, status: "scheduled", timeChosen: false } });
           remaining = remaining.filter((f) => f.at.getTime() !== slot.at.getTime());
           report.autoQueued++;
+          if (report.autoQueued >= 10) break; // ten a cycle, as before
         }
         if (report.autoQueued) {
           await writeAudit({

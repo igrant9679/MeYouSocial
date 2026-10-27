@@ -98,7 +98,7 @@ export default async function SocialPerformancePage({ searchParams }: { searchPa
       ) : (
         <div className="flex flex-col gap-2">
           {history.map((p) => (
-            <PostCard key={p.id} post={p} timeZone={queue.timeZone} isAdmin={isAdmin} approvalOn={requireApproval} />
+            <PostCard key={p.id} post={p} returnTo="/social/performance" timeZone={queue.timeZone} isAdmin={isAdmin} approvalOn={requireApproval} />
           ))}
         </div>
       )}

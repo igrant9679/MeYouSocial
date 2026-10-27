@@ -20,11 +20,12 @@ export type Network = {
   label: string;
   charLimit: number;
   requiresMedia?: boolean;
+  requiresVideo?: boolean;
   color: string;
 };
 
 function toNetwork(p: ZernioPlatform): Network {
-  return { provider: p.slug, label: p.label, charLimit: p.charLimit, requiresMedia: p.requiresMedia, color: p.color };
+  return { provider: p.slug, label: p.label, charLimit: p.charLimit, requiresMedia: p.requiresMedia, requiresVideo: p.requiresVideo, color: p.color };
 }
 
 export const NETWORKS: Network[] = ZERNIO_PLATFORMS.map(toNetwork);

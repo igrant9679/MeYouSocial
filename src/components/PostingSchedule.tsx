@@ -128,6 +128,13 @@ export function PostingSchedule({
             <datalist id="tz-list">{zones.map((z) => <option key={z} value={z} />)}</datalist>
           </label>
           {canEdit && <SubmitButton className="btn sm" pendingText="Saving…">Save timezone</SubmitButton>}
+          {/* Queued posts sit on slots, which are wall clock: a new zone moves the
+              slots, so the posts move with them unless asked not to (SOC-17). */}
+          {canEdit && timeZoneConfigured && (
+            <label className="inline-flex items-center gap-1.5 text-[11px] text-[var(--mute)]" title="Posts the queue placed keep their slot (same weekday and local time) in the new zone. Posts scheduled by hand keep their exact moment.">
+              <input type="checkbox" name="reanchor" defaultChecked /> Move queued posts to the same local times
+            </label>
+          )}
           <p className="text-[11px] basis-full" style={{ color: timeZoneConfigured ? "var(--mute)" : "var(--amber-on)" }}>
             {!timeZoneConfigured ? (
               <>Not set — slot times are being read as <b>UTC</b>, which is almost certainly not what you meant.

@@ -373,6 +373,8 @@ export async function saveBatchAction(formData: FormData) {
     const label = it.item.replace(/\s*\(\d{4}-\d{2}-\d{2}\)$/, "");
     let scheduledAt: Date | null = null;
     let status = "draft";
+    // The day's own time is chosen; a queue slot isn't (SOC-17).
+    let timeChosen = false;
     const at = it.day ? dayAt(it.day, it.minute, tz) : null;
     // A caption written for a day (a special day, or a countdown stage) only
     // ever goes out on that day: never saved without its time, never put in
@@ -383,6 +385,7 @@ export async function saveBatchAction(formData: FormData) {
       if (!at) { notes.push(`${label}: no date`); continue; }
       if (at.getTime() < Date.now() + 60_000) { notes.push(`${label}: its time has passed`); continue; }
       scheduledAt = at;
+      timeChosen = true;
       status = "scheduled";
     } else if (mode === "queue") {
       const claim = await claimNextFreeSlot(workspace.id, undefined, category);
@@ -392,6 +395,7 @@ export async function saveBatchAction(formData: FormData) {
     } else {
       // Drafts keep their proposed time when they have one (see above).
       scheduledAt = at && at.getTime() > Date.now() ? at : null;
+      timeChosen = scheduledAt != null;
     }
     if (held) status = "draft";
 
@@ -419,6 +423,7 @@ export async function saveBatchAction(formData: FormData) {
         text: assemble(it),
         mediaKeys: writeJson(media),
         scheduledAt,
+        timeChosen,
         status,
         approval: requireApproval ? (held ? "pending" : "approved") : null,
         targets: { create: targets },

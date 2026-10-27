@@ -167,7 +167,7 @@ export default async function DistributeStage({ searchParams }: { searchParams: 
                     {[...new Set(p.targets.map((t) => t.provider))].map((x) => networkFor(x)?.label ?? x).join(" · ")} · {p.updatedAt.toLocaleDateString("en-GB", { day: "2-digit", month: "short" })}
                   </div>
                 </div>
-                <Link href={`/social/${p.id}/edit`} className="btn sm">Open</Link>
+                <Link href={`/social/${p.id}`} className="btn sm">Open</Link>
               </StageRow>
             );
           })}

@@ -93,7 +93,7 @@ export async function deletePostingSlotAction(formData: FormData) {
   // Scoped delete — a slot id from another workspace matches nothing.
   await db.postingSlot.deleteMany({ where: { id, workspaceId: workspace.id } });
 
-  const { released } = await releasePostsFromSlots(
+  const { released, toApproval } = await releasePostsFromSlots(
     workspace.id,
     [{ weekday: slot!.weekday, minute: slot!.minute }],
     `The ${formatMinute(slot!.minute)} slot on ${WEEKDAY_LABELS[slot!.weekday]} was removed, so this post needs a new time.`,
@@ -108,7 +108,7 @@ export async function deletePostingSlotAction(formData: FormData) {
   revalidatePath("/social", "layout");
   backTo(
     released
-      ? `Slot removed. ${released} scheduled post${released === 1 ? "" : "s"} went back to Approvals for a new time.`
+      ? `Slot removed. ${released} post${released === 1 ? "" : "s"} the queue had put there went back to ${toApproval ? "Approvals" : "drafts"} for a new time; posts scheduled by hand keep theirs.`
       : "Slot removed.",
     "ok",
   );
@@ -139,7 +139,7 @@ export async function clearWeekdaySlotsAction(formData: FormData) {
   const slots = await db.postingSlot.findMany({ where: { workspaceId: workspace.id, weekday } });
   const { count } = await db.postingSlot.deleteMany({ where: { workspaceId: workspace.id, weekday } });
 
-  const { released } = await releasePostsFromSlots(
+  const { released, toApproval } = await releasePostsFromSlots(
     workspace.id,
     slots.map((s) => ({ weekday: s.weekday, minute: s.minute })),
     `Every slot on ${WEEKDAY_LABELS[weekday]} was cleared, so this post needs a new time.`,
@@ -154,7 +154,7 @@ export async function clearWeekdaySlotsAction(formData: FormData) {
   if (!count) backTo("Nothing to clear.", "ok");
   backTo(
     released
-      ? `Cleared ${count} slot${count === 1 ? "" : "s"}. ${released} scheduled post${released === 1 ? "" : "s"} went back to Approvals for a new time.`
+      ? `Cleared ${count} slot${count === 1 ? "" : "s"}. ${released} post${released === 1 ? "" : "s"} the queue had put there went back to ${toApproval ? "Approvals" : "drafts"} for a new time; posts scheduled by hand keep theirs.`
       : `Cleared ${count} slot${count === 1 ? "" : "s"}.`,
     "ok",
   );
@@ -169,9 +169,21 @@ export async function savePostingTimeZoneAction(formData: FormData) {
   const { workspace } = await requireRole("ADMIN");
   const tz = String(formData.get("timezone") ?? "").trim();
   if (!isValidTimeZone(tz)) backTo("That isn't a recognised timezone.");
+  const { resolveTimeZone, reanchorQueuedPosts } = await import("@/lib/social/slots");
+  const before = await resolveTimeZone(workspace.id);
   await setWorkspaceSetting(workspace.id, "social:timezone", tz);
+  // Slots are wall clock, so a new zone moves every slot. Posts the queue
+  // placed used to stay at their old instants — off-slot, and double-booked
+  // against the slot's new time (SOC-17). Hand-scheduled posts keep theirs.
+  const moved = before.configured && before.timeZone !== tz && String(formData.get("reanchor") ?? "") === "on"
+    ? await reanchorQueuedPosts(workspace.id, before.timeZone, tz)
+    : null;
   revalidatePath("/social", "layout");
-  backTo(`Posting times are now read in ${tz}.`, "ok");
+  backTo(
+    `Posting times are now read in ${tz}.` +
+      (moved ? ` ${moved.moved} queued post${moved.moved === 1 ? "" : "s"} moved to the same local time${moved.released ? `; ${moved.released} whose new time had already passed went back to drafts` : ""}.` : ""),
+    "ok",
+  );
 }
 
 // ---- Performance ---------------------------------------------------------------
@@ -217,12 +229,17 @@ export async function queueSocialPostAction(formData: FormData) {
     }
   }
 
+  // A post its networks would certainly reject doesn't take a slot (SOC-14).
+  const { scheduleRefusal } = await import("@/lib/social/validate");
+  const refusal = await scheduleRefusal(post!.id);
+  if (refusal) backTo(refusal);
+
   const claim = await claimNextFreeSlot(workspace.id, post!.id, post!.category);
   if ("error" in claim) backTo(queueFailureMessage(claim.error));
 
   await db.socialPost.update({
     where: { id: post!.id },
-    data: { scheduledAt: claim.at, status: "scheduled" },
+    data: { scheduledAt: claim.at, status: "scheduled", timeChosen: false },
   });
   revalidatePath("/social", "layout");
   backTo(`Queued for ${formatInZone(claim.at, await getPostingTimeZone(workspace.id))}.`, "ok");
@@ -262,8 +279,17 @@ export async function queueAllDraftsAction() {
   );
   const held = all.length - allowed.length;
   if (allowed.length === 0) backTo(`All ${held} draft${held === 1 ? " is" : "s are"} waiting on approval.`);
-  const sendable = allowed.filter((d) => d._count.targets > 0);
-  const noTargets = allowed.length - sendable.length;
+  const withTargets = allowed.filter((d) => d._count.targets > 0);
+  const noTargets = allowed.length - withTargets.length;
+  // A draft its networks would certainly reject stays a draft, named (SOC-14).
+  const { scheduleRefusal } = await import("@/lib/social/validate");
+  const sendable: typeof withTargets = [];
+  const ruledOut: string[] = [];
+  for (const d of withTargets) {
+    const refusal = await scheduleRefusal(d.id);
+    if (refusal) ruledOut.push(refusal);
+    else sendable.push(d);
+  }
   const now = Date.now();
   const ownTime = sendable.filter((d) => d.scheduledAt && d.scheduledAt.getTime() > now + 60_000);
   const passed = sendable.filter((d) => d.scheduledAt && d.scheduledAt.getTime() <= now + 60_000).length;
@@ -273,16 +299,17 @@ export async function queueAllDraftsAction() {
   // round-trips to learn something we already know. Each draft takes the
   // earliest free slot its category allows, and slots claimed earlier in the
   // loop are gone for the drafts after it.
-  const pairs: Array<{ id: string; at: Date }> = ownTime.map((d) => ({ id: d.id, at: d.scheduledAt! }));
+  const pairs: Array<{ id: string; at: Date; slotted?: boolean }> = ownTime.map((d) => ({ id: d.id, at: d.scheduledAt! }));
   if (drafts.length) {
-    const { slots, free } = await getQueue(workspace.id, { limit: 200 });
+    const { slots, free } = await getQueue(workspace.id, { limit: 2000 });
     if (slots.filter((s) => s.enabled).length === 0 && pairs.length === 0) backTo(queueFailureMessage("no-slots"));
-    const { pickFreeSlot } = await import("@/lib/social/slots");
+    const { claimFree } = await import("@/lib/social/slots");
     let remaining = free;
     for (const d of drafts) {
-      const slot = pickFreeSlot(remaining, d.category);
+      // Reserved as it's handed out — the autopilot may be queueing too (SOC-16).
+      const slot = await claimFree(workspace.id, remaining, d.category);
       if (!slot) continue; // nothing this category can take — try the next draft
-      pairs.push({ id: d.id, at: slot.at });
+      pairs.push({ id: d.id, at: slot.at, slotted: true });
       remaining = remaining.filter((f) => f.at.getTime() !== slot.at.getTime());
     }
   }
@@ -298,7 +325,7 @@ export async function queueAllDraftsAction() {
   // own schedule since the read above wins.
   await db.$transaction(
     pairs.map((p) =>
-      db.socialPost.updateMany({ where: { id: p.id, workspaceId: workspace.id, status: "draft" }, data: { scheduledAt: p.at, status: "scheduled" } }),
+      db.socialPost.updateMany({ where: { id: p.id, workspaceId: workspace.id, status: "draft" }, data: { scheduledAt: p.at, status: "scheduled", ...(p.slotted ? { timeChosen: false } : {}) } }),
     ),
   );
   const slotted = pairs.length - ownTime.length;
@@ -309,6 +336,7 @@ export async function queueAllDraftsAction() {
   if (left > 0) bits.push(`${left} didn't fit — add more slots.`);
   if (passed > 0) bits.push(`${passed} skipped — ${passed === 1 ? "its" : "their"} date has passed.`);
   if (noTargets > 0) bits.push(`${noTargets} skipped — no account to post to.`);
+  if (ruledOut.length > 0) bits.push(`${ruledOut.length} skipped — a network would reject ${ruledOut.length === 1 ? "it" : "them"} (${ruledOut[0]}${ruledOut.length > 1 ? " …" : ""}).`);
   if (held > 0) bits.push(`${held} skipped (awaiting approval).`);
   backTo(bits.join(" "), "ok");
 }

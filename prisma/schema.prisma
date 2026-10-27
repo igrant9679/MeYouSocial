@@ -1887,6 +1887,10 @@ model SocialPost {
   text        String
   mediaKeys   String   @default("[]") // JSON array of StorageProvider keys
   scheduledAt DateTime?               // null = draft / post-now
+  // A person chose this exact time (composer, drag, CSV, assistant, a dated
+  // caption, Optimal) — false when the QUEUE placed it in a slot. Deleting a
+  // slot or changing the timezone moves only queue-placed posts (SOC-17).
+  timeChosen  Boolean  @default(false)
   // draft | scheduled | publishing | posted | partial | failed
   status      String   @default("draft")
   publishedAt DateTime?

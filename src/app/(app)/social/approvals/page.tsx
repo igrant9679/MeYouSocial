@@ -78,7 +78,7 @@ export default async function SocialApprovalsPage({ searchParams }: { searchPara
               <Section icon={<ShieldCheck className="w-4 h-4" style={{ color: "var(--amber-on)" }} />} title="Awaiting approval" count={awaiting.length} />
               <div className="flex flex-col gap-2 mb-6">
                 {awaiting.map((p) => (
-                  <PostCard key={p.id} post={p} canQueue={hasSlots} timeZone={queue.timeZone} isAdmin={isAdmin} approvalOn={requireApproval} />
+                  <PostCard key={p.id} post={p} returnTo="/social/approvals" canQueue={hasSlots} timeZone={queue.timeZone} isAdmin={isAdmin} approvalOn={requireApproval} />
                 ))}
               </div>
             </>
@@ -92,7 +92,7 @@ export default async function SocialApprovalsPage({ searchParams }: { searchPara
               </p>
               <div className="flex flex-col gap-2 mb-6">
                 {changes.map((p) => (
-                  <PostCard key={p.id} post={p} canQueue={hasSlots} timeZone={queue.timeZone} isAdmin={isAdmin} approvalOn={requireApproval} />
+                  <PostCard key={p.id} post={p} returnTo="/social/approvals" canQueue={hasSlots} timeZone={queue.timeZone} isAdmin={isAdmin} approvalOn={requireApproval} />
                 ))}
               </div>
             </>

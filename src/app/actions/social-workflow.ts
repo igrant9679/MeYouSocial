@@ -102,7 +102,11 @@ export async function approveSocialPostAction(formData: FormData) {
 
   // Honor the time the author asked for, if it's still ahead of us. A past
   // requested time doesn't auto-send — approval means "may go", not "goes now".
-  const scheduleIt = post!.scheduledAt && post!.scheduledAt.getTime() > Date.now() - 60_000;
+  // …but a post its networks would certainly reject is approved and stays a
+  // draft, with the reason (SOC-14) — scheduled, it would only fail at send.
+  const { scheduleRefusal } = await import("@/lib/social/validate");
+  const refusal = await scheduleRefusal(post!.id);
+  const scheduleIt = !refusal && post!.scheduledAt && post!.scheduledAt.getTime() > Date.now() - 60_000;
 
   /**
    * Auto-queue: an approved post with no time of its own takes the next free
@@ -121,7 +125,7 @@ export async function approveSocialPostAction(formData: FormData) {
    * they discover afterwards.
    */
   let queuedAt: Date | null = null;
-  if (!scheduleIt) {
+  if (!scheduleIt && !refusal) {
     const { getSetting } = await import("@/lib/settings");
     if ((await getSetting("social:autoqueue", workspace.id).catch(() => "")) === "true") {
       const { nextFreeSlot } = await import("@/lib/social/slots");
@@ -139,7 +143,7 @@ export async function approveSocialPostAction(formData: FormData) {
       approvedById: user.id,
       approvedAt: new Date(),
       reviewNote: null,
-      ...(queuedAt ? { scheduledAt: queuedAt } : {}),
+      ...(queuedAt ? { scheduledAt: queuedAt, timeChosen: false } : {}),
       status: scheduleIt || queuedAt ? "scheduled" : "draft",
     },
   });
@@ -161,6 +165,7 @@ export async function approveSocialPostAction(formData: FormData) {
     });
   }
   revalidatePath("/social", "layout");
+  if (refusal) backTo(`Approved, but kept as a draft: ${refusal}`, "ok");
   if (scheduleIt) backTo("Approved — it keeps its scheduled time.", "ok");
   if (queuedAt) {
     const { formatInZone, resolveTimeZone } = await import("@/lib/social/slots");
@@ -467,6 +472,7 @@ export async function importSocialCsvAction(formData: FormData) {
         text,
         mediaKeys: "[]",
         scheduledAt,
+        timeChosen: scheduledAt != null, // a time from the file, not a slot (SOC-17)
         // Held rows stay drafts whatever the file asked for — same rule as the
         // composer. The requested time is kept for the approver.
         status: scheduledAt && !held ? "scheduled" : "draft",

@@ -413,6 +413,38 @@ Tabs: **Keys** (`/admin/api-keys`: LLM, search, images, video, TTS, storage) · 
 - **No WordPress, no bare flip** (ART-12): the editor shows Download HTML + Mark as published; the live
   URL is required (`markPublishedManuallyAction`, `back=editor` returns to the article).
 
+## ⚠ One set of network rules; the queue keeps its places (2026-10-27, audit Phase 2, social group)
+- **Network rules live in `lib/social/validate.ts`** (`legProblem` / `postProblems` / `scheduleRefusal`): YouTube and a
+  Facebook Reel need a VIDEO (`requiresVideo` — the app attaches images only, so the composer marks them "not available
+  yet"); Instagram, TikTok, Pinterest, Snapchat and Stories need an image; TikTok needs a chosen audience; and each
+  network's character limit. Every path that schedules asks `scheduleRefusal` — composer and edit saves (not drafts),
+  the calendar drag, Queue, Queue all, bulk Queue, Approve (approves but keeps it a draft, saying why), the assistant's
+  queue/schedule, and full autonomy's auto-queue (skips it; reads 100 drafts, queues up to 10). The SEND checks each leg
+  on its TAGGED text: a refused leg fails with its reason and the rest go; with nothing left Zernio isn't called, not even
+  to upload images. Drafts are exempt everywhere (SOC-19).
+- **An unreadable image stops the send** (SOC-09): `makeUploader` throws on a failed storage read, so every leg fails
+  naming the file, and Retry works. It used to post text-only and mark the legs posted.
+- **The assistant's draft_social_post writes Zernio's account id** and the account name (SOC-07), not our row id.
+- **Webhook** (SOC-15): only post.published / post.failed / post.partial change anything. A partial is settled leg by leg
+  from `GET /posts/{id}` (`settleLegsFromZernio`), and a posted leg is never moved back. A workspace can set its own
+  `zernio:webhook_secret` (Settings → Connections, beside its own key); a delivery verified by it touches only that
+  workspace. The route answers 503 only when there is no secret anywhere.
+- **Slots are claimed, not read** (SOC-16): `claimFree` reserves the workspace-minute (Redis `SET NX`, 3 min; a process
+  map without Redis). Queue, Queue all, bulk, autonomy and evergreen all go through it, looking through 2000 slot instants.
+- **`SocialPost.timeChosen`** (migration `20261028100000_social_post_time_chosen`): true when a person picked the moment
+  (schedule, optimal, the drag, a dated CSV row, Caption Studio's dated captions), false when the queue placed it.
+  Removing a slot or changing the posting timezone moves only `timeChosen: false` posts. A new zone re-anchors them to the
+  same local time (the checkbox is on by default; one whose new time has passed goes back to drafts). A removed slot sends
+  them back to Approvals only when `require_approval` is on, otherwise to drafts. Older rows default to false, so they are
+  treated as queue-placed, which is how everything was treated before.
+- **Editing keeps per-network fields** (SOC-18): a network with its own first comment or images opens customized, so its
+  fields are submitted; "Use base" clears that network's own images (`perNetworkMarks` + `custom_<P>`). A stored Reel stays
+  selectable in the dropdown — a disabled option isn't submitted, and a save would have made it a feed post.
+- **Sent posts are the record** (SOC-20): deleting goes through the registry kind `socialPost` (DeleteButton confirmation,
+  audited) and only for `DELETABLE_POST_STATUSES` (draft, scheduled, failed); `deleteSocialPostAction` is gone.
+  `/social/[id]` is the read-only post page: each network's status, link and error, with Retry failed and Duplicate.
+  The editor redirects sent posts there, and Sent rows have Retry on failed and partial posts.
+
 ## Open items / things the user still owns
 - **Analytics: APIs enabled 2026-08-03** (Search Console + GA Admin + GA Data, on project
   `479503233109` = `gen-lang-client-0838901195` = "CreateUp"). Still pending, user-only: add the

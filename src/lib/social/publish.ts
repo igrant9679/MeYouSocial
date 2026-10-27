@@ -15,6 +15,10 @@ import {
   type ZernioPostTargetSpec,
 } from "@/lib/zernio";
 import { MAY_HAVE_POSTED } from "@/lib/social/unknown-outcome";
+import { legProblem } from "@/lib/social/validate";
+
+/** Every leg was refused before sending — not an error to record on them again. */
+class NothingToSend extends Error {}
 
 /**
  * Publish one composed post to all its pending targets, through Zernio.
@@ -140,30 +144,33 @@ function makeUploader(workspaceId: string, watermark: Watermarker = null): Media
     const out: ZernioMediaItem[] = [];
     for (const key of keys) {
       if (!cache.has(key)) {
-        const buf = await storage.get(key);
-        if (buf) {
-          const raw = new Uint8Array(buf);
-          const contentType = sniffContentType(raw) ?? contentTypeFor(key);
-          if (!contentType || !PRESIGN_ALLOWED.has(contentType)) {
-            // Say it here, naming the file, rather than letting presign 400
-            // with a message about a type nobody chose.
-            throw new Error(
-              `Can't upload ${key}: its file type ${contentType ? `(${contentType}) ` : ""}isn't one Zernio accepts. Attach a JPEG, PNG, WebP, GIF, MP4, MOV, WebM or PDF.`,
-            );
-          }
-          let bytes = await stripImageMetadata(raw, contentType);
-          // The logo goes on the UPLOADED copy only — the stored original
-          // stays clean, so a re-send without a watermark just works.
-          if (watermark) bytes = await watermark(bytes, contentType);
-          let filename = key.split("/").pop() || "media";
-          if (!filename.includes(".") && EXT_FOR[contentType]) filename += `.${EXT_FOR[contentType]}`;
-          cache.set(key, {
-            url: await uploadZernioMedia({ bytes, filename, contentType, workspaceId }),
-            type: mediaTypeFor(key, contentType),
-          });
-        } else {
-          cache.set(key, null);
+        // ⚠ An image that can't be read stops the send (SOC-09). A Drive 401,
+        // 429 or timeout used to come back as "no bytes", and the post went out
+        // text-only with every leg marked posted. Throwing here fails the legs
+        // BEFORE anything reaches a network, with the reason, and Retry works.
+        const buf = await storage.get(key).catch(() => null);
+        if (!buf) {
+          throw new Error(`Couldn't read the image ${key.split("/").pop() ?? key} from storage (the storage service didn't answer or the file is gone), so nothing was sent. Retry in a few minutes, or remove the image.`);
         }
+        const raw = new Uint8Array(buf);
+        const contentType = sniffContentType(raw) ?? contentTypeFor(key);
+        if (!contentType || !PRESIGN_ALLOWED.has(contentType)) {
+          // Say it here, naming the file, rather than letting presign 400
+          // with a message about a type nobody chose.
+          throw new Error(
+            `Can't upload ${key}: its file type ${contentType ? `(${contentType}) ` : ""}isn't one Zernio accepts. Attach a JPEG, PNG, WebP, GIF, MP4, MOV, WebM or PDF.`,
+          );
+        }
+        let bytes = await stripImageMetadata(raw, contentType);
+        // The logo goes on the UPLOADED copy only — the stored original
+        // stays clean, so a re-send without a watermark just works.
+        if (watermark) bytes = await watermark(bytes, contentType);
+        let filename = key.split("/").pop() || "media";
+        if (!filename.includes(".") && EXT_FOR[contentType]) filename += `.${EXT_FOR[contentType]}`;
+        cache.set(key, {
+          url: await uploadZernioMedia({ bytes, filename, contentType, workspaceId }),
+          type: mediaTypeFor(key, contentType),
+        });
       }
       const item = cache.get(key);
       if (item) out.push(item);
@@ -233,12 +240,13 @@ export async function publishSocialPost(postId: string, opts: { claimed?: boolea
     if (claim.count !== 1) return;
   }
 
+  // Legs refused before sending, with the reason each would have failed for.
+  const refused = new Map<string, string>();
   try {
     if (!(await zernioConfigured(post.workspaceId))) throw new Error("Zernio is not configured");
 
     const upload = makeUploader(post.workspaceId, await watermarkerFor(post.workspaceId, normaliseWatermark(post.watermark)));
     const baseKeys = readJson<string[]>(post.mediaKeys, []);
-    const baseMedia = baseKeys.length ? await upload(baseKeys) : [];
 
     // One platform entry per pending target, tagging links PER NETWORK so GA4
     // can tell the sources apart. Tagging happens here, at send, so the stored
@@ -269,6 +277,14 @@ export async function publishSocialPost(postId: string, opts: { claimed?: boolea
           firstComment = [links.join("\n"), firstComment].filter(Boolean).join("\n\n");
         }
       }
+      // A leg its network is certain to reject (no video for YouTube, no image
+      // for Instagram, no TikTok audience, past the length limit with links
+      // tagged) fails here with the reason; the other legs still go (SOC-13/14).
+      const problem = legProblem(t, post, text);
+      if (problem) {
+        refused.set(t.id, problem);
+        continue;
+      }
       const effectiveKeys = ownKeys?.length ? ownKeys : baseKeys;
       const isVideo = effectiveKeys.length > 0 && effectiveKeys.every((k) => (contentTypeFor(k) ?? "").startsWith("video/"));
       // Story/Reel, first comment, TikTok settings — one documented builder.
@@ -290,6 +306,14 @@ export async function publishSocialPost(postId: string, opts: { claimed?: boolea
       });
       fingerprint.push([t.provider.toLowerCase(), t.accountId, text, ownKeys ?? null, platformSpecificData ?? null]);
     }
+
+    for (const [id, reason] of refused) {
+      await db.socialPostTarget.update({ where: { id }, data: { status: "failed", error: reason.slice(0, 500) } });
+    }
+    // Nothing left that could succeed: don't call Zernio at all — not even to
+    // upload the images, which is why that waits until now.
+    if (specs.length === 0) throw new NothingToSend();
+    const baseMedia = baseKeys.length ? await upload(baseKeys) : [];
 
     const requestId = createHash("sha256")
       .update(JSON.stringify({ id: post.id, text: post.text, media: baseKeys, legs: fingerprint }))
@@ -331,6 +355,7 @@ export async function publishSocialPost(postId: string, opts: { claimed?: boolea
     const byPlatform = new Map(result.perPlatform.map((p) => [p.platform, p]));
 
     for (const t of pending) {
+      if (refused.has(t.id)) continue;
       const leg = byAccount.get(t.accountId) ?? byPlatform.get(t.provider.toLowerCase());
       // A 409 (content-hash duplicate) carries no per-platform detail, but it
       // means the content IS out — recording it as failed would be a lie.
@@ -365,11 +390,14 @@ export async function publishSocialPost(postId: string, opts: { claimed?: boolea
       });
     }
   } catch (e) {
-    // The whole call failed, so every pending leg failed with it.
-    await db.socialPostTarget.updateMany({
-      where: { id: { in: pending.map((t) => t.id) } },
-      data: { status: "failed", error: (e instanceof Error ? e.message : String(e)).slice(0, 500) },
-    });
+    // The whole call failed, so every leg we tried to send failed with it. The
+    // refused ones already carry their own reason.
+    if (!(e instanceof NothingToSend)) {
+      await db.socialPostTarget.updateMany({
+        where: { id: { in: pending.filter((t) => !refused.has(t.id)).map((t) => t.id) } },
+        data: { status: "failed", error: (e instanceof Error ? e.message : String(e)).slice(0, 500) },
+      });
+    }
   }
 
   // Roll up the post status from its targets. A target left PENDING is still in
@@ -508,4 +536,39 @@ export async function reconcileStuckSocialPosts(): Promise<number> {
     settled += moved.count;
   }
   return settled;
+}
+
+/**
+ * Settle every leg of one Zernio post from Zernio's own record (GET only —
+ * nothing is sent). For webhook events that don't say which leg they mean,
+ * like `post.partial` (audit SOC-15): reading the post beats guessing from
+ * the event's name. A leg already posted is never moved back; a leg Zernio
+ * still reports in flight is left alone. Returns how many legs changed.
+ */
+export async function settleLegsFromZernio(zernioPostId: string, workspaceId: string): Promise<number> {
+  const legs = await db.socialPostTarget.findMany({
+    where: { providerPostId: zernioPostId, status: { not: "posted" }, post: { workspaceId } },
+    select: { id: true, accountId: true, provider: true },
+  });
+  if (!legs.length) return 0;
+  const remote = await getZernioPost(zernioPostId, workspaceId).catch(() => null);
+  if (!remote) return 0;
+  const byAccount = new Map(remote.perPlatform.filter((p) => p.accountId).map((p) => [p.accountId!, p]));
+  const byPlatform = new Map(remote.perPlatform.map((p) => [p.platform, p]));
+  let changed = 0;
+  for (const t of legs) {
+    const leg = byAccount.get(t.accountId) ?? byPlatform.get(t.provider.toLowerCase());
+    if (leg && SETTLED_POSTED.has(leg.status)) {
+      changed += (await db.socialPostTarget.updateMany({
+        where: { id: t.id, status: { not: "posted" } },
+        data: { status: "posted", postedAt: new Date(), error: null, ...(leg.url ? { platformPostUrl: leg.url } : {}) },
+      })).count;
+    } else if (leg && SETTLED_FAILED.has(leg.status)) {
+      changed += (await db.socialPostTarget.updateMany({
+        where: { id: t.id, status: { not: "posted" } },
+        data: { status: "failed", error: (leg.error ?? `Zernio reports this ${leg.status}.`).slice(0, 500) },
+      })).count;
+    }
+  }
+  return changed;
 }

@@ -137,7 +137,7 @@ export default async function SocialCalendarPage({ searchParams }: { searchParam
               <div key={day} className="mb-4">
                 <div className="text-[11px] font-mono uppercase tracking-wider text-[var(--mute)] mb-2">{day}</div>
                 <div className="flex flex-col gap-2">
-                  {items.map((p) => <PostCard key={p.id} post={p} canQueue={hasSlots} timeZone={queue.timeZone} isAdmin={isAdmin} approvalOn={requireApproval} />)}
+                  {items.map((p) => <PostCard key={p.id} post={p} returnTo="/social/calendar" canQueue={hasSlots} timeZone={queue.timeZone} isAdmin={isAdmin} approvalOn={requireApproval} />)}
                 </div>
               </div>
             ))
@@ -149,7 +149,7 @@ export default async function SocialCalendarPage({ searchParams }: { searchParam
         <>
           <Section icon={<Clock className="w-4 h-4" style={{ color: "var(--mute)" }} />} title="Drafts" count={drafts.length} />
           <div className="flex flex-col gap-2 mb-6">
-            {drafts.map((p) => <PostCard key={p.id} post={p} canQueue={hasSlots} timeZone={queue.timeZone} isAdmin={isAdmin} approvalOn={requireApproval} />)}
+            {drafts.map((p) => <PostCard key={p.id} post={p} returnTo="/social/calendar" canQueue={hasSlots} timeZone={queue.timeZone} isAdmin={isAdmin} approvalOn={requireApproval} />)}
           </div>
         </>
       )}

@@ -49,17 +49,30 @@ type ZernioEvent = {
 };
 
 export async function POST(req: NextRequest) {
-  const secret = await getSetting("zernio:webhook_secret");
-  if (!secret) {
+  // The platform's secret, plus each workspace's own (SOC-15): a tenant on its
+  // own Zernio key points a webhook in ITS Zernio account here, and those
+  // deliveries used to fail the platform signature check and go nowhere. A
+  // delivery signed with a workspace's secret can only touch that workspace.
+  const platformSecret = await getSetting("zernio:webhook_secret");
+  const workspaceSecrets = await db.workspaceSetting.findMany({
+    where: { key: "zernio:webhook_secret", value: { not: "" } },
+    select: { workspaceId: true, value: true },
+  });
+  if (!platformSecret && workspaceSecrets.length === 0) {
     // Fail closed. Configure the secret under Settings → Connections.
     return NextResponse.json({ error: "webhook secret not configured" }, { status: 503 });
   }
 
   const raw = await req.text();
   const signature = req.headers.get("x-zernio-signature") ?? req.headers.get("x-late-signature") ?? "";
-  if (!verifyZernioSignature(raw, signature, secret)) {
-    return NextResponse.json({ error: "bad signature" }, { status: 401 });
+  let bound: string | null = null; // the workspace a tenant secret confines this delivery to
+  if (!(platformSecret && verifyZernioSignature(raw, signature, platformSecret))) {
+    const own = workspaceSecrets.find((s) => verifyZernioSignature(raw, signature, s.value));
+    if (!own) return NextResponse.json({ error: "bad signature" }, { status: 401 });
+    bound = own.workspaceId;
   }
+  /** False when a tenant-signed delivery reaches for another workspace. */
+  const allowed = (workspaceId: string) => !bound || bound === workspaceId;
 
   let event: ZernioEvent;
   try {
@@ -78,6 +91,7 @@ export async function POST(req: NextRequest) {
 
     const workspace = await db.workspace.findFirst({ where: { zernioProfileId: profileId }, select: { id: true } });
     if (!workspace) return NextResponse.json({ ok: true, ignored: "unknown profile" });
+    if (!allowed(workspace.id)) return NextResponse.json({ ok: true, ignored: "signed for another workspace" });
 
     if (type === "account.disconnected") {
       await db.zernioAccount.updateMany({
@@ -137,6 +151,7 @@ export async function POST(req: NextRequest) {
             .then((a) => (a ? { id: a.workspaceId } : null))
         : null);
     if (!workspace) return NextResponse.json({ ok: true, ignored: "unknown account/profile" });
+    if (!allowed(workspace.id)) return NextResponse.json({ ok: true, ignored: "signed for another workspace" });
 
     const message = (event.message ?? data.message ?? {}) as Record<string, unknown>;
     const comment = (event.comment ?? data.comment ?? {}) as Record<string, unknown>;
@@ -202,43 +217,57 @@ export async function POST(req: NextRequest) {
   // deliveries are per-platform. When the payload names an account or platform
   // we narrow to it; when it names neither the event really is about the whole
   // post, and updating every leg is then correct.
+  //
+  // ⚠ ONLY THE THREE OUTCOMES (audit SOC-15). Every other `post.*` type —
+  // scheduled, created, updated, anything Zernio adds — used to mark the legs
+  // POSTED. And `post.partial` says only that some legs failed, so it is
+  // settled from Zernio's own record of the post, leg by leg. A leg already
+  // posted is never moved back by a late or replayed event.
   if (type.startsWith("post.")) {
+    if (type !== "post.published" && type !== "post.failed" && type !== "post.partial") {
+      return NextResponse.json({ ok: true, ignored: type });
+    }
     const postId = String(data.postId ?? data.id ?? "");
     if (!postId) return NextResponse.json({ ok: true, ignored: "no post id" });
-    const url = typeof data.platformPostUrl === "string" ? data.platformPostUrl : null;
-    const failed = type === "post.failed";
-
-    const accountId = typeof data.accountId === "string" ? data.accountId : null;
-    const platform = typeof data.platform === "string" ? data.platform.toLowerCase() : null;
-    const scope = accountId ? { accountId } : platform ? { provider: platform } : {};
-
-    const { count } = await db.socialPostTarget.updateMany({
-      where: { providerPostId: postId, ...scope },
-      data: failed
-        ? { status: "failed", error: String(data.errorMessage ?? "Zernio reported the post failed").slice(0, 500) }
-        : { status: "posted", postedAt: new Date(), error: null, ...(url ? { platformPostUrl: url } : {}) },
+    const target = await db.socialPostTarget.findFirst({
+      where: { providerPostId: postId },
+      select: { postId: true, post: { select: { workspaceId: true } } },
     });
+    if (!target) return NextResponse.json({ ok: true, ignored: "unknown post" });
+    if (!allowed(target.post.workspaceId)) return NextResponse.json({ ok: true, ignored: "signed for another workspace" });
+
+    let count = 0;
+    if (type === "post.partial") {
+      const { settleLegsFromZernio } = await import("@/lib/social/publish");
+      count = await settleLegsFromZernio(postId, target.post.workspaceId);
+    } else {
+      const url = typeof data.platformPostUrl === "string" ? data.platformPostUrl : null;
+      const failed = type === "post.failed";
+      const accountId = typeof data.accountId === "string" ? data.accountId : null;
+      const platform = typeof data.platform === "string" ? data.platform.toLowerCase() : null;
+      const scope = accountId ? { accountId } : platform ? { provider: platform } : {};
+      ({ count } = await db.socialPostTarget.updateMany({
+        where: { providerPostId: postId, ...scope, ...(failed ? { status: { not: "posted" } } : {}) },
+        data: failed
+          ? { status: "failed", error: String(data.errorMessage ?? "Zernio reported the post failed").slice(0, 500) }
+          : { status: "posted", postedAt: new Date(), error: null, ...(url ? { platformPostUrl: url } : {}) },
+      }));
+    }
 
     // Re-roll the parent post from its targets, so a per-leg event moves the
     // post between posted / partial / failed instead of leaving whatever the
     // send-time roll-up wrote.
-    const target = await db.socialPostTarget.findFirst({
-      where: { providerPostId: postId },
-      select: { postId: true },
+    const all = await db.socialPostTarget.findMany({ where: { postId: target.postId } });
+    const posted = all.filter((t) => t.status === "posted").length;
+    const stillPending = all.some((t) => t.status === "pending");
+    await db.socialPost.update({
+      where: { id: target.postId },
+      data: {
+        status:
+          posted === all.length ? "posted" : posted > 0 ? "partial" : stillPending ? "publishing" : "failed",
+        ...(posted > 0 ? {} : { publishedAt: null }),
+      },
     });
-    if (target) {
-      const all = await db.socialPostTarget.findMany({ where: { postId: target.postId } });
-      const posted = all.filter((t) => t.status === "posted").length;
-      const stillPending = all.some((t) => t.status === "pending");
-      await db.socialPost.update({
-        where: { id: target.postId },
-        data: {
-          status:
-            posted === all.length ? "posted" : posted > 0 ? "partial" : stillPending ? "publishing" : "failed",
-          ...(posted > 0 ? {} : { publishedAt: null }),
-        },
-      });
-    }
     return NextResponse.json({ ok: true, updated: count });
   }
 

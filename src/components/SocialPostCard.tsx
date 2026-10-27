@@ -1,7 +1,9 @@
 import Link from "next/link";
 import {
-  Send, Copy, Trash2, RotateCw, Check, X, Pencil, Tags, ListPlus, Megaphone, Recycle, ShieldCheck,
+  Send, Copy, RotateCw, Check, X, Pencil, Tags, ListPlus, Megaphone, Recycle, ShieldCheck, Eye,
 } from "lucide-react";
+import { DeleteButton } from "@/components/DeleteButton";
+import { DELETABLE_POST_STATUSES } from "@/lib/social/post-lists";
 import { storage } from "@/lib/storage";
 import { networkFor } from "@/lib/social/networks";
 import { subFormatLabel } from "@/lib/social/sub-formats";
@@ -15,7 +17,6 @@ import { queueSocialPostAction } from "@/app/actions/social-slots";
 import {
   publishNowAction,
   cancelScheduledAction,
-  deleteSocialPostAction,
   duplicateSocialPostAction,
 } from "@/app/actions/social";
 import { EmptyState } from "@/components/EmptyState";
@@ -28,8 +29,8 @@ import { EmptyState } from "@/components/EmptyState";
  * card that drifts between them would show different controls for the same post
  * depending on where you happened to be standing.
  *
- * Server component on purpose — every control is a server-action form, so there
- * is no client JS here at all.
+ * Server component on purpose — every control is a server-action form. The one
+ * client island is the shared DeleteButton, for its confirmation step.
  */
 
 export const STATUS_STYLE: Record<string, { bg: string; fg: string; label: string }> = {
@@ -94,9 +95,11 @@ export function MediaThumbs({ keys, size = "h-20 w-20" }: { keys: string[]; size
 }
 
 export function PostCard({
-  post, canQueue = false, timeZone, isAdmin = false, approvalOn = false,
+  post, canQueue = false, timeZone, isAdmin = false, approvalOn = false, returnTo,
 }: {
   post: PostRow; canQueue?: boolean; timeZone: string; isAdmin?: boolean; approvalOn?: boolean;
+  /** Where a delete lands (the page showing the card). */
+  returnTo?: string;
 }) {
   const s = STATUS_STYLE[post.status] ?? STATUS_STYLE.draft;
   const when = post.scheduledAt ?? post.publishedAt;
@@ -223,10 +226,15 @@ export function PostCard({
           <input type="hidden" name="id" value={post.id} />
           <button className="btn sm" title="Duplicate"><Copy className="w-3.5 h-3.5" /></button>
         </form>
-        <form action={deleteSocialPostAction}>
-          <input type="hidden" name="id" value={post.id} />
-          <button className="btn sm" title="Delete"><Trash2 className="w-3.5 h-3.5" /></button>
-        </form>
+        {!(post.status === "draft" || post.status === "scheduled") && (
+          <Link href={`/social/${post.id}`} className="btn sm" title="Each network's result, link and error">
+            <Eye className="w-3.5 h-3.5" />
+          </Link>
+        )}
+        {/* Sent and sending posts are the record — no delete (SOC-20). */}
+        {DELETABLE_POST_STATUSES.includes(post.status) && (
+          <DeleteButton kind="socialPost" id={post.id} name={post.text.replace(/\s+/g, " ").trim().slice(0, 60) || "(image only)"} returnTo={returnTo} iconOnly />
+        )}
       </div>
       <p className="text-sm text-[var(--slate)] whitespace-pre-wrap mb-1">{post.text || <span className="text-[var(--mute)] italic">(image only)</span>}</p>
       {post.approval === "changes" && post.reviewNote && (

@@ -1,12 +1,14 @@
 import Link from "next/link";
-import { Copy, Pencil, Search, Send, Trash2, Undo2, ExternalLink, ListPlus } from "lucide-react";
+import { Copy, Pencil, Search, Send, Trash2, Undo2, ExternalLink, ListPlus, Eye, RotateCw } from "lucide-react";
 import { db } from "@/lib/db";
 import { networkFor } from "@/lib/social/networks";
 import { formatInZone, getPostingTimeZone } from "@/lib/social/slots";
 import { listCategories } from "@/lib/social/categories";
-import { loadPostList, listCounts, SOURCES, TYPES, type ListFilter, type ListTab } from "@/lib/social/post-lists";
+import { loadPostList, listCounts, SOURCES, TYPES, DELETABLE_POST_STATUSES, type ListFilter, type ListTab } from "@/lib/social/post-lists";
 import { bulkPostsAction } from "@/app/actions/social-lists";
-import { deleteSocialPostAction, duplicateSocialPostAction, publishNowAction, unscheduleSocialPostAction } from "@/app/actions/social";
+import { duplicateSocialPostAction, publishNowAction, unscheduleSocialPostAction } from "@/app/actions/social";
+import { DeleteButton } from "@/components/DeleteButton";
+import { mayHavePosted } from "@/lib/social/unknown-outcome";
 import { SubmitButton } from "@/components/SubmitButton";
 import { EmptyState } from "@/components/EmptyState";
 import { Banner, MediaThumbs, listKeys, STATUS_STYLE } from "@/components/SocialPostCard";
@@ -139,6 +141,9 @@ export async function PostList({
                 // Drafts can carry a proposed time (Caption Studio, posts held for
                 // approval) — shown so nobody mistakes it for an unscheduled draft.
                 const when = tab === "sent" ? p.publishedAt ?? p.updatedAt : p.scheduledAt;
+                // The queue holds "publishing" rows too, which are neither editable nor sendable.
+                const unsent = p.status === "draft" || p.status === "scheduled";
+                const unsure = [...new Set(p.targets.filter((t) => t.status === "failed" && mayHavePosted(t.error)).map((t) => networkFor(t.provider)?.label ?? t.provider))];
                 return (
                   <tr key={p.id} className="align-top border-b border-[var(--line)] last:border-0">
                     {editor && tab !== "sent" && (
@@ -184,20 +189,26 @@ export async function PostList({
                     <td className="py-2 px-2">
                       {editor && (
                         <div className="flex flex-wrap justify-end gap-1">
-                          {tab !== "sent" && <Link href={`/social/${p.id}/edit`} className="btn sm" title="Edit"><Pencil className="w-3 h-3" /></Link>}
+                          {unsent ? <Link href={`/social/${p.id}/edit`} className="btn sm" title="Edit"><Pencil className="w-3 h-3" /></Link>
+                            : <Link href={`/social/${p.id}`} className="btn sm" title="Each network's result, link and error"><Eye className="w-3 h-3" /></Link>}
+                          {/* A failed or partly-posted post is retried here — only its failed
+                              legs are sent again (SOC-20: Sent offered only Duplicate). */}
+                          {tab === "sent" && (p.status === "failed" || p.status === "partial") && (
+                            <form action={publishNowAction}><input type="hidden" name="id" value={p.id} /><input type="hidden" name="back" value={here} />
+                              <SubmitButton className="btn sm" pendingText="…" title={unsure.length ? `Check ${unsure.join(", ")} first — the send there timed out and may have posted` : "Retry the networks that failed"}><RotateCw className="w-3 h-3" /></SubmitButton></form>
+                          )}
                           {tab === "queue" && p.status === "scheduled" && (
                             <form action={unscheduleSocialPostAction}><input type="hidden" name="id" value={p.id} /><input type="hidden" name="back" value={here} />
                               <SubmitButton className="btn sm" pendingText="…" title="Move back to drafts"><Undo2 className="w-3 h-3" /></SubmitButton></form>
                           )}
-                          {tab !== "sent" && p.targets.length > 0 && p.approval !== "pending" && p.approval !== "changes" && (
+                          {unsent && p.targets.length > 0 && p.approval !== "pending" && p.approval !== "changes" && (
                             <form action={publishNowAction}><input type="hidden" name="id" value={p.id} /><input type="hidden" name="back" value={here} />
                               <SubmitButton className="btn sm" pendingText="…" title="Publish now"><Send className="w-3 h-3" /></SubmitButton></form>
                           )}
                           <form action={duplicateSocialPostAction}><input type="hidden" name="id" value={p.id} /><input type="hidden" name="back" value={here} />
                             <SubmitButton className="btn sm" pendingText="…" title="Duplicate to drafts"><Copy className="w-3 h-3" /></SubmitButton></form>
-                          {tab !== "sent" && (
-                            <form action={deleteSocialPostAction}><input type="hidden" name="id" value={p.id} /><input type="hidden" name="back" value={here} />
-                              <SubmitButton className="btn sm" pendingText="…" title="Delete"><Trash2 className="w-3 h-3" /></SubmitButton></form>
+                          {DELETABLE_POST_STATUSES.includes(p.status) && (
+                            <DeleteButton kind="socialPost" id={p.id} name={p.text.replace(/\s+/g, " ").trim().slice(0, 60) || "(image only)"} returnTo={here} iconOnly />
                           )}
                         </div>
                       )}

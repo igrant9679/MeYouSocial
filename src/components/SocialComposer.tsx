@@ -46,6 +46,8 @@ export type ComposerInitial = {
   watermark?: string | null;
   /** Per-provider first comments, keyed by UPPERCASED slug. */
   firstComments?: Record<string, string>;
+  /** UPPERCASED slugs whose target has its own images. */
+  ownMedia?: string[];
   tiktok?: TikTokOptions | null;
 };
 
@@ -132,7 +134,12 @@ export function SocialComposer({
   const [campaignId, setCampaignId] = useState(initial?.campaignId ?? "");
   const [evergreen, setEvergreen] = useState(initial?.evergreen ?? false);
   const [variants, setVariants] = useState<Record<string, string>>(initial?.variants ?? {});
-  const [customizing, setCustomizing] = useState<Set<string>>(new Set(Object.keys(initial?.variants ?? {})));
+  // A network with its own first comment or images opens customized too: its
+  // fields live in that section, and a field that isn't rendered isn't
+  // submitted — the edit used to wipe them (SOC-18).
+  const [customizing, setCustomizing] = useState<Set<string>>(
+    new Set([...Object.keys(initial?.variants ?? {}), ...Object.keys(initial?.firstComments ?? {}), ...(initial?.ownMedia ?? [])]),
+  );
   const [when, setWhen] = useState<"now" | "schedule" | "draft" | "queue" | "optimal">(
     initial ? (initial.scheduledAtLocal ? "schedule" : "draft") : accounts.length === 0 ? "draft" : "now",
   );
@@ -316,6 +323,9 @@ export function SocialComposer({
   return (
     <form data-elsie="social-composer" action={editing ? updateSocialPostAction : createSocialPostAction} className="card mb-6 flex flex-col gap-3" encType="multipart/form-data">
       {editing && <input type="hidden" name="id" value={initial!.id} />}
+      {/* Tells the save which networks are customized, so "Use base" can clear a
+          network's own image (SOC-18). Older tabs without it keep the old rule. */}
+      {editing && <input type="hidden" name="perNetworkMarks" value="1" />}
       {/* Account picker */}
       <div>
         <div className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)] mb-1.5 flex items-center gap-1.5">
@@ -658,7 +668,11 @@ export function SocialComposer({
                       {mediaCount} image{mediaCount > 1 ? "s" : ""}{isCustom && vFiles.length > 0 ? " (own)" : ""}
                     </span>
                   )}
-                  {net?.requiresMedia && mediaCount === 0 && (
+                  {/* YouTube takes video only, and this composer attaches images —
+                      say so here rather than let the leg fail at send (SOC-13). */}
+                  {net?.requiresVideo ? (
+                    <span className="text-[11px] text-[var(--rose-on)]" title="The app can only attach images today, so a YouTube post can't be sent from here.">needs a video — not available yet</span>
+                  ) : net?.requiresMedia && mediaCount === 0 && (
                     <WithTip text={SOCIAL_TIPS.needsImage} side="bottom" wide>
                       <span className="text-[11px] text-[var(--amber-on)]">needs an image</span>
                     </WithTip>
@@ -675,8 +689,13 @@ export function SocialComposer({
                         defaultValue={initial?.subFormats?.[p] ?? ""}
                         className="border border-[var(--line-2)] rounded px-1 py-0.5 text-[11px]"
                       >
+                        {/* A Reel needs a video the composer can't attach yet. One
+                            already stored stays selectable: a disabled option isn't
+                            submitted, so a save would quietly make it a feed post. */}
                         {subFormatsFor(p).map((o) => (
-                          <option key={o.value} value={o.value} title={o.hint}>{o.label}</option>
+                          <option key={o.value} value={o.value} title={o.hint} disabled={o.requiresVideo && initial?.subFormats?.[p] !== o.value}>
+                            {o.label}{o.requiresVideo ? " (needs a video — not available yet)" : ""}
+                          </option>
                         ))}
                       </select>
                     </label>
@@ -719,6 +738,7 @@ export function SocialComposer({
                 )}
                 {isCustom && (
                   <>
+                    <input type="hidden" name={`custom_${p}`} value="1" />
                     <textarea
                       name={`variant_${p}`}
                       value={variants[p] ?? ""}

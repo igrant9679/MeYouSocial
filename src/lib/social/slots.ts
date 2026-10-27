@@ -327,12 +327,58 @@ export function pickFreeSlot(free: FreeSlot[], category: string | null | undefin
   return free.find((s) => s.category === null) ?? free[0] ?? null;
 }
 
-/** The single next free slot for that category, or null when none. */
+/**
+ * How many upcoming slot instants a claim looks through: the whole horizon.
+ * It was 60 (two or three weeks on a busy schedule) while the calendar read
+ * 200, so the queue said "full" with free slots in view (SOC-16).
+ */
+const CLAIM_LIMIT = 2000;
+
+/** How long a handed-out minute stays reserved — far longer than writing the post takes. */
+const RESERVE_MS = 3 * 60_000;
+const localReserved = new Map<string, number>();
+
+/**
+ * Reserve one workspace-minute for the caller about to write a post into it.
+ * The claim used to be a read: two callers (a person queueing, the autopilot,
+ * the evergreen recycler) read the same free minute and both wrote it (SOC-16).
+ * Redis SET NX across replicas, a process map without Redis.
+ */
+async function reserveMinute(workspaceId: string, at: Date): Promise<boolean> {
+  const key = `slot:${workspaceId}:${Math.floor(at.getTime() / 60_000)}`;
+  const { getRedis } = await import("@/lib/redis");
+  const redis = getRedis();
+  if (redis) {
+    try {
+      return (await redis.command("SET", `meyousocial:${key}`, "1", "NX", "PX", RESERVE_MS)) !== null;
+    } catch {
+      // Redis unreachable: fall through to the process map rather than refuse to queue.
+    }
+  }
+  const now = Date.now();
+  for (const [k, exp] of localReserved) if (exp < now) localReserved.delete(k);
+  if (localReserved.has(key)) return false;
+  localReserved.set(key, now + RESERVE_MS);
+  return true;
+}
+
+/** The first free slot (by the category rule) nobody else has just been handed. */
+export async function claimFree(workspaceId: string, free: FreeSlot[], category: string | null | undefined): Promise<FreeSlot | null> {
+  let remaining = free;
+  for (;;) {
+    const slot = pickFreeSlot(remaining, category);
+    if (!slot) return null;
+    if (await reserveMinute(workspaceId, slot.at)) return slot;
+    remaining = remaining.filter((s) => s.at.getTime() !== slot.at.getTime());
+  }
+}
+
+/** The single next free slot for that category, or null when none. Reserved for the caller. */
 export async function nextFreeSlot(
   workspaceId: string, excludePostId?: string, category?: string | null,
 ): Promise<Date | null> {
-  const { free } = await getQueue(workspaceId, { excludePostId, limit: 60 });
-  return pickFreeSlot(free, category)?.at ?? null;
+  const { free } = await getQueue(workspaceId, { excludePostId, limit: CLAIM_LIMIT });
+  return (await claimFree(workspaceId, free, category))?.at ?? null;
 }
 
 /** Why a queue request couldn't be honoured — the caller turns this into copy. */
@@ -355,11 +401,46 @@ export function formatInZone(at: Date, timeZone: string): string {
 export async function claimNextFreeSlot(
   workspaceId: string, excludePostId?: string, category?: string | null,
 ): Promise<{ at: Date } | { error: QueueFailure }> {
-  const { slots, free } = await getQueue(workspaceId, { excludePostId, limit: 60 });
+  const { slots, free } = await getQueue(workspaceId, { excludePostId, limit: CLAIM_LIMIT });
   if (slots.filter((s) => s.enabled).length === 0) return { error: "no-slots" };
-  const slot = pickFreeSlot(free, category);
+  const slot = await claimFree(workspaceId, free, category);
   if (!slot) return { error: "full" };
   return { at: slot.at };
+}
+
+// ---- Changing the timezone -----------------------------------------------------
+
+/**
+ * Keep queue-placed posts on their slots when the posting timezone changes:
+ * each moves to the same local date and time in the new zone. A post whose new
+ * moment has already passed goes back to drafts rather than firing at once.
+ * Posts a person scheduled by hand (`timeChosen`) keep their exact moment.
+ */
+export async function reanchorQueuedPosts(
+  workspaceId: string, fromZone: string, toZone: string,
+): Promise<{ moved: number; released: number }> {
+  const posts = await db.socialPost.findMany({
+    where: { workspaceId, status: "scheduled", timeChosen: false, scheduledAt: { gte: new Date() } },
+    select: { id: true, scheduledAt: true },
+  });
+  let moved = 0;
+  let released = 0;
+  for (const p of posts) {
+    const z = zonedParts(p.scheduledAt!, fromZone);
+    const at = zonedTimeToUtc(z.year, z.month, z.day, Math.floor(z.minute / 60), z.minute % 60, toZone);
+    if (at.getTime() === p.scheduledAt!.getTime()) continue;
+    // Conditional on still being scheduled at the old moment: the sweep may
+    // have claimed it meanwhile.
+    const ahead = at.getTime() > Date.now() + 60_000;
+    const r = await db.socialPost.updateMany({
+      where: { id: p.id, status: "scheduled", scheduledAt: p.scheduledAt },
+      data: ahead ? { scheduledAt: at } : { status: "draft", scheduledAt: null },
+    });
+    if (!r.count) continue;
+    if (ahead) moved++;
+    else released++;
+  }
+  return { moved, released };
 }
 
 // ---- Removing a slot -----------------------------------------------------------
@@ -376,7 +457,8 @@ export async function claimNextFreeSlot(
  * "Back to the queue" means all three of:
  *   · `scheduledAt` cleared and `status` back to `draft`, so the post is
  *     genuinely unscheduled rather than pointing at a ghost time;
- *   · `approval` set to `pending`, which is what the owner asked for — the
+ *   · with the approval workflow on, `approval` set to `pending` (the owner's
+ *     ask; with it off the post is just a draft again, SOC-17) — the
  *     schedule changed under this post, so someone should look at it again.
  *     ⚠ The sweep's claim treats pending as unsendable regardless of the
  *     workspace's `require_approval` setting, so this reliably stops the send
@@ -393,13 +475,16 @@ export async function releasePostsFromSlots(
   workspaceId: string,
   removed: Array<{ weekday: number; minute: number }>,
   reason: string,
-): Promise<{ released: number; posts: Array<{ id: string; at: Date }> }> {
-  if (removed.length === 0) return { released: 0, posts: [] };
+): Promise<{ released: number; posts: Array<{ id: string; at: Date }>; toApproval: boolean }> {
+  const toApproval = (await getSetting("social:require_approval", workspaceId).catch(() => "")) === "true";
+  if (removed.length === 0) return { released: 0, posts: [], toApproval };
   const timeZone = await getPostingTimeZone(workspaceId);
   const wanted = new Set(removed.map((s) => `${s.weekday}:${s.minute}`));
 
   const scheduled = await db.socialPost.findMany({
-    where: { workspaceId, status: "scheduled", scheduledAt: { gte: new Date() } },
+    // Only what the QUEUE put there (SOC-17): a post a person scheduled for
+    // that wall clock by hand keeps its time when a slot goes.
+    where: { workspaceId, status: "scheduled", scheduledAt: { gte: new Date() }, timeChosen: false },
     select: { id: true, scheduledAt: true },
   });
   const hit = scheduled.filter((p) => {
@@ -407,14 +492,18 @@ export async function releasePostsFromSlots(
     const parts = zonedParts(p.scheduledAt, timeZone);
     return wanted.has(`${parts.weekday}:${parts.minute}`);
   });
-  if (hit.length === 0) return { released: 0, posts: [] };
+  if (hit.length === 0) return { released: 0, posts: [], toApproval };
 
   await db.socialPost.updateMany({
     // Re-check the status in the write: the sweep may have claimed one for
     // publishing between the read above and here, and a post already going out
     // must not be dragged back to draft underneath it.
     where: { id: { in: hit.map((p) => p.id) }, status: "scheduled" },
-    data: { status: "draft", scheduledAt: null, approval: "pending", approvedById: null, approvedAt: null, reviewNote: reason },
+    // Back for approval only where approval is the workflow; elsewhere a
+    // draft that full autonomy re-queues, or a person does (SOC-17).
+    data: toApproval
+      ? { status: "draft", scheduledAt: null, approval: "pending", approvedById: null, approvedAt: null, reviewNote: reason }
+      : { status: "draft", scheduledAt: null },
   });
-  return { released: hit.length, posts: hit.map((p) => ({ id: p.id, at: p.scheduledAt! })) };
+  return { released: hit.length, posts: hit.map((p) => ({ id: p.id, at: p.scheduledAt! })), toApproval };
 }

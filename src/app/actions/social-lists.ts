@@ -6,6 +6,7 @@ import { requireRole } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { claimNextFreeSlot, queueFailureMessage } from "@/lib/social/slots";
 import { writeAudit } from "@/lib/governance";
+import { DELETABLE_POST_STATUSES } from "@/lib/social/post-lists";
 
 // Bulk actions on the Queue / Sent / Drafts lists (Socialmonials parity,
 // 2026-10-17). One action, an `op`, a set of ids — every write re-filters by
@@ -35,7 +36,7 @@ export async function bulkPostsAction(formData: FormData) {
     // Never history: posted and partly-posted rows are the record of what went
     // out. Failed ones never reached anyone, so they may go.
     const r = await db.socialPost.deleteMany({
-      where: { id: { in: ids }, workspaceId: workspace.id, status: { in: ["draft", "scheduled", "failed"] } },
+      where: { id: { in: ids }, workspaceId: workspace.id, status: { in: DELETABLE_POST_STATUSES } },
     });
     await writeAudit({ workspaceId: workspace.id, actorId: user.id, action: "social.bulk_deleted", entityType: "social_post", meta: { asked: ids.length, deleted: r.count } });
     revalidatePath("/social", "layout");
@@ -66,9 +67,14 @@ export async function bulkPostsAction(formData: FormData) {
     let noTargets = 0;
     let passed = 0;
     let failure: string | null = null;
+    // A draft its networks would certainly reject stays a draft (SOC-14).
+    const { scheduleRefusal } = await import("@/lib/social/validate");
+    const ruledOut: string[] = [];
     for (const d of drafts) {
       if (d.approval === "pending" || d.approval === "changes" || (requireApproval && d.approval === null && membership.role !== "ADMIN")) { held++; continue; }
       if (d._count.targets === 0) { noTargets++; continue; }
+      const refusal = await scheduleRefusal(d.id);
+      if (refusal) { ruledOut.push(refusal); continue; }
       // A draft with its own time keeps it (a holiday, a countdown stage) —
       // never re-slotted (audit SOC-06); a time that has passed is skipped.
       if (d.scheduledAt) {
@@ -79,7 +85,7 @@ export async function bulkPostsAction(formData: FormData) {
       }
       const claim = await claimNextFreeSlot(workspace.id, d.id, d.category);
       if ("error" in claim) { failure = queueFailureMessage(claim.error); break; }
-      await db.socialPost.update({ where: { id: d.id }, data: { status: "scheduled", scheduledAt: claim.at } });
+      await db.socialPost.update({ where: { id: d.id }, data: { status: "scheduled", scheduledAt: claim.at, timeChosen: false } });
       queued++;
     }
     revalidatePath("/social", "layout");
@@ -87,6 +93,7 @@ export async function bulkPostsAction(formData: FormData) {
       held ? `${n(held, "post")} held for approval` : "",
       noTargets ? `${n(noTargets, "post")} with no account to post to` : "",
       passed ? `${n(passed, "post")} whose date has passed` : "",
+      ruledOut.length ? `${n(ruledOut.length, "post")} a network would reject (${ruledOut[0]}${ruledOut.length > 1 ? " …" : ""})` : "",
       failure ? `stopped: ${failure}` : "",
     ].filter(Boolean);
     back(formData, `Queued ${n(queued, "post")}${notes.length ? ` — ${notes.join("; ")}` : ""}.`, queued ? "ok" : "err");

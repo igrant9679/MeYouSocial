@@ -898,7 +898,7 @@ export const TOOLS: Tool[] = [
           queuedAt = await nextFreeSlot(ctx.workspaceId, post.id, post.category);
         }
       }
-      await db.socialPost.update({ where: { id: post.id }, data: { approval: "approved", approvedById: ctx.userId, approvedAt: new Date(), reviewNote: null, ...(queuedAt ? { scheduledAt: queuedAt } : {}), status: scheduleIt || queuedAt ? "scheduled" : "draft" } });
+      await db.socialPost.update({ where: { id: post.id }, data: { approval: "approved", approvedById: ctx.userId, approvedAt: new Date(), reviewNote: null, ...(queuedAt ? { scheduledAt: queuedAt, timeChosen: false } : {}), status: scheduleIt || queuedAt ? "scheduled" : "draft" } });
       await writeAudit({ workspaceId: ctx.workspaceId, actorId: ctx.userId, action: "social.approved", entityType: "social_post", entityId: post.id, meta: { via: "assistant", ...(queuedAt ? { autoQueuedAt: queuedAt.toISOString() } : {}) } });
       return scheduleIt ? "approved — it keeps its scheduled time" : queuedAt ? `approved and queued for ${when(queuedAt)}` : "approved — it is a draft; queue_social_post or send_social_post_now next";
     },
@@ -1031,8 +1031,11 @@ export const TOOLS: Tool[] = [
       const text = str(a.text, 3000);
       if (!text) return "refused: write the text";
       const wanted = str(a.networks, 200).toLowerCase().split(",").map((s) => s.trim()).filter(Boolean);
-      const accounts = await db.zernioAccount.findMany({ where: { workspaceId: ctx.workspaceId, status: "connected" }, select: { id: true, platform: true } });
-      const targets = (wanted.length ? accounts.filter((x) => wanted.some((w) => x.platform.toLowerCase().includes(w))) : accounts).map((x) => ({ provider: x.platform, accountId: x.id }));
+      const accounts = await db.zernioAccount.findMany({ where: { workspaceId: ctx.workspaceId, status: "connected" }, select: { accountId: true, platform: true, displayName: true, username: true } });
+      // ⚠ Zernio's account id, never our row id (SOC-07): every post this tool
+      // drafted was rejected at send, and the edit page couldn't match its targets.
+      const targets = (wanted.length ? accounts.filter((x) => wanted.some((w) => x.platform.toLowerCase().includes(w))) : accounts)
+        .map((x) => ({ provider: x.platform, accountId: x.accountId, accountName: x.displayName ?? x.username ?? x.platform }));
       const { getSetting } = await import("@/lib/settings");
       const requireApproval = (await getSetting("social:require_approval", ctx.workspaceId).catch(() => "")) === "true";
       const held = requireApproval && ctx.role !== "ADMIN";
@@ -1055,10 +1058,12 @@ export const TOOLS: Tool[] = [
       if (post.approval === "pending") return "awaiting approval — approve_social_post first (admin)";
       if (post.approval === "changes") return "changes were requested — edit and resubmit first";
       if (await unreviewedForRole(post, ctx)) return "refused: this workspace requires approval before posts go out — a non-admin's unreviewed post can't be queued";
+      const refusal = await (await import("@/lib/social/validate")).scheduleRefusal(post.id);
+      if (refusal) return `refused: ${refusal}`;
       const { claimNextFreeSlot, queueFailureMessage, formatInZone, getPostingTimeZone } = await import("@/lib/social/slots");
       const claim = await claimNextFreeSlot(ctx.workspaceId, post.id, post.category);
       if ("error" in claim) return queueFailureMessage(claim.error);
-      await db.socialPost.update({ where: { id: post.id }, data: { scheduledAt: claim.at, status: "scheduled" } });
+      await db.socialPost.update({ where: { id: post.id }, data: { scheduledAt: claim.at, status: "scheduled", timeChosen: false } });
       return `queued for ${formatInZone(claim.at, await getPostingTimeZone(ctx.workspaceId))}`;
     },
   },
@@ -1076,7 +1081,9 @@ export const TOOLS: Tool[] = [
       // Read in the posting timezone — this appended "Z" and sent 09:00 New York at 05:00.
       const d = await parseInPostingZone(str(a.at, 40), ctx.workspaceId);
       if (!d || d.getTime() < Date.now() - 60_000) return "that time is invalid or already passed";
-      await db.socialPost.update({ where: { id: post.id }, data: { scheduledAt: d, status: "scheduled" } });
+      const refusal = await (await import("@/lib/social/validate")).scheduleRefusal(post.id);
+      if (refusal) return `refused: ${refusal}`;
+      await db.socialPost.update({ where: { id: post.id }, data: { scheduledAt: d, status: "scheduled", timeChosen: true } });
       return `scheduled for ${await whenLocal(d, ctx.workspaceId)}`;
     },
   },
@@ -1094,8 +1101,9 @@ export const TOOLS: Tool[] = [
       if (!post.targets.length) return "no networks on this post";
       const { publishSocialPost } = await import("@/lib/social/publish");
       await publishSocialPost(post.id);
-      const after = await db.socialPost.findUnique({ where: { id: post.id }, include: { targets: { select: { provider: true, status: true } } } });
-      return `sent — ${after?.targets.map((t) => `${t.provider}: ${t.status}`).join(", ")}`;
+      // A leg a network was certain to reject fails before sending, with why.
+      const after = await db.socialPost.findUnique({ where: { id: post.id }, include: { targets: { select: { provider: true, status: true, error: true } } } });
+      return `sent — ${after?.targets.map((t) => `${t.provider}: ${t.status}${t.status === "failed" && t.error ? ` (${t.error.slice(0, 120)})` : ""}`).join(", ")}`;
     },
   },
   {

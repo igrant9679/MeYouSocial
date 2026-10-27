@@ -18,6 +18,13 @@ import { db } from "@/lib/db";
 
 export type ListTab = "queue" | "sent" | "drafts";
 
+/**
+ * The only statuses a post can be deleted in. Posted and partly-posted posts
+ * are the record of what reached people; one that is publishing may be landing
+ * right now. Failed ones never reached anyone, so they may go (SOC-20).
+ */
+export const DELETABLE_POST_STATUSES = ["draft", "scheduled", "failed"];
+
 export const SOURCES = [
   { value: "manual", label: "Composed" },
   { value: "engine", label: "Engine" },
