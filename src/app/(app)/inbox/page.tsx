@@ -18,6 +18,9 @@ import { networkFor } from "@/lib/social/networks";
 import { getPublicUrl } from "@/lib/public-url";
 import { NeedsYouGroups } from "@/components/NeedsYou";
 import { EmptyState } from "@/components/EmptyState";
+import { SubmitButton } from "@/components/SubmitButton";
+import { snoozeInboxItemAction } from "@/app/actions/inbox";
+import { formatZonedMoment } from "@/lib/zoned-dates";
 
 /**
  * Inbox — the landing page (One-Loop redesign, step 2; the owner's decision
@@ -38,12 +41,12 @@ import { EmptyState } from "@/components/EmptyState";
  */
 
 export default async function InboxPage() {
-  const { workspace, membership } = await requireMembership();
+  const { workspace, membership, user } = await requireMembership();
   const admin = canAdmin(membership.role);
   const editor = canEdit(membership.role);
 
   const [inbox, stats, series, perf, feed, channels, origin, auditOpen, paused, autonomous] = await Promise.all([
-    getInboxData(workspace.id, { admin, editor }),
+    getInboxData(workspace.id, { admin, editor, userId: user.id }),
     homeStats(workspace.id),
     weeklySeries(workspace.id, 8),
     postPerformance(workspace.id, 5),
@@ -119,7 +122,27 @@ export default async function InboxPage() {
       )}
 
       {/* ── 1 · Needs you — items ───────────────────────────────────────── */}
-      <NeedsYouGroups inbox={inbox} admin={admin} editor={editor} timeZone={timeZone} origin={origin} />
+      <NeedsYouGroups inbox={inbox} admin={admin} editor={editor} timeZone={timeZone} origin={origin} me={editor ? user.id : undefined} />
+
+      {/* What this person set aside (E-SHL-03) — out of the lists and the counts until it wakes. */}
+      {inbox.snoozed.length > 0 && (
+        <details className="mb-5">
+          <summary className="text-xs cursor-pointer text-[var(--mute)]">Snoozed · {inbox.snoozed.length} — out of your Inbox until then</summary>
+          <ul className="m-0 p-0 mt-2 flex flex-col gap-1.5">
+            {inbox.snoozed.map((z) => (
+              <li key={z.key} className="card !py-2 flex items-center gap-2 flex-wrap text-xs">
+                <span className="flex-1 min-w-48">{z.label}</span>
+                <span className="text-[10px] text-[var(--mute)]">back {formatZonedMoment(z.until, timeZone)}</span>
+                <form action={snoozeInboxItemAction}>
+                  <input type="hidden" name="key" value={z.key} />
+                  <input type="hidden" name="for" value="wake" />
+                  <SubmitButton className="btn sm" pendingText="…">Bring it back</SubmitButton>
+                </form>
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
 
       {/* ── 2 · Conditions — category-level, still true ─────────────────── */}
       {warn.length > 0 && (

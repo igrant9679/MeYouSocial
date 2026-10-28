@@ -91,6 +91,19 @@ export type InboxData = {
   total: number;
   /** Full autonomy is on: articles that pass every check move on by themselves. */
   autonomous: boolean;
+  /** What this person has set aside, and until when (E-SHL-03). Already out of the lists and counts. */
+  snoozed: Array<{ key: string; label: string; until: Date }>;
+  /** Who has taken which item, by item key — everyone sees these. */
+  assignees: Record<string, { userId: string; name: string }>;
+};
+
+/** An Inbox item's key (E-SHL-03): the article's card and its questions share one. */
+export const inboxKey = {
+  post: (id: string) => `post:${id}`,
+  article: (postId: string) => `article:${postId}`,
+  image: (id: string) => `image:${id}`,
+  citation: (id: string) => `citation:${id}`,
+  invite: (id: string) => `invite:${id}`,
 };
 
 const WEEK = 7 * 24 * 3600_000;
@@ -98,7 +111,7 @@ const WEEK = 7 * 24 * 3600_000;
 /** Category decisions that the item cards above now render one-by-one. */
 const REPLACED_KINDS = new Set(["awaiting-approval", "blog-review"]);
 
-export async function getInboxData(workspaceId: string, opts: { admin: boolean; editor?: boolean }): Promise<InboxData> {
+export async function getInboxData(workspaceId: string, opts: { admin: boolean; editor?: boolean; userId?: string }): Promise<InboxData> {
   const [home, autonomous] = await Promise.all([getHomeData(workspaceId), isFullyAutonomous(workspaceId)]);
 
   // ── Social posts awaiting approval — each one, with its targets ─────────
@@ -200,7 +213,6 @@ export async function getInboxData(workspaceId: string, opts: { admin: boolean; 
       allImages.push({ id: img.id, postId: img.post.id, postTitle: img.post.title, role: img.role, url: img.url, altText: img.altText, rejections });
     }
   }
-  const images = allImages.slice(0, 12);
 
   // ── Claims without a source ─────────────────────────────────────────────
   // Under autonomy, live search gets the first try; a claim shows up here once
@@ -222,7 +234,6 @@ export async function getInboxData(workspaceId: string, opts: { admin: boolean; 
     const unsourceable = unsourceableRows.some((r) => (r.meta ?? "").includes(c.id));
     if (!autonomous || unsourceable) allCitations.push({ id: c.id, postId: c.post.id, postTitle: c.post.title, claim: c.claim, unsourceable });
   }
-  const citations = allCitations.slice(0, 12);
 
   // ── Invitations (admins), with the join link that email may never carry ──
   const invitations: InboxInvitation[] = opts.admin
@@ -233,29 +244,65 @@ export async function getInboxData(workspaceId: string, opts: { admin: boolean; 
       })).map((i) => ({ id: i.id, email: i.email, role: i.role, token: i.token, expiresAt: i.expiresAt }))
     : [];
 
+  // ── Snoozed and taken (E-SHL-03) ─────────────────────────────────────────
+  // A person can set an item aside until later — their own Inbox only — and
+  // take one, which everyone sees. A snoozed item leaves the lists AND the
+  // counts (so "N things need you" stops nagging), and is listed at the bottom.
+  const [snoozeRows, assignRows] = await Promise.all([
+    opts.userId
+      ? db.inboxSnooze.findMany({ where: { workspaceId, userId: opts.userId, until: { gt: new Date() } }, orderBy: { until: "asc" }, select: { itemKey: true, until: true } })
+      : Promise.resolve([] as { itemKey: string; until: Date }[]),
+    db.inboxAssignment.findMany({ where: { workspaceId }, select: { itemKey: true, userId: true } }),
+  ]);
+  const asleep = new Set(snoozeRows.map((r) => r.itemKey));
+  const idsOf = (prefix: string) => [...asleep].filter((k) => k.startsWith(`${prefix}:`)).map((k) => k.slice(prefix.length + 1));
+  const labels = new Map<string, string>();
+  for (const x of socialPosts) labels.set(inboxKey.post(x.id), `Post: ${x.text.replace(/\s+/g, " ").slice(0, 70)}`);
+  for (const x of articles) labels.set(inboxKey.article(x.id), `Article: ${x.title}`);
+  for (const x of questions) labels.set(inboxKey.article(x.postId), `Article: ${x.postTitle}`);
+  for (const x of allImages) labels.set(inboxKey.image(x.id), `Image for ${x.postTitle}`);
+  for (const x of allCitations) labels.set(inboxKey.citation(x.id), `Claim: ${x.claim.slice(0, 70)}`);
+  for (const x of invitations) labels.set(inboxKey.invite(x.id), `Invitation: ${x.email}`);
+  const snoozed = snoozeRows.map((r) => ({ key: r.itemKey, until: r.until, label: labels.get(r.itemKey) ?? "Something further down the list" }));
+  const assignUsers = assignRows.length
+    ? await db.user.findMany({ where: { id: { in: [...new Set(assignRows.map((a) => a.userId))] } }, select: { id: true, name: true, email: true } })
+    : [];
+  const nameOf = new Map(assignUsers.map((u) => [u.id, u.name ?? u.email]));
+  const assignees: InboxData["assignees"] = Object.fromEntries(assignRows.map((a) => [a.itemKey, { userId: a.userId, name: nameOf.get(a.userId) ?? "someone who left" }]));
+  const awakePosts = socialPosts.filter((x) => !asleep.has(inboxKey.post(x.id)));
+  const awakeArticles = articles.filter((x) => !asleep.has(inboxKey.article(x.id)));
+  const awakeQuestions = questions.filter((x) => !asleep.has(inboxKey.article(x.postId)));
+  const awakeImages = allImages.filter((x) => !asleep.has(inboxKey.image(x.id)));
+  const awakeCitations = allCitations.filter((x) => !asleep.has(inboxKey.citation(x.id)));
+  const awakeInvitations = invitations.filter((x) => !asleep.has(inboxKey.invite(x.id)));
+
   const conditions = home.decisions.filter((d) => !REPLACED_KINDS.has(d.kind));
   // An article that passes every check needs nobody under full autonomy —
   // the next cycle moves it. Without autonomy it needs a click (SHL-06).
-  const articlesNeedingYou = articles.filter((a) => a.failing.length > 0 || !autonomous).length;
+  const articlesNeedingYou = awakeArticles.filter((a) => a.failing.length > 0 || !autonomous).length;
   // Counted only where this person can act (SHL-07): approving a post is an
   // admin's, the article work an editor's; a viewer's count used to never
   // reach zero. The groups still show — read-only — for everyone.
   const editor = opts.editor ?? opts.admin;
+  // Snoozed ones are left out of the true totals too (ids are never null, so notIn is safe here).
   const [postCount, questionCount, inviteCount] = await Promise.all([
-    db.socialPost.count({ where: { workspaceId, approval: "pending" } }),
-    db.blogFinding.count({ where: { workspaceId, kind: "knowledge", status: "open", post: { status: { in: ["draft_review", "final_approval", "drafting"] } } } }),
-    opts.admin ? db.invitation.count({ where: { workspaceId, acceptedAt: null, expiresAt: { gt: new Date() } } }) : Promise.resolve(0),
+    db.socialPost.count({ where: { workspaceId, approval: "pending", id: { notIn: idsOf("post") } } }),
+    db.blogFinding.count({ where: { workspaceId, kind: "knowledge", status: "open", postId: { notIn: idsOf("article") }, post: { status: { in: ["draft_review", "final_approval", "drafting"] } } } }),
+    opts.admin ? db.invitation.count({ where: { workspaceId, acceptedAt: null, expiresAt: { gt: new Date() }, id: { notIn: idsOf("invite") } } }) : Promise.resolve(0),
   ]);
   const counts = {
     socialPosts: postCount,
-    articles: articles.length,
+    articles: awakeArticles.length,
     questions: questionCount,
-    images: allImages.length,
-    citations: allCitations.length,
+    images: awakeImages.length,
+    citations: awakeCitations.length,
     invitations: inviteCount,
   };
   const total = (opts.admin ? counts.socialPosts + counts.invitations : 0)
     + (editor ? articlesNeedingYou + counts.questions + counts.images + counts.citations : 0);
 
-  return { home, socialPosts, articles, questions, images, citations, invitations, conditions, counts, total, autonomous };
+  return {
+    home, socialPosts: awakePosts, articles: awakeArticles, questions: awakeQuestions, images: awakeImages.slice(0, 12),
+    citations: awakeCitations.slice(0, 12), invitations: awakeInvitations, conditions, counts, total, autonomous, snoozed, assignees,
+  };
 }

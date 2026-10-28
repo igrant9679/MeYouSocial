@@ -806,6 +806,20 @@ Tabs: **Keys** (`/admin/api-keys`: LLM, search, images, video, TTS, storage) · 
   a layout's; comments are ignored). A page that turns a role away with a message instead says `// gate: EDITOR` (the
   assistant does).
 
+## ⚠ The Inbox can be snoozed and shared out (2026-10-28, audit Phase 5, wave 2, part e1)
+- **Snooze** (E-SHL-03, `InboxSnooze`, migration `20261028140000_inbox_snooze_assign`): a day, three days or a week, this
+  person's Inbox only. A snoozed item leaves the lists AND the true counts (so the header stops counting it) and is
+  listed under "Snoozed" with Bring it back. **Assign to me** (`InboxAssignment`, one person per item, everyone sees it;
+  anyone can take it over, only the holder lets go). Actions in `actions/inbox.ts` (editors); item keys from
+  `inboxKey` in `lib/inbox.ts` — `post:` `article:` `image:` `citation:` `invite:`. Pass `userId` to `getInboxData` for
+  snoozes to apply (the assistant's calls don't).
+- **One card per article**: a held article's open questions fold into its card; the question cards are for articles
+  that aren't held. **Waiting on an admin**: for anyone but an admin, post approval sits at the bottom under that
+  heading. A cut list links to its full page where there is one ("see all").
+- **The route check depends on nothing but the tree**: routes are matched most-specific first, as Next.js does —
+  first-match in directory order passed on Windows and failed both Railway builds of part d (Linux readdir order
+  resolved /social/approvals to /social/[id]). `CHECK_ROUTES_REVERSE=1` walks backwards to prove it.
+
 ## Open items / things the user still owns
 - **Analytics: APIs enabled 2026-08-03** (Search Console + GA Admin + GA Data, on project
   `479503233109` = `gen-lang-client-0838901195` = "CreateUp"). Still pending, user-only: add the

@@ -55,6 +55,8 @@ model Workspace {
   inboxDrafts     InboxReplyDraft[]
   inboxDismissals SocialInboxItemState[]
   postingSlots    PostingSlot[]
+  inboxSnoozes     InboxSnooze[]
+  inboxAssignments InboxAssignment[]
   topics          Topic[]
   campaigns       Campaign[]
   intelChannels   IntelChannel[]
@@ -1984,6 +1986,37 @@ model SocialPost {
 // A note on a social post, from its author or a reviewer (E-SOC-02). Kept as the
 // review record: there is no edit or delete. `kind` is "changes" for a Request
 // changes note (it is also the post's reviewNote while the request stands).
+// An Inbox item a person has set aside until later (E-SHL-03) — their own Inbox only.
+// `itemKey` names the item: post:<id> · article:<postId> (its card and its questions) ·
+// image:<id> · citation:<id> · invite:<id>. A snooze for something already dealt with
+// simply never matches again.
+model InboxSnooze {
+  id          String   @id @default(cuid())
+  workspaceId String
+  userId      String
+  itemKey     String
+  until       DateTime
+  createdAt   DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, userId, itemKey])
+  @@index([workspaceId, userId, until])
+}
+
+// Who has taken an Inbox item (E-SHL-03): one person per item, seen by everyone.
+model InboxAssignment {
+  id          String   @id @default(cuid())
+  workspaceId String
+  itemKey     String
+  userId      String
+  createdAt   DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, itemKey])
+}
+
 model SocialPostComment {
   id        String   @id @default(cuid())
   postId    String

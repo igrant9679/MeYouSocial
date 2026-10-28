@@ -35,6 +35,14 @@ function walk(dir: string) {
   }
 }
 walk(APP);
+// ⚠ Most specific first, as Next.js matches: /social/approvals is its own page,
+// not /social/[id]. Directory order differs by filesystem — on Windows the first
+// match happened to be right, on Railway's Linux it wasn't, and the prebuild
+// failed two deploys. CHECK_ROUTES_REVERSE=1 runs the walk backwards to prove
+// the answer doesn't depend on it.
+if (process.env.CHECK_ROUTES_REVERSE === "1") routes.reverse();
+const dynamicSegments = (r: Route) => (r.pattern.source.match(/\[\^\/\]\+|\.\+/g) ?? []).length;
+routes.sort((a, b) => dynamicSegments(a) - dynamicSegments(b));
 
 /** The strongest gate on a page: its own file, then every layout above it. */
 function gateOf(route: Route): Role {

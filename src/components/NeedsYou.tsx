@@ -2,7 +2,8 @@ import { formatDay } from "@/lib/zoned-dates";
 import Link from "next/link";
 import { SubmitButton } from "@/components/SubmitButton";
 import { networkFor } from "@/lib/social/networks";
-import type { InboxData } from "@/lib/inbox";
+import { inboxKey, type InboxData } from "@/lib/inbox";
+import { assignInboxItemAction, snoozeInboxItemAction } from "@/app/actions/inbox";
 import { approveSocialPostAction, requestChangesSocialPostAction } from "@/app/actions/social-workflow";
 import { answerFindingsAction, dismissFindingAction } from "@/app/actions/blog-findings";
 import { advanceBlogStatusAction, deleteCitationAction, overrideGateAction, verifyCitationAction } from "@/app/actions/blog";
@@ -19,7 +20,7 @@ import { approveBlogImageAction } from "@/app/actions/blog-images";
  * to anything that wants a subset.
  */
 
-export function Group({ title, hue, count, shown, children }: { title: string; hue: string; count: number; shown?: number; children: React.ReactNode }) {
+export function Group({ title, hue, count, shown, moreHref, children }: { title: string; hue: string; count: number; shown?: number; moreHref?: string; children: React.ReactNode }) {
   return (
     <section className="mb-5">
       <div className="flex items-center gap-2 mb-2">
@@ -29,7 +30,10 @@ export function Group({ title, hue, count, shown, children }: { title: string; h
       <ul className="m-0 p-0 flex flex-col gap-2">{children}</ul>
       {/* The count is the true total; the list is the first few (SHL-05). */}
       {shown != null && count > shown && (
-        <p className="text-[11px] text-[var(--mute)] mt-1.5 mb-0">Showing {shown} of {count} — the rest appear here as these are dealt with.</p>
+        <p className="text-[11px] text-[var(--mute)] mt-1.5 mb-0">
+          Showing {shown} of {count} —{" "}
+          {moreHref ? <Link href={moreHref} className="underline">see all {count}</Link> : "the rest appear here as these are dealt with."}
+        </p>
       )}
     </section>
   );
@@ -42,8 +46,11 @@ export function NeedsYouGroups({
   timeZone,
   origin,
   include = ["posts", "questions", "citations", "images", "articles", "invitations"],
+  me,
 }: {
   inbox: InboxData;
+  /** The signed-in person: given, each card has Snooze and Assign to me (E-SHL-03). */
+  me?: string;
   admin: boolean;
   editor: boolean;
   timeZone: string;
@@ -61,10 +68,15 @@ export function NeedsYouGroups({
     else questionsByPost.push({ postId: q.postId, postTitle: q.postTitle, findings: [q] });
   }
 
-  return (
-    <>
-      {on("posts") && inbox.socialPosts.length > 0 && (
-        <Group title="Posts waiting for approval" hue="violet" count={inbox.counts.socialPosts} shown={inbox.socialPosts.length}>
+  // The article's card carries its questions (E-SHL-03): one card per article.
+  const heldIds = new Set(inbox.articles.map((a) => a.id));
+  const questionsFor = (id: string) => questionsByPost.find((g) => g.postId === id && heldIds.has(id));
+  const questionsOnly = questionsByPost.filter((g) => !heldIds.has(g.postId));
+  const merged = questionsByPost.filter((g) => heldIds.has(g.postId)).reduce((n, g) => n + g.findings.length, 0);
+
+  // Approving a post is an admin's: for anyone else it sits under "Waiting on an admin".
+  const postsGroup = on("posts") && inbox.socialPosts.length > 0 ? (
+        <Group title="Posts waiting for approval" hue="violet" count={inbox.counts.socialPosts} shown={inbox.socialPosts.length} moreHref="/social/approvals">
           {inbox.socialPosts.map((p) => (
             <li key={p.id} className="card flex flex-col gap-2">
               <p className="text-sm m-0 whitespace-pre-wrap leading-relaxed">{p.text.length > 320 ? `${p.text.slice(0, 320)}…` : p.text}</p>
@@ -95,10 +107,15 @@ export function NeedsYouGroups({
                 {/* The editor is an editor's; anyone else gets the read-only post page (SHL-07). */}
                 <Link href={editor ? `/social/${p.id}/edit` : `/social/${p.id}`} className="btn sm">Open</Link>
               </div>
+              {me && editor && <ItemControls itemKey={inboxKey.post(p.id)} me={me} assignee={inbox.assignees[inboxKey.post(p.id)]} />}
             </li>
           ))}
         </Group>
-      )}
+  ) : null;
+
+  return (
+    <>
+      {admin && postsGroup}
 
       {/* ⚠ ONE CARD PER ARTICLE, not one per finding (audit D6). Three separate
           cards, each with up to three textareas, put NINE text boxes above the
@@ -110,15 +127,185 @@ export function NeedsYouGroups({
           <form> is invalid HTML: the parser drops the inner one, so "Dismiss"
           submitted the ANSWER action with empty boxes — the opposite of what it
           said. They are siblings now. */}
-      {on("questions") && questionsByPost.length > 0 && (
-        <Group title="Questions only you can answer" hue="amber" count={inbox.counts.questions} shown={inbox.questions.length}>
-          {questionsByPost.map(({ postId, postTitle, findings }) => (
+      {on("questions") && questionsOnly.length > 0 && (
+        <Group title="Questions only you can answer" hue="amber" count={inbox.counts.questions - merged} shown={inbox.questions.length - merged}>
+          {questionsOnly.map(({ postId, postTitle, findings }) => (
             <li key={postId} className="card">
               <div className="text-[11px] text-[var(--mute)] mb-2">
                 For <Link href={`/blog/${postId}?tab=optimize`} className="underline">{postTitle}</Link>
                 {findings.length > 1 && <> · {findings.length} questions</>}
               </div>
 
+              <QuestionBlock findings={findings} editor={editor} />
+              {me && editor && <ItemControls itemKey={inboxKey.article(postId)} me={me} assignee={inbox.assignees[inboxKey.article(postId)]} />}
+            </li>
+          ))}
+        </Group>
+      )}
+
+      {on("citations") && inbox.citations.length > 0 && (
+        <Group title="Claims with no source" hue="rose" count={inbox.counts.citations} shown={inbox.citations.length}>
+          {inbox.citations.map((c) => (
+            <li key={c.id} className="card">
+              <div className="text-[11px] text-[var(--mute)] mb-1">
+                In <Link href={`/blog/${c.postId}`} className="underline">{c.postTitle}</Link>
+                {c.unsourceable && <span> · live search found nothing that supports it</span>}
+              </div>
+              <p className="text-sm m-0 leading-relaxed">“{c.claim}”</p>
+              {editor && (
+                <div className="flex items-center gap-2 flex-wrap mt-2">
+                  <form action={verifyCitationAction} className="flex items-center gap-1.5 flex-wrap">
+                    <input type="hidden" name="id" value={c.id} />
+                    <input name="sourceUrl" type="url" required placeholder="https://… a source that actually supports it" className="text-xs min-w-72 flex-1" aria-label="Source URL" />
+                    <SubmitButton className="btn primary sm" pendingText="Verifying…">Verify</SubmitButton>
+                  </form>
+                  <form action={deleteCitationAction}>
+                    <input type="hidden" name="id" value={c.id} />
+                    <SubmitButton className="btn sm" pendingText="…" title="Removes the [NEEDS SOURCE] marker and its record, so the sentence stands unsourced — edit it in the editor if it should go too">Drop the claim</SubmitButton>
+                  </form>
+                  <Link href={`/blog/${c.postId}`} className="btn sm">Open</Link>
+                </div>
+              )}
+              {me && editor && <ItemControls itemKey={inboxKey.citation(c.id)} me={me} assignee={inbox.assignees[inboxKey.citation(c.id)]} />}
+            </li>
+          ))}
+        </Group>
+      )}
+
+      {on("images") && inbox.images.length > 0 && (
+        <Group title="Images that need your eye" hue="blue" count={inbox.counts.images} shown={inbox.images.length}>
+          {inbox.images.map((img) => (
+            <li key={img.id} className="card flex items-start gap-3 flex-wrap">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={img.url} alt={img.altText ?? ""} className="w-40 h-24 rounded-lg object-cover border border-[var(--line)] shrink-0" />
+              <div className="flex-1 min-w-48">
+                <div className="text-[11px] text-[var(--mute)]">
+                  {img.role === "og" ? "Open Graph image" : "Featured image"} for <Link href={`/blog/${img.postId}`} className="underline">{img.postTitle}</Link>
+                </div>
+                <div className="text-xs mt-0.5">
+                  {img.rejections >= 2
+                    ? "Auto-review rejected this render and the ones before it, and stopped spending on new ones — it waits for you."
+                    : "Waiting for a person to approve it."}
+                </div>
+                {editor && (
+                  <div className="flex items-center gap-2 flex-wrap mt-2">
+                    <form action={approveBlogImageAction}>
+                      <input type="hidden" name="id" value={img.id} />
+                      <SubmitButton className="btn primary sm" pendingText="…">Approve</SubmitButton>
+                    </form>
+                    <Link href={`/blog/${img.postId}`} className="btn sm">Pick or upload instead</Link>
+                  </div>
+                )}
+              </div>
+              {me && editor && <ItemControls itemKey={inboxKey.image(img.id)} me={me} assignee={inbox.assignees[inboxKey.image(img.id)]} />}
+            </li>
+          ))}
+        </Group>
+      )}
+
+      {on("articles") && inbox.articles.length > 0 && (
+        <Group title="Articles held" hue="rose" count={inbox.articles.length}>
+          {inbox.articles.map((a) => (
+            <li key={a.id} className="card flex items-start gap-3 flex-wrap">
+              <div className="flex-1 min-w-56">
+                <Link href={`/blog/${a.id}`} className="text-sm font-semibold hover:underline">{a.title}</Link>
+                <div className="text-xs text-[var(--mute)] mt-0.5">
+                  {a.failing.length === 0
+                    ? inbox.autonomous
+                      ? "Every required check passes — full autonomy moves it to final approval on the next cycle."
+                      : "Every required check passes. Nothing moves it on by itself while full autonomy is off."
+                    : a.status === "final_approval"
+                      ? `At final approval, but it won't publish — no longer passes: ${a.failing.join(" · ")}`
+                      : `Held at review by: ${a.failing.join(" · ")}`}
+                  {a.openQuestions > 0 && !questionsFor(a.id) && <span> · {a.openQuestions} open question{a.openQuestions === 1 ? "" : "s"}</span>}
+                </div>
+              </div>
+              <Link href={`/blog/${a.id}`} className="btn sm">Open</Link>
+              {/* Passing, at review: it used to wait here for good with no button
+                  unless full autonomy was on (SHL-06). Same action, and the same
+                  server-side checks, as the article page's Advance. */}
+              {editor && a.failing.length === 0 && a.status === "draft_review" && (
+                <form action={advanceBlogStatusAction}>
+                  <input type="hidden" name="id" value={a.id} />
+                  <SubmitButton className="btn sm primary" pendingText="Moving…" title="Every required check passes — send it to final approval now">Move to final approval</SubmitButton>
+                </form>
+              )}
+              {/* The owner's override (2026-09-08): a person outranks the checks.
+                  Recorded with name and reason; carries through the sweep and
+                  publishing, so the article does not stall a step later. */}
+              {admin && a.failing.length > 0 && (
+                <form action={overrideGateAction} className="basis-full flex items-center gap-1.5 flex-wrap pt-1">
+                  <input type="hidden" name="id" value={a.id} />
+                  <input name="reason" placeholder="why you're overriding (optional)" className="text-[11px] min-w-56 flex-1" aria-label="Reason for overriding the checks" />
+                  <SubmitButton className="btn sm primary" pendingText="Advancing…" title="Override the checks named above and move the article to final approval now — recorded with your name and reason">Advance anyway</SubmitButton>
+                </form>
+              )}
+              {questionsFor(a.id) && (
+                <details className="basis-full">
+                  <summary className="text-xs cursor-pointer" style={{ color: "var(--amber-on)" }}>
+                    {questionsFor(a.id)!.findings.length === 1 ? "A question only you can answer" : `${questionsFor(a.id)!.findings.length} questions only you can answer`}
+                  </summary>
+                  <div className="mt-2"><QuestionBlock findings={questionsFor(a.id)!.findings} editor={editor} /></div>
+                </details>
+              )}
+              {me && editor && <ItemControls itemKey={inboxKey.article(a.id)} me={me} assignee={inbox.assignees[inboxKey.article(a.id)]} />}
+            </li>
+          ))}
+        </Group>
+      )}
+
+      {on("invitations") && inbox.invitations.length > 0 && (
+        <Group title="Invitations not yet accepted" hue="teal" count={inbox.invitations.length}>
+          {inbox.invitations.map((i) => (
+            <li key={i.id} className="card">
+              <div className="text-sm"><b>{i.email}</b> <span className="font-mono text-[10px] text-[var(--mute)]">{i.role}</span> <span className="text-[11px] text-[var(--mute)]">· expires {formatDay(i.expiresAt)}</span></div>
+              <div className="text-[11px] text-[var(--mute)] mt-1">If the email didn&apos;t arrive, send this link yourself (click to select):</div>
+              <code className="block text-[11px] select-all break-all mt-0.5">{origin}/invitations/{i.token}</code>
+              {me && editor && <ItemControls itemKey={inboxKey.invite(i.id)} me={me} assignee={inbox.assignees[inboxKey.invite(i.id)]} />}
+            </li>
+          ))}
+        </Group>
+      )}
+      {!admin && postsGroup && (
+        <div className="mt-6 pt-3 border-t border-[var(--line)]">
+          <h2 className="font-mono font-bold text-xs uppercase tracking-wide text-[var(--mute)] mt-0 mb-1">Waiting on an admin</h2>
+          <p className="text-[11px] text-[var(--mute)] mt-0 mb-2">You can see these; an admin decides them.</p>
+          {postsGroup}
+        </div>
+      )}
+    </>
+  );
+}
+
+/** Snooze and Assign to me on a card (E-SHL-03). Snooze is this person's own; who has an item, everyone sees. */
+function ItemControls({ itemKey, me, assignee }: { itemKey: string; me: string; assignee?: { userId: string; name: string } }) {
+  const mine = assignee?.userId === me;
+  const link = "underline hover:text-[var(--ink)] bg-transparent border-0 p-0 cursor-pointer text-[10px] text-[var(--mute)]";
+  return (
+    <div className="basis-full flex items-center gap-1.5 flex-wrap text-[10px] text-[var(--mute)] mt-1 pt-1.5 border-t border-[var(--line)]">
+      {assignee && !mine && <span><b className="text-[var(--ink)]">{assignee.name}</b> has this ·</span>}
+      {mine && <span><b className="text-[var(--ink)]">Yours</b> ·</span>}
+      <form action={assignInboxItemAction}>
+        <input type="hidden" name="key" value={itemKey} />
+        <input type="hidden" name="intent" value={mine ? "release" : "take"} />
+        <button className={link}>{mine ? "Let it go" : assignee ? "Take it" : "Assign to me"}</button>
+      </form>
+      <span>· Snooze</span>
+      {([["1d", "a day"], ["3d", "3 days"], ["1w", "a week"]] as const).map(([v, label]) => (
+        <form key={v} action={snoozeInboxItemAction}>
+          <input type="hidden" name="key" value={itemKey} />
+          <input type="hidden" name="for" value={v} />
+          <button className={link} title={`Hide it from your Inbox for ${label}`}>{label}</button>
+        </form>
+      ))}
+    </div>
+  );
+}
+
+/** An article's open questions, answered together — on its question card or folded into its held card. */
+function QuestionBlock({ findings, editor }: { findings: InboxData["questions"]; editor: boolean }) {
+  return (
+    <>
               {editor ? (
                 <>
                   <form action={answerFindingsAction} className="flex flex-col gap-3">
@@ -179,122 +366,6 @@ export function NeedsYouGroups({
                   <p className="text-[11px] text-[var(--mute)] mt-1 mb-0">An editor answers {findings.length > 1 ? "these" : "this"}.</p>
                 </>
               )}
-            </li>
-          ))}
-        </Group>
-      )}
-
-      {on("citations") && inbox.citations.length > 0 && (
-        <Group title="Claims with no source" hue="rose" count={inbox.counts.citations} shown={inbox.citations.length}>
-          {inbox.citations.map((c) => (
-            <li key={c.id} className="card">
-              <div className="text-[11px] text-[var(--mute)] mb-1">
-                In <Link href={`/blog/${c.postId}`} className="underline">{c.postTitle}</Link>
-                {c.unsourceable && <span> · live search found nothing that supports it</span>}
-              </div>
-              <p className="text-sm m-0 leading-relaxed">“{c.claim}”</p>
-              {editor && (
-                <div className="flex items-center gap-2 flex-wrap mt-2">
-                  <form action={verifyCitationAction} className="flex items-center gap-1.5 flex-wrap">
-                    <input type="hidden" name="id" value={c.id} />
-                    <input name="sourceUrl" type="url" required placeholder="https://… a source that actually supports it" className="text-xs min-w-72 flex-1" aria-label="Source URL" />
-                    <SubmitButton className="btn primary sm" pendingText="Verifying…">Verify</SubmitButton>
-                  </form>
-                  <form action={deleteCitationAction}>
-                    <input type="hidden" name="id" value={c.id} />
-                    <SubmitButton className="btn sm" pendingText="…" title="Removes the [NEEDS SOURCE] marker and its record, so the sentence stands unsourced — edit it in the editor if it should go too">Drop the claim</SubmitButton>
-                  </form>
-                  <Link href={`/blog/${c.postId}`} className="btn sm">Open</Link>
-                </div>
-              )}
-            </li>
-          ))}
-        </Group>
-      )}
-
-      {on("images") && inbox.images.length > 0 && (
-        <Group title="Images that need your eye" hue="blue" count={inbox.counts.images} shown={inbox.images.length}>
-          {inbox.images.map((img) => (
-            <li key={img.id} className="card flex items-start gap-3 flex-wrap">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={img.url} alt={img.altText ?? ""} className="w-40 h-24 rounded-lg object-cover border border-[var(--line)] shrink-0" />
-              <div className="flex-1 min-w-48">
-                <div className="text-[11px] text-[var(--mute)]">
-                  {img.role === "og" ? "Open Graph image" : "Featured image"} for <Link href={`/blog/${img.postId}`} className="underline">{img.postTitle}</Link>
-                </div>
-                <div className="text-xs mt-0.5">
-                  {img.rejections >= 2
-                    ? "Auto-review rejected this render and the ones before it, and stopped spending on new ones — it waits for you."
-                    : "Waiting for a person to approve it."}
-                </div>
-                {editor && (
-                  <div className="flex items-center gap-2 flex-wrap mt-2">
-                    <form action={approveBlogImageAction}>
-                      <input type="hidden" name="id" value={img.id} />
-                      <SubmitButton className="btn primary sm" pendingText="…">Approve</SubmitButton>
-                    </form>
-                    <Link href={`/blog/${img.postId}`} className="btn sm">Pick or upload instead</Link>
-                  </div>
-                )}
-              </div>
-            </li>
-          ))}
-        </Group>
-      )}
-
-      {on("articles") && inbox.articles.length > 0 && (
-        <Group title="Articles held" hue="rose" count={inbox.articles.length}>
-          {inbox.articles.map((a) => (
-            <li key={a.id} className="card flex items-start gap-3 flex-wrap">
-              <div className="flex-1 min-w-56">
-                <Link href={`/blog/${a.id}`} className="text-sm font-semibold hover:underline">{a.title}</Link>
-                <div className="text-xs text-[var(--mute)] mt-0.5">
-                  {a.failing.length === 0
-                    ? inbox.autonomous
-                      ? "Every required check passes — full autonomy moves it to final approval on the next cycle."
-                      : "Every required check passes. Nothing moves it on by itself while full autonomy is off."
-                    : a.status === "final_approval"
-                      ? `At final approval, but it won't publish — no longer passes: ${a.failing.join(" · ")}`
-                      : `Held at review by: ${a.failing.join(" · ")}`}
-                  {a.openQuestions > 0 && <span> · {a.openQuestions} question{a.openQuestions === 1 ? "" : "s"} above</span>}
-                </div>
-              </div>
-              <Link href={`/blog/${a.id}`} className="btn sm">Open</Link>
-              {/* Passing, at review: it used to wait here for good with no button
-                  unless full autonomy was on (SHL-06). Same action, and the same
-                  server-side checks, as the article page's Advance. */}
-              {editor && a.failing.length === 0 && a.status === "draft_review" && (
-                <form action={advanceBlogStatusAction}>
-                  <input type="hidden" name="id" value={a.id} />
-                  <SubmitButton className="btn sm primary" pendingText="Moving…" title="Every required check passes — send it to final approval now">Move to final approval</SubmitButton>
-                </form>
-              )}
-              {/* The owner's override (2026-09-08): a person outranks the checks.
-                  Recorded with name and reason; carries through the sweep and
-                  publishing, so the article does not stall a step later. */}
-              {admin && a.failing.length > 0 && (
-                <form action={overrideGateAction} className="basis-full flex items-center gap-1.5 flex-wrap pt-1">
-                  <input type="hidden" name="id" value={a.id} />
-                  <input name="reason" placeholder="why you're overriding (optional)" className="text-[11px] min-w-56 flex-1" aria-label="Reason for overriding the checks" />
-                  <SubmitButton className="btn sm primary" pendingText="Advancing…" title="Override the checks named above and move the article to final approval now — recorded with your name and reason">Advance anyway</SubmitButton>
-                </form>
-              )}
-            </li>
-          ))}
-        </Group>
-      )}
-
-      {on("invitations") && inbox.invitations.length > 0 && (
-        <Group title="Invitations not yet accepted" hue="teal" count={inbox.invitations.length}>
-          {inbox.invitations.map((i) => (
-            <li key={i.id} className="card">
-              <div className="text-sm"><b>{i.email}</b> <span className="font-mono text-[10px] text-[var(--mute)]">{i.role}</span> <span className="text-[11px] text-[var(--mute)]">· expires {formatDay(i.expiresAt)}</span></div>
-              <div className="text-[11px] text-[var(--mute)] mt-1">If the email didn&apos;t arrive, send this link yourself (click to select):</div>
-              <code className="block text-[11px] select-all break-all mt-0.5">{origin}/invitations/{i.token}</code>
-            </li>
-          ))}
-        </Group>
-      )}
     </>
   );
 }
