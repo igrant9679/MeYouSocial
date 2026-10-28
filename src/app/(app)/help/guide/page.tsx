@@ -89,7 +89,7 @@ export default async function GuidePage() {
           Every stage page has an Overview (its own rows, the verb on the row) and a strip along the top with its
           tabs — the module pages, which kept their addresses. A <b>red badge</b> on the strip means a person must
           act; a muted one is news. Old links (Home, the old Blog and Social menus, Review) all redirect to the right
-          place. The tab names below are read from the app's own navigation, so they're always current.
+          place. The tab names below are read from the app&apos;s own navigation, so they&apos;re always current.
         </p>
         <ul className="m-0 p-0 text-sm space-y-2">
           <Stage href="/inbox" name="Inbox" tabs="—">
@@ -103,7 +103,7 @@ export default async function GuidePage() {
             an outlier into an article, video or social idea, tagged with its Topic.
           </Stage>
           <Stage href="/ideas" name="Ideas" tabs={tabsOf("/ideas")}>
-            One board for article, video and social ideas, in each Topic's lane: Discovered → Approved → Drafted →
+            One board for article, video and social ideas, in each Topic&apos;s lane: Discovered → Approved → Drafted →
             Rejected, a format chip on each card. <b>Only approved article ideas are drafted, and approving is your act.</b> Discover ideas,
             generate video ideas, recompute priorities (every score shows its working).
           </Stage>

@@ -206,7 +206,6 @@ export async function renderOnCloud(opts: CloudRenderOpts): Promise<CloudRenderR
   if (!renderId) throw new HeygenCloudError("HeyGen accepted the render but returned no render_id");
 
   const deadline = Date.now() + POLL_TIMEOUT_MS;
-  // eslint-disable-next-line no-constant-condition
   while (true) {
     if (opts.signal?.aborted) throw new HeygenCloudError("Render cancelled");
     if (Date.now() > deadline) throw new HeygenCloudError("HeyGen render timed out");

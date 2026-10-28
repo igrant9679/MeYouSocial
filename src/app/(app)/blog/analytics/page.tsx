@@ -5,6 +5,7 @@ import { requireMembership, canEdit } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { toggleProtectAction, recordSnapshotAction } from "@/app/actions/blog-analytics";
 import { EmptyState } from "@/components/EmptyState";
+import { daysAgo } from "@/lib/request-time";
 
 // Blog analytics (Spark FR-14 port): manual snapshots per published post,
 // aggregate tiles, refresh candidates (position > 10), top performers, and the
@@ -24,7 +25,7 @@ export default async function BlogAnalyticsPage() {
   });
 
   const withLatest = posts.map((p) => ({ post: p, latest: p.snapshots[0] ?? null }));
-  const yesterday = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
+  const yesterday = daysAgo(1).toISOString().slice(0, 10);
   const tracked = withLatest.filter((x) => x.latest);
   // Null when no post's latest snapshot measured it — a dash, not a 0 (MEA-04).
   const sum = (f: (s: NonNullable<(typeof tracked)[number]["latest"]>) => number | null) =>

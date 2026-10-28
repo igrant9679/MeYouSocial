@@ -674,6 +674,23 @@ Tabs: **Keys** (`/admin/api-keys`: LLM, search, images, video, TTS, storage) · 
   `groupBy` over everything. Postgres sorts NULL FIRST under DESC — always say `nulls: "last"` on a nullable rank.
 - **Performance pages its history** (PRF-02): 25 a page (`?page=`), total from a count query.
 
+## ⚠ Lint is clean — keep it so (2026-10-28, audit Phase 4, part c)
+- **`npx eslint .` reports no errors** (PRF-04; it was 59 — 48 at the audit). Run it with tsc before a commit.
+- **Apostrophes in JSX text are `&apos;`** (react/no-unescaped-entities) — the usual way the count grows back.
+- **"Now" in a server render comes from `lib/request-time.ts`** (`requestNow`, `daysAgo`): reading the clock once per
+  request is right on the server, but the React Compiler's purity rule can't tell a server component from a
+  client one. Client components keep the clock in state (SocialCalendar's `useMinuteClock`) and check "has it
+  passed" in the handler (`hasPassed`).
+- **No components created inside a component** (react-hooks/static-components): the editor's toolbar `Tool`, the
+  Inbox's `FollowLink`, RSS's `ModeSelect`, Analytics' `Status` / `CredLine` are module-level. A component made
+  during render is a new type each render, so React remounts it.
+- **Refs are written in `useLayoutEffect`, not during render** (BlogBodyEditor's `latest`, RichTextEditor's
+  `handlersRef`); the editor's seed is `useState(html)`. Elsie stores the popup's measured height with its
+  position. SocialCalendar's mount flag is `useSyncExternalStore` (false for the server render and hydration).
+- **Deliberate exceptions say why, in place**: Elsie's two layout steps and PostingSchedule's browser-only zone
+  read keep `setState` in an effect; post-card images stay `<img>` (stored files are session-gated, and
+  next/image's optimiser fetches without the session). `_name` bindings are allowed by the lint config.
+
 ## Open items / things the user still owns
 - **Analytics: APIs enabled 2026-08-03** (Search Console + GA Admin + GA Data, on project
   `479503233109` = `gen-lang-client-0838901195` = "CreateUp"). Still pending, user-only: add the

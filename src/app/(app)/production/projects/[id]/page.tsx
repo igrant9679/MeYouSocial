@@ -1,13 +1,11 @@
 import Link from "next/link";
 import { SubmitButton } from "@/components/SubmitButton";
-import { ArrowLeft, BarChart3, RefreshCw, Tag, Hash, GitBranch, FileText, BookOpen } from "lucide-react";
+import { ArrowLeft, BarChart3, Tag, Hash, GitBranch, FileText, BookOpen } from "lucide-react";
 import { notFound } from "next/navigation";
 import { requireMembership } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { readJson } from "@/lib/db/json";
-import { formatNum } from "@/lib/intel";
 import {
-  syncStatsAction,
   setProjectMeritAction,
   setProjectKeywordsAction,
   repurposeProjectAction,
@@ -41,19 +39,12 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
   });
   if (!project) notFound();
 
-  const [stats, wikiDocs] = await Promise.all([
-    db.channelStat.findMany({
-      where: { channelId: project.channelId, videoYoutubeId: project.scriptId ?? undefined },
-      orderBy: { capturedAt: "desc" },
-      take: 1,
-    }),
-    db.wikiDoc.findMany({
-      where: { workspaceId: workspace.id, OR: [{ channelId: null }, { channelId: project.channelId }] },
-      orderBy: { updatedAt: "desc" },
-      select: { id: true, title: true, checklist: true },
-    }),
-  ]);
-  const stat = stats[0];
+  // VID-08: no production numbers are shown, so none are read.
+  const wikiDocs = await db.wikiDoc.findMany({
+    where: { workspaceId: workspace.id, OR: [{ channelId: null }, { channelId: project.channelId }] },
+    orderBy: { updatedAt: "desc" },
+    select: { id: true, title: true, checklist: true },
+  });
 
   const keywords = readJson<string[]>(project.keywords, []);
 
@@ -194,7 +185,7 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
               </label>
               <SubmitButton className="btn primary sm">Attach as tasks</SubmitButton>
             </form>
-            <p className="text-[11px] text-[var(--mute)] mt-2">Converts the wiki page's checklist (or `- ` bullets in the body) into assigned tasks on this project.</p>
+            <p className="text-[11px] text-[var(--mute)] mt-2">Converts the wiki page&apos;s checklist (or `- ` bullets in the body) into assigned tasks on this project.</p>
           </section>
         )}
 
@@ -235,12 +226,3 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
   );
 }
 
-function Metric({ label, value, color }: { label: string; value: string; color: string }) {
-  return (
-    <div className="border border-[var(--line)] rounded-xl p-3 relative overflow-hidden">
-      <div className="absolute left-0 top-0 bottom-0 w-1" style={{ background: color }} />
-      <div className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">{label}</div>
-      <div className="font-mono font-bold text-2xl" style={{ color }}>{value}</div>
-    </div>
-  );
-}

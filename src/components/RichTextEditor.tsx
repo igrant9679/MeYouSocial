@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useCallback, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   Bold, Italic, Link2, Link2Off, List, ListOrdered, Quote, Redo2, RemoveFormatting, Underline, Undo2,
 } from "lucide-react";
@@ -133,7 +133,7 @@ export function RichTextEditor({
    * `__html` on every render and leaves the live DOM alone — which is what
    * keeps the surface uncontrolled and the caret still.
    */
-  const seed = useRef(html).current;
+  const [seed] = useState(html);
 
   // Keep the plain projection in step, through the prototype setter so React's
   // _valueTracker doesn't swallow it…
@@ -228,26 +228,14 @@ export function RichTextEditor({
   // Surface never re-renders, so it reads its handlers from here instead of
   // from the closure it mounted with.
   const handlersRef = useRef({ sync, remember, onPaste });
-  handlersRef.current = { sync, remember, onPaste };
+  useLayoutEffect(() => {
+    handlersRef.current = { sync, remember, onPaste };
+  });
 
   const words = richTextToPlainText(html).split(/\s+/).filter(Boolean).length;
 
-  const Tool = ({
-    onClick, title, children, active,
-  }: { onClick: () => void; title: string; children: React.ReactNode; active?: boolean }) => (
-    <button
-      type="button"
-      onMouseDown={(e) => { e.preventDefault(); remember(); }}
-      onClick={onClick}
-      disabled={disabled}
-      title={title}
-      aria-label={title}
-      className="btn ghost !px-1.5 !py-1"
-      style={active ? { background: "var(--violet-soft)", color: "var(--violet-on)" } : undefined}
-    >
-      {children}
-    </button>
-  );
+  // Toolbar buttons keep the selection (remember) and follow `disabled`.
+  const toolProps = { onRemember: remember, disabled };
 
   return (
     <div className="flex flex-col gap-1">
@@ -280,22 +268,22 @@ export function RichTextEditor({
             <option value="h3">Heading 3</option>
             <option value="h4">Heading 4</option>
           </select>
-          <Tool onClick={() => exec("bold")} title="Bold"><Bold className="w-3.5 h-3.5" /></Tool>
-          <Tool onClick={() => exec("italic")} title="Italic"><Italic className="w-3.5 h-3.5" /></Tool>
-          <Tool onClick={() => exec("underline")} title="Underline"><Underline className="w-3.5 h-3.5" /></Tool>
+          <Tool {...toolProps} onClick={() => exec("bold")} title="Bold"><Bold className="w-3.5 h-3.5" /></Tool>
+          <Tool {...toolProps} onClick={() => exec("italic")} title="Italic"><Italic className="w-3.5 h-3.5" /></Tool>
+          <Tool {...toolProps} onClick={() => exec("underline")} title="Underline"><Underline className="w-3.5 h-3.5" /></Tool>
           <span className="w-px h-4 bg-[var(--line)] mx-1" />
-          <Tool onClick={() => exec("insertUnorderedList")} title="Bulleted list"><List className="w-3.5 h-3.5" /></Tool>
-          <Tool onClick={() => exec("insertOrderedList")} title="Numbered list"><ListOrdered className="w-3.5 h-3.5" /></Tool>
-          <Tool onClick={() => exec("formatBlock", "blockquote")} title="Quote"><Quote className="w-3.5 h-3.5" /></Tool>
+          <Tool {...toolProps} onClick={() => exec("insertUnorderedList")} title="Bulleted list"><List className="w-3.5 h-3.5" /></Tool>
+          <Tool {...toolProps} onClick={() => exec("insertOrderedList")} title="Numbered list"><ListOrdered className="w-3.5 h-3.5" /></Tool>
+          <Tool {...toolProps} onClick={() => exec("formatBlock", "blockquote")} title="Quote"><Quote className="w-3.5 h-3.5" /></Tool>
           <span className="w-px h-4 bg-[var(--line)] mx-1" />
-          <Tool onClick={() => { remember(); setLinkOpen((v) => !v); }} title="Insert link" active={linkOpen}>
+          <Tool {...toolProps} onClick={() => { remember(); setLinkOpen((v) => !v); }} title="Insert link" active={linkOpen}>
             <Link2 className="w-3.5 h-3.5" />
           </Tool>
-          <Tool onClick={() => exec("unlink")} title="Remove link"><Link2Off className="w-3.5 h-3.5" /></Tool>
-          <Tool onClick={() => exec("removeFormat")} title="Clear formatting"><RemoveFormatting className="w-3.5 h-3.5" /></Tool>
+          <Tool {...toolProps} onClick={() => exec("unlink")} title="Remove link"><Link2Off className="w-3.5 h-3.5" /></Tool>
+          <Tool {...toolProps} onClick={() => exec("removeFormat")} title="Clear formatting"><RemoveFormatting className="w-3.5 h-3.5" /></Tool>
           <span className="w-px h-4 bg-[var(--line)] mx-1" />
-          <Tool onClick={() => exec("undo")} title="Undo"><Undo2 className="w-3.5 h-3.5" /></Tool>
-          <Tool onClick={() => exec("redo")} title="Redo"><Redo2 className="w-3.5 h-3.5" /></Tool>
+          <Tool {...toolProps} onClick={() => exec("undo")} title="Undo"><Undo2 className="w-3.5 h-3.5" /></Tool>
+          <Tool {...toolProps} onClick={() => exec("redo")} title="Redo"><Redo2 className="w-3.5 h-3.5" /></Tool>
           <span className="flex-1" />
           {/* suppressHydrationWarning: viewer-locale number grouping differs
               from the server's — intended, and a React #418 without this
@@ -328,5 +316,25 @@ export function RichTextEditor({
         handlers={handlersRef}
       />
     </div>
+  );
+}
+
+/** A toolbar button. Module-level so React keeps the same button between renders (PRF-04). */
+function Tool({
+  onClick, onRemember, disabled, title, children, active,
+}: { onClick: () => void; onRemember: () => void; disabled?: boolean; title: string; children: React.ReactNode; active?: boolean }) {
+  return (
+    <button
+      type="button"
+      onMouseDown={(e) => { e.preventDefault(); onRemember(); }}
+      onClick={onClick}
+      disabled={disabled}
+      title={title}
+      aria-label={title}
+      className="btn ghost !px-1.5 !py-1"
+      style={active ? { background: "var(--violet-soft)", color: "var(--violet-on)" } : undefined}
+    >
+      {children}
+    </button>
   );
 }

@@ -164,7 +164,7 @@ export default async function IntelChannelPage({ params, searchParams }: { param
   );
 }
 
-function StatBox({ label, value, color, soft, icon }: { label: string; value: string; color: string; soft: string; icon?: React.ReactNode }) {
+function StatBox({ label, value, color, icon }: { label: string; value: string; color: string; soft: string; icon?: React.ReactNode }) {
   return (
     <div className="card relative overflow-hidden">
       <div className="absolute left-0 top-0 bottom-0 w-1" style={{ background: color }} />

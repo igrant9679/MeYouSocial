@@ -72,7 +72,7 @@ export default async function UserSettingsPage({ searchParams }: { searchParams:
           <p className="text-sm text-[var(--green)] flex items-center gap-1.5"><ShieldCheck className="w-4 h-4" /> Verified on {new Date(user.emailVerified).toLocaleDateString()}.</p>
         ) : (
           <div className="flex items-center gap-3">
-            <p className="text-sm text-[var(--mute)] flex-1">Your email isn't verified yet.</p>
+            <p className="text-sm text-[var(--mute)] flex-1">Your email isn&apos;t verified yet.</p>
             <form action={resendVerificationAction}><SubmitButton className="btn primary sm" pendingText="Sending…">Resend verification</SubmitButton></form>
           </div>
         )}

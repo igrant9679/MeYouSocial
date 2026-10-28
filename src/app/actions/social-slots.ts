@@ -50,10 +50,6 @@ type Flash = (msg: string, kind?: "err" | "ok") => never;
 
 const tabFlash = (to: string): Flash => (msg, kind = "err") => flashTo(to, msg, kind);
 
-function backTo(msg: string, kind: "err" | "ok" = "err"): never {
-  return flashTo("/social", msg, kind);
-}
-
 // ---- Schedule editing ----------------------------------------------------------
 
 /**

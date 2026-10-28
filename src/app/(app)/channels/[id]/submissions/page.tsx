@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { SubmitButton } from "@/components/SubmitButton";
-import { Inbox, Sparkles, X, CheckCircle2, Copy } from "lucide-react";
+import { Inbox, Sparkles, X, CheckCircle2 } from "lucide-react";
 import { requireChannel } from "@/lib/channel";
 import { db } from "@/lib/db";
 import { reviewSubmissionAction, promoteSubmissionAction } from "@/app/actions/growth";

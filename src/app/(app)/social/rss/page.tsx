@@ -38,12 +38,6 @@ export default async function RssPage({ searchParams }: { searchParams: Promise<
   const draftsMeaning = autonomous
     ? "Draft posts — ⚠ full autonomy is on here, so the sweep queues them into free slots: they go out on their own."
     : "Draft posts — they wait in Drafts until someone queues them.";
-  const ModeSelect = ({ value, name = "mode" }: { value: string; name?: string }) => (
-    <select name={name} defaultValue={value} className={inputCls}>
-      <option value="ideas">Social ideas on the board — each waits for a person</option>
-      <option value="drafts">{draftsMeaning}</option>
-    </select>
-  );
 
   return (
     <div>
@@ -58,7 +52,7 @@ export default async function RssPage({ searchParams }: { searchParams: Promise<
       {editor && (
         <form action={addFeedAction} className="card mb-4 flex flex-wrap items-end gap-2">
           <label className="text-xs flex-1 min-w-72"><span className="block text-[10px] text-[var(--mute)] mb-1">Feed address</span><input name="url" required type="url" placeholder="https://example.org/feed" className={`${inputCls} w-full`} /></label>
-          <label className="text-xs"><span className="block text-[10px] text-[var(--mute)] mb-1">New items become</span><ModeSelect value="ideas" /></label>
+          <label className="text-xs"><span className="block text-[10px] text-[var(--mute)] mb-1">New items become</span><ModeSelect draftsMeaning={draftsMeaning} value="ideas" /></label>
           {topics.length > 0 && (
             <label className="text-xs"><span className="block text-[10px] text-[var(--mute)] mb-1">Topic</span>
               <select name="topicId" defaultValue="" className={inputCls}><option value="">none</option>{topics.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</select></label>
@@ -96,7 +90,7 @@ export default async function RssPage({ searchParams }: { searchParams: Promise<
               {editor && (
                 <form action={updateFeedAction} className="flex flex-wrap items-end gap-2 mb-2">
                   <input type="hidden" name="id" value={f.id} />
-                  <ModeSelect value={f.mode} />
+                  <ModeSelect draftsMeaning={draftsMeaning} value={f.mode} />
                   {topics.length > 0 && <select name="topicId" defaultValue={f.topicId ?? ""} className={inputCls} aria-label="Topic"><option value="">no topic</option>{topics.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</select>}
                   <select name="category" defaultValue={f.category ?? ""} className={inputCls} aria-label="Category"><option value="">no category</option>{categories.map((c) => <option key={c} value={c}>{c}</option>)}</select>
                   <SubmitButton className="btn sm" pendingText="…">Save</SubmitButton>
@@ -117,5 +111,14 @@ export default async function RssPage({ searchParams }: { searchParams: Promise<
         </ul>
       )}
     </div>
+  );
+}
+
+function ModeSelect({ value, name = "mode", draftsMeaning }: { value: string; name?: string; draftsMeaning: string }) {
+  return (
+    <select name={name} defaultValue={value} className={inputCls}>
+      <option value="ideas">Social ideas on the board — each waits for a person</option>
+      <option value="drafts">{draftsMeaning}</option>
+    </select>
   );
 }

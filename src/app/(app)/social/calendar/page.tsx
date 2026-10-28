@@ -8,7 +8,6 @@ import { SubmitButton } from "@/components/SubmitButton";
 import { getQueue } from "@/lib/social/slots";
 import { queueAllDraftsAction } from "@/app/actions/social-slots";
 import { Banner, Empty, PostCard, Section, SocialHeader } from "@/components/SocialPostCard";
-import { EmptyState } from "@/components/EmptyState";
 
 // The queue: everything scheduled or drafted, on a grid you can drag, with the
 // agenda as the same data listed by day.

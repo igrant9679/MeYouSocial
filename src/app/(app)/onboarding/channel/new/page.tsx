@@ -21,7 +21,7 @@ export default async function OnboardingStartPage({ searchParams }: { searchPara
         {error && <p className="text-sm text-[var(--brand)]">Please fill in every field — at least 10 characters for the niche.</p>}
 
         <label className="flex flex-col gap-1">
-          <span className="text-xs font-mono uppercase text-[var(--mute)]">What's your channel about?</span>
+          <span className="text-xs font-mono uppercase text-[var(--mute)]">What&apos;s your channel about?</span>
           <textarea name="niche" required minLength={10} rows={4} placeholder="e.g. Evidence-based productivity for knowledge workers. Less hustle, more systems." className="border border-[var(--line-2)] rounded-lg p-3 text-sm" />
         </label>
         {/* No channel exists yet at step 1, so this drafts from the company

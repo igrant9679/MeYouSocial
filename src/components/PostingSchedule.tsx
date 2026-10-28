@@ -59,6 +59,9 @@ export function PostingSchedule({
 
   useEffect(() => {
     try {
+      // The viewer's zone and the zone list exist only in the browser; read
+      // after mount so the server render matches.
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- see above
       setDetected(Intl.DateTimeFormat().resolvedOptions().timeZone || null);
       // Not in every runtime's typings yet; absent = fall back to a free-text input.
       const supported = (Intl as unknown as { supportedValuesOf?: (k: string) => string[] }).supportedValuesOf;

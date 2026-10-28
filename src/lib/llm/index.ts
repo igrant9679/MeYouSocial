@@ -76,7 +76,6 @@ function wrapWithFallback(real: LLMProvider, providerId: string): LLMProvider {
         await clearProviderRefusal(req.workspaceId, providerId).catch(() => {});
         return { ...out, provider: providerId };
       } catch (e) {
-        // eslint-disable-next-line no-console
         console.warn(`[llm] ${providerId}.complete failed → falling back to mock:`, e instanceof Error ? e.message : e);
         // Out of credits, over quota or a rejected key: recorded for the Inbox.
         await recordProviderRefusal(req.workspaceId, providerId, e instanceof Error ? e.message : String(e)).catch(() => {});
@@ -96,7 +95,6 @@ function wrapWithFallback(real: LLMProvider, providerId: string): LLMProvider {
         let next = await iter.next();
         while (!next.done) { yield next.value; next = await iter.next(); }
       } catch (e) {
-        // eslint-disable-next-line no-console
         console.warn(`[llm] ${providerId}.stream failed → falling back to mock:`, e instanceof Error ? e.message : e);
         await recordProviderRefusal(req.workspaceId, providerId, e instanceof Error ? e.message : String(e)).catch(() => {});
         for await (const chunk of mockProvider.stream(req)) yield chunk;

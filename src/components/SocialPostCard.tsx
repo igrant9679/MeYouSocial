@@ -82,6 +82,7 @@ export function MediaThumbs({ keys, size = "h-20 w-20" }: { keys: string[]; size
     <div className="flex flex-wrap gap-1.5">
       {keys.map((k) => (
         <a key={k} href={storage.url(k)} target="_blank" rel="noreferrer" title="Open full size">
+          {/* eslint-disable-next-line @next/next/no-img-element -- stored files are session-gated; next/image's optimiser fetches without the session */}
           <img
             src={storage.url(k)}
             alt="Post image"

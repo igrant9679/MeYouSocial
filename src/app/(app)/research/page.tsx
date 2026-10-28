@@ -1,7 +1,6 @@
 import { OUTLIER_MIN_VIEWS } from "@/lib/intel";
 import Link from "next/link";
 import { requireMembership, canEdit } from "@/lib/acl";
-import { getActiveChannel } from "@/lib/channel";
 import { db } from "@/lib/db";
 import { intelThumbUrl, outlierBand, formatNum, formatVph } from "@/lib/intel";
 import { matchTopic, prepareTopics } from "@/lib/topic-match";
@@ -23,7 +22,6 @@ import { EmptyState } from "@/components/EmptyState";
 
 export default async function ResearchStage({ searchParams }: { searchParams: Promise<{ ok?: string }> }) {
   const { workspace, membership } = await requireMembership();
-  const { active } = await getActiveChannel();
   const { ok } = await searchParams;
   const editor = canEdit(membership.role);
   const [outliers, channels, bookmarks, indexedVideos, topics, studio, ownChannels] = await Promise.all([
@@ -144,7 +142,7 @@ function g_unmatchedNote(groups: Array<{ topic: unknown; rows: unknown[] }>) {
   if (!unmatched || groups.length < 2) return null;
   return (
     <p className="text-[11px] text-[var(--mute)] m-0">
-      Unmatched means no Topic's name or phrases appear in the title — the chooser on each row still takes any Topic.
+      Unmatched means no Topic&apos;s name or phrases appear in the title — the chooser on each row still takes any Topic.
     </p>
   );
 }

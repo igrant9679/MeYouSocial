@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
 import { PRODUCT } from "@/lib/product";
 
 // Minimal API surface so external clients (incl. MCP servers) can drive

@@ -12,6 +12,7 @@ import {
   refreshRecommendationsAction,
 } from "@/app/actions/recommendations";
 import { EmptyState } from "@/components/EmptyState";
+import { daysAgo } from "@/lib/request-time";
 
 // Insights — the read-only face of the metrics spine (src/lib/metrics).
 //
@@ -97,7 +98,7 @@ export default async function InsightsPage({
     collectWorkspaceMetrics(workspace.id, RANGE_DAYS),
     openRecommendations(workspace.id),
     recentlyResolved(workspace.id),
-    readingsForWorkspace(workspace.id, new Date(Date.now() - RANGE_DAYS * 86_400_000)),
+    readingsForWorkspace(workspace.id, daysAgo(RANGE_DAYS)),
   ]);
   const networks = byNetwork(socialReadings);
 

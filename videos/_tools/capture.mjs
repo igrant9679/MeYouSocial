@@ -18,7 +18,7 @@
 // recording is saved as <out>/<name>.mp4 (converted from webm with ffmpeg).
 
 import { chromium } from "playwright";
-import { mkdirSync, readFileSync, existsSync, renameSync, unlinkSync } from "node:fs";
+import { mkdirSync, readFileSync, existsSync, unlinkSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";

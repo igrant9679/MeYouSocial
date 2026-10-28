@@ -37,7 +37,6 @@ for (const p of projects) {
   if (!existsSync(full)) continue;
   const dur = Number(execSync(`ffprobe -v error -show_entries format=duration -of csv=p=0 "${full}"`).toString().trim());
   const size = statSync(full).size;
-  const chapters = script.scenes.filter((s) => s.chapter).map((s) => s.chapter.replace(/^\d\d · /, ""));
   const sb = readFileSync(path.join(ROOT, p, "STORYBOARD.md"), "utf8");
   const starts = [...sb.matchAll(/## Frame \d+ — (s\d\d)\n[\s\S]*?start: ([0-9.]+)/g)].map((m) => [m[1], Number(m[2])]);
   const chapterMarks = script.scenes.filter((s) => s.chapter).map((s) => ({ time: fmt(starts.find(([id]) => id === s.id)?.[1] ?? 0), title: s.chapter.replace(/^\d\d · /, "") }));

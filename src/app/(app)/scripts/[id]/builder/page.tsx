@@ -267,7 +267,7 @@ function StepThumbnail({ scriptId: _, thumbnails }: { scriptId: string; thumbnai
             const url = t.renderUrl ?? concepts[0]?.url;
             return (
               <div key={t.id} className="border border-[var(--line)] rounded-lg overflow-hidden">
-                {url && (/* eslint-disable-next-line @next/next/no-img-element */ <img src={url} alt={t.title ?? ""} className="w-full aspect-video object-cover" />)}
+                {url && (/* eslint-disable-line @next/next/no-img-element */ <img src={url} alt={t.title ?? ""} className="w-full aspect-video object-cover" />)}
                 <div className="p-2 text-xs">{t.title ?? "Untitled"}</div>
               </div>
             );

@@ -59,7 +59,6 @@ export function describeSmtpError(e: unknown): string {
 const mock: EmailProvider = {
   async send(message) {
     const id = "mock-" + Math.random().toString(36).slice(2, 10);
-    // eslint-disable-next-line no-console
     console.log("📧 [mock email]", id, "→", message.to, "\n  subject:", message.subject);
     return { id, mocked: true };
   },
@@ -133,7 +132,6 @@ export function emailFor(workspaceId?: string): EmailProvider {
             }
           }
         } catch (e) {
-          // eslint-disable-next-line no-console
           console.warn("[email] Unipile send failed → trying SMTP/mock:", e instanceof Error ? e.message : e);
         }
       }
@@ -150,7 +148,6 @@ export function emailFor(workspaceId?: string): EmailProvider {
         });
         return { id: info.messageId };
       } catch (e) {
-        // eslint-disable-next-line no-console
         console.warn("[email] SMTP send failed → falling back to mock:", e instanceof Error ? e.message : e);
         return mock.send(message);
       }

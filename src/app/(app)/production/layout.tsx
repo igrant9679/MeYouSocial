@@ -12,7 +12,7 @@ export default async function ProductionLayout({ children }: { children: React.R
         </span>
         <div>
           <h1 className="font-mono font-bold text-2xl leading-tight">Production</h1>
-          <p className="text-xs text-[var(--mute)]">Run the channel. Writer's Room → Film Queue → Edit Bay → Calendar.</p>
+          <p className="text-xs text-[var(--mute)]">Run the channel. Writer&apos;s Room → Film Queue → Edit Bay → Calendar.</p>
         </div>
       </div>
 

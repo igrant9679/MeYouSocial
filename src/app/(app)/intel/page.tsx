@@ -7,6 +7,7 @@ import { ChannelAvatar } from "@/components/ChannelAvatar";
 import { toggleBookmarkAction } from "@/app/actions/bookmarks";
 import { autoIndexHandleAction, indexSearchResultsAction } from "@/app/actions/intel";
 import { SubmitButton } from "@/components/SubmitButton";
+import { daysAgo } from "@/lib/request-time";
 
 // MU-02 — Intel dashboard. Implements:
 //   NL search · explicit filters · velocity tag
@@ -41,7 +42,7 @@ export default async function IntelPage({ searchParams }: { searchParams: Promis
     // A dated window, by publish date: the heading said "this week" over the
     // whole index (IDE-11).
     db.intelVideo.findMany({
-      where: { outlierScore: { gte: 2 }, publishedAt: { gte: new Date(Date.now() - 30 * 86_400_000) }, intelChannel: { workspaceId: workspace.id } },
+      where: { outlierScore: { gte: 2 }, publishedAt: { gte: daysAgo(30) }, intelChannel: { workspaceId: workspace.id } },
       orderBy: { outlierScore: "desc" },
       take: 6,
       include: { intelChannel: true },

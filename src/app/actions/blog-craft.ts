@@ -7,7 +7,7 @@ import { llm } from "@/lib/llm";
 import { isGloballyPaused, writeAudit } from "@/lib/governance";
 import { generateOutlineCore } from "@/lib/blog-autopilot";
 import { returnToReviewAfterEdit } from "@/lib/blog-gates";
-import { brandContextBlock, motifPromptFor } from "@/lib/motifs";
+import { motifPromptFor } from "@/lib/motifs";
 
 /**
  * Craft actions (Wave A′): outline, per-section regenerate, A/B titles,

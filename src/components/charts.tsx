@@ -43,7 +43,6 @@ export function AreaChart({
   const line = points.map((p, i) => `${i === 0 ? "M" : "L"}${x(i).toFixed(1)} ${y(p.value).toFixed(1)}`).join(" ");
   const area = `${line} L${x(points.length - 1).toFixed(1)} ${height - padB} L${x(0).toFixed(1)} ${height - padB} Z`;
   const last = points[points.length - 1];
-  const gridYs = [0.25, 0.6, 1].map((f) => padT + (height - padT - padB) * (1 - f) + (height - padT - padB) * 0);
 
   return (
     <svg viewBox={`0 0 ${w} ${height}`} className="w-full h-auto block" role="img" aria-label={`${title}: latest ${fmt(last?.value ?? 0)}`}>

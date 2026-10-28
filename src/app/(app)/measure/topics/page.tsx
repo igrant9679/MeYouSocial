@@ -95,7 +95,7 @@ export default async function MeasureTopicsPage() {
             </table>
           </div>
           <div className="text-[10px] text-[var(--mute)] mt-3 flex flex-col gap-1">
-            <p className="m-0">A dash is not measured, never zero. <span className="font-mono">kw</span> = matched by keyword: the app has no link from a render to the uploaded video, so a Topic's YouTube numbers are its channel videos whose titles match the Topic's name or phrases.</p>
+            <p className="m-0">A dash is not measured, never zero. <span className="font-mono">kw</span> = matched by keyword: the app has no link from a render to the uploaded video, so a Topic&apos;s YouTube numbers are its channel videos whose titles match the Topic&apos;s name or phrases.</p>
             {m.notes.articles && <p className="m-0">Articles: {m.notes.articles}</p>}
             {m.notes.video && <p className="m-0">Video: {m.notes.video}</p>}
             {m.notes.social && <p className="m-0">Social: {m.notes.social}</p>}

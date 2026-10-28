@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { SubmitButton } from "@/components/SubmitButton";
-import Image from "next/image";
 import { Image as ImageIcon, Wand2, Copy, History, AlertTriangle } from "lucide-react";
 import { getActiveChannel } from "@/lib/channel";
 import { db } from "@/lib/db";

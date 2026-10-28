@@ -310,31 +310,27 @@ export default async function InboxPage() {
 
 function PipelineCell({ stage, first, role }: { stage: PipelineStage; first: boolean; role: Role }) {
   const parts = stage.parts.filter((p) => p.n > 0);
-  // A count links where it lives — as plain text when that page isn't this
-  // role's (a viewer and Calendar, Approvals, Performance; SHL-07).
-  const L = ({ href, className, children }: { href: string; className: string; children: React.ReactNode }) =>
-    canFollow(href, role) ? <Link href={href} className={className}>{children}</Link> : <span className={className.replace(/hover:\S+/g, "")}>{children}</span>;
   return (
     <div className={"flex-1 min-w-[120px] px-3 py-2.5 relative " + (first ? "" : "border-l border-[var(--line)]")}>
       <div className="flex items-center gap-1">
         {!first && <ChevronRight className="w-3 h-3 text-[var(--mute)] -ml-1.5 flex-shrink-0" aria-hidden />}
-        <L href={stage.href} className="font-mono text-[9.5px] uppercase tracking-wider text-[var(--mute)] font-bold hover:text-[var(--accent)] hover:underline truncate">
+        <FollowLink role={role} href={stage.href} className="font-mono text-[9.5px] uppercase tracking-wider text-[var(--mute)] font-bold hover:text-[var(--accent)] hover:underline truncate">
           {stage.label}
-        </L>
+        </FollowLink>
       </div>
       {stage.total === null ? (
         <div className="font-mono font-bold text-[22px] leading-tight text-[var(--mute)]" title={stage.reason}>—</div>
       ) : (
-        <L href={stage.href} className="font-mono font-bold text-[22px] leading-tight tabular-nums block hover:text-[var(--accent)]">
+        <FollowLink role={role} href={stage.href} className="font-mono font-bold text-[22px] leading-tight tabular-nums block hover:text-[var(--accent)]">
           {stage.total.toLocaleString("en-GB")}
-        </L>
+        </FollowLink>
       )}
       <div className="flex gap-2 flex-wrap min-h-[14px]">
         {parts.length > 1
           ? parts.map((p) => (
-              <L key={p.label} href={p.href} className="text-[10px] text-[var(--mute)] hover:underline">
+              <FollowLink key={p.label} role={role} href={p.href} className="text-[10px] text-[var(--mute)] hover:underline">
                 {p.n} {p.label}
-              </L>
+              </FollowLink>
             ))
           : null}
       </div>
@@ -381,4 +377,11 @@ function QuickTile({ href, label, icon: Icon, color, soft }: { href: string; lab
       </div>
     </Link>
   );
+}
+
+/** A count links where it lives — as plain text when that page isn't this role's (SHL-07). */
+function FollowLink({ href, className, role, children }: { href: string; className: string; role: Role; children: React.ReactNode }) {
+  return canFollow(href, role)
+    ? <Link href={href} className={className}>{children}</Link>
+    : <span className={className.replace(/hover:\S+/g, "")}>{children}</span>;
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Code2, Eye, PencilLine } from "lucide-react";
 import { autosaveBlogBodyAction } from "@/app/actions/blog";
 import { RichTextEditor } from "@/components/RichTextEditor";
@@ -68,7 +68,10 @@ export function BlogBodyEditor({
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSaved = useRef(initialBody);
   const latest = useRef({ body, baseHash, saveState });
-  latest.current = { body, baseHash, saveState };
+  // Updated after each render, before any handler or effect reads it.
+  useLayoutEffect(() => {
+    latest.current = { body, baseHash, saveState };
+  });
   const formAnchor = useRef<HTMLInputElement>(null);
 
   const words = useMemo(() => {

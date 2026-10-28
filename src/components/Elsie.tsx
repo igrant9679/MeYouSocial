@@ -97,7 +97,7 @@ export function Elsie({
   const userDriven = useRef(false);
   const [target, setTarget] = useState<Box | null>(null);
   const [placement, setPlacement] = useState<Placement>("bottom");
-  const [tipPos, setTipPos] = useState<{ top: number; left: number } | null>(null);
+  const [tipPos, setTipPos] = useState<{ top: number; left: number; height: number } | null>(null);
   const [ready, setReady] = useState(false);
   const tipRef = useRef<HTMLDivElement>(null);
   /**
@@ -159,13 +159,14 @@ export function Elsie({
     // slightly off-centre from its target.
     left = Math.max(8, Math.min(left, vw - TIP_WIDTH - 8));
     top = Math.max(8, Math.min(top, vh - tipH - 8));
-    setTipPos({ top, left });
+    setTipPos({ top, left, height: tipH });
     setReady(true);
   }, [step]);
 
   // Locate the current step's anchor, navigating and waiting if needed.
   useEffect(() => {
     if (!open || !step) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- a new step hides the popup until its anchor is found and measured
     setReady(false);
     let cancelled = false;
 
@@ -243,6 +244,7 @@ export function Elsie({
   // Re-measure once the popup has its real height, and on scroll/resize.
   useLayoutEffect(() => {
     if (!open || !ready) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- measuring the rendered popup and placing it is this effect's job
     reposition();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, ready, index]);
@@ -392,7 +394,7 @@ export function Elsie({
                         [placement === "bottom" ? "top" : "bottom"]: -6,
                       }
                     : {
-                        top: Math.max(12, Math.min(target.top + target.height / 2 - tipPos.top - 6, (tipRef.current?.offsetHeight ?? 180) - 24)),
+                        top: Math.max(12, Math.min(target.top + target.height / 2 - tipPos.top - 6, tipPos.height - 24)),
                         [placement === "right" ? "left" : "right"]: -6,
                       }),
                 }}

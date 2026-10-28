@@ -4,6 +4,7 @@ import { Clock, PenLine, ArrowRight } from "lucide-react";
 import { requireMembership } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { setProjectStatusAction } from "@/app/actions/production";
+import { requestNow } from "@/lib/request-time";
 
 // Writer's Room. Projects in Research/Writing, due-soon, per-assignee filter.
 
@@ -25,7 +26,8 @@ export default async function WritersRoomPage({ searchParams }: { searchParams: 
     orderBy: { publishDate: { sort: "asc", nulls: "last" } },
   });
 
-  const soon = (date: Date | null) => date && date.getTime() - Date.now() < 5 * 24 * 60 * 60 * 1000;
+  const now = requestNow();
+  const soon = (date: Date | null) => date && date.getTime() - now < 5 * 24 * 60 * 60 * 1000;
 
   return (
     <div>

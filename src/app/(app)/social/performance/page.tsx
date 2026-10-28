@@ -10,13 +10,13 @@ import { networkFor } from "@/lib/social/networks";
 import { syncSocialPerformanceAction } from "@/app/actions/social-slots";
 import { Banner, Empty, PostCard, Section, SocialHeader } from "@/components/SocialPostCard";
 import { EmptyState } from "@/components/EmptyState";
+import { daysAgo } from "@/lib/request-time";
 
 // What went out, and what came back. Engagement is pulled on demand rather than
 // polled, so an empty panel means "not asked yet" — and says so.
 
 type SP = { ok?: string; err?: string; page?: string };
 
-const DAY = 24 * 60 * 60 * 1000;
 const HISTORY_PAGE = 25;
 
 export default async function SocialPerformancePage({ searchParams }: { searchParams: Promise<SP> }) {
@@ -46,7 +46,7 @@ export default async function SocialPerformancePage({ searchParams }: { searchPa
     db.socialPost.count({ where: historyWhere }),
     getQueue(workspace.id),
     getSetting("social:require_approval", workspace.id).catch(() => "").then((v) => v === "true"),
-    readingsForWorkspace(workspace.id, new Date(Date.now() - 90 * DAY)),
+    readingsForWorkspace(workspace.id, daysAgo(90)),
   ]);
 
   const networks = byNetwork(readings);

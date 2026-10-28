@@ -53,7 +53,6 @@ export function AiActivity() {
       // A watched item now done/failed — or gone entirely (finished while the
       // tab was hidden and its linger window passed) — means new output exists
       // server-side. One refresh per batch, not per item.
-      const nextIds = new Set(next.map((i) => i.id));
       let finished = false;
       for (const id of watched.current) {
         const now = next.find((i) => i.id === id);

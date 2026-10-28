@@ -56,7 +56,7 @@ export default async function ChannelVoicePage({
   if (profiles.length === 0) {
     return (
       <div className="card text-center py-10">
-        <p className="text-sm text-[var(--mute)]">No voice profile yet. It's still generating after onboarding — refresh in a few seconds.</p>
+        <p className="text-sm text-[var(--mute)]">No voice profile yet. It&apos;s still generating after onboarding — refresh in a few seconds.</p>
       </div>
     );
   }
@@ -190,7 +190,7 @@ export default async function ChannelVoicePage({
         {/* Writing samples */}
         <section className="card">
           <h2 className="font-mono text-[14px] font-bold mb-3 flex items-center gap-2"><FileText className="w-4 h-4" style={{ color: "#2563EB" }} /> Writing samples <span className="text-xs text-[var(--mute)] font-normal">— up to 50,000 chars each</span></h2>
-          <p className="text-xs text-[var(--mute)] mb-3">Paste blog posts, threads, transcripts, or other scripts you've written. More samples = better voice match.</p>
+          <p className="text-xs text-[var(--mute)] mb-3">Paste blog posts, threads, transcripts, or other scripts you&apos;ve written. More samples = better voice match.</p>
 
           <form action={addVoiceSampleAction} className="flex flex-col gap-2 mb-4">
             <input type="hidden" name="voiceId" value={active.id} />

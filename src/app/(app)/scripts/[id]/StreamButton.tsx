@@ -44,7 +44,7 @@ export function StreamButton({ scriptId, stage, label }: { scriptId: string; sta
           } catch {}
         }
       }
-    } catch (e) {
+    } catch {
       // user cancelled or network error — silent.
     } finally {
       setStreaming(false);

@@ -109,7 +109,7 @@ export default async function IntelVideoPage({ params, searchParams }: { params:
           <Stat icon={<ThumbsUp className="w-4 h-4" />} label="Likes" value={formatNum(video.likes)} color="#15924B" soft="#E0F2E8" />
           <Stat icon={<MessageSquare className="w-4 h-4" />} label="Comments" value={formatNum(video.comments)} color="#D97706" soft="#FBEED5" />
           {/* When these were read — they're re-read on every index (IDE-11). A dash is a figure YouTube didn't report. */}
-          <p className="text-[10px] text-[var(--mute)] m-0 -mt-1">{video.measuredAt ? `Read from YouTube ${video.measuredAt.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}` : `Read when first indexed${video.intelChannel.lastIndexedAt ? `, before ${video.intelChannel.lastIndexedAt.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}` : ""}`}. A dash means YouTube didn't report it.</p>
+          <p className="text-[10px] text-[var(--mute)] m-0 -mt-1">{video.measuredAt ? `Read from YouTube ${video.measuredAt.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}` : `Read when first indexed${video.intelChannel.lastIndexedAt ? `, before ${video.intelChannel.lastIndexedAt.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}` : ""}`}. A dash means YouTube didn&apos;t report it.</p>
 
           <div className="card">
             <div className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)] mb-1">Outlier score</div>
@@ -134,7 +134,7 @@ export default async function IntelVideoPage({ params, searchParams }: { params:
                 {video.viewsPerSub?.toFixed(2)}
                 <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: vsBand.soft, color: vsBand.color }}>{vsBand.label}</span>
               </div>
-              <p className="text-xs text-[var(--mute)] mt-2">Reach beyond the channel's subscriber base.</p>
+              <p className="text-xs text-[var(--mute)] mt-2">Reach beyond the channel&apos;s subscriber base.</p>
             </div>
           )}
 

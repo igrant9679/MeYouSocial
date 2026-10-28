@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { createTaskAction, saveAutoTaskRulesAction } from "@/app/actions/production";
 import { TaskBoard } from "@/components/TaskBoard";
 import { closeStaleAutoTasks, getAutoTaskRules } from "@/lib/auto-tasks";
+import { requestNow } from "@/lib/request-time";
 
 // The production task board: drag-and-drop kanban with a WIP limit, aging
 // flags, per-person capacity, and the auto-task rules that turn pipeline
@@ -43,6 +44,7 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
   const capacity = [...byPerson.entries()].map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count);
   const capacityMax = Math.max(1, ...capacity.map((c) => c.count));
 
+  const now = requestNow();
   return (
     <div>
       <div className="flex items-center gap-2 mb-4">
@@ -88,8 +90,8 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
           title: t.title,
           assignee: t.assignee ? (t.assignee.name ?? t.assignee.email ?? "").split(/[@\s]/)[0] : null,
           due: t.dueDate ? t.dueDate.toLocaleDateString("en-GB", { day: "2-digit", month: "short" }) : null,
-          overdue: !!t.dueDate && t.dueDate.getTime() < Date.now() && t.status !== "done",
-          aging: t.status !== "done" && Date.now() - t.updatedAt.getTime() > 3 * 86400000,
+          overdue: !!t.dueDate && t.dueDate.getTime() < now && t.status !== "done",
+          aging: t.status !== "done" && now - t.updatedAt.getTime() > 3 * 86400000,
           status: t.status,
           project: t.contentProject?.title ?? null,
         }))}

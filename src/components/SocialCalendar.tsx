@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore, useTransition } from "react";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight, Pencil, CalendarClock } from "lucide-react";
 import { rescheduleSocialPostAction } from "@/app/actions/social";
@@ -185,8 +185,10 @@ export function SocialCalendar({ posts, freeSlots = [] }: { posts: CalendarPost[
   // So it renders nothing until it is mounted. The calendar is a drag-and-drop
   // surface that does nothing without JavaScript anyway, and the same queue is
   // listed, server-rendered, on Distribute.
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  // False for the server render and hydration, true after (PRF-04: the same
+  // flag, without setting state in an effect).
+  const mounted = useSyncExternalStore(subscribeNothing, () => true, () => false);
+  const now = useMinuteClock();
   const [mode, setMode] = useState<Mode>("month");
   const [allHours, setAllHours] = useState(false);
   const [items, setItems] = useState(posts);
@@ -245,7 +247,7 @@ export function SocialCalendar({ posts, freeSlots = [] }: { posts: CalendarPost[
   const month = cursor.getMonth();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const blanks = leadingBlanks(new Date(year, month, 1));
-  const todayKey = dayKey(new Date());
+  const todayKey = dayKey(new Date(now));
 
   const weekStart = useMemo(() => startOfWeek(cursor), [cursor]);
   const weekDays = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)), [weekStart]);
@@ -274,7 +276,7 @@ export function SocialCalendar({ posts, freeSlots = [] }: { posts: CalendarPost[
   const commit = (id: string, target: Date) => {
     const post = items.find((p) => p.id === id);
     if (!post) return;
-    if (target.getTime() < Date.now() - 60_000) {
+    if (hasPassed(target)) {
       setError("That time has already passed — pick a future one.");
       return;
     }
@@ -442,7 +444,7 @@ export function SocialCalendar({ posts, freeSlots = [] }: { posts: CalendarPost[
             const dayPosts = byDay.get(key) ?? [];
             const isToday = key === todayKey;
             const isOver = overDay === key;
-            const isPast = new Date(year, month, day, 23, 59, 59).getTime() < Date.now();
+            const isPast = new Date(year, month, day, 23, 59, 59).getTime() < now;
             return (
               <div
                 key={key}
@@ -512,7 +514,7 @@ export function SocialCalendar({ posts, freeSlots = [] }: { posts: CalendarPost[
                   const cellFree = freeByCell.get(key) ?? [];
                   const over = overCell?.key === key ? overCell : null;
                   // The whole hour is gone, so a drop here could only be a mistake.
-                  const isPast = new Date(d.getFullYear(), d.getMonth(), d.getDate(), hour + 1).getTime() <= Date.now();
+                  const isPast = new Date(d.getFullYear(), d.getMonth(), d.getDate(), hour + 1).getTime() <= now;
                   return (
                     <div
                       key={key}
@@ -574,4 +576,24 @@ export function SocialCalendar({ posts, freeSlots = [] }: { posts: CalendarPost[
       )}
     </div>
   );
+}
+
+const subscribeNothing = () => () => {};
+
+/**
+ * The time, re-read each minute, so "past" and "today" move on while the
+ * calendar stays open. Kept in state rather than read during render (PRF-04).
+ */
+function useMinuteClock(): number {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 60_000);
+    return () => clearInterval(id);
+  }, []);
+  return now;
+}
+
+/** At the moment of the drop — a minute's grace for a slow hand. */
+function hasPassed(target: Date): boolean {
+  return target.getTime() < Date.now() - 60_000;
 }

@@ -23,7 +23,7 @@ export default async function ChannelMemoryPage({ params }: { params: Promise<{ 
         </span>
         <div>
           <h2 className="font-mono font-bold text-lg leading-tight">Channel Memory</h2>
-          <p className="text-xs text-[var(--mute)]">Durable facts the AI auto-applies across every script in this channel. <b>Don't repeat yourself in chat.</b></p>
+          <p className="text-xs text-[var(--mute)]">Durable facts the AI auto-applies across every script in this channel. <b>Don&apos;t repeat yourself in chat.</b></p>
         </div>
       </div>
 

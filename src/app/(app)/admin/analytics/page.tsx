@@ -61,29 +61,6 @@ export default async function AnalyticsConnectionsPage({
     }
   })();
 
-  const Status = ({ on, label }: { on: boolean; label: string }) => (
-    <span
-      className="font-mono text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0"
-      style={{ background: on ? "var(--green-soft)" : "var(--zebra)", color: on ? "var(--green-on)" : "var(--mute)" }}
-    >
-      {on ? "connected" : label}
-    </span>
-  );
-
-  // Name the credential a connector actually runs on, so "connected" never
-  // hides WHOSE access is being used.
-  const credLabel = (cred: AnalyticsCredential) =>
-    cred.kind === "oauth"
-      ? `this workspace's Google account (${cred.identity})`
-      : cred.kind === "own_sa"
-        ? `this workspace's own service account (${cred.identity})`
-        : `the shared platform service account (${cred.identity})`;
-  const CredLine = ({ cred }: { cred: AnalyticsCredential }) => (
-    <p className="text-[10px] font-mono mb-2" style={{ color: cred.kind === "platform_sa" ? "var(--amber-on)" : "var(--green-on)" }}>
-      Running on {credLabel(cred)}.
-    </p>
-  );
-
   return (
     <main className="w-full">
       <div className="flex items-center gap-3 mb-1.5">
@@ -365,3 +342,27 @@ export default async function AnalyticsConnectionsPage({
     </main>
   );
 }
+
+// Module-level, not created during render (PRF-04).
+const Status = ({ on, label }: { on: boolean; label: string }) => (
+  <span
+    className="font-mono text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0"
+    style={{ background: on ? "var(--green-soft)" : "var(--zebra)", color: on ? "var(--green-on)" : "var(--mute)" }}
+  >
+    {on ? "connected" : label}
+  </span>
+);
+
+// Name the credential a connector actually runs on, so "connected" never
+// hides WHOSE access is being used.
+const credLabel = (cred: AnalyticsCredential) =>
+  cred.kind === "oauth"
+    ? `this workspace's Google account (${cred.identity})`
+    : cred.kind === "own_sa"
+      ? `this workspace's own service account (${cred.identity})`
+      : `the shared platform service account (${cred.identity})`;
+const CredLine = ({ cred }: { cred: AnalyticsCredential }) => (
+  <p className="text-[10px] font-mono mb-2" style={{ color: cred.kind === "platform_sa" ? "var(--amber-on)" : "var(--green-on)" }}>
+    Running on {credLabel(cred)}.
+  </p>
+);

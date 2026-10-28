@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { getSetting } from "@/lib/settings";
-import { readJson, writeJson } from "@/lib/db/json";
+import { readJson } from "@/lib/db/json";
 import { writeAudit } from "@/lib/governance";
 import { notify } from "@/lib/notify";
 import { llm, resolveUsableModel } from "@/lib/llm";

@@ -6,6 +6,7 @@ import { AreaChart, HBars } from "@/components/charts";
 import { MOTIF_SEED_BY_KEY, parseMotifs } from "@/lib/motifs";
 import type { BlockKey } from "@/lib/report-defs";
 import { EmptyState } from "@/components/EmptyState";
+import { daysAgo } from "@/lib/request-time";
 
 /**
  * Report blocks — each one is an async server component that loads its own
@@ -247,7 +248,7 @@ export async function ReportBlock({ block, workspaceId, weeks, canAct = true }: 
     case "autopilot_budget": {
       // The autopilot's own count and limit (MEA-15: three actions against a
       // budget of five; MEA-20: the posting timezone's day, not the server's).
-      const weekAgo = new Date(Date.now() - 7 * 86400000);
+      const weekAgo = daysAgo(7);
       const { generationsToday, DAILY_AI_BUDGET } = await import("@/lib/blog-autopilot");
       const [today, failures] = await Promise.all([
         generationsToday(workspaceId),
