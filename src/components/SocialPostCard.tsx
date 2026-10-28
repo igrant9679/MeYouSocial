@@ -1,7 +1,11 @@
 import Link from "next/link";
 import {
-  Send, Copy, RotateCw, Check, X, Pencil, Tags, ListPlus, Megaphone, Recycle, ShieldCheck, Eye,
+  Send, Copy, RotateCw, Check, X, Pencil, Tags, ListPlus, Megaphone, Recycle, ShieldCheck, Eye, Clock, MessageSquare,
 } from "lucide-react";
+import { SubmitButton } from "@/components/SubmitButton";
+import { toZonedInput } from "@/lib/social/slots";
+import { formatZonedMoment, zoneLabel } from "@/lib/zoned-dates";
+import type { ThreadNote } from "@/lib/social/post-comments";
 import { DeleteButton } from "@/components/DeleteButton";
 import { DELETABLE_POST_STATUSES } from "@/lib/social/post-lists";
 import { storage } from "@/lib/storage";
@@ -9,6 +13,7 @@ import { networkFor } from "@/lib/social/networks";
 import { subFormatLabel } from "@/lib/social/sub-formats";
 import { mayHavePosted } from "@/lib/social/unknown-outcome";
 import {
+  addSocialPostCommentAction,
   approveSocialPostAction,
   requestChangesSocialPostAction,
   submitForApprovalAction,
@@ -96,8 +101,12 @@ export function MediaThumbs({ keys, size = "h-20 w-20" }: { keys: string[]; size
 }
 
 export function PostCard({
-  post, canQueue = false, timeZone, isAdmin = false, approvalOn = false, returnTo, readOnly = false,
+  post, canQueue = false, timeZone, isAdmin = false, approvalOn = false, returnTo, readOnly = false, selectForm, thread,
 }: {
+  /** The bulk review form a pending post's box belongs to (Approvals, E-SOC-02). Admins only. */
+  selectForm?: string;
+  /** The post's review thread; given, the card shows it with a box to add to it (E-SOC-02). */
+  thread?: ThreadNote[];
   /** A viewer's card: the result link only, no actions (MEA-10). */
   readOnly?: boolean;
   post: PostRow; canQueue?: boolean; timeZone: string; isAdmin?: boolean; approvalOn?: boolean;
@@ -119,6 +128,9 @@ export function PostCard({
   return (
     <div className="card">
       <div className="flex items-center gap-2 flex-wrap mb-1.5">
+        {selectForm && isAdmin && post.approval === "pending" && (
+          <input type="checkbox" name="sel" value={post.id} form={selectForm} aria-label="Select this post" />
+        )}
         <span className="font-mono text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded-full" style={{ background: s.bg, color: s.fg }}>{s.label}</span>
         {post.approval === "pending" && (
           <span className="inline-flex items-center gap-1 font-mono text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }}>
@@ -176,6 +188,15 @@ export function PostCard({
                 <Check className="w-3.5 h-3.5" /> Approve
               </button>
             </form>
+            <details className="relative">
+              <summary className="btn sm list-none cursor-pointer" title={`Approve it for a time you pick (${timeZone})`}><Clock className="w-3.5 h-3.5" /> For a time…</summary>
+              <form action={approveSocialPostAction} className="absolute z-10 mt-1 card !p-2 flex items-center gap-1.5 text-xs whitespace-nowrap">
+                <input type="hidden" name="id" value={post.id} />
+                <input type="datetime-local" name="at" required defaultValue={post.scheduledAt ? toZonedInput(post.scheduledAt, timeZone) : undefined} aria-label={`Approve for this time, ${timeZone}`} className="text-xs" />
+                <span className="text-[10px] text-[var(--mute)]">{zoneLabel(timeZone)}</span>
+                <SubmitButton className="btn sm primary" pendingText="Approving…">Approve for then</SubmitButton>
+              </form>
+            </details>
             <form action={requestChangesSocialPostAction} className="inline-flex items-center gap-1">
               <input type="hidden" name="id" value={post.id} />
               <input name="note" placeholder="What needs to change?" maxLength={500} className="text-xs w-44 border border-[var(--line-2)] rounded-lg px-1.5 py-1" />
@@ -246,11 +267,12 @@ export function PostCard({
         </>)}
       </div>
       <p className="text-sm text-[var(--slate)] whitespace-pre-wrap mb-1">{post.text || <span className="text-[var(--mute)] italic">(image only)</span>}</p>
-      {post.approval === "changes" && post.reviewNote && (
+      {post.approval === "changes" && post.reviewNote && !thread?.some((c) => c.kind === "changes" && c.body === post.reviewNote) && (
         <p className="text-xs rounded-lg px-2 py-1.5 mb-2" style={{ background: "var(--rose-soft)", color: "var(--rose-on)" }}>
           Reviewer: {post.reviewNote}
         </p>
       )}
+      {thread && <PostThread postId={post.id} thread={thread} timeZone={timeZone} back={returnTo ?? "/social/approvals"} />}
       {listKeys(post.mediaKeys).length > 0 && (
         <div className="mb-2">
           <MediaThumbs keys={listKeys(post.mediaKeys)} />
@@ -298,6 +320,34 @@ export function PostCard({
         })}
       </div>
     </div>
+  );
+}
+
+/** A post's review thread (E-SOC-02): oldest first, open while it's short, and a box to add to it. */
+export function PostThread({ postId, thread, timeZone, back, open }: { postId: string; thread: ThreadNote[]; timeZone: string; back: string; open?: boolean }) {
+  return (
+    <details className="mb-2" open={open ?? (thread.length > 0 && thread.length <= 3)}>
+      <summary className="text-[11px] cursor-pointer text-[var(--mute)] inline-flex items-center gap-1">
+        <MessageSquare className="w-3 h-3" /> {thread.length === 0 ? "Comment" : `Comments · ${thread.length}`}
+      </summary>
+      {thread.length > 0 && (
+        <ul className="flex flex-col gap-1.5 mt-1.5">
+          {thread.map((c) => (
+            <li key={c.id} className="text-xs border-l-2 pl-2" style={{ borderColor: c.kind === "changes" ? "var(--rose)" : "var(--line-2)" }}>
+              <b>{c.author}</b>{" "}
+              <span className="text-[10px] text-[var(--mute)]">{formatZonedMoment(c.createdAt, timeZone)}{c.kind === "changes" ? " · asked for changes" : ""}</span>
+              <p className="whitespace-pre-wrap m-0">{c.body}</p>
+            </li>
+          ))}
+        </ul>
+      )}
+      <form action={addSocialPostCommentAction} className="flex items-end gap-1.5 mt-1.5">
+        <input type="hidden" name="id" value={postId} />
+        <input type="hidden" name="back" value={back} />
+        <textarea name="body" rows={1} required maxLength={1000} placeholder="A note for the author or the reviewers" aria-label="Comment" className="flex-1 text-xs" />
+        <SubmitButton className="btn sm" pendingText="…">Comment</SubmitButton>
+      </form>
+    </details>
   );
 }
 

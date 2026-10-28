@@ -10,6 +10,8 @@ import { listCategories } from "@/lib/social/categories";
 import { canWatermark } from "@/lib/social/watermark";
 import { optimalTime } from "@/lib/social/optimal";
 import { readTargetOptions } from "@/lib/social/platform-options";
+import { threadsFor } from "@/lib/social/post-comments";
+import { PostThread } from "@/components/SocialPostCard";
 
 // Editing an unsent post. Reuses the composer wholesale so per-network rules
 // (char limits, variants, per-network images) behave identically to composing.
@@ -103,6 +105,8 @@ export default async function EditSocialPostPage({ params }: { params: Promise<{
   ]);
 
   const droppedTargets = post.targets.length - selectedIds.length;
+  // The review thread (E-SOC-02), wherever the post is in review or has notes.
+  const thread = (await threadsFor([post.id])).get(post.id) ?? [];
 
   return (
     <main className="w-full">
@@ -149,6 +153,13 @@ export default async function EditSocialPostPage({ params }: { params: Promise<{
           watermarkAvailable={watermarkAvailable}
           optimal={optimal.ok ? { label: optimal.label, why: optimal.why } : { reason: optimal.reason }}
         />
+      )}
+
+      {(thread.length > 0 || post.approval) && (
+        <section className="card mt-4" aria-label="Review thread">
+          <h2 className="font-mono font-bold text-sm mb-1">Review thread</h2>
+          <PostThread postId={post.id} thread={thread} timeZone={queue.timeZone} back={`/social/${post.id}/edit`} open />
+        </section>
       )}
     </main>
   );

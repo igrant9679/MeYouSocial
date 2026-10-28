@@ -6,10 +6,16 @@ import { getSetting } from "@/lib/settings";
 import { getQueue } from "@/lib/social/slots";
 import { Banner, PostCard, Section, SocialHeader } from "@/components/SocialPostCard";
 import { EmptyState } from "@/components/EmptyState";
+import { ApprovalBar } from "@/components/ApprovalBar";
+import { threadsFor } from "@/lib/social/post-comments";
 
 // The review queue. A queue nobody sees is a queue nobody clears, which is why
 // it gets its own tab with an urgent badge rather than a section three screens
-// down the scheduler.
+// down the scheduler. Since E-SOC-02 it scales: tick many and approve or send
+// them back at once, approve one for a time you pick, and talk on each post's
+// own thread.
+
+const BULK = "post-review";
 
 type SP = { ok?: string; err?: string };
 
@@ -33,6 +39,7 @@ export default async function SocialApprovalsPage({ searchParams }: { searchPara
     getSetting("social:require_approval", workspace.id).catch(() => "").then((v) => v === "true"),
   ]);
 
+  const threads = await threadsFor(posts.map((p) => p.id));
   const awaiting = posts.filter((p) => p.approval === "pending");
   const changes = posts.filter((p) => p.approval === "changes");
   const hasSlots = queue.slots.some((s) => s.enabled);
@@ -77,9 +84,10 @@ export default async function SocialApprovalsPage({ searchParams }: { searchPara
           {awaiting.length > 0 && (
             <>
               <Section icon={<ShieldCheck className="w-4 h-4" style={{ color: "var(--amber-on)" }} />} title="Awaiting approval" count={awaiting.length} />
+              {isAdmin && awaiting.length > 1 && <ApprovalBar formId={BULK} pending={awaiting.length} />}
               <div className="flex flex-col gap-2 mb-6">
                 {awaiting.map((p) => (
-                  <PostCard key={p.id} post={p} returnTo="/social/approvals" canQueue={hasSlots} timeZone={queue.timeZone} isAdmin={isAdmin} approvalOn={requireApproval} />
+                  <PostCard key={p.id} post={p} returnTo="/social/approvals" canQueue={hasSlots} timeZone={queue.timeZone} isAdmin={isAdmin} approvalOn={requireApproval} selectForm={awaiting.length > 1 ? BULK : undefined} thread={threads.get(p.id)} />
                 ))}
               </div>
             </>
@@ -93,7 +101,7 @@ export default async function SocialApprovalsPage({ searchParams }: { searchPara
               </p>
               <div className="flex flex-col gap-2 mb-6">
                 {changes.map((p) => (
-                  <PostCard key={p.id} post={p} returnTo="/social/approvals" canQueue={hasSlots} timeZone={queue.timeZone} isAdmin={isAdmin} approvalOn={requireApproval} />
+                  <PostCard key={p.id} post={p} returnTo="/social/approvals" canQueue={hasSlots} timeZone={queue.timeZone} isAdmin={isAdmin} approvalOn={requireApproval} thread={threads.get(p.id)} />
                 ))}
               </div>
             </>

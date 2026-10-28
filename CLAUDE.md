@@ -750,6 +750,26 @@ Tabs: **Keys** (`/admin/api-keys`: LLM, search, images, video, TTS, storage) · 
   applied in the queries (`loadIdeasBoard`); a Topic shows only its lane, a search hides lanes it emptied, header
   counts stay whole-board. The per-Topic page links to its lane. E-ART-01 (safe editing) shipped as ART-01/03.
 
+## ⚠ Triage many at once; approvals scale and talk (2026-10-28, audit Phase 5, wave 2, part b)
+- **Bulk triage on the board** (E-IDE-01, `actions/ideas-bulk.ts` `bulkIdeasAction`, editors): each selectable card has
+  `<input name="sel" value="<format>:<id>" form="idea-bulk">` — the toolbar (`components/IdeaTriage.tsx`) is that form, so the
+  cards stay server-rendered and their own forms untouched. Approve / Reject / Tag (or "no Topic") / Delete (asks first;
+  the server wants `confirm=yes`). Each table keeps its OWN open states (`RULES`, mirrored by the page's `canSelect`): a drafted
+  or merged article, a scripting video, a drafted social idea is never selectable or moved; approvals and rejections are
+  audited per idea with `bulk: true`, a delete once as `ideas.bulk_deleted`. It returns to the same view (`back`, held to /ideas).
+  Keys (never while typing): j/k move between visible cards (`data-idea-card`), x ticks, a/r press the card's own
+  `data-key` button, ? lists them. A lane has "Select all N open" (`data-lane-toggle`).
+- **Approvals scale** (E-SOC-02): `approvePost` / `requestChanges` in `actions/social-workflow.ts` are the ONE path for the
+  card buttons, "For a time…" and `bulkReviewSocialAction` (ADMIN; pending posts tick into `components/ApprovalBar.tsx`).
+  Both claim the decision in a conditional update, so a second reviewer changes nothing; the bulk path decides PENDING
+  posts only (`from`), so a stale tick can't approve one a reviewer just sent back. A reviewer's time (`at`, read in
+  the posting zone) must be ahead and wins over the requested time and the queue (`timeChosen: true`, kept even when a
+  network rule leaves it a draft). A bulk send-back needs a note; it goes to each author.
+- **Each post has a review thread** (`SocialPostComment`, migration `20261028130000_social_post_comments`): Request changes
+  writes its note there (`kind: "changes"`) as well as `reviewNote`; `addSocialPostCommentAction` (editors) notifies whoever is
+  on the thread, else the admins. Shown on Approvals and the post's edit page (`PostThread`, `lib/social/post-comments.ts`).
+  No edit or delete — it's the review record. The assistant's own approve tool (lib/assistant/tools.ts) is separate.
+
 ## Open items / things the user still owns
 - **Analytics: APIs enabled 2026-08-03** (Search Console + GA Admin + GA Data, on project
   `479503233109` = `gen-lang-client-0838901195` = "CreateUp"). Still pending, user-only: add the

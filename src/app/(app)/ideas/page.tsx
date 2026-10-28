@@ -23,6 +23,7 @@ import { addIdeaAction, discoverIdeasAction, regenerateIdeasAction, setBoardIdea
 import { draftSocialIdeaNowAction, setSocialIdeaStatusAction, updateSocialIdeaAction } from "@/app/actions/social-ideas";
 import { draftingBlockers } from "@/lib/idea-blockers";
 import { StageHeader } from "@/components/StageShell";
+import { IdeaTriage } from "@/components/IdeaTriage";
 import { canFollow, whoCanFix } from "@/lib/role-links";
 
 // The Ideas stage IS the one board (One-Loop step 4), in Topic lanes since
@@ -40,6 +41,9 @@ import { canFollow, whoCanFix } from "@/lib/role-links";
 
 type Topic = { id: string; name: string };
 const OPEN_LANES = 8; // lanes past this many open collapsed, with their counts
+// The bulk toolbar's form (components/IdeaTriage.tsx): every selectable card's
+// box names it, so ticking anywhere on the page fills the one form (E-IDE-01).
+const BULK = "idea-bulk";
 
 export default async function IdeasBoard({ searchParams }: { searchParams: Promise<{ format?: string; channel?: string; q?: string; topic?: string; sort?: string; ok?: string; err?: string }> }) {
   const { workspace, membership } = await requireMembership();
@@ -68,6 +72,10 @@ export default async function IdeasBoard({ searchParams }: { searchParams: Promi
     .map(([f, one, many]) => ({ f, n: waiting(f), label: waiting(f) === 1 ? one : many, why: blockers[f] }))
     .filter((s) => s.n > 0 && s.why);
   const engineMakes = !blockers.article || !blockers.social;
+  // Bulk actions come back to this exact view, filters kept.
+  const backParams = new URLSearchParams();
+  for (const k of ["format", "channel", "q", "topic", "sort"] as const) if (sp[k]) backParams.set(k, sp[k]!);
+  const back = backParams.toString() ? `/ideas?${backParams.toString()}` : "/ideas";
 
   return (
     <div>
@@ -227,6 +235,7 @@ export default async function IdeasBoard({ searchParams }: { searchParams: Promi
         />
       ) : (
         <div className="flex flex-col gap-3">
+          {editor && <IdeaTriage formId={BULK} back={back} topics={topics} />}
           {lanes.map((lane, i) => (
             <LaneSection
               key={lane.topic?.id ?? "none"}
@@ -274,6 +283,8 @@ function LaneSection({ lane, open, editor, topics }: {
     fmt("video") ? `${fmt("video")} video` : "",
     fmt("social") ? `${fmt("social")} social` : "",
   ].filter(Boolean).join(" · ");
+  const laneId = t?.id ?? "none";
+  const selectable = editor ? lane.cards.filter((c) => c.state !== "rejected" && canSelect(c)).length : 0;
 
   return (
     <details className="card" open={open}>
@@ -294,6 +305,12 @@ function LaneSection({ lane, open, editor, topics }: {
         {!t && <span className="text-[11px] text-[var(--mute)]">no Topic on these yet — tag each one and it moves to its lane</span>}
       </summary>
 
+      {selectable > 0 && (
+        <label className="text-[11px] text-[var(--mute)] inline-flex items-center gap-1.5 mt-3 cursor-pointer">
+          <input type="checkbox" data-lane-toggle={laneId} />
+          Select all {selectable} open in this lane
+        </label>
+      )}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3">
         {LANE_STATES.map((col) => {
           const items = by(col.state);
@@ -308,7 +325,7 @@ function LaneSection({ lane, open, editor, topics }: {
                 </p>
               ) : (
                 <ul className="flex flex-col gap-2">
-                  {items.map((c) => <Card key={`${c.format}-${c.row.id}`} c={c} editor={editor} topics={topics} />)}
+                  {items.map((c) => <Card key={`${c.format}-${c.row.id}`} c={c} editor={editor} topics={topics} lane={laneId} />)}
                 </ul>
               )}
             </section>
@@ -319,7 +336,7 @@ function LaneSection({ lane, open, editor, topics }: {
         <details className="mt-3">
           <summary className="text-[11px] cursor-pointer text-[var(--mute)]">Rejected · {rejected.length} — won&apos;t come back unless restored</summary>
           <ul className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-2">
-            {rejected.map((c) => <Card key={`${c.format}-${c.row.id}`} c={c} editor={editor} topics={topics} />)}
+            {rejected.map((c) => <Card key={`${c.format}-${c.row.id}`} c={c} editor={editor} topics={topics} lane={`${laneId}:rejected`} />)}
           </ul>
         </details>
       )}
@@ -327,10 +344,23 @@ function LaneSection({ lane, open, editor, topics }: {
   );
 }
 
-function Card({ c, editor, topics }: { c: BoardCard; editor: boolean; topics: Topic[] }) {
-  if (c.format === "article") return <ArticleCard idea={c.row} editor={editor} topics={topics} />;
-  if (c.format === "video") return <VideoCard idea={c.row} editor={editor} topics={topics} />;
-  return <SocialCard idea={c.row} editor={editor} topics={topics} />;
+function Card({ c, editor, topics, lane }: { c: BoardCard; editor: boolean; topics: Topic[]; lane: string }) {
+  const select = editor && canSelect(c) ? lane : null;
+  if (c.format === "article") return <ArticleCard idea={c.row} editor={editor} topics={topics} select={select} />;
+  if (c.format === "video") return <VideoCard idea={c.row} editor={editor} topics={topics} select={select} />;
+  return <SocialCard idea={c.row} editor={editor} topics={topics} select={select} />;
+}
+
+/** The cards bulk triage may touch: the open states their own buttons act on (actions/ideas-bulk.ts keeps the same rules). */
+function canSelect(c: BoardCard): boolean {
+  if (c.format === "article") return ["discovered", "approved", "rejected"].includes(c.row.status);
+  if (c.format === "video") return ["new", "approved", "archived"].includes(c.row.status);
+  return c.row.status !== "drafted";
+}
+
+/** A card's box. It lives outside every card form and belongs to the toolbar's (`form`). */
+function SelectBox({ lane, value, label }: { lane: string; value: string; label: string }) {
+  return <input type="checkbox" name="sel" value={value} form={BULK} data-lane={lane} aria-label={`Select “${label.slice(0, 80)}”`} className="mt-0.5 shrink-0" />;
 }
 
 function FilterChip({ href, label, on }: { href: string; label: string; on: boolean }) {
@@ -395,12 +425,13 @@ function TopicPicker({ format, id, topicId, topics, prominent }: { format: IdeaF
 }
 
 // ── Article card — everything the old blog board carried, unchanged ──────────
-function ArticleCard({ idea, editor, topics }: { idea: ArticleRow; editor: boolean; topics: Topic[] }) {
+function ArticleCard({ idea, editor, topics, select }: { idea: ArticleRow; editor: boolean; topics: Topic[]; select: string | null }) {
   const motifs = parseMotifs(idea.motifs);
   const live = idea.status !== "drafted" && idea.status !== "merged";
   return (
-    <li className="rounded-lg border border-[var(--line)] p-2" style={{ background: "var(--zebra)" }}>
+    <li data-idea-card tabIndex={-1} className="rounded-lg border border-[var(--line)] p-2 outline-none focus:ring-2 focus:ring-[var(--blue)]" style={{ background: "var(--zebra)" }}>
       <div className="flex items-start gap-1.5">
+        {select && <SelectBox lane={select} value={`article:${idea.id}`} label={idea.title} />}
         <FormatChip format="article" />
         <span className="text-xs font-semibold leading-snug flex-1">{idea.title}</span>
         {idea.priority != null && <Tag title={idea.priorityReason ?? undefined}>{idea.priority}</Tag>}
@@ -429,14 +460,14 @@ function ArticleCard({ idea, editor, topics }: { idea: ArticleRow; editor: boole
             <form action={setBlogIdeaStatusAction}>
               <input type="hidden" name="id" value={idea.id} />
               <input type="hidden" name="status" value="approved" />
-              <button className="btn text-[11px]">{idea.status === "rejected" ? "Restore" : "Approve"}</button>
+              <button className="btn text-[11px]" data-key="a">{idea.status === "rejected" ? "Restore" : "Approve"}</button>
             </form>
           )}
           {idea.status !== "rejected" && (
             <form action={setBlogIdeaStatusAction}>
               <input type="hidden" name="id" value={idea.id} />
               <input type="hidden" name="status" value="rejected" />
-              <button className="btn text-[11px]">Reject</button>
+              <button className="btn text-[11px]" data-key="r">Reject</button>
             </form>
           )}
           {idea.status !== "rejected" && (
@@ -468,12 +499,13 @@ function ArticleCard({ idea, editor, topics }: { idea: ArticleRow; editor: boole
 }
 
 // ── Video card — the channel board's card, in the board's vocabulary ─────────
-function VideoCard({ idea, editor, topics }: { idea: VideoRow; editor: boolean; topics: Topic[] }) {
+function VideoCard({ idea, editor, topics, select }: { idea: VideoRow; editor: boolean; topics: Topic[]; select: string | null }) {
   const script = idea.scripts[0];
   const detail = `/channels/${idea.channel.id}/ideas/${idea.id}`;
   return (
-    <li className="rounded-lg border border-[var(--line)] p-2" style={{ background: "var(--zebra)" }}>
+    <li data-idea-card tabIndex={-1} className="rounded-lg border border-[var(--line)] p-2 outline-none focus:ring-2 focus:ring-[var(--blue)]" style={{ background: "var(--zebra)" }}>
       <div className="flex items-start gap-1.5">
+        {select && <SelectBox lane={select} value={`video:${idea.id}`} label={idea.title} />}
         <FormatChip format="video" channel={idea.channel.name} />
         <Link href={detail} className="text-xs font-semibold leading-snug flex-1 hover:underline">{idea.title}</Link>
         {idea.outlierScore != null && <OutlierChip score={idea.outlierScore} views={idea.sourceVideo?.views} size="xs" title={IDEA_TIPS.outlier} />}
@@ -493,7 +525,7 @@ function VideoCard({ idea, editor, topics }: { idea: VideoRow; editor: boolean; 
             <form action={updateIdeaStatusAction}>
               <input type="hidden" name="ideaId" value={idea.id} />
               <input type="hidden" name="status" value="approved" />
-              <button className="btn text-[11px]">Approve</button>
+              <button className="btn text-[11px]" data-key="a">Approve</button>
             </form>
           )}
           {idea.status === "archived" && (
@@ -508,7 +540,7 @@ function VideoCard({ idea, editor, topics }: { idea: VideoRow; editor: boolean; 
               <form action={updateIdeaStatusAction}>
                 <input type="hidden" name="ideaId" value={idea.id} />
                 <input type="hidden" name="status" value="archived" />
-                <button className="btn text-[11px]">Reject</button>
+                <button className="btn text-[11px]" data-key="r">Reject</button>
               </form>
               <form action={writeIdeaToCanvasAction}>
                 <input type="hidden" name="ideaId" value={idea.id} />
@@ -532,7 +564,7 @@ function VideoCard({ idea, editor, topics }: { idea: VideoRow; editor: boolean; 
 }
 
 // ── Social card — a post's idea: the hook, why, where it came from ───────────
-function SocialCard({ idea, editor, topics }: { idea: SocialRow; editor: boolean; topics: Topic[] }) {
+function SocialCard({ idea, editor, topics, select }: { idea: SocialRow; editor: boolean; topics: Topic[]; select: string | null }) {
   const live = idea.status !== "drafted";
   const source =
     idea.source === "article" && idea.sourceBlogPost ? { label: `from article: ${idea.sourceBlogPost.title}`, href: `/blog/${idea.sourceBlogPost.id}` }
@@ -541,8 +573,9 @@ function SocialCard({ idea, editor, topics }: { idea: SocialRow; editor: boolean
     : idea.source === "discovered" ? { label: "discovered", href: null }
     : null;
   return (
-    <li className="rounded-lg border border-[var(--line)] p-2" style={{ background: "var(--zebra)" }}>
+    <li data-idea-card tabIndex={-1} className="rounded-lg border border-[var(--line)] p-2 outline-none focus:ring-2 focus:ring-[var(--blue)]" style={{ background: "var(--zebra)" }}>
       <div className="flex items-start gap-1.5">
+        {select && <SelectBox lane={select} value={`social:${idea.id}`} label={idea.hook} />}
         <FormatChip format="social" />
         <span className="text-xs font-semibold leading-snug flex-1">{idea.hook}</span>
         {idea.priority != null && <Tag>{idea.priority}</Tag>}
@@ -570,14 +603,14 @@ function SocialCard({ idea, editor, topics }: { idea: SocialRow; editor: boolean
             <form action={setSocialIdeaStatusAction}>
               <input type="hidden" name="id" value={idea.id} />
               <input type="hidden" name="status" value="approved" />
-              <button className="btn text-[11px]">{idea.status === "rejected" ? "Restore" : "Approve"}</button>
+              <button className="btn text-[11px]" data-key="a">{idea.status === "rejected" ? "Restore" : "Approve"}</button>
             </form>
           )}
           {idea.status !== "rejected" && (
             <form action={setSocialIdeaStatusAction}>
               <input type="hidden" name="id" value={idea.id} />
               <input type="hidden" name="status" value="rejected" />
-              <button className="btn text-[11px]">Reject</button>
+              <button className="btn text-[11px]" data-key="r">Reject</button>
             </form>
           )}
           {/* The engine's writer, now (IDE-05) — approved social ideas had no

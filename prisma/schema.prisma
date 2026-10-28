@@ -1970,6 +1970,8 @@ model SocialPost {
   // The idea this post was drafted from, when it had one (autogen since the
   // Topics-as-spine change; manual Compose has none).
   idea        SocialIdea?
+  // The review thread (E-SOC-02): notes between the author and the approvers.
+  comments    SocialPostComment[]
 
   @@index([workspaceId, status])
   @@index([status, scheduledAt])
@@ -1977,6 +1979,22 @@ model SocialPost {
   @@index([workspaceId, campaignId])
   @@index([workspaceId, evergreen])
   @@index([workspaceId, approval])
+}
+
+// A note on a social post, from its author or a reviewer (E-SOC-02). Kept as the
+// review record: there is no edit or delete. `kind` is "changes" for a Request
+// changes note (it is also the post's reviewNote while the request stands).
+model SocialPostComment {
+  id        String   @id @default(cuid())
+  postId    String
+  authorId  String?
+  body      String
+  kind      String   @default("comment") // comment | changes
+  createdAt DateTime @default(now())
+
+  post SocialPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([postId, createdAt])
 }
 
 model SocialPostTarget {

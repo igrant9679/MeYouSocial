@@ -88,21 +88,32 @@ export async function toggleCampaignAction(formData: FormData) {
 
 // ---- Approval workflow ---------------------------------------------------------
 
-export async function approveSocialPostAction(formData: FormData) {
-  const backTo: Flash = tabFlash("/social/approvals");
-  const { workspace, user } = await requireRole("ADMIN");
-  const id = String(formData.get("id") ?? "");
-  const post = await db.socialPost.findFirst({ where: { id, workspaceId: workspace.id } });
-  if (!post) backTo("Post not found.");
-  if (post!.approval !== "pending" && post!.approval !== "changes") backTo("That post isn't waiting for approval.");
+/** What one review decision did — the single buttons flash it, the bulk one counts it. */
+type Decided = { ok: boolean; message: string; outcome?: "scheduled" | "queued" | "draft"; reason?: string };
+
+/**
+ * Approve one held post. The Approve button, "Approve for a time" and the bulk
+ * Approve all come through here (E-SOC-02). `at` is a moment the reviewer
+ * picked: it must be ahead of now, and it wins over the author's requested time
+ * and the queue — it's kept as the post's chosen time even when a network rule
+ * keeps the post a draft. `from` is the review states it may decide: the bulk
+ * bar passes only "pending", so a stale tick can't approve a post a reviewer
+ * has just sent back.
+ */
+async function approvePost(workspaceId: string, userId: string, id: string, at: Date | null = null, from: string[] = ["pending", "changes"]): Promise<Decided> {
+  const post = await db.socialPost.findFirst({ where: { id, workspaceId } });
+  if (!post) return { ok: false, message: "Post not found." };
+  if (!post.approval || !from.includes(post.approval)) return { ok: false, message: "That post isn't waiting for approval." };
+  if (at && at.getTime() <= Date.now()) return { ok: false, message: "That time has already passed — pick one ahead of now." };
 
   // Honor the time the author asked for, if it's still ahead of us. A past
   // requested time doesn't auto-send — approval means "may go", not "goes now".
   // …but a post its networks would certainly reject is approved and stays a
   // draft, with the reason (SOC-14) — scheduled, it would only fail at send.
   const { scheduleRefusal } = await import("@/lib/social/validate");
-  const refusal = await scheduleRefusal(post!.id);
-  const scheduleIt = !refusal && post!.scheduledAt && post!.scheduledAt.getTime() > Date.now() - 60_000;
+  const refusal = await scheduleRefusal(post.id);
+  const requested = !at && post.scheduledAt && post.scheduledAt.getTime() > Date.now() - 60_000;
+  const scheduleIt = !refusal && (at !== null || Boolean(requested));
 
   /**
    * Auto-queue: an approved post with no time of its own takes the next free
@@ -120,71 +131,120 @@ export async function approveSocialPostAction(formData: FormData) {
    * audience, which is a decision the owner makes deliberately, not a default
    * they discover afterwards.
    */
+  const { getSetting } = await import("@/lib/settings");
+  const autoqueueOn = (await getSetting("social:autoqueue", workspaceId).catch(() => "")) === "true";
   let queuedAt: Date | null = null;
-  if (!scheduleIt && !refusal) {
-    const { getSetting } = await import("@/lib/settings");
-    if ((await getSetting("social:autoqueue", workspace.id).catch(() => "")) === "true") {
-      const { nextFreeSlot } = await import("@/lib/social/slots");
-      // Category rules are honored by nextFreeSlot — a categorized post prefers
-      // its own lane. A full calendar leaves it a draft and SAYS so below,
-      // rather than inventing a time no slot asked for.
-      queuedAt = await nextFreeSlot(workspace.id, post!.id, post!.category);
-    }
+  if (!scheduleIt && !refusal && !at && autoqueueOn) {
+    const { nextFreeSlot } = await import("@/lib/social/slots");
+    // Category rules are honored by nextFreeSlot — a categorized post prefers
+    // its own lane. A full calendar leaves it a draft and SAYS so below,
+    // rather than inventing a time no slot asked for.
+    queuedAt = await nextFreeSlot(workspaceId, post.id, post.category);
   }
 
-  await db.socialPost.update({
-    where: { id: post!.id },
+  // Claimed in the write: a second reviewer (or a second bulk press) finds it
+  // already decided and changes nothing.
+  const r = await db.socialPost.updateMany({
+    where: { id: post.id, workspaceId, approval: { in: from } },
     data: {
       approval: "approved",
-      approvedById: user.id,
+      approvedById: userId,
       approvedAt: new Date(),
       reviewNote: null,
+      ...(at ? { scheduledAt: at, timeChosen: true } : {}),
       ...(queuedAt ? { scheduledAt: queuedAt, timeChosen: false } : {}),
       status: scheduleIt || queuedAt ? "scheduled" : "draft",
     },
   });
+  if (!r.count) return { ok: false, message: "That post isn't waiting for approval." };
   await writeAudit({
-    workspaceId: workspace.id, actorId: user.id, action: "social.approved",
-    entityType: "social_post", entityId: post!.id,
-    meta: queuedAt ? { autoQueuedAt: queuedAt.toISOString() } : {},
+    workspaceId, actorId: userId, action: "social.approved",
+    entityType: "social_post", entityId: post.id,
+    meta: { ...(queuedAt ? { autoQueuedAt: queuedAt.toISOString() } : {}), ...(at ? { approvedFor: at.toISOString() } : {}) },
   });
-  if (post!.createdById && post!.createdById !== user.id) {
+  if (post.createdById && post.createdById !== userId) {
     await notify({
-      workspaceId: workspace.id,
+      workspaceId,
       kind: "approval_decided",
       title: scheduleIt || queuedAt ? "Your post was approved and scheduled" : "Your post was approved",
-      body: post!.text.slice(0, 140),
+      body: post.text.slice(0, 140),
       path: "/social",
       entityType: "social_post",
-      entityId: post!.id,
-      userIds: [post!.createdById],
+      entityId: post.id,
+      userIds: [post.createdById],
     });
   }
-  revalidatePath("/social", "layout");
-  if (refusal) backTo(`Approved, but kept as a draft: ${refusal}`, "ok");
-  if (scheduleIt) backTo("Approved — it keeps its scheduled time.", "ok");
-  if (queuedAt) {
-    const { formatInZone, resolveTimeZone } = await import("@/lib/social/slots");
-    const { timeZone } = await resolveTimeZone(workspace.id);
-    backTo(`Approved and queued for ${formatInZone(queuedAt, timeZone)}.`, "ok");
-  }
+
+  const { formatInZone, resolveTimeZone } = await import("@/lib/social/slots");
+  const { timeZone } = await resolveTimeZone(workspaceId);
+  if (refusal) return { ok: true, outcome: "draft", reason: refusal, message: `Approved, but kept as a draft: ${refusal}` };
+  if (at) return { ok: true, outcome: "scheduled", message: `Approved and scheduled for ${formatInZone(at, timeZone)}.` };
+  if (scheduleIt) return { ok: true, outcome: "scheduled", message: "Approved — it keeps its scheduled time." };
+  if (queuedAt) return { ok: true, outcome: "queued", message: `Approved and queued for ${formatInZone(queuedAt, timeZone)}.` };
   // Auto-queue on and still a draft: name the actual cause. ⚠ These are two
   // different faults and they were one message until a fixture run caught it —
   // slots RECUR, so `free` spans weeks ahead and is essentially never empty.
   // In practice "nothing was queued" means NO SLOTS EXIST, and telling that
   // owner the calendar is full sends them looking for a queue to clear.
-  const autoqueueOn =
-    (await (await import("@/lib/settings")).getSetting("social:autoqueue", workspace.id).catch(() => "")) === "true";
   if (autoqueueOn) {
-    const slots = await db.postingSlot.count({ where: { workspaceId: workspace.id, enabled: true } });
-    backTo(
-      slots === 0
+    const slots = await db.postingSlot.count({ where: { workspaceId, enabled: true } });
+    const reason = slots === 0 ? "this workspace has no posting slots" : "every upcoming slot is taken";
+    return {
+      ok: true, outcome: "draft", reason,
+      message: slots === 0
         ? "Approved — but this workspace has no posting slots, so there was nowhere to queue it. Add slots under Settings → Schedule."
         : "Approved — but every upcoming slot is taken, so it's still a draft. Add slots under Settings → Schedule.",
-      "ok",
-    );
+    };
   }
-  backTo("Approved — it's a draft, ready to queue or send.", "ok");
+  return { ok: true, outcome: "draft", message: "Approved — it's a draft, ready to queue or send." };
+}
+
+export async function approveSocialPostAction(formData: FormData) {
+  const backTo: Flash = tabFlash("/social/approvals");
+  const { workspace, user } = await requireRole("ADMIN");
+  const id = String(formData.get("id") ?? "");
+  // "Approve for a time" (E-SOC-02): a datetime-local, read in the posting timezone.
+  const rawAt = String(formData.get("at") ?? "").trim();
+  let at: Date | null = null;
+  if (rawAt) {
+    const { parseZonedInput, resolveTimeZone } = await import("@/lib/social/slots");
+    const { timeZone } = await resolveTimeZone(workspace.id);
+    at = parseZonedInput(rawAt, timeZone);
+    if (!at) backTo("That time couldn't be read — pick a date and a time.");
+  }
+  const r = await approvePost(workspace.id, user.id, id, at);
+  revalidatePath("/social", "layout");
+  backTo(r.message, r.ok ? "ok" : "err");
+}
+
+/** Send one pending post back to its author. A note is also the first entry on its review thread. */
+async function requestChanges(workspaceId: string, userId: string, id: string, note: string): Promise<Decided> {
+  const post = await db.socialPost.findFirst({ where: { id, workspaceId }, select: { id: true, approval: true, createdById: true, text: true } });
+  if (!post) return { ok: false, message: "Post not found." };
+  if (post.approval !== "pending") return { ok: false, message: "That post isn't waiting for approval." };
+  const r = await db.socialPost.updateMany({
+    where: { id: post.id, workspaceId, approval: "pending" },
+    data: { approval: "changes", reviewNote: note || null, status: "draft" },
+  });
+  if (!r.count) return { ok: false, message: "That post isn't waiting for approval." };
+  if (note) await db.socialPostComment.create({ data: { postId: post.id, authorId: userId, body: note, kind: "changes" } });
+  await writeAudit({
+    workspaceId, actorId: userId, action: "social.changes_requested",
+    entityType: "social_post", entityId: post.id, meta: note ? { note } : {},
+  });
+  if (post.createdById && post.createdById !== userId) {
+    await notify({
+      workspaceId,
+      kind: "approval_decided",
+      title: "Changes requested on your post",
+      body: note || post.text.slice(0, 140),
+      path: "/social",
+      entityType: "social_post",
+      entityId: post.id,
+      userIds: [post.createdById],
+    });
+  }
+  return { ok: true, message: "Changes requested — the author has been notified." };
 }
 
 export async function requestChangesSocialPostAction(formData: FormData) {
@@ -192,32 +252,96 @@ export async function requestChangesSocialPostAction(formData: FormData) {
   const { workspace, user } = await requireRole("ADMIN");
   const id = String(formData.get("id") ?? "");
   const note = String(formData.get("note") ?? "").trim().slice(0, 500);
-  const post = await db.socialPost.findFirst({ where: { id, workspaceId: workspace.id } });
-  if (!post) backTo("Post not found.");
-  if (post!.approval !== "pending") backTo("That post isn't waiting for approval.");
+  const r = await requestChanges(workspace.id, user.id, id, note);
+  if (r.ok) revalidatePath("/social", "layout");
+  backTo(r.message, r.ok ? "ok" : "err");
+}
 
-  await db.socialPost.update({
-    where: { id: post!.id },
-    data: { approval: "changes", reviewNote: note || null, status: "draft" },
+/**
+ * Approve or send back many held posts at once (E-SOC-02). Each goes through
+ * the same path as its own button, one after another — so queue slots are
+ * claimed in order — and the message counts what happened to them.
+ */
+export async function bulkReviewSocialAction(formData: FormData) {
+  const backTo: Flash = tabFlash("/social/approvals");
+  const { workspace, user } = await requireRole("ADMIN");
+  const op = String(formData.get("op") ?? "");
+  const ids = [...new Set(formData.getAll("sel").map(String).filter(Boolean))].slice(0, 100);
+  if (op !== "approve" && op !== "changes") backTo("Choose Approve or Request changes.");
+  if (!ids.length) backTo("Select at least one post first.");
+  const s = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+
+  if (op === "changes") {
+    const note = String(formData.get("note") ?? "").trim().slice(0, 500);
+    if (!note) backTo("Say what needs to change — the note goes to each post's author.");
+    let n = 0;
+    for (const id of ids) if ((await requestChanges(workspace.id, user.id, id, note)).ok) n++;
+    revalidatePath("/social", "layout");
+    const gone = ids.length - n;
+    backTo(`Changes requested on ${s(n, "post", "posts")}.${gone ? ` ${s(gone, "was", "were")} no longer waiting.` : ""}`, n ? "ok" : "err");
+  }
+
+  const tally = { scheduled: 0, queued: 0, draft: 0, skipped: 0 };
+  const reasons = new Set<string>();
+  for (const id of ids) {
+    const r = await approvePost(workspace.id, user.id, id, null, ["pending"]);
+    if (!r.ok) { tally.skipped++; continue; }
+    tally[r.outcome ?? "draft"]++;
+    if (r.reason) reasons.add(r.reason);
+  }
+  revalidatePath("/social", "layout");
+  const approved = ids.length - tally.skipped;
+  const parts = [
+    tally.scheduled ? `${s(tally.scheduled, "keeps its time", "keep their times")}` : "",
+    tally.queued ? `${tally.queued} queued` : "",
+    tally.draft ? `${s(tally.draft, "stays a draft", "stay drafts")}${reasons.size ? ` (${[...reasons].slice(0, 2).join("; ")})` : ""}` : "",
+  ].filter(Boolean);
+  backTo(
+    `Approved ${s(approved, "post", "posts")}${parts.length ? `: ${parts.join(", ")}` : ""}.${tally.skipped ? ` ${s(tally.skipped, "was", "were")} no longer waiting.` : ""}`,
+    approved ? "ok" : "err",
+  );
+}
+
+/**
+ * A note on a post's review thread (E-SOC-02): its author and its reviewers
+ * talk there instead of through one overwritten reviewNote. Everyone already
+ * on the thread hears about it; the author writing into an empty thread
+ * reaches the admins, who are the reviewers. Kept as the record — no edit or
+ * delete.
+ */
+export async function addSocialPostCommentAction(formData: FormData) {
+  const raw = String(formData.get("back") ?? "");
+  const to = raw.startsWith("/social") && !raw.startsWith("//") ? raw.split(/[?#]/)[0] : "/social/approvals";
+  const backTo: Flash = tabFlash(to);
+  const { workspace, user } = await requireRole("EDITOR");
+  const id = String(formData.get("id") ?? "");
+  const body = String(formData.get("body") ?? "").trim().slice(0, 1000);
+  if (!body) backTo("Write the comment first.");
+  const post = await db.socialPost.findFirst({
+    where: { id, workspaceId: workspace.id },
+    select: { id: true, createdById: true, approval: true, comments: { select: { authorId: true } } },
   });
-  await writeAudit({
-    workspaceId: workspace.id, actorId: user.id, action: "social.changes_requested",
-    entityType: "social_post", entityId: post!.id, meta: note ? { note } : {},
-  });
-  if (post!.createdById && post!.createdById !== user.id) {
+  if (!post) backTo("Post not found.");
+  await db.socialPostComment.create({ data: { postId: post!.id, authorId: user.id, body } });
+  const onThread = [post!.createdById, ...post!.comments.map((c) => c.authorId)].filter((x): x is string => !!x && x !== user.id);
+  const recipients = onThread.length
+    ? onThread
+    : (await db.membership.findMany({ where: { workspaceId: workspace.id, status: "active", role: "ADMIN" }, select: { userId: true } }))
+        .map((m) => m.userId).filter((u) => u !== user.id);
+  if (recipients.length) {
     await notify({
       workspaceId: workspace.id,
-      kind: "approval_decided",
-      title: "Changes requested on your post",
-      body: note || post!.text.slice(0, 140),
-      path: "/social",
+      kind: "comment",
+      title: "A comment on a social post",
+      body: body.slice(0, 140),
+      path: post!.approval === "pending" || post!.approval === "changes" ? "/social/approvals" : `/social/${post!.id}/edit`,
       entityType: "social_post",
       entityId: post!.id,
-      userIds: [post!.createdById],
+      userIds: recipients,
     });
   }
   revalidatePath("/social", "layout");
-  backTo("Changes requested — the author has been notified.", "ok");
+  backTo("Comment added.", "ok");
 }
 
 /** A draft that predates the workflow (approval = null) enters review here. */
