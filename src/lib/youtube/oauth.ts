@@ -113,23 +113,27 @@ export async function exchangeYoutubeCode(workspaceId: string, code: string, ori
     }
     await setWorkspaceSetting(workspaceId, "youtube_oauth:refresh_token", JSON.stringify(encryptSecret(tokens.refresh_token)));
 
-    // Record which channel was connected, so the UI can name it.
+    // Record which channel was connected, so the UI can name it — and say how
+    // many public videos it has (E-MEA-11: LSI connected an empty channel).
     let channel = "";
+    let videos: number | null = null;
     if (tokens.access_token) {
       try {
-        const res = await fetch("https://www.googleapis.com/youtube/v3/channels?part=snippet&mine=true", {
+        const res = await fetch("https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics&mine=true", {
           headers: { authorization: `Bearer ${tokens.access_token}` },
           signal: AbortSignal.timeout(30_000),
         });
-        const data = (await res.json()) as { items?: Array<{ id: string; snippet?: { title?: string } }> };
+        const data = (await res.json()) as { items?: Array<{ id: string; snippet?: { title?: string }; statistics?: { videoCount?: string } }> };
         const item = data.items?.[0];
         if (item) channel = `${item.snippet?.title ?? "channel"} (${item.id})`;
+        const n = Number(item?.statistics?.videoCount);
+        if (item?.statistics?.videoCount != null && Number.isFinite(n)) videos = n;
       } catch {
         // naming is cosmetic — the token is what matters
       }
     }
     await setWorkspaceSetting(workspaceId, "youtube_oauth:channel", channel);
-    return { ok: true, message: channel ? `Connected ${channel}.` : "Connected." };
+    return { ok: true, message: youtubeConnectedMessage(channel, videos) };
   } catch (e) {
     return { ok: false, message: e instanceof Error ? e.message.slice(0, 300) : "Connection failed" };
   }
@@ -175,4 +179,12 @@ export async function youtubeAccessToken(workspaceId: string): Promise<string | 
 export async function disconnectYoutubeOauth(workspaceId: string): Promise<void> {
   await setWorkspaceSetting(workspaceId, "youtube_oauth:refresh_token", "");
   await setWorkspaceSetting(workspaceId, "youtube_oauth:channel", "");
+}
+
+/** What a connect says: the channel, its public videos, and a nudge when there are none (E-MEA-11). */
+export function youtubeConnectedMessage(channel: string, videos: number | null): string {
+  if (!channel) return "Connected.";
+  if (videos == null) return `Connected ${channel}.`;
+  if (videos === 0) return `Connected ${channel} — it has no public videos, so the YouTube report will be empty. If you publish on another channel, disconnect and connect that one.`;
+  return `Connected ${channel} — ${videos.toLocaleString("en-GB")} public video${videos === 1 ? "" : "s"}.`;
 }

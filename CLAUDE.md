@@ -728,6 +728,16 @@ Tabs: **Keys** (`/admin/api-keys`: LLM, search, images, video, TTS, storage) · 
   with their traffic; a full address can be linked to a PUBLISHED article with NO live URL
   (`linkUnmatchedPageAction`, ADMIN, audited) — an existing URL is never replaced, and a GA4-only path can't be linked.
 
+## ⚠ Connecting checks it's the right site (2026-10-28, audit Phase 5, wave 1, part d)
+- **Site checks at connect** (E-MEA-11, `lib/analytics/site-check.ts`): Google's verify only proves access, so a
+  property of another website verifies fine and then reports its traffic (CF's wrong GA4 property). Saving Search
+  Console compares the site with this workspace's website; saving GA4 reads the property's web streams (Analytics
+  Admin API) and compares those. The website is INFERRED — the WordPress connection, else the host most published
+  articles live on, else site pages — so a mismatch is a warning on the tab, never a refusal; no evidence, or an
+  unreadable Admin API, means no warning rather than a guess.
+- **YouTube says what was connected**: the connect message names the channel's public video count, and says plainly
+  when it's zero (LSI connected an empty channel). `youtubeConnectedMessage` in lib/youtube/oauth.ts.
+
 ## Open items / things the user still owns
 - **Analytics: APIs enabled 2026-08-03** (Search Console + GA Admin + GA Data, on project
   `479503233109` = `gen-lang-client-0838901195` = "CreateUp"). Still pending, user-only: add the

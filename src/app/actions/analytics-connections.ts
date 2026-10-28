@@ -17,8 +17,9 @@ import { writeAudit } from "@/lib/governance";
  * empty data.
  */
 
+// 600: a verify message can carry a site check after it (E-MEA-11).
 const back = (msg: string, ok = false) =>
-  redirect(`/admin/analytics?${ok ? "ok" : "err"}=${encodeURIComponent(msg.slice(0, 300))}`);
+  redirect(`/admin/analytics?${ok ? "ok" : "err"}=${encodeURIComponent(msg.slice(0, 600))}`);
 
 // ── Search Console ───────────────────────────────────────────────────────────
 
@@ -42,8 +43,11 @@ export async function saveGscAction(formData: FormData) {
   if (!siteUrl) back("Search Console site cleared.", true);
   const { gscVerify } = await import("@/lib/analytics/gsc");
   const result = await gscVerify(workspace.id);
+  // E-MEA-11: verified access says nothing about WHICH site — compare it with ours.
+  const { gscSiteWarning } = await import("@/lib/analytics/site-check");
+  const warn = result.ok ? await gscSiteWarning(workspace.id, siteUrl).catch(() => null) : null;
   revalidatePath("/admin/analytics");
-  back(result.message, result.ok);
+  back(warn ? `${result.message} ⚠ ${warn}` : result.message, result.ok && !warn);
 }
 
 export async function clearGscAction() {
@@ -81,8 +85,11 @@ export async function saveGa4Action(formData: FormData) {
 
   if (!propertyId) back("GA4 property cleared.", true);
   const result = await ga4Verify(workspace.id);
+  // E-MEA-11: the property's web streams against this workspace's website.
+  const { ga4StreamWarning } = await import("@/lib/analytics/site-check");
+  const warn = result.ok ? await ga4StreamWarning(workspace.id).catch(() => null) : null;
   revalidatePath("/admin/analytics");
-  back(result.message, result.ok);
+  back(warn ? `${result.message} ⚠ ${warn}` : result.message, result.ok && !warn);
 }
 
 export async function clearGa4Action() {
