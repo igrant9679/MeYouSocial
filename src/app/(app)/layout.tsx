@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import Link from "next/link";
-import { Bell, LogOut, Layers, User } from "lucide-react";
+import { LogOut, Layers, User } from "lucide-react";
 import { unreadCount } from "@/lib/notify";
 import { BrandLogo } from "@/components/BrandLogo";
 import { EngineStatus } from "@/components/EngineStatus";
@@ -24,6 +24,8 @@ import { storage } from "@/lib/storage";
 import { db } from "@/lib/db";
 import { Elsie } from "@/components/Elsie";
 import { AiActivity } from "@/components/AiActivity";
+import { ShellPoll } from "@/components/ShellPoll";
+import { UnreadBell } from "@/components/UnreadBell";
 import { AssistantDock, AssistantDockButton } from "@/components/AssistantDock";
 import { FlashBanner } from "@/components/FlashBanner";
 import { getGuideState } from "@/app/actions/guide";
@@ -154,6 +156,8 @@ html[data-theme="dark"] .ws-brand {
     // The engine's last check-in (E-ENG-03), so an idle engine and a stopped one differ.
     readHeartbeat(workspace.id).catch(() => null),
   ]);
+
+  const engineState = { paused: enginePaused, autonomous: engineAutonomous, heartbeat, autopilotOff: process.env.AUTOPILOT === "off" };
 
   // Elsie, the guide. Her setup steps are filtered against what this workspace
   // has actually done, so she never walks anyone through work already finished.
@@ -321,27 +325,14 @@ html[data-theme="dark"] .ws-brand {
           <Link href="/channels" className="btn !hidden @min-[88rem]:!inline-flex" title="Manage all channels">Manage channels</Link>
           {/* Keyed by workspace: a switch remounts it, so the last company's
               events don't linger until the next poll (ENG-19). */}
-          <EngineStatus key={workspace.id} initial={ticker} timeZone={tickerZone} state={{ paused: enginePaused, autonomous: engineAutonomous, heartbeat, autopilotOff: process.env.AUTOPILOT === "off" }} />
+          <EngineStatus key={workspace.id} initial={ticker} timeZone={tickerZone} state={engineState} />
           <div className="flex-1" />
           {editorUp && <AssistantDockButton />}
           <AiActivity />
           <Elsie steps={elsieSteps} tracks={elsieTracks} enabled={guide.enabled} outstanding={elsieOutstanding} snoozed={guide.snoozed} />
-          <Link
-            href="/notifications"
-            className="relative inline-flex items-center justify-center w-11 h-11 rounded-xl hover:bg-[var(--zebra)] transition-colors"
-            title={unread ? `${unread} unread notifications` : "Notifications"}
-            aria-label={unread ? `Notifications, ${unread} unread` : "Notifications"}
-          >
-            <Bell className="w-[21px] h-[21px]" strokeWidth={2.25} />
-            {unread > 0 && (
-              <span
-                className="badge-pop absolute -top-0.5 -right-0.5 min-w-[17px] h-[17px] px-1 rounded-full text-[10px] font-mono font-bold grid place-items-center"
-                style={{ background: "var(--brand, #E5482F)", color: "#fff" }}
-              >
-                {unread > 9 ? "9+" : unread}
-              </span>
-            )}
-          </Link>
+          <UnreadBell initial={unread} />
+          {/* The header's one poll (E-SHL-01): the pill, the bell and the strip's badges read it. */}
+          <ShellPoll initial={{ workspaceId: workspace.id, events: ticker, state: engineState, unread, counts }} />
           {/* Role, email, settings and sign-out behind the avatar (E-SHL-04). */}
           <AccountMenu
             initials={initialsOf(user.name ?? user.email)}

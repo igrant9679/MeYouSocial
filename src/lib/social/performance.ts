@@ -248,9 +248,9 @@ export function latestPerTarget(rows: SnapshotRow[]): TargetReading[] {
  * The latest reading for every target whose post was SENT since `since`.
  * Scoped by send date, not snapshot date — see the header note.
  */
-export async function readingsForWorkspace(workspaceId: string, since: Date): Promise<TargetReading[]> {
+export async function readingsForWorkspace(workspaceId: string, since: Date, until?: Date): Promise<TargetReading[]> {
   const rows = await db.socialSnapshot.findMany({
-    where: { target: { status: "posted", postedAt: { gte: since }, post: { workspaceId } } },
+    where: { target: { status: "posted", postedAt: until ? { gte: since, lt: until } : { gte: since }, post: { workspaceId } } },
     select: {
       targetId: true, capturedAt: true, impressions: true, reach: true, likes: true, comments: true,
       shares: true, saves: true, clicks: true, views: true,

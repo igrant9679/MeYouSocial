@@ -4,18 +4,19 @@ import { requireMembership, canAdmin, canEdit } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { getSetting } from "@/lib/settings";
 import { SubmitButton } from "@/components/SubmitButton";
-import { getQueue } from "@/lib/social/slots";
+import { getPostingTimeZone, getQueue } from "@/lib/social/slots";
+import { RangePicker } from "@/components/RangePicker";
+import { measureRange, type RangeInput } from "@/lib/measure-range";
 import { readingsForWorkspace, byNetwork } from "@/lib/social/performance";
 import { networkFor } from "@/lib/social/networks";
 import { syncSocialPerformanceAction } from "@/app/actions/social-slots";
 import { Banner, Empty, PostCard, Section, SocialHeader } from "@/components/SocialPostCard";
 import { EmptyState } from "@/components/EmptyState";
-import { daysAgo } from "@/lib/request-time";
 
 // What went out, and what came back. Engagement is pulled on demand rather than
 // polled, so an empty panel means "not asked yet" — and says so.
 
-type SP = { ok?: string; err?: string; page?: string };
+type SP = { ok?: string; err?: string; page?: string } & RangeInput;
 
 const HISTORY_PAGE = 25;
 
@@ -23,7 +24,10 @@ export default async function SocialPerformancePage({ searchParams }: { searchPa
   // A read page (MEA-10): it bounced viewers to /forbidden. Its actions are
   // the editors' — Pull engagement and each card's buttons.
   const { workspace, membership } = await requireMembership();
-  const { ok, err, page: pageRaw } = await searchParams;
+  const sp = await searchParams;
+  const { ok, err, page: pageRaw } = sp;
+  // One range for all of Measure (E-MEA-01): the per-network rollup follows it.
+  const range = await measureRange(sp, await getPostingTimeZone(workspace.id).catch(() => "UTC"));
   // PRF-02: 25 posts a page (it rendered the last 100 cards at once).
   const page = Math.max(1, parseInt(pageRaw ?? "1", 10) || 1);
   const isAdmin = canAdmin(membership.role);
@@ -46,7 +50,7 @@ export default async function SocialPerformancePage({ searchParams }: { searchPa
     db.socialPost.count({ where: historyWhere }),
     getQueue(workspace.id),
     getSetting("social:require_approval", workspace.id).catch(() => "").then((v) => v === "true"),
-    readingsForWorkspace(workspace.id, daysAgo(90)),
+    readingsForWorkspace(workspace.id, range.since, range.until),
   ]);
 
   const networks = byNetwork(readings);
@@ -70,10 +74,12 @@ export default async function SocialPerformancePage({ searchParams }: { searchPa
       {ok && <Banner kind="ok" text={ok} />}
       {err && <Banner kind="err" text={err} />}
 
-      {/* Per-network rollup — 90 days. */}
+      <RangePicker range={range} path="/social/performance" note="The post history below lists every published post, whatever the range." />
+
+      {/* Per-network rollup — over the range. */}
       {networks.length === 0 ? (
         <EmptyState
-          line="No engagement has been recorded for any network in the last 90 days."
+          line={`No engagement has been recorded for any network in the ${range.label}.`}
           note="Blank is not zero. Figures are synced from posts that have actually gone out, and anything a network does not report stays blank rather than becoming a number."
           action={{ label: "Open Distribute", href: "/distribute" }}
         />

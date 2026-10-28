@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { ChevronDown } from "lucide-react";
 import type { EngineEvent } from "@/lib/dashboard-data";
 import { heartbeatNote, isSilent, type Heartbeat } from "@/lib/heartbeat-note";
+import { noShellSnapshot, shellSnapshot, subscribeShell } from "@/lib/shell-live";
 
 /**
  * One plain-English status pill, where a three-chip marquee used to scroll.
@@ -71,27 +72,12 @@ export function EngineStatus({
   state: EngineState;
   timeZone: string;
 }) {
-  const [events, setEvents] = useState(initial);
-  const [state, setState] = useState(initialState);
+  // The shell poll's values once it has any (E-SHL-01); the server's until then.
+  const live = useSyncExternalStore(subscribeShell, shellSnapshot, noShellSnapshot);
+  const events = live?.events ?? initial;
+  const state: EngineState = live?.state ?? initialState;
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const id = setInterval(async () => {
-      // Not in a hidden tab (ENG-29) — the next visible minute catches up.
-      if (document.hidden) return;
-      try {
-        const res = await fetch("/api/ticker");
-        if (!res.ok) return;
-        const data = (await res.json()) as { events?: EngineEvent[]; state?: EngineState };
-        if (Array.isArray(data.events)) setEvents(data.events);
-        if (data.state) setState(data.state);
-      } catch {
-        // network hiccup — keep showing what we have
-      }
-    }, 60_000);
-    return () => clearInterval(id);
-  }, []);
 
   // Click-away and Escape, so the panel never strands over the page.
   useEffect(() => {

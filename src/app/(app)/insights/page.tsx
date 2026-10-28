@@ -12,7 +12,9 @@ import {
   refreshRecommendationsAction,
 } from "@/app/actions/recommendations";
 import { EmptyState } from "@/components/EmptyState";
-import { daysAgo } from "@/lib/request-time";
+import { RangePicker } from "@/components/RangePicker";
+import { measureRange, type RangeInput } from "@/lib/measure-range";
+import { getPostingTimeZone } from "@/lib/social/slots";
 
 // Insights — the read-only face of the metrics spine (src/lib/metrics).
 //
@@ -21,7 +23,9 @@ import { daysAgo } from "@/lib/request-time";
 // no data renders as “—” plus its reason, never as 0, and a low-confidence
 // number is visibly labelled rather than presented as fact.
 
-const RANGE_DAYS = 90;
+// Metrics that describe NOW or a fixed trailing window, not the chosen range —
+// a previous-period figure for them would compare a thing with itself.
+const NOT_RANGED = new Set(["weekly_cadence", "cadence_trend", "wip_open", "wip_stalled"]);
 
 const CONF_HUE: Record<Confidence, string> = {
   none: "slate",
@@ -37,7 +41,22 @@ function formatValue(m: Metric): string {
   return String(m.value);
 }
 
-function MetricCard({ m, reasonInBanner = false }: { m: Metric; reasonInBanner?: boolean }) {
+/** The previous period beside a figure (E-MEA-01): an arrow and the change, only where both were measured. */
+function CompareLine({ m, prev, label }: { m: Metric; prev: Metric | null; label: string }) {
+  if (NOT_RANGED.has(m.key)) return <p className="text-[10px] text-[var(--mute)] m-0">Not compared — this one reads now, not the range.</p>;
+  if (!prev || prev.value === null || m.value === null) {
+    return <p className="text-[10px] text-[var(--mute)] m-0">{label}: {prev && prev.value !== null ? formatValue(prev) : "not measured"}</p>;
+  }
+  const d = Math.round((m.value - prev.value) * 10) / 10;
+  const unit = m.unit === "percent" ? " pts" : m.unit === "days" ? "d" : "";
+  return (
+    <p className="text-[10px] m-0 font-mono" style={{ color: "var(--slate)" }} title={`${label}: ${formatValue(prev)}`}>
+      {d > 0 ? "▲" : d < 0 ? "▼" : "="} {d === 0 ? "no change" : `${Math.abs(d)}${unit}`} vs the {label} ({formatValue(prev)})
+    </p>
+  );
+}
+
+function MetricCard({ m, reasonInBanner = false, cmp }: { m: Metric; reasonInBanner?: boolean; cmp?: { prev: Metric | null; label: string } }) {
   const hasData = m.value !== null;
   // A count is exact, so its confidence badge would be noise; only flag the
   // reliability of rates and medians, where sample size actually matters.
@@ -79,6 +98,7 @@ function MetricCard({ m, reasonInBanner = false }: { m: Metric; reasonInBanner?:
         )}
       </div>
       {!echoesBanner && <p className="text-[10px] text-[var(--mute)] leading-snug">{m.evidence}</p>}
+      {cmp && <CompareLine m={m} prev={cmp.prev} label={cmp.label} />}
     </div>
   );
 }
@@ -88,18 +108,24 @@ const SEVERITY_HUE: Record<string, string> = { warning: "rose", opportunity: "am
 export default async function InsightsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ ok?: string; err?: string }>;
+  searchParams: Promise<{ ok?: string; err?: string } & RangeInput>;
 }) {
   const { workspace, membership } = await requireMembership();
-  const { ok, err } = await searchParams;
+  const sp = await searchParams;
+  const { ok, err } = sp;
+  // One range for all of Measure (E-MEA-01); the previous period only when asked for.
+  const range = await measureRange(sp, await getPostingTimeZone(workspace.id).catch(() => "UTC"));
   const editor = canEdit(membership.role);
   const admin = canAdmin(membership.role);
-  const [data, recs, resolved, socialReadings] = await Promise.all([
-    collectWorkspaceMetrics(workspace.id, RANGE_DAYS),
+  const [data, recs, resolved, socialReadings, prevData] = await Promise.all([
+    collectWorkspaceMetrics(workspace.id, range),
     openRecommendations(workspace.id),
     recentlyResolved(workspace.id),
-    readingsForWorkspace(workspace.id, daysAgo(RANGE_DAYS)),
+    readingsForWorkspace(workspace.id, range.since, range.until),
+    range.compare ? collectWorkspaceMetrics(workspace.id, range.previous) : Promise.resolve(null),
   ]);
+  const prevByKey = new Map((prevData?.metrics ?? []).map((m) => [m.key, m]));
+  const cmpFor = (m: Metric) => (prevData ? { prev: prevByKey.get(m.key) ?? null, label: range.previous.label } : undefined);
   const networks = byNetwork(socialReadings);
 
   const byKey = new Map(data.metrics.map((m) => [m.key, m]));
@@ -139,6 +165,8 @@ export default async function InsightsPage({
           </p>
         </div>
       </div>
+
+      <RangePicker range={range} path="/insights" note="Weekly cadence and work in progress read now, whatever the range." />
 
       {ok && (
         <div className="card mb-4 flex items-center gap-2" style={{ background: "var(--green-soft)", borderColor: "var(--green)" }}>
@@ -297,7 +325,7 @@ export default async function InsightsPage({
         </p>
       </div>
       <div className="grid grid-cols-1 @xl:grid-cols-2 @4xl:grid-cols-4 gap-3 mb-4">
-        {pipeline.map((m) => <MetricCard key={m.key} m={m} />)}
+        {pipeline.map((m) => <MetricCard key={m.key} m={m} cmp={cmpFor(m)} />)}
       </div>
 
       {/* Momentum */}
@@ -322,7 +350,7 @@ export default async function InsightsPage({
         </p>
       </div>
       <div className="grid grid-cols-1 @xl:grid-cols-2 @4xl:grid-cols-4 gap-3 mb-3">
-        {momentum.map((m) => <MetricCard key={m.key} m={m} />)}
+        {momentum.map((m) => <MetricCard key={m.key} m={m} cmp={cmpFor(m)} />)}
       </div>
       {data.wip.length > 0 && (
         <div className="card mb-4">
@@ -390,7 +418,7 @@ export default async function InsightsPage({
       {/* Distribution */}
       <h2 className="font-mono text-[13px] font-bold mb-2">Distribution &amp; AI use</h2>
       <div className="grid grid-cols-1 @xl:grid-cols-2 @4xl:grid-cols-4 gap-3 mb-4">
-        {distribution.map((m) => <MetricCard key={m.key} m={m} />)}
+        {distribution.map((m) => <MetricCard key={m.key} m={m} cmp={cmpFor(m)} />)}
       </div>
 
       {/* Performance */}
@@ -405,7 +433,7 @@ export default async function InsightsPage({
         />
       )}
       <div className="grid grid-cols-1 @xl:grid-cols-2 @4xl:grid-cols-4 gap-3 mb-4">
-        {performance.map((m) => <MetricCard key={m.key} m={m} reasonInBanner={!hasPerformance} />)}
+        {performance.map((m) => <MetricCard key={m.key} m={m} reasonInBanner={!hasPerformance} cmp={cmpFor(m)} />)}
       </div>
 
       {/* Social performance — the distribution side of the same question */}
@@ -422,7 +450,7 @@ export default async function InsightsPage({
         />
       )}
       <div className="grid grid-cols-1 @xl:grid-cols-2 @4xl:grid-cols-4 gap-3 mb-3">
-        {social.map((m) => <MetricCard key={m.key} m={m} reasonInBanner={!hasSocial} />)}
+        {social.map((m) => <MetricCard key={m.key} m={m} reasonInBanner={!hasSocial} cmp={cmpFor(m)} />)}
       </div>
 
       {/* Per-network split — the reason UTM tagging separates the sources. */}
@@ -465,7 +493,7 @@ export default async function InsightsPage({
             </tbody>
           </table>
           <p className="text-[10px] text-[var(--mute)] mt-2">
-            Lifetime totals for posts sent in the last {RANGE_DAYS} days, as last pulled from each network — not
+            Lifetime totals for posts sent in the {range.label}, as last pulled from each network — not
             engagement earned within the window, which a lifetime counter can&apos;t tell us. A dash means the network
             didn&apos;t report that figure.
           </p>

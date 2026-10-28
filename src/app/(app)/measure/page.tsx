@@ -5,17 +5,24 @@ import { hasSeriesData, postPerformance, unmeasuredWeeks, weeklySeries } from "@
 import { AreaChart } from "@/components/charts";
 import { StageHeader } from "@/components/StageShell";
 import { EmptyState } from "@/components/EmptyState";
+import { getPostingTimeZone } from "@/lib/social/slots";
+import { RangePicker } from "@/components/RangePicker";
+import { measureRange, type RangeInput } from "@/lib/measure-range";
 
 // Measure stage: the measured numbers only, never invented curves — the same
 // Results block Home showed, promoted to a stage with Reports, Insights and
 // the two analytics pages as tabs.
 
-export default async function MeasureStage() {
+export default async function MeasureStage({ searchParams }: { searchParams: Promise<RangeInput> }) {
   const { workspace, membership } = await requireMembership();
+  // One range for all of Measure (E-MEA-01): the curve shows that many whole
+  // weeks, ending at the latest day with data (Search Console lags ~2 days).
+  const range = await measureRange(await searchParams, await getPostingTimeZone(workspace.id).catch(() => "UTC"));
+  const weeks = Math.min(52, Math.max(4, Math.round(range.days / 7)));
   const admin = canAdmin(membership.role);
   const editor = canEdit(membership.role);
   const [series, perf, withData] = await Promise.all([
-    weeklySeries(workspace.id, 8),
+    weeklySeries(workspace.id, weeks),
     postPerformance(workspace.id, 12, { status: "published" }),
     // Published posts with at least one snapshot — not every row in the table (MEA-09).
     db.blogPost.count({ where: { workspaceId: workspace.id, status: "published", snapshots: { some: {} } } }),
@@ -28,7 +35,7 @@ export default async function MeasureStage() {
     <div>
       <StageHeader
         title="Measure"
-        sentence={hasAnalytics ? "Search impressions and clicks from Search Console; engagement from the networks." : "No search numbers in the last 8 weeks. Connect Search Console and GA4 under Settings → Analytics, or record them by hand, and the curve fills in as snapshots accrue."}
+        sentence={hasAnalytics ? "Search impressions and clicks from Search Console; engagement from the networks." : `No search numbers in the last ${weeks} weeks. Connect Search Console and GA4 under Settings → Analytics, or record them by hand, and the curve fills in as snapshots accrue.`}
         counts={[
           { label: "impressions, latest week", n: hasAnalytics ? latest.impressions : null, href: "/blog/analytics", hue: "blue" },
           { label: "clicks, latest week", n: hasAnalytics ? latest.clicks : null, href: "/blog/analytics", hue: "green" },
@@ -36,10 +43,12 @@ export default async function MeasureStage() {
         ]}
       />
 
+      <RangePicker range={range} path="/measure" note={`The curve is ${weeks} whole weeks to the latest data; the table is each post's own last 28 days.`} />
+
       <section className="card mb-4">
         {hasAnalytics ? (
           <>
-            <AreaChart points={series.map((p) => ({ label: p.label, value: p.impressions }))} color="var(--blue)" title="Blog impressions — last 8 weeks" />
+            <AreaChart points={series.map((p) => ({ label: p.label, value: p.impressions }))} color="var(--blue)" title={`Blog impressions — last ${weeks} weeks`} />
             {gaps > 0 && (
               <p className="text-[10px] text-[var(--mute)] mt-1 mb-0">
                 {gaps} of the {series.length} weeks recorded nothing — those points sit at zero because there is no measurement, not because the number was zero.
@@ -53,7 +62,7 @@ export default async function MeasureStage() {
             // all-time claim — a workspace whose sync lapsed two months ago has
             // plenty of recorded numbers and still lands here. And /admin/*
             // needs ADMIN, so this button bounced everyone else to /forbidden.
-            line="No search numbers in the last 8 weeks, so there is no curve to draw."
+            line={`No search numbers in the last ${weeks} weeks, so there is no curve to draw.`}
             note="A dash here means not measured, never zero — this app does not invent a number it has not been given."
             action={admin
               ? { label: "Connect analytics", href: "/admin/analytics" }

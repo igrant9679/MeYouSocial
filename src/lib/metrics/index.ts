@@ -83,10 +83,19 @@ function medianDays(spans: number[]): number | null {
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-export type MetricsRange = { since: Date; label: string };
+/**
+ * The window a measurement covers. `until` is absent for "up to now" — the
+ * presets — and set for a custom range or the previous period (E-MEA-01).
+ */
+export type MetricsRange = { since: Date; until?: Date; label: string };
 
 export function rangeForDays(days: number): MetricsRange {
   return { since: new Date(Date.now() - days * DAY_MS), label: `last ${days} days` };
+}
+
+/** A Prisma date filter for the window — every collector filters through this. */
+export function within(range: MetricsRange): { gte: Date; lt?: Date } {
+  return range.until ? { gte: range.since, lt: range.until } : { gte: range.since };
 }
 
 // ── Pipeline funnel ──────────────────────────────────────────────────────────
@@ -98,15 +107,15 @@ export type FunnelStage = { key: string; label: string; count: number };
  * posts are counted where they entered, so the stages are comparable.
  */
 export async function collectFunnel(workspaceId: string, range: MetricsRange): Promise<{ stages: FunnelStage[]; metrics: Metric[] }> {
-  const since = range.since;
+  const since = within(range);
   const [ideasDiscovered, ideasApproved, ideasDrafted, postsCreated, postsPublished] = await Promise.all([
     // Refresh ideas revise a published post rather than make one, so they'd
     // inflate "turned into drafts" (MEA-15) — new-content ideas only.
-    db.blogIdea.count({ where: { workspaceId, createdAt: { gte: since }, source: { not: "refresh" } } }),
-    db.blogIdea.count({ where: { workspaceId, createdAt: { gte: since }, source: { not: "refresh" }, status: { in: ["approved", "drafted"] } } }),
-    db.blogIdea.count({ where: { workspaceId, createdAt: { gte: since }, source: { not: "refresh" }, postId: { not: null } } }),
-    db.blogPost.count({ where: { workspaceId, createdAt: { gte: since } } }),
-    db.blogPost.count({ where: { workspaceId, publishedAt: { gte: since } } }),
+    db.blogIdea.count({ where: { workspaceId, createdAt: since, source: { not: "refresh" } } }),
+    db.blogIdea.count({ where: { workspaceId, createdAt: since, source: { not: "refresh" }, status: { in: ["approved", "drafted"] } } }),
+    db.blogIdea.count({ where: { workspaceId, createdAt: since, source: { not: "refresh" }, postId: { not: null } } }),
+    db.blogPost.count({ where: { workspaceId, createdAt: since } }),
+    db.blogPost.count({ where: { workspaceId, publishedAt: since } }),
   ]);
 
   const stages: FunnelStage[] = [
@@ -155,7 +164,7 @@ export async function collectFunnel(workspaceId: string, range: MetricsRange): P
 /** Median days from a post being created to being published. */
 export async function collectCycleTime(workspaceId: string, range: MetricsRange): Promise<Metric[]> {
   const published = await db.blogPost.findMany({
-    where: { workspaceId, publishedAt: { gte: range.since } },
+    where: { workspaceId, publishedAt: within(range) },
     select: { createdAt: true, publishedAt: true },
   });
   const spans = published
@@ -247,7 +256,7 @@ export async function collectCadence(workspaceId: string, weeks = 12): Promise<{
  */
 export async function collectFollowThrough(workspaceId: string, range: MetricsRange): Promise<Metric[]> {
   const published = await db.blogPost.findMany({
-    where: { workspaceId, publishedAt: { gte: range.since } },
+    where: { workspaceId, publishedAt: within(range) },
     select: { id: true },
   });
   const ids = published.map((p) => p.id);
@@ -350,8 +359,8 @@ const GENERATION_ACTIONS = [
  */
 export async function collectAiVolume(workspaceId: string, range: MetricsRange): Promise<Metric[]> {
   const [generations, published] = await Promise.all([
-    db.auditLog.count({ where: { workspaceId, action: { in: GENERATION_ACTIONS }, createdAt: { gte: range.since } } }),
-    db.blogPost.count({ where: { workspaceId, publishedAt: { gte: range.since } } }),
+    db.auditLog.count({ where: { workspaceId, action: { in: GENERATION_ACTIONS }, createdAt: within(range) } }),
+    db.blogPost.count({ where: { workspaceId, publishedAt: within(range) } }),
   ]);
   return [
     metric(
@@ -384,7 +393,7 @@ export async function collectAiVolume(workspaceId: string, range: MetricsRange):
  */
 export async function collectPerformance(workspaceId: string, range: MetricsRange): Promise<Metric[]> {
   const snapshots = await db.blogSnapshot.findMany({
-    where: { post: { workspaceId }, capturedAt: { gte: range.since } },
+    where: { post: { workspaceId }, capturedAt: within(range) },
     select: { impressions: true, clicks: true, sessions: true, position: true },
   });
 
@@ -436,13 +445,13 @@ export async function collectPerformance(workspaceId: string, range: MetricsRang
  */
 export async function collectSocialPerformance(workspaceId: string, range: MetricsRange): Promise<Metric[]> {
   const { readingsForWorkspace } = await import("@/lib/social/performance");
-  const readings = await readingsForWorkspace(workspaceId, range.since);
+  const readings = await readingsForWorkspace(workspaceId, range.since, range.until);
 
   if (!readings.length) {
     // Distinguish "nothing was sent" from "sent, but nothing measured" — they
     // call for completely different actions from the operator.
     const sent = await db.socialPostTarget.count({
-      where: { status: "posted", postedAt: { gte: range.since }, post: { workspaceId } },
+      where: { status: "posted", postedAt: within(range), post: { workspaceId } },
     });
     const note = sent
       ? `${sent} post${sent === 1 ? " was" : "s were"} sent in the ${range.label} but no engagement has been pulled back yet — check the Zernio connection under Settings → Connections.`
@@ -528,18 +537,18 @@ export async function collectTopicPerformance(workspaceId: string, range: Metric
   const ids = topics.map((t) => t.id);
 
   const [ideaGroups, videoIdeaGroups, socialIdeaGroups, postGroups, publishedGroups, socialGroups, socialPostedGroups, renderGroups] = await Promise.all([
-    db.blogIdea.groupBy({ by: ["topicId"], where: { workspaceId, topicId: { in: ids }, createdAt: { gte: range.since } }, _count: { _all: true } }),
-    db.idea.groupBy({ by: ["topicId"], where: { channel: { workspaceId }, topicId: { in: ids }, createdAt: { gte: range.since } }, _count: { _all: true } }),
-    db.socialIdea.groupBy({ by: ["topicId"], where: { workspaceId, topicId: { in: ids }, createdAt: { gte: range.since } }, _count: { _all: true } }),
-    db.blogPost.groupBy({ by: ["topicId"], where: { workspaceId, topicId: { in: ids }, createdAt: { gte: range.since } }, _count: { _all: true } }),
+    db.blogIdea.groupBy({ by: ["topicId"], where: { workspaceId, topicId: { in: ids }, createdAt: within(range) }, _count: { _all: true } }),
+    db.idea.groupBy({ by: ["topicId"], where: { channel: { workspaceId }, topicId: { in: ids }, createdAt: within(range) }, _count: { _all: true } }),
+    db.socialIdea.groupBy({ by: ["topicId"], where: { workspaceId, topicId: { in: ids }, createdAt: within(range) }, _count: { _all: true } }),
+    db.blogPost.groupBy({ by: ["topicId"], where: { workspaceId, topicId: { in: ids }, createdAt: within(range) }, _count: { _all: true } }),
     // ⚠ MEA-13: one cohort — of what was MADE in the window, how much is out.
     // Out used to count everything published in the window (made any time)
     // over what was made in it, so the rate passed 100% and, under autonomy,
     // raised a Topic's priority on a nonsense number.
-    db.blogPost.groupBy({ by: ["topicId"], where: { workspaceId, topicId: { in: ids }, createdAt: { gte: range.since }, status: "published" }, _count: { _all: true } }),
-    db.socialPost.groupBy({ by: ["topicId"], where: { workspaceId, topicId: { in: ids }, createdAt: { gte: range.since } }, _count: { _all: true } }),
-    db.socialPost.groupBy({ by: ["topicId"], where: { workspaceId, topicId: { in: ids }, status: { in: ["posted", "partial"] }, createdAt: { gte: range.since } }, _count: { _all: true } }),
-    db.videoRender.groupBy({ by: ["topicId"], where: { workspaceId, topicId: { in: ids }, status: "done", createdAt: { gte: range.since } }, _count: { _all: true } }),
+    db.blogPost.groupBy({ by: ["topicId"], where: { workspaceId, topicId: { in: ids }, createdAt: within(range), status: "published" }, _count: { _all: true } }),
+    db.socialPost.groupBy({ by: ["topicId"], where: { workspaceId, topicId: { in: ids }, createdAt: within(range) }, _count: { _all: true } }),
+    db.socialPost.groupBy({ by: ["topicId"], where: { workspaceId, topicId: { in: ids }, status: { in: ["posted", "partial"] }, createdAt: within(range) }, _count: { _all: true } }),
+    db.videoRender.groupBy({ by: ["topicId"], where: { workspaceId, topicId: { in: ids }, status: "done", createdAt: within(range) }, _count: { _all: true } }),
   ]);
   const countOf = (groups: Array<{ topicId: string | null; _count: { _all: number } }>, id: string) =>
     groups.find((g) => g.topicId === id)?._count._all ?? 0;
@@ -588,8 +597,8 @@ export type WorkspaceMetrics = {
   empty: boolean;
 };
 
-export async function collectWorkspaceMetrics(workspaceId: string, days = 90): Promise<WorkspaceMetrics> {
-  const range = rangeForDays(days);
+export async function collectWorkspaceMetrics(workspaceId: string, days: number | MetricsRange = 90): Promise<WorkspaceMetrics> {
+  const range = typeof days === "number" ? rangeForDays(days) : days;
   const [funnel, cycle, cadence, follow, wip, ai, perf, social, topics] = await Promise.all([
     collectFunnel(workspaceId, range),
     collectCycleTime(workspaceId, range),

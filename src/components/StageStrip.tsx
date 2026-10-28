@@ -1,9 +1,11 @@
 "use client";
 
+import { useSyncExternalStore } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { STAGES, currentTab, stageFor } from "@/lib/stages";
 import type { StripCounts } from "@/lib/stage-counts";
+import { noShellSnapshot, shellSnapshot, subscribeShell } from "@/lib/shell-live";
 import type { Role } from "@prisma/client";
 import { canFollow } from "@/lib/role-links";
 
@@ -24,7 +26,7 @@ import { canFollow } from "@/lib/role-links";
 export function StageStrip({
   activeChannelId,
   studio,
-  counts,
+  counts: serverCounts,
   admin,
   operator,
   role,
@@ -40,6 +42,9 @@ export function StageStrip({
   role: Role;
 }) {
   const pathname = usePathname() ?? "";
+  // Badges follow the shell poll (E-SHL-01) — they were the layout's, frozen until it re-rendered.
+  const live = useSyncExternalStore(subscribeShell, shellSnapshot, noShellSnapshot);
+  const counts = live?.counts ?? serverCounts;
   const key = stageFor(pathname);
   if (!key) return null;
   const stage = STAGES[key];

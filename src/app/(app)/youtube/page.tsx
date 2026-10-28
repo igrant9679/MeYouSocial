@@ -10,13 +10,15 @@ import { refreshYoutubeAuditAction } from "@/app/actions/youtube-audit";
 import { EmptyState } from "@/components/EmptyState";
 import { formatZonedMoment, formatShortDay } from "@/lib/zoned-dates";
 import { getPostingTimeZone } from "@/lib/social/slots";
+import { RangePicker } from "@/components/RangePicker";
+import { measureRange, type RangeInput } from "@/lib/measure-range";
 
 // Measure → YouTube: the channel audit. What the workspace's own channel did
 // over the window, from the YouTube Analytics API, and what to do about it.
 // Every figure is measured; the one metric people expect and the API does
 // not expose (impressions / CTR) is named as such rather than left blank.
 
-type SP = { days?: string; ok?: string; err?: string };
+type SP = { days?: string; ok?: string; err?: string } & RangeInput;
 
 const KIND: Record<AuditFinding["kind"], { label: string; hue: string }> = {
   win: { label: "keep doing", hue: "green" },
@@ -52,9 +54,15 @@ function Tile({ label, value, sub, d }: { label: string; value: string; sub?: st
 export default async function YoutubeAuditPage({ searchParams }: { searchParams: Promise<SP> }) {
   const { workspace, membership } = await requireMembership();
   const tz = await getPostingTimeZone(workspace.id).catch(() => "UTC");
-  const { days: rawDays, ok, err } = await searchParams;
-  const parsed = parseInt(rawDays ?? "90", 10);
-  const days: AuditWindow = (AUDIT_WINDOWS as readonly number[]).includes(parsed) ? (parsed as AuditWindow) : 90;
+  const sp = await searchParams;
+  const { days: rawDays, ok, err } = sp;
+  // One range for all of Measure (E-MEA-01). The audit reads trailing windows
+  // of 7, 28, 90 or 365 days, so a custom range takes the nearest one and the
+  // picker says so; an old `?days=` link still wins.
+  const range = await measureRange(sp, tz);
+  const nearest = AUDIT_WINDOWS.reduce((a, w) => (Math.abs(w - range.days) < Math.abs(a - range.days) ? w : a), AUDIT_WINDOWS[0]);
+  const parsed = parseInt(rawDays ?? String(nearest), 10);
+  const days: AuditWindow = (AUDIT_WINDOWS as readonly number[]).includes(parsed) ? (parsed as AuditWindow) : nearest;
   const editor = canEdit(membership.role);
   const admin = membership.role === "ADMIN";
   const res = await youtubeAuditFor(workspace.id, days);
@@ -67,9 +75,6 @@ export default async function YoutubeAuditPage({ searchParams }: { searchParams:
         blurb="Your own channel over the window: what pulled views, what held attention, what fell flat — from the YouTube Analytics API."
       >
         <div className="flex items-center gap-1">
-          {AUDIT_WINDOWS.map((w) => (
-            <Link key={w} href={`/youtube?days=${w}`} className={`btn sm ${w === days ? "primary" : ""}`}>{w}d</Link>
-          ))}
           {editor && res.state !== "not_connected" && (
             <form action={refreshYoutubeAuditAction}>
               <input type="hidden" name="days" value={days} />
@@ -85,6 +90,8 @@ export default async function YoutubeAuditPage({ searchParams }: { searchParams:
           )}
         </div>
       </SocialHeader>
+
+      <RangePicker range={range} path="/youtube" note={days === range.days ? "The audit compares each window with the one before it." : `YouTube reports trailing windows only, so this shows the last ${days} days — the nearest to the range.`} />
 
       {ok && <Banner kind="ok" text={ok} />}
       {err && <Banner kind="err" text={err} />}

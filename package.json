@@ -13,6 +13,8 @@
     "db:seed": "tsx prisma/seed.ts",
     "db:studio": "prisma studio",
     "check:guide": "tsx scripts/check-guide-anchors.mts",
+    "check:routes": "tsx scripts/check-routes.mts",
+    "prebuild": "tsx scripts/check-routes.mts && tsx scripts/check-guide-anchors.mts",
     "postinstall": "prisma generate"
   },
   "prisma": {

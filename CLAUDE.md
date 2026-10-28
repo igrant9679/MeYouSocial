@@ -787,6 +787,25 @@ Tabs: **Keys** (`/admin/api-keys`: LLM, search, images, video, TTS, storage) · 
   exact drop), one server call each; a refused one goes back. ⚠ Keep the filter a module-level function and the
   derived lists in `useMemo` — the React Compiler lint refuses memos built on a closure.
 
+## ⚠ One range for Measure; one shell poll; links are checked at build (2026-10-28, audit Phase 5, wave 2, part d)
+- **One date range** (E-MEA-01, `lib/measure-range.ts`, `components/RangePicker.tsx`, `actions/measure.ts`): presets 7/28/90/365,
+  custom whole days in the posting zone (both ends included, at most 730), and `compare=1`. URL first (`range`, `from`,
+  `to`, `compare`), then the cookie `mys.measure_range` the picker sets (so tabs keep it without their links carrying it),
+  then 90 days. On Measure, Insights (each ranged figure gets its previous-period line; cadence and WIP say they read
+  now), Topics, Social performance and the YouTube audit (nearest of its windows, said). `MetricsRange` has an
+  optional `until`, and every collector filters through `within(range)` — a new collector must too, or a custom range
+  and the previous period silently run to now. Reports keep their own per-report ranges.
+- **One shell poll** (E-SHL-01): `/api/shell` (and `/api/ticker`, its old name) returns the engine pill's events and
+  state, the unread count and the strip's badges for the ACTIVE workspace; `components/ShellPoll.tsx` publishes the
+  layout's values, then polls every minute while visible, into `lib/shell-live.ts` (import-free) — EngineStatus,
+  `UnreadBell` and StageStrip read it with `useSyncExternalStore`. An answer for another workspace is ignored. AiActivity
+  keeps its own seconds-long poll. Elsie's count still comes with the layout.
+- **Links are checked at build** (E-SHL-02, `scripts/check-routes.mts`, `npm run check:routes`, run by `prebuild` with
+  check:guide — so Railway's build fails on a broken link): every rail entry, stage tab, Help and Inbox link and Elsie step
+  must land on a page that isn't redirect-only, and `roleNeededFor` must equal the page's gate (its own requireRole or
+  a layout's; comments are ignored). A page that turns a role away with a message instead says `// gate: EDITOR` (the
+  assistant does).
+
 ## Open items / things the user still owns
 - **Analytics: APIs enabled 2026-08-03** (Search Console + GA Admin + GA Data, on project
   `479503233109` = `gen-lang-client-0838901195` = "CreateUp"). Still pending, user-only: add the

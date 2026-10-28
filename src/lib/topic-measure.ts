@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { rangeForDays, type MetricsRange } from "@/lib/metrics";
+import { rangeForDays, within, type MetricsRange } from "@/lib/metrics";
 import { topicLedgers } from "@/lib/topics";
 import { matchTopic, prepareTopics } from "@/lib/topic-match";
 
@@ -64,8 +64,8 @@ export type TopicMeasure = {
   notes: { articles: string | null; video: string | null; social: string | null };
 };
 
-export async function topicMeasure(workspaceId: string, days = 90): Promise<TopicMeasure> {
-  const range = rangeForDays(days);
+export async function topicMeasure(workspaceId: string, days: number | MetricsRange = 90): Promise<TopicMeasure> {
+  const range = typeof days === "number" ? rangeForDays(days) : days;
   const ledgers = await topicLedgers(workspaceId);
   const notes: TopicMeasure["notes"] = { articles: null, video: null, social: null };
   if (ledgers.length === 0) return { range, rows: [], notes };
@@ -81,7 +81,7 @@ export async function topicMeasure(workspaceId: string, days = 90): Promise<Topi
       orderBy: { capturedAt: "desc" },
     }),
     db.socialPost.findMany({ where: { workspaceId, topicId: { in: ids } }, select: { id: true, topicId: true } }),
-    readingsForWorkspace(workspaceId, range.since),
+    readingsForWorkspace(workspaceId, range.since, range.until),
     youtubeAuditFor(workspaceId, 90).catch((e: unknown) => ({ state: "error" as const, message: e instanceof Error ? e.message : String(e) })),
   ]);
 
@@ -91,13 +91,13 @@ export async function topicMeasure(workspaceId: string, days = 90): Promise<Topi
   const clicksByPost = new Map<string, number>();
   for (const s of snapshots) {
     if (s.position != null && !latestPos.has(s.postId)) latestPos.set(s.postId, s.position);
-    if (s.clicks != null && s.capturedAt >= range.since) clicksByPost.set(s.postId, (clicksByPost.get(s.postId) ?? 0) + s.clicks);
+    if (s.clicks != null && s.capturedAt >= range.since && (!range.until || s.capturedAt < range.until)) clicksByPost.set(s.postId, (clicksByPost.get(s.postId) ?? 0) + s.clicks);
   }
   if (posts.length > 0 && snapshots.length === 0) notes.articles = "Published articles carry these Topics, but no positions or clicks have been recorded for them — connect Search Console under Settings → Analytics, or enter numbers on Blog analytics.";
 
   // Social: readings → post → topic.
   const socialTopic = new Map(socialPosts.map((p) => [p.id, p.topicId!]));
-  const sentTagged = await db.socialPostTarget.count({ where: { status: "posted", postedAt: { gte: range.since }, post: { workspaceId, topicId: { in: ids } } } });
+  const sentTagged = await db.socialPostTarget.count({ where: { status: "posted", postedAt: within(range), post: { workspaceId, topicId: { in: ids } } } });
   if (sentTagged > 0 && readings.length === 0) notes.social = `${sentTagged} tagged post${sentTagged === 1 ? " was" : "s were"} sent in the ${range.label} but no engagement has been pulled back yet — check the Zernio connection under Settings → Connections.`;
 
   // Video: audit videos matched to Topics by keyword.

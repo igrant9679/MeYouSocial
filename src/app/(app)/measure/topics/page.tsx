@@ -3,6 +3,9 @@ import { requireMembership, canEdit } from "@/lib/acl";
 import { StageHeader } from "@/components/StageShell";
 import { EmptyState } from "@/components/EmptyState";
 import { topicMeasure } from "@/lib/topic-measure";
+import { getPostingTimeZone } from "@/lib/social/slots";
+import { RangePicker } from "@/components/RangePicker";
+import { measureRange, type RangeInput } from "@/lib/measure-range";
 
 // Measure → Topics: what each Topic earned, per format. One row per Topic,
 // columns per format, every cell measured or a dash — and the page says why
@@ -13,10 +16,12 @@ const th = "py-1.5 px-2 font-mono text-[9px] uppercase tracking-wider border-b-2
 const td = "py-1.5 px-2 border-b border-[var(--line)] align-top";
 const n = (v: number | null, suffix = "") => (v == null ? dash : <span className="font-mono tabular-nums">{v.toLocaleString()}{suffix}</span>);
 
-export default async function MeasureTopicsPage() {
+export default async function MeasureTopicsPage({ searchParams }: { searchParams: Promise<RangeInput> }) {
   const { workspace, membership } = await requireMembership();
   const editor = canEdit(membership.role);
-  const m = await topicMeasure(workspace.id, 90);
+  // One range for all of Measure (E-MEA-01).
+  const range = await measureRange(await searchParams, await getPostingTimeZone(workspace.id).catch(() => "UTC"));
+  const m = await topicMeasure(workspace.id, range);
   const anyMeasured = m.rows.some((r) => r.articles.position != null || r.articles.clicks != null || r.video.views != null || r.social.engagement != null || r.social.impressions != null);
   const totals = m.rows.reduce(
     (a, r) => ({ made: a.made + r.articles.made + r.video.renders + r.social.posts, out: a.out + r.articles.published + r.social.posted, waiting: a.waiting + r.ideasWaiting }),
@@ -41,6 +46,8 @@ export default async function MeasureTopicsPage() {
           { label: "ideas waiting", n: totals.waiting, href: "/ideas", hue: totals.waiting > 0 ? "amber" : undefined },
         ]}
       />
+
+      <RangePicker range={range} path="/measure/topics" note="Counts are all time and YouTube views a fixed 90 days; clicks and engagement follow the range." />
 
       {m.rows.length === 0 ? (
         <EmptyState

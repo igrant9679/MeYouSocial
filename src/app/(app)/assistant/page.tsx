@@ -89,6 +89,7 @@ export default async function AssistantPage({ searchParams }: { searchParams: Pr
   const examples = await examplesFor(workspace.id);
   // It acts — drafts, queues, publishes — so it is for editors and admins; a
   // viewer's messages used to fail with a parse error instead (ENG-17).
+  // gate: EDITOR — a viewer is told why here rather than bounced (scripts/check-routes.mts).
   if (!canEdit(membership.role)) {
     return (
       <main className="p-6 w-full max-w-2xl">
