@@ -581,6 +581,23 @@ Tabs: **Keys** (`/admin/api-keys`: LLM, search, images, video, TTS, storage) · 
   success clears it, and `lib/home.ts` shows "<Provider> is refusing this workspace's AI calls". Timeouts aren't
   refusals.
 
+## ⚠ Windows end where the data does; rates have honest bases (2026-10-28, audit Phase 3, part 2a)
+- **Per-post figures are 28-day windows** (MEA-14): `postPerformance` gives the impression-weighted position
+  (`weightedPosition`) of the 28 days ending at the post's latest reading, `prevPosition` for the 28 before, and
+  `clicks` summed over the window (`WINDOW_DAYS`). Single-day positions made "biggest movers" the noisiest days.
+  `homeStats.avgPosition` is the same weighting over the workspace's last 28 days.
+- **Like with like** (MEA-11): `publishedLastMonth` counts the SAME elapsed days of last month; weekly series end
+  at the last day that has data (Search Console lags ~2 days), not "now".
+- **Bases** (MEA-15): no cadence change on a zero earlier half; social impressions are impressions (reach no longer
+  stands in) and the rate pairs engagement with impressions per reading; best time counts POSTS, not network legs;
+  pipeline velocity is the median over ideas whose post published in the window (refresh ideas excluded, also
+  from the funnel); the budget block is `generationsToday` against `DAILY_AI_BUDGET`. `sumOrNull` drops undefined.
+- **A typed reading is one named day** (MEA-17): the manual entry has a date (default yesterday) and is refused
+  where Search Console or GA4 already recorded that day for the post.
+- **Posting timezone, said** (MEA-20): `lib/zoned-dates.ts` — `zonedMonthStart`, `zonedDayStart`,
+  `formatZonedMoment` ("28 Oct, 00:50 EDT"). Month boundaries and printed engine times use the workspace's
+  posting timezone and name it.
+
 ## Open items / things the user still owns
 - **Analytics: APIs enabled 2026-08-03** (Search Console + GA Admin + GA Data, on project
   `479503233109` = `gen-lang-client-0838901195` = "CreateUp"). Still pending, user-only: add the

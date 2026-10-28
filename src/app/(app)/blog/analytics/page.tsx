@@ -24,6 +24,7 @@ export default async function BlogAnalyticsPage() {
   });
 
   const withLatest = posts.map((p) => ({ post: p, latest: p.snapshots[0] ?? null }));
+  const yesterday = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
   const tracked = withLatest.filter((x) => x.latest);
   // Null when no post's latest snapshot measured it — a dash, not a 0 (MEA-04).
   const sum = (f: (s: NonNullable<(typeof tracked)[number]["latest"]>) => number | null) =>
@@ -130,7 +131,7 @@ export default async function BlogAnalyticsPage() {
                 <th className="py-2 pr-3 font-semibold">Clicks</th>
                 <th className="py-2 pr-3 font-semibold">Pos.</th>
                 <th className="py-2 pr-3 font-semibold">As of</th>
-                {editor && <th className="py-2 pr-3 font-semibold">Record snapshot</th>}
+                {editor && <th className="py-2 pr-3 font-semibold">Record one day</th>}
                 {editor && <th className="py-2 font-semibold">Protect</th>}
               </tr>
             </thead>
@@ -155,6 +156,7 @@ export default async function BlogAnalyticsPage() {
                     <td className="py-2 pr-3">
                       <form action={recordSnapshotAction} className="flex items-center gap-1">
                         <input type="hidden" name="postId" value={post.id} />
+                        <input name="day" type="date" required defaultValue={yesterday} max={yesterday} aria-label="The day these numbers are for" title="One day's numbers" className="w-32 font-mono" />
                         <input name="impressions" placeholder="impr" className="w-14 font-mono" />
                         <input name="clicks" placeholder="clk" className="w-12 font-mono" />
                         <input name="position" placeholder="pos" className="w-12 font-mono" />

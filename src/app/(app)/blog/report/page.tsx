@@ -1,3 +1,5 @@
+import { zonedMonthStart } from "@/lib/zoned-dates";
+import { getPostingTimeZone } from "@/lib/social/slots";
 import { complianceFacts, overrideSentence, searchConsoleLine } from "@/lib/report-facts";
 import Link from "next/link";
 import { ArrowLeft, FileBarChart, ShieldCheck, TriangleAlert } from "lucide-react";
@@ -21,8 +23,10 @@ export default async function BlogReportPage() {
   const { workspace, membership } = await requireMembership();
   const editor = canEdit(membership.role);
   const now = new Date();
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  const monthName = now.toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+  // The posting timezone's month (MEA-20).
+  const postingTz = await getPostingTimeZone(workspace.id);
+  const monthStart = zonedMonthStart(now, postingTz);
+  const monthName = now.toLocaleDateString("en-GB", { month: "long", year: "numeric", timeZone: postingTz });
 
   const [series, perf, publishedThisMonth, citationsTotal, citationsVerified, reviewPosts, publishedPosts] =
     await Promise.all([

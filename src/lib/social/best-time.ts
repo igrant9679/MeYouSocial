@@ -179,6 +179,8 @@ export async function analyseBestTimes(
 
   const points: TimePoint[] = [];
   let unmeasurable = 0;
+  // Posts, not network legs (MEA-15): one post sent to four networks is one post.
+  const measuredPosts = new Set<string>();
 
   for (const r of readings) {
     const when = publishedAt.get(r.postId);
@@ -190,18 +192,19 @@ export async function analyseBestTimes(
     }
     const { weekday, minute } = zonedParts(when, timeZone);
     points.push({ weekday, hour: Math.floor(minute / 60), rate: (r.engagement / impressions) * 100 });
+    measuredPosts.add(r.postId);
   }
 
-  if (points.length < MIN_POSTS) {
-    const need = MIN_POSTS - points.length;
+  if (measuredPosts.size < MIN_POSTS) {
+    const need = MIN_POSTS - measuredPosts.size;
     return {
       ...empty(
-        `Not enough measured posts yet: ${points.length} of the ${MIN_POSTS} needed` +
+        `Not enough measured posts yet: ${measuredPosts.size} of the ${MIN_POSTS} needed` +
         (unmeasurable > 0
           ? `. ${unmeasurable} more ${unmeasurable === 1 ? "post has" : "posts have"} engagement but no impressions figure, so ${unmeasurable === 1 ? "it can't" : "they can't"} be compared fairly.`
           : `. ${need} more will do it.`),
       ),
-      measured: points.length,
+      measured: measuredPosts.size,
       unmeasurable,
     };
   }

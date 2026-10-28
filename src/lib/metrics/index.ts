@@ -100,9 +100,11 @@ export type FunnelStage = { key: string; label: string; count: number };
 export async function collectFunnel(workspaceId: string, range: MetricsRange): Promise<{ stages: FunnelStage[]; metrics: Metric[] }> {
   const since = range.since;
   const [ideasDiscovered, ideasApproved, ideasDrafted, postsCreated, postsPublished] = await Promise.all([
-    db.blogIdea.count({ where: { workspaceId, createdAt: { gte: since } } }),
-    db.blogIdea.count({ where: { workspaceId, createdAt: { gte: since }, status: { in: ["approved", "drafted"] } } }),
-    db.blogIdea.count({ where: { workspaceId, createdAt: { gte: since }, postId: { not: null } } }),
+    // Refresh ideas revise a published post rather than make one, so they'd
+    // inflate "turned into drafts" (MEA-15) — new-content ideas only.
+    db.blogIdea.count({ where: { workspaceId, createdAt: { gte: since }, source: { not: "refresh" } } }),
+    db.blogIdea.count({ where: { workspaceId, createdAt: { gte: since }, source: { not: "refresh" }, status: { in: ["approved", "drafted"] } } }),
+    db.blogIdea.count({ where: { workspaceId, createdAt: { gte: since }, source: { not: "refresh" }, postId: { not: null } } }),
     db.blogPost.count({ where: { workspaceId, createdAt: { gte: since } } }),
     db.blogPost.count({ where: { workspaceId, publishedAt: { gte: since } } }),
   ]);
@@ -222,12 +224,15 @@ export async function collectCadence(workspaceId: string, weeks = 12): Promise<{
     metric(
       "cadence_trend",
       "Cadence change",
-      total >= 4 ? rate(secondHalf - firstHalf, Math.max(firstHalf, 1)) : null,
+      // A zero earlier half has no base to compare with ("400%" on nothing, MEA-15).
+      total >= 4 && firstHalf > 0 ? rate(secondHalf - firstHalf, firstHalf) : null,
       "percent",
       total,
-      total >= 4
+      total >= 4 && firstHalf > 0
         ? `Recent ${points.length - half} weeks: ${secondHalf} published vs ${firstHalf} in the prior ${half}.`
-        : "Not enough published posts to call a trend.",
+        : total >= 4
+          ? `Nothing was published in the prior ${half} weeks, so there is no base to compare the recent ${secondHalf} with.`
+          : "Not enough published posts to call a trend.",
     ),
   ];
 

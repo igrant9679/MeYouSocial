@@ -272,7 +272,8 @@ export type NetworkPerformance = {
 
 /** Sum a field across readings, returning null when NOBODY reported it. */
 function sumOrNull(readings: TargetReading[], pick: (r: TargetReading) => number | null): number | null {
-  const vals = readings.map(pick).filter((v): v is number => v !== null);
+  // != null: a stat a network never sent is undefined, and must not sum to NaN.
+  const vals = readings.map(pick).filter((v): v is number => v != null && Number.isFinite(v));
   return vals.length ? vals.reduce((a, b) => a + b, 0) : null;
 }
 
@@ -282,20 +283,22 @@ export function byNetwork(readings: TargetReading[]): NetworkPerformance[] {
   for (const r of readings) groups.set(r.provider, [...(groups.get(r.provider) ?? []), r]);
   return [...groups.entries()]
     .map(([provider, rs]) => {
-      // Impressions is the comparable denominator across networks; reach fills
-      // in for the ones that only report that.
-      const impressions = sumOrNull(rs, (r) => r.stats.impressions ?? r.stats.reach);
+      // ⚠ MEA-15: reach used to fill in for impressions, so a network that
+      // reports only reach showed it under "impressions" and its rate mixed
+      // denominators. Impressions are impressions; the rate is engagement per
+      // impression over the readings that report both.
+      const impressions = sumOrNull(rs, (r) => r.stats.impressions);
       const engagement = sumOrNull(rs, (r) => r.engagement);
+      const paired = rs.filter((r) => r.engagement != null && r.stats.impressions != null);
+      const pairedImpr = paired.reduce((a, r) => a + (r.stats.impressions ?? 0), 0);
+      const pairedEng = paired.reduce((a, r) => a + (r.engagement ?? 0), 0);
       return {
         provider,
         posts: rs.length,
         impressions,
         engagement,
         clicks: sumOrNull(rs, (r) => r.stats.clicks),
-        engagementRate:
-          impressions !== null && impressions > 0 && engagement !== null
-            ? Math.round((engagement / impressions) * 1000) / 10
-            : null,
+        engagementRate: pairedImpr > 0 ? Math.round((pairedEng / pairedImpr) * 1000) / 10 : null,
       };
     })
     .sort((a, b) => (b.engagement ?? -1) - (a.engagement ?? -1) || a.provider.localeCompare(b.provider));

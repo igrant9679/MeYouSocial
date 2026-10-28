@@ -64,7 +64,7 @@ export async function ReportBlock({ block, workspaceId, weeks, canAct = true }: 
       return (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           {[
-            { label: "Published this month", value: String(stats.publishedThisMonth), note: `${delta >= 0 ? "▲ +" : "▼ "}${delta} vs last`, tone: delta >= 0 ? "var(--green-on)" : "var(--rose-on)" },
+            { label: "Published this month", value: String(stats.publishedThisMonth), note: `${delta >= 0 ? "▲ +" : "▼ "}${delta} vs the same days last month`, tone: delta >= 0 ? "var(--green-on)" : "var(--rose-on)" },
             { label: "Clicks this week", value: stats.clicksThisWeek == null ? "—" : String(stats.clicksThisWeek), note: stats.clicksThisWeek == null ? "not measured this week" : "from snapshots", tone: "var(--mute)" },
             { label: "Avg position", value: stats.avgPosition?.toFixed(1) ?? "—", note: "lower is better", tone: "var(--mute)" },
             { label: "Blockers", value: String(stats.unverifiedCitations + stats.postsMissingAssets), note: `${stats.unverifiedCitations} citations · ${stats.postsMissingAssets} assets`, tone: "var(--amber-on)" },
@@ -114,9 +114,9 @@ export async function ReportBlock({ block, workspaceId, weeks, canAct = true }: 
         .sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta))
         .slice(0, 6);
       return (
-        <Card title="Biggest movers">
+        <Card title="Biggest movers — last 28 days vs the 28 before">
           {withDelta.length === 0 ? (
-            <Empty canAct={canAct} to="/blog/analytics" cta="Add this week's numbers">No post has two recorded positions yet, so there is no movement to compare.</Empty>
+            <Empty canAct={canAct} to="/blog/analytics" cta="Add this week's numbers">No post has positions in both windows yet, so there is no movement to compare.</Empty>
           ) : (
             <ul className="m-0 p-0">
               {withDelta.map((p) => (
@@ -137,14 +137,14 @@ export async function ReportBlock({ block, workspaceId, weeks, canAct = true }: 
     case "posts_table": {
       const perf = await postPerformance(workspaceId, 10, { status: "published" });
       return (
-        <Card title="Content">
+        <Card title={`Content — the latest ${perf.length} published, last 28 days`}>
           {perf.length === 0 ? (
             <Empty canAct={canAct} to="/publish" cta="See what's waiting">Nothing has been published from this workspace yet, so there is no content to rank.</Empty>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-xs border-collapse">
                 <thead><tr className="text-left text-[var(--mute)]">
-                  {["Post", "Keyword", "Pos", "Δ", "Clicks"].map((h, i) => (
+                  {["Post", "Keyword", "Pos", "Δ vs prior 28 d", "Clicks"].map((h, i) => (
                     <th key={h} className={`py-1.5 px-2 font-mono text-[9px] uppercase tracking-wider border-b-2 border-[var(--line)] ${i >= 2 ? "text-right" : ""}`}>{h}</th>
                   ))}
                 </tr></thead>
@@ -209,14 +209,15 @@ export async function ReportBlock({ block, workspaceId, weeks, canAct = true }: 
     case "velocity": {
       const since = new Date();
       since.setDate(since.getDate() - weeks * 7);
-      const done = await db.blogIdea.findMany({
-        where: { workspaceId, status: "drafted", postId: { not: null } },
-        select: { createdAt: true, postId: true },
-        take: 100,
-      });
+      // MEA-15: ideas whose post published IN this window (it averaged 100
+      // arbitrary ideas of any age), refresh ideas left out, as a median with n.
       const posts = await db.blogPost.findMany({
-        where: { id: { in: done.map((d) => d.postId!).filter(Boolean) }, publishedAt: { not: null } },
+        where: { workspaceId, publishedAt: { gte: since } },
         select: { id: true, publishedAt: true },
+      });
+      const done = await db.blogIdea.findMany({
+        where: { workspaceId, postId: { in: posts.map((p) => p.id) }, source: { not: "refresh" } },
+        select: { createdAt: true, postId: true },
       });
       const byId = new Map(posts.map((p) => [p.id, p.publishedAt!]));
       const cycles = done
@@ -224,14 +225,15 @@ export async function ReportBlock({ block, workspaceId, weeks, canAct = true }: 
         .map((d) => (byId.get(d.postId!)!.getTime() - d.createdAt.getTime()) / 86400000)
         .filter((days) => days >= 0);
       const published = await db.blogPost.count({ where: { workspaceId, status: "published", publishedAt: { gte: since } } });
-      const avg = cycles.length ? cycles.reduce((a, b) => a + b, 0) / cycles.length : null;
+      const sorted = [...cycles].sort((a, b) => a - b);
+      const avg = sorted.length ? (sorted.length % 2 ? sorted[(sorted.length - 1) / 2] : (sorted[sorted.length / 2 - 1] + sorted[sorted.length / 2]) / 2) : null;
       return (
         <Card title="Pipeline velocity">
           <div className="grid grid-cols-2 gap-3">
             <div>
               <div className={`${num} font-bold text-[24px]`}>{avg != null ? avg.toFixed(1) : "—"}</div>
-              <div className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)] font-bold">days idea → published</div>
-              {avg == null && <div className="text-[11px] text-[var(--mute)] mt-1">no idea-to-publish cycles measured yet</div>}
+              <div className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)] font-bold">median days idea → published</div>
+              <div className="text-[11px] text-[var(--mute)] mt-1">{avg == null ? `no idea published in the last ${weeks}w` : `n = ${sorted.length}, published in the last ${weeks}w`}</div>
             </div>
             <div>
               <div className={`${num} font-bold text-[24px]`}>{(published / Math.max(1, weeks)).toFixed(1)}</div>
@@ -243,25 +245,24 @@ export async function ReportBlock({ block, workspaceId, weeks, canAct = true }: 
     }
 
     case "autopilot_budget": {
-      const dayStart = new Date();
-      dayStart.setHours(0, 0, 0, 0);
+      // The autopilot's own count and limit (MEA-15: three actions against a
+      // budget of five; MEA-20: the posting timezone's day, not the server's).
       const weekAgo = new Date(Date.now() - 7 * 86400000);
+      const { generationsToday, DAILY_AI_BUDGET } = await import("@/lib/blog-autopilot");
       const [today, failures] = await Promise.all([
-        db.auditLog.count({
-          where: { workspaceId, action: { in: ["blog.draft_generated", "ideas.ai_discovery", "social.variants_generated"] }, createdAt: { gte: dayStart } },
-        }),
+        generationsToday(workspaceId),
         db.auditLog.count({ where: { workspaceId, action: { in: ["video.render_failed"] }, createdAt: { gte: weekAgo } } }),
       ]);
       return (
         <Card title="Autopilot budget — today">
           <div className="flex items-center gap-3 mb-2">
             <div className="flex-1 h-2.5 rounded-full bg-[var(--panel)] overflow-hidden">
-              <div className="h-full rounded-full anim-grow" style={{ width: `${Math.min(100, (today / 20) * 100)}%`, background: today >= 16 ? "var(--amber)" : "var(--green)" }} />
+              <div className="h-full rounded-full anim-grow" style={{ width: `${Math.min(100, (today / DAILY_AI_BUDGET) * 100)}%`, background: today >= DAILY_AI_BUDGET * 0.8 ? "var(--amber)" : "var(--green)" }} />
             </div>
-            <span className={`${num} text-sm font-bold`}>{today}/20</span>
+            <span className={`${num} text-sm font-bold`}>{today}/{DAILY_AI_BUDGET}</span>
           </div>
           <p className="text-[11px] text-[var(--mute)]">
-            Unattended generations against the daily budget · {failures} render failure{failures === 1 ? "" : "s"} in 7 days
+            Unattended generations today (posting timezone) against the daily budget · {failures} render failure{failures === 1 ? "" : "s"} in 7 days
           </p>
         </Card>
       );

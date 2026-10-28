@@ -1,3 +1,4 @@
+import { formatZonedMoment } from "@/lib/zoned-dates";
 import Link from "next/link";
 import { Bot, OctagonPause, Play, Search, Sparkles } from "lucide-react";
 import { requireMembership, canAdmin } from "@/lib/acl";
@@ -110,7 +111,7 @@ export default async function SetupAutomation({ searchParams }: { searchParams: 
           <div className="flex-1 min-w-40">
             <div className="text-sm font-semibold">Autopilot {autopilotOff ? "— disabled (AUTOPILOT=off)" : `— sweeps every ${intervalMin} min`}</div>
             <div className="text-xs text-[var(--mute)]">
-              {lastCycle ? `Last activity ${lastCycle.createdAt.toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}: ${lastCycle.meta}` : "No activity yet — it acts only when a function is assisted or auto and there is due work."}
+              {lastCycle ? `Last activity ${formatZonedMoment(lastCycle.createdAt, queue.timeZone)}: ${lastCycle.meta}` : "No activity yet — it acts only when a function is assisted or auto and there is due work."}
             </div>
           </div>
           {admin && !autopilotOff && (

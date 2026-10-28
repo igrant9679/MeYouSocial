@@ -67,9 +67,9 @@ export async function GET(_req: Request, ctx: { params: Promise<{ key: string }>
     switch (block) {
       case "kpis": {
         h2("Key numbers");
-        line(`Published this month: ${stats.publishedThisMonth} (${stats.publishedThisMonth - stats.publishedLastMonth >= 0 ? "+" : ""}${stats.publishedThisMonth - stats.publishedLastMonth} vs last month)`);
+        line(`Published this month: ${stats.publishedThisMonth} (${stats.publishedThisMonth - stats.publishedLastMonth >= 0 ? "+" : ""}${stats.publishedThisMonth - stats.publishedLastMonth} vs the same days last month)`);
         line(`Clicks this week: ${stats.clicksThisWeek ?? "not measured"}`);
-        line(`Average position: ${stats.avgPosition != null ? stats.avgPosition.toFixed(1) : "no data yet"} (lower is better)`);
+        line(`Average position, last 28 days (weighted by impressions): ${stats.avgPosition != null ? stats.avgPosition.toFixed(1) : "not measured"} (lower is better)`);
         line(`Open blockers: ${stats.unverifiedCitations} unverified citations, ${stats.postsMissingAssets} posts awaiting images`);
         break;
       }
@@ -86,7 +86,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ key: string }>
         break;
       }
       case "movers": {
-        h2("Biggest movers");
+        h2("Biggest movers — last 28 days vs the 28 before");
         const movers = perf
           .filter((p) => p.position != null && p.prevPosition != null)
           .map((p) => ({ t: p.title, d: p.prevPosition! - p.position!, pos: p.position! }))

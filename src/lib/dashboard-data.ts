@@ -29,7 +29,13 @@ export type WeekPoint = {
 
 /** Sum snapshots into ISO-week buckets over the trailing `weeks`. */
 export async function weeklySeries(workspaceId: string, weeks = 8): Promise<WeekPoint[]> {
-  const start = new Date();
+  // ⚠ MEA-11: windows end at the last day that HAS data. Search Console lags
+  // ~2 days, so a series ending "now" always dipped in its last week.
+  const latest = await db.blogSnapshot.findFirst({ where: { post: { workspaceId } }, orderBy: { capturedAt: "desc" }, select: { capturedAt: true } });
+  const end = latest && Date.now() - latest.capturedAt.getTime() < weeks * 7 * 86_400_000
+    ? new Date(latest.capturedAt.getTime() + 86_400_000)
+    : new Date();
+  const start = new Date(end);
   start.setDate(start.getDate() - weeks * 7);
   const snaps = await db.blogSnapshot.findMany({
     where: { post: { workspaceId }, capturedAt: { gte: start } },
@@ -38,7 +44,7 @@ export async function weeklySeries(workspaceId: string, weeks = 8): Promise<Week
   });
 
   const buckets: WeekPoint[] = [];
-  const now = new Date();
+  const now = end;
   for (let i = weeks - 1; i >= 0; i--) {
     const from = new Date(now);
     from.setDate(from.getDate() - (i + 1) * 7);
@@ -107,23 +113,51 @@ export async function postPerformance(workspaceId: string, take = 24, opts?: { s
       status: true,
       focusKeyword: true,
       publishedUrl: true,
-      snapshots: { orderBy: { capturedAt: "desc" }, take: 2, select: { position: true, clicks: true } },
+      snapshots: {
+        where: { capturedAt: { gte: new Date(Date.now() - 2 * WINDOW_DAYS * 86_400_000 - 7 * 86_400_000) } },
+        orderBy: { capturedAt: "desc" },
+        select: { capturedAt: true, position: true, clicks: true, impressions: true },
+      },
     },
   });
-  return posts.map((p) => ({
-    id: p.id,
-    title: p.title,
-    status: p.status,
-    focusKeyword: p.focusKeyword,
-    publishedUrl: p.publishedUrl,
-    position: p.snapshots[0]?.position ?? null,
-    prevPosition: p.snapshots[1]?.position ?? null,
-    clicks: p.snapshots[0]?.clicks ?? null,
-  }));
+  return posts.map((p) => {
+    // ⚠ MEA-14: position, change and clicks came from the last ONE or TWO days,
+    // so "biggest movers" were the noisiest days. Now: the 28 days ending at the
+    // post's latest reading vs the 28 before, position weighted by impressions.
+    const anchor = p.snapshots[0]?.capturedAt.getTime() ?? 0;
+    const cut = anchor - WINDOW_DAYS * 86_400_000;
+    const recent = p.snapshots.filter((s) => s.capturedAt.getTime() > cut);
+    const prior = p.snapshots.filter((s) => s.capturedAt.getTime() <= cut && s.capturedAt.getTime() > cut - WINDOW_DAYS * 86_400_000);
+    return {
+      id: p.id,
+      title: p.title,
+      status: p.status,
+      focusKeyword: p.focusKeyword,
+      publishedUrl: p.publishedUrl,
+      position: weightedPosition(recent),
+      prevPosition: weightedPosition(prior),
+      clicks: recent.some((s) => s.clicks != null) ? recent.reduce((a, s) => a + (s.clicks ?? 0), 0) : null,
+    };
+  });
+}
+
+/** The window the per-post figures cover, in days (MEA-14). */
+export const WINDOW_DAYS = 28;
+
+/** Impression-weighted mean position; a plain mean when no row carries impressions. */
+export function weightedPosition(rows: Array<{ position: number | null; impressions: number | null }>): number | null {
+  const withPos = rows.filter((r): r is { position: number; impressions: number | null } => r.position != null);
+  if (!withPos.length) return null;
+  const weighted = withPos.filter((r) => (r.impressions ?? 0) > 0);
+  const v = weighted.length
+    ? weighted.reduce((a, r) => a + r.position * r.impressions!, 0) / weighted.reduce((a, r) => a + r.impressions!, 0)
+    : withPos.reduce((a, r) => a + r.position, 0) / withPos.length;
+  return Math.round(v * 10) / 10;
 }
 
 export type HomeStats = {
   publishedThisMonth: number;
+  /** Published over the same days of last month — a fair comparison (MEA-11). */
   publishedLastMonth: number;
   avgPosition: number | null;
   /** Null when no snapshot this week recorded clicks — not measured, not zero (MEA-04). */
@@ -135,8 +169,15 @@ export type HomeStats = {
 
 export async function homeStats(workspaceId: string): Promise<HomeStats> {
   const now = new Date();
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  const prevMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  // Months in the posting timezone (MEA-20), and last month over the SAME
+  // number of days (MEA-11): month-to-date against a whole month read as a
+  // drop every month until the 30th.
+  const { getPostingTimeZone } = await import("@/lib/social/slots");
+  const { zonedMonthStart } = await import("@/lib/zoned-dates");
+  const tz = await getPostingTimeZone(workspaceId);
+  const monthStart = zonedMonthStart(now, tz);
+  const prevMonthStart = zonedMonthStart(now, tz, 1);
+  const prevSameDay = new Date(Math.min(monthStart.getTime(), prevMonthStart.getTime() + (now.getTime() - monthStart.getTime())));
   const weekStart = new Date(now);
   weekStart.setDate(weekStart.getDate() - 7);
 
@@ -144,7 +185,7 @@ export async function homeStats(workspaceId: string): Promise<HomeStats> {
     await Promise.all([
       db.blogPost.count({ where: { workspaceId, status: "published", publishedAt: { gte: monthStart } } }),
       db.blogPost.count({
-        where: { workspaceId, status: "published", publishedAt: { gte: prevMonthStart, lt: monthStart } },
+        where: { workspaceId, status: "published", publishedAt: { gte: prevMonthStart, lt: prevSameDay } },
       }),
       db.blogCitation.count({
         where: { verified: false, post: { workspaceId, status: { not: "published" } } },
@@ -166,15 +207,13 @@ export async function homeStats(workspaceId: string): Promise<HomeStats> {
     return !ok("featured") || !ok("og");
   }).length;
 
-  // Average of each published post's latest position.
-  const latest = await db.blogPost.findMany({
-    where: { workspaceId, status: "published" },
-    select: { snapshots: { orderBy: { capturedAt: "desc" }, take: 1, select: { position: true } } },
+  // Impression-weighted position over the last 28 days of published posts'
+  // readings (MEA-14) — not an unweighted mean of single days.
+  const windowRows = await db.blogSnapshot.findMany({
+    where: { post: { workspaceId, status: "published" }, capturedAt: { gte: new Date(now.getTime() - WINDOW_DAYS * 86_400_000) } },
+    select: { position: true, impressions: true },
   });
-  const positions = latest.map((p) => p.snapshots[0]?.position).filter((x): x is number => x != null);
-  const avgPosition = positions.length
-    ? Math.round((positions.reduce((a, b) => a + b, 0) / positions.length) * 10) / 10
-    : null;
+  const avgPosition = weightedPosition(windowRows);
 
   return {
     publishedThisMonth,
