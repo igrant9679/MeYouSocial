@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { AlertTriangle, Info, Check } from "lucide-react";
 import { requireMembership, canAdmin } from "@/lib/acl";
+import { canFollow, whoCanFix } from "@/lib/role-links";
+import type { Role } from "@prisma/client";
 import { db } from "@/lib/db";
 import { getPostingTimeZone, formatInZone } from "@/lib/social/slots";
 import { networkFor } from "@/lib/social/networks";
@@ -54,13 +56,14 @@ export default async function DistributeStage({ searchParams }: { searchParams: 
               ? `Next send ${formatInZone(scheduled[0].scheduledAt!, tz)} (${tz}) — ${scheduled.length} in the queue.`
               : "Nothing in the queue. Approved drafts take the next free slot; compose one or queue a draft."
         }
+        // A count links only where this role can go (SHL-07).
         counts={[
           { label: "scheduled", n: scheduled.length, href: "/social/calendar", hue: "blue" },
           { label: "drafts", n: drafts, href: "/social/calendar", hue: "amber" },
           { label: "replies waiting", n: unread, href: "/social/engage", hue: "cyan" },
           { label: "published, 30 days", n: overview.counts.postedLast30, href: "/social/performance", hue: "green" },
           { label: "free slots, 7 days", n: overview.slotsConfigured ? overview.freeSlotsAhead : null, href: "/setup/schedule" },
-        ]}
+        ].map((c) => (canFollow(c.href, membership.role) ? c : { ...c, href: undefined }))}
       />
       {ok && <Banner kind="ok" text={ok} />}
       {err && <Banner kind="err" text={err} />}
@@ -71,7 +74,7 @@ export default async function DistributeStage({ searchParams }: { searchParams: 
         <div className="flex items-center gap-2 mb-2">
           <h2 className="font-mono text-[13px] font-bold m-0">Accounts</h2>
           <span className="flex-1" />
-          <Link href="/admin/connections" className="btn sm">Manage</Link>
+          {admin && <Link href="/admin/connections" className="btn sm">Manage</Link>}
         </div>
         {accounts.length === 0 ? (
           <EmptyState variant="inline" line="No social account is connected yet, so there is nowhere for a post to go." note="Use this app's Connect buttons — not Zernio's dashboard, which leaves duplicate accounts behind." // ⚠ /admin/* is wrapped in requireRole("ADMIN"), so this button bounces
@@ -117,13 +120,13 @@ export default async function DistributeStage({ searchParams }: { searchParams: 
           {warn.length > 0 && (
             <>
               <h2 className="font-mono text-[13px] font-bold mb-2 flex items-center gap-1.5"><AlertTriangle className="w-4 h-4" style={{ color: "var(--amber-on)" }} /> Needs you</h2>
-              <div className="flex flex-col gap-2 mb-3">{warn.map((a) => <Attention key={a.kind} item={a} />)}</div>
+              <div className="flex flex-col gap-2 mb-3">{warn.map((a) => <Attention key={a.kind} item={a} role={membership.role} />)}</div>
             </>
           )}
           {info.length > 0 && (
             <>
               <h2 className="font-mono text-[13px] font-bold mb-2 flex items-center gap-1.5"><Info className="w-4 h-4" style={{ color: "var(--blue-on)" }} /> Worth knowing</h2>
-              <div className="flex flex-col gap-2">{info.map((a) => <Attention key={a.kind} item={a} />)}</div>
+              <div className="flex flex-col gap-2">{info.map((a) => <Attention key={a.kind} item={a} role={membership.role} />)}</div>
             </>
           )}
         </section>
@@ -135,7 +138,7 @@ export default async function DistributeStage({ searchParams }: { searchParams: 
           !overview.slotsConfigured
             ? <EmptyState variant="inline" line="Nothing is scheduled, and no posting slots are set — the queue has no times to send at." action={{ label: "Set posting slots", href: "/setup/schedule" }} />
             : drafts > 0
-              ? <EmptyState variant="inline" line={`Nothing is scheduled, though ${drafts} draft${drafts === 1 ? " is" : "s are"} waiting.`} note="A draft only claims a slot when someone queues it, or when queue-on-approval is switched on under Automation." action={{ label: "Open the calendar", href: "/social/calendar" }} />
+              ? <EmptyState variant="inline" line={`Nothing is scheduled, though ${drafts} draft${drafts === 1 ? " is" : "s are"} waiting.`} note="A draft only claims a slot when someone queues it, or when queue-on-approval is switched on under Automation." action={canFollow("/social/calendar", membership.role) ? { label: "Open the calendar", href: "/social/calendar" } : null} />
               : <EmptyState variant="inline" line="Nothing is scheduled and there are no drafts waiting." action={{ label: "Compose a post", href: "/social/compose" }} />
         }
       >
@@ -176,7 +179,7 @@ export default async function DistributeStage({ searchParams }: { searchParams: 
 
       {unread > 0 && (
         <p className="text-xs mb-4">
-          <b>{unread}</b> repl{unread === 1 ? "y is" : "ies are"} waiting under <Link href="/social/engage" className="underline">Engage</Link> — Facebook and Instagram DMs can only be answered within 24 hours of the person&apos;s message.
+          <b>{unread}</b> repl{unread === 1 ? "y is" : "ies are"} waiting under {canFollow("/social/engage", membership.role) ? <Link href="/social/engage" className="underline">Engage</Link> : "Engage"} — Facebook and Instagram DMs can only be answered within 24 hours of the person&apos;s message.
         </p>
       )}
 
@@ -184,7 +187,7 @@ export default async function DistributeStage({ searchParams }: { searchParams: 
   );
 }
 
-function Attention({ item }: { item: AttentionItem }) {
+function Attention({ item, role }: { item: AttentionItem; role: Role }) {
   const warn = item.severity === "warn";
   return (
     <div className="card flex items-start gap-3 flex-wrap" style={warn ? { borderColor: "var(--amber)" } : undefined}>
@@ -192,7 +195,10 @@ function Attention({ item }: { item: AttentionItem }) {
         <div className="text-sm font-semibold leading-snug">{item.title}</div>
         <div className="text-xs text-[var(--mute)] mt-0.5">{item.detail}</div>
       </div>
-      <Link href={item.href} className={warn ? "btn sm primary" : "btn sm"}>{item.cta}</Link>
+      {/* Reconnecting an account is an admin page — say so to everyone else (SHL-07). */}
+      {canFollow(item.href, role)
+        ? <Link href={item.href} className={warn ? "btn sm primary" : "btn sm"}>{item.cta}</Link>
+        : <span className="text-[11px] text-[var(--mute)] max-w-40">{whoCanFix(item.href)}</span>}
     </div>
   );
 }

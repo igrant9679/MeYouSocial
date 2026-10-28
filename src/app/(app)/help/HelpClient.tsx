@@ -4,10 +4,12 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Search, HelpCircle, ExternalLink } from "lucide-react";
 import { HELP_CATEGORIES } from "@/lib/help";
+import type { Role } from "@prisma/client";
+import { canFollow, whoCanFix } from "@/lib/role-links";
 
 // Searchable + tag-filtered FAQ.
 
-export function HelpClient() {
+export function HelpClient({ role }: { role: Role }) {
   const [query, setQuery] = useState("");
   const [activeCat, setActiveCat] = useState<string>("__all");
 
@@ -90,10 +92,16 @@ export function HelpClient() {
                       </div>
                       {e.links && e.links.length > 0 && (
                         <div className="px-3 pb-3 flex flex-wrap gap-2">
-                          {e.links.map((l) => (
+                          {/* A page this role can't open says who can, instead of
+                              bouncing to /forbidden (SHL-07). */}
+                          {e.links.map((l) => canFollow(l.href, role) ? (
                             <Link key={l.href} href={l.href} className="btn sm flex items-center gap-1.5">
                               {l.label} <ExternalLink className="w-3 h-3" />
                             </Link>
+                          ) : (
+                            <span key={l.href} className="text-[11px] text-[var(--mute)] self-center" title={whoCanFix(l.href)}>
+                              {l.label.replace(/\s*→\s*$/, "")} — {whoCanFix(l.href).replace(/\.$/, "").toLowerCase()}
+                            </span>
                           ))}
                         </div>
                       )}

@@ -1,7 +1,6 @@
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
-import { cookies } from "next/headers";
-import { ACTIVE_WS_COOKIE } from "@/lib/acl";
+import { activeWorkspaceIdFor } from "@/lib/acl";
 
 /**
  * Feed for the header's AI-activity indicator. Polled by the client every few
@@ -42,15 +41,8 @@ export async function GET() {
 
   // The ACTIVE workspace (cookie), not the first membership — an operator with
   // three companies must see the activity of the one they're looking at.
-  const memberships = await db.membership.findMany({
-    where: { userId: session.user.id, status: "active" },
-    select: { workspaceId: true },
-  });
-  if (memberships.length === 0) return Response.json({ items: [] });
-  const wanted = (await cookies()).get(ACTIVE_WS_COOKIE)?.value;
-  const workspaceId = memberships.some((m) => m.workspaceId === wanted)
-    ? wanted!
-    : memberships[0].workspaceId;
+  const workspaceId = await activeWorkspaceIdFor(session.user.id);
+  if (!workspaceId) return Response.json({ items: [] });
 
   const since = new Date(Date.now() - RECENT_MS);
   const [jobs, renders] = await Promise.all([

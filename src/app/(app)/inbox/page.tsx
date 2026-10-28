@@ -4,6 +4,8 @@ import {
   AlertTriangle, Info, Check, ChevronRight, CalendarClock, Inbox as InboxIcon,
 } from "lucide-react";
 import { requireMembership, canAdmin, canEdit } from "@/lib/acl";
+import { canFollow, whoCanFix } from "@/lib/role-links";
+import type { Role } from "@prisma/client";
 import { db } from "@/lib/db";
 import { getInboxData } from "@/lib/inbox";
 import { isGloballyPaused } from "@/lib/governance";
@@ -40,7 +42,7 @@ export default async function InboxPage() {
   const editor = canEdit(membership.role);
 
   const [inbox, stats, series, perf, feed, channels, origin, auditOpen, paused, autonomous] = await Promise.all([
-    getInboxData(workspace.id, { admin }),
+    getInboxData(workspace.id, { admin, editor }),
     homeStats(workspace.id),
     weeklySeries(workspace.id, 8),
     postPerformance(workspace.id, 5),
@@ -60,9 +62,12 @@ export default async function InboxPage() {
   const { home } = inbox;
   const warn = inbox.conditions.filter((d) => d.severity === "warn");
   const info = inbox.conditions.filter((d) => d.severity === "info");
+  // A warning this person can't act on (an admin page) still shows, with who
+  // can fix it — but it doesn't make the page say something needs YOU (SHL-07).
+  const yourWarn = warn.filter((d) => canFollow(d.href, membership.role));
   const hasAnalytics = hasSeriesData(series);
   const { nextSend, timeZone } = home.social;
-  const nothing = inbox.total === 0 && warn.length === 0;
+  const nothing = inbox.total === 0 && yourWarn.length === 0;
 
   return (
     <div>
@@ -73,7 +78,9 @@ export default async function InboxPage() {
         </h1>
         <p className="text-[13px] text-[var(--mute)] m-0">
           {nothing
-            ? `Nothing needs you in ${workspace.name}. The engine is running.`
+            ? `Nothing needs you in ${workspace.name}. The engine is running.${warn.length ? ` ${warn.length === 1 ? "One thing below is" : `${warn.length} things below are`} for an admin.` : ""}`
+            : inbox.total === 0
+              ? `Nothing in the queues needs you in ${workspace.name}; see what needs attention below.`
             : `${inbox.total} thing${inbox.total === 1 ? "" : "s"} need${inbox.total === 1 ? "s" : ""} you in ${workspace.name} — everything else is running.`}
         </p>
       </div>
@@ -84,7 +91,7 @@ export default async function InboxPage() {
           icon={<Check className="w-5 h-5" style={{ color: "var(--green-on)" }} />}
           line="No approvals, questions, claims, images or connections are waiting."
           note="Silence means all clear — if something urgent shows up, the bell rings and the morning digest says so."
-          action={{ label: "Find something to write", href: "/ideas" }}
+          action={editor ? { label: "Find something to write", href: "/ideas" } : null}
         />
       )}
 
@@ -92,9 +99,9 @@ export default async function InboxPage() {
           are Publish's tabs now, but the queues they hold are reviewing work,
           so they stay one click from the landing page. Shown only when there
           is something in them — an empty link is another place to look. */}
-      {(inbox.socialPosts.length > 0 || auditOpen > 0) && (
+      {((editor && inbox.socialPosts.length > 0) || auditOpen > 0) && (
         <p className="text-xs text-[var(--mute)] mb-4 flex flex-wrap items-center gap-x-3 gap-y-1">
-          {inbox.socialPosts.length > 0 && (
+          {editor && inbox.socialPosts.length > 0 && (
             <Link href="/social/approvals" className="underline hover:text-[var(--ink)]">
               Approve posts together ({inbox.socialPosts.length})
             </Link>
@@ -118,7 +125,7 @@ export default async function InboxPage() {
             <h2 className="font-mono font-bold text-sm">Also needs attention</h2>
           </div>
           <div className="flex flex-col gap-2 mb-4">
-            {warn.map((d) => <DecisionCard key={`${d.module}-${d.kind}`} item={d} />)}
+            {warn.map((d) => <DecisionCard key={`${d.module}-${d.kind}`} item={d} role={membership.role} />)}
           </div>
         </>
       )}
@@ -129,7 +136,7 @@ export default async function InboxPage() {
             <h2 className="font-mono font-bold text-sm">Worth a look</h2>
           </div>
           <div className="flex flex-col gap-2 mb-4">
-            {info.map((d) => <DecisionCard key={`${d.module}-${d.kind}`} item={d} />)}
+            {info.map((d) => <DecisionCard key={`${d.module}-${d.kind}`} item={d} role={membership.role} />)}
           </div>
         </>
       )}
@@ -139,7 +146,7 @@ export default async function InboxPage() {
       <div className="card mb-6 !p-0 overflow-x-auto">
         <div className="flex items-stretch min-w-[720px]">
           {home.pipeline.map((stage, i) => (
-            <PipelineCell key={stage.key} stage={stage} first={i === 0} />
+            <PipelineCell key={stage.key} stage={stage} first={i === 0} role={membership.role} />
           ))}
         </div>
       </div>
@@ -153,12 +160,14 @@ export default async function InboxPage() {
             <p className="text-xs text-[var(--slate)] m-0">
               Next send <b className="font-mono">{nextSend.label}</b> ({timeZone}) on{" "}
               {nextSend.providers.map((p) => networkFor(p)?.label ?? p).join(" · ")}.{" "}
-              <Link href="/social/calendar" className="underline">Calendar</Link>
+              {editor && <Link href="/social/calendar" className="underline">Calendar</Link>}
             </p>
           ) : (
             <p className="text-xs text-[var(--mute)] m-0">
-              Nothing scheduled. <Link href="/social/compose" className="underline">Compose a post</Link>{" "}
-              or <Link href="/social/calendar" className="underline">queue a draft</Link>.
+              Nothing scheduled.
+              {/* Both pages are an editor's; a viewer bounced to /forbidden (SHL-07). */}
+              {editor && <>{" "}<Link href="/social/compose" className="underline">Compose a post</Link>{" "}
+              or <Link href="/social/calendar" className="underline">queue a draft</Link>.</>}
             </p>
           )}
           <p className="text-[11px] text-[var(--mute)] mt-2 mb-0">
@@ -209,7 +218,7 @@ export default async function InboxPage() {
             Results
           </h2>
           <span className="flex-1" />
-          <Link href="/social/performance" className="text-xs font-mono text-[var(--accent)] font-semibold hover:underline mr-3">social →</Link>
+          {editor && <Link href="/social/performance" className="text-xs font-mono text-[var(--accent)] font-semibold hover:underline mr-3">social →</Link>}
           <Link href="/blog/analytics" className="text-xs font-mono text-[var(--accent)] font-semibold hover:underline">blog →</Link>
         </div>
         {hasAnalytics ? (
@@ -262,10 +271,10 @@ export default async function InboxPage() {
         )}
       </div>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-        <QuickTile href="/social/compose" label="Write a social post" icon={PenLine} color="var(--green-on)" soft="var(--green-soft)" />
-        <QuickTile href="/ideas?format=article" label="Add a blog idea" icon={Sparkles} color="var(--amber-on)" soft="var(--amber-soft)" />
+        {editor && <QuickTile href="/social/compose" label="Write a social post" icon={PenLine} color="var(--green-on)" soft="var(--green-soft)" />}
+        {editor && <QuickTile href="/ideas?format=article" label="Add a blog idea" icon={Sparkles} color="var(--amber-on)" soft="var(--amber-soft)" />}
         <QuickTile href="/intel" label="Explore Intel" icon={Telescope} color="var(--blue-on)" soft="var(--blue-soft)" />
-        <QuickTile href="/assistant" label="Ask the assistant" icon={MessageCircle} color="var(--violet-on)" soft="var(--violet-soft)" />
+        {editor && <QuickTile href="/assistant" label="Ask the assistant" icon={MessageCircle} color="var(--violet-on)" soft="var(--violet-soft)" />}
       </div>
 
       {channels.length > 0 && (
@@ -273,7 +282,7 @@ export default async function InboxPage() {
           <div className="flex items-center mb-3">
             <h2 className="font-mono text-[15px] font-bold">Your channels</h2>
             <span className="flex-1" />
-            <Link href="/onboarding/channel/new" className="text-xs font-mono text-[var(--accent)] font-semibold hover:underline">+ new channel</Link>
+            {editor && <Link href="/onboarding/channel/new" className="text-xs font-mono text-[var(--accent)] font-semibold hover:underline">+ new channel</Link>}
           </div>
           <div className="flex gap-3 flex-wrap">
             {channels.map((c) => (
@@ -295,29 +304,33 @@ export default async function InboxPage() {
   );
 }
 
-function PipelineCell({ stage, first }: { stage: PipelineStage; first: boolean }) {
+function PipelineCell({ stage, first, role }: { stage: PipelineStage; first: boolean; role: Role }) {
   const parts = stage.parts.filter((p) => p.n > 0);
+  // A count links where it lives — as plain text when that page isn't this
+  // role's (a viewer and Calendar, Approvals, Performance; SHL-07).
+  const L = ({ href, className, children }: { href: string; className: string; children: React.ReactNode }) =>
+    canFollow(href, role) ? <Link href={href} className={className}>{children}</Link> : <span className={className.replace(/hover:\S+/g, "")}>{children}</span>;
   return (
     <div className={"flex-1 min-w-[120px] px-3 py-2.5 relative " + (first ? "" : "border-l border-[var(--line)]")}>
       <div className="flex items-center gap-1">
         {!first && <ChevronRight className="w-3 h-3 text-[var(--mute)] -ml-1.5 flex-shrink-0" aria-hidden />}
-        <Link href={stage.href} className="font-mono text-[9.5px] uppercase tracking-wider text-[var(--mute)] font-bold hover:text-[var(--accent)] hover:underline truncate">
+        <L href={stage.href} className="font-mono text-[9.5px] uppercase tracking-wider text-[var(--mute)] font-bold hover:text-[var(--accent)] hover:underline truncate">
           {stage.label}
-        </Link>
+        </L>
       </div>
       {stage.total === null ? (
         <div className="font-mono font-bold text-[22px] leading-tight text-[var(--mute)]" title={stage.reason}>—</div>
       ) : (
-        <Link href={stage.href} className="font-mono font-bold text-[22px] leading-tight tabular-nums block hover:text-[var(--accent)]">
+        <L href={stage.href} className="font-mono font-bold text-[22px] leading-tight tabular-nums block hover:text-[var(--accent)]">
           {stage.total.toLocaleString("en-GB")}
-        </Link>
+        </L>
       )}
       <div className="flex gap-2 flex-wrap min-h-[14px]">
         {parts.length > 1
           ? parts.map((p) => (
-              <Link key={p.label} href={p.href} className="text-[10px] text-[var(--mute)] hover:underline">
+              <L key={p.label} href={p.href} className="text-[10px] text-[var(--mute)] hover:underline">
                 {p.n} {p.label}
-              </Link>
+              </L>
             ))
           : null}
       </div>
@@ -325,7 +338,7 @@ function PipelineCell({ stage, first }: { stage: PipelineStage; first: boolean }
   );
 }
 
-function DecisionCard({ item }: { item: HomeDecision }) {
+function DecisionCard({ item, role }: { item: HomeDecision; role: Role }) {
   const warn = item.severity === "warn";
   const HUES: Record<HomeDecision["module"], string> = { Social: "violet", Blog: "rose", Engage: "cyan", Setup: "teal" };
   const hue = HUES[item.module] ?? "teal";
@@ -345,7 +358,9 @@ function DecisionCard({ item }: { item: HomeDecision }) {
         </div>
         <div className="text-xs text-[var(--mute)] leading-relaxed">{item.detail}</div>
       </div>
-      <Link href={item.href} className="btn sm flex-shrink-0">{item.cta}</Link>
+      {canFollow(item.href, role)
+        ? <Link href={item.href} className="btn sm flex-shrink-0">{item.cta}</Link>
+        : <span className="text-[11px] text-[var(--mute)] flex-shrink-0 max-w-40 text-right">{whoCanFix(item.href)}</span>}
     </div>
   );
 }

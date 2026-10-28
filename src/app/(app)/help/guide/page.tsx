@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { requireMembership } from "@/lib/acl";
+import { RoleLink } from "@/components/RoleLink";
 import {
   BookOpen, Compass, Sun, CalendarDays, CalendarRange, Wrench, Bot,
   AlertTriangle, Mail, Check, ArrowRight, Layers, ListChecks, Repeat, LifeBuoy,
@@ -18,7 +20,10 @@ import {
 
 export const metadata = { title: "Owner's guide — MeYouSocial Publisher" };
 
-export default function GuidePage() {
+export default async function GuidePage() {
+  // Written for owners; editors and viewers read it too, so links to pages
+  // they can't open say whose they are instead of bouncing (SHL-07).
+  const { membership: { role } } = await requireMembership();
   return (
     <div className="max-w-3xl">
       <div className="flex items-center gap-3 mb-2">
@@ -32,7 +37,7 @@ export default function GuidePage() {
       </div>
       <p className="text-[11px] text-[var(--mute)] mb-5">
         Fifteen-minute read. For step-by-step setup with the app pointing at things, use the compass button in the
-        top bar — this page is the map, not the tour. The <Link href="/assistant" className="underline">Assistant</Link> knows
+        top bar — this page is the map, not the tour. The <RoleLink href="/assistant" role={role} className="underline">Assistant</RoleLink> knows
         everything on this page too: ask it &ldquo;how do I…&rdquo; or &ldquo;why is … held&rdquo;.
       </p>
 
@@ -123,7 +128,7 @@ export default function GuidePage() {
         </h2>
         <p className="text-sm leading-[1.65] mb-3">
           The <b>Ask</b> button top-right (or <kbd>Ctrl</kbd>+<kbd>/</kbd>) opens the assistant as a dock over
-          whatever page you are on; <Link href="/assistant" className="underline">Assistant</Link> is the same
+          whatever page you are on; <RoleLink href="/assistant" role={role} className="underline">Assistant</RoleLink> is the same
           conversation with more room. It can do <b>nearly everything you can do here</b>: find, add, approve and
           reject ideas; discover keywords and topics; draft articles and scripts; write SEO and images; run Optimize
           and answer or dismiss its findings; verify or drop claims; approve images; advance an article; draft, queue,
@@ -162,7 +167,7 @@ export default function GuidePage() {
         </p>
         <ol className="m-0 pl-5 list-decimal text-sm space-y-2.5 leading-[1.55]">
           <li>
-            <b>Give it a brain.</b> <Link href="/admin/api-keys" className="underline">Settings → Keys</Link>:
+            <b>Give it a brain.</b> <RoleLink href="/admin/api-keys" role={role} className="underline">Settings → Keys</RoleLink>:
             paste an AI provider key and set the default model to match it. Without one the app produces clearly
             fake placeholder text rather than erroring — if output ever reads generic, check here first. A live
             web search key (Tavily or Serper) is what lets it source claims.
@@ -190,7 +195,7 @@ export default function GuidePage() {
             stays 09:00 through daylight-saving changes.
           </li>
           <li>
-            <b>Choose your gates.</b> <Link href="/setup/people" className="underline">Settings → People</Link>:{" "}
+            <b>Choose your gates.</b> <RoleLink href="/setup/people" role={role} className="underline">Settings → People</RoleLink>:{" "}
             <i>require approval</i> holds every social post until an admin approves it (recommended with a team).
             Articles always park at review — that gate isn&apos;t optional. <i>Queue on approval</i> under{" "}
             <Link href="/setup/automation" className="underline">Automation</Link> makes approving the last act: with it
@@ -203,12 +208,12 @@ export default function GuidePage() {
             Start low; raise once you trust what arrives at review.
           </li>
           <li>
-            <b>Wire up measurement.</b> <Link href="/admin/analytics" className="underline">Settings → Analytics</Link>:
+            <b>Wire up measurement.</b> <RoleLink href="/admin/analytics" role={role} className="underline">Settings → Analytics</RoleLink>:
             Search Console site + GA4 property, with the service account granted on both. Until then Measure shows
             dashes — a dash means &ldquo;not measured&rdquo;, never zero.
           </li>
           <li>
-            <b>Invite the team.</b> <Link href="/setup/people" className="underline">Settings → People</Link>. Editors
+            <b>Invite the team.</b> <RoleLink href="/setup/people" role={role} className="underline">Settings → People</RoleLink>. Editors
             write, draft, answer and propose; admins approve, publish and configure. Everyone can turn the digest
             email off for themselves under <Link href="/notifications" className="underline">Notifications</Link>.
           </li>
@@ -235,7 +240,7 @@ export default function GuidePage() {
             article whose card names a check only a person can fix. The header count should reach zero.
           </Step>
           <Step icon={AlertTriangle} title="Answer people the day they write.">
-            <Link href="/social/engage" className="underline">Distribute → Engage</Link> — comments, DMs and reviews.
+            <RoleLink href="/social/engage" role={role} className="underline">Distribute → Engage</RoleLink> — comments, DMs and reviews.
             The one hard deadline in the whole app: Facebook and Instagram only accept a DM reply within{" "}
             <b>24 hours</b> of the person&apos;s message.
           </Step>
@@ -268,8 +273,8 @@ export default function GuidePage() {
             ones; the mechanical ones apply on their own.
           </Step>
           <Step icon={Check} title="Approve and queue the social week.">
-            <Link href="/social/approvals" className="underline">Publish → Approvals</Link> for anything held, then{" "}
-            <Link href="/social/calendar" className="underline">Distribute → Calendar</Link> to queue approved drafts
+            <RoleLink href="/social/approvals" role={role} className="underline">Publish → Approvals</RoleLink> for anything held, then{" "}
+            <RoleLink href="/social/calendar" role={role} className="underline">Distribute → Calendar</RoleLink> to queue approved drafts
             into free slots. <b>An approved draft that was never queued will never send</b>; turn on <i>queue on
             approval</i> under <Link href="/setup/automation" className="underline">Settings → Automation</Link> to
             collapse the two.
@@ -279,7 +284,7 @@ export default function GuidePage() {
             With no WordPress, download the HTML, add it to the site, and Mark as published with the live link.
           </Step>
           <Step icon={Check} title="Glance at what the numbers are saying.">
-            <Link href="/social/performance" className="underline">Measure → Social performance</Link> for per-network
+            <RoleLink href="/social/performance" role={role} className="underline">Measure → Social performance</RoleLink> for per-network
             engagement, and the best-time-to-post section under{" "}
             <Link href="/setup/schedule" className="underline">Settings → Schedule</Link> once enough posts are
             measured — it stays silent below its sample size rather than guessing.
@@ -317,9 +322,9 @@ export default function GuidePage() {
           </Step>
           <Step icon={Check} title="Check the plumbing.">
             <Link href="/setup/connections" className="underline">Settings → Connections</Link> for anything missing or
-            nearing reconnection, <Link href="/admin/api-keys" className="underline">API keys</Link> for provider
-            billing surprises, <Link href="/admin/analytics" className="underline">Analytics</Link> still pointing at
-            the right properties, and <Link href="/setup/people" className="underline">People</Link> for anyone who
+            nearing reconnection, <RoleLink href="/admin/api-keys" role={role} className="underline">API keys</RoleLink> for provider
+            billing surprises, <RoleLink href="/admin/analytics" role={role} className="underline">Analytics</RoleLink> still pointing at
+            the right properties, and <RoleLink href="/setup/people" role={role} className="underline">People</RoleLink> for anyone who
             joined or left.
           </Step>
           <Step icon={Check} title="Run a content audit.">

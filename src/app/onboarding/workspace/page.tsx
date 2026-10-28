@@ -140,6 +140,13 @@ export default async function NewWorkspacePage({
             <SubmitButton className="btn primary sm" pendingText="Creating…">Create workspace</SubmitButton>
           </div>
         </form>
+        {/* A member of nothing has no app shell to sign out from (SHL-11). A
+            separate form: forms can't nest. */}
+        {first && (
+          <form action={signOutAction} className="mt-3 text-right">
+            <SubmitButton className="btn sm" pendingText="Signing out…">Sign out</SubmitButton>
+          </form>
+        )}
       </div>
     </main>
   );

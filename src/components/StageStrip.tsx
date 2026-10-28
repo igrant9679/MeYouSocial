@@ -4,6 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { STAGES, currentTab, stageFor } from "@/lib/stages";
 import type { StripCounts } from "@/lib/stage-counts";
+import type { Role } from "@prisma/client";
+import { canFollow } from "@/lib/role-links";
 
 /**
  * The persistent stage strip — mounted once in the app shell, so every page a
@@ -25,6 +27,7 @@ export function StageStrip({
   counts,
   admin,
   operator,
+  role,
 }: {
   activeChannelId: string | null;
   studio: boolean;
@@ -33,12 +36,14 @@ export function StageStrip({
    *  guesses at a role. Cosmetic only — every admin page keeps its own gate. */
   admin: boolean;
   operator: boolean;
+  /** Tabs this role can't open (Compose, Calendar, Engage… for a viewer) are left out (SHL-07). */
+  role: Role;
 }) {
   const pathname = usePathname() ?? "";
   const key = stageFor(pathname);
   if (!key) return null;
   const stage = STAGES[key];
-  const tabs = stage.tabs({ channelId: activeChannelId, studio, admin, operator });
+  const tabs = stage.tabs({ channelId: activeChannelId, studio, admin, operator }).filter((t) => canFollow(t.href, role));
   const onOverview = pathname === stage.href;
   const current = onOverview ? null : currentTab(pathname, tabs);
 

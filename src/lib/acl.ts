@@ -46,6 +46,23 @@ export async function requireMembership(workspaceId?: string) {
 }
 
 /**
+ * The active workspace for a route that must answer JSON rather than redirect
+ * (the header's pollers): the same choice `requireMembership` makes — the
+ * switched-to workspace from the cookie, else the first active membership.
+ * Null when the user belongs nowhere. The ticker used to take the first
+ * membership, so a multi-company user saw another tenant's engine (ENG-19).
+ */
+export async function activeWorkspaceIdFor(userId: string): Promise<string | null> {
+  const memberships = await db.membership.findMany({
+    where: { userId, status: "active" },
+    select: { workspaceId: true },
+  });
+  if (memberships.length === 0) return null;
+  const chosen = (await cookies()).get(ACTIVE_WS_COOKIE)?.value;
+  return memberships.find((m) => m.workspaceId === chosen)?.workspaceId ?? memberships[0].workspaceId;
+}
+
+/**
  * The PLATFORM operator — the one super-admin who runs this install, as opposed
  * to a workspace ADMIN who only runs their own company.
  *

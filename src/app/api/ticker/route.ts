@@ -1,5 +1,5 @@
 import { auth } from "@/auth";
-import { db } from "@/lib/db";
+import { activeWorkspaceIdFor } from "@/lib/acl";
 import { tickerEvents } from "@/lib/dashboard-data";
 import { isGloballyPaused } from "@/lib/governance";
 import { isFullyAutonomous } from "@/lib/autonomy";
@@ -14,15 +14,14 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   const session = await auth();
   if (!session?.user?.id) return Response.json({ events: [] }, { status: 401 });
-  const membership = await db.membership.findFirst({
-    where: { userId: session.user.id, status: "active" },
-    select: { workspaceId: true },
-  });
-  if (!membership) return Response.json({ events: [] });
+  // The workspace being looked at (ENG-19): the first membership showed a
+  // multi-company user another tenant's engine, with links that 404.
+  const workspaceId = await activeWorkspaceIdFor(session.user.id);
+  if (!workspaceId) return Response.json({ events: [] });
   const [events, paused, autonomous] = await Promise.all([
-    tickerEvents(membership.workspaceId, 12),
-    isGloballyPaused(membership.workspaceId),
-    isFullyAutonomous(membership.workspaceId),
+    tickerEvents(workspaceId, 12),
+    isGloballyPaused(workspaceId),
+    isFullyAutonomous(workspaceId),
   ]);
   return Response.json({ events, state: { paused, autonomous } });
 }

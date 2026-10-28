@@ -2,6 +2,8 @@ import Link from "next/link";
 import { Bot, MessageSquarePlus, Sparkles } from "lucide-react";
 import { db } from "@/lib/db";
 import { getActiveChannel } from "@/lib/channel";
+import { canEdit } from "@/lib/acl";
+import { EmptyState } from "@/components/EmptyState";
 import { AssistantComposer } from "@/components/AssistantComposer";
 import { TOOLS, REFUSED_INTENTS } from "@/lib/assistant/tools";
 
@@ -80,7 +82,20 @@ const ASK_GROUPS: Array<{ title: string; blurb: string; examples: Array<{ q: str
  * video" arrive this way (the Research chat folded in here, 2026-09-09).
  */
 export default async function AssistantPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
-  const { workspace, user, active } = await getActiveChannel();
+  const { workspace, user, membership, active } = await getActiveChannel();
+  // It acts — drafts, queues, publishes — so it is for editors and admins; a
+  // viewer's messages used to fail with a parse error instead (ENG-17).
+  if (!canEdit(membership.role)) {
+    return (
+      <main className="p-6 w-full max-w-2xl">
+        <EmptyState
+          line="The assistant is for editors and admins, because it can change things here."
+          note="Ask an admin of this workspace if you need editor access."
+          action={{ label: "Back to the Inbox", href: "/inbox" }}
+        />
+      </main>
+    );
+  }
   const { q } = await searchParams;
   const threads = await db.assistantThread.findMany({
     where: { workspaceId: workspace.id, userId: user.id },

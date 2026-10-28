@@ -9,7 +9,7 @@ import { isGloballyPaused } from "@/lib/governance";
 import { isFullyAutonomous } from "@/lib/autonomy";
 import { signOut } from "@/auth";
 import { getActiveChannel } from "@/lib/channel";
-import { isPlatformOperator } from "@/lib/acl";
+import { isPlatformOperator, canEdit } from "@/lib/acl";
 import { LeftRailNav, type LeftRailItem } from "@/components/LeftRailNav";
 import { MobileNav } from "@/components/MobileNav";
 import { studioState } from "@/lib/studio";
@@ -44,9 +44,11 @@ import { BRAND, PRODUCT, PRODUCT_SHORT } from "@/lib/product";
 // the seven stages in the order work moves, then Setup. The sixteen module
 // pages did not go anywhere — each is a tab inside the stage that owns it
 // (see StageHeader), at its unchanged URL. Setup is Admin-only (decision 4).
-const NAV: (LeftRailItem & { adminOnly?: boolean })[] = [
+const NAV: (LeftRailItem & { adminOnly?: boolean; editorOnly?: boolean })[] = [
   { href: "/inbox",       label: "Inbox",       icon: "Inbox",         color: "#E5482F", soft: "#FDE7E1" },
-  { href: "/assistant",   label: "Assistant",   icon: "Bot",           color: "#6D28D9", soft: "#EDE7FB" },
+  // Editors and admins only: its API is EDITOR-gated, and a viewer's every
+  // message failed with "Unexpected token '<'" (ENG-17).
+  { href: "/assistant",   label: "Assistant",   icon: "Bot",           color: "#6D28D9", soft: "#EDE7FB", editorOnly: true },
   { href: "/research",    label: "Research",    icon: "Telescope",     color: "#2563EB", soft: "#E5EDFD" },
   { href: "/ideas",       label: "Ideas",       icon: "Sparkles",      color: "#D97706", soft: "#FBEED5" },
   { href: "/drafts",      label: "Drafts",      icon: "PenLine",       color: "#15924B", soft: "#E0F2E8" },
@@ -74,7 +76,8 @@ async function signOutAction() {
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const { user, workspace, membership, channels, active } = await getActiveChannel();
   const userLabel = user.name ?? user.email.split("@")[0];
-  const navItems = NAV.filter((n) => !n.adminOnly || membership.role === "ADMIN");
+  const editorUp = canEdit(membership.role);
+  const navItems = NAV.filter((n) => (!n.adminOnly || membership.role === "ADMIN") && (!n.editorOnly || editorUp));
   const workspaceChoices = user.memberships
     .filter((m) => m.status === "active")
     .map((m) => ({ id: m.workspaceId, name: m.workspace.name }));
@@ -178,6 +181,12 @@ html[data-theme="dark"] .ws-brand {
     postingSlots,
     blogPosts,
     isOperator: canCreateWorkspace,
+    // Who is looking, and what they can see (SHL-08): setup steps and admin
+    // pages are an admin's, rail anchors must be on THIS rail, and studio steps
+    // wait for the studio.
+    role: membership.role,
+    rail: navItems.map((n) => `nav${n.href}`),
+    studio: studio.on,
   };
   // `needed` is a function and can't cross to the client — strip it. Tracks are
   // resolved server-side for the same reason: the picker needs real step lists,
@@ -290,16 +299,21 @@ html[data-theme="dark"] .ws-brand {
           {/* !hidden: .btn is unlayered CSS (display:inline-flex) and beats the
               layered hidden utility — these two buttons were visible at EVERY
               width since the header shipped, part of the reported crowding. */}
-          <Link href="/onboarding/channel/new" className="btn !hidden @4xl:!inline-flex items-center gap-1.5" title="Create a new YouTube channel">
-            <Layers className="w-4 h-4" /> + Channel
-          </Link>
+          {/* Creating a channel is an editor's (onboarding/channel/new) — SHL-07. */}
+          {editorUp && (
+            <Link href="/onboarding/channel/new" className="btn !hidden @4xl:!inline-flex items-center gap-1.5" title="Create a new YouTube channel">
+              <Layers className="w-4 h-4" /> + Channel
+            </Link>
+          )}
           {/* @min-[88rem]: the 1024-1400 header is otherwise FULL — the ticker
               (which the user wants wide) only gets space these two give up;
               this link duplicates the workspace-name link anyway. */}
           <Link href="/channels" className="btn !hidden @min-[88rem]:!inline-flex" title="Manage all channels">Manage channels</Link>
-          <EngineStatus initial={ticker} timeZone={tickerZone} state={{ paused: enginePaused, autonomous: engineAutonomous }} />
+          {/* Keyed by workspace: a switch remounts it, so the last company's
+              events don't linger until the next poll (ENG-19). */}
+          <EngineStatus key={workspace.id} initial={ticker} timeZone={tickerZone} state={{ paused: enginePaused, autonomous: engineAutonomous }} />
           <div className="flex-1" />
-          <AssistantDockButton />
+          {editorUp && <AssistantDockButton />}
           <AiActivity />
           <Elsie steps={elsieSteps} tracks={elsieTracks} enabled={guide.enabled} outstanding={elsieOutstanding} snoozed={guide.snoozed} />
           <Link
@@ -335,11 +349,14 @@ html[data-theme="dark"] .ws-brand {
             counts={counts}
             admin={membership.role === "ADMIN"}
             operator={canCreateWorkspace}
+            role={membership.role}
           />
           <Suspense fallback={null}><FlashBanner /></Suspense>
           {children}
         </main>
-        <AssistantDock activeChannelId={active?.id ?? null} />
+        {/* Keyed by workspace and scoped to the person: a switch starts on that
+            workspace's own conversation (ENG-18). */}
+        {editorUp && <AssistantDock key={workspace.id} activeChannelId={active?.id ?? null} workspaceId={workspace.id} userId={user.id} />}
       </div>
     </div>
   );

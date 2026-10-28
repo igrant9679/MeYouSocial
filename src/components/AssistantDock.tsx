@@ -30,7 +30,7 @@ const SUGGESTIONS = [
   "What's going out this week?",
 ];
 
-export function AssistantDock({ activeChannelId = null }: { activeChannelId?: string | null }) {
+export function AssistantDock({ activeChannelId = null, workspaceId, userId }: { activeChannelId?: string | null; workspaceId: string; userId: string }) {
   const pathname = usePathname() ?? "/";
   const [open, setOpen] = useState(false);
   const [threadId, setThreadId] = useState<string | null>(null);
@@ -41,14 +41,21 @@ export function AssistantDock({ activeChannelId = null }: { activeChannelId?: st
   const [text, setText] = useState("");
   const listRef = useRef<HTMLDivElement>(null);
 
-  // Remember the thread across pages (per browser), so the dock is one
-  // conversation rather than a fresh one every navigation.
+  // Remember the thread across pages, so the dock is one conversation rather
+  // than a fresh one every navigation — per workspace AND person (ENG-18).
+  // One browser-wide key carried workspace A's thread into B, where every send
+  // 404'd until "new" was pressed. The layout also remounts the dock on a switch.
+  const storeKey = `mys.assistant.thread:${workspaceId}:${userId}`;
   useEffect(() => {
-    try { const t = localStorage.getItem("mys.assistant.thread"); if (t) setThreadId(t); } catch { /* ignore */ }
-  }, []);
+    try {
+      localStorage.removeItem("mys.assistant.thread"); // the old unscoped key
+      const t = localStorage.getItem(storeKey);
+      if (t) setThreadId(t);
+    } catch { /* ignore */ }
+  }, [storeKey]);
   useEffect(() => {
-    try { if (threadId) localStorage.setItem("mys.assistant.thread", threadId); } catch { /* ignore */ }
-  }, [threadId]);
+    try { if (threadId) localStorage.setItem(storeKey, threadId); } catch { /* ignore */ }
+  }, [threadId, storeKey]);
 
   // Load the thread when opened.
   useEffect(() => {
@@ -83,8 +90,16 @@ export function AssistantDock({ activeChannelId = null }: { activeChannelId?: st
     setMessages((ms) => [...ms, { id: `u-${Date.now()}`, role: "user", content: m, steps: [] }]);
     setText("");
     try {
-      const r = await fetch("/api/assistant", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ threadId, message: m, page: pathname }) });
-      const d = (await r.json()) as Reply & { error?: string };
+      const post = (id: string | null) =>
+        fetch("/api/assistant", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ threadId: id, message: m, page: pathname }) });
+      let r = await post(threadId);
+      // The remembered conversation is gone (deleted, or another workspace's):
+      // start a new one with this message instead of failing every send.
+      if (r.status === 404 && threadId) {
+        setMessages((ms) => ms.filter((x) => x.role === "user" && x.content === m));
+        r = await post(null);
+      }
+      const d = (await r.json().catch(() => ({ error: `HTTP ${r.status}` }))) as Reply & { error?: string };
       if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
       setThreadId(d.threadId);
       setMessages((ms) => [...ms, { id: `a-${Date.now()}`, role: "assistant", content: d.answer, steps: d.steps ?? [] }]);
@@ -97,7 +112,7 @@ export function AssistantDock({ activeChannelId = null }: { activeChannelId?: st
     }
   }, [busy, threadId, pathname]);
 
-  const newThread = () => { setThreadId(null); setMessages([]); setOptions([]); setLinks([]); try { localStorage.removeItem("mys.assistant.thread"); } catch { /* ignore */ } };
+  const newThread = () => { setThreadId(null); setMessages([]); setOptions([]); setLinks([]); try { localStorage.removeItem(storeKey); } catch { /* ignore */ } };
 
   return (
     <>

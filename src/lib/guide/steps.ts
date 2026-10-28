@@ -1,3 +1,5 @@
+import { canFollow } from "@/lib/role-links";
+
 /**
  * Elsie — the in-app guide.
  *
@@ -49,6 +51,12 @@ export type SetupState = {
   blogPosts: number;
   /** Platform operator — some setup is only theirs to do. */
   isOperator: boolean;
+  /** The person's role here: setup is an admin's, and so are admin pages (SHL-08). */
+  role: "ADMIN" | "EDITOR" | "VIEWER";
+  /** `nav/<href>` of every rail entry this person has — Settings, Channels and Brand are admin-only. */
+  rail: string[];
+  /** The video studio is switched on (lib/studio.ts). */
+  studio: boolean;
 };
 
 /** Which tour a step belongs to. `setup` is never a chosen tour — it leads. */
@@ -72,6 +80,8 @@ export type GuideStep = {
   kind: "setup" | "tour";
   /** Setup steps only: true when this still needs doing. */
   needed?: (s: SetupState) => boolean;
+  /** About the video studio — shown only while it's switched on. */
+  studio?: boolean;
 };
 
 export const ELSIE_NAME = "Elsie";
@@ -115,7 +125,7 @@ export const STEPS: GuideStep[] = [
       "Everything that writes — ideas, drafts, social variants — runs through an AI provider. Without a key the app still " +
       "works, but it returns placeholder text rather than real content. Paste an Anthropic or Google key and the whole " +
       "engine comes alive.",
-    anchor: "nav/admin",
+    anchor: "nav/setup",
     route: "/admin/api-keys",
     cta: { label: "Open API keys", href: "/admin/api-keys" },
   },
@@ -130,12 +140,13 @@ export const STEPS: GuideStep[] = [
       "A key on its own isn't enough: each channel and workspace also chooses which model to use, and the default is " +
       "Claude. If you added a Google key but left the model on Claude, work goes to the wrong provider — and when that " +
       "call fails the app quietly falls back to placeholder text rather than erroring. Set the model to match your key.",
-    anchor: "nav/brand",
-    route: "/brand",
-    cta: { label: "Choose a model", href: "/admin/api-keys" },
+    anchor: "nav/setup",
+    route: "/admin/settings",
+    cta: { label: "Choose a model", href: "/admin/settings" },
   },
   {
     id: "setup-channel",
+    studio: true,
     kind: "setup",
     track: "setup",
     needed: (s) => !s.channelLinked,
@@ -157,7 +168,7 @@ export const STEPS: GuideStep[] = [
     body:
       "Posting runs through Zernio, which covers fifteen networks including LinkedIn, X, Facebook and Instagram. Add the " +
       "API key once for the whole install, then each workspace connects its own profiles underneath it.",
-    anchor: "nav/admin",
+    anchor: "nav/setup",
     route: "/admin/connections",
     cta: { label: "Open Connections", href: "/admin/connections" },
   },
@@ -170,7 +181,7 @@ export const STEPS: GuideStep[] = [
     body:
       "Zernio is ready — now link the accounts you actually post from. Each one opens the network's own sign-in, so no " +
       "passwords are ever stored here.",
-    anchor: "nav/admin",
+    anchor: "nav/setup",
     route: "/admin/connections",
     cta: { label: "Connect an account", href: "/admin/connections" },
   },
@@ -183,7 +194,7 @@ export const STEPS: GuideStep[] = [
     body:
       "Invitations, verification and password resets need somewhere to send from. This host blocks ordinary SMTP, so mail " +
       "goes out through a mailbox you connect over HTTPS. Until then those emails are only simulated.",
-    anchor: "nav/admin",
+    anchor: "nav/setup",
     route: "/admin/connections",
     cta: { label: "Open Connections", href: "/admin/connections" },
   },
@@ -197,7 +208,7 @@ export const STEPS: GuideStep[] = [
       "Files are on the server's local disk, which this host wipes every time the app redeploys — images, voiceovers and " +
       "rendered video all go with it. Connecting Google Drive keeps them. Switching runs a real write test first and only " +
       "commits if it passes.",
-    anchor: "nav/admin",
+    anchor: "nav/setup",
     route: "/admin/api-keys",
     cta: { label: "Open Storage", href: "/admin/api-keys#storage" },
   },
@@ -224,8 +235,8 @@ export const STEPS: GuideStep[] = [
       "Define the times you publish — say 09:00 Monday to Friday — and you can drop any draft into the next free slot " +
       "instead of picking a date every time. Set the timezone here too; it's what the whole schedule is anchored to.",
     anchor: "posting-schedule",
-    route: "/social",
-    cta: { label: "Open Distribute", href: "/distribute" },
+    route: "/setup/schedule",
+    cta: { label: "Open Schedule", href: "/setup/schedule" },
   },
   {
     id: "setup-analytics",
@@ -236,7 +247,7 @@ export const STEPS: GuideStep[] = [
     body:
       "Search Console, GA4 and YouTube feed the performance half of Insights. Without them the app can measure its own " +
       "pipeline — what you made, how fast — but nothing about how any of it actually performed once published.",
-    anchor: "nav/admin",
+    anchor: "nav/setup",
     route: "/admin/analytics",
     cta: { label: "Open Analytics", href: "/admin/analytics" },
   },
@@ -321,6 +332,7 @@ export const STEPS: GuideStep[] = [
   },
   {
     id: "content-voice",
+    studio: true,
     kind: "tour",
     track: "content",
     title: "Voice is trained, not typed",
@@ -343,6 +355,7 @@ export const STEPS: GuideStep[] = [
   },
   {
     id: "content-scripts",
+    studio: true,
     kind: "tour",
     track: "content",
     title: "From idea to script",
@@ -354,6 +367,7 @@ export const STEPS: GuideStep[] = [
   },
   {
     id: "content-video",
+    studio: true,
     kind: "tour",
     track: "content",
     title: "Storyboards and shorts",
@@ -365,13 +379,14 @@ export const STEPS: GuideStep[] = [
   },
   {
     id: "content-production",
+    studio: true,
     kind: "tour",
     track: "content",
     title: "Track the work",
     body:
       "The production board runs the pipeline from idea to published, with tasks, assets and a wiki for the standing " +
       "answers. Drag cards between columns, or use the dropdown on each — dragging is never the only way.",
-    anchor: "nav/production",
+    anchor: "nav/drafts",
     cta: { label: "Open Production", href: "/production" },
   },
 
@@ -385,7 +400,7 @@ export const STEPS: GuideStep[] = [
       "Write the post once, pick the accounts, and customise per network only where you want to — each one shows its own " +
       "character count against its own limit, and can carry its own image.",
     anchor: "social-composer",
-    route: "/social",
+    route: "/social/compose",
   },
   {
     id: "tour-calendar",
@@ -396,7 +411,7 @@ export const STEPS: GuideStep[] = [
       "Month view shows coverage at a glance; Week is a time grid when you need to see exactly when things go out. Drag to " +
       "reschedule, or use the date box on any card — dragging is never the only way.",
     anchor: "social-calendar",
-    route: "/social",
+    route: "/social/calendar",
   },
   {
     id: "publishing-slots",
@@ -407,7 +422,7 @@ export const STEPS: GuideStep[] = [
       "Slots are your standing publishing times, held as wall-clock — 09:00 Tuesday stays 09:00 across daylight saving. " +
       "Queue a draft and it takes the next free one. If none are free the app says so rather than inventing a time.",
     anchor: "posting-schedule",
-    route: "/social",
+    route: "/setup/schedule",
   },
   {
     id: "publishing-after",
@@ -452,7 +467,7 @@ export const STEPS: GuideStep[] = [
     body:
       "Reports package the same numbers for someone who doesn't use the app — a client or a board. Build your own from the " +
       "available blocks and export it.",
-    anchor: "nav/reports",
+    anchor: "nav/measure",
     cta: { label: "Open Reports", href: "/reports" },
   },
 
@@ -465,7 +480,7 @@ export const STEPS: GuideStep[] = [
     body:
       "Provider keys are set here, not in the host's environment, and each workspace can bring its own — a key you paste " +
       "for one company is never visible to another. Saving takes effect within about thirty seconds, no redeploy.",
-    anchor: "nav/admin",
+    anchor: "nav/setup",
     route: "/admin/api-keys",
     cta: { label: "Open API keys", href: "/admin/api-keys" },
   },
@@ -478,7 +493,7 @@ export const STEPS: GuideStep[] = [
       "Local disk is wiped on every redeploy. Google Drive keeps files, and there are two ways to reach it: connect a " +
       "Google account, which works on a personal address, or a service account, which needs a Workspace Shared Drive. " +
       "The card explains which suits you.",
-    anchor: "nav/admin",
+    anchor: "nav/setup",
     route: "/admin/api-keys",
     cta: { label: "Open Storage", href: "/admin/api-keys#storage" },
   },
@@ -490,9 +505,9 @@ export const STEPS: GuideStep[] = [
     body:
       "Invite by email and pick a role: viewers read, editors make things, admins change settings. Revoke suspends someone " +
       "and keeps their history; Remove deletes the membership. The last admin can't be removed — that would lock everyone out.",
-    anchor: "nav/admin",
-    route: "/admin",
-    cta: { label: "Open Users", href: "/setup/people" },
+    anchor: "nav/setup",
+    route: "/setup/people",
+    cta: { label: "Open People", href: "/setup/people" },
   },
   {
     id: "admin-delete",
@@ -503,22 +518,36 @@ export const STEPS: GuideStep[] = [
       "Almost everything can be deleted from where it lives. Anything that takes other records with it — a channel, a " +
       "project, a workspace — asks you to type its name and lists exactly what else goes. Every deletion is recorded in " +
       "the audit log with the record's name, so it stays answerable afterwards.",
-    anchor: "nav/admin",
+    anchor: "nav/channels",
     route: "/admin/channels",
     cta: { label: "Open Channels admin", href: "/admin/channels" },
   },
 ];
 
+/**
+ * Whether this person can take the step at all (SHL-08). Setup is an admin's:
+ * an editor was walked to pages that bounce to /forbidden. A rail anchor must
+ * be on THEIR rail, the step's route and link must be pages they can open, and
+ * studio steps wait for the studio. A step that fails any of these is skipped,
+ * not shown pointing at nothing.
+ */
+export function stepVisible(step: GuideStep, state: SetupState): boolean {
+  if (step.studio && !state.studio) return false;
+  if (step.kind === "setup" && state.role !== "ADMIN") return false;
+  if (step.anchor?.startsWith("nav/") && !state.rail.includes(step.anchor)) return false;
+  return [step.route, step.cta?.href].every((href) => !href || canFollow(href, state.role));
+}
+
 /** Setup steps still outstanding, in definition order. */
 export function outstandingSteps(state: SetupState, done: string[] = []): GuideStep[] {
   const seen = new Set(done);
-  return STEPS.filter((s) => s.kind === "setup" && !seen.has(s.id) && (s.needed ? s.needed(state) : true));
+  return STEPS.filter((s) => s.kind === "setup" && !seen.has(s.id) && stepVisible(s, state) && (s.needed ? s.needed(state) : true));
 }
 
-/** The steps of one tour, minus anything already dismissed. */
-export function trackSteps(track: GuideTrack, done: string[] = []): GuideStep[] {
+/** The steps of one tour this person can take, minus anything already dismissed. */
+export function trackSteps(track: GuideTrack, state: SetupState, done: string[] = []): GuideStep[] {
   const seen = new Set(done);
-  return STEPS.filter((s) => s.track === track && s.kind === "tour" && !seen.has(s.id));
+  return STEPS.filter((s) => s.track === track && s.kind === "tour" && !seen.has(s.id) && stepVisible(s, state));
 }
 
 /**
@@ -532,7 +561,7 @@ export function trackSteps(track: GuideTrack, done: string[] = []): GuideStep[] 
 export function relevantSteps(state: SetupState, done: string[] = []): GuideStep[] {
   // Welcome leads, even though it belongs to the essentials track: opening on
   // "Add an AI provider key" with no introduction is a demand, not a greeting.
-  const essentials = trackSteps("essentials", done);
+  const essentials = trackSteps("essentials", state, done);
   const welcome = essentials.filter((s) => s.id === "welcome");
   const rest = essentials.filter((s) => s.id !== "welcome");
   return [...welcome, ...outstandingSteps(state, done), ...rest];
@@ -546,6 +575,6 @@ export function outstandingSetup(state: SetupState, done: string[] = []): number
 /** Tracks offered on the welcome card, with their steps already resolved. */
 export function availableTracks(state: SetupState, done: string[] = []) {
   return TRACKS.filter((t) => !t.operatorOnly || state.isOperator)
-    .map((t) => ({ ...t, steps: trackSteps(t.id, done) }))
+    .map((t) => ({ ...t, steps: trackSteps(t.id, state, done) }))
     .filter((t) => t.steps.length > 0);
 }

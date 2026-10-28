@@ -3,6 +3,8 @@ import { SubmitButton } from "@/components/SubmitButton";
 import { HelpCircle, Keyboard, Palette, Sparkles, ExternalLink, Compass } from "lucide-react";
 import { setThemeAction, getTheme } from "@/app/actions/theme";
 import { HelpClient } from "./HelpClient";
+import { requireMembership } from "@/lib/acl";
+import { RoleLink } from "@/components/RoleLink";
 import { TRACKS, ELSIE_NAME } from "@/lib/guide/steps";
 
 // User Guide / Help center. Searchable FAQ + per-role quick starts
@@ -25,6 +27,7 @@ const SHORTCUTS = [
 
 export default async function HelpPage() {
   const theme = await getTheme();
+  const { membership: { role } } = await requireMembership();
 
   return (
     <div>
@@ -71,14 +74,14 @@ export default async function HelpPage() {
             <div className="text-sm font-semibold mb-0.5">If the output looks fake, it probably is</div>
             <div className="text-[12px] text-[var(--mute)] leading-snug">
               With no working API key the app falls back to placeholder text rather than erroring. Keys are per
-              workspace — check <Link href="/admin/api-keys" className="underline">Settings → Keys</Link>.
+              workspace — check <RoleLink href="/admin/api-keys" role={role} className="underline">Settings → Keys</RoleLink>.
             </div>
           </div>
         </div>
         <div className="mt-3 flex flex-wrap gap-2">
           <Link href="/help/guide" className="btn sm primary">Read the owner&apos;s guide →</Link>
-          <Link href="/social/compose" className="btn sm">Try the 2-minute first post</Link>
-          <Link href="/admin/api-keys" className="btn sm">Check my API keys</Link>
+          <RoleLink href="/social/compose" role={role} className="btn sm" denied="hide">Try the 2-minute first post</RoleLink>
+          <RoleLink href="/admin/api-keys" role={role} className="btn sm" denied="hide">Check my API keys</RoleLink>
         </div>
       </section>
 
@@ -183,7 +186,7 @@ export default async function HelpPage() {
         <h2 className="font-mono font-bold text-[14px] mb-3">Useful links</h2>
         <div className="flex flex-wrap gap-2">
           <Link href="/channels" className="btn sm flex items-center gap-1.5">Manage channels <ExternalLink className="w-3 h-3" /></Link>
-          <Link href="/onboarding/channel/new" className="btn sm flex items-center gap-1.5">New channel <ExternalLink className="w-3 h-3" /></Link>
+          <RoleLink href="/onboarding/channel/new" role={role} className="btn sm flex items-center gap-1.5" denied="hide">New channel <ExternalLink className="w-3 h-3" /></RoleLink>
           <Link href="/brand" className="btn sm flex items-center gap-1.5">Brand &amp; topics <ExternalLink className="w-3 h-3" /></Link>
           <Link href="/intel" className="btn sm flex items-center gap-1.5">Intel <ExternalLink className="w-3 h-3" /></Link>
           <Link href="/blog" className="btn sm flex items-center gap-1.5">Blog <ExternalLink className="w-3 h-3" /></Link>
@@ -197,7 +200,7 @@ export default async function HelpPage() {
 
       {/* Searchable FAQ */}
       <h2 className="font-mono font-bold text-[15px] mb-3 mt-2">Frequently asked questions</h2>
-      <HelpClient />
+      <HelpClient role={role} />
     </div>
   );
 }

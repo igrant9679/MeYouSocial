@@ -1,4 +1,4 @@
-import { requireRole } from "@/lib/acl";
+import { requireMembership, canEdit } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { readJson } from "@/lib/db/json";
 import { runTurn } from "@/lib/assistant/session";
@@ -11,8 +11,23 @@ import type { AssistantStep } from "@/lib/assistant/run";
  * a turn. EDITOR and up, like the page.
  */
 
+/**
+ * The caller, or a 403 in JSON. `requireRole` redirects, and the dock parsed
+ * the /forbidden page as JSON: every message a viewer sent failed with
+ * "Unexpected token '<'" (ENG-17). Viewers no longer see the dock at all.
+ */
+async function caller() {
+  const ctx = await requireMembership();
+  if (!canEdit(ctx.membership.role)) {
+    return { denied: Response.json({ error: "The assistant is for editors and admins." }, { status: 403 }) } as const;
+  }
+  return { ctx } as const;
+}
+
 export async function GET(req: Request) {
-  const { workspace, user } = await requireRole("EDITOR");
+  const c = await caller();
+  if ("denied" in c) return c.denied;
+  const { workspace, user } = c.ctx;
   const threadId = new URL(req.url).searchParams.get("threadId") ?? "";
   if (!threadId) {
     const threads = await db.assistantThread.findMany({ where: { workspaceId: workspace.id, userId: user.id }, orderBy: { updatedAt: "desc" }, take: 8, select: { id: true, title: true, updatedAt: true } });
@@ -31,7 +46,9 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  const { workspace, user, membership } = await requireRole("EDITOR");
+  const c = await caller();
+  if ("denied" in c) return c.denied;
+  const { workspace, user, membership } = c.ctx;
   const body = (await req.json().catch(() => ({}))) as { threadId?: string; message?: string; page?: string };
   const message = String(body.message ?? "").trim();
   if (!message) return Response.json({ error: "empty message" }, { status: 400 });

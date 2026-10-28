@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Users, Bot, CalendarClock, Plug, Palette, ArrowRight, OctagonPause, Clapperboard } from "lucide-react";
 import { requireMembership, canAdmin } from "@/lib/acl";
+import { canFollow, whoCanFix } from "@/lib/role-links";
 import { setupOverview } from "@/lib/setup-status";
 import { studioState } from "@/lib/studio";
 import { SubmitButton } from "@/components/SubmitButton";
@@ -37,7 +38,7 @@ export default async function SetupOverview({ searchParams }: { searchParams: Pr
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4">
-        <Q icon={<Users className="w-5 h-5" />} hue="teal" title="Who can do what" href="/setup/people" cta="People">
+        <Q icon={<Users className="w-5 h-5" />} hue="teal" title="Who can do what" href="/setup/people" cta="People" open={canFollow("/setup/people", membership.role)}>
           <b>{o.members.admins}</b> admin{o.members.admins === 1 ? "" : "s"}, <b>{o.members.editors}</b> editor{o.members.editors === 1 ? "" : "s"}, <b>{o.members.viewers}</b> viewer{o.members.viewers === 1 ? "" : "s"}
           {o.invitations > 0 && <> · <b>{o.invitations}</b> invitation{o.invitations === 1 ? "" : "s"} not yet accepted</>}.
           {" "}Social posts {a.requireApproval ? <>need an <b>admin&apos;s approval</b></> : <>go out <b>without approval</b></>}; publishing an article is always an admin&apos;s act.
@@ -96,7 +97,7 @@ export default async function SetupOverview({ searchParams }: { searchParams: Pr
   );
 }
 
-function Q({ icon, hue, title, href, cta, children }: { icon: React.ReactNode; hue: string; title: string; href: string; cta: string; children: React.ReactNode }) {
+function Q({ icon, hue, title, href, cta, children, open = true }: { icon: React.ReactNode; hue: string; title: string; href: string; cta: string; children: React.ReactNode; open?: boolean }) {
   return (
     <section className="card flex flex-col gap-2">
       <div className="flex items-center gap-2">
@@ -105,7 +106,10 @@ function Q({ icon, hue, title, href, cta, children }: { icon: React.ReactNode; h
       </div>
       <p className="text-sm m-0 leading-relaxed">{children}</p>
       <div>
-        <Link href={href} className="btn sm inline-flex items-center gap-1">{cta} <ArrowRight className="w-3.5 h-3.5" /></Link>
+        {/* People is admin-only; a non-admin's button bounced to /forbidden (SHL-07). */}
+        {open
+          ? <Link href={href} className="btn sm inline-flex items-center gap-1">{cta} <ArrowRight className="w-3.5 h-3.5" /></Link>
+          : <span className="text-[11px] text-[var(--mute)]">{whoCanFix(href)}</span>}
       </div>
     </section>
   );

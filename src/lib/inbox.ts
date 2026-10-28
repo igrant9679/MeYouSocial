@@ -87,6 +87,8 @@ export type InboxData = {
   conditions: HomeDecision[];
   /** Items a person can act on right now, across every group. */
   total: number;
+  /** Full autonomy is on: articles that pass every check move on by themselves. */
+  autonomous: boolean;
 };
 
 const WEEK = 7 * 24 * 3600_000;
@@ -94,7 +96,7 @@ const WEEK = 7 * 24 * 3600_000;
 /** Category decisions that the item cards above now render one-by-one. */
 const REPLACED_KINDS = new Set(["awaiting-approval", "blog-review"]);
 
-export async function getInboxData(workspaceId: string, opts: { admin: boolean }): Promise<InboxData> {
+export async function getInboxData(workspaceId: string, opts: { admin: boolean; editor?: boolean }): Promise<InboxData> {
   const [home, autonomous] = await Promise.all([getHomeData(workspaceId), isFullyAutonomous(workspaceId)]);
 
   // ── Social posts awaiting approval — each one, with its targets ─────────
@@ -215,7 +217,15 @@ export async function getInboxData(workspaceId: string, opts: { admin: boolean }
     : [];
 
   const conditions = home.decisions.filter((d) => !REPLACED_KINDS.has(d.kind));
-  const total = socialPosts.length + articles.length + questions.length + images.length + citations.length + invitations.length;
+  // An article that passes every check needs nobody under full autonomy —
+  // the next cycle moves it. Without autonomy it needs a click (SHL-06).
+  const articlesNeedingYou = articles.filter((a) => a.failing.length > 0 || !autonomous).length;
+  // Counted only where this person can act (SHL-07): approving a post is an
+  // admin's, the article work an editor's; a viewer's count used to never
+  // reach zero. The groups still show — read-only — for everyone.
+  const editor = opts.editor ?? opts.admin;
+  const total = (opts.admin ? socialPosts.length + invitations.length : 0)
+    + (editor ? articlesNeedingYou + questions.length + images.length + citations.length : 0);
 
-  return { home, socialPosts, articles, questions, images, citations, invitations, conditions, total };
+  return { home, socialPosts, articles, questions, images, citations, invitations, conditions, total, autonomous };
 }

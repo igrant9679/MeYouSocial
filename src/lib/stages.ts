@@ -152,8 +152,10 @@ export const STAGES: Record<(typeof STAGE_HREFS)[number], StageDef> = {
     // rather than two called the same thing. `also` keeps it lit there.
     // /admin/limits rides Usage, and /admin/channels has the Channels rail
     // entry of its own.
+    // People is admin-only too (setup/people is requireRole("ADMIN")) — it was
+    // the one tab here that bounced editors and viewers (SHL-07).
     tabs: ({ admin, operator }) => [
-      { href: "/setup/people", label: "People" },
+      ...(admin ? [{ href: "/setup/people", label: "People" }] : []),
       { href: "/setup/automation", label: "Automation" },
       { href: "/setup/schedule", label: "Schedule" },
       { href: "/setup/connections", label: "Connections", also: ["/admin/connections"] },

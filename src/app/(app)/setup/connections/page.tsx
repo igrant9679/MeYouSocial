@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Check, AlertTriangle, X } from "lucide-react";
 import { requireMembership } from "@/lib/acl";
+import { canFollow, whoCanFix } from "@/lib/role-links";
 import { connectionRows } from "@/lib/setup-status";
 
 // Settings → Connections: keys and connections, one row each, connected or
@@ -16,7 +17,7 @@ const STATE = {
 } as const;
 
 export default async function SetupConnections() {
-  const { workspace } = await requireMembership();
+  const { workspace, membership } = await requireMembership();
   const rows = await connectionRows(workspace.id);
   const missing = rows.filter((r) => r.state === "missing").length;
 
@@ -42,7 +43,10 @@ export default async function SetupConnections() {
                   <div className="text-sm font-semibold leading-snug">{r.label}{r.note && <span className="font-mono text-[10px] text-[var(--mute)] ml-2">{r.note}</span>}</div>
                   <div className="text-[11px] text-[var(--mute)]">{r.detail}</div>
                 </div>
-                <Link href={r.href} className="btn sm">{r.state === "ok" ? "Open" : "Fix"}</Link>
+                {/* Most fixes live on admin pages: say so rather than bounce (SHL-07). */}
+                {canFollow(r.href, membership.role)
+                  ? <Link href={r.href} className="btn sm">{r.state === "ok" ? "Open" : "Fix"}</Link>
+                  : r.state !== "ok" && <span className="text-[11px] text-[var(--mute)] max-w-40 text-right">{whoCanFix(r.href)}</span>}
               </li>
             );
           })}

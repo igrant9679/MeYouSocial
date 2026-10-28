@@ -445,6 +445,36 @@ Tabs: **Keys** (`/admin/api-keys`: LLM, search, images, video, TTS, storage) · 
   `/social/[id]` is the read-only post page: each network's status, link and error, with Retry failed and Duplicate.
   The editor redirects sent posts there, and Sent rows have Retry on failed and partial posts.
 
+## ⚠ Every link goes somewhere this person can open (2026-10-27, audit Phase 2, shell and assistant group)
+- **`lib/role-links.ts` is the map of role-gated pages** (`roleNeededFor` / `canFollow` / `whoCanFix`): ADMIN = `/admin/*`
+  and `/setup/people`; EDITOR = the social pages (compose, calendar, approvals, engage, performance, a post's edit page),
+  `/assistant*`, `onboarding/channel/new`; everything else is any member. ⚠ It MIRRORS the page gates — a page that changes
+  its `requireRole` must change here too. Surfaces that link across roles ask it and, when the answer is no, say who can
+  act (`components/RoleLink.tsx`, or plain text) instead of a button that bounces to /forbidden: the Inbox's condition
+  cards and pipeline strip, Settings (no People tab or card link for non-admins; Connections rows), Distribute, Help and
+  the owner's guide, and the stage strip, which drops tabs the role can't open (Compose, Calendar… for a viewer).
+- **"N things need you" counts only what this person can act on** (`getInboxData(…, { admin, editor })`): post approvals
+  and invitations are an admin's, article work an editor's; a viewer's is zero. A condition only an admin can fix doesn't
+  make the header say something needs you.
+- **The assistant is for editors and admins** (ENG-17): viewers get no rail entry, Ask button or dock; `/assistant` tells
+  them why; `/api/assistant` answers a viewer with a JSON 403 (it used to redirect, and the dock parsed /forbidden as JSON).
+- **The dock's conversation is per workspace AND person** (ENG-18): localStorage `mys.assistant.thread:<ws>:<user>` (the old
+  unscoped key is removed on load), the dock is keyed by workspace so a switch remounts it, and a send to a conversation
+  that's gone starts a new one with that message.
+- **Header pollers read the ACTIVE workspace** (ENG-19): `activeWorkspaceIdFor(userId)` in `lib/acl.ts` (the cookie, else
+  the first membership — `requireMembership`'s choice) for `/api/ticker` and `/api/ai-activity`; EngineStatus is keyed by
+  workspace.
+- **An article that passes every check at review has "Move to final approval"** on its Inbox card (SHL-06, editors,
+  `advanceBlogStatusAction` with its own server-side gate). Without full autonomy nothing moves it on by itself, and the
+  card says so; under full autonomy it neither counts in the Inbox nor turns the Drafts badge red.
+- **Elsie** (SHL-08): steps anchor only on real elements — `npm run check:guide` (`scripts/check-guide-anchors.mts`) fails
+  when an anchor exists nowhere or a route/link is missing or redirect-only; run it after renaming a rail entry or moving
+  a page. `stepVisible` skips setup steps for non-admins, rail anchors not on THIS person's rail (Settings, Channels and
+  Brand are admin-only), routes/links their role can't open, and studio steps while the studio is off. A route that
+  redirects no longer strands her: she navigates once and then looks on the page she landed on. Her keys (arrows, Escape)
+  are live only while her popup is on screen.
+- **A member of nothing can always sign out** (SHL-11) — the operator's "Create your workspace" form too.
+
 ## Open items / things the user still owns
 - **Analytics: APIs enabled 2026-08-03** (Search Console + GA Admin + GA Data, on project
   `479503233109` = `gen-lang-client-0838901195` = "CreateUp"). Still pending, user-only: add the

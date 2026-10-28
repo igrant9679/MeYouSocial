@@ -100,6 +100,15 @@ export function Elsie({
   const [tipPos, setTipPos] = useState<{ top: number; left: number } | null>(null);
   const [ready, setReady] = useState(false);
   const tipRef = useRef<HTMLDivElement>(null);
+  /**
+   * The step we already navigated for, and a nudge to look again after it. A
+   * route that redirects (/social → /distribute, /admin → /setup/people) never
+   * matched, so she pushed and waited for a URL that would never come, with no
+   * popup on screen (SHL-08). Once sent there, she looks on whatever page the
+   * navigation ended on.
+   */
+  const navigatedFor = useRef<string | null>(null);
+  const [navTick, setNavTick] = useState(0);
 
   const step: ElsieStep | undefined = steps[index];
   const open = enabled && !dismissed && Boolean(step);
@@ -174,9 +183,15 @@ export function Elsie({
         setReady(true);
         return;
       }
-      router.push(step.route);
-      // The effect re-runs when pathname changes; don't poll across the nav.
-      return;
+      if (navigatedFor.current !== step.id) {
+        navigatedFor.current = step.id;
+        router.push(step.route);
+        // The effect re-runs when pathname changes. If it doesn't (the route
+        // redirected back to this page), look again anyway shortly.
+        const again = setTimeout(() => setNavTick((n) => n + 1), 1500);
+        return () => clearTimeout(again);
+      }
+      // Already sent there and the URL ended elsewhere: look for the anchor here.
     }
 
     // Tell interested components to make this anchor visible BEFORE measuring.
@@ -223,7 +238,7 @@ export function Elsie({
     };
     tick();
     return () => { cancelled = true; };
-  }, [open, step, pathname, router, reposition, steps.length]);
+  }, [open, step, pathname, router, reposition, steps.length, navTick]);
 
   // Re-measure once the popup has its real height, and on scroll/resize.
   useLayoutEffect(() => {
@@ -277,9 +292,11 @@ export function Elsie({
     setIndex((i) => Math.max(0, i - 1));
   }, []);
 
-  // Esc closes; arrows step. Only while she's actually on screen.
+  // Esc closes; arrows step. Only while she's actually on screen — `open` is
+  // true while she is still finding a step's anchor, and the arrows and Escape
+  // were swallowed with nothing visible (SHL-08).
   useEffect(() => {
-    if (!open) return;
+    if (!open || !ready) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") { e.preventDefault(); finish(false); }
       else if (e.key === "ArrowRight") { e.preventDefault(); next(); }
@@ -287,7 +304,7 @@ export function Elsie({
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [open, next, back, finish]);
+  }, [open, ready, next, back, finish]);
 
   useEffect(() => {
     if (open && ready) tipRef.current?.focus();

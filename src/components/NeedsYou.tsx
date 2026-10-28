@@ -4,7 +4,7 @@ import { networkFor } from "@/lib/social/networks";
 import type { InboxData } from "@/lib/inbox";
 import { approveSocialPostAction, requestChangesSocialPostAction } from "@/app/actions/social-workflow";
 import { answerFindingsAction, dismissFindingAction } from "@/app/actions/blog-findings";
-import { deleteCitationAction, overrideGateAction, verifyCitationAction } from "@/app/actions/blog";
+import { advanceBlogStatusAction, deleteCitationAction, overrideGateAction, verifyCitationAction } from "@/app/actions/blog";
 import { approveBlogImageAction } from "@/app/actions/blog-images";
 
 /**
@@ -87,7 +87,8 @@ export function NeedsYouGroups({
                   <span className="text-[11px] text-[var(--mute)]">An admin approves this.</span>
                 )}
                 <span className="flex-1" />
-                <Link href={`/social/${p.id}/edit`} className="btn sm">Open</Link>
+                {/* The editor is an editor's; anyone else gets the read-only post page (SHL-07). */}
+                <Link href={editor ? `/social/${p.id}/edit` : `/social/${p.id}`} className="btn sm">Open</Link>
               </div>
             </li>
           ))}
@@ -244,7 +245,9 @@ export function NeedsYouGroups({
                 <Link href={`/blog/${a.id}`} className="text-sm font-semibold hover:underline">{a.title}</Link>
                 <div className="text-xs text-[var(--mute)] mt-0.5">
                   {a.failing.length === 0
-                    ? "Every required check passes — it advances on the next cycle."
+                    ? inbox.autonomous
+                      ? "Every required check passes — full autonomy moves it to final approval on the next cycle."
+                      : "Every required check passes. Nothing moves it on by itself while full autonomy is off."
                     : a.status === "final_approval"
                       ? `At final approval, but it won't publish — no longer passes: ${a.failing.join(" · ")}`
                       : `Held at review by: ${a.failing.join(" · ")}`}
@@ -252,6 +255,15 @@ export function NeedsYouGroups({
                 </div>
               </div>
               <Link href={`/blog/${a.id}`} className="btn sm">Open</Link>
+              {/* Passing, at review: it used to wait here for good with no button
+                  unless full autonomy was on (SHL-06). Same action, and the same
+                  server-side checks, as the article page's Advance. */}
+              {editor && a.failing.length === 0 && a.status === "draft_review" && (
+                <form action={advanceBlogStatusAction}>
+                  <input type="hidden" name="id" value={a.id} />
+                  <SubmitButton className="btn sm primary" pendingText="Moving…" title="Every required check passes — send it to final approval now">Move to final approval</SubmitButton>
+                </form>
+              )}
               {/* The owner's override (2026-09-08): a person outranks the checks.
                   Recorded with name and reason; carries through the sweep and
                   publishing, so the article does not stall a step later. */}

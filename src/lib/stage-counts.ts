@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { isFullyAutonomous } from "@/lib/autonomy";
 
 /**
  * Count badges for the stage strip. Keyed by the tab's href (or a stage's
@@ -18,6 +19,7 @@ export type StripCounts = Record<string, StripCount>;
 
 export async function stripCounts(workspaceId: string): Promise<StripCounts> {
   const now = new Date();
+  const autonomous = await isFullyAutonomous(workspaceId).catch(() => false);
   // The Ideas badge counts "discovered" across all three formats — a video
   // idea's own word for it is `new`, a social idea's is `discovered`.
   const [heldArticles, finalApproval, ideasDiscovered, videoIdeasNew, socialIdeasNew, auditOpen, awaiting, scheduled, socialDrafts, unseen, invitations] = await Promise.all([
@@ -34,7 +36,10 @@ export async function stripCounts(workspaceId: string): Promise<StripCounts> {
     db.invitation.count({ where: { workspaceId, acceptedAt: null, expiresAt: { gt: now } } }),
   ]);
   return {
-    "/blog": { n: heldArticles, urgent: true },
+    // Under full autonomy the engine moves passing articles on, and the Inbox
+    // names the ones a check holds — so the badge is news, not a red alarm that
+    // stays lit for articles nobody needs to touch (SHL-06).
+    "/blog": { n: heldArticles, urgent: !autonomous },
     "/ideas": { n: ideasDiscovered + videoIdeasNew + socialIdeasNew },
     "/publish": { n: finalApproval },
     "/blog/audit": { n: auditOpen, urgent: true },
