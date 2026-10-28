@@ -112,7 +112,7 @@ export default async function ResearchStage({ searchParams }: { searchParams: Pr
                           // eslint-disable-next-line @next/next/no-img-element
                           <img src={thumb} alt="" className="w-20 h-11 rounded-md object-cover border border-[var(--line)] shrink-0" />
                         )}
-                        <StateChip label={`${v.outlierScore?.toFixed(1)}× ${band.label}`} hue={band.label === "exceptional" ? "brand" : band.label === "strong" ? "amber" : "blue"} />
+                        <StateChip label={v.outlierScore == null ? "not scored" : `${v.outlierScore.toFixed(1)}× ${band.label}`} hue={band.label === "exceptional" ? "brand" : band.label === "strong" ? "amber" : "blue"} />
                         {v.viewsPerHour != null && <StateChip label={`${formatVph(v.viewsPerHour)}/hr`} hue="zebra" />}
                         <div className="flex-1 min-w-48">
                           <Link href={`/intel/videos/${v.id}`} className="text-sm font-semibold hover:underline line-clamp-1">{v.title}</Link>

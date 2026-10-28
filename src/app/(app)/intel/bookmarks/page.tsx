@@ -6,7 +6,8 @@ import { studioState } from "@/lib/studio";
 import { ResearchIdeaForm } from "@/components/ResearchIdeaForm";
 import { db } from "@/lib/db";
 import { readJson } from "@/lib/db/json";
-import { outlierBand, formatNum, formatVph } from "@/lib/intel";
+import { formatNum, formatVph } from "@/lib/intel";
+import { OutlierChip } from "@/components/OutlierChip";
 import { ChannelAvatar } from "@/components/ChannelAvatar";
 import { toggleBookmarkAction, updateBookmarkAction } from "@/app/actions/bookmarks";
 import { AiAssist } from "@/components/AiAssist";
@@ -110,10 +111,9 @@ function BookmarkRow({ bookmark, kind, ramp = null }: { ramp?: Ramp; bookmark: {
   }
   if (kind === "video" && bookmark.intelVideo) {
     const v = bookmark.intelVideo;
-    const band = outlierBand(v.outlierScore);
     return (
       <li className="border-t border-[var(--line)] first:border-t-0 py-3 flex items-center gap-3 flex-wrap">
-        <span className="font-mono font-bold text-[11px] px-2 py-1 rounded-md" style={{ background: band.soft, color: band.color }}>{v.outlierScore?.toFixed(1)}x</span>
+        <OutlierChip score={v.outlierScore} />
         <Link href={`/intel/videos/${v.id}`} className="font-semibold text-sm hover:text-[var(--accent)] flex-1 min-w-0 truncate">{v.title}</Link>
         <span className="text-xs text-[var(--mute)]">{v.intelChannel.name} · {formatNum(v.views)} views{v.viewsPerHour != null && <span title="Views per hour since publish"> · {formatVph(v.viewsPerHour)}/hr</span>}</span>
         {ramp && <ResearchIdeaForm videoId={v.id} topics={ramp.topics} channels={ramp.channels} matchedTopicId={matchTopic(v.title, ramp.prepared)?.id ?? null} back="/intel/bookmarks" compact />}

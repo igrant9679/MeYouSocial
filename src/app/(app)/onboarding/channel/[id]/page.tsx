@@ -7,6 +7,7 @@ import { youtubeFor } from "@/lib/youtube";
 import { StepHeader } from "@/components/onboarding/StepHeader";
 import { AiAssist } from "@/components/AiAssist";
 import { readJson } from "@/lib/db/json";
+import { OutlierChip } from "@/components/OutlierChip";
 import {
   lookupYoutubeAction,
   customChannelAction,
@@ -224,7 +225,7 @@ async function StepFivePreview({ channelId }: { channelId: string }) {
         <ul className="m-0 p-0">
           {channel.ideas.map((i) => (
             <li key={i.id} className="border-t border-[var(--line)] first:border-t-0 py-2 text-sm flex items-center gap-3">
-              <span className="tag">{i.outlierScore?.toFixed(1) ?? "—"}x</span>
+              <OutlierChip score={i.outlierScore} size="xs" />
               <span className="flex-1 truncate">{i.title}</span>
             </li>
           ))}

@@ -4,7 +4,8 @@ import { ArrowLeft, PenLine, Archive } from "lucide-react";
 import { notFound } from "next/navigation";
 import { requireChannel } from "@/lib/channel";
 import { db } from "@/lib/db";
-import { outlierBand, formatNum } from "@/lib/intel";
+import { formatNum } from "@/lib/intel";
+import { OutlierChip } from "@/components/OutlierChip";
 import { writeIdeaToCanvasAction, updateIdeaStatusAction } from "@/app/actions/ideas";
 import { setIdeaMeritAction } from "@/app/actions/growth";
 
@@ -20,7 +21,6 @@ export default async function IdeaDetailPage({ params }: { params: Promise<{ id:
   });
   if (!idea) notFound();
 
-  const band = outlierBand(idea.outlierScore);
 
   return (
     <div className="w-full">
@@ -28,7 +28,7 @@ export default async function IdeaDetailPage({ params }: { params: Promise<{ id:
 
       <div className="card mb-4">
         <div className="flex items-center gap-2 mb-3">
-          <span className="font-mono font-bold text-[11px] px-2 py-1 rounded-md" style={{ background: band.soft, color: band.color }}>{idea.outlierScore?.toFixed(1) ?? "—"}x · {band.label}</span>
+          <OutlierChip score={idea.outlierScore} views={idea.sourceVideo?.views} label />
           <span className="text-xs font-mono uppercase text-[var(--mute)]">{idea.status}</span>
           {idea.suggestedLength && <span className="text-xs text-[var(--mute)]">· {idea.suggestedLength}</span>}
         </div>
@@ -47,9 +47,7 @@ export default async function IdeaDetailPage({ params }: { params: Promise<{ id:
         <div className="card mb-4">
           <h2 className="font-mono text-[14px] font-bold mb-2">Source outlier</h2>
           <div className="flex items-center gap-3">
-            <span className="font-mono font-bold text-[11px] px-2 py-1 rounded-md" style={{ background: outlierBand(idea.sourceVideo.outlierScore).soft, color: outlierBand(idea.sourceVideo.outlierScore).color }}>
-              {idea.sourceVideo.outlierScore?.toFixed(1)}x
-            </span>
+            <OutlierChip score={idea.sourceVideo.outlierScore} />
             <div className="flex-1 min-w-0">
               <Link href={`/intel/videos/${idea.sourceVideo.id}`} className="font-semibold text-sm hover:text-[var(--accent)] truncate block">{idea.sourceVideo.title}</Link>
               <div className="text-xs text-[var(--mute)]">{idea.sourceVideo.intelChannel.name} · {formatNum(idea.sourceVideo.views)} views</div>

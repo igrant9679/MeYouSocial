@@ -705,6 +705,17 @@ Tabs: **Keys** (`/admin/api-keys`: LLM, search, images, video, TTS, storage) · 
   placeholder (`placeholderProblem`), nothing usable, or what was added. A placeholder no longer wipes saved link
   suggestions.
 
+## ⚠ Outliers show their base; Research rows and the header are quieter (2026-10-28, audit Phase 5, wave 1, part b)
+- **One outlier chip** (E-IDE-11, `components/OutlierChip.tsx`): the multiple, its band when asked, and the views it
+  rests on where the row doesn't show them (video idea cards read their seed's views — the board includes
+  `sourceVideo.views`). No score reads "not scored": Intel printed a missing score as "0.0x" and four places as a
+  bare "x". Don't format `outlierScore` by hand again.
+- **Research rows: one "Make it an idea" button** (E-IDE-12): `ResearchIdeaForm compact` is a `<details>` with the
+  format and Topic inside (it opens without JavaScript); the video page keeps the full form.
+- **The header is calmer** (E-SHL-04): role, email, settings and Sign out are behind the avatar
+  (`components/AccountMenu.tsx`, closes on navigation, click-away and Escape); "+ Channel" shows only to editors
+  whose studio shows (`studioState().show`).
+
 ## Open items / things the user still owns
 - **Analytics: APIs enabled 2026-08-03** (Search Console + GA Admin + GA Data, on project
   `479503233109` = `gen-lang-client-0838901195` = "CreateUp"). Still pending, user-only: add the

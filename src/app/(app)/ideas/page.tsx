@@ -4,7 +4,7 @@ import { requireMembership, canEdit } from "@/lib/acl";
 import { SubmitButton } from "@/components/SubmitButton";
 import { DeleteButton } from "@/components/DeleteButton";
 import { EmptyState } from "@/components/EmptyState";
-import { outlierBand } from "@/lib/intel";
+import { OutlierChip } from "@/components/OutlierChip";
 import { IDEA_TIPS } from "@/lib/help-tips";
 import { motifHue, motifSummaryLabel, parseMotifs } from "@/lib/motifs";
 import {
@@ -443,7 +443,6 @@ function ArticleCard({ idea, editor, topics }: { idea: ArticleRow; editor: boole
 
 // ── Video card — the channel board's card, in the board's vocabulary ─────────
 function VideoCard({ idea, editor, topics }: { idea: VideoRow; editor: boolean; topics: Topic[] }) {
-  const band = outlierBand(idea.outlierScore);
   const script = idea.scripts[0];
   const detail = `/channels/${idea.channel.id}/ideas/${idea.id}`;
   return (
@@ -451,11 +450,7 @@ function VideoCard({ idea, editor, topics }: { idea: VideoRow; editor: boolean; 
       <div className="flex items-start gap-1.5">
         <FormatChip format="video" channel={idea.channel.name} />
         <Link href={detail} className="text-xs font-semibold leading-snug flex-1 hover:underline">{idea.title}</Link>
-        {idea.outlierScore != null && (
-          <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded-full shrink-0" style={{ background: band.soft, color: band.color }} title={IDEA_TIPS.outlier}>
-            {idea.outlierScore.toFixed(1)}×
-          </span>
-        )}
+        {idea.outlierScore != null && <OutlierChip score={idea.outlierScore} views={idea.sourceVideo?.views} size="xs" title={IDEA_TIPS.outlier} />}
       </div>
       {idea.strategy && <p className="text-[11px] text-[var(--mute)] mt-1 line-clamp-2">{idea.strategy}</p>}
       <div className="flex flex-wrap items-center gap-1 mt-1.5">

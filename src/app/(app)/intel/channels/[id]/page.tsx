@@ -4,7 +4,8 @@ import { Bookmark, ArrowLeft, Eye, Calendar, TrendingUp } from "lucide-react";
 import { notFound } from "next/navigation";
 import { requireMembership, canEdit } from "@/lib/acl";
 import { db } from "@/lib/db";
-import { outlierBand, isFastGrowing, formatNum, intelThumbUrl, formatVph } from "@/lib/intel";
+import { isFastGrowing, formatNum, intelThumbUrl, formatVph } from "@/lib/intel";
+import { OutlierChip } from "@/components/OutlierChip";
 import { ChannelAvatar } from "@/components/ChannelAvatar";
 import { toggleBookmarkAction } from "@/app/actions/bookmarks";
 import { findSimilarChannelsAction, reindexIntelChannelAction } from "@/app/actions/intel";
@@ -123,9 +124,7 @@ export default async function IntelChannelPage({ params, searchParams }: { param
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={intelThumbUrl(v)!} alt="" className="w-20 h-11 rounded-md object-cover border border-[var(--line)] shrink-0" />
                 )}
-                <span className="font-mono font-bold text-[11px] px-2 py-1 rounded-md whitespace-nowrap" style={{ background: outlierBand(v.outlierScore).soft, color: outlierBand(v.outlierScore).color }}>
-                  {v.outlierScore?.toFixed(1)}x
-                </span>
+                <OutlierChip score={v.outlierScore} />
                 <div className="flex-1 min-w-0">
                   <Link href={`/intel/videos/${v.id}`} className="font-semibold text-sm hover:text-[var(--accent)] line-clamp-1">{v.title}</Link>
                   <div className="text-xs text-[var(--mute)] flex items-center gap-2">
@@ -148,7 +147,7 @@ export default async function IntelChannelPage({ params, searchParams }: { param
             <ul className="m-0 p-0">
               {outlierVideos.map((v) => (
                 <li key={v.id} className="border-t border-[var(--line)] first:border-t-0 py-2 flex items-center gap-2 text-xs">
-                  <span className="font-mono font-bold px-1.5 py-0.5 rounded-md" style={{ background: outlierBand(v.outlierScore).soft, color: outlierBand(v.outlierScore).color }}>{v.outlierScore?.toFixed(1)}x</span>
+                  <OutlierChip score={v.outlierScore} views={v.views} size="xs" />
                   <Link href={`/intel/videos/${v.id}`} className="flex-1 truncate hover:text-[var(--accent)]">{v.title}</Link>
                 </li>
               ))}

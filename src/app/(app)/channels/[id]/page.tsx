@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { requireChannel } from "@/lib/channel";
 import { db } from "@/lib/db";
+import { OutlierChip } from "@/components/OutlierChip";
 
 export default async function ChannelHomePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -51,7 +52,7 @@ export default async function ChannelHomePage({ params }: { params: Promise<{ id
         <ul className="m-0 p-0 grid grid-cols-1 md:grid-cols-2 gap-x-6">
           {recentIdeas.map((i) => (
             <li key={i.id} className="border-t border-[var(--line)] py-2 flex items-center gap-3 text-sm">
-              <span className="tag">{i.outlierScore?.toFixed(1) ?? "—"}x</span>
+              <OutlierChip score={i.outlierScore} size="xs" />
               <span className="flex-1 truncate">{i.title}</span>
             </li>
           ))}

@@ -4,6 +4,7 @@ import { Bell, LogOut, Layers, User } from "lucide-react";
 import { unreadCount } from "@/lib/notify";
 import { BrandLogo } from "@/components/BrandLogo";
 import { EngineStatus } from "@/components/EngineStatus";
+import { AccountMenu } from "@/components/AccountMenu";
 import { tickerEvents } from "@/lib/dashboard-data";
 import { isGloballyPaused } from "@/lib/governance";
 import { isFullyAutonomous } from "@/lib/autonomy";
@@ -68,6 +69,12 @@ const NAV: (LeftRailItem & { adminOnly?: boolean; editorOnly?: boolean })[] = [
   // Settings tabs now, at the same /admin/* URLs.
   { href: "/help",        label: "Help",        icon: "HelpCircle",    color: "#0891B2", soft: "#D8EFF5" },
 ];
+
+/** Two letters for the avatar: "Idris Grant" → IG, "pat@x.com" → PA. */
+function initialsOf(nameOrEmail: string): string {
+  const words = nameOrEmail.split("@")[0].split(/[\s._-]+/).filter(Boolean);
+  return (words.length > 1 ? words[0][0] + words[1][0] : (words[0] ?? "?").slice(0, 2)).toUpperCase();
+}
 
 async function signOutAction() {
   "use server";
@@ -303,7 +310,7 @@ html[data-theme="dark"] .ws-brand {
               layered hidden utility — these two buttons were visible at EVERY
               width since the header shipped, part of the reported crowding. */}
           {/* Creating a channel is an editor's (onboarding/channel/new) — SHL-07. */}
-          {editorUp && (
+          {editorUp && studio.show && (
             <Link href="/onboarding/channel/new" className="btn !hidden @4xl:!inline-flex items-center gap-1.5" title="Create a new YouTube channel">
               <Layers className="w-4 h-4" /> + Channel
             </Link>
@@ -335,8 +342,15 @@ html[data-theme="dark"] .ws-brand {
               </span>
             )}
           </Link>
-          <span className="hidden @md:inline-block font-mono text-[12px] uppercase tracking-wider font-bold px-2.5 py-1.5 rounded-lg" style={{ background: "var(--accent-soft)", color: "var(--accent-on)" }}>{membership.role}</span>
-          <span className="hidden @min-[88rem]:inline text-[13px] text-[var(--mute)] truncate max-w-[24ch]">{user.email}</span>
+          {/* Role, email, settings and sign-out behind the avatar (E-SHL-04). */}
+          <AccountMenu
+            initials={initialsOf(user.name ?? user.email)}
+            name={user.name ?? user.email.split("@")[0]}
+            email={user.email}
+            role={membership.role}
+            workspaceName={workspace.name}
+            signOutAction={signOutAction}
+          />
         </header>
 
         {/* Also a @container: page components size against the CONTENT area

@@ -64,6 +64,7 @@ export type ArticleRow = Prisma.BlogIdeaGetPayload<{ include: { topic: { select:
 export type VideoRow = Prisma.IdeaGetPayload<{
   include: {
     workspaceTopic: { select: { name: true } };
+    sourceVideo: { select: { views: true } };
     channel: { select: { id: true; name: true } };
     scripts: { select: { id: true; workflow: true }; orderBy: { createdAt: "desc" }; take: 1 };
   };
@@ -122,6 +123,8 @@ export async function loadIdeasBoard(workspaceId: string, f: BoardFilter) {
   const articleInclude = { topic: { select: { name: true } } } as const;
   const videoInclude = {
     workspaceTopic: { select: { name: true } },
+    // E-IDE-11: the card shows the views its outlier was measured on.
+    sourceVideo: { select: { views: true } },
     channel: { select: { id: true, name: true } },
     scripts: { select: { id: true, workflow: true }, orderBy: { createdAt: "desc" as const }, take: 1 },
   } as const;

@@ -71,7 +71,7 @@ export default async function IntelVideoPage({ params, searchParams }: { params:
           ) : (
             <div className="aspect-video rounded-xl mb-4 grid place-items-center font-mono font-bold text-lg" style={{ background: band.soft, color: band.color }}>
               <div className="text-center">
-                <div className="text-3xl">{video.outlierScore?.toFixed(1)}x</div>
+                <div className="text-3xl">{video.outlierScore == null ? "—" : `${video.outlierScore.toFixed(1)}×`}</div>
                 <div className="text-xs opacity-80 uppercase tracking-wider">{band.label}</div>
               </div>
             </div>
@@ -114,10 +114,10 @@ export default async function IntelVideoPage({ params, searchParams }: { params:
           <div className="card">
             <div className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)] mb-1">Outlier score</div>
             <div className="font-mono font-bold text-2xl flex items-center gap-2" style={{ color: band.color }}>
-              {video.outlierScore?.toFixed(1)}x
+              {video.outlierScore == null ? "—" : `${video.outlierScore.toFixed(1)}×`}
               <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: band.soft, color: band.color }}>{band.label}</span>
             </div>
-            <p className="text-xs text-[var(--mute)] mt-2">Views ÷ avg of surrounding videos on the same channel.</p>
+            <p className="text-xs text-[var(--mute)] mt-2">Views ÷ the channel&apos;s average for this format{video.views != null ? `, measured on ${formatNum(video.views)} views` : ""}. Under 1,000 views it isn&apos;t scored.</p>
           </div>
           <div className="card">
             <div className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)] mb-1">Views per hour</div>

@@ -2,7 +2,8 @@ import Link from "next/link";
 import { Telescope, TrendingUp, Bookmark, Sparkles, Eye } from "lucide-react";
 import { requireMembership } from "@/lib/acl";
 import { db } from "@/lib/db";
-import { searchIntel, outlierBand, isFastGrowing, formatNum, intelThumbUrl, formatVph } from "@/lib/intel";
+import { searchIntel, isFastGrowing, formatNum, intelThumbUrl, formatVph } from "@/lib/intel";
+import { OutlierChip } from "@/components/OutlierChip";
 import { ChannelAvatar } from "@/components/ChannelAvatar";
 import { toggleBookmarkAction } from "@/app/actions/bookmarks";
 import { autoIndexHandleAction, indexSearchResultsAction } from "@/app/actions/intel";
@@ -126,7 +127,7 @@ export default async function IntelPage({ searchParams }: { searchParams: Promis
                       <img src={intelThumbUrl(v)!} alt="" className="rounded-lg mb-2 w-full aspect-video object-cover border border-[var(--line)]" />
                     )}
                     <div className="flex items-center gap-2 mb-2">
-                      <OutlierBadge score={v.outlierScore ?? 0} />
+                      <OutlierChip score={v.outlierScore} />
                       <span className="text-xs text-[var(--mute)] font-mono">{v.format}</span>
                     </div>
                     <div className="font-semibold text-sm leading-snug mb-2 line-clamp-2">{v.title}</div>
@@ -220,7 +221,7 @@ export default async function IntelPage({ searchParams }: { searchParams: Promis
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={intelThumbUrl(v)!} alt="" className="w-20 h-11 rounded-md object-cover border border-[var(--line)] shrink-0" />
                 )}
-                <OutlierBadge score={v.outlierScore ?? 0} />
+                <OutlierChip score={v.outlierScore} />
                 <div className="flex-1 min-w-0">
                   <div className="font-semibold text-sm truncate">{v.title}</div>
                   <div className="text-xs text-[var(--mute)]">
@@ -290,11 +291,4 @@ function NumField({ name, label, defaultValue, step }: { name: string; label: st
   );
 }
 
-function OutlierBadge({ score }: { score: number }) {
-  const band = outlierBand(score);
-  return (
-    <span className="font-mono font-bold text-[11px] px-2 py-1 rounded-md whitespace-nowrap" style={{ background: band.soft, color: band.color }} title={band.label}>
-      {score.toFixed(1)}x
-    </span>
-  );
-}
+
