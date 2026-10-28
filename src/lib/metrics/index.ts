@@ -254,7 +254,10 @@ export async function collectFollowThrough(workspaceId: string, range: MetricsRa
   }
 
   const [withSocial, withVideo] = await Promise.all([
-    db.blogPost.count({ where: { id: { in: ids }, variants: { some: { status: "posted" } } } }),
+    db.blogPost.count({ where: { id: { in: ids }, OR: [
+      { socialIdeas: { some: { socialPost: { status: { in: ["posted", "partial"] } } } } },
+      { variants: { some: { status: "posted" } } },
+    ] } }),
     db.videoRender.findMany({ where: { workspaceId, blogPostId: { in: ids } }, select: { blogPostId: true }, distinct: ["blogPostId"] }),
   ]);
   const videoCount = withVideo.length;
@@ -266,7 +269,7 @@ export async function collectFollowThrough(workspaceId: string, range: MetricsRa
       rate(withSocial, ids.length),
       "percent",
       ids.length,
-      `${withSocial} of ${ids.length} published posts have at least one posted social variant.`,
+      `${withSocial} of ${ids.length} published posts have at least one social post sent from them.`,
     ),
     metric(
       "video_follow_through",
@@ -390,8 +393,11 @@ export async function collectPerformance(workspaceId: string, range: MetricsRang
     ];
   }
 
-  const sum = (pick: (s: (typeof snapshots)[number]) => number | null) =>
-    snapshots.reduce((a, s) => a + (pick(s) ?? 0), 0);
+  // Null when no snapshot carried it — a source that never reported isn't 0 (MEA-04).
+  const sum = (pick: (s: (typeof snapshots)[number]) => number | null) => {
+    const vals = snapshots.map(pick).filter((v): v is number => v != null);
+    return vals.length ? vals.reduce((a, v) => a + v, 0) : null;
+  };
   const positions = snapshots.map((s) => s.position).filter((p): p is number => typeof p === "number");
   const evidence = `From ${snapshots.length} snapshot${snapshots.length === 1 ? "" : "s"} in the ${range.label}.`;
 

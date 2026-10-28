@@ -46,7 +46,8 @@ export async function weeklySeries(workspaceId: string, weeks = 8): Promise<Week
     to.setDate(to.getDate() - i * 7);
     const inBucket = snaps.filter((s) => s.capturedAt >= from && s.capturedAt < to);
     buckets.push({
-      label: `W${weeks - i}`,
+      // Dated (MEA-04): "W1…W8" said nothing about which weeks they were.
+      label: from.toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" }),
       impressions: inBucket.reduce((a, s) => a + (s.impressions ?? 0), 0),
       clicks: inBucket.reduce((a, s) => a + (s.clicks ?? 0), 0),
       impressionsMeasured: inBucket.some((s) => s.impressions != null),
@@ -87,10 +88,18 @@ export type PostPerf = {
  * "nothing has been published yet", which is false. Pass `status` so the
  * filter happens in the QUERY, where the take can't eat the rows first.
  */
+/**
+ * ⚠ PUBLISHED unless asked otherwise (MEA-01, MEA-09, SHL-04). The status was
+ * opt-in, and three callers forgot it: the client PDF said "Nothing published
+ * yet" whenever recent edits were drafts, Measure listed drafts as "tracked
+ * posts", and the Inbox's Results was all dashes. Pass `status: "any"` for
+ * every status.
+ */
 export async function postPerformance(workspaceId: string, take = 24, opts?: { status?: string }): Promise<PostPerf[]> {
+  const status = opts?.status ?? "published";
   const posts = await db.blogPost.findMany({
-    where: { workspaceId, ...(opts?.status ? { status: opts.status } : {}) },
-    orderBy: { updatedAt: "desc" },
+    where: { workspaceId, ...(status !== "any" ? { status } : {}) },
+    orderBy: status === "published" ? [{ publishedAt: { sort: "desc", nulls: "last" } }, { updatedAt: "desc" }] : { updatedAt: "desc" },
     take,
     select: {
       id: true,
@@ -117,7 +126,8 @@ export type HomeStats = {
   publishedThisMonth: number;
   publishedLastMonth: number;
   avgPosition: number | null;
-  clicksThisWeek: number;
+  /** Null when no snapshot this week recorded clicks — not measured, not zero (MEA-04). */
+  clicksThisWeek: number | null;
   unverifiedCitations: number;
   postsMissingAssets: number;
   aiBudgetUsedToday: number;
@@ -170,7 +180,7 @@ export async function homeStats(workspaceId: string): Promise<HomeStats> {
     publishedThisMonth,
     publishedLastMonth,
     avgPosition,
-    clicksThisWeek: weekSnaps.reduce((a, s) => a + (s.clicks ?? 0), 0),
+    clicksThisWeek: weekSnaps.some((s) => s.clicks != null) ? weekSnaps.reduce((a, s) => a + (s.clicks ?? 0), 0) : null,
     unverifiedCitations,
     postsMissingAssets,
     aiBudgetUsedToday,

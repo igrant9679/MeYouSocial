@@ -95,8 +95,10 @@ export function MediaThumbs({ keys, size = "h-20 w-20" }: { keys: string[]; size
 }
 
 export function PostCard({
-  post, canQueue = false, timeZone, isAdmin = false, approvalOn = false, returnTo,
+  post, canQueue = false, timeZone, isAdmin = false, approvalOn = false, returnTo, readOnly = false,
 }: {
+  /** A viewer's card: the result link only, no actions (MEA-10). */
+  readOnly?: boolean;
   post: PostRow; canQueue?: boolean; timeZone: string; isAdmin?: boolean; approvalOn?: boolean;
   /** Where a delete lands (the page showing the card). */
   returnTo?: string;
@@ -159,6 +161,11 @@ export function PostCard({
           </span>
         )}
         <span className="flex-1" />
+        {readOnly ? (
+          <Link href={`/social/${post.id}`} className="btn sm" title="Each network's result, link and error">
+            <Eye className="w-3.5 h-3.5" />
+          </Link>
+        ) : (<>
         {/* Approval decisions — admin only, on held posts. */}
         {post.approval === "pending" && isAdmin && (
           <>
@@ -235,6 +242,7 @@ export function PostCard({
         {DELETABLE_POST_STATUSES.includes(post.status) && (
           <DeleteButton kind="socialPost" id={post.id} name={post.text.replace(/\s+/g, " ").trim().slice(0, 60) || "(image only)"} returnTo={returnTo} iconOnly />
         )}
+        </>)}
       </div>
       <p className="text-sm text-[var(--slate)] whitespace-pre-wrap mb-1">{post.text || <span className="text-[var(--mute)] italic">(image only)</span>}</p>
       {post.approval === "changes" && post.reviewNote && (

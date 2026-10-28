@@ -1,3 +1,4 @@
+import { complianceFacts } from "@/lib/report-facts";
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { autopilotFeed, hasSeriesData, homeStats, postPerformance, unmeasuredWeeks, weeklySeries } from "@/lib/dashboard-data";
@@ -64,7 +65,7 @@ export async function ReportBlock({ block, workspaceId, weeks, canAct = true }: 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           {[
             { label: "Published this month", value: String(stats.publishedThisMonth), note: `${delta >= 0 ? "▲ +" : "▼ "}${delta} vs last`, tone: delta >= 0 ? "var(--green-on)" : "var(--rose-on)" },
-            { label: "Clicks this week", value: String(stats.clicksThisWeek), note: "from snapshots", tone: "var(--mute)" },
+            { label: "Clicks this week", value: stats.clicksThisWeek == null ? "—" : String(stats.clicksThisWeek), note: stats.clicksThisWeek == null ? "not measured this week" : "from snapshots", tone: "var(--mute)" },
             { label: "Avg position", value: stats.avgPosition?.toFixed(1) ?? "—", note: "lower is better", tone: "var(--mute)" },
             { label: "Blockers", value: String(stats.unverifiedCitations + stats.postsMissingAssets), note: `${stats.unverifiedCitations} citations · ${stats.postsMissingAssets} assets`, tone: "var(--amber-on)" },
           ].map((k) => (
@@ -302,12 +303,13 @@ export async function ReportBlock({ block, workspaceId, weeks, canAct = true }: 
         const ok = (role: string) => p.images.some((i) => i.role === role && i.status === "approved");
         return !ok("featured") || !ok("og");
       }).length;
+      const facts = await complianceFacts(workspaceId);
       return (
         <Card title="Editorial compliance">
           <ul className="m-0 p-0 text-xs flex flex-col gap-2">
             <li className="flex items-center gap-2">
-              <span className={`${num} font-bold`} style={{ color: "var(--green-on)" }}>100%</span>
-              <span className="text-[var(--mute)]">✓ published posts passed WCAG + SEO gates (enforced at publish)</span>
+              <span className={`${num} font-bold`} style={{ color: facts.overridden ? "var(--amber-on)" : "var(--green-on)" }}>{facts.overridden}/{facts.published}</span>
+              <span className="text-[var(--mute)]">published under an admin override of the required checks</span>
             </li>
             <li className="flex items-center gap-2">
               <span className={`${num} font-bold`} style={{ color: citVerified === citTotal ? "var(--green-on)" : "var(--amber-on)" }}>{citVerified}/{citTotal}</span>
@@ -355,32 +357,34 @@ export async function ReportBlock({ block, workspaceId, weeks, canAct = true }: 
     }
 
     case "social_table": {
-      const variants = await db.socialVariant.findMany({
+      // MEA-08: social goes out as SocialPost legs (SocialPostTarget) since
+      // 21 Sep; the retired SocialVariant table only ever grew stale.
+      const legs = await db.socialPostTarget.findMany({
         where: { post: { workspaceId } },
-        select: { platform: true, status: true },
+        select: { provider: true, status: true },
       });
-      const platforms = ["linkedin", "x", "instagram", "facebook"];
+      const platforms = [...new Set(legs.map((l) => l.provider))].sort();
       return (
-        <Card title="Social variants">
-          {variants.length === 0 ? (
-            <Empty canAct={canAct} to="/social/compose" cta="Compose a post">No social variants yet — they generate when posts publish, under an assisted or auto social mode.</Empty>
+        <Card title="Social posts by network">
+          {legs.length === 0 ? (
+            <Empty canAct={canAct} to="/social/compose" cta="Compose a post">No social posts yet.</Empty>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-xs border-collapse">
                 <thead><tr className="text-left text-[var(--mute)]">
-                  {["Platform", "Draft", "Approved", "Posted"].map((h, i) => (
+                  {["Network", "Waiting", "Posted", "Failed"].map((h, i) => (
                     <th key={h} className={`py-1.5 px-2 font-mono text-[9px] uppercase tracking-wider border-b-2 border-[var(--line)] ${i > 0 ? "text-right" : ""}`}>{h}</th>
                   ))}
                 </tr></thead>
                 <tbody>
                   {platforms.map((p) => {
-                    const of = (s: string) => variants.filter((v) => v.platform === p && v.status === s).length;
+                    const of = (s: string) => legs.filter((v) => v.provider === p && v.status === s).length;
                     return (
                       <tr key={p} className="odd:bg-[var(--zebra)]">
                         <td className="py-1.5 px-2 border-b border-[var(--line)] font-semibold capitalize">{p}</td>
-                        <td className={`py-1.5 px-2 border-b border-[var(--line)] text-right ${num}`}>{of("draft")}</td>
-                        <td className={`py-1.5 px-2 border-b border-[var(--line)] text-right ${num}`}>{of("approved")}</td>
+                        <td className={`py-1.5 px-2 border-b border-[var(--line)] text-right ${num}`}>{of("pending")}</td>
                         <td className={`py-1.5 px-2 border-b border-[var(--line)] text-right ${num}`}>{of("posted")}</td>
+                        <td className={`py-1.5 px-2 border-b border-[var(--line)] text-right ${num}`}>{of("failed")}</td>
                       </tr>
                     );
                   })}

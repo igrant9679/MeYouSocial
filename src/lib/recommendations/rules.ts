@@ -118,8 +118,8 @@ const noSocialDistribution: Rule = {
     if (!social || social.value === null || social.sample < 3 || social.value >= 50) return null;
     return {
       title: "Published posts aren't reaching social",
-      detail: "Generate social variants from a post's Distribute tab, or turn the social function up to assisted so drafts queue automatically.",
-      rationale: `Only ${social.value}% of published posts have a posted social variant. ${social.evidence} Writing is the expensive half; distribution is where it pays back.`,
+      detail: "Turn a published post's social angles into posts from its Distribute tab, or set Social to assisted so they're drafted automatically.",
+      rationale: `Only ${social.value}% of published posts have a social post sent from them. ${social.evidence} Writing is the expensive half; distribution is where it pays back.`,
       severity: "opportunity",
       confidence: social.confidence,
       evidence: [ev(social)],

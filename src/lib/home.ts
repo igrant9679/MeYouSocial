@@ -208,6 +208,27 @@ export async function getHomeData(workspaceId: string): Promise<HomeData> {
     }
   }
 
+  // An AI provider refusing this workspace's calls (out of credits, over its
+  // quota, a rejected key). The router falls back to a placeholder that the
+  // guards won't store, so without this the engine just goes quiet.
+  {
+    const { providerRefusals } = await import("@/lib/llm/provider-health");
+    const NAME: Record<string, string> = { anthropic: "Anthropic", google: "Google" };
+    const WHERE: Record<string, string> = { anthropic: "console.anthropic.com", google: "ai.studio/projects" };
+    for (const r of await providerRefusals(workspaceId).catch(() => [])) {
+      const why = r.kind === "credits" ? "its prepaid credits are used up" : r.kind === "quota" ? "it's over its rate or quota limit" : "it rejected the key";
+      decisions.push({
+        module: "Setup",
+        kind: `ai-provider-refusing-${r.provider}`,
+        severity: "warn",
+        title: `${NAME[r.provider] ?? r.provider} is refusing this workspace's AI calls`,
+        detail: `Since ${r.since.slice(0, 16).replace("T", " ")} UTC ${why}, so every ${NAME[r.provider] ?? r.provider} model call gets a placeholder and nothing is written.${r.kind === "key" ? " Check the key under Settings → Keys." : ` Fix it at ${WHERE[r.provider] ?? "the provider's console"}.`} Last reply: ${r.message}`.slice(0, 400),
+        href: "/admin/api-keys",
+        cta: "Open Keys",
+      });
+    }
+  }
+
   // A connected source whose sync keeps failing (MEA-06). Two in a row, so one
   // Google blip doesn't page anyone; the sync runs every six hours.
   {

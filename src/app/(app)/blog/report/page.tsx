@@ -1,3 +1,4 @@
+import { complianceFacts, overrideSentence, searchConsoleLine } from "@/lib/report-facts";
 import Link from "next/link";
 import { ArrowLeft, FileBarChart, ShieldCheck, TriangleAlert } from "lucide-react";
 import { requireMembership, canEdit } from "@/lib/acl";
@@ -41,6 +42,7 @@ export default async function BlogReportPage() {
       }),
     ]);
 
+  const [facts, gscLine] = await Promise.all([complianceFacts(workspace.id), searchConsoleLine(workspace.id)]);
   const hasAnalytics = hasSeriesData(series);
   const imprGaps = unmeasuredWeeks(series, "impressions");
   const clickGaps = unmeasuredWeeks(series, "clicks");
@@ -93,13 +95,13 @@ export default async function BlogReportPage() {
           <h1 className="font-mono font-bold text-2xl leading-tight">Content report — {monthName}</h1>
           <p className="text-xs text-[var(--mute)]">
             {workspace.name} · generated {now.toLocaleDateString("en-GB", { day: "2-digit", month: "short" })} ·
-            {" "}data: app analytics{hasAnalytics ? "" : " (no snapshots yet)"} — Search Console not connected
+            {" "}data: app analytics{hasAnalytics ? "" : " (no snapshots yet)"} — {gscLine}
           </p>
         </div>
       </div>
       <p className="text-sm text-[var(--mute)] mb-5">
         {publishedThisMonth} post{publishedThisMonth === 1 ? "" : "s"} published this month ·{" "}
-        {citationsVerified}/{citationsTotal} citations verified · every published post passed the WCAG + SEO gates at publish
+        {citationsVerified}/{citationsTotal} citations verified · {overrideSentence(facts)}
       </p>
 
       {/* Traffic — small multiples, one measure per panel */}
@@ -179,9 +181,9 @@ export default async function BlogReportPage() {
             <h2 className="font-mono text-[13px] font-bold mb-2">Editorial compliance</h2>
             <ul className="m-0 p-0 text-xs flex flex-col gap-2">
               <li className="flex items-center gap-2">
-                <ShieldCheck className="w-4 h-4 shrink-0" style={{ color: "var(--green-on)" }} />
-                <span className="font-mono font-bold tabular-nums" style={{ color: "var(--green-on)" }}>100%</span>
-                <span className="text-[var(--mute)]">of published posts passed WCAG + SEO gates (enforced at publish)</span>
+                <ShieldCheck className="w-4 h-4 shrink-0" style={{ color: facts.overridden ? "var(--amber-on)" : "var(--green-on)" }} />
+                <span className="font-mono font-bold tabular-nums" style={{ color: facts.overridden ? "var(--amber-on)" : "var(--green-on)" }}>{facts.overridden}/{facts.published}</span>
+                <span className="text-[var(--mute)]">published under an admin override of the required checks</span>
               </li>
               <li className="flex items-center gap-2">
                 <ShieldCheck className="w-4 h-4 shrink-0" style={{ color: "var(--green-on)" }} />
@@ -229,8 +231,7 @@ export default async function BlogReportPage() {
 
       <p className="text-[11px] text-[var(--mute)]">
         Honest-data note: position and click figures come from snapshots recorded in this app and only cover posts
-        published through it. Connect Google Search Console for site-wide coverage — until then, this report never
-        estimates what it can&apos;t measure.
+        published through it ({gscLine}). This report never estimates what it can&apos;t measure.
       </p>
     </main>
   );

@@ -559,6 +559,28 @@ Tabs: **Keys** (`/admin/api-keys`: LLM, search, images, video, TTS, storage) · 
   page) closes Review/Images/Render-failed auto-tasks the pipeline has moved past, matched by the link in their
   description. Teleprompter (VID-17): fixed-height `h-dvh` root + `min-h-0` scroller; stops at the end.
 
+## ⚠ Reports say only what was measured; a refusing provider is named (2026-10-28, audit Phase 3, part 1)
+- **`postPerformance` lists PUBLISHED posts unless told otherwise** (MEA-01, MEA-09, SHL-04) — newest published first;
+  pass `status: "any"` for every status. The opt-in filter was the documented trap: the client PDF said "Nothing
+  published yet", Measure counted drafts as tracked posts, the Inbox's Results were all dashes.
+- **Compliance is counted, not asserted** (MEA-02): `lib/report-facts.ts` `complianceFacts` / `overrideSentence` — how
+  many published posts went out under an admin override (the `blog.gate_overridden` audit row; the post's own
+  override fields clear on edit). Never print a fixed "100% passed" again. Search Console is stated from the
+  config and the last sync (`searchConsoleLine`, MEA-03).
+- **Unmeasured is null, everywhere a sum is shown** (MEA-04): `homeStats.clicksThisWeek` is `number | null`;
+  `sumMeasured()` for tiles; Insights' search metrics are null when no snapshot carried them; weekly series are
+  labelled by the week's start date (not W1…W8) and the PDF prints "not measured" for an unmeasured week.
+- **Social follow-through is SocialIdea → SocialPost** (MEA-08): a published post counts when a social post made
+  from it went out (`posted`/`partial`; old SocialVariant rows still count). The report's social table reads
+  `SocialPostTarget` legs per network.
+- **Read pages read for everyone** (MEA-10): Social performance is `requireMembership`; its actions and each card's
+  buttons are editors' (`PostCard readOnly`). Don't put `requireRole` on a page that only shows things.
+- **A provider refusing a workspace's calls reaches the Inbox** (found 2026-10-28: LSI's Google credits ran out and
+  the engine went quiet for days): `lib/llm/provider-health.ts` — the router records 402/credits, 429/quota and
+  401/403/bad-key refusals per workspace and provider (`llm:refusal:<provider>`, at most one write per 10 min), a
+  success clears it, and `lib/home.ts` shows "<Provider> is refusing this workspace's AI calls". Timeouts aren't
+  refusals.
+
 ## Open items / things the user still owns
 - **Analytics: APIs enabled 2026-08-03** (Search Console + GA Admin + GA Data, on project
   `479503233109` = `gen-lang-client-0838901195` = "CreateUp"). Still pending, user-only: add the

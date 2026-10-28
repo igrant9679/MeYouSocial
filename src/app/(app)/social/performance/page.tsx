@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { BarChart3, Send } from "lucide-react";
-import { requireRole, canAdmin } from "@/lib/acl";
+import { requireMembership, canAdmin, canEdit } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { getSetting } from "@/lib/settings";
 import { SubmitButton } from "@/components/SubmitButton";
@@ -19,9 +19,12 @@ type SP = { ok?: string; err?: string };
 const DAY = 24 * 60 * 60 * 1000;
 
 export default async function SocialPerformancePage({ searchParams }: { searchParams: Promise<SP> }) {
-  const { workspace, membership } = await requireRole("EDITOR");
+  // A read page (MEA-10): it bounced viewers to /forbidden. Its actions are
+  // the editors' — Pull engagement and each card's buttons.
+  const { workspace, membership } = await requireMembership();
   const { ok, err } = await searchParams;
   const isAdmin = canAdmin(membership.role);
+  const editor = canEdit(membership.role);
 
   const [history, queue, requireApproval, readings] = await Promise.all([
     db.socialPost.findMany({
@@ -49,7 +52,7 @@ export default async function SocialPerformancePage({ searchParams }: { searchPa
         title="Performance"
         blurb="Every published post, per network, with the engagement each one reported back."
       >
-        {history.length > 0 && (
+        {history.length > 0 && editor && (
           <form action={syncSocialPerformanceAction}>
             <SubmitButton className="btn sm" pendingText="Pulling…" title="Pull likes, comments, shares and impressions back from each network">
               <BarChart3 className="w-3.5 h-3.5" /> Pull engagement
@@ -98,7 +101,7 @@ export default async function SocialPerformancePage({ searchParams }: { searchPa
       ) : (
         <div className="flex flex-col gap-2">
           {history.map((p) => (
-            <PostCard key={p.id} post={p} returnTo="/social/performance" timeZone={queue.timeZone} isAdmin={isAdmin} approvalOn={requireApproval} />
+            <PostCard key={p.id} post={p} returnTo="/social/performance" timeZone={queue.timeZone} isAdmin={isAdmin} approvalOn={requireApproval} readOnly={!editor} />
           ))}
         </div>
       )}

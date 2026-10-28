@@ -4,6 +4,7 @@ import { getReport } from "@/lib/report-defs";
 import { homeStats, postPerformance, weeklySeries, hasSeriesData } from "@/lib/dashboard-data";
 import { db } from "@/lib/db";
 import { PRODUCT } from "@/lib/product";
+import { complianceFacts, overrideSentence, searchConsoleLine } from "@/lib/report-facts";
 
 /**
  * PDF export — the client-deliverable version of a report. Text and tables
@@ -27,9 +28,9 @@ export async function GET(_req: Request, ctx: { params: Promise<{ key: string }>
   const [stats, series, perf] = await Promise.all([
     homeStats(workspace.id),
     weeklySeries(workspace.id, weeks),
-    postPerformance(workspace.id, 40),
+    postPerformance(workspace.id, 40, { status: "published" }),
   ]);
-  const published = perf.filter((p) => p.status === "published");
+  const published = perf;
 
   const doc = new PDFDocument({ size: "A4", margin: 48 });
   const chunks: Buffer[] = [];
@@ -67,7 +68,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ key: string }>
       case "kpis": {
         h2("Key numbers");
         line(`Published this month: ${stats.publishedThisMonth} (${stats.publishedThisMonth - stats.publishedLastMonth >= 0 ? "+" : ""}${stats.publishedThisMonth - stats.publishedLastMonth} vs last month)`);
-        line(`Clicks this week: ${stats.clicksThisWeek}`);
+        line(`Clicks this week: ${stats.clicksThisWeek ?? "not measured"}`);
         line(`Average position: ${stats.avgPosition != null ? stats.avgPosition.toFixed(1) : "no data yet"} (lower is better)`);
         line(`Open blockers: ${stats.unverifiedCitations} unverified citations, ${stats.postsMissingAssets} posts awaiting images`);
         break;
@@ -79,7 +80,8 @@ export async function GET(_req: Request, ctx: { params: Promise<{ key: string }>
         if (!hasSeriesData(series)) {
           line("No analytics snapshots recorded yet.", mute);
         } else {
-          for (const p of series) line(`${p.label}:  ${isImp ? p.impressions : p.clicks}`);
+          // A week nobody measured says so; it isn't a zero (MEA-04).
+          for (const p of series) line(`Week of ${p.label}:  ${(isImp ? p.impressionsMeasured : p.clicksMeasured) ? (isImp ? p.impressions : p.clicks) : "not measured"}`);
         }
         break;
       }
@@ -103,13 +105,10 @@ export async function GET(_req: Request, ctx: { params: Promise<{ key: string }>
         break;
       }
       case "compliance": {
-        const [citTotal, citVerified] = await Promise.all([
-          db.blogCitation.count({ where: { post: { workspaceId: workspace.id } } }),
-          db.blogCitation.count({ where: { verified: true, post: { workspaceId: workspace.id } } }),
-        ]);
+        const facts = await complianceFacts(workspace.id);
         h2("Editorial compliance");
-        line("100% of published posts passed WCAG + SEO gates (enforced at publish).");
-        line(`Citations verified: ${citVerified}/${citTotal}.`);
+        line(overrideSentence(facts));
+        line(`Citations verified: ${facts.citationsVerified}/${facts.citationsTotal}.`);
         break;
       }
       case "video_table": {
@@ -131,7 +130,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ key: string }>
 
   doc.moveDown(1.2);
   doc.fillColor(mute).fontSize(8).text(
-    `Data note: figures come from snapshots recorded in ${PRODUCT} and cover posts published through it. Nothing in this report is estimated.`,
+    `Data note: figures come from snapshots recorded in ${PRODUCT} and cover posts published through it (${await searchConsoleLine(workspace.id)}). Nothing in this report is estimated; "not measured" is not zero.`,
   );
 
   doc.end();

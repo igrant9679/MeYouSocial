@@ -1,3 +1,4 @@
+import { db } from "@/lib/db";
 import Link from "next/link";
 import { requireMembership, canAdmin, canEdit } from "@/lib/acl";
 import { hasSeriesData, postPerformance, unmeasuredWeeks, weeklySeries } from "@/lib/dashboard-data";
@@ -13,7 +14,12 @@ export default async function MeasureStage() {
   const { workspace, membership } = await requireMembership();
   const admin = canAdmin(membership.role);
   const editor = canEdit(membership.role);
-  const [series, perf] = await Promise.all([weeklySeries(workspace.id, 8), postPerformance(workspace.id, 12)]);
+  const [series, perf, withData] = await Promise.all([
+    weeklySeries(workspace.id, 8),
+    postPerformance(workspace.id, 12, { status: "published" }),
+    // Published posts with at least one snapshot — not every row in the table (MEA-09).
+    db.blogPost.count({ where: { workspaceId: workspace.id, status: "published", snapshots: { some: {} } } }),
+  ]);
   const hasAnalytics = hasSeriesData(series);
   const gaps = unmeasuredWeeks(series, "impressions");
   const latest = series[series.length - 1];
@@ -26,7 +32,7 @@ export default async function MeasureStage() {
         counts={[
           { label: "impressions, latest week", n: hasAnalytics ? latest.impressions : null, href: "/blog/analytics", hue: "blue" },
           { label: "clicks, latest week", n: hasAnalytics ? latest.clicks : null, href: "/blog/analytics", hue: "green" },
-          { label: "tracked posts", n: perf.length, href: "/blog/analytics" },
+          { label: withData === 1 ? "published post with search data" : "published posts with search data", n: withData, href: "/blog/analytics" },
         ]}
       />
 

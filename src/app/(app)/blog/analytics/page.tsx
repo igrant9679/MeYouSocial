@@ -1,3 +1,4 @@
+import { sumMeasured } from "@/lib/report-facts";
 import Link from "next/link";
 import { ArrowLeft, ChartLine, Lock, LockOpen } from "lucide-react";
 import { requireMembership, canEdit } from "@/lib/acl";
@@ -24,8 +25,9 @@ export default async function BlogAnalyticsPage() {
 
   const withLatest = posts.map((p) => ({ post: p, latest: p.snapshots[0] ?? null }));
   const tracked = withLatest.filter((x) => x.latest);
+  // Null when no post's latest snapshot measured it — a dash, not a 0 (MEA-04).
   const sum = (f: (s: NonNullable<(typeof tracked)[number]["latest"]>) => number | null) =>
-    tracked.reduce((a, x) => a + (f(x.latest!) ?? 0), 0);
+    sumMeasured(tracked.map((x) => f(x.latest!)));
   const impressions = sum((s) => s.impressions);
   const clicks = sum((s) => s.clicks);
   const positions = tracked.map((x) => x.latest!.position).filter((p): p is number => p != null);
@@ -60,8 +62,8 @@ export default async function BlogAnalyticsPage() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
         {[
           { label: "Published posts", value: fmt(posts.length) },
-          { label: "Impressions (latest)", value: fmt(impressions) },
-          { label: "Clicks (latest)", value: fmt(clicks) },
+          { label: "Impressions (latest)", value: impressions == null ? "—" : fmt(impressions) },
+          { label: "Clicks (latest)", value: clicks == null ? "—" : fmt(clicks) },
           { label: "Avg position", value: avgPos == null ? "—" : avgPos.toFixed(1) },
         ].map((t) => (
           <div key={t.label} className="card">
