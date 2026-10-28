@@ -598,6 +598,19 @@ Tabs: **Keys** (`/admin/api-keys`: LLM, search, images, video, TTS, storage) · 
   `formatZonedMoment` ("28 Oct, 00:50 EDT"). Month boundaries and printed engine times use the workspace's
   posting timezone and name it.
 
+## ⚠ The audit, Topics and recommendations tell the truth about time (2026-10-28, audit Phase 3, part 2b)
+- **YouTube audit** (MEA-12): cached per window AND connected channel (`youtube:audit:<days>:<channel>`); connected
+  but no access token = an error saying the sign-in was refused (it read "not connected"); a failure is cached 10
+  minutes (`youtube:audit_error:…`) so views don't re-run ~10 calls; `AuditVideo.reportPending` marks uploads
+  inside the ~2-day Analytics lag with no row (a dash, not 0).
+- **Topics** (MEA-13): the out rate is ONE cohort — of what was made in the window, how much is out (it divided
+  everything published in the window by what was made in it, passed 100%, and could auto-raise a Topic's
+  priority); clamped to 100. Measure → Topics names each column's window (counts all time; clicks, views and
+  engagement over the range; position latest).
+- **Recommendations** (MEA-16): each sweep RESOLVES open findings whose rule didn't fire (or fired with a different
+  fingerprint — a bucket change), except rules that threw; `openRecommendations` sorts warning → opportunity →
+  info (it sorted the strings, info first). Status values: open | accepted | dismissed | applied | resolved.
+
 ## Open items / things the user still owns
 - **Analytics: APIs enabled 2026-08-03** (Search Console + GA Admin + GA Data, on project
   `479503233109` = `gen-lang-client-0838901195` = "CreateUp"). Still pending, user-only: add the

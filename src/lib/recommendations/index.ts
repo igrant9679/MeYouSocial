@@ -61,14 +61,31 @@ export async function generateRecommendations(workspaceId: string): Promise<numb
   // Keep each result paired with the rule that produced it — the rule key is
   // recorded on the row and must not be re-derived from the fingerprint.
   const results: Array<{ ruleKey: string; result: RuleResult }> = [];
+  const failedRules = new Set<string>();
   for (const rule of RULES) {
     try {
       const r = rule.evaluate(ctx);
       if (r) results.push({ ruleKey: rule.key, result: r });
     } catch (e) {
+      failedRules.add(rule.key);
       console.error(`[recommendations] rule ${rule.key} failed:`, e instanceof Error ? e.message : e);
     }
   }
+
+  // ⚠ MEA-16: an open finding whose rule no longer fires — or now fires with a
+  // different fingerprint (a bucket change) — is RESOLVED. It used to stay
+  // "open" after the condition cleared, and a bucket change opened a duplicate
+  // beside it. A rule that threw this time proves nothing, so it's left alone.
+  const fired = results.map((r) => r.result.fingerprint);
+  await db.recommendation.updateMany({
+    where: {
+      workspaceId,
+      status: "open",
+      ruleKey: { in: RULES.map((r) => r.key).filter((k) => !failedRules.has(k)) },
+      ...(fired.length ? { fingerprint: { notIn: fired } } : {}),
+    },
+    data: { status: "resolved" },
+  });
   if (!results.length) return 0;
 
   const cooldownSince = new Date(Date.now() - DISMISS_COOLDOWN_DAYS * 24 * 60 * 60 * 1000);
@@ -238,12 +255,16 @@ export function parseEvidence(json: string): StoredEvidence[] {
   }
 }
 
+/** Warnings first, then opportunities, then info (MEA-16: it sorted alphabetically — info first). */
+const SEVERITY_RANK: Record<string, number> = { warning: 0, opportunity: 1, info: 2 };
+
 export async function openRecommendations(workspaceId: string, limit = 20) {
-  return db.recommendation.findMany({
+  const rows = await db.recommendation.findMany({
     where: { workspaceId, status: { in: ["open", "accepted"] } },
-    orderBy: [{ severity: "asc" }, { createdAt: "desc" }],
-    take: limit,
+    orderBy: { createdAt: "desc" },
+    take: 200,
   });
+  return rows.sort((a, b) => (SEVERITY_RANK[a.severity] ?? 3) - (SEVERITY_RANK[b.severity] ?? 3)).slice(0, limit);
 }
 
 export async function recentlyResolved(workspaceId: string, limit = 5) {

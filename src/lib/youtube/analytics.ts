@@ -50,6 +50,8 @@ export type AuditVideo = {
   /** Lifetime views ÷ hours since publish — how fast the video moves on average. Null without a publish date. */
   viewsPerHour: number | null;
   views: number;
+  /** Uploaded inside YouTube Analytics' ~2-day lag with no row yet: its 0 is "not reported", not zero (MEA-12). */
+  reportPending: boolean;
   minutesWatched: number;
   avgViewSec: number | null;
   /** 0..100. Null when the API gave none (no views). */
@@ -213,6 +215,7 @@ export async function fetchYoutubeAudit(workspaceId: string, days: AuditWindow):
       lifetimeViews,
       viewsPerHour: lifetimeViews != null && hoursLive != null && hoursLive >= 1 ? lifetimeViews / hoursLive : null,
       views,
+      reportPending: !r && publishedAt != null && Date.now() - Date.parse(publishedAt) < 3 * 86_400_000,
       minutesWatched: n0(r?.estimatedMinutesWatched),
       avgViewSec: views > 0 ? nOrNull(r?.averageViewDuration) : null,
       avgViewPct: views > 0 ? nOrNull(r?.averageViewPercentage) : null,
@@ -251,14 +254,22 @@ export async function fetchYoutubeAudit(workspaceId: string, days: AuditWindow):
   };
 }
 
-const cacheKey = (days: number) => `youtube:audit:${days}`;
+// ⚠ MEA-12: keyed by the CONNECTED CHANNEL too — reconnecting a different
+// channel showed the old one's cached audit for up to a day.
+const cacheKey = (days: number, channel: string) => `youtube:audit:${days}:${channel}`;
+const errorKey = (days: number, channel: string) => `youtube:audit_error:${days}:${channel}`;
+const ERROR_TTL_MS = 10 * 60_000;
+
+async function putSetting(workspaceId: string, key: string, value: string) {
+  await db.workspaceSetting.upsert({ where: { workspaceId_key: { workspaceId, key } }, update: { value }, create: { workspaceId, key, value } });
+}
 
 /** Cached audit for the page; `refresh` forces a live fetch. */
 export async function youtubeAuditFor(workspaceId: string, days: AuditWindow, opts: { refresh?: boolean } = {}): Promise<AuditResult> {
-  const { connected } = await youtubeOauthConnected(workspaceId);
+  const { connected, channel } = await youtubeOauthConnected(workspaceId);
   if (!connected) return { state: "not_connected" };
   if (!opts.refresh) {
-    const row = await db.workspaceSetting.findUnique({ where: { workspaceId_key: { workspaceId, key: cacheKey(days) } } }).catch(() => null);
+    const row = await db.workspaceSetting.findUnique({ where: { workspaceId_key: { workspaceId, key: cacheKey(days, channel) } } }).catch(() => null);
     if (row) {
       try {
         const audit = JSON.parse(row.value) as YoutubeAudit;
@@ -267,20 +278,33 @@ export async function youtubeAuditFor(workspaceId: string, days: AuditWindow, op
         // unreadable cache — refetch below
       }
     }
+    // A recent failure is answered from its record — every view re-ran ~10
+    // API calls against an error that hadn't changed.
+    const err = await db.workspaceSetting.findUnique({ where: { workspaceId_key: { workspaceId, key: errorKey(days, channel) } } }).catch(() => null);
+    if (err) {
+      try {
+        const e = JSON.parse(err.value) as { message: string; at: string };
+        if (Date.now() - Date.parse(e.at) < ERROR_TTL_MS) return { state: "error", message: e.message };
+      } catch {
+        // ignore
+      }
+    }
   }
+  const fail = async (message: string): Promise<AuditResult> => {
+    await putSetting(workspaceId, errorKey(days, channel), JSON.stringify({ message, at: new Date().toISOString() })).catch(() => {});
+    return { state: "error", message };
+  };
   try {
     const audit = await fetchYoutubeAudit(workspaceId, days);
-    if ("notConnected" in audit) return { state: "not_connected" };
-    const value = JSON.stringify(audit);
-    await db.workspaceSetting.upsert({
-      where: { workspaceId_key: { workspaceId, key: cacheKey(days) } },
-      update: { value },
-      create: { workspaceId, key: cacheKey(days), value },
-    });
+    // Connected (a refresh token is stored) but no access token: the sign-in
+    // was refused — expired or revoked. It used to read "not connected".
+    if ("notConnected" in audit) return fail("YouTube is connected, but Google refused its sign-in (it expired or was revoked). Reconnect it under Settings → Analytics.");
+    await putSetting(workspaceId, cacheKey(days, channel), JSON.stringify(audit));
+    await db.workspaceSetting.deleteMany({ where: { workspaceId, key: errorKey(days, channel) } }).catch(() => {});
     return { state: "ok", audit, fromCache: false };
   } catch (e) {
     const raw = e instanceof Error ? e.message : String(e);
-    return { state: "error", message: explainGoogleError(raw, { grantHint: GRANT_HINT }) };
+    return fail(explainGoogleError(raw, { grantHint: GRANT_HINT }));
   }
 }
 

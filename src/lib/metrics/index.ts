@@ -532,9 +532,13 @@ export async function collectTopicPerformance(workspaceId: string, range: Metric
     db.idea.groupBy({ by: ["topicId"], where: { channel: { workspaceId }, topicId: { in: ids }, createdAt: { gte: range.since } }, _count: { _all: true } }),
     db.socialIdea.groupBy({ by: ["topicId"], where: { workspaceId, topicId: { in: ids }, createdAt: { gte: range.since } }, _count: { _all: true } }),
     db.blogPost.groupBy({ by: ["topicId"], where: { workspaceId, topicId: { in: ids }, createdAt: { gte: range.since } }, _count: { _all: true } }),
-    db.blogPost.groupBy({ by: ["topicId"], where: { workspaceId, topicId: { in: ids }, publishedAt: { gte: range.since } }, _count: { _all: true } }),
+    // ⚠ MEA-13: one cohort — of what was MADE in the window, how much is out.
+    // Out used to count everything published in the window (made any time)
+    // over what was made in it, so the rate passed 100% and, under autonomy,
+    // raised a Topic's priority on a nonsense number.
+    db.blogPost.groupBy({ by: ["topicId"], where: { workspaceId, topicId: { in: ids }, createdAt: { gte: range.since }, status: "published" }, _count: { _all: true } }),
     db.socialPost.groupBy({ by: ["topicId"], where: { workspaceId, topicId: { in: ids }, createdAt: { gte: range.since } }, _count: { _all: true } }),
-    db.socialPost.groupBy({ by: ["topicId"], where: { workspaceId, topicId: { in: ids }, status: { in: ["posted", "partial"] }, publishedAt: { gte: range.since } }, _count: { _all: true } }),
+    db.socialPost.groupBy({ by: ["topicId"], where: { workspaceId, topicId: { in: ids }, status: { in: ["posted", "partial"] }, createdAt: { gte: range.since } }, _count: { _all: true } }),
     db.videoRender.groupBy({ by: ["topicId"], where: { workspaceId, topicId: { in: ids }, status: "done", createdAt: { gte: range.since } }, _count: { _all: true } }),
   ]);
   const countOf = (groups: Array<{ topicId: string | null; _count: { _all: number } }>, id: string) =>
@@ -564,7 +568,7 @@ export async function collectTopicPerformance(workspaceId: string, range: Metric
         videoRenders,
         made,
         out,
-        publishRate: rate(out, rated),
+        publishRate: rated > 0 ? Math.min(100, rate(out, rated) ?? 0) : null,
         confidence: rated > 0 ? confidenceFor(rated) : ("none" as Confidence),
       };
     })

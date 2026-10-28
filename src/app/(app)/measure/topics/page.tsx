@@ -31,7 +31,7 @@ export default async function MeasureTopicsPage() {
           m.rows.length === 0
             ? "What each Topic earned, per format. There are no Topics yet, so there is nothing to measure against."
             : anyMeasured
-              ? `What each Topic earned over the ${m.range.label}, per format — measured where a connected source reported it, a dash where none did.`
+              ? `What each Topic earned, per format — measured where a connected source reported it, a dash where none did. Counts (made, out, renders) are all time; clicks, views and engagement cover the ${m.range.label}; position is each article's latest.`
               : `${m.rows.length} Topic${m.rows.length === 1 ? "" : "s"}, ${totals.made} thing${totals.made === 1 ? "" : "s"} made, ${totals.out} out — and nothing measured back yet. The dashes below are unmeasured, not zero.`
         }
         counts={[
@@ -61,14 +61,14 @@ export default async function MeasureTopicsPage() {
                   <th className={`${th} text-right`} rowSpan={2}>Ideas waiting</th>
                 </tr>
                 <tr className="text-left text-[var(--mute)]">
-                  <th className={`${th} text-right`} title="Published of made">Out / made</th>
-                  <th className={`${th} text-right`} title="Mean latest search position over published articles with one">Position</th>
-                  <th className={`${th} text-right`} title={`Search clicks over the ${m.range.label}`}>Clicks</th>
-                  <th className={`${th} text-right`} title="Finished renders">Renders</th>
-                  <th className={`${th} text-right`} title="Views over the last 90 days of the channel's videos whose titles match this Topic by keyword">Views</th>
+                  <th className={`${th} text-right`} title="Published of made, all time">Out / made</th>
+                  <th className={`${th} text-right`} title="Mean latest search position over published articles with one">Position (latest)</th>
+                  <th className={`${th} text-right`} title={`Search clicks over the ${m.range.label}`}>Clicks ({m.range.label.replace("last ", "")})</th>
+                  <th className={`${th} text-right`} title="Finished renders, all time">Renders</th>
+                  <th className={`${th} text-right`} title="Views over the last 90 days of the channel's videos whose titles match this Topic by keyword">Views (90 days)</th>
                   <th className={`${th} text-right`} title="Mean average-view percentage over the matched videos">Retention</th>
-                  <th className={`${th} text-right`} title="Posted of made">Out / made</th>
-                  <th className={`${th} text-right`} title={`Likes, comments and shares combined, latest reading per sent target, posts sent in the ${m.range.label}`}>Engagement</th>
+                  <th className={`${th} text-right`} title="Posted of made, all time">Out / made</th>
+                  <th className={`${th} text-right`} title={`Likes, comments and shares combined, latest reading per sent target, posts sent in the ${m.range.label}`}>Engagement ({m.range.label.replace("last ", "")})</th>
                   <th className={`${th} text-right`} title="Impressions as reported by the networks that report them">Impressions</th>
                 </tr>
               </thead>

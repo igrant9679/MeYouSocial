@@ -199,7 +199,7 @@ export default async function YoutubeAuditPage({ searchParams }: { searchParams:
                           <td className="py-1.5 px-2 border-b border-[var(--line)] max-w-[320px]"><a href={v.url} target="_blank" rel="noopener noreferrer" className="font-semibold hover:underline line-clamp-1">{v.title}</a></td>
                           <td className="py-1.5 px-2 border-b border-[var(--line)] whitespace-nowrap">{day(v.publishedAt)}{v.inWindow && <span className="ml-1 font-mono text-[9px] px-1 rounded" style={{ background: "var(--blue-soft)", color: "var(--blue-on)" }}>new</span>}</td>
                           <td className="py-1.5 px-2 border-b border-[var(--line)]">{v.isShort == null ? "—" : v.isShort ? "Short" : fmtDur(v.durationSec)}</td>
-                          <td className="py-1.5 px-2 border-b border-[var(--line)] text-right font-mono tabular-nums">{fmt(v.views)}</td>
+                          <td className="py-1.5 px-2 border-b border-[var(--line)] text-right font-mono tabular-nums" title={v.reportPending ? "Uploaded inside YouTube Analytics' ~2-day lag — not reported yet, not zero" : undefined}>{v.reportPending ? "—" : fmt(v.views)}</td>
                           <td className="py-1.5 px-2 border-b border-[var(--line)] text-right font-mono tabular-nums" title={v.lifetimeViews != null ? `${fmt(v.lifetimeViews)} lifetime views` : "no lifetime count"}>{fmtVph(v.viewsPerHour)}</td>
                           <td className="py-1.5 px-2 border-b border-[var(--line)] text-right font-mono tabular-nums">{v.avgViewPct == null ? "—" : `${Math.round(v.avgViewPct)}%`}</td>
                           <td className="py-1.5 px-2 border-b border-[var(--line)] text-right font-mono tabular-nums">{fmtDur(v.avgViewSec)}</td>
