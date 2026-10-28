@@ -17,6 +17,7 @@ import {
   type InboxConversation,
   type InboxCommentablePost,
 } from "@/lib/zernio/inbox";
+import { cachedInboxList, type CachedList } from "@/lib/zernio/inbox-cache";
 import { Banner, SocialHeader } from "@/components/SocialPostCard";
 import { SubmitButton } from "@/components/SubmitButton";
 import { markInboxEventsReadAction } from "@/app/actions/social-inbox-events";
@@ -35,10 +36,11 @@ import {
 /**
  * Engage — the direct messages and post comments Zernio can see, in one place.
  *
- * Read-through: every list is fetched live rather than mirrored into our
- * database. There is no sync job to fall behind and no second copy to go stale,
- * at the cost of a couple of API calls per view. Threads load one at a time
- * because the comments themselves need a call per post.
+ * The three lists (conversations, posts with comments, reviews) come from a
+ * copy kept between visits — reading them from Zernio during every render took
+ * 15–29 s (SOC-26, lib/zernio/inbox-cache.ts). The page says when they were
+ * read and offers Refresh now. The open thread is always read live, and
+ * threads load one at a time because the comments need a call per post.
  *
  * ⚠ The load-bearing honesty here is the difference between "no messages" and
  * "this network exposes no inbox". X shows nothing for the second reason —
@@ -47,13 +49,13 @@ import {
  * would quietly assert nobody had written to you.
  */
 
-type SP = { dm?: string; post?: string; acct?: string; net?: string; ok?: string; err?: string };
+type SP = { dm?: string; post?: string; acct?: string; net?: string; ok?: string; err?: string; fresh?: string };
 
 const DM_NETWORKS = ["facebook", "instagram", "linkedin", "twitter"];
 
 export default async function EngagePage({ searchParams }: { searchParams: Promise<SP> }) {
   const { workspace, membership } = await requireRole("EDITOR");
-  const { dm, post, acct, net, ok, err } = await searchParams;
+  const { dm, post, acct, net, ok, err, fresh } = await searchParams;
 
   const isAdmin = canAdmin(membership.role);
   // Mirrors the guard in replyOnPostAction: public comments are admin-only
@@ -90,9 +92,16 @@ export default async function EngagePage({ searchParams }: { searchParams: Promi
 
   // One thread at a time: a message list needs its conversation's accountId,
   // and comments need their post's — Zernio 400s without them, it won't guess.
-  const [conversations, posts, thread, comments, unseen, unseenTotal, reviews, reviewDrafts, dismissals] = await Promise.all([
-    listInboxConversations({ workspaceId: workspace.id, platform: net, limit: 50 }).catch(() => [] as InboxConversation[]),
-    listCommentablePosts({ workspaceId: workspace.id, platform: net, limit: 100 }).catch(() => [] as InboxCommentablePost[]),
+  const readNow = fresh === "1";
+  const [convoList, postList, thread, comments, unseen, unseenTotal, reviewList, reviewDrafts, dismissals] = await Promise.all([
+    cachedInboxList<InboxConversation>({
+      workspaceId: workspace.id, list: "conversations", net, fresh: readNow,
+      load: () => listInboxConversations({ workspaceId: workspace.id, platform: net, limit: 50 }),
+    }),
+    cachedInboxList<InboxCommentablePost>({
+      workspaceId: workspace.id, list: "posts", net, fresh: readNow,
+      load: () => listCommentablePosts({ workspaceId: workspace.id, platform: net, limit: 100 }),
+    }),
     dm && acct
       ? listInboxMessages({ workspaceId: workspace.id, conversationId: dm, accountId: acct, limit: 40 }).catch(() => [])
       : Promise.resolve([]),
@@ -105,9 +114,13 @@ export default async function EngagePage({ searchParams }: { searchParams: Promi
       take: 8,
     }),
     db.socialInboxEvent.count({ where: { workspaceId: workspace.id, readAt: null } }),
-    db.workspace.findUnique({ where: { id: workspace.id }, select: { zernioProfileId: true } })
-      .then((w) => listInboxReviews({ workspaceId: workspace.id, profileId: w?.zernioProfileId, limit: 25 }))
-      .catch(() => [] as InboxReview[]),
+    cachedInboxList<InboxReview>({
+      workspaceId: workspace.id, list: "reviews", fresh: readNow,
+      load: async () => {
+        const w = await db.workspace.findUnique({ where: { id: workspace.id }, select: { zernioProfileId: true } });
+        return listInboxReviews({ workspaceId: workspace.id, profileId: w?.zernioProfileId, limit: 25 });
+      },
+    }),
     // Answers written but not sent. Ours, not Zernio's — a draft exists only
     // here, which is the whole point of it.
     db.inboxReplyDraft.findMany({ where: { workspaceId: workspace.id, kind: "review" } }),
@@ -116,6 +129,9 @@ export default async function EngagePage({ searchParams }: { searchParams: Promi
     db.socialInboxItemState.findMany({ where: { workspaceId: workspace.id } }),
   ]);
 
+  const conversations = convoList.rows;
+  const posts = postList.rows;
+  const reviews = reviewList.rows;
   const draftFor = new Map(reviewDrafts.map((d) => [d.targetId, d]));
   const stateOf = new Map(dismissals.map((d) => [`${d.kind}:${d.targetId}`, d]));
   const itemState = (kind: string, id: string) => (stateOf.get(`${kind}:${id}`)?.state ?? null) as "read" | "aside" | null;
@@ -215,6 +231,10 @@ export default async function EngagePage({ searchParams }: { searchParams: Promi
       {/* Coverage, stated once and plainly. Without this the empty columns
           below read as "nobody wrote to you", which isn't what they mean. */}
       <CoverageNote connected={connected} filtered={net} />
+      <ListsRead
+        lists={[["conversations", convoList], ["posts", postList], ["reviews", reviewList]]}
+        refreshHref={`${backHere}${net ? "&" : "?"}fresh=1`}
+      />
 
       {/* ── Reviews ─────────────────────────────────────────────────────────
           Their own section rather than a third column: a review is attached to
@@ -660,6 +680,34 @@ export default async function EngagePage({ searchParams }: { searchParams: Promi
 }
 
 /** Per-network coverage, so an empty column is never mistaken for silence. */
+/** When the lists were read from Zernio, and a way to read them now (SOC-26). */
+function ListsRead({ lists, refreshHref }: { lists: [string, CachedList<unknown>][]; refreshHref: string }) {
+  const times = lists.map(([, l]) => l.readAt?.getTime()).filter((t): t is number => t != null);
+  const oldest = times.length ? Math.min(...times) : null;
+  const refreshing = lists.some(([, l]) => l.refreshing);
+  const failed = lists.filter(([, l]) => l.error);
+  return (
+    <div className="text-[11px] text-[var(--mute)] mb-3 flex flex-wrap items-center gap-x-2 gap-y-1">
+      <span>
+        {oldest != null ? `Lists read from Zernio ${readAgo(oldest)}` : "Lists not read from Zernio yet"}
+        {refreshing ? " — reading them again now; reload in a moment for the newest." : "."}
+      </span>
+      <Link href={refreshHref} className="underline">Refresh now</Link>
+      {failed.map(([name, l]) => (
+        <span key={name} style={{ color: "var(--amber-on)" }}>Couldn&apos;t read {name}: {(l.error ?? "").slice(0, 200)}</span>
+      ))}
+    </div>
+  );
+}
+
+function readAgo(at: number): string {
+  const min = Math.floor((Date.now() - at) / 60_000);
+  if (min < 1) return "just now";
+  if (min < 60) return `${min} min ago`;
+  const h = Math.floor(min / 60);
+  return h < 24 ? `${h} h ago` : `${Math.floor(h / 24)} days ago`;
+}
+
 function CoverageNote({ connected, filtered }: { connected: string[]; filtered?: string }) {
   const shown = filtered ? [filtered] : connected;
   const limited = shown

@@ -16,10 +16,8 @@ import { ideationCells, MANUAL_CEILING } from "@/lib/ideation";
 import {
   deleteBlogIdeaAction,
   draftFromIdeaAction,
-  mergeBlogIdeasAction,
   rescoreBlogIdeasAction,
   setBlogIdeaStatusAction,
-  updateBlogIdeaAction,
 } from "@/app/actions/blog-ideas";
 import { addIdeaAction, discoverIdeasAction, regenerateIdeasAction, setBoardIdeaTopicAction, updateIdeaStatusAction, writeIdeaToCanvasAction } from "@/app/actions/ideas";
 import { draftSocialIdeaNowAction, setSocialIdeaStatusAction, updateSocialIdeaAction } from "@/app/actions/social-ideas";
@@ -39,9 +37,7 @@ import { StageHeader } from "@/components/StageShell";
 // tags it; it is the only lane with no "Discover" of its own, because
 // discovery is per Topic by construction.
 
-type Directive = { key: string; label: string };
 type Topic = { id: string; name: string };
-type Page = { url: string; title: string };
 const OPEN_LANES = 8; // lanes past this many open collapsed, with their counts
 
 export default async function IdeasBoard({ searchParams }: { searchParams: Promise<{ format?: string; channel?: string; ok?: string; err?: string }> }) {
@@ -49,7 +45,7 @@ export default async function IdeasBoard({ searchParams }: { searchParams: Promi
   const editor = canEdit(membership.role);
   const sp = await searchParams;
   const [board, studio] = await Promise.all([loadIdeasBoard(workspace.id, sp), studioState(workspace.id)]);
-  const { lanes, counts, topics, pages, directives, totals } = board;
+  const { lanes, counts, topics, totals } = board;
   // Video-idea CONTROLS (add, generate, channel filters) follow the video
   // studio switch (lib/studio.ts); existing video cards always show — nothing
   // is deleted by turning the studio off.
@@ -206,9 +202,6 @@ export default async function IdeasBoard({ searchParams }: { searchParams: Promi
               open={i < OPEN_LANES || lane.topic === null}
               editor={editor}
               topics={topics}
-              openArticles={openArticles}
-              directives={directives}
-              pages={pages}
             />
           ))}
         </div>
@@ -236,8 +229,8 @@ export default async function IdeasBoard({ searchParams }: { searchParams: Promi
 }
 
 // ── A lane: one Topic, three columns, Rejected under a disclosure ────────────
-function LaneSection({ lane, open, editor, topics, openArticles, directives, pages }: {
-  lane: Lane; open: boolean; editor: boolean; topics: Topic[]; openArticles: ArticleRow[]; directives: Directive[]; pages: Page[];
+function LaneSection({ lane, open, editor, topics }: {
+  lane: Lane; open: boolean; editor: boolean; topics: Topic[];
 }) {
   const t = lane.topic;
   const by = (s: BoardState) => lane.cards.filter((c) => c.state === s);
@@ -283,7 +276,7 @@ function LaneSection({ lane, open, editor, topics, openArticles, directives, pag
                 </p>
               ) : (
                 <ul className="flex flex-col gap-2">
-                  {items.map((c) => <Card key={`${c.format}-${c.row.id}`} c={c} editor={editor} topics={topics} openArticles={openArticles} directives={directives} pages={pages} />)}
+                  {items.map((c) => <Card key={`${c.format}-${c.row.id}`} c={c} editor={editor} topics={topics} />)}
                 </ul>
               )}
             </section>
@@ -294,7 +287,7 @@ function LaneSection({ lane, open, editor, topics, openArticles, directives, pag
         <details className="mt-3">
           <summary className="text-[11px] cursor-pointer text-[var(--mute)]">Rejected · {rejected.length} — won&apos;t come back unless restored</summary>
           <ul className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-2">
-            {rejected.map((c) => <Card key={`${c.format}-${c.row.id}`} c={c} editor={editor} topics={topics} openArticles={openArticles} directives={directives} pages={pages} />)}
+            {rejected.map((c) => <Card key={`${c.format}-${c.row.id}`} c={c} editor={editor} topics={topics} />)}
           </ul>
         </details>
       )}
@@ -302,8 +295,8 @@ function LaneSection({ lane, open, editor, topics, openArticles, directives, pag
   );
 }
 
-function Card({ c, editor, topics, openArticles, directives, pages }: { c: BoardCard; editor: boolean; topics: Topic[]; openArticles: ArticleRow[]; directives: Directive[]; pages: Page[] }) {
-  if (c.format === "article") return <ArticleCard idea={c.row} editor={editor} open={openArticles} directives={directives} pages={pages} topics={topics} />;
+function Card({ c, editor, topics }: { c: BoardCard; editor: boolean; topics: Topic[] }) {
+  if (c.format === "article") return <ArticleCard idea={c.row} editor={editor} topics={topics} />;
   if (c.format === "video") return <VideoCard idea={c.row} editor={editor} topics={topics} />;
   return <SocialCard idea={c.row} editor={editor} topics={topics} />;
 }
@@ -370,7 +363,7 @@ function TopicPicker({ format, id, topicId, topics, prominent }: { format: IdeaF
 }
 
 // ── Article card — everything the old blog board carried, unchanged ──────────
-function ArticleCard({ idea, editor, open, directives, pages, topics }: { idea: ArticleRow; editor: boolean; open: ArticleRow[]; directives: Directive[]; pages: Page[]; topics: Topic[] }) {
+function ArticleCard({ idea, editor, topics }: { idea: ArticleRow; editor: boolean; topics: Topic[] }) {
   const motifs = parseMotifs(idea.motifs);
   const live = idea.status !== "drafted" && idea.status !== "merged";
   return (
@@ -432,44 +425,11 @@ function ArticleCard({ idea, editor, open, directives, pages, topics }: { idea: 
 
       {editor && live && <TopicPicker format="article" id={idea.id} topicId={idea.topicId} topics={topics} prominent={!idea.topicId} />}
 
+      {/* Tags and merge live on the idea's own page (IDE-20): this panel, with a
+          list of every other open idea, made the board's HTML grow with the
+          square of open ideas. */}
       {editor && live && (
-        <details className="mt-2">
-          <summary className="text-[11px] cursor-pointer text-[var(--mute)]">Edit tags</summary>
-          <form action={updateBlogIdeaAction} className="flex flex-col gap-1.5 mt-1.5">
-            <input type="hidden" name="id" value={idea.id} />
-            <input name="title" defaultValue={idea.title} className="w-full text-xs" />
-            <textarea name="angle" defaultValue={idea.angle ?? ""} rows={2} placeholder="angle" className="w-full text-xs" />
-            <input name="keyword" defaultValue={idea.keyword ?? ""} placeholder="keyword" className="w-full text-xs" />
-            <input name="audience" defaultValue={idea.audience ?? ""} placeholder="audience" className="w-full text-xs" />
-            <select name="tier" defaultValue={idea.tier?.toString() ?? ""} className="w-full text-xs">
-              <option value="">no tier</option>
-              {[1, 2, 3, 4].map((t) => <option key={t} value={t}>Tier {t}</option>)}
-            </select>
-            <select name="targetPage" defaultValue={idea.targetPage ?? ""} className="w-full text-xs">
-              <option value="">no target page</option>
-              {pages.map((p) => <option key={p.url} value={p.url}>{p.title}</option>)}
-            </select>
-            <input name="seasonalHook" defaultValue={idea.seasonalHook ?? ""} placeholder="seasonal hook" className="w-full text-xs" />
-            <div className="grid grid-cols-2 gap-1">
-              {directives.map((d) => (
-                <label key={d.key} className="text-[10px]">
-                  <span className="block text-[var(--mute)]">{d.label}</span>
-                  <input name={`motif_${d.key}`} type="number" min={0} max={100} defaultValue={motifs.find((m) => m.key === d.key)?.weight ?? ""} className="w-full font-mono text-xs" />
-                </label>
-              ))}
-            </div>
-            <SubmitButton className="btn text-[11px]">Save tags</SubmitButton>
-          </form>
-          <form action={mergeBlogIdeasAction} className="flex flex-col gap-1.5 mt-2 border-t border-[var(--line)] pt-2">
-            <input type="hidden" name="sourceId" value={idea.id} />
-            <span className="text-[10px] text-[var(--mute)]">Merge this into…</span>
-            <select name="targetId" className="w-full text-xs" defaultValue="">
-              <option value="">choose an idea</option>
-              {open.filter((o) => o.id !== idea.id).map((o) => <option key={o.id} value={o.id}>{o.title.slice(0, 60)}</option>)}
-            </select>
-            <SubmitButton className="btn text-[11px]">Merge</SubmitButton>
-          </form>
-        </details>
+        <Link href={`/ideas/article/${idea.id}`} className="text-[11px] text-[var(--mute)] underline mt-2 inline-block">Edit tags or merge</Link>
       )}
     </li>
   );

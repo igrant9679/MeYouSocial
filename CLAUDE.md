@@ -658,6 +658,22 @@ Tabs: **Keys** (`/admin/api-keys`: LLM, search, images, video, TTS, storage) · 
 - **Routes are warmed at boot** (PRF-01): `instrumentation.ts` requests `WARM_ROUTES` once, signed out, 5 s after a
   production start, and logs `[warm] N of 31 routes answered`. Add a page there when it becomes a common landing.
 
+## ⚠ Heavy pages: Engage keeps its lists, the board drops its panels (2026-10-28, audit Phase 4, part b)
+- **Engage's three lists are kept between visits** (SOC-26, `lib/zernio/inbox-cache.ts`): conversations, posts with
+  comments, and reviews live in `ApiCache` (`zernio:inbox:<ws>:<list>:<net|all>`, one-day expiry). Under two minutes
+  old → served as is; older or marked stale → served at once and re-read in `after()`; no copy or `?fresh=1` (Refresh
+  now) → read before rendering. A failed read keeps the copy and the page names the failure. The open thread (messages
+  or comments) is always read live. `markInboxStale(ws)` runs after a DM reply, a review reply, a comment, a comment
+  delete and every inbox webhook delivery — a new write path into the Zernio inbox must call it too. Freshness lives in
+  the JSON (`readAt`, `stale`), never in `expiresAt`: other ApiCache writers purge expired rows.
+- **An article idea's tags and merge are on `/ideas/article/[id]`** (IDE-20, editors; role-links lists it): every
+  board card carried that form plus a list of every other open idea and 60 site pages. The card links there; the
+  actions take `back=edit` and redirect with a flash (the board's inline use had none).
+- **The board reads open ideas apart from closed ones** (IDE-20): up to 200 discovered/approved per table, priority
+  (or outlier score) `nulls: "last"`, plus the 60 most recently changed closed ones. Header counts still come from
+  `groupBy` over everything. Postgres sorts NULL FIRST under DESC — always say `nulls: "last"` on a nullable rank.
+- **Performance pages its history** (PRF-02): 25 a page (`?page=`), total from a count query.
+
 ## Open items / things the user still owns
 - **Analytics: APIs enabled 2026-08-03** (Search Console + GA Admin + GA Data, on project
   `479503233109` = `gen-lang-client-0838901195` = "CreateUp"). Still pending, user-only: add the

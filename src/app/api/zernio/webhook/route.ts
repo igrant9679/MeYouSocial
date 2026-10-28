@@ -203,6 +203,9 @@ export async function POST(req: NextRequest) {
         preview: text ? text.slice(0, 300) : null,
       },
     });
+    // Engage's kept lists are behind now (SOC-26).
+    const { markInboxStale } = await import("@/lib/zernio/inbox-cache");
+    await markInboxStale(workspace.id);
     return NextResponse.json({ ok: true, recorded: kind });
   }
 

@@ -14,21 +14,25 @@ import { EmptyState } from "@/components/EmptyState";
 // What went out, and what came back. Engagement is pulled on demand rather than
 // polled, so an empty panel means "not asked yet" — and says so.
 
-type SP = { ok?: string; err?: string };
+type SP = { ok?: string; err?: string; page?: string };
 
 const DAY = 24 * 60 * 60 * 1000;
+const HISTORY_PAGE = 25;
 
 export default async function SocialPerformancePage({ searchParams }: { searchParams: Promise<SP> }) {
   // A read page (MEA-10): it bounced viewers to /forbidden. Its actions are
   // the editors' — Pull engagement and each card's buttons.
   const { workspace, membership } = await requireMembership();
-  const { ok, err } = await searchParams;
+  const { ok, err, page: pageRaw } = await searchParams;
+  // PRF-02: 25 posts a page (it rendered the last 100 cards at once).
+  const page = Math.max(1, parseInt(pageRaw ?? "1", 10) || 1);
   const isAdmin = canAdmin(membership.role);
   const editor = canEdit(membership.role);
 
-  const [history, queue, requireApproval, readings] = await Promise.all([
+  const historyWhere = { workspaceId: workspace.id, status: { in: ["posted", "partial", "failed", "publishing"] } };
+  const [history, historyTotal, queue, requireApproval, readings] = await Promise.all([
     db.socialPost.findMany({
-      where: { workspaceId: workspace.id, status: { in: ["posted", "partial", "failed", "publishing"] } },
+      where: historyWhere,
       orderBy: { createdAt: "desc" },
       include: {
         targets: true,
@@ -36,8 +40,10 @@ export default async function SocialPerformancePage({ searchParams }: { searchPa
         campaign: { select: { name: true, color: true } },
         recycledFrom: { select: { id: true } },
       },
-      take: 100,
+      skip: (page - 1) * HISTORY_PAGE,
+      take: HISTORY_PAGE,
     }),
+    db.socialPost.count({ where: historyWhere }),
     getQueue(workspace.id),
     getSetting("social:require_approval", workspace.id).catch(() => "").then((v) => v === "true"),
     readingsForWorkspace(workspace.id, new Date(Date.now() - 90 * DAY)),
@@ -52,7 +58,7 @@ export default async function SocialPerformancePage({ searchParams }: { searchPa
         title="Performance"
         blurb="Every published post, per network, with the engagement each one reported back."
       >
-        {history.length > 0 && editor && (
+        {historyTotal > 0 && editor && (
           <form action={syncSocialPerformanceAction}>
             <SubmitButton className="btn sm" pendingText="Pulling…" title="Pull likes, comments, shares and impressions back from each network">
               <BarChart3 className="w-3.5 h-3.5" /> Pull engagement
@@ -95,14 +101,23 @@ export default async function SocialPerformancePage({ searchParams }: { searchPa
         </div>
       )}
 
-      <Section icon={<Send className="w-4 h-4" style={{ color: "var(--green-on)" }} />} title="History" count={history.length} />
-      {history.length === 0 ? (
+      <Section icon={<Send className="w-4 h-4" style={{ color: "var(--green-on)" }} />} title="History" count={historyTotal} />
+      {historyTotal === 0 ? (
         <Empty text="No posts have gone out from this workspace yet." note="Each post appears here once it sends, with its own status per network." to="/social/compose" cta="Compose a post" />
       ) : (
         <div className="flex flex-col gap-2">
           {history.map((p) => (
             <PostCard key={p.id} post={p} returnTo="/social/performance" timeZone={queue.timeZone} isAdmin={isAdmin} approvalOn={requireApproval} readOnly={!editor} />
           ))}
+          {historyTotal > HISTORY_PAGE && (
+            <div className="flex items-center gap-2 text-xs mt-1">
+              {page > 1 && <Link href={page === 2 ? "/social/performance" : `/social/performance?page=${page - 1}`} className="btn sm">Newer</Link>}
+              <span className="text-[var(--mute)]">
+                {(page - 1) * HISTORY_PAGE + 1}–{Math.min(page * HISTORY_PAGE, historyTotal)} of {historyTotal}
+              </span>
+              {page * HISTORY_PAGE < historyTotal && <Link href={`/social/performance?page=${page + 1}`} className="btn sm">Older</Link>}
+            </div>
+          )}
         </div>
       )}
 

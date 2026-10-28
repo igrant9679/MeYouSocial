@@ -109,6 +109,7 @@ export async function updateBlogIdeaAction(formData: FormData) {
   });
   await rescoreIdeas(workspace.id);
   revalidatePath("/ideas");
+  if (formData.get("back") === "edit") redirect(`/ideas/article/${id}?ok=${encodeURIComponent("Tags saved.")}`);
 }
 
 /** Recompute every open idea's priority and dedupe note from workspace facts. */
@@ -132,13 +133,17 @@ export async function rescoreBlogIdeasAction() {
 export async function mergeBlogIdeasAction(formData: FormData) {
   const sourceId = String(formData.get("sourceId"));
   const targetId = String(formData.get("targetId"));
-  if (!sourceId || !targetId || sourceId === targetId) return;
+  const fromPage = formData.get("back") === "edit";
+  const refuse = (msg: string) => {
+    if (fromPage) redirect(`/ideas/article/${sourceId}?err=${encodeURIComponent(msg)}`);
+  };
+  if (!sourceId || !targetId || sourceId === targetId) return refuse("Choose the idea to merge this one into.");
   const { workspace } = await requireRole("EDITOR");
   const [source, target] = await Promise.all([
     db.blogIdea.findFirst({ where: { id: sourceId, workspaceId: workspace.id } }),
     db.blogIdea.findFirst({ where: { id: targetId, workspaceId: workspace.id } }),
   ]);
-  if (!source || !target || source.status === "drafted" || target.status === "merged") return;
+  if (!source || !target || source.status === "drafted" || target.status === "merged") return refuse("That merge isn't possible any more — one of the ideas has moved on.");
 
   const combinedAngle = [target.angle, source.angle]
     .filter(Boolean)
@@ -168,6 +173,7 @@ export async function mergeBlogIdeasAction(formData: FormData) {
     meta: { mergedFrom: source.id },
   });
   revalidatePath("/ideas");
+  if (fromPage) redirect(`/ideas?ok=${encodeURIComponent(`Merged into “${target.title.slice(0, 80)}”.`)}`);
 }
 
 export async function deleteBlogIdeaAction(formData: FormData) {

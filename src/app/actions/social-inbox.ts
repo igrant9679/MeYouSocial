@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import { getSetting } from "@/lib/settings";
 import { writeAudit } from "@/lib/governance";
 import { sendInboxMessage, replyOnPost, replyToInboxReview, explainInboxSendError } from "@/lib/zernio/inbox";
+import { markInboxStale } from "@/lib/zernio/inbox-cache";
 
 /**
  * Answering from Engage: a direct-message reply, and a comment on our own post.
@@ -101,6 +102,7 @@ export async function sendInboxReplyAction(formData: FormData) {
     action: "social.dm_replied", entityType: "zernio_conversation", entityId: conversationId,
     meta: { platform: account.platform, account: account.displayName ?? account.username, chars: message.length },
   });
+  await markInboxStale(workspace.id);
   revalidatePath("/social", "layout");
   back(`Sent on ${account.platform}.`, "ok");
 }
@@ -153,6 +155,7 @@ export async function replyToReviewAction(formData: FormData) {
   await db.inboxReplyDraft.deleteMany({
     where: { workspaceId: workspace.id, kind: DRAFT_KIND, targetId: reviewId },
   });
+  await markInboxStale(workspace.id);
   revalidatePath("/social", "layout");
   back(`Replied on ${account.platform}.`, "ok");
 }
@@ -280,6 +283,7 @@ export async function replyOnPostAction(formData: FormData) {
     action: "social.comment_replied", entityType: "zernio_post", entityId: postId,
     meta: { platform: account.platform, account: account.displayName ?? account.username, chars: message.length },
   });
+  await markInboxStale(workspace.id);
   revalidatePath("/social", "layout");
   back(`Comment posted on ${account.platform}.`, "ok");
 }

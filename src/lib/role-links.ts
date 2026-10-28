@@ -11,14 +11,15 @@ import type { Role } from "@prisma/client";
  *
  * ⚠ Mirrors the role gates in the page files — keep the two in step:
  *   ADMIN:  app/(app)/admin/layout.tsx (every /admin/* page), setup/people.
- *   EDITOR: the social pages, /assistant/<id>, onboarding/channel/new.
+ *   EDITOR: the social pages (not Performance — a read page, MEA-10), /assistant/<id>,
+ *           onboarding/channel/new, an article idea's edit page.
  * Everything else is requireMembership and open to any member.
  */
 
 const ADMIN_PREFIXES = ["/admin", "/setup/people"];
 const EDITOR_PREFIXES = [
   "/assistant", "/onboarding/channel/new",
-  "/social/approvals", "/social/calendar", "/social/compose", "/social/engage", "/social/performance",
+  "/social/approvals", "/social/calendar", "/social/compose", "/social/engage", "/ideas/article",
 ];
 const EDITOR_PATTERNS = [/^\/social\/[^/]+\/edit$/];
 

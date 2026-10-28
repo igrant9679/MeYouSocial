@@ -433,6 +433,8 @@ export const DELETABLE: Record<DeletableKind, Deletable> = {
 
       const { deleteInboxComment } = await import("@/lib/zernio/inbox");
       await deleteInboxComment({ workspaceId, postId, commentId, accountId });
+      const { markInboxStale } = await import("@/lib/zernio/inbox-cache");
+      await markInboxStale(workspaceId);
     },
     revalidate: ["/social/engage"],
   },

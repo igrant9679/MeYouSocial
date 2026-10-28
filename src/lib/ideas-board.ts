@@ -1,6 +1,5 @@
 import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
-import { ensureMotifDirectives } from "@/lib/motifs";
 
 /**
  * The one Ideas board (One-Loop step 4, the owner's decision "merge the
@@ -100,6 +99,14 @@ export function cardTitle(c: BoardCard): string {
 }
 
 const FORMATS: IdeaFormat[] = ["article", "video", "social"];
+
+// Statuses a person still decides on, per table; the rest are closed. Status
+// is never NULL in any of the three tables, so notIn loses nothing.
+const OPEN_ARTICLE = ["discovered", "approved"];
+const OPEN_VIDEO = ["new", "approved"];
+const OPEN_SOCIAL = ["discovered", "approved"];
+const OPEN_TAKE = 200;
+const CLOSED_TAKE = 60;
 export function isIdeaFormat(v: unknown): v is IdeaFormat {
   return typeof v === "string" && (FORMATS as string[]).includes(v);
 }
@@ -109,39 +116,70 @@ export async function loadIdeasBoard(workspaceId: string, f: BoardFilter) {
   const wantVideo = !f.format || f.format === "video";
   const wantSocial = !f.channel && (!f.format || f.format === "social");
 
-  const [articles, videos, socials, channels, topics, pages, directives, aCounts, vCounts, sCounts] = await Promise.all([
+  // IDE-20: open ideas (discovered, approved) are read apart from closed ones,
+  // so a few hundred drafted or rejected rows can't push open ones off the
+  // board; unscored ideas sort last (NULL sorted FIRST under "desc").
+  const articleInclude = { topic: { select: { name: true } } } as const;
+  const videoInclude = {
+    workspaceTopic: { select: { name: true } },
+    channel: { select: { id: true, name: true } },
+    scripts: { select: { id: true, workflow: true }, orderBy: { createdAt: "desc" as const }, take: 1 },
+  } as const;
+  const socialInclude = {
+    topic: { select: { name: true } },
+    sourceBlogPost: { select: { id: true, title: true } },
+    sourceVideo: { select: { id: true, title: true } },
+    socialPost: { select: { id: true, status: true, scheduledAt: true } },
+  } as const;
+  const videoWhere = { channel: { workspaceId, ...(f.channel ? { id: f.channel } : {}) } };
+  const [articles, videos, socials, channels, topics, aCounts, vCounts, sCounts] = await Promise.all([
     wantArticles
-      ? db.blogIdea.findMany({
-          where: { workspaceId },
-          orderBy: [{ priority: "desc" }, { createdAt: "desc" }],
-          take: 200,
-          include: { topic: { select: { name: true } } },
-        })
+      ? Promise.all([
+          db.blogIdea.findMany({
+            where: { workspaceId, status: { in: OPEN_ARTICLE } },
+            orderBy: [{ priority: { sort: "desc", nulls: "last" } }, { createdAt: "desc" }],
+            take: OPEN_TAKE,
+            include: articleInclude,
+          }),
+          db.blogIdea.findMany({
+            where: { workspaceId, status: { notIn: OPEN_ARTICLE } },
+            orderBy: { updatedAt: "desc" },
+            take: CLOSED_TAKE,
+            include: articleInclude,
+          }),
+        ]).then(([open, closed]) => [...open, ...closed])
       : Promise.resolve([] as ArticleRow[]),
     wantVideo
-      ? db.idea.findMany({
-          where: { channel: { workspaceId, ...(f.channel ? { id: f.channel } : {}) } },
-          orderBy: [{ outlierScore: "desc" }, { createdAt: "desc" }],
-          take: 200,
-          include: {
-            workspaceTopic: { select: { name: true } },
-            channel: { select: { id: true, name: true } },
-            scripts: { select: { id: true, workflow: true }, orderBy: { createdAt: "desc" }, take: 1 },
-          },
-        })
+      ? Promise.all([
+          db.idea.findMany({
+            where: { ...videoWhere, status: { in: OPEN_VIDEO } },
+            orderBy: [{ outlierScore: { sort: "desc", nulls: "last" } }, { createdAt: "desc" }],
+            take: OPEN_TAKE,
+            include: videoInclude,
+          }),
+          db.idea.findMany({
+            where: { ...videoWhere, status: { notIn: OPEN_VIDEO } },
+            orderBy: { updatedAt: "desc" },
+            take: CLOSED_TAKE,
+            include: videoInclude,
+          }),
+        ]).then(([open, closed]) => [...open, ...closed])
       : Promise.resolve([] as VideoRow[]),
     wantSocial
-      ? db.socialIdea.findMany({
-          where: { workspaceId },
-          orderBy: [{ priority: "desc" }, { createdAt: "desc" }],
-          take: 200,
-          include: {
-            topic: { select: { name: true } },
-            sourceBlogPost: { select: { id: true, title: true } },
-            sourceVideo: { select: { id: true, title: true } },
-            socialPost: { select: { id: true, status: true, scheduledAt: true } },
-          },
-        })
+      ? Promise.all([
+          db.socialIdea.findMany({
+            where: { workspaceId, status: { in: OPEN_SOCIAL } },
+            orderBy: [{ priority: { sort: "desc", nulls: "last" } }, { createdAt: "desc" }],
+            take: OPEN_TAKE,
+            include: socialInclude,
+          }),
+          db.socialIdea.findMany({
+            where: { workspaceId, status: { notIn: OPEN_SOCIAL } },
+            orderBy: { updatedAt: "desc" },
+            take: CLOSED_TAKE,
+            include: socialInclude,
+          }),
+        ]).then(([open, closed]) => [...open, ...closed])
       : Promise.resolve([] as SocialRow[]),
     db.channel.findMany({ where: { workspaceId }, orderBy: { createdAt: "asc" }, select: { id: true, name: true } }),
     // Every topic, archived included: an archived Topic that still has ideas
@@ -151,8 +189,6 @@ export async function loadIdeasBoard(workspaceId: string, f: BoardFilter) {
       orderBy: [{ status: "asc" }, { priority: "desc" }, { name: "asc" }],
       select: { id: true, name: true, priority: true, status: true, description: true },
     }),
-    db.sitePage.findMany({ where: { workspaceId }, select: { url: true, title: true }, take: 60 }),
-    ensureMotifDirectives(workspaceId),
     db.blogIdea.groupBy({ by: ["status"], where: { workspaceId }, _count: { _all: true } }),
     db.idea.groupBy({ by: ["status"], where: { channel: { workspaceId } }, _count: { _all: true } }),
     db.socialIdea.groupBy({ by: ["status"], where: { workspaceId }, _count: { _all: true } }),
@@ -223,8 +259,6 @@ export async function loadIdeasBoard(workspaceId: string, f: BoardFilter) {
     counts,
     channels,
     topics: activeTopics,
-    pages,
-    directives,
     totals,
     untaggedTotal: untagged.length,
     // Kept for callers that still read the old names.
