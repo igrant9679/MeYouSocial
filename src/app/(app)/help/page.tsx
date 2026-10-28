@@ -13,14 +13,15 @@ import { TRACKS, ELSIE_NAME } from "@/lib/guide/steps";
 // Quick starts describe the app as it is now — a content engine that also
 // publishes and measures — rather than the YouTube-scripting tool it began as.
 const QUICK_START = [
-  { role: "Setting the app up",       steps: ["Settings → Keys: paste a provider key", "Set the model to match that key", "Settings → Connections: social + a mailbox", "Settings → Storage: switch off local disk"] },
-  { role: "New creator (solo)",       steps: ["Link your YouTube channel", "Add two or three Topics in Brand", "Browse the generated ideas", "Click Write, then run the agent"] },
-  { role: "Publishing regularly",     steps: ["Set your posting slots + timezone", "Compose once, pick the accounts", "Queue drafts into the next free slot", "Check History for per-network results"] },
+  { role: "Setting the app up",       steps: ["Settings → Keys: paste a Claude or Gemini key", "Settings → Workspace: pick the default model (only models with a key are offered)", "Settings → Connections: social accounts + a mailbox", "Settings → Keys → Storage: Google Drive, not local disk (the platform operator)"] },
+  { role: "New creator (solo)",       steps: ["Ideas → Topics: add two or three Topics", "Link your YouTube channel (Channels)", "Approve the ideas you want on the Ideas board", "Click Write, then run the agent"] },
+  { role: "Publishing regularly",     steps: ["Settings → Schedule: posting slots + timezone", "Distribute → Compose: write once, pick the accounts", "Queue drafts into the next free slot", "Distribute → Sent: each network's result"] },
   { role: "Agency / team lead",       steps: ["Invite the team under Settings → People", "One workspace per client — keys stay separate", "Per-channel default models & templates", "Track work on the Production board"] },
 ];
 
 const SHORTCUTS = [
-  { keys: "Ctrl/⌘ + /", action: "Open Prompt Library (in chat)" },
+  { keys: "Ctrl/⌘ + /", action: "Open Ask — the assistant, on any page" },
+  { keys: "Ctrl/⌘ + Shift + /", action: "Open the Prompt Library (in a chat)" },
   { keys: "Esc",        action: "Dismiss the guide, or close a modal" },
   { keys: "Tab",        action: "Move through form fields" },
 ];

@@ -1,3 +1,5 @@
+import { formatZonedMoment } from "@/lib/zoned-dates";
+import { getPostingTimeZone } from "@/lib/social/slots";
 import Link from "next/link";
 import { Bell } from "lucide-react";
 import { requireMembership } from "@/lib/acl";
@@ -30,6 +32,7 @@ const KIND_HUE: Record<NotificationKind, string> = {
 
 export default async function NotificationsPage() {
   const { user, workspace } = await requireMembership();
+  const postingTz = await getPostingTimeZone(workspace.id);
   const [items, prefs, sender] = await Promise.all([
     db.notification.findMany({
       where: { workspaceId: workspace.id, userId: user.id },
@@ -101,7 +104,7 @@ export default async function NotificationsPage() {
                   )}
                   {n.body && <p className="text-xs text-[var(--mute)] mt-0.5">{n.body}</p>}
                   <p className="font-mono text-[10px] text-[var(--mute)] mt-0.5">
-                    {n.createdAt.toISOString().slice(0, 16).replace("T", " ")}
+                    {formatZonedMoment(n.createdAt, postingTz)}
                     {n.emailedAt ? " · emailed" : ""}
                   </p>
                 </div>

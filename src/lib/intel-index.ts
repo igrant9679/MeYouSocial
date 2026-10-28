@@ -1,3 +1,4 @@
+import { OUTLIER_MIN_VIEWS } from "@/lib/intel";
 import { db } from "@/lib/db";
 import { youtubeFor } from "@/lib/youtube";
 
@@ -54,7 +55,21 @@ export async function indexIntelChannel(
   });
   // Outlier score is views over THIS channel's own average — the same
   // definition used for idea seeds. Never a fabricated figure.
-  const avg = videos.reduce((a, v) => a + v.views, 0) / Math.max(1, videos.length);
+  // ⚠ IDE-10: averaged PER FORMAT — Shorts and long-form draw on different
+  // scales, and one average across 8 mixed uploads labelled noise "strong".
+  // No score when the video has too few views or its format has too few
+  // uploads (or too small an average) for a ratio to mean anything.
+  const isShort = (v: { durationSeconds?: number | null }) => v.durationSeconds != null && v.durationSeconds <= 180;
+  const formatAvg = (short: boolean) => {
+    const same = videos.filter((v) => isShort(v) === short);
+    return same.length >= 3 ? same.reduce((a, v) => a + v.views, 0) / same.length : null;
+  };
+  const avgShort = formatAvg(true), avgLong = formatAvg(false);
+  const scoreOf = (v: { views: number; durationSeconds?: number | null }) => {
+    const avg = isShort(v) ? avgShort : avgLong;
+    if (avg == null || avg < 100 || v.views < OUTLIER_MIN_VIEWS) return null;
+    return Math.round((v.views / avg) * 10) / 10;
+  };
   const now = Date.now();
   const measuredAt = new Date(now);
   // Uploads per week, measured from the uploads just listed: (n − 1) gaps over
@@ -79,7 +94,7 @@ export async function indexIntelChannel(
       views: BigInt(v.views),
       likes: v.likes ?? null,
       comments: v.comments ?? null,
-      outlierScore: Math.round((v.views / Math.max(1, avg)) * 10) / 10,
+      outlierScore: scoreOf(v),
       viewsPerSub: Math.round((v.views / Math.max(1, source.subscribers)) * 100) / 100,
       viewsPerHour,
       measuredAt,

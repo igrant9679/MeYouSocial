@@ -628,6 +628,21 @@ Tabs: **Keys** (`/admin/api-keys`: LLM, search, images, video, TTS, storage) · 
 - **Inbox counts are totals** (SHL-05): `InboxData.counts` per group (images and claims filtered BEFORE the list is
   cut, with one query each for their audit records); groups show "Showing N of M".
 
+## ⚠ Help, dates, outliers and the assistant stay current (2026-10-28, audit Phase 3, parts 3b and 4)
+- **Help reads the navigation** (SHL-14): the guide's stage tabs come from `STAGES[...].tabs(...)` (`tabsOf`); when a
+  page moves, fix Help's quick starts, shortcuts and the FAQ in lib/help.ts too — old paths there (Blog → Automation,
+  Social → Workflow, Topics in Brand, a Review stage) were wrong for weeks.
+- **One day format** (SHL-15): `formatDay(date, tz?)` → "28 Oct 2026"; moments via `formatZonedMoment` in the
+  posting timezone. Don't print `toISOString().slice(...)` or a bare `toLocaleString()` to a person.
+- **Outliers** (IDE-09, IDE-10): `OUTLIER_MIN_VIEWS` (1,000) — the indexer stores no score under it, averages Shorts
+  and long-form separately and needs 3 of a format; lists filter on views; `outlierBand(null)` is "not scored".
+  Research matches every indexed outlier per Topic and shows each group's true count.
+- **Social copy** (SOC-27): Approvals says whether new posts queue (auto-queue) or wait; Engage's unread list is
+  "Not marked seen yet"; Distribute's queue count is a count query, not the 10 listed.
+- **Assistant** (ENG-30): its example prompts are swapped for this workspace's held article, approved idea and
+  Topic (`examplesFor`); keep every example backed by a tool that does it; the app map names social ideas,
+  Topics and today's Distribute and Measure tabs.
+
 ## Open items / things the user still owns
 - **Analytics: APIs enabled 2026-08-03** (Search Console + GA Admin + GA Data, on project
   `479503233109` = `gen-lang-client-0838901195` = "CreateUp"). Still pending, user-only: add the

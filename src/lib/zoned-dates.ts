@@ -32,3 +32,12 @@ export function zoneLabel(timeZone: string, at = new Date()): string {
 export function formatZonedMoment(at: Date, timeZone: string): string {
   return `${at.toLocaleString("en-GB", { timeZone, day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })} ${zoneLabel(timeZone, at)}`;
 }
+
+/**
+ * A day, one way everywhere: "28 Oct 2026" (SHL-15 — dates read "25 Oct",
+ * "10/25/2026, 4:21:54 AM", "17/09/2026", "2026-10-19 00:34" and "2026-05-22").
+ * Pass the posting timezone where the day boundary matters.
+ */
+export function formatDay(at: Date, timeZone = "UTC"): string {
+  return at.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone });
+}

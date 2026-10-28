@@ -1,3 +1,4 @@
+import { OUTLIER_MIN_VIEWS } from "@/lib/intel";
 import Link from "next/link";
 import { requireMembership, canEdit } from "@/lib/acl";
 import { getActiveChannel } from "@/lib/channel";
@@ -26,10 +27,13 @@ export default async function ResearchStage({ searchParams }: { searchParams: Pr
   const { ok } = await searchParams;
   const editor = canEdit(membership.role);
   const [outliers, channels, bookmarks, indexedVideos, topics, studio, ownChannels] = await Promise.all([
+    // ⚠ IDE-09: matched over the whole set — only the top 24 were looked at,
+    // so a Topic read "nothing indexed" while matching outliers sat below the
+    // cut. Each group shows its best few; its count is all of them.
     db.intelVideo.findMany({
-      where: { intelChannel: { workspaceId: workspace.id }, outlierScore: { gte: 2 } },
+      where: { intelChannel: { workspaceId: workspace.id }, outlierScore: { gte: 2 }, views: { gte: OUTLIER_MIN_VIEWS } },
       orderBy: { outlierScore: "desc" },
-      take: 24,
+      take: 1000,
       include: { intelChannel: { select: { id: true, name: true, thumbnailUrl: true } } },
     }),
     db.intelChannel.count({ where: { workspaceId: workspace.id } }),
@@ -50,9 +54,10 @@ export default async function ResearchStage({ searchParams }: { searchParams: Pr
     const key = m?.id ?? null;
     matched.set(key, [...(matched.get(key) ?? []), v]);
   }
-  const groups: Array<{ topic: { id: string; name: string } | null; rows: typeof outliers }> = [
-    ...topics.map((t) => ({ topic: { id: t.id, name: t.name }, rows: matched.get(t.id) ?? [] })),
-    ...(matched.get(null)?.length ? [{ topic: null, rows: matched.get(null)! }] : []),
+  const PER_GROUP = 6;
+  const groups: Array<{ topic: { id: string; name: string } | null; rows: typeof outliers; total: number }> = [
+    ...topics.map((t) => ({ topic: { id: t.id, name: t.name }, rows: (matched.get(t.id) ?? []).slice(0, PER_GROUP), total: matched.get(t.id)?.length ?? 0 })),
+    ...(matched.get(null)?.length ? [{ topic: null, rows: matched.get(null)!.slice(0, PER_GROUP), total: matched.get(null)!.length }] : []),
   ];
   const topicOptions = topics.map((t) => ({ id: t.id, name: t.name }));
 
@@ -91,12 +96,12 @@ export default async function ResearchStage({ searchParams }: { searchParams: Pr
             <section key={g.topic?.id ?? "unmatched"} className="card">
               <h2 className="font-mono text-[13px] font-bold mb-0.5 flex items-center gap-2 flex-wrap">
                 {g.topic ? <Link href={`/ideas/topics/${g.topic.id}`} className="hover:underline">{g.topic.name}</Link> : "Unmatched"}
-                <span className="font-mono text-[11px] font-normal text-[var(--mute)]">{g.rows.length}</span>
+                <span className="font-mono text-[11px] font-normal text-[var(--mute)]">{g.total > g.rows.length ? `${g.rows.length} of ${g.total}` : g.total}</span>
                 {g.topic && g.rows.length > 0 && <span className="text-[10px] font-normal text-[var(--mute)]">matched by keyword</span>}
               </h2>
               {g.rows.length === 0 ? (
                 <p className="text-[11px] text-[var(--mute)] py-1 m-0">
-                  Nothing indexed about this yet — <Link href="/intel" className="underline">add a competitor</Link> that covers it, or add its phrases on <Link href="/ideas/topics" className="underline">Topics</Link> so more titles match.
+                  None of the {outliers.length} indexed outlier{outliers.length === 1 ? "" : "s"} matches this Topic by keyword — <Link href="/intel" className="underline">add a competitor</Link> that covers it, or add its phrases on <Link href="/ideas/topics" className="underline">Topics</Link> so more titles match.
                 </p>
               ) : (
                 <div className="mt-2">

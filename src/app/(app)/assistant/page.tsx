@@ -26,14 +26,14 @@ const ASK_GROUPS: Array<{ title: string; blurb: string; examples: Array<{ q: str
     examples: [
       { q: "What should I do next?", backedBy: "next_steps" },
       { q: "What's waiting on me?", backedBy: "inbox_items" },
-      { q: "Why is the donor-fatigue article still held?", backedBy: "article_checks" },
+      { q: "Why is my newest held article still held?", backedBy: "article_checks" },
     ],
   },
   {
     title: "Find something worth writing",
     blurb: "Grounded in your organisation profile, keywords and indexed competitors.",
     examples: [
-      { q: "Find three article ideas about grant reporting deadlines", backedBy: "discover_ideas" },
+      { q: "Find three article ideas for one of our Topics", backedBy: "discover_ideas" },
       { q: "Which competitor videos beat their own channel average this month?", backedBy: "list_outliers" },
       { q: "What keywords are we missing?", backedBy: "discover_keywords" },
     ],
@@ -42,7 +42,7 @@ const ASK_GROUPS: Array<{ title: string; blurb: string; examples: Array<{ q: str
     title: "Move the work forward",
     blurb: "Everything here lands somewhere you review it before it goes out.",
     examples: [
-      { q: "Draft the approved idea about donor fatigue", backedBy: "draft_article" },
+      { q: "Draft my most recently approved article idea", backedBy: "draft_article" },
       { q: "Fill in the SEO for any article missing it", backedBy: "generate_seo" },
       { q: "Advance anything that passes every check", backedBy: "advance_article" },
     ],
@@ -70,7 +70,7 @@ const ASK_GROUPS: Array<{ title: string; blurb: string; examples: Array<{ q: str
     blurb: "The dials under Settings, asked for in words. It confirms before each one.",
     examples: [
       { q: "Set the weekly article target to two", backedBy: "set_weekly_articles" },
-      { q: "Stop posting to social for now", backedBy: "set_social_dial" },
+      { q: "Pause everything — no posting, no generating — for now", backedBy: "set_global_pause" },
       { q: "Run the autopilot now", backedBy: "run_autopilot_now" },
     ],
   },
@@ -83,6 +83,7 @@ const ASK_GROUPS: Array<{ title: string; blurb: string; examples: Array<{ q: str
  */
 export default async function AssistantPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
   const { workspace, user, membership, active } = await getActiveChannel();
+  const examples = await examplesFor(workspace.id);
   // It acts — drafts, queues, publishes — so it is for editors and admins; a
   // viewer's messages used to fail with a parse error instead (ENG-17).
   if (!canEdit(membership.role)) {
@@ -131,7 +132,7 @@ export default async function AssistantPage({ searchParams }: { searchParams: Pr
           question rather than something to retype. */}
       <h2 className="text-sm font-semibold mt-6 mb-2">Things to ask it</h2>
       <div className="grid grid-cols-1 @3xl:grid-cols-2 gap-3">
-        {ASK_GROUPS.map((g) => (
+        {examples.map((g) => (
           <section key={g.title} className="card">
             <h3 className="text-[13px] font-semibold m-0">{g.title}</h3>
             <p className="text-[11px] text-[var(--mute)] mt-0.5 mb-2">{g.blurb}</p>
@@ -162,7 +163,7 @@ export default async function AssistantPage({ searchParams }: { searchParams: Pr
           anyone learns to use the thing. */}
       <details className="card mt-4">
         <summary className="text-sm font-semibold cursor-pointer select-none">
-          Everything it can do <span className="font-normal text-[var(--mute)]">— all {TOOLS.length} tools, and the four it refuses</span>
+          Everything it can do <span className="font-normal text-[var(--mute)]">— all {TOOLS.length} tools, and the {REFUSED_INTENTS.length} things it refuses</span>
         </summary>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-3">
           <div>
@@ -212,4 +213,21 @@ export default async function AssistantPage({ searchParams }: { searchParams: Pr
       )}
     </main>
   );
+}
+
+/** The example prompts, naming this workspace's own held article, approved idea and Topic where it has them (ENG-30). */
+async function examplesFor(workspaceId: string): Promise<typeof ASK_GROUPS> {
+  const { db } = await import("@/lib/db");
+  const [held, idea, topic] = await Promise.all([
+    db.blogPost.findFirst({ where: { workspaceId, status: "draft_review" }, orderBy: { updatedAt: "desc" }, select: { title: true } }),
+    db.blogIdea.findFirst({ where: { workspaceId, status: "approved" }, orderBy: { updatedAt: "desc" }, select: { title: true } }),
+    db.topic.findFirst({ where: { workspaceId, status: "active" }, orderBy: [{ priority: "desc" }, { name: "asc" }], select: { name: true } }),
+  ]);
+  const short = (t: string) => (t.length > 60 ? `${t.slice(0, 57)}…` : t);
+  const swap: Record<string, string | null> = {
+    "Why is my newest held article still held?": held ? `Why is “${short(held.title)}” still held?` : null,
+    "Draft my most recently approved article idea": idea ? `Draft the approved idea “${short(idea.title)}”` : null,
+    "Find three article ideas for one of our Topics": topic ? `Find three article ideas about ${topic.name}` : null,
+  };
+  return ASK_GROUPS.map((g) => ({ ...g, examples: g.examples.map((e) => ({ ...e, q: swap[e.q] ?? e.q })) }));
 }

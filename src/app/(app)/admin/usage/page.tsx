@@ -1,3 +1,5 @@
+import { formatZonedMoment } from "@/lib/zoned-dates";
+import { getPostingTimeZone } from "@/lib/social/slots";
 import Link from "next/link";
 import { BarChart3, Users, Sparkles, PenLine, Image as ImageIcon, Bot, FileText, Share2, Gauge } from "lucide-react";
 import { requireRole } from "@/lib/acl";
@@ -16,6 +18,7 @@ const PROVIDER_NAME: Record<string, string> = { ...PROVIDER_LABEL, openai: "Open
 export default async function AdminUsagePage() {
   const { workspace } = await requireRole("ADMIN");
   const ws = workspace.id;
+  const postingTz = await getPostingTimeZone(ws);
   const now = new Date();
   const monthStart = monthStartUtc(now);
   const weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay());
@@ -197,7 +200,7 @@ export default async function AdminUsagePage() {
                 <li key={log.id} className="border-t border-[var(--line)] first:border-t-0 py-2 text-xs flex items-center gap-2">
                   <span className="font-mono uppercase tracking-wider text-[10px] px-1.5 py-0.5 rounded" style={{ background: "var(--accent-soft)", color: "var(--accent)" }}>{log.action}</span>
                   <span className="flex-1">{log.model ?? "—"}</span>
-                  <span className="text-[var(--mute)]">{new Date(log.createdAt).toLocaleString()}</span>
+                  <span className="text-[var(--mute)]">{formatZonedMoment(new Date(log.createdAt), postingTz)}</span>
                 </li>
               ))}
             </ul>

@@ -113,7 +113,7 @@ async function whenLocal(d: Date, workspaceId: string): Promise<string> {
 /** Things people will ask for that this assistant deliberately cannot do. */
 export const REFUSED_INTENTS = [
   "entering or changing API keys, passwords or connection credentials (Settings → Keys, Settings → Connections — a person pastes those)",
-  "deleting a workspace, a channel or a person's account (Admin)",
+  "deleting a workspace, a channel or a person's account (Settings)",
   "sending email",
 ];
 

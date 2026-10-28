@@ -1,3 +1,4 @@
+import { formatDay } from "@/lib/zoned-dates";
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { SubmitButton } from "@/components/SubmitButton";
@@ -86,7 +87,7 @@ export async function PeoplePanel({ workspaceId, workspaceName, returnTo }: { wo
                     </form>
                   </td>
                   <td><span className="pill" style={{ background: m.status === "active" ? "var(--green-soft)" : "var(--rose-soft)", color: m.status === "active" ? "var(--green)" : "var(--rose)" }}>{m.status}</span></td>
-                  <td className="text-xs text-[var(--mute)]">{m.user.lastActivityAt ? new Date(m.user.lastActivityAt).toLocaleString() : "—"}</td>
+                  <td className="text-xs text-[var(--mute)]">{m.user.lastActivityAt ? formatDay(new Date(m.user.lastActivityAt)) : "—"}</td>
                   <td className="text-right">
                     {/* Revoke suspends the membership (row and history kept); Remove
                         deletes it. Removing the last active ADMIN is refused by the action. */}
@@ -116,7 +117,7 @@ export async function PeoplePanel({ workspaceId, workspaceName, returnTo }: { wo
               <li key={inv.id} className="border-t border-[var(--line)] first:border-t-0 py-2 text-sm flex items-center gap-3 flex-wrap">
                 <span className="font-mono text-xs text-[var(--mute)]">{inv.role}</span>
                 <span className="flex-1">{inv.email}</span>
-                <span className="text-xs text-[var(--mute)]">expires {new Date(inv.expiresAt).toLocaleDateString()}</span>
+                <span className="text-xs text-[var(--mute)]">expires {formatDay(new Date(inv.expiresAt))}</span>
                 <DeleteButton kind="invitation" id={inv.id} name={inv.email} returnTo={returnTo} label="Revoke invite" />
                 {/* The join link, selectable so it can be passed along by hand when
                     the email can't deliver. Deliberately NOT an <a>: clicking one

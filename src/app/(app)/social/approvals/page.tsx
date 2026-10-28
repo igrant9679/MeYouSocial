@@ -36,6 +36,7 @@ export default async function SocialApprovalsPage({ searchParams }: { searchPara
   const awaiting = posts.filter((p) => p.approval === "pending");
   const changes = posts.filter((p) => p.approval === "changes");
   const hasSlots = queue.slots.some((s) => s.enabled);
+  const autoqueue = (await getSetting("social:autoqueue", workspace.id).catch(() => "")) === "true";
 
   return (
     <div className="p-6 w-full">
@@ -50,7 +51,7 @@ export default async function SocialApprovalsPage({ searchParams }: { searchPara
 
       {!requireApproval && (
         <div className="card mb-4 text-xs text-[var(--mute)]">
-          The approval workflow is <b>off</b>, so new posts go straight to the queue. Anything listed below was held
+          The approval workflow is <b>off</b>, so new posts {autoqueue ? "go straight to the queue" : "stay as drafts until someone queues them (auto-queue is off)"}. Anything listed below was held
           while it was on.{" "}
           {isAdmin && <Link href="/setup/people" className="underline">Turn it on under Settings → People</Link>}
         </div>

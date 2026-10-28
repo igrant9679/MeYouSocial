@@ -1,3 +1,4 @@
+import { formatDay } from "@/lib/zoned-dates";
 import Link from "next/link";
 import { SubmitButton } from "@/components/SubmitButton";
 import { networkFor } from "@/lib/social/networks";
@@ -287,7 +288,7 @@ export function NeedsYouGroups({
         <Group title="Invitations not yet accepted" hue="teal" count={inbox.invitations.length}>
           {inbox.invitations.map((i) => (
             <li key={i.id} className="card">
-              <div className="text-sm"><b>{i.email}</b> <span className="font-mono text-[10px] text-[var(--mute)]">{i.role}</span> <span className="text-[11px] text-[var(--mute)]">· expires {i.expiresAt.toLocaleDateString()}</span></div>
+              <div className="text-sm"><b>{i.email}</b> <span className="font-mono text-[10px] text-[var(--mute)]">{i.role}</span> <span className="text-[11px] text-[var(--mute)]">· expires {formatDay(i.expiresAt)}</span></div>
               <div className="text-[11px] text-[var(--mute)] mt-1">If the email didn&apos;t arrive, send this link yourself (click to select):</div>
               <code className="block text-[11px] select-all break-all mt-0.5">{origin}/invitations/{i.token}</code>
             </li>

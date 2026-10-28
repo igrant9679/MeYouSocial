@@ -15,8 +15,15 @@ export function intelThumbUrl(v: { thumbnailUrl: string | null; youtubeId: strin
 }
 
 // severity bands.
+/**
+ * Below this many views a ratio is noise — a 2-view video was "2.0× STRONG"
+ * (IDE-10). The indexer stores no score under it, and lists filter on it.
+ */
+export const OUTLIER_MIN_VIEWS = 1000;
+
 export function outlierBand(score: number | null | undefined): { color: string; soft: string; label: string } {
-  const s = score ?? 0;
+  if (score == null) return { color: "var(--mute)", soft: "var(--zebra)", label: "not scored" };
+  const s = score;
   if (s >= 5)  return { color: "var(--brand-on)", soft: "var(--brand-soft)", label: "exceptional" };
   if (s >= 2)  return { color: "var(--amber-on)", soft: "var(--amber-soft)", label: "strong" };
   if (s >= 1)  return { color: "var(--blue-on)", soft: "var(--blue-soft)", label: "average" };

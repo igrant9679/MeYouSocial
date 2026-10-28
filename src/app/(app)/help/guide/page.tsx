@@ -1,3 +1,4 @@
+import { STAGES } from "@/lib/stages";
 import Link from "next/link";
 import { requireMembership } from "@/lib/acl";
 import { RoleLink } from "@/components/RoleLink";
@@ -82,39 +83,44 @@ export default async function GuidePage() {
       {/* ── 2 · The seven stages ────────────────────────────────────────── */}
       <section className="card mb-4">
         <h2 className="font-mono font-bold text-[15px] mb-1 flex items-center gap-2">
-          <Layers className="w-4 h-4" style={{ color: "var(--violet-on)" }} /> The seven stages, one screen each
+          <Layers className="w-4 h-4" style={{ color: "var(--violet-on)" }} /> The Inbox and six stages, one screen each
         </h2>
         <p className="text-xs text-[var(--mute)] mb-3">
           Every stage page has an Overview (its own rows, the verb on the row) and a strip along the top with its
           tabs — the module pages, which kept their addresses. A <b>red badge</b> on the strip means a person must
-          act; a muted one is news. Old links (Home, Blog → Automation, Social → Settings, the Social overview,
-          Blog → Ideas) all redirect to the right stage.
+          act; a muted one is news. Old links (Home, the old Blog and Social menus, Review) all redirect to the right
+          place. The tab names below are read from the app's own navigation, so they're always current.
         </p>
         <ul className="m-0 p-0 text-sm space-y-2">
-          <Stage href="/research" name="Research" tabs="Intel · Bookmarks · Competitors">
+          <Stage href="/inbox" name="Inbox" tabs="—">
+            Everything waiting on a person — posts to approve, articles held at a check, questions only you can
+            answer, images and claims to look at — with the action on each card. Reviewing is the Inbox; there is
+            no separate Review stage.
+          </Stage>
+          <Stage href="/research" name="Research" tabs={tabsOf("/research")}>
             Competitor channels and the videos that beat their own average (2× is strong, 5× exceptional — measured
             or a dash, never estimated), grouped under the Topic they match by keyword. &ldquo;Make it an idea&rdquo; turns
             an outlier into an article, video or social idea, tagged with its Topic.
           </Stage>
-          <Stage href="/ideas" name="Ideas" tabs="Topics · Keywords · Experts">
-            One board for article and video ideas: Discovered → Approved → Drafted → Rejected, a format chip on
-            each card. <b>Only approved article ideas are drafted, and approving is your act.</b> Discover ideas,
+          <Stage href="/ideas" name="Ideas" tabs={tabsOf("/ideas")}>
+            One board for article, video and social ideas, in each Topic's lane: Discovered → Approved → Drafted →
+            Rejected, a format chip on each card. <b>Only approved article ideas are drafted, and approving is your act.</b> Discover ideas,
             generate video ideas, recompute priorities (every score shows its working).
           </Stage>
-          <Stage href="/drafts" name="Drafts" tabs="Articles · Board · Scripts · Thumbnails · Videos · Production">
+          <Stage href="/drafts" name="Drafts" tabs={tabsOf("/drafts", true)}>
             Everything being written or rendered. The four studio tabs appear only when a YouTube channel exists and
             the Video studio switch under Settings is on.
           </Stage>
-          <Stage href="/publish" name="Publish" tabs="Approvals · Audit · Website · Blog calendar">
+          <Stage href="/publish" name="Publish" tabs={tabsOf("/publish")}>
             Articles at final approval, when they go (the publish day, or a date you set), and what went live.
             With no WordPress: <b>Download HTML</b> and <b>Mark as published</b> on the row.
           </Stage>
-          <Stage href="/distribute" name="Distribute" tabs="Compose · Calendar · Engage">
+          <Stage href="/distribute" name="Distribute" tabs={tabsOf("/distribute")}>
             Accounts with their health, this stage&apos;s own Needs you, the queue in your posting zone, recently
             published with failed legs called out. Engage holds comments, DMs and reviews — the 24-hour DM window
             for Facebook and Instagram lives here.
           </Stage>
-          <Stage href="/measure" name="Measure" tabs="Reports · Insights · Blog analytics · Blog report · Social performance">
+          <Stage href="/measure" name="Measure" tabs={tabsOf("/measure")}>
             Search impressions and clicks, positions and their deltas, engagement by network — measured numbers
             only. A dash means not measured yet.
           </Stage>
@@ -443,4 +449,9 @@ function Step({
       </div>
     </li>
   );
+}
+
+/** A stage's tab names as the strip shows them (SHL-14: hand-typed lists drifted). */
+function tabsOf(href: keyof typeof STAGES, studio = false): string {
+  return STAGES[href].tabs({ admin: true, operator: false, channelId: studio ? "x" : null, studio }).map((t) => t.label).join(" · ");
 }

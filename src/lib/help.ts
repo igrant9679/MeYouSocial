@@ -46,7 +46,7 @@ export const HELP_CATEGORIES: FaqCategory[] = [
       },
       {
         q: "Honestly — what IS this app? Give me the mental model.",
-        a: "One sentence: it turns research into content, publishes that content, and then measures it — for one or more companies at once.\n\nThe loop, in the order the rail reads it:\n\n**1. Set up** — a key so the AI works, and the accounts you publish to (Settings → Connections).\n**2. Decide what you are about** — Topics (Ideas → Topics: the themes everything hangs off), a Channel (for video) and tone (Brand).\n**3. Research** — Intel finds videos that beat their own channel’s average, grouped under the Topic they match; any one becomes an article, video or social **Idea** on one board, in its Topic’s lane.\n**4. Drafts** — the autopilot writes approved ideas: articles with images and SEO, scripts for video when the studio is on.\n**5. Review** — the gates: nothing goes out until its checks pass; the Inbox shows what a person must decide.\n**6. Publish** to your site on the publish day (or by HTML export), then **Distribute** — social posts into your posting slots.\n**7. Measure** — what ranked and what got clicked, measured or a dash, never invented.\n\nYou can stop at any stage. Plenty of people only ever use Distribute, or only ever use the blog side.",
+        a: "One sentence: it turns research into content, publishes that content, and then measures it — for one or more companies at once.\n\nThe loop, in the order the rail reads it:\n\n**1. Set up** — a key so the AI works, and the accounts you publish to (Settings → Connections).\n**2. Decide what you are about** — Topics (Ideas → Topics: the themes everything hangs off), a Channel (for video) and tone (Brand).\n**3. Research** — Intel finds videos that beat their own channel’s average, grouped under the Topic they match; any one becomes an article, video or social **Idea** on one board, in its Topic’s lane.\n**4. Drafts** — the autopilot writes approved ideas: articles with images and SEO, scripts for video when the studio is on.\n**5. Inbox** — the gates: nothing goes out until its checks pass; the Inbox shows what a person must decide.\n**6. Publish** to your site on the publish day (or by HTML export), then **Distribute** — social posts into your posting slots.\n**7. Measure** — what ranked and what got clicked, measured or a dash, never invented.\n\nYou can stop at any stage. Plenty of people only ever use Distribute, or only ever use the blog side.",
       },
       {
         q: "I don't know where to start. What's the shortest path to something real?",
@@ -82,8 +82,8 @@ export const HELP_CATEGORIES: FaqCategory[] = [
       },
       {
         q: "Why are my thumbnails and featured images unrelated stock photos?",
-        a: "Because your workspace is on the **mock image provider** — no image key resolved, so every render returns a stock photo picked from your prompt instead of a real generation. It's worth knowing this looks like success rather than failure: you get a real, good-looking photo, just not one that has anything to do with your title. Thumbnail Studio shows a banner whenever the provider actually resolving is the mock.\n\n**Real image generation is built in** — paste an **OpenAI** or **Google** key under Settings → Keys and the *Image generation* switch picks it up (Auto prefers OpenAI's gpt-image-1 because it renders legible text more reliably, which thumbnails need). Renders are stored durably with your other files, and the studio's Clone analysis genuinely *looks at* the reference image.\n\nWith a real provider the `Require images to publish` gate under Blog → Brand does exactly what it says; on the mock it can gate a post behind an image that only ever will be stock — turn it off there if that blocks you.",
-        links: [{ label: "Settings → Keys →", href: "/admin/api-keys" }, { label: "Thumbnail Studio →", href: "/thumbnails" }, { label: "Blog → Brand →", href: "/blog/brand" }],
+        a: "Because your workspace is on the **mock image provider** — no image key resolved, so every render returns a stock photo picked from your prompt instead of a real generation. It's worth knowing this looks like success rather than failure: you get a real, good-looking photo, just not one that has anything to do with your title. Thumbnail Studio shows a banner whenever the provider actually resolving is the mock.\n\n**Real image generation is built in** — paste an **OpenAI** or **Google** key under Settings → Keys and the *Image generation* switch picks it up (Auto prefers OpenAI's gpt-image-1 because it renders legible text more reliably, which thumbnails need). Renders are stored durably with your other files, and the studio's Clone analysis genuinely *looks at* the reference image.\n\nWith a real provider the `Require images to publish` gate under Brand → Tone & motifs does exactly what it says; on the mock it can gate a post behind an image that only ever will be stock — turn it off there if that blocks you.",
+        links: [{ label: "Settings → Keys →", href: "/admin/api-keys" }, { label: "Thumbnail Studio →", href: "/thumbnails" }, { label: "Brand → Tone & motifs →", href: "/blog/brand" }],
         tags: ["thumbnail", "image", "placeholder", "stock photo", "gpt-image-1", "provider", "generation"],
       },
       {
@@ -308,7 +308,7 @@ export const HELP_CATEGORIES: FaqCategory[] = [
       },
       {
         q: "Why can't I publish a post?",
-        a: "Check the **Gates** sidebar: publishing is blocked until required checks pass — SEO meta present, all citations verified, no [NEEDS SOURCE] markers, descriptive link text, and (by default) an approved featured image + branded OG image at your workspace dimensions. Each failing gate links to the tab where you fix it. Admins can relax the image requirement under Blog → Brand → Asset policy.",
+        a: "Check the **Gates** sidebar: publishing is blocked until required checks pass — SEO meta present, all citations verified, no [NEEDS SOURCE] markers, descriptive link text, and (by default) an approved featured image + branded OG image at your workspace dimensions. Each failing gate links to the tab where you fix it. Admins can relax the image requirement under Brand → Tone & motifs → Asset policy.",
         tags: ["publish", "blocked", "gates", "images", "citations"],
       },
       {
@@ -325,7 +325,7 @@ export const HELP_CATEGORIES: FaqCategory[] = [
       },
       {
         q: "What are the 7 Motifs?",
-        a: "The tone engine. Each motif (Visionary, Competitive, Succinct, Sincere, Exclusive, Social, Informative) is an editable, versioned style directive that steers every generation. Pick a single motif or a weighted blend per post — the strongest weight sets structure and voice, the rest color the intro and CTA. Configure directives, defaults by tier/audience, and per-channel mappings under **Blog → Brand**.",
+        a: "The tone engine. Each motif (Visionary, Competitive, Succinct, Sincere, Exclusive, Social, Informative) is an editable, versioned style directive that steers every generation. Pick a single motif or a weighted blend per post — the strongest weight sets structure and voice, the rest color the intro and CTA. Configure directives, defaults by tier/audience, and per-channel mappings under **Brand → Tone & motifs**.",
         links: [{ label: "Brand & motifs →", href: "/blog/brand" }],
         tags: ["motifs", "tone", "voice", "brand"],
       },
@@ -357,37 +357,37 @@ export const HELP_CATEGORIES: FaqCategory[] = [
       },
       {
         q: "Can the app generate posts and articles on a schedule, by itself?",
-        a: "Yes — two dials, one autopilot.\n\n**Articles**: the autopilot (sweeps every 30 min) discovers ideas, drafts approved ones, and can publish gated posts, governed by the per-function mode dials under **Blog → Automation**. Set **Weekly article target** there to cap how many it drafts per rolling 7 days.\n\n**Social posts**: turn on **Auto-generate posts** under Settings → Automation and set a number per week. A social post now starts as an **idea**: the autopilot proposes post ideas per Topic (and one per angle of each newly published article), they take the **social idea gate** — *approve themselves* (the default, so the feed keeps running) or *wait for a person* — and one approved idea per sweep becomes a post in your motif tone, with an auto-image, queued into a free posting slot or **held for approval** when the approval workflow is on. Ideas you add yourself always wait for you. Every post carries its Topic and links back to its idea.\n\nSafety rails: everything respects the global pause, counts against the daily AI budget (20 unattended generations per workspace per day — your own Generate doesn't count, and when it's spent only generating stops; publishing and queueing carry on), and **placeholder output is never stored** — if no real AI key resolves, nothing is generated rather than something fake. The Social mode dial (Blog → Automation) must be assisted or auto for post generation to run.",
+        a: "Yes — two dials, one autopilot.\n\n**Articles**: the autopilot (sweeps every 30 min) discovers ideas, drafts approved ones, and can publish gated posts, governed by the per-function mode dials under **Settings → Automation**. Set **Weekly article target** there to cap how many it drafts per rolling 7 days.\n\n**Social posts**: turn on **Auto-generate posts** under Settings → Automation and set a number per week. A social post now starts as an **idea**: the autopilot proposes post ideas per Topic (and one per angle of each newly published article), they take the **social idea gate** — *approve themselves* (the default, so the feed keeps running) or *wait for a person* — and one approved idea per sweep becomes a post in your motif tone, with an auto-image, queued into a free posting slot or **held for approval** when the approval workflow is on. Ideas you add yourself always wait for you. Every post carries its Topic and links back to its idea.\n\nSafety rails: everything respects the global pause, counts against the daily AI budget (20 unattended generations per workspace per day — your own Generate doesn't count, and when it's spent only generating stops; publishing and queueing carry on), and **placeholder output is never stored** — if no real AI key resolves, nothing is generated rather than something fake. The Social mode dial (Settings → Automation) must be assisted or auto for post generation to run.",
         links: [{ label: "Settings → Automation →", href: "/setup/automation" }, { label: "Settings → Schedule →", href: "/setup/schedule" }],
         tags: ["autopilot", "autonomous", "generate", "schedule", "articles", "posts", "weekly"],
       },
       {
         q: "What are campaigns (Settings → Schedule)?",
-        a: "A campaign is a named series of posts — “Q3 product launch” — that can carry its **own utm_campaign tag**, so analytics reports the series as a series instead of one undifferentiated stream. Admins create campaigns under **Social → Campaigns** (name, tag, color); anyone composing a post can then pick one. Archiving a campaign keeps the tag on everything already sent but removes it from the picker; deleting one keeps the posts and just unlinks them.",
+        a: "A campaign is a named series of posts — “Q3 product launch” — that can carry its **own utm_campaign tag**, so analytics reports the series as a series instead of one undifferentiated stream. Admins create campaigns under **Settings → Schedule** (name, tag, color); anyone composing a post can then pick one. Archiving a campaign keeps the tag on everything already sent but removes it from the picker; deleting one keeps the posts and just unlinks them.",
         links: [{ label: "Distribute →", href: "/distribute" }],
         tags: ["campaign", "series", "utm", "social", "grouping"],
       },
       {
         q: "What does “evergreen” mean on a social post?",
-        a: "An evergreen post is one you're happy to re-share on a cycle. Once it has actually been posted, and its cooldown (default 30 days) has passed, the scheduler can **clone it into a free queue slot** — the clone appears in the queue like any scheduled post and can be edited or cancelled before it goes. Recycling only happens when **evergreen auto-fill** is switched on under Social → Workflow (it's off by default — automatic posting should never be a surprise), only fills slots in the next 7 days, and skips accounts that are no longer connected.",
+        a: "An evergreen post is one you're happy to re-share on a cycle. Once it has actually been posted, and its cooldown (default 30 days) has passed, the scheduler can **clone it into a free queue slot** — the clone appears in the queue like any scheduled post and can be edited or cancelled before it goes. Recycling only happens when **evergreen auto-fill** is switched on under Settings → Automation (it's off by default — automatic posting should never be a surprise), only fills slots in the next 7 days, and skips accounts that are no longer connected.",
         links: [{ label: "Distribute →", href: "/distribute" }],
         tags: ["evergreen", "recycle", "queue", "auto-fill", "social"],
       },
       {
         q: "How does the social approval workflow work?",
-        a: "Turn on **Require approval** under Social → Workflow and posts by non-admins are **held as drafts** until an admin approves them — held posts cannot be sent, scheduled, queued or dragged onto the calendar, and the server enforces that, not just the buttons. Admins see an **Awaiting approval** section with Approve and Request-changes (with a note); approving honors the time the author asked for if it's still in the future. Authors are notified of decisions, and editing a sent-back post resubmits it automatically.",
+        a: "Turn on **Require approval** under Settings → People and posts by non-admins are **held as drafts** until an admin approves them — held posts cannot be sent, scheduled, queued or dragged onto the calendar, and the server enforces that, not just the buttons. Admins see an **Awaiting approval** section with Approve and Request-changes (with a note); approving honors the time the author asked for if it's still in the future. Authors are notified of decisions, and editing a sent-back post resubmits it automatically.",
         links: [{ label: "Distribute →", href: "/distribute" }, { label: "Notifications →", href: "/notifications" }],
         tags: ["approval", "review", "workflow", "permissions", "social"],
       },
       {
         q: "Where do the images on my social posts come from?",
-        a: "Any image you attach in the composer is used as-is. A post composed **without** one gets an image **generated automatically** in the background by your workspace's image provider (the AI derives it from the post's text, square when Instagram/Pinterest are targeted, wide otherwise) — it lands on the post within a minute or so, well before a scheduled send. Two honest rules: your own attachment always wins over generation, and if the workspace has no real image provider the post simply stays text-only — the mock never fakes it with a stock photo. Turn the default off per workspace under Social → **Workflow** (\"Auto-generate an image\"); note real renders cost the provider's per-image fee.",
+        a: "Any image you attach in the composer is used as-is. A post composed **without** one gets an image **generated automatically** in the background by your workspace's image provider (the AI derives it from the post's text, square when Instagram/Pinterest are targeted, wide otherwise) — it lands on the post within a minute or so, well before a scheduled send. Two honest rules: your own attachment always wins over generation, and if the workspace has no real image provider the post simply stays text-only — the mock never fakes it with a stock photo. Turn the default off per workspace under Settings → **Automation** (\"Auto-generate an image\"); note real renders cost the provider's per-image fee.",
         links: [{ label: "Distribute →", href: "/distribute" }, { label: "Settings → Keys →", href: "/admin/api-keys" }],
         tags: ["auto-image", "image", "generate", "thumbnail", "social", "media"],
       },
       {
         q: "Can I import many social posts at once?",
-        a: "Yes — **Social → Import from CSV**, one post per row, up to 200 rows. Columns: `text` (required), `scheduledAt`, `networks`, `campaign` (by name), `category`, `evergreen`, `recycleEveryDays`. Rows with a future date are scheduled, the rest land as drafts. The import is text-only, so networks that require an image (Instagram, Pinterest, YouTube…) are skipped per row with a note rather than being allowed to half-fail later. If approval is required, imported posts wait for it like everything else.",
+        a: "Yes — **Distribute → Compose → Import from CSV**, one post per row, up to 200 rows. Columns: `text` (required), `scheduledAt`, `networks`, `campaign` (by name), `category`, `evergreen`, `recycleEveryDays`. Rows with a future date are scheduled, the rest land as drafts. The import is text-only, so networks that require an image (Instagram, Pinterest, YouTube…) are skipped per row with a note rather than being allowed to half-fail later. If approval is required, imported posts wait for it like everything else.",
         links: [{ label: "Distribute →", href: "/distribute" }],
         tags: ["csv", "import", "bulk", "social", "schedule"],
       },
@@ -571,7 +571,7 @@ export const HELP_CATEGORIES: FaqCategory[] = [
       },
       {
         q: "Can we use our own logo and colors?",
-        a: "Settings → **Workspace** → *Branding*: pick an accent color (presets or any hex) and upload a logo. The whole app chrome — buttons, active states, sidebar mark and menu — re-tints for members of your workspace only; other companies keep their own look. Note this styles the **app**; the brand used in generated blog content lives separately under Blog → Brand.",
+        a: "Settings → **Workspace** → *Branding*: pick an accent color (presets or any hex) and upload a logo. The whole app chrome — buttons, active states, sidebar mark and menu — re-tints for members of your workspace only; other companies keep their own look. Note this styles the **app**; the brand used in generated blog content lives separately under Brand → Tone & motifs.",
         links: [{ label: "Settings → Workspace →", href: "/admin/settings" }],
         tags: ["branding", "logo", "colors", "accent", "personalization"],
       },
@@ -633,7 +633,7 @@ export const HELP_CATEGORIES: FaqCategory[] = [
       },
       {
         q: "How do I post to several networks at once?",
-        a: "Social → **Composer**: write the post once, tick the accounts, and send or schedule. Each account shows its own character count against its own limit, and you can override the text or image per network where it matters — the rest inherit what you wrote.",
+        a: "Distribute → **Compose**: write the post once, tick the accounts, and send or schedule. Each account shows its own character count against its own limit, and you can override the text or image per network where it matters — the rest inherit what you wrote.",
         links: [{ label: "Open Distribute →", href: "/distribute" }],
         tags: ["social", "composer", "publish", "cross-post", "multi-network"],
       },

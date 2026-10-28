@@ -171,7 +171,8 @@ export default async function EngagePage({ searchParams }: { searchParams: Promi
         <div className="card mb-4" style={{ borderColor: "var(--amber)" }}>
           <div className="flex items-center gap-2 mb-2">
             <BellRing className="w-4 h-4" style={{ color: "var(--amber-on)" }} />
-            <h2 className="font-mono font-bold text-sm">New since you last looked</h2>
+            {/* Not marked seen yet — it isn't "new since you last looked" when it is 12 days old (SOC-27). */}
+            <h2 className="font-mono font-bold text-sm">Not marked seen yet</h2>
             <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }}>
               {unseenTotal}
             </span>
@@ -334,10 +335,6 @@ export default async function EngagePage({ searchParams }: { searchParams: Promi
                             <span className="font-mono text-[9.5px] text-[var(--mute)]">{when(r.created)}</span>
                           </div>
                           <p className="text-xs text-[var(--slate)] whitespace-pre-wrap mt-1 line-clamp-2">{r.text}</p>
-                          <p className="font-mono text-[9.5px] text-[var(--mute)] mt-1">
-                            Set aside by {d?.actorName ?? "someone"}
-                            {d?.reason ? ` — “${d.reason}”` : ""}
-                          </p>
                         </div>
                         <div className="flex-shrink-0">
                           <InboxItemState kind="review" targetId={r.id} back={backHere} state="aside" actorName={d?.actorName} reason={d?.reason} />

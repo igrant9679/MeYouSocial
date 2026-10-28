@@ -1,3 +1,4 @@
+import { formatDay } from "@/lib/zoned-dates";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Bookmark, Eye, ThumbsUp, MessageSquare, Calendar } from "lucide-react";
@@ -77,7 +78,7 @@ export default async function IntelVideoPage({ params, searchParams }: { params:
           )}
           <h1 className="font-mono font-bold text-xl leading-snug mb-2">{video.title}</h1>
           <div className="flex flex-wrap items-center gap-3 text-xs text-[var(--mute)]">
-            <span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> {video.publishedAt?.toISOString().slice(0, 10) ?? "—"}</span>
+            <span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> {video.publishedAt ? formatDay(video.publishedAt) : "—"}</span>
             <span>{video.format}</span>
             <span>{Math.floor((video.durationSeconds ?? 0) / 60)}:{String((video.durationSeconds ?? 0) % 60).padStart(2, "0")}</span>
             {video.youtubeId && (
@@ -123,7 +124,7 @@ export default async function IntelVideoPage({ params, searchParams }: { params:
             <div className="font-mono font-bold text-2xl" title={video.viewsPerHour == null ? "Not measured — needs views and a publish date" : undefined}>
               {video.viewsPerHour == null ? "—" : `${formatVph(video.viewsPerHour)}/hr`}
             </div>
-            <p className="text-xs text-[var(--mute)] mt-2">Views ÷ hours since publish, at the moment the views were read ({video.createdAt.toISOString().slice(0, 10)}). One lifetime average — not a 48-hour pulse.</p>
+            <p className="text-xs text-[var(--mute)] mt-2">Views ÷ hours since publish, at the moment the views were read ({formatDay(video.createdAt)}). One lifetime average — not a 48-hour pulse.</p>
           </div>
 
           {vsBand && (

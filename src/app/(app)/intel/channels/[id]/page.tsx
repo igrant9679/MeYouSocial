@@ -1,3 +1,4 @@
+import { formatDay } from "@/lib/zoned-dates";
 import Link from "next/link";
 import { Bookmark, ArrowLeft, Eye, Calendar, TrendingUp } from "lucide-react";
 import { notFound } from "next/navigation";
@@ -128,7 +129,7 @@ export default async function IntelChannelPage({ params, searchParams }: { param
                 <div className="flex-1 min-w-0">
                   <Link href={`/intel/videos/${v.id}`} className="font-semibold text-sm hover:text-[var(--accent)] line-clamp-1">{v.title}</Link>
                   <div className="text-xs text-[var(--mute)] flex items-center gap-2">
-                    <span><Calendar className="inline w-3 h-3" /> {v.publishedAt?.toISOString().slice(0, 10) ?? "—"}</span>
+                    <span><Calendar className="inline w-3 h-3" /> {v.publishedAt ? formatDay(v.publishedAt) : "—"}</span>
                     <span>· {formatNum(v.views)} views</span>
                     {v.viewsPerHour != null && <span title="Views per hour since publish, at the moment the views were measured">· {formatVph(v.viewsPerHour)}/hr</span>}
                     <span>· {v.format}</span>

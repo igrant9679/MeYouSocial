@@ -21,7 +21,7 @@ export default async function DistributeStage({ searchParams }: { searchParams: 
   const admin = canAdmin(membership.role);
   const { ok, err } = await searchParams;
   const now = new Date();
-  const [tz, scheduled, drafts, unread, overview, recent] = await Promise.all([
+  const [tz, scheduled, scheduledTotal, drafts, unread, overview, recent] = await Promise.all([
     getPostingTimeZone(workspace.id),
     db.socialPost.findMany({
       where: { workspaceId: workspace.id, status: "scheduled", scheduledAt: { gte: now } },
@@ -29,6 +29,8 @@ export default async function DistributeStage({ searchParams }: { searchParams: 
       take: 10,
       include: { targets: { select: { provider: true } } },
     }),
+    // The list shows the next ten; the count is all of them (SOC-27).
+    db.socialPost.count({ where: { workspaceId: workspace.id, status: "scheduled", scheduledAt: { gte: now } } }),
     db.socialPost.count({ where: { workspaceId: workspace.id, status: "draft" } }),
     db.socialInboxEvent.count({ where: { workspaceId: workspace.id, readAt: null } }),
     getSocialOverview(workspace.id),
@@ -53,12 +55,12 @@ export default async function DistributeStage({ searchParams }: { searchParams: 
           overview.connectedCount === 0
             ? "No social accounts connected — connect one under Settings → Connections and the queue comes alive."
             : scheduled.length
-              ? `Next send ${formatInZone(scheduled[0].scheduledAt!, tz)} (${tz}) — ${scheduled.length} in the queue.`
+              ? `Next send ${formatInZone(scheduled[0].scheduledAt!, tz)} (${tz}) — ${scheduledTotal} in the queue.`
               : "Nothing in the queue. Approved drafts take the next free slot; compose one or queue a draft."
         }
         // A count links only where this role can go (SHL-07).
         counts={[
-          { label: "scheduled", n: scheduled.length, href: "/social/calendar", hue: "blue" },
+          { label: "scheduled", n: scheduledTotal, href: "/social/calendar", hue: "blue" },
           { label: "drafts", n: drafts, href: "/social/calendar", hue: "amber" },
           { label: "replies waiting", n: unread, href: "/social/engage", hue: "cyan" },
           { label: "published, 30 days", n: overview.counts.postedLast30, href: "/social/performance", hue: "green" },
@@ -167,7 +169,7 @@ export default async function DistributeStage({ searchParams }: { searchParams: 
                 <div className="flex-1 min-w-48">
                   <div className="text-sm leading-snug line-clamp-1">{p.text}</div>
                   <div className="text-[11px] text-[var(--mute)]">
-                    {[...new Set(p.targets.map((t) => t.provider))].map((x) => networkFor(x)?.label ?? x).join(" · ")} · {p.updatedAt.toLocaleDateString("en-GB", { day: "2-digit", month: "short" })}
+                    {[...new Set(p.targets.map((t) => t.provider))].map((x) => networkFor(x)?.label ?? x).join(" · ")} · {p.updatedAt.toLocaleDateString("en-GB", { day: "2-digit", month: "short", timeZone: tz })}
                   </div>
                 </div>
                 <Link href={`/social/${p.id}`} className="btn sm">Open</Link>

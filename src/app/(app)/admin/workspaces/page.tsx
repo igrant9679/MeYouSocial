@@ -1,3 +1,4 @@
+import { formatDay } from "@/lib/zoned-dates";
 import { redirect } from "next/navigation";
 import { Building2, LogIn, UserPlus, Trash2 } from "lucide-react";
 import { requireRole, isPlatformOperator } from "@/lib/acl";
@@ -78,7 +79,7 @@ export default async function PlatformWorkspacesPage() {
                 <span className="font-normal text-[10px] text-[var(--mute)] ml-2">{ws.id}</span>
               </h2>
               <span className="font-mono text-[10px] text-[var(--mute)]">
-                {ws._count.memberships} member{ws._count.memberships === 1 ? "" : "s"} · {ws._count.channels} channel{ws._count.channels === 1 ? "" : "s"} · created {ws.createdAt.toLocaleDateString("en-GB")}
+                {ws._count.memberships} member{ws._count.memberships === 1 ? "" : "s"} · {ws._count.channels} channel{ws._count.channels === 1 ? "" : "s"} · created {formatDay(ws.createdAt)}
               </span>
               <form action={platformEnterWorkspaceAction}>
                 <input type="hidden" name="id" value={ws.id} />
