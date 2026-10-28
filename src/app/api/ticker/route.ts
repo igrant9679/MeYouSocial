@@ -3,6 +3,7 @@ import { activeWorkspaceIdFor } from "@/lib/acl";
 import { tickerEvents } from "@/lib/dashboard-data";
 import { isGloballyPaused } from "@/lib/governance";
 import { isFullyAutonomous } from "@/lib/autonomy";
+import { readHeartbeat } from "@/lib/engine-heartbeat";
 
 // Feed for the header status pill (EngineStatus). Polled by the client every
 // 60s — returns 401 JSON (never a redirect) so the poller can just stop
@@ -18,10 +19,11 @@ export async function GET() {
   // multi-company user another tenant's engine, with links that 404.
   const workspaceId = await activeWorkspaceIdFor(session.user.id);
   if (!workspaceId) return Response.json({ events: [] });
-  const [events, paused, autonomous] = await Promise.all([
+  const [events, paused, autonomous, heartbeat] = await Promise.all([
     tickerEvents(workspaceId, 12),
     isGloballyPaused(workspaceId),
     isFullyAutonomous(workspaceId),
+    readHeartbeat(workspaceId).catch(() => null),
   ]);
-  return Response.json({ events, state: { paused, autonomous } });
+  return Response.json({ events, state: { paused, autonomous, heartbeat, autopilotOff: process.env.AUTOPILOT === "off" } });
 }

@@ -691,6 +691,20 @@ Tabs: **Keys** (`/admin/api-keys`: LLM, search, images, video, TTS, storage) · 
   read keep `setState` in an effect; post-card images stay `<img>` (stored files are session-gated, and
   next/image's optimiser fetches without the session). `_name` bindings are allowed by the lint config.
 
+## ⚠ The engine checks in; buttons say what happened (2026-10-28, audit Phase 5, wave 1, part a)
+- **Every cycle that runs writes a check-in** (E-ENG-03, `lib/engine-heartbeat.ts`, WorkspaceSetting
+  `autopilot:heartbeat`): idle, paused or busy — so "nothing to do" and "not running" differ. `runAutopilotCycle`
+  writes it after the lock. The header pill turns red with "No check-in since …" after two hours (`SILENCE_MS`), its
+  panel and Automation show the last check-in, and the Inbox warns (not while paused or with AUTOPILOT=off). The
+  words live in import-free `lib/heartbeat-note.ts` because the pill is a client component.
+- **Today's AI allowance is visible** (E-ENG-06): Automation shows "N of 20 unattended runs, resets at midnight
+  <zone>"; the Inbox says when it's used. Only unattended work counts (`generationsToday`).
+- **"Approved, but not being made" links to the dial** (E-IDE-05): `draftingBlockers` returns `{ text, href? }`.
+- **Quick additions report back** (E-ART-19): Add FAQ, Add key takeaways, Suggest internal links and Link it
+  redirect to `?tab=optimize` with `flash`/`flashErr` — already there, paused, protected, no site pages, the AI gave a
+  placeholder (`placeholderProblem`), nothing usable, or what was added. A placeholder no longer wipes saved link
+  suggestions.
+
 ## Open items / things the user still owns
 - **Analytics: APIs enabled 2026-08-03** (Search Console + GA Admin + GA Data, on project
   `479503233109` = `gen-lang-client-0838901195` = "CreateUp"). Still pending, user-only: add the

@@ -23,6 +23,7 @@ import { addIdeaAction, discoverIdeasAction, regenerateIdeasAction, setBoardIdea
 import { draftSocialIdeaNowAction, setSocialIdeaStatusAction, updateSocialIdeaAction } from "@/app/actions/social-ideas";
 import { draftingBlockers } from "@/lib/idea-blockers";
 import { StageHeader } from "@/components/StageShell";
+import { canFollow, whoCanFix } from "@/lib/role-links";
 
 // The Ideas stage IS the one board (One-Loop step 4), in Topic lanes since
 // 2026-09-21 ("Topics as the spine"). Article, video and social ideas share
@@ -88,7 +89,12 @@ export default async function IdeasBoard({ searchParams }: { searchParams: Promi
         <div className="card mb-3 text-xs flex flex-col gap-1" style={{ borderColor: "var(--amber)" }}>
           <b className="text-[11px] uppercase tracking-wide font-mono" style={{ color: "var(--amber-on)" }}>Approved, but not being made</b>
           {stalled.map((s) => (
-            <span key={s.f}><b>{s.n} {s.label}:</b> {s.why}</span>
+            <span key={s.f}>
+              <b>{s.n} {s.label}:</b> {s.why!.text}
+              {s.why!.href && (canFollow(s.why!.href, membership.role)
+                ? <> <Link href={s.why!.href} className="underline">Change it</Link></>
+                : <span className="text-[var(--mute)]"> {whoCanFix(s.why!.href)}</span>)}
+            </span>
           ))}
         </div>
       )}

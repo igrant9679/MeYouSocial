@@ -1,5 +1,7 @@
 import { stop } from "@/lib/sentence";
-import { formatZonedMoment } from "@/lib/zoned-dates";
+import { formatZonedMoment, zoneLabel } from "@/lib/zoned-dates";
+import { readHeartbeat, heartbeatNote, isSilent } from "@/lib/engine-heartbeat";
+import { requestNow } from "@/lib/request-time";
 import Link from "next/link";
 import { Bot, OctagonPause, Play, Search, Sparkles } from "lucide-react";
 import { requireMembership, canAdmin } from "@/lib/acl";
@@ -52,6 +54,12 @@ export default async function SetupAutomation({ searchParams }: { searchParams: 
   const autoSeo = autoSeoRaw !== "false";
   const intervalMin = Math.max(5, parseInt(process.env.AUTOPILOT_INTERVAL_MIN ?? "30", 10) || 30);
   const autopilotOff = process.env.AUTOPILOT === "off";
+  // E-ENG-03 / E-ENG-06: the last check-in, and today's allowance against its limit.
+  const { generationsToday, DAILY_AI_BUDGET } = await import("@/lib/blog-autopilot");
+  const [heartbeat, aiUsed] = await Promise.all([
+    readHeartbeat(workspace.id).catch(() => null),
+    generationsToday(workspace.id).catch(() => null),
+  ]);
   const nextFreeLabel = queue.free[0] ? formatInZone(queue.free[0].at, queue.timeZone) : null;
 
   return (
@@ -114,6 +122,20 @@ export default async function SetupAutomation({ searchParams }: { searchParams: 
             <div className="text-xs text-[var(--mute)]">
               {lastCycle ? `Last activity ${formatZonedMoment(lastCycle.createdAt, queue.timeZone)}: ${cycleSummary(lastCycle.meta)}` : "No activity yet — it acts only when a function is assisted or auto and there is due work."}
             </div>
+            {!autopilotOff && (
+              <div className="text-xs mt-0.5" style={{ color: heartbeat && isSilent(heartbeat, requestNow()) && !paused ? "var(--rose-on)" : "var(--mute)" }}>
+                {heartbeat
+                  ? `Last check-in ${formatZonedMoment(new Date(heartbeat.at), queue.timeZone)}: ${heartbeatNote(heartbeat)}.`
+                  : "No check-in yet — the first sweep runs a couple of minutes after the server starts."}
+              </div>
+            )}
+            {aiUsed != null && (
+              <div className="text-xs mt-0.5" style={{ color: aiUsed >= DAILY_AI_BUDGET ? "var(--amber-on)" : "var(--mute)" }}>
+                Today&apos;s AI allowance: {aiUsed} of {DAILY_AI_BUDGET} unattended runs
+                {aiUsed >= DAILY_AI_BUDGET ? " — used up; the engine writes nothing more" : ""}, resets at midnight {zoneLabel(queue.timeZone)}.
+                {" "}Publishing and anything a person starts don&apos;t count.
+              </div>
+            )}
           </div>
           {admin && !autopilotOff && (
             <form action={runAutopilotNowAction}><SubmitButton className="btn" pendingText="Running cycle…">Run cycle now</SubmitButton></form>

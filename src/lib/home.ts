@@ -208,6 +208,51 @@ export async function getHomeData(workspaceId: string): Promise<HomeData> {
     }
   }
 
+  // The engine stopped checking in (E-ENG-03): an idle engine still checks in
+  // every sweep, so two hours without one means the sweep isn't running. Not
+  // raised before the first check-in, while paused, or with AUTOPILOT=off.
+  if (process.env.AUTOPILOT !== "off") {
+    const { readHeartbeat, isSilent } = await import("@/lib/engine-heartbeat");
+    const { isGloballyPaused } = await import("@/lib/governance");
+    const hb = await readHeartbeat(workspaceId).catch(() => null);
+    if (hb && isSilent(hb, Date.now()) && !(await isGloballyPaused(workspaceId).catch(() => false))) {
+      const { getPostingTimeZone } = await import("@/lib/social/slots");
+      const { formatZonedMoment } = await import("@/lib/zoned-dates");
+      const tz = await getPostingTimeZone(workspaceId).catch(() => "UTC");
+      const hours = Math.floor((Date.now() - Date.parse(hb.at)) / 3_600_000);
+      decisions.push({
+        module: "Setup",
+        kind: "engine-silent",
+        severity: "warn",
+        title: `The engine hasn't checked in for ${hours} hours`,
+        detail: `It sweeps every ${Math.max(5, parseInt(process.env.AUTOPILOT_INTERVAL_MIN ?? "30", 10) || 30)} minutes; the last check-in was ${formatZonedMoment(new Date(hb.at), tz)}. Nothing is drafted, published or posted until it runs again — the platform operator needs to look at the server.`,
+        href: "/setup/automation",
+        cta: "Open Automation",
+      });
+    }
+  }
+
+  // Today's AI allowance is used (E-ENG-06): the engine stops writing until
+  // midnight in the posting zone; publishing and queueing carry on.
+  {
+    const { generationsToday, DAILY_AI_BUDGET } = await import("@/lib/blog-autopilot");
+    const used = await generationsToday(workspaceId).catch(() => 0);
+    if (used >= DAILY_AI_BUDGET) {
+      const { getPostingTimeZone } = await import("@/lib/social/slots");
+      const { zoneLabel } = await import("@/lib/zoned-dates");
+      const tz = await getPostingTimeZone(workspaceId).catch(() => "UTC");
+      decisions.push({
+        module: "Setup",
+        kind: "ai-allowance-used",
+        severity: "info",
+        title: "Today's AI allowance is used",
+        detail: `The engine has made ${used} of its ${DAILY_AI_BUDGET} unattended AI runs today, so it writes nothing more until midnight ${zoneLabel(tz)}. Publishing, advancing and queueing carry on, and anything a person starts still runs.`,
+        href: "/setup/automation",
+        cta: "Open Automation",
+      });
+    }
+  }
+
   // An AI provider refusing this workspace's calls (out of credits, over its
   // quota, a rejected key). The router falls back to a placeholder that the
   // guards won't store, so without this the engine just goes quiet.

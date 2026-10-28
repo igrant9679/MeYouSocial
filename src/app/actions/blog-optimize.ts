@@ -1,12 +1,14 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { requireRole } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { llm } from "@/lib/llm";
 import { getSearchProvider } from "@/lib/search";
 import { isGloballyPaused, writeAudit } from "@/lib/governance";
 import { returnToReviewAfterEdit } from "@/lib/blog-gates";
+import { placeholderProblem } from "@/lib/studio-ai";
 
 /**
  * Wave B′ differentiators: E-E-A-T review, featured-snippet blocks, internal
@@ -59,15 +61,27 @@ export async function eeatReviewAction(formData: FormData) {
   revalidatePath(`/blog/${id}`);
 }
 
+/**
+ * Back to the article's Optimize tab, saying what happened (E-ART-19: the Quick
+ * additions returned in silence — already there, paused, protected, no site
+ * pages, or the AI gave nothing usable all looked like a button that did nothing).
+ */
+function backToOptimize(id: string, message: string, kind: "ok" | "err" = "ok"): never {
+  redirect(`/blog/${encodeURIComponent(id)}?tab=optimize&${kind === "ok" ? "flash" : "flashErr"}=${encodeURIComponent(message)}`);
+}
+const PAUSED = "Everything is paused (Settings → Automation), so the AI isn't run — resume to use this.";
+const PROTECTED = "This article is protected from rewrites, so nothing was added — turn the protection off first.";
+
 // ---- Featured-snippet blocks -------------------------------------------------
 
 export async function addFaqSectionAction(formData: FormData) {
   const id = String(formData.get("id"));
   const { workspace } = await requireRole("EDITOR");
-  if (await isGloballyPaused(workspace.id)) return;
+  if (await isGloballyPaused(workspace.id)) backToOptimize(id, PAUSED, "err");
   const post = await db.blogPost.findFirst({ where: { id, workspaceId: workspace.id } });
-  if (!post?.body || post.protectedFromRewrite) return;
-  if (/frequently asked/i.test(post.body)) return; // already has one
+  if (!post?.body) return backToOptimize(id, "This article has no text yet — write or draft it first.", "err");
+  if (post.protectedFromRewrite) backToOptimize(id, PROTECTED, "err");
+  if (/frequently asked/i.test(post.body)) backToOptimize(id, "This article already has an FAQ section.", "err");
 
   const res = await llm.complete({
     model: post.model ?? workspace.defaultModel ?? llm.defaultModel,
@@ -85,7 +99,9 @@ export async function addFaqSectionAction(formData: FormData) {
     faq = [];
   }
   const pairs = faq.filter((f) => typeof f.q === "string" && typeof f.a === "string").slice(0, 5);
-  if (!pairs.length) return;
+  const placeholder = placeholderProblem(res, "no FAQ was added");
+  if (placeholder) backToOptimize(id, placeholder, "err");
+  if (!pairs.length) backToOptimize(id, "The AI's answer had no usable questions, so nothing was added — try again.", "err");
 
   await db.blogPostVersion.create({ data: { postId: post.id, label: "before FAQ section", body: post.body } });
   const html =
@@ -94,15 +110,17 @@ export async function addFaqSectionAction(formData: FormData) {
   await db.blogPost.update({ where: { id: post.id }, data: { body: post.body + html } });
   await returnToReviewAfterEdit(workspace.id, post.id, "FAQ section");
   revalidatePath(`/blog/${id}`);
+  backToOptimize(id, `Added an FAQ section with ${pairs.length} questions (the article before it is kept as a version).`);
 }
 
 export async function addKeyTakeawaysAction(formData: FormData) {
   const id = String(formData.get("id"));
   const { workspace } = await requireRole("EDITOR");
-  if (await isGloballyPaused(workspace.id)) return;
+  if (await isGloballyPaused(workspace.id)) backToOptimize(id, PAUSED, "err");
   const post = await db.blogPost.findFirst({ where: { id, workspaceId: workspace.id } });
-  if (!post?.body || post.protectedFromRewrite) return;
-  if (/key takeaways/i.test(post.body)) return;
+  if (!post?.body) return backToOptimize(id, "This article has no text yet — write or draft it first.", "err");
+  if (post.protectedFromRewrite) backToOptimize(id, PROTECTED, "err");
+  if (/key takeaways/i.test(post.body)) backToOptimize(id, "This article already has a key-takeaways list.", "err");
 
   const res = await llm.complete({
     model: post.model ?? workspace.defaultModel ?? llm.defaultModel,
@@ -119,7 +137,9 @@ export async function addKeyTakeawaysAction(formData: FormData) {
   } catch {
     items = [];
   }
-  if (!items.length) return;
+  const placeholder = placeholderProblem(res, "no takeaways were added");
+  if (placeholder) backToOptimize(id, placeholder, "err");
+  if (!items.length) backToOptimize(id, "The AI's answer had no usable takeaways, so nothing was added — try again.", "err");
 
   await db.blogPostVersion.create({ data: { postId: post.id, label: "before key takeaways", body: post.body } });
   const block = `<h2>Key takeaways</h2>\n<ul>\n${items.map((i) => `<li>${i}</li>`).join("\n")}\n</ul>\n`;
@@ -132,6 +152,7 @@ export async function addKeyTakeawaysAction(formData: FormData) {
   await db.blogPost.update({ where: { id: post.id }, data: { body: newBody } });
   await returnToReviewAfterEdit(workspace.id, post.id, "key takeaways");
   revalidatePath(`/blog/${id}`);
+  backToOptimize(id, `Added ${items.length} key takeaways after the first paragraph.`);
 }
 
 // ---- Internal links ----------------------------------------------------------
@@ -176,12 +197,13 @@ export async function importPublishedAsPagesAction(): Promise<void> {
 export async function suggestInternalLinksAction(formData: FormData) {
   const id = String(formData.get("id"));
   const { workspace } = await requireRole("EDITOR");
-  if (await isGloballyPaused(workspace.id)) return;
+  if (await isGloballyPaused(workspace.id)) backToOptimize(id, PAUSED, "err");
   const [post, pages] = await Promise.all([
     db.blogPost.findFirst({ where: { id, workspaceId: workspace.id } }),
     db.sitePage.findMany({ where: { workspaceId: workspace.id }, take: 50 }),
   ]);
-  if (!post?.body || !pages.length) return;
+  if (!post?.body) return backToOptimize(id, "This article has no text yet — write or draft it first.", "err");
+  if (!pages.length) backToOptimize(id, "No site pages yet — add your site's pages under Website (or import your published articles there), then try again.", "err");
 
   const res = await llm.complete({
     model: post.model ?? workspace.defaultModel ?? llm.defaultModel,
@@ -208,12 +230,18 @@ export async function suggestInternalLinksAction(formData: FormData) {
     .filter((s) => typeof s.url === "string" && typeof s.anchorText === "string")
     .filter((s) => pages.some((p) => p.url === s.url))
     .slice(0, 5);
+  // A placeholder keeps the suggestions already shown rather than wiping them.
+  const placeholder = placeholderProblem(res, "no links were suggested");
+  if (placeholder) backToOptimize(id, placeholder, "err");
   await db.setting.upsert({
     where: { key: `blog:links:${post.id}` },
     update: { value: JSON.stringify(valid) },
     create: { key: `blog:links:${post.id}`, value: JSON.stringify(valid) },
   });
   revalidatePath(`/blog/${id}`);
+  backToOptimize(id, valid.length
+    ? `${valid.length} internal link${valid.length === 1 ? "" : "s"} suggested below — Link it adds one.`
+    : `None of the ${pages.length} site pages fits a phrase in this article, so there's nothing to link.`);
 }
 
 /** Deterministic apply: wrap the first free occurrence of the anchor text. */
@@ -223,20 +251,21 @@ export async function applyInternalLinkAction(formData: FormData) {
   const anchor = String(formData.get("anchorText") ?? "").trim();
   const { workspace } = await requireRole("EDITOR");
   const post = await db.blogPost.findFirst({ where: { id, workspaceId: workspace.id } });
-  if (!post?.body || !anchor || !url) return;
-  if (post.body.includes(`href="${url}"`)) return; // already linked
+  if (!post?.body || !anchor || !url) return backToOptimize(id, "That suggestion is incomplete — suggest links again.", "err");
+  if (post.body.includes(`href="${url}"`)) backToOptimize(id, "That page is already linked in this article.", "err");
 
   // Find the anchor outside existing tags/links (simple heuristic: exact text
   // match not preceded by ">" of an <a> tag within 100 chars).
   const idx = post.body.toLowerCase().indexOf(anchor.toLowerCase());
-  if (idx < 0) return;
+  if (idx < 0) backToOptimize(id, `“${anchor}” isn't in the article any more — suggest links again.`, "err");
   const before = post.body.slice(Math.max(0, idx - 120), idx);
-  if (/<a\s[^>]*$/i.test(before)) return; // inside a link — skip
+  if (/<a\s[^>]*$/i.test(before)) backToOptimize(id, `“${anchor}” is already inside a link, so it was left alone.`, "err");
   const original = post.body.slice(idx, idx + anchor.length);
   const newBody = post.body.slice(0, idx) + `<a href="${url}">${original}</a>` + post.body.slice(idx + anchor.length);
   await db.blogPost.update({ where: { id: post.id }, data: { body: newBody } });
   await returnToReviewAfterEdit(workspace.id, post.id, "internal link");
   revalidatePath(`/blog/${id}`);
+  backToOptimize(id, `Linked “${original}” to ${url}.`);
 }
 
 // ---- Entity coverage (Wave C′; LLM-derived, labeled as such) -----------------

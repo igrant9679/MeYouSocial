@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ChevronDown } from "lucide-react";
 import type { EngineEvent } from "@/lib/dashboard-data";
+import { heartbeatNote, isSilent, type Heartbeat } from "@/lib/heartbeat-note";
 
 /**
  * One plain-English status pill, where a three-chip marquee used to scroll.
@@ -27,7 +28,15 @@ import type { EngineEvent } from "@/lib/dashboard-data";
 export type EngineState = {
   paused: boolean;
   autonomous: boolean;
+  /** The last cycle's check-in (E-ENG-03); null before the first one. */
+  heartbeat?: Heartbeat | null;
+  autopilotOff?: boolean;
 };
+
+/** Past the silence threshold now? Read in a helper, at the moment it's asked. */
+function silentNow(hb: Heartbeat | null | undefined): boolean {
+  return !!hb && isSilent(hb, Date.now());
+}
 
 const DOT: Record<EngineEvent["tone"], string> = {
   ok: "var(--green-on)",
@@ -105,12 +114,16 @@ export function EngineStatus({
 
   // The sentence on the pill. Paused outranks everything: it is the one state
   // where "nothing happened recently" is the point rather than a lull.
+  // An engine that stopped checking in outranks its last deed (E-ENG-03).
+  const silent = !state.paused && !state.autopilotOff && silentNow(state.heartbeat);
   const headline = state.paused
     ? "Paused"
-    : latest
+    : silent && state.heartbeat
+      ? `No check-in since ${timeIn(state.heartbeat.at, timeZone)}`
+      : latest
       ? `${latest.what[0].toUpperCase()}${latest.what.slice(1)}`
       : "Nothing has run yet";
-  const dot = state.paused ? "var(--rose-on)" : latest ? DOT[latest.tone] : "var(--mute)";
+  const dot = state.paused || silent ? "var(--rose-on)" : latest ? DOT[latest.tone] : "var(--mute)";
 
   // The line under the panel's title — what the engine is set to do at all.
   const mode = state.paused
@@ -132,7 +145,7 @@ export function EngineStatus({
         <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: dot }} aria-hidden />
         <span className="text-[12px] text-[var(--slate)] truncate min-w-0">
           {headline}
-          {latest && !state.paused && (
+          {latest && !state.paused && !silent && (
             <span className="text-[var(--mute)]"> · {timeIn(latest.at, timeZone)}</span>
           )}
         </span>
@@ -146,7 +159,16 @@ export function EngineStatus({
           className="absolute top-full left-0 mt-1.5 w-[26rem] max-w-[90vw] card z-50 shadow-xl"
         >
           <h2 className="text-sm font-semibold mb-0.5">What the engine is doing</h2>
-          <p className="text-xs text-[var(--mute)] mb-3">{mode}</p>
+          <p className="text-xs text-[var(--mute)] mb-1">{mode}</p>
+          <p className="text-xs mb-3" style={{ color: silent ? "var(--rose-on)" : "var(--mute)" }}>
+            {state.autopilotOff
+              ? "The autopilot is switched off on this server (AUTOPILOT=off), so it never checks in."
+              : !state.heartbeat
+                ? "It hasn't checked in yet — the first sweep runs a couple of minutes after a start."
+                : silent
+                  ? `It last checked in ${timeIn(state.heartbeat.at, timeZone)} and should every 30 minutes — the platform operator needs to look at the server.`
+                  : `Last check-in ${timeIn(state.heartbeat.at, timeZone)}: ${heartbeatNote(state.heartbeat)}.`}
+          </p>
 
           {events.length === 0 ? (
             <p className="text-xs text-[var(--mute)]">

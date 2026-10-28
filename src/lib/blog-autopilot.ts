@@ -1439,7 +1439,19 @@ export type CycleReport = {
 export async function runAutopilotCycle(workspaceId: string): Promise<CycleReport> {
   const { withLock } = await import("@/lib/lock");
   const out = await withLock(`autopilot-cycle:${workspaceId}`, () => runAutopilotCycleUnlocked(workspaceId), { ttlMs: 10 * 60_000 });
-  if (out.ran) return out.result;
+  if (out.ran) {
+    // The check-in (E-ENG-03): every cycle that ran, idle and paused ones too.
+    const r = out.result;
+    const { recordHeartbeat } = await import("@/lib/engine-heartbeat");
+    await recordHeartbeat(workspaceId, {
+      ...(r.skipped === "paused" ? { skipped: "paused" as const } : {}),
+      ...(r.budgetReached ? { budgetReached: true } : {}),
+      activity: r.ideasCreated + r.drafted + r.variantPosts + r.postsGenerated + r.imagesGenerated + r.seoOptimized
+        + r.autoAdvanced + r.autoQueued + r.published + r.videosPackaged + r.videosRendered,
+      failed: r.failedSteps?.length ?? 0,
+    }).catch(() => undefined);
+    return r;
+  }
   return { ...emptyReport(workspaceId), skipped: "busy" };
 }
 

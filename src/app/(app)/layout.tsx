@@ -7,6 +7,7 @@ import { EngineStatus } from "@/components/EngineStatus";
 import { tickerEvents } from "@/lib/dashboard-data";
 import { isGloballyPaused } from "@/lib/governance";
 import { isFullyAutonomous } from "@/lib/autonomy";
+import { readHeartbeat } from "@/lib/engine-heartbeat";
 import { signOut } from "@/auth";
 import { getActiveChannel } from "@/lib/channel";
 import { isPlatformOperator, canEdit } from "@/lib/acl";
@@ -128,7 +129,7 @@ html[data-theme="dark"] .ws-brand {
     --accent-on: color-mix(in srgb, ${accent} 62%, white);
   }
 }` : null;
-  const [unread, ticker, studio, counts, tickerZone, enginePaused, engineAutonomous] = await Promise.all([
+  const [unread, ticker, studio, counts, tickerZone, enginePaused, engineAutonomous, heartbeat] = await Promise.all([
     unreadCount(workspace.id, user.id),
     tickerEvents(workspace.id, 12),
     // Whether the video studio's tabs show (lib/studio.ts) and the strip's
@@ -143,6 +144,8 @@ html[data-theme="dark"] .ws-brand {
     // "Paused" or "Running on its own" without a second trip.
     isGloballyPaused(workspace.id),
     isFullyAutonomous(workspace.id),
+    // The engine's last check-in (E-ENG-03), so an idle engine and a stopped one differ.
+    readHeartbeat(workspace.id).catch(() => null),
   ]);
 
   // Elsie, the guide. Her setup steps are filtered against what this workspace
@@ -311,7 +314,7 @@ html[data-theme="dark"] .ws-brand {
           <Link href="/channels" className="btn !hidden @min-[88rem]:!inline-flex" title="Manage all channels">Manage channels</Link>
           {/* Keyed by workspace: a switch remounts it, so the last company's
               events don't linger until the next poll (ENG-19). */}
-          <EngineStatus key={workspace.id} initial={ticker} timeZone={tickerZone} state={{ paused: enginePaused, autonomous: engineAutonomous }} />
+          <EngineStatus key={workspace.id} initial={ticker} timeZone={tickerZone} state={{ paused: enginePaused, autonomous: engineAutonomous, heartbeat, autopilotOff: process.env.AUTOPILOT === "off" }} />
           <div className="flex-1" />
           {editorUp && <AssistantDockButton />}
           <AiActivity />
