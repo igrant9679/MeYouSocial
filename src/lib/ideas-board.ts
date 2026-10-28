@@ -31,7 +31,7 @@ export type IdeaFormat = "article" | "video" | "social";
 // four competing ones.
 export const STATES: { state: BoardState; title: string; hue: string; blurb: string; empty: string }[] = [
   { state: "discovered", title: "Discovered", hue: "amber", blurb: "waiting for a yes or no", empty: "Nothing waiting on a yes or no." },
-  { state: "approved", title: "Approved", hue: "blue", blurb: "next to be made", empty: "Nothing approved yet — say yes to one on the left and the engine makes it." },
+  { state: "approved", title: "Approved", hue: "blue", blurb: "next to be made", empty: "Nothing approved yet — say yes to one on the left." },
   { state: "drafted", title: "Drafted", hue: "green", blurb: "an article, script or post exists", empty: "Approved ideas land here once they have been made." },
   { state: "rejected", title: "Rejected", hue: "rose", blurb: "won't come back", empty: "Nothing rejected." },
 ];

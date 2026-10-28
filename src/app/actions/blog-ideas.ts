@@ -5,7 +5,6 @@ import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { isGloballyPaused, writeAudit } from "@/lib/governance";
-import { discoverIdeasCore } from "@/lib/blog-autopilot";
 import { rescoreIdeas } from "@/lib/blog-idea-scoring";
 import { readMotifWeights, serializeMotifs } from "@/lib/motifs";
 import { cleanTitle } from "@/lib/list-marker";
@@ -40,17 +39,21 @@ export async function addBlogIdeaAction(formData: FormData) {
   revalidatePath("/ideas");
 }
 
+/**
+ * Articles' "Discover" buttons. One path for every discover button (IDE-03):
+ * this used to call the core directly — six untagged ideas a press, no open-idea
+ * ceiling, recorded as if the sweep had done it (the 15 Oct pile-up). It is now
+ * the Ideas board's action: per Topic, the manual ceiling, the person recorded,
+ * and a message saying what happened.
+ */
 export async function discoverBlogIdeasAction(formData?: FormData) {
-  const { workspace } = await requireRole("EDITOR");
-  // Optional focus topic — validated against the workspace before it steers a run.
-  const raw = String(formData?.get("topicId") ?? "").trim();
-  const topicId = raw
-    ? (await db.topic.findFirst({ where: { id: raw, workspaceId: workspace.id }, select: { id: true } }))?.id ?? null
-    : null;
-  // Grounding, dedupe, parsing, pause guard, audit — all in the shared core.
-  await discoverIdeasCore(workspace.id, topicId);
-  revalidatePath("/blog");
-  revalidatePath("/ideas");
+  const fd = new FormData();
+  const topicId = String(formData?.get("topicId") ?? "").trim();
+  if (topicId) fd.set("topicId", topicId);
+  fd.set("formats", "article");
+  fd.set("back", "/blog");
+  const { discoverIdeasAction } = await import("@/app/actions/ideas");
+  return discoverIdeasAction(fd);
 }
 
 export async function setBlogIdeaStatusAction(formData: FormData) {

@@ -21,7 +21,6 @@ export default async function IntelPage({ searchParams }: { searchParams: Promis
     q: sp.q,
     subsMin: sp.subsMin ? Number(sp.subsMin) : undefined,
     subsMax: sp.subsMax ? Number(sp.subsMax) : undefined,
-    velocityMin: sp.velocityMin ? Number(sp.velocityMin) : undefined,
     language: sp.language,
     format: (sp.format === "short" || sp.format === "long" ? sp.format : "") as "" | "short" | "long",
   };
@@ -39,16 +38,20 @@ export default async function IntelPage({ searchParams }: { searchParams: Promis
   const [{ channels, videos, biasChannels }, bookmarked, trending, hotChannels, byCategory] = await Promise.all([
     searchIntel(params),
     db.bookmark.findMany({ where: { workspaceId: workspace.id }, select: { intelChannelId: true, intelVideoId: true } }),
+    // A dated window, by publish date: the heading said "this week" over the
+    // whole index (IDE-11).
     db.intelVideo.findMany({
-      where: { outlierScore: { gte: 2 }, intelChannel: { workspaceId: workspace.id } },
+      where: { outlierScore: { gte: 2 }, publishedAt: { gte: new Date(Date.now() - 30 * 86_400_000) }, intelChannel: { workspaceId: workspace.id } },
       orderBy: { outlierScore: "desc" },
       take: 6,
       include: { intelChannel: true },
     }),
-    // Hot new channels (high velocity, smaller subs)
+    // The most frequent uploaders — measured from upload dates at index.
+    // "Hot new channels" ranked a velocity that is never computed, so it was
+    // always empty (IDE-12).
     db.intelChannel.findMany({
-      where: { velocityScore: { gte: 5 }, workspaceId: workspace.id },
-      orderBy: { velocityScore: "desc" },
+      where: { uploadFrequency: { gt: 0 }, workspaceId: workspace.id },
+      orderBy: { uploadFrequency: "desc" },
       take: 4,
     }),
     // Trending niches (category counts)
@@ -75,7 +78,7 @@ export default async function IntelPage({ searchParams }: { searchParams: Promis
           <h1 className="font-mono font-bold text-2xl leading-tight">Intel</h1>
           <p className="text-xs text-[var(--mute)]">
             {indexedCount > 0
-              ? `Search ${indexedCount} indexed channel${indexedCount === 1 ? "" : "s"} and ${indexedVideos} video${indexedVideos === 1 ? "" : "s"}. Outliers, velocity, deep filters.`
+              ? `Search ${indexedCount} indexed channel${indexedCount === 1 ? "" : "s"} and ${indexedVideos} video${indexedVideos === 1 ? "" : "s"}. Outliers, upload cadence, deep filters.`
               : "Nothing indexed yet — search a keyword or @handle to pull channels in from YouTube."}
           </p>
         </div>
@@ -91,7 +94,6 @@ export default async function IntelPage({ searchParams }: { searchParams: Promis
         </label>
         <NumField name="subsMin" label="Subs min" defaultValue={params.subsMin} />
         <NumField name="subsMax" label="Subs max" defaultValue={params.subsMax} />
-        <NumField name="velocityMin" label="Velocity ≥" defaultValue={params.velocityMin} step={0.5} />
         <label className="flex flex-col gap-1">
           <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">Format</span>
           <select name="format" defaultValue={params.format ?? ""} className="border border-[var(--line-2)] rounded-lg p-2.5 text-sm">
@@ -113,7 +115,7 @@ export default async function IntelPage({ searchParams }: { searchParams: Promis
           {trending.length > 0 && (
             <section className="card">
               <h2 className="font-mono text-[14px] font-bold mb-3 flex items-center gap-2">
-                <TrendingUp className="w-4 h-4" style={{ color: "var(--brand-on)" }} /> Outlier videos this week
+                <TrendingUp className="w-4 h-4" style={{ color: "var(--brand-on)" }} /> Outlier videos, published in the last 30 days
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {trending.map((v) => (
@@ -138,13 +140,13 @@ export default async function IntelPage({ searchParams }: { searchParams: Promis
             {hotChannels.length > 0 && (
               <section className="card">
                 <h2 className="font-mono text-[13px] font-bold mb-2 flex items-center gap-2">
-                  <TrendingUp className="w-3.5 h-3.5" style={{ color: "var(--brand-on)" }} /> Hot new channels
+                  <TrendingUp className="w-3.5 h-3.5" style={{ color: "var(--brand-on)" }} /> Most frequent uploaders
                 </h2>
                 <ul className="m-0 p-0">
                   {hotChannels.map((c) => (
                     <li key={c.id} className="border-t border-[var(--line)] first:border-t-0 py-2 flex items-center gap-2 text-xs">
                       <ChannelAvatar name={c.name} url={c.thumbnailUrl} size={24} />
-                      <span className="font-mono font-bold text-[10px] px-1.5 py-0.5 rounded" style={{ background: "var(--brand-soft)", color: "var(--brand-on)" }}>{c.velocityScore?.toFixed(1)}</span>
+                      <span className="font-mono font-bold text-[10px] px-1.5 py-0.5 rounded" style={{ background: "var(--brand-soft)", color: "var(--brand-on)" }} title="Uploads per week, measured from upload dates">{c.uploadFrequency?.toFixed(1)}/wk</span>
                       <Link href={`/intel/channels/${c.id}`} className="flex-1 truncate hover:text-[var(--accent)]">{c.name}</Link>
                       <span className="text-[var(--mute)]">{formatNum(c.subscribers)}</span>
                     </li>
@@ -189,7 +191,7 @@ export default async function IntelPage({ searchParams }: { searchParams: Promis
                       <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-md" style={{ background: "var(--brand-soft)", color: "var(--brand-on)" }}>▲ FAST</span>
                     )}
                   </div>
-                  <div className="text-xs text-[var(--mute)]">{c.handle} · {formatNum(c.subscribers)} subs · velocity {c.velocityScore?.toFixed(1)}</div>
+                  <div className="text-xs text-[var(--mute)]">{c.handle} · {formatNum(c.subscribers)} subs{c.uploadFrequency != null ? ` · ${c.uploadFrequency.toFixed(1)} uploads/wk` : ""}</div>
                 </div>
                 <Link href={`/intel/channels/${c.id}`} className="btn sm">Open</Link>
                 <form action={toggleBookmarkAction}>

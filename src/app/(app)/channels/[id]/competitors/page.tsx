@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Search, Plus, Check } from "lucide-react";
 import { requireChannel } from "@/lib/channel";
+import { canEdit } from "@/lib/acl";
 import { SubmitButton } from "@/components/SubmitButton";
 import { db } from "@/lib/db";
 import { readJson } from "@/lib/db/json";
@@ -23,7 +24,8 @@ export default async function ChannelCompetitorsPage({
   searchParams: Promise<{ q?: string }>;
 }) {
   const { id } = await params;
-  const { workspace } = await requireChannel(id);
+  const { workspace, membership } = await requireChannel(id);
+  const editor = canEdit(membership.role);
   const { q } = await searchParams;
   const query = (q ?? "").trim();
 
@@ -31,8 +33,11 @@ export default async function ChannelCompetitorsPage({
     where: { channelId: id },
     orderBy: { createdAt: "asc" },
   });
-  // Only search when asked — this is a real YouTube call and costs quota.
-  const results = query ? await youtubeFor(workspace.id).searchChannels(query, 8).catch(() => []) : [];
+  // Only search when asked — this is a real YouTube call and costs quota
+  // (100 units, from a pool tenants may share). An editor's, and cached 24 h by
+  // the provider: this page used to search again on every render — Remove,
+  // refresh, Back (IDE-13).
+  const results = query && editor ? await youtubeFor(workspace.id).searchChannels(query, 8).catch(() => []) : [];
   const trackedIds = new Set(competitors.map((c) => c.youtubeId).filter(Boolean) as string[]);
 
   return (
@@ -44,7 +49,7 @@ export default async function ChannelCompetitorsPage({
       </p>
 
       {/* Search by name — the path for "who else does this?" */}
-      <form className="card flex gap-2 items-end mb-3">
+      {editor && (<form className="card flex gap-2 items-end mb-3">
         <label className="flex flex-col gap-1 flex-1">
           <span className="text-xs font-mono uppercase text-[var(--mute)]">Search YouTube by name or topic</span>
           <input
@@ -57,7 +62,7 @@ export default async function ChannelCompetitorsPage({
         <SubmitButton className="btn primary sm" pendingText="Searching…">
           <Search className="w-3.5 h-3.5" /> Search
         </SubmitButton>
-      </form>
+      </form>)}
 
       {query && (
         <div className="card mb-4">

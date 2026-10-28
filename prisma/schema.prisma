@@ -1289,6 +1289,10 @@ model IntelVideo {
   // like outlierScore (a stat needs the measurement moment, which is when
   // this row's views were read). Null when views or publishedAt are unknown.
   viewsPerHour    Float?
+  // When views/likes/comments (and the ratios above) were last read from
+  // YouTube. Re-indexing refreshes them; they used to stay at the first read
+  // for good while only a timestamp moved (audit IDE-11).
+  measuredAt      DateTime?
   format          String?  // "short" | "long"
   createdAt       DateTime @default(now())
 
@@ -1488,6 +1492,18 @@ model Bookmark {
   workspace       Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   intelChannel    IntelChannel? @relation(fields: [intelChannelId], references: [id])
   intelVideo      IntelVideo?   @relation(fields: [intelVideoId], references: [id])
+}
+
+/// Short-lived answers from outside APIs, by key — today YouTube channel
+/// searches (100 quota units each, on a key several tenants may share), kept
+/// 24 h so a page refresh or Back doesn't search again (audit IDE-13).
+model ApiCache {
+  key       String   @id
+  value     String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([expiresAt])
 }
 
 model UsageLog {

@@ -71,7 +71,7 @@ import { claimsFromMarkers } from "@/lib/citations-extract";
  * auto mode can never publish unverified claims.
  */
 
-const DAILY_AI_BUDGET = 20; // unattended generations per workspace per day
+export const DAILY_AI_BUDGET = 20; // unattended generations per workspace per day
 const GENERATION_ACTIONS = ["blog.draft_generated", "ideas.ai_discovery", "social.variants_generated", "social.post_generated", "social.ideation"];
 
 const clip = (s: string | null | undefined, n = 600) => (s && s !== "{}" && s !== "[]" ? s.slice(0, n) : null);

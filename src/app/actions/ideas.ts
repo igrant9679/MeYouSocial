@@ -162,7 +162,8 @@ export async function discoverIdeasAction(formData?: FormData) {
   const topicId = await ownTopicId(workspace.id, formData?.get("topicId"));
   const formats = String(formData?.get("formats") ?? "article").split(",").map((s) => s.trim()).filter(isIdeaFormat);
   const rawBack = String(formData?.get("back") ?? "/ideas");
-  const back = /^\/ideas(\/|$)/.test(rawBack) ? rawBack.split("?")[0] : "/ideas";
+  // The Ideas board, or Articles' own Discover buttons (IDE-03).
+  const back = /^\/ideas(\/|$)/.test(rawBack) || rawBack === "/blog" ? rawBack.split("?")[0] : "/ideas";
   const { runIdeation, MANUAL_CEILING } = await import("@/lib/ideation");
   const run = await runIdeation(workspace.id, {
     formats: formats.length ? formats : ["article"],

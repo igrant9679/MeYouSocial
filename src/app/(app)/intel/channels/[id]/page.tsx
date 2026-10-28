@@ -1,13 +1,14 @@
 import Link from "next/link";
 import { Bookmark, ArrowLeft, Eye, Calendar, TrendingUp } from "lucide-react";
 import { notFound } from "next/navigation";
-import { requireMembership } from "@/lib/acl";
+import { requireMembership, canEdit } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { outlierBand, isFastGrowing, formatNum, intelThumbUrl, formatVph } from "@/lib/intel";
 import { ChannelAvatar } from "@/components/ChannelAvatar";
 import { toggleBookmarkAction } from "@/app/actions/bookmarks";
-import { findSimilarChannelsAction } from "@/app/actions/intel";
-import { Bot, GitBranch } from "lucide-react";
+import { findSimilarChannelsAction, reindexIntelChannelAction } from "@/app/actions/intel";
+import { Bot, GitBranch, RefreshCw } from "lucide-react";
+import { SubmitButton } from "@/components/SubmitButton";
 
 // Channel detail view: subscriber/growth trends, total & average views,
 // upload frequency/consistency, top videos sortable by views/outlier, and outlier list.
@@ -15,7 +16,9 @@ import { Bot, GitBranch } from "lucide-react";
 export default async function IntelChannelPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ sort?: string }> }) {
   const { id } = await params;
   const { sort = "outlier" } = await searchParams;
-  const { workspace } = await requireMembership();
+  const { workspace, membership } = await requireMembership();
+  // Both buttons below spend YouTube quota — an editor's (IDE-13).
+  const editor = canEdit(membership.role);
 
   // Tenancy in the lookup — another workspace's row id 404s like any other.
   const channel = await db.intelChannel.findFirst({
@@ -66,12 +69,22 @@ export default async function IntelChannelPage({ params, searchParams }: { param
           >
             <Bot className="w-4 h-4" /> Ask about this channel
           </Link>
-          <form action={findSimilarChannelsAction}>
-            <input type="hidden" name="intelChannelId" value={channel.id} />
-            <button type="submit" className="btn flex items-center gap-2" title="Find similar channels in this niche">
-              <GitBranch className="w-4 h-4" /> Find similar
-            </button>
-          </form>
+          {editor && (
+            <form action={findSimilarChannelsAction}>
+              <input type="hidden" name="intelChannelId" value={channel.id} />
+              <button type="submit" className="btn flex items-center gap-2" title="Find similar channels in this niche (one YouTube search, 100 quota units — cached a day)">
+                <GitBranch className="w-4 h-4" /> Find similar
+              </button>
+            </form>
+          )}
+          {editor && (
+            <form action={reindexIntelChannelAction}>
+              <input type="hidden" name="intelChannelId" value={channel.id} />
+              <SubmitButton className="btn flex items-center gap-2" pendingText="Reading…" title="Read the counts and latest uploads again (about 4 quota units)">
+                <RefreshCw className="w-4 h-4" /> Re-read from YouTube
+              </SubmitButton>
+            </form>
+          )}
         </div>
       </div>
 
@@ -79,9 +92,11 @@ export default async function IntelChannelPage({ params, searchParams }: { param
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-5">
         <StatBox label="Subscribers" value={formatNum(channel.subscribers)} color="#2563EB" soft="#E5EDFD" />
         <StatBox label="Total views"  value={formatNum(channel.totalViews)}  color="#15924B" soft="#E0F2E8" />
-        <StatBox label="Videos"       value={String(channel.videoCount ?? 0)} color="#6D28D9" soft="#EDE7FB" />
-        <StatBox label="Upload/wk"    value={(channel.uploadFrequency ?? 0).toFixed(1)} color="#D97706" soft="#FBEED5" />
-        <StatBox label="Velocity"     value={(channel.velocityScore ?? 0).toFixed(1)} color="#E5482F" soft="#FDE7E1" icon={<TrendingUp className="w-3.5 h-3.5" />} />
+        <StatBox label="Videos"       value={channel.videoCount == null ? "—" : String(channel.videoCount)} color="#6D28D9" soft="#EDE7FB" />
+        {/* Measured from upload dates at index, or a dash — never a computed-looking 0.0 (IDE-12). */}
+        <StatBox label="Upload/wk"    value={channel.uploadFrequency == null ? "—" : channel.uploadFrequency.toFixed(1)} color="#D97706" soft="#FBEED5" />
+        {/* Velocity was never computed; when these counts were read is (IDE-11). */}
+        <StatBox label="Read on"      value={channel.lastIndexedAt ? channel.lastIndexedAt.toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : "—"} color="#E5482F" soft="#FDE7E1" icon={<TrendingUp className="w-3.5 h-3.5" />} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">

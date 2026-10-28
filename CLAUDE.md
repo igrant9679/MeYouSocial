@@ -475,6 +475,31 @@ Tabs: **Keys** (`/admin/api-keys`: LLM, search, images, video, TTS, storage) · 
   are live only while her popup is on screen.
 - **A member of nothing can always sign out** (SHL-11) — the operator's "Create your workspace" form too.
 
+## ⚠ Ideas get made, and Intel's numbers are real and dated (2026-10-27, audit Phase 2, ideas group)
+- **Every "Discover" goes through `discoverIdeasAction`** (IDE-03): Articles' buttons (`discoverBlogIdeasAction`) delegate
+  to it with `formats=article, back=/blog` — per Topic, the manual ceiling, the person recorded. Don't call
+  `discoverIdeasCore` from a button again (six untagged ideas a press, recorded as the sweep).
+- **Approved ideas say what's holding them** (IDE-05): `lib/idea-blockers.ts` `draftingBlockers` names why the engine
+  won't draft approved articles or social posts by itself (AUTOPILOT off, paused, the function's mode manual, the daily
+  budget, the weekly cap, `social:autogen` off, the rotation rollback, no text-capable account). It MIRRORS the sweep's
+  checks in `blog-autopilot.ts` and `social/drafting.ts` — keep them in step. The board shows "Approved, but not being made"
+  and no longer promises the engine will make them.
+- **Social ideas have Draft now** (`draftSocialIdeaNowAction` → `draftSocialIdeaNow`): the sweep's own writer
+  (`writePostFromIdea`), without the autogen switch or the weekly quota (a person asked); it saves a DRAFT for them (no
+  slot), `createdById` set, approval pending unless an admin pressed it. The idea is claimed in the write (conditional
+  update after the post exists; the loser's post is deleted). A person's draft counts toward the weekly quota (volume),
+  not the daily budget (`actorId` set).
+- **Intel re-reads what it measures** (IDE-11): `lib/intel-index.ts` `indexIntelChannel` (moved out of the "use server"
+  file — exports there are browser-callable) refreshes channel counts and every video's views/likes/comments/ratios with
+  `IntelVideo.measuredAt` (migration `20261028110000_intel_measured_api_cache`). The channel page has "Re-read from
+  YouTube" (`reindexIntelChannelAction`, ~4 units). "Outlier videos" is published in the last 30 days.
+- **Unmeasured is a dash** (IDE-12): `formatNum(null)` is "—" everywhere; uploads/week is computed from upload dates at
+  index ((n−1)/span); velocity was never computed — its filter, "Hot new channels" and the stat box are gone (the
+  `velocity:` search token is ignored); comments are read (`commentCount`).
+- **YouTube quota** (IDE-13): every Intel action that calls YouTube is EDITOR+, the competitor search is editors-only;
+  `ytGet` meters each call into `UsageLog` (`action: "youtube.api"`, `tokens` = units: search 100, else 1), shown on
+  Settings → Usage; `searchChannels` is cached per workspace and query for 24 h in `ApiCache`.
+
 ## Open items / things the user still owns
 - **Analytics: APIs enabled 2026-08-03** (Search Console + GA Admin + GA Data, on project
   `479503233109` = `gen-lang-client-0838901195` = "CreateUp"). Still pending, user-only: add the

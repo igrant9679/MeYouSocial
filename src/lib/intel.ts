@@ -82,7 +82,8 @@ export function parseAdvancedQuery(raw: string): { cleaned: string; extra: Parti
         else if (op.startsWith("<")) extra.subsMax = Number.isFinite(v) ? v : undefined;
         return "";
       case "velocity":
-        if (op.startsWith(">") && Number.isFinite(v)) extra.velocityMin = v;
+        // Never measured, so a velocity filter could only ever return nothing
+        // (IDE-12). The token is accepted and ignored.
         return "";
       case "engagement":
         if (op.startsWith(">") && Number.isFinite(v)) extra.engagementMin = v;
@@ -185,8 +186,10 @@ async function searchIntelRaw(params: IntelSearchParams) {
   return { channels, videos, biasChannels };
 }
 
+/** A count for display. Unknown (null) is a dash, never "0" — Intel showed "Likes 0" for figures it never read (IDE-12). */
 export function formatNum(n: number | bigint | null | undefined): string {
-  const v = typeof n === "bigint" ? Number(n) : (n ?? 0);
+  if (n === null || n === undefined) return "—";
+  const v = typeof n === "bigint" ? Number(n) : n;
   if (v >= 1_000_000) return (v / 1_000_000).toFixed(v >= 10_000_000 ? 0 : 1) + "M";
   if (v >= 1_000) return (v / 1_000).toFixed(v >= 100_000 ? 0 : 1) + "K";
   return String(v);

@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { getSetting } from "@/lib/settings";
 import { readJson } from "@/lib/db/json";
@@ -45,13 +46,53 @@ export async function draftSocialIdeasForWorkspace(workspaceId: string): Promise
   const idea = await db.socialIdea.findFirst({
     where: { workspaceId, status: "approved", socialPostId: null },
     orderBy: [{ priority: "desc" }, { approvedAt: "asc" }, { createdAt: "asc" }],
-    include: { topic: { select: { id: true, name: true, keywords: true } }, sourceBlogPost: { select: { id: true, title: true, publishedUrl: true } } },
+    include: IDEA_INCLUDE,
   });
   if (!idea) return false;
+  return (await writePostFromIdea(workspaceId, idea, { actorId: null, role: null })).ok;
+}
 
+/**
+ * A person's "Draft now" on a social idea (IDE-05). Approved social ideas used
+ * to wait for the sweep, which drafts only with social on, `social:autogen` on,
+ * an account and quota left — while the board said the engine would make them.
+ * Same writer as the sweep; it doesn't wait for the switch or the weekly quota
+ * (a person asked), and it saves a draft for them to look at rather than
+ * taking a slot.
+ */
+export async function draftSocialIdeaNow(
+  workspaceId: string, ideaId: string, actor: { id: string; role: string },
+): Promise<DraftResult> {
+  const idea = await db.socialIdea.findFirst({
+    where: { id: ideaId, workspaceId, status: { in: ["discovered", "approved"] }, socialPostId: null },
+    include: IDEA_INCLUDE,
+  });
+  if (!idea) return { ok: false, message: "That idea has already been drafted, or was rejected." };
+  try {
+    return await writePostFromIdea(workspaceId, idea, { actorId: actor.id, role: actor.role });
+  } catch (e) {
+    return { ok: false, message: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+const IDEA_INCLUDE = {
+  topic: { select: { id: true, name: true, keywords: true } },
+  sourceBlogPost: { select: { id: true, title: true, publishedUrl: true } },
+} satisfies Prisma.SocialIdeaInclude;
+
+type DraftResult = { ok: true; postId: string } | { ok: false; message: string };
+
+/** Write the post for one idea and claim the idea for it. `actorId` null = the engine. */
+async function writePostFromIdea(
+  workspaceId: string,
+  idea: Prisma.SocialIdeaGetPayload<{ include: typeof IDEA_INCLUDE }>,
+  who: { actorId: string | null; role: string | null },
+): Promise<DraftResult> {
   const accounts = await db.zernioAccount.findMany({ where: { workspaceId, status: "connected" } });
   const targets = accounts.filter((a) => !networkFor(a.platform)?.requiresMedia);
-  if (targets.length === 0) return false;
+  if (targets.length === 0) {
+    return { ok: false, message: "No connected account takes a text-only post (Instagram and the like need an image) — connect one under Settings → Connections." };
+  }
 
   const [org, motifs, guardrails, workspace] = await Promise.all([
     db.orgProfile.findUnique({ where: { workspaceId }, select: { description: true, industry: true, audience: true } }),
@@ -59,7 +100,7 @@ export async function draftSocialIdeasForWorkspace(workspaceId: string): Promise
     brandContextBlock(workspaceId).catch(() => null),
     db.workspace.findUnique({ where: { id: workspaceId }, select: { name: true, defaultModel: true } }),
   ]);
-  if (!workspace) return false;
+  if (!workspace) return { ok: false, message: "Workspace not found." };
 
   const phrases = idea.topic ? readJson<string[]>(idea.topic.keywords, []) : [];
   // The post's one link: the promoted article's, else the RSS item's.
@@ -95,7 +136,7 @@ export async function draftSocialIdeasForWorkspace(workspaceId: string): Promise
   // and leave the idea approved for the next sweep.
   if (res.provider === "mock" || !res.content?.trim()) {
     console.warn(`[social-drafting] ${workspaceId}: no real provider resolved (got ${res.provider}) — skipped`);
-    return false;
+    return { ok: false, message: "No AI provider could write it — it would have been placeholder text. Check the key under Settings → Keys." };
   }
   const limit = MAX_CHARS + (link ? link.length + 1 : 0);
   let text = res.content.trim().replace(/^["“]|["”]$/g, "").slice(0, limit + 40);
@@ -107,9 +148,14 @@ export async function draftSocialIdeasForWorkspace(workspaceId: string): Promise
     : null;
 
   const requireApproval = (await getSetting("social:require_approval", workspaceId).catch(() => "")) === "true";
+  // An admin's own Draft now is their approval; anyone else's (and the
+  // engine's) waits for one under the workflow.
+  const approval = requireApproval ? (who.role === "ADMIN" ? "approved" : "pending") : null;
   let scheduledAt: Date | null = null;
   let status = "draft";
-  if (!requireApproval) {
+  // The engine queues what it writes; a person's Draft now stays a draft for
+  // them to read first.
+  if (!requireApproval && !who.actorId) {
     const claim = await claimNextFreeSlot(workspaceId, undefined, null);
     if (!("error" in claim)) { scheduledAt = claim.at; status = "scheduled"; }
   }
@@ -117,15 +163,16 @@ export async function draftSocialIdeasForWorkspace(workspaceId: string): Promise
   const post = await db.socialPost.create({
     data: {
       workspaceId,
-      createdById: null, // system-authored
+      createdById: who.actorId, // null = system-authored
       source: "engine",
       topicId: idea.topicId,
       campaignId: campaign?.id ?? null,
       text,
       mediaKeys: "[]",
       scheduledAt,
+      timeChosen: false,
       status,
-      approval: requireApproval ? "pending" : null,
+      approval,
       targets: {
         create: targets.map((a) => ({
           provider: a.platform,
@@ -135,27 +182,38 @@ export async function draftSocialIdeasForWorkspace(workspaceId: string): Promise
       },
     },
   });
-  await db.socialIdea.update({ where: { id: idea.id }, data: { status: "drafted", socialPostId: post.id } });
+  // Claimed in the write: the sweep and a Draft now (or two people) reading the
+  // same idea used to both draft it. The loser's post is removed.
+  const claimed = await db.socialIdea.updateMany({
+    where: { id: idea.id, socialPostId: null, status: { in: ["discovered", "approved"] } },
+    data: { status: "drafted", socialPostId: post.id },
+  });
+  if (!claimed.count) {
+    await db.socialPost.delete({ where: { id: post.id } });
+    return { ok: false, message: "That idea was drafted a moment ago by someone else." };
+  }
   const { jobs } = await import("@/lib/jobs");
   await jobs.enqueue("social.autoimage", { postId: post.id }, { refId: post.id, workspaceId });
 
   await writeAudit({
     workspaceId,
+    actorId: who.actorId,
     action: "social.post_generated",
     entityType: "social_post",
     entityId: post.id,
-    meta: { topic: idea.topic?.name ?? null, ideaId: idea.id, source: idea.source, provider: res.provider, scheduled: Boolean(scheduledAt) },
+    meta: { topic: idea.topic?.name ?? null, ideaId: idea.id, source: idea.source, provider: res.provider, scheduled: Boolean(scheduledAt), via: who.actorId ? "draft now" : "sweep" },
   });
-  if (requireApproval) {
+  if (approval === "pending") {
     await notify({
       workspaceId,
       kind: "approval_needed",
-      title: "Autopilot drafted a social post — it needs approval",
+      title: who.actorId ? "A social post was drafted from an idea — it needs approval" : "Autopilot drafted a social post — it needs approval",
       body: text.slice(0, 140),
-      path: "/social",
+      path: "/social/approvals",
       entityType: "social_post",
       entityId: post.id,
+      ...(who.actorId ? { excludeUserId: who.actorId } : {}),
     });
   }
-  return true;
+  return { ok: true, postId: post.id };
 }

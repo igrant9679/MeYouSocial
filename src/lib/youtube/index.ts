@@ -1,4 +1,5 @@
 import { env } from "@/lib/env";
+import { db } from "@/lib/db";
 
 // YouTube data interface. Used by Intel, onboarding, voice training,
 // chat URL analysis, etc. Mock mode returns plausible fake channels/videos.
@@ -70,6 +71,7 @@ export type YTVideoSummary = {
   durationSeconds: number;
   views: number;
   likes?: number;
+  comments?: number;
   thumbnailUrl?: string;
   format: "short" | "long";
 };
@@ -164,8 +166,51 @@ async function ytGet<T>(path: string, params: Record<string, string>, workspaceI
   const key = (await getApiKey("youtube", workspaceId)) || env.YOUTUBE_API_KEY;
   const qs = new URLSearchParams({ ...params, key });
   const res = await fetch(`${YT}/${path}?${qs}`, { signal: AbortSignal.timeout(15000) });
+  await meterUnits(workspaceId, path);
   if (!res.ok) throw new Error(`YouTube API ${path} HTTP ${res.status}`);
   return (await res.json()) as T;
+}
+
+/**
+ * YouTube Data API quota cost per call (developers.google.com/youtube/v3/
+ * determine_quota_cost): a search is 100 units, a list call 1. The daily pool
+ * (10,000 by default) belongs to the Cloud project behind the key, which
+ * several tenants may share — so each call is recorded against the workspace
+ * that made it (audit IDE-13). A refused call still spends its units.
+ */
+const UNITS: Record<string, number> = { search: 100 };
+
+async function meterUnits(workspaceId: string | undefined, path: string): Promise<void> {
+  if (!workspaceId) return;
+  await db.usageLog.create({
+    data: { workspaceId, action: "youtube.api", model: path, tokens: UNITS[path] ?? 1 },
+  }).catch(() => undefined);
+}
+
+/** YouTube units this workspace spent since `since` (Settings → Usage). */
+export async function youtubeUnitsSince(workspaceId: string, since: Date): Promise<number> {
+  const r = await db.usageLog.aggregate({ where: { workspaceId, action: "youtube.api", createdAt: { gte: since } }, _sum: { tokens: true } });
+  return r._sum.tokens ?? 0;
+}
+
+const SEARCH_TTL_MS = 24 * 3600_000;
+
+/**
+ * A channel search, cached per workspace and query for 24 h. The competitor
+ * page re-ran its 100-unit search on every render — Remove, refresh, Back —
+ * and one comma-separated Intel query is up to eight searches (IDE-13).
+ */
+async function cachedSearch(workspaceId: string | undefined, query: string, limit: number, run: () => Promise<YTChannelSummary[]>): Promise<YTChannelSummary[]> {
+  const key = `yt:search:${workspaceId ?? "platform"}:${limit}:${query.trim().toLowerCase().replace(/\s+/g, " ")}`.slice(0, 500);
+  const hit = await db.apiCache.findUnique({ where: { key } }).catch(() => null);
+  if (hit && hit.expiresAt.getTime() > Date.now()) {
+    try { return JSON.parse(hit.value) as YTChannelSummary[]; } catch { /* re-fetch */ }
+  }
+  const fresh = await run();
+  const expiresAt = new Date(Date.now() + SEARCH_TTL_MS);
+  await db.apiCache.upsert({ where: { key }, update: { value: JSON.stringify(fresh), expiresAt }, create: { key, value: JSON.stringify(fresh), expiresAt } }).catch(() => undefined);
+  await db.apiCache.deleteMany({ where: { expiresAt: { lt: new Date() } } }).catch(() => undefined);
+  return fresh;
 }
 
 function parseDuration(iso: string): number {
@@ -197,15 +242,17 @@ function toChannelSummary(c: YtChannelItem): YTChannelSummary {
 
 const realFor = (workspaceId?: string): YouTubeProvider => ({
   async searchChannels(query, limit = 5) {
-    const search = await ytGet<{ items?: Array<{ id?: { channelId?: string } }> }>("search", {
-      part: "snippet", type: "channel", q: query, maxResults: String(Math.min(limit, 10)),
-    }, workspaceId);
-    const ids = (search.items ?? []).map((i) => i.id?.channelId).filter((x): x is string => !!x);
-    if (!ids.length) return [];
-    const channels = await ytGet<{ items?: YtChannelItem[] }>("channels", {
-      part: "snippet,statistics", id: ids.join(","),
-    }, workspaceId);
-    return (channels.items ?? []).map(toChannelSummary);
+    return cachedSearch(workspaceId, query, limit, async () => {
+      const search = await ytGet<{ items?: Array<{ id?: { channelId?: string } }> }>("search", {
+        part: "snippet", type: "channel", q: query, maxResults: String(Math.min(limit, 10)),
+      }, workspaceId);
+      const ids = (search.items ?? []).map((i) => i.id?.channelId).filter((x): x is string => !!x);
+      if (!ids.length) return [];
+      const channels = await ytGet<{ items?: YtChannelItem[] }>("channels", {
+        part: "snippet,statistics", id: ids.join(","),
+      }, workspaceId);
+      return (channels.items ?? []).map(toChannelSummary);
+    });
   },
   async findChannel(query) {
     const q = parseChannelQuery(query);
@@ -240,7 +287,7 @@ const realFor = (workspaceId?: string): YouTubeProvider => ({
       items?: Array<{
         id: string;
         snippet?: { title?: string; description?: string; publishedAt?: string; thumbnails?: { medium?: { url?: string } } };
-        statistics?: { viewCount?: string; likeCount?: string };
+        statistics?: { viewCount?: string; likeCount?: string; commentCount?: string };
         contentDetails?: { duration?: string };
       }>;
     }>("videos", { part: "snippet,statistics,contentDetails", id: ids.join(",") }, workspaceId);
@@ -255,6 +302,8 @@ const realFor = (workspaceId?: string): YouTubeProvider => ({
         durationSeconds: seconds,
         views: parseInt(v.statistics?.viewCount ?? "0", 10),
         likes: v.statistics?.likeCount ? parseInt(v.statistics.likeCount, 10) : undefined,
+        // Absent when the owner hides them — unknown, never zero (IDE-12).
+        comments: v.statistics?.commentCount ? parseInt(v.statistics.commentCount, 10) : undefined,
         thumbnailUrl: v.snippet?.thumbnails?.medium?.url,
         format: seconds > 0 && seconds <= 90 ? ("short" as const) : ("long" as const),
       };

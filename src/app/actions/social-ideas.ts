@@ -60,3 +60,19 @@ export async function updateSocialIdeaAction(formData: FormData) {
   await db.socialIdea.updateMany({ where: { id, workspaceId: workspace.id, status: { not: "drafted" } }, data: { hook, angle } });
   revalidate();
 }
+
+/**
+ * Draft now (IDE-05): write the post for this idea immediately, with the same
+ * writer the sweep uses, and open it. Approved social ideas used to have no
+ * button at all and could wait for good.
+ */
+export async function draftSocialIdeaNowAction(formData: FormData) {
+  const { user, workspace, membership } = await requireRole("EDITOR");
+  const id = String(formData.get("id") ?? "");
+  const { draftSocialIdeaNow } = await import("@/lib/social/drafting");
+  const r = await draftSocialIdeaNow(workspace.id, id, { id: user.id, role: membership.role });
+  revalidate();
+  revalidatePath("/social", "layout");
+  const { redirect } = await import("next/navigation");
+  redirect(r.ok ? `/social/${r.postId}/edit` : `/ideas?err=${encodeURIComponent(r.message)}`);
+}

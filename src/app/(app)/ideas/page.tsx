@@ -22,7 +22,8 @@ import {
   updateBlogIdeaAction,
 } from "@/app/actions/blog-ideas";
 import { addIdeaAction, discoverIdeasAction, regenerateIdeasAction, setBoardIdeaTopicAction, updateIdeaStatusAction, writeIdeaToCanvasAction } from "@/app/actions/ideas";
-import { setSocialIdeaStatusAction, updateSocialIdeaAction } from "@/app/actions/social-ideas";
+import { draftSocialIdeaNowAction, setSocialIdeaStatusAction, updateSocialIdeaAction } from "@/app/actions/social-ideas";
+import { draftingBlockers } from "@/lib/idea-blockers";
 import { StageHeader } from "@/components/StageShell";
 
 // The Ideas stage IS the one board (One-Loop step 4), in Topic lanes since
@@ -62,6 +63,14 @@ export default async function IdeasBoard({ searchParams }: { searchParams: Promi
   // ceiling on every Topic at once.
   const openArticlesByTopic = (await ideationCells(workspace.id, ["article"])).map((c) => ({ id: c.topicId, name: c.topicName, open: c.open }));
   const saturated = openArticlesByTopic.length > 0 && openArticlesByTopic.every((t) => t.open >= MANUAL_CEILING);
+  // What actually stops the engine making approved ideas — the board used to
+  // promise it would whatever the dials said (IDE-05).
+  const blockers = await draftingBlockers(workspace.id);
+  const waiting = (f: "article" | "social") => board.cards.filter((c) => c.format === f && c.state === "approved").length;
+  const stalled = ([["article", "article", "articles"], ["social", "social post", "social posts"]] as const)
+    .map(([f, one, many]) => ({ f, n: waiting(f), label: waiting(f) === 1 ? one : many, why: blockers[f] }))
+    .filter((s) => s.n > 0 && s.why);
+  const engineMakes = !blockers.article || !blockers.social;
 
   return (
     <div>
@@ -71,14 +80,22 @@ export default async function IdeasBoard({ searchParams }: { searchParams: Promi
           topics.length === 0
             ? "One board for article, video and social ideas. Add a Topic and discovery runs per Topic, so every idea arrives knowing what it is about."
             : counts.approved > 0
-              ? `${counts.approved} approved idea${counts.approved === 1 ? "" : "s"} wait to be made — articles and social posts by the engine on its weekly allowances, videos by you on Write.`
-              : `${topics.length} Topic${topics.length === 1 ? "" : "s"}, one lane each. Approve an idea and the engine makes it; a lane with nothing in it is a Topic nobody has thought about yet.`
+              ? `${counts.approved} approved idea${counts.approved === 1 ? "" : "s"} wait to be made — ${stalled.length ? "see below for what's holding them; Draft now makes one straight away" : "articles and social posts by the engine on its weekly allowances, videos by you on Write"}.`
+              : `${topics.length} Topic${topics.length === 1 ? "" : "s"}, one lane each. ${engineMakes ? "Approve an idea and the engine makes it" : "Approve an idea, then Draft now makes it"}; a lane with nothing in it is a Topic nobody has thought about yet.`
         }
         counts={STATES.map((s) => ({ label: s.state, n: counts[s.state], hue: s.hue }))}
       />
 
       {sp.ok && <p className="text-xs mb-3 px-3 py-2 rounded-lg" style={{ background: "var(--green-soft)", color: "var(--green-on)" }}>{sp.ok}</p>}
       {sp.err && <p className="text-xs mb-3 px-3 py-2 rounded-lg" style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }}>{sp.err}</p>}
+      {stalled.length > 0 && (
+        <div className="card mb-3 text-xs flex flex-col gap-1" style={{ borderColor: "var(--amber)" }}>
+          <b className="text-[11px] uppercase tracking-wide font-mono" style={{ color: "var(--amber-on)" }}>Approved, but not being made</b>
+          {stalled.map((s) => (
+            <span key={s.f}><b>{s.n} {s.label}:</b> {s.why}</span>
+          ))}
+        </div>
+      )}
 
       {/* Filter chips — the old boards live on as filters of the one. */}
       {all > 0 && (
@@ -574,6 +591,14 @@ function SocialCard({ idea, editor, topics }: { idea: SocialRow; editor: boolean
               <input type="hidden" name="id" value={idea.id} />
               <input type="hidden" name="status" value="rejected" />
               <button className="btn text-[11px]">Reject</button>
+            </form>
+          )}
+          {/* The engine's writer, now (IDE-05) — approved social ideas had no
+              button and could wait for good. */}
+          {(idea.status === "discovered" || idea.status === "approved") && (
+            <form action={draftSocialIdeaNowAction}>
+              <input type="hidden" name="id" value={idea.id} />
+              <SubmitButton className="btn text-[11px]" pendingText="Drafting…" title="Write the post now instead of waiting for the engine">Draft now</SubmitButton>
             </form>
           )}
           <DeleteButton kind="socialIdea" id={idea.id} name={idea.hook.slice(0, 60)} returnTo="/ideas" />

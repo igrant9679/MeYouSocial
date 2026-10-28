@@ -2,14 +2,17 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { requireMembership, requireRole } from "@/lib/acl";
+import { requireRole } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { youtubeFor } from "@/lib/youtube";
+import { indexIntelChannel } from "@/lib/intel-index";
 
 // Find Similar Channels: searches for channels sharing the same category
 // (with the youtube provider, since IntelChannel doesn't have semantic tags).
+// ⚠ Everything here spends YouTube quota, which several tenants may share on
+// one key — so it is an editor's, not a viewer's (audit IDE-13).
 export async function findSimilarChannelsAction(formData: FormData) {
-  const { workspace } = await requireMembership();
+  const { workspace } = await requireRole("EDITOR");
   const intelChannelId = String(formData.get("intelChannelId"));
   // Tenancy in the lookup: Intel is workspace-scoped, so another company's row
   // id must behave exactly like a nonexistent one.
@@ -23,7 +26,8 @@ export async function findSimilarChannelsAction(formData: FormData) {
       // The API supplies the avatar on every fetch, but the sync dropped it
       // for months — every row was null (owner's ask, 2026-08-26). Heal on
       // update; `?? undefined` so a missing thumb never nulls a stored one.
-      update: { thumbnailUrl: c.thumbnailUrl ?? undefined },
+      // The counts were just read, so they replace the stored ones (IDE-11).
+      update: { thumbnailUrl: c.thumbnailUrl ?? undefined, subscribers: c.subscribers, totalViews: BigInt(c.totalViews), videoCount: c.videoCount, lastIndexedAt: new Date() },
       create: {
         workspaceId: workspace.id,
         youtubeId: c.id,
@@ -43,77 +47,6 @@ export async function findSimilarChannelsAction(formData: FormData) {
 }
 
 
-/**
- * Index one channel (and a handful of its videos) into the Intel corpus.
- *
- * Shared by the handle path and the keyword path so they can't drift — the
- * outlier maths in particular has to stay identical, since a video's score is
- * only comparable to others computed the same way.
- */
-async function indexIntelChannel(
-  workspaceId: string,
-  source: { id: string; handle?: string; name: string; subscribers: number; videoCount: number; totalViews: number; language?: string; category?: string; thumbnailUrl?: string },
-  videoLimit = 8,
-) {
-  const upserted = await db.intelChannel.upsert({
-    where: { workspaceId_youtubeId: { workspaceId, youtubeId: source.id } },
-    update: { lastIndexedAt: new Date(), thumbnailUrl: source.thumbnailUrl ?? undefined },
-    create: {
-      workspaceId,
-      youtubeId: source.id,
-      handle: source.handle ?? null,
-      name: source.name,
-      subscribers: source.subscribers,
-      totalViews: BigInt(source.totalViews),
-      videoCount: source.videoCount,
-      language: source.language ?? null,
-      category: source.category ?? null,
-      thumbnailUrl: source.thumbnailUrl ?? null,
-      lastIndexedAt: new Date(),
-    },
-  });
-  // ⚠ A channel with zero (or hidden) uploads 404s its uploads playlist —
-  // YouTube's way of saying "no videos", not an error worth dying for. One
-  // such channel in a keyword batch used to kill the WHOLE indexing loop
-  // (guard per item over external resources; the channel row above is still
-  // worth keeping — it's real, it just has nothing to score).
-  const videos = await youtubeFor(workspaceId).listVideos(source.id, videoLimit).catch((e) => {
-    console.warn(`[intel] listVideos failed for ${source.name} (${source.id}) — indexing channel without videos:`, e instanceof Error ? e.message : e);
-    return [];
-  });
-  // Outlier score is views over THIS channel's own average — the same
-  // definition used for idea seeds. Never a fabricated figure.
-  const avg = videos.reduce((a, v) => a + v.views, 0) / Math.max(1, videos.length);
-  const now = Date.now();
-  for (const v of videos) {
-    // Views per hour = views ÷ hours since publish, measured NOW (this is the
-    // moment the views were read). Null when the maths can't be done. ⚠ Stored
-    // at full precision: a ten-view video from two years ago is 0.0006/hr,
-    // and rounding to two decimals turned that measured rate into a stored
-    // zero (found on the first real index, 2026-09-16). Display rounds.
-    const hours = v.publishedAt ? (now - Date.parse(v.publishedAt)) / 3_600_000 : NaN;
-    const viewsPerHour = Number.isFinite(hours) && hours > 0 ? v.views / Math.max(1, hours) : null;
-    await db.intelVideo.upsert({
-      where: { intelChannelId_youtubeId: { intelChannelId: upserted.id, youtubeId: v.id } },
-      update: { thumbnailUrl: v.thumbnailUrl ?? undefined },
-      create: {
-        intelChannelId: upserted.id,
-        youtubeId: v.id,
-        title: v.title,
-        publishedAt: new Date(v.publishedAt),
-        durationSeconds: v.durationSeconds,
-        views: BigInt(v.views),
-        likes: v.likes ?? null,
-        format: v.format,
-        thumbnailUrl: v.thumbnailUrl ?? null,
-        outlierScore: Math.round((v.views / Math.max(1, avg)) * 10) / 10,
-        viewsPerSub: Math.round((v.views / Math.max(1, source.subscribers)) * 100) / 100,
-        viewsPerHour,
-      },
-    });
-  }
-  return upserted;
-}
 
 /**
  * Index whatever YouTube returns for a free-text query.
@@ -125,7 +58,7 @@ async function indexIntelChannel(
  * page a dead end, even though `searchChannels` already existed and worked.
  */
 export async function indexSearchResultsAction(formData: FormData) {
-  const { workspace } = await requireMembership();
+  const { workspace } = await requireRole("EDITOR");
   const q = String(formData.get("q") ?? "").trim();
   if (!q) return;
   const back = (msg: string, ok = false) =>
@@ -157,7 +90,7 @@ export async function indexSearchResultsAction(formData: FormData) {
 // Auto-index unindexed @handles. Called from the Intel search box when a
 // query looks like a handle and yields no matches.
 export async function autoIndexHandleAction(formData: FormData) {
-  const { workspace } = await requireMembership();
+  const { workspace } = await requireRole("EDITOR");
   const handle = String(formData.get("handle") ?? "").trim();
   if (!handle) return;
   // findChannel resolves a handle EXACTLY; searchChannels returns best guesses.
@@ -173,3 +106,21 @@ export async function autoIndexHandleAction(formData: FormData) {
 
 // "Chat with channel / video" (chatWithEntityAction) retired 2026-09-09 — the
 // Intel pages link to the assistant with the entity in the opening message.
+
+/**
+ * Re-read one channel and its latest uploads from YouTube (IDE-11): figures
+ * were read once at first index and never again. About 4 quota units.
+ */
+export async function reindexIntelChannelAction(formData: FormData) {
+  const { workspace } = await requireRole("EDITOR");
+  const id = String(formData.get("intelChannelId") ?? "");
+  const row = await db.intelChannel.findFirst({ where: { id, workspaceId: workspace.id }, select: { id: true, youtubeId: true } });
+  if (!row) return;
+  const source = await youtubeFor(workspace.id).findChannel(row.youtubeId);
+  if (!source) {
+    redirect(`/intel/channels/${row.id}?flashErr=${encodeURIComponent("YouTube didn't answer for this channel — check the YouTube key under Settings → Keys, or try again later.")}`);
+  }
+  await indexIntelChannel(workspace.id, source!);
+  revalidatePath(`/intel/channels/${row.id}`);
+  redirect(`/intel/channels/${row.id}?flash=${encodeURIComponent("Re-read from YouTube just now.")}`);
+}

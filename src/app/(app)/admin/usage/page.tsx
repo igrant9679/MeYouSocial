@@ -2,6 +2,7 @@ import { BarChart3, Users, Sparkles, PenLine, Image as ImageIcon, Bot } from "lu
 import { requireRole } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { formatNum } from "@/lib/intel";
+import { youtubeUnitsSince } from "@/lib/youtube";
 
 // Usage dashboard: generations, active users, scripts created, soft-limit progress.
 
@@ -11,6 +12,11 @@ export default async function AdminUsagePage() {
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
   const weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay());
 
+  // YouTube Data API units this workspace spent (IDE-13): the daily pool is the
+  // key's Cloud project's, which several tenants may share. UTC days — Google's
+  // quota resets at midnight Pacific, so this is a guide, not their counter.
+  const dayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  const [ytToday, ytMonth] = await Promise.all([youtubeUnitsSince(workspace.id, dayStart), youtubeUnitsSince(workspace.id, monthStart)]);
   const [activeUsers, scriptsThisMonth, thumbnailsThisMonth, agentRunsThisMonth, totalChannels, totalScripts, recentUsageLogs] = await Promise.all([
     db.user.count({ where: { memberships: { some: { workspaceId: workspace.id, status: "active" } }, lastActivityAt: { gte: weekStart } } }),
     db.script.count({ where: { channel: { workspaceId: workspace.id }, createdAt: { gte: monthStart } } }),
@@ -18,7 +24,8 @@ export default async function AdminUsagePage() {
     db.agentRun.count({ where: { script: { channel: { workspaceId: workspace.id } }, startedAt: { gte: monthStart } } }),
     db.channel.count({ where: { workspaceId: workspace.id } }),
     db.script.count({ where: { channel: { workspaceId: workspace.id } } }),
-    db.usageLog.findMany({ where: { workspaceId: workspace.id }, orderBy: { createdAt: "desc" }, take: 15, include: { } }),
+    // The YouTube unit rows are summed above, not listed one by one.
+    db.usageLog.findMany({ where: { workspaceId: workspace.id, action: { not: "youtube.api" } }, orderBy: { createdAt: "desc" }, take: 15, include: { } }),
   ]);
 
   // Compute per-user generation counts this month (top 5)
@@ -50,6 +57,11 @@ export default async function AdminUsagePage() {
         <Tile label="Thumbnails / month"  value={String(thumbnailsThisMonth)} cap={workspace.limitThumbnailsPerUserMonth} color="#DB2777" soft="#FBE2EF" icon={<ImageIcon className="w-4 h-4" />} />
         <Tile label="Agent runs / month"  value={String(agentRunsThisMonth)}  cap={workspace.limitAgentRunsPerUserMonth}  color="#0D9488" soft="#D7F1ED" icon={<Bot className="w-4 h-4" />} />
       </div>
+
+      <p className="text-xs text-[var(--mute)] mb-4">
+        YouTube Data API: <b className="font-mono">{ytToday.toLocaleString("en-GB")}</b> units today (UTC) · <b className="font-mono">{ytMonth.toLocaleString("en-GB")}</b>{" "}this month.
+        A channel search costs 100, every other read 1; the key&apos;s daily pool (10,000 by default) may be shared with other workspaces.
+      </p>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Top users */}
