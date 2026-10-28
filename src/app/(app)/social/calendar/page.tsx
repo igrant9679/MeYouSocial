@@ -12,11 +12,11 @@ import { Banner, Empty, PostCard, Section, SocialHeader } from "@/components/Soc
 // The queue: everything scheduled or drafted, on a grid you can drag, with the
 // agenda as the same data listed by day.
 
-type SP = { ok?: string; err?: string; view?: string };
+type SP = { ok?: string; err?: string; view?: string; net?: string; cat?: string; camp?: string; ghosts?: string };
 
 export default async function SocialCalendarPage({ searchParams }: { searchParams: Promise<SP> }) {
   const { workspace, membership } = await requireRole("EDITOR");
-  const { ok, err, view } = await searchParams;
+  const { ok, err, view, net, cat, camp, ghosts } = await searchParams;
   // Calendar is the natural primary view for a scheduler; agenda stays one click away.
   const mode = view === "agenda" ? "agenda" : "calendar";
   const isAdmin = canAdmin(membership.role);
@@ -62,7 +62,31 @@ export default async function SocialCalendarPage({ searchParams }: { searchParam
     getQueue(workspace.id),
     getSetting("social:require_approval", workspace.id).catch(() => "").then((v) => v === "true"),
   ]);
+  // Posts awaiting approval, for the calendar only: ghosts that show where
+  // review is holding things up (E-SOC-12). The Drafts list below keeps
+  // leaving them to Approvals.
+  const pending = await db.socialPost.findMany({
+    where: { workspaceId: workspace.id, status: "draft", approval: "pending" },
+    orderBy: { createdAt: "desc" },
+    select: { id: true, text: true, scheduledAt: true, status: true, approval: true, category: true, campaignId: true, targets: { select: { provider: true } }, campaign: { select: { name: true, color: true } } },
+    take: 100,
+  });
   const hasSlots = queue.slots.some((s) => s.enabled);
+  type CalendarSource = Pick<(typeof drafts)[number], "id" | "text" | "scheduledAt" | "status" | "approval" | "category" | "campaignId"> & {
+    targets: { provider: string }[];
+    campaign: { name: string; color: string | null } | null;
+  };
+  const toCalendar = (p: CalendarSource): CalendarPost => ({
+    id: p.id,
+    text: p.text,
+    scheduledAt: p.scheduledAt ? p.scheduledAt.toISOString() : null,
+    providers: [...new Set(p.targets.map((t) => t.provider.toUpperCase()))],
+    status: p.status,
+    kind: p.status === "scheduled" ? "scheduled" : p.approval === "pending" || p.approval === "changes" ? "held" : p.scheduledAt ? "proposed" : "draft",
+    held: p.approval === "pending" ? "pending" : p.approval === "changes" ? "changes" : undefined,
+    category: p.category,
+    campaign: p.campaign && p.campaignId ? { id: p.campaignId, name: p.campaign.name, color: p.campaign.color } : null,
+  });
 
   // Slot instants are resolved here (the server owns the posting timezone) and
   // handed to the calendar as ISO, which buckets them by the VIEWER's local day.
@@ -115,14 +139,9 @@ export default async function SocialCalendarPage({ searchParams }: { searchParam
 
       {mode === "calendar" && (
         <SocialCalendar
-          posts={[...scheduled, ...drafts].map((p): CalendarPost => ({
-            id: p.id,
-            text: p.text,
-            scheduledAt: p.scheduledAt ? p.scheduledAt.toISOString() : null,
-            providers: [...new Set(p.targets.map((t) => t.provider.toUpperCase()))],
-            status: p.status,
-          }))}
+          posts={[...scheduled, ...drafts, ...pending].map(toCalendar)}
           freeSlots={freeSlotIso}
+          initialFilter={{ net: net ?? "", cat: cat ?? "", camp: camp ?? "", ghosts: ghosts !== "0" }}
         />
       )}
 

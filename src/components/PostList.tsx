@@ -1,11 +1,11 @@
 import Link from "next/link";
-import { Copy, Pencil, Search, Send, Trash2, Undo2, ExternalLink, ListPlus, Eye, RotateCw } from "lucide-react";
+import { Copy, Pencil, Search, Send, Trash2, Undo2, ExternalLink, ListPlus, Eye, RotateCw, ArrowUp, ArrowDown, CalendarDays, ListOrdered, Shuffle } from "lucide-react";
 import { db } from "@/lib/db";
 import { networkFor } from "@/lib/social/networks";
 import { formatInZone, getPostingTimeZone } from "@/lib/social/slots";
 import { listCategories } from "@/lib/social/categories";
 import { loadPostList, listCounts, SOURCES, TYPES, DELETABLE_POST_STATUSES, type ListFilter, type ListTab } from "@/lib/social/post-lists";
-import { bulkPostsAction } from "@/app/actions/social-lists";
+import { bulkPostsAction, swapQueuedPostsAction } from "@/app/actions/social-lists";
 import { duplicateSocialPostAction, publishNowAction, unscheduleSocialPostAction } from "@/app/actions/social";
 import { DeleteButton } from "@/components/DeleteButton";
 import { mayHavePosted } from "@/lib/social/unknown-outcome";
@@ -107,6 +107,20 @@ export async function PostList({
           <input type="hidden" name="back" value={here} />
           <span className="text-[var(--mute)]">With the ticked posts:</span>
           {tab === "queue" && <SubmitButton className="btn sm" name="op" value="unschedule" pendingText="…"><Undo2 className="w-3 h-3" /> Move to drafts</SubmitButton>}
+          {tab === "queue" && (
+            <>
+              <span className="inline-flex items-center gap-1">
+                <input type="number" name="days" min={-90} max={90} defaultValue={1} aria-label="Days to shift by (negative is earlier)" className="w-14 text-xs border border-[var(--line-2)] rounded-lg px-1.5 py-1" />
+                <SubmitButton className="btn sm" name="op" value="shift" pendingText="…" title={`Move each ticked post by this many days, keeping its time of day in ${tz} (negative is earlier)`}><CalendarDays className="w-3 h-3" /> Shift days</SubmitButton>
+              </span>
+              <span className="inline-flex items-center gap-1">
+                <input type="date" name="date" aria-label="Day to move them to" className="text-xs border border-[var(--line-2)] rounded-lg px-1.5 py-1" />
+                <SubmitButton className="btn sm" name="op" value="moveto" pendingText="…" title={`Move the ticked posts to this day, each keeping its time of day in ${tz}`}>Move to day</SubmitButton>
+              </span>
+              <SubmitButton className="btn sm" name="op" value="reslot" pendingText="…" title="Put the ticked posts in the earliest free posting slots, in their current order"><ListOrdered className="w-3 h-3" /> Re-slot</SubmitButton>
+              <SubmitButton className="btn sm" name="op" value="shuffle" pendingText="…" title="The same times, in a different order"><Shuffle className="w-3 h-3" /> Shuffle</SubmitButton>
+            </>
+          )}
           {tab === "drafts" && <SubmitButton className="btn sm" name="op" value="queue" pendingText="…"><ListPlus className="w-3 h-3" /> Add to queue</SubmitButton>}
           <SubmitButton className="btn sm" name="op" value="delete" pendingText="…" title="Deletes drafts, scheduled and failed posts. Sent posts are the record and are never deleted here."><Trash2 className="w-3 h-3" /> Delete</SubmitButton>
         </form>
@@ -132,7 +146,11 @@ export async function PostList({
               </tr>
             </thead>
             <tbody>
-              {rows.map(({ row: p, source, addedBy, onSlot }) => {
+              {rows.map(({ row: p, source, addedBy, onSlot }, i) => {
+                // Neighbours in this list, for earlier / later (E-SOC-05).
+                const prev = rows[i - 1]?.row;
+                const next = rows[i + 1]?.row;
+                const swappable = (o?: typeof p) => tab === "queue" && p.status === "scheduled" && o?.status === "scheduled";
                 const st = STATUS_STYLE[p.status] ?? STATUS_STYLE.draft;
                 const typeLabel =
                   tab === "queue" ? (p.status === "publishing" ? "Publishing now" : onSlot ? "Queued" : "Scheduled")
@@ -189,6 +207,14 @@ export async function PostList({
                     <td className="py-2 px-2">
                       {editor && (
                         <div className="flex flex-wrap justify-end gap-1">
+                          {swappable(prev) && (
+                            <form action={swapQueuedPostsAction}><input type="hidden" name="a" value={p.id} /><input type="hidden" name="b" value={prev!.id} /><input type="hidden" name="back" value={here} />
+                              <SubmitButton className="btn sm" pendingText="…" title="Earlier — swap times with the post above"><ArrowUp className="w-3 h-3" /></SubmitButton></form>
+                          )}
+                          {swappable(next) && (
+                            <form action={swapQueuedPostsAction}><input type="hidden" name="a" value={p.id} /><input type="hidden" name="b" value={next!.id} /><input type="hidden" name="back" value={here} />
+                              <SubmitButton className="btn sm" pendingText="…" title="Later — swap times with the post below"><ArrowDown className="w-3 h-3" /></SubmitButton></form>
+                          )}
                           {unsent ? <Link href={`/social/${p.id}/edit`} className="btn sm" title="Edit"><Pencil className="w-3 h-3" /></Link>
                             : <Link href={`/social/${p.id}`} className="btn sm" title="Each network's result, link and error"><Eye className="w-3 h-3" /></Link>}
                           {/* A failed or partly-posted post is retried here — only its failed

@@ -770,6 +770,23 @@ Tabs: **Keys** (`/admin/api-keys`: LLM, search, images, video, TTS, storage) · 
   on the thread, else the admins. Shown on Approvals and the post's edit page (`PostThread`, `lib/social/post-comments.ts`).
   No edit or delete — it's the review record. The assistant's own approve tool (lib/assistant/tools.ts) is separate.
 
+## ⚠ The queue can be rearranged; the calendar shows everything (2026-10-28, audit Phase 5, wave 2, part c)
+- **Queue tools** (E-SOC-05, `bulkPostsAction` ops `shift` / `moveto` / `reslot` / `shuffle` in `actions/social-lists.ts`, editors):
+  only `status: "scheduled"` posts move (never one `publishing`), only to a moment over a minute ahead, each update
+  conditional on the post still being scheduled. Shift and Move-to-day keep each post's WALL-CLOCK time in the posting
+  zone (`zonedParts` → `zonedTimeToUtc`, so 09:00 survives a clock change) and mark it `timeChosen: true`; Re-slot puts
+  them in the earliest free slots in their current order (`claimNextFreeSlot`, `timeChosen: false`); Shuffle reorders
+  the same times (each time keeps its own `timeChosen`). `swapQueuedPostsAction` (the rows' earlier/later buttons)
+  swaps two posts' times in one transaction, conditional on both still holding the times the page showed. All
+  audited `social.queue_rearranged`.
+- **The calendar shows everything** (E-SOC-12): `CalendarPost.kind` is scheduled | proposed (a draft with a time) |
+  held (pending or changes — dashed amber, not draggable, links to Approvals) | draft (the tray). Pending posts are read
+  for the calendar only; the page's Drafts list still leaves them to Approvals. Filters (network, category,
+  campaign, "show proposed and held") are client-side and mirrored in the URL (`net`, `cat`, `camp`, `ghosts=0`).
+  Ticked chips move together: drag one and the rest shift by the same days (a day drop) or the same delta (an
+  exact drop), one server call each; a refused one goes back. ⚠ Keep the filter a module-level function and the
+  derived lists in `useMemo` — the React Compiler lint refuses memos built on a closure.
+
 ## Open items / things the user still owns
 - **Analytics: APIs enabled 2026-08-03** (Search Console + GA Admin + GA Data, on project
   `479503233109` = `gen-lang-client-0838901195` = "CreateUp"). Still pending, user-only: add the

@@ -38,7 +38,27 @@ export type CalendarPost = {
   scheduledAt: string | null; // ISO; null = draft (lives in the tray)
   providers: string[];
   status: string;
+  /**
+   * What the chip is (E-SOC-12): scheduled; proposed = a draft that carries a
+   * time (Caption Studio, a dated CSV row) — a ghost until someone schedules
+   * it; held = waiting on approval or on changes — a ghost that can't be
+   * dragged, because the server would refuse it; draft = no time, in the tray.
+   */
+  kind: "scheduled" | "proposed" | "held" | "draft";
+  held?: "pending" | "changes";
+  category: string | null;
+  campaign: { id: string; name: string; color: string | null } | null;
 };
+
+/** The calendar's filters, mirrored in the URL (`net`, `cat`, `camp`, `ghosts=0`) so a filtered view is a link. */
+export type CalendarFilter = { net: string; cat: string; camp: string; ghosts: boolean };
+
+function matchesFilter(p: CalendarPost, f: CalendarFilter): boolean {
+  return (f.ghosts || p.kind === "scheduled" || p.kind === "draft")
+    && (!f.net || p.providers.includes(f.net))
+    && (!f.cat || (f.cat === "__none__" ? !p.category : p.category === f.cat))
+    && (!f.camp || p.campaign?.id === f.camp);
+}
 
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
@@ -168,7 +188,7 @@ type Mode = "month" | "week";
 /** Which half-hour of a week cell the pointer is over. */
 type CellTarget = { key: string; half: 0 | 30 };
 
-export function SocialCalendar({ posts, freeSlots = [] }: { posts: CalendarPost[]; freeSlots?: string[] }) {
+export function SocialCalendar({ posts, freeSlots = [], initialFilter }: { posts: CalendarPost[]; freeSlots?: string[]; initialFilter?: Partial<CalendarFilter> }) {
   // `cursor` is a plain anchor date: month view reads its month, week view reads
   // the Monday-start week containing it. One piece of state, two framings.
   const [cursor, setCursor] = useState(() => new Date());
@@ -197,9 +217,31 @@ export function SocialCalendar({ posts, freeSlots = [] }: { posts: CalendarPost[
   const [overCell, setOverCell] = useState<CellTarget | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [, startTransition] = useTransition();
+  const [filter, setFilter] = useState<CalendarFilter>(() => ({
+    net: initialFilter?.net ?? "", cat: initialFilter?.cat ?? "", camp: initialFilter?.camp ?? "", ghosts: initialFilter?.ghosts ?? true,
+  }));
+  // Ticked chips move together: drag one and the rest follow (E-SOC-12).
+  const [selected, setSelected] = useState<Set<string>>(() => new Set());
 
-  const scheduled = items.filter((p) => p.scheduledAt);
-  const drafts = items.filter((p) => !p.scheduledAt);
+  /** Change a filter and write it into the URL without a round trip. */
+  const applyFilter = (next: CalendarFilter) => {
+    setFilter(next);
+    const q = new URLSearchParams(window.location.search);
+    for (const [k, v] of [["net", next.net], ["cat", next.cat], ["camp", next.camp]] as const) if (v) q.set(k, v); else q.delete(k);
+    if (next.ghosts) q.delete("ghosts"); else q.set("ghosts", "0");
+    window.history.replaceState(null, "", `${window.location.pathname}${q.toString() ? `?${q}` : ""}`);
+  };
+  const toggleSelected = (id: string) => setSelected((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+
+  const shown = useMemo(() => items.filter((p) => matchesFilter(p, filter)), [items, filter]);
+  const hiddenByFilter = items.length - shown.length;
+  const networks = [...new Set(items.flatMap((p) => p.providers))].sort();
+  const categories = [...new Set(items.map((p) => p.category).filter((c): c is string => !!c))].sort();
+  const campaigns = [...new Map(items.filter((p) => p.campaign).map((p) => [p.campaign!.id, p.campaign!])).values()];
+  const ticked = items.filter((p) => selected.has(p.id) && p.scheduledAt && p.kind !== "held");
+
+  const scheduled = useMemo(() => shown.filter((p) => p.scheduledAt), [shown]);
+  const drafts = useMemo(() => shown.filter((p) => !p.scheduledAt), [shown]);
 
   const byDay = useMemo(() => {
     const map = new Map<string, CalendarPost[]>();
@@ -272,27 +314,47 @@ export function SocialCalendar({ posts, freeSlots = [] }: { posts: CalendarPost[
     return [lo, hi];
   }, [allHours, weekStart, scheduled, freeAvailable]);
 
-  /** Commit a post to an exact instant, optimistically, with server confirmation. */
-  const commit = (id: string, target: Date) => {
-    const post = items.find((p) => p.id === id);
-    if (!post) return;
-    if (hasPassed(target)) {
+  /**
+   * Commit posts to exact instants, optimistically, each confirmed by the
+   * server. One that would land in the past stays put; one the server refuses
+   * goes back where it was rather than leave a lie on screen.
+   */
+  const commitMany = (moves: { id: string; target: Date }[]) => {
+    const before = new Map(items.map((p) => [p.id, p]));
+    const live = moves.filter((m) => before.has(m.id) && !hasPassed(m.target));
+    if (!live.length) {
       setError("That time has already passed — pick a future one.");
       return;
     }
-    setError(null);
-    const iso = target.toISOString();
-    // Optimistic: the grid moves immediately, the server confirms.
-    setItems((list) => list.map((p) => (p.id === id ? { ...p, scheduledAt: iso, status: "scheduled" } : p)));
+    const past = moves.length - live.length;
+    setError(past ? `${past} of them would have landed in the past and stayed put.` : null);
+    const at = new Map(live.map((m) => [m.id, m.target.toISOString()]));
+    setItems((list) => list.map((p) => (at.has(p.id) ? { ...p, scheduledAt: at.get(p.id)!, status: "scheduled", kind: "scheduled" } : p)));
     startTransition(() => {
-      void rescheduleSocialPostAction(id, iso).then((res) => {
-        if (res && !res.ok) {
-          setError(res.message);
-          // Put it back where it was rather than leave a lie on screen.
-          setItems((list) => list.map((p) => (p.id === id ? { ...p, scheduledAt: post.scheduledAt, status: post.status } : p)));
-        }
+      void Promise.all(live.map((m) =>
+        rescheduleSocialPostAction(m.id, at.get(m.id)!)
+          .then((res) => ({ id: m.id, res }))
+          .catch(() => ({ id: m.id, res: { ok: false, message: "The server couldn't be reached." } })),
+      )).then((results) => {
+        const failed = results.filter((r) => r.res && !r.res.ok);
+        if (!failed.length) return;
+        setError(failed.length === 1 ? failed[0].res.message : `${failed.length} couldn't move: ${failed[0].res.message}`);
+        const back = new Set(failed.map((f) => f.id));
+        setItems((list) => list.map((p) => {
+          const old = back.has(p.id) ? before.get(p.id) : undefined;
+          return old ? { ...p, scheduledAt: old.scheduledAt, status: old.status, kind: old.kind } : p;
+        }));
       });
     });
+  };
+  const commit = (id: string, target: Date) => commitMany([{ id, target }]);
+
+  /** Drop on an exact instant. A ticked chip brings the other ticked ones, keeping their spacing. */
+  const dropAt = (id: string, target: Date) => {
+    const post = items.find((p) => p.id === id);
+    if (!post?.scheduledAt || !selected.has(id) || ticked.length < 2) return commit(id, target);
+    const delta = target.getTime() - new Date(post.scheduledAt).getTime();
+    commitMany(ticked.map((p) => ({ id: p.id, target: new Date(new Date(p.scheduledAt!).getTime() + delta) })));
   };
 
   /** Move a post to `key` (YYYY-MM-DD), preserving its time of day. */
@@ -302,7 +364,15 @@ export function SocialCalendar({ posts, freeSlots = [] }: { posts: CalendarPost[
     const [y, m, d] = key.split("-").map(Number);
     const existing = post.scheduledAt ? new Date(post.scheduledAt) : null;
     // A draft has no time yet — 09:00 local is a sane, obvious default.
-    commit(id, new Date(y, m - 1, d, existing ? existing.getHours() : 9, existing ? existing.getMinutes() : 0, 0, 0));
+    const target = new Date(y, m - 1, d, existing ? existing.getHours() : 9, existing ? existing.getMinutes() : 0, 0, 0);
+    if (!existing || !selected.has(id) || ticked.length < 2) return commit(id, target);
+    // The ticked posts come too, by the same number of days, each at its own
+    // time of day (rounded, so a clock-change day still counts as one).
+    const days = Math.round((new Date(y, m - 1, d).getTime() - new Date(existing.getFullYear(), existing.getMonth(), existing.getDate()).getTime()) / 86_400_000);
+    commitMany(ticked.map((p) => {
+      const t = new Date(p.scheduledAt!);
+      return { id: p.id, target: new Date(t.getFullYear(), t.getMonth(), t.getDate() + days, t.getHours(), t.getMinutes(), 0, 0) };
+    }));
   };
 
   /** Move a post to an exact local wall clock — the week grid's typed path. */
@@ -332,20 +402,30 @@ export function SocialCalendar({ posts, freeSlots = [] }: { posts: CalendarPost[
    */
   const Chip = ({ p, control = "date" }: { p: CalendarPost; control?: "date" | "datetime" }) => {
     const time = p.scheduledAt ? timeLabel(new Date(p.scheduledAt)) : null;
+    // Ghosts (E-SOC-12): a proposed time is dashed until someone schedules it;
+    // a held post is dashed and stays put — the server would refuse the move.
+    const held = p.kind === "held";
+    const ghost = held || p.kind === "proposed";
+    const dragging = dragId === p.id || (dragId !== null && selected.has(dragId) && selected.has(p.id));
     return (
       <div
-        draggable
-        onDragStart={() => setDragId(p.id)}
+        draggable={!held}
+        onDragStart={held ? undefined : () => setDragId(p.id)}
         onDragEnd={() => setDragId(null)}
-        className="rounded-md px-1.5 py-1 text-[10px] leading-tight cursor-grab active:cursor-grabbing border"
+        className={`rounded-md px-1.5 py-1 text-[10px] leading-tight border ${held ? "cursor-default" : "cursor-grab active:cursor-grabbing"}`}
         style={{
-          background: "var(--panel)",
-          borderColor: dragId === p.id ? "var(--accent)" : "var(--line)",
-          opacity: dragId === p.id ? 0.5 : 1,
+          background: ghost ? "transparent" : "var(--panel)",
+          borderStyle: ghost ? "dashed" : "solid",
+          borderColor: dragging || selected.has(p.id) ? "var(--accent)" : held ? "var(--amber)" : "var(--line)",
+          opacity: dragging ? 0.5 : ghost ? 0.8 : 1,
         }}
         title={p.text || "(image only)"}
       >
         <div className="flex items-center gap-1">
+          {p.scheduledAt && !held && (
+            <input type="checkbox" checked={selected.has(p.id)} onChange={() => toggleSelected(p.id)} onClick={(e) => e.stopPropagation()}
+              aria-label={`Tick "${(p.text || "post").slice(0, 40)}" to move it with the others`} className="w-3 h-3 m-0" />
+          )}
           {p.providers.map((prov) => (
             <span key={prov} className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: networkFor(prov)?.color ?? "var(--mute)" }} />
           ))}
@@ -355,8 +435,16 @@ export function SocialCalendar({ posts, freeSlots = [] }: { posts: CalendarPost[
           </Link>
         </div>
         <div className="truncate">{p.text || <span className="italic text-[var(--mute)]">image only</span>}</div>
-        {/* Accessible path: DnD is an enhancement, this always works. */}
-        {control === "datetime" ? (
+        {ghost && (
+          <div className="font-mono text-[9px]" style={{ color: held ? "var(--amber-on)" : "var(--mute)" }}>
+            {held ? (p.held === "changes" ? "changes requested" : "awaiting approval") : "proposed — not scheduled yet"}
+          </div>
+        )}
+        {/* Accessible path: DnD is an enhancement, this always works. A held
+            post's path is its review, not a date. */}
+        {held ? (
+          <Link href="/social/approvals" className="text-[9px] underline text-[var(--mute)]">On Approvals</Link>
+        ) : control === "datetime" ? (
           <input
             type="datetime-local"
             aria-label={`Reschedule "${(p.text || "post").slice(0, 40)}"`}
@@ -429,6 +517,42 @@ export function SocialCalendar({ posts, freeSlots = [] }: { posts: CalendarPost[
         </p>
       )}
 
+      {/* Filters (E-SOC-12): network, category, campaign, and whether proposed
+          and held posts show as ghosts. Client-side, mirrored in the URL. */}
+      <div className="flex flex-wrap items-center gap-2 mb-2 text-xs">
+        {networks.length > 1 && (
+          <select value={filter.net} onChange={(e) => applyFilter({ ...filter, net: e.target.value })} aria-label="Network" className="text-xs border border-[var(--line-2)] rounded-lg px-2 py-1">
+            <option value="">Every network</option>
+            {networks.map((n) => <option key={n} value={n}>{networkFor(n)?.label ?? n}</option>)}
+          </select>
+        )}
+        {categories.length > 0 && (
+          <select value={filter.cat} onChange={(e) => applyFilter({ ...filter, cat: e.target.value })} aria-label="Category" className="text-xs border border-[var(--line-2)] rounded-lg px-2 py-1">
+            <option value="">Every category</option>
+            {categories.map((c) => <option key={c} value={c}>{c}</option>)}
+            <option value="__none__">No category</option>
+          </select>
+        )}
+        {campaigns.length > 0 && (
+          <select value={filter.camp} onChange={(e) => applyFilter({ ...filter, camp: e.target.value })} aria-label="Campaign" className="text-xs border border-[var(--line-2)] rounded-lg px-2 py-1">
+            <option value="">Every campaign</option>
+            {campaigns.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+        )}
+        <label className="inline-flex items-center gap-1.5 cursor-pointer">
+          <input type="checkbox" checked={filter.ghosts} onChange={(e) => applyFilter({ ...filter, ghosts: e.target.checked })} />
+          Show proposed and held posts
+        </label>
+        {hiddenByFilter > 0 && <span className="text-[var(--mute)]">{hiddenByFilter} hidden by these filters</span>}
+        {ticked.length > 0 && (
+          <span className="inline-flex items-center gap-1.5">
+            <b>{ticked.length} ticked</b>
+            <span className="text-[var(--mute)]">{ticked.length > 1 ? "— drag one and the others move with it, keeping their spacing" : "— tick another to move them together"}</span>
+            <button type="button" className="btn sm" onClick={() => setSelected(new Set())}>Clear</button>
+          </span>
+        )}
+      </div>
+
       {mode === "month" && (
       <div className="card !p-2">
         <div className="grid grid-cols-7 gap-1 mb-1">
@@ -465,7 +589,7 @@ export function SocialCalendar({ posts, freeSlots = [] }: { posts: CalendarPost[
                     iso={iso}
                     onTake={(at) => {
                       setOverDay(null);
-                      if (dragId) commit(dragId, at);
+                      if (dragId) dropAt(dragId, at);
                       setDragId(null);
                     }}
                   />
@@ -524,7 +648,7 @@ export function SocialCalendar({ posts, freeSlots = [] }: { posts: CalendarPost[
                         e.preventDefault();
                         const half = halfFor(e);
                         setOverCell(null);
-                        if (dragId) commit(dragId, new Date(d.getFullYear(), d.getMonth(), d.getDate(), hour, half));
+                        if (dragId) dropAt(dragId, new Date(d.getFullYear(), d.getMonth(), d.getDate(), hour, half));
                         setDragId(null);
                       }}
                       className="min-h-11 rounded-md border p-0.5 flex flex-col gap-0.5"
@@ -541,7 +665,7 @@ export function SocialCalendar({ posts, freeSlots = [] }: { posts: CalendarPost[
                       )}
                       {cellPosts.map((p) => <Chip key={p.id} p={p} control="datetime" />)}
                       {cellFree.map((iso) => (
-                        <GhostSlot key={iso} iso={iso} onTake={(at) => { setOverCell(null); if (dragId) commit(dragId, at); setDragId(null); }} />
+                        <GhostSlot key={iso} iso={iso} onTake={(at) => { setOverCell(null); if (dragId) dropAt(dragId, at); setDragId(null); }} />
                       ))}
                     </div>
                   );
