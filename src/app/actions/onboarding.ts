@@ -11,6 +11,7 @@ import { CHANNEL_COOKIE } from "@/lib/channel";
 import { jobs } from "@/lib/jobs";
 import { registerOnboardingJobs } from "@/lib/jobs/onboarding";
 import { writeJson } from "@/lib/db/json";
+import { softLimitProblem } from "@/lib/soft-limits";
 
 registerOnboardingJobs();
 
@@ -31,6 +32,8 @@ export async function startOnboardingAction(formData: FormData) {
     path: formData.get("path"),
   });
   if (!parsed.success) redirect("/onboarding/channel/new?step=1&error=invalid");
+  const limit = await softLimitProblem("channel", workspace.id, null);
+  if (limit) redirect(`/onboarding/channel/new?step=1&flashErr=${encodeURIComponent(limit)}`);
 
   const count = await db.channel.count({ where: { workspaceId: workspace.id } });
   const channel = await db.channel.create({

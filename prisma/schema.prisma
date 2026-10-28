@@ -1510,13 +1510,19 @@ model UsageLog {
   id          String   @id @default(cuid())
   workspaceId String
   actorId     String?  // userId
-  action      String   // script.generate | thumbnail.generate | agent.run | chat.message
+  action      String   // ai.text | ai.image | thumbnail.brainstorm | thumbnail.clone | agent.run | youtube.api | …
   model       String?
+  /// Who answered — "anthropic", "google", "openai", "mock" (ai.* rows, audit SET-02).
+  provider    String?
   tokens      Int?
+  inputTokens  Int?
+  outputTokens Int?
   words       Int?
   createdAt   DateTime @default(now())
 
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, action, createdAt])
 }
 
 // ──────────────────────────────────────────────────────────────────────────

@@ -3,7 +3,9 @@ import { SubmitButton } from "@/components/SubmitButton";
 import { requireRole } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { storage } from "@/lib/storage";
-import { MODELS } from "@/lib/llm/models";
+import { llm, modelChoices, resolveUsableModel } from "@/lib/llm";
+import { modelLabel } from "@/lib/llm/models";
+import { ModelOptions, ModelChoiceNote } from "@/components/ModelOptions";
 import { updateWorkspaceSettingsAction } from "@/app/actions/admin";
 import { saveWorkspaceAccentAction, uploadWorkspaceLogoAction, clearWorkspaceLogoAction } from "@/app/actions/branding";
 
@@ -20,6 +22,11 @@ export default async function AdminSettingsPage({ searchParams }: { searchParams
   const { workspace } = await requireRole("ADMIN");
   const { ok, err } = await searchParams;
   const channels = await db.channel.findMany({ where: { workspaceId: workspace.id }, orderBy: { createdAt: "asc" } });
+  const [choices, systemRuns, runs] = await Promise.all([
+    modelChoices(workspace.id),
+    resolveUsableModel(llm.defaultModel, workspace.id),
+    resolveUsableModel(workspace.defaultModel ?? "", workspace.id),
+  ]);
 
   return (
     <div className="w-full">
@@ -47,11 +54,10 @@ export default async function AdminSettingsPage({ searchParams }: { searchParams
         <label className="flex flex-col gap-1">
           <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">Default AI model</span>
           <select name="defaultModel" defaultValue={workspace.defaultModel ?? ""} className="border border-[var(--line-2)] rounded-lg p-2 text-sm">
-            <option value="">Use the system default ({workspace.defaultModel ?? "claude-sonnet"})</option>
-            {MODELS.filter((m) => m.provider !== "mock").map((m) => (
-              <option key={m.id} value={m.id}>{m.label} — {m.style}</option>
-            ))}
+            <option value="">Use the system default ({modelLabel(systemRuns)})</option>
+            <ModelOptions choices={choices} current={workspace.defaultModel} detail />
           </select>
+          <ModelChoiceNote choices={choices} current={workspace.defaultModel} runs={runs} />
         </label>
 
         <label className="flex flex-col gap-1">

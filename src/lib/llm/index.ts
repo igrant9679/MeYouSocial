@@ -1,10 +1,11 @@
 import { env } from "@/lib/env";
-import type { LLMProvider, LLMRequest, LLMResponse } from "./types";
+import type { LLMProvider, LLMRequest, LLMResponse, ModelDescriptor } from "./types";
 import { mockProvider } from "./mock";
 import { createAnthropicProvider } from "./anthropic";
 import { createGoogleProvider } from "./google";
-import { MODELS, getModel } from "./models";
+import { MODELS, PICKABLE_MODELS, PROVIDER_LABEL, TEXT_PROVIDERS, getModel } from "./models";
 import { getApiKey, invalidateKeyCache } from "./keys";
+import { meterAi } from "@/lib/usage-meter";
 
 // Routing layer. Application code uses llm.complete() / llm.stream()
 // and never imports a concrete provider. Real providers are wrapped so a network /
@@ -116,19 +117,29 @@ async function refuseIfPaused(req: LLMRequest): Promise<void> {
 export const llm = {
   models: MODELS,
   defaultModel: env.DEFAULT_LLM_MODEL,
+  // Every call resolves its model here (audit SET-01): about thirty callers
+  // passed a stored choice straight through, so a GPT/DeepSeek/keyless pick
+  // wrote mock prose. The reply's `model` is the one that actually ran.
   async complete(req: LLMRequest): Promise<LLMResponse> {
     await refuseIfPaused(req);
+    req = { ...req, model: await resolveUsableModel(req.model, req.workspaceId) };
     const p = await selectProvider(req.model, req.workspaceId);
     const out = await p.complete(req);
     // Providers don't set this; the router does. `p` is already the mock when a
     // key is missing or USE_MOCK_LLM is on, so `p.id` is the truth in every case
     // the wrapper didn't already stamp.
-    return { ...out, provider: out.provider ?? p.id };
+    const provider = out.provider ?? p.id;
+    await meterAi({ workspaceId: req.workspaceId, action: "ai.text", provider, model: req.model, inputTokens: out.inputTokens, outputTokens: out.outputTokens });
+    return { ...out, provider };
   },
   async *stream(req: LLMRequest): AsyncIterable<string> {
     await refuseIfPaused(req);
+    req = { ...req, model: await resolveUsableModel(req.model, req.workspaceId) };
     const p = await selectProvider(req.model, req.workspaceId);
     for await (const chunk of p.stream(req)) yield chunk;
+    // No token counts on a stream, and a mid-stream fallback isn't visible
+    // here — the row says who was asked.
+    await meterAi({ workspaceId: req.workspaceId, action: "ai.text", provider: p.id, model: req.model });
   },
   invalidateKeyCache,
 };
@@ -147,8 +158,17 @@ export const llm = {
  * that provider has no key, the first model whose provider does. Returns the
  * preference unchanged when nothing is reachable, so the caller still gets a
  * clearly-labelled mock rather than a hidden substitution.
+ *
+ * A blank preference means "inherit": the workspace's default, then the
+ * platform's. The studio's chains end in "" for that reason — they used to end
+ * in "claude-sonnet", so a channel set to "Workspace default" never got it.
  */
 export async function resolveUsableModel(preferred: string, workspaceId?: string): Promise<string> {
+  if (!preferred) {
+    const { db } = await import("@/lib/db");
+    const ws = workspaceId ? await db.workspace.findUnique({ where: { id: workspaceId }, select: { defaultModel: true } }) : null;
+    preferred = ws?.defaultModel || env.DEFAULT_LLM_MODEL;
+  }
   if (env.USE_MOCK_LLM) return preferred;
   const wanted = getModel(preferred);
   const reachable = async (providerId: string) =>
@@ -158,11 +178,40 @@ export async function resolveUsableModel(preferred: string, workspaceId?: string
 
   if (wanted && (await reachable(wanted.provider))) return preferred;
 
-  for (const m of MODELS) {
-    if (m.provider === "mock") continue;
+  for (const m of PICKABLE_MODELS) {
     if (await reachable(m.provider)) return m.id;
   }
   return preferred;
+}
+
+const providerKeyed = (providerId: string, workspaceId?: string) =>
+  TEXT_PROVIDERS.includes(providerId)
+    ? getApiKey(providerId as "anthropic" | "google", workspaceId).then(Boolean, () => false)
+    : Promise.resolve(false);
+
+export type ModelChoice = ModelDescriptor & { keyed: boolean };
+
+/** What a model picker offers this workspace: models the router can call, each
+ *  with whether its provider has a key here (the workspace's or the platform's). */
+export async function modelChoices(workspaceId?: string): Promise<ModelChoice[]> {
+  const keyed = new Map<string, boolean>();
+  for (const p of TEXT_PROVIDERS) keyed.set(p, await providerKeyed(p, workspaceId));
+  return PICKABLE_MODELS.map((m) => ({ ...m, keyed: keyed.get(m.provider) ?? false }));
+}
+
+/**
+ * Why `next` can't be saved as a model choice, or null. Blank (inherit) is
+ * always fine, and so is the value already stored — an unrelated save must not
+ * fail, or silently change it, because of a choice made before this check.
+ */
+export async function modelChoiceProblem(next: string | null | undefined, workspaceId: string, current?: string | null): Promise<string | null> {
+  if (!next || next === current) return null;
+  const m = PICKABLE_MODELS.find((x) => x.id === next);
+  if (!m) return `“${next}” isn't a model this app can write with — pick a Claude or Gemini model.`;
+  if (!(await providerKeyed(m.provider, workspaceId))) {
+    return `${m.label} can't run here: there's no ${PROVIDER_LABEL[m.provider] ?? m.provider} API key. Add one under Settings → Keys, or pick another model.`;
+  }
+  return null;
 }
 
 export type { LLMRequest, LLMResponse, LLMProvider } from "./types";

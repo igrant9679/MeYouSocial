@@ -500,6 +500,31 @@ Tabs: **Keys** (`/admin/api-keys`: LLM, search, images, video, TTS, storage) · 
   `ytGet` meters each call into `UsageLog` (`action: "youtube.api"`, `tokens` = units: search 100, else 1), shown on
   Settings → Usage; `searchChannels` is cached per workspace and query for 24 h in `ApiCache`.
 
+## ⚠ Models that can write, limits that hold, keys that stay (2026-10-28, audit Phase 2, settings group)
+- **The router resolves every call's model** (SET-01): `llm.complete` / `llm.stream` run `resolveUsableModel` first,
+  so a stored choice whose provider isn't wired or keyed (GPT, DeepSeek, Grok, Kimi, MiniMax, a keyless Claude, the
+  mock) writes with the first reachable model instead of the mock. The reply's `model` is the one that ran. A BLANK
+  model means inherit: the workspace's `defaultModel`, then `DEFAULT_LLM_MODEL` — the studio's chains end in `""` (they
+  ended in `"claude-sonnet"`, so a channel on "Workspace default" never got it). Don't add `?? "claude-sonnet"` back.
+- **Pickers offer only what can run**: `PICKABLE_MODELS` (lib/llm/models.ts — Anthropic and Google, no mock, no
+  legacy alias) through `modelChoices()` with key status, rendered by `components/ModelOptions.tsx` (keyless options
+  disabled; a choice stored before this stays listed and selectable, marked, with `ModelChoiceNote` saying what
+  writes instead). Every save path calls `modelChoiceProblem(next, ws, current)` — an unchanged stored value passes, so
+  an unrelated save never fails or silently changes it. The four pickers: workspace, channel, article, script.
+  Wiring another provider = add it to `TEXT_PROVIDERS` + `getProvider` + `PROVIDER_LABEL`.
+- **Soft limits are enforced where things are made** (SET-02): `lib/soft-limits.ts` `softLimitProblem(kind, ws, user)`
+  — scripts (every `db.script.create` a person triggers, the API answers 429, the assistant's tools refuse),
+  thumbnail sets (`thumbnail.brainstorm`/`thumbnail.clone` UsageLog rows), Agent Mode runs (`agent.run` row written
+  at launch), channels (the workspace's). Per person, per UTC calendar month; the engine (no person) is held by the
+  daily AI budget instead. A new creation path must ask it first.
+- **Every AI call is metered** (`lib/usage-meter.ts` `meterAi`, from the two routers): `UsageLog` `ai.text` / `ai.image`
+  with `provider`, `model`, `inputTokens`, `outputTokens` (migration `20261028120000_usage_provider_tokens`, plus the
+  `[workspaceId, action, createdAt]` index). Mock replies are rows too (provider `mock`) — Usage names them as
+  placeholders. Usage shows per provider/model, articles/social/images, and each limit against the busiest PERSON
+  (it compared workspace totals with per-person caps); it links to Limits. No dollar figures — no price table is kept.
+- **Save never clears a key** (SET-05): `saveApiKeyAction` / `saveSearchKeyAction` refuse an empty field; Remove key
+  (`intent=remove`) only asks (`?confirmRemove=<id>`), `intent=remove-confirmed` clears. Works without JavaScript.
+
 ## Open items / things the user still owns
 - **Analytics: APIs enabled 2026-08-03** (Search Console + GA Admin + GA Data, on project
   `479503233109` = `gen-lang-client-0838901195` = "CreateUp"). Still pending, user-only: add the

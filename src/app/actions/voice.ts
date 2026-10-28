@@ -66,7 +66,7 @@ export async function borrowVoiceAction(formData: FormData) {
   const transcripts = (await Promise.all(usable.map((v) => youtubeFor(workspace.id).getTranscript(v.id)))).filter(Boolean) as string[];
 
   const completion = await llm.complete({
-    model: channel.defaultModel ?? "claude-sonnet",
+    model: channel.defaultModel ?? "",
     system: "You produce a structured voice profile from creator transcripts. Identify archetype, delivery, rhetoric, diction, and any signature phrases.",
     messages: [{
       role: "user",

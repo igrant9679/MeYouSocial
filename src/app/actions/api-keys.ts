@@ -58,13 +58,15 @@ export async function saveSearchKeyAction(formData: FormData) {
   const vendor = String(formData.get("vendor") ?? "");
   if (!(SEARCH_VENDORS as readonly string[]).includes(vendor)) return;
   const value = String(formData.get("value") ?? "").trim();
-  const problem = checkKeyFormat(vendor, value);
+  const removing = keyIntent(formData, vendor, value) === "remove";
+  const problem = removing ? null : checkKeyFormat(vendor, value);
   if (problem) {
     redirect(`/admin/api-keys?err=${encodeURIComponent(keyFormatMessage(vendor, problem))}`);
   }
   const { setWorkspaceSetting } = await import("@/lib/settings");
-  await setWorkspaceSetting(workspace.id, `api_key:${vendor}`, value);
+  await setWorkspaceSetting(workspace.id, `api_key:${vendor}`, removing ? "" : value);
   revalidatePath("/admin/api-keys");
+  if (removing) redirect(removedRedirect(vendor));
   redirect(`/admin/api-keys?ok=${vendor}`);
 }
 
@@ -208,14 +210,16 @@ export async function saveApiKeyAction(formData: FormData) {
   const provider = String(formData.get("provider") ?? "") as KeyProvider;
   if (!KEY_PROVIDERS.includes(provider) && provider !== "youtube" && provider !== "elevenlabs" && provider !== "heygen") return;
   const value = String(formData.get("value") ?? "").trim();
+  const removing = keyIntent(formData, provider, value) === "remove";
 
   // Refuse here, not three screens later. A key field that accepts anything is
   // how a URL ended up stored as an ElevenLabs key with tts:provider pointed at
   // it — invisible until a render failed for an unrelated-looking reason.
-  const problem = checkKeyFormat(provider, value);
+  const problem = removing ? null : checkKeyFormat(provider, value);
   if (problem) {
     redirect(`/admin/api-keys?err=${encodeURIComponent(keyFormatMessage(provider, problem))}`);
   }
+  const stored = removing ? "" : value;
 
   const settingKey = SETTING_KEY[provider];
   const { setWorkspaceSetting, setPlatformSetting, isPlatformManagedKey } = await import("@/lib/settings");
@@ -227,16 +231,38 @@ export async function saveApiKeyAction(formData: FormData) {
     if (!isPlatformOperator(user.email)) {
       redirect("/admin/api-keys?err=" + encodeURIComponent(`The ${provider} key is shared across all workspaces and is managed by the platform operator.`));
     }
-    await setPlatformSetting(settingKey, value);
+    await setPlatformSetting(settingKey, stored);
     // Clear anything left from before the key became shared. Without this the
     // old rows are inert (getSetting skips the workspace layer for these) but
     // still readable in the DB, which reads as "this tenant has its own key".
     await db.workspaceSetting.deleteMany({ where: { key: settingKey } });
   } else {
-    await setWorkspaceSetting(workspace.id, settingKey, value);
+    await setWorkspaceSetting(workspace.id, settingKey, stored);
   }
 
   llm.invalidateKeyCache();
   revalidatePath("/admin/api-keys");
+  if (removing) redirect(removedRedirect(provider));
   redirect(`/admin/api-keys?ok=${provider}`);
+}
+
+/**
+ * Audit SET-05: an empty field used to delete the key behind a "Saved" banner,
+ * moving the workspace onto the platform's key (and bill) — easy to do while
+ * rotating. Save now refuses an empty field; Remove key is its own button, and
+ * its first press only asks (the page shows ?confirmRemove=) — the second,
+ * "remove-confirmed", clears.
+ */
+function keyIntent(formData: FormData, id: string, value: string): "save" | "remove" {
+  const intent = String(formData.get("intent") ?? "");
+  if (intent === "remove") redirect(`/admin/api-keys?confirmRemove=${encodeURIComponent(id)}#key-${id}`);
+  if (intent === "remove-confirmed") return "remove";
+  if (!value) {
+    redirect(`/admin/api-keys?err=${encodeURIComponent("The key field was empty, so nothing was saved. To take a key away, use Remove key next to it.")}#key-${id}`);
+  }
+  return "save";
+}
+
+function removedRedirect(id: string): string {
+  return `/admin/api-keys?flash=${encodeURIComponent(`Removed the ${id} key. Anything that used it falls back to the platform's key if there is one, or stops until a key is added.`)}#key-${id}`;
 }

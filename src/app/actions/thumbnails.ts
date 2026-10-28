@@ -9,6 +9,7 @@ import { images } from "@/lib/images";
 import { describeImageStyle, fetchReferenceImage } from "@/lib/vision";
 import { readJson, writeJson } from "@/lib/db/json";
 import { stripListMarker } from "@/lib/list-marker";
+import { softLimitProblem } from "@/lib/soft-limits";
 
 type Concept = { id: string; label: string; description: string; url: string; sawReference?: boolean };
 
@@ -22,10 +23,12 @@ export async function brainstormThumbnailsAction(formData: FormData) {
 
   const channel = await db.channel.findFirst({ where: { id: channelId, workspaceId: workspace.id } });
   if (!channel) return;
+  const limit = await softLimitProblem("thumbnail", workspace.id, user.id);
+  if (limit) (await import("next/navigation")).redirect(`/thumbnails?flashErr=${encodeURIComponent(limit)}`);
 
   // 1) Generate four concept descriptions via the LLM router.
   const completion = await llm.complete({
-    model: channel.defaultModel ?? "claude-sonnet",
+    model: channel.defaultModel ?? "",
     system: `Produce 4 sharply distinct YouTube thumbnail concepts for the given video.
 Return EXACTLY 4 numbered lines: "LABEL — short visual brief".
 LABELs should cover 4 proven formats: 1) Face + reaction, 2) Object + tight crop, 3) Big text + arrow, 4) Before/After split.`,
@@ -120,9 +123,11 @@ export async function cloneThumbnailAction(formData: FormData) {
     referenceUrl: formData.get("referenceUrl"),
   });
   if (!parsed.success) return;
-  const { workspace } = await requireRole("EDITOR");
+  const { workspace, user } = await requireRole("EDITOR");
   const channel = await db.channel.findFirst({ where: { id: parsed.data.channelId, workspaceId: workspace.id } });
   if (!channel) return;
+  const limit = await softLimitProblem("thumbnail", workspace.id, user.id);
+  if (limit) (await import("next/navigation")).redirect(`/thumbnails?flashErr=${encodeURIComponent(limit)}`);
 
   // ── Actually LOOK at the reference ────────────────────────────────────────
   // This used to hand the URL to llm.complete() as a plain string. A text model
@@ -174,6 +179,8 @@ export async function cloneThumbnailAction(formData: FormData) {
       renderUrl: img.url,
     },
   });
+  // Counted by the thumbnail soft limit (SET-02), like the brainstorm's row.
+  await db.usageLog.create({ data: { workspaceId: workspace.id, actorId: user.id, action: "thumbnail.clone" } });
   const { redirect } = await import("next/navigation");
   redirect(`/thumbnails/${thumb.id}`);
 }

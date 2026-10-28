@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireMembership, requireRole } from "@/lib/acl";
 import { db } from "@/lib/db";
+import { softLimitProblem } from "@/lib/soft-limits";
 
 // GET /api/v1/scripts — list scripts (optional ?channelId).
 // POST /api/v1/script — create a draft.
@@ -32,6 +33,8 @@ export async function POST(req: NextRequest) {
   }
   const channel = await db.channel.findFirst({ where: { id: body.channelId, workspaceId: workspace.id } });
   if (!channel) return NextResponse.json({ error: "channel not found" }, { status: 404 });
+  const limit = await softLimitProblem("script", workspace.id, user.id);
+  if (limit) return NextResponse.json({ error: limit }, { status: 429 });
 
   const script = await db.script.create({
     data: {

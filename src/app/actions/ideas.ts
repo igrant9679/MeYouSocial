@@ -11,6 +11,7 @@ import { cleanTitle } from "@/lib/list-marker";
 import { ownTopicId } from "@/lib/topics";
 import { isIdeaFormat } from "@/lib/ideas-board";
 import { writeAudit } from "@/lib/governance";
+import { softLimitProblem } from "@/lib/soft-limits";
 
 registerOnboardingJobs();
 
@@ -201,6 +202,8 @@ export async function writeIdeaToCanvasAction(formData: FormData) {
     include: { channel: true },
   });
   if (!idea) return;
+  const limit = await softLimitProblem("script", workspace.id, user.id);
+  if (limit) (await import("next/navigation")).redirect(`/channels/${idea.channelId}/ideas/${idea.id}?flashErr=${encodeURIComponent(limit)}`);
   const script = await db.script.create({
     data: {
       channelId: idea.channelId,

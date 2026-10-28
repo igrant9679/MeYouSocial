@@ -38,7 +38,7 @@ export async function cloneTemplateAction(formData: FormData) {
 
   // Have the LLM produce a structured template: sections + pacing + transitions.
   const completion = await llm.complete({
-    model: channel.defaultModel ?? "claude-sonnet",
+    model: channel.defaultModel ?? "",
     system: `Analyze the supplied YouTube transcript(s) and produce a reusable script template.
 Return JSON with: sections (ordered array of { title, purpose, typicalDurationSeconds, beats: string[] }),
 pacing (overall cadence summary), transitions (recurring connector phrases), notes (anything else distinctive).

@@ -23,7 +23,7 @@ export async function scoreThumbnailAction(formData: FormData) {
   // The mock LLM produces a stable score from prompt characteristics. The real
   // provider (when wired) returns a scored critique.
   const result = await llm.complete({
-    model: thumb.channel.defaultModel ?? "claude-sonnet",
+    model: thumb.channel.defaultModel ?? "",
     system: `Score a YouTube thumbnail against CTR principles. Return a JSON-ish line:
 score=<0-100>; contrast=<low|medium|high>; readability=<poor|ok|strong>; oneline=<short critique with one specific fix>.`,
     messages: [{

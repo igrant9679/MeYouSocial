@@ -117,7 +117,7 @@ export async function suggestBuilderTitlesAction(formData: FormData) {
   const scriptId = String(formData.get("scriptId"));
   const { script, state } = await load(scriptId);
   const completion = await llm.complete({
-    model: script.model ?? script.channel.defaultModel ?? "claude-sonnet",
+    model: script.model ?? script.channel.defaultModel ?? "",
     system: "Produce 6 YouTube title candidates. Each <= 70 chars, distinct angle. One per line.",
     messages: [{ role: "user", content: `Niche: ${script.channel.nicheDescription}\nFraming: ${JSON.stringify(state.frame)}\nResearch summary: ${state.research.items.map((i) => i.title).join("; ")}\nCurrent working title: ${script.title}` }],
     workspaceId: script.channel.workspaceId,
@@ -145,7 +145,7 @@ export async function suggestBuilderHooksAction(formData: FormData) {
   const scriptId = String(formData.get("scriptId"));
   const { script, state } = await load(scriptId);
   const completion = await llm.complete({
-    model: script.model ?? script.channel.defaultModel ?? "claude-sonnet",
+    model: script.model ?? script.channel.defaultModel ?? "",
     system: "Produce 5 distinct opening-hook variations (first 10-15s, spoken). 2-3 sentences each. No preamble. Separated by ---",
     messages: [{ role: "user", content: `Title: ${state.title || script.title}\nNiche: ${script.channel.nicheDescription}\nFraming: ${JSON.stringify(state.frame)}` }],
     workspaceId: script.channel.workspaceId,
@@ -191,7 +191,7 @@ export async function generateBuilderDraftAction(formData: FormData) {
   const sections: { title: string; content: string }[] = [];
   for (const heading of sectionPlan) {
     const completion = await llm.complete({
-      model: script.model ?? script.channel.defaultModel ?? "claude-sonnet",
+      model: script.model ?? script.channel.defaultModel ?? "",
       system: systemForScript({
         channelName: script.channel.name,
         niche: script.channel.nicheDescription ?? "",
@@ -227,7 +227,7 @@ export async function regenerateBuilderSectionAction(formData: FormData) {
 
   const section = state.sections[sectionIndex];
   const completion = await llm.complete({
-    model: script.model ?? "claude-sonnet",
+    model: script.model ?? script.channel.defaultModel ?? "",
     system: systemForScript({
       channelName: script.channel.name,
       niche: script.channel.nicheDescription ?? "",
@@ -258,7 +258,7 @@ export async function generateBuilderPublishAction(formData: FormData) {
   const { script, state } = await load(scriptId);
 
   const completion = await llm.complete({
-    model: script.model ?? "claude-sonnet",
+    model: script.model ?? script.channel.defaultModel ?? "",
     system: "Return JSON with three fields: description (plain text, 200-300 words), tags (one comma-separated line), metadata (key:value list of 3-5 lines).",
     messages: [{ role: "user", content: `Title: ${state.title || script.title}\nScript:\n${(script.body ?? "").slice(0, 6000)}` }],
     workspaceId: script.channel.workspaceId,

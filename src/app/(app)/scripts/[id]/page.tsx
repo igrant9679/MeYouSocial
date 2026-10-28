@@ -5,7 +5,9 @@ import { notFound } from "next/navigation";
 import { requireMembership } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { readJson } from "@/lib/db/json";
-import { MODELS } from "@/lib/llm/models";
+import { modelChoices, resolveUsableModel } from "@/lib/llm";
+import { modelLabel } from "@/lib/llm/models";
+import { ModelOptions } from "@/components/ModelOptions";
 import { formatDuration } from "@/lib/canvas/duration";
 import { MarkdownMessage } from "@/components/MarkdownMessage";
 import { ScriptEditor } from "./ScriptEditor";
@@ -56,6 +58,10 @@ export default async function CanvasPage({
     db.voiceProfile.findMany({ where: { channelId: script.channelId }, orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }] }),
   ]);
   const activeTab = (tab === "script" ? "script" : "plan") as "plan" | "script";
+  const [choices, inherited] = await Promise.all([
+    modelChoices(workspace.id),
+    resolveUsableModel(script.channel.defaultModel ?? "", workspace.id),
+  ]);
 
   // Zoom-corrected height: a bare 100vh here renders 22% taller than the window
   // at the XL content size. See the note at the top of globals.css.
@@ -134,11 +140,8 @@ export default async function CanvasPage({
             <label className="flex items-center gap-1 text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">
               Model
               <select name="model" defaultValue={script.model ?? ""} className="border border-[var(--line-2)] rounded-md p-1 text-xs font-mono">
-                <option value="">Channel default</option>
-                {MODELS.filter((m) => m.provider !== "mock").map((m) => (
-                  <option key={m.id} value={m.id}>{m.label}</option>
-                ))}
-                <option value="mock-fast">Mock (fast)</option>
+                <option value="">Channel default ({modelLabel(inherited)})</option>
+                <ModelOptions choices={choices} current={script.model} />
               </select>
             </label>
             <label className="flex items-center gap-1 text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">

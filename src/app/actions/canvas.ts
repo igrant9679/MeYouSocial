@@ -6,7 +6,8 @@ import { z } from "zod";
 import { requireRole } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { readJson, writeJson } from "@/lib/db/json";
-import { llm } from "@/lib/llm";
+import { llm, modelChoiceProblem } from "@/lib/llm";
+import { softLimitProblem } from "@/lib/soft-limits";
 import { countWords, durationSeconds, MAX_WORDS } from "@/lib/canvas/duration";
 import { systemForOutline, systemForScript, systemForImprove, HUMANIZE_SYSTEM } from "@/lib/canvas/prompts";
 import { outlineForRestore, snapshotScript } from "@/lib/script-versions";
@@ -54,6 +55,8 @@ export async function createScriptAction(formData: FormData) {
   if (!channel) redirect("/scripts");
   const title = String(formData.get("title") ?? "").trim().slice(0, 200) || "Untitled script";
   const workflow = String(formData.get("workflow")) === "builder" ? "builder" : "canvas";
+  const limit = await softLimitProblem("script", workspace.id, user.id);
+  if (limit) redirect(`/scripts/new?flashErr=${encodeURIComponent(limit)}`);
 
   const script = await db.script.create({
     data: {
@@ -130,7 +133,7 @@ export async function generateOutlineAction(formData: FormData) {
   const audienceKQ = readJson<string[]>(script.channel.audience?.keyQuestions ?? null, []);
 
   const result = await llm.complete({
-    model: script.model ?? script.channel.defaultModel ?? "claude-sonnet",
+    model: script.model ?? script.channel.defaultModel ?? "",
     system: systemForOutline({
       channelName: script.channel.name,
       niche: script.channel.nicheDescription ?? "",
@@ -193,7 +196,7 @@ export async function generateScriptAction(formData: FormData) {
   }
 
   const result = await llm.complete({
-    model: script.model ?? script.channel.defaultModel ?? "claude-sonnet",
+    model: script.model ?? script.channel.defaultModel ?? "",
     system: systemForScript({
       channelName: script.channel.name,
       niche: script.channel.nicheDescription ?? "",
@@ -250,7 +253,7 @@ export async function humanizeAction(formData: FormData) {
   if (!script.body) return;
 
   const result = await llm.complete({
-    model: script.model ?? script.channel.defaultModel ?? "claude-sonnet",
+    model: script.model ?? script.channel.defaultModel ?? "",
     system: HUMANIZE_SYSTEM,
     messages: [
       { role: "user", content: `Voice profile: ${voiceText(script)}\n\nScript to humanize:\n\n${script.body}` },
@@ -288,7 +291,7 @@ export async function improveSelectionAction(formData: FormData) {
   if (!selection.trim()) return;
 
   const result = await llm.complete({
-    model: script.model ?? script.channel.defaultModel ?? "claude-sonnet",
+    model: script.model ?? script.channel.defaultModel ?? "",
     system: systemForImprove(instruction),
     messages: [{ role: "user", content: selection }],
     workspaceId: script.channel.workspaceId,
@@ -369,7 +372,10 @@ export async function updateScriptSettingsAction(formData: FormData) {
     voiceProfileId: formData.get("voiceProfileId") || undefined,
   });
   if (!parsed.success) return;
-  const { script } = await load(parsed.data.scriptId);
+  const { script, workspace } = await load(parsed.data.scriptId);
+  // Only a model that can write here (audit SET-01); the stored one may stay.
+  const problem = await modelChoiceProblem(parsed.data.model, workspace.id, script.model);
+  if (problem) redirect(`/scripts/${script.id}?flashErr=${encodeURIComponent(`Nothing was saved. ${problem}`)}`);
   // A template is this channel's or a built-in; a voice is this channel's
   // (audit SEC-18: another workspace's ids were accepted).
   const templateId = parsed.data.templateId

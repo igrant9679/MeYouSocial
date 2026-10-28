@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Gauge } from "lucide-react";
 import { SubmitButton } from "@/components/SubmitButton";
 import { requireRole } from "@/lib/acl";
@@ -19,6 +20,10 @@ export default async function AdminLimitsPage() {
           <p className="text-xs text-[var(--mute)]">Optional. <b>Never tied to payment.</b> These cap shared infrastructure cost. Leave blank or 0 for unlimited.</p>
         </div>
       </div>
+      <p className="text-xs text-[var(--mute)] mb-3">
+        The per-user limits count what each person starts in a calendar month (UTC); at a limit, the next one is refused with a message saying so. The engine&apos;s own work isn&apos;t counted here — the daily AI budget holds it. The channel limit is the workspace&apos;s.{" "}
+        <Link href="/admin/usage" className="underline">See this month&apos;s usage</Link>
+      </p>
 
       <form action={updateSoftLimitsAction} className="card flex flex-col gap-4">
         <LimitField name="scriptsPerUserMonth"    label="Scripts per user / month"        defaultValue={workspace.limitScriptsPerUserMonth} />

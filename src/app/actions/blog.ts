@@ -18,6 +18,7 @@ import { loadEditorialContext } from "@/lib/blog-slop";
 import { notify } from "@/lib/notify";
 import { autoTaskForAssets, autoTaskForReview } from "@/lib/auto-tasks";
 import { cleanTitle } from "@/lib/list-marker";
+import { modelChoiceProblem } from "@/lib/llm";
 import { formatInZone, getPostingTimeZone, parseZonedInput } from "@/lib/social/slots";
 
 /**
@@ -108,6 +109,9 @@ export async function updateBlogPostAction(formData: FormData) {
   // means someone else wrote it meanwhile, and this save must not undo that.
   const base = String(formData.get("baseHash") ?? "");
   const bodyConflict = Boolean(base) && base !== bodyHash(post.body) && newBody !== normaliseBody(post.body);
+  // Only a model that can write here (audit SET-01). A refused one keeps the
+  // stored choice and the rest of the save goes through.
+  const modelProblem = await modelChoiceProblem(str(formData.get("model")), workspace.id, post.model);
   const wordsChanged = (!bodyConflict && newBody !== normaliseBody(post.body)) || title !== post.title || slug !== post.slug ||
     metaTitle !== post.metaTitle || metaDescription !== post.metaDescription;
   await db.blogPost.update({
@@ -127,7 +131,7 @@ export async function updateBlogPostAction(formData: FormData) {
       smeProfileId: str(formData.get("smeProfileId")), // blank = auto-match by topic
       readingLevel: pick("readingLevel", ["simple", "standard", "advanced"]),
       templateKey: str(formData.get("templateKey")),
-      model: str(formData.get("model")),
+      model: modelProblem ? post.model : str(formData.get("model")),
       secondaryKeywords: secondary,
       // FR-7 publish fidelity
       canonicalUrl: str(formData.get("canonicalUrl")),
@@ -149,8 +153,9 @@ export async function updateBlogPostAction(formData: FormData) {
   revalidatePath(`/blog/${post.id}`);
   revalidatePath("/blog");
   if (bodyConflict) {
-    redirect(`/blog/${post.id}?flashErr=${encodeURIComponent("The article's text changed elsewhere while you were editing (the engine, Verify, or another tab). The newer text was kept; yours is under Versions as “your edit, kept”. Your other fields were saved.")}`);
+    redirect(`/blog/${post.id}?flashErr=${encodeURIComponent(`The article's text changed elsewhere while you were editing (the engine, Verify, or another tab). The newer text was kept; yours is under Versions as “your edit, kept”. Your other fields were saved.${modelProblem ? ` The model wasn't changed: ${modelProblem}` : ""}`)}`);
   }
+  if (modelProblem) redirect(`/blog/${post.id}?flashErr=${encodeURIComponent(`Your other changes were saved; the model wasn't changed. ${modelProblem}`)}`);
 }
 
 /** Move a post one step forward/backward along the review chain. */

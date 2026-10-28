@@ -53,7 +53,7 @@ export async function deepResearchAction(formData: FormData) {
   // 3) LLM synthesis pass.
   const sourceBlock = webResults.map((r, i) => `[${i + 1}] ${r.title}\n${r.url}\n${r.snippet}`).join("\n\n");
   const completion = await llm.complete({
-    model: channel.defaultModel ?? "claude-sonnet",
+    model: channel.defaultModel ?? "",
     system: `You produce deep YouTube research reports. Return a Markdown report with:
 1. **TL;DR** (3 bullets)
 2. **Key facts** (numbered, each with [n] source ref)

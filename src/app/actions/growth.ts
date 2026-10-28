@@ -102,7 +102,7 @@ export async function generateChapterMarkersAction(formData: FormData) {
   if (!script || !script.body) return;
 
   const completion = await llm.complete({
-    model: script.model ?? script.channel.defaultModel ?? "claude-sonnet",
+    model: script.model ?? script.channel.defaultModel ?? "",
     system: `Produce YouTube chapter markers for a video script. Output ONLY the timestamps, one per line in the format "MM:SS Chapter title". The first must be "00:00 Introduction" (or similar). Estimate timing at ~150 wpm.`,
     messages: [{ role: "user", content: `Title: ${script.title}\nScript:\n${script.body.slice(0, 10_000)}` }],
     workspaceId: workspace.id,

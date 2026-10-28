@@ -61,7 +61,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       let buffer = "";
       try {
         for await (const chunk of llm.stream({
-          model: script.model ?? script.channel.defaultModel ?? "claude-sonnet",
+          model: script.model ?? script.channel.defaultModel ?? "",
           system,
           messages: [{ role: "user", content: userContent }],
           workspaceId: workspace.id,

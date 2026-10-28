@@ -1,9 +1,11 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requireRole } from "@/lib/acl";
 import { db } from "@/lib/db";
+import { modelChoiceProblem } from "@/lib/llm";
 
 // Workspace settings: name, default channel, default model/language.
 const settingsSchema = z.object({
@@ -22,6 +24,9 @@ export async function updateWorkspaceSettingsAction(formData: FormData) {
     defaultLanguage: formData.get("defaultLanguage") || undefined,
   });
   if (!parsed.success) return;
+  // Only a model that can write here (audit SET-01); the stored one may stay.
+  const problem = await modelChoiceProblem(parsed.data.defaultModel, workspace.id, workspace.defaultModel);
+  if (problem) redirect(`/admin/settings?flashErr=${encodeURIComponent(`Nothing was saved. ${problem}`)}`);
   await db.workspace.update({
     where: { id: workspace.id },
     data: {
@@ -32,6 +37,7 @@ export async function updateWorkspaceSettingsAction(formData: FormData) {
     },
   });
   revalidatePath("/admin/settings");
+  redirect(`/admin/settings?flash=${encodeURIComponent("Workspace settings saved.")}`);
 }
 
 // Optional soft usage limits (operational guards, never paid).
@@ -62,6 +68,7 @@ export async function updateSoftLimitsAction(formData: FormData) {
     },
   });
   revalidatePath("/admin/limits");
+  redirect(`/admin/limits?flash=${encodeURIComponent("Limits saved — they apply from the next thing someone starts.")}`);
 }
 
 // Reassign channel ownership across workspaces? In this build all channels

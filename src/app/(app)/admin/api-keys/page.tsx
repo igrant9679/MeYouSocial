@@ -71,9 +71,9 @@ function mask(s: string): string {
   return `${s.slice(0, 4)}${"•".repeat(Math.max(4, s.length - 8))}${s.slice(-4)}`;
 }
 
-export default async function ApiKeysPage({ searchParams }: { searchParams: Promise<{ ok?: string; err?: string }> }) {
+export default async function ApiKeysPage({ searchParams }: { searchParams: Promise<{ ok?: string; err?: string; confirmRemove?: string }> }) {
   const { workspace, user } = await requireRole("ADMIN");
-  const { ok, err } = await searchParams;
+  const { ok, err, confirmRemove } = await searchParams;
 
   // Multi-tenant: the page edits THIS workspace's own keys (byKey). Platform
   // rows/env only inform the "platform key in use" chips — their values are
@@ -149,7 +149,7 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
 
       <div className="card mb-4 text-xs text-[var(--mute)] leading-relaxed">
         <p className="mb-1"><strong>Two sources, one resolved value:</strong> we read from the database first, then fall back to the env var if no DB value is set.</p>
-        <p>To <em>remove</em> a DB-stored key and fall back to env, save with the value field empty.</p>
+        <p>Save never clears a key — an empty field is refused. To take one away, use <b>Remove key</b> next to it; you&apos;ll be asked to confirm.</p>
       </div>
 
       {/* The install-wide mock switch, shown only when it is actually ON — it
@@ -172,7 +172,7 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
         const dbVal = byKey.get(`api_key:${row.provider}`) ?? "";
         const platformHas = Boolean(platformByKey.get(`api_key:${row.provider}`) || row.envValue);
         return (
-          <form key={row.provider} action={saveApiKeyAction} className="card mb-3">
+          <form key={row.provider} action={saveApiKeyAction} id={`key-${row.provider}`} className="card mb-3 scroll-mt-20">
             <input type="hidden" name="provider" value={row.provider} />
             <div className="flex items-start gap-3 mb-2">
               <div className="flex-1">
@@ -196,16 +196,7 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
                 </Link>
               </div>
             </div>
-            <div className="flex gap-2">
-              <input
-                name="value"
-                type="password"
-                placeholder={dbVal ? "Paste a new key to replace, or leave empty to clear DB value" : "Paste your API key here"}
-                className="flex-1 border border-[var(--line-2)] rounded-lg p-2 text-sm font-mono"
-                autoComplete="off"
-              />
-              <SubmitButton className="btn primary sm" pendingText="Saving…">Save</SubmitButton>
-            </div>
+            <KeyField id={row.provider} label={row.label} stored={Boolean(dbVal)} platformHas={platformHas} confirming={confirmRemove === row.provider} />
           </form>
         );
       })}
@@ -235,7 +226,7 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
         const dbVal = byKey.get(`api_key:${row.vendor}`) ?? "";
         const platformHas = Boolean(platformByKey.get(`api_key:${row.vendor}`) || row.envValue);
         return (
-          <form key={row.vendor} action={saveSearchKeyAction} className="card mb-3">
+          <form key={row.vendor} action={saveSearchKeyAction} id={`key-${row.vendor}`} className="card mb-3 scroll-mt-20">
             <input type="hidden" name="vendor" value={row.vendor} />
             <div className="flex items-start gap-3 mb-2">
               <div className="flex-1">
@@ -260,16 +251,7 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
                 </Link>
               </div>
             </div>
-            <div className="flex gap-2">
-              <input
-                name="value"
-                type="password"
-                placeholder={dbVal ? "Paste a new key to replace, or leave empty to clear DB value" : "Paste your API key here"}
-                className="flex-1 border border-[var(--line-2)] rounded-lg p-2 text-sm font-mono"
-                autoComplete="off"
-              />
-              <SubmitButton className="btn primary sm" pendingText="Saving…">Save</SubmitButton>
-            </div>
+            <KeyField id={row.vendor} label={row.label} stored={Boolean(dbVal)} platformHas={platformHas} confirming={confirmRemove === row.vendor} />
           </form>
         );
       })}
@@ -370,7 +352,7 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
         // kind of thing that reads as broken rather than as deliberate.
         const editable = !managed || isPlatformOperator;
         return (
-          <form key={row.provider} action={saveApiKeyAction} className="card mb-3">
+          <form key={row.provider} action={saveApiKeyAction} id={`key-${row.provider}`} className="card mb-3 scroll-mt-20">
             <input type="hidden" name="provider" value={row.provider} />
             <div className="flex items-start gap-3 mb-2">
               <div className="flex-1">
@@ -409,16 +391,7 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
               </div>
             </div>
             {editable && (
-              <div className="flex gap-2">
-                <input
-                  name="value"
-                  type="password"
-                  placeholder={dbVal ? "Paste a new key to replace, or leave empty to clear DB value" : "Paste your API key here"}
-                  className="flex-1 border border-[var(--line-2)] rounded-lg p-2 text-sm font-mono"
-                  autoComplete="off"
-                />
-                <SubmitButton className="btn primary sm" pendingText="Saving…">Save</SubmitButton>
-              </div>
+              <KeyField id={row.provider} label={row.label} stored={Boolean(dbVal)} platformHas={managed ? Boolean(process.env[row.envVar]) : platformHas} confirming={confirmRemove === row.provider} />
             )}
           </form>
         );
@@ -657,6 +630,45 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
         <p>· Existing locally-stored files are <b>not migrated</b> (on Railway they don&apos;t survive a redeploy anyway). Switching backends only routes new files.</p>
       </div>
       </>)}
+    </div>
+  );
+}
+
+/**
+ * A key's input and Save, plus Remove key when one is stored (audit SET-05).
+ * Saving an empty field used to delete the workspace's key behind a "Saved"
+ * banner, quietly moving it onto the platform's key and bill — easy to do
+ * while rotating. Removing is now its own button, and the server asks once
+ * (?confirmRemove=) before it acts, so it works without JavaScript too.
+ */
+function KeyField({ id, label, stored, platformHas, confirming }: { id: string; label: string; stored: boolean; platformHas: boolean; confirming: boolean }) {
+  if (confirming && stored) {
+    return (
+      <div className="rounded-lg p-2.5 text-sm" style={{ background: "var(--rose-soft)" }}>
+        <p className="mb-2">
+          Remove this workspace&apos;s {label} key?{" "}
+          {platformHas
+            ? "It then uses the platform's shared key, and its calls are billed to the platform."
+            : "Nothing else is set for it, so what uses it stops working until a key is added again."}
+        </p>
+        <div className="flex gap-2">
+          <button name="intent" value="remove-confirmed" className="btn sm" style={{ color: "var(--rose-on)" }}>Yes, remove it</button>
+          <Link href={`/admin/api-keys#key-${id}`} className="btn sm">Cancel</Link>
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div className="flex gap-2">
+      <input
+        name="value"
+        type="password"
+        placeholder={stored ? "Paste a new key to replace it" : "Paste your API key here"}
+        className="flex-1 border border-[var(--line-2)] rounded-lg p-2 text-sm font-mono"
+        autoComplete="off"
+      />
+      <SubmitButton className="btn primary sm" pendingText="Saving…">Save</SubmitButton>
+      {stored && <button name="intent" value="remove" className="btn sm" style={{ color: "var(--rose-on)" }}>Remove key</button>}
     </div>
   );
 }

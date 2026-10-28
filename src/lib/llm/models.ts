@@ -24,3 +24,15 @@ export const MODELS: ModelDescriptor[] = [
 export function getModel(id: string): ModelDescriptor | undefined {
   return MODELS.find((m) => m.id === id);
 }
+
+/** Providers the router can call for text (lib/llm/index.ts getProvider). The
+ *  rest of MODELS are listed for later and route to the mock today. */
+export const TEXT_PROVIDERS: readonly string[] = ["anthropic", "google"];
+
+/** What a person may pick (audit SET-01): wired providers only — no mock, and
+ *  not the legacy alias (it still routes, for rows that stored it). */
+export const PICKABLE_MODELS = MODELS.filter((m) => TEXT_PROVIDERS.includes(m.provider) && m.id !== "gemini-1.5-pro");
+
+export const PROVIDER_LABEL: Record<string, string> = { anthropic: "Anthropic", google: "Google" };
+
+export const modelLabel = (id: string) => getModel(id)?.label ?? id;

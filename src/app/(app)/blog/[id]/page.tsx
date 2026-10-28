@@ -50,7 +50,9 @@ import {
   remeasureBlogImageAction,
   saveImageAltAction,
 } from "@/app/actions/blog-images";
-import { llm } from "@/lib/llm";
+import { modelChoices, resolveUsableModel } from "@/lib/llm";
+import { modelLabel } from "@/lib/llm/models";
+import { ModelOptions, ModelChoiceNote } from "@/components/ModelOptions";
 import {
   applyTitleAction,
   generateAltTextAction,
@@ -253,6 +255,11 @@ export default async function BlogPostPage({
   const commentAuthor = (authorId: string | null) => (authorId ? (memberName.get(authorId) ?? "someone") : "system");
   const openComments = post.comments.filter((c) => !c.resolved).length;
 
+  const [modelChoiceList, inheritedModel, postModelRuns] = await Promise.all([
+    modelChoices(workspace.id),
+    resolveUsableModel("", workspace.id),
+    resolveUsableModel(post.model ?? "", workspace.id),
+  ]);
   // FR-3: the expert roster, plus who would be auto-matched if none is pinned.
   const [experts, matchedSme, topics] = await Promise.all([
     db.smeProfile.findMany({
@@ -1093,9 +1100,10 @@ export default async function BlogPostPage({
           <label className="text-sm">
             <span className="block text-xs text-[var(--mute)] mb-1">Model (this post)</span>
             <select name="model" defaultValue={post.model ?? ""} className="w-full text-xs font-mono" disabled={!editor}>
-              <option value="">workspace default</option>
-              {llm.models.map((m) => <option key={m.id} value={m.id}>{m.label ?? m.id}</option>)}
+              <option value="">workspace default ({modelLabel(inheritedModel)})</option>
+              <ModelOptions choices={modelChoiceList} current={post.model} />
             </select>
+            <ModelChoiceNote choices={modelChoiceList} current={post.model} runs={postModelRuns} />
           </label>
           <label className="text-sm">
             <span className="block text-xs text-[var(--mute)] mb-1">Meta title <span className="font-mono">({(post.metaTitle ?? "").length}/60)</span></span>

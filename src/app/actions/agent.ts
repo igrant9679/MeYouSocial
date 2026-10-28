@@ -1,25 +1,31 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { requireRole } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { jobs } from "@/lib/jobs";
 import { registerAgentJobs } from "@/lib/jobs/agent";
+import { AGENT_RUN_ACTION, softLimitProblem } from "@/lib/soft-limits";
 
 registerAgentJobs();
 
 /** Launch the automated pipeline from a script. */
 export async function launchAgentAction(formData: FormData) {
   const scriptId = String(formData.get("scriptId"));
-  const { workspace } = await requireRole("EDITOR");
+  const { workspace, user } = await requireRole("EDITOR");
   const script = await db.script.findFirst({
     where: { id: scriptId, channel: { workspaceId: workspace.id } },
   });
   if (!script) return;
+  const limit = await softLimitProblem("agentRun", workspace.id, user.id);
+  if (limit) redirect(`/scripts/${script.id}?flashErr=${encodeURIComponent(limit)}`);
 
   const run = await db.agentRun.create({
     data: { scriptId: script.id, status: "queued" },
   });
+  // Who started it — the Agent Mode soft limit counts these (SET-02).
+  await db.usageLog.create({ data: { workspaceId: workspace.id, actorId: user.id, action: AGENT_RUN_ACTION } });
   await jobs.enqueue("agent.run", { runId: run.id, scriptId: script.id }, { refId: run.id, workspaceId: workspace.id });
   revalidatePath(`/scripts/${script.id}`);
 }

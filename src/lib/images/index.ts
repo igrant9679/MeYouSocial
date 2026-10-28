@@ -411,6 +411,10 @@ export const images: ImageProvider = {
       if (await isGloballyPaused(req.workspaceId)) throw new GenerationPausedError();
     }
     const provider = await getImageProvider(req.workspaceId);
-    return provider.generate(req);
+    const out = await provider.generate(req);
+    // Per-provider usage (audit SET-02); the result names who drew it.
+    const { meterAi } = await import("@/lib/usage-meter");
+    await meterAi({ workspaceId: req.workspaceId, action: "ai.image", provider: out.provider, model: provider.name });
+    return out;
   },
 };

@@ -8,6 +8,7 @@ import { db } from "@/lib/db";
 import { readJson } from "@/lib/db/json";
 import { llm, resolveUsableModel } from "@/lib/llm";
 import { cleanTitle } from "@/lib/list-marker";
+import { softLimitProblem } from "@/lib/soft-limits";
 
 // createChatAction retired 2026-09-09: the ideation chat is the assistant now.
 // What remains serves the canvas chat that belongs to a script (/chat/<id>).
@@ -126,6 +127,8 @@ ${contextLines || "(none)"}`;
   });
 
   if (turnIntoScript) {
+    const limit = await softLimitProblem("script", workspace.id, user.id);
+    if (limit) redirect(`/chat/${chat.id}?flashErr=${encodeURIComponent(`Your message was answered; no script was made. ${limit}`)}`);
     // spin a Script project from the conversation so far and redirect.
     const synthesis = await llm.complete({
       model,

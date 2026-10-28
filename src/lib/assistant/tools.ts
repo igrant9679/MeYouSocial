@@ -3,6 +3,7 @@ import { writeAudit } from "@/lib/governance";
 import { APP_GUIDE, appGuide } from "@/lib/assistant/knowledge";
 import { PRODUCT } from "@/lib/product";
 import { cleanTitle, stripListMarker } from "@/lib/list-marker";
+import { softLimitProblem } from "@/lib/soft-limits";
 
 /**
  * The assistant's tools — what it can do. Since 2026-09-08 that is nearly
@@ -793,6 +794,8 @@ export const TOOLS: Tool[] = [
     async run(a, ctx) {
       const idea = await db.idea.findFirst({ where: { id: str(a.ideaId, 40), channel: { workspaceId: ctx.workspaceId } }, include: { channel: true } });
       if (!idea) return "no such video idea";
+      const limit = await softLimitProblem("script", ctx.workspaceId, ctx.userId);
+      if (limit) return `refused: ${limit}`;
       const script = await db.script.create({ data: { channelId: idea.channelId, ideaId: idea.id, authorId: ctx.userId, title: idea.title, workflow: "canvas", language: idea.channel.defaultLanguage, templateId: idea.channel.defaultTemplateId, model: idea.channel.defaultModel } });
       await db.chat.create({ data: { channelId: idea.channelId, userId: ctx.userId, type: "canvas", scriptId: script.id, title: idea.title, messages: { create: { role: "assistant", content: `Pulled from idea: **${idea.title}**\n${idea.strategy ? `\nStrategy: ${idea.strategy}` : ""}\n\nWhen you're ready, head to the Plan tab, answer the planning questions, and generate an outline.` } } } });
       await db.idea.update({ where: { id: idea.id }, data: { status: "in_progress" } });
@@ -1401,6 +1404,8 @@ export const TOOLS: Tool[] = [
       const channelId = str(a.channelId, 40) || ctx.channelId || "";
       const ch = channelId ? await db.channel.findFirst({ where: { id: channelId, workspaceId: ctx.workspaceId } }) : null;
       if (!ch) return "refused: a script needs a channel — list_channels, or the person can pick one in the top bar";
+      const limit = await softLimitProblem("script", ctx.workspaceId, ctx.userId);
+      if (limit) return `refused: ${limit}`;
       const title = str(a.title, 120) || "Untitled script";
       const brief = str(a.brief, 6000);
       const script = await db.script.create({ data: { channelId: ch.id, authorId: ctx.userId, title, workflow: "canvas", language: ch.defaultLanguage, templateId: ch.defaultTemplateId, model: ch.defaultModel } });

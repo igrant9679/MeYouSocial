@@ -1,9 +1,11 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requireRole } from "@/lib/acl";
 import { db } from "@/lib/db";
+import { modelChoiceProblem } from "@/lib/llm";
 
 const schema = z.object({
   channelId: z.string(),
@@ -32,6 +34,9 @@ export async function updateChannelSettingsAction(formData: FormData) {
   const { workspace } = await requireRole("EDITOR");
   const exists = await db.channel.findFirst({ where: { id: parsed.data.channelId, workspaceId: workspace.id } });
   if (!exists) return;
+  // Only a model that can write here (audit SET-01); the stored one may stay.
+  const problem = await modelChoiceProblem(parsed.data.defaultModel, workspace.id, exists.defaultModel);
+  if (problem) redirect(`/channels/${exists.id}/settings?flashErr=${encodeURIComponent(`Nothing was saved. ${problem}`)}`);
 
   await db.channel.update({
     where: { id: parsed.data.channelId },
