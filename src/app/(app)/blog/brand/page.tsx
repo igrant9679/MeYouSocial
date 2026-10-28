@@ -35,6 +35,8 @@ import {
 } from "@/lib/design-render";
 import { AiAssist } from "@/components/AiAssist";
 import { BrandContextSection } from "@/components/BrandContextSection";
+import { formatDay } from "@/lib/zoned-dates";
+import { getPostingTimeZone } from "@/lib/social/slots";
 
 // FR-2 — Brand, typography & the 7 Motifs tone engine. Everything on this page
 // steers generation: the directives are the actual prompt text, not decoration.
@@ -43,6 +45,7 @@ type SP = { ok?: string; err?: string };
 
 export default async function BrandPage({ searchParams }: { searchParams: Promise<SP> }) {
   const { workspace, membership } = await requireMembership();
+  const tz = await getPostingTimeZone(workspace.id).catch(() => "UTC");
   const admin = canAdmin(membership.role);
   const { ok, err } = await searchParams;
   const [brand, directives, defaults, platformMap, facts, documents] = await Promise.all([
@@ -374,7 +377,7 @@ export default async function BrandPage({ searchParams }: { searchParams: Promis
                             <span className="font-mono text-[10px] text-[var(--mute)]">v{v.version}</span>
                             <span className="flex-1 truncate">{v.label}</span>
                             <span className="font-mono text-[10px] text-[var(--mute)]">
-                              {v.createdAt.toISOString().slice(0, 10)}
+                              {formatDay(v.createdAt, tz)}
                             </span>
                             {admin && (
                               <form action={restoreMotifDirectiveAction}>

@@ -19,10 +19,17 @@ export function zonedMonthStart(at: Date, timeZone: string, monthsBack = 0): Dat
   return zonedTimeToUtc(y, m, 1, 0, 0, timeZone);
 }
 
-/** A short, readable zone name for labels: "EDT", "GMT+1", or the IANA id. */
+/**
+ * A short, readable zone name for labels: "EDT", "BST", "CET", else "GMT+1", or
+ * the IANA id. en-GB alone printed New York as "GMT-4" and en-US alone London
+ * as "GMT+1" — the first locale with a real abbreviation wins (E-SHL-16).
+ */
 export function zoneLabel(timeZone: string, at = new Date()): string {
   try {
-    return new Intl.DateTimeFormat("en-GB", { timeZone, timeZoneName: "short" }).formatToParts(at).find((x) => x.type === "timeZoneName")?.value ?? timeZone;
+    const name = (locale: string) =>
+      new Intl.DateTimeFormat(locale, { timeZone, timeZoneName: "short" }).formatToParts(at).find((x) => x.type === "timeZoneName")?.value;
+    const names = ["en-US", "en-GB"].map(name).filter((n): n is string => !!n);
+    return names.find((n) => !/^GMT[+-]/.test(n)) ?? names[0] ?? timeZone;
   } catch {
     return timeZone;
   }
@@ -31,6 +38,11 @@ export function zoneLabel(timeZone: string, at = new Date()): string {
 /** "28 Oct, 04:50 EDT" — a moment, in the posting zone, with the zone said. */
 export function formatZonedMoment(at: Date, timeZone: string): string {
   return `${at.toLocaleString("en-GB", { timeZone, day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })} ${zoneLabel(timeZone, at)}`;
+}
+
+/** "28 Oct" — a day within the year (E-SHL-16). Date-only values stay in UTC. */
+export function formatShortDay(at: Date, timeZone = "UTC"): string {
+  return at.toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone });
 }
 
 /**

@@ -2,6 +2,8 @@ import { db } from "@/lib/db";
 import { getSetting } from "@/lib/settings";
 import { getSocialOverview, type AttentionItem, type SocialOverview } from "@/lib/social/overview";
 import { readingsForWorkspace } from "@/lib/social/performance";
+import { formatZonedMoment, formatDay } from "@/lib/zoned-dates";
+import { getPostingTimeZone } from "@/lib/social/slots";
 
 /**
  * The Home page's data: one decision queue and one pipeline, across every
@@ -189,6 +191,9 @@ export async function getHomeData(workspaceId: string): Promise<HomeData> {
     });
   }
 
+  // Times in these cards read in the posting timezone (E-SHL-16).
+  const homeTz = await getPostingTimeZone(workspaceId).catch(() => "UTC");
+
   // An autopilot step that threw two cycles running (ENG-21) — the rest of the
   // cycle carries on now, so without this nobody would know.
   {
@@ -201,7 +206,7 @@ export async function getHomeData(workspaceId: string): Promise<HomeData> {
         kind: `autopilot-step-failing-${name.replace(/\s+/g, "-")}`,
         severity: "warn",
         title: `The autopilot's ${name} step keeps failing`,
-        detail: `${st.failures} cycles in a row since ${st.since.slice(0, 16).replace("T", " ")} UTC: ${st.message}`.slice(0, 300),
+        detail: `${st.failures} cycles in a row since ${formatZonedMoment(new Date(st.since), homeTz)}: ${st.message}`.slice(0, 300),
         href: "/setup/automation",
         cta: "Open Automation",
       });
@@ -267,7 +272,7 @@ export async function getHomeData(workspaceId: string): Promise<HomeData> {
         kind: `ai-provider-refusing-${r.provider}`,
         severity: "warn",
         title: `${NAME[r.provider] ?? r.provider} is refusing this workspace's AI calls`,
-        detail: `Since ${r.since.slice(0, 16).replace("T", " ")} UTC ${why}, so every ${NAME[r.provider] ?? r.provider} model call gets a placeholder and nothing is written.${r.kind === "key" ? " Check the key under Settings → Keys." : ` Fix it at ${WHERE[r.provider] ?? "the provider's console"}.`} Last reply: ${r.message}`.slice(0, 400),
+        detail: `Since ${formatZonedMoment(new Date(r.since), homeTz)} ${why}, so every ${NAME[r.provider] ?? r.provider} model call gets a placeholder and nothing is written.${r.kind === "key" ? " Check the key under Settings → Keys." : ` Fix it at ${WHERE[r.provider] ?? "the provider's console"}.`} Last reply: ${r.message}`.slice(0, 400),
         href: "/admin/api-keys",
         cta: "Open Keys",
       });
@@ -287,7 +292,7 @@ export async function getHomeData(workspaceId: string): Promise<HomeData> {
         kind: `analytics-sync-failing-${src}`,
         severity: "warn",
         title: `${SOURCE_LABEL[src]} sync is failing`,
-        detail: `${st.failures} attempts in a row${st.lastOkAt ? `, last good ${st.lastOkAt.slice(0, 10)}` : ", never succeeded"}: ${st.message}`.slice(0, 300),
+        detail: `${st.failures} attempts in a row${st.lastOkAt ? `, last good ${formatDay(new Date(st.lastOkAt), homeTz)}` : ", never succeeded"}: ${st.message}`.slice(0, 300),
         href: "/admin/analytics",
         cta: "See why",
       });

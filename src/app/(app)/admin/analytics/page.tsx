@@ -20,8 +20,11 @@ import {
   connectGoogleAnalyticsAction,
   disconnectGoogleAnalyticsAction,
   syncAnalyticsNowAction,
+  linkUnmatchedPageAction,
 } from "@/app/actions/analytics-connections";
-import { readSyncStatus, SOURCE_LABEL } from "@/lib/analytics/sync";
+import { readSyncStatus, readUnmatched, SOURCE_LABEL } from "@/lib/analytics/sync";
+import { formatZonedMoment, formatDay } from "@/lib/zoned-dates";
+import { getPostingTimeZone } from "@/lib/social/slots";
 
 // Settings → Analytics: the real-data inputs (Search Console, GA4, YouTube).
 // Deliberately separate from API keys: these are per-workspace *connections* to
@@ -33,10 +36,11 @@ export default async function AnalyticsConnectionsPage({
   searchParams: Promise<{ ok?: string; err?: string }>;
 }) {
   const { workspace, user } = await requireRole("ADMIN");
+  const tz = await getPostingTimeZone(workspace.id).catch(() => "UTC");
   const isOperator = isPlatformOperator(user.email);
   const { ok, err } = await searchParams;
 
-  const [gsc, ga4, yt, ytCfg, gaOauth, origin, rows, driveSa, syncStatus] = await Promise.all([
+  const [gsc, ga4, yt, ytCfg, gaOauth, origin, rows, driveSa, syncStatus, unmatched, linkable] = await Promise.all([
     getGscConfig(workspace.id),
     getGa4Config(workspace.id),
     youtubeOauthConnected(workspace.id),
@@ -51,6 +55,15 @@ export default async function AnalyticsConnectionsPage({
     }),
     db.setting.findUnique({ where: { key: "gdrive:service_account" } }),
     readSyncStatus(workspace.id),
+    // E-MEA-10: what had traffic but matched no post, and the articles that
+    // could be it (published, no live URL in the app).
+    readUnmatched(workspace.id).catch(() => null),
+    db.blogPost.findMany({
+      where: { workspaceId: workspace.id, status: "published", publishedUrl: null },
+      orderBy: { publishedAt: { sort: "desc", nulls: "last" } },
+      select: { id: true, title: true },
+      take: 100,
+    }),
   ]);
   const val = new Map(rows.map((r) => [r.key, r.value]));
   const sharedSaEmail = (() => {
@@ -317,12 +330,45 @@ export default async function AnalyticsConnectionsPage({
                 if (!st) return null;
                 return (
                   <li key={src} style={st.ok ? undefined : { color: "var(--rose-on)" }}>
-                    <b>{SOURCE_LABEL[src]}</b> · last sync {st.at.slice(0, 16).replace("T", " ")} UTC ·{" "}
-                    {st.ok ? st.message : <>failed{st.failures > 1 ? ` ${st.failures} times in a row` : ""}: {st.message}{st.lastOkAt ? ` (last good ${st.lastOkAt.slice(0, 10)})` : " (never succeeded)"}</>}
+                    <b>{SOURCE_LABEL[src]}</b> · last sync {formatZonedMoment(new Date(st.at), tz)} ·{" "}
+                    {st.ok ? st.message : <>failed{st.failures > 1 ? ` ${st.failures} times in a row` : ""}: {st.message}{st.lastOkAt ? ` (last good ${formatDay(new Date(st.lastOkAt), tz)})` : " (never succeeded)"}</>}
                   </li>
                 );
               })}
             </ul>
+          )}
+          {/* E-MEA-10: which pages had traffic but match no post. */}
+          {unmatched && unmatched.pages.length > 0 && (
+            <div className="basis-full text-[11px] mt-1 pt-2 border-t border-[var(--line)]">
+              <p className="font-semibold m-0">
+                {unmatched.total} page{unmatched.total === 1 ? "" : "s"} had traffic but match no post
+                {unmatched.total > unmatched.pages.length ? ` — the ${unmatched.pages.length} busiest below` : ""}
+              </p>
+              <p className="text-[var(--mute)] m-0 mb-1.5">
+                Usually your home, service or contact pages. If one is an article published by hand, link it to that article
+                and the next sync attaches its numbers{linkable.length === 0 ? " — every published article already has a URL" : ""}.
+              </p>
+              <ul className="m-0 p-0 list-none flex flex-col gap-1">
+                {unmatched.pages.map((pg) => (
+                  <li key={pg.path} className="flex items-center gap-2 flex-wrap">
+                    <span className="font-mono break-all">{pg.url ?? pg.path}</span>
+                    <span className="text-[var(--mute)]">
+                      {[pg.clicks ? `${pg.clicks} click${pg.clicks === 1 ? "" : "s"}` : null, pg.sessions ? `${pg.sessions} session${pg.sessions === 1 ? "" : "s"}` : null].filter(Boolean).join(" · ")}
+                    </span>
+                    {pg.url && linkable.length > 0 && (
+                      <form action={linkUnmatchedPageAction} className="flex items-center gap-1">
+                        <input type="hidden" name="url" value={pg.url} />
+                        <select name="postId" defaultValue="" className="text-[11px] max-w-56" aria-label="The article this page is">
+                          <option value="">link to an article…</option>
+                          {linkable.map((b) => <option key={b.id} value={b.id}>{b.title.slice(0, 70)}</option>)}
+                        </select>
+                        <SubmitButton className="btn sm" pendingText="Linking…">Link</SubmitButton>
+                      </form>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
           )}
         </div>
       )}

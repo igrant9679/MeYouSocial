@@ -123,7 +123,17 @@ export async function syncWorkspaceAnalytics(
 
   // Accumulate per (postId, day) so both providers merge into one row.
   const fresh = new Map<string, DailyRow & { posWeight?: number }>();
-  const unmatched = new Set<string>();
+  // Pages with traffic that match no post, with that traffic (E-MEA-10): the
+  // count alone couldn't say which page an article published by hand was.
+  const unmatched = new Map<string, UnmatchedPage>();
+  const miss = (raw: string, add: { clicks?: number; sessions?: number }) => {
+    const k = urlKey(raw);
+    const cur = unmatched.get(k) ?? { path: k, url: null, clicks: 0, sessions: 0 };
+    if (/^https?:\/\//i.test(raw) && !cur.url) cur.url = raw;
+    cur.clicks += add.clicks ?? 0;
+    cur.sessions += add.sessions ?? 0;
+    unmatched.set(k, cur);
+  };
   const key = (postId: string, day: string) => `${postId}|${day}`;
   // Each source on its own (MEA-05): a GA4 403 used to throw away the Search
   // Console rows already collected, so nothing was written at all.
@@ -139,7 +149,7 @@ export async function syncWorkspaceAnalytics(
         if (!page || !date) continue;
         const postId = index.get(urlKey(page));
         if (!postId) {
-          unmatched.add(urlKey(page));
+          miss(page, { clicks: r.clicks ?? 0 });
           continue;
         }
         matched++;
@@ -173,7 +183,7 @@ export async function syncWorkspaceAnalytics(
         if (!path || !rawDate) continue;
         const postId = index.get(urlKey(path));
         if (!postId) {
-          unmatched.add(urlKey(path));
+          miss(path, { sessions: Number(r.metrics[0] ?? 0) });
           continue;
         }
         matched++;
@@ -247,6 +257,7 @@ export async function syncWorkspaceAnalytics(
   }
 
   await recordSyncStatus(workspaceId, outcome);
+  if (gscOk || ga4Ok) await recordUnmatched(workspaceId, unmatched).catch(() => undefined);
   const failed = (Object.entries(outcome) as Array<[Source, SourceOutcome]>).filter(([, o]) => !o.ok);
   if (rowsWritten) {
     await writeAudit({
@@ -282,6 +293,37 @@ type Source = "gsc" | "ga4";
 export type SourceOutcome = { ok: boolean; message: string; rows: number };
 export type SourceStatus = SourceOutcome & { at: string; failures: number; lastOkAt: string | null };
 export type SyncStatus = Partial<Record<Source, SourceStatus>>;
+
+/** A page with traffic that matched no post; `url` is the full address when Search Console gave one. */
+export type UnmatchedPage = { path: string; url: string | null; clicks: number; sessions: number };
+export type UnmatchedReport = { at: string; total: number; pages: UnmatchedPage[] };
+const UNMATCHED_KEY = "analytics:unmatched";
+const UNMATCHED_KEEP = 15;
+
+/** The busiest unmatched pages from the last sync that read anything (E-MEA-10). */
+export async function readUnmatched(workspaceId: string): Promise<UnmatchedReport | null> {
+  const row = await db.workspaceSetting.findUnique({ where: { workspaceId_key: { workspaceId, key: UNMATCHED_KEY } } });
+  if (!row?.value) return null;
+  try {
+    return JSON.parse(row.value) as UnmatchedReport;
+  } catch {
+    return null;
+  }
+}
+
+async function recordUnmatched(workspaceId: string, pages: Map<string, UnmatchedPage>): Promise<void> {
+  const top = [...pages.values()].sort((a, b) => b.clicks + b.sessions - (a.clicks + a.sessions)).slice(0, UNMATCHED_KEEP);
+  const report: UnmatchedReport = { at: new Date().toISOString(), total: pages.size, pages: top };
+  await setWorkspaceSetting(workspaceId, UNMATCHED_KEY, pages.size ? JSON.stringify(report) : "");
+}
+
+/** Drop one page from the stored list once it's linked (the next sync confirms). */
+export async function forgetUnmatched(workspaceId: string, path: string): Promise<void> {
+  const r = await readUnmatched(workspaceId);
+  if (!r) return;
+  const pages = r.pages.filter((p) => p.path !== path);
+  await setWorkspaceSetting(workspaceId, UNMATCHED_KEY, JSON.stringify({ ...r, total: Math.max(0, r.total - (r.pages.length - pages.length)), pages }));
+}
 
 export const SOURCE_LABEL: Record<Source, string> = { gsc: "Search Console", ga4: "GA4" };
 const STATUS_KEY = "analytics:sync_status";

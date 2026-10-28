@@ -7,6 +7,8 @@ import { MOTIF_SEED_BY_KEY, parseMotifs } from "@/lib/motifs";
 import type { BlockKey } from "@/lib/report-defs";
 import { EmptyState } from "@/components/EmptyState";
 import { daysAgo } from "@/lib/request-time";
+import { formatZonedMoment } from "@/lib/zoned-dates";
+import { getPostingTimeZone } from "@/lib/social/slots";
 
 /**
  * Report blocks — each one is an async server component that loads its own
@@ -270,6 +272,7 @@ export async function ReportBlock({ block, workspaceId, weeks, canAct = true }: 
     }
 
     case "autopilot_feed": {
+      const feedTz = await getPostingTimeZone(workspaceId).catch(() => "UTC");
       const feed = await autopilotFeed(workspaceId, 10);
       return (
         <Card title="Autopilot activity">
@@ -280,7 +283,7 @@ export async function ReportBlock({ block, workspaceId, weeks, canAct = true }: 
               {feed.map((e, i) => (
                 <li key={i} className="border-t border-[var(--line)] first:border-0 py-1.5 flex items-baseline gap-2">
                   <span className="font-mono text-[9.5px] text-[var(--mute)] w-24 shrink-0">
-                    {e.at.toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
+                    {formatZonedMoment(e.at, feedTz)}
                   </span>
                   <span className="flex-1">{e.label}</span>
                   {e.tone === "warn" && <span className="chip font-mono text-[9px] font-bold px-1.5 rounded-full" style={{ background: "var(--rose-soft)", color: "var(--rose-on)" }}>!</span>}

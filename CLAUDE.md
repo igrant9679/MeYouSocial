@@ -716,6 +716,18 @@ Tabs: **Keys** (`/admin/api-keys`: LLM, search, images, video, TTS, storage) · 
   (`components/AccountMenu.tsx`, closes on navigation, click-away and Escape); "+ Channel" shows only to editors
   whose studio shows (`studioState().show`).
 
+## ⚠ One date style; the sync names what it couldn't match (2026-10-28, audit Phase 5, wave 1, part c)
+- **Dates go through `lib/zoned-dates.ts`** (E-SHL-16): `formatZonedMoment(at, tz)` for a moment ("28 Oct, 09:46 EDT")
+  in the posting zone, `formatDay` / `formatShortDay` for a date (UTC unless a zone is given — a stored date-only value
+  never moves a day). Raw `toISOString().slice(...)`, zone-less `toLocaleString` and en-US dates were swept from the
+  assistant, audit, experts, the editor's comments and versions, brand, Drafts, scripts, YouTube, Keywords, Settings,
+  production pages, the report's feed, the Analytics tab and the Inbox's cards. `zoneLabel` takes the first locale
+  with a real abbreviation (en-GB alone printed New York as "GMT-4").
+- **Unmatched pages are kept** (E-MEA-10, `analytics:unmatched`): each sync that read anything stores the 15 busiest
+  pages that matched no post (URL variants added, Search Console's full address kept). The Analytics tab lists them
+  with their traffic; a full address can be linked to a PUBLISHED article with NO live URL
+  (`linkUnmatchedPageAction`, ADMIN, audited) — an existing URL is never replaced, and a GA4-only path can't be linked.
+
 ## Open items / things the user still owns
 - **Analytics: APIs enabled 2026-08-03** (Search Console + GA Admin + GA Data, on project
   `479503233109` = `gen-lang-client-0838901195` = "CreateUp"). Still pending, user-only: add the

@@ -24,6 +24,8 @@ import {
   updateScriptSettingsAction,
   restoreScriptVersionAction,
 } from "@/app/actions/canvas";
+import { formatZonedMoment } from "@/lib/zoned-dates";
+import { getPostingTimeZone } from "@/lib/social/slots";
 
 // MU-04 — Script Canvas. Implements..15 (15 [Must] items).
 
@@ -37,6 +39,7 @@ export default async function CanvasPage({
   const { id } = await params;
   const { tab = "plan" } = await searchParams;
   const { workspace } = await requireMembership();
+  const tz = await getPostingTimeZone(workspace.id).catch(() => "UTC");
 
   const script = await db.script.findFirst({
     where: { id, channel: { workspaceId: workspace.id } },
@@ -205,7 +208,7 @@ export default async function CanvasPage({
                       the current text as a snapshot first). */}
                   <details>
                     <summary className="flex items-center gap-2 text-[var(--mute)] cursor-pointer">
-                      <span className="font-mono">{new Date(v.createdAt).toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}</span>
+                      <span className="font-mono">{formatZonedMoment(new Date(v.createdAt), tz)}</span>
                       <span>·</span>
                       <span className="truncate">{v.label}</span>
                       <span className="text-[10px]">({v.body ? `${v.wordCount} w` : "outline"})</span>

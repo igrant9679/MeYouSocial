@@ -13,6 +13,8 @@ import {
 } from "@/app/actions/sme";
 import { INTAKE_QUESTIONS, completeness, parseAnswers, parseTopics } from "@/lib/sme";
 import { AiAssist } from "@/components/AiAssist";
+import { formatZonedMoment } from "@/lib/zoned-dates";
+import { getPostingTimeZone } from "@/lib/social/slots";
 
 // FR-3 — the structured intake. One pass per expert replaces the per-article
 // interview; every save keeps the prior version.
@@ -20,6 +22,7 @@ import { AiAssist } from "@/components/AiAssist";
 export default async function SmeProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { workspace, membership } = await requireMembership();
+  const tz = await getPostingTimeZone(workspace.id).catch(() => "UTC");
   const profile = await db.smeProfile.findFirst({
     where: { id, workspaceId: workspace.id },
     include: { versions: { orderBy: { version: "desc" }, take: 8 } },
@@ -157,7 +160,7 @@ export default async function SmeProfilePage({ params }: { params: Promise<{ id:
               <li key={v.id} className="flex items-center gap-2 border-b border-[var(--line)] pb-1 last:border-0">
                 <span className="font-mono text-[10px] text-[var(--mute)]">v{v.version}</span>
                 <span className="flex-1 font-mono text-[10px] text-[var(--mute)]">
-                  {v.createdAt.toISOString().slice(0, 16).replace("T", " ")}
+                  {formatZonedMoment(v.createdAt, tz)}
                 </span>
                 {editor && (
                   <form action={restoreSmeVersionAction}>

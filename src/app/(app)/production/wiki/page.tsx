@@ -3,6 +3,7 @@ import { DeleteButton } from "@/components/DeleteButton";
 import { BookOpen, Plus } from "lucide-react";
 import { requireMembership } from "@/lib/acl";
 import { db } from "@/lib/db";
+import { formatDay } from "@/lib/zoned-dates";
 
 // Wiki of process docs, SOPs, reference guides.
 
@@ -48,7 +49,7 @@ export default async function WikiPage({ searchParams }: { searchParams: Promise
                 <h3 className="font-semibold text-sm flex-1">{d.title}</h3>
               </div>
               <div className="text-xs text-[var(--mute)] line-clamp-2">{d.body.slice(0, 200) || "—"}</div>
-              <div className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)] mt-2">{d.channel?.name ?? "Workspace"} · {new Date(d.updatedAt).toLocaleDateString()}</div>
+              <div className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)] mt-2">{d.channel?.name ?? "Workspace"} · {formatDay(new Date(d.updatedAt))}</div>
             </Link>
             <div className="mt-2">
               <DeleteButton kind="wikiDoc" id={d.id} name={d.title} returnTo="/production/wiki" iconOnly />

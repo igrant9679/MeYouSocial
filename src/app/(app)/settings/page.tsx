@@ -10,6 +10,7 @@ import { SubmitButton } from "@/components/SubmitButton";
 import { ValidatedInput } from "@/components/ValidatedInput";
 import { DeleteButton } from "@/components/DeleteButton";
 import { deletionImpact } from "@/lib/deletable";
+import { formatDay } from "@/lib/zoned-dates";
 
 // User-level settings (distinct from /admin/settings which is workspace-level).
 // Linked from the avatar button in the left rail.
@@ -69,7 +70,7 @@ export default async function UserSettingsPage({ searchParams }: { searchParams:
       <section className="card mb-4">
         <h2 className="font-mono font-bold text-[14px] mb-3 flex items-center gap-2"><Mail className="w-4 h-4" style={{ color: "var(--blue-on)" }} /> Email verification</h2>
         {user.emailVerified ? (
-          <p className="text-sm text-[var(--green)] flex items-center gap-1.5"><ShieldCheck className="w-4 h-4" /> Verified on {new Date(user.emailVerified).toLocaleDateString()}.</p>
+          <p className="text-sm text-[var(--green)] flex items-center gap-1.5"><ShieldCheck className="w-4 h-4" /> Verified on {formatDay(new Date(user.emailVerified))}.</p>
         ) : (
           <div className="flex items-center gap-3">
             <p className="text-sm text-[var(--mute)] flex-1">Your email isn&apos;t verified yet.</p>

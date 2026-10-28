@@ -8,6 +8,8 @@ import { Banner, SocialHeader } from "@/components/SocialPostCard";
 import { AUDIT_WINDOWS, youtubeAuditFindings, youtubeAuditFor, type AuditFinding, type AuditWindow } from "@/lib/youtube/analytics";
 import { refreshYoutubeAuditAction } from "@/app/actions/youtube-audit";
 import { EmptyState } from "@/components/EmptyState";
+import { formatZonedMoment, formatShortDay } from "@/lib/zoned-dates";
+import { getPostingTimeZone } from "@/lib/social/slots";
 
 // Measure → YouTube: the channel audit. What the workspace's own channel did
 // over the window, from the YouTube Analytics API, and what to do about it.
@@ -24,7 +26,8 @@ const KIND: Record<AuditFinding["kind"], { label: string; hue: string }> = {
 
 const fmt = (n: number) => n.toLocaleString("en-US");
 const fmtDur = (sec: number | null) => (sec == null ? "—" : sec >= 3600 ? `${Math.floor(sec / 3600)}h ${Math.floor((sec % 3600) / 60)}m` : `${Math.floor(sec / 60)}:${String(Math.round(sec % 60)).padStart(2, "0")}`);
-const day = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "—");
+// YouTube reports days ("2026-10-26"): a date, read in UTC so it never moves a day (E-SHL-16).
+const day = (iso: string | null) => (iso ? formatShortDay(new Date(iso)) : "—");
 const fmtVph = (v: number | null) => (v == null ? "—" : v >= 10 ? fmt(Math.round(v)) : v.toFixed(1));
 const askUrl = (q: string) => `/assistant?q=${encodeURIComponent(q)}`;
 const delta = (now: number, before: number): number | null => (before > 0 ? Math.round(((now - before) / before) * 100) : null);
@@ -48,6 +51,7 @@ function Tile({ label, value, sub, d }: { label: string; value: string; sub?: st
 
 export default async function YoutubeAuditPage({ searchParams }: { searchParams: Promise<SP> }) {
   const { workspace, membership } = await requireMembership();
+  const tz = await getPostingTimeZone(workspace.id).catch(() => "UTC");
   const { days: rawDays, ok, err } = await searchParams;
   const parsed = parseInt(rawDays ?? "90", 10);
   const days: AuditWindow = (AUDIT_WINDOWS as readonly number[]).includes(parsed) ? (parsed as AuditWindow) : 90;
@@ -122,7 +126,7 @@ export default async function YoutubeAuditPage({ searchParams }: { searchParams:
               {a.channel.subscribers != null && <> · {fmt(a.channel.subscribers)} subscribers</>}
               {a.channel.videoCount != null && <> · {fmt(a.channel.videoCount)} videos</>}
               {" · "}{day(a.start)} – {day(a.end)} (YouTube&apos;s figures lag about two days)
-              {" · "}pulled {new Date(a.fetchedAt).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}{res.fromCache ? "" : " just now"}
+              {" · "}pulled {formatZonedMoment(new Date(a.fetchedAt), tz)}{res.fromCache ? "" : " just now"}
             </p>
 
             {noData ? (

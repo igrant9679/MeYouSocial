@@ -15,6 +15,7 @@ import {
   refreshKeywordVolumesAction,
   updateKeywordAction,
 } from "@/app/actions/blog-keywords";
+import { formatDay } from "@/lib/zoned-dates";
 
 // Keyword strategy (Wave A′). Tiers are editorial priority; intent + clusters
 // are AI-classified — the page says so. Volume / competition come only from a
@@ -115,7 +116,7 @@ export default async function KeywordsPage({ searchParams }: { searchParams: Pro
             {provider ? (
               <>
                 Volume, CPC and competition from <strong>{searchDataVendorLabel(provider.vendor)}</strong> for {countryName}
-                {lastFetch ? <> — last fetched {lastFetch.toLocaleDateString("en-US", { month: "short", day: "numeric" })}{source && !source.endsWith(`· ${country}`) ? ` (${source})` : ""}.</> : " — not fetched yet."}
+                {lastFetch ? <> — last fetched {formatDay(lastFetch)}{source && !source.endsWith(`· ${country}`) ? ` (${source})` : ""}.</> : " — not fetched yet."}
               </>
             ) : (
               <>
@@ -269,7 +270,7 @@ export default async function KeywordsPage({ searchParams }: { searchParams: Pro
                         </td>
                         <td className="py-1.5 pr-3 font-mono text-right">
                           {k.volume != null ? (
-                            <span title={k.volumeSource ? `${k.volumeSource}, ${k.volumeAt?.toLocaleDateString("en-US", { month: "short", day: "numeric" })}` : undefined}>{k.volume.toLocaleString()}</span>
+                            <span title={k.volumeSource ? `${k.volumeSource}, ${k.volumeAt ? formatDay(k.volumeAt) : ""}` : undefined}>{k.volume.toLocaleString()}</span>
                           ) : (
                             <Dash reason={noData ? `${k.volumeSource ?? "The provider"} had no data for this phrase.` : noVolumeReason} />
                           )}

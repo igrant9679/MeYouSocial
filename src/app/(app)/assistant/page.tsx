@@ -6,6 +6,8 @@ import { canEdit } from "@/lib/acl";
 import { EmptyState } from "@/components/EmptyState";
 import { AssistantComposer } from "@/components/AssistantComposer";
 import { TOOLS, REFUSED_INTENTS } from "@/lib/assistant/tools";
+import { formatZonedMoment } from "@/lib/zoned-dates";
+import { getPostingTimeZone } from "@/lib/social/slots";
 
 /**
  * ⚠ What you can ASK, in sentences — not the tool registry (audit B4/D5).
@@ -83,6 +85,7 @@ const ASK_GROUPS: Array<{ title: string; blurb: string; examples: Array<{ q: str
  */
 export default async function AssistantPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
   const { workspace, user, membership, active } = await getActiveChannel();
+  const tz = await getPostingTimeZone(workspace.id).catch(() => "UTC");
   const examples = await examplesFor(workspace.id);
   // It acts — drafts, queues, publishes — so it is for editors and admins; a
   // viewer's messages used to fail with a parse error instead (ENG-17).
@@ -205,7 +208,7 @@ export default async function AssistantPage({ searchParams }: { searchParams: Pr
                 <Link href={`/assistant/${t.id}`} className="text-xs underline">
                   {t.title ?? "Untitled"}
                 </Link>
-                <span className="font-mono text-[10px] text-[var(--mute)]"> · {t.updatedAt.toISOString().slice(0, 16).replace("T", " ")}</span>
+                <span className="font-mono text-[10px] text-[var(--mute)]"> · {formatZonedMoment(t.updatedAt, tz)}</span>
               </li>
             ))}
           </ul>

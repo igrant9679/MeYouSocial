@@ -12,6 +12,7 @@ import {
 } from "@/app/actions/growth";
 import { setProjectStatusAction, setProjectPublishDateAction } from "@/app/actions/production";
 import { attachChecklistAction } from "@/app/actions/final-pass";
+import { formatDay } from "@/lib/zoned-dates";
 
 const STATUS_LABEL: Record<string, string> = {
   idea: "Idea", research_writing: "Research/Writing", recording: "Recording", editing: "Editing", scheduled: "Scheduled", published: "Published",
@@ -164,7 +165,7 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
                 <li key={t.id} className="border-t border-[var(--line)] first:border-t-0 py-1.5 text-xs flex items-center gap-2">
                   <span className={"w-2 h-2 rounded-full"} style={{ background: t.status === "done" ? "var(--green)" : t.status === "in_progress" ? "var(--amber)" : "var(--mute)" }} />
                   <span className={"flex-1 " + (t.status === "done" ? "line-through text-[var(--mute)]" : "")}>{t.title}</span>
-                  {t.dueDate && <span className="text-[10px] text-[var(--mute)]">{new Date(t.dueDate).toLocaleDateString()}</span>}
+                  {t.dueDate && <span className="text-[10px] text-[var(--mute)]">{formatDay(new Date(t.dueDate))}</span>}
                 </li>
               ))}
             </ul>

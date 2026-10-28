@@ -5,6 +5,8 @@ import { redirect } from "next/navigation";
 import { requireRole } from "@/lib/acl";
 import { setWorkspaceSetting } from "@/lib/settings";
 import { getPublicUrl } from "@/lib/public-url";
+import { db } from "@/lib/db";
+import { writeAudit } from "@/lib/governance";
 
 /**
  * Settings → Analytics: connect Google Search Console, GA4 and YouTube.
@@ -96,6 +98,31 @@ export async function clearGa4Action() {
  * the scheduled sweep. Reports honestly when a connector is live but nothing
  * matched — "connected" and "producing data" are different states.
  */
+/**
+ * Link a page with traffic to an article published without a URL in the app
+ * (E-MEA-10). Only a post with NO live URL, and only a full address — an
+ * existing URL is never replaced from here.
+ */
+export async function linkUnmatchedPageAction(formData: FormData) {
+  const { workspace, membership } = await requireRole("ADMIN");
+  const url = String(formData.get("url") ?? "").trim();
+  const postId = String(formData.get("postId") ?? "");
+  if (!/^https?:\/\/[^\s]+$/i.test(url)) return back("That page has no full address to link — only Search Console pages can be linked.");
+  if (!postId) return back("Choose the article that page is.");
+  const post = await db.blogPost.findFirst({ where: { id: postId, workspaceId: workspace.id }, select: { id: true, title: true, status: true, publishedUrl: true } });
+  if (!post) return back("That article isn't in this workspace.");
+  if (post.publishedUrl) return back(`“${post.title}” already has a live URL (${post.publishedUrl}); it wasn't changed.`);
+  if (post.status !== "published") return back(`“${post.title}” isn't published, so it can't have a live page yet.`);
+  const taken = await db.blogPost.findFirst({ where: { workspaceId: workspace.id, publishedUrl: url }, select: { title: true } });
+  if (taken) return back(`That address is already “${taken.title}”.`);
+  await db.blogPost.update({ where: { id: post.id }, data: { publishedUrl: url } });
+  await writeAudit({ workspaceId: workspace.id, actorId: membership.userId, action: "analytics.url_linked", entityType: "blog_post", entityId: post.id, meta: { url } });
+  const { forgetUnmatched, urlKey } = await import("@/lib/analytics/sync");
+  await forgetUnmatched(workspace.id, urlKey(url)).catch(() => undefined);
+  revalidatePath("/admin/analytics");
+  back(`Linked ${url} to “${post.title}”. The next sync (or Sync now) attaches its numbers.`, true);
+}
+
 export async function syncAnalyticsNowAction() {
   const { workspace } = await requireRole("ADMIN");
   const { syncWorkspaceAnalytics } = await import("@/lib/analytics/sync");

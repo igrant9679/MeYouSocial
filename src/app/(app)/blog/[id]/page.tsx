@@ -98,6 +98,7 @@ import { brandedShortReadiness } from "@/lib/branded-video";
 import { HelpTip } from "@/components/HelpTip";
 import { resolveImageProviderName } from "@/lib/images";
 import { BLOG_EDITOR_TAB_TIPS, BLOG_EDITOR_TIPS, IMAGE_TIPS } from "@/lib/help-tips";
+import { formatZonedMoment } from "@/lib/zoned-dates";
 
 // Blog post editor (Spark port, slice 1): SEO metadata + HTML body + grounded
 // AI draft + the review-state machine. Publishing is an ADMIN act (human gate).
@@ -937,7 +938,7 @@ export default async function BlogPostPage({
                 <p className="whitespace-pre-wrap">{c.body}</p>
                 <div className="flex flex-wrap items-center gap-2 mt-1">
                   <span className="font-mono text-[10px] text-[var(--mute)]">
-                    {commentAuthor(c.authorId)} · {c.createdAt.toISOString().slice(0, 16).replace("T", " ")}
+                    {commentAuthor(c.authorId)} · {formatZonedMoment(c.createdAt, tz)}
                   </span>
                   {editor && (
                     <>
@@ -1506,7 +1507,7 @@ export default async function BlogPostPage({
             {post.versions.map((v) => (
               <li key={v.id} className="flex items-center gap-2 text-xs border-b border-[var(--line)] pb-1 last:border-0">
                 <span className="font-mono text-[var(--mute)] shrink-0">
-                  {v.createdAt.toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
+                  {formatZonedMoment(v.createdAt, tz)}
                 </span>
                 <span className="font-semibold">{v.label}</span>
                 <span className="text-[var(--mute)] flex-1 truncate">

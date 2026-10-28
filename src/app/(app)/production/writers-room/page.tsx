@@ -5,6 +5,7 @@ import { requireMembership } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { setProjectStatusAction } from "@/app/actions/production";
 import { requestNow } from "@/lib/request-time";
+import { formatDay } from "@/lib/zoned-dates";
 
 // Writer's Room. Projects in Research/Writing, due-soon, per-assignee filter.
 
@@ -59,7 +60,7 @@ export default async function WritersRoomPage({ searchParams }: { searchParams: 
                 <span className="text-[10px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><Clock className="inline w-3 h-3 mr-0.5" />Due soon</span>
               )}
             </div>
-            {p.publishDate && <div className="text-[11px] text-[var(--mute)] mb-1">Target: {new Date(p.publishDate).toLocaleDateString()}</div>}
+            {p.publishDate && <div className="text-[11px] text-[var(--mute)] mb-1">Target: {formatDay(new Date(p.publishDate))}</div>}
             {p.assignees.length > 0 && (
               <div className="text-[11px] text-[var(--mute)] mb-2 flex items-center gap-1 flex-wrap">
                 Assigned:

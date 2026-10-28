@@ -11,12 +11,15 @@ import {
 } from "@/app/actions/content-audit";
 import { RECOMMENDATION_HUE, parseFindings, type Recommendation } from "@/lib/content-audit";
 import { EmptyState } from "@/components/EmptyState";
+import { formatZonedMoment } from "@/lib/zoned-dates";
+import { getPostingTimeZone } from "@/lib/social/slots";
 
 // FR-15 — the existing-content audit. Recommendations only: this page cannot
 // delete, rewrite or republish anything on the live site.
 
 export default async function ContentAuditPage() {
   const { workspace, membership } = await requireMembership();
+  const tz = await getPostingTimeZone(workspace.id).catch(() => "UTC");
   const editor = canEdit(membership.role);
   const [items, conn, sitePages] = await Promise.all([
     db.contentAuditItem.findMany({
@@ -73,7 +76,7 @@ export default async function ContentAuditPage() {
           )}
           {lastRun && (
             <span className="font-mono text-[11px] text-[var(--mute)]">
-              last run {lastRun.toISOString().slice(0, 16).replace("T", " ")}
+              last run {formatZonedMoment(lastRun, tz)}
             </span>
           )}
         </div>

@@ -9,6 +9,8 @@ import { StageHeader, StageList, StageRow, StateChip } from "@/components/StageS
 import { EmptyState } from "@/components/EmptyState";
 import { SubmitButton } from "@/components/SubmitButton";
 import { queueSocialPostAction } from "@/app/actions/social-slots";
+import { formatZonedMoment } from "@/lib/zoned-dates";
+import { getPostingTimeZone } from "@/lib/social/slots";
 
 // Drafts stage: everything being written or rendered, by format — articles
 // always; scripts and video renders when the video studio is shown (a YouTube
@@ -18,6 +20,7 @@ const BLOG_HUE: Record<string, string> = { drafting: "amber", draft_review: "blu
 
 export default async function DraftsStage() {
   const { workspace, membership } = await requireMembership();
+  const tz = await getPostingTimeZone(workspace.id).catch(() => "UTC");
   const { active } = await getActiveChannel();
   const admin = canAdmin(membership.role);
   const studio = await studioState(workspace.id);
@@ -170,7 +173,7 @@ export default async function DraftsStage() {
           {renders.map((r) => (
             <StageRow key={r.id}>
               <StateChip label={r.status} hue={r.status === "rendering" ? "amber" : "violet"} />
-              <div className="flex-1 min-w-48 text-sm">Render started {r.createdAt.toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}</div>
+              <div className="flex-1 min-w-48 text-sm">Render started {formatZonedMoment(r.createdAt, tz)}</div>
               <Link href={`/videos/${r.id}`} className="btn sm">Open</Link>
             </StageRow>
           ))}
