@@ -353,6 +353,17 @@ html[data-theme="dark"] .ws-brand {
           />
         </header>
 
+        {/* The pause, on every page (E-ENG-14): the pill said "Paused" in grey type
+            at one width; a person working elsewhere in the app couldn't tell. */}
+        {enginePaused && (
+          <div role="status" className="px-4 py-2 text-xs font-semibold flex items-center gap-2 flex-wrap" style={{ background: "var(--rose-soft)", color: "var(--rose-on)" }}>
+            <span>Everything is paused — nothing is written, sent or published until it&apos;s resumed.</span>
+            {membership.role === "ADMIN"
+              ? <Link href="/setup/automation" className="underline">Resume on Automation</Link>
+              : <span className="font-normal">An admin can resume it on Automation.</span>}
+          </div>
+        )}
+
         {/* Also a @container: page components size against the CONTENT area
             (shell minus rail), the width that actually constrains them. */}
         {/* Suspense: FlashBanner reads useSearchParams, which Next requires be

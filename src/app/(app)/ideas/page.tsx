@@ -41,7 +41,7 @@ import { canFollow, whoCanFix } from "@/lib/role-links";
 type Topic = { id: string; name: string };
 const OPEN_LANES = 8; // lanes past this many open collapsed, with their counts
 
-export default async function IdeasBoard({ searchParams }: { searchParams: Promise<{ format?: string; channel?: string; ok?: string; err?: string }> }) {
+export default async function IdeasBoard({ searchParams }: { searchParams: Promise<{ format?: string; channel?: string; q?: string; topic?: string; sort?: string; ok?: string; err?: string }> }) {
   const { workspace, membership } = await requireMembership();
   const editor = canEdit(membership.role);
   const sp = await searchParams;
@@ -110,6 +110,30 @@ export default async function IdeasBoard({ searchParams }: { searchParams: Promi
           ))}
           <FilterChip href="/ideas?format=social" label={`Social · ${totals.social}`} on={filterActive === "social"} />
         </div>
+      )}
+      {/* E-IDE-02: find a card — title search, one Topic, an order. */}
+      {all > 0 && (
+        <form method="get" action="/ideas" role="search" className="flex items-center gap-1.5 flex-wrap mb-3">
+          {sp.format && <input type="hidden" name="format" value={sp.format} />}
+          {sp.channel && <input type="hidden" name="channel" value={sp.channel} />}
+          <input type="search" name="q" defaultValue={sp.q ?? ""} placeholder="Search titles" aria-label="Search idea titles" className="text-xs w-48" />
+          {topics.length > 0 && (
+            <select name="topic" defaultValue={sp.topic ?? ""} aria-label="Topic" className="text-xs max-w-48">
+              <option value="">every Topic</option>
+              {topics.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+              <option value="none">no Topic yet</option>
+            </select>
+          )}
+          <select name="sort" defaultValue={sp.sort ?? "priority"} aria-label="Order within each column" className="text-xs">
+            <option value="priority">by priority</option>
+            <option value="newest">newest first</option>
+            <option value="source">by source</option>
+          </select>
+          <button className="btn sm">Show</button>
+          {(sp.q || sp.topic || (sp.sort && sp.sort !== "priority")) && (
+            <Link href={sp.channel ? `/ideas?channel=${sp.channel}` : sp.format ? `/ideas?format=${sp.format}` : "/ideas"} className="text-xs underline">Clear</Link>
+          )}
+        </form>
       )}
 
       {editor && (
@@ -193,7 +217,9 @@ export default async function IdeasBoard({ searchParams }: { searchParams: Promi
         </div>
       )}
 
-      {lanes.length === 0 ? (
+      {lanes.length === 0 && (sp.q || sp.topic) ? (
+        <p className="text-sm text-[var(--mute)]">No ideas match{sp.q ? ` “${sp.q}”` : ""}{sp.topic ? " in that Topic" : ""}. <Link href="/ideas" className="underline">Show everything</Link>.</p>
+      ) : lanes.length === 0 ? (
         <EmptyState
           line={topics.length === 0 ? "No Topics and no ideas yet." : "No ideas yet."}
           note={topics.length === 0 ? "A Topic is a theme this company publishes about. Research is matched to it, ideas in every format are discovered per Topic, and Measure reports what each one earned." : undefined}

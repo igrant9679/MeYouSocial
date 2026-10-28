@@ -738,6 +738,18 @@ Tabs: **Keys** (`/admin/api-keys`: LLM, search, images, video, TTS, storage) · 
 - **YouTube says what was connected**: the connect message names the channel's public video count, and says plainly
   when it's zero (LSI connected an empty channel). `youtubeConnectedMessage` in lib/youtube/oauth.ts.
 
+## ⚠ The kill switch is visible; the board can be searched (2026-10-28, audit Phase 5, wave 2, part a)
+- **The pause shows on every page** (E-ENG-14): a red line under the header in `(app)/layout.tsx` while
+  `isGloballyPaused` — admins get "Resume on Automation", others are told an admin can.
+- **Unschedule all social posts** (E-ENG-14, `unscheduleAllSocialAction`, ADMIN, asks first via
+  `?confirmUnschedule=1`, audited `social.unscheduled_all`): scheduled → draft, KEEPING `scheduledAt` — a dated
+  draft is never auto-queued, even under full autonomy, and Queue all restores it at its time while still ahead.
+  Posts already `publishing` are left alone; articles aren't touched (the confirmation says how to hold them). This
+  is not the SOC-04 hold state — that still waits on the owner.
+- **Board search, Topic filter and order** (E-IDE-02): `/ideas?q=&topic=<id|none>&sort=priority|newest|source`,
+  applied in the queries (`loadIdeasBoard`); a Topic shows only its lane, a search hides lanes it emptied, header
+  counts stay whole-board. The per-Topic page links to its lane. E-ART-01 (safe editing) shipped as ART-01/03.
+
 ## Open items / things the user still owns
 - **Analytics: APIs enabled 2026-08-03** (Search Console + GA Admin + GA Data, on project
   `479503233109` = `gen-lang-client-0838901195` = "CreateUp"). Still pending, user-only: add the

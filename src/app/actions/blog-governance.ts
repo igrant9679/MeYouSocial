@@ -140,6 +140,35 @@ export async function toggleFullAutonomyAction(formData: FormData) {
     : "Full autonomy is ON. Ideas, drafts, images, SEO, queueing and publishing now run unattended — the truthfulness gates still hold.")}`);
 }
 
+/**
+ * Take every scheduled social post out of the queue (E-ENG-14) — the second
+ * half of the kill switch: the pause stops sends, this means nothing goes out
+ * when it's lifted. Asks first (`intent=ask` → `?confirmUnschedule=1`).
+ *
+ * Each post becomes a draft that KEEPS its time: a dated draft is never
+ * auto-queued, even under full autonomy, and Queue all puts it back at that
+ * time while it's still ahead. Posts already sending are left alone.
+ */
+export async function unscheduleAllSocialAction(formData: FormData) {
+  const { workspace, membership } = await requireRole("ADMIN");
+  const intent = String(formData.get("intent") ?? "");
+  if (intent !== "confirmed") redirect("/setup/automation?confirmUnschedule=1#pause");
+  const moved = await db.socialPost.updateMany({
+    where: { workspaceId: workspace.id, status: "scheduled" },
+    data: { status: "draft" },
+  });
+  await writeAudit({
+    workspaceId: workspace.id, actorId: membership.userId,
+    action: "social.unscheduled_all", entityType: "workspace", entityId: workspace.id,
+    meta: { posts: moved.count },
+  });
+  revalidatePath("/social", "layout");
+  revalidatePath("/setup/automation");
+  redirect(`/setup/automation?ok=${encodeURIComponent(moved.count
+    ? `${moved.count} scheduled post${moved.count === 1 ? "" : "s"} moved back to drafts, each keeping its time — Queue all on Drafts puts them back.`
+    : "Nothing was scheduled.")}#pause`);
+}
+
 export async function toggleGlobalPauseAction(formData?: FormData) {
   const { user, workspace } = await requireRole("ADMIN");
   const current = await db.automationState.findUnique({ where: { workspaceId: workspace.id } });

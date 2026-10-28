@@ -52,7 +52,10 @@ export default async function TopicPage({ params, searchParams }: { params: Prom
 
   return (
     <div>
-      <Link href="/ideas/topics" className="text-xs font-mono text-[var(--mute)] hover:text-[var(--accent)] flex items-center gap-1 mb-3"><ArrowLeft className="w-3 h-3" /> All Topics</Link>
+      <div className="flex items-center gap-3 mb-3">
+        <Link href="/ideas/topics" className="text-xs font-mono text-[var(--mute)] hover:text-[var(--accent)] flex items-center gap-1"><ArrowLeft className="w-3 h-3" /> All Topics</Link>
+        <Link href={`/ideas?topic=${topic.id}`} className="text-xs underline">Its lane on the board</Link>
+      </div>
 
       <StageHeader
         title={topic.name}

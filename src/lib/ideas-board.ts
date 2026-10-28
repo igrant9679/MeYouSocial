@@ -83,7 +83,7 @@ export type BoardCard =
   | { format: "video"; state: BoardState; rank: number; createdAt: Date; row: VideoRow }
   | { format: "social"; state: BoardState; rank: number; createdAt: Date; row: SocialRow };
 
-export type BoardFilter = { format?: string; channel?: string };
+export type BoardFilter = { format?: string; channel?: string; q?: string; topic?: string; sort?: string };
 
 export type LaneTopic = { id: string; name: string; priority: number; status: string; description: string | null };
 /** One Topic's slice of the board. `topic: null` is the "No topic yet" lane. */
@@ -101,6 +101,20 @@ export function cardTitle(c: BoardCard): string {
 
 const FORMATS: IdeaFormat[] = ["article", "video", "social"];
 
+/** Where a card came from, for the "by source" order: research, discovered, manual… */
+export function cardSource(c: BoardCard): string {
+  if (c.format === "video") return c.row.sourceVideoId ? "research" : "manual";
+  return c.row.source || "manual";
+}
+
+/** Order within a column (E-IDE-02): priority (the default), newest, or source then priority. */
+function cardOrder(sort?: string): (a: BoardCard, b: BoardCard) => number {
+  const byRank = (a: BoardCard, b: BoardCard) => b.rank - a.rank || b.createdAt.getTime() - a.createdAt.getTime();
+  if (sort === "newest") return (a, b) => b.createdAt.getTime() - a.createdAt.getTime();
+  if (sort === "source") return (a, b) => cardSource(a).localeCompare(cardSource(b)) || byRank(a, b);
+  return byRank;
+}
+
 // Statuses a person still decides on, per table; the rest are closed. Status
 // is never NULL in any of the three tables, so notIn loses nothing.
 const OPEN_ARTICLE = ["discovered", "approved"];
@@ -116,6 +130,12 @@ export async function loadIdeasBoard(workspaceId: string, f: BoardFilter) {
   const wantArticles = !f.channel && (!f.format || f.format === "article");
   const wantVideo = !f.format || f.format === "video";
   const wantSocial = !f.channel && (!f.format || f.format === "social");
+  // E-IDE-02: a title search, one Topic ("none" = untagged) and an order, all in
+  // the URL so the per-Topic page can link to its lane.
+  const q = f.q?.trim().slice(0, 100) || undefined;
+  const topicWhere = f.topic ? { topicId: f.topic === "none" ? null : f.topic } : {};
+  const titleWhere = q ? { title: { contains: q, mode: "insensitive" as const } } : {};
+  const hookWhere = q ? { hook: { contains: q, mode: "insensitive" as const } } : {};
 
   // IDE-20: open ideas (discovered, approved) are read apart from closed ones,
   // so a few hundred drafted or rejected rows can't push open ones off the
@@ -134,18 +154,18 @@ export async function loadIdeasBoard(workspaceId: string, f: BoardFilter) {
     sourceVideo: { select: { id: true, title: true } },
     socialPost: { select: { id: true, status: true, scheduledAt: true } },
   } as const;
-  const videoWhere = { channel: { workspaceId, ...(f.channel ? { id: f.channel } : {}) } };
+  const videoWhere = { channel: { workspaceId, ...(f.channel ? { id: f.channel } : {}) }, ...topicWhere, ...titleWhere };
   const [articles, videos, socials, channels, topics, aCounts, vCounts, sCounts] = await Promise.all([
     wantArticles
       ? Promise.all([
           db.blogIdea.findMany({
-            where: { workspaceId, status: { in: OPEN_ARTICLE } },
+            where: { workspaceId, status: { in: OPEN_ARTICLE }, ...topicWhere, ...titleWhere },
             orderBy: [{ priority: { sort: "desc", nulls: "last" } }, { createdAt: "desc" }],
             take: OPEN_TAKE,
             include: articleInclude,
           }),
           db.blogIdea.findMany({
-            where: { workspaceId, status: { notIn: OPEN_ARTICLE } },
+            where: { workspaceId, status: { notIn: OPEN_ARTICLE }, ...topicWhere, ...titleWhere },
             orderBy: { updatedAt: "desc" },
             take: CLOSED_TAKE,
             include: articleInclude,
@@ -171,13 +191,13 @@ export async function loadIdeasBoard(workspaceId: string, f: BoardFilter) {
     wantSocial
       ? Promise.all([
           db.socialIdea.findMany({
-            where: { workspaceId, status: { in: OPEN_SOCIAL } },
+            where: { workspaceId, status: { in: OPEN_SOCIAL }, ...topicWhere, ...hookWhere },
             orderBy: [{ priority: { sort: "desc", nulls: "last" } }, { createdAt: "desc" }],
             take: OPEN_TAKE,
             include: socialInclude,
           }),
           db.socialIdea.findMany({
-            where: { workspaceId, status: { notIn: OPEN_SOCIAL } },
+            where: { workspaceId, status: { notIn: OPEN_SOCIAL }, ...topicWhere, ...hookWhere },
             orderBy: { updatedAt: "desc" },
             take: CLOSED_TAKE,
             include: socialInclude,
@@ -222,7 +242,7 @@ export async function loadIdeasBoard(workspaceId: string, f: BoardFilter) {
       createdAt: r.createdAt,
       row: r,
     })),
-  ].sort((a, b) => b.rank - a.rank || b.createdAt.getTime() - a.createdAt.getTime());
+  ].sort(cardOrder(f.sort));
 
   // Lanes: every active Topic (empty ones too — an empty lane is the honest
   // "nothing about this yet"), archived Topics only when they still hold
@@ -247,6 +267,9 @@ export async function loadIdeasBoard(workspaceId: string, f: BoardFilter) {
   // include would rather show than vanish).
   for (const list of byTopic.values()) untagged.push(...list);
   if (untagged.length) lanes.push({ topic: null, cards: untagged });
+  // A Topic filter shows that lane; a search hides the lanes it emptied.
+  const shownLanes = lanes.filter((l) =>
+    (!f.topic || (f.topic === "none" ? l.topic === null : l.topic?.id === f.topic)) && (!q || l.cards.length > 0));
 
   // Header counts ignore the filter — they describe the whole board.
   const counts: Record<BoardState, number> = { discovered: 0, approved: 0, drafted: 0, rejected: 0 };
@@ -258,7 +281,7 @@ export async function loadIdeasBoard(workspaceId: string, f: BoardFilter) {
   const activeTopics = topics.filter((t) => t.status === "active");
   return {
     cards,
-    lanes,
+    lanes: shownLanes,
     counts,
     channels,
     topics: activeTopics,

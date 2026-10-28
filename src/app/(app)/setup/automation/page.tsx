@@ -9,7 +9,7 @@ import { db } from "@/lib/db";
 import { GOVERNED_FUNCTIONS, FUNCTION_LABELS, MODES, getModes, isGloballyPaused } from "@/lib/governance";
 import { SubmitButton } from "@/components/SubmitButton";
 import { Banner } from "@/components/SocialPostCard";
-import { runAutopilotNowAction, setFunctionModeAction, toggleGlobalPauseAction, saveWeeklyArticleTargetAction, toggleAutoSeoAction, toggleFullAutonomyAction } from "@/app/actions/blog-governance";
+import { runAutopilotNowAction, setFunctionModeAction, toggleGlobalPauseAction, unscheduleAllSocialAction, saveWeeklyArticleTargetAction, toggleAutoSeoAction, toggleFullAutonomyAction } from "@/app/actions/blog-governance";
 import { saveSocialWorkflowSettingsAction } from "@/app/actions/social-workflow";
 import { autonomyStatus } from "@/lib/autonomy";
 import { getSetting } from "@/lib/settings";
@@ -27,9 +27,9 @@ const MODE_HELP: Record<(typeof MODES)[number], string> = {
   auto: "End-to-end unattended",
 };
 
-export default async function SetupAutomation({ searchParams }: { searchParams: Promise<{ ok?: string; err?: string }> }) {
+export default async function SetupAutomation({ searchParams }: { searchParams: Promise<{ ok?: string; err?: string; confirmUnschedule?: string }> }) {
   const { workspace, membership } = await requireMembership();
-  const { ok, err } = await searchParams;
+  const { ok, err, confirmUnschedule } = await searchParams;
   const admin = canAdmin(membership.role);
   const [modes, paused, lastCycle, weeklyArticles, publishDay, autoSeoRaw, autonomy, queue, campaigns, autoQueue, evergreenFill, autoImage, autogenOn, autogenWeekly, autogenCampaign, socialGate, socialSource] = await Promise.all([
     getModes(workspace.id),
@@ -54,6 +54,7 @@ export default async function SetupAutomation({ searchParams }: { searchParams: 
   const autoSeo = autoSeoRaw !== "false";
   const intervalMin = Math.max(5, parseInt(process.env.AUTOPILOT_INTERVAL_MIN ?? "30", 10) || 30);
   const autopilotOff = process.env.AUTOPILOT === "off";
+  const scheduledSocial = admin ? await db.socialPost.count({ where: { workspaceId: workspace.id, status: "scheduled" } }) : 0;
   // E-ENG-03 / E-ENG-06: the last check-in, and today's allowance against its limit.
   const { generationsToday, DAILY_AI_BUDGET } = await import("@/lib/blog-autopilot");
   const [heartbeat, aiUsed] = await Promise.all([
@@ -102,12 +103,18 @@ export default async function SetupAutomation({ searchParams }: { searchParams: 
 
       {/* Kill switch + scheduler status */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
-        <div className="card flex flex-wrap items-center gap-3" style={paused ? { background: "var(--rose-soft)" } : undefined}>
+        <div id="pause" className="card flex flex-wrap items-center gap-3" style={paused ? { background: "var(--rose-soft)" } : undefined}>
           <OctagonPause className="w-5 h-5" style={{ color: paused ? "var(--rose-on)" : "var(--mute)" }} />
           <div className="flex-1 min-w-40">
             <div className="text-sm font-semibold" style={paused ? { color: "var(--rose-on)" } : undefined}>Global pause {paused ? "— ON" : "— off"}</div>
             <div className="text-xs text-[var(--mute)]">The emergency brake: blocks every AI action, manual clicks included.</div>
           </div>
+          {admin && scheduledSocial > 0 && confirmUnschedule !== "1" && (
+            <form action={unscheduleAllSocialAction}>
+              <input type="hidden" name="intent" value="ask" />
+              <button className="btn" title="Move every scheduled social post back to drafts">Unschedule all {scheduledSocial} social post{scheduledSocial === 1 ? "" : "s"}</button>
+            </form>
+          )}
           {admin && (
             <form action={toggleGlobalPauseAction}>
               <input type="hidden" name="intent" value={paused ? "resume" : "pause"} />
@@ -115,6 +122,21 @@ export default async function SetupAutomation({ searchParams }: { searchParams: 
             </form>
           )}
         </div>
+        {admin && confirmUnschedule === "1" && (
+          <div className="card text-xs flex flex-col gap-2" style={{ borderColor: "var(--rose)" }}>
+            <p className="m-0"><b>Unschedule all {scheduledSocial} social post{scheduledSocial === 1 ? "" : "s"}?</b> Each moves back to Drafts and keeps its time, so nothing
+              goes out when the pause is lifted. A dated draft is never queued by itself, even under full autonomy; Queue all on
+              Drafts puts them back at their times while those are still ahead. Articles aren&apos;t touched — to hold those, set
+              Publishing to manual below.</p>
+            <div className="flex gap-2">
+              <form action={unscheduleAllSocialAction}>
+                <input type="hidden" name="intent" value="confirmed" />
+                <SubmitButton className="btn" pendingText="Unscheduling…">Yes, unschedule {scheduledSocial}</SubmitButton>
+              </form>
+              <Link href="/setup/automation#pause" className="btn">Cancel</Link>
+            </div>
+          </div>
+        )}
         <div className="card flex flex-wrap items-center gap-3">
           <Bot className="w-5 h-5" style={{ color: autopilotOff ? "var(--mute)" : "var(--teal-on)" }} />
           <div className="flex-1 min-w-40">
