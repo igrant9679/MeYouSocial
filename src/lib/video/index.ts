@@ -1,5 +1,6 @@
 import { env } from "@/lib/env";
 import { getApiKey } from "@/lib/llm/keys";
+import { snapSceneSeconds } from "@/lib/captions";
 
 /**
  * Video generation seam (Phase 4). Same house pattern as images/youtube:
@@ -46,7 +47,7 @@ const mockProvider: VideoProvider = {
     return {
       url: "https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
       provider: "mock",
-      seconds: Math.min(req.seconds, env.VIDEO_MAX_SECONDS),
+      seconds: snapSceneSeconds(req.seconds),
     };
   },
 };
@@ -76,6 +77,9 @@ const veoProvider: VideoProvider = {
       config: {
         aspectRatio: req.aspect,
         numberOfVideos: 1,
+        // Sent, and one Veo accepts (VID-11) — without it every clip came
+        // back at the default length whatever the board said.
+        durationSeconds: snapSceneSeconds(req.seconds),
       },
     });
 
@@ -95,7 +99,7 @@ const veoProvider: VideoProvider = {
     // an `x-goog-api-key` header and writes the bytes into StorageProvider;
     // `VideoRender.storedUrl` is the durable copy the UI prefers. Don't "fix"
     // this by embedding the key in the URL — that's the leak this avoids.
-    return { url: uri, provider: "veo", seconds: Math.min(req.seconds, env.VIDEO_MAX_SECONDS) };
+    return { url: uri, provider: "veo", seconds: snapSceneSeconds(req.seconds) };
   },
 };
 

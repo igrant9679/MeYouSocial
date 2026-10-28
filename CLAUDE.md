@@ -525,6 +525,40 @@ Tabs: **Keys** (`/admin/api-keys`: LLM, search, images, video, TTS, storage) · 
 - **Save never clears a key** (SET-05): `saveApiKeyAction` / `saveSearchKeyAction` refuse an empty field; Remove key
   (`intent=remove`) only asks (`?confirmRemove=<id>`), `intent=remove-confirmed` clears. Works without JavaScript.
 
+## ⚠ The studio writes only what a model wrote, and stops when told (2026-10-28, audit Phase 2, video studio group)
+- **Placeholders are refused before they're written** (VID-05): `lib/studio-ai.ts` `placeholderProblem(res, outcome)` —
+  every studio action that stores model text (canvas outline/script/humanize/improve, builder steps, promo assets,
+  research reports, cloned templates, thumbnail concepts) checks it and redirects with `flashErr`, writing nothing.
+  Long calls pass `STUDIO_TIMEOUT_MS` (the router's 45 s default turned long scripts into mock text). Thumbnail
+  concepts are checked BEFORE the four paid image renders.
+- **Templates and brand reach the prompts** (VID-13): `templateBlock(template)` renders a template's sections, timing,
+  beats and pacing (cloned templates' `ai` JSON or built-ins' `sections`), not just its name. Thumbnails add the
+  channel's `thumbnailConfig` (palette, typography, face position, style notes) and honour its
+  `limitThumbnailsPerMonth`.
+- **The script editor saves what's on screen first** (VID-06): Humanize and Improve `flush()` before calling the
+  server (Improve's offsets are into the SAVED body); the editor is keyed on the row's `updatedAt`, so a server
+  rewrite remounts it on the new text; unsaved typing is flushed on hide/unmount; a failed save shows "not saved".
+- **A cancel holds** (VID-07, VID-09): the agent job claims `queued|running → running` conditionally, checks for a
+  cancel after every model call BEFORE writing, and its finish/fail updates are conditional on `running` — a
+  cancelled run is never overwritten. One run per script at a time. Renders: `cancelRenderAction` (queued or
+  rendering → failed, "Cancelled by …"); `processRenderCore` re-checks `rendering` before each scene and its done/failed
+  writes are conditional. `components/AutoRefresh.tsx` refreshes /videos and the storyboard while anything renders.
+- **Veo lengths are 4, 6 or 8 s** (VID-11): `snapSceneSeconds` (lib/captions.ts) snaps on READ in `parseScenes`, the
+  scene editor is a 4/6/8 select, and the length is SENT (`durationSeconds`) — it never was, so clips, SRT and cost
+  disagreed. Packaging (VID-12) takes published posts with NO render, newest first, and moves past a failure.
+- **No invented production numbers** (VID-08): "Sync stats now" wrote views/retention from a hash of the project id
+  — it now refuses (a project isn't linked to its YouTube video); the project page shows none; onboarding ignores
+  ChannelStat rows without a real 11-character video id (every existing row is one of those inventions). Chapters
+  are COMPUTED from the script's headings at 150 wpm (`chaptersFromScript`). CTR scoring sends the rendered image to
+  a vision model (`askAboutImage`); no image, no vision key or no number = no score (it stored 50).
+- **Builder section regenerate splices** (VID-15) into the CURRENT body by the section's heading, sending that
+  section's text; a heading changed on the Canvas is refused. Clone-from-URL (VID-14) reads a `watch?v=` /
+  `youtu.be` / `shorts` link as THAT video and refuses with no transcript.
+- **Task board** (VID-16): keyed on the tasks it's given (server changes show), a failed move rolls back
+  (`moveTaskAction` returns `{ ok }`); `closeStaleAutoTasks` (lib/auto-tasks.ts, run by the cycle and the Tasks
+  page) closes Review/Images/Render-failed auto-tasks the pipeline has moved past, matched by the link in their
+  description. Teleprompter (VID-17): fixed-height `h-dvh` root + `min-h-0` scroller; stops at the end.
+
 ## Open items / things the user still owns
 - **Analytics: APIs enabled 2026-08-03** (Search Console + GA Admin + GA Data, on project
   `479503233109` = `gen-lang-client-0838901195` = "CreateUp"). Still pending, user-only: add the

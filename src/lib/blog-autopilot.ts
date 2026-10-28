@@ -24,7 +24,7 @@ import { smePromptFor } from "@/lib/sme";
 import { loadEditorialContext } from "@/lib/blog-slop";
 import { notify } from "@/lib/notify";
 import { storage } from "@/lib/storage";
-import { parseScenes, scenesToSrt } from "@/lib/captions";
+import { parseScenes, scenesToSrt, snapSceneSeconds } from "@/lib/captions";
 import { autoTaskForRenderFailure } from "@/lib/auto-tasks";
 import { getModes, isGloballyPaused, writeAudit } from "@/lib/governance";
 import { getVideoProvider, estimateCostUsd } from "@/lib/video";
@@ -1049,7 +1049,7 @@ export async function packageVideoCore(workspaceId: string, blogPostId: string):
   const system =
     "You write storyboards for an AI video generator producing short-form vertical videos. " +
     'Respond ONLY with a JSON object: {"title": string, "scenes": [{"prompt": string, "seconds": number, "text": string}]}. ' +
-    "3 to 4 scenes, 4-8 seconds each, ~20 seconds total. Each prompt describes ONE visually concrete scene " +
+    "3 to 4 scenes of 4, 6 or 8 seconds each, ~20 seconds total. Each prompt describes ONE visually concrete scene " +
     "(subject, setting, camera movement, mood). `text` is that scene's on-screen caption (≤8 words) — scene 1 is the hook, " +
     "the last scene is the call to action. No statistics, no invented claims, no brand logos.";
   const res = await llm.complete({
@@ -1081,12 +1081,11 @@ export async function packageVideoCore(workspaceId: string, blogPostId: string):
   }
   const scenes = parseScenes(JSON.stringify(parsed.scenes ?? [])).slice(0, 4).map((s) => ({
     ...s,
-    seconds: Math.min(s.seconds, env.VIDEO_MAX_SECONDS),
     status: "planned",
   }));
   // Back-compat: a single-prompt response still packages as a one-scene board.
   if (!scenes.length && typeof parsed.prompt === "string" && parsed.prompt.trim()) {
-    scenes.push({ prompt: parsed.prompt.trim(), seconds: env.VIDEO_MAX_SECONDS, text: null, outputUrl: null, status: "planned" });
+    scenes.push({ prompt: parsed.prompt.trim(), seconds: snapSceneSeconds(env.VIDEO_MAX_SECONDS), text: null, outputUrl: null, status: "planned" });
   }
   if (!scenes.length) return null;
 
@@ -1238,6 +1237,9 @@ export async function processRenderCore(workspaceId: string, renderId: string): 
           if (i === 0) firstDurable = kept.startsWith("/") ? kept : null;
           continue;
         }
+        // Cancelled (VID-09) — stop before paying for the next scene.
+        const still = await db.videoRender.count({ where: { id: render.id, status: "rendering" } });
+        if (!still) return false;
         const out = await provider.render({
           prompt: scenes[i].prompt,
           seconds: scenes[i].seconds,
@@ -1249,8 +1251,9 @@ export async function processRenderCore(workspaceId: string, renderId: string): 
         scenes[i] = { ...scenes[i], outputUrl: durable ?? out.url, status: "done" };
         await db.videoRender.update({ where: { id: render.id }, data: { scenes: JSON.stringify(scenes) } });
       }
-      await db.videoRender.update({
-        where: { id: render.id },
+      // Conditional: a board cancelled during its last scene stays cancelled.
+      const finished = await db.videoRender.updateMany({
+        where: { id: render.id, status: "rendering" },
         data: {
           status: "done",
           provider: provider.name,
@@ -1259,6 +1262,7 @@ export async function processRenderCore(workspaceId: string, renderId: string): 
           srt: scenesToSrt(scenes),
         },
       });
+      if (!finished.count) return false;
     } else {
       const out = await provider.render({
         prompt: render.prompt,
@@ -1267,8 +1271,8 @@ export async function processRenderCore(workspaceId: string, renderId: string): 
         workspaceId,
       });
       const durable = await persistRenderOutput(out.url, out.provider, workspaceId);
-      await db.videoRender.update({
-        where: { id: render.id },
+      const finished = await db.videoRender.updateMany({
+        where: { id: render.id, status: "rendering" },
         data: {
           status: "done",
           outputUrl: out.url,
@@ -1278,6 +1282,7 @@ export async function processRenderCore(workspaceId: string, renderId: string): 
           srt: scenes.length ? scenesToSrt(scenes) : null,
         },
       });
+      if (!finished.count) return false;
     }
     await writeAudit({
       workspaceId,
@@ -1294,10 +1299,12 @@ export async function processRenderCore(workspaceId: string, renderId: string): 
     return true;
   } catch (e) {
     const message = e instanceof Error ? e.message.slice(0, 500) : "render failed";
-    await db.videoRender.update({
-      where: { id: render.id },
+    // A cancel already said why; don't overwrite it or raise a task for it.
+    const failed = await db.videoRender.updateMany({
+      where: { id: render.id, status: "rendering" },
       data: { status: "failed", error: message },
     });
+    if (!failed.count) return false;
     await writeAudit({
       workspaceId,
       action: "video.render_failed",
@@ -1919,17 +1926,27 @@ async function runAutopilotCycleUnlocked(workspaceId: string): Promise<CycleRepo
   // 5. Video packaging: turn published posts without a package into queued renders.
   await step("video packaging", async () => {
     if (generating("video_packaging")) {
+      // ⚠ VID-12: it took five posts in no order and stopped at the first
+      // without a render — so one post that never packages blocked every cycle
+      // and newer posts never got a turn. Now: posts with no render at all,
+      // newest first; a failure moves on to the next (three tries a cycle).
+      const packaged = await db.videoRender.findMany({
+        where: { workspaceId, blogPostId: { not: null } },
+        select: { blogPostId: true },
+        distinct: ["blogPostId"],
+      });
       const unpackaged = await db.blogPost.findMany({
-        where: { workspaceId, status: "published" },
+        where: { workspaceId, status: "published", id: { notIn: packaged.map((r) => r.blogPostId!) } },
+        orderBy: [{ publishedAt: { sort: "desc", nulls: "last" } }, { updatedAt: "desc" }],
         select: { id: true },
-        take: 5,
+        take: 3,
       });
       for (const p of unpackaged) {
-        const has = await db.videoRender.count({ where: { workspaceId, blogPostId: p.id } });
-        if (has > 0) continue;
-        const id = await packageVideoCore(workspaceId, p.id);
-        if (id) report.videosPackaged++;
-        break; // one package per cycle
+        const id = await packageVideoCore(workspaceId, p.id).catch(() => null);
+        if (id) {
+          report.videosPackaged++;
+          break; // one package per cycle
+        }
       }
     }
   });
@@ -1937,6 +1954,8 @@ async function runAutopilotCycleUnlocked(workspaceId: string): Promise<CycleRepo
   // 6. Video rendering: process one queued render per cycle (daily cap inside).
   // Any mode: a render stranded mid-board is released to "failed" either way.
   await releaseStaleRenderClaims(workspaceId).catch(() => 0);
+  // And auto-tasks the pipeline has moved past are closed (VID-16).
+  await import("@/lib/auto-tasks").then((m) => m.closeStaleAutoTasks(workspaceId)).catch(() => 0);
   await step("video rendering", async () => {
     if (generating("video_rendering")) {
       const queued = await db.videoRender.findFirst({

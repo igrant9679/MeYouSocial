@@ -8,6 +8,7 @@ import { db } from "@/lib/db";
 import { readJson, writeJson } from "@/lib/db/json";
 import { llm, modelChoiceProblem } from "@/lib/llm";
 import { softLimitProblem } from "@/lib/soft-limits";
+import { STUDIO_TIMEOUT_MS, placeholderProblem, templateBlock } from "@/lib/studio-ai";
 import { countWords, durationSeconds, MAX_WORDS } from "@/lib/canvas/duration";
 import { systemForOutline, systemForScript, systemForImprove, HUMANIZE_SYSTEM } from "@/lib/canvas/prompts";
 import { outlineForRestore, snapshotScript } from "@/lib/script-versions";
@@ -35,9 +36,9 @@ function voiceText(script: { voiceProfileId: string | null; channel: { voiceProf
   try { return JSON.stringify(JSON.parse(chosen.data)); } catch { return chosen.data; }
 }
 
+/** The template as the writer sees it: name and structure (VID-13). */
 function templateName(script: { template: { name: string; structure: string } | null }): string {
-  if (!script.template) return "Flexible";
-  return script.template.name;
+  return templateBlock(script.template);
 }
 
 // ── Creating a script ─────────────────────────────────────────────────────
@@ -153,7 +154,10 @@ export async function generateOutlineAction(formData: FormData) {
       ].filter(Boolean).join("\n") },
     ],
     workspaceId: script.channel.workspaceId,
+    timeoutMs: STUDIO_TIMEOUT_MS.outline,
   });
+  const problem = placeholderProblem(result, "the outline is unchanged");
+  if (problem) redirect(`/scripts/${script.id}?tab=plan&flashErr=${encodeURIComponent(problem)}`);
 
   // Keep what was there (hand edits included) before the new outline lands.
   await snapshotScript(script, "before outline regenerate");
@@ -207,7 +211,11 @@ export async function generateScriptAction(formData: FormData) {
     }),
     messages: [{ role: "user", content: `Outline:\n\n${outline.markdown}\n\nExpand into a full script.` }],
     workspaceId: script.channel.workspaceId,
+    timeoutMs: STUDIO_TIMEOUT_MS.script,
+    maxTokens: 8000,
   });
+  const problem = placeholderProblem(result, "the script is unchanged");
+  if (problem) redirect(`/scripts/${script.id}?tab=script&flashErr=${encodeURIComponent(problem)}`);
 
   const words = countWords(result.content);
   await snapshotScript(script, "before script regenerate");
@@ -259,7 +267,11 @@ export async function humanizeAction(formData: FormData) {
       { role: "user", content: `Voice profile: ${voiceText(script)}\n\nScript to humanize:\n\n${script.body}` },
     ],
     workspaceId: script.channel.workspaceId,
+    timeoutMs: STUDIO_TIMEOUT_MS.rewrite,
+    maxTokens: 8000,
   });
+  const problem = placeholderProblem(result, "the script is unchanged");
+  if (problem) redirect(`/scripts/${script.id}?tab=script&flashErr=${encodeURIComponent(problem)}`);
 
   await db.scriptVersion.create({
     data: { scriptId: script.id, label: "pre-humanize", body: script.body, wordCount: script.wordCount },
@@ -295,7 +307,10 @@ export async function improveSelectionAction(formData: FormData) {
     system: systemForImprove(instruction),
     messages: [{ role: "user", content: selection }],
     workspaceId: script.channel.workspaceId,
+    timeoutMs: STUDIO_TIMEOUT_MS.short,
   });
+  const problem = placeholderProblem(result, "the passage is unchanged");
+  if (problem) redirect(`/scripts/${script.id}?tab=script&flashErr=${encodeURIComponent(problem)}`);
 
   const newBody = script.body.slice(0, start) + result.content.trim() + script.body.slice(end);
   const words = countWords(newBody);

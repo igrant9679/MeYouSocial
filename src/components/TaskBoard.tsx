@@ -28,16 +28,28 @@ const COLUMNS = [
   { key: "done", label: "Done", hue: "green" },
 ] as const;
 
+// The page keys this board on the tasks it was given, so a task added (or moved
+// elsewhere) on the server shows without a reload (VID-16).
 export function TaskBoard({ tasks: initial, wipLimit }: { tasks: BoardTask[]; wipLimit: number }) {
   const [tasks, setTasks] = useState(initial);
   const [dragId, setDragId] = useState<string | null>(null);
   const [overCol, setOverCol] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [, startTransition] = useTransition();
 
+  // Optimistic, then confirmed: a move the server refuses (or that fails) goes
+  // back where it was and says so, instead of looking done.
   const move = (id: string, status: string) => {
+    const before = tasks.find((t) => t.id === id)?.status;
+    if (!before || before === status) return;
+    setError(null);
     setTasks((ts) => ts.map((t) => (t.id === id ? { ...t, status } : t)));
-    startTransition(() => {
-      void moveTaskAction(id, status);
+    startTransition(async () => {
+      const ok = await moveTaskAction(id, status).then((r) => r?.ok === true, () => false);
+      if (!ok) {
+        setTasks((ts) => ts.map((t) => (t.id === id ? { ...t, status: before } : t)));
+        setError("That move didn't save — the task is back where it was. Reload if it keeps happening.");
+      }
     });
   };
 
@@ -45,6 +57,9 @@ export function TaskBoard({ tasks: initial, wipLimit }: { tasks: BoardTask[]; wi
     // 3 columns only when each gets ≥~215px of real width (container query =
     // zoom-aware) — md: viewport used to force 3×150px columns beside the rail.
     <div className="grid grid-cols-1 @2xl:grid-cols-3 gap-3">
+      {error && (
+        <p role="alert" className="@2xl:col-span-3 text-xs px-3 py-2 rounded-lg" style={{ background: "var(--rose-soft)", color: "var(--rose-on)" }}>{error}</p>
+      )}
       {COLUMNS.map((col) => {
         const items = tasks.filter((t) => t.status === col.key);
         const overWip = col.key === "in_progress" && items.length > wipLimit;

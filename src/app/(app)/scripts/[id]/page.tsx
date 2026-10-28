@@ -190,7 +190,7 @@ export default async function CanvasPage({
           {activeTab === "plan" ? (
             <PlanTab script={{ id: script.id, outline }} hasBody={!!script.body} />
           ) : (
-            <ScriptTab scriptId={script.id} body={script.body ?? ""} hasOutline={!!outline.markdown} />
+            <ScriptTab scriptId={script.id} body={script.body ?? ""} version={script.updatedAt.getTime()} hasOutline={!!outline.markdown} />
           )}
         </div>
 
@@ -325,7 +325,7 @@ function PlanField({ name, label, defaultValue }: { name: string; label: string;
   );
 }
 
-function ScriptTab({ scriptId, body, hasOutline }: { scriptId: string; body: string; hasOutline: boolean }) {
+function ScriptTab({ scriptId, body, version, hasOutline }: { scriptId: string; body: string; version: number; hasOutline: boolean }) {
   if (!body && !hasOutline) {
     return (
       <div className="text-center py-12">
@@ -347,5 +347,8 @@ function ScriptTab({ scriptId, body, hasOutline }: { scriptId: string; body: str
       </div>
     );
   }
-  return <ScriptEditor scriptId={scriptId} initialBody={body} />;
+  // Keyed on the row's updatedAt: a server rewrite (Humanize, Improve,
+  // Regenerate, a restore) remounts the editor on the new text instead of the
+  // next keystroke saving the old one back over it (VID-06).
+  return <ScriptEditor key={version} scriptId={scriptId} initialBody={body} />;
 }

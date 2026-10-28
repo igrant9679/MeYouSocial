@@ -1,3 +1,5 @@
+import { AutoRefresh } from "@/components/AutoRefresh";
+import { SCENE_SECONDS } from "@/lib/captions";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Captions, Clapperboard, Download, Film, Mic, Play, Plus, RotateCcw, Trash2 } from "lucide-react";
@@ -14,6 +16,7 @@ import {
   generateVoiceoverAction,
   processRenderNowAction,
   retryRenderAction,
+  cancelRenderAction,
   updateSceneAction,
 } from "@/app/actions/videos";
 import { AiAssist } from "@/components/AiAssist";
@@ -87,6 +90,13 @@ export default async function StoryboardPage({ params }: { params: Promise<{ id:
             <SubmitButton className="btn"><RotateCcw className="w-4 h-4" /> Retry (re-queue)</SubmitButton>
           </form>
         )}
+        {(render.status === "queued" || render.status === "rendering") && editor && (
+          <form action={cancelRenderAction}>
+            <input type="hidden" name="id" value={render.id} />
+            <SubmitButton className="btn" pendingText="Cancelling…">Cancel render</SubmitButton>
+          </form>
+        )}
+        {(render.status === "queued" || render.status === "rendering") && <AutoRefresh />}
         {render.status === "queued" && admin && (
           <form action={processRenderNowAction}>
             <input type="hidden" name="id" value={render.id} />
@@ -128,7 +138,10 @@ export default async function StoryboardPage({ params }: { params: Promise<{ id:
                   <AiAssist field="scene.prompt" target="prompt" label="Draft" className="!mt-0" />
                   <input name="text" defaultValue={scene.text ?? ""} placeholder="on-screen text (≤8 words)" className="w-full text-[11px]" />
                   <div className="flex items-center gap-2">
-                    <input name="seconds" type="number" min={2} max={env.VIDEO_MAX_SECONDS} defaultValue={scene.seconds} className="w-16 font-mono text-[11px]" aria-label="Seconds" />
+                    {/* Veo renders 4, 6 or 8 seconds (VID-11). */}
+                    <select name="seconds" defaultValue={scene.seconds} className="w-16 font-mono text-[11px]" aria-label="Seconds">
+                      {SCENE_SECONDS.filter((s) => s <= Math.max(4, env.VIDEO_MAX_SECONDS)).map((s) => <option key={s} value={s}>{s}</option>)}
+                    </select>
                     <span className="text-[10px] text-[var(--mute)]">sec</span>
                     <span className="flex-1" />
                     <SubmitButton className="btn sm">Save</SubmitButton>

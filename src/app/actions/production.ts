@@ -9,14 +9,16 @@ import { DEFAULT_AUTO_RULES } from "@/lib/auto-tasks";
  * Plain-args action for the drag-and-drop task board (client invokes it
  * directly, no form). Workspace-scoped like everything else.
  */
-export async function moveTaskAction(taskId: string, status: string) {
-  if (!["todo", "in_progress", "done"].includes(status)) return;
+/** Returns whether the task moved, so the board can roll back (VID-16). */
+export async function moveTaskAction(taskId: string, status: string): Promise<{ ok: boolean }> {
+  if (!["todo", "in_progress", "done"].includes(status)) return { ok: false };
   const { workspace } = await rr("EDITOR");
-  await prisma.task.updateMany({
+  const r = await prisma.task.updateMany({
     where: { id: taskId, workspaceId: workspace.id },
     data: { status },
   });
   rp("/production/tasks");
+  return { ok: r.count === 1 };
 }
 
 /** Admin: the auto-task rules + WIP limit, edited on the Tasks page. */

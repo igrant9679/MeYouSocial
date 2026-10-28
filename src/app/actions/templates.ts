@@ -6,6 +6,13 @@ import { db } from "@/lib/db";
 import { llm } from "@/lib/llm";
 import { youtubeFor } from "@/lib/youtube";
 import { writeJson } from "@/lib/db/json";
+import { STUDIO_TIMEOUT_MS, placeholderProblem } from "@/lib/studio-ai";
+
+/** A YouTube VIDEO id in a pasted reference, or null (a channel, a handle, text). */
+function videoIdOf(ref: string): string | null {
+  const m = ref.match(/[?&]v=([A-Za-z0-9_-]{11})/) ?? ref.match(/youtu\.be\/([A-Za-z0-9_-]{11})/) ?? ref.match(/\/(?:shorts|embed|live)\/([A-Za-z0-9_-]{11})/);
+  return m ? m[1] : null;
+}
 
 // Custom template by cloning a single video.
 // Combine 2–3 videos into one synthesized custom template.
@@ -26,14 +33,25 @@ export async function cloneTemplateAction(formData: FormData) {
   const channel = await db.channel.findFirst({ where: { id: channelId, workspaceId: workspace.id } });
   if (!channel) return;
 
-  // Pull transcripts for each reference. Reference can be a YouTube URL/handle.
+  // Pull transcripts for each reference. A video link is THAT video (VID-14:
+  // watch?v=… was read as the handle "@watch"); a channel or handle is its
+  // latest upload.
   const transcripts: { ref: string; transcript: string }[] = [];
+  const yt = youtubeFor(workspace.id);
   for (const ref of handles) {
-    const ch = await youtubeFor(workspace.id).findChannel(ref);
-    if (!ch) continue;
-    const videos = await youtubeFor(workspace.id).listVideos(ch.id, 1);
-    const t = videos[0] ? await youtubeFor(workspace.id).getTranscript(videos[0].id) : null;
+    const vid = videoIdOf(ref);
+    let videoId = vid;
+    if (!videoId) {
+      const ch = await yt.findChannel(ref);
+      if (!ch) continue;
+      videoId = (await yt.listVideos(ch.id, 1))[0]?.id ?? null;
+    }
+    const t = videoId ? await yt.getTranscript(videoId) : null;
     if (t) transcripts.push({ ref, transcript: t });
+  }
+  const back = `/channels/${channelId}/templates`;
+  if (transcripts.length === 0) {
+    (await import("next/navigation")).redirect(`${back}?flashErr=${encodeURIComponent("No transcript could be read from those references (captions off, private, or not a YouTube link), so no template was made. Try a video that has captions.")}`);
   }
 
   // Have the LLM produce a structured template: sections + pacing + transitions.
@@ -48,7 +66,10 @@ ${transcripts.length > 1 ? "Synthesize across all references — extract the com
       content: transcripts.map((t, i) => `--- Reference ${i + 1} (${t.ref}) ---\n${t.transcript.slice(0, 6_000)}`).join("\n\n"),
     }],
     workspaceId: workspace.id,
+    timeoutMs: STUDIO_TIMEOUT_MS.outline,
   });
+  const problem = placeholderProblem(completion, "no template was made");
+  if (problem) (await import("next/navigation")).redirect(`${back}?flashErr=${encodeURIComponent(problem)}`);
 
   const template = await db.template.create({
     data: {

@@ -134,3 +134,37 @@ export async function autoTaskForRenderFailure(workspaceId: string, render: { id
     dueInDays: 1,
   });
 }
+
+/**
+ * Close auto-tasks the pipeline has moved past (audit VID-16): a review task
+ * for an article no longer at review, an images task for one that published,
+ * a render-failed task for a render that has since finished or gone. Each
+ * auto-task's description carries its link, which is how it's matched — the
+ * titles change when articles are renamed. Idempotent; run by the cycle and
+ * when the Tasks page opens.
+ */
+export async function closeStaleAutoTasks(workspaceId: string): Promise<number> {
+  const open = await db.task.findMany({
+    where: { workspaceId, status: { not: "done" }, OR: [{ title: { startsWith: "Review: " } }, { title: { startsWith: "Images needed: " } }, { title: { startsWith: "Render failed: " } }] },
+    select: { id: true, title: true, description: true },
+    take: 200,
+  });
+  const stale: string[] = [];
+  for (const t of open) {
+    const d = t.description ?? "";
+    const post = d.match(/\/blog\/([A-Za-z0-9]+)\?tab=(review|assets)/);
+    if (post) {
+      const p = await db.blogPost.findFirst({ where: { id: post[1], workspaceId }, select: { status: true } });
+      if (!p || (post[2] === "review" ? p.status !== "draft_review" : p.status === "published")) stale.push(t.id);
+      continue;
+    }
+    const render = d.match(/\/videos\/([A-Za-z0-9]+)/);
+    if (render && t.title.startsWith("Render failed: ")) {
+      const r = await db.videoRender.findFirst({ where: { id: render[1], workspaceId }, select: { status: true } });
+      if (!r || r.status === "done") stale.push(t.id);
+    }
+  }
+  if (!stale.length) return 0;
+  const r = await db.task.updateMany({ where: { id: { in: stale }, workspaceId }, data: { status: "done" } });
+  return r.count;
+}

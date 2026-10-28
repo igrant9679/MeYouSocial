@@ -4,7 +4,8 @@ import { requireMembership, canAdmin, canEdit } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { env } from "@/lib/env";
 import { SubmitButton } from "@/components/SubmitButton";
-import { deleteRenderAction, processRenderNowAction, retryRenderAction, setRenderTopicAction } from "@/app/actions/videos";
+import { cancelRenderAction, deleteRenderAction, processRenderNowAction, retryRenderAction, setRenderTopicAction } from "@/app/actions/videos";
+import { AutoRefresh } from "@/components/AutoRefresh";
 import { getVideoProviderSetting } from "@/lib/video";
 import { renderStandaloneBrandedShortAction, deleteBrandedShortAction } from "@/app/actions/branded-video";
 import { brandedShortReadiness } from "@/lib/branded-video";
@@ -171,6 +172,7 @@ export default async function VideosPage() {
         )}
       </div>
 
+      {renders.some((r) => r.status === "queued" || r.status === "rendering") && <AutoRefresh />}
       {renders.length === 0 ? (
         <EmptyState
           line="No videos have been rendered yet."
@@ -197,6 +199,12 @@ export default async function VideosPage() {
                   <form action={retryRenderAction}>
                     <input type="hidden" name="id" value={r.id} />
                     <SubmitButton className="btn sm" pendingText="Queuing…">Retry</SubmitButton>
+                  </form>
+                )}
+                {editor && (r.status === "queued" || r.status === "rendering") && (
+                  <form action={cancelRenderAction}>
+                    <input type="hidden" name="id" value={r.id} />
+                    <SubmitButton className="btn sm" pendingText="Cancelling…">Cancel</SubmitButton>
                   </form>
                 )}
                 {admin && r.status === "queued" && (
@@ -235,15 +243,16 @@ export default async function VideosPage() {
                 </p>
               )}
               <p className="text-xs text-[var(--slate)] mb-2">{r.prompt}</p>
-              {/* The assembled cut is the real deliverable; `outputUrl` is only
-                  scene 1 on a multi-scene board, so it never wins here. */}
-              {r.status === "done" && (r.assembledUrl || r.outputUrl) && (
-                <video src={r.assembledUrl ?? r.outputUrl!} controls preload="metadata" className="rounded-lg max-h-72 border border-[var(--line)]" />
+              {/* The assembled cut is the real deliverable; then our stored copy;
+                  `outputUrl` (scene 1 on a multi-scene board, and Veo's link
+                  expires in ~2 days) only when we hold nothing (VID-10). */}
+              {r.status === "done" && (r.assembledUrl || r.storedUrl || r.outputUrl) && (
+                <video src={r.assembledUrl ?? r.storedUrl ?? r.outputUrl!} controls preload="metadata" className="rounded-lg max-h-72 border border-[var(--line)]" />
               )}
               {r.status === "done" && r.assembledUrl && (
                 <p className="font-mono text-[10px] text-[var(--mute)] mt-1">full cut · all scenes assembled</p>
               )}
-              {r.status === "done" && r.provider === "veo" && (
+              {r.status === "done" && r.provider === "veo" && !r.storedUrl && !r.assembledUrl && (
                 <p className="text-[10px] text-[var(--mute)] mt-1">
                   Veo output links expire after ~2 days and need the Google key for retrieval — download promptly.
                 </p>

@@ -4,7 +4,6 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireRole } from "@/lib/acl";
 import { db } from "@/lib/db";
-import { llm } from "@/lib/llm";
 import { readJson, writeJson } from "@/lib/db/json";
 
 // Closes the last batch of [Could] FRs.
@@ -19,34 +18,46 @@ export async function scoreThumbnailAction(formData: FormData) {
     include: { channel: true },
   });
   if (!thumb) return;
+  const back = `/thumbnails/${thumb.id}`;
+  const refuse = (why: string) => redirect(`${back}?flashErr=${encodeURIComponent(why)}`);
+  if (!thumb.renderUrl) refuse("Render the thumbnail first — the score is read from the image itself.");
 
-  // The mock LLM produces a stable score from prompt characteristics. The real
-  // provider (when wired) returns a scored critique.
-  const result = await llm.complete({
-    model: thumb.channel.defaultModel ?? "",
-    system: `Score a YouTube thumbnail against CTR principles. Return a JSON-ish line:
-score=<0-100>; contrast=<low|medium|high>; readability=<poor|ok|strong>; oneline=<short critique with one specific fix>.`,
-    messages: [{
-      role: "user",
-      content: `Title: ${thumb.title}\nMode: ${thumb.mode}\nConcepts: ${(thumb.concepts ?? "").slice(0, 1000)}\nRendered URL: ${thumb.renderUrl ?? "(none)"}`,
-    }],
-    workspaceId: workspace.id,
-  });
-  // Pull the first integer out as the canonical score
-  const numMatch = result.content.match(/score\s*=\s*(\d+)/i) ?? result.content.match(/(\d{2,3})/);
-  const score = numMatch ? Math.min(100, Math.max(0, Number(numMatch[1]))) : 50;
+  // ⚠ VID-08: a TEXT model scored the title and concept notes — it never saw the
+  // picture — and a reply without a number was stored as 50. Now a vision model
+  // looks at the rendered image; no image, no vision key or no number = no score.
+  const { askAboutImage, fetchReferenceImage } = await import("@/lib/vision");
+  const url = thumb.renderUrl!;
+  let image: { bytes: Buffer; mimeType: string; source: string } | null = null;
+  const own = url.match(/^\/(?:api\/files|uploads)\/(.+)$/);
+  if (own) {
+    const { storage } = await import("@/lib/storage");
+    const bytes = await storage.get(decodeURIComponent(own[1])).catch(() => null);
+    if (bytes) image = { bytes, mimeType: /\.jpe?g$/i.test(own[1]) ? "image/jpeg" : /\.webp$/i.test(own[1]) ? "image/webp" : "image/png", source: url };
+  } else {
+    image = await fetchReferenceImage(url);
+  }
+  if (!image) refuse("The rendered image couldn't be opened, so it wasn't scored.");
+  let critique = "";
+  try {
+    critique = await askAboutImage(image!, `Score this YouTube thumbnail for click-through, judging only what you can see. Reply on one line exactly as:
+score=<0-100>; contrast=<low|medium|high>; readability=<poor|ok|strong>; oneline=<a short critique with one specific fix>.
+The video's title: ${thumb.title ?? "(none)"}`, workspace.id);
+  } catch {
+    refuse("Scoring needs a Google or OpenAI key (Settings → Keys) — a model has to see the image.");
+  }
+  const numMatch = critique.match(/score\s*=\s*(\d{1,3})/i);
+  if (!numMatch) refuse("The model looked but gave no score, so none was recorded.");
+  const score = Math.min(100, Math.max(0, Number(numMatch![1])));
 
+  // The critique rides on the concepts JSON. Read the list out of either shape
+  // first — re-scoring nested the object inside itself and hid every concept.
+  const blob = readJson<unknown>(thumb.concepts, []);
+  const items = Array.isArray(blob) ? blob : ((blob as { items?: unknown[] })?.items ?? []);
   await db.thumbnail.update({
     where: { id: thumb.id },
-    data: { ctrScore: score },
+    data: { ctrScore: score, concepts: writeJson({ items, critique }) as string },
   });
-  // Stash the critique on the concepts JSON so the UI can show it
-  const concepts = readJson<Array<{ id: string; label: string; description: string; url: string }>>(thumb.concepts, []);
-  await db.thumbnail.update({
-    where: { id: thumb.id },
-    data: { concepts: writeJson({ items: concepts, critique: result.content }) as string },
-  });
-  revalidatePath(`/thumbnails/${thumb.id}`);
+  revalidatePath(back);
 }
 
 // ── — Brand-asset settings per channel ──────────────────────

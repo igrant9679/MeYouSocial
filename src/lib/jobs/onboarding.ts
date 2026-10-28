@@ -246,8 +246,11 @@ export function registerOnboardingJobs() {
 
     // surface own-channel perf trends into idea generation.
     let perfHint = "";
-    if (channel.channelStats.length > 0) {
-      const top = channel.channelStats.slice(0, 5);
+    // Only rows tied to a real YouTube video id — the rest were invented by the
+    // old "Sync stats now" (VID-08), and must not steer ideas as "retention".
+    const realStats = channel.channelStats.filter((s) => /^[A-Za-z0-9_-]{11}$/.test(s.videoYoutubeId ?? ""));
+    if (realStats.length > 0) {
+      const top = realStats.slice(0, 5);
       const avgRet = top.reduce((a, s) => a + (s.retentionProxy ?? 0), 0) / top.length;
       perfHint = `\nOwn-channel performance hint: avg retention ${(avgRet * 100).toFixed(0)}% across the last ${top.length} tracked uploads. Bias new ideas toward formats that hold attention.`;
     }

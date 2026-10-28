@@ -18,6 +18,9 @@ export async function launchAgentAction(formData: FormData) {
     where: { id: scriptId, channel: { workspaceId: workspace.id } },
   });
   if (!script) return;
+  // One run at a time per script — a double click used to queue two paid runs.
+  const active = await db.agentRun.findFirst({ where: { scriptId: script.id, status: { in: ["queued", "running"] } }, select: { id: true } });
+  if (active) redirect(`/scripts/${script.id}?flashErr=${encodeURIComponent("Agent Mode is already running on this script — wait for it to finish, or cancel it first.")}`);
   const limit = await softLimitProblem("agentRun", workspace.id, user.id);
   if (limit) redirect(`/scripts/${script.id}?flashErr=${encodeURIComponent(limit)}`);
 
@@ -34,8 +37,9 @@ export async function launchAgentAction(formData: FormData) {
 export async function cancelAgentAction(formData: FormData) {
   const runId = String(formData.get("runId"));
   const { workspace } = await requireRole("EDITOR");
+  // Only a run that hasn't finished can be cancelled (a finished one keeps its result).
   await db.agentRun.updateMany({
-    where: { id: runId, script: { channel: { workspaceId: workspace.id } } },
+    where: { id: runId, status: { in: ["queued", "running"] }, script: { channel: { workspaceId: workspace.id } } },
     data: { status: "cancelled", endedAt: new Date() },
   });
   const scriptId = String(formData.get("scriptId"));

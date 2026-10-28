@@ -4,47 +4,24 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireRole } from "@/lib/acl";
 import { db } from "@/lib/db";
-import { llm } from "@/lib/llm";
-import { youtubeFor } from "@/lib/youtube";
+import { durationSeconds } from "@/lib/canvas/duration";
 import { writeJson, readJson } from "@/lib/db/json";
 
 // ── — Sync published-video stats into Content Projects ───────────
 
-/** Generates a ChannelStat row for a project. In mock mode this fabricates plausible numbers;
- *  with USE_MOCK_YOUTUBE=false the real YouTube provider will be used. */
+/**
+ * ⚠ Audit VID-08: this wrote views, retention and engagement computed from a
+ * HASH of the project id — invented numbers shown as the video's performance
+ * (and fed to idea generation as "own-channel retention"). A project has no
+ * link to its published YouTube video yet, so there is nothing real to read:
+ * it records nothing and says so.
+ */
 export async function syncStatsAction(formData: FormData) {
   const projectId = String(formData.get("projectId"));
   const { workspace } = await requireRole("EDITOR");
-  const project = await db.contentProject.findFirst({
-    where: { id: projectId, channel: { workspaceId: workspace.id } },
-    include: { channel: true, script: true },
-  });
+  const project = await db.contentProject.findFirst({ where: { id: projectId, channel: { workspaceId: workspace.id } }, select: { id: true } });
   if (!project) return;
-
-  // For demo: hash project id to a stable but varied numbers; with real YT, swap in a fetch.
-  const seed = [...project.id].reduce((a, c) => (a * 31 + c.charCodeAt(0)) | 0, 0);
-  const abs = Math.abs(seed);
-  const views = 1000 + (abs % 250_000);
-  const retention = 0.35 + ((abs % 40) / 100); // 35-75%
-  const engagement = 0.01 + ((abs % 8) / 100); // 1-9%
-
-  // In a real wiring we'd resolve project -> youtube video id and call youtube.fetchStats(...)
-  if (!process.env.USE_MOCK_YOUTUBE || process.env.USE_MOCK_YOUTUBE === "true") {
-    // mock path
-  } else if (project.channel.linkedYoutubeId) {
-    await youtubeFor(workspace.id).listVideos(project.channel.linkedYoutubeId, 1); // placeholder hook
-  }
-
-  await db.channelStat.create({
-    data: {
-      channelId: project.channelId,
-      videoYoutubeId: project.script?.id ?? null,
-      views: BigInt(views),
-      retentionProxy: retention,
-      engagement,
-    },
-  });
-  revalidatePath(`/production/projects/${projectId}`);
+  (await import("next/navigation")).redirect(`/production/projects/${project.id}?flashErr=${encodeURIComponent("Stats can't be synced yet: a project isn't linked to its published YouTube video, so there's nothing real to read. Nothing was recorded.")}`);
 }
 
 // ── — Idea / ContentProject merit tags ──────────────────────────
@@ -91,25 +68,28 @@ export async function setProjectKeywordsAction(formData: FormData) {
 
 // ── — chapter markers ────────────────────────────────────────────
 
-/** Generate YouTube-style chapter markers from the script outline + body. */
+/**
+ * Chapter markers COMPUTED from the script (audit VID-08): each section heading
+ * (a bold line or a # heading) at the speaking time of the words before it —
+ * the same words-per-minute the canvas shows. A model used to guess the
+ * timestamps. YouTube needs the first at 00:00, at least three, 10 s apart.
+ */
 export async function generateChapterMarkersAction(formData: FormData) {
   const scriptId = String(formData.get("scriptId"));
   const { workspace } = await requireRole("EDITOR");
   const script = await db.script.findFirst({
     where: { id: scriptId, channel: { workspaceId: workspace.id } },
-    include: { channel: true },
+    select: { id: true, body: true, outline: true },
   });
   if (!script || !script.body) return;
 
-  const completion = await llm.complete({
-    model: script.model ?? script.channel.defaultModel ?? "",
-    system: `Produce YouTube chapter markers for a video script. Output ONLY the timestamps, one per line in the format "MM:SS Chapter title". The first must be "00:00 Introduction" (or similar). Estimate timing at ~150 wpm.`,
-    messages: [{ role: "user", content: `Title: ${script.title}\nScript:\n${script.body.slice(0, 10_000)}` }],
-    workspaceId: workspace.id,
-  });
+  const chapters = chaptersFromScript(script.body);
+  if (chapters.length < 3) {
+    (await import("next/navigation")).redirect(`/scripts/${script.id}/publish?flashErr=${encodeURIComponent("Chapters need at least three section headings in the script, 10 seconds apart (bold lines or # headings). Add them on the Canvas and try again.")}`);
+  }
 
   const outline = readJson<{ markdown?: string; questions?: unknown; publish?: Record<string, string> }>(script.outline ?? null, {});
-  outline.publish = { ...(outline.publish ?? {}), chapters: completion.content };
+  outline.publish = { ...(outline.publish ?? {}), chapters: chapters.join("\n") };
   await db.script.update({ where: { id: script.id }, data: { outline: writeJson(outline) } });
   revalidatePath(`/scripts/${scriptId}/publish`);
 }
@@ -209,4 +189,28 @@ export async function promoteSubmissionAction(formData: FormData) {
   revalidatePath(`/channels/${sub.channelId}/submissions`);
   revalidatePath(`/channels/${sub.channelId}/ideas`);
   revalidatePath("/ideas");
+}
+
+function clock(seconds: number): string {
+  const h = Math.floor(seconds / 3600), m = Math.floor((seconds % 3600) / 60), sec = seconds % 60;
+  const p = (n: number) => String(n).padStart(2, "0");
+  return h > 0 ? `${h}:${p(m)}:${p(sec)}` : `${p(m)}:${p(sec)}`;
+}
+
+/** "MM:SS Title" lines from a script's headings, timed by the words before each. */
+function chaptersFromScript(body: string): string[] {
+  const out: Array<{ at: number; title: string }> = [];
+  let words = 0;
+  for (const line of body.split(/\r?\n/)) {
+    const t = line.trim();
+    const heading = t.match(/^#{1,6}\s+(.+)$/)?.[1] ?? t.match(/^\*\*(.+?)\*\*:?$/)?.[1];
+    if (heading) {
+      const title = heading.replace(/[*_`]/g, "").replace(/^\d+[.)]\s*/, "").trim().slice(0, 80);
+      const at = out.length === 0 ? 0 : durationSeconds(words);
+      if (title && (out.length === 0 || at - out[out.length - 1].at >= 10)) out.push({ at, title });
+      continue;
+    }
+    words += t ? t.split(/\s+/).length : 0;
+  }
+  return out.map((c) => `${clock(c.at)} ${c.title}`);
 }

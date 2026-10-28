@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { llm } from "@/lib/llm";
 import { getSearchProvider } from "@/lib/search";
 import { youtubeFor } from "@/lib/youtube";
+import { placeholderProblem } from "@/lib/studio-ai";
 
 // /..04 — Deep AI Research tool.
 // Multi-source: web search + (optionally) competitor YT channels + LLM synthesis.
@@ -75,6 +76,8 @@ Stay within ~${Math.round(budget / 6)} words.`,
     workspaceId: workspace.id,
   });
 
+  const problem = placeholderProblem(completion, "no report was saved");
+  if (problem) (await import("next/navigation")).redirect(`/channels/${channelId}/research?flashErr=${encodeURIComponent(problem)}`);
   const research = await db.researchSource.create({
     data: {
       channelId,

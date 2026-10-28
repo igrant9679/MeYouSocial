@@ -152,20 +152,13 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
         {/* Performance */}
         <section className="card">
           <h2 className="font-mono font-bold text-[14px] mb-3 flex items-center gap-2"><BarChart3 className="w-4 h-4" style={{ color: "#2563EB" }} /> Performance</h2>
-          {stat ? (
-            <div className="grid grid-cols-3 gap-3 mb-3">
-              <Metric label="Views" value={formatNum(stat.views)} color="#2563EB" />
-              <Metric label="Retention" value={((stat.retentionProxy ?? 0) * 100).toFixed(0) + "%"} color="#15924B" />
-              <Metric label="Engagement" value={((stat.engagement ?? 0) * 100).toFixed(1) + "%"} color="#D97706" />
-            </div>
-          ) : (
-            <p className="text-xs text-[var(--mute)] mb-3">No stats yet — sync once the video is published.</p>
-          )}
-          <form action={syncStatsAction}>
-            <input type="hidden" name="projectId" value={project.id} />
-            <button type="submit" className="btn sm flex items-center gap-1.5"><RefreshCw className="w-3.5 h-3.5" /> Sync stats now</button>
-          </form>
-          {stat && <p className="text-[10px] font-mono text-[var(--mute)] mt-2">Last synced {new Date(stat.capturedAt).toLocaleString()}</p>}
+          {/* VID-08: the only rows here were invented by "Sync stats now" (a hash
+              of the project id), and a project isn't linked to its YouTube
+              video, so nothing real can be shown yet. */}
+          <p className="text-xs text-[var(--mute)]">
+            No performance numbers: a project isn&apos;t linked to its published YouTube video yet, so there&apos;s nothing real to read.
+            Channel-level numbers are under Measure.
+          </p>
         </section>
 
         {/* Task progress rollup */}

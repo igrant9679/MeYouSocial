@@ -5,6 +5,21 @@
  * video actually shows.
  */
 
+import { env } from "@/lib/env";
+
+/**
+ * Veo renders 4, 6 or 8 seconds (audit VID-11). No length was sent, so every
+ * clip came back at the provider's default while the SRT and the cost used the
+ * board's numbers. Scenes are snapped on read to the nearest valid length
+ * within VIDEO_MAX_SECONDS (a tie rounds up), so the board, the request, the
+ * captions and the estimate agree.
+ */
+export const SCENE_SECONDS = [4, 6, 8] as const;
+export function snapSceneSeconds(n: number): number {
+  const allowed = SCENE_SECONDS.filter((s) => s <= Math.max(4, env.VIDEO_MAX_SECONDS));
+  return allowed.reduce((best, s) => (Math.abs(s - n) <= Math.abs(best - n) ? s : best), allowed[0]);
+}
+
 export type StoryScene = {
   prompt: string;
   seconds: number;
@@ -22,7 +37,7 @@ export function parseScenes(json: string | null | undefined): StoryScene[] {
       .filter((s): s is Record<string, unknown> => !!s && typeof s === "object")
       .map((s) => ({
         prompt: typeof s.prompt === "string" ? s.prompt : "",
-        seconds: Number.isFinite(Number(s.seconds)) && Number(s.seconds) > 0 ? Math.round(Number(s.seconds)) : 6,
+        seconds: snapSceneSeconds(Number.isFinite(Number(s.seconds)) && Number(s.seconds) > 0 ? Number(s.seconds) : 6),
         text: typeof s.text === "string" ? s.text : null,
         outputUrl: typeof s.outputUrl === "string" ? s.outputUrl : null,
         status: typeof s.status === "string" ? s.status : "planned",

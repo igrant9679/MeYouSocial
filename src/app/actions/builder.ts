@@ -9,6 +9,14 @@ import { systemForScript } from "@/lib/canvas/prompts";
 import { countWords, durationSeconds, MAX_WORDS } from "@/lib/canvas/duration";
 import { RESEARCH_DEPTHS } from "@/lib/canvas/builder-const";
 import { cleanTitle } from "@/lib/list-marker";
+import { STUDIO_TIMEOUT_MS, placeholderProblem, templateBlock } from "@/lib/studio-ai";
+import type { LLMResponse } from "@/lib/llm";
+
+/** Stop before writing a placeholder (VID-05): back to the builder, saying why. */
+async function refusePlaceholder(scriptId: string, res: LLMResponse, what: string): Promise<void> {
+  const problem = placeholderProblem(res, what);
+  if (problem) (await import("next/navigation")).redirect(`/scripts/${scriptId}/builder?flashErr=${encodeURIComponent(problem)}`);
+}
 
 //..12 — Script Builder Classic. 10-step alternative workflow:
 //   1 Research · 2 Frame · 3 Title · 4 Thumbnail · 5 Hook · 6 Payoffs · 7 Draft · 8 Edit · 9 Export · 10 Publish.
@@ -122,6 +130,7 @@ export async function suggestBuilderTitlesAction(formData: FormData) {
     messages: [{ role: "user", content: `Niche: ${script.channel.nicheDescription}\nFraming: ${JSON.stringify(state.frame)}\nResearch summary: ${state.research.items.map((i) => i.title).join("; ")}\nCurrent working title: ${script.title}` }],
     workspaceId: script.channel.workspaceId,
   });
+  await refusePlaceholder(scriptId, completion, "no titles were suggested");
   // cleanTitle, not /^[*\-\d.\s]+/: the greedy class also ate the sign off a
   // title that opens with one ("-40% in 30 days" → "40% in 30 days"), and left
   // wrapping quotes and ** alone (audit A3).
@@ -150,6 +159,7 @@ export async function suggestBuilderHooksAction(formData: FormData) {
     messages: [{ role: "user", content: `Title: ${state.title || script.title}\nNiche: ${script.channel.nicheDescription}\nFraming: ${JSON.stringify(state.frame)}` }],
     workspaceId: script.channel.workspaceId,
   });
+  await refusePlaceholder(scriptId, completion, "no hooks were suggested");
   state.hookVariants = completion.content.split(/---+/).map((s) => s.trim()).filter(Boolean).slice(0, 5);
   await save(scriptId, state);
 }
@@ -179,7 +189,7 @@ export async function setBuilderPayoffsAction(formData: FormData) {
 export async function generateBuilderDraftAction(formData: FormData) {
   const scriptId = String(formData.get("scriptId"));
   const { script, state } = await load(scriptId);
-  const templateName = script.template?.name ?? "Flexible";
+  const templateName = templateBlock(script.template);
 
   // Build a planned outline from payoffs.
   const sectionPlan = [
@@ -203,7 +213,10 @@ export async function generateBuilderDraftAction(formData: FormData) {
         { role: "user", content: `Generate ONLY the section titled "${heading}". \nTitle: ${state.title || script.title}\nHook (already chosen): ${state.hook}\nPayoffs: ${state.payoffs.join("; ")}` },
       ],
       workspaceId: script.channel.workspaceId,
+      timeoutMs: STUDIO_TIMEOUT_MS.outline,
     });
+    // Nothing is written until every section is real.
+    await refusePlaceholder(scriptId, completion, "the draft was not written");
     sections.push({ title: heading, content: completion.content });
   }
   state.sections = sections;
@@ -226,21 +239,39 @@ export async function regenerateBuilderSectionAction(formData: FormData) {
   if (!state.sections[sectionIndex]) return;
 
   const section = state.sections[sectionIndex];
+  // ⚠ VID-15: the body was rebuilt from the builder's stored sections, wiping
+  // every edit made on the Canvas since, and the model got only the heading.
+  // Now the section is found in the CURRENT body by its heading, its text is
+  // what gets rewritten, and only that span is replaced.
+  const current = script.body ?? "";
+  const heading = `**${section.title}**`;
+  const at = current.indexOf(heading);
+  if (at < 0) {
+    (await import("next/navigation")).redirect(`/scripts/${scriptId}/builder?flashErr=${encodeURIComponent(`“${section.title}” isn't a heading in the script any more (it was changed on the Canvas), so it can't be rewritten in place. Edit it on the Canvas instead.`)}`);
+  }
+  const from = at + heading.length;
+  const nextAt = state.sections.map((s) => current.indexOf(`**${s.title}**`, from)).filter((i) => i > 0);
+  const to = nextAt.length ? Math.min(...nextAt) : current.length;
+  const text = current.slice(from, to).trim();
   const completion = await llm.complete({
     model: script.model ?? script.channel.defaultModel ?? "",
     system: systemForScript({
       channelName: script.channel.name,
       niche: script.channel.nicheDescription ?? "",
       voice: voiceText(script),
-      template: script.template?.name ?? "Flexible",
+      template: templateBlock(script.template),
       lengthGuide: "2-3 minutes",
     }),
-    messages: [{ role: "user", content: `Rewrite ONLY this section titled "${section.title}". Title: ${state.title}` }],
+    messages: [{ role: "user", content: `Rewrite ONLY the section titled "${section.title}" of the video "${state.title || script.title}". Keep its point and its place in the script. Return only the new section text, without the heading.\n\nThe section as it stands:\n\n${text || "(empty)"}` }],
     workspaceId: script.channel.workspaceId,
+    timeoutMs: STUDIO_TIMEOUT_MS.outline,
   });
-  state.sections[sectionIndex] = { ...section, content: completion.content };
+  await refusePlaceholder(scriptId, completion, "the section is unchanged");
+  const content = completion.content.trim();
+  state.sections[sectionIndex] = { ...section, content };
 
-  const body = state.sections.map((s) => `**${s.title}**\n\n${s.content}`).join("\n\n");
+  const rest = current.slice(to).replace(/^\s+/, "");
+  const body = `${current.slice(0, from)}\n\n${content}${rest ? `\n\n${rest}` : ""}`;
   const words = countWords(body);
   const { snapshotScript } = await import("@/lib/script-versions");
   await snapshotScript(script, "before regenerating a section");
@@ -263,6 +294,7 @@ export async function generateBuilderPublishAction(formData: FormData) {
     messages: [{ role: "user", content: `Title: ${state.title || script.title}\nScript:\n${(script.body ?? "").slice(0, 6000)}` }],
     workspaceId: script.channel.workspaceId,
   });
+  await refusePlaceholder(scriptId, completion, "the publishing copy was not written");
   state.publish = { ...(state.publish ?? {}), description: completion.content };
   await save(scriptId, state);
 }

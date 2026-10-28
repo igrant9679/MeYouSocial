@@ -6,7 +6,7 @@ import { db } from "@/lib/db";
 import { assembleRenderCore, packageVideoCore, processRenderCore } from "@/lib/blog-autopilot";
 import { env } from "@/lib/env";
 import { estimateCostUsd } from "@/lib/video";
-import { parseScenes, scenesToNarration, scenesToSrt } from "@/lib/captions";
+import { parseScenes, scenesToNarration, scenesToSrt, snapSceneSeconds } from "@/lib/captions";
 import { getTtsProvider } from "@/lib/tts";
 import { isGloballyPaused, writeAudit } from "@/lib/governance";
 
@@ -70,6 +70,24 @@ export async function deleteRenderAction(formData: FormData) {
   revalidatePath("/videos");
 }
 
+/**
+ * Stop a queued or rendering board (audit VID-09). It becomes "failed" with a
+ * reason, so Retry picks it up later and renders only the scenes that didn't
+ * finish; a board mid-render stops before its next scene (processRenderCore
+ * checks between scenes and won't mark a cancelled board done).
+ */
+export async function cancelRenderAction(formData: FormData) {
+  const id = String(formData.get("id"));
+  const { workspace, user } = await requireRole("EDITOR");
+  const r = await db.videoRender.updateMany({
+    where: { id, workspaceId: workspace.id, status: { in: ["queued", "rendering"] } },
+    data: { status: "failed", error: `Cancelled by ${user.name ?? user.email}. Retry renders only the scenes that didn't finish.` },
+  });
+  if (r.count) await writeAudit({ workspaceId: workspace.id, actorId: user.id, action: "video.render_cancelled", entityType: "video_render", entityId: id });
+  revalidatePath("/videos");
+  revalidatePath(`/videos/${id}`);
+}
+
 /** Failed → queued again (clears the error; the daily cap still applies). */
 export async function retryRenderAction(formData: FormData) {
   const id = String(formData.get("id"));
@@ -102,7 +120,7 @@ export async function updateSceneAction(formData: FormData) {
   if (index < 0 || index >= scenes.length) return;
   const secondsRaw = parseInt(String(formData.get("seconds")), 10);
   const prompt = String(formData.get("prompt") ?? "").trim().slice(0, 2000) || scenes[index].prompt;
-  const seconds = Number.isFinite(secondsRaw) ? Math.max(2, Math.min(env.VIDEO_MAX_SECONDS, secondsRaw)) : scenes[index].seconds;
+  const seconds = Number.isFinite(secondsRaw) ? snapSceneSeconds(secondsRaw) : scenes[index].seconds;
   // A retry skips finished clips; a scene whose picture changed isn't finished.
   const changed = prompt !== scenes[index].prompt || seconds !== scenes[index].seconds;
   scenes[index] = {

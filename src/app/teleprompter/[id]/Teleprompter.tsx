@@ -18,7 +18,12 @@ export function Teleprompter({ body }: { body: string }) {
     function tick(now: number) {
       const dt = (now - last) / 1000;
       last = now;
-      if (ref.current) ref.current.scrollTop += scrollSpeed * dt;
+      const el = ref.current;
+      if (el) {
+        el.scrollTop += scrollSpeed * dt;
+        // At the end, stop rather than spin.
+        if (el.scrollTop + el.clientHeight >= el.scrollHeight - 1) { setPlaying(false); return; }
+      }
       raf.current = requestAnimationFrame(tick);
     }
     raf.current = requestAnimationFrame(tick);
@@ -26,10 +31,10 @@ export function Teleprompter({ body }: { body: string }) {
   }, [playing, scrollSpeed]);
 
   return (
-    <div className="flex-1 flex flex-col relative">
+    <div className="flex-1 min-h-0 flex flex-col relative">
       <div
         ref={ref}
-        className="flex-1 overflow-auto px-12 py-32 text-center leading-[1.6] tracking-wide font-mono"
+        className="flex-1 min-h-0 overflow-auto px-12 py-32 text-center leading-[1.6] tracking-wide font-mono"
         style={{ fontSize, lineHeight: 1.5 }}
       >
         <div className="max-w-5xl mx-auto whitespace-pre-wrap">{body || "(empty script)"}</div>
@@ -51,10 +56,10 @@ export function Teleprompter({ body }: { body: string }) {
 
 function Slider({ label, value, min, max, step, unit, onChange }: { label: string; value: number; min: number; max: number; step: number; unit: string; onChange: (v: number) => void }) {
   return (
-    <label className="flex items-center gap-1.5">
-      <button type="button" onClick={() => onChange(Math.max(min, value - step))} className="w-7 h-7 rounded-full grid place-items-center bg-white/10 hover:bg-white/20"><Minus className="w-3.5 h-3.5" /></button>
+    <div className="flex items-center gap-1.5" role="group" aria-label={label}>
+      <button type="button" onClick={() => onChange(Math.max(min, value - step))} aria-label={`Less ${label.toLowerCase()}`} className="w-7 h-7 rounded-full grid place-items-center bg-white/10 hover:bg-white/20"><Minus className="w-3.5 h-3.5" /></button>
       <div className="text-xs font-mono text-white/80 w-16 text-center"><b>{label}</b><br /><span className="opacity-70">{value} {unit}</span></div>
-      <button type="button" onClick={() => onChange(Math.min(max, value + step))} className="w-7 h-7 rounded-full grid place-items-center bg-white/10 hover:bg-white/20"><Plus className="w-3.5 h-3.5" /></button>
-    </label>
+      <button type="button" onClick={() => onChange(Math.min(max, value + step))} aria-label={`More ${label.toLowerCase()}`} className="w-7 h-7 rounded-full grid place-items-center bg-white/10 hover:bg-white/20"><Plus className="w-3.5 h-3.5" /></button>
+    </div>
   );
 }

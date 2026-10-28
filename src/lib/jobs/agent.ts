@@ -39,10 +39,14 @@ export function registerAgentJobs() {
 
     // Build the step-state ledger
     const steps: StepState[] = STEPS.map((s) => ({ name: s, status: "queued" }));
-    await db.agentRun.update({
-      where: { id: runId },
+    // ⚠ Conditional (VID-07): a run cancelled while queued used to flip back to
+    // "running" here and finish. "running" stays claimable so a job retry after
+    // a crash can carry on; cancelled, failed and finished runs don't restart.
+    const started = await db.agentRun.updateMany({
+      where: { id: runId, status: { in: ["queued", "running"] } },
       data: { status: "running", startedAt: new Date(), steps: writeJson(steps), progress: 0 },
     });
+    if (started.count !== 1) return;
 
     async function mark(stepName: Step, patch: Partial<StepState>) {
       const idx = steps.findIndex((s) => s.name === stepName);
@@ -121,6 +125,7 @@ export function registerAgentJobs() {
         messages: [{ role: "user", content: `Title: ${script.title}\n\nResearch:\n${researchText}` }],
       });
       const outline = real(outlineRes, "outline");
+      if (await isCancelled()) return await finish("cancelled", "Cancelled before the outline was written.");
       await db.scriptVersion.create({ data: { scriptId: script.id, label: "agent: outline", outline } });
       const outlineJson = readJson<{ markdown?: string; questions?: unknown; publish?: unknown }>(script.outline ?? null, {});
       outlineJson.markdown = outline;
@@ -142,6 +147,7 @@ export function registerAgentJobs() {
         messages: [{ role: "user", content: `Outline:\n\n${outline}\n\nExpand into a full spoken-style script.` }],
       });
       let body = real(scriptRes, "script");
+      if (await isCancelled()) return await finish("cancelled", "Cancelled before the draft was written.");
       let wordCount = countWords(body);
       await db.scriptVersion.create({ data: { scriptId: script.id, label: "agent: script-draft", body, wordCount } });
       await db.script.update({ where: { id: script.id }, data: { body, wordCount: Math.min(wordCount, MAX_WORDS), durationSeconds: durationSeconds(wordCount), status: "draft" } });
@@ -156,6 +162,7 @@ export function registerAgentJobs() {
         messages: [{ role: "user", content: body }],
       });
       body = real(retention, "retention");
+      if (await isCancelled()) return await finish("cancelled", "Cancelled mid-QA.");
       wordCount = countWords(body);
       await db.script.update({ where: { id: script.id }, data: { body, wordCount: Math.min(wordCount, MAX_WORDS), durationSeconds: durationSeconds(wordCount) } });
       if (await isCancelled()) return await finish("cancelled", "Cancelled mid-QA.");
@@ -169,6 +176,7 @@ export function registerAgentJobs() {
         messages: [{ role: "user", content: `Voice: ${voice}\n\nScript:\n${body}` }],
       });
       body = real(humanized, "humanize");
+      if (await isCancelled()) return await finish("cancelled", "Cancelled mid-QA.");
       wordCount = countWords(body);
       await db.scriptVersion.create({ data: { scriptId: script.id, label: "agent: humanized", body, wordCount } });
       await db.script.update({ where: { id: script.id }, data: { body, wordCount: Math.min(wordCount, MAX_WORDS), durationSeconds: durationSeconds(wordCount) } });
@@ -183,6 +191,7 @@ export function registerAgentJobs() {
         messages: [{ role: "user", content: body }],
       });
       body = real(dedup, "repetition");
+      if (await isCancelled()) return await finish("cancelled", "Cancelled mid-QA.");
       wordCount = countWords(body);
       await db.script.update({ where: { id: script.id }, data: { body, wordCount: Math.min(wordCount, MAX_WORDS), durationSeconds: durationSeconds(wordCount) } });
       if (await isCancelled()) return await finish("cancelled", "Cancelled mid-QA.");
@@ -196,6 +205,7 @@ export function registerAgentJobs() {
         messages: [{ role: "user", content: body }],
       });
       body = real(vo, "voiceover");
+      if (await isCancelled()) return await finish("cancelled", "Cancelled before the voiceover pass was written.");
       wordCount = countWords(body);
       await db.scriptVersion.create({ data: { scriptId: script.id, label: "agent: voiceover-ready", body, wordCount } });
       await db.script.update({ where: { id: script.id }, data: { body, wordCount: Math.min(wordCount, MAX_WORDS), durationSeconds: durationSeconds(wordCount), status: "ready" } });
@@ -204,17 +214,21 @@ export function registerAgentJobs() {
       await finish("succeeded");
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
-      await db.agentRun.update({
-        where: { id: runId },
+      // Only a run still running fails — a cancel stays a cancel.
+      await db.agentRun.updateMany({
+        where: { id: runId, status: "running" },
         data: { status: "failed", endedAt: new Date(), error: message },
       });
     }
 
     async function finish(state: "succeeded" | "cancelled", note?: string) {
-      await db.agentRun.update({
-        where: { id: runId },
+      // Conditional (VID-07): finishing used to overwrite "cancelled" with
+      // "succeeded". A cancelled run keeps its status; only its end time is set.
+      const done = await db.agentRun.updateMany({
+        where: { id: runId, status: state === "succeeded" ? "running" : { in: ["running", "cancelled"] } },
         data: { status: state, endedAt: new Date(), progress: state === "succeeded" ? 1 : run!.progress },
       });
+      if (done.count !== 1) return;
       // Email on completion — through the WORKSPACE's mailer, not the bare
       // app-level `email` export. The bare export skips Unipile (it has no
       // workspace to resolve a mailbox for), and Railway blocks SMTP, so this

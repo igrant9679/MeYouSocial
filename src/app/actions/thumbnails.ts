@@ -9,7 +9,27 @@ import { images } from "@/lib/images";
 import { describeImageStyle, fetchReferenceImage } from "@/lib/vision";
 import { readJson, writeJson } from "@/lib/db/json";
 import { stripListMarker } from "@/lib/list-marker";
-import { softLimitProblem } from "@/lib/soft-limits";
+import { monthStartUtc, softLimitProblem } from "@/lib/soft-limits";
+import { placeholderProblem } from "@/lib/studio-ai";
+
+/** The channel's thumbnail brand settings as one prompt line (VID-13), or "". */
+function brandLine(config: string | null): string {
+  const c = readJson<Record<string, string>>(config, {});
+  const parts = [
+    c.palette && `palette ${c.palette}`,
+    c.typography && `typography ${c.typography}`,
+    c.facePosition && `face position ${c.facePosition}`,
+    c.styleNotes && `style: ${c.styleNotes}`,
+  ].filter(Boolean);
+  return parts.length ? `Channel brand — ${parts.join("; ")}.` : "";
+}
+
+/** The channel's own monthly thumbnail cap (Channel settings), as a refusal or null. */
+async function channelCapProblem(channel: { id: string; limitThumbnailsPerMonth: number | null }): Promise<string | null> {
+  if (!channel.limitThumbnailsPerMonth) return null;
+  const n = await db.thumbnail.count({ where: { channelId: channel.id, createdAt: { gte: monthStartUtc() } } });
+  return n >= channel.limitThumbnailsPerMonth ? `This channel is at its limit of ${channel.limitThumbnailsPerMonth} thumbnail sets this month (set in its thumbnail settings).` : null;
+}
 
 type Concept = { id: string; label: string; description: string; url: string; sawReference?: boolean };
 
@@ -23,8 +43,9 @@ export async function brainstormThumbnailsAction(formData: FormData) {
 
   const channel = await db.channel.findFirst({ where: { id: channelId, workspaceId: workspace.id } });
   if (!channel) return;
-  const limit = await softLimitProblem("thumbnail", workspace.id, user.id);
+  const limit = (await softLimitProblem("thumbnail", workspace.id, user.id)) ?? (await channelCapProblem(channel));
   if (limit) (await import("next/navigation")).redirect(`/thumbnails?flashErr=${encodeURIComponent(limit)}`);
+  const brand = brandLine(channel.thumbnailConfig);
 
   // 1) Generate four concept descriptions via the LLM router.
   const completion = await llm.complete({
@@ -32,9 +53,12 @@ export async function brainstormThumbnailsAction(formData: FormData) {
     system: `Produce 4 sharply distinct YouTube thumbnail concepts for the given video.
 Return EXACTLY 4 numbered lines: "LABEL — short visual brief".
 LABELs should cover 4 proven formats: 1) Face + reaction, 2) Object + tight crop, 3) Big text + arrow, 4) Before/After split.`,
-    messages: [{ role: "user", content: `Title: ${title}\nTopic: ${topic}\nNiche: ${channel.nicheDescription}` }],
+    messages: [{ role: "user", content: `Title: ${title}\nTopic: ${topic}\nNiche: ${channel.nicheDescription}${brand ? `\n${brand}` : ""}` }],
     workspaceId: workspace.id,
   });
+  // Mock concepts would be drawn — and paid for — as four real images (VID-05).
+  const problem = placeholderProblem(completion, "no concepts were drawn and nothing was paid for");
+  if (problem) (await import("next/navigation")).redirect(`/thumbnails?flashErr=${encodeURIComponent(problem)}`);
 
   // stripListMarker, not the greedy class: the em-dash split below needs the
   // rest of the line intact (audit A3).
@@ -51,7 +75,7 @@ LABELs should cover 4 proven formats: 1) Face + reaction, 2) Object + tight crop
     const label = labelRaw || "Concept";
     const brief = briefRaw || line;
     const img = await images.generate({
-      prompt: `YouTube thumbnail, 1280x720. Concept: ${label}. Visual brief: ${brief}. Video title: ${title}.`,
+      prompt: `YouTube thumbnail, 1280x720. Concept: ${label}. Visual brief: ${brief}. Video title: ${title}.${brand ? ` ${brand}` : ""}`,
       aspectRatio: "16:9",
       workspaceId: workspace.id,
     });
@@ -126,7 +150,7 @@ export async function cloneThumbnailAction(formData: FormData) {
   const { workspace, user } = await requireRole("EDITOR");
   const channel = await db.channel.findFirst({ where: { id: parsed.data.channelId, workspaceId: workspace.id } });
   if (!channel) return;
-  const limit = await softLimitProblem("thumbnail", workspace.id, user.id);
+  const limit = (await softLimitProblem("thumbnail", workspace.id, user.id)) ?? (await channelCapProblem(channel));
   if (limit) (await import("next/navigation")).redirect(`/thumbnails?flashErr=${encodeURIComponent(limit)}`);
 
   // ── Actually LOOK at the reference ────────────────────────────────────────
@@ -153,9 +177,10 @@ export async function cloneThumbnailAction(formData: FormData) {
   const prompt = sawReference
     ? `Render a YouTube thumbnail in this reference style:\n${styleNote.slice(0, 1200)}\nVideo title: ${parsed.data.title}.`
     : `Render a bold, high-contrast YouTube thumbnail for the video title: ${parsed.data.title}.`;
+  const brand = brandLine(channel.thumbnailConfig);
 
   const img = await images.generate({
-    prompt,
+    prompt: brand ? `${prompt}\n${brand}` : prompt,
     aspectRatio: "16:9",
     referenceUrl: parsed.data.referenceUrl,
     workspaceId: workspace.id,

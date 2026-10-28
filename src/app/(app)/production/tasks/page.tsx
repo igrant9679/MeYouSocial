@@ -5,7 +5,7 @@ import { requireMembership, canAdmin } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { createTaskAction, saveAutoTaskRulesAction } from "@/app/actions/production";
 import { TaskBoard } from "@/components/TaskBoard";
-import { getAutoTaskRules } from "@/lib/auto-tasks";
+import { closeStaleAutoTasks, getAutoTaskRules } from "@/lib/auto-tasks";
 
 // The production task board: drag-and-drop kanban with a WIP limit, aging
 // flags, per-person capacity, and the auto-task rules that turn pipeline
@@ -15,6 +15,8 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
   const { workspace, user, membership } = await requireMembership();
   const { mine } = await searchParams;
   const admin = canAdmin(membership.role);
+  // Auto-tasks the pipeline has moved past close before the board is read (VID-16).
+  await closeStaleAutoTasks(workspace.id).catch(() => 0);
   const where = {
     workspaceId: workspace.id,
     ...(mine === "1" ? { assigneeId: user.id } : {}),
@@ -79,6 +81,7 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
 
       {/* Drag-and-drop board (select fallback on every card for keyboard/touch) */}
       <TaskBoard
+        key={tasks.map((t) => `${t.id}:${t.status}:${t.updatedAt.getTime()}`).join("|")}
         wipLimit={rules.wipLimit}
         tasks={tasks.map((t) => ({
           id: t.id,

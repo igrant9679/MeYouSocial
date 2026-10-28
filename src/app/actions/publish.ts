@@ -5,6 +5,7 @@ import { requireRole } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { llm } from "@/lib/llm";
 import { readJson, writeJson } from "@/lib/db/json";
+import { STUDIO_TIMEOUT_MS, placeholderProblem } from "@/lib/studio-ai";
 
 type PromoKind =
   | "titles"           // title variants
@@ -49,7 +50,10 @@ export async function generatePromoAction(formData: FormData) {
 Follow the user instruction below and return ONLY the requested asset, no preamble.`,
     messages: [{ role: "user", content: `Instruction: ${PROMPTS[kind]}\n\nVideo title: ${script.title}\n\nScript:\n${(script.body ?? "").slice(0, 6000)}` }],
     workspaceId: workspace.id,
+    timeoutMs: STUDIO_TIMEOUT_MS.rewrite,
   });
+  const problem = placeholderProblem(result, "nothing was saved");
+  if (problem) (await import("next/navigation")).redirect(`/scripts/${script.id}/publish?flashErr=${encodeURIComponent(problem)}`);
 
   // Stash the latest assets on the script outline JSON under a publish slot.
   const outline = readJson<{ publish?: Record<string, string> }>(script.outline ?? null, {});

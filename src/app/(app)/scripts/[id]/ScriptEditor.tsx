@@ -7,10 +7,16 @@ import { countWords, durationSeconds, formatDuration, MAX_WORDS } from "@/lib/ca
 
 // + + + — editing surface.
 // Autosaves on debounce, shows live wordcount + duration, exposes Highlight-and-Improve.
+//
+// ⚠ VID-06: the AI actions read the body from the DATABASE, so what's on screen
+// is saved first (flush) — Improve's offsets point into the saved text, and
+// Humanize would otherwise rewrite a version without the last keystrokes. The
+// page keys this component on the row's updatedAt, so a server rewrite
+// remounts it on the new text; unsaved typing is flushed on hide and unmount.
 
 export function ScriptEditor({ scriptId, initialBody }: { scriptId: string; initialBody: string }) {
   const [body, setBody] = useState(initialBody);
-  const [saved, setSaved] = useState<"idle" | "saving" | "saved">("idle");
+  const [saved, setSaved] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [selection, setSelection] = useState<{ start: number; end: number } | null>(null);
   const [improveOpen, setImproveOpen] = useState(false);
   const [instruction, setInstruction] = useState("");
@@ -18,23 +24,48 @@ export function ScriptEditor({ scriptId, initialBody }: { scriptId: string; init
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSaved = useRef(initialBody);
+  const latest = useRef(initialBody);
+  useEffect(() => { latest.current = body; }, [body]);
+
+  /** Save what's on screen now, if it isn't saved. False when the save failed. */
+  const flush = useCallback(async (): Promise<boolean> => {
+    if (timer.current) { clearTimeout(timer.current); timer.current = null; }
+    const text = latest.current;
+    if (text === lastSaved.current) return true;
+    setSaved("saving");
+    try {
+      const fd = new FormData();
+      fd.set("scriptId", scriptId);
+      fd.set("body", text);
+      await saveBodyAction(fd);
+      lastSaved.current = text;
+      setSaved("saved");
+      setTimeout(() => setSaved((s) => (s === "saved" ? "idle" : s)), 1200);
+      return true;
+    } catch {
+      setSaved("error");
+      return false;
+    }
+  }, [scriptId]);
 
   // Debounced autosave
   useEffect(() => {
     if (body === lastSaved.current) return;
     if (timer.current) clearTimeout(timer.current);
     setSaved("saving");
-    timer.current = setTimeout(async () => {
-      const fd = new FormData();
-      fd.set("scriptId", scriptId);
-      fd.set("body", body);
-      await saveBodyAction(fd);
-      lastSaved.current = body;
-      setSaved("saved");
-      setTimeout(() => setSaved("idle"), 1200);
-    }, 800);
+    timer.current = setTimeout(() => { void flush(); }, 800);
     return () => { if (timer.current) clearTimeout(timer.current); };
-  }, [body, scriptId]);
+  }, [body, flush]);
+
+  // Leaving the tab or the page mustn't drop the last keystrokes.
+  useEffect(() => {
+    const onHide = () => { if (document.visibilityState === "hidden") void flush(); };
+    document.addEventListener("visibilitychange", onHide);
+    return () => {
+      document.removeEventListener("visibilitychange", onHide);
+      void flush();
+    };
+  }, [flush]);
 
   const captureSelection = useCallback(() => {
     const el = textareaRef.current;
@@ -72,12 +103,19 @@ export function ScriptEditor({ scriptId, initialBody }: { scriptId: string; init
         >
           <Sparkles className="w-3.5 h-3.5" /> Improve
         </button>
-        <form action={humanizeAction}>
-          <input type="hidden" name="scriptId" value={scriptId} />
-          <button type="submit" className="btn primary sm flex items-center gap-1.5" disabled={words < 50}>
-            <Wand2 className="w-3.5 h-3.5" /> Humanize
-          </button>
-        </form>
+        <button
+          type="button"
+          className="btn primary sm flex items-center gap-1.5"
+          disabled={words < 50 || pending}
+          onClick={() => startTransition(async () => {
+            if (!(await flush())) return;
+            const fd = new FormData();
+            fd.set("scriptId", scriptId);
+            await humanizeAction(fd);
+          })}
+        >
+          <Wand2 className="w-3.5 h-3.5" /> {pending ? "Working…" : "Humanize"}
+        </button>
       </div>
 
       {/* Editor */}
@@ -106,6 +144,8 @@ export function ScriptEditor({ scriptId, initialBody }: { scriptId: string; init
               onSubmit={(e) => {
                 e.preventDefault();
                 startTransition(async () => {
+                  // The offsets are into the saved body — save first.
+                  if (!(await flush())) return;
                   const fd = new FormData();
                   fd.set("scriptId", scriptId);
                   fd.set("start", String(selection.start));
@@ -141,8 +181,15 @@ export function ScriptEditor({ scriptId, initialBody }: { scriptId: string; init
   );
 }
 
-function SaveBadge({ state }: { state: "idle" | "saving" | "saved" }) {
+function SaveBadge({ state }: { state: "idle" | "saving" | "saved" | "error" }) {
   if (state === "idle") return null;
+  if (state === "error") {
+    return (
+      <span role="alert" className="flex items-center gap-1 text-[10px] font-mono uppercase tracking-wider px-2 py-1 rounded-md" style={{ background: "var(--rose-soft)", color: "var(--rose-on)" }}>
+        <Save className="w-3 h-3" /> not saved — keep this tab open and type to retry
+      </span>
+    );
+  }
   const color = state === "saving" ? "var(--amber)" : "var(--green)";
   const soft = state === "saving" ? "var(--amber-soft)" : "var(--green-soft)";
   return (

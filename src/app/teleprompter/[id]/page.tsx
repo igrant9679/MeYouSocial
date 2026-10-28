@@ -15,7 +15,9 @@ export default async function TeleprompterPage({ params }: { params: Promise<{ i
   if (!script) notFound();
 
   return (
-    <div className="min-h-screen bg-black text-white flex flex-col">
+    // A fixed-height column (VID-17): with min-h-screen the page grew with the
+    // text, so the inner scroller never overflowed and auto-scroll did nothing.
+    <div className="h-dvh overflow-hidden bg-black text-white flex flex-col">
       <header className="px-5 py-3 flex items-center gap-3 border-b border-white/10">
         <Link href={`/scripts/${id}/publish`} className="text-xs font-mono text-white/60 hover:text-white">← Back</Link>
         <div className="flex-1" />
