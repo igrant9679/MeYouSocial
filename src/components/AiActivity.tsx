@@ -15,8 +15,10 @@ import { Sparkles, Check, X } from "lucide-react";
  * appears without the user reloading. Completed items linger for a few
  * seconds with a check/cross so completion is seen, not inferred.
  *
- * Polls /api/ai-activity every 5s, pausing while the tab is hidden — a
- * background tab spending requests on a progress bar nobody can see is waste.
+ * Polls /api/ai-activity every 5s while something runs or the person is
+ * clicking around; idle, the gap doubles up to a minute. Nothing while the tab
+ * is hidden — a background tab spending requests on a progress bar nobody can
+ * see is waste.
  */
 
 type Item = {
@@ -27,7 +29,11 @@ type Item = {
   detail: string | null;
 };
 
+// ENG-29: every 5 s while something is queued or running or the person just
+// clicked; otherwise the gap doubles up to a minute (it polled every 5 s all
+// day — ~17,000 requests per open tab).
 const POLL_MS = 5_000;
+const IDLE_MAX_MS = 60_000;
 
 export function AiActivity() {
   const router = useRouter();
@@ -66,17 +72,52 @@ export function AiActivity() {
   }, [router]);
 
   useEffect(() => {
-    let timer: ReturnType<typeof setInterval> | null = null;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let dueAt = 0;
+    let gap = POLL_MS;
+    // A chain stops once the run number moves on — hiding and showing the tab
+    // during a poll would otherwise leave two chains polling.
+    let run = 0;
+    const schedule = (mine: number, ms: number) => {
+      dueAt = Date.now() + ms;
+      timer = setTimeout(() => void tick(mine), ms);
+    };
+    const tick = async (mine: number) => {
+      timer = null;
+      if (mine !== run || stopped.current || document.hidden) return;
+      await poll();
+      if (mine !== run) return;
+      gap = watched.current.size > 0 ? POLL_MS : Math.min(IDLE_MAX_MS, gap * 2);
+      if (!stopped.current && !document.hidden) schedule(mine, gap);
+    };
     const start = () => {
       if (timer || stopped.current) return;
-      void poll();
-      timer = setInterval(() => void poll(), POLL_MS);
+      run++;
+      gap = POLL_MS;
+      void tick(run);
     };
-    const stop = () => { if (timer) { clearInterval(timer); timer = null; } };
+    const stop = () => {
+      run++;
+      if (timer) { clearTimeout(timer); timer = null; }
+    };
+    // A click or submit may have started work: poll within 5 s and keep the 5 s
+    // cadence for a while (the gap then doubles from there).
+    const nudge = () => {
+      if (stopped.current || document.hidden) return;
+      gap = Math.min(gap, POLL_MS / 2);
+      if (timer && dueAt - Date.now() > POLL_MS) { clearTimeout(timer); schedule(run, POLL_MS); }
+    };
     const onVisibility = () => (document.hidden ? stop() : start());
     start();
     document.addEventListener("visibilitychange", onVisibility);
-    return () => { stop(); document.removeEventListener("visibilitychange", onVisibility); };
+    document.addEventListener("click", nudge, true);
+    document.addEventListener("submit", nudge, true);
+    return () => {
+      stop();
+      document.removeEventListener("visibilitychange", onVisibility);
+      document.removeEventListener("click", nudge, true);
+      document.removeEventListener("submit", nudge, true);
+    };
   }, [poll]);
 
   const active = items.filter((i) => i.state === "queued" || i.state === "running");

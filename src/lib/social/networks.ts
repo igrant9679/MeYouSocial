@@ -1,4 +1,4 @@
-import { ZERNIO_PLATFORMS, platformFor, type ZernioPlatform } from "@/lib/zernio";
+import { ZERNIO_PLATFORMS, platformFor, type ZernioPlatform } from "@/lib/zernio/platforms";
 
 /**
  * The networks the social scheduler can target.

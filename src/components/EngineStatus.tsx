@@ -69,6 +69,8 @@ export function EngineStatus({
 
   useEffect(() => {
     const id = setInterval(async () => {
+      // Not in a hidden tab (ENG-29) — the next visible minute catches up.
+      if (document.hidden) return;
       try {
         const res = await fetch("/api/ticker");
         if (!res.ok) return;

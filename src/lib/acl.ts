@@ -2,6 +2,7 @@ import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { env } from "@/lib/env";
 import { redirect } from "next/navigation";
+import { cache } from "react";
 import { cookies } from "next/headers";
 import type { Role } from "@prisma/client";
 
@@ -12,7 +13,11 @@ export const ACTIVE_WS_COOKIE = "meyousocial_ws";
 // server-side on every endpoint. Helpers below are the only way the app
 // resolves "who is the current user, what workspace, what role."
 
-export async function getCurrentUser() {
+/**
+ * The signed-in user with their memberships — once per request (SHL-20: the
+ * layout, the page and every requireRole each looked it up again).
+ */
+export const getCurrentUser = cache(async () => {
   const session = await auth();
   if (!session?.user?.id) return null;
   const user = await db.user.findUnique({
@@ -20,7 +25,7 @@ export async function getCurrentUser() {
     include: { memberships: { include: { workspace: true } } },
   });
   return user;
-}
+});
 
 export async function requireUser() {
   const user = await getCurrentUser();

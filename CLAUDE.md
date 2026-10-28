@@ -643,6 +643,21 @@ Tabs: **Keys** (`/admin/api-keys`: LLM, search, images, video, TTS, storage) · 
   Topic (`examplesFor`); keep every example backed by a tool that does it; the app map names social ideas,
   Topics and today's Distribute and Measure tabs.
 
+## ⚠ Speed: no server code in the browser, quiet pollers, warm pages (2026-10-28, audit Phase 4, part a)
+- **The platform list is `lib/zernio/platforms.ts`, import-free** (PRF-03): `lib/social/networks` (used by the composer,
+  calendar and editor) imported it from `lib/zernio`, which pulls in `node:crypto` and the settings/database layer —
+  every such page shipped a ~500 KB crypto polyfill, twice. A client component must never import `lib/zernio` (or
+  anything that reaches `node:*`); "use server" action files are fine — the browser gets references, not code.
+  After the change no chunk in `.next/static/chunks` contains pbkdf2.
+- **Header pollers back off** (ENG-29): AiActivity polls every 5 s while something runs or right after a click or
+  submit, otherwise the gap doubles to a minute; one chain at a time (a run number); nothing while the tab is hidden.
+  EngineStatus skips its minute while hidden.
+- **Per-request and short caches** (SHL-20): `getCurrentUser` is React `cache()` — once per render (server actions
+  run outside the render scope and read fresh); `stripCounts` is cached 10 s per workspace in-process, so a badge
+  can lag a click or two.
+- **Routes are warmed at boot** (PRF-01): `instrumentation.ts` requests `WARM_ROUTES` once, signed out, 5 s after a
+  production start, and logs `[warm] N of 31 routes answered`. Add a page there when it becomes a common landing.
+
 ## Open items / things the user still owns
 - **Analytics: APIs enabled 2026-08-03** (Search Console + GA Admin + GA Data, on project
   `479503233109` = `gen-lang-client-0838901195` = "CreateUp"). Still pending, user-only: add the

@@ -17,7 +17,20 @@ import { isFullyAutonomous } from "@/lib/autonomy";
 export type StripCount = { n: number; urgent?: boolean };
 export type StripCounts = Record<string, StripCount>;
 
+// SHL-20: the strip's ~11 counts ran on every page render. Ten seconds is
+// short enough that a badge catches up by the next click or two.
+const STRIP_TTL_MS = 10_000;
+const stripCache = new Map<string, { at: number; value: StripCounts }>();
+
 export async function stripCounts(workspaceId: string): Promise<StripCounts> {
+  const hit = stripCache.get(workspaceId);
+  if (hit && Date.now() - hit.at < STRIP_TTL_MS) return hit.value;
+  const value = await stripCountsUncached(workspaceId);
+  stripCache.set(workspaceId, { at: Date.now(), value });
+  return value;
+}
+
+async function stripCountsUncached(workspaceId: string): Promise<StripCounts> {
   const now = new Date();
   const autonomous = await isFullyAutonomous(workspaceId).catch(() => false);
   // The Ideas badge counts "discovered" across all three formats — a video

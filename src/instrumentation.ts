@@ -24,6 +24,10 @@ type Guarded = (name: string, ttlMs: number, body: () => Promise<void>) => () =>
 
 export async function register() {
   if (process.env.NEXT_RUNTIME !== "nodejs") return;
+  // PRF-01: the first visit to a page after a deploy took 6–30 s while its
+  // server chunks loaded. Request each page once at boot (signed out — the
+  // module still loads before the sign-in redirect), production only.
+  if (process.env.NODE_ENV === "production") setTimeout(() => void warmRoutes(), 5_000);
   if (process.env.AUTOPILOT === "off") {
     console.log("[autopilot] disabled via AUTOPILOT=off");
     return;
@@ -220,4 +224,23 @@ export async function register() {
   setTimeout(digestSweep, 4 * 60 * 1000);
   globals.__digestTimer = setInterval(digestSweep, digestMin * 60 * 1000);
   console.log(`[digest] armed — every ${digestMin} min`);
+}
+
+const WARM_ROUTES = [
+  "/inbox", "/research", "/intel", "/ideas", "/ideas/topics", "/drafts", "/blog", "/blog/keywords", "/blog/experts",
+  "/blog/audit", "/publish", "/distribute", "/social/compose", "/social/queue", "/social/sent", "/social/calendar",
+  "/social/engage", "/measure", "/reports", "/insights", "/measure/topics", "/social/performance", "/youtube",
+  "/assistant", "/setup", "/setup/automation", "/setup/connections", "/admin/api-keys", "/admin/usage", "/help", "/videos",
+];
+
+async function warmRoutes(): Promise<void> {
+  const base = `http://127.0.0.1:${process.env.PORT ?? 3000}`;
+  const started = Date.now();
+  let answered = 0;
+  for (const route of WARM_ROUTES) {
+    // Signed out, every page answers with the sign-in redirect — after loading.
+    const res = await fetch(base + route, { redirect: "manual", signal: AbortSignal.timeout(60_000) }).catch(() => null);
+    if (res && res.status < 500) answered++;
+  }
+  console.log(`[warm] ${answered} of ${WARM_ROUTES.length} routes answered in ${Math.round((Date.now() - started) / 1000)} s`);
 }
