@@ -1,3 +1,4 @@
+import { stop } from "@/lib/sentence";
 import Link from "next/link";
 import { LineChart, CheckCircle2, AlertTriangle, CirclePlay, Search, BarChart3, RefreshCw, KeyRound, LogIn } from "lucide-react";
 import { requireRole, isPlatformOperator } from "@/lib/acl";
@@ -92,7 +93,7 @@ export default async function AnalyticsConnectionsPage({
         <div className="flex-1 min-w-0">
           <h1 className="font-mono font-bold text-xl leading-tight">Analytics connections</h1>
           <p className="text-xs text-[var(--mute)]">
-            Real performance data for <b>{workspace.name}</b>. Each connection is verified live when you save — nothing here
+            Real performance data for <b>{workspace.name}</b>{stop(workspace.name)} Each connection is verified live when you save — nothing here
             guesses. Provider API keys live under <Link href="/admin/api-keys" className="underline">API keys</Link>.
           </p>
         </div>

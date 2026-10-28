@@ -18,7 +18,7 @@ import { approveBlogImageAction } from "@/app/actions/blog-images";
  * to anything that wants a subset.
  */
 
-export function Group({ title, hue, count, children }: { title: string; hue: string; count: number; children: React.ReactNode }) {
+export function Group({ title, hue, count, shown, children }: { title: string; hue: string; count: number; shown?: number; children: React.ReactNode }) {
   return (
     <section className="mb-5">
       <div className="flex items-center gap-2 mb-2">
@@ -26,6 +26,10 @@ export function Group({ title, hue, count, children }: { title: string; hue: str
         <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: `var(--${hue}-soft)`, color: `var(--${hue}-on)` }}>{count}</span>
       </div>
       <ul className="m-0 p-0 flex flex-col gap-2">{children}</ul>
+      {/* The count is the true total; the list is the first few (SHL-05). */}
+      {shown != null && count > shown && (
+        <p className="text-[11px] text-[var(--mute)] mt-1.5 mb-0">Showing {shown} of {count} — the rest appear here as these are dealt with.</p>
+      )}
     </section>
   );
 }
@@ -59,7 +63,7 @@ export function NeedsYouGroups({
   return (
     <>
       {on("posts") && inbox.socialPosts.length > 0 && (
-        <Group title="Posts waiting for approval" hue="violet" count={inbox.socialPosts.length}>
+        <Group title="Posts waiting for approval" hue="violet" count={inbox.counts.socialPosts} shown={inbox.socialPosts.length}>
           {inbox.socialPosts.map((p) => (
             <li key={p.id} className="card flex flex-col gap-2">
               <p className="text-sm m-0 whitespace-pre-wrap leading-relaxed">{p.text.length > 320 ? `${p.text.slice(0, 320)}…` : p.text}</p>
@@ -106,7 +110,7 @@ export function NeedsYouGroups({
           submitted the ANSWER action with empty boxes — the opposite of what it
           said. They are siblings now. */}
       {on("questions") && questionsByPost.length > 0 && (
-        <Group title="Questions only you can answer" hue="amber" count={inbox.questions.length}>
+        <Group title="Questions only you can answer" hue="amber" count={inbox.counts.questions} shown={inbox.questions.length}>
           {questionsByPost.map(({ postId, postTitle, findings }) => (
             <li key={postId} className="card">
               <div className="text-[11px] text-[var(--mute)] mb-2">
@@ -180,7 +184,7 @@ export function NeedsYouGroups({
       )}
 
       {on("citations") && inbox.citations.length > 0 && (
-        <Group title="Claims with no source" hue="rose" count={inbox.citations.length}>
+        <Group title="Claims with no source" hue="rose" count={inbox.counts.citations} shown={inbox.citations.length}>
           {inbox.citations.map((c) => (
             <li key={c.id} className="card">
               <div className="text-[11px] text-[var(--mute)] mb-1">
@@ -208,7 +212,7 @@ export function NeedsYouGroups({
       )}
 
       {on("images") && inbox.images.length > 0 && (
-        <Group title="Images that need your eye" hue="blue" count={inbox.images.length}>
+        <Group title="Images that need your eye" hue="blue" count={inbox.counts.images} shown={inbox.images.length}>
           {inbox.images.map((img) => (
             <li key={img.id} className="card flex items-start gap-3 flex-wrap">
               {/* eslint-disable-next-line @next/next/no-img-element */}

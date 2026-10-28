@@ -35,8 +35,18 @@ const DOT: Record<EngineEvent["tone"], string> = {
   info: "var(--amber-on)",
 };
 
+/**
+ * When, in the posting timezone: the time today, "yesterday 20:33", else "6 days
+ * ago" — a week-old event read "· 20:33" as if it had just happened (SHL-03).
+ */
 function timeIn(at: string, timeZone: string) {
-  return new Date(at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone });
+  const d = new Date(at);
+  const day = (x: Date) => x.toLocaleDateString("en-CA", { timeZone });
+  const time = d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone });
+  const today = day(new Date());
+  if (day(d) === today) return time;
+  const days = Math.round((Date.parse(today) - Date.parse(day(d))) / 86_400_000);
+  return days === 1 ? `yesterday ${time}` : `${days} days ago`;
 }
 
 function dayIn(at: string, timeZone: string) {

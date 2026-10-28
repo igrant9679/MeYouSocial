@@ -41,7 +41,7 @@ export async function requireMembership(workspaceId?: string) {
     const chosen = (await cookies()).get(ACTIVE_WS_COOKIE)?.value;
     target = (chosen && memberships.find((m) => m.workspaceId === chosen)) || memberships[0];
   }
-  if (!target) redirect("/forbidden");
+  if (!target) redirect("/forbidden?why=member");
   return { user, membership: target, workspace: target.workspace };
 }
 
@@ -91,6 +91,6 @@ export function canAdmin(role: Role): boolean {
 export async function requireRole(needed: Role, workspaceId?: string) {
   const ctx = await requireMembership(workspaceId);
   const rank: Record<Role, number> = { VIEWER: 0, EDITOR: 1, ADMIN: 2 };
-  if (rank[ctx.membership.role] < rank[needed]) redirect("/forbidden");
+  if (rank[ctx.membership.role] < rank[needed]) redirect(`/forbidden?need=${needed}`);
   return ctx;
 }

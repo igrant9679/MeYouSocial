@@ -1,3 +1,4 @@
+import { stop } from "@/lib/sentence";
 import { Settings, Palette, CheckCircle2, AlertTriangle } from "lucide-react";
 import { SubmitButton } from "@/components/SubmitButton";
 import { requireRole } from "@/lib/acl";
@@ -78,7 +79,7 @@ export default async function AdminSettingsPage({ searchParams }: { searchParams
         <div>
           <h1 className="font-mono font-bold text-lg leading-tight">Branding</h1>
           <p className="text-xs text-[var(--mute)]">
-            Your company&apos;s accent color and logo, applied to the whole app for members of <b>{workspace.name}</b>.
+            Your company&apos;s accent color and logo, applied to the whole app for members of <b>{workspace.name}</b>{stop(workspace.name)}
             Other companies on this install keep their own look.
           </p>
         </div>

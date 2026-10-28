@@ -1,3 +1,4 @@
+import { stop } from "@/lib/sentence";
 import Link from "next/link";
 import {
   Sparkles, PenLine, Telescope, MessageCircle, ArrowRight, Bot, TrendingUp,
@@ -68,6 +69,9 @@ export default async function InboxPage() {
   const hasAnalytics = hasSeriesData(series);
   const { nextSend, timeZone } = home.social;
   const nothing = inbox.total === 0 && yourWarn.length === 0;
+  // SHL-12: say what's true — "The engine is running" showed while paused.
+  const hasMailbox = await db.unipileAccount.count({ where: { workspaceId: workspace.id, status: "connected" } }).then((n) => n > 0, () => false);
+  const engineLine = paused ? " Everything is paused." : process.env.AUTOPILOT === "off" ? "" : " The engine is running.";
 
   return (
     <div>
@@ -78,7 +82,7 @@ export default async function InboxPage() {
         </h1>
         <p className="text-[13px] text-[var(--mute)] m-0">
           {nothing
-            ? `Nothing needs you in ${workspace.name}. The engine is running.${warn.length ? ` ${warn.length === 1 ? "One thing below is" : `${warn.length} things below are`} for an admin.` : ""}`
+            ? `Nothing needs you in ${workspace.name}${stop(workspace.name)}${engineLine}${warn.length ? ` ${warn.length === 1 ? "One thing below is" : `${warn.length} things below are`} for an admin.` : ""}`
             : inbox.total === 0
               ? `Nothing in the queues needs you in ${workspace.name}; see what needs attention below.`
             : `${inbox.total} thing${inbox.total === 1 ? "" : "s"} need${inbox.total === 1 ? "s" : ""} you in ${workspace.name} — everything else is running.`}
@@ -90,7 +94,7 @@ export default async function InboxPage() {
           tone="clear"
           icon={<Check className="w-5 h-5" style={{ color: "var(--green-on)" }} />}
           line="No approvals, questions, claims, images or connections are waiting."
-          note="Silence means all clear — if something urgent shows up, the bell rings and the morning digest says so."
+          note={hasMailbox ? "Silence means all clear — if something urgent shows up, the bell rings and the morning digest says so." : "Silence means all clear — if something urgent shows up, the bell rings. (No mailbox is connected, so no digest is emailed.)"}
           action={editor ? { label: "Find something to write", href: "/ideas" } : null}
         />
       )}

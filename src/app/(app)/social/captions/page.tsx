@@ -1,3 +1,4 @@
+import { stop } from "@/lib/sentence";
 import Link from "next/link";
 import { CalendarDays, Copy, ImageIcon, Megaphone, Sparkles, Timer } from "lucide-react";
 import { requireMembership, canEdit } from "@/lib/acl";
@@ -57,7 +58,7 @@ export default async function CaptionStudioPage({ searchParams }: { searchParams
     <div>
       <div className="flex items-baseline gap-3 flex-wrap mb-1">
         <h1 className="font-mono text-[22px] font-bold m-0">Caption Studio</h1>
-        <p className="text-[13px] text-[var(--mute)] m-0">Captions written to the house rules — a header, the caption, exactly two hashtags — for {workspace.name}. Everything lands in a batch you review before it reaches the queue.</p>
+        <p className="text-[13px] text-[var(--mute)] m-0">Captions written to the house rules — a header, the caption, exactly two hashtags — for {workspace.name}{stop(workspace.name)} Everything lands in a batch you review before it reaches the queue.</p>
       </div>
       {sp.ok && <Banner kind="ok" text={sp.ok} />}
       {sp.flash && <Banner kind="ok" text={sp.flash} />}

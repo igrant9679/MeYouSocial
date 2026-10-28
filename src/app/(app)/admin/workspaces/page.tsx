@@ -23,7 +23,7 @@ const ROLES = ["ADMIN", "EDITOR", "VIEWER"] as const;
 
 export default async function PlatformWorkspacesPage() {
   const { user } = await requireRole("ADMIN");
-  if (!isPlatformOperator(user.email)) redirect("/forbidden");
+  if (!isPlatformOperator(user.email)) redirect("/forbidden?why=operator");
 
   const workspaces = await db.workspace.findMany({
     orderBy: { name: "asc" },

@@ -1,3 +1,4 @@
+import { stop } from "@/lib/sentence";
 import { formatZonedMoment } from "@/lib/zoned-dates";
 import Link from "next/link";
 import { Bot, OctagonPause, Play, Search, Sparkles } from "lucide-react";
@@ -57,7 +58,7 @@ export default async function SetupAutomation({ searchParams }: { searchParams: 
     <div>
       <div className="flex items-baseline gap-3 flex-wrap mb-4">
         <h1 className="font-mono text-[22px] font-bold m-0">Automation</h1>
-        <p className="text-[13px] text-[var(--mute)] m-0">What runs by itself in {workspace.name}. The global pause overrides everything.</p>
+        <p className="text-[13px] text-[var(--mute)] m-0">What runs by itself in {workspace.name}{stop(workspace.name)} The global pause overrides everything.</p>
       </div>
       {ok && <Banner kind="ok" text={ok} />}
       {err && <Banner kind="err" text={err} />}
@@ -78,7 +79,7 @@ export default async function SetupAutomation({ searchParams }: { searchParams: 
         </p>
         <div className="rounded-lg bg-[var(--zebra)] px-3 py-2 mb-3">
           <p className="font-mono text-[10px] text-[var(--mute)] m-0">
-            {autonomy.modes.map((m) => `${m.fn}=${m.mode}`).join(" · ")} · auto-queue {autonomy.autoqueue ? "on" : "off"} · {autonomy.weeklyArticles === "unset" ? "articles uncapped" : `${autonomy.weeklyArticles} articles/wk`} · publishes {autonomy.publishDay} · {autonomy.weeklySocial} social/wk
+            {autonomy.modes.map((m) => `${FUNCTION_LABELS[m.fn as keyof typeof FUNCTION_LABELS] ?? m.fn}: ${m.mode}`).join(" · ")} · auto-queue {autonomy.autoqueue ? "on" : "off"} · {autonomy.weeklyArticles === "unset" ? "articles uncapped" : `${autonomy.weeklyArticles} article${Number(autonomy.weeklyArticles) === 1 ? "" : "s"} a week`} · publishes {autonomy.publishDay} · {autonomy.weeklySocial} social post{Number(autonomy.weeklySocial) === 1 ? "" : "s"} a week
           </p>
         </div>
         {admin ? (
@@ -111,7 +112,7 @@ export default async function SetupAutomation({ searchParams }: { searchParams: 
           <div className="flex-1 min-w-40">
             <div className="text-sm font-semibold">Autopilot {autopilotOff ? "— disabled (AUTOPILOT=off)" : `— sweeps every ${intervalMin} min`}</div>
             <div className="text-xs text-[var(--mute)]">
-              {lastCycle ? `Last activity ${formatZonedMoment(lastCycle.createdAt, queue.timeZone)}: ${lastCycle.meta}` : "No activity yet — it acts only when a function is assisted or auto and there is due work."}
+              {lastCycle ? `Last activity ${formatZonedMoment(lastCycle.createdAt, queue.timeZone)}: ${cycleSummary(lastCycle.meta)}` : "No activity yet — it acts only when a function is assisted or auto and there is due work."}
             </div>
           </div>
           {admin && !autopilotOff && (
@@ -241,7 +242,7 @@ export default async function SetupAutomation({ searchParams }: { searchParams: 
                   <form key={m} action={setFunctionModeAction}>
                     <input type="hidden" name="function" value={fn} />
                     <input type="hidden" name="mode" value={m} />
-                    <button className="font-mono text-xs px-2.5 py-1 rounded-full border" style={style} title={MODE_HELP[m]}>{m}</button>
+                    <button className="font-mono text-xs px-2.5 py-1 rounded-full border" style={style} title={MODE_HELP[m]} aria-pressed={active}>{m}</button>
                   </form>
                 ) : <span key={m} className="font-mono text-xs px-2.5 py-1 rounded-full border" style={style}>{m}</span>;
               })}
@@ -251,4 +252,23 @@ export default async function SetupAutomation({ searchParams }: { searchParams: 
       </div>
     </div>
   );
+}
+
+/** A cycle's audit meta as a sentence — it printed the raw JSON (SET-13). */
+function cycleSummary(meta: string | null): string {
+  if (!meta) return "ran, nothing to do";
+  let m: Record<string, unknown>;
+  try { m = JSON.parse(meta) as Record<string, unknown>; } catch { return meta.slice(0, 160); }
+  // The CycleReport fields (lib/blog-autopilot.ts), as words.
+  const LABEL: Record<string, [string, string]> = {
+    ideasCreated: ["idea", "ideas"], drafted: ["article drafted", "articles drafted"], postsGenerated: ["social post written", "social posts written"],
+    variantPosts: ["social variant", "social variants"], imagesGenerated: ["image", "images"], seoOptimized: ["SEO pass", "SEO passes"],
+    autoAdvanced: ["article moved on", "articles moved on"], imagesAutoApproved: ["image approved", "images approved"],
+    citationsAutoVerified: ["citation sourced", "citations sourced"], findingsAutoApplied: ["fix applied", "fixes applied"],
+    autoQueued: ["post queued", "posts queued"], published: ["article published", "articles published"],
+    videosPackaged: ["video planned", "videos planned"], videosRendered: ["video rendered", "videos rendered"],
+  };
+  const parts = Object.entries(LABEL).flatMap(([k, [one, many]]) => { const n = Number(m[k]); return n > 0 ? [`${n} ${n === 1 ? one : many}`] : []; });
+  const extra = [m.skipped && `skipped: ${String(m.skipped)}`, m.budgetReached && "daily AI budget reached", Array.isArray(m.failedSteps) && m.failedSteps.length && `${m.failedSteps.length} step${m.failedSteps.length === 1 ? "" : "s"} failed`].filter(Boolean);
+  return [...parts, ...extra].join(", ") || "ran, nothing to do";
 }

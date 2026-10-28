@@ -239,6 +239,14 @@ const FEED_LABELS: Record<string, { label: string; tone: FeedEvent["tone"] }> = 
   "video.rendered": { label: "Rendered a video", tone: "ok" },
   "video.render_failed": { label: "Video render failed", tone: "warn" },
   "autopilot.cycle": { label: "Autopilot cycle ran", tone: "info" },
+  // SHL-03: the same actions the header pill names.
+  "blog.auto_advanced": { label: "Moved an article on", tone: "info" },
+  "blog.draft_failed": { label: "Couldn't draft an article", tone: "warn" },
+  "blog.publish_held": { label: "Held an article back from publishing", tone: "warn" },
+  "social.post_generated": { label: "Wrote a social post", tone: "info" },
+  "social.ideation": { label: "Found social ideas", tone: "info" },
+  "social.auto_queued": { label: "Queued social posts", tone: "info" },
+  "video.assembled": { label: "Assembled a video", tone: "ok" },
 };
 
 export async function autopilotFeed(workspaceId: string, take = 5): Promise<FeedEvent[]> {
@@ -286,6 +294,18 @@ export async function tickerEvents(workspaceId: string, take = 12): Promise<Engi
     "social.variants_generated": { what: "wrote social posts", tone: "info" },
     "video.rendered": { what: "finished a video render", tone: "ok" },
     "video.render_failed": { what: "couldn't finish a video render", tone: "warn" },
+    // SHL-03: the rest of what the engine does — a busy engine read as idle.
+    "blog.auto_advanced": { what: "moved an article on", tone: "info" },
+    "blog.outline_generated": { what: "outlined an article", tone: "info" },
+    "blog.draft_failed": { what: "couldn't draft an article", tone: "warn" },
+    "blog.publish_held": { what: "held an article back from publishing", tone: "warn" },
+    "social.post_generated": { what: "wrote a social post", tone: "info" },
+    "social.ideation": { what: "found social ideas", tone: "info" },
+    "social.auto_queued": { what: "queued social posts", tone: "info" },
+    "social.recycled": { what: "recycled an evergreen post", tone: "info" },
+    "social.rss_items": { what: "picked up feed items", tone: "info" },
+    "video.packaged": { what: "planned a video", tone: "info" },
+    "video.assembled": { what: "assembled a video", tone: "ok" },
   };
   const rows = await db.auditLog.findMany({
     where: { workspaceId, action: { in: Object.keys(ACTIONS) } },

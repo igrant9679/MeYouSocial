@@ -30,7 +30,7 @@ const PAGE = "/admin/workspaces";
 
 async function requireOperator() {
   const user = await requireUser();
-  if (!isPlatformOperator(user.email)) redirect("/forbidden");
+  if (!isPlatformOperator(user.email)) redirect("/forbidden?why=operator");
   return user;
 }
 

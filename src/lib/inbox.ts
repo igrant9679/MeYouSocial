@@ -85,6 +85,8 @@ export type InboxData = {
   invitations: InboxInvitation[];
   /** Category-level conditions the item cards don't replace (connections, slots, analytics…). */
   conditions: HomeDecision[];
+  /** True counts per group — the lists hold the first few (SHL-05). */
+  counts: { socialPosts: number; articles: number; questions: number; images: number; citations: number; invitations: number };
   /** Items a person can act on right now, across every group. */
   total: number;
   /** Full autonomy is on: articles that pass every check move on by themselves. */
@@ -175,20 +177,30 @@ export async function getInboxData(workspaceId: string, opts: { admin: boolean; 
   // ── Images a person has to look at ──────────────────────────────────────
   // Under full autonomy the vision review approves clean renders itself; only
   // a render it has rejected twice (and stopped paying for) reaches here.
+  // ⚠ SHL-05: filtered BEFORE the list is cut — `take: 12` came first, so
+  // images that genuinely need a person could be dropped, and the headline
+  // count summed the cut lists. One query for the week's rejections.
   const pendingImages = await db.blogImage.findMany({
     where: { status: "pending", source: "ai", post: { workspaceId, status: { in: ["draft_review", "final_approval"] } } },
     include: { post: { select: { id: true, title: true } } },
-    take: 12,
+    take: 300,
   });
-  const images: InboxImage[] = [];
+  const rejectedRows = pendingImages.length
+    ? await db.auditLog.groupBy({
+        by: ["entityId"],
+        where: { workspaceId, action: "blog.image_auto_rejected", entityId: { in: pendingImages.map((i) => i.id) }, createdAt: { gte: new Date(Date.now() - WEEK) } },
+        _count: { _all: true },
+      })
+    : [];
+  const rejectedBy = new Map(rejectedRows.map((r) => [r.entityId, r._count._all]));
+  const allImages: InboxImage[] = [];
   for (const img of pendingImages) {
-    const rejections = await db.auditLog.count({
-      where: { workspaceId, action: "blog.image_auto_rejected", entityId: img.id, createdAt: { gte: new Date(Date.now() - WEEK) } },
-    });
+    const rejections = rejectedBy.get(img.id) ?? 0;
     if (!autonomous || rejections >= 2) {
-      images.push({ id: img.id, postId: img.post.id, postTitle: img.post.title, role: img.role, url: img.url, altText: img.altText, rejections });
+      allImages.push({ id: img.id, postId: img.post.id, postTitle: img.post.title, role: img.role, url: img.url, altText: img.altText, rejections });
     }
   }
+  const images = allImages.slice(0, 12);
 
   // ── Claims without a source ─────────────────────────────────────────────
   // Under autonomy, live search gets the first try; a claim shows up here once
@@ -196,16 +208,21 @@ export async function getInboxData(workspaceId: string, opts: { admin: boolean; 
   const unverifiedCits = await db.blogCitation.findMany({
     where: { verified: false, post: { workspaceId, status: "draft_review" } },
     include: { post: { select: { id: true, title: true } } },
-    take: 12,
+    take: 300,
   });
-  const citations: InboxCitation[] = [];
+  // The week's "searched, nothing supports it" records, read once.
+  const unsourceableRows = unverifiedCits.length
+    ? await db.auditLog.findMany({
+        where: { workspaceId, action: "blog.citation_unsourceable", entityId: { in: [...new Set(unverifiedCits.map((c) => c.postId))] }, createdAt: { gte: new Date(Date.now() - WEEK) } },
+        select: { meta: true },
+      })
+    : [];
+  const allCitations: InboxCitation[] = [];
   for (const c of unverifiedCits) {
-    const unsourceable =
-      (await db.auditLog.count({
-        where: { workspaceId, action: "blog.citation_unsourceable", entityId: c.postId, meta: { contains: c.id }, createdAt: { gte: new Date(Date.now() - WEEK) } },
-      })) > 0;
-    if (!autonomous || unsourceable) citations.push({ id: c.id, postId: c.post.id, postTitle: c.post.title, claim: c.claim, unsourceable });
+    const unsourceable = unsourceableRows.some((r) => (r.meta ?? "").includes(c.id));
+    if (!autonomous || unsourceable) allCitations.push({ id: c.id, postId: c.post.id, postTitle: c.post.title, claim: c.claim, unsourceable });
   }
+  const citations = allCitations.slice(0, 12);
 
   // ── Invitations (admins), with the join link that email may never carry ──
   const invitations: InboxInvitation[] = opts.admin
@@ -224,8 +241,21 @@ export async function getInboxData(workspaceId: string, opts: { admin: boolean; 
   // admin's, the article work an editor's; a viewer's count used to never
   // reach zero. The groups still show — read-only — for everyone.
   const editor = opts.editor ?? opts.admin;
-  const total = (opts.admin ? socialPosts.length + invitations.length : 0)
-    + (editor ? articlesNeedingYou + questions.length + images.length + citations.length : 0);
+  const [postCount, questionCount, inviteCount] = await Promise.all([
+    db.socialPost.count({ where: { workspaceId, approval: "pending" } }),
+    db.blogFinding.count({ where: { workspaceId, kind: "knowledge", status: "open", post: { status: { in: ["draft_review", "final_approval", "drafting"] } } } }),
+    opts.admin ? db.invitation.count({ where: { workspaceId, acceptedAt: null, expiresAt: { gt: new Date() } } }) : Promise.resolve(0),
+  ]);
+  const counts = {
+    socialPosts: postCount,
+    articles: articles.length,
+    questions: questionCount,
+    images: allImages.length,
+    citations: allCitations.length,
+    invitations: inviteCount,
+  };
+  const total = (opts.admin ? counts.socialPosts + counts.invitations : 0)
+    + (editor ? articlesNeedingYou + counts.questions + counts.images + counts.citations : 0);
 
-  return { home, socialPosts, articles, questions, images, citations, invitations, conditions, total, autonomous };
+  return { home, socialPosts, articles, questions, images, citations, invitations, conditions, counts, total, autonomous };
 }

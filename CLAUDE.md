@@ -611,6 +611,23 @@ Tabs: **Keys** (`/admin/api-keys`: LLM, search, images, video, TTS, storage) · 
   fingerprint — a bucket change), except rules that threw; `openRecommendations` sorts warning → opportunity →
   info (it sorted the strings, info first). Status values: open | accepted | dismissed | applied | resolved.
 
+## ⚠ Shell copy says what was checked (2026-10-28, audit Phase 3, part 3a)
+- **Connections is resolved like the providers** (SET-04): search/voice/video/YouTube keys fall back to the platform
+  and env as the providers do; Writing counts only Claude/Gemini keys and shows "partial" while a provider is
+  refusing calls (`providerRefusals`); storage reads `getStorageBackendSetting()` and flags local disk; mailboxes
+  count only `status: connected`; analytics uses `gscConfigured` / `ga4Configured` (service accounts count).
+- **Automation speaks plainly** (SET-13): function labels, not `fn=mode` tokens; the last cycle is summarised from
+  its CycleReport (`cycleSummary`) in the posting zone; every mode/target/SEO/pause change redirects with a
+  confirmation; mode buttons carry `aria-pressed`.
+- **`stop(name)`** (lib/sentence.ts) adds the full stop only when the name doesn't already end one (SET-14).
+- **Words from the actual condition** (SHL-12): the Inbox says "Everything is paused" when it is (never "The engine is
+  running" then) and doesn't promise a digest without a connected mailbox; `/forbidden` takes `?need=ADMIN|EDITOR`
+  (requireRole) or `?why=operator|member` and says which.
+- **The engine pill** (SHL-03) shows the time today, "yesterday HH:MM", else "N days ago"; the ticker and feed name
+  auto-advance, social posts written/queued, social ideation, holds and failures.
+- **Inbox counts are totals** (SHL-05): `InboxData.counts` per group (images and claims filtered BEFORE the list is
+  cut, with one query each for their audit records); groups show "Showing N of M".
+
 ## Open items / things the user still owns
 - **Analytics: APIs enabled 2026-08-03** (Search Console + GA Admin + GA Data, on project
   `479503233109` = `gen-lang-client-0838901195` = "CreateUp"). Still pending, user-only: add the

@@ -1,3 +1,4 @@
+import { TEXT_PROVIDERS } from "@/lib/llm/models";
 import { db } from "@/lib/db";
 import { getSetting } from "@/lib/settings";
 import { getApiKey, KEY_PROVIDERS } from "@/lib/llm/keys";
@@ -26,34 +27,44 @@ export async function connectionRows(workspaceId: string): Promise<ConnRow[]> {
     social, socialConnected, mailboxes, wp, gscSite, gaToken, channels, ytChannels,
   ] = await Promise.all([
     Promise.all(KEY_PROVIDERS.map(async (p) => ({ p, ok: hasValue(await getApiKey(p, workspaceId).catch(() => "")) }))),
-    getSetting("api_key:tavily", workspaceId).catch(() => ""),
-    getSetting("api_key:serper", workspaceId).catch(() => ""),
-    getSetting("api_key:dataforseo", workspaceId).catch(() => ""),
-    getSetting("api_key:keywordseverywhere", workspaceId).catch(() => ""),
-    getSetting("api_key:elevenlabs", workspaceId).catch(() => ""),
-    getSetting("api_key:heygen", workspaceId).catch(() => ""),
-    getSetting("api_key:youtube", workspaceId).catch(() => ""),
+    // Resolved the way the providers resolve them — the workspace's, the
+    // platform's, then the environment (SET-04: env-set keys read "missing").
+    getSetting("api_key:tavily", workspaceId).then((v) => v || process.env.TAVILY_API_KEY || "", () => ""),
+    getSetting("api_key:serper", workspaceId).then((v) => v || process.env.SERPER_API_KEY || "", () => ""),
+    getSetting("api_key:dataforseo", workspaceId).then((v) => v || process.env.DATAFORSEO_AUTH || "", () => ""),
+    getSetting("api_key:keywordseverywhere", workspaceId).then((v) => v || process.env.KEYWORDS_EVERYWHERE_API_KEY || "", () => ""),
+    getApiKey("elevenlabs", workspaceId).catch(() => ""),
+    getApiKey("heygen", workspaceId).catch(() => ""),
+    getApiKey("youtube", workspaceId).catch(() => ""),
     resolveImageProviderName(workspaceId).catch(() => "mock"),
     getVideoProviderSetting(workspaceId).catch(() => "auto" as const),
     getSetting("tts:provider", workspaceId).catch(() => ""),
-    db.setting.findUnique({ where: { key: "storage:backend" }, select: { value: true } }).catch(() => null),
+    import("@/lib/storage").then((m) => m.getStorageBackendSetting()).catch(() => "local"),
     db.zernioAccount.count({ where: { workspaceId } }),
     db.zernioAccount.count({ where: { workspaceId, status: "connected" } }),
-    db.unipileAccount.count({ where: { workspaceId } }),
+    db.unipileAccount.count({ where: { workspaceId, status: "connected" } }),
     db.wordPressConnection.findUnique({ where: { workspaceId }, select: { baseUrl: true } }),
-    getSetting("gsc:site_url", workspaceId).catch(() => ""),
-    getSetting("ganalytics_oauth:refresh_token", workspaceId).catch(() => ""),
+    import("@/lib/analytics/gsc").then((m) => m.gscConfigured(workspaceId)).catch(() => false),
+    import("@/lib/analytics/ga4").then((m) => m.ga4Configured(workspaceId)).catch(() => false),
     db.channel.count({ where: { workspaceId } }),
     db.channel.count({ where: { workspaceId, linkedYoutubeHandle: { not: null } } }),
   ]);
 
-  const llmOn = llmKeys.filter((k) => k.ok).map((k) => k.p);
+  // Only the providers the router can write with (SET-04: a stored GPT or
+  // DeepSeek key read as "Writing ok" while every call went to the mock).
+  const llmOn = llmKeys.filter((k) => k.ok && TEXT_PROVIDERS.includes(k.p)).map((k) => k.p);
+  const { providerRefusals } = await import("@/lib/llm/provider-health");
+  const refusals = await providerRefusals(workspaceId).catch(() => []);
   const googleKey = llmKeys.some((k) => k.p === "google" && k.ok);
   const rows: ConnRow[] = [
     {
       key: "llm", label: "Writing (LLM keys)", href: "/admin/api-keys",
-      state: llmOn.length ? "ok" : "missing",
-      detail: llmOn.length ? llmOn.join(" · ") : "no key — every generation falls to the mock and is refused for unattended work",
+      state: !llmOn.length ? "missing" : refusals.length ? "partial" : "ok",
+      detail: !llmOn.length
+        ? "no Claude or Gemini key — every generation falls to the mock and is refused for unattended work"
+        : refusals.length
+          ? `${llmOn.join(" · ")} — but ${refusals.map((r) => `${r.provider} is refusing calls (${r.kind === "credits" ? "out of credits" : r.kind === "quota" ? "over quota" : "key rejected"})`).join("; ")}`
+          : llmOn.join(" · "),
     },
     {
       key: "search", label: "Live web search (citations)", href: "/admin/api-keys",
@@ -112,13 +123,14 @@ export async function connectionRows(workspaceId: string): Promise<ConnRow[]> {
     },
     {
       key: "analytics", label: "Analytics (Search Console + GA4)", href: "/admin/analytics",
-      state: hasValue(gscSite) && hasValue(gaToken) ? "ok" : hasValue(gscSite) || hasValue(gaToken) ? "partial" : "missing",
-      detail: [hasValue(gscSite) && `Search Console ${gscSite}`, hasValue(gaToken) && "GA4 authorised"].filter(Boolean).join(" · ") || "nothing connected — Measure shows dashes",
+      state: gscSite && gaToken ? "ok" : gscSite || gaToken ? "partial" : "missing",
+      detail: [gscSite && "Search Console connected", gaToken && "GA4 connected"].filter(Boolean).join(" · ") || "nothing connected — Measure shows dashes",
     },
     {
       key: "storage", label: "Storage", href: "/admin/api-keys",
-      state: "ok",
-      detail: storageRow?.value === "drive" ? "Google Drive" : "local disk",
+      // The real backend (it compared the stored value with "drive"; it's "gdrive").
+      state: storageRow === "gdrive" ? "ok" : "partial",
+      detail: storageRow === "gdrive" ? "Google Drive" : "local disk — files are lost when the server is redeployed",
       note: "platform-wide",
     },
   ];

@@ -14,7 +14,7 @@ export async function setActiveWorkspaceAction(formData: FormData) {
   const user = await requireUser();
   const workspaceId = String(formData.get("workspaceId") ?? "");
   const member = user.memberships.some((m) => m.workspaceId === workspaceId && m.status === "active");
-  if (!member) redirect("/forbidden");
+  if (!member) redirect("/forbidden?why=member");
   (await cookies()).set(ACTIVE_WS_COOKIE, workspaceId, {
     httpOnly: true,
     sameSite: "lax",

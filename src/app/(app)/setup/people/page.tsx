@@ -1,3 +1,4 @@
+import { stop } from "@/lib/sentence";
 import { ShieldCheck } from "lucide-react";
 import { requireRole } from "@/lib/acl";
 import { getSetting } from "@/lib/settings";
@@ -19,7 +20,7 @@ export default async function SetupPeople({ searchParams }: { searchParams: Prom
     <div>
       <div className="flex items-baseline gap-3 flex-wrap mb-4">
         <h1 className="font-mono text-[22px] font-bold m-0">People</h1>
-        <p className="text-[13px] text-[var(--mute)] m-0">Who can do what in {workspace.name}.</p>
+        <p className="text-[13px] text-[var(--mute)] m-0">Who can do what in {workspace.name}{stop(workspace.name)}</p>
       </div>
       {ok && <Banner kind="ok" text={ok} />}
       {err && <Banner kind="err" text={err} />}

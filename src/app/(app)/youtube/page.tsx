@@ -1,3 +1,4 @@
+import { stop } from "@/lib/sentence";
 import Link from "next/link";
 import { ArrowUpRight, MonitorPlay, RefreshCw, Sparkles } from "lucide-react";
 import { requireMembership, canEdit } from "@/lib/acl";
@@ -86,7 +87,7 @@ export default async function YoutubeAuditPage({ searchParams }: { searchParams:
 
       {res.state === "not_connected" && (
         <div className="card text-sm">
-          <p className="m-0 mb-2">YouTube isn&apos;t connected for {workspace.name}. The audit reads your own channel&apos;s analytics, which needs the channel owner (or a Brand Account manager) to sign in once.</p>
+          <p className="m-0 mb-2">YouTube isn&apos;t connected for {workspace.name}{stop(workspace.name)} The audit reads your own channel&apos;s analytics, which needs the channel owner (or a Brand Account manager) to sign in once.</p>
           {admin ? (
             <Link href="/admin/analytics" className="btn sm primary inline-flex items-center gap-1">Connect YouTube <ArrowUpRight className="w-3.5 h-3.5" /></Link>
           ) : (

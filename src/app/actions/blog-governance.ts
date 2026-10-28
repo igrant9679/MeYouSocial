@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/acl";
 import { db } from "@/lib/db";
-import { GOVERNED_FUNCTIONS, MODES, writeAudit } from "@/lib/governance";
+import { FUNCTION_LABELS, GOVERNED_FUNCTIONS, MODES, writeAudit } from "@/lib/governance";
 import { runAutopilotCycle } from "@/lib/blog-autopilot";
 
 /** Admin: run this workspace's autopilot cycle immediately (testing / catch-up). */
@@ -50,6 +50,8 @@ export async function setFunctionModeAction(formData: FormData) {
     meta: { function: fn, mode },
   });
   revalidatePath("/setup/automation");
+  // Every change on this page says it happened (SET-13).
+  redirect(`/setup/automation?ok=${encodeURIComponent(`${FUNCTION_LABELS[fn as keyof typeof FUNCTION_LABELS] ?? fn} is now ${mode}.`)}`);
 }
 
 /** Admin: cap how many articles the autopilot drafts per rolling 7 days
@@ -72,6 +74,7 @@ export async function saveWeeklyArticleTargetAction(formData: FormData) {
     meta: { weeklyArticles: value || "unlimited", publishDay: publishDay || "any day" },
   });
   revalidatePath("/setup/automation");
+  redirect(`/setup/automation?ok=${encodeURIComponent(`Saved: ${value ? `${value} article${value === "1" ? "" : "s"} a week` : "no weekly article cap"}, publishing ${publishDay ? ["Sundays", "Mondays", "Tuesdays", "Wednesdays", "Thursdays", "Fridays", "Saturdays"][Number(publishDay)] : "on any day"}.`)}`);
 }
 
 /**
@@ -94,6 +97,7 @@ export async function toggleAutoSeoAction(formData: FormData) {
     meta: { enabled: enable },
   });
   revalidatePath("/setup/automation");
+  redirect(`/setup/automation?ok=${encodeURIComponent(enable ? "Automatic SEO is on." : "Automatic SEO is off.")}`);
 }
 
 /**
@@ -146,7 +150,7 @@ export async function toggleGlobalPauseAction(formData?: FormData) {
   const next = want === "pause" ? true : want === "resume" ? false : !now;
   if (next === now) {
     revalidatePath("/setup/automation");
-    return;
+  redirect(`/setup/automation?ok=${encodeURIComponent(now ? "Already paused — nothing changed." : "Already running — nothing changed.")}`);
   }
   await db.automationState.upsert({
     where: { workspaceId: workspace.id },
@@ -161,4 +165,5 @@ export async function toggleGlobalPauseAction(formData?: FormData) {
   });
   revalidatePath("/setup/automation");
   revalidatePath("/blog");
+  redirect(`/setup/automation?ok=${encodeURIComponent(next ? "Paused — nothing generates, queues or publishes until you resume." : "Resumed.")}`);
 }

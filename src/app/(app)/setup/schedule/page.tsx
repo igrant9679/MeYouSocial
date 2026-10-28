@@ -1,3 +1,4 @@
+import { stop } from "@/lib/sentence";
 import Link from "next/link";
 import { Link2 as LinkIcon, Megaphone, Clock } from "lucide-react";
 import { requireMembership, canAdmin } from "@/lib/acl";
@@ -45,7 +46,7 @@ export default async function SetupSchedule({ searchParams }: { searchParams: Pr
     <div>
       <div className="flex items-baseline gap-3 flex-wrap mb-4">
         <h1 className="font-mono text-[22px] font-bold m-0">Schedule</h1>
-        <p className="text-[13px] text-[var(--mute)] m-0">When things go out of {workspace.name}.</p>
+        <p className="text-[13px] text-[var(--mute)] m-0">When things go out of {workspace.name}{stop(workspace.name)}</p>
       </div>
       {ok && <Banner kind="ok" text={ok} />}
       {err && <Banner kind="err" text={err} />}
