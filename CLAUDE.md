@@ -892,6 +892,23 @@ Tabs: **Keys** (`/admin/api-keys`: LLM, search, images, video, TTS, storage) · 
 - **Access review** (E-SEC-18): `getCurrentUser` refreshes `User.lastActivityAt` at most hourly; People flags active members
   not seen in 60+ days (`IDLE_DAYS`) — or never signed in, counted from joining. Nothing is revoked automatically.
 
+## ⚠ Incident mode; shared accounts wait for the operator (2026-10-29, audit Phase 5, security part 4)
+- **Incident mode** (E-SEC-06, Settings → Incident, `/admin/incident`, operator only, `actions/incident.ts`, `lib/incident.ts`): the
+  operator writes what happened and picks steps — sign everyone out, void open invitations (expired, rows kept), revoke every
+  API token, disconnect YouTube and Analytics sign-ins (`RECONNECT_KEYS`; Drive storage is left alone) — each with its count
+  shown first, behind a confirmation. Every workspace's audit log gets `security.incident_declared` with its own counts (so its
+  admins are told) and admins see a red banner until the operator ends it (`security.incident_ended`; nothing is undone).
+- **Signing everyone out is a moment, not a list** (`security:sessions_valid_after`, platform Setting): the jwt callback in
+  `auth.ts` stamps `signedInAt` at sign-in and returns null (Auth.js clears the cookie) for a session signed in before that
+  moment — sessions from before the check existed carry no stamp and count as old. 30 s settings cache, so it lands within
+  that window on every replica. With no moment set it does nothing, so deploying it signed nobody out.
+- **Unclaimed accounts** (E-SEC-15, `/admin/unclaimed`, from Workspaces, `lib/unclaimed-accounts.ts`): mailboxes on the shared
+  Unipile team and profiles on the PLATFORM Zernio key that no workspace owns. The operator assigns each (re-read at assign
+  time, audited `integration.adopted`, so the workspace's admins hear). A profile named `ws_<id>` goes back only to that
+  workspace; one whose workspace is deleted is never assignable; a workspace with its own Zernio key or a profile can't take
+  one. ⚠ **Refresh from Unipile no longer adopts unclaimed mailboxes for anyone** — the operator's refresh used to pull them into
+  whatever workspace the cookie said.
+
 ## Open items / things the user still owns
 - **Analytics: APIs enabled 2026-08-03** (Search Console + GA Admin + GA Data, on project
   `479503233109` = `gen-lang-client-0838901195` = "CreateUp"). Still pending, user-only: add the

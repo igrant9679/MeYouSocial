@@ -59,7 +59,7 @@ export async function consumeHostedAuthState(name: string): Promise<string | nul
 }
 
 /** Unipile account types that carry a mailbox. Anything else is a social/IM account. */
-const MAIL_TYPES = new Set(["MAIL", "GOOGLE", "GMAIL", "OUTLOOK", "IMAP", "EXCHANGE"]);
+export const MAIL_TYPES = new Set(["MAIL", "GOOGLE", "GMAIL", "OUTLOOK", "IMAP", "EXCHANGE"]);
 
 /**
  * Mirror this Unipile team's MAILBOXES into a workspace — the reconcile the

@@ -69,7 +69,20 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   ],
   callbacks: {
     async jwt({ token, user }) {
-      if (user) token.sub = user.id;
+      if (user) {
+        token.sub = user.id;
+        token.signedInAt = Date.now();
+        return token;
+      }
+      // Incident mode (E-SEC-06): a session signed in before the operator's
+      // "sign everyone out" is refused — returning null clears it. Sessions from
+      // before this check existed carry no signedInAt and count as old. A failed
+      // settings read never signs anyone out.
+      try {
+        const { sessionsValidAfter } = await import("@/lib/incident");
+        const after = await sessionsValidAfter();
+        if (after && Number(token.signedInAt ?? 0) < after) return null;
+      } catch { /* keep the session */ }
       return token;
     },
     async session({ session, token }) {

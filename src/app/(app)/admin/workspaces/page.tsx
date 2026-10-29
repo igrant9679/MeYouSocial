@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { formatDay } from "@/lib/zoned-dates";
 import { redirect } from "next/navigation";
 import { Building2, LogIn, UserPlus, Trash2 } from "lucide-react";
@@ -55,6 +56,8 @@ export default async function PlatformWorkspacesPage() {
             Platform-operator view of every tenant: create and delete workspaces, manage members and roles anywhere —
             no membership needed. &ldquo;Enter&rdquo; joins you as admin and switches in, so every per-workspace admin
             page works there too.
+            {" "}<Link href="/admin/unclaimed" className="underline">Unclaimed accounts →</Link>{" "}
+            <Link href="/admin/incident" className="underline">Incident mode →</Link>
           </p>
         </div>
       </div>

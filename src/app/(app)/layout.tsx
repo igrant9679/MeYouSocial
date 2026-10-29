@@ -32,6 +32,7 @@ import { FlashBanner } from "@/components/FlashBanner";
 import { getGuideState } from "@/app/actions/guide";
 import { relevantSteps, outstandingSetup, availableTracks, type SetupState } from "@/lib/guide/steps";
 import { BRAND, PRODUCT, PRODUCT_SHORT } from "@/lib/product";
+import { currentIncident } from "@/lib/incident";
 
 // Each nav item carries its own brand color so the rail reads as a vibrant chip strip
 // (mirrors the CreateUp_Mockups.html per-module accent palette).
@@ -139,7 +140,7 @@ html[data-theme="dark"] .ws-brand {
     --accent-on: color-mix(in srgb, ${accent} 62%, white);
   }
 }` : null;
-  const [unread, ticker, studio, counts, tickerZone, enginePaused, engineAutonomous, heartbeat] = await Promise.all([
+  const [unread, ticker, studio, counts, tickerZone, enginePaused, engineAutonomous, heartbeat, incident] = await Promise.all([
     unreadCount(workspace.id, user.id),
     tickerEvents(workspace.id, 12),
     // Whether the video studio's tabs show (lib/studio.ts) and the strip's
@@ -156,6 +157,8 @@ html[data-theme="dark"] .ws-brand {
     isFullyAutonomous(workspace.id),
     // The engine's last check-in (E-ENG-03), so an idle engine and a stopped one differ.
     readHeartbeat(workspace.id).catch(() => null),
+    // An incident the operator declared (E-SEC-06) — a 30s-cached platform setting.
+    membership.role === "ADMIN" ? currentIncident() : Promise.resolve(null),
   ]);
 
   const engineState = { paused: enginePaused, autonomous: engineAutonomous, heartbeat, autopilotOff: process.env.AUTOPILOT === "off" };
@@ -355,6 +358,17 @@ html[data-theme="dark"] .ws-brand {
             {membership.role === "ADMIN"
               ? <Link href="/setup/automation" className="underline">Resume on Automation</Link>
               : <span className="font-normal">An admin can resume it on Automation.</span>}
+          </div>
+        )}
+
+        {/* A declared incident, for admins of every workspace (E-SEC-06). */}
+        {incident && (
+          <div role="alert" className="px-4 py-2 text-xs flex items-center gap-2 flex-wrap" style={{ background: "var(--rose-soft)", color: "var(--rose-on)" }}>
+            <b>Security incident, declared by the platform operator:</b>
+            <span>{incident.note}</span>
+            <Link href="/admin/api-keys#rotation" className="underline">Replace your keys</Link>
+            <Link href="/setup/people" className="underline">Check People</Link>
+            {canCreateWorkspace && <Link href="/admin/incident" className="underline">Incident mode</Link>}
           </div>
         )}
 

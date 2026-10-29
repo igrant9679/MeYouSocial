@@ -79,6 +79,7 @@ export default async function RolesPage() {
           </div>
         ))}
       </div>
+      <p className="text-[11px] text-[var(--mute)] mt-3">Above every workspace is the platform operator: they make and delete workspaces, give shared mailboxes and Zernio profiles to the right one, and can declare a security incident that signs everyone out. An assigned account or a declared incident is recorded in each affected workspace&apos;s audit log, and its admins are told.</p>
     </main>
   );
 }

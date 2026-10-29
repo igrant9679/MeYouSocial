@@ -109,20 +109,21 @@ export async function syncSocialAccountsAction() {
 export async function syncMailboxesAction() {
   const { workspace, user } = await requireRole("ADMIN");
   const { syncUnipileMailboxes } = await import("@/lib/unipile/accounts");
-  // Only the platform operator assigns unclaimed mailboxes (see accounts.ts).
+  // Nobody adopts unclaimed mailboxes by refreshing — not even the operator, whose
+  // active workspace is just a cookie. They wait on Unclaimed accounts (E-SEC-15).
   const operator = isPlatformOperator(user.email);
   try {
-    const { found, adopted, skipped, unclaimed, addresses } = await syncUnipileMailboxes(workspace.id, { adoptUnclaimed: operator });
+    const { found, adopted, skipped, unclaimed, addresses } = await syncUnipileMailboxes(workspace.id, { adoptUnclaimed: false });
     revalidatePath("/admin/connections");
     const detail = addresses.length ? ` (${addresses.join(", ")})` : "";
     const waiting = unclaimed
-      ? ` ${unclaimed} other mailbox${unclaimed === 1 ? "" : "es"} on the shared account belong${unclaimed === 1 ? "s" : ""} to no workspace yet — the platform administrator assigns those.`
+      ? ` ${unclaimed} other mailbox${unclaimed === 1 ? "" : "es"} on the shared account belong${unclaimed === 1 ? "s" : ""} to no workspace yet — ${operator ? "assign them on Settings → Workspaces → Unclaimed accounts." : "the platform administrator assigns those."}`
       : "";
     redirect(
       "/admin/connections?ok=" +
         encodeURIComponent(
           adopted
-            ? `${workspace.name}: ${operator ? "mirrored" : "refreshed"} ${adopted} mailbox${adopted === 1 ? "" : "es"} from Unipile${detail}.` +
+            ? `${workspace.name}: refreshed ${adopted} mailbox${adopted === 1 ? "" : "es"} from Unipile${detail}.` +
               (operator && skipped ? ` ${skipped} already belong to another workspace and were left alone.` : "") + waiting
             : found
               ? `No mailbox on the shared account is connected to ${workspace.name} yet — connect one with the button below.${waiting}`
