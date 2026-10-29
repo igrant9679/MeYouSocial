@@ -18,6 +18,8 @@ export type TurnInput = {
   page?: string | null;
   /** The active YouTube channel — "my channel" in the conversation; where video ideas and scripts land. */
   channelId?: string | null;
+  /** The nonce a confirm card's Yes carried (E-ENG-01); absent for anything typed. */
+  confirm?: string | null;
 };
 
 export type TurnOutput = { threadId: string; result: AssistantResult };
@@ -60,6 +62,7 @@ export async function runTurn(input: TurnInput): Promise<TurnOutput | null> {
     prior.map((m) => ({ role: m.role === "user" ? ("user" as const) : ("assistant" as const), content: m.content })),
     message,
     pending,
+    input.confirm ?? null,
   );
 
   // A refusal or a broken run is still a turn: record what the person was

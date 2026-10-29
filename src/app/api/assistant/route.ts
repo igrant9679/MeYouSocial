@@ -49,7 +49,7 @@ export async function POST(req: Request) {
   const c = await caller();
   if ("denied" in c) return c.denied;
   const { workspace, user, membership } = c.ctx;
-  const body = (await req.json().catch(() => ({}))) as { threadId?: string; message?: string; page?: string };
+  const body = (await req.json().catch(() => ({}))) as { threadId?: string; message?: string; page?: string; confirm?: string };
   const message = String(body.message ?? "").trim();
   if (!message) return Response.json({ error: "empty message" }, { status: 400 });
   const { active } = await getActiveChannel();
@@ -61,6 +61,7 @@ export async function POST(req: Request) {
     message,
     page: typeof body.page === "string" && body.page.startsWith("/") ? body.page.slice(0, 200) : null,
     channelId: active?.id ?? null,
+    confirm: typeof body.confirm === "string" && body.confirm ? body.confirm.slice(0, 40) : null,
   });
   if (!out) return Response.json({ error: "no thread" }, { status: 404 });
   const r = out.result;

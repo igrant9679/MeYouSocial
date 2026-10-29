@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Bot, Loader2, SendHorizonal, X, Wrench, ExternalLink, Sparkles } from "lucide-react";
 import { MarkdownMessage } from "@/components/MarkdownMessage";
+import { ConfirmCard } from "@/components/ConfirmCard";
 import { UploadButton } from "@/components/UploadButton";
 import type { AssistantStep } from "@/lib/assistant/run";
 
@@ -81,9 +82,10 @@ export function AssistantDock({ activeChannelId = null, workspaceId, userId }: {
 
   useEffect(() => { listRef.current?.scrollTo({ top: listRef.current.scrollHeight }); }, [messages, busy]);
 
-  const send = useCallback(async (message: string) => {
+  const send = useCallback(async (message: string, confirm?: string) => {
     const m = message.trim();
     if (!m || busy) return;
+    // A card's Yes carries its proposal's nonce (E-ENG-01); typed text never does.
     setBusy(true);
     setOptions([]);
     setLinks([]);
@@ -91,7 +93,7 @@ export function AssistantDock({ activeChannelId = null, workspaceId, userId }: {
     setText("");
     try {
       const post = (id: string | null) =>
-        fetch("/api/assistant", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ threadId: id, message: m, page: pathname }) });
+        fetch("/api/assistant", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ threadId: id, message: m, page: pathname, ...(confirm ? { confirm } : {}) }) });
       let r = await post(threadId);
       // The remembered conversation is gone (deleted, or another workspace's):
       // start a new one with this message instead of failing every send.
@@ -111,6 +113,9 @@ export function AssistantDock({ activeChannelId = null, workspaceId, userId }: {
       setBusy(false);
     }
   }, [busy, threadId, pathname]);
+
+  // The newest proposal on screen — its card's Yes carries this nonce (E-ENG-01).
+  const lastNonce = [...messages].reverse().find((x) => x.role === "assistant")?.steps.find((x): x is Extract<AssistantStep, { kind: "confirm" }> => x.kind === "confirm")?.nonce;
 
   const newThread = () => { setThreadId(null); setMessages([]); setOptions([]); setLinks([]); try { localStorage.removeItem(storeKey); } catch { /* ignore */ } };
 
@@ -162,9 +167,14 @@ export function AssistantDock({ activeChannelId = null, workspaceId, userId }: {
             )}
             {messages.map((m) => {
               const tools = m.steps.filter((s): s is Extract<AssistantStep, { kind: "tool" }> => s.kind === "tool");
+              const confirmStep = m.steps.find((s): s is Extract<AssistantStep, { kind: "confirm" }> => s.kind === "confirm");
               return (
                 <div key={m.id} className={`rounded-xl px-3 py-2 text-sm ${m.role === "user" ? "self-end max-w-[85%]" : "self-start max-w-[95%]"}`} style={m.role === "user" ? { background: "var(--accent-soft)" } : { background: "var(--zebra)" }}>
                   {m.role === "user" ? <p className="m-0 whitespace-pre-wrap leading-relaxed">{m.content}</p> : <MarkdownMessage content={m.content} />}
+                  {confirmStep && (
+                    <ConfirmCard tool={confirmStep.tool} summary={confirmStep.summary} preview={confirmStep.preview}
+                      expires={confirmStep.expiresAt ? new Date(confirmStep.expiresAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : null} />
+                  )}
                   {tools.length > 0 && (
                     <details className="mt-1">
                       <summary className="cursor-pointer text-[10px] font-mono text-[var(--mute)] inline-flex items-center gap-1"><Wrench className="w-3 h-3" /> {tools.length} step{tools.length === 1 ? "" : "s"}</summary>
@@ -184,7 +194,7 @@ export function AssistantDock({ activeChannelId = null, workspaceId, userId }: {
             {busy && <div className="self-start text-[11px] text-[var(--mute)] inline-flex items-center gap-1.5"><Loader2 className="w-3 h-3 animate-spin" /> Working — this may take a minute if it&apos;s writing something.</div>}
             {(options.length > 0 || links.length > 0) && !busy && (
               <div className="flex flex-wrap gap-1.5 self-start">
-                {options.map((o) => <button key={o} type="button" onClick={() => send(o)} className={`btn sm ${/^yes/i.test(o) ? "primary" : ""}`}>{o}</button>)}
+                {options.map((o) => <button key={o} type="button" onClick={() => send(o, /^yes/i.test(o) ? lastNonce : undefined)} className={`btn sm ${/^yes/i.test(o) ? "primary" : ""}`}>{o}</button>)}
                 {links.map((l) => <Link key={l.href} href={l.href} className="btn sm inline-flex items-center gap-1" onClick={() => setOpen(false)}><ExternalLink className="w-3 h-3" /> {l.label}</Link>)}
               </div>
             )}

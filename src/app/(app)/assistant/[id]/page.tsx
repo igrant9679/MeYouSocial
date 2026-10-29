@@ -7,6 +7,9 @@ import { db } from "@/lib/db";
 import { readJson } from "@/lib/db/json";
 import { AssistantComposer } from "@/components/AssistantComposer";
 import { MarkdownMessage } from "@/components/MarkdownMessage";
+import { ConfirmCard } from "@/components/ConfirmCard";
+import { getPostingTimeZone } from "@/lib/social/slots";
+import { formatZonedMoment } from "@/lib/zoned-dates";
 import type { AssistantStep, PendingAction } from "@/lib/assistant/run";
 // A quick reply is just a message — the same action the composer uses.
 import { sendAssistantMessageAction as sendQuick } from "@/app/actions/assistant";
@@ -30,6 +33,9 @@ export default async function AssistantThreadPage({ params }: { params: Promise<
   const lastAsk = lastSteps.find((s): s is Extract<AssistantStep, { kind: "ask" }> => s.kind === "ask");
   const lastAnswer = lastSteps.find((s): s is Extract<AssistantStep, { kind: "answer" }> => s.kind === "answer");
   const quick = pending ? ["Yes, do it", "No"] : lastAsk?.options ?? [];
+  // The Yes is bound to the proposal it answers (E-ENG-01).
+  const lastConfirm = lastSteps.find((s): s is Extract<AssistantStep, { kind: "confirm" }> => s.kind === "confirm");
+  const tz = await getPostingTimeZone(workspace.id).catch(() => "UTC");
 
   return (
     <main className="p-6 w-full max-w-4xl">
@@ -55,6 +61,10 @@ export default async function AssistantThreadPage({ params }: { params: Promise<
               {m.role === "user"
                 ? <p className="text-sm whitespace-pre-wrap leading-relaxed">{m.content}</p>
                 : <MarkdownMessage content={m.content} />}
+              {confirm && (
+                <ConfirmCard tool={confirm.tool} summary={confirm.summary} preview={confirm.preview}
+                  expires={confirm.expiresAt ? formatZonedMoment(new Date(confirm.expiresAt), tz) : null} />
+              )}
               {tools.length > 0 && (
                 <details className="mt-2">
                   <summary className="cursor-pointer text-[10px] font-mono text-[var(--mute)] inline-flex items-center gap-1">
@@ -82,6 +92,7 @@ export default async function AssistantThreadPage({ params }: { params: Promise<
             <form key={o} action={sendQuick}>
               <input type="hidden" name="threadId" value={thread.id} />
               <input type="hidden" name="message" value={o} />
+              {/^yes/i.test(o) && pending && lastConfirm?.nonce && <input type="hidden" name="confirm" value={lastConfirm.nonce} />}
               <button className={`btn sm ${/^yes/i.test(o) ? "primary" : ""}`}>{o}</button>
             </form>
           ))}

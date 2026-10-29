@@ -1,4 +1,6 @@
 import { llm, resolveUsableModel } from "@/lib/llm";
+import { randomBytes } from "node:crypto";
+import { buildPreview, type ConfirmPreview } from "@/lib/assistant/preview";
 import { db } from "@/lib/db";
 import { brandContextBlock } from "@/lib/motifs";
 import { channelBrief } from "@/lib/assistant/context";
@@ -36,9 +38,10 @@ export type AssistantStep =
   | { kind: "tool"; tool: string; args: Record<string, unknown>; output: string; ok: boolean }
   | { kind: "answer"; text: string; links?: Array<{ label: string; href: string }> }
   | { kind: "ask"; text: string; options: string[] }
-  | { kind: "confirm"; tool: string; args: Record<string, unknown>; summary: string };
+  /** A proposal (E-ENG-01): the card is built from `preview`; its Yes must carry `nonce`. */
+  | { kind: "confirm"; tool: string; args: Record<string, unknown>; summary: string; nonce?: string; preview?: ConfirmPreview; expiresAt?: string };
 
-export type PendingAction = { tool: string; args: Record<string, unknown>; summary: string; askedAt: string };
+export type PendingAction = { tool: string; args: Record<string, unknown>; summary: string; askedAt: string; nonce?: string };
 
 export type AssistantResult = {
   ok: boolean;
@@ -181,6 +184,8 @@ export async function runAssistant(
   history: Array<{ role: "user" | "assistant"; content: string }>,
   message: string,
   pending: PendingAction | null = null,
+  /** The nonce a card's Yes carried; null for a typed message. */
+  confirm: string | null = null,
 ): Promise<AssistantResult> {
   const workspace = await db.workspace.findUnique({ where: { id: ctx.workspaceId }, select: { name: true, defaultModel: true } });
   if (!workspace) return { ok: false, answer: "", steps: [], error: "workspace not found" };
@@ -202,17 +207,47 @@ export async function runAssistant(
     // A "yes" long after the question is not consent to what was asked then.
     transcript.push({ role: "user", content: `${message}\n\n[an earlier proposal "${pending.summary}" expired unanswered and was NOT done; if the person is agreeing to it, propose it again so they can confirm it fresh]` });
   } else if (pending) {
-    if (isAffirmative(message)) {
-      const { ok, output } = await runTool(pending.tool, pending.args, ctx, { confirmed: true });
-      steps.push({ kind: "tool", tool: pending.tool, args: pending.args, output, ok });
-      transcript.push({ role: "assistant", content: JSON.stringify({ tool: pending.tool, args: pending.args, why: pending.summary }) });
-      transcript.push({ role: "user", content: `[the person confirmed; tool result: ${pending.tool}]\n${output}\n\nNow tell them what happened and the natural next step.` });
+    // A card's Yes is bound to ITS proposal (E-ENG-01): one from an older card —
+    // another tab, a proposal since replaced — answers nothing.
+    const byCard = confirm !== null;
+    if (byCard && pending.nonce && confirm !== pending.nonce) {
+      // Answered here, not by the model: nothing runs, and the proposal that IS
+      // waiting stays waiting, its card drawn again with its own nonce.
+      const preview = await buildPreview(pending.tool, pending.args, ctx);
+      const expiresAt = new Date(Date.parse(pending.askedAt) + PROPOSAL_TTL_MS).toISOString();
+      return {
+        ok: true,
+        answer: `That yes was pressed on an earlier proposal, so nothing was done. Still waiting on: **${pending.summary}**. Go ahead?`,
+        steps: [{ kind: "confirm", tool: pending.tool, args: pending.args, summary: pending.summary, nonce: pending.nonce, preview, expiresAt }],
+        options: ["Yes, do it", "No"],
+        pending,
+      };
+    } else if (byCard || isAffirmative(message)) {
+      // The re-check: the post or article still there, its time still ahead,
+      // the role still allowed — what was shown may have changed since.
+      const def = TOOLS.find((t) => t.name === pending.tool);
+      const roleRefused = def?.minRole === "ADMIN" && ctx.role !== "ADMIN";
+      const recheck = roleRefused ? null : await buildPreview(pending.tool, pending.args, ctx);
+      const why = roleRefused ? "only an admin can do this" : recheck?.problem;
+      if (why) {
+        steps.push({ kind: "tool", tool: pending.tool, args: pending.args, output: `not run: ${why}`, ok: false });
+        transcript.push({ role: "user", content: `${message}\n\n[the person said yes to "${pending.summary}", but on checking again just now: ${why}. It was NOT done — tell them plainly.]` });
+      } else {
+        const { ok, output } = await runTool(pending.tool, pending.args, ctx, { confirmed: true });
+        steps.push({ kind: "tool", tool: pending.tool, args: pending.args, output, ok });
+        transcript.push({ role: "assistant", content: JSON.stringify({ tool: pending.tool, args: pending.args, why: pending.summary }) });
+        transcript.push({ role: "user", content: `[the person confirmed; tool result: ${pending.tool}]\n${output}\n\nNow tell them what happened and the natural next step.` });
+      }
     } else if (NO.test(message)) {
       transcript.push({ role: "user", content: `${message}\n\n[the person declined the proposal "${pending.summary}"; it was NOT done. Acknowledge briefly and ask what they would like instead.]` });
     } else {
       // Neither — treat as a new request; the proposal lapses.
       transcript.push({ role: "user", content: `${message}\n\n[an earlier proposal "${pending.summary}" was left unanswered and has lapsed; do not run it unless asked again]` });
     }
+  } else if (confirm !== null) {
+    // A card's Yes with nothing waiting: it already ran, lapsed or was replaced.
+    // Said here, plainly — a model asked to explain it might run something.
+    return { ok: true, answer: "That proposal isn't waiting any more — it already ran, expired or was replaced — so nothing was done. Ask again if you still want it.", steps: [], pending: null };
   } else {
     transcript.push({ role: "user", content: message });
   }
@@ -260,9 +295,20 @@ export async function runAssistant(
         steps.push({ kind: "tool", tool: d.tool, args: d.args ?? {}, output: "refused: admins only", ok: false });
         continue;
       }
+      // The card is built here, from the arguments — and a proposal that
+      // couldn't run (the post is gone, the time has passed) isn't made.
+      const preview = await buildPreview(d.tool, d.args ?? {}, ctx);
+      if (preview.problem) {
+        transcript.push({ role: "assistant", content: JSON.stringify(d) });
+        transcript.push({ role: "user", content: `[tool result: ${d.tool}]\nnot proposed: ${preview.problem}` });
+        steps.push({ kind: "tool", tool: d.tool, args: d.args ?? {}, output: `not proposed: ${preview.problem}`, ok: false });
+        continue;
+      }
       const summary = (d.why?.trim() || `${def.description.split(".")[0]}`) + (reason ? ` — ${reason}` : "");
-      const proposal: PendingAction = { tool: d.tool, args: d.args ?? {}, summary, askedAt: new Date().toISOString() };
-      steps.push({ kind: "confirm", tool: d.tool, args: d.args ?? {}, summary });
+      const askedAt = new Date();
+      const nonce = randomBytes(9).toString("base64url");
+      const proposal: PendingAction = { tool: d.tool, args: d.args ?? {}, summary, askedAt: askedAt.toISOString(), nonce };
+      steps.push({ kind: "confirm", tool: d.tool, args: d.args ?? {}, summary, nonce, preview, expiresAt: new Date(askedAt.getTime() + PROPOSAL_TTL_MS).toISOString() });
       const answer = `I'm about to: **${summary}**. Go ahead?`;
       return { ok: true, answer, steps, options: ["Yes, do it", "No"], pending: proposal };
     }

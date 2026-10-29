@@ -18,6 +18,7 @@ export async function sendAssistantMessageAction(formData: FormData) {
   const message = String(formData.get("message") ?? "").trim().slice(0, 4000);
   const threadId = String(formData.get("threadId") ?? "").trim();
   const page = String(formData.get("page") ?? "").trim();
+  const confirm = String(formData.get("confirm") ?? "").trim().slice(0, 40) || null;
   if (!message) redirect(threadId ? `/assistant/${threadId}` : "/assistant");
 
   const { active } = await getActiveChannel();
@@ -29,6 +30,7 @@ export async function sendAssistantMessageAction(formData: FormData) {
     message,
     page: page.startsWith("/") ? page.slice(0, 200) : null,
     channelId: active?.id ?? null,
+    confirm,
   });
   if (!out) redirect("/assistant");
 

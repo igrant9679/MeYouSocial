@@ -820,6 +820,19 @@ Tabs: **Keys** (`/admin/api-keys`: LLM, search, images, video, TTS, storage) · 
   first-match in directory order passed on Windows and failed both Railway builds of part d (Linux readdir order
   resolved /social/approvals to /social/[id]). `CHECK_ROUTES_REVERSE=1` walks backwards to prove it.
 
+## ⚠ The assistant's proposals are cards with a bound Yes (2026-10-28, audit Phase 5, wave 2, part e2)
+- **Server-built confirm cards** (E-ENG-01, `lib/assistant/preview.ts` `buildPreview`, `components/ConfirmCard.tsx`): a
+  proposal's card shows the tool, the post's real text, networks and time in the posting zone (from `postId`), the
+  article, its state and live URL and its featured image (from `articleId`), a parsed `at`, and the other arguments —
+  built from the database, never from the model's description. The `confirm` step carries `nonce`, `preview` and
+  `expiresAt` (15 minutes); the dock and the thread page draw the same card.
+- **A Yes is bound to its proposal**: the card's Yes sends `confirm: <nonce>` (dock → `/api/assistant`, thread page → a
+  hidden field); a nonce for another card runs nothing and keeps the waiting proposal; a nonce with nothing waiting is
+  told so — both answered in code, not by the model. A typed bare yes still answers the waiting proposal.
+- **Checked again before running**: on yes the preview is rebuilt (and the role re-checked); a post or article gone,
+  a post already sent, or a time now past means `not run: …`. A proposal whose preview already has a problem isn't
+  made (`not proposed: …`). New tool arguments a card should show: name them `postId` / `articleId` / `at` / `text`.
+
 ## Open items / things the user still owns
 - **Analytics: APIs enabled 2026-08-03** (Search Console + GA Admin + GA Data, on project
   `479503233109` = `gen-lang-client-0838901195` = "CreateUp"). Still pending, user-only: add the
