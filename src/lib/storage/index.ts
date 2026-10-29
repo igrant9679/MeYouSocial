@@ -91,16 +91,34 @@ export function invalidateStorageCache() {
 
 // ── Dispatching facade ───────────────────────────────────────────────────────
 
-export const storage: StorageProvider = {
-  async put(name, data, contentType) {
+/**
+ * The facade every caller uses. `owner` is REQUIRED (E-SEC-11): the workspace
+ * whose members may open the file — recorded as a StoredObject row and checked by
+ * /uploads and /api/files (lib/storage/owners.ts). Pass null only for a file that
+ * belongs to no workspace; it is then open to any signed-in member, the rule every
+ * file stored before 2026-10-29 still has.
+ */
+export type OwnedStorage = Omit<StorageProvider, "put"> & {
+  put(name: string, data: Buffer | Uint8Array, contentType: string | undefined, owner: string | null): Promise<StoredFile>;
+};
+
+export const storage: OwnedStorage = {
+  async put(name, data, contentType, owner) {
+    let file: StoredFile;
     if ((await getStorageBackendSetting()) === "gdrive") {
       // Throws with a clear message if Drive is selected but unconfigured —
       // silently falling back to local would quietly lose the file on the
       // next redeploy, which is the exact failure this backend exists to fix.
       const { gdriveProvider } = await import("@/lib/storage/gdrive");
-      return gdriveProvider.put(name, data, contentType);
+      file = await gdriveProvider.put(name, data, contentType);
+    } else {
+      file = await localProvider.put(name, data, contentType);
     }
-    return localProvider.put(name, data, contentType);
+    if (owner) {
+      const { recordOwner } = await import("@/lib/storage/owners");
+      await recordOwner(file.key, owner);
+    }
+    return file;
   },
   async get(key) {
     if (key.startsWith("gdrive:")) {

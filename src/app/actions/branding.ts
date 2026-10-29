@@ -44,7 +44,7 @@ export async function uploadWorkspaceLogoAction(formData: FormData) {
   if (!ext) redirect("/admin/settings?err=logo-type");
 
   const bytes = Buffer.from(await file.arrayBuffer());
-  const stored = await storage.put(`workspace-logo${ext}`, bytes, file.type);
+  const stored = await storage.put(`workspace-logo${ext}`, bytes, file.type, workspace.id);
   await db.workspace.update({
     where: { id: workspace.id },
     data: { logoKey: stored.key },

@@ -77,7 +77,7 @@ export async function POST(req: NextRequest) {
   }
 
   const bytes = Buffer.from(await file.arrayBuffer());
-  const stored = await storage.put(file.name, bytes, file.type);
+  const stored = await storage.put(file.name, bytes, file.type, workspace.id);
 
   // Extract usable text: text files are read; an image is LOOKED AT by a vision
   // model. The caption used to be written from the filename alone and stored

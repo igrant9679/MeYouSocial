@@ -138,14 +138,14 @@ function assertNetworkRules(
   }
 }
 
-async function storeMedia(files: FormDataEntryValue[]): Promise<string[]> {
+async function storeMedia(files: FormDataEntryValue[], workspaceId: string): Promise<string[]> {
   const keys: string[] = [];
   for (const f of files) {
     if (!(f instanceof File) || f.size === 0) continue;
     if (!IMAGE_TYPES.has(f.type)) backTo("Only PNG, JPEG, GIF or WebP images are supported.");
     if (f.size > MEDIA_BYTES) backTo("Each image must be under 15 MB.");
     const bytes = Buffer.from(await f.arrayBuffer());
-    const stored = await storage.put(f.name, bytes, f.type);
+    const stored = await storage.put(f.name, bytes, f.type, workspaceId);
     keys.push(stored.key);
     if (keys.length >= MEDIA_MAX) break;
   }
@@ -250,7 +250,7 @@ export async function createSocialPostAction(formData: FormData) {
   // the composer runs in draft-only mode before any account is connected.
   // Anything that actually SENDS still needs somewhere to send.
   if (accountIds.length === 0 && when !== "draft") backTo("Pick at least one account to post to — or save it as a draft.");
-  const uploaded = await storeMedia(formData.getAll("media"));
+  const uploaded = await storeMedia(formData.getAll("media"), workspace.id);
   const mediaKeys = [...uploaded, ...generatedKeysFrom(formData)];
   // Uploads join the workspace's media library (Distribute → Media) for reuse.
   if (uploaded.length) {
@@ -328,7 +328,7 @@ export async function createSocialPostAction(formData: FormData) {
   const mediaByProvider = new Map<string, string | null>();
   for (const provider of new Set(accounts.map((a) => a.provider.toUpperCase()))) {
     const files = formData.getAll(`media_${provider}`);
-    const keys = await storeMedia(files);
+    const keys = await storeMedia(files, workspace.id);
     mediaByProvider.set(provider, keys.length ? writeJson(keys) : null);
   }
 
@@ -578,7 +578,7 @@ export async function updateSocialPostAction(formData: FormData) {
   // generated AI images count as "new media" exactly like uploads do.
   let mediaKeys = readJson<string[]>(post!.mediaKeys, []);
   if (String(formData.get("clearMedia") ?? "") === "on") mediaKeys = [];
-  const added = [...(await storeMedia(formData.getAll("media"))), ...generatedKeysFrom(formData)];
+  const added = [...(await storeMedia(formData.getAll("media"), workspace.id)), ...generatedKeysFrom(formData)];
   if (added.length) mediaKeys = added;
   if (!text && mediaKeys.length === 0) backTo("Write something or attach an image.");
 
@@ -648,7 +648,7 @@ export async function updateSocialPostAction(formData: FormData) {
   // so an edit that doesn't touch images keeps the ones already chosen.
   const mediaByProvider = new Map<string, string | null | undefined>();
   for (const provider of new Set(accounts.map((a) => a.provider.toUpperCase()))) {
-    const keys = await storeMedia(formData.getAll(`media_${provider}`));
+    const keys = await storeMedia(formData.getAll(`media_${provider}`), workspace.id);
     // A new upload replaces. No upload: a network switched back to "Use base"
     // loses its own images (null); one still customized keeps them (undefined).
     // Only forms that mark their customized networks get the clear (SOC-18).

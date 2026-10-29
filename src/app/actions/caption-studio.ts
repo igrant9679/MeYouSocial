@@ -45,11 +45,11 @@ function studio(params: Record<string, string>, msg?: { ok?: string; err?: strin
   redirect(`/social/captions?${q.toString()}`);
 }
 
-async function storeImage(f: FormDataEntryValue | null): Promise<string | null> {
+async function storeImage(f: FormDataEntryValue | null, workspaceId: string): Promise<string | null> {
   if (!(f instanceof File) || f.size === 0) return null;
   if (!IMAGE_TYPES.has(f.type)) throw new Error("Only PNG, JPEG, GIF or WebP images are supported.");
   if (f.size > MEDIA_BYTES) throw new Error("Each image must be under 15 MB.");
-  const stored = await storage.put(f.name, Buffer.from(await f.arrayBuffer()), f.type);
+  const stored = await storage.put(f.name, Buffer.from(await f.arrayBuffer()), f.type, workspaceId);
   return stored.key;
 }
 
@@ -212,7 +212,7 @@ export async function generateBatchAction(formData: FormData) {
     try {
       for (let i = 0; i < 10; i++) {
         const description = String(formData.get(`desc_${i}`) ?? "").trim().slice(0, 600);
-        const key = await storeImage(formData.get(`img_${i}`));
+        const key = await storeImage(formData.get(`img_${i}`), workspace.id);
         if (description) images.push({ description, key });
         else if (key) studio(back, { err: `Image ${i + 1} has no description — the description is what the caption is written from.` });
       }
@@ -338,7 +338,7 @@ export async function saveBatchAction(formData: FormData) {
       if (g("d") != null) { const d = String(g("d")).trim(); it.day = isValidDay(d) ? d : null; }
       if (g("tm") != null) it.minute = parsePostAt(String(g("tm")));
       it.include = String(g("inc") ?? "") === "on";
-      const key = await storeImage(g("m"));
+      const key = await storeImage(g("m"), workspace.id);
       if (key) it.mediaKey = key;
       if (String(g("rm") ?? "") === "on") it.mediaKey = null;
     }

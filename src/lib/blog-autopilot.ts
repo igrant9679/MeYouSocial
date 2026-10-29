@@ -1188,7 +1188,7 @@ async function persistRenderOutput(
       console.warn(`[video] not persisting ${providerName} output — ${buf.byteLength} bytes is empty or over the 80MB cap`);
       return null;
     }
-    const file = await storage.put("render.mp4", buf, res.headers.get("content-type") ?? "video/mp4");
+    const file = await storage.put("render.mp4", buf, res.headers.get("content-type") ?? "video/mp4", workspaceId);
     return file.url;
   } catch (e) {
     console.warn(`[video] cannot persist ${providerName} output:`, e instanceof Error ? e.message : e);
@@ -1352,7 +1352,7 @@ export async function assembleRenderCore(workspaceId: string, renderId: string):
   });
   try {
     const { assembleScenes } = await import("@/lib/video/assemble");
-    const out = await assembleScenes(scenes, render.aspect, render.voiceoverUrl);
+    const out = await assembleScenes(scenes, render.aspect, render.voiceoverUrl, workspaceId);
     await db.videoRender.update({
       where: { id: render.id },
       data: { assembledUrl: out.url, assemblyStatus: "done", assemblyError: null },

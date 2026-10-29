@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireMembership } from "@/lib/acl";
 import { localProvider } from "@/lib/storage";
+import { mayOpen } from "@/lib/storage/owners";
 
 // GET /uploads/<key> — serves locally-stored files (dev default, and any files
 // that predate the Drive backend). This route did not exist before: local
@@ -41,8 +42,10 @@ const EXT_TYPE: Record<string, string> = {
 };
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ key: string }> }) {
-  await requireMembership();
+  const { user } = await requireMembership();
   const { key } = await params;
+  // Another workspace's file is "not found", not "forbidden" — no confirmation it exists (E-SEC-11).
+  if (!(await mayOpen(key, user))) return new NextResponse("Not found", { status: 404 });
   const buf = await localProvider.get(key); // validates the key shape itself
   if (!buf) return new NextResponse("Not found", { status: 404 });
 

@@ -155,10 +155,10 @@ export async function brandedShortAvailable(workspaceId?: string | null): Promis
 // ── Render ─────────────────────────────────────────────────────────────────────
 
 /** Persist an MP4 buffer through the storage layer; null if it couldn't. */
-async function persistMp4(buf: Buffer): Promise<string | null> {
+async function persistMp4(buf: Buffer, workspaceId: string): Promise<string | null> {
   if (!buf.byteLength || buf.byteLength > 120 * 1024 * 1024) return null;
   try {
-    return (await storage.put("branded-short.mp4", buf, "video/mp4")).url;
+    return (await storage.put("branded-short.mp4", buf, "video/mp4", workspaceId)).url;
   } catch {
     return null;
   }
@@ -200,7 +200,7 @@ export async function renderBrandedShortCore(
     if (mode === "local") {
       const { outputPath, cleanup } = await renderLocally({ projectDir: templateDir(), variables, fps: 30 });
       try {
-        storedUrl = await persistMp4(await fs.readFile(outputPath));
+        storedUrl = await persistMp4(await fs.readFile(outputPath), workspaceId);
       } finally {
         await cleanup();
       }
@@ -220,7 +220,7 @@ export async function renderBrandedShortCore(
       // Persist the signed URL's bytes — HeyGen's video_url is time-limited.
       try {
         const res = await fetch(out.videoUrl, { signal: AbortSignal.timeout(120_000), redirect: "follow" });
-        if (res.ok) storedUrl = await persistMp4(Buffer.from(await res.arrayBuffer()));
+        if (res.ok) storedUrl = await persistMp4(Buffer.from(await res.arrayBuffer()), workspaceId);
       } catch {
         // keep the signed URL even if persistence failed
       }

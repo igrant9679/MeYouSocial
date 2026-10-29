@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireMembership } from "@/lib/acl";
 import { GDRIVE_KEY_PREFIX, gdriveFetchMedia } from "@/lib/storage/gdrive";
+import { mayOpen } from "@/lib/storage/owners";
 
 // GET /api/files/gdrive:<fileId> — streams a Drive-stored file to signed-in
 // members. Files stay private in Drive; the Range header is forwarded so
@@ -13,7 +14,7 @@ export const dynamic = "force-dynamic";
 const PASSTHROUGH_HEADERS = ["content-type", "content-length", "content-range", "accept-ranges"];
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ key: string }> }) {
-  await requireMembership();
+  const { user } = await requireMembership();
   const raw = (await params).key;
   let key = raw;
   try {
@@ -24,6 +25,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ key:
   if (!key.startsWith(GDRIVE_KEY_PREFIX)) return new NextResponse("Not found", { status: 404 });
   const fileId = key.slice(GDRIVE_KEY_PREFIX.length);
   if (!/^[A-Za-z0-9_-]{10,}$/.test(fileId)) return new NextResponse("Bad key", { status: 400 });
+  // Another workspace's file is "not found" (E-SEC-11).
+  if (!(await mayOpen(key, user))) return new NextResponse("Not found", { status: 404 });
 
   let upstream: Response;
   try {

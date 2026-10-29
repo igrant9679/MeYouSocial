@@ -22,17 +22,18 @@ export interface TtsProvider {
   speak(text: string): Promise<TtsResult>;
 }
 
-const mockTts: TtsProvider = {
+const mockTts = (workspaceId?: string): TtsProvider => ({
   name: "mock",
   async speak(text: string) {
     const file = await storage.put(
       "voiceover-script.txt",
       Buffer.from(`[MOCK TTS — no audio generated]\nConfigure ElevenLabs under Settings → Keys to produce real audio.\n\n${text}`, "utf8"),
       "text/plain",
+      workspaceId ?? null,
     );
     return { url: file.url, provider: "mock", isAudio: false };
   },
-};
+});
 
 const ELEVEN_VOICE = "21m00Tcm4TlvDq8ikWAM"; // "Rachel" — ElevenLabs' default public voice
 
@@ -52,7 +53,7 @@ const elevenLabsTts = (workspaceId?: string): TtsProvider => ({
       throw new Error(`ElevenLabs HTTP ${res.status}: ${detail.slice(0, 150)}`);
     }
     const buf = Buffer.from(await res.arrayBuffer());
-    const file = await storage.put("voiceover.mp3", buf, "audio/mpeg");
+    const file = await storage.put("voiceover.mp3", buf, "audio/mpeg", workspaceId ?? null);
     return { url: file.url, provider: "elevenlabs", isAudio: true };
   },
 });
@@ -69,5 +70,5 @@ export async function getTtsProvider(workspaceId?: string): Promise<TtsProvider>
   } catch {
     // fall through to mock
   }
-  return mockTts;
+  return mockTts(workspaceId);
 }

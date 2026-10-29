@@ -909,6 +909,19 @@ Tabs: **Keys** (`/admin/api-keys`: LLM, search, images, video, TTS, storage) · 
   one. ⚠ **Refresh from Unipile no longer adopts unclaimed mailboxes for anyone** — the operator's refresh used to pull them into
   whatever workspace the cookie said.
 
+## ⚠ Stored files have an owner (2026-10-29, audit Phase 5, security part 5)
+- **`storage.put(name, data, type, owner)` — `owner` is required** (E-SEC-11, `OwnedStorage` in `lib/storage/index.ts`): the
+  workspace whose members may open the file, recorded as a `StoredObject` row (migration `20261029110000_stored_object_owner`,
+  `recordOwner` in `lib/storage/owners.ts`). Pass `null` only for a file that belongs to no workspace. Every caller passes
+  its workspace — uploads, media, social and caption images, logos, brand documents, generated images, voiceovers, Veo
+  output, assembled and branded videos. The providers themselves (`localProvider`, `gdriveProvider`) don't record owners;
+  never call their `put` from feature code.
+- **`/uploads/<key>` and `/api/files/<key>` ask `mayOpen`**: an owned file opens for active members of its workspace (any of
+  them, whichever workspace is active) and the platform operator; anyone else gets 404 (not 403 — no confirmation it
+  exists), checked before Drive is called. ⚠ **Files stored before 2026-10-29 have no owner row and keep the old rule** (any
+  signed-in member; keys are unguessable). Owners were deliberately NOT back-filled — guessing the owner of LSI's and
+  CF's files from references could lock a tenant out of its own images; a back-fill is the operator's call.
+
 ## Open items / things the user still owns
 - **Analytics: APIs enabled 2026-08-03** (Search Console + GA Admin + GA Data, on project
   `479503233109` = `gen-lang-client-0838901195` = "CreateUp"). Still pending, user-only: add the

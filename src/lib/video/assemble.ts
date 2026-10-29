@@ -132,7 +132,8 @@ export type AssemblyResult = {
 export async function assembleScenes(
   scenes: StoryScene[],
   aspect: string,
-  voiceoverUrl?: string | null,
+  voiceoverUrl: string | null | undefined,
+  owner: string,
 ): Promise<AssemblyResult> {
   const bin = await resolveFfmpeg();
   if (!bin) {
@@ -239,7 +240,7 @@ export async function assembleScenes(
 
     const bytes = (await fs.stat(assembled)).size;
     if (bytes > MAX_OUTPUT_BYTES) throw new Error("Assembled file exceeds the 200MB storage limit.");
-    const stored = await storage.put("assembled.mp4", await fs.readFile(assembled), "video/mp4");
+    const stored = await storage.put("assembled.mp4", await fs.readFile(assembled), "video/mp4", owner);
     return { url: stored.url, bytes, clips: clips.length, withVoiceover };
   } finally {
     await fs.rm(dir, { recursive: true, force: true }).catch(() => {});

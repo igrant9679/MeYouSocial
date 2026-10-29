@@ -153,7 +153,7 @@ export async function uploadBrandDocumentAction(formData: FormData) {
   }
 
   const bytes = Buffer.from(await file.arrayBuffer());
-  const stored = await storage.put(file.name, bytes, file.type || "application/octet-stream");
+  const stored = await storage.put(file.name, bytes, file.type || "application/octet-stream", workspace.id);
   const name = givenName ?? file.name;
 
   // A format needing an LLM read (PDF) lands `extracting` and a job picks it up,

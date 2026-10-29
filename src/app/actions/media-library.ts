@@ -25,7 +25,7 @@ export async function uploadMediaAction(formData: FormData) {
   for (const f of files) {
     if (!IMAGE_TYPES.has(f.type)) back({ err: `${f.name} isn't a PNG, JPEG, GIF or WebP image.` });
     if (f.size > MEDIA_BYTES) back({ err: `${f.name} is over 15 MB.` });
-    const stored = await storage.put(f.name, Buffer.from(await f.arrayBuffer()), f.type);
+    const stored = await storage.put(f.name, Buffer.from(await f.arrayBuffer()), f.type, workspace.id);
     await db.mediaItem.create({ data: { workspaceId: workspace.id, key: stored.key, name: f.name.slice(0, 200), description, contentType: f.type, createdById: user.id } });
     n++;
   }

@@ -58,6 +58,7 @@ model Workspace {
   inboxSnoozes     InboxSnooze[]
   inboxAssignments InboxAssignment[]
   apiTokens        ApiToken[]
+  storedObjects    StoredObject[]
   topics          Topic[]
   campaigns       Campaign[]
   intelChannels   IntelChannel[]
@@ -1993,6 +1994,19 @@ model SocialPost {
 // simply never matches again.
 // A workspace API token for /api/v1 (E-SEC-16). Only a sha256 of the token is kept — it is shown once, at
 // creation. `scope` is read (GET) or write (GET and POST). Revoked tokens stay as the record.
+/// Which workspace a stored file belongs to (E-SEC-11). Written when the file is
+/// stored; /uploads and /api/files serve it only to that workspace's members.
+/// Files stored before 2026-10-29 have no row and keep the old rule (any
+/// signed-in member) — owners were not back-filled.
+model StoredObject {
+  key         String   @id
+  workspaceId String
+  createdAt   DateTime @default(now())
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+}
+
 model ApiToken {
   id          String    @id @default(cuid())
   workspaceId String

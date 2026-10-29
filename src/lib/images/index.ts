@@ -129,8 +129,9 @@ async function store(
   aspect: string,
   provider: string,
   mimeType = "image/png",
-  output?: { width: number; height: number },
-  finish?: (bytes: Buffer) => Promise<Buffer>,
+  output: { width: number; height: number } | undefined,
+  finish: ((bytes: Buffer) => Promise<Buffer>) | undefined,
+  owner: string | null,
 ): Promise<ImageGenResult> {
   let buf: Buffer = Buffer.from(bytes);
   if (output && output.width > 0 && output.height > 0) {
@@ -157,7 +158,7 @@ async function store(
   // Measured from what we actually stored, never echoed from the request.
   const [w, h] = dimsOfBytes(buf) ?? dimsFor(aspect);
   const ext = mimeType.includes("jpeg") ? "jpg" : mimeType.includes("webp") ? "webp" : "png";
-  const file = await storage.put(`${provider}-${Date.now()}.${ext}`, buf, mimeType);
+  const file = await storage.put(`${provider}-${Date.now()}.${ext}`, buf, mimeType, owner);
   return { url: file.url, width: w, height: h, provider, key: file.key, finished };
 }
 
@@ -254,11 +255,11 @@ const openaiProvider: ImageProvider = {
     const first = body.data?.[0];
     // gpt-image-1 always returns base64; older models could return a URL, so
     // accept that too rather than breaking on a model swap.
-    if (first?.b64_json) return store(Buffer.from(first.b64_json, "base64"), aspect, "openai", "image/png", req.output, req.finish);
+    if (first?.b64_json) return store(Buffer.from(first.b64_json, "base64"), aspect, "openai", "image/png", req.output, req.finish, req.workspaceId ?? null);
     if (first?.url) {
       const img = await fetch(first.url, { signal: AbortSignal.timeout(OPENAI_TIMEOUT_MS) });
       if (!img.ok) throw new Error(`Could not download the generated image (HTTP ${img.status}).`);
-      return store(new Uint8Array(await img.arrayBuffer()), aspect, "openai", "image/png", req.output, req.finish);
+      return store(new Uint8Array(await img.arrayBuffer()), aspect, "openai", "image/png", req.output, req.finish, req.workspaceId ?? null);
     }
     throw new Error("OpenAI returned no image data.");
   },
@@ -325,7 +326,7 @@ const googleProvider: ImageProvider = {
           : "Google returned no image — the prompt may have been refused by its safety filters.",
       );
     }
-    return store(Buffer.from(inline.data, "base64"), aspect, "google", inline.mimeType ?? "image/png", req.output, req.finish);
+    return store(Buffer.from(inline.data, "base64"), aspect, "google", inline.mimeType ?? "image/png", req.output, req.finish, req.workspaceId ?? null);
   },
 };
 
