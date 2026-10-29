@@ -877,6 +877,21 @@ Tabs: **Keys** (`/admin/api-keys`: LLM, search, images, video, TTS, storage) · 
 - **Safe fetching** (E-SEC-01): the video assembler's clip download goes through `safeFetch` too; the remaining raw
   fetches are provider-returned outputs (Veo) or fixed Google endpoints.
 
+## ⚠ API tokens, key history, idle members (2026-10-29, audit Phase 5, security part 3)
+- **`/api/v1` takes a workspace token** (E-SEC-16, `ApiToken`, migration `20261029090000_api_tokens`, Settings → API tokens,
+  `/admin/api-tokens`, ADMIN): `Authorization: Bearer mys_…`, read or read-and-write; only the sha256 is stored and the token is
+  shown once, in the form's answer. Every v1 route asks `apiCaller(req, "read" | "write")` (`lib/api-auth.ts`) — a token acts
+  as the admin who made it, a revoked one is a 401 at once, a read token writing is a 403, `lastUsedAt` is written at most
+  once a minute; a signed-in session still works (write needs an editor). Made and revoked tokens are audited and tell the
+  other admins (`securityTitle`). A new v1 route must go through `apiCaller`, never `auth()` alone.
+- **Each key shows its history** (E-SEC-03, `lib/key-history.ts` from the `api_key.saved`/`removed` audit rows): who saved it,
+  when, its age and fingerprint — never the key; over 180 days it says to consider replacing it; a key saved before key
+  changes were recorded says so. **Rotation checklist** (`rotationChecklistAction`, `security:rotation_since`): after a leak,
+  start one and each stored key ticks off once it's been replaced since. There is no live "test the key" button — it would
+  spend the tenant's credits.
+- **Access review** (E-SEC-18): `getCurrentUser` refreshes `User.lastActivityAt` at most hourly; People flags active members
+  not seen in 60+ days (`IDLE_DAYS`) — or never signed in, counted from joining. Nothing is revoked automatically.
+
 ## Open items / things the user still owns
 - **Analytics: APIs enabled 2026-08-03** (Search Console + GA Admin + GA Data, on project
   `479503233109` = `gen-lang-client-0838901195` = "CreateUp"). Still pending, user-only: add the

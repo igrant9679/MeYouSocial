@@ -24,6 +24,11 @@ export const getCurrentUser = cache(async () => {
     where: { id: session.user.id },
     include: { memberships: { include: { workspace: true } } },
   });
+  // Activity, refreshed at most hourly (E-SEC-18): sessions last for weeks, so
+  // the sign-in stamp alone made everyone who stayed signed in look idle.
+  if (user && (!user.lastActivityAt || Date.now() - user.lastActivityAt.getTime() > 3_600_000)) {
+    void db.user.update({ where: { id: user.id }, data: { lastActivityAt: new Date() } }).catch(() => {});
+  }
   return user;
 });
 

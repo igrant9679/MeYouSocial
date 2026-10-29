@@ -57,6 +57,7 @@ model Workspace {
   postingSlots    PostingSlot[]
   inboxSnoozes     InboxSnooze[]
   inboxAssignments InboxAssignment[]
+  apiTokens        ApiToken[]
   topics          Topic[]
   campaigns       Campaign[]
   intelChannels   IntelChannel[]
@@ -1990,6 +1991,25 @@ model SocialPost {
 // `itemKey` names the item: post:<id> · article:<postId> (its card and its questions) ·
 // image:<id> · citation:<id> · invite:<id>. A snooze for something already dealt with
 // simply never matches again.
+// A workspace API token for /api/v1 (E-SEC-16). Only a sha256 of the token is kept — it is shown once, at
+// creation. `scope` is read (GET) or write (GET and POST). Revoked tokens stay as the record.
+model ApiToken {
+  id          String    @id @default(cuid())
+  workspaceId String
+  name        String
+  prefix      String    // the token's first characters, to tell tokens apart
+  tokenHash   String    @unique
+  scope       String    @default("read") // read | write
+  createdById String?
+  lastUsedAt  DateTime?
+  revokedAt   DateTime?
+  createdAt   DateTime  @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+}
+
 model InboxSnooze {
   id          String   @id @default(cuid())
   workspaceId String

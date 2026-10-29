@@ -169,6 +169,7 @@ export const STAGES: Record<(typeof STAGE_HREFS)[number], StageDef> = {
             { href: "/admin/settings", label: "Workspace" },
             { href: "/admin/usage", label: "Usage", also: ["/admin/limits"] },
             { href: "/admin/audit-log", label: "Audit log" },
+            { href: "/admin/api-tokens", label: "API tokens" },
           ]
         : []),
       ...(operator ? [{ href: "/admin/workspaces", label: "Workspaces" }] : []),

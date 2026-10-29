@@ -56,6 +56,21 @@ const SEARCH_VENDORS = ["tavily", "serper", "dataforseo", "keywordseverywhere"] 
 
 /** Admin-only: save / clear a search provider key (same DB-first pattern). */
 /**
+ * Start (or clear) a rotation checklist (E-SEC-03): after an incident, the
+ * Keys page ticks off each stored key once it has been replaced since then.
+ */
+export async function rotationChecklistAction(formData: FormData) {
+  const { workspace, user } = await requireRole("ADMIN");
+  const start = formData.get("intent") === "start";
+  const { setWorkspaceSetting } = await import("@/lib/settings");
+  const { ROTATION_SETTING } = await import("@/lib/key-history");
+  await setWorkspaceSetting(workspace.id, ROTATION_SETTING, start ? new Date().toISOString() : "");
+  await writeAudit({ workspaceId: workspace.id, actorId: user.id, action: start ? "security.rotation_started" : "security.rotation_cleared", entityType: "workspace", entityId: workspace.id });
+  revalidatePath("/admin/api-keys");
+  redirect("/admin/api-keys#rotation");
+}
+
+/**
  * Every key change is recorded — the key's name and a short fingerprint, never
  * the key (E-SEC-12). It used to leave no trace at all; the record also tells
  * every admin.

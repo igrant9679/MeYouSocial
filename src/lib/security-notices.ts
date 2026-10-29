@@ -21,6 +21,8 @@ export function securityTitle(action: string, entityId: string | null | undefine
     case "membership.entered": return `The platform operator (${who}) entered this workspace`;
     case "api_key.saved": return `The ${entityId ?? "API"} key was changed`;
     case "api_key.removed": return `The ${entityId ?? "API"} key was removed`;
+    case "api_token.created": return `An API token “${str(meta.name) ?? "unnamed"}” (${meta.scope === "write" ? "read and write" : "read"}) was made`;
+    case "api_token.revoked": return `The API token “${str(meta.name) ?? "unnamed"}” was revoked`;
     case "integration.adopted":
       return meta.kind === "mailbox" ? `A mailbox (${str(meta.address) ?? "unnamed"}) was attached to this workspace` : "A Zernio profile was attached to this workspace";
     default: return null;

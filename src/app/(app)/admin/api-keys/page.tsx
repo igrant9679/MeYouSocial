@@ -18,6 +18,10 @@ import { ADMIN_TIPS } from "@/lib/help-tips";
 import { gdriveOauthConnected, gdriveRedirectUri, getGdriveOauthClient, APP_FOLDER_NAME } from "@/lib/storage/gdrive-oauth";
 import { getPublicUrl } from "@/lib/public-url";
 import { SubmitButton } from "@/components/SubmitButton";
+import { keyHistory, ROTATION_SETTING, type KeyChange } from "@/lib/key-history";
+import { rotationChecklistAction } from "@/app/actions/api-keys";
+import { formatDay } from "@/lib/zoned-dates";
+import { requestNow } from "@/lib/request-time";
 
 // In-app API key management. Admins can paste provider keys here
 // instead of editing Railway env vars. DB-stored keys override env vars; env vars
@@ -85,6 +89,11 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
     }),
   ]);
   const byKey = new Map(wsRows.map((s) => [s.key, s.value] as const));
+  // Each key's last change and the rotation checklist (E-SEC-03).
+  const history = await keyHistory(workspace.id);
+  const rotationSince = byKey.get(ROTATION_SETTING) ? new Date(byKey.get(ROTATION_SETTING)!) : null;
+  const storedKeys = wsRows.filter((r) => r.key.startsWith("api_key:") && r.value).map((r) => r.key.slice("api_key:".length)).sort();
+  const now = requestNow();
   const platformByKey = new Map(platformRows.map((s) => [s.key, s.value] as const));
   const videoProvider = await getVideoProviderSetting(workspace.id);
   const [imageProvider, resolvedImageProvider] = await Promise.all([
@@ -133,6 +142,30 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
           </p>
         </div>
       </div>
+
+      {/* After an incident: which keys have been replaced since (E-SEC-03). */}
+      <section id="rotation" className="card mb-4 text-xs flex flex-col gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <b>Rotation checklist</b>
+          {rotationSince
+            ? <span className="text-[var(--mute)]">since {formatDay(rotationSince)} — {storedKeys.filter((k) => (history.get(k)?.at ?? new Date(0)) > rotationSince).length} of {storedKeys.length} keys replaced</span>
+            : <span className="text-[var(--mute)]">After a leak or a departure, start one: each key below ticks off once it has been replaced.</span>}
+          <span className="flex-1" />
+          <form action={rotationChecklistAction}>
+            <input type="hidden" name="intent" value={rotationSince ? "clear" : "start"} />
+            <SubmitButton className="btn sm" pendingText="…">{rotationSince ? "Clear the checklist" : "Start a checklist"}</SubmitButton>
+          </form>
+        </div>
+        {rotationSince && (
+          <ul className="m-0 p-0 grid sm:grid-cols-2 gap-1">
+            {storedKeys.map((k) => {
+              const done = (history.get(k)?.at ?? new Date(0)) > rotationSince;
+              return <li key={k} className="list-none flex items-center gap-1.5"><span style={{ color: done ? "var(--green-on)" : "var(--rose-on)" }}>{done ? "✓" : "✗"}</span><a href={`#key-${k}`} className="underline font-mono">{k}</a>{!done && <span className="text-[var(--mute)]">not replaced yet</span>}</li>;
+            })}
+            {storedKeys.length === 0 && <li className="list-none text-[var(--mute)]">This workspace stores no keys of its own.</li>}
+          </ul>
+        )}
+      </section>
 
       {ok && (
         <div className="card mb-4 flex items-center gap-2" style={{ background: "var(--green-soft)", borderColor: "var(--green)" }}>
@@ -196,7 +229,7 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
                 </Link>
               </div>
             </div>
-            <KeyField id={row.provider} label={row.label} stored={Boolean(dbVal)} platformHas={platformHas} confirming={confirmRemove === row.provider} />
+            <KeyField id={row.provider} label={row.label} stored={Boolean(dbVal)} platformHas={platformHas} confirming={confirmRemove === row.provider} last={history.get(row.provider)} now={now} />
           </form>
         );
       })}
@@ -251,7 +284,7 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
                 </Link>
               </div>
             </div>
-            <KeyField id={row.vendor} label={row.label} stored={Boolean(dbVal)} platformHas={platformHas} confirming={confirmRemove === row.vendor} />
+            <KeyField id={row.vendor} label={row.label} stored={Boolean(dbVal)} platformHas={platformHas} confirming={confirmRemove === row.vendor} last={history.get(row.vendor)} now={now} />
           </form>
         );
       })}
@@ -391,7 +424,7 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
               </div>
             </div>
             {editable && (
-              <KeyField id={row.provider} label={row.label} stored={Boolean(dbVal)} platformHas={managed ? Boolean(process.env[row.envVar]) : platformHas} confirming={confirmRemove === row.provider} />
+              <KeyField id={row.provider} label={row.label} stored={Boolean(dbVal)} platformHas={managed ? Boolean(process.env[row.envVar]) : platformHas} confirming={confirmRemove === row.provider} last={history.get(row.provider)} now={now} />
             )}
           </form>
         );
@@ -641,7 +674,7 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
  * while rotating. Removing is now its own button, and the server asks once
  * (?confirmRemove=) before it acts, so it works without JavaScript too.
  */
-function KeyField({ id, label, stored, platformHas, confirming }: { id: string; label: string; stored: boolean; platformHas: boolean; confirming: boolean }) {
+function KeyField({ id, label, stored, platformHas, confirming, last, now }: { id: string; label: string; stored: boolean; platformHas: boolean; confirming: boolean; last?: KeyChange; now: number }) {
   if (confirming && stored) {
     return (
       <div className="rounded-lg p-2.5 text-sm" style={{ background: "var(--rose-soft)" }}>
@@ -659,7 +692,8 @@ function KeyField({ id, label, stored, platformHas, confirming }: { id: string; 
     );
   }
   return (
-    <div className="flex gap-2">
+    <div>
+      <div className="flex gap-2">
       <input
         name="value"
         type="password"
@@ -669,6 +703,20 @@ function KeyField({ id, label, stored, platformHas, confirming }: { id: string; 
       />
       <SubmitButton className="btn primary sm" pendingText="Saving…">Save</SubmitButton>
       {stored && <button name="intent" value="remove" className="btn sm" style={{ color: "var(--rose-on)" }}>Remove key</button>}
+      </div>
+      {/* Who saved it, when, how old, and its fingerprint — never the key (E-SEC-03). */}
+      {stored && <KeyAge last={last} now={now} />}
     </div>
+  );
+}
+
+function KeyAge({ last, now }: { last?: KeyChange; now: number }) {
+  if (!last || last.action !== "saved") return <p className="text-[10px] text-[var(--mute)] m-0 mt-1">Saved before key changes were recorded — replace it to start its history.</p>;
+  const days = Math.floor((now - last.at.getTime()) / 86_400_000);
+  return (
+    <p className="text-[10px] m-0 mt-1" style={{ color: days > 180 ? "var(--amber-on)" : "var(--mute)" }}>
+      Saved by {last.by}, {formatDay(last.at)} ({days === 0 ? "today" : `${days} day${days === 1 ? "" : "s"} ago`}){last.fingerprint ? <> · fingerprint <span className="font-mono">{last.fingerprint}</span></> : null}
+      {days > 180 ? " — over six months old; consider replacing it." : ""}
+    </p>
   );
 }

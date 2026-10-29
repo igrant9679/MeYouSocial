@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireMembership, requireRole } from "@/lib/acl";
-import { hit, tooMany } from "@/lib/rate-limit";
+import { apiCaller } from "@/lib/api-auth";
 import { db } from "@/lib/db";
 import { softLimitProblem } from "@/lib/soft-limits";
 
@@ -8,10 +7,10 @@ import { softLimitProblem } from "@/lib/soft-limits";
 // POST /api/v1/script — create a draft.
 
 export async function GET(req: NextRequest) {
-  const { workspace, user } = await requireMembership();
-  // E-SEC-10: the API is limited per person (RATE_LIMIT_PER_MINUTE).
-  const limited = await hit("apiPerUser", user.id);
-  if (!limited.ok) return tooMany(limited.retryAfter);
+  // A token or a session (E-SEC-16), rate-limited either way (E-SEC-10).
+  const c = await apiCaller(req, "read");
+  if ("denied" in c) return c.denied;
+  const workspace = { id: c.caller.workspaceId };
   const channelId = req.nextUrl.searchParams.get("channelId");
   const scripts = await db.script.findMany({
     where: {
@@ -30,10 +29,13 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const { workspace, user } = await requireRole("EDITOR");
-  // E-SEC-10: the API is limited per person (RATE_LIMIT_PER_MINUTE).
-  const limited = await hit("apiPerUser", user.id);
-  if (!limited.ok) return tooMany(limited.retryAfter);
+  // Writing needs a write token or an editor's session (E-SEC-16). A token acts as
+  // the admin who made it — soft limits and authorship are theirs.
+  const c = await apiCaller(req, "write");
+  if ("denied" in c) return c.denied;
+  const workspace = { id: c.caller.workspaceId };
+  const user = { id: c.caller.userId ?? "" };
+  if (!user.id) return NextResponse.json({ error: "This token has no owner any more — make a new one." }, { status: 403 });
   const body = await req.json().catch(() => null);
   if (!body || typeof body.channelId !== "string" || typeof body.title !== "string") {
     return NextResponse.json({ error: "channelId and title are required" }, { status: 400 });

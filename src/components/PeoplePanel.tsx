@@ -7,6 +7,10 @@ import { getPublicUrl } from "@/lib/public-url";
 import { resolveEmailSender } from "@/lib/unipile/accounts";
 import { changeRoleAction, inviteAction, revokeAction } from "@/app/actions/people";
 import { ResetLinkButton } from "@/components/ResetLinkButton";
+import { requestNow } from "@/lib/request-time";
+
+/** Members not seen for this many days are flagged for review (E-SEC-18). */
+const IDLE_DAYS = 60;
 
 /**
  * Members, roles and invitations — ONE panel rendered by Settings → People and
@@ -25,6 +29,16 @@ export async function PeoplePanel({ workspaceId, workspaceName, returnTo }: { wo
     // mailbox the invitation email is only LOGGED, so the link is the hand-over.
     getPublicUrl(),
   ]);
+  // Access review (E-SEC-18): days since an active member was last here — from
+  // their last activity, or from joining if they never signed in. null = fine.
+  const now = requestNow();
+  const idleDays = (m: (typeof members)[number]): number | null => {
+    if (m.status !== "active") return null;
+    const since = m.user.lastActivityAt ?? m.createdAt;
+    const days = Math.floor((now - new Date(since).getTime()) / 86_400_000);
+    return days >= IDLE_DAYS ? days : null;
+  };
+  const idle = members.filter((m) => idleDays(m) !== null);
 
   return (
     <>
@@ -59,6 +73,12 @@ export async function PeoplePanel({ workspaceId, workspaceName, returnTo }: { wo
 
       <section className="card mb-5">
         <h2 className="font-mono text-[15px] mb-3">Members</h2>
+        {/* Access review (E-SEC-18): who hasn't been here in two months. */}
+        {idle.length > 0 && (
+          <p className="text-xs mb-3 px-2.5 py-1.5 rounded-lg" style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }}>
+            {idle.length === 1 ? "One member hasn't" : `${idle.length} members haven't`} been active in {IDLE_DAYS}+ days — check they still need access. Revoke keeps their history.
+          </p>
+        )}
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="font-mono text-[11px] text-[var(--mute)] uppercase">
@@ -87,7 +107,10 @@ export async function PeoplePanel({ workspaceId, workspaceName, returnTo }: { wo
                     </form>
                   </td>
                   <td><span className="pill" style={{ background: m.status === "active" ? "var(--green-soft)" : "var(--rose-soft)", color: m.status === "active" ? "var(--green)" : "var(--rose)" }}>{m.status}</span></td>
-                  <td className="text-xs text-[var(--mute)]">{m.user.lastActivityAt ? formatDay(new Date(m.user.lastActivityAt)) : "—"}</td>
+                  <td className="text-xs text-[var(--mute)]">
+                    {m.user.lastActivityAt ? formatDay(new Date(m.user.lastActivityAt)) : "—"}
+                    {idleDays(m) !== null && <span className="block text-[10px]" style={{ color: "var(--amber-on)" }}>{m.user.lastActivityAt ? `inactive ${idleDays(m)} days` : "never signed in"}</span>}
+                  </td>
                   <td className="text-right">
                     {/* Revoke suspends the membership (row and history kept); Remove
                         deletes it. Removing the last active ADMIN is refused by the action. */}
