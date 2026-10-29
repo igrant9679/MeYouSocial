@@ -833,6 +833,17 @@ Tabs: **Keys** (`/admin/api-keys`: LLM, search, images, video, TTS, storage) · 
   a post already sent, or a time now past means `not run: …`. A proposal whose preview already has a problem isn't
   made (`not proposed: …`). New tool arguments a card should show: name them `postId` / `articleId` / `at` / `text`.
 
+## ⚠ Articles have a real publishing calendar (2026-10-28, audit Phase 5, wave 2, part e3)
+- **`/blog/calendar`** (E-ART-07, Publish → Blog calendar, `components/ArticleCalendar.tsx`): a month (`?month=YYYY-MM`) laid
+  out on the SERVER in the posting timezone — published articles at their time, scheduled ones, each week's publish day
+  (`autopilot:publish_day`) — with articles at final approval and no time underneath. Every scheduled or waiting article
+  names what would stop it publishing: `blockingChecks`, and "no website connected" (with a banner) when there's no
+  WordPress. Admins drag one to a day, use its date field, or ✕ it off.
+- **`rescheduleArticleAction(id, day | null)`** (`actions/article-calendar.ts`, ADMIN, final approval only — setting the time
+  is the approval to publish): the browser sends a posting-zone DAY; the server keeps the article's time of day there
+  (09:00 when it had none), refuses a day that has passed, audits `blog.scheduled` / `blog.unscheduled` (`via: calendar`)
+  and notifies like the editor's Schedule.
+
 ## Open items / things the user still owns
 - **Analytics: APIs enabled 2026-08-03** (Search Console + GA Admin + GA Data, on project
   `479503233109` = `gen-lang-client-0838901195` = "CreateUp"). Still pending, user-only: add the
