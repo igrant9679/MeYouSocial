@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { writeAudit } from "@/lib/governance";
 import { createZernioProfile, listZernioProfiles, listZernioAccounts, type ZernioAccountInfo } from "@/lib/zernio";
 
 /**
@@ -128,6 +129,8 @@ export async function syncZernioAccounts(
   // wrong active workspace silently claims them. Report it so a mis-bind is
   // visible at the moment it happens rather than days later.
   const adopted = before?.zernioProfileId !== profileId;
+  // Recorded, and every admin told (E-SEC-12): it decides whose accounts post here.
+  if (adopted) await writeAudit({ workspaceId, action: "integration.adopted", entityType: "zernio_profile", entityId: profileId, meta: { kind: "zernio_profile" } });
 
   const remote = await listZernioAccounts({ profileId, workspaceId });
   for (const a of remote) await saveZernioAccount(workspaceId, a);

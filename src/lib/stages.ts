@@ -159,6 +159,8 @@ export const STAGES: Record<(typeof STAGE_HREFS)[number], StageDef> = {
       { href: "/setup/automation", label: "Automation" },
       { href: "/setup/schedule", label: "Schedule" },
       { href: "/setup/connections", label: "Connections", also: ["/admin/connections"] },
+      // What each role can do (E-SEC-17) — for everyone.
+      { href: "/setup/roles", label: "Roles" },
       ...(admin
         ? [
             { href: "/admin/api-keys", label: "Keys" },
@@ -166,6 +168,7 @@ export const STAGES: Record<(typeof STAGE_HREFS)[number], StageDef> = {
             { href: "/admin/email", label: "Email" },
             { href: "/admin/settings", label: "Workspace" },
             { href: "/admin/usage", label: "Usage", also: ["/admin/limits"] },
+            { href: "/admin/audit-log", label: "Audit log" },
           ]
         : []),
       ...(operator ? [{ href: "/admin/workspaces", label: "Workspaces" }] : []),

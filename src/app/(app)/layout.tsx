@@ -26,6 +26,7 @@ import { Elsie } from "@/components/Elsie";
 import { AiActivity } from "@/components/AiActivity";
 import { ShellPoll } from "@/components/ShellPoll";
 import { UnreadBell } from "@/components/UnreadBell";
+import { WorkspaceGuard } from "@/components/WorkspaceGuard";
 import { AssistantDock, AssistantDockButton } from "@/components/AssistantDock";
 import { FlashBanner } from "@/components/FlashBanner";
 import { getGuideState } from "@/app/actions/guide";
@@ -333,6 +334,8 @@ html[data-theme="dark"] .ws-brand {
           <UnreadBell initial={unread} />
           {/* The header's one poll (E-SHL-01): the pill, the bell and the strip's badges read it. */}
           <ShellPoll initial={{ workspaceId: workspace.id, events: ticker, state: engineState, unread, counts }} />
+          {/* A switch in another tab makes this page stale — saving would go to the other company (E-SEC-13). */}
+          <WorkspaceGuard name={workspace.name} />
           {/* Role, email, settings and sign-out behind the avatar (E-SHL-04). */}
           <AccountMenu
             initials={initialsOf(user.name ?? user.email)}

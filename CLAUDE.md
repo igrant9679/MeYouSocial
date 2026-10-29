@@ -844,6 +844,23 @@ Tabs: **Keys** (`/admin/api-keys`: LLM, search, images, video, TTS, storage) · 
   (09:00 when it had none), refuses a day that has passed, audits `blog.scheduled` / `blog.unscheduled` (`via: calendar`)
   and notifies like the editor's Schedule.
 
+## ⚠ Who did what is visible; admins hear about security changes (2026-10-28, audit Phase 5, security part 1)
+- **Audit log** (E-SEC-05, Settings → Audit log, `/admin/audit-log`, `lib/audit-log.ts`): filter by person (or "the engine" =
+  `actorId: null`), action prefix, entity type and whole posting-zone days; a person's activity summary; CSV of the same
+  view at `/admin/audit-log/export` (≤10,000 rows; ⚠ a route handler isn't covered by the admin layout, so it calls
+  `requireRole("ADMIN")` itself; `csvCell` defuses a leading = + - @).
+- **Security notices** (E-SEC-12, `lib/security-notices.ts`, notification kind `security`, admins only, emailed by default):
+  sent FROM `writeAudit`, so every path that records `membership.role_changed`, `membership.added`/`invited` as ADMIN,
+  `membership.entered`, `api_key.saved`/`removed` or `integration.adopted` tells every other admin. A new security-relevant
+  action needs its audit row and a line in `securityTitle`. Key saves are now audited at all — name and a 10-hex sha256
+  fingerprint, never the key; People invitations are audited like the assistant's.
+- **Editing banner and stale-tab guard** (E-SEC-13): admin pages say "Editing <workspace>" with its id. Server actions
+  write to the ACTIVE workspace (cookie), so when the shell poll answers for another workspace (a switch in a second tab)
+  `publishStale` fires and `components/WorkspaceGuard.tsx` covers the page until reload — on every app page, not only
+  admin ones. (Forms don't carry the workspace id; the guard is the protection.)
+- **Roles** (E-SEC-17, Settings → Roles, `/setup/roles`, any member): a capability table and the role-gated pages from
+  `ROLE_PAGES` in `lib/role-links.ts` — keep the table's claims true when a gate changes.
+
 ## Open items / things the user still owns
 - **Analytics: APIs enabled 2026-08-03** (Search Console + GA Admin + GA Data, on project
   `479503233109` = `gen-lang-client-0838901195` = "CreateUp"). Still pending, user-only: add the

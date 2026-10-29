@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { writeAudit } from "@/lib/governance";
 
 // DB-side resolver for a workspace's connected Unipile MAILBOX. Kept separate
 // from the API client (index.ts) so the client stays a thin HTTP wrapper.
@@ -117,6 +118,8 @@ export async function syncUnipileMailboxes(
     });
     adopted++;
     if (a.name) addresses.push(a.name);
+    // A mailbox new to this workspace is recorded, and every admin told (E-SEC-12).
+    if (!ownIds.has(a.id)) await writeAudit({ workspaceId, action: "integration.adopted", entityType: "unipile_account", entityId: a.id, meta: { kind: "mailbox", address: a.name ?? null } });
   }
 
   // First mailbox in becomes the default sender, or nothing would send.

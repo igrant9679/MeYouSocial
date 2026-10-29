@@ -23,6 +23,9 @@ const EDITOR_PREFIXES = [
 ];
 const EDITOR_PATTERNS = [/^\/social\/[^/]+\/edit$/];
 
+/** The pages a role is needed for, as written above — Settings → Roles lists them (E-SEC-17). */
+export const ROLE_PAGES = { ADMIN: ADMIN_PREFIXES, EDITOR: [...EDITOR_PREFIXES, "/social/<post>/edit"] } as const;
+
 /** `prefix` itself or anything below it — "/admin" covers "/admin/keys", not "/administer". */
 function under(path: string, prefix: string): boolean {
   return path === prefix || path.startsWith(`${prefix}/`);

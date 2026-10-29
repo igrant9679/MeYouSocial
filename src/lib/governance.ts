@@ -92,4 +92,11 @@ export async function writeAudit(params: {
   } catch {
     // Auditing must never break the action it records.
   }
+  // The changes that decide who can do what reach every admin (E-SEC-12).
+  try {
+    const { sendSecurityNotice } = await import("@/lib/security-notices");
+    await sendSecurityNotice(params);
+  } catch {
+    // A notice must never break the action either.
+  }
 }

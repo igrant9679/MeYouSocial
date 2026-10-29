@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useLayoutEffect } from "react";
-import { publishShell, type ShellSnapshot } from "@/lib/shell-live";
+import { publishShell, publishStale, type ShellSnapshot } from "@/lib/shell-live";
 
 const POLL_MS = 60_000;
 
@@ -32,7 +32,9 @@ export function ShellPoll({ initial }: { initial: ShellSnapshot }) {
         if (res.status === 401) { stopped = true; return; }
         if (!res.ok) return;
         const data = (await res.json()) as Partial<ShellSnapshot>;
-        if (data.workspaceId !== workspaceId || !Array.isArray(data.events) || !data.state || !data.counts) return;
+        // Another workspace answered: the person switched in a second tab. Say so (WorkspaceGuard).
+        if (data.workspaceId && data.workspaceId !== workspaceId) { publishStale(data.workspaceId); return; }
+        if (!Array.isArray(data.events) || !data.state || !data.counts) return;
         publishShell({ workspaceId, events: data.events, state: data.state, unread: data.unread ?? 0, counts: data.counts });
       } catch {
         // A network hiccup — keep what's on screen.

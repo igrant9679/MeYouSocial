@@ -35,12 +35,12 @@ function revalidateBoth() {
 }
 
 export async function inviteAction(formData: FormData) {
-  const { workspace } = await requireRole("ADMIN");
+  const { workspace, user: actor } = await requireRole("ADMIN");
   const parsed = inviteSchema.safeParse({ email: formData.get("email"), role: formData.get("role") });
   if (!parsed.success) return;
 
   const token = nanoid(40);
-  await db.invitation.create({
+  const invite = await db.invitation.create({
     data: {
       workspaceId: workspace.id,
       email: parsed.data.email,
@@ -48,6 +48,16 @@ export async function inviteAction(formData: FormData) {
       token,
       expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 7),
     },
+  });
+  // Recorded like the assistant's invitations always were — an admin invitation
+  // also tells every other admin (E-SEC-12).
+  await writeAudit({
+    workspaceId: workspace.id,
+    actorId: actor.id,
+    action: "membership.invited",
+    entityType: "invitation",
+    entityId: invite.id,
+    meta: { email: parsed.data.email, role: parsed.data.role },
   });
   const origin = await getPublicUrl();
   await emailFor(workspace.id).send({

@@ -7,6 +7,8 @@ import { db } from "@/lib/db";
 import { KEY_PROVIDERS, type KeyProvider } from "@/lib/llm/keys";
 import { llm } from "@/lib/llm";
 import { checkKeyFormat, keyFormatMessage } from "@/lib/key-format";
+import { writeAudit } from "@/lib/governance";
+import { createHash } from "node:crypto";
 
 // Admin-only: save / clear provider API keys and switches. Multi-tenant: every
 // save below writes a WorkspaceSetting row for the acting admin's workspace —
@@ -53,8 +55,22 @@ export async function saveMediaSettingAction(formData: FormData) {
 const SEARCH_VENDORS = ["tavily", "serper", "dataforseo", "keywordseverywhere"] as const;
 
 /** Admin-only: save / clear a search provider key (same DB-first pattern). */
+/**
+ * Every key change is recorded — the key's name and a short fingerprint, never
+ * the key (E-SEC-12). It used to leave no trace at all; the record also tells
+ * every admin.
+ */
+async function auditKey(workspaceId: string, actorId: string, name: string, removing: boolean, value: string, platform = false) {
+  await writeAudit({
+    workspaceId, actorId,
+    action: removing ? "api_key.removed" : "api_key.saved",
+    entityType: "api_key", entityId: name,
+    meta: { platform, ...(removing ? {} : { fingerprint: createHash("sha256").update(value).digest("hex").slice(0, 10) }) },
+  });
+}
+
 export async function saveSearchKeyAction(formData: FormData) {
-  const { workspace } = await requireRole("ADMIN");
+  const { workspace, user } = await requireRole("ADMIN");
   const vendor = String(formData.get("vendor") ?? "");
   if (!(SEARCH_VENDORS as readonly string[]).includes(vendor)) return;
   const value = String(formData.get("value") ?? "").trim();
@@ -65,6 +81,7 @@ export async function saveSearchKeyAction(formData: FormData) {
   }
   const { setWorkspaceSetting } = await import("@/lib/settings");
   await setWorkspaceSetting(workspace.id, `api_key:${vendor}`, removing ? "" : value);
+  await auditKey(workspace.id, user.id, vendor, removing, value);
   revalidatePath("/admin/api-keys");
   if (removing) redirect(removedRedirect(vendor));
   redirect(`/admin/api-keys?ok=${vendor}`);
@@ -241,6 +258,7 @@ export async function saveApiKeyAction(formData: FormData) {
   }
 
   llm.invalidateKeyCache();
+  await auditKey(workspace.id, user.id, provider, removing, stored, isPlatformManagedKey(settingKey));
   revalidatePath("/admin/api-keys");
   if (removing) redirect(removedRedirect(provider));
   redirect(`/admin/api-keys?ok=${provider}`);

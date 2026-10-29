@@ -28,6 +28,8 @@ export const NOTIFICATION_KINDS = [
   // An unattended AI generation failed and was refused (mock fallback /
   // provider down). The autopilot retries on its own, so this is chatty-tier.
   "generation_failed",
+  // Who-can-do-what changed: a role, an admin, a key, an adopted account, the operator (E-SEC-12). Admins only.
+  "security",
   // Email-only, sent by src/lib/digest.ts (never through notify() — Home IS
   // the in-app digest, so a bell item would be spam). Listed here so the
   // preference row and its toggle exist in the Notifications UI.
@@ -45,6 +47,7 @@ export const KIND_LABELS: Record<NotificationKind, string> = {
   comment: "A comment on something I'm on",
   account_broken: "A connected account stopped working",
   generation_failed: "An AI generation failed and was refused",
+  security: "A security change — roles, admins, keys, accounts (admins)",
   daily_digest: "The morning digest of what needs me (admins, email only)",
 };
 
@@ -64,6 +67,8 @@ const EMAIL_DEFAULT: Record<NotificationKind, boolean> = {
   // blip should not email anyone. Persistent failure surfaces via the digest's
   // stalled-content checks.
   generation_failed: false,
+  // Emailed by default: a change nobody expected is exactly what this is for.
+  security: true,
   // Default-on: it only ever sends when a warn-severity decision is waiting,
   // so the quiet-day cost is zero. digest.ts reads this preference directly.
   daily_digest: true,
@@ -98,7 +103,7 @@ type NotifyInput = {
 
 /** Who can actually act on a workspace event. */
 async function defaultRecipients(workspaceId: string, kind: NotificationKind): Promise<string[]> {
-  const roles = kind === "approval_needed" ? ["ADMIN"] : ["ADMIN", "EDITOR"];
+  const roles = kind === "approval_needed" || kind === "security" ? ["ADMIN"] : ["ADMIN", "EDITOR"];
   const rows = await db.membership.findMany({
     where: { workspaceId, status: "active", role: { in: roles as Array<"ADMIN" | "EDITOR"> } },
     select: { userId: true },

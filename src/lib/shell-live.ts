@@ -40,6 +40,20 @@ export function subscribeShell(fn: () => void): () => void {
   return () => { listeners.delete(fn); };
 }
 
+/**
+ * Set when the poll answers for ANOTHER workspace — the person switched in a
+ * second tab. Server actions write to the active workspace, so a form on this
+ * stale page would save into the one they switched to (E-SEC-13).
+ */
+let staleTo: string | null = null;
+export const shellStale = (): string | null => staleTo;
+export const noShellStale = (): string | null => null;
+export function publishStale(workspaceId: string | null): void {
+  if (staleTo === workspaceId) return;
+  staleTo = workspaceId;
+  for (const fn of listeners) fn();
+}
+
 export function publishShell(next: ShellSnapshot): void {
   snapshot = next;
   for (const fn of listeners) fn();
