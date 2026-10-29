@@ -20,6 +20,10 @@ import { consumeHostedAuthState } from "@/lib/unipile/accounts";
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
+  // E-SEC-10: a flood of forged deliveries is cut off before any secret is checked.
+  const { hit, ipFrom, tooMany } = await import("@/lib/rate-limit");
+  const limited = await hit("webhookPerIp", ipFrom(req.headers));
+  if (!limited.ok) return tooMany(limited.retryAfter);
   let payload: { status?: string; account_id?: string; name?: string };
   try {
     payload = (await req.json()) as typeof payload;

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireMembership, requireRole } from "@/lib/acl";
+import { hit, tooMany } from "@/lib/rate-limit";
 import { db } from "@/lib/db";
 import { softLimitProblem } from "@/lib/soft-limits";
 
@@ -7,7 +8,10 @@ import { softLimitProblem } from "@/lib/soft-limits";
 // POST /api/v1/script — create a draft.
 
 export async function GET(req: NextRequest) {
-  const { workspace } = await requireMembership();
+  const { workspace, user } = await requireMembership();
+  // E-SEC-10: the API is limited per person (RATE_LIMIT_PER_MINUTE).
+  const limited = await hit("apiPerUser", user.id);
+  if (!limited.ok) return tooMany(limited.retryAfter);
   const channelId = req.nextUrl.searchParams.get("channelId");
   const scripts = await db.script.findMany({
     where: {
@@ -27,6 +31,9 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const { workspace, user } = await requireRole("EDITOR");
+  // E-SEC-10: the API is limited per person (RATE_LIMIT_PER_MINUTE).
+  const limited = await hit("apiPerUser", user.id);
+  if (!limited.ok) return tooMany(limited.retryAfter);
   const body = await req.json().catch(() => null);
   if (!body || typeof body.channelId !== "string" || typeof body.title !== "string") {
     return NextResponse.json({ error: "channelId and title are required" }, { status: 400 });

@@ -50,9 +50,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
       },
-      async authorize(raw) {
+      async authorize(raw, request) {
         const parsed = credentialsSchema.safeParse(raw);
         if (!parsed.success) return null;
+        // Guessing passwords is slowed per address and per account (E-SEC-10);
+        // a limited attempt fails exactly like a wrong password.
+        const { hit, ipFrom } = await import("@/lib/rate-limit");
+        const ip = request?.headers ? ipFrom(request.headers) : "unknown";
+        if (!(await hit("signinPerIp", ip)).ok || !(await hit("signinPerEmail", parsed.data.email)).ok) return null;
         const user = await db.user.findUnique({ where: { email: parsed.data.email } });
         if (!user || !user.passwordHash) return null;
         const ok = await bcrypt.compare(parsed.data.password, user.passwordHash);

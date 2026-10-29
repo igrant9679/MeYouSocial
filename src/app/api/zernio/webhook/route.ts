@@ -49,6 +49,10 @@ type ZernioEvent = {
 };
 
 export async function POST(req: NextRequest) {
+  // E-SEC-10: a flood of forged deliveries is cut off before any secret is checked.
+  const { hit, ipFrom, tooMany } = await import("@/lib/rate-limit");
+  const limited = await hit("webhookPerIp", ipFrom(req.headers));
+  if (!limited.ok) return tooMany(limited.retryAfter);
   // The platform's secret, plus each workspace's own (SOC-15): a tenant on its
   // own Zernio key points a webhook in ITS Zernio account here, and those
   // deliveries used to fail the platform signature check and go nowhere. A

@@ -8,6 +8,7 @@ import { db } from "@/lib/db";
 import { appEmailFor } from "@/lib/email";
 import { getPublicUrl } from "@/lib/public-url";
 import { createResetToken, PURPOSE_RESET } from "@/lib/password-reset";
+import { hit, requestIp } from "@/lib/rate-limit";
 
 // Password reset, email verification, secure session management,
 // per-user activity attribution.
@@ -28,6 +29,8 @@ export async function requestPasswordResetAction(formData: FormData) {
   const parsed = resetReqSchema.safeParse({ email: formData.get("email") });
   // Always redirect to the same success screen so we don't leak which emails exist.
   if (!parsed.success) redirect("/forgot?ok=1");
+  // E-SEC-10: no mail bombing an inbox, no sweeping addresses — and the same screen either way.
+  if (!(await hit("resetPerIp", await requestIp())).ok || !(await hit("resetPerEmail", parsed.data.email)).ok) redirect("/forgot?ok=1");
 
   const user = await db.user.findUnique({ where: { email: parsed.data.email } });
   if (user) {
@@ -59,6 +62,8 @@ export async function completePasswordResetAction(formData: FormData) {
     password: formData.get("password"),
   });
   if (!parsed.success) redirect(`/reset/${formData.get("token")}?error=invalid`);
+  // E-SEC-10: no guessing tokens.
+  if (!(await hit("tokenPerIp", await requestIp())).ok) redirect("/forgot?error=slow-down");
 
   const record = await db.verificationToken.findUnique({ where: { token: parsed.data.token } });
   if (!record || !record.identifier.startsWith(PURPOSE_RESET) || record.expires < new Date()) {
@@ -103,6 +108,7 @@ export async function requestVerificationForUser(userId: string, userEmail: stri
 
 export async function verifyEmailAction(formData: FormData) {
   const token = String(formData.get("token") ?? "");
+  if (!(await hit("tokenPerIp", await requestIp())).ok) redirect("/verify/expired");
   const record = await db.verificationToken.findUnique({ where: { token } });
   if (!record || !record.identifier.startsWith(PURPOSE_VERIFY) || record.expires < new Date()) {
     redirect("/verify/expired");
@@ -131,6 +137,7 @@ export async function resendVerificationAction() {
   if (!session?.user?.id) redirect("/signin");
   const user = await db.user.findUnique({ where: { id: session!.user!.id } });
   if (!user || user.emailVerified) redirect("/inbox");
+  if (!(await hit("resendPerUser", user.id)).ok) redirect("/verify/sent");
   await db.verificationToken.deleteMany({ where: { identifier: PURPOSE_VERIFY + user.id } });
   await requestVerificationForUser(user.id, user.email);
   redirect("/verify/sent");

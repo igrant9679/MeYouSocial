@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { nanoid } from "nanoid";
 import { storage } from "@/lib/storage";
+import { safeFetch } from "@/lib/net/safe-fetch";
 import type { StoryScene } from "@/lib/captions";
 
 /**
@@ -99,7 +100,8 @@ async function readSource(url: string): Promise<Buffer | null> {
       return await storage.get(decodeURIComponent(url.slice("/api/files/".length)));
     }
     if (!/^https?:\/\//i.test(url)) return null;
-    const res = await fetch(url, { signal: AbortSignal.timeout(120_000), redirect: "follow" });
+    // Public hosts only, every redirect re-checked (E-SEC-01) — a clip URL is never a door into the network.
+    const res = await safeFetch(url, { signal: AbortSignal.timeout(120_000) });
     if (!res.ok) return null;
     return Buffer.from(await res.arrayBuffer());
   } catch {

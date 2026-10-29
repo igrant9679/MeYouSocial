@@ -861,6 +861,22 @@ Tabs: **Keys** (`/admin/api-keys`: LLM, search, images, video, TTS, storage) · 
 - **Roles** (E-SEC-17, Settings → Roles, `/setup/roles`, any member): a capability table and the role-gated pages from
   `ROLE_PAGES` in `lib/role-links.ts` — keep the table's claims true when a gate changes.
 
+## ⚠ Rate limits and security headers (2026-10-29, audit Phase 5, security part 2)
+- **Rate limits** (E-SEC-10, `lib/rate-limit.ts` `hit(name, id)` → `{ ok, retryAfter }`; fixed windows in Redis, in-process
+  without it; never throws): sign-in 30/min per address and 10/min per account (a limited try fails like a wrong
+  password, in `authorize`), sign-up 10/min per address, reset requests 10/min per address and 3 per 15 min per account
+  (same "check your email" screen either way), reset/verify tokens 20/min per address, verification resends 3 per
+  15 min, webhooks `RATE_LIMIT_PER_MINUTE`×5 per address (429 + Retry-After before any secret is checked), `/api/v1`
+  `RATE_LIMIT_PER_MINUTE` per person. The address is the first `x-forwarded-for` hop (Railway's proxy). A new public
+  or auth endpoint should take a limit too.
+- **Security headers on every response** (E-SEC-02, `next.config.ts` `headers()`): CSP `object-src 'none'; base-uri 'self';
+  frame-ancestors 'self'`, X-Frame-Options SAMEORIGIN, nosniff, strict-origin-when-cross-origin, Permissions-Policy with
+  camera/microphone/geolocation/payment off. ⚠ script/style/connect are deliberately NOT restricted — Next's inline
+  scripts need a per-request nonce (every page dynamic); that strict CSP is its own step. Stored files keep their own
+  sandbox CSP on top. Every raw-HTML render is a sanitised body or a fixed string; the brand colour is hex-checked.
+- **Safe fetching** (E-SEC-01): the video assembler's clip download goes through `safeFetch` too; the remaining raw
+  fetches are provider-returned outputs (Veo) or fixed Google endpoints.
+
 ## Open items / things the user still owns
 - **Analytics: APIs enabled 2026-08-03** (Search Console + GA Admin + GA Data, on project
   `479503233109` = `gen-lang-client-0838901195` = "CreateUp"). Still pending, user-only: add the

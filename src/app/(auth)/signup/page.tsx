@@ -42,6 +42,9 @@ async function signupAction(formData: FormData) {
   });
   if (!parsed.success) redirect(errorUrl("invalid", inviteToken));
   const data = parsed.data!;
+  // E-SEC-10: account creation is slowed per address.
+  const { hit, requestIp } = await import("@/lib/rate-limit");
+  if (!(await hit("signupPerIp", await requestIp())).ok) redirect(errorUrl("slow-down", inviteToken));
 
   const invite = inviteToken ? await db.invitation.findUnique({ where: { token: inviteToken } }) : null;
   const inviteLive = Boolean(invite && !invite.acceptedAt && invite.expiresAt > new Date());
@@ -100,6 +103,7 @@ const ERRORS: Record<string, string> = {
   "wrong-email": "Use the address this invitation was sent to.",
   "invite-gone": "That invitation has already been used or has expired. Ask whoever invited you for a new one.",
   "invite-only": "Accounts are created from an invitation link. Open the link your administrator sent you.",
+  "slow-down": "Too many attempts from here — wait a minute and try again.",
 };
 
 export default async function SignUpPage({ searchParams }: { searchParams: Promise<{ error?: string; invite?: string }> }) {
