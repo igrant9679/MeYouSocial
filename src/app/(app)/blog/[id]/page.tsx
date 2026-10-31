@@ -174,6 +174,9 @@ export default async function BlogPostPage({
   const admin = canAdmin(membership.role);
   const idx = FLOW.indexOf(post.status as (typeof FLOW)[number]);
   const nextIsPublish = FLOW[idx + 1] === "published";
+  // A refresh of an article published by hand goes out by hand, even with a
+  // website connected — WordPress would make it a second article.
+  const handRefresh = post.refreshStartedAt != null && post.wpPostId == null;
   const unverified = post.citations.filter((c) => !c.verified).length;
   // FR-8: the asset gate rides in the same checks list the publish flow uses.
   const [assets, brand, briefs, editorial] = await Promise.all([
@@ -322,18 +325,18 @@ export default async function BlogPostPage({
         {/* No website: the app can't publish this itself, so the publish step is
             the hand-made one — the HTML file, then the live link (ART-12). The
             old button marked it published with no URL. */}
-        {admin && nextIsPublish && !wpConn && (
+        {admin && nextIsPublish && (!wpConn || handRefresh) && (
           <div className="flex items-center gap-1.5 flex-wrap">
-            <a href={`/blog/${post.id}/export`} className="btn" title="A self-contained HTML file of this article — add it to your site by hand">Download HTML</a>
+            <a href={`/blog/${post.id}/export`} className="btn" title={handRefresh ? "A self-contained HTML file of this revision — replace the live page with it" : "A self-contained HTML file of this article — add it to your site by hand"}>Download HTML</a>
             <form action={markPublishedManuallyAction} className="flex items-center gap-1.5">
               <input type="hidden" name="id" value={post.id} />
               <input type="hidden" name="back" value="editor" />
-              <input name="url" type="url" required placeholder="https://… live link" className="text-xs min-w-52" aria-label="Live URL" />
-              <SubmitButton className="btn primary" pendingText="Recording…" title="Record this article as published at that link — social posts and analytics key off it">Mark as published</SubmitButton>
+              <input name="url" type="url" required defaultValue={handRefresh ? post.publishedUrl ?? undefined : undefined} placeholder="https://… live link" className="text-xs min-w-52" aria-label="Live URL" />
+              <SubmitButton className="btn primary" pendingText="Recording…" title={handRefresh ? "Record that the live page now has this revision" : "Record this article as published at that link — social posts and analytics key off it"}>{handRefresh ? "Mark as refreshed" : "Mark as published"}</SubmitButton>
             </form>
           </div>
         )}
-        {editor && idx < FLOW.length - 1 && (!nextIsPublish || (admin && wpConn)) && (
+        {editor && idx < FLOW.length - 1 && (!nextIsPublish || (admin && wpConn && !handRefresh)) && (
           <form action={advanceBlogStatusAction}>
             <input type="hidden" name="id" value={post.id} />
             <button className={nextIsPublish ? "btn primary" : "btn"} title={nextIsPublish ? "Publish (admin approval)" : "Advance a stage"}>
@@ -496,9 +499,13 @@ export default async function BlogPostPage({
               {/* A refresh: the live post stays as it is until this revision
                   is published, which replaces it in place at the same URL. */}
               {post.refreshStartedAt && (
-                <span className="text-xs text-[var(--mute)]">Being refreshed — the live version stays until this revision is published.</span>
+                <span className="text-xs text-[var(--mute)]">
+                  {handRefresh
+                    ? "Being refreshed — the live page stays as it is until you replace it with this revision (Download HTML) and mark it refreshed."
+                    : "Being refreshed — the live version stays until this revision is published."}
+                </span>
               )}
-              {admin && wpConn && post.refreshStartedAt && post.status === "final_approval" && (
+              {admin && wpConn && !handRefresh && post.refreshStartedAt && post.status === "final_approval" && (
                 <form action={publishToWordPressAction}>
                   <input type="hidden" name="postId" value={post.id} />
                   <SubmitButton className="btn primary" pendingText="Publishing…">Publish the revision</SubmitButton>

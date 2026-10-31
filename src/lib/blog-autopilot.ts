@@ -638,6 +638,10 @@ export async function publishCore(workspaceId: string, postId: string): Promise<
   // A refresh (lib/idea-drafting.ts) took a live post back through review; its
   // publish replaces that WordPress post in place, at the same URL.
   const isRefresh = post.wpPostId != null && post.refreshStartedAt != null && post.status === "final_approval";
+  // A refresh of an article published by hand lives at its own link, not on
+  // WordPress: publishing it here would make a second article at a new URL.
+  // It goes out by hand (Download HTML, Mark as published).
+  if (post.refreshStartedAt != null && post.wpPostId == null) return false;
   // Otherwise already on WordPress (live, or handed off as a draft) — creating
   // another would duplicate the post over there. (A "published" post with a
   // WordPress id used to pass this check and could be sent again.)
@@ -1575,9 +1579,11 @@ async function runAutopilotCycleUnlocked(workspaceId: string): Promise<CycleRepo
       // the last 28 days weighted by impressions, with a floor — one day's
       // reading on a post nobody sees used to be enough, and only 20 arbitrary
       // posts were ever looked at. At most three new refresh ideas a cycle.
+      // Articles published by hand count too (a live link, no WordPress): their
+      // refresh goes out the way they did (lib/idea-drafting.ts).
       const since = new Date(Date.now() - 28 * 86_400_000);
       const published = await db.blogPost.findMany({
-        where: { workspaceId, status: "published", protectedFromRewrite: false, wpPostId: { not: null } },
+        where: { workspaceId, status: "published", protectedFromRewrite: false, OR: [{ wpPostId: { not: null } }, { publishedUrl: { not: null } }] },
         select: {
           id: true, title: true, focusKeyword: true,
           snapshots: { where: { capturedAt: { gte: since }, position: { not: null } }, select: { position: true, impressions: true } },
@@ -1628,9 +1634,9 @@ async function runAutopilotCycleUnlocked(workspaceId: string): Promise<CycleRepo
       // Oldest approved first, skipping the ones that are a change on the live
       // site (retire / merge, or a refresh with nothing here to revise) — those
       // wait for a person and must not starve the queue behind them.
-      const { draftIdeaCore, ideaChange } = await import("@/lib/idea-drafting");
+      const { draftIdeaCore, ideaChange, linkRefreshTargets } = await import("@/lib/idea-drafting");
       const approved = allowance > 0
-        ? (await db.blogIdea.findMany({ where: { workspaceId, status: "approved" }, orderBy: { createdAt: "asc" }, take: 50 }))
+        ? (await linkRefreshTargets(workspaceId, await db.blogIdea.findMany({ where: { workspaceId, status: "approved" }, orderBy: { createdAt: "asc" }, take: 50 })))
             .filter((i) => ideaChange(i) !== "site_change")
             .slice(0, allowance)
         : [];
@@ -1873,8 +1879,9 @@ async function runAutopilotCycleUnlocked(workspaceId: string): Promise<CycleRepo
       }
       // Not on WordPress yet — or a refresh, whose publish updates its own post
       // in place (publishCore). A draft handoff (wpPostId set, no refresh) is
-      // never picked up again.
-      const notLive = { OR: [{ wpPostId: null }, { refreshStartedAt: { not: null } }] };
+      // never picked up again, nor is a refresh of an article published by hand
+      // (no wpPostId): that one goes out by hand, where it went before.
+      const notLive = { OR: [{ wpPostId: null, refreshStartedAt: null }, { wpPostId: { not: null }, refreshStartedAt: { not: null } }] };
       // ⚠ No site, nothing to publish to — and nothing to report every cycle
       // (CF parks its articles here and exports them by hand).
       const hasSite = (await db.wordPressConnection.count({ where: { workspaceId } })) > 0;

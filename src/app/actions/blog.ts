@@ -201,6 +201,16 @@ export async function advanceBlogStatusAction(formData: FormData) {
         )}`,
       );
     }
+    // A refresh of an article published by hand: it lives at its own link, so
+    // publishing it to WordPress would make a second article (publishCore
+    // refuses it too). It goes out the way it did.
+    if (post.refreshStartedAt && !post.wpPostId) {
+      redirect(
+        `/blog/${post.id}?flashErr=${encodeURIComponent(
+          `This article was published by hand${post.publishedUrl ? ` at ${post.publishedUrl}` : ""}, so its revision goes out the same way: Download the HTML, replace the page there, then Mark as published.`.slice(0, 300),
+        )}`,
+      );
+    }
     // A WordPress draft hand-off: publish it THERE, and only call it published
     // once the site says it's live (ART-10).
     if (post.wpPostId && !post.refreshStartedAt) {
@@ -333,7 +343,7 @@ export async function generateBlogDraftAction(formData: FormData) {
   const { workspace, user } = await requireRole("EDITOR");
   const post = await db.blogPost.findFirst({
     where: { id, workspaceId: workspace.id },
-    select: { id: true, status: true, body: true, wpPostId: true, scheduledAt: true },
+    select: { id: true, status: true, body: true, wpPostId: true, publishedUrl: true, scheduledAt: true },
   });
   if (!post) return;
   // ⚠ Regenerating an approved or live article used to rewrite it in place
@@ -346,14 +356,15 @@ export async function generateBlogDraftAction(formData: FormData) {
   //     override don't survive it);
   //   · live on WordPress → a refresh: the writer revises the live text and
   //     its publish updates the same post in place;
-  //   · published elsewhere by hand → refused: the copy here would stop
-  //     matching the live page and nothing could publish it.
+  //   · published by hand at a recorded link → a refresh too: it goes out
+  //     the way it did (Download HTML, Mark as published at that link);
+  //   · marked published with no link → refused: no page is known to update.
   const restore: { status: string; scheduledAt?: Date | null; refreshStartedAt?: null } | null =
     post.status === "final_approval" ? { status: "final_approval", scheduledAt: post.scheduledAt }
       : post.status === "published" ? { status: "published", refreshStartedAt: null }
         : null;
-  if (post.status === "published" && post.wpPostId == null) {
-    redirect(`/blog/${id}?flashErr=${encodeURIComponent("This article was published outside the app, so a regenerated draft couldn't replace the live page. Edit it by hand here and on your site, or start a new article.")}`);
+  if (post.status === "published" && post.wpPostId == null && !post.publishedUrl) {
+    redirect(`/blog/${id}?flashErr=${encodeURIComponent("This article was marked published without its live link, so a regenerated draft couldn't replace the live page. Edit it by hand here and on your site, or start a new article.")}`);
   }
   if (restore) {
     const moved = await db.blogPost.updateMany({

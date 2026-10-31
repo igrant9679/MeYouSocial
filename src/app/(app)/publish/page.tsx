@@ -24,7 +24,7 @@ export default async function PublishStage({ searchParams }: { searchParams: Pro
   const admin = canAdmin(membership.role);
   const tz = await getPostingTimeZone(workspace.id);
   const [ready, published, wp, publishDayRaw, modes] = await Promise.all([
-    db.blogPost.findMany({ where: { workspaceId: workspace.id, status: "final_approval" }, orderBy: { updatedAt: "asc" }, take: 10, select: { id: true, title: true, scheduledAt: true, wpPostId: true, refreshStartedAt: true } }),
+    db.blogPost.findMany({ where: { workspaceId: workspace.id, status: "final_approval" }, orderBy: { updatedAt: "asc" }, take: 10, select: { id: true, title: true, scheduledAt: true, wpPostId: true, refreshStartedAt: true, publishedUrl: true } }),
     db.blogPost.findMany({ where: { workspaceId: workspace.id, status: "published" }, orderBy: { publishedAt: "desc" }, take: 6, select: { id: true, title: true, publishedAt: true, publishedUrl: true } }),
     db.wordPressConnection.findUnique({ where: { workspaceId: workspace.id }, select: { baseUrl: true } }),
     getSetting("autopilot:publish_day", workspace.id).catch(() => ""),
@@ -67,7 +67,10 @@ export default async function PublishStage({ searchParams }: { searchParams: Pro
         title="Waiting to go out"
         empty={<EmptyState variant="inline" tone="clear" line="Nothing is at final approval — articles arrive here once every required check passes." action={{ label: "See what's being written", href: "/drafts" }} />}
       >
-        {ready.length > 0 ? ready.map((p) => (
+        {ready.length > 0 ? ready.map((p) => {
+          // A refresh of an article published by hand goes out by hand, website or not.
+          const byHand = !wp || (p.refreshStartedAt != null && p.wpPostId == null);
+          return (
           <StageRow key={p.id}>
             <StateChip label="final approval" hue="blue" />
             <div className="flex-1 min-w-48">
@@ -77,6 +80,8 @@ export default async function PublishStage({ searchParams }: { searchParams: Pro
                   ? <span style={{ color: "var(--amber-on)" }}>held — no longer passes: {held.get(p.id)!.join("; ")}</span>
                   : !wp
                   ? "no website connected — cannot publish yet"
+                  : byHand
+                  ? `a refresh of an article published by hand — replace the page${p.publishedUrl ? ` at ${p.publishedUrl}` : ""} with this HTML, then mark it refreshed`
                   : p.wpPostId && !p.refreshStartedAt
                   // A hand-off waits as a DRAFT on the site (ART-10): never picked up
                   // again by the sweep, and not live until someone publishes it.
@@ -88,7 +93,7 @@ export default async function PublishStage({ searchParams }: { searchParams: Pro
                       : "waiting for a person"}
               </div>
             </div>
-            {admin && wp && (
+            {admin && wp && !byHand && (
               <form action={advanceBlogStatusAction}>
                 <input type="hidden" name="id" value={p.id} />
                 <SubmitButton className="btn primary sm" pendingText="Publishing…" title={p.wpPostId && !p.refreshStartedAt ? "Publish the WordPress draft now and confirm it went live" : "Publish to WordPress now, ahead of the gate"}>Publish now</SubmitButton>
@@ -100,15 +105,16 @@ export default async function PublishStage({ searchParams }: { searchParams: Pro
                 the loop moves on. */}
             <a href={`/blog/${p.id}/export`} className="btn sm" title="A self-contained HTML file of this article — add it to any site by hand">Download HTML</a>
             <Link href={`/blog/${p.id}`} className="btn sm">Open</Link>
-            {admin && !wp && (
+            {admin && byHand && (
               <form action={markPublishedManuallyAction} className="basis-full flex items-center gap-1.5 flex-wrap pt-1">
                 <input type="hidden" name="id" value={p.id} />
-                <input name="url" type="url" placeholder="https://… where it went live" required className="text-xs min-w-64 flex-1" aria-label="Live URL" />
-                <SubmitButton className="btn sm primary" pendingText="Recording…" title="Record this article as published by hand — social variants and analytics key off it">Mark as published</SubmitButton>
+                <input name="url" type="url" placeholder="https://… where it went live" defaultValue={p.refreshStartedAt ? p.publishedUrl ?? undefined : undefined} required className="text-xs min-w-64 flex-1" aria-label="Live URL" />
+                <SubmitButton className="btn sm primary" pendingText="Recording…" title={p.refreshStartedAt ? "Record that the live page now has this revision" : "Record this article as published by hand — social variants and analytics key off it"}>{p.refreshStartedAt ? "Mark as refreshed" : "Mark as published"}</SubmitButton>
               </form>
             )}
           </StageRow>
-        )) : undefined}
+          );
+        }) : undefined}
       </StageList>
       {!wp && ready.length > 0 && (
         <p className="text-[11px] text-[var(--mute)] -mt-2 mb-4">

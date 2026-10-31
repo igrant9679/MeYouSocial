@@ -16,7 +16,7 @@ export async function markPublishedManuallyAction(formData: FormData) {
   const id = String(formData.get("id") ?? "");
   const rawUrl = String(formData.get("url") ?? "").trim();
   const { workspace, user } = await requireRole("ADMIN");
-  const post = await db.blogPost.findFirst({ where: { id, workspaceId: workspace.id }, select: { id: true, title: true, status: true } });
+  const post = await db.blogPost.findFirst({ where: { id, workspaceId: workspace.id }, select: { id: true, title: true, status: true, refreshStartedAt: true, publishedAt: true, publishedUrl: true } });
   if (!post) return;
   // From the editor or from Publish — each flashes back where it was used.
   const fromEditor = String(formData.get("back") ?? "") === "editor";
@@ -32,19 +32,25 @@ export async function markPublishedManuallyAction(formData: FormData) {
     if (u.protocol === "http:" || u.protocol === "https:") publishedUrl = u.toString();
   } catch { /* not a URL */ }
   if (!publishedUrl) fail("Paste the article's live link (the full https:// address) — social posts and analytics key off it.");
-  await db.blogPost.update({ where: { id: post.id }, data: { status: "published", publishedAt: new Date(), publishedUrl } });
+  // A refresh (lib/idea-drafting.ts) replaced the page it was already live on:
+  // it keeps the date it first went live, and is no longer being revised.
+  const refresh = post.refreshStartedAt != null;
+  await db.blogPost.update({
+    where: { id: post.id },
+    data: { status: "published", publishedAt: refresh ? post.publishedAt ?? new Date() : new Date(), publishedUrl, refreshStartedAt: null },
+  });
   await writeAudit({
     workspaceId: workspace.id,
     actorId: user.id,
-    action: "blog.published_manually",
+    action: refresh ? "blog.refreshed_manually" : "blog.published_manually",
     entityType: "blog_post",
     entityId: post.id,
-    meta: { publishedUrl, via: "html export" },
+    meta: { publishedUrl, via: "html export", ...(refresh ? { previousUrl: post.publishedUrl } : {}) },
   });
   revalidatePath("/publish");
   revalidatePath("/blog");
   revalidatePath(`/blog/${post.id}`);
   revalidatePath("/inbox");
-  const done = `"${post.title.slice(0, 60)}" recorded as published at ${publishedUrl}.`;
+  const done = `"${post.title.slice(0, 60)}" recorded as ${refresh ? "refreshed" : "published"} at ${publishedUrl}.`;
   redirect(fromEditor ? `/blog/${post.id}?flash=${encodeURIComponent(done)}` : `/publish?ok=${encodeURIComponent(done)}`);
 }

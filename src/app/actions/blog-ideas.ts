@@ -205,12 +205,12 @@ export async function draftFromIdeaAction(formData: FormData) {
 export async function autoDraftApprovedAction() {
   const { user, workspace } = await requireRole("EDITOR");
   if (await isGloballyPaused(workspace.id)) return;
-  const { draftIdeaCore, ideaChange } = await import("@/lib/idea-drafting");
-  const approved = (await db.blogIdea.findMany({
+  const { draftIdeaCore, ideaChange, linkRefreshTargets } = await import("@/lib/idea-drafting");
+  const approved = (await linkRefreshTargets(workspace.id, await db.blogIdea.findMany({
     where: { workspaceId: workspace.id, status: "approved" },
     orderBy: { createdAt: "asc" },
     take: 50,
-  })).filter((i) => ideaChange(i) !== "site_change").slice(0, 2);
+  }))).filter((i) => ideaChange(i) !== "site_change").slice(0, 2);
   for (const idea of approved) {
     await draftIdeaCore(workspace.id, idea.id, { from: ["approved"], actorId: user.id, finish: "job" });
   }
