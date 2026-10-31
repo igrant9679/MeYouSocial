@@ -1074,6 +1074,13 @@ model User {
   passwordHash  String?
   createdAt     DateTime      @default(now())
   lastActivityAt DateTime?
+  // Two-factor sign-in (E-SEC-07): the authenticator secret (AES-GCM JSON, set
+  // while setting up), when it was turned on, the last step used (no code twice),
+  // and the recovery codes' sha256 hashes (JSON array, each removed as used).
+  totpSecret    String?
+  totpEnabledAt DateTime?
+  totpLastStep  Int?
+  totpRecovery  String?
 
   memberships   Membership[]
   accounts      Account[]

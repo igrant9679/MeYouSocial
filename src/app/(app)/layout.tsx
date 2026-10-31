@@ -361,6 +361,14 @@ html[data-theme="dark"] .ws-brand {
           </div>
         )}
 
+        {/* The operator's account can reach every tenant; it should have two-factor on (E-SEC-07). */}
+        {canCreateWorkspace && !user.totpEnabledAt && (
+          <div role="status" className="px-4 py-2 text-xs flex items-center gap-2 flex-wrap" style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }}>
+            <b>Your platform-operator account signs in with a password alone.</b>
+            <Link href="/account/two-factor" className="underline">Turn on two-factor sign-in</Link>
+          </div>
+        )}
+
         {/* A declared incident, for admins of every workspace (E-SEC-06). */}
         {incident && (
           <div role="alert" className="px-4 py-2 text-xs flex items-center gap-2 flex-wrap" style={{ background: "var(--rose-soft)", color: "var(--rose-on)" }}>

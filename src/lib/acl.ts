@@ -52,6 +52,12 @@ export async function requireMembership(workspaceId?: string) {
     target = (chosen && memberships.find((m) => m.workspaceId === chosen)) || memberships[0];
   }
   if (!target) redirect("/forbidden?why=member");
+  // A workspace that requires two-factor of its admins (E-SEC-07) sends an admin
+  // without it to set it up — from every page, action and route that lands here.
+  if (target.role === "ADMIN" && !user.totpEnabledAt) {
+    const { getSetting } = await import("@/lib/settings");
+    if ((await getSetting("security:require_2fa_admins", target.workspaceId)) === "true") redirect("/account/two-factor?required=1");
+  }
   return { user, membership: target, workspace: target.workspace };
 }
 

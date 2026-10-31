@@ -25,6 +25,9 @@ export function securityTitle(action: string, entityId: string | null | undefine
     case "api_token.revoked": return `The API token “${str(meta.name) ?? "unnamed"}” was revoked`;
     case "security.incident_declared": return `The platform operator declared a security incident: ${str(meta.note) ?? "no details given"}`;
     case "security.incident_ended": return "The platform operator ended the security incident";
+    case "security.2fa_disabled": return `${who} turned off two-factor sign-in`;
+    case "security.2fa_reset": return `The platform operator turned off two-factor sign-in for ${who}`;
+    case "security.2fa_requirement_changed": return meta.required ? "Two-factor sign-in is now required for admins" : "Two-factor sign-in is no longer required for admins";
     case "integration.adopted":
       return meta.kind === "mailbox" ? `A mailbox (${str(meta.address) ?? "unnamed"}) was attached to this workspace` : "A Zernio profile was attached to this workspace";
     default: return null;

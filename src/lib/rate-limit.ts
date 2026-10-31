@@ -20,6 +20,8 @@ export const LIMITS = {
   resendPerUser: { limit: 3, windowSec: 900 },
   webhookPerIp: { limit: env.RATE_LIMIT_PER_MINUTE * 5, windowSec: 60 },
   apiPerUser: { limit: env.RATE_LIMIT_PER_MINUTE, windowSec: 60 },
+  // Six digits is a million guesses; ten tries per five minutes per account.
+  totpPerUser: { limit: 10, windowSec: 300 },
 } as const;
 export type LimitName = keyof typeof LIMITS;
 

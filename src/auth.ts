@@ -1,4 +1,4 @@
-import NextAuth, { type DefaultSession } from "next-auth";
+import NextAuth, { CredentialsSignin, type DefaultSession } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
 import { PrismaAdapter } from "@auth/prisma-adapter";
@@ -19,6 +19,11 @@ const credentialsSchema = z.object({
   email: z.string().email().transform((s) => s.toLowerCase()),
   password: z.string().min(8),
 });
+
+/** The password was right and a code is needed (E-SEC-07) — the sign-in page asks for it. */
+export class SecondFactorRequired extends CredentialsSignin { code = "second_factor"; }
+/** The code (or the five-minute step) didn't pass. */
+export class SecondFactorWrong extends CredentialsSignin { code = "second_factor_wrong"; }
 
 const googleProvider = env.ENABLE_GOOGLE_SSO && env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET
   ? [
@@ -51,17 +56,33 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         password: { label: "Password", type: "password" },
       },
       async authorize(raw, request) {
+        const { hit, ipFrom } = await import("@/lib/rate-limit");
+        // Step two of a two-factor sign-in (E-SEC-07): the signed token step one
+        // left, and a code. No password here — it was checked in step one.
+        const r = (raw ?? {}) as Record<string, unknown>;
+        const pending = typeof r.pending === "string" ? r.pending : "";
+        if (pending) {
+          const { readPending, checkSecondFactor } = await import("@/lib/two-factor");
+          const userId = readPending(pending);
+          if (!userId) throw new SecondFactorWrong();
+          if (!(await hit("totpPerUser", userId)).ok) throw new SecondFactorWrong();
+          const user = await db.user.findUnique({ where: { id: userId } });
+          if (!user?.totpEnabledAt || !(await checkSecondFactor(user, String(r.code ?? "")))) throw new SecondFactorWrong();
+          await db.user.update({ where: { id: user.id }, data: { lastActivityAt: new Date() } });
+          return { id: user.id, email: user.email, name: user.name ?? undefined, image: user.image ?? undefined };
+        }
         const parsed = credentialsSchema.safeParse(raw);
         if (!parsed.success) return null;
         // Guessing passwords is slowed per address and per account (E-SEC-10);
         // a limited attempt fails exactly like a wrong password.
-        const { hit, ipFrom } = await import("@/lib/rate-limit");
         const ip = request?.headers ? ipFrom(request.headers) : "unknown";
         if (!(await hit("signinPerIp", ip)).ok || !(await hit("signinPerEmail", parsed.data.email)).ok) return null;
         const user = await db.user.findUnique({ where: { email: parsed.data.email } });
         if (!user || !user.passwordHash) return null;
         const ok = await bcrypt.compare(parsed.data.password, user.passwordHash);
         if (!ok) return null;
+        // Two-factor on: the password alone doesn't sign in — the page asks for a code.
+        if (user.totpEnabledAt) throw new SecondFactorRequired();
         await db.user.update({ where: { id: user.id }, data: { lastActivityAt: new Date() } });
         return { id: user.id, email: user.email, name: user.name ?? undefined, image: user.image ?? undefined };
       },

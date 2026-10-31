@@ -8,6 +8,10 @@ import { resolveEmailSender } from "@/lib/unipile/accounts";
 import { changeRoleAction, inviteAction, revokeAction } from "@/app/actions/people";
 import { ResetLinkButton } from "@/components/ResetLinkButton";
 import { requestNow } from "@/lib/request-time";
+import { getCurrentUser, isPlatformOperator } from "@/lib/acl";
+import { getSetting } from "@/lib/settings";
+import { REQUIRE_SETTING } from "@/lib/two-factor";
+import { requireTwoFactorAction, resetTwoFactorAction } from "@/app/actions/two-factor";
 
 /** Members not seen for this many days are flagged for review (E-SEC-18). */
 const IDLE_DAYS = 60;
@@ -39,6 +43,11 @@ export async function PeoplePanel({ workspaceId, workspaceName, returnTo }: { wo
     return days >= IDLE_DAYS ? days : null;
   };
   const idle = members.filter((m) => idleDays(m) !== null);
+  // Two-factor (E-SEC-07, E-SEC-18): which admins sign in with a password alone,
+  // whether this workspace requires it of them, and the operator's reset.
+  const [me, required] = await Promise.all([getCurrentUser(), getSetting(REQUIRE_SETTING, workspaceId).then((v) => v === "true")]);
+  const operator = isPlatformOperator(me?.email);
+  const adminsWithout = members.filter((m) => m.status === "active" && m.role === "ADMIN" && !m.user.totpEnabledAt).length;
 
   return (
     <>
@@ -73,6 +82,14 @@ export async function PeoplePanel({ workspaceId, workspaceName, returnTo }: { wo
 
       <section className="card mb-5">
         <h2 className="font-mono text-[15px] mb-3">Members</h2>
+        {/* Two-factor for admins (E-SEC-07). */}
+        <div className="text-xs mb-3 flex items-center gap-2 flex-wrap">
+          <span><b>Two-factor for admins:</b> {required ? "required" : "optional"}{adminsWithout ? ` — ${adminsWithout} admin${adminsWithout === 1 ? " signs" : "s sign"} in with a password alone` : " — every admin has it on"}.</span>
+          <form action={requireTwoFactorAction}>
+            <input type="hidden" name="intent" value={required ? "off" : "on"} />
+            <SubmitButton className="btn sm" pendingText="…">{required ? "Stop requiring it" : "Require it"}</SubmitButton>
+          </form>
+        </div>
         {/* Access review (E-SEC-18): who hasn't been here in two months. */}
         {idle.length > 0 && (
           <p className="text-xs mb-3 px-2.5 py-1.5 rounded-lg" style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }}>
@@ -109,6 +126,9 @@ export async function PeoplePanel({ workspaceId, workspaceName, returnTo }: { wo
                   <td><span className="pill" style={{ background: m.status === "active" ? "var(--green-soft)" : "var(--rose-soft)", color: m.status === "active" ? "var(--green)" : "var(--rose)" }}>{m.status}</span></td>
                   <td className="text-xs text-[var(--mute)]">
                     {m.user.lastActivityAt ? formatDay(new Date(m.user.lastActivityAt)) : "—"}
+                    {m.user.totpEnabledAt
+                      ? <span className="block text-[10px]" style={{ color: "var(--green-on)" }}>two-factor on</span>
+                      : m.role === "ADMIN" && m.status === "active" && <span className="block text-[10px]" style={{ color: "var(--amber-on)" }}>no two-factor</span>}
                     {idleDays(m) !== null && <span className="block text-[10px]" style={{ color: "var(--amber-on)" }}>{m.user.lastActivityAt ? `inactive ${idleDays(m)} days` : "never signed in"}</span>}
                   </td>
                   <td className="text-right">
@@ -116,6 +136,13 @@ export async function PeoplePanel({ workspaceId, workspaceName, returnTo }: { wo
                         deletes it. Removing the last active ADMIN is refused by the action. */}
                     <div className="flex items-center gap-1 justify-end flex-wrap">
                       {m.status === "active" && <ResetLinkButton userId={m.userId} />}
+                      {operator && m.user.totpEnabledAt && (
+                        <form action={resetTwoFactorAction}>
+                          <input type="hidden" name="userId" value={m.userId} />
+                          <input type="hidden" name="returnTo" value={returnTo} />
+                          <button type="submit" className="btn sm" title="For someone who lost their phone and recovery codes">Turn off two-factor</button>
+                        </form>
+                      )}
                       {m.status === "active" && (
                         <form action={revokeAction}>
                           <input type="hidden" name="userId" value={m.userId} />

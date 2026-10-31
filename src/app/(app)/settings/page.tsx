@@ -103,6 +103,15 @@ export default async function UserSettingsPage({ searchParams }: { searchParams:
         </form>
       </section>
 
+      {/* Two-factor sign-in (E-SEC-07) — set up on its own page, outside the app shell. */}
+      <section className="card mb-4">
+        <h2 className="font-mono font-bold text-[14px] mb-2 flex items-center gap-2"><Lock className="w-4 h-4" style={{ color: "var(--green-on)" }} /> Two-factor sign-in</h2>
+        <p className="text-sm m-0">
+          {user.totpEnabledAt ? <>On — signing in takes your password and a code from your phone. </> : <>Off — a password alone signs you in. </>}
+          <Link href="/account/two-factor" className="underline">{user.totpEnabledAt ? "Manage it" : "Turn it on"}</Link>
+        </p>
+      </section>
+
       {/* Theme — click to apply instantly (one form per option, auto-submitting). */}
       <section className="card mb-4">
         <h2 className="font-mono font-bold text-[14px] mb-3 flex items-center gap-2"><Palette className="w-4 h-4" style={{ color: "var(--violet-on)" }} /> Appearance</h2>
