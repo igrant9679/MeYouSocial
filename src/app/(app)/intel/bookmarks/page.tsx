@@ -116,7 +116,7 @@ function BookmarkRow({ bookmark, kind, ramp = null }: { ramp?: Ramp; bookmark: {
         <OutlierChip score={v.outlierScore} />
         <Link href={`/intel/videos/${v.id}`} className="font-semibold text-sm hover:text-[var(--accent)] flex-1 min-w-0 truncate">{v.title}</Link>
         <span className="text-xs text-[var(--mute)]">{v.intelChannel.name} · {formatNum(v.views)} views{v.viewsPerHour != null && <span title="Views per hour since publish"> · {formatVph(v.viewsPerHour)}/hr</span>}</span>
-        {ramp && <ResearchIdeaForm videoId={v.id} topics={ramp.topics} channels={ramp.channels} matchedTopicId={matchTopic(v.title, ramp.prepared)?.id ?? null} back="/intel/bookmarks" compact />}
+        {ramp && <ResearchIdeaForm videoId={v.id} videoTitle={v.title} topics={ramp.topics} channels={ramp.channels} matchedTopicId={matchTopic(v.title, ramp.prepared)?.id ?? null} back="/intel/bookmarks" compact />}
         <form action={toggleBookmarkAction}>
           <input type="hidden" name="intelVideoId" value={v.id} />
           <button type="submit" className="btn sm" title="Remove"><Bookmark className="w-3.5 h-3.5" fill="currentColor" /></button>

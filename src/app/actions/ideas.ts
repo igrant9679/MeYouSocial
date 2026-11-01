@@ -120,11 +120,18 @@ export async function ideaFromResearchAction(formData: FormData) {
   if (!video) return;
   const topicId = await ownTopicId(workspace.id, formData.get("topicId"));
   const raw = String(formData.get("format") ?? "article");
-  const title = cleanTitle(video.title, 200);
+  // A remixed title the person picked (E-IDE-21); the competitor's own stays in
+  // the angle as the evidence, so the idea still says where it came from.
+  const picked = cleanTitle(String(formData.get("title") ?? ""), 200);
+  const title = picked || cleanTitle(video.title, 200);
   if (!title) return;
-  const angle = video.outlierScore != null
-    ? `Beat ${video.intelChannel.name ?? "its channel"}'s average by ${video.outlierScore.toFixed(1)}× — remix the hook, not the subject.`
-    : `From ${video.intelChannel.name ?? "a competitor"} — remix the hook, not the subject.`;
+  const remixed = !!picked && picked.toLowerCase() !== video.title.trim().toLowerCase();
+  const source = video.outlierScore != null
+    ? `Beat ${video.intelChannel.name ?? "its channel"}'s average by ${video.outlierScore.toFixed(1)}×`
+    : `From ${video.intelChannel.name ?? "a competitor"}`;
+  const angle = remixed
+    ? `${source} with “${cleanTitle(video.title, 160)}” — this title keeps its hook on a new subject.`
+    : `${source} — remix the hook, not the subject.`;
 
   let made = "article idea";
   if (raw.startsWith("video:")) {
@@ -134,7 +141,7 @@ export async function ideaFromResearchAction(formData: FormData) {
     revalidatePath(`/channels/${channel.id}`);
     made = "video idea";
   } else if (raw === "social") {
-    await db.socialIdea.create({ data: { workspaceId: workspace.id, hook: cleanTitle(video.title, 240), angle, sourceVideoId: video.id, topicId, source: "research", createdById: user.id } });
+    await db.socialIdea.create({ data: { workspaceId: workspace.id, hook: picked || cleanTitle(video.title, 240), angle, sourceVideoId: video.id, topicId, source: "research", createdById: user.id } });
     made = "social idea";
   } else {
     await db.blogIdea.create({ data: { workspaceId: workspace.id, title, angle, sourceVideoId: video.id, topicId, source: "research" } });
@@ -144,7 +151,21 @@ export async function ideaFromResearchAction(formData: FormData) {
   const back = String(formData.get("back") ?? "/research");
   const to = /^\/(research|intel)(\/|$)/.test(back) ? back.split("?")[0] : "/research";
   const { redirect } = await import("next/navigation");
-  redirect(`${to}?ok=${encodeURIComponent(`Added as ${made === "article idea" ? "an" : "a"} ${made}${topicId ? " with its Topic" : ""} — it is on the board as discovered.`)}`);
+  redirect(`${to}?ok=${encodeURIComponent(`Added as ${made === "article idea" ? "an" : "a"} ${made}${topicId ? " with its Topic" : ""}${remixed ? ", with the remixed title" : ""} — it is on the board as discovered.`)}`);
+}
+
+/**
+ * Remixed titles for a Research video (E-IDE-21) — plain arguments, called by
+ * the form's TitleRemix. Needs the Topic: the remix moves the hook onto it.
+ */
+export async function remixTitlesAction(videoId: string, topicId: string): Promise<{ titles: string[] } | { error: string }> {
+  const { workspace } = await requireRole("EDITOR");
+  const video = await db.intelVideo.findFirst({ where: { id: videoId, intelChannel: { workspaceId: workspace.id } }, select: { title: true } });
+  if (!video) return { error: "That video isn't in this workspace's research." };
+  const topic = topicId ? await db.topic.findFirst({ where: { id: topicId, workspaceId: workspace.id }, select: { name: true } }) : null;
+  if (!topic) return { error: "Pick a Topic first — the remix moves the hook onto it." };
+  const { remixTitles } = await import("@/lib/title-remix");
+  return remixTitles({ title: video.title, subject: topic.name, workspaceId: workspace.id });
 }
 
 /**

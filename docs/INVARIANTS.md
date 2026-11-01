@@ -1074,3 +1074,13 @@ before changing code in that area.
 - **Who may start channels** — `channels:creators` on Settings → Workspace: empty = editors and admins (as before),
   `admins` = admins only. `mayCreateChannels` gates the wizard page (an editor is told why), `startOnboardingAction`,
   every later step (`requireOwn` — continuing is starting) and Discard.
+
+## ⚠ Research ideas can take a remixed title (2026-11-01, audit Phase 5, growth part t)
+- **E-IDE-21**: Research's idea form (`ResearchIdeaForm`, wherever it has Topics) carries `TitleRemix`: "Remix the
+  title for the Topic" → `remixTitlesAction(videoId, topicId)` (EDITOR; video and Topic workspace-scoped; refuses
+  without a Topic) → `lib/title-remix.ts` `remixTitles` asks for three titles that keep the hook and change the
+  subject, refuses the mock's answer (`placeholderProblem`), and `parseRemixes` strips list furniture and quotes and
+  drops the original and repeats (max 3). Picking one fills the form's hidden `title`; "Keep the original" clears it.
+- `ideaFromResearchAction` stores the picked title (article, video or social hook) and keeps the competitor's own title
+  in the angle as the evidence ("… with “<their title>” — this title keeps its hook on a new subject"); no pick = the
+  original title, as before. Without JavaScript the form still works.

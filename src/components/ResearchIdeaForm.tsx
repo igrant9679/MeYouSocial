@@ -1,6 +1,7 @@
 import { Lightbulb } from "lucide-react";
 import { SubmitButton } from "@/components/SubmitButton";
 import { ideaFromResearchAction } from "@/app/actions/ideas";
+import { TitleRemix } from "@/components/TitleRemix";
 
 /**
  * Research's on-ramp to the board ("Topics as the spine", 2026-09-21): one
@@ -20,6 +21,7 @@ import { ideaFromResearchAction } from "@/app/actions/ideas";
  */
 export function ResearchIdeaForm({
   videoId,
+  videoTitle,
   topics,
   channels,
   matchedTopicId,
@@ -27,6 +29,8 @@ export function ResearchIdeaForm({
   compact = false,
 }: {
   videoId: string;
+  /** The competitor's title — shown as the "keep" choice beside the remixes (E-IDE-21). */
+  videoTitle?: string;
   topics: Array<{ id: string; name: string }>;
   channels: Array<{ id: string; name: string }>;
   matchedTopicId: string | null;
@@ -50,6 +54,7 @@ export function ResearchIdeaForm({
           {topics.map((t) => <option key={t.id} value={t.id}>{t.name}{t.id === matchedTopicId ? " (matched)" : ""}</option>)}
         </select>
       )}
+      {topics.length > 0 && <TitleRemix videoId={videoId} original={videoTitle} />}
     </>
   );
 

@@ -121,7 +121,7 @@ export default async function ResearchStage({ searchParams }: { searchParams: Pr
                             {v.intelChannel.name} · {formatNum(v.views)} views · {v.format}
                           </div>
                         </div>
-                        {editor && <ResearchIdeaForm videoId={v.id} topics={topicOptions} channels={videoChannels} matchedTopicId={g.topic?.id ?? null} back="/research" compact />}
+                        {editor && <ResearchIdeaForm videoId={v.id} videoTitle={v.title} topics={topicOptions} channels={videoChannels} matchedTopicId={g.topic?.id ?? null} back="/research" compact />}
                         <Link href={`/intel/videos/${v.id}`} className="btn sm">Open</Link>
                       </StageRow>
                     );

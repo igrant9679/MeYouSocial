@@ -141,7 +141,7 @@ export default async function IntelVideoPage({ params, searchParams }: { params:
           {editor && (
             <div className="card">
               <div className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)] mb-1.5">Make it an idea</div>
-              <ResearchIdeaForm videoId={video.id} topics={topics.map((t) => ({ id: t.id, name: t.name }))} channels={studio.show ? ownChannels : []} matchedTopicId={matchedTopic?.id ?? null} back={`/intel/videos/${video.id}`} />
+              <ResearchIdeaForm videoId={video.id} videoTitle={video.title} topics={topics.map((t) => ({ id: t.id, name: t.name }))} channels={studio.show ? ownChannels : []} matchedTopicId={matchedTopic?.id ?? null} back={`/intel/videos/${video.id}`} />
               <p className="text-[11px] text-[var(--mute)] mt-1.5 m-0">{matchedTopic ? `Topic “${matchedTopic.name}” matched by keyword — change it if that is wrong.` : topics.length ? "No Topic matched by keyword — pick one, or none." : "No Topics yet."}</p>
             </div>
           )}
