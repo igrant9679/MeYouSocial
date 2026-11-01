@@ -1121,3 +1121,32 @@ before changing code in that area.
 - **Discovery hears it**: article (`discoverIdeasCore`) and social (`discoverSocialIdeasCore`) prompts get
   `rejectedLine` — the 20 newest rejected titles with "[reason]" — as "propose nothing like them", on top of the old
   "avoid duplicating" list. Video ideas (archived, not rejected) and deleting are unchanged: a deleted idea has no undo.
+
+## ⚠ Notifications open, filter, page and span workspaces (2026-11-01, audit Phase 5, growth part x)
+- **E-SHL-08 — opening is reading**: a notification title links to `/notifications/open/[id]` (a route handler, a
+  plain `<a>` so no prefetch marks anything): it marks the row read and redirects to `safeNotificationTarget(url)` —
+  a path on this site only (`/…`, never `//…` or `/\…`); anything else opens `/notifications`. The row must be the
+  signed-in user's, in a workspace they are still an **active** member of (a revoked or deleted one refuses with
+  `?error=`). One from another of their workspaces sets the active-workspace cookie first, because `url` is a path
+  inside that workspace. Email links still point straight at the thing (the email is sent before the row exists).
+- **Filters and pages** live in the URL (`lib/notification-list.ts`: `parseNotificationQuery`, `notificationsHref`):
+  `kind` (unknown kinds are ignored), `unread=1`, `page` (30 a page; a page past the end redirects to the last —
+  in-page, since `loading.tsx` streams first). Kind chips count within the scope and the unread toggle.
+- **All workspaces** (`scope=all`) exists only for someone with more than one active membership; each item carries
+  its workspace and its time in **that** workspace's posting zone. The single view shows "N unread elsewhere".
+  Mark read / "Mark these read" / "Clear read" act on what is shown — scope and kind — and the workspace list always
+  comes from the user's own active memberships (`scopeFor` in `actions/notifications.ts`), never from the form.
+  Preferences stay per workspace (the form is for the one you're in). The bell still counts the active workspace.
+
+## ⚠ The sweep says what it will do next (2026-11-01, audit Phase 5, growth part y)
+- **E-ENG-05 — one set of selectors**: `lib/sweep-plan.ts` holds what the cycle picks — `ideasToDraft` (approved ideas in
+  DRAFT_ORDER, site changes skipped, two a sweep under `autopilot:weekly_articles`), `publishCandidates` (final approval,
+  not live or a refresh, publish day in the posting zone, nothing without a site), `queueableDrafts` (unscheduled drafts,
+  approval OR [null, "approved"], never `notIn`) and the per-sweep caps. `runAutopilotCycle` calls them; **change a pick
+  here, never in a copy** — the preview exists to say exactly what the engine does.
+- **"Next sweep will…"** on Settings → Automation (`previewNextSweep`, `components/NextSweepCard.tsx`): which ideas draft,
+  which articles publish and which are held (by the same `blockingChecks`, stopping at the same two ready), which drafts
+  get which slot (`pickFreeSlot` over the same free list, **not reserved**), and why a section does nothing (mode,
+  allowance, weekly cap, no site, not the publish day, not full autonomy, pause, AUTOPILOT=off). It only reads:
+  `linkRefreshTargets(…, { write: false })` works the refresh links out without saving them. The time is the last
+  check-in plus the interval, "due now" once passed.

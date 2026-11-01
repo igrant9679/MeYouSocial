@@ -69,7 +69,10 @@ const bareTitle = (s: string) =>
 export async function linkRefreshTargets<T extends Pick<BlogIdea, "id" | "title" | "source" | "refreshPostId">>(
   workspaceId: string,
   ideas: T[],
+  // false: work out the links without saving them — the sweep preview (E-ENG-05) only reads.
+  opts: { write?: boolean } = {},
 ): Promise<T[]> {
+  const write = opts.write ?? true;
   const open = ideas.filter((i) => {
     if (i.refreshPostId) return false;
     const verb = i.title.match(VERB)?.[1]?.toLowerCase();
@@ -89,6 +92,7 @@ export async function linkRefreshTargets<T extends Pick<BlogIdea, "id" | "title"
   for (const idea of open) {
     const ids = byTitle.get(bareTitle(idea.title));
     if (ids?.length !== 1) continue;
+    if (!write) { found.set(idea.id, ids[0]); continue; }
     // only an idea still without a post: a person's own choice is never replaced
     const set = await db.blogIdea.updateMany({ where: { id: idea.id, workspaceId, refreshPostId: null }, data: { refreshPostId: ids[0] } });
     if (set.count) found.set(idea.id, ids[0]);

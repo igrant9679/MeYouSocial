@@ -16,6 +16,8 @@ import { socialQueuePause, missedWhilePaused } from "@/lib/social/queue-pause";
 import { autonomyStatus, autonomyPreview } from "@/lib/autonomy";
 import { getSetting } from "@/lib/settings";
 import { formatInZone, getQueue } from "@/lib/social/slots";
+import { previewNextSweep, nextSweepFrom } from "@/lib/sweep-plan";
+import { NextSweepCard } from "@/components/NextSweepCard";
 
 // Settings → Automation: what runs by itself. The master switch, the global
 // pause, the function modes, the article cadence and publish day, SEO and
@@ -63,10 +65,13 @@ export default async function SetupAutomation({ searchParams }: { searchParams: 
   const missedCount = queuePause ? (await missedWhilePaused(workspace.id)).length : 0;
   // E-ENG-03 / E-ENG-06: the last check-in, and today's allowance against its limit.
   const { generationsToday, DAILY_AI_BUDGET } = await import("@/lib/blog-autopilot");
-  const [heartbeat, aiUsed] = await Promise.all([
+  const [heartbeat, aiUsed, sweep] = await Promise.all([
     readHeartbeat(workspace.id).catch(() => null),
     generationsToday(workspace.id).catch(() => null),
+    // E-ENG-05: what the next cycle drafts, publishes and queues — read, never done.
+    previewNextSweep(workspace.id).catch(() => null),
   ]);
+  const nextSweepAt = heartbeat ? nextSweepFrom(new Date(heartbeat.at), intervalMin, requestNow()) : null;
   const nextFreeLabel = queue.free[0] ? formatInZone(queue.free[0].at, queue.timeZone) : null;
 
   return (
@@ -216,6 +221,7 @@ export default async function SetupAutomation({ searchParams }: { searchParams: 
             <form action={runAutopilotNowAction}><SubmitButton className="btn" pendingText="Running cycle…">Run cycle now</SubmitButton></form>
           )}
         </div>
+        {sweep && <NextSweepCard preview={sweep} timeZone={queue.timeZone} nextAt={nextSweepAt} autopilotOff={autopilotOff} />}
       </div>
 
       {/* Articles: cadence + publish day + SEO */}

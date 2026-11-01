@@ -1633,25 +1633,14 @@ async function runAutopilotCycleUnlocked(workspaceId: string): Promise<CycleRepo
   // behavior (bounded only by the approved-ideas pool and the daily budget).
   await step("drafting", async () => {
     if (generating("blog_drafting")) {
-      const { getSetting } = await import("@/lib/settings");
-      const weeklyRaw = parseInt(await getSetting("autopilot:weekly_articles", workspaceId).catch(() => ""), 10);
-      let allowance = 2; // per-cycle cap, as before
-      if (Number.isFinite(weeklyRaw) && weeklyRaw > 0) {
-        const draftedThisWeek = await db.auditLog.count({
-          where: { workspaceId, action: "blog.draft_generated", createdAt: { gte: new Date(Date.now() - 7 * 86_400_000) } },
-        });
-        allowance = Math.min(2, Math.max(0, weeklyRaw - draftedThisWeek));
-      }
       // Highest priority first, then the longest-waiting (DRAFT_ORDER, E-IDE-08),
       // skipping the ones that are a change on the live site (retire / merge, or
       // a refresh with nothing here to revise) — those wait for a person and
-      // must not starve the queue behind them.
-      const { draftIdeaCore, ideaChange, linkRefreshTargets, DRAFT_ORDER } = await import("@/lib/idea-drafting");
-      const approved = allowance > 0
-        ? (await linkRefreshTargets(workspaceId, await db.blogIdea.findMany({ where: { workspaceId, status: "approved" }, orderBy: DRAFT_ORDER, take: 50 })))
-            .filter((i) => ideaChange(i) !== "site_change")
-            .slice(0, allowance)
-        : [];
+      // must not starve the queue behind them. Two a cycle, under the weekly dial.
+      // The selector is shared with the "Next sweep will…" preview (E-ENG-05).
+      const { draftIdeaCore } = await import("@/lib/idea-drafting");
+      const { ideasToDraft } = await import("@/lib/sweep-plan");
+      const approved = (await ideasToDraft(workspaceId)).ideas;
       const failedDrafts: string[] = [];
       for (const idea of approved) {
         // Claim, write, and park at review with images and SEO meta — the same
@@ -1822,25 +1811,11 @@ async function runAutopilotCycleUnlocked(workspaceId: string): Promise<CycleRepo
 
       // Social: give unscheduled drafts a slot. Approval-held posts are skipped —
       // `require_approval` still means what it says, even here.
+      // ⚠ The selector keeps approval as OR [null, "approved"], never `notIn` —
+      // the first cut of this query used notIn and queued zero ordinary posts.
       const { getQueue, claimFree } = await import("@/lib/social/slots");
-      const drafts = await db.socialPost.findMany({
-        where: {
-          workspaceId,
-          status: "draft",
-          scheduledAt: null,
-          // ⚠ OR [null, "approved"], NEVER `notIn`. SQL NOT IN drops NULL rows,
-          // so `approval notIn ['pending','changes']` silently matches nothing
-          // for ordinary posts — which have approval NULL. This file's own module
-          // docs warn about it for the publish sweep; the first cut of this query
-          // did it anyway and queued zero posts on a fixture that had one waiting.
-          OR: [{ approval: null }, { approval: "approved" }],
-        },
-        orderBy: { createdAt: "asc" },
-        // Read past the ten it may queue: drafts a network would reject are
-        // skipped, and ten of them at the front must not stall the rest.
-        take: 100,
-        select: { id: true, category: true },
-      });
+      const { queueableDrafts, QUEUES_PER_SWEEP } = await import("@/lib/sweep-plan");
+      const drafts = await queueableDrafts(workspaceId);
       if (drafts.length) {
         const { free } = await getQueue(workspaceId, { limit: 2000 });
         let remaining = free;
@@ -1855,7 +1830,7 @@ async function runAutopilotCycleUnlocked(workspaceId: string): Promise<CycleRepo
           await db.socialPost.update({ where: { id: d.id }, data: { scheduledAt: slot.at, status: "scheduled", timeChosen: false } });
           remaining = remaining.filter((f) => f.at.getTime() !== slot.at.getTime());
           report.autoQueued++;
-          if (report.autoQueued >= 10) break; // ten a cycle, as before
+          if (report.autoQueued >= QUEUES_PER_SWEEP) break; // ten a cycle, as before
         }
         if (report.autoQueued) {
           await writeAudit({
@@ -1873,41 +1848,21 @@ async function runAutopilotCycleUnlocked(workspaceId: string): Promise<CycleRepo
   await step("publishing", async () => {
     if (modes.publishing === "auto" || modes.publishing === "assisted") {
       await releaseStalePublishClaims(workspaceId);
-      const now = new Date();
       // `autopilot:publish_day` (Date#getDay 0–6, unset = any day) — the owner's
       // "articles go out on Wednesdays" dial. On every other day auto mode
       // behaves like assisted: a time a human set on a post is still honoured,
       // but gate-passing unscheduled posts wait at final_approval for the day.
       // The weekday is read in the workspace's posting timezone, never the
       // server's — Railway runs in UTC and "Wednesday" means the owner's.
-      let autoToday = modes.publishing === "auto";
-      if (autoToday) {
-        const { getSetting } = await import("@/lib/settings");
-        const day = parseInt(await getSetting("autopilot:publish_day", workspaceId).catch(() => ""), 10);
-        if (Number.isInteger(day) && day >= 0 && day <= 6) {
-          const { getPostingTimeZone, zonedParts } = await import("@/lib/social/slots");
-          autoToday = zonedParts(now, await getPostingTimeZone(workspaceId)).weekday === day;
-        }
-      }
-      // Not on WordPress yet — or a refresh, whose publish updates its own post
-      // in place (publishCore). A draft handoff (wpPostId set, no refresh) is
-      // never picked up again, nor is a refresh of an article published by hand
-      // (no wpPostId): that one goes out by hand, where it went before.
-      const notLive = { OR: [{ wpPostId: null, refreshStartedAt: null }, { wpPostId: { not: null }, refreshStartedAt: { not: null } }] };
+      // Only articles not live yet — or a refresh, whose publish updates its own
+      // post in place (publishCore). A draft handoff (wpPostId set, no refresh)
+      // is never picked up again, nor is a refresh of an article published by
+      // hand (no wpPostId): that one goes out by hand, where it went before.
       // ⚠ No site, nothing to publish to — and nothing to report every cycle
       // (CF parks its articles here and exports them by hand).
-      const hasSite = (await db.wordPressConnection.count({ where: { workspaceId } })) > 0;
-      const candidates = !hasSite ? [] : await db.blogPost.findMany({
-        where: autoToday
-          ? {
-              workspaceId,
-              status: "final_approval",
-              AND: [notLive, { OR: [{ scheduledAt: null }, { scheduledAt: { lte: now } }] }],
-            }
-          : { workspaceId, status: "final_approval", ...notLive, scheduledAt: { lte: now } },
-        orderBy: { updatedAt: "asc" },
-        take: 20,
-      });
+      // The selector is shared with the "Next sweep will…" preview (E-ENG-05).
+      const { publishCandidates, PUBLISHES_PER_SWEEP } = await import("@/lib/sweep-plan");
+      const { candidates } = await publishCandidates(workspaceId, modes.publishing);
       // ⚠ The checks run BEFORE the two are picked (audit ART-08). publishCore
       // re-checks and quietly refuses an article that no longer passes, so with
       // `take: 2` the two oldest such articles were retried forever while every
@@ -1915,7 +1870,7 @@ async function runAutopilotCycleUnlocked(workspaceId: string): Promise<CycleRepo
       // skipped and named (Inbox, /publish), with a notice once a day.
       const ready: typeof candidates = [];
       for (const p of candidates) {
-        if (ready.length >= 2) break;
+        if (ready.length >= PUBLISHES_PER_SWEEP) break;
         const failing = await blockingChecks(workspaceId, p.id);
         if (failing && failing.length === 0) { ready.push(p); continue; }
         if (!failing) continue;
