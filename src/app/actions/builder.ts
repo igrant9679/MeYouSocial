@@ -10,6 +10,7 @@ import { countWords, durationSeconds, MAX_WORDS } from "@/lib/canvas/duration";
 import { RESEARCH_DEPTHS } from "@/lib/canvas/builder-const";
 import { cleanTitle } from "@/lib/list-marker";
 import { STUDIO_TIMEOUT_MS, placeholderProblem, templateBlock } from "@/lib/studio-ai";
+import { passStamp } from "@/lib/provenance";
 import type { LLMResponse } from "@/lib/llm";
 
 /** Stop before writing a placeholder (VID-05): back to the builder, saying why. */
@@ -199,6 +200,7 @@ export async function generateBuilderDraftAction(formData: FormData) {
   ];
 
   const sections: { title: string; content: string }[] = [];
+  let lastPass = "";
   for (const heading of sectionPlan) {
     const completion = await llm.complete({
       model: script.model ?? script.channel.defaultModel ?? "",
@@ -218,6 +220,7 @@ export async function generateBuilderDraftAction(formData: FormData) {
     // Nothing is written until every section is real.
     await refusePlaceholder(scriptId, completion, "the draft was not written");
     sections.push({ title: heading, content: completion.content });
+    lastPass = passStamp(completion);
   }
   state.sections = sections;
   // Mirror the assembled body to script.body so the Canvas/Publish tools work on it too.
@@ -227,7 +230,7 @@ export async function generateBuilderDraftAction(formData: FormData) {
   await snapshotScript(script, "before builder draft");
   await db.script.update({
     where: { id: scriptId },
-    data: { body, wordCount: Math.min(words, MAX_WORDS), durationSeconds: durationSeconds(words) },
+    data: { body, bodyBy: lastPass || null, wordCount: Math.min(words, MAX_WORDS), durationSeconds: durationSeconds(words) },
   });
   await save(scriptId, state);
 }
@@ -277,7 +280,7 @@ export async function regenerateBuilderSectionAction(formData: FormData) {
   await snapshotScript(script, "before regenerating a section");
   await db.script.update({
     where: { id: scriptId },
-    data: { body, wordCount: Math.min(words, MAX_WORDS), durationSeconds: durationSeconds(words) },
+    data: { body, bodyBy: passStamp(completion), wordCount: Math.min(words, MAX_WORDS), durationSeconds: durationSeconds(words) },
   });
   await save(scriptId, state);
 }

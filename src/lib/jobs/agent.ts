@@ -1,4 +1,5 @@
 import { jobs } from "@/lib/jobs";
+import { passStamp } from "@/lib/provenance";
 import { db } from "@/lib/db";
 import { llm, resolveUsableModel } from "@/lib/llm";
 import type { LLMResponse } from "@/lib/llm";
@@ -129,7 +130,7 @@ export function registerAgentJobs() {
       await db.scriptVersion.create({ data: { scriptId: script.id, label: "agent: outline", outline } });
       const outlineJson = readJson<{ markdown?: string; questions?: unknown; publish?: unknown }>(script.outline ?? null, {});
       outlineJson.markdown = outline;
-      await db.script.update({ where: { id: script.id }, data: { outline: writeJson(outlineJson), status: "planning" } });
+      await db.script.update({ where: { id: script.id }, data: { outline: writeJson(outlineJson), outlineBy: passStamp(outlineRes), status: "planning" } });
       if (await isCancelled()) return await finish("cancelled", "Cancelled after outline.");
       await mark("outline", { status: "done", endedAt: new Date().toISOString() });
 
@@ -150,7 +151,7 @@ export function registerAgentJobs() {
       if (await isCancelled()) return await finish("cancelled", "Cancelled before the draft was written.");
       let wordCount = countWords(body);
       await db.scriptVersion.create({ data: { scriptId: script.id, label: "agent: script-draft", body, wordCount } });
-      await db.script.update({ where: { id: script.id }, data: { body, wordCount: Math.min(wordCount, MAX_WORDS), durationSeconds: durationSeconds(wordCount), status: "draft" } });
+      await db.script.update({ where: { id: script.id }, data: { body, bodyBy: passStamp(scriptRes), wordCount: Math.min(wordCount, MAX_WORDS), durationSeconds: durationSeconds(wordCount), status: "draft" } });
       if (await isCancelled()) return await finish("cancelled", "Cancelled after first draft.");
       await mark("script", { status: "done", endedAt: new Date().toISOString(), note: `${wordCount} words` });
 
@@ -164,7 +165,7 @@ export function registerAgentJobs() {
       body = real(retention, "retention");
       if (await isCancelled()) return await finish("cancelled", "Cancelled mid-QA.");
       wordCount = countWords(body);
-      await db.script.update({ where: { id: script.id }, data: { body, wordCount: Math.min(wordCount, MAX_WORDS), durationSeconds: durationSeconds(wordCount) } });
+      await db.script.update({ where: { id: script.id }, data: { body, bodyBy: passStamp(retention), wordCount: Math.min(wordCount, MAX_WORDS), durationSeconds: durationSeconds(wordCount) } });
       if (await isCancelled()) return await finish("cancelled", "Cancelled mid-QA.");
       await mark("qa_retention", { status: "done", endedAt: new Date().toISOString() });
 
@@ -179,7 +180,7 @@ export function registerAgentJobs() {
       if (await isCancelled()) return await finish("cancelled", "Cancelled mid-QA.");
       wordCount = countWords(body);
       await db.scriptVersion.create({ data: { scriptId: script.id, label: "agent: humanized", body, wordCount } });
-      await db.script.update({ where: { id: script.id }, data: { body, wordCount: Math.min(wordCount, MAX_WORDS), durationSeconds: durationSeconds(wordCount) } });
+      await db.script.update({ where: { id: script.id }, data: { body, bodyBy: passStamp(humanized), wordCount: Math.min(wordCount, MAX_WORDS), durationSeconds: durationSeconds(wordCount) } });
       if (await isCancelled()) return await finish("cancelled", "Cancelled mid-QA.");
       await mark("qa_humanize", { status: "done", endedAt: new Date().toISOString() });
 
@@ -193,7 +194,7 @@ export function registerAgentJobs() {
       body = real(dedup, "repetition");
       if (await isCancelled()) return await finish("cancelled", "Cancelled mid-QA.");
       wordCount = countWords(body);
-      await db.script.update({ where: { id: script.id }, data: { body, wordCount: Math.min(wordCount, MAX_WORDS), durationSeconds: durationSeconds(wordCount) } });
+      await db.script.update({ where: { id: script.id }, data: { body, bodyBy: passStamp(dedup), wordCount: Math.min(wordCount, MAX_WORDS), durationSeconds: durationSeconds(wordCount) } });
       if (await isCancelled()) return await finish("cancelled", "Cancelled mid-QA.");
       await mark("qa_repetition", { status: "done", endedAt: new Date().toISOString() });
 
@@ -208,7 +209,7 @@ export function registerAgentJobs() {
       if (await isCancelled()) return await finish("cancelled", "Cancelled before the voiceover pass was written.");
       wordCount = countWords(body);
       await db.scriptVersion.create({ data: { scriptId: script.id, label: "agent: voiceover-ready", body, wordCount } });
-      await db.script.update({ where: { id: script.id }, data: { body, wordCount: Math.min(wordCount, MAX_WORDS), durationSeconds: durationSeconds(wordCount), status: "ready" } });
+      await db.script.update({ where: { id: script.id }, data: { body, bodyBy: passStamp(vo), wordCount: Math.min(wordCount, MAX_WORDS), durationSeconds: durationSeconds(wordCount), status: "ready" } });
       await mark("voiceover", { status: "done", endedAt: new Date().toISOString() });
 
       await finish("succeeded");

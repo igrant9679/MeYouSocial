@@ -991,3 +991,23 @@ before changing code in that area.
   ticked with the status not Published → a nudge to set it.
 - **The project page is read-only for viewers** (E-VID-12, missed by part k): status and target date as text; no
   status, date, merit, keyword, repurpose or SOP forms; the checklist without tick buttons.
+
+## ⚠ Research reports you can use; generated blocks say who wrote them (2026-11-01, audit Phase 5, growth part n)
+- **E-IDE-15**: a deep-research report (`ResearchSource.kind = "ai_research"`) renders through `MarkdownMessage` (no raw
+  HTML); other sources stay as extracted text. New reports store `writtenBy` (a provenance stamp) and `webSources`
+  (JSON `[{ title, url }]` of the web results the model was given, http(s) only — filtered again on read). "Make ideas
+  from this report" (`ideasFromReportAction`, EDITOR) turns the report's own **Suggested angles** list into `new` ideas
+  on its channel — parsed by `lib/report-angles.ts` `anglesFromReport`, not asked of a model again, so it costs nothing
+  and makes nothing when the report has no such list. A title the channel already has is skipped and the flash says so.
+  The research page is read-only for viewers (no run, star, delete or make-ideas) and dates use `formatZonedMoment`.
+- **E-VID-13 provenance**: `lib/provenance.ts` `passStamp(res)` = `"provider|model|ISO"`, where provider is the one that
+  ANSWERED (the router's stamp, fallback included). `Script.outlineBy` / `Script.bodyBy` are written by every model
+  write — canvas outline/script/humanize/improve, builder draft and section regenerate, the agent job's six steps, the
+  streaming route — and cleared by a restore (of the part restored) and by Start over. `components/ProvenanceChip.tsx`
+  shows the model's label, or amber **"Mock — AI unavailable"**; no stamp → no chip (text from before stamps claims
+  nothing — never guessed from the model a person picked). Migration `20261101130000_generated_provenance`.
+- **The streaming route refuses the mock** (a VID-05 gap): `llm.stream` had no way to say who answered, so
+  `/api/scripts/[id]/generate` saved mock prose as the outline or script. `LLMRequest.answeredBy` is now filled by the
+  router (provider + model it picked) and flipped to `"mock"` by the fallback wrapper; the route runs
+  `placeholderProblem` before writing and ends with `event: error` + the reason, which `StreamButton` shows instead of
+  going quiet. ⚠ Any new streaming write must pass `answeredBy` and check it the same way.

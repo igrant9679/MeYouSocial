@@ -9,7 +9,7 @@ import type { LLMResponse } from "@/lib/llm";
 export const STUDIO_TIMEOUT_MS = { short: 60_000, outline: 120_000, rewrite: 180_000, script: 240_000 } as const;
 
 /** Why `res` mustn't be written, as a sentence ending in `outcome` — or null when it's real. */
-export function placeholderProblem(res: LLMResponse, outcome: string): string | null {
+export function placeholderProblem(res: Pick<LLMResponse, "provider" | "content">, outcome: string): string | null {
   if (res.provider !== "mock" && res.content.trim()) return null;
   return `The AI didn't answer (no usable key for this workspace, or the call failed or timed out), so ${outcome}.`;
 }

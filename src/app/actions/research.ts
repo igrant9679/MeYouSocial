@@ -7,6 +7,8 @@ import { llm } from "@/lib/llm";
 import { getSearchProvider } from "@/lib/search";
 import { youtubeFor } from "@/lib/youtube";
 import { placeholderProblem } from "@/lib/studio-ai";
+import { passStamp } from "@/lib/provenance";
+import { anglesFromReport } from "@/lib/report-angles";
 
 // /..04 — Deep AI Research tool.
 // Multi-source: web search + (optionally) competitor YT channels + LLM synthesis.
@@ -85,6 +87,9 @@ Stay within ~${Math.round(budget / 6)} words.`,
       ref: "deep-research:" + Date.now(),
       title: question.slice(0, 200),
       content: completion.content,
+      // Who wrote it and what it was given (E-IDE-15) — only links a page can open.
+      writtenBy: passStamp(completion),
+      webSources: JSON.stringify(webResults.filter((r) => /^https?:\/\//i.test(r.url)).map((r) => ({ title: r.title.slice(0, 200), url: r.url.slice(0, 1000) }))),
       wordCount: (completion.content.match(/[\p{L}\p{N}]+/gu) ?? []).length,
       starred: false,
     },
@@ -113,4 +118,34 @@ export async function deleteResearchAction(formData: FormData) {
     where: { id, channel: { workspaceId: workspace.id } },
   });
   revalidatePath(`/channels/${channelId}/research`);
+}
+
+/**
+ * "Make ideas from this report" (E-IDE-15): the report's own Suggested angles
+ * become `new` ideas on its channel — read from the report, so nothing is spent
+ * and nothing is made up. A title the channel already has is skipped.
+ */
+export async function ideasFromReportAction(formData: FormData) {
+  const id = String(formData.get("id"));
+  const { workspace } = await requireRole("EDITOR");
+  const { redirect } = await import("next/navigation");
+  const report = await db.researchSource.findFirst({
+    where: { id, kind: "ai_research", channel: { workspaceId: workspace.id } },
+    select: { id: true, channelId: true, content: true },
+  });
+  if (!report) return;
+  const back = (msg: string, err = false) => redirect(`/channels/${report.channelId}/research?focus=${report.id}&${err ? "flashErr" : "flash"}=${encodeURIComponent(msg)}`);
+  const angles = anglesFromReport(report.content);
+  if (!angles.length) back("This report has no Suggested angles list, so no ideas were made.", true);
+  const existing = new Set((await db.idea.findMany({ where: { channelId: report.channelId }, select: { title: true } })).map((i) => i.title.trim().toLowerCase()));
+  const fresh = angles.filter((a) => !existing.has(a.title.toLowerCase()));
+  if (fresh.length) {
+    await db.idea.createMany({ data: fresh.map((a) => ({ channelId: report.channelId, title: a.title, strategy: a.angle || null, status: "new" })) });
+  }
+  revalidatePath("/ideas");
+  revalidatePath(`/channels/${report.channelId}`);
+  const skipped = angles.length - fresh.length;
+  back(fresh.length
+    ? `${fresh.length} idea${fresh.length === 1 ? "" : "s"} added to the Ideas board${skipped ? ` (${skipped} already there)` : ""}.`
+    : `All ${angles.length} of this report's angles are already ideas on this channel.`);
 }

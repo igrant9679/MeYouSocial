@@ -8,11 +8,13 @@ import { Sparkles, Loader2 } from "lucide-react";
 export function StreamButton({ scriptId, stage, label }: { scriptId: string; stage: "outline" | "script"; label?: string }) {
   const [streaming, setStreaming] = useState(false);
   const [text, setText] = useState("");
+  const [error, setError] = useState("");
   const ctrl = useRef<AbortController | null>(null);
 
   async function go() {
     if (streaming) return;
     setText("");
+    setError("");
     setStreaming(true);
     ctrl.current = new AbortController();
     try {
@@ -35,7 +37,12 @@ export function StreamButton({ scriptId, stage, label }: { scriptId: string; sta
             setTimeout(() => location.reload(), 500);
             continue;
           }
-          if (f.startsWith("event: error")) continue;
+          if (f.startsWith("event: error")) {
+            // Nothing was saved — say why (a refused placeholder, a failed call).
+            const data = f.split("\n").find((l) => l.startsWith("data: "));
+            try { setError(String(JSON.parse(data?.slice(6) ?? "{}").error ?? "") || "The stream failed; nothing was saved."); } catch { setError("The stream failed; nothing was saved."); }
+            continue;
+          }
           const line = f.split("\n").find((l) => l.startsWith("data: "));
           if (!line) continue;
           try {
@@ -62,6 +69,7 @@ export function StreamButton({ scriptId, stage, label }: { scriptId: string; sta
         {streaming ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
         {streaming ? "Streaming…" : (label ?? `Stream ${stage}`)}
       </button>
+      {error && !streaming && <p className="text-xs m-0" style={{ color: "var(--rose-on)" }} role="alert" data-stream-error>{error}</p>}
       {streaming && text && (
         <pre className="border border-[var(--line-2)] rounded-lg p-3 text-xs font-mono leading-[1.5] whitespace-pre-wrap max-h-64 overflow-auto bg-[var(--zebra)]">
           {text}

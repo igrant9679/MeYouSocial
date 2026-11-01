@@ -96,6 +96,7 @@ function wrapWithFallback(real: LLMProvider, providerId: string): LLMProvider {
         while (!next.done) { yield next.value; next = await iter.next(); }
       } catch (e) {
         console.warn(`[llm] ${providerId}.stream failed → falling back to mock:`, e instanceof Error ? e.message : e);
+        if (req.answeredBy) req.answeredBy.provider = "mock";
         await recordProviderRefusal(req.workspaceId, providerId, e instanceof Error ? e.message : String(e)).catch(() => {});
         for await (const chunk of mockProvider.stream(req)) yield chunk;
       }
@@ -139,6 +140,7 @@ export const llm = {
     await refuseIfPaused(req);
     req = { ...req, model: await resolveUsableModel(req.model, req.workspaceId) };
     const p = await selectProvider(req.model, req.workspaceId);
+    if (req.answeredBy) Object.assign(req.answeredBy, { provider: p.id, model: req.model });
     for await (const chunk of p.stream(req)) yield chunk;
     // No token counts on a stream, and a mid-stream fallback isn't visible
     // here — the row says who was asked.

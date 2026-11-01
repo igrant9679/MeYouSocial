@@ -1414,6 +1414,9 @@ model Script {
   outline        String?  // JSON plan
   builderSteps   String?  // JSON for classic builder
   body           String?  // current rich text / markdown
+  // Who last wrote the outline / the body (E-VID-13): "provider|model|ISO" (lib/provenance.ts).
+  outlineBy      String?
+  bodyBy         String?
   wordCount      Int      @default(0)
   durationSeconds Int     @default(0)
   createdAt      DateTime @default(now())
@@ -1468,6 +1471,10 @@ model ResearchSource {
   ref         String   // URL or upload key
   title       String?
   content     String?  // extracted text / transcript
+  // An AI report's writer (lib/provenance.ts stamp) and the web results it was
+  // given, JSON [{ title, url }] (E-IDE-15).
+  writtenBy   String?
+  webSources  String?
   wordCount   Int      @default(0)
   starred     Boolean  @default(false)
   createdAt   DateTime @default(now())

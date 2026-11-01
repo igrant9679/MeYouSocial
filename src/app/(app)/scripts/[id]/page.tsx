@@ -14,6 +14,7 @@ import { ScriptEditor } from "./ScriptEditor";
 import { StartOverButton } from "./StartOverButton";
 import { AgentPanel } from "./AgentPanel";
 import { StreamButton } from "./StreamButton";
+import { ProvenanceChip } from "@/components/ProvenanceChip";
 import { launchAgentAction } from "@/app/actions/agent";
 import { promoteScriptAction } from "@/app/actions/production";
 import {
@@ -198,6 +199,12 @@ export default async function CanvasPage({
               runId={script.agentRuns[0].id}
               initialStatus={script.agentRuns[0].status}
             />
+          )}
+          {/* Who last wrote this tab's block (E-VID-13); nothing for text written before stamps existed. */}
+          {(activeTab === "plan" ? script.outlineBy : script.bodyBy) && (
+            <div className="mb-2 flex justify-end" data-provenance-row>
+              <ProvenanceChip stamp={activeTab === "plan" ? script.outlineBy : script.bodyBy} what={activeTab === "plan" ? "outline" : "script"} timeZone={tz} />
+            </div>
           )}
           {activeTab === "plan" ? (
             <PlanTab script={{ id: script.id, outline }} hasBody={!!script.body} editor={editor} />

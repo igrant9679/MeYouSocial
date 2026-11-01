@@ -1,9 +1,15 @@
-import { FileSearch, Star, Trash2 } from "lucide-react";
+import { FileSearch, Star, Trash2, Lightbulb } from "lucide-react";
 import { SubmitButton } from "@/components/SubmitButton";
 import { requireChannel } from "@/lib/channel";
 import { db } from "@/lib/db";
-import { deepResearchAction, starResearchAction, deleteResearchAction } from "@/app/actions/research";
+import { deepResearchAction, starResearchAction, deleteResearchAction, ideasFromReportAction } from "@/app/actions/research";
 import { AiAssist } from "@/components/AiAssist";
+import { canEdit } from "@/lib/acl";
+import { MarkdownMessage } from "@/components/MarkdownMessage";
+import { ProvenanceChip } from "@/components/ProvenanceChip";
+import { readJson } from "@/lib/db/json";
+import { getPostingTimeZone } from "@/lib/social/slots";
+import { formatZonedMoment } from "@/lib/zoned-dates";
 
 // MU — Research library. deep tool,..05 manage sources,
 // starred research persists across all scripts.
@@ -11,7 +17,10 @@ import { AiAssist } from "@/components/AiAssist";
 export default async function ChannelResearchPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ focus?: string }> }) {
   const { id } = await params;
   const { focus } = await searchParams;
-  await requireChannel(id);
+  const { workspace, membership } = await requireChannel(id);
+  // Viewers read the library; running, starring, deleting and making ideas are an editor's.
+  const editor = canEdit(membership.role);
+  const tz = await getPostingTimeZone(workspace.id).catch(() => "UTC");
 
   const sources = await db.researchSource.findMany({
     where: { channelId: id, scriptId: null },
@@ -19,6 +28,10 @@ export default async function ChannelResearchPage({ params, searchParams }: { pa
     take: 60,
   });
   const focused = focus ? sources.find((s) => s.id === focus) : sources[0];
+  // The web results a report was given (E-IDE-15) — http(s) links only, as stored.
+  const storedSources = readJson<unknown>(focused?.webSources ?? null, []);
+  const webSources = (Array.isArray(storedSources) ? storedSources as { title?: unknown; url?: unknown }[] : [])
+    .filter((w): w is { title?: string; url: string } => typeof w?.url === "string" && /^https?:\/\//i.test(w.url));
 
   return (
     <div>
@@ -33,6 +46,9 @@ export default async function ChannelResearchPage({ params, searchParams }: { pa
       </div>
 
       {/* Deep research form */}
+      {!editor ? (
+        <p className="text-xs text-[var(--mute)] mb-5" data-read-only>Running research is for editors — the saved reports are below.</p>
+      ) : (
       <form action={deepResearchAction} className="card mb-5">
         <h3 className="font-mono font-bold text-[14px] mb-3 flex items-center gap-2"><FileSearch className="w-4 h-4" style={{ color: "#2563EB" }} /> New deep research</h3>
         <input type="hidden" name="channelId" value={id} />
@@ -59,6 +75,7 @@ export default async function ChannelResearchPage({ params, searchParams }: { pa
           <SubmitButton className="btn primary">Run deep research</SubmitButton>
         </div>
       </form>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-4">
         {/* Library */}
@@ -84,6 +101,7 @@ export default async function ChannelResearchPage({ params, searchParams }: { pa
               <div className="flex items-center gap-2 mb-3">
                 <span className="font-mono text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: "var(--accent-soft)", color: "var(--accent)" }}>{focused.kind}</span>
                 <h2 className="font-mono font-bold text-lg flex-1">{focused.title ?? focused.ref}</h2>
+                {editor && (<>
                 <form action={starResearchAction}>
                   <input type="hidden" name="id" value={focused.id} />
                   <button type="submit" title="Toggle starred"><Star className="w-4 h-4" fill={focused.starred ? "currentColor" : "none"} style={{ color: focused.starred ? "#D97706" : "var(--mute)" }} /></button>
@@ -93,9 +111,32 @@ export default async function ChannelResearchPage({ params, searchParams }: { pa
                   <input type="hidden" name="channelId" value={id} />
                   <button type="submit" className="btn sm" title="Delete"><Trash2 className="w-3.5 h-3.5" /></button>
                 </form>
+                </>)}
               </div>
-              <div className="text-xs text-[var(--mute)] mb-3">{new Date(focused.createdAt).toLocaleString()} · {focused.wordCount.toLocaleString()} words {focused.starred && " · ★ pinned across all scripts"}</div>
-              <pre className="text-sm whitespace-pre-wrap font-sans leading-[1.6]">{focused.content ?? "(empty)"}</pre>
+              <div className="text-xs text-[var(--mute)] mb-3 flex flex-wrap items-center gap-x-2 gap-y-1">
+                <span>{formatZonedMoment(focused.createdAt, tz)} · {focused.wordCount.toLocaleString()} words{focused.starred && " · ★ pinned across all scripts"}</span>
+                <ProvenanceChip stamp={focused.writtenBy} what="report" timeZone={tz} />
+              </div>
+              {editor && focused.kind === "ai_research" && (
+                <form action={ideasFromReportAction} className="mb-3" data-make-ideas>
+                  <input type="hidden" name="id" value={focused.id} />
+                  <SubmitButton className="btn sm flex items-center gap-1.5" pendingText="Making ideas…"><Lightbulb className="w-3.5 h-3.5" /> Make ideas from this report</SubmitButton>
+                </form>
+              )}
+              {/* A report is the model's markdown, rendered without raw HTML (E-IDE-15); other sources stay as extracted text. */}
+              {focused.kind === "ai_research"
+                ? <div data-report-rendered><MarkdownMessage content={focused.content ?? "(empty)"} /></div>
+                : <pre className="text-sm whitespace-pre-wrap font-sans leading-[1.6]">{focused.content ?? "(empty)"}</pre>}
+              {webSources.length > 0 && (
+                <details className="mt-4 border-t border-[var(--line)] pt-3" data-web-sources>
+                  <summary className="text-xs font-mono uppercase tracking-wider text-[var(--mute)] cursor-pointer">Web results it was given ({webSources.length})</summary>
+                  <ol className="mt-2 mb-0 pl-5 text-xs flex flex-col gap-1">
+                    {webSources.map((w, i) => (
+                      <li key={i}><a href={w.url} target="_blank" rel="noopener noreferrer" className="text-[var(--accent)] underline break-all">{w.title || w.url}</a></li>
+                    ))}
+                  </ol>
+                </details>
+              )}
             </article>
           ) : (
             <div className="card text-center py-12 text-sm text-[var(--mute)]">Run a deep research to get started.</div>

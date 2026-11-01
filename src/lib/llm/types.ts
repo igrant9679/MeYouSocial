@@ -26,6 +26,13 @@ export type LLMRequest = {
    */
   timeoutMs?: number;
   /**
+   * Streaming only: the router writes who is answering here — the provider and
+   * model it picked, then provider "mock" if the real one fails and the mock
+   * takes over (E-VID-13). `complete()` stamps `LLMResponse.provider`; a stream
+   * has nowhere else to say it.
+   */
+  answeredBy?: { provider: string; model?: string };
+  /**
    * The router refuses every call for a globally paused workspace
    * (GenerationPausedError). Only the assistant's own conversation sets this:
    * a paused workspace must still be able to ask what is going on and to

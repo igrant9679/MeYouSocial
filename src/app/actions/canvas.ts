@@ -8,6 +8,7 @@ import { db } from "@/lib/db";
 import { readJson, writeJson } from "@/lib/db/json";
 import { llm, modelChoiceProblem } from "@/lib/llm";
 import { softLimitProblem } from "@/lib/soft-limits";
+import { passStamp } from "@/lib/provenance";
 import { STUDIO_TIMEOUT_MS, placeholderProblem, templateBlock } from "@/lib/studio-ai";
 import { countWords, durationSeconds, MAX_WORDS } from "@/lib/canvas/duration";
 import { systemForOutline, systemForScript, systemForImprove, HUMANIZE_SYSTEM } from "@/lib/canvas/prompts";
@@ -169,6 +170,7 @@ export async function generateOutlineAction(formData: FormData) {
     where: { id: script.id },
     data: {
       outline: writeJson({ ...outline, markdown: result.content }),
+      outlineBy: passStamp(result),
       status: "planning",
     },
   });
@@ -227,6 +229,7 @@ export async function generateScriptAction(formData: FormData) {
     where: { id: script.id },
     data: {
       body: result.content,
+      bodyBy: passStamp(result),
       wordCount: Math.min(words, MAX_WORDS),
       durationSeconds: durationSeconds(words),
       status: "draft",
@@ -282,6 +285,7 @@ export async function humanizeAction(formData: FormData) {
     where: { id: script.id },
     data: {
       body: result.content,
+      bodyBy: passStamp(result),
       wordCount: Math.min(words, MAX_WORDS),
       durationSeconds: durationSeconds(words),
     },
@@ -320,7 +324,7 @@ export async function improveSelectionAction(formData: FormData) {
   });
   await db.script.update({
     where: { id: script.id },
-    data: { body: newBody, wordCount: Math.min(words, MAX_WORDS), durationSeconds: durationSeconds(words) },
+    data: { body: newBody, bodyBy: passStamp(result), wordCount: Math.min(words, MAX_WORDS), durationSeconds: durationSeconds(words) },
   });
   revalidatePath(`/scripts/${script.id}`);
 }
@@ -344,6 +348,9 @@ export async function restoreScriptVersionAction(formData: FormData) {
     data: {
       body,
       outline: outlineForRestore(v.outline, script.outline),
+      // What a restore puts back has no record of who wrote it (E-VID-13).
+      ...(v.body != null ? { bodyBy: null } : {}),
+      ...(v.outline != null ? { outlineBy: null } : {}),
       wordCount: Math.min(words, MAX_WORDS),
       durationSeconds: durationSeconds(words),
     },
@@ -364,7 +371,7 @@ export async function startOverAction(formData: FormData) {
   }
   await db.script.update({
     where: { id: script.id },
-    data: { outline: null, body: null, wordCount: 0, durationSeconds: 0, status: "draft" },
+    data: { outline: null, body: null, outlineBy: null, bodyBy: null, wordCount: 0, durationSeconds: 0, status: "draft" },
   });
   revalidatePath(`/scripts/${script.id}`);
 }

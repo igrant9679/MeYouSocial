@@ -258,6 +258,7 @@ area, rather than loading all of them into every session.
 - The video studio is read-only for viewers — 2026-11-01, audit Phase 5, growth part k
 - Wide report tables become cards on phones — 2026-11-01, audit Phase 5, growth part l
 - Each project has an upload checklist; its page is read-only for viewers — 2026-11-01, audit Phase 5, growth part m
+- Research reports you can use; generated blocks say who wrote them — 2026-11-01, audit Phase 5, growth part n
 
 ## Open items / things the user still owns
 - **Analytics: APIs enabled 2026-08-03** (Search Console + GA Admin + GA Data, on project

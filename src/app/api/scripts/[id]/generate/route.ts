@@ -59,18 +59,32 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const body = new ReadableStream<Uint8Array>({
     async start(controller) {
       let buffer = "";
+      const answered = { provider: "", model: "" };
       try {
         for await (const chunk of llm.stream({
           model: script.model ?? script.channel.defaultModel ?? "",
           system,
           messages: [{ role: "user", content: userContent }],
           workspaceId: workspace.id,
+          answeredBy: answered,
         })) {
           buffer += chunk;
           // Each SSE frame is `data: <json>\n\n`. We send the cumulative content
           // so reconnecting clients can pick up where they left off.
           controller.enqueue(encoder.encode(`data: ${JSON.stringify({ delta: chunk })}\n\n`));
         }
+
+        // The mock's text is never saved (VID-05, E-VID-13): no key, or the real
+        // provider failed part-way and the mock finished the stream.
+        const { placeholderProblem } = await import("@/lib/studio-ai");
+        const problem = placeholderProblem({ provider: answered.provider, content: buffer }, stage === "outline" ? "the outline is unchanged" : "the script is unchanged");
+        if (problem) {
+          controller.enqueue(encoder.encode(`event: error\ndata: ${JSON.stringify({ error: problem })}\n\n`));
+          controller.close();
+          return;
+        }
+        const { passStamp } = await import("@/lib/provenance");
+        const stamp = passStamp(answered);
 
         // Persist the final result to the script — after keeping what it had.
         const { snapshotScript } = await import("@/lib/script-versions");
@@ -83,6 +97,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
             where: { id: script.id },
             data: {
               outline: writeJson({ ...outline, markdown: buffer }),
+              outlineBy: stamp,
               status: "planning",
             },
           });
@@ -95,6 +110,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
             where: { id: script.id },
             data: {
               body: buffer,
+              bodyBy: stamp,
               wordCount: Math.min(words, MAX_WORDS),
               durationSeconds: durationSeconds(words),
               status: "draft",
