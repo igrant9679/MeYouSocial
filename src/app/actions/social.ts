@@ -880,3 +880,34 @@ export async function rescheduleSocialPostAction(id: string, isoDateTime: string
   revalidatePath("/social", "layout");
   return { ok: true, message: "Moved." };
 }
+
+/**
+ * Sent → "Make evergreen" / "Stop recycling" (E-SOC-14): a post that went out
+ * becomes an evergreen source, which the recycler clones into a free slot
+ * after its cooldown. Only a post that actually posted (fully or partly), and
+ * never a recycled clone — clones are never sources, so the cadence can't
+ * compound. Recycling itself still waits on the workspace's Evergreen fill.
+ */
+export async function setEvergreenAction(formData: FormData) {
+  const backTo: Flash = listBack(formData);
+  const { workspace, user } = await requireRole("EDITOR");
+  const id = String(formData.get("id") ?? "");
+  const on = String(formData.get("on") ?? "") === "1";
+  const post = await db.socialPost.findFirst({ where: { id, workspaceId: workspace.id }, select: { id: true, status: true, recycledFromId: true, evergreen: true, recycleEveryDays: true } });
+  if (!post) backTo("Not found.");
+  if (on && post.recycledFromId) backTo("That post is itself a recycled copy — make its original evergreen instead.");
+  if (on && post.status !== "posted" && post.status !== "partial") backTo("Only a post that went out can be recycled.");
+  await db.socialPost.update({ where: { id: post.id }, data: { evergreen: on } });
+  const { writeAudit } = await import("@/lib/governance");
+  await writeAudit({ workspaceId: workspace.id, actorId: user.id, action: on ? "social.evergreen_on" : "social.evergreen_off", entityType: "social_post", entityId: post.id, meta: { from: "sent list" } });
+  revalidatePath("/social", "layout");
+  if (!on) backTo("It won't be recycled again.", "ok");
+  const { getSetting } = await import("@/lib/settings");
+  const fill = (await getSetting("social:evergreen_fill", workspace.id).catch(() => "")) === "true";
+  backTo(
+    fill
+      ? `Evergreen: it goes back into a free slot every ${post.recycleEveryDays} days.`
+      : `Marked evergreen (every ${post.recycleEveryDays} days) — recycling starts once Evergreen fill is on in Settings → Automation.`,
+    "ok",
+  );
+}

@@ -53,6 +53,8 @@ export const TYPES: Record<ListTab, Array<{ value: string; label: string }>> = {
     { value: "posted", label: "Posted" },
     { value: "partial", label: "Partly posted" },
     { value: "failed", label: "Failed" },
+    // E-SOC-14: the best-engaged tenth of the last 90 days (lib/social/post-results.ts).
+    { value: "top", label: "Top performers (90 days)" },
   ],
   drafts: [
     { value: "draft", label: "Draft" },
@@ -95,7 +97,10 @@ export async function loadPostList(workspaceId: string, tab: ListTab, f: ListFil
       : { id: "__never__" };
     and.push({ OR: [{ source: f.source }, legacy] });
   }
-  if (tab === "sent" && f.type) and.push({ status: f.type });
+  if (tab === "sent" && f.type === "top") {
+    const { topPerformers } = await import("@/lib/social/post-results");
+    and.push({ id: { in: [...(await topPerformers(workspaceId)).ids] } });
+  } else if (tab === "sent" && f.type) and.push({ status: f.type });
   if (tab === "drafts" && f.type === "pending") and.push({ approval: "pending" });
   else if (tab === "drafts" && f.type === "changes") and.push({ approval: "changes" });
   else if (tab === "drafts" && f.type === "draft") and.push({ OR: [{ approval: null }, { approval: { notIn: ["pending", "changes"] } }] });

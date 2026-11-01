@@ -1193,3 +1193,15 @@ before changing code in that area.
   articles are kept** — they're live with their numbers — and each deletion is audited with its title). Ids are narrowed
   to the workspace before anything; the redirect goes back to the same filtered list with what happened.
 - CSV downloads the page as shown (`CsvButton` skips cells marked `data-csv-skip` — the checkbox column).
+
+## ⚠ The Sent list shows results; top performers can be reposted or made evergreen (2026-11-01, audit Phase 5, growth part ac)
+- **E-SOC-14 — results per post** (`lib/social/post-results.ts` `resultsForPosts`): impressions, engagement (likes +
+  comments + shares + saves) and clicks from the **latest reading of each network** (`latestPerTarget` — readings are
+  cumulative, so adding older ones would inflate them), summed across the post's networks. No reading = no result: the
+  row says "not measured yet" (a failed post shows a dash), never a zero; a metric no network reported stays a dash.
+- **Top performer** (`topPerformers`): posts sent in the last 90 days with an engagement reading, the best tenth (at least
+  one, ties included) — none below five measured posts, and none when the bar would be zero. A chip on the row and a
+  "Top performers (90 days)" filter on Sent (`type=top`, resolved to ids in `loadPostList`).
+- **Repost** is the existing Duplicate (a copy to drafts, new content for approval). **Make evergreen / Stop recycling**
+  (`setEvergreenAction`, EDITOR) only on a post that went out (posted or partial) and never on a recycled copy (clones are
+  never sources). It says plainly when recycling is still waiting on the workspace's Evergreen fill; audited both ways.

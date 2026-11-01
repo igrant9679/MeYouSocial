@@ -1,12 +1,13 @@
 import Link from "next/link";
-import { Copy, Pencil, Search, Send, Trash2, Undo2, ExternalLink, ListPlus, Eye, RotateCw, ArrowUp, ArrowDown, CalendarDays, ListOrdered, Shuffle } from "lucide-react";
+import { Copy, Pencil, Search, Send, Trash2, Undo2, ExternalLink, ListPlus, Eye, RotateCw, ArrowUp, ArrowDown, CalendarDays, ListOrdered, Shuffle, Repeat } from "lucide-react";
 import { db } from "@/lib/db";
 import { networkFor } from "@/lib/social/networks";
 import { formatInZone, getPostingTimeZone } from "@/lib/social/slots";
 import { listCategories } from "@/lib/social/categories";
 import { loadPostList, listCounts, SOURCES, TYPES, DELETABLE_POST_STATUSES, type ListFilter, type ListTab } from "@/lib/social/post-lists";
 import { bulkPostsAction, swapQueuedPostsAction } from "@/app/actions/social-lists";
-import { duplicateSocialPostAction, publishNowAction, unscheduleSocialPostAction } from "@/app/actions/social";
+import { duplicateSocialPostAction, publishNowAction, setEvergreenAction, unscheduleSocialPostAction } from "@/app/actions/social";
+import { compact, resultsForPosts, topPerformers, type PostResult } from "@/lib/social/post-results";
 import { DeleteButton } from "@/components/DeleteButton";
 import { mayHavePosted } from "@/lib/social/unknown-outcome";
 import { SubmitButton } from "@/components/SubmitButton";
@@ -49,6 +50,10 @@ export async function PostList({
     db.socialPost.findMany({ where: { workspaceId, category: { not: null } }, distinct: ["category"], select: { category: true } }),
   ]);
   const categories = await listCategories(workspaceId, used.map((u) => u.category));
+  // Sent: each post's results and the 90-day top performers (E-SOC-14).
+  const [results, top] = tab === "sent"
+    ? await Promise.all([resultsForPosts(rows.map((r) => r.row.id)), topPerformers(workspaceId)])
+    : [new Map<string, PostResult>(), { ids: new Set<string>() }];
   const filtered = Boolean(filter.q || filter.category || filter.type || filter.profile || filter.source);
 
   // The list's own URL with the current filters — where actions come back to.
@@ -143,6 +148,7 @@ export async function PostList({
                 <th className="py-2 px-2 font-mono text-[9px] uppercase tracking-wider border-b-2 border-[var(--line)]">Category</th>
                 <th className="py-2 px-2 font-mono text-[9px] uppercase tracking-wider border-b-2 border-[var(--line)]">{tab === "sent" ? "Result" : "Type"}</th>
                 <th className="py-2 px-2 font-mono text-[9px] uppercase tracking-wider border-b-2 border-[var(--line)]">{tab === "sent" ? "Posted on" : tab === "queue" ? "Post on" : "Networks"}</th>
+                {tab === "sent" && <th className="py-2 px-2 font-mono text-[9px] uppercase tracking-wider border-b-2 border-[var(--line)] text-right" title="Impressions · engagement (likes, comments, shares, saves) · clicks — the latest reading of each network, summed">Results</th>}
                 <th className="py-2 px-2 font-mono text-[9px] uppercase tracking-wider border-b-2 border-[var(--line)] text-right">Actions</th>
               </tr>
             </thead>
@@ -185,6 +191,10 @@ export async function PostList({
                     <td className="py-2 px-2 whitespace-nowrap max-md:p-0">{p.category ? <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "var(--green-soft)", color: "var(--green-on)" }}>{p.category}</span> : <span className="text-[var(--mute)]">—</span>}</td>
                     <td className="py-2 px-2 whitespace-nowrap max-md:p-0">
                       <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: st.bg, color: st.fg }}>{typeLabel}</span>
+                      {top.ids.has(p.id) && (
+                        <span className="block mt-1 font-mono text-[10px] px-1.5 py-0.5 rounded-full w-fit" style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }} title="Among the best-engaged tenth of posts sent in the last 90 days" data-top-performer>★ Top performer</span>
+                      )}
+                      {tab === "sent" && p.evergreen && <span className="block mt-1 font-mono text-[10px] text-[var(--mute)]" data-evergreen>evergreen · every {p.recycleEveryDays}d</span>}
                     </td>
                     <td className="py-2 px-2 md:min-w-40 max-md:p-0 max-md:basis-full">
                       <div className="flex flex-wrap gap-1 mb-1">
@@ -205,6 +215,20 @@ export async function PostList({
                       </div>
                       {when && <span className="font-mono text-[10px] text-[var(--mute)]">{tab === "drafts" ? "proposed " : ""}{formatInZone(when, tz)}</span>}
                     </td>
+                    {tab === "sent" && (() => {
+                      const res = results.get(p.id);
+                      return (
+                        <td className="py-2 px-2 whitespace-nowrap text-right max-md:p-0 max-md:text-left max-md:basis-full" data-results={p.id}>
+                          {res ? (
+                            <span className="font-mono text-[11px] tabular-nums" title={`Latest reading ${formatInZone(res.measuredAt, tz)}`}>
+                              <b>{compact(res.impressions)}</b> <span className="text-[var(--mute)]">impr</span> · <b>{compact(res.engagement)}</b> <span className="text-[var(--mute)]">eng</span> · <b>{compact(res.clicks)}</b> <span className="text-[var(--mute)]">clicks</span>
+                            </span>
+                          ) : (
+                            <span className="text-[10px] text-[var(--mute)]">{p.status === "failed" ? "—" : "not measured yet"}</span>
+                          )}
+                        </td>
+                      );
+                    })()}
                     <td className="py-2 px-2 max-md:p-0 max-md:basis-full">
                       {editor && (
                         <div className="flex flex-wrap justify-end max-md:justify-start gap-1">
@@ -233,7 +257,14 @@ export async function PostList({
                               <SubmitButton className="btn sm" pendingText="…" title="Publish now"><Send className="w-3 h-3" /></SubmitButton></form>
                           )}
                           <form action={duplicateSocialPostAction}><input type="hidden" name="id" value={p.id} /><input type="hidden" name="back" value={here} />
-                            <SubmitButton className="btn sm" pendingText="…" title="Duplicate to drafts"><Copy className="w-3 h-3" /></SubmitButton></form>
+                            <SubmitButton className="btn sm" pendingText="…" title={tab === "sent" ? "Repost — a copy goes to drafts" : "Duplicate to drafts"}><Copy className="w-3 h-3" /></SubmitButton></form>
+                          {/* A post that went out can become evergreen (E-SOC-14) — never a recycled copy. */}
+                          {tab === "sent" && (p.status === "posted" || p.status === "partial") && !p.recycledFromId && (
+                            <form action={setEvergreenAction}><input type="hidden" name="id" value={p.id} /><input type="hidden" name="on" value={p.evergreen ? "0" : "1"} /><input type="hidden" name="back" value={here} />
+                              <SubmitButton className="btn sm" pendingText="…" title={p.evergreen ? "Stop recycling this post" : "Make evergreen — recycle it into a free slot after its cooldown"} aria-pressed={p.evergreen}>
+                                <Repeat className="w-3 h-3" />
+                              </SubmitButton></form>
+                          )}
                           {DELETABLE_POST_STATUSES.includes(p.status) && (
                             <DeleteButton kind="socialPost" id={p.id} name={p.text.replace(/\s+/g, " ").trim().slice(0, 60) || "(image only)"} returnTo={here} iconOnly />
                           )}
