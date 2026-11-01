@@ -169,6 +169,8 @@ export const STAGES: Record<(typeof STAGE_HREFS)[number], StageDef> = {
             { href: "/admin/settings", label: "Workspace" },
             { href: "/admin/usage", label: "Usage", also: ["/admin/limits"] },
             { href: "/admin/audit-log", label: "Audit log" },
+            // The background queue: retry, cancel, what gave up (E-ENG-17).
+            { href: "/admin/jobs", label: "Jobs" },
             { href: "/admin/api-tokens", label: "API tokens" },
           ]
         : []),

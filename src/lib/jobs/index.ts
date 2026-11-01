@@ -138,6 +138,24 @@ const MAX_PER_SWEEP = 5;
 
 /** Wait before retry N: 1, 4, then 16 minutes, ±20% so a batch that failed
  *  together doesn't retry together. */
+/**
+ * A job that used its last attempt tells the workspace's admins (E-ENG-17) —
+ * one notice per job kind a day, repeats counted; Settings → Jobs has Retry.
+ * Never throws: a notice is not worth failing the sweep over.
+ */
+async function noticeGaveUp(job: { name: string; workspaceId: string | null }, error: string): Promise<void> {
+  if (!job.workspaceId) return;
+  try {
+    const [{ notify }, { jobLabel }] = await Promise.all([import("@/lib/notify"), import("@/lib/jobs/admin")]);
+    await notify({
+      workspaceId: job.workspaceId, kind: "job_failed",
+      title: `A background job gave up: ${jobLabel(job.name)}`,
+      body: `${error.slice(0, 200)} — Settings → Jobs can retry it.`,
+      path: "/admin/jobs?state=failed", entityType: "job_name", entityId: job.name,
+    });
+  } catch { /* the job row already says it failed */ }
+}
+
 function retryDelayMs(attempts: number): number {
   const base = 60_000 * 4 ** Math.max(0, attempts - 1);
   return Math.round(Math.min(base, 60 * 60_000) * (0.8 + Math.random() * 0.4));
@@ -260,6 +278,7 @@ class DbQueue implements JobQueue {
             { state: "queued", error: message, claimedAt: null, claimedBy: null, runAfter: new Date(Date.now() + retryDelayMs(fresh?.attempts ?? 1)) },
       });
       console.warn(`[jobs] ${job.name} (${id}) ${exhausted ? "FAILED" : "will retry"}: ${message}`);
+      if (exhausted) await noticeGaveUp(job, message);
       return false;
     }
   }
@@ -284,7 +303,7 @@ class DbQueue implements JobQueue {
     const cutoff = new Date(Date.now() - STALE_CLAIM_MS);
     const stalled = await db.job.findMany({
       where: { state: "running", claimedAt: { lt: cutoff } },
-      select: { id: true, name: true, attempts: true, maxAttempts: true },
+      select: { id: true, name: true, attempts: true, maxAttempts: true, workspaceId: true },
       take: 50,
     });
     let recovered = 0;
@@ -298,6 +317,7 @@ class DbQueue implements JobQueue {
       });
       recovered++;
       console.warn(`[jobs] recovered stalled ${s.name} (${s.id}) → ${exhausted ? "failed" : "queued"}`);
+      if (exhausted) await noticeGaveUp(s, "Interrupted and out of attempts (the server most likely restarted mid-run).");
     }
 
     // 2. Run what's waiting, oldest first — except a paused workspace's, which

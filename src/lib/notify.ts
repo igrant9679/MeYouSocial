@@ -32,6 +32,8 @@ export const NOTIFICATION_KINDS = [
   "security",
   // A suggestion arrived on a channel's public topic form (E-SET-08); one item per channel a day, counting repeats.
   "submission",
+  // A background job used its last retry and stopped (E-ENG-17). Admins only; one item per job kind a day.
+  "job_failed",
   // Email-only, sent by src/lib/digest.ts (never through notify() — Home IS
   // the in-app digest, so a bell item would be spam). Listed here so the
   // preference row and its toggle exist in the Notifications UI.
@@ -51,6 +53,7 @@ export const KIND_LABELS: Record<NotificationKind, string> = {
   generation_failed: "An AI generation failed and was refused",
   security: "A security change — roles, admins, keys, accounts (admins)",
   submission: "A topic suggestion arrived on a channel's public form",
+  job_failed: "A background job gave up after its retries (admins)",
   daily_digest: "The morning digest of what needs me (admins, email only)",
 };
 
@@ -74,6 +77,8 @@ const EMAIL_DEFAULT: Record<NotificationKind, boolean> = {
   security: true,
   // In-app only by default: a public form can be busy.
   submission: false,
+  // In-app only: Settings → Jobs has the detail and a Retry.
+  job_failed: false,
   // Default-on: it only ever sends when a warn-severity decision is waiting,
   // so the quiet-day cost is zero. digest.ts reads this preference directly.
   daily_digest: true,
@@ -89,11 +94,11 @@ const DEDUPE_HOURS: Partial<Record<NotificationKind, number>> = {
   publish_failed: 24, account_broken: 24,
   // One item per kind and thing a day (E-ENG-18): the same approval, schedule,
   // publish or failed generation said again within the day is the same news.
-  generation_failed: 24, approval_needed: 24, approval_decided: 24, scheduled: 24, published: 24, submission: 24,
+  generation_failed: 24, approval_needed: 24, approval_decided: 24, scheduled: 24, published: 24, submission: 24, job_failed: 24,
 };
 
 /** Failures that repeat: a second one updates the first ("repeated 3 times today") instead of being dropped unseen. */
-const COUNT_REPEATS: ReadonlySet<NotificationKind> = new Set(["publish_failed", "generation_failed", "account_broken", "submission"]);
+const COUNT_REPEATS: ReadonlySet<NotificationKind> = new Set(["publish_failed", "generation_failed", "account_broken", "submission", "job_failed"]);
 const REPEATED = /\s*\(repeated (\d+) times today\)$/;
 
 /** Distinct failed generations in a day past which they roll into one summary item (E-ENG-18). */
@@ -120,7 +125,7 @@ type NotifyInput = {
 
 /** Who can actually act on a workspace event. */
 async function defaultRecipients(workspaceId: string, kind: NotificationKind): Promise<string[]> {
-  const roles = kind === "approval_needed" || kind === "security" ? ["ADMIN"] : ["ADMIN", "EDITOR"];
+  const roles = kind === "approval_needed" || kind === "security" || kind === "job_failed" ? ["ADMIN"] : ["ADMIN", "EDITOR"];
   const rows = await db.membership.findMany({
     where: { workspaceId, status: "active", role: { in: roles as Array<"ADMIN" | "EDITOR"> } },
     select: { userId: true },

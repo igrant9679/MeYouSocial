@@ -29,6 +29,7 @@ const KIND_HUE: Record<NotificationKind, string> = {
   generation_failed: "rose",
   security: "amber",
   submission: "pink",
+  job_failed: "rose",
   daily_digest: "teal",
 };
 
@@ -187,5 +188,6 @@ const DEFAULT_EMAIL: Record<NotificationKind, boolean> = {
   generation_failed: false,
   security: true,
   submission: false,
+  job_failed: false,
   daily_digest: true,
 };

@@ -1095,3 +1095,16 @@ before changing code in that area.
 - **Delete** went from a bespoke EDITOR action to the DeleteButton registry: kind `topic`, ADMIN. It takes the TAG off
   (relations SetNull; RssFeed cleared by hand) and deletes no content, so the button carries a `warning` with the counts
   — not the registry's "Also deleted" impact list, which would say the opposite of what happens.
+
+## ⚠ The background queue has a page; a job that gives up says so (2026-11-01, audit Phase 5, growth part v)
+- **E-ENG-17**: Settings → **Jobs** (`/admin/jobs`, ADMIN via admin/layout) lists THIS workspace's jobs
+  (`lib/jobs/admin.ts` `jobsOverview`): "Needs a look" = running, retrying (queued with attempts > 0) and failed this
+  week; Waiting / Running / Failed (7 days) / Done (24 h) tabs with counts. Rows use people's labels (`JOB_LABELS`; an
+  unknown name shows raw), tries n/max, the next-try time for a backed-off retry, the error and a running job's progress.
+- **Retry** (`retryJobAction`): failed → queued with attempts 0 and no wait, conditional on still being failed;
+  **Cancel** (`cancelJobAction`): QUEUED only → failed "Cancelled by <name>". A running job isn't cancelled here — its
+  handler owns stopping it (the agent and renders have their own Cancel). Both audited (`job.retried`, `job.cancelled`).
+- **The give-up notice**: when a job uses its last attempt (a handler's final throw, or a stalled run out of
+  attempts) `noticeGaveUp` in `lib/jobs/index.ts` sends notify kind `job_failed` — ADMINS only, in-app, one item per
+  job kind a day with the repeat count — linking to `/admin/jobs?state=failed`. A failure with attempts left tells
+  nobody. ⚠ A new job name gets a `JOB_LABELS` entry.
