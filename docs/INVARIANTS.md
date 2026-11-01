@@ -1047,3 +1047,18 @@ before changing code in that area.
 - **Underperforming slots**: an enabled slot whose hour bucket is in the judged `worst` list gets "Your Tue 09:00 slot
   posts at a time that measures 0.7×" and, while a better unslotted time exists, "Move it to Wed 14:00 (1.6×)" — one
   suggestion per slot, so two slots are never sent to the same time.
+
+## ⚠ The public topic form has controls (2026-11-01, audit Phase 5, growth part r)
+- **E-SET-08**: `Channel.submissionsOpen` (default true — the old behaviour) and `Channel.submitSlug` (unique across the
+  install; migration `20261101140000_submission_form_controls`). `/submit/<slug-or-id>` resolves through
+  `lib/submit-form.ts` `channelForSubmit` (slug first) and refuses a channel whose workspace is soft-deleted — the form
+  ignored security part 8 before. Closed → the page says so with no fields, and a post from an old tab is told
+  `error=closed` and stores nothing.
+- **Spam**: an off-screen honeypot field (`website`, `aria-hidden`, `tabIndex=-1`) — a bot that fills it is thanked and
+  nothing is stored; and `rate-limit.ts` `submitPerIp` (5 per address per channel per 10 minutes; the honeypot is
+  checked first and doesn't count) → `error=slow` with a sentence.
+- **Notice**: each stored suggestion → `notify` kind `submission` (admins and editors, in-app; email off by default),
+  deduped per channel per day with the repeat count on the one item.
+- **Controls** on the channel's Submissions page are ADMIN (`saveSubmitFormAction`: open/closed, slug). `slugProblem`
+  refuses anything but 3–40 lowercase letters/digits/dashes and anything shaped like a record id (it could shadow
+  another channel's `/submit/<id>`); a taken slug is refused by name.

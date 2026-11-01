@@ -140,21 +140,36 @@ export async function submitAudienceTopicAction(formData: FormData) {
     const { redirect } = await import("next/navigation");
     redirect(`/submit/${formData.get("channelId")}?error=invalid`);
   }
-  const channel = await db.channel.findUnique({ where: { id: parsed.data!.channelId } });
-  if (!channel) {
-    const { redirect } = await import("next/navigation");
-    redirect(`/submit/${parsed.data!.channelId}?error=notfound`);
-  }
+  const { redirect } = await import("next/navigation");
+  const { channelForSubmit, submitPath } = await import("@/lib/submit-form");
+  const channel = await channelForSubmit(parsed.data!.channelId);
+  if (!channel) redirect(`/submit/${parsed.data!.channelId}?error=notfound`);
+  const back = submitPath(channel!);
+  // Closed (E-SET-08): an old tab still posting gets told, nothing is stored.
+  if (!channel!.submissionsOpen) redirect(`${back}?error=closed`);
+  // The honeypot: a field people never see. A bot that fills it is thanked and ignored.
+  if (String(formData.get("website") ?? "").trim()) redirect(`${back}?ok=1`);
+  const { hit, requestIp } = await import("@/lib/rate-limit");
+  if (!(await hit("submitPerIp", `${await requestIp()}:${channel!.id}`)).ok) redirect(`${back}?error=slow`);
   await db.audienceSubmission.create({
     data: {
-      channelId: parsed.data!.channelId,
+      channelId: channel!.id,
       topic: parsed.data!.topic,
       notes: parsed.data!.notes ?? null,
       submitter: parsed.data!.submitter ?? null,
     },
   });
-  const { redirect } = await import("next/navigation");
-  redirect(`/submit/${parsed.data!.channelId}?ok=1`);
+  // One notice per channel a day; later ones add "(repeated N times today)" to
+  // its body (notify.ts COUNT_REPEATS), so the body is about arrivals, not one topic.
+  const { notify } = await import("@/lib/notify");
+  await notify({
+    workspaceId: channel!.workspaceId, kind: "submission",
+    title: `New topic suggestions for ${channel!.name}`,
+    body: "A suggestion arrived on the public topic form — review it under Submissions.",
+    path: `/channels/${channel!.id}/submissions`,
+    entityType: "channel", entityId: channel!.id,
+  });
+  redirect(`${back}?ok=1`);
 }
 
 export async function reviewSubmissionAction(formData: FormData) {
@@ -213,4 +228,29 @@ function chaptersFromScript(body: string): string[] {
     words += t ? t.split(/\s+/).length : 0;
   }
   return out.map((c) => `${clock(c.at)} ${c.title}`);
+}
+
+/**
+ * The public form's controls (E-SET-08): open or closed, and its address.
+ * ADMIN — it is a door to the internet. A slug must be free across the install.
+ */
+export async function saveSubmitFormAction(formData: FormData) {
+  const channelId = String(formData.get("channelId"));
+  const { workspace } = await requireRole("ADMIN");
+  const { redirect } = await import("next/navigation");
+  const back = (q: string): never => redirect(`/channels/${channelId}/submissions?${q}`);
+  const channel = await db.channel.findFirst({ where: { id: channelId, workspaceId: workspace.id }, select: { id: true } });
+  if (!channel) back("flashErr=" + encodeURIComponent("Channel not found."));
+  const open = String(formData.get("open") ?? "") === "1";
+  const slug = String(formData.get("slug") ?? "").trim().toLowerCase();
+  const { slugProblem } = await import("@/lib/submit-form");
+  const problem = slug ? slugProblem(slug) : null;
+  if (problem) back("flashErr=" + encodeURIComponent(problem));
+  if (slug && await db.channel.findFirst({ where: { submitSlug: slug, id: { not: channelId } }, select: { id: true } })) {
+    back("flashErr=" + encodeURIComponent(`/submit/${slug} is taken — pick another.`));
+  }
+  const saved = await db.channel.update({ where: { id: channelId }, data: { submissionsOpen: open, submitSlug: slug || null } }).catch(() => null);
+  if (!saved) back("flashErr=" + encodeURIComponent(`/submit/${slug} is taken — pick another.`));
+  revalidatePath(`/channels/${channelId}/submissions`);
+  back("flash=" + encodeURIComponent(open ? `The form is open at /submit/${slug || channelId}.` : "The form is closed — it says so to anyone who opens it."));
 }

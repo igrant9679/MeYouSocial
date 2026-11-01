@@ -1187,6 +1187,10 @@ model Channel {
   accentColor        String?  // matches mockup per-module accent
   thumbnailConfig    String?  // FR-THUMB-06 — brand assets + style prefs (JSON)
   limitThumbnailsPerMonth Int? // FR-THUMB-07 — optional per-channel cap
+  // Public topic form (E-SET-08): whether /submit takes suggestions, and an
+  // optional address /submit/<slug> (lowercase, unique across the install).
+  submissionsOpen    Boolean  @default(true)
+  submitSlug         String?  @unique
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 

@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { SubmitButton } from "@/components/SubmitButton";
-import { db } from "@/lib/db";
 import { submitAudienceTopicAction } from "@/app/actions/growth";
+import { channelForSubmit } from "@/lib/submit-form";
 
 // Public audience submission form. No authentication required.
 // Lives outside the (app) group so the workspace chrome doesn't load.
@@ -15,10 +15,8 @@ export default async function PublicSubmitPage({
 }) {
   const { channelId } = await params;
   const { ok, error } = await searchParams;
-  const channel = await db.channel.findUnique({
-    where: { id: channelId },
-    select: { id: true, name: true, accentColor: true, presentationStyle: true, nicheDescription: true },
-  });
+  // By custom slug or id (E-SET-08); a deleted workspace's channel has no form.
+  const channel = await channelForSubmit(channelId);
   if (!channel) notFound();
 
   return (
@@ -32,15 +30,23 @@ export default async function PublicSubmitPage({
           </div>
         </div>
 
-        {ok === "1" ? (
+        {!channel.submissionsOpen ? (
+          <p className="text-sm text-center py-6 m-0" data-form-closed>This form isn&apos;t taking suggestions right now.</p>
+        ) : ok === "1" ? (
           <div className="text-center py-6">
             <p className="text-sm mb-3">Got it — your suggestion is in the queue. Thanks!</p>
-            <a href={`/submit/${channelId}`} className="btn">Submit another</a>
+            <a href={`/submit/${channel.submitSlug ?? channel.id}`} className="btn">Submit another</a>
           </div>
         ) : (
           <form action={submitAudienceTopicAction} className="flex flex-col gap-3">
-            <input type="hidden" name="channelId" value={channelId} />
+            <input type="hidden" name="channelId" value={channel.id} />
+            {/* Honeypot (E-SET-08): off-screen and skipped by keyboards and screen readers; a bot that fills it is ignored. */}
+            <div aria-hidden="true" className="absolute -left-[10000px] w-px h-px overflow-hidden">
+              <label>Website <input name="website" tabIndex={-1} autoComplete="off" /></label>
+            </div>
             {error === "invalid" && <p className="text-sm text-[var(--brand)]">Please give a topic of at least 5 characters.</p>}
+            {error === "slow" && <p className="text-sm text-[var(--brand)]" data-form-slow>That&apos;s a lot of suggestions at once — please try again in a few minutes.</p>}
+            {error === "closed" && <p className="text-sm text-[var(--brand)]">This form has just closed.</p>}
             <label className="flex flex-col gap-1">
               <span className="text-xs font-mono uppercase text-[var(--mute)]">Topic *</span>
               <input name="topic" required minLength={5} maxLength={500} placeholder="What would you love a video on?" className="border border-[var(--line-2)] rounded-lg p-2.5 text-sm" />

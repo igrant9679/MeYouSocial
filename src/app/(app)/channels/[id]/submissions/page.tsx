@@ -3,7 +3,10 @@ import { SubmitButton } from "@/components/SubmitButton";
 import { Inbox, Sparkles, X, CheckCircle2 } from "lucide-react";
 import { requireChannel } from "@/lib/channel";
 import { db } from "@/lib/db";
-import { reviewSubmissionAction, promoteSubmissionAction } from "@/app/actions/growth";
+import { reviewSubmissionAction, promoteSubmissionAction, saveSubmitFormAction } from "@/app/actions/growth";
+import { canAdmin } from "@/lib/acl";
+import { submitPath } from "@/lib/submit-form";
+import { formatDay } from "@/lib/zoned-dates";
 import { getPublicUrl } from "@/lib/public-url";
 import { CopyButton } from "@/components/CopyButton";
 import { DeleteButton } from "@/components/DeleteButton";
@@ -13,7 +16,8 @@ import { DeleteButton } from "@/components/DeleteButton";
 export default async function SubmissionsPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ status?: string }> }) {
   const { id } = await params;
   const { status = "new" } = await searchParams;
-  await requireChannel(id);
+  const { channel, membership } = await requireChannel(id);
+  const admin = canAdmin(membership.role);
 
   const submissions = await db.audienceSubmission.findMany({
     where: { channelId: id, status },
@@ -27,7 +31,7 @@ export default async function SubmissionsPage({ params, searchParams }: { params
   });
   const count = (s: string) => counts.find((c) => c.status === s)?._count._all ?? 0;
 
-  const publicUrl = `${await getPublicUrl()}/submit/${id}`;
+  const publicUrl = `${await getPublicUrl()}${submitPath(channel)}`;
 
   return (
     <div>
@@ -42,11 +46,28 @@ export default async function SubmissionsPage({ params, searchParams }: { params
       </div>
 
       {/* Share link */}
-      <div className="card mb-4 flex items-center gap-2">
+      <div className="card mb-4 flex flex-wrap items-center gap-2">
         <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">Public link</span>
-        <code className="bg-[var(--zebra)] rounded px-2 py-1 text-xs font-mono flex-1 truncate">{publicUrl}</code>
+        <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full" style={channel.submissionsOpen ? { background: "var(--green-soft)", color: "var(--green-on)" } : { background: "var(--zebra)", color: "var(--mute)" }} data-form-state={channel.submissionsOpen ? "open" : "closed"}>{channel.submissionsOpen ? "open" : "closed"}</span>
+        <code className="bg-[var(--zebra)] rounded px-2 py-1 text-xs font-mono flex-1 min-w-0 truncate">{publicUrl}</code>
         <CopyButton text={publicUrl} label="Copy URL" />
       </div>
+
+      {/* The form's controls (E-SET-08): an admin's, because it is a door to the internet. */}
+      {admin && (
+        <form action={saveSubmitFormAction} className="card mb-4 flex flex-wrap items-end gap-3" data-form-controls>
+          <input type="hidden" name="channelId" value={id} />
+          <label className="flex items-center gap-1.5 text-xs">
+            <input type="checkbox" name="open" value="1" defaultChecked={channel.submissionsOpen} /> Taking suggestions
+          </label>
+          <label className="flex flex-col gap-1 flex-1 min-w-[12rem]">
+            <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">Address (optional)</span>
+            <span className="flex items-center gap-1 text-xs font-mono">/submit/<input name="slug" defaultValue={channel.submitSlug ?? ""} placeholder={id} maxLength={40} pattern="[a-z0-9][a-z0-9-]{1,38}[a-z0-9]" className="flex-1 min-w-0 border border-[var(--line-2)] rounded px-1.5 py-0.5" /></span>
+          </label>
+          <SubmitButton className="btn sm">Save</SubmitButton>
+          <p className="basis-full text-[11px] text-[var(--mute)] m-0">Each address can send five suggestions every ten minutes; a hidden field turns away bots. New suggestions show in the bell, one notice per channel a day.</p>
+        </form>
+      )}
 
       {/* Status tabs */}
       <div className="flex flex-wrap gap-1 mb-4">
@@ -66,7 +87,7 @@ export default async function SubmissionsPage({ params, searchParams }: { params
             <li key={s.id} className="card">
               <div className="flex items-center gap-2 mb-2">
                 <span className="font-mono text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: "var(--accent-soft)", color: "var(--accent)" }}>{s.status}</span>
-                <span className="text-[11px] text-[var(--mute)]">{new Date(s.createdAt).toLocaleString()}</span>
+                <span className="text-[11px] text-[var(--mute)]">{formatDay(new Date(s.createdAt))}</span>
                 {s.submitter && <span className="text-[11px] font-mono text-[var(--mute)]">· {s.submitter}</span>}
               </div>
               <h3 className="font-semibold text-sm mb-1">{s.topic}</h3>

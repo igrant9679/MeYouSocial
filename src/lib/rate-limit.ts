@@ -22,6 +22,8 @@ export const LIMITS = {
   apiPerUser: { limit: env.RATE_LIMIT_PER_MINUTE, windowSec: 60 },
   // Six digits is a million guesses; ten tries per five minutes per account.
   totpPerUser: { limit: 10, windowSec: 300 },
+  // The public topic form (E-SET-08): five suggestions per address per channel per ten minutes.
+  submitPerIp: { limit: 5, windowSec: 600 },
 } as const;
 export type LimitName = keyof typeof LIMITS;
 
