@@ -7,6 +7,8 @@ import { createWorkspaceAction } from "@/app/actions/workspace-switch";
 import { resendVerificationAction } from "@/app/actions/auth-flows";
 import { pendingInvitationsFor } from "@/lib/invitations";
 import { signOut } from "@/auth";
+import { db } from "@/lib/db";
+import { formatDay } from "@/lib/zoned-dates";
 
 async function signOutAction() {
   "use server";
@@ -47,13 +49,21 @@ export default async function NewWorkspacePage({
     // email alone (anyone can type an email) — the link proves it, or a
     // verified address does. Say which applies.
     const waiting = first ? await pendingInvitationsFor(user.email) : [];
+    // A workspace of theirs that was deleted (E-SEC-14) — getCurrentUser leaves
+    // it out, which is how they landed here; say so rather than "not a member".
+    const gone = first
+      ? await db.membership.findMany({
+          where: { userId: user.id, status: "active", workspace: { deletedAt: { not: null } } },
+          select: { workspace: { select: { name: true, deletedAt: true, purgeAfter: true } } },
+        })
+      : [];
     return (
       <main className="min-h-screen grid place-items-center p-6">
         <div className="w-full max-w-lg card">
           <div className="flex items-center gap-2 mb-2">
             <AlertTriangle className="w-4 h-4 shrink-0" style={{ color: "var(--amber-on)" }} />
             <h1 className="font-mono font-bold text-base">
-              {waiting.length > 0 ? "Your invitation is waiting" : "Workspaces are set up by the administrator"}
+              {waiting.length > 0 ? "Your invitation is waiting" : gone.length > 0 ? "Your workspace was deleted" : "Workspaces are set up by the administrator"}
             </h1>
           </div>
           {waiting.length > 0 ? (
@@ -69,6 +79,14 @@ export default async function NewWorkspacePage({
                   <SubmitButton className="btn sm" pendingText="Sending…">Send the confirmation email again</SubmitButton>
                 </form>
               )}
+            </div>
+          ) : gone.length > 0 ? (
+            <div className="text-sm text-[var(--mute)] leading-relaxed mb-3 space-y-1" data-deleted-workspace>
+              {gone.map((g) => (
+                <p key={g.workspace.name} className="m-0">
+                  <b>{g.workspace.name}</b> was deleted{g.workspace.deletedAt ? ` on ${formatDay(g.workspace.deletedAt)}` : ""}. The platform administrator can restore it until {g.workspace.purgeAfter ? formatDay(g.workspace.purgeAfter) : "its purge"} — ask them if that was a mistake.
+                </p>
+              ))}
             </div>
           ) : (
             <p className="text-sm text-[var(--mute)] leading-relaxed mb-3">

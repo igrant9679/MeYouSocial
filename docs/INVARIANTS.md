@@ -792,3 +792,34 @@ before changing code in that area.
 - **Rotation**: current key → `TOKEN_ENCRYPTION_KEY_PREVIOUS`, new key → `TOKEN_ENCRYPTION_KEY`, deploy, Re-encrypt,
   then drop the old key once no row shows it ("nothing uses it — safe to remove" on the page). Removing a key in use
   makes those secrets unreadable; they'd have to be entered again.
+
+## ⚠ Deleting a workspace keeps it for 30 days (2026-11-01, audit Phase 5, security part 8)
+- **Soft delete** (E-SEC-14, `lib/workspace-lifecycle.ts`, migration `20261031100000_workspace_soft_delete`): both delete
+  paths — an admin's Settings → Delete (the registry's `workspace.remove`) and the operator's Workspaces → Delete — call
+  `softDeleteWorkspace`: `deletedAt`, `deletedById`, `purgeAfter` = +`RESTORE_DAYS` (30), the engine's global pause ON with
+  the earlier state kept in `pausedBeforeDelete`. Audited once as `workspace.deleted` (the registry's `auditsItself` skips
+  `entity.deleted`); its other admins get a security notice; a tenant admin's delete tells the operator (`tellOperator`: an
+  Inbox notification in a live workspace of theirs, emailed per preferences).
+- **A deleted workspace is no one's to open**: `getCurrentUser` includes only memberships of live workspaces, so
+  requireMembership, the switcher, file access (`mayOpen`) and every page skip it; `activeWorkspaceIdFor`, Settings'
+  own workspace list and app mail's mailbox choice (`appEmailFor`) filter `workspace: { deletedAt: null }` too — ⚠ so must
+  any new query of a person's memberships. Its API
+  tokens are refused (`apiCaller`), its invitations can't be claimed or shown, nobody can be added or entered into it, and
+  the unclaimed-accounts queue won't give it anything. A member whose only workspace it was lands on /onboarding/workspace,
+  which names it and the restore deadline. Sweeps that list workspaces take `deletedAt: null` (analytics, autopilot,
+  digest, rollup, recommendations, account health, social performance); the pause stops the per-entity ones (social
+  publish, jobs). ⚠ A new sweep that lists workspaces must filter `deletedAt: null` too.
+- **Restore** (operator, Workspaces → Deleted): clears the fields and puts the pause back as it was; tokens and invitations
+  work again. Refused once a purge has started.
+- **Purge** (the metrics sweep's `purgeDueWorkspaces` after `purgeAfter`, or the operator's typed "Purge now"), claimed by a
+  conditional `purgeStartedAt` (re-runnable after an hour if it died): Google refresh tokens revoked (`oauth2.googleapis.com/
+  revoke`; 400 = already invalid, counted done), Unipile mailboxes DELETEd at the platform's Unipile, the Zernio profile
+  DELETEd at the platform's Zernio — ⚠ unless the workspace has its own Zernio key (that account is the company's; left
+  alone and said so), stored files removed (`storage.remove`, local unlink or Drive DELETE), then the rows. Every step is
+  attempted and recorded (`workspaces:purged`, last 50) for the Purged list and the operator's notice. ⚠ `StoredObject.
+  workspaceId` is now nullable with SetNull: a file whose removal failed outlives the workspace with no owner and only the
+  operator can open it — never the legacy "any signed-in member" rule (that's for files with NO row).
+- **Export** (`/api/workspaces/[id]/export`): the workspace's admins (live) or the operator (any, deleted included) get one
+  streamed JSON file — every model with a `workspaceId` (from Prisma's DMMF, caches and the job queue left out) plus its
+  channels' rows, members with their email. Never a secret: password/token/secret fields dropped by name, secret settings
+  `[not exported]`. Linked from Settings → Workspace, the delete copy and the Deleted list; audited `workspace.exported`.

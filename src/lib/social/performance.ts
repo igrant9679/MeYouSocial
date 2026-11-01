@@ -172,7 +172,7 @@ export async function syncWorkspaceSocialPerformance(
  *  config check (inside syncWorkspaceSocialPerformance) decides. */
 export async function syncAllWorkspacesSocialPerformance(): Promise<{ workspaces: number; rowsWritten: number }> {
   const workspaces = await db.workspace.findMany({
-    where: { zernioProfileId: { not: null } },
+    where: { zernioProfileId: { not: null }, deletedAt: null },
     select: { id: true },
   });
   let rowsWritten = 0;

@@ -38,7 +38,7 @@ const KIND = "daily_digest";
 const WINDOW_HOURS = 3;
 
 export async function sweepMorningDigests(): Promise<{ workspaces: number; sent: number }> {
-  const workspaces = await db.workspace.findMany({ select: { id: true, name: true } });
+  const workspaces = await db.workspace.findMany({ where: { deletedAt: null }, select: { id: true, name: true } });
   let sent = 0;
   for (const ws of workspaces) {
     try {

@@ -23,6 +23,8 @@ export function securityTitle(action: string, entityId: string | null | undefine
     case "api_key.removed": return `The ${entityId ?? "API"} key was removed`;
     case "api_token.created": return `An API token “${str(meta.name) ?? "unnamed"}” (${meta.scope === "write" ? "read and write" : "read"}) was made`;
     case "api_token.revoked": return `The API token “${str(meta.name) ?? "unnamed"}” was revoked`;
+    case "workspace.deleted": return `This workspace was deleted by ${meta.via === "platform" ? "the platform operator" : "one of its admins"} — it's kept until ${typeof meta.purgeAfter === "string" ? meta.purgeAfter.slice(0, 10) : "the end of its restore window"}, then purged; the platform operator can restore it until then`;
+    case "workspace.restored": return "The platform operator restored this workspace";
     case "security.incident_declared": return `The platform operator declared a security incident: ${str(meta.note) ?? "no details given"}`;
     case "security.incident_ended": return "The platform operator ended the security incident";
     case "security.2fa_disabled": return `${who} turned off two-factor sign-in`;

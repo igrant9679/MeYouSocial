@@ -443,4 +443,15 @@ export const gdriveProvider: StorageProvider = {
   url(key): string {
     return `/api/files/${encodeURIComponent(key)}`;
   },
+  async remove(key): Promise<boolean> {
+    const id = key.startsWith(GDRIVE_KEY_PREFIX) ? key.slice(GDRIVE_KEY_PREFIX.length) : key;
+    const access = await resolveDriveAccess().catch(() => null);
+    if (!access) return false;
+    const res = await fetch(`${DRIVE}/files/${encodeURIComponent(id)}?supportsAllDrives=true`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${access.token}` },
+      signal: AbortSignal.timeout(15_000),
+    }).catch(() => null);
+    return !!res && (res.ok || res.status === 404);
+  },
 };

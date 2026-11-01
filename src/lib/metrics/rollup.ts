@@ -47,7 +47,7 @@ export async function rollupWorkspaceMetrics(workspaceId: string, now = new Date
 
 /** Roll up every workspace. Called by the scheduler; safe to run repeatedly. */
 export async function rollupAllWorkspaces(): Promise<{ workspaces: number; rows: number }> {
-  const workspaces = await db.workspace.findMany({ select: { id: true } });
+  const workspaces = await db.workspace.findMany({ where: { deletedAt: null }, select: { id: true } });
   let rows = 0;
   for (const w of workspaces) {
     try {

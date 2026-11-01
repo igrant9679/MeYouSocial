@@ -12,6 +12,8 @@ import { DELETABLE } from "@/lib/deletable";
 import { emailFor } from "@/lib/email";
 import { getPublicUrl } from "@/lib/public-url";
 import { PRODUCT } from "@/lib/product";
+import { formatDay } from "@/lib/zoned-dates";
+import { softDeleteWorkspace, restoreWorkspace, purgeWorkspace } from "@/lib/workspace-lifecycle";
 
 /**
  * Platform workspace management — the operator's cross-tenant surface
@@ -44,8 +46,8 @@ export async function platformCreateWorkspaceAction(formData: FormData) {
   const name = String(formData.get("name") ?? "").trim();
   if (name.length < 2) back("Give the workspace a name of at least 2 characters.", false);
   if (name.length > 60) back("That name is too long — 60 characters maximum.", false);
-  const clash = await db.workspace.findFirst({ where: { name: { equals: name, mode: "insensitive" } } });
-  if (clash) back(`A workspace called “${clash.name}” already exists.`, false);
+  const clash = await db.workspace.findFirst({ where: { name: { equals: name, mode: "insensitive" } }, select: { name: true, deletedAt: true } });
+  if (clash) back(clash.deletedAt ? `A deleted workspace called “${clash.name}” is waiting to be purged — restore it, or purge it first.` : `A workspace called “${clash.name}” already exists.`, false);
 
   const workspace = await db.workspace.create({ data: { name } });
   await writeAudit({
@@ -58,32 +60,29 @@ export async function platformCreateWorkspaceAction(formData: FormData) {
 }
 
 /**
- * ⚠ Deviation from the "one delete action" rule, on purpose: deleteEntityAction
- * authorizes via requireRole against the workspace being deleted, which the
- * operator may not be a member of. Same shape though — type-to-confirm against
- * the exact name, audit before the row disappears.
+ * Delete a workspace (E-SEC-14): it's kept for RESTORE_DAYS and can be restored
+ * here; then it's purged. ⚠ Deviation from the "one delete action" rule, on
+ * purpose: deleteEntityAction authorizes via requireRole against the workspace
+ * being deleted, which the operator may not be a member of. Same shape though —
+ * type-to-confirm against the exact name, audited.
  */
 export async function platformDeleteWorkspaceAction(formData: FormData) {
   const user = await requireOperator();
   const id = String(formData.get("id") ?? "").trim();
   const confirm = String(formData.get("confirm") ?? "").trim();
 
-  const workspace = await db.workspace.findUnique({ where: { id }, select: { id: true, name: true, zernioProfileId: true } });
-  if (!workspace) back("That workspace no longer exists.", false);
+  const workspace = await db.workspace.findUnique({ where: { id }, select: { id: true, name: true, deletedAt: true } });
+  if (!workspace || workspace.deletedAt) back("That workspace no longer exists.", false);
   if (confirm.toLowerCase() !== workspace!.name.trim().toLowerCase()) {
     back("Type the workspace's name exactly to confirm deletion.", false);
   }
-
-  // Audit FIRST — an audit row naming an id nobody can look up answers nothing.
+  const done = await softDeleteWorkspace(id, user.id);
+  if (!done) back("That workspace no longer exists.", false);
   await writeAudit({
     workspaceId: id, actorId: user.id,
-    action: "entity.deleted", entityType: "workspace", entityId: id,
-    // The Zernio profile outlives the workspace (its pages stay connected over
-    // there); recorded so an operator can remove it in Zernio. No other
-    // workspace can adopt it (lib/zernio/accounts.ts).
-    meta: { name: workspace!.name, via: "platform", zernioProfileLeft: workspace!.zernioProfileId ?? null },
+    action: "workspace.deleted", entityType: "workspace", entityId: id,
+    meta: { name: workspace!.name, via: "platform", purgeAfter: done!.purgeAfter.toISOString() },
   });
-  await db.workspace.delete({ where: { id } });
 
   // If the operator was looking at the deleted workspace, clear the cookie so
   // requireMembership falls back to their first membership instead of a ghost.
@@ -91,7 +90,31 @@ export async function platformDeleteWorkspaceAction(formData: FormData) {
   if (jar.get(ACTIVE_WS_COOKIE)?.value === id) jar.delete(ACTIVE_WS_COOKIE);
 
   revalidatePath(PAGE);
-  back(`Deleted workspace “${workspace!.name}”.`);
+  back(`Deleted “${workspace!.name}”. It's kept until ${formatDay(done!.purgeAfter)} — restore it below until then.`);
+}
+
+export async function platformRestoreWorkspaceAction(formData: FormData) {
+  const user = await requireOperator();
+  const id = String(formData.get("id") ?? "").trim();
+  const ws = await db.workspace.findUnique({ where: { id }, select: { name: true } });
+  if (!ws || !(await restoreWorkspace(id))) back("That workspace can't be restored — it isn't deleted, or its purge has started.", false);
+  await writeAudit({ workspaceId: id, actorId: user.id, action: "workspace.restored", entityType: "workspace", entityId: id, meta: { name: ws!.name } });
+  revalidatePath(PAGE);
+  back(`Restored “${ws!.name}”.`);
+}
+
+export async function platformPurgeWorkspaceAction(formData: FormData) {
+  const user = await requireOperator();
+  const id = String(formData.get("id") ?? "").trim();
+  const confirm = String(formData.get("confirm") ?? "").trim();
+  const ws = await db.workspace.findUnique({ where: { id }, select: { name: true, deletedAt: true } });
+  if (!ws?.deletedAt) back("Only a deleted workspace can be purged.", false);
+  if (confirm.toLowerCase() !== ws!.name.trim().toLowerCase()) back("Type the workspace's name exactly to purge it.", false);
+  const r = await purgeWorkspace(id, user.email);
+  if (!r) back("That purge is already running.", false);
+  revalidatePath(PAGE);
+  const failed = r!.steps.filter((s) => !s.ok).length;
+  back(failed ? `Purged “${ws!.name}” — ${failed} provider step${failed === 1 ? "" : "s"} failed; see Purged below.` : `Purged “${ws!.name}”.`, !failed);
 }
 
 /**
@@ -103,8 +126,9 @@ export async function platformDeleteWorkspaceAction(formData: FormData) {
 export async function platformEnterWorkspaceAction(formData: FormData) {
   const user = await requireOperator();
   const workspaceId = String(formData.get("id") ?? "").trim();
-  const workspace = await db.workspace.findUnique({ where: { id: workspaceId }, select: { id: true, name: true } });
+  const workspace = await db.workspace.findUnique({ where: { id: workspaceId }, select: { id: true, name: true, deletedAt: true } });
   if (!workspace) back("That workspace no longer exists.", false);
+  if (workspace!.deletedAt) back(`“${workspace!.name}” is deleted — restore it before entering.`, false);
 
   await db.membership.upsert({
     where: { userId_workspaceId: { userId: user.id, workspaceId } },
@@ -142,7 +166,8 @@ export async function platformAddMemberAction(formData: FormData) {
   if (!parsed.success) back("Enter a valid email and role.", false);
   const { email, role } = parsed.data!;
 
-  const workspace = await db.workspace.findUnique({ where: { id: workspaceId }, select: { id: true, name: true } });
+  // Nobody joins a deleted workspace (E-SEC-14) — restore it first.
+  const workspace = await db.workspace.findUnique({ where: { id: workspaceId, deletedAt: null }, select: { id: true, name: true } });
   if (!workspace) back("That workspace no longer exists.", false);
 
   const existing = await db.user.findUnique({ where: { email } });
@@ -275,7 +300,7 @@ export async function platformRemoveMembershipAction(formData: FormData) {
   try {
     // The registry's remove takes an explicit workspaceId and carries the
     // last-admin guard — reuse it rather than reimplementing the rule.
-    await DELETABLE.membership.remove(membershipId, workspaceId);
+    await DELETABLE.membership.remove(membershipId, workspaceId, user.id);
   } catch (e) {
     back(e instanceof Error ? e.message : "Could not remove that member.", false);
   }

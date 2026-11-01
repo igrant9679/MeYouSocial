@@ -21,8 +21,8 @@ async function acceptAction(token: string) {
   "use server";
   const session = await auth();
   if (!session?.user?.id) redirect(`/signin?next=/invitations/${token}`);
-  const invite = await db.invitation.findUnique({ where: { token } });
-  if (!invite || invite.acceptedAt || invite.expiresAt < new Date()) {
+  const invite = await db.invitation.findUnique({ where: { token }, include: { workspace: { select: { deletedAt: true } } } });
+  if (!invite || invite.acceptedAt || invite.expiresAt < new Date() || invite.workspace.deletedAt) {
     // Back to this page rather than /forbidden. The invite can be revoked or
     // expire between render and submit, and /forbidden says "your role doesn't
     // permit access to that page" — which is not what happened and sends people
@@ -69,7 +69,9 @@ function Notice({
 
 export default async function InvitationPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
-  const invite = await db.invitation.findUnique({ where: { token }, include: { workspace: true } });
+  const found = await db.invitation.findUnique({ where: { token }, include: { workspace: true } });
+  // A deleted workspace's invitation reads as gone (E-SEC-14) — the same state as a revoked one.
+  const invite = found && !found.workspace.deletedAt ? found : null;
 
   // ⚠ A revoked invitation and a token that never existed are the SAME state
   // here — the row is deleted on revoke, so there is nothing left to tell them

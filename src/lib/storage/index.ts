@@ -25,6 +25,8 @@ export interface StorageProvider {
   put(name: string, data: Buffer | Uint8Array, contentType?: string): Promise<StoredFile>;
   get(key: string): Promise<Buffer | null>;
   url(key: string): string;
+  /** Delete the file; true when it's gone (or was never there). For a purge (E-SEC-14). */
+  remove(key: string): Promise<boolean>;
 }
 
 class LocalStorage implements StorageProvider {
@@ -58,6 +60,15 @@ class LocalStorage implements StorageProvider {
   }
   url(key: string): string {
     return `/uploads/${key}`;
+  }
+  async remove(key: string): Promise<boolean> {
+    if (!/^[A-Za-z0-9_-]+(\.[A-Za-z0-9]+)?$/.test(key)) return false;
+    try {
+      await fs.unlink(path.join(this.root, key));
+      return true;
+    } catch (e) {
+      return (e as NodeJS.ErrnoException).code === "ENOENT";
+    }
   }
 }
 
@@ -129,5 +140,12 @@ export const storage: OwnedStorage = {
   },
   url(key) {
     return key.startsWith("gdrive:") ? `/api/files/${encodeURIComponent(key)}` : `/uploads/${key}`;
+  },
+  async remove(key) {
+    if (key.startsWith("gdrive:")) {
+      const { gdriveProvider } = await import("@/lib/storage/gdrive");
+      return gdriveProvider.remove(key);
+    }
+    return localProvider.remove(key);
   },
 };

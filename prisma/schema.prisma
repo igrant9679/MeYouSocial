@@ -37,6 +37,15 @@ model Workspace {
   accentColor     String?
   logoKey         String?
 
+  // Soft delete (E-SEC-14, lib/workspace-lifecycle.ts): a deleted workspace is
+  // kept until `purgeAfter` — paused, hidden from its members, restorable by the
+  // operator — then purged (providers revoked, rows dropped).
+  deletedAt          DateTime?
+  deletedById        String?
+  purgeAfter         DateTime?
+  purgeStartedAt     DateTime?
+  pausedBeforeDelete Boolean   @default(false)
+
   memberships     Membership[]
   channels        Channel[]
   invitations     Invitation[]
@@ -96,6 +105,8 @@ model Workspace {
   // This workspace's Zernio profile — Zernio's tenant boundary. Created lazily
   // the first time an account is connected, then reused.
   zernioProfileId String?
+
+  @@index([deletedAt])
 }
 
 // ---- The cross-app assistant ------------------------------------------------
@@ -2010,9 +2021,11 @@ model SocialPost {
 /// signed-in member) — owners were not back-filled.
 model StoredObject {
   key         String   @id
-  workspaceId String
+  // Null = its workspace was purged and the file couldn't be removed: only the
+  // platform operator may open it (lib/storage/owners.ts) — never "anyone".
+  workspaceId String?
   createdAt   DateTime @default(now())
-  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspace   Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
 
   @@index([workspaceId])
 }

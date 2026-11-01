@@ -22,7 +22,11 @@ export const getCurrentUser = cache(async () => {
   if (!session?.user?.id) return null;
   const user = await db.user.findUnique({
     where: { id: session.user.id },
-    include: { memberships: { include: { workspace: true } } },
+    // A deleted workspace (E-SEC-14) is no one's to open while it waits to be
+    // purged — leaving it out here hides it from requireMembership, the
+    // switcher, file access and every page at once. The operator restores it
+    // from /admin/workspaces.
+    include: { memberships: { where: { workspace: { deletedAt: null } }, include: { workspace: true } } },
   });
   // Activity, refreshed at most hourly (E-SEC-18): sessions last for weeks, so
   // the sign-in stamp alone made everyone who stayed signed in look idle.
@@ -70,7 +74,7 @@ export async function requireMembership(workspaceId?: string) {
  */
 export async function activeWorkspaceIdFor(userId: string): Promise<string | null> {
   const memberships = await db.membership.findMany({
-    where: { userId, status: "active" },
+    where: { userId, status: "active", workspace: { deletedAt: null } },
     select: { workspaceId: true },
   });
   if (memberships.length === 0) return null;

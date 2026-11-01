@@ -150,6 +150,15 @@ export async function register() {
     if (created || applied) {
       console.log(`[recommendations] ${created} new, ${applied} auto-applied`);
     }
+    // Deleted workspaces past their restore window are purged (E-SEC-14) —
+    // under this lock, in its own try so a provider outage can't stop the rest.
+    try {
+      const { purgeDueWorkspaces } = await import("@/lib/workspace-lifecycle");
+      const purged = await purgeDueWorkspaces();
+      if (purged) console.log(`[workspaces] purged ${purged} deleted workspace(s)`);
+    } catch (e) {
+      console.error("[workspaces] purge failed:", e instanceof Error ? e.message : e);
+    }
   });
   setTimeout(metricsSweep, 3 * 60 * 1000);
   globals.__metricsTimer = setInterval(metricsSweep, metricsMin * 60 * 1000);

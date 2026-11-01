@@ -170,7 +170,7 @@ export async function appEmailFor(userEmail: string): Promise<EmailProvider> {
   const { db } = await import("@/lib/db");
   const { resolveEmailSender } = await import("@/lib/unipile/accounts");
   const memberships = await db.membership.findMany({
-    where: { status: "active", user: { email: { equals: userEmail.trim(), mode: "insensitive" } } },
+    where: { status: "active", workspace: { deletedAt: null }, user: { email: { equals: userEmail.trim(), mode: "insensitive" } } },
     orderBy: { createdAt: "asc" },
     select: { workspaceId: true },
   });

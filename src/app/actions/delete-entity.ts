@@ -52,27 +52,30 @@ export async function deleteEntityAction(formData: FormData) {
     }
   }
 
+  let said: void | string = undefined;
   try {
-    await spec.remove(id, workspace.id);
+    said = await spec.remove(id, workspace.id, user.id);
   } catch (e) {
     // Guards inside `remove` (e.g. refusing to strand a workspace with no
     // admin) speak to the user through their own message.
     back(e instanceof Error ? e.message : `Could not delete that ${spec.label}.`);
   }
 
-  await writeAudit({
-    workspaceId: kind === "workspace" ? id : workspace.id,
-    actorId: user.id,
-    action: "entity.deleted",
-    entityType: kind,
-    entityId: id,
-    meta: { name: target!.name },
-  });
+  if (!spec.auditsItself) {
+    await writeAudit({
+      workspaceId: workspace.id,
+      actorId: user.id,
+      action: "entity.deleted",
+      entityType: kind,
+      entityId: id,
+      meta: { name: target!.name },
+    });
+  }
 
   for (const path of spec.revalidate) revalidatePath(path);
   if (returnTo) revalidatePath(returnTo);
 
   const dest = returnTo || spec.redirectTo?.(target!) || "/";
   const sep = dest.includes("?") ? "&" : "?";
-  redirect(`${dest}${sep}flash=${encodeURIComponent(`Deleted ${spec.label} “${target!.name}”.`)}`);
+  redirect(`${dest}${sep}flash=${encodeURIComponent(said || `Deleted ${spec.label} “${target!.name}”.`)}`);
 }

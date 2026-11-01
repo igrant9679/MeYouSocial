@@ -113,7 +113,7 @@ export async function checkWorkspaceAccountHealth(
 
 /** Every workspace with Zernio configured. Called by the sweep. */
 export async function sweepAccountHealth(): Promise<{ workspaces: number; alerted: number }> {
-  const workspaces = await db.workspace.findMany({ select: { id: true, name: true } });
+  const workspaces = await db.workspace.findMany({ where: { deletedAt: null }, select: { id: true, name: true } });
   let alerted = 0;
 
   for (const ws of workspaces) {

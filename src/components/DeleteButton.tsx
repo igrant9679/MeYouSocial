@@ -20,7 +20,7 @@ import { SubmitButton } from "@/components/SubmitButton";
  * guesses at what will be destroyed.
  */
 export function DeleteButton({
-  kind, id, name, confirmName, impact, returnTo, label, className, iconOnly,
+  kind, id, name, confirmName, impact, returnTo, label, className, iconOnly, warning,
 }: {
   kind: string;
   id: string;
@@ -32,6 +32,8 @@ export function DeleteButton({
   label?: string;
   className?: string;
   iconOnly?: boolean;
+  /** Replaces "This cannot be undone." when it can — a workspace is kept for a while (E-SEC-14). */
+  warning?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [typed, setTyped] = useState("");
@@ -70,7 +72,7 @@ export function DeleteButton({
         <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
         <div>
           <div>
-            Delete <b>{name}</b>? This cannot be undone.
+            Delete <b>{name}</b>? {warning ?? "This cannot be undone."}
           </div>
           {impact && impact.length > 0 && (
             <div className="mt-1">

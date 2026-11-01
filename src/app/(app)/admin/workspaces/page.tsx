@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { formatDay } from "@/lib/zoned-dates";
 import { redirect } from "next/navigation";
-import { Building2, LogIn, UserPlus, Trash2 } from "lucide-react";
+import { Building2, LogIn, UserPlus, Trash2, Undo2, Download } from "lucide-react";
 import { requireRole, isPlatformOperator } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { deletionImpact } from "@/lib/deletable";
@@ -14,7 +14,11 @@ import {
   platformChangeRoleAction,
   platformToggleMembershipAction,
   platformRemoveMembershipAction,
+  platformRestoreWorkspaceAction,
+  platformPurgeWorkspaceAction,
 } from "@/app/actions/platform-workspaces";
+import { RESTORE_DAYS, purgedWorkspaces } from "@/lib/workspace-lifecycle";
+import { actorNames } from "@/lib/audit-log";
 
 // Settings → Workspaces: the PLATFORM operator's cross-tenant surface. Everything
 // here works on any workspace regardless of the operator's own memberships —
@@ -28,6 +32,7 @@ export default async function PlatformWorkspacesPage() {
   if (!isPlatformOperator(user.email)) redirect("/forbidden?why=operator");
 
   const workspaces = await db.workspace.findMany({
+    where: { deletedAt: null },
     orderBy: { name: "asc" },
     include: {
       memberships: { include: { user: { select: { email: true, name: true } } }, orderBy: { createdAt: "asc" } },
@@ -38,6 +43,16 @@ export default async function PlatformWorkspacesPage() {
     where: { acceptedAt: null, workspaceId: { in: workspaces.map((w) => w.id) } },
     orderBy: { createdAt: "desc" },
   });
+  // Deleted workspaces wait out their restore window here (E-SEC-14).
+  const [deleted, purged] = await Promise.all([
+    db.workspace.findMany({
+      where: { deletedAt: { not: null } },
+      orderBy: { deletedAt: "desc" },
+      select: { id: true, name: true, deletedAt: true, deletedById: true, purgeAfter: true, purgeStartedAt: true, _count: { select: { memberships: true, channels: true } } },
+    }),
+    purgedWorkspaces(),
+  ]);
+  const deleters = await actorNames(deleted.map((d) => d.deletedById ?? ""));
   const impacts = new Map(
     await Promise.all(
       workspaces.map(async (w) => [w.id, await deletionImpact("workspace", w.id, w.id)] as const),
@@ -181,7 +196,8 @@ export default async function PlatformWorkspacesPage() {
               <form action={platformDeleteWorkspaceAction} className="mt-2 flex flex-wrap items-end gap-2 rounded-lg p-2" style={{ background: "var(--rose-soft)" }}>
                 <input type="hidden" name="id" value={ws.id} />
                 <div className="basis-full text-[11px]" style={{ color: "var(--rose-on)" }}>
-                  Deletes everything in it{impact.length ? `: ${impact.map(([label, n]) => `${n} ${label}`).join(", ")}` : ""}. This cannot be undone.
+                  Everything in it{impact.length ? ` (${impact.map(([label, n]) => `${n} ${label}`).join(", ")})` : ""} is kept for {RESTORE_DAYS} days — paused and hidden from its members, restorable below — then purged, with its Zernio, Unipile and Google connections revoked.{" "}
+                  <a href={`/api/workspaces/${ws.id}/export`} className="underline">Download everything first</a>.
                 </div>
                 <label className="flex-1 min-w-52 text-[11px]" style={{ color: "var(--rose-on)" }}>
                   Type <b>{ws.name}</b> to confirm
@@ -195,6 +211,73 @@ export default async function PlatformWorkspacesPage() {
           </section>
         );
       })}
+
+      <section id="deleted" className="card mb-4 scroll-mt-20" data-deleted-workspaces={deleted.length}>
+        <h2 className="font-mono font-bold text-[14px] mb-1">Deleted — kept for restore</h2>
+        {deleted.length === 0 ? (
+          <p className="text-xs text-[var(--mute)] m-0">None. A deleted workspace waits here for {RESTORE_DAYS} days before it&apos;s purged.</p>
+        ) : (
+          <ul className="m-0 p-0 flex flex-col gap-3">
+            {deleted.map((d) => (
+              <li key={d.id} className="border-t border-[var(--line)] first:border-t-0 pt-2 text-xs flex flex-col gap-1.5" data-deleted-id={d.id}>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <b className="text-sm flex-1 min-w-40">{d.name}</b>
+                  <span className="text-[var(--mute)]">
+                    deleted {d.deletedAt ? formatDay(d.deletedAt) : "—"}{d.deletedById ? ` by ${deleters.get(d.deletedById) ?? "someone who left"}` : ""} · {d._count.memberships} member{d._count.memberships === 1 ? "" : "s"} · {d.purgeStartedAt ? "purge started" : `purged ${d.purgeAfter ? formatDay(d.purgeAfter) : "soon"}`}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <a href={`/api/workspaces/${d.id}/export`} className="btn sm"><Download className="w-3.5 h-3.5" /> Download everything</a>
+                  {!d.purgeStartedAt && (
+                    <form action={platformRestoreWorkspaceAction}>
+                      <input type="hidden" name="id" value={d.id} />
+                      <SubmitButton className="btn sm" pendingText="Restoring…"><Undo2 className="w-3.5 h-3.5" /> Restore</SubmitButton>
+                    </form>
+                  )}
+                </div>
+                <details>
+                  <summary className="cursor-pointer text-[11px] font-mono select-none" style={{ color: "var(--rose-on)" }}>
+                    <Trash2 className="w-3 h-3 inline mr-1" /> Purge now…
+                  </summary>
+                  <form action={platformPurgeWorkspaceAction} className="mt-2 flex flex-wrap items-end gap-2 rounded-lg p-2" style={{ background: "var(--rose-soft)" }}>
+                    <input type="hidden" name="id" value={d.id} />
+                    <div className="basis-full text-[11px]" style={{ color: "var(--rose-on)" }}>
+                      Revokes its Google sign-ins, removes its Unipile mailboxes, deletes its Zernio profile (unless it&apos;s in the company&apos;s own Zernio account) and its stored files, then every row. This can&apos;t be undone.
+                    </div>
+                    <label className="flex-1 min-w-52 text-[11px]" style={{ color: "var(--rose-on)" }}>
+                      Type <b>{d.name}</b> to confirm
+                      <input name="confirm" required placeholder={d.name} className="w-full text-sm mt-0.5" autoComplete="off" />
+                    </label>
+                    <SubmitButton className="btn sm" pendingText="Purging…"><Trash2 className="w-3.5 h-3.5" /> Purge</SubmitButton>
+                  </form>
+                </details>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      {purged.length > 0 && (
+        <section className="card mb-4 text-xs" data-purged-workspaces={purged.length}>
+          <h2 className="font-mono font-bold text-[14px] mb-1">Purged</h2>
+          <ul className="m-0 p-0 flex flex-col gap-2">
+            {purged.slice(0, 20).map((r) => (
+              <li key={`${r.id}-${r.purgedAt}`} className="border-t border-[var(--line)] first:border-t-0 pt-2">
+                <b>{r.name}</b> <span className="text-[var(--mute)]">— purged {formatDay(new Date(r.purgedAt))}, by {r.by}</span>
+                {r.steps.length === 0
+                  ? <div className="text-[var(--mute)]">Nothing was connected at a provider.</div>
+                  : (
+                    <ul className="m-0 pl-4">
+                      {r.steps.map((st, i) => (
+                        <li key={i} style={st.ok ? undefined : { color: "var(--rose-on)" }}>{st.ok ? "✓" : "✗"} {st.what}: {st.detail}</li>
+                      ))}
+                    </ul>
+                  )}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
     </main>
   );
 }

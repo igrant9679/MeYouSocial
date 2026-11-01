@@ -36,8 +36,9 @@ export async function apiCaller(req: Request, need: "read" | "write"): Promise<{
   const bearer = /^Bearer\s+(\S+)$/i.exec(header)?.[1];
   if (bearer) {
     if (!bearer.startsWith(TOKEN_PREFIX)) return deny(401, "That isn't a MeYouSocial API token.");
-    const token = await db.apiToken.findUnique({ where: { tokenHash: hashApiToken(bearer) } });
-    if (!token || token.revokedAt) return deny(401, "That token isn't valid — it may have been revoked.");
+    const token = await db.apiToken.findUnique({ where: { tokenHash: hashApiToken(bearer) }, include: { workspace: { select: { deletedAt: true } } } });
+    // A deleted workspace's tokens stop with it (E-SEC-14) — and work again if it's restored.
+    if (!token || token.revokedAt || token.workspace.deletedAt) return deny(401, "That token isn't valid — it may have been revoked.");
     if (need === "write" && token.scope !== "write") return deny(403, "This token can only read.");
     const limited = await hit("apiPerUser", `token:${token.id}`);
     if (!limited.ok) return { denied: tooMany(limited.retryAfter) };

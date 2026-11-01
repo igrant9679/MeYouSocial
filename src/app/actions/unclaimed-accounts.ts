@@ -25,7 +25,7 @@ export async function assignMailboxAction(formData: FormData) {
   const { user } = await requireOperator();
   const accountId = String(formData.get("accountId") ?? "");
   const workspaceId = String(formData.get("workspaceId") ?? "");
-  const ws = await db.workspace.findUnique({ where: { id: workspaceId }, select: { id: true, name: true } });
+  const ws = await db.workspace.findUnique({ where: { id: workspaceId, deletedAt: null }, select: { id: true, name: true } });
   if (!ws) err("Choose a workspace.");
   const box = (await readUnclaimed()).mailboxes.find((m) => m.accountId === accountId);
   if (!box) err("That mailbox isn't unclaimed any more — the list was refreshed.");
@@ -51,6 +51,6 @@ export async function assignProfileAction(formData: FormData) {
   if (!count) err("That workspace got a Zernio profile in the meantime.");
   await writeAudit({ workspaceId, actorId: user.id, action: "integration.adopted", entityType: "zernio_profile", entityId: profileId, meta: { kind: "zernio_profile", name: profile!.name, via: "operator_queue" } });
   revalidatePath("/admin/unclaimed");
-  const ws = await db.workspace.findUnique({ where: { id: workspaceId }, select: { name: true } });
+  const ws = await db.workspace.findUnique({ where: { id: workspaceId, deletedAt: null }, select: { name: true } });
   back("flash=" + encodeURIComponent(`The Zernio profile now belongs to ${ws?.name ?? "that workspace"} — reconcile its accounts on Settings → Connections.`));
 }

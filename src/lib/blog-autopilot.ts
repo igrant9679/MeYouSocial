@@ -2005,7 +2005,7 @@ async function runAutopilotCycleUnlocked(workspaceId: string): Promise<CycleRepo
 
 /** Sweep every workspace; per-workspace failures never sink the sweep. */
 export async function runAutopilotSweep(): Promise<void> {
-  const workspaces = await db.workspace.findMany({ select: { id: true }, take: 100 });
+  const workspaces = await db.workspace.findMany({ where: { deletedAt: null }, select: { id: true }, take: 100 });
   for (const ws of workspaces) {
     try {
       await runAutopilotCycle(ws.id);

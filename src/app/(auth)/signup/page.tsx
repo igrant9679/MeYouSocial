@@ -46,8 +46,8 @@ async function signupAction(formData: FormData) {
   const { hit, requestIp } = await import("@/lib/rate-limit");
   if (!(await hit("signupPerIp", await requestIp())).ok) redirect(errorUrl("slow-down", inviteToken));
 
-  const invite = inviteToken ? await db.invitation.findUnique({ where: { token: inviteToken } }) : null;
-  const inviteLive = Boolean(invite && !invite.acceptedAt && invite.expiresAt > new Date());
+  const invite = inviteToken ? await db.invitation.findUnique({ where: { token: inviteToken }, include: { workspace: { select: { deletedAt: true } } } }) : null;
+  const inviteLive = Boolean(invite && !invite.acceptedAt && invite.expiresAt > new Date() && !invite.workspace.deletedAt);
   const isBootstrap = Boolean(env.BOOTSTRAP_ADMIN_EMAIL) && env.BOOTSTRAP_ADMIN_EMAIL === data.email;
 
   if (inviteLive && !sameEmail(invite!.email, data.email)) redirect(errorUrl("wrong-email", inviteToken));
@@ -112,7 +112,7 @@ export default async function SignUpPage({ searchParams }: { searchParams: Promi
   // workspace (they get their company's, with the invited role).
   const pendingInvite = invite
     ? await db.invitation.findFirst({
-        where: { token: invite, acceptedAt: null, expiresAt: { gt: new Date() } },
+        where: { token: invite, acceptedAt: null, expiresAt: { gt: new Date() }, workspace: { deletedAt: null } },
         include: { workspace: { select: { name: true } } },
       })
     : null;

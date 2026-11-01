@@ -1,5 +1,5 @@
 import { stop } from "@/lib/sentence";
-import { Settings, Palette, CheckCircle2, AlertTriangle } from "lucide-react";
+import { Settings, Palette, CheckCircle2, AlertTriangle, Download } from "lucide-react";
 import { SubmitButton } from "@/components/SubmitButton";
 import { requireRole } from "@/lib/acl";
 import { db } from "@/lib/db";
@@ -151,6 +151,16 @@ export default async function AdminSettingsPage({ searchParams }: { searchParams
           Configure Google Drive under Settings → Keys → Storage for a logo that survives.
         </p>
       </form>
+
+      {/* Everything this workspace holds, as one file (E-SEC-14) — before a delete, or to keep. */}
+      <section id="export" className="card mt-3 flex items-center gap-3 flex-wrap scroll-mt-20">
+        <Download className="w-4 h-4 shrink-0" style={{ color: "var(--accent-on)" }} />
+        <div className="flex-1 min-w-48 text-xs">
+          <b className="text-sm">Download everything</b>
+          <p className="m-0 text-[var(--mute)]">Every article, idea, Topic, post, setting and record in this workspace as one JSON file. Key and password values are never in it.</p>
+        </div>
+        <a href={`/api/workspaces/${workspace.id}/export`} className="btn sm">Download</a>
+      </section>
     </div>
   );
 }

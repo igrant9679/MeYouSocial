@@ -36,7 +36,8 @@ export async function claimInvitation(
 ): Promise<boolean> {
   return db.$transaction(async (tx) => {
     const claimed = await tx.invitation.updateMany({
-      where: { id: invite.id, acceptedAt: null, expiresAt: { gt: new Date() } },
+      // never into a deleted workspace (E-SEC-14)
+      where: { id: invite.id, acceptedAt: null, expiresAt: { gt: new Date() }, workspace: { deletedAt: null } },
       data: { acceptedAt: new Date() },
     });
     if (claimed.count === 0) return false;
@@ -64,6 +65,7 @@ export function pendingInvitationsFor(email: string) {
       email: { equals: email.trim(), mode: "insensitive" },
       acceptedAt: null,
       expiresAt: { gt: new Date() },
+      workspace: { deletedAt: null },
     },
     include: { workspace: { select: { id: true, name: true } } },
     orderBy: { createdAt: "asc" },

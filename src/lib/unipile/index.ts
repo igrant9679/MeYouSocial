@@ -129,6 +129,17 @@ export async function getUnipileAccount(accountId: string): Promise<UnipileAccou
   }
 }
 
+/**
+ * Remove an account from the platform's Unipile (a purged workspace's mailbox,
+ * E-SEC-14). Gone already (404) counts as done.
+ */
+export async function deleteUnipileAccount(accountId: string): Promise<{ ok: boolean; detail: string }> {
+  const res = await unipileFetch(`/api/v1/accounts/${encodeURIComponent(accountId)}`, { method: "DELETE" });
+  if (res.ok) return { ok: true, detail: "removed from Unipile" };
+  if (res.status === 404) return { ok: true, detail: "already gone from Unipile" };
+  return { ok: false, detail: `Unipile answered ${res.status}` };
+}
+
 export async function listUnipileAccounts(): Promise<UnipileAccountInfo[]> {
   try {
     const res = await unipileFetch(`/api/v1/accounts?limit=250`);

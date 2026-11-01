@@ -228,7 +228,7 @@ export async function autoApplyRecommendations(workspaceId: string): Promise<num
 
 /** Generation + auto-apply for every workspace. Called by the scheduler. */
 export async function sweepRecommendations(): Promise<{ created: number; applied: number }> {
-  const workspaces = await db.workspace.findMany({ select: { id: true } });
+  const workspaces = await db.workspace.findMany({ where: { deletedAt: null }, select: { id: true } });
   let created = 0;
   let applied = 0;
   for (const w of workspaces) {

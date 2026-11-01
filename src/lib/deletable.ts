@@ -45,7 +45,10 @@ export type Deletable = {
   find(id: string, workspaceId: string): Promise<DeletableTarget | null>;
   /** What else disappears, for the confirmation copy. Cascades, mostly. */
   impact?(id: string, workspaceId: string): Promise<Array<[string, number]>>;
-  remove(id: string, workspaceId: string): Promise<void>;
+  /** May return the finished sentence for the flash, when "Deleted <label> “name”." would mislead. */
+  remove(id: string, workspaceId: string, actorId: string): Promise<void | string>;
+  /** `remove` writes its own audit row (a workspace's soft delete), so the action adds no `entity.deleted`. */
+  auditsItself?: boolean;
   /** Where to send the user afterwards. Falls back to the referring page. */
   redirectTo?: (target: DeletableTarget) => string;
   revalidate: string[];
@@ -462,10 +465,22 @@ export const DELETABLE: Record<DeletableKind, Deletable> = {
         ["members", members], ["saved API keys / settings", settings], ["topics", topics],
       ]);
     },
-    async remove(id, workspaceId) {
+    // Soft (E-SEC-14): kept for RESTORE_DAYS — paused, hidden from its members,
+    // restorable by the operator — then purged by the sweep.
+    async remove(id, workspaceId, actorId) {
       if (id !== workspaceId) return;
-      await db.workspace.delete({ where: { id } });
+      const { softDeleteWorkspace, tellOperator } = await import("@/lib/workspace-lifecycle");
+      const { writeAudit } = await import("@/lib/governance");
+      const { formatDay } = await import("@/lib/zoned-dates");
+      const ws = await db.workspace.findUnique({ where: { id }, select: { name: true } });
+      const done = await softDeleteWorkspace(id, actorId);
+      if (!ws || !done) throw new Error("That workspace no longer exists.");
+      await writeAudit({ workspaceId: id, actorId, action: "workspace.deleted", entityType: "workspace", entityId: id, meta: { name: ws.name, via: "settings", purgeAfter: done.purgeAfter.toISOString() } });
+      const until = formatDay(done.purgeAfter);
+      await tellOperator(`“${ws.name}” was deleted by one of its admins`, `It's kept until ${until}, when it's purged. Restore it on Settings → Workspaces until then.`);
+      return `Deleted “${ws.name}”. It's kept until ${until} — the platform operator can restore it until then.`;
     },
+    auditsItself: true,
     redirectTo: () => "/settings",
     revalidate: ["/settings", "/"],
   },

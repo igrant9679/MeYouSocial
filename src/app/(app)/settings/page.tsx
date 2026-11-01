@@ -9,6 +9,7 @@ import { resendVerificationAction } from "@/app/actions/auth-flows";
 import { SubmitButton } from "@/components/SubmitButton";
 import { ValidatedInput } from "@/components/ValidatedInput";
 import { DeleteButton } from "@/components/DeleteButton";
+import { RESTORE_DAYS } from "@/lib/workspace-lifecycle";
 import { deletionImpact } from "@/lib/deletable";
 import { formatDay } from "@/lib/zoned-dates";
 
@@ -20,7 +21,7 @@ export default async function UserSettingsPage({ searchParams }: { searchParams:
   const { error, ok } = await searchParams;
   const [theme, size] = await Promise.all([getTheme(), getContentSize()]);
   const memberships = await db.membership.findMany({
-    where: { userId: user.id, status: "active" },
+    where: { userId: user.id, status: "active", workspace: { deletedAt: null } },
     include: { workspace: { select: { name: true } } },
   });
   // Standing up a whole tenant is the platform operator's job, not a workspace
@@ -184,6 +185,7 @@ export default async function UserSettingsPage({ searchParams }: { searchParams:
                   impact={workspaceImpacts[m.workspaceId]}
                   returnTo="/settings"
                   label="Delete"
+                  warning={`It's kept for ${RESTORE_DAYS} days — paused and hidden from everyone, restorable by the platform operator — then purged with everything in it, its Zernio, Unipile and Google connections revoked. Download everything first from Settings → Workspace.`}
                 />
               )}
             </li>

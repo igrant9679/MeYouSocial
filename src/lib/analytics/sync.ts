@@ -362,7 +362,7 @@ async function recordSyncStatus(workspaceId: string, outcome: Partial<Record<Sou
 
 /** Sync every workspace that has a connector configured. For the scheduler. */
 export async function syncAllWorkspaces(): Promise<{ workspaces: number; rowsWritten: number }> {
-  const workspaces = await db.workspace.findMany({ select: { id: true } });
+  const workspaces = await db.workspace.findMany({ where: { deletedAt: null }, select: { id: true } });
   let rowsWritten = 0;
   let touched = 0;
   for (const w of workspaces) {

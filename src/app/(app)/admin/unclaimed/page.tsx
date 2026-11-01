@@ -19,7 +19,8 @@ export default async function UnclaimedAccountsPage() {
   if (!isPlatformOperator(user.email)) redirect("/forbidden?why=operator");
   const [view, workspaces, ownKeys] = await Promise.all([
     readUnclaimed(),
-    db.workspace.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true, zernioProfileId: true } }),
+    // a deleted workspace (E-SEC-14) is no one to give an account to
+    db.workspace.findMany({ where: { deletedAt: null }, orderBy: { name: "asc" }, select: { id: true, name: true, zernioProfileId: true } }),
     db.workspaceSetting.findMany({ where: { key: "zernio:api_key", NOT: { value: "" } }, select: { workspaceId: true } }),
   ]);
   const nameOf = new Map(workspaces.map((w) => [w.id, w.name]));

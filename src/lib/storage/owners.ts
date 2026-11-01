@@ -19,7 +19,8 @@ export async function recordOwner(key: string, workspaceId: string): Promise<voi
 /**
  * May this person open the file? Yes when it has no owner row (stored before
  * owners were recorded — the old rule), when they're an active member of the
- * owning workspace, or when they're the platform operator.
+ * owning workspace, or when they're the platform operator. A row whose owner is
+ * null belonged to a purged workspace (E-SEC-14): the operator only.
  */
 export async function mayOpen(key: string, user: { email?: string | null; memberships: { workspaceId: string; status: string }[] }): Promise<boolean> {
   const row = await db.storedObject.findUnique({ where: { key }, select: { workspaceId: true } });
