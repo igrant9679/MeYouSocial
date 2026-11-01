@@ -272,6 +272,7 @@ area, rather than loading all of them into every session.
 - The sweep says what it will do next — 2026-11-01, audit Phase 5, growth part y
 - Articles losing clicks become refresh ideas — 2026-11-01, audit Phase 5, growth part z
 - A teleprompter driven by words per minute and the keyboard — 2026-11-01, audit Phase 5, growth part aa
+- The Articles list filters, pages and acts in bulk — 2026-11-01, audit Phase 5, growth part ab
 
 ## Open items / things the user still owns
 - **Analytics: APIs enabled 2026-08-03** (Search Console + GA Admin + GA Data, on project

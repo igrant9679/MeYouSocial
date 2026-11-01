@@ -1180,3 +1180,16 @@ before changing code in that area.
 - **Reading line** at 35% of the height with the text above it fading; padding lets the first line start on it and
   the last reach it. A 3-2-1 countdown before scrolling, on by default. Preferences (wpm, size, mirror, countdown) are
   saved per browser through an external store — memory is the truth once read, so a private window still works.
+
+## ⚠ The Articles list filters, pages and acts in bulk (2026-11-01, audit Phase 5, growth part ab)
+- **E-ART-08 — filters in the URL** (`lib/article-list.ts`): `/blog?view=list` takes `status`, `topic`, `reviewer` (an id or
+  `none`), `q` (title or focus keyword, case-insensitive) and `page` (50 a page; past the end goes to the last). Unknown
+  values read as no filter. The status chips count within the other filters. The board view is unchanged.
+- **Bulk actions** (`actions/article-bulk.ts`, one action, `op` from the pressed button) do what the article's own page
+  does, article by article, with the same role: **Set reviewer** (EDITOR; an active member or none; one notice for the
+  lot), **Advance what passes** (EDITOR; in review → final approval only through `advanceIfReadyCore`, so the checks — or
+  an admin's override — decide; the rest are counted), **Schedule** (ADMIN; final approval only; one every N days from a
+  first day and time, stepped in posting-zone wall clock), **Delete** (ADMIN; needs the confirmation box; **published
+  articles are kept** — they're live with their numbers — and each deletion is audited with its title). Ids are narrowed
+  to the workspace before anything; the redirect goes back to the same filtered list with what happened.
+- CSV downloads the page as shown (`CsvButton` skips cells marked `data-csv-skip` — the checkbox column).

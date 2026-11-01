@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { CalendarDays, FileText, Plus, Sparkles } from "lucide-react";
-import { requireMembership, canEdit } from "@/lib/acl";
+import { redirect } from "next/navigation";
+import { requireMembership, canEdit, canAdmin } from "@/lib/acl";
 import { getPostingTimeZone } from "@/lib/social/slots";
 import { db } from "@/lib/db";
 import { SubmitButton } from "@/components/SubmitButton";
@@ -8,6 +9,9 @@ import { createBlogPostAction } from "@/app/actions/blog";
 import { discoverBlogIdeasAction } from "@/app/actions/blog-ideas";
 import { motifSummaryLabel, parseMotifs } from "@/lib/motifs";
 import { EmptyState } from "@/components/EmptyState";
+import { Banner } from "@/components/SocialPostCard";
+import { ArticleList } from "./ArticleList";
+import { articlesHref, listArticles, parseArticleQuery } from "@/lib/article-list";
 
 // Blog home — the full-width workspace. Pipeline as a kanban board (cards link
 // into the tabbed editor), a week-ahead calendar ribbon, quick create. The
@@ -30,25 +34,34 @@ const COLUMNS = [
 const VIEWS = ["board", "list"] as const;
 type View = (typeof VIEWS)[number];
 
-const STATUS_LABEL: Record<string, { title: string; hue: string }> = {
-  drafting: { title: "Drafting", hue: "amber" },
-  draft_review: { title: "In review", hue: "blue" },
-  final_approval: { title: "Final approval", hue: "violet" },
-  published: { title: "Published", hue: "green" },
-};
-
-export default async function BlogPage({ searchParams }: { searchParams: Promise<{ view?: string }> }) {
+export default async function BlogPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const { workspace, membership } = await requireMembership();
   const editor = canEdit(membership.role);
+  const admin = canAdmin(membership.role);
   const tz = await getPostingTimeZone(workspace.id);
-  const view: View = (await searchParams).view === "list" ? "list" : "board";
+  const sp = await searchParams;
+  const view: View = sp.view === "list" ? "list" : "board";
+  const flash = { ok: typeof sp.ok === "string" ? sp.ok : null, err: typeof sp.err === "string" ? sp.err : null };
 
   const now = new Date();
   const weekEnd = new Date(now);
   weekEnd.setDate(weekEnd.getDate() + 7);
 
+  // The list view (E-ART-08) reads its own filtered page; the board reads every article.
+  const aq = parseArticleQuery(sp);
+  const [list, topics, members, anyArticles] = view === "list"
+    ? await Promise.all([
+        listArticles(workspace.id, aq),
+        db.topic.findMany({ where: { workspaceId: workspace.id }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
+        db.membership.findMany({ where: { workspaceId: workspace.id, status: "active" }, select: { userId: true, user: { select: { name: true, email: true } } } })
+          .then((ms) => ms.map((m) => ({ userId: m.userId, name: m.user.name ?? m.user.email ?? m.userId })).sort((a, b) => a.name.localeCompare(b.name))),
+        db.blogPost.count({ where: { workspaceId: workspace.id } }).then((n) => n > 0),
+      ])
+    : [null, [], [], false];
+  if (list && aq.page > list.pages) redirect(articlesHref(aq, { page: list.pages }));
+
   const [posts, topIdeas, scheduled, renders] = await Promise.all([
-    db.blogPost.findMany({
+    view !== "board" ? Promise.resolve([]) : db.blogPost.findMany({
       where: { workspaceId: workspace.id },
       orderBy: { updatedAt: "desc" },
       include: {
@@ -93,6 +106,8 @@ export default async function BlogPage({ searchParams }: { searchParams: Promise
 
   return (
     <main className="p-6 w-full">
+      {flash.ok && <Banner kind="ok" text={flash.ok} />}
+      {flash.err && <Banner kind="err" text={flash.err} />}
       <div className="flex flex-wrap items-center gap-3 mb-4">
         <span className="w-11 h-11 rounded-2xl grid place-items-center" style={{ background: "var(--rose-soft)", color: "var(--rose-on)" }}>
           <FileText className="w-5 h-5" strokeWidth={2.25} />
@@ -126,49 +141,12 @@ export default async function BlogPage({ searchParams }: { searchParams: Promise
         )}
       </div>
 
-      {/* List view — every article in one dense, scannable column, newest
-          edit first. This is what /blog/board used to be, minus the pretence
+      {/* List view — newest edit first, with filters, pages and bulk actions
+          (E-ART-08). This is what /blog/board used to be, minus the pretence
           of being a board. */}
-      {view === "list" && (
-        <section className="card mb-4">
-          {posts.length === 0 ? (
-            <EmptyState
-              variant="inline"
-              line="No articles yet."
-              note={editor ? "Approve an idea on the Ideas board and the engine writes the first one — or create one with the form above." : "An editor approves an idea or creates an article; drafts appear here on their own."}
-              action={editor ? { label: "Open the Ideas board", href: "/ideas" } : null}
-            />
-          ) : (
-            <ul className="flex flex-col">
-              {posts.map((p) => {
-                const s = STATUS_LABEL[p.status] ?? { title: p.status, hue: "cyan" };
-                return (
-                  <li key={p.id} className="flex flex-wrap items-center gap-2 py-2 border-b border-[var(--line)] last:border-0">
-                    <span
-                      className="font-mono text-[10px] px-1.5 py-0.5 rounded-full flex-shrink-0 w-28 text-center"
-                      style={{ background: `var(--${s.hue}-soft)`, color: `var(--${s.hue}-on)` }}
-                    >
-                      {s.title}
-                    </span>
-                    <Link href={`/blog/${p.id}`} className="text-sm font-semibold hover:underline flex-1 min-w-60 truncate">
-                      {p.title}
-                    </Link>
-                    {p.citations.length > 0 && (
-                      <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }}>
-                        {p.citations.length} unverified
-                      </span>
-                    )}
-                    <span className="font-mono text-[10px] text-[var(--mute)] w-16 text-right">
-                      {p.updatedAt.toLocaleDateString("en-GB", { day: "2-digit", month: "short" })}
-                    </span>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </section>
+      {view === "list" && list && (
+        <ArticleList q={aq} list={list} topics={topics} members={members} editor={editor} admin={admin} timeZone={tz} anyArticles={anyArticles} />
       )}
-
       {/* Kanban — full width */}
       {view === "board" && (
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 mb-4">
@@ -320,7 +298,7 @@ export default async function BlogPage({ searchParams }: { searchParams: Promise
         )}
       </section>
 
-      {published.length === 0 && posts.length === 0 && (
+      {view === "board" && published.length === 0 && posts.length === 0 && (
         <p className="text-xs text-[var(--mute)] mt-4 text-center">
           Nothing here yet — create a post above or approve an idea and let the autopilot draft it.
         </p>
