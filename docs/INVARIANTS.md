@@ -863,3 +863,19 @@ before changing code in that area.
   send, the stuck-send reconciler and the Zernio webhook — calls `alertSendFailure`: a `publish_failed` notification to
   admins and editors linking the post (to retry), and when a leg's error reads like a lost connection an `account_broken`
   one linking Connections. Both de-duplicated for a day by notify (`DEDUPE_HOURS`; reconnect per network). Never throws.
+
+## ⚠ Polling backs off; long strips fold; the Inbox streams; notices roll up (2026-11-01, audit Phase 5, growth part c)
+- **Poll pacing** (E-PRF-04, `components/poll-pace.ts`): `pollDelay(base)` — base while someone's using the page, ×4
+  after 5 idle minutes, ×10 after 30 (input anywhere counts). ShellPoll (`/api/shell`) and AutoRefresh schedule with it via
+  `setTimeout`, never poll a hidden tab, and read at once on becoming visible or on the first input after an idle spell.
+  The script agent panel skips hidden ticks. ⚠ A new poller uses `pollDelay` and checks `document.hidden`.
+- **Stage strip "More ▾"** (E-SHL-13): a stage with more than `INLINE + 1` (7) tabs shows the first 6 inline between
+  phone and `xl` widths and folds the rest into a More menu with their badges summed (red if any is urgent); the tab
+  you're on is never folded; phones keep the scrolling row and `xl` shows everything.
+- **The Inbox streams** (E-SHL-14): its own `loading.tsx` skeleton, and Results (the weekly series and post performance,
+  its slowest reads) is an async section behind `<Suspense>` so the cards that need someone arrive first.
+- **Notification roll-ups** (E-ENG-18, lib/notify.ts): `DEDUPE_HOURS` covers approvals, decisions, schedules, publishes and
+  failed generations as well as failures — one item per kind, thing and title a day. A repeated failure
+  (`publish_failed`, `generation_failed`, `account_broken`) updates the item already there — "(repeated N times today)",
+  back to unread, no second email. Past 3 different failed generations in a day, further ones roll into one "Several AI
+  generations failed today" item (`entityId rollup:<date>`). `security`, `comment` and `assigned` are never folded.

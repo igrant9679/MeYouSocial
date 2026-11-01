@@ -247,6 +247,7 @@ area, rather than loading all of them into every session.
 - Who may join, how they sign in, when idle access ends — 2026-11-01, audit Phase 5, security part 9
 - Ideas: drafting order, Not yet, stale flags, lane health — 2026-11-01, audit Phase 5, growth part a
 - Pause the social queue only; failed sends are told at once — 2026-11-01, audit Phase 5, growth part b
+- Polling backs off; long strips fold; the Inbox streams; notices roll up — 2026-11-01, audit Phase 5, growth part c
 
 ## Open items / things the user still owns
 - **Analytics: APIs enabled 2026-08-03** (Search Console + GA Admin + GA Data, on project

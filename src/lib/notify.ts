@@ -80,7 +80,19 @@ const EMAIL_DEFAULT: Record<NotificationKind, boolean> = {
  * editor each time (ENG-13). One notice per thing per window; a different
  * title (held → failed) is a different notice.
  */
-const DEDUPE_HOURS: Partial<Record<NotificationKind, number>> = { publish_failed: 24, account_broken: 24 };
+const DEDUPE_HOURS: Partial<Record<NotificationKind, number>> = {
+  publish_failed: 24, account_broken: 24,
+  // One item per kind and thing a day (E-ENG-18): the same approval, schedule,
+  // publish or failed generation said again within the day is the same news.
+  generation_failed: 24, approval_needed: 24, approval_decided: 24, scheduled: 24, published: 24,
+};
+
+/** Failures that repeat: a second one updates the first ("repeated 3 times today") instead of being dropped unseen. */
+const COUNT_REPEATS: ReadonlySet<NotificationKind> = new Set(["publish_failed", "generation_failed", "account_broken"]);
+const REPEATED = /\s*\(repeated (\d+) times today\)$/;
+
+/** Distinct failed generations in a day past which they roll into one summary item (E-ENG-18). */
+const ROLLUP_AFTER = 3;
 
 export function isNotificationKind(k: string): k is NotificationKind {
   return (NOTIFICATION_KINDS as readonly string[]).includes(k);
@@ -135,16 +147,42 @@ export async function notify(input: NotifyInput): Promise<number> {
     recipients = [...new Set(recipients)];
     if (!recipients.length) return 0;
 
+    // A day of failed generations about different things rolls into one item
+    // once there are ROLLUP_AFTER of them, rather than one per thing.
+    const dayStart = new Date(Date.now() - 24 * 3_600_000);
+    if (input.kind === "generation_failed" && input.entityId && !input.entityId.startsWith("rollup:")) {
+      const distinct = await db.notification.findMany({
+        where: { workspaceId: input.workspaceId, kind: "generation_failed", createdAt: { gte: dayStart }, NOT: { entityId: { startsWith: "rollup:" } } },
+        distinct: ["entityId"], select: { entityId: true },
+      });
+      if (distinct.length >= ROLLUP_AFTER && !distinct.some((d) => d.entityId === input.entityId)) {
+        input = {
+          ...input,
+          title: "Several AI generations failed today",
+          body: `The latest: ${input.title}. The autopilot retries each on its own; Settings → Usage shows which provider refused.`,
+          entityId: `rollup:${new Date().toISOString().slice(0, 10)}`,
+        };
+      }
+    }
+
     const dedupeHours = DEDUPE_HOURS[input.kind];
     if (dedupeHours && input.entityId) {
-      const seen = await db.notification.findFirst({
-        where: {
-          workspaceId: input.workspaceId, kind: input.kind, entityId: input.entityId,
-          title: input.title.slice(0, 200), createdAt: { gte: new Date(Date.now() - dedupeHours * 3_600_000) },
-        },
-        select: { id: true },
-      });
-      if (seen) return 0;
+      const same = {
+        workspaceId: input.workspaceId, kind: input.kind, entityId: input.entityId,
+        title: input.title.slice(0, 200), createdAt: { gte: new Date(Date.now() - dedupeHours * 3_600_000) },
+      };
+      const seen = await db.notification.findMany({ where: same, select: { id: true, body: true } });
+      if (seen.length) {
+        // Counted on the item already there, and back to unread so the bell shows it again — no second email.
+        if (COUNT_REPEATS.has(input.kind)) {
+          for (const n of seen) {
+            const base = (n.body ?? "").replace(REPEATED, "");
+            const times = Number((n.body ?? "").match(REPEATED)?.[1] ?? 1) + 1;
+            await db.notification.update({ where: { id: n.id }, data: { body: `${base} (repeated ${times} times today)`.trim(), readAt: null } });
+          }
+        }
+        return 0;
+      }
     }
 
     const prefs = await preferencesFor(input.workspaceId, recipients, input.kind);

@@ -25,6 +25,8 @@ export function AgentPanel({ scriptId, runId, initialStatus }: { scriptId: strin
     if (status === "succeeded" || status === "failed" || status === "cancelled") return;
     let alive = true;
     const tick = async () => {
+      // A hidden tab doesn't need two-second answers (E-PRF-04); it catches up on return.
+      if (document.hidden) return;
       try {
         const res = await fetch(`/api/scripts/${scriptId}/agent/${runId}`, { cache: "no-store" });
         if (!res.ok) return;
@@ -41,7 +43,9 @@ export function AgentPanel({ scriptId, runId, initialStatus }: { scriptId: strin
     };
     tick();
     const t = setInterval(tick, 2000);
-    return () => { alive = false; clearInterval(t); };
+    const onVisible = () => { if (!document.hidden) void tick(); };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => { alive = false; clearInterval(t); document.removeEventListener("visibilitychange", onVisible); };
   }, [scriptId, runId, status]);
 
   const running = status === "queued" || status === "running";

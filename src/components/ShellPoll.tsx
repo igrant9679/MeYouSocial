@@ -2,6 +2,7 @@
 
 import { useEffect, useLayoutEffect } from "react";
 import { publishShell, publishStale, type ShellSnapshot } from "@/lib/shell-live";
+import { pollDelay, wasIdle } from "@/components/poll-pace";
 
 const POLL_MS = 60_000;
 
@@ -9,7 +10,8 @@ const POLL_MS = 60_000;
  * The header's one poll (E-SHL-01), rendering nothing. It publishes the
  * layout's own values whenever the layout re-renders (navigation into a fresh
  * layout, a revalidated action), then /api/shell every minute while the tab is
- * visible, and once more when it becomes visible again. An answer for another
+ * visible and someone is using it — slower the longer they're away, never while
+ * hidden (E-PRF-04) — and once more when it becomes visible or they come back. An answer for another
  * workspace — the person switched in a second tab — is ignored: this page
  * belongs to the one it was rendered for.
  *
@@ -40,13 +42,22 @@ export function ShellPoll({ initial }: { initial: ShellSnapshot }) {
         // A network hiccup — keep what's on screen.
       }
     };
-    const id = setInterval(() => void pull(), POLL_MS);
-    const onVisible = () => { if (!document.hidden) void pull(); };
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const next = () => { if (!stopped) timer = setTimeout(() => void pull().then(next), pollDelay(POLL_MS)); };
+    const now = () => { clearTimeout(timer); void pull().then(next); };
+    next();
+    const onVisible = () => { if (!document.hidden) now(); };
+    // Back from a long idle: read now rather than wait out the slow pace.
+    const onReturn = () => { if (wasIdle()) now(); };
     document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("pointerdown", onReturn, { capture: true });
+    window.addEventListener("keydown", onReturn, { capture: true });
     return () => {
       stopped = true;
-      clearInterval(id);
+      clearTimeout(timer);
       document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("pointerdown", onReturn, { capture: true });
+      window.removeEventListener("keydown", onReturn, { capture: true });
     };
   }, [workspaceId]);
 

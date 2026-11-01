@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { stop } from "@/lib/sentence";
 import Link from "next/link";
 import {
@@ -45,11 +46,9 @@ export default async function InboxPage() {
   const admin = canAdmin(membership.role);
   const editor = canEdit(membership.role);
 
-  const [inbox, stats, series, perf, feed, channels, origin, auditOpen, paused, autonomous] = await Promise.all([
+  const [inbox, stats, feed, channels, origin, auditOpen, paused, autonomous] = await Promise.all([
     getInboxData(workspace.id, { admin, editor, userId: user.id }),
     homeStats(workspace.id),
-    weeklySeries(workspace.id, 8),
-    postPerformance(workspace.id, 5),
     autopilotFeed(workspace.id, 6),
     db.channel.findMany({ where: { workspaceId: workspace.id }, orderBy: { createdAt: "asc" }, take: 6 }),
     getPublicUrl(),
@@ -69,7 +68,6 @@ export default async function InboxPage() {
   // A warning this person can't act on (an admin page) still shows, with who
   // can fix it — but it doesn't make the page say something needs YOU (SHL-07).
   const yourWarn = warn.filter((d) => canFollow(d.href, membership.role));
-  const hasAnalytics = hasSeriesData(series);
   const { nextSend, timeZone } = home.social;
   const nothing = inbox.total === 0 && yourWarn.length === 0;
   // SHL-12: say what's true — "The engine is running" showed while paused.
@@ -235,59 +233,10 @@ export default async function InboxPage() {
         </section>
       </div>
 
-      {/* ── 4 · Results — measured numbers only ─────────────────────────── */}
-      <section className="card mb-6">
-        <div className="flex items-center mb-2">
-          <h2 className="font-mono text-[15px] font-bold flex items-center gap-2">
-            <span className="w-7 h-7 rounded-lg grid place-items-center" style={{ background: "var(--blue-soft)", color: "var(--blue-on)" }}>
-              <TrendingUp className="w-4 h-4" strokeWidth={2.5} />
-            </span>
-            Results
-          </h2>
-          <span className="flex-1" />
-          {editor && <Link href="/social/performance" className="text-xs font-mono text-[var(--accent)] font-semibold hover:underline mr-3">social →</Link>}
-          <Link href="/blog/analytics" className="text-xs font-mono text-[var(--accent)] font-semibold hover:underline">blog →</Link>
-        </div>
-        {hasAnalytics ? (
-          <AreaChart points={series.map((p) => ({ label: p.label, value: p.impressions }))} color="var(--blue)" title="Blog impressions — last 8 weeks" />
-        ) : (
-          <p className="text-sm text-[var(--mute)] py-6 text-center m-0">
-            No search analytics yet — numbers appear once snapshots exist under{" "}
-            <Link href="/blog/analytics" className="underline">Measure → Blog analytics</Link>. Charts light up from real data, never invented curves.
-          </p>
-        )}
-        {perf.length > 0 && (
-          <div className="overflow-x-auto mt-3">
-            <table className="w-full text-xs border-collapse">
-              <thead>
-                <tr className="text-left text-[var(--mute)]">
-                  <th className="py-1.5 px-2 font-mono text-[9px] uppercase tracking-wider border-b-2 border-[var(--line)]">Post</th>
-                  <th className="py-1.5 px-2 font-mono text-[9px] uppercase tracking-wider border-b-2 border-[var(--line)] text-right">Pos</th>
-                  <th className="py-1.5 px-2 font-mono text-[9px] uppercase tracking-wider border-b-2 border-[var(--line)] text-right">Δ</th>
-                  <th className="py-1.5 px-2 font-mono text-[9px] uppercase tracking-wider border-b-2 border-[var(--line)] text-right">Clicks</th>
-                </tr>
-              </thead>
-              <tbody>
-                {perf.map((p) => {
-                  const delta = p.position != null && p.prevPosition != null ? p.prevPosition - p.position : null;
-                  return (
-                    <tr key={p.id} className="odd:bg-[var(--zebra)] hover:bg-[var(--blue-soft)] transition-colors">
-                      <td className="py-1.5 px-2 border-b border-[var(--line)]">
-                        <Link href={`/blog/${p.id}`} className="font-semibold hover:underline">{p.title}</Link>
-                      </td>
-                      <td className="py-1.5 px-2 border-b border-[var(--line)] text-right font-mono tabular-nums">{p.position?.toFixed(1) ?? "—"}</td>
-                      <td className="py-1.5 px-2 border-b border-[var(--line)] text-right font-mono tabular-nums font-bold" style={{ color: delta == null ? "var(--mute)" : delta >= 0 ? "var(--green-on)" : "var(--rose-on)" }}>
-                        {delta == null ? "—" : `${delta >= 0 ? "▲" : "▼"} ${Math.abs(delta).toFixed(1)}`}
-                      </td>
-                      <td className="py-1.5 px-2 border-b border-[var(--line)] text-right font-mono tabular-nums">{p.clicks ?? "—"}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
+      {/* ── 4 · Results — measured numbers only, streamed (E-SHL-14) ─────── */}
+      <Suspense fallback={<ResultsSkeleton />}>
+        <InboxResults workspaceId={workspace.id} editor={editor} />
+      </Suspense>
 
       {/* ── 5 · Start something ─────────────────────────────────────────── */}
       <div className="flex items-center gap-2 mb-2">
@@ -407,4 +356,73 @@ function FollowLink({ href, className, role, children }: { href: string; classNa
   return canFollow(href, role)
     ? <Link href={href} className={className}>{children}</Link>
     : <span className={className.replace(/hover:\S+/g, "")}>{children}</span>;
+}
+
+/** Results (E-SHL-14): the page's slowest reads, streamed in after the rest. */
+async function InboxResults({ workspaceId, editor }: { workspaceId: string; editor: boolean }) {
+  const [series, perf] = await Promise.all([weeklySeries(workspaceId, 8), postPerformance(workspaceId, 5)]);
+  const hasAnalytics = hasSeriesData(series);
+  return (
+    <section className="card mb-6">
+      <div className="flex items-center mb-2">
+        <h2 className="font-mono text-[15px] font-bold flex items-center gap-2">
+          <span className="w-7 h-7 rounded-lg grid place-items-center" style={{ background: "var(--blue-soft)", color: "var(--blue-on)" }}>
+            <TrendingUp className="w-4 h-4" strokeWidth={2.5} />
+          </span>
+          Results
+        </h2>
+        <span className="flex-1" />
+        {editor && <Link href="/social/performance" className="text-xs font-mono text-[var(--accent)] font-semibold hover:underline mr-3">social →</Link>}
+        <Link href="/blog/analytics" className="text-xs font-mono text-[var(--accent)] font-semibold hover:underline">blog →</Link>
+      </div>
+      {hasAnalytics ? (
+        <AreaChart points={series.map((p) => ({ label: p.label, value: p.impressions }))} color="var(--blue)" title="Blog impressions — last 8 weeks" />
+      ) : (
+        <p className="text-sm text-[var(--mute)] py-6 text-center m-0">
+          No search analytics yet — numbers appear once snapshots exist under{" "}
+          <Link href="/blog/analytics" className="underline">Measure → Blog analytics</Link>. Charts light up from real data, never invented curves.
+        </p>
+      )}
+      {perf.length > 0 && (
+        <div className="overflow-x-auto mt-3">
+          <table className="w-full text-xs border-collapse">
+            <thead>
+              <tr className="text-left text-[var(--mute)]">
+                <th className="py-1.5 px-2 font-mono text-[9px] uppercase tracking-wider border-b-2 border-[var(--line)]">Post</th>
+                <th className="py-1.5 px-2 font-mono text-[9px] uppercase tracking-wider border-b-2 border-[var(--line)] text-right">Pos</th>
+                <th className="py-1.5 px-2 font-mono text-[9px] uppercase tracking-wider border-b-2 border-[var(--line)] text-right">Δ</th>
+                <th className="py-1.5 px-2 font-mono text-[9px] uppercase tracking-wider border-b-2 border-[var(--line)] text-right">Clicks</th>
+              </tr>
+            </thead>
+            <tbody>
+              {perf.map((p) => {
+                const delta = p.position != null && p.prevPosition != null ? p.prevPosition - p.position : null;
+                return (
+                  <tr key={p.id} className="odd:bg-[var(--zebra)] hover:bg-[var(--blue-soft)] transition-colors">
+                    <td className="py-1.5 px-2 border-b border-[var(--line)]">
+                      <Link href={`/blog/${p.id}`} className="font-semibold hover:underline">{p.title}</Link>
+                    </td>
+                    <td className="py-1.5 px-2 border-b border-[var(--line)] text-right font-mono tabular-nums">{p.position?.toFixed(1) ?? "—"}</td>
+                    <td className="py-1.5 px-2 border-b border-[var(--line)] text-right font-mono tabular-nums font-bold" style={{ color: delta == null ? "var(--mute)" : delta >= 0 ? "var(--green-on)" : "var(--rose-on)" }}>
+                      {delta == null ? "—" : `${delta >= 0 ? "▲" : "▼"} ${Math.abs(delta).toFixed(1)}`}
+                    </td>
+                    <td className="py-1.5 px-2 border-b border-[var(--line)] text-right font-mono tabular-nums">{p.clicks ?? "—"}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function ResultsSkeleton() {
+  return (
+    <section className="card mb-6" aria-busy="true" aria-label="Loading results">
+      <div className="shimmer h-4 w-28 mb-3" />
+      <div className="shimmer h-24 w-full" />
+    </section>
+  );
 }

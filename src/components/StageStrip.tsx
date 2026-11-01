@@ -9,6 +9,9 @@ import { noShellSnapshot, shellSnapshot, subscribeShell } from "@/lib/shell-live
 import type { Role } from "@prisma/client";
 import { canFollow } from "@/lib/role-links";
 
+/** Tabs shown inline at laptop widths before the rest fold into More (E-SHL-13). */
+const INLINE = 6;
+
 /**
  * The persistent stage strip — mounted once in the app shell, so every page a
  * stage owns shows the same bar: the stage's Overview, then its tabs, with the
@@ -66,6 +69,12 @@ export function StageStrip({
     );
   };
 
+  // Distribute has nine tabs and Settings more; at laptop widths they wrapped onto a second row.
+  const overflow = tabs.length > INLINE + 1;
+  const folded = overflow ? tabs.slice(INLINE).filter((t) => t.href !== current?.href) : [];
+  const moreBadge = folded.reduce((n, t) => n + (counts[t.href.split("?")[0]]?.n ?? 0), 0);
+  const moreUrgent = folded.some((t) => counts[t.href.split("?")[0]]?.urgent);
+
   const linkClass = "text-[11px] font-semibold px-2.5 py-2 border-b-2 -mb-px transition-colors inline-flex items-center gap-1.5";
   const lit = { borderColor: "var(--accent)", color: "var(--accent-on)" };
   const dim = { borderColor: "transparent", color: "var(--mute)" };
@@ -79,14 +88,31 @@ export function StageStrip({
       <Link href={stage.href} aria-current={onOverview ? "page" : undefined} className={linkClass} style={onOverview ? lit : dim}>
         Overview{badge(stage.href)}
       </Link>
-      {tabs.map((t) => {
+      {tabs.map((t, i) => {
         const on = current?.href === t.href;
+        // Past INLINE, a tab folds into More between phone and wide widths (E-SHL-13) —
+        // never the one you're on. Phones keep the scrolling row.
+        const folds = overflow && i >= INLINE && !on;
         return (
-          <Link key={t.href} href={t.href} aria-current={on ? "page" : undefined} className={`${linkClass} hover:text-[var(--ink)]`} style={on ? lit : dim}>
+          <Link key={t.href} href={t.href} aria-current={on ? "page" : undefined} className={`${linkClass} hover:text-[var(--ink)]${folds ? " sm:hidden xl:inline-flex" : ""}`} style={on ? lit : dim}>
             {t.label}{badge(t.href)}
           </Link>
         );
       })}
+      {overflow && (
+        <details key={pathname} className="relative hidden sm:block xl:hidden" data-strip-more>
+          <summary className={`${linkClass} cursor-pointer list-none`} style={dim}>
+            More ▾{moreBadge > 0 && <span className="font-mono text-[9.5px] font-bold px-1.5 py-px rounded-full leading-4" style={{ background: moreUrgent ? "var(--rose-soft)" : "var(--zebra)", color: moreUrgent ? "var(--rose-on)" : "var(--mute)" }}>{moreBadge}</span>}
+          </summary>
+          <div className="absolute right-0 top-full mt-1 z-40 min-w-44 rounded-lg border border-[var(--line)] bg-[var(--panel)] shadow-lg py-1 flex flex-col">
+            {folded.map((t) => (
+              <Link key={t.href} href={t.href} className="text-[12px] px-3 py-1.5 hover:bg-[var(--zebra)] flex items-center justify-between gap-2">
+                {t.label}{badge(t.href)}
+              </Link>
+            ))}
+          </div>
+        </details>
+      )}
     </nav>
   );
 }
