@@ -185,7 +185,9 @@ export default async function BlogPostPage({
     getImageBriefs(post.id),
     loadEditorialContext(workspace.id, post),
   ]);
-  const checks = runBlogChecks(post, unverified, assets, editorial);
+  const { overlapChecks } = await import("@/lib/blog-overlap");
+  // Advisory, never part of the gate (E-ART-13): another article on the same keyword or slug.
+  const checks = [...runBlogChecks(post, unverified, assets, editorial), ...(await overlapChecks(post))];
   const gatesPass = gatesSatisfied(post, checks);
   // Passing only because an admin's override covers this exact body (ART-09):
   // the sidebar must say so rather than "All gates pass" beside red ✕s.

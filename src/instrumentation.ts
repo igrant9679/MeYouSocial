@@ -211,6 +211,14 @@ export async function register() {
     // and every extra timer is another thing that double-fires the day a second
     // replica appears. Isolated in its own try so a Unipile outage can't stop
     // the GSC/GA4 half from having run.
+    // Website connection health (E-ART-16): the read-only /users/me probe for every WordPress connection.
+    try {
+      const { probeAllWordPress } = await import("@/lib/wp-health");
+      const { probed, failing } = await probeAllWordPress();
+      if (failing) console.log(`[website] ${failing} of ${probed} WordPress connection(s) not answering`);
+    } catch (e) {
+      console.error("[website] probe failed:", e instanceof Error ? e.message : e);
+    }
     try {
       const { syncAllWorkspacesSocialPerformance } = await import("@/lib/social/performance");
       const { workspaces, rowsWritten } = await syncAllWorkspacesSocialPerformance();

@@ -879,3 +879,18 @@ before changing code in that area.
   (`publish_failed`, `generation_failed`, `account_broken`) updates the item already there — "(repeated N times today)",
   back to unread, no second email. Past 3 different failed generations in a day, further ones roll into one "Several AI
   generations failed today" item (`entityId rollup:<date>`). `security`, `comment` and `assigned` are never folded.
+
+## ⚠ Articles: overlap checks, complete structured data, website health (2026-11-01, audit Phase 5, growth part d)
+- **Overlap** (E-ART-13, `lib/blog-overlap.ts`): the editor's checks add two ADVISORY rows — another article in the
+  workspace on the same focus keyword (case and spacing aside) or the same slug, named with its stage. Never part of the
+  gate: they're appended after `gatesSatisfied` reads the list.
+- **Structured data** (E-ART-14, `lib/blog-jsonld.ts`): Article gets `image` (only a public http(s) URL — never app
+  storage), `dateModified` (never before it went live), `mainEntityOfPage`, and the article's expert (`smeProfileId`) as a
+  `Person` author working for the organisation; a `BreadcrumbList` (site home → article) once it has a public URL; FAQPage
+  as before. ⚠ The JSON is embedded in a `<script>`, so every `<` is written `<` — a title can't close the tag.
+  Publishing passes the public OG image, the expert and the WordPress base URL; the HTML export passes the expert.
+- **Website health** (E-ART-16, `lib/wp-health.ts`): the read-only `/users/me` probe runs with the analytics sweep and on
+  Website → Health → Test now (admins); `wordpress:last_probe` keeps `{at, ok, detail, fails}`. ⚠ The connection reads
+  "error" only after TWO failures in a row (one blip never flags it), and its admins get one `account_broken` notice on the
+  flip; recovery clears it at once. Publishing doesn't read `status`. The card also shows the latest `publishReport`: SEO
+  fields stored of sent, featured image, body images, categories/tags the site didn't have.

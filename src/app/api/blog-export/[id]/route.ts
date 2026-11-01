@@ -62,6 +62,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   if (!post || !post.body) return new NextResponse("Not found", { status: 404 });
 
   const brand = await getBrandKit(workspace.id);
+  // The expert the article speaks as is its author in the structured data (E-ART-14).
+  const expert = post.smeProfileId ? await db.smeProfile.findFirst({ where: { id: post.smeProfileId, workspaceId: workspace.id }, select: { name: true, role: true, credentials: true } }) : null;
   // The export adds its own <h1> below — the body's leading h1 would duplicate it.
   const rendered = renderForPublish(stripLeadingH1(post.body), {
     headingSpec: brand.headingSpec,
@@ -97,7 +99,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     `<meta property="og:title" content="${esc(title)}"/>`,
     post.metaDescription ? `<meta property="og:description" content="${esc(post.metaDescription)}"/>` : "",
     "<!-- og:image deliberately absent: scrapers can't read embedded images. Set the preview image in your CMS. -->",
-    `<script type="application/ld+json">${buildJsonLd(post, workspace.name)}</script>`,
+    `<script type="application/ld+json">${buildJsonLd(post, workspace.name, { expert })}</script>`,
     "</head>",
     `<body style="max-width:720px;margin:0 auto;padding:2rem 1rem;font-family:Georgia,serif;line-height:1.7">`,
     `<article>`,

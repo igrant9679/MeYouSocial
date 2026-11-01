@@ -758,7 +758,9 @@ export async function publishCore(workspaceId: string, postId: string): Promise<
     const meta = buildSeoMeta(fieldMap, seoValues);
 
     // Structured data rides inside the content (works on any WP theme/plugin).
-    const jsonLd = `\n<script type="application/ld+json">${buildJsonLd(post, workspace?.name ?? "MeYouSocial")}</script>`;
+    // E-ART-14: the public OG image, the expert the article speaks as, the site's home.
+    const expert = post.smeProfileId ? await db.smeProfile.findFirst({ where: { id: post.smeProfileId, workspaceId }, select: { name: true, role: true, credentials: true } }) : null;
+    const jsonLd = `\n<script type="application/ld+json">${buildJsonLd(post, workspace?.name ?? "MeYouSocial", { imageUrl: ogPublicUrl, expert, siteUrl: conn.baseUrl })}</script>`;
     // The theme renders the headline; the body's leading h1 would duplicate it.
     const rendered = renderForPublish(stripLeadingH1(post.body), {
       headingSpec: brand.headingSpec,

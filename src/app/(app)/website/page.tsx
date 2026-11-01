@@ -3,7 +3,10 @@ import { Globe, Download, Plug } from "lucide-react";
 import { requireMembership, canAdmin, canEdit } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { SubmitButton } from "@/components/SubmitButton";
-import { connectWordPressAction, disconnectWordPressAction, savePublishSettingsAction } from "@/app/actions/blog-wp";
+import { connectWordPressAction, disconnectWordPressAction, savePublishSettingsAction, testWordPressAction } from "@/app/actions/blog-wp";
+import { lastProbe, latestPublishReport } from "@/lib/wp-health";
+import { getPostingTimeZone } from "@/lib/social/slots";
+import { formatZonedMoment } from "@/lib/zoned-dates";
 import {
   SEO_FIELDS,
   SEO_FIELD_LABELS,
@@ -54,6 +57,9 @@ export default async function WebsitePage() {
     }),
   ]);
   const admin = canAdmin(membership.role);
+  const [probe, report, tz] = conn
+    ? await Promise.all([lastProbe(workspace.id), latestPublishReport(workspace.id), getPostingTimeZone(workspace.id).catch(() => "UTC")])
+    : [null, null, "UTC"];
   const plugin = conn && isSeoPlugin(conn.seoPlugin) ? conn.seoPlugin : "none";
   const activeMap = effectiveFieldMap(plugin, conn?.seoFieldMap);
   const slugRules = parseSlugRules(conn?.slugRules);
@@ -132,6 +138,42 @@ export default async function WebsitePage() {
           </>
         )}
       </div>
+
+      {/* Connection health (E-ART-16): the last probe and the last publish report. */}
+      {conn && (
+        <section id="health" className="card mt-5 text-xs flex flex-col gap-2 scroll-mt-20" data-wp-health={probe ? (probe.ok ? "ok" : "failing") : "unchecked"}>
+          <div className="flex items-center gap-2 flex-wrap">
+            <h2 className="text-sm font-semibold flex-1">Health</h2>
+            {admin && (
+              <form action={testWordPressAction}>
+                <SubmitButton className="btn sm" pendingText="Testing…">Test now</SubmitButton>
+              </form>
+            )}
+          </div>
+          <p className="m-0">
+            {probe
+              ? <>Last check {formatZonedMoment(new Date(probe.at), tz)}: <b style={{ color: probe.ok ? "var(--green-on)" : "var(--rose-on)" }}>{probe.ok ? "✓ answering" : "✗ not answering"}</b> — {probe.detail}{!probe.ok && probe.fails > 1 ? ` (${probe.fails} checks in a row)` : ""}.</>
+              : "Not checked since it was saved — the sweep checks it every few hours."}
+          </p>
+          {report ? (
+            <div className="flex flex-col gap-0.5" data-publish-report>
+              <span>
+                Last publish: <Link href={`/blog/${report.postId}`} className="underline">{report.title.slice(0, 80)}</Link>
+                {report.at ? ` · ${formatZonedMoment(new Date(report.at), tz)}` : ""}
+                {report.link ? <> · <a href={report.link} target="_blank" rel="noreferrer" className="underline">open it</a></> : null}
+              </span>
+              <span className="text-[var(--mute)]">
+                SEO fields: {report.seoUnverified ? "sent, not read back" : `${report.seoAccepted} of ${report.seoSent} stored`}
+                {" · "}featured image: {report.featured}{report.featuredError ? ` (${report.featuredError.slice(0, 120)})` : ""}
+                {report.inline ? ` · images in the body: ${report.inline.uploaded} uploaded${report.inline.failed ? `, ${report.inline.failed} failed` : ""}` : ""}
+                {report.missedTerms.length ? ` · not found on the site: ${report.missedTerms.join(", ")}` : ""}
+              </span>
+            </div>
+          ) : (
+            <p className="m-0 text-[var(--mute)]">Nothing published to it from here yet.</p>
+          )}
+        </section>
+      )}
 
       {/* Publish fidelity (FR-7/FR-11): SEO plugin mapping, taxonomy, slug rule. */}
       {conn && (

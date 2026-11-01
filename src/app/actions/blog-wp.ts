@@ -63,6 +63,16 @@ export async function connectWordPressAction(formData: FormData) {
  * write, default taxonomy/author, the draft handoff switch, and the one
  * canonical slug rule.
  */
+/** Website → Health → Test now (E-ART-16): the same read-only probe the sweep runs. */
+export async function testWordPressAction() {
+  const { workspace } = await requireRole("ADMIN");
+  const { probeWordPress } = await import("@/lib/wp-health");
+  const p = await probeWordPress(workspace.id);
+  revalidatePath("/website");
+  const msg = !p ? "No WordPress connection to test." : p.ok ? `Connected — ${p.detail}.` : `WordPress didn't answer: ${p.detail}`;
+  redirect(`/website?${p?.ok ? "flash" : "flashErr"}=${encodeURIComponent(msg)}#health`);
+}
+
 export async function savePublishSettingsAction(formData: FormData) {
   const { user, workspace } = await requireRole("ADMIN");
   const conn = await db.wordPressConnection.findUnique({ where: { workspaceId: workspace.id } });
