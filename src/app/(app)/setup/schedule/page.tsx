@@ -10,9 +10,9 @@ import { DeleteButton } from "@/components/DeleteButton";
 import { HelpTip } from "@/components/HelpTip";
 import { SOCIAL_TIPS } from "@/lib/help-tips";
 import { getUtmConfig } from "@/lib/social/utm";
-import { formatInZone, formatMinute, getQueue } from "@/lib/social/slots";
+import { formatInZone, formatMinute, getQueue, WEEKDAY_LABELS, type PostingSlotRow } from "@/lib/social/slots";
 import { saveUtmSettingsAction } from "@/app/actions/social";
-import { addPostingSlotsAction } from "@/app/actions/social-slots";
+import { addPostingSlotsAction, addBestTimeSlotsAction, updatePostingSlotAction } from "@/app/actions/social-slots";
 import { analyseBestTimes, MIN_POSTS, MIN_PER_BUCKET, OUTPERFORM, type BestTimeReport } from "@/lib/social/best-time";
 import { addCategoryAction, createCampaignAction, removeCategoryAction, toggleCampaignAction } from "@/app/actions/social-workflow";
 import { listCategories } from "@/lib/social/categories";
@@ -58,7 +58,7 @@ export default async function SetupSchedule({ searchParams }: { searchParams: Pr
 
       <PostingSchedule slots={queue.slots} timeZone={queue.timeZone} timeZoneConfigured={queue.timeZoneConfigured} canEdit={isAdmin} nextFree={nextFreeLabel} />
 
-      <BestTimes report={bestTimes} canEdit={isAdmin} />
+      <BestTimes report={bestTimes} canEdit={isAdmin} slots={queue.slots} />
 
       {/* Post categories — the list the composer, Caption Studio and the
           Queue / Sent / Drafts filters offer (social/categories.ts). */}
@@ -158,8 +158,17 @@ export default async function SetupSchedule({ searchParams }: { searchParams: Pr
  * Best time to post — measured from engagement actually pulled back from the
  * networks, never modelled, and it refuses to answer below the evidence bar.
  */
-function BestTimes({ report, canEdit }: { report: BestTimeReport; canEdit: boolean }) {
+function BestTimes({ report, canEdit, slots }: { report: BestTimeReport; canEdit: boolean; slots: PostingSlotRow[] }) {
   const { reason, baseline, best, worst, buckets, measured, unmeasurable, suggestions } = report;
+  // Slots sitting in a time that measures worse than the baseline (E-SOC-18),
+  // each offered the next measured best time the schedule doesn't have — one
+  // suggestion per slot, so two slots aren't both told to move to the same place.
+  const free = [...suggestions];
+  const moves = slots
+    .filter((s) => s.enabled)
+    .map((s) => ({ slot: s, bucket: worst.find((w) => w.weekday === s.weekday && w.hour === Math.floor(s.minute / 60)) }))
+    .filter((m): m is { slot: PostingSlotRow; bucket: (typeof worst)[number] } => !!m.bucket)
+    .map((m) => ({ ...m, to: free.shift() ?? null }));
   return (
     <details className="card mb-6" open={!reason}>
       <summary className="cursor-pointer text-sm font-semibold flex items-center gap-2">
@@ -193,9 +202,34 @@ function BestTimes({ report, canEdit }: { report: BestTimeReport; canEdit: boole
             <p className="text-xs text-[var(--mute)] mb-2">No time beats the baseline by {OUTPERFORM}× yet — on this evidence, when you post matters less than that you post.</p>
           )}
           {worst.length > 0 && <p className="text-[11px] text-[var(--mute)] mb-2">Underperforming: {worst.map((w) => `${w.label} (${w.ratio.toFixed(1)}×, n=${w.posts})`).join(", ")}.</p>}
+          {moves.length > 0 && (
+            <div className="flex flex-col gap-1 mb-2" data-slot-moves>
+              {moves.map(({ slot, bucket, to }) => (
+                <div key={slot.id} className="flex flex-wrap items-center gap-2 text-xs rounded-lg border px-2 py-1.5" style={{ borderColor: "var(--amber)" }}>
+                  <span>Your <b className="font-mono">{WEEKDAY_LABELS[slot.weekday]} {formatMinute(slot.minute)}</b> slot posts at a time that measures <b>{bucket.ratio.toFixed(1)}×</b> the baseline (n={bucket.posts}).</span>
+                  <span className="flex-1" />
+                  {to && canEdit ? (
+                    <form action={updatePostingSlotAction}>
+                      <input type="hidden" name="id" value={slot.id} />
+                      <input type="hidden" name="weekday" value={to.weekday} />
+                      <input type="hidden" name="time" value={formatMinute(to.minute)} />
+                      <SubmitButton className="btn sm" pendingText="Moving…" title="Move the slot; posts the queue put there move with it">Move it to {to.label} ({to.ratio.toFixed(1)}×)</SubmitButton>
+                    </form>
+                  ) : <span className="text-[11px] text-[var(--mute)]">{to ? `${to.label} measures ${to.ratio.toFixed(1)}× — an admin can move it.` : "No better time without a slot yet."}</span>}
+                </div>
+              ))}
+            </div>
+          )}
           {suggestions.length > 0 && canEdit && (
             <div className="mt-2 pt-2 border-t border-[var(--line)]">
-              <div className="text-[11px] text-[var(--mute)] mb-1.5">Not in your posting schedule yet:</div>
+              <div className="text-[11px] text-[var(--mute)] mb-1.5 flex items-center gap-2">
+                Not in your posting schedule yet:
+                {suggestions.length > 1 && (
+                  <form action={addBestTimeSlotsAction} className="ml-auto">
+                    <SubmitButton className="btn sm" pendingText="Adding…" title="Add a general slot at every time listed here">Fill from best times ({suggestions.length})</SubmitButton>
+                  </form>
+                )}
+              </div>
               <div className="flex flex-wrap gap-1.5">
                 {suggestions.map((s) => (
                   <form key={s.label} action={addPostingSlotsAction}>

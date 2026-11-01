@@ -443,6 +443,45 @@ export async function reanchorQueuedPosts(
   return { moved, released };
 }
 
+// ---- Moving a slot -------------------------------------------------------------
+
+/**
+ * Posts the QUEUE put in a slot follow it when the slot moves (E-SOC-18): each
+ * goes to the same week's new weekday at the new time. One whose new moment
+ * has already passed goes back to drafts rather than firing at once, like the
+ * timezone re-anchor; posts a person scheduled by hand (`timeChosen`) keep
+ * their exact moment. Each write is conditional on the post still being
+ * scheduled at its old moment — the sweep may have claimed it meanwhile.
+ */
+export async function moveQueuedPosts(
+  workspaceId: string,
+  from: { weekday: number; minute: number },
+  to: { weekday: number; minute: number },
+): Promise<{ moved: number; released: number }> {
+  const timeZone = await getPostingTimeZone(workspaceId);
+  const posts = await db.socialPost.findMany({
+    where: { workspaceId, status: "scheduled", timeChosen: false, scheduledAt: { gte: new Date() } },
+    select: { id: true, scheduledAt: true },
+  });
+  let moved = 0;
+  let released = 0;
+  for (const p of posts) {
+    const z = zonedParts(p.scheduledAt!, timeZone);
+    if (z.weekday !== from.weekday || z.minute !== from.minute) continue;
+    // Date.UTC carries a day past the month's end into the next month.
+    const at = zonedTimeToUtc(z.year, z.month, z.day + (to.weekday - from.weekday), Math.floor(to.minute / 60), to.minute % 60, timeZone);
+    const ahead = at.getTime() > Date.now() + 60_000;
+    const r = await db.socialPost.updateMany({
+      where: { id: p.id, status: "scheduled", scheduledAt: p.scheduledAt },
+      data: ahead ? { scheduledAt: at } : { status: "draft", scheduledAt: null },
+    });
+    if (!r.count) continue;
+    if (ahead) moved++;
+    else released++;
+  }
+  return { moved, released };
+}
+
 // ---- Removing a slot -----------------------------------------------------------
 
 /**

@@ -9,6 +9,7 @@ import {
   deletePostingSlotAction,
   savePostingTimeZoneAction,
   togglePostingSlotAction,
+  updatePostingSlotAction,
 } from "@/app/actions/social-slots";
 
 /**
@@ -174,9 +175,35 @@ export function PostingSchedule({
               {list.map((s) => (
                 <div key={s.id} className="flex items-center gap-1 rounded px-1 py-0.5"
                   style={{ background: s.enabled ? "var(--violet-soft)" : "var(--zebra)" }}>
-                  <span className="font-mono text-[11px]" style={{ color: s.enabled ? "var(--violet-on)" : "var(--mute)", textDecoration: s.enabled ? undefined : "line-through" }}>
-                    {fmt(s.minute)}
-                  </span>
+                  {canEdit ? (
+                    // Edit in place (E-SOC-18): time, day and category; queued posts move with it.
+                    <details className="relative" data-slot-edit>
+                      <summary className="font-mono text-[11px] cursor-pointer list-none underline decoration-dotted underline-offset-2" title="Change this slot's time, day or category"
+                        style={{ color: s.enabled ? "var(--violet-on)" : "var(--mute)", textDecoration: s.enabled ? undefined : "line-through" }}>
+                        {fmt(s.minute)}
+                      </summary>
+                      <form action={updatePostingSlotAction} className="absolute z-20 left-0 top-full mt-1 w-48 card !p-2 flex flex-col gap-1.5 shadow-lg">
+                        <input type="hidden" name="id" value={s.id} />
+                        <label className="text-[10px] text-[var(--mute)] flex items-center gap-1">Time
+                          <input type="time" name="time" defaultValue={fmt(s.minute)} required className="text-xs font-mono flex-1 min-w-0" />
+                        </label>
+                        <label className="text-[10px] text-[var(--mute)] flex items-center gap-1">Day
+                          <select name="weekday" defaultValue={s.weekday} className="text-xs flex-1 min-w-0">
+                            {WEEKDAYS.map((d) => <option key={d.n} value={d.n}>{d.label}</option>)}
+                          </select>
+                        </label>
+                        <label className="text-[10px] text-[var(--mute)] flex items-center gap-1">Category
+                          <input name="category" list="slot-cats" maxLength={40} defaultValue={s.category ?? ""} placeholder="general" className="text-xs font-mono flex-1 min-w-0" />
+                        </label>
+                        <p className="text-[10px] text-[var(--mute)] m-0">Posts the queue put here move with it.</p>
+                        <SubmitButton className="btn primary sm" pendingText="Saving…">Save</SubmitButton>
+                      </form>
+                    </details>
+                  ) : (
+                    <span className="font-mono text-[11px]" style={{ color: s.enabled ? "var(--violet-on)" : "var(--mute)", textDecoration: s.enabled ? undefined : "line-through" }}>
+                      {fmt(s.minute)}
+                    </span>
+                  )}
                   {s.category && (
                     <span className="font-mono text-[9px] px-1 rounded-full truncate max-w-[64px]"
                       title={`Only “${s.category}” posts queue here (general posts fall back to it when nothing else is free)`}

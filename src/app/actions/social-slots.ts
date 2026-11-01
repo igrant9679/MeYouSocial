@@ -14,6 +14,7 @@ import {
   getPostingTimeZone,
   getQueue,
   isValidTimeZone,
+  moveQueuedPosts,
   parseMinute,
   queueFailureMessage,
   releasePostsFromSlots,
@@ -124,6 +125,73 @@ export async function togglePostingSlotAction(formData: FormData) {
   await db.postingSlot.update({ where: { id: slot!.id }, data: { enabled: !slot!.enabled } });
   revalidatePath("/social", "layout");
   backTo(slot!.enabled ? "Slot paused." : "Slot resumed.", "ok");
+}
+
+/**
+ * Edit one slot in place (E-SOC-18): its time, its weekday and its category.
+ * A category-only edit just saves. A move refuses a time another slot already
+ * has, and the posts the queue had put in the slot move WITH it
+ * (`moveQueuedPosts`) — a person who moves "Tue 09:00" to "Wed 14:00" expects
+ * those posts at Wed 14:00, not back in Approvals.
+ */
+export async function updatePostingSlotAction(formData: FormData) {
+  const backTo: Flash = tabFlash("/setup/schedule");
+  const { workspace, user } = await requireRole("ADMIN");
+  const id = String(formData.get("id") ?? "");
+  const slot = await db.postingSlot.findFirst({ where: { id, workspaceId: workspace.id } });
+  if (!slot) backTo("Slot not found.");
+  const minute = formData.has("time") ? parseMinute(String(formData.get("time") ?? "")) : slot!.minute;
+  if (minute === null) backTo("Enter a time as HH:MM.");
+  const rawDay = formData.has("weekday") ? Number(formData.get("weekday")) : slot!.weekday;
+  if (!Number.isInteger(rawDay) || rawDay < 0 || rawDay > 6) backTo("Unknown day.");
+  const category = formData.has("category") ? String(formData.get("category") ?? "").trim().slice(0, 40) || null : slot!.category;
+  const moving = rawDay !== slot!.weekday || minute !== slot!.minute;
+  const where = `${WEEKDAY_LABELS[rawDay]} ${formatMinute(minute!)}`;
+  if (moving && await db.postingSlot.findFirst({ where: { workspaceId: workspace.id, weekday: rawDay, minute: minute! }, select: { id: true } })) {
+    backTo(`There's already a slot at ${where}.`);
+  }
+  // Conditional on the slot still being where it was read, so two admins'
+  // moves can't both carry the same posts.
+  const r = await db.postingSlot.updateMany({
+    where: { id: slot!.id, weekday: slot!.weekday, minute: slot!.minute },
+    data: { weekday: rawDay, minute: minute!, category },
+  }).catch(() => ({ count: 0 }));
+  if (!r.count) backTo("That slot changed or another slot took that time — reload and try again.");
+  revalidatePath("/social", "layout");
+  if (!moving) backTo(category ? `Slot now takes “${category}” posts first.` : "Slot is now a general slot.", "ok");
+  const from = `${WEEKDAY_LABELS[slot!.weekday]} ${formatMinute(slot!.minute)}`;
+  const { moved, released } = await moveQueuedPosts(workspace.id, { weekday: slot!.weekday, minute: slot!.minute }, { weekday: rawDay, minute: minute! });
+  await writeAudit({
+    workspaceId: workspace.id, actorId: user.id, action: "social.slot_moved",
+    entityType: "posting_slot", entityId: slot!.id,
+    meta: { from: { weekday: slot!.weekday, minute: slot!.minute }, to: { weekday: rawDay, minute }, postsMoved: moved, postsReleased: released },
+  });
+  backTo(
+    `Slot moved from ${from} to ${where}.`
+      + (moved ? ` ${moved} queued post${moved === 1 ? "" : "s"} moved with it.` : "")
+      + (released ? ` ${released} whose new time had already passed went back to drafts.` : ""),
+    "ok",
+  );
+}
+
+/**
+ * "Fill from best times" (E-SOC-18): a general slot at every measured best
+ * time the schedule doesn't have yet — recomputed here, never taken from the
+ * form, so it adds exactly what the evidence says and nothing when it's thin.
+ */
+export async function addBestTimeSlotsAction() {
+  const backTo: Flash = tabFlash("/setup/schedule");
+  const { workspace } = await requireRole("ADMIN");
+  const { analyseBestTimes } = await import("@/lib/social/best-time");
+  const report = await analyseBestTimes(workspace.id);
+  if (report.reason) backTo(report.reason);
+  if (!report.suggestions.length) backTo("Every measured best time already has a slot.", "ok");
+  const { count } = await db.postingSlot.createMany({
+    data: report.suggestions.map((s) => ({ workspaceId: workspace.id, weekday: s.weekday, minute: s.minute, category: null })),
+    skipDuplicates: true,
+  });
+  revalidatePath("/social", "layout");
+  backTo(`Added ${count} slot${count === 1 ? "" : "s"} at the best measured times: ${report.suggestions.map((s) => s.label).join(", ")}.`, "ok");
 }
 
 /** Remove every slot on one weekday — the column header's clear button. */

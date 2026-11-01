@@ -1035,3 +1035,15 @@ before changing code in that area.
   change. The dock says it only looks things up and has no link to `/assistant`, which stays EDITOR (its viewer message
   points at the Ask button); the run history stays EDITOR. ⚠ A new read tool is an editor's until it's added to
   `VIEWER_TOOLS` on purpose.
+
+## ⚠ Posting slots follow the data (2026-11-01, audit Phase 5, growth part q)
+- **E-SOC-18, edit in place**: each slot's time on Settings → Schedule opens a small editor (time, day, category) →
+  `updatePostingSlotAction` (ADMIN). A category-only edit just saves. A move refuses a time another slot has, writes
+  conditionally on the slot still being where it was read, and the posts the QUEUE put in it move WITH it
+  (`lib/social/slots.ts` `moveQueuedPosts`: same week, new weekday and time; a post whose new moment has passed goes
+  back to drafts; hand-timed posts — `timeChosen` — keep their moment). Audited as `social.slot_moved`.
+- **"Fill from best times"** (`addBestTimeSlotsAction`) adds a general slot at every measured best time without one,
+  recomputed on the server from `analyseBestTimes` — refuses with the analysis's own reason when the evidence is thin.
+- **Underperforming slots**: an enabled slot whose hour bucket is in the judged `worst` list gets "Your Tue 09:00 slot
+  posts at a time that measures 0.7×" and, while a better unslotted time exists, "Move it to Wed 14:00 (1.6×)" — one
+  suggestion per slot, so two slots are never sent to the same time.
