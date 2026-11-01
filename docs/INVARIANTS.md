@@ -1150,3 +1150,18 @@ before changing code in that area.
   allowance, weekly cap, no site, not the publish day, not full autonomy, pause, AUTOPILOT=off). It only reads:
   `linkRefreshTargets(…, { write: false })` works the refresh links out without saving them. The time is the last
   check-in plus the interval, "due now" once passed.
+
+## ⚠ Articles losing clicks become refresh ideas (2026-11-01, audit Phase 5, growth part z)
+- **E-MEA-15 — measured or silent** (`lib/content-decay.ts` `decayingPosts`): a published article whose clicks over the
+  28 days ending at **its latest reading** (Search Console lags; never "today") are down `DECAY_DROP` (30%) or more on
+  the 28 days before. Silent unless each window has click readings on `DECAY_MIN_DAYS` (21) of its days, the earlier
+  window had `DECAY_MIN_PRIOR_CLICKS` (30), and the latest reading is under `DECAY_MAX_STALE_DAYS` (10) old — a patchy
+  or stopped sync, or a post nobody visited, never reads as a collapse. Most clicks lost first.
+- **One way to make a refresh idea** (`createRefreshIdea`): "Refresh: <title>", source refresh, linked to the post,
+  Discovered; not when one exists by link or title **in any status** (a rejected one stays rejected). The engine's
+  ranking loop (position > 10) and the decay loop both use it, three a cycle between them, only with ideation unattended
+  and only for refreshable posts (live via WordPress or a recorded link, not protected from rewrites). The angle is the
+  two windows' numbers (`decayAngle`).
+- **Measure → Losing clicks**: the list with clicks, drop and position; editors get "Make a refresh idea"
+  (`makeDecayRefreshIdeaAction`), which **measures again** rather than trusting the form; protected and unlinked
+  articles say why there's no button; one with an idea links to it on the board. Its windows are fixed, not the picker's.

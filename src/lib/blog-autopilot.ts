@@ -1600,6 +1600,7 @@ async function runAutopilotCycleUnlocked(workspaceId: string): Promise<CycleRepo
           snapshots: { where: { capturedAt: { gte: since }, position: { not: null } }, select: { position: true, impressions: true } },
         },
       });
+      const { createRefreshIdea, decayingPosts, decayAngle } = await import("@/lib/content-decay");
       let refreshIdeas = 0;
       for (const p of published) {
         if (refreshIdeas >= 3) break;
@@ -1607,20 +1608,21 @@ async function runAutopilotCycleUnlocked(workspaceId: string): Promise<CycleRepo
         if (seen < REFRESH_MIN_IMPRESSIONS) continue;
         const pos = p.snapshots.reduce((n, s) => n + (s.position ?? 0) * (s.impressions ?? 0), 0) / seen;
         if (pos <= 10) continue;
-        const title = `Refresh: ${p.title}`;
-        const exists = await db.blogIdea.count({ where: { workspaceId, OR: [{ title }, { source: "refresh", refreshPostId: p.id }] } });
-        if (exists) continue;
-        await db.blogIdea.create({
-          data: {
-            workspaceId,
-            title,
-            angle: `Ranking at position ${pos.toFixed(1)} over the last 28 days (${seen} impressions) — update and expand to recover.`,
-            keyword: p.focusKeyword,
-            source: "refresh",
-            postId: p.id,
-            refreshPostId: p.id,
-          },
-        });
+        const made = await createRefreshIdea(
+          workspaceId,
+          { postId: p.id, title: p.title, focusKeyword: p.focusKeyword },
+          `Ranking at position ${pos.toFixed(1)} over the last 28 days (${seen} impressions) — update and expand to recover.`,
+        );
+        if (!made) continue;
+        refreshIdeas++;
+        report.ideasCreated++;
+      }
+      // Content decay (E-MEA-15): clicks down 30%+ on the 28 days before, the
+      // two windows' numbers as the angle — inside the same three a cycle.
+      for (const d of refreshIdeas < 3 ? await decayingPosts(workspaceId) : []) {
+        if (refreshIdeas >= 3) break;
+        if (!d.refreshable || d.refreshIdea) continue;
+        if (!(await createRefreshIdea(workspaceId, d, decayAngle(d)))) continue;
         refreshIdeas++;
         report.ideasCreated++;
       }

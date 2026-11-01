@@ -270,6 +270,7 @@ area, rather than loading all of them into every session.
 - A rejection can say why, be undone, and steer discovery — 2026-11-01, audit Phase 5, growth part w
 - Notifications open, filter, page and span workspaces — 2026-11-01, audit Phase 5, growth part x
 - The sweep says what it will do next — 2026-11-01, audit Phase 5, growth part y
+- Articles losing clicks become refresh ideas — 2026-11-01, audit Phase 5, growth part z
 
 ## Open items / things the user still owns
 - **Analytics: APIs enabled 2026-08-03** (Search Console + GA Admin + GA Data, on project

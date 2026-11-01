@@ -9,24 +9,32 @@ import { getPostingTimeZone } from "@/lib/social/slots";
 import { RangePicker } from "@/components/RangePicker";
 import { measureRange, type RangeInput } from "@/lib/measure-range";
 import { CsvButton } from "@/components/CsvButton";
+import { Banner } from "@/components/SocialPostCard";
+import { SubmitButton } from "@/components/SubmitButton";
+import { DECAY_DROP, DECAY_MIN_PRIOR_CLICKS, decayingPosts } from "@/lib/content-decay";
+import { makeDecayRefreshIdeaAction } from "@/app/actions/content-decay";
+import { formatDay } from "@/lib/zoned-dates";
 
 // Measure stage: the measured numbers only, never invented curves — the same
 // Results block Home showed, promoted to a stage with Reports, Insights and
 // the two analytics pages as tabs.
 
-export default async function MeasureStage({ searchParams }: { searchParams: Promise<RangeInput> }) {
+export default async function MeasureStage({ searchParams }: { searchParams: Promise<RangeInput & { ok?: string; err?: string }> }) {
   const { workspace, membership } = await requireMembership();
+  const sp = await searchParams;
   // One range for all of Measure (E-MEA-01): the curve shows that many whole
   // weeks, ending at the latest day with data (Search Console lags ~2 days).
-  const range = await measureRange(await searchParams, await getPostingTimeZone(workspace.id).catch(() => "UTC"));
+  const range = await measureRange(sp, await getPostingTimeZone(workspace.id).catch(() => "UTC"));
   const weeks = Math.min(52, Math.max(4, Math.round(range.days / 7)));
   const admin = canAdmin(membership.role);
   const editor = canEdit(membership.role);
-  const [series, perf, withData] = await Promise.all([
+  const [series, perf, withData, decaying] = await Promise.all([
     weeklySeries(workspace.id, weeks),
     postPerformance(workspace.id, 12, { status: "published" }),
     // Published posts with at least one snapshot — not every row in the table (MEA-09).
     db.blogPost.count({ where: { workspaceId: workspace.id, status: "published", snapshots: { some: {} } } }),
+    // E-MEA-15: articles losing clicks — fixed 28-day windows, not the picker's range.
+    decayingPosts(workspace.id).catch(() => []),
   ]);
   const hasAnalytics = hasSeriesData(series);
   const gaps = unmeasuredWeeks(series, "impressions");
@@ -43,6 +51,9 @@ export default async function MeasureStage({ searchParams }: { searchParams: Pro
           { label: withData === 1 ? "published post with search data" : "published posts with search data", n: withData, href: "/blog/analytics" },
         ]}
       />
+
+      {sp.ok && <Banner kind="ok" text={sp.ok} />}
+      {sp.err && <Banner kind="err" text={sp.err} />}
 
       <RangePicker range={range} path="/measure" note={`The curve is ${weeks} whole weeks to the latest data; the table is each post's own last 28 days.`} />
 
@@ -111,6 +122,41 @@ export default async function MeasureStage({ searchParams }: { searchParams: Pro
         )}
       </section>
 
+      {decaying.length > 0 && (
+        <section className="card mb-4" id="losing-clicks" data-losing-clicks>
+          <h2 className="text-sm font-semibold mb-0.5">Losing clicks</h2>
+          <p className="text-xs text-[var(--mute)] mt-0 mb-3">
+            Articles whose clicks over the 28 days to their latest reading are down {Math.round(DECAY_DROP * 100)}% or more on the 28 days before —
+            only where both windows have readings on most days and the earlier one had at least {DECAY_MIN_PRIOR_CLICKS} clicks.
+            A refresh idea carries these numbers as its angle; with ideation on, the engine makes them itself.
+          </p>
+          <ul className="m-0 p-0 list-none flex flex-col gap-2">
+            {decaying.map((d) => (
+              <li key={d.postId} className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs border-t border-[var(--line)] pt-2" data-decaying={d.postId}>
+                <Link href={`/blog/${d.postId}`} className="font-semibold hover:underline min-w-40 flex-1">{d.title}</Link>
+                <span className="font-mono tabular-nums" title={`28 days to ${formatDay(d.windowEnd)} against the 28 before`}>
+                  {d.priorClicks} → {d.recentClicks} clicks <b style={{ color: "var(--rose-on)" }}>▼ {Math.round(d.drop * 100)}%</b>
+                </span>
+                {d.position != null && d.prevPosition != null && (
+                  <span className="font-mono tabular-nums text-[var(--mute)]">pos {d.prevPosition.toFixed(1)} → {d.position.toFixed(1)}</span>
+                )}
+                {d.refreshIdea ? (
+                  <Link href={`/ideas?format=article&q=${encodeURIComponent(d.title)}`} className="underline text-[var(--mute)]" data-decay-idea={d.refreshIdea.id}>
+                    Refresh idea {d.refreshIdea.status} →
+                  </Link>
+                ) : !d.refreshable ? (
+                  <span className="text-[var(--mute)]">{d.protectedFromRewrite ? "Protected from rewrites" : "No live link to refresh"}</span>
+                ) : editor ? (
+                  <form action={makeDecayRefreshIdeaAction}>
+                    <input type="hidden" name="postId" value={d.postId} />
+                    <SubmitButton className="btn text-[11px]" pendingText="Making…">Make a refresh idea</SubmitButton>
+                  </form>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
     </div>
   );
 }
