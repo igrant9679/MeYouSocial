@@ -68,6 +68,7 @@ model Workspace {
   inboxAssignments InboxAssignment[]
   apiTokens        ApiToken[]
   storedObjects    StoredObject[]
+  socialSnippets   SocialSnippet[]
   topics          Topic[]
   campaigns       Campaign[]
   intelChannels   IntelChannel[]
@@ -2349,4 +2350,21 @@ model MediaItem {
 
   @@unique([workspaceId, key])
   @@index([workspaceId, createdAt])
+}
+
+// Saved hashtag sets and snippets (E-SOC-10): text a team reuses in posts —
+// a hashtag block, a sign-off, a disclaimer. Inserted from the composer; a
+// category narrows where it's offered (null = everywhere).
+model SocialSnippet {
+  id          String   @id @default(cuid())
+  workspaceId String
+  name        String
+  body        String
+  category    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
 }

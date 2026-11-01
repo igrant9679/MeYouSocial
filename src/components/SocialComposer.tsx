@@ -106,6 +106,7 @@ export function SocialComposer({
   watermarkAvailable = false,
   optimal,
   preloadMedia = [],
+  snippets = [],
 }: {
   accounts: ComposerAccount[];
   topics?: ComposerTopic[];
@@ -122,6 +123,8 @@ export function SocialComposer({
   optimal?: ComposerOptimal;
   /** Library images picked on Distribute → Media, attached as base media. */
   preloadMedia?: Array<{ key: string; url: string }>;
+  /** Saved hashtag sets and snippets (E-SOC-10); a category narrows where one is offered. */
+  snippets?: Array<{ id: string; name: string; body: string; category: string | null }>;
 }) {
   // Editing reuses this component wholesale rather than a parallel form — a
   // second implementation would drift from the composer's per-network rules.
@@ -464,6 +467,24 @@ export function SocialComposer({
           placeholder="What do you want to share?"
           className="w-full border border-[var(--line-2)] rounded-lg p-2.5 text-sm resize-y"
         />
+        {/* Saved snippets (E-SOC-10): one click puts the text where the cursor is
+            (or at the end). Those for another category are left out. */}
+        {snippets.some((s) => !s.category || s.category === category) && (
+          <div className="flex flex-wrap items-center gap-1" data-snippets>
+            <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">Insert</span>
+            {snippets.filter((s) => !s.category || s.category === category).map((s) => (
+              <button key={s.id} type="button" title={s.body.slice(0, 200)}
+                onClick={() => {
+                  const el = textRef.current;
+                  const at = el && document.activeElement === el ? el.selectionStart : null;
+                  setText((prev) => (at == null ? (prev ? `${prev.replace(/\s+$/, "")}${/\n/.test(s.body) ? "\n\n" : " "}${s.body}` : s.body) : prev.slice(0, at) + s.body + prev.slice(at)));
+                }}
+                className="inline-flex items-center gap-1 text-[11px] font-mono px-1.5 py-0.5 rounded-full border border-[var(--line-2)] hover:border-[var(--accent)]">
+                <Plus className="w-2.5 h-2.5" /> {s.name}
+              </button>
+            ))}
+          </div>
+        )}
         {/* This textarea is CONTROLLED, so accepting a draft has to go through
             the prototype value setter — see the note in AiAssist.accept(). */}
         <AiAssist field="social.post" target="text" label="Draft this post" />

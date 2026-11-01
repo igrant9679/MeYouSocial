@@ -945,3 +945,10 @@ before changing code in that area.
   when a client chunk in `.next/static/chunks` carries the Node crypto polyfill (`createECDH`/`secp256k1`), the Prisma
   client, or a server secret's name, when any chunk passes 600 KB, or the total passes 4 MB (2026-11-01: largest 228 KB,
   total 1.25 MB). ⚠ If it fires, find the client component that imports server code — don't raise the budget to pass.
+
+## ⚠ Saved hashtag sets and snippets (2026-11-01, audit Phase 5, growth part i)
+- **`SocialSnippet`** (E-SOC-10, migration `20261101090000_social_snippets`): `name`, `body`, optional `category` (null =
+  offered for every post), per workspace, up to 100. Managed on Distribute → Compose ("Saved hashtag sets and
+  snippets", `actions/social-snippets.ts`, editors). The composer (new and edit) shows an **Insert** chip per snippet whose
+  category is empty or matches the post's category; a click puts the text at the cursor, or at the end (a multi-line
+  snippet on a new paragraph). Caption Studio doesn't offer them yet.

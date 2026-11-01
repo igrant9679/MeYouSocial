@@ -152,6 +152,7 @@ export default async function EditSocialPostPage({ params }: { params: Promise<{
           queue={{ nextFree, hasSlots: queue.slots.some((s) => s.enabled), timeZone: queue.timeZone }}
           watermarkAvailable={watermarkAvailable}
           optimal={optimal.ok ? { label: optimal.label, why: optimal.why } : { reason: optimal.reason }}
+          snippets={await db.socialSnippet.findMany({ where: { workspaceId: workspace.id }, orderBy: { name: "asc" }, select: { id: true, name: true, body: true, category: true } })}
         />
       )}
 

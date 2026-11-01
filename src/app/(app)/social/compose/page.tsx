@@ -14,6 +14,7 @@ import { listCategories } from "@/lib/social/categories";
 import { canWatermark } from "@/lib/social/watermark";
 import { optimalTime } from "@/lib/social/optimal";
 import { importSocialCsvAction } from "@/app/actions/social-workflow";
+import { saveSnippetAction, deleteSnippetAction } from "@/app/actions/social-snippets";
 import { Banner, SocialHeader } from "@/components/SocialPostCard";
 
 // Composing, and the bulk path that skips composing. Everything that CREATES a
@@ -61,6 +62,7 @@ export default async function SocialComposePage({ searchParams }: { searchParams
   // The workspace's categories (Socialmonials' defaults until it saves its
   // own), with any slot lane that isn't on the list yet.
   const slotCategories = [...new Set(queue.slots.map((s) => s.category).filter((c): c is string => Boolean(c)))];
+  const snippets = await db.socialSnippet.findMany({ where: { workspaceId: workspace.id }, orderBy: { name: "asc" }, select: { id: true, name: true, body: true, category: true } });
   const [categories, watermarkAvailable, optimal] = await Promise.all([
     listCategories(workspace.id, slotCategories),
     canWatermark(workspace.id),
@@ -98,7 +100,41 @@ export default async function SocialComposePage({ searchParams }: { searchParams
         watermarkAvailable={watermarkAvailable}
         preloadMedia={picked.map((m) => ({ key: m.key, url: storage.url(m.key) }))}
         optimal={optimal.ok ? { label: optimal.label, why: optimal.why } : { reason: optimal.reason }}
+        snippets={snippets}
       />
+
+      {/* Saved hashtag sets and snippets (E-SOC-10) — offered under the post text above. */}
+      <details id="snippets" className="card mb-6 scroll-mt-20" data-snippet-manager>
+        <summary className="cursor-pointer text-sm font-semibold">Saved hashtag sets and snippets <span className="font-normal text-[var(--mute)]">({snippets.length})</span></summary>
+        {snippets.length > 0 && (
+          <ul className="m-0 p-0 mt-2 flex flex-col gap-1.5">
+            {snippets.map((sn) => (
+              <li key={sn.id} className="text-xs flex items-start gap-2 border-t border-[var(--line)] first:border-t-0 pt-1.5">
+                <b className="shrink-0">{sn.name}</b>
+                {sn.category && <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full shrink-0" style={{ background: "var(--green-soft)", color: "var(--green-on)" }}>{sn.category}</span>}
+                <span className="flex-1 text-[var(--mute)] whitespace-pre-wrap line-clamp-2">{sn.body}</span>
+                <form action={deleteSnippetAction}>
+                  <input type="hidden" name="id" value={sn.id} />
+                  <button className="btn sm" title="Delete this snippet">Delete</button>
+                </form>
+              </li>
+            ))}
+          </ul>
+        )}
+        {(
+          <form action={saveSnippetAction} className="mt-3 flex flex-col gap-2 text-xs">
+            <div className="flex flex-wrap gap-2">
+              <input name="name" required maxLength={60} placeholder="Name — e.g. Brand hashtags" className="text-xs flex-1 min-w-40" />
+              <select name="category" defaultValue="" className="text-xs border border-[var(--line-2)] rounded-lg px-2 py-1.5" aria-label="Offered for">
+                <option value="">every post</option>
+                {categories.map((c) => <option key={c} value={c}>only {c} posts</option>)}
+              </select>
+            </div>
+            <textarea name="body" required maxLength={2000} rows={2} placeholder="#solar #renewables #homeenergy" className="w-full border border-[var(--line-2)] rounded-lg p-2 text-xs" />
+            <div><button className="btn sm">Save snippet</button></div>
+          </form>
+        )}
+      </details>
 
       {/* Bulk import — the path for a month of content in one sitting. */}
       <details className="card mb-6">
