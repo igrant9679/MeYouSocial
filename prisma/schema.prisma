@@ -1570,6 +1570,8 @@ model ContentProject {
   publishDate    DateTime?
   ideaMerit      String?
   keywords       String   @default("[]")
+  // Upload checklist (E-VID-04): JSON { step: { at, by } } — lib/upload-checklist.ts.
+  uploadChecklist String  @default("{}")
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 

@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { SubmitButton } from "@/components/SubmitButton";
-import { ArrowLeft, BarChart3, Tag, Hash, GitBranch, FileText, BookOpen } from "lucide-react";
+import { ArrowLeft, BarChart3, Tag, Hash, GitBranch, FileText, BookOpen, ListChecks, Check } from "lucide-react";
 import { notFound } from "next/navigation";
-import { requireMembership } from "@/lib/acl";
+import { requireMembership, canEdit } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { readJson } from "@/lib/db/json";
 import {
@@ -10,7 +10,8 @@ import {
   setProjectKeywordsAction,
   repurposeProjectAction,
 } from "@/app/actions/growth";
-import { setProjectStatusAction, setProjectPublishDateAction } from "@/app/actions/production";
+import { setProjectStatusAction, setProjectPublishDateAction, setUploadStepAction } from "@/app/actions/production";
+import { UPLOAD_STEPS, readChecklist, checklistDone } from "@/lib/upload-checklist";
 import { attachChecklistAction } from "@/app/actions/final-pass";
 import { formatDay } from "@/lib/zoned-dates";
 
@@ -26,7 +27,9 @@ const MERIT_COLOR: Record<string, { color: string; soft: string }> = {
 
 export default async function ProjectDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { workspace } = await requireMembership();
+  const { workspace, membership } = await requireMembership();
+  // Viewers read the project; every control on it is an editor's (E-VID-12).
+  const editor = canEdit(membership.role);
   const project = await db.contentProject.findFirst({
     where: { id, channel: { workspaceId: workspace.id } },
     include: {
@@ -41,11 +44,24 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
   if (!project) notFound();
 
   // VID-08: no production numbers are shown, so none are read.
-  const wikiDocs = await db.wikiDoc.findMany({
+  const wikiDocs = editor ? await db.wikiDoc.findMany({
     where: { workspaceId: workspace.id, OR: [{ channelId: null }, { channelId: project.channelId }] },
     orderBy: { updatedAt: "desc" },
     select: { id: true, title: true, checklist: true },
-  });
+  }) : [];
+
+  // Upload checklist (E-VID-04): who ticked each step, and — a hint, never a
+  // tick — whether the Thumbnail Studio has made anything for this script.
+  const checklist = readChecklist(project.uploadChecklist);
+  const done = checklistDone(checklist);
+  const tickers = [...new Set(Object.values(checklist).map((t) => t.by).filter(Boolean))];
+  const [tickedBy, studioThumbs] = await Promise.all([
+    tickers.length
+      ? db.user.findMany({ where: { id: { in: tickers }, memberships: { some: { workspaceId: workspace.id } } }, select: { id: true, name: true, email: true } })
+      : Promise.resolve([]),
+    project.scriptId ? db.thumbnail.count({ where: { scriptId: project.scriptId } }) : Promise.resolve(0),
+  ]);
+  const nameOf = new Map(tickedBy.map((u) => [u.id, u.name ?? u.email ?? "someone"]));
 
   const keywords = readJson<string[]>(project.keywords, []);
 
@@ -86,6 +102,12 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
         {/* Status + publish date */}
         <section className="card">
           <h2 className="font-mono font-bold text-[14px] mb-3">Status & schedule</h2>
+          {!editor ? (
+            <dl className="m-0 grid grid-cols-2 gap-2 text-sm" data-read-only>
+              <div><dt className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">Status</dt><dd className="m-0">{STATUS_LABEL[project.status] ?? project.status}</dd></div>
+              <div><dt className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">Target publish</dt><dd className="m-0">{project.publishDate ? formatDay(new Date(project.publishDate)) : "—"}</dd></div>
+            </dl>
+          ) : (<>
           <form action={setProjectStatusAction} className="flex items-end gap-2 mb-3">
             <input type="hidden" name="id" value={project.id} />
             <label className="flex flex-col gap-1 flex-1">
@@ -104,13 +126,54 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
             </label>
             <button type="submit" className="btn sm">Save</button>
           </form>
+          </>)}
+        </section>
+
+        {/* Upload checklist (E-VID-04) */}
+        <section className="card" data-upload-checklist>
+          <h2 className="font-mono font-bold text-[14px] mb-3 flex items-center gap-2">
+            <ListChecks className="w-4 h-4" style={{ color: "var(--green)" }} /> Upload checklist
+            <span className="text-xs text-[var(--mute)] font-normal" data-upload-done>{done}/{UPLOAD_STEPS.length}</span>
+          </h2>
+          <ol className="m-0 p-0 list-none">
+            {UPLOAD_STEPS.map((s) => {
+              const tick = checklist[s.key];
+              const box = (
+                <span className="w-5 h-5 rounded-md border grid place-items-center shrink-0"
+                  style={tick ? { background: "var(--green)", borderColor: "var(--green)", color: "#fff" } : { borderColor: "var(--line-2)" }}>
+                  {tick && <Check className="w-3.5 h-3.5" strokeWidth={3} />}
+                </span>
+              );
+              return (
+                <li key={s.key} className="border-t border-[var(--line)] first:border-t-0 py-1.5 text-sm flex items-center gap-2" data-step={s.key} data-done={tick ? "1" : "0"}>
+                  {editor ? (
+                    <form action={setUploadStepAction}>
+                      <input type="hidden" name="id" value={project.id} />
+                      <input type="hidden" name="step" value={s.key} />
+                      <input type="hidden" name="done" value={tick ? "0" : "1"} />
+                      <button type="submit" className="grid place-items-center" aria-label={tick ? `Untick ${s.label}` : `Tick ${s.label}`} title={tick ? "Untick" : "Tick"}>{box}</button>
+                    </form>
+                  ) : box}
+                  <span className={"flex-1 " + (tick ? "text-[var(--mute)]" : "")}>{s.label}</span>
+                  {tick ? (
+                    <span className="text-[10px] text-[var(--mute)] text-right">{nameOf.get(tick.by) ?? "someone"} · {formatDay(new Date(tick.at))}</span>
+                  ) : s.key === "thumbnail" && studioThumbs > 0 ? (
+                    <Link href="/thumbnails" className="text-[10px] text-[var(--accent)]" data-thumb-hint>{studioThumbs} made in the studio →</Link>
+                  ) : null}
+                </li>
+              );
+            })}
+          </ol>
+          {done === UPLOAD_STEPS.length && project.status !== "published" && (
+            <p className="text-[11px] text-[var(--mute)] mt-2 mb-0" data-upload-nudge>Every step is ticked — {editor ? "set the status to Published when it's live." : "an editor can mark it Published."}</p>
+          )}
         </section>
 
         {/* Merit + Keywords */}
         <section className="card">
           <h2 className="font-mono font-bold text-[14px] mb-3 flex items-center gap-2"><Tag className="w-4 h-4" style={{ color: "#6D28D9" }} /> Strategy tags</h2>
 
-          {/* */}
+          {editor && (
           <form action={setProjectMeritAction} className="flex items-end gap-2 mb-3">
             <input type="hidden" name="id" value={project.id} />
             <label className="flex flex-col gap-1 flex-1">
@@ -124,13 +187,16 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
             </label>
             <button type="submit" className="btn sm">Save</button>
           </form>
+          )}
           {project.ideaMerit && (
             <span className="font-mono text-[11px] font-bold px-2 py-1 rounded-md inline-block mb-3" style={{ background: MERIT_COLOR[project.ideaMerit]?.soft, color: MERIT_COLOR[project.ideaMerit]?.color }}>
               {project.ideaMerit}
             </span>
           )}
 
-          {/* */}
+          {!editor ? (
+            <p className="text-sm m-0"><span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)] flex items-center gap-1"><Hash className="w-3 h-3" /> Target keywords</span>{keywords.length ? keywords.join(", ") : "—"}</p>
+          ) : (
           <form action={setProjectKeywordsAction} className="flex flex-col gap-2">
             <input type="hidden" name="id" value={project.id} />
             <label className="flex flex-col gap-1">
@@ -139,6 +205,7 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
             </label>
             <button type="submit" className="btn sm self-end">Save</button>
           </form>
+          )}
         </section>
 
         {/* Performance */}
@@ -193,7 +260,8 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
         {/* Repurposing */}
         <section className="card">
           <h2 className="font-mono font-bold text-[14px] mb-3 flex items-center gap-2"><GitBranch className="w-4 h-4" style={{ color: "#0D9488" }} /> Repurpose</h2>
-          <form action={repurposeProjectAction} className="flex items-end gap-2 mb-3">
+          {editor ? (
+          <form action={repurposeProjectAction} className="flex flex-wrap items-end gap-2 mb-3">
             <input type="hidden" name="parentId" value={project.id} />
             <label className="flex flex-col gap-1 flex-1">
               <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">New title (optional)</span>
@@ -210,6 +278,7 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
             </label>
             <SubmitButton className="btn primary sm">Create derivative</SubmitButton>
           </form>
+          ) : project.derivatives.length === 0 ? <p className="text-xs text-[var(--mute)] m-0">No derivatives yet.</p> : null}
           {project.derivatives.length > 0 && (
             <ul className="m-0 p-0">
               {project.derivatives.map((d) => (

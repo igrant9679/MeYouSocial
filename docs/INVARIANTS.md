@@ -977,3 +977,17 @@ before changing code in that area.
   line has no name. Unchanged at `md` and up.
 - **The Measure range picker fits a phone**: below `md` its two date inputs take their own row and shrink to share it
   (`max-md:flex-1 max-md:min-w-0`) — at natural width they ran 11px past a 375px screen and `<main>` scrolled sideways.
+
+## ⚠ Each project has an upload checklist; its page is read-only for viewers (2026-11-01, audit Phase 5, growth part m)
+- **E-VID-04**: `ContentProject.uploadChecklist` (JSON `{ step: { at, by } }`, migration `20261101120000_upload_checklist`)
+  holds seven steps — Script final, Recorded, Edited, Thumbnail, Title/description/tags, Captions, Uploaded
+  (`lib/upload-checklist.ts` `UPLOAD_STEPS`). Every tick is a person's: nothing records filming or captions and a
+  script's status never leaves "draft", so the app ticks nothing itself. The Thumbnail step shows "n made in the
+  studio" as a HINT (thumbnails on the project's script), never as a tick. `readChecklist` drops unknown or malformed
+  entries, so a bad stored value reads as nothing ticked.
+- **`setUploadStepAction`** (EDITOR) takes the direction (`done` 1/0), so a double submit lands where it was aimed, and
+  writes conditionally on the JSON it read (up to three tries) — two editors ticking different steps at once both stick.
+- The board card's "Upload n/7 →" is the link to `/production/projects/[id]`, which the board never had. All seven
+  ticked with the status not Published → a nudge to set it.
+- **The project page is read-only for viewers** (E-VID-12, missed by part k): status and target date as text; no
+  status, date, merit, keyword, repurpose or SOP forms; the checklist without tick buttons.

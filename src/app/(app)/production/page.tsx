@@ -1,10 +1,11 @@
 import Link from "next/link";
-import { ArrowRight, Plus, Tags } from "lucide-react";
+import { ArrowRight, Plus, Tags, ListChecks } from "lucide-react";
 import { requireMembership, canEdit } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { setProjectStatusAction, createProjectAction, setProjectTopicAction } from "@/app/actions/production";
 import { DeleteButton } from "@/components/DeleteButton";
 import { SubmitButton } from "@/components/SubmitButton";
+import { UPLOAD_STEPS, readChecklist, checklistDone } from "@/lib/upload-checklist";
 
 // Configurable Production Board: all content by status, with click-to-advance.
 // Drag-and-drop is omitted v1; the forward arrow is the supported way to advance a stage.
@@ -106,6 +107,10 @@ export default async function ProductionBoardPage() {
                       <div className="font-semibold text-sm leading-tight">{p.title}</div>
                     )}
                     <div className="text-[11px] text-[var(--mute)] mt-1">{p.channel.name}{p.script ? ` · ${p.script.wordCount}w` : ""}</div>
+                    {/* The project page, and how far its upload checklist is (E-VID-04). */}
+                    <Link href={`/production/projects/${p.id}`} className="font-mono text-[10px] text-[var(--mute)] hover:text-[var(--accent)] mt-1 inline-flex items-center gap-1" data-upload-count>
+                      <ListChecks className="w-3 h-3" /> Upload {checklistDone(readChecklist(p.uploadChecklist))}/{UPLOAD_STEPS.length} →
+                    </Link>
                     {editor && topics.length > 0 ? (
                       <form action={setProjectTopicAction} className="flex items-center gap-1 mt-1.5">
                         <input type="hidden" name="id" value={p.id} />

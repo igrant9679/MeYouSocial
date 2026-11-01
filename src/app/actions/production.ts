@@ -41,6 +41,7 @@ import { z } from "zod";
 import { requireRole } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { writeJson } from "@/lib/db/json";
+import { isUploadStep, readChecklist } from "@/lib/upload-checklist";
 
 // All Phase 5 actions: ContentProject lifecycle, Tasks, Calendar, Assets, Swipes, Wiki.
 
@@ -138,6 +139,38 @@ export async function setProjectEditStatusAction(formData: FormData) {
     data: { editStatus, status: "editing" },
   });
   revalidatePath("/production/edit-bay");
+}
+
+/**
+ * Tick or untick one upload-checklist step (E-VID-04). The form says which way
+ * (`done` 1 or 0), so a double submit lands where it was aimed, and the write is
+ * conditional on the JSON it read — two editors ticking different steps at once
+ * can't erase each other's tick; the one that loses reads again.
+ */
+export async function setUploadStepAction(formData: FormData) {
+  const id = String(formData.get("id"));
+  const step = String(formData.get("step"));
+  const done = String(formData.get("done")) === "1";
+  if (!isUploadStep(step)) return;
+  const { workspace, user } = await requireRole("EDITOR");
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const project = await db.contentProject.findFirst({
+      where: { id, channel: { workspaceId: workspace.id } },
+      select: { uploadChecklist: true },
+    });
+    if (!project) return;
+    const list = readChecklist(project.uploadChecklist);
+    if (!!list[step] === done) break;
+    if (done) list[step] = { at: new Date().toISOString(), by: user.id };
+    else delete list[step];
+    const { count } = await db.contentProject.updateMany({
+      where: { id, uploadChecklist: project.uploadChecklist },
+      data: { uploadChecklist: writeJson(list) },
+    });
+    if (count) break;
+  }
+  revalidatePath(`/production/projects/${id}`);
+  revalidatePath("/production");
 }
 
 export async function setProjectPublishDateAction(formData: FormData) {
