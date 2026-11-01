@@ -145,3 +145,40 @@ export async function autonomyStatus(workspaceId: string): Promise<{
     publishDay: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][parseInt(publishDayRaw, 10)] ?? "any day",
   };
 }
+
+export type AutonomyChange = { what: string; from: string; to: string };
+
+/**
+ * What the switch will do (E-SET-06), for the Automation page beside it: off,
+ * what turning it on changes; on, what switching off puts back (from the
+ * snapshot taken when it went on). Rows that wouldn't change are left out.
+ */
+export async function autonomyPreview(workspaceId: string): Promise<{ on: boolean; changes: AutonomyChange[] }> {
+  const { getModes, FUNCTION_LABELS } = await import("@/lib/governance");
+  const on = await isFullyAutonomous(workspaceId);
+  const queue = (v: string | undefined) => (v === "true" ? "on" : "off");
+  const gate = (v: string | undefined) => (v === "auto" ? "approved automatically" : "a person approves");
+  const changes: AutonomyChange[] = [];
+  if (!on) {
+    const modes = await getModes(workspaceId);
+    for (const fn of AUTONOMOUS_FUNCTIONS) if (modes[fn] !== "auto") changes.push({ what: FUNCTION_LABELS[fn], from: modes[fn], to: "auto" });
+    const [aq, sg] = await Promise.all([getSetting("social:autoqueue", workspaceId).catch(() => ""), getSetting("ideas:social_gate", workspaceId).catch(() => "")]);
+    if (aq !== "true") changes.push({ what: "Queue a social post when it's approved", from: queue(aq), to: "on" });
+    if (sg !== "auto") changes.push({ what: "Social ideas", from: gate(sg), to: gate("auto") });
+    return { on, changes };
+  }
+  let snapshot: Snapshot | null = null;
+  try {
+    const raw = await getSetting(RESTORE_KEY, workspaceId).catch(() => "");
+    snapshot = raw ? (JSON.parse(raw) as Snapshot) : null;
+  } catch {
+    snapshot = null;
+  }
+  for (const fn of AUTONOMOUS_FUNCTIONS) {
+    const back = snapshot?.modes?.[fn] ?? "manual";
+    if (back !== "auto") changes.push({ what: FUNCTION_LABELS[fn], from: "auto", to: back });
+  }
+  if (queue(snapshot?.autoqueue) !== "on") changes.push({ what: "Queue a social post when it's approved", from: "on", to: queue(snapshot?.autoqueue) });
+  if (snapshot?.socialGate !== undefined && snapshot.socialGate !== "auto") changes.push({ what: "Social ideas", from: gate("auto"), to: gate(snapshot.socialGate) });
+  return { on, changes };
+}

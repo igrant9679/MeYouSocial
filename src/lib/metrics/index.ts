@@ -402,6 +402,7 @@ export async function collectPerformance(workspaceId: string, range: MetricsRang
     return [
       metric("search_clicks", "Search clicks", null, "count", 0, note, "gsc"),
       metric("search_impressions", "Impressions", null, "count", 0, note, "gsc"),
+      metric("search_ctr", "Click-through rate", null, "percent", 0, note, "gsc"),
       metric("avg_position", "Average position", null, "count", 0, note, "gsc"),
       metric("sessions", "Sessions", null, "count", 0, note, "ga4"),
     ];
@@ -414,17 +415,30 @@ export async function collectPerformance(workspaceId: string, range: MetricsRang
   };
   const positions = snapshots.map((s) => s.position).filter((p): p is number => typeof p === "number");
   const evidence = `From ${snapshots.length} snapshot${snapshots.length === 1 ? "" : "s"} in the ${range.label}.`;
+  // E-MEA-16: CTR over the snapshots that carry both numbers, and position
+  // weighted by impressions the way Search Console averages it — a page seen
+  // once at #2 mustn't count as much as one seen 10,000 times at #30. A plain
+  // mean only when no snapshot has impressions.
+  const both = snapshots.filter((s) => s.clicks != null && (s.impressions ?? 0) > 0);
+  const shown = both.reduce((a, s) => a + (s.impressions ?? 0), 0);
+  const ctr = shown ? Math.round((both.reduce((a, s) => a + (s.clicks ?? 0), 0) / shown) * 1000) / 10 : null;
+  const weighed = snapshots.filter((s) => typeof s.position === "number" && (s.impressions ?? 0) > 0);
+  const weight = weighed.reduce((a, s) => a + (s.impressions ?? 0), 0);
+  const position = weight
+    ? Math.round((weighed.reduce((a, s) => a + s.position! * (s.impressions ?? 0), 0) / weight) * 10) / 10
+    : positions.length ? Math.round((positions.reduce((a, p) => a + p, 0) / positions.length) * 10) / 10 : null;
 
   return [
     metric("search_clicks", "Search clicks", sum((s) => s.clicks), "count", snapshots.length, evidence, "gsc"),
     metric("search_impressions", "Impressions", sum((s) => s.impressions), "count", snapshots.length, evidence, "gsc"),
+    metric("search_ctr", "Click-through rate", ctr, "percent", both.length, both.length ? `Clicks ÷ impressions over ${both.length} snapshot${both.length === 1 ? "" : "s"} that recorded both.` : "No snapshot recorded both clicks and impressions.", "gsc"),
     metric(
       "avg_position",
       "Average position",
-      positions.length ? Math.round((positions.reduce((a, p) => a + p, 0) / positions.length) * 10) / 10 : null,
+      position,
       "count",
       positions.length,
-      positions.length ? evidence : "Snapshots exist but none recorded a position.",
+      !positions.length ? "Snapshots exist but none recorded a position." : weight ? `${evidence} Weighted by impressions.` : `${evidence} A plain mean — no snapshot recorded impressions to weight by.`,
       "gsc",
     ),
     metric("sessions", "Sessions", sum((s) => s.sessions), "count", snapshots.length, evidence, "ga4"),

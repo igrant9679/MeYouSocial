@@ -3,12 +3,15 @@ import { requireMembership, canEdit, canAdmin } from "@/lib/acl";
 import { collectWorkspaceMetrics, type Metric, type Confidence } from "@/lib/metrics";
 import { readingsForWorkspace, byNetwork } from "@/lib/social/performance";
 import { networkFor } from "@/lib/social/networks";
-import { openRecommendations, recentlyResolved, parseEvidence } from "@/lib/recommendations";
+import { openRecommendations, recentlyResolved, parseEvidence, SNOOZE_DAYS } from "@/lib/recommendations";
+import { formatDay } from "@/lib/zoned-dates";
+import { requestNow } from "@/lib/request-time";
 import { SubmitButton } from "@/components/SubmitButton";
 import {
   applyRecommendationAction,
   acceptRecommendationAction,
   dismissRecommendationAction,
+  snoozeRecommendationAction,
   refreshRecommendationsAction,
 } from "@/app/actions/recommendations";
 import { EmptyState } from "@/components/EmptyState";
@@ -114,7 +117,11 @@ export default async function InsightsPage({
   const sp = await searchParams;
   const { ok, err } = sp;
   // One range for all of Measure (E-MEA-01); the previous period only when asked for.
-  const range = await measureRange(sp, await getPostingTimeZone(workspace.id).catch(() => "UTC"));
+  const tz = await getPostingTimeZone(workspace.id).catch(() => "UTC");
+  const range = await measureRange(sp, tz);
+  const now = requestNow();
+  // How long a finding has been open (E-MEA-13).
+  const openDays = (d: Date) => { const n = Math.floor((now - d.getTime()) / 86_400_000); return n <= 0 ? "since today" : n === 1 ? "1 day" : `${n} days`; };
   const editor = canEdit(membership.role);
   const admin = canAdmin(membership.role);
   const [data, recs, resolved, socialReadings, prevData] = await Promise.all([
@@ -134,7 +141,7 @@ export default async function InsightsPage({
   const pipeline = pick("posts_published", "idea_approval_rate", "idea_to_draft_rate", "cycle_time_days");
   const momentum = pick("weekly_cadence", "cadence_trend", "wip_open", "wip_stalled");
   const distribution = pick("social_follow_through", "video_follow_through", "ai_generations", "generations_per_publish");
-  const performance = pick("search_clicks", "search_impressions", "avg_position", "sessions");
+  const performance = pick("search_clicks", "search_impressions", "search_ctr", "avg_position", "sessions");
   const social = pick("social_impressions", "social_engagement", "social_engagement_rate", "social_clicks");
   const hasSocial = social.some((m) => m.value !== null);
 
@@ -237,6 +244,9 @@ export default async function InsightsPage({
                   <span className="font-mono text-[10px] text-[var(--mute)]" title="Confidence is inherited from the weakest metric behind this.">
                     {r.confidence} confidence
                   </span>
+                  <span className="font-mono text-[10px] text-[var(--mute)]" data-open-since title={formatDay(r.createdAt, tz)}>
+                    open {openDays(r.createdAt)}
+                  </span>
                 </div>
                 <p className="text-xs mb-1.5">{r.detail}</p>
                 <p className="text-[11px] text-[var(--mute)] leading-relaxed mb-2">{r.rationale}</p>
@@ -269,6 +279,10 @@ export default async function InsightsPage({
                         <SubmitButton className="btn sm" pendingText="…">I&apos;ll handle it</SubmitButton>
                       </form>
                     )}
+                    <form action={snoozeRecommendationAction}>
+                      <input type="hidden" name="id" value={r.id} />
+                      <SubmitButton className="btn sm" pendingText="…" title="Hide it for a week; it comes back only if it's still true">Snooze a week</SubmitButton>
+                    </form>
                     <form action={dismissRecommendationAction} className="flex items-center gap-1">
                       <input type="hidden" name="id" value={r.id} />
                       <input name="reason" placeholder="reason (optional)" className="text-[11px] w-40" />
@@ -289,12 +303,13 @@ export default async function InsightsPage({
             {resolved.map((r) => (
               <li key={r.id} className="text-[11px] flex items-start gap-2">
                 <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full shrink-0" style={{ background: "var(--zebra)", color: "var(--mute)" }}>
-                  {r.status}
+                  {r.status === "resolved" ? "cleared on its own" : r.status === "snoozed" ? `snoozed to ${formatDay(new Date(r.updatedAt.getTime() + SNOOZE_DAYS * 86_400_000), tz)}` : r.status}
                 </span>
                 <span className="flex-1">
                   {r.title}
                   {r.appliedBy === "auto" && <span className="text-[var(--mute)]"> · applied automatically</span>}
                   {r.dismissedReason && <span className="text-[var(--mute)]"> · “{r.dismissedReason}”</span>}
+                  <span className="text-[var(--mute)]"> · open {formatDay(r.createdAt, tz)} → {formatDay(r.updatedAt, tz)}</span>
                 </span>
               </li>
             ))}

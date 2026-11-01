@@ -13,7 +13,7 @@ import { runAutopilotNowAction, setFunctionModeAction, toggleGlobalPauseAction, 
 import { saveSocialWorkflowSettingsAction } from "@/app/actions/social-workflow";
 import { pauseSocialQueueAction, resumeSocialQueueAction } from "@/app/actions/social-queue-pause";
 import { socialQueuePause, missedWhilePaused } from "@/lib/social/queue-pause";
-import { autonomyStatus } from "@/lib/autonomy";
+import { autonomyStatus, autonomyPreview } from "@/lib/autonomy";
 import { getSetting } from "@/lib/settings";
 import { formatInZone, getQueue } from "@/lib/social/slots";
 
@@ -58,6 +58,8 @@ export default async function SetupAutomation({ searchParams }: { searchParams: 
   const autopilotOff = process.env.AUTOPILOT === "off";
   const scheduledSocial = admin ? await db.socialPost.count({ where: { workspaceId: workspace.id, status: "scheduled" } }) : 0;
   const queuePause = await socialQueuePause(workspace.id);
+  // What the autonomy switch will change, or put back (E-SET-06).
+  const preview = await autonomyPreview(workspace.id);
   const missedCount = queuePause ? (await missedWhilePaused(workspace.id)).length : 0;
   // E-ENG-03 / E-ENG-06: the last check-in, and today's allowance against its limit.
   const { generationsToday, DAILY_AI_BUDGET } = await import("@/lib/blog-autopilot");
@@ -95,6 +97,16 @@ export default async function SetupAutomation({ searchParams }: { searchParams: 
             {autonomy.modes.map((m) => `${FUNCTION_LABELS[m.fn as keyof typeof FUNCTION_LABELS] ?? m.fn}: ${m.mode}`).join(" · ")} · auto-queue {autonomy.autoqueue ? "on" : "off"} · {autonomy.weeklyArticles === "unset" ? "articles uncapped" : `${autonomy.weeklyArticles} article${Number(autonomy.weeklyArticles) === 1 ? "" : "s"} a week`} · publishes {autonomy.publishDay} · {autonomy.weeklySocial} social post{Number(autonomy.weeklySocial) === 1 ? "" : "s"} a week
           </p>
         </div>
+        {preview.changes.length > 0 && (
+          <div className="text-xs mb-3" data-autonomy-preview>
+            <b>{preview.on ? "Switching it off puts back:" : "Turning it on changes:"}</b>
+            <ul className="m-0 mt-1 pl-4">
+              {preview.changes.map((c) => (
+                <li key={c.what}>{c.what}: <span className="font-mono">{c.from}</span> → <b className="font-mono">{c.to}</b></li>
+              ))}
+            </ul>
+          </div>
+        )}
         {admin ? (
           <form action={toggleFullAutonomyAction} className="flex flex-wrap items-center gap-2">
             <input type="hidden" name="intent" value={autonomy.on ? "off" : "on"} />

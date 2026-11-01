@@ -70,6 +70,17 @@ export async function dismissRecommendationAction(formData: FormData) {
   back("Dismissed — it won't resurface for two weeks.", true);
 }
 
+/** Hide a finding for a week (E-MEA-13) — it comes back then only if it's still true. */
+export async function snoozeRecommendationAction(formData: FormData) {
+  const id = String(formData.get("id") ?? "");
+  const { user, workspace } = await requireRole("EDITOR");
+  const r = await db.recommendation.updateMany({ where: { id, workspaceId: workspace.id, status: { in: ["open", "accepted"] } }, data: { status: "snoozed" } });
+  if (!r.count) back("That recommendation is no longer open.");
+  await writeAudit({ workspaceId: workspace.id, actorId: user.id, action: "recommendation.snoozed", entityType: "recommendation", entityId: id });
+  revalidatePath("/insights");
+  back("Snoozed for a week — it comes back then only if it's still true.", true);
+}
+
 /** Re-run the rules now instead of waiting for the hourly sweep. */
 export async function refreshRecommendationsAction() {
   const { workspace } = await requireRole("EDITOR");

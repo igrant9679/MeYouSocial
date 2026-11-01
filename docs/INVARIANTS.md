@@ -894,3 +894,16 @@ before changing code in that area.
   "error" only after TWO failures in a row (one blip never flags it), and its admins get one `account_broken` notice on the
   flip; recovery clears it at once. Publishing doesn't read `status`. The card also shows the latest `publishReport`: SEO
   fields stored of sent, featured image, body images, categories/tags the site didn't have.
+
+## ⚠ Recommendations have a lifecycle; CTR and weighted position; the autonomy preview (2026-11-01, audit Phase 5, growth part e)
+- **Recommendation lifecycle** (E-MEA-13): each open card says how long it's been open; **Snooze a week**
+  (`snoozeRecommendationAction`, editors) sets `status: "snoozed"` — suppressed while `updatedAt` is within `SNOOZE_DAYS`
+  (7); after that, a finding still true WAKES the same row (back to open, first-seen kept) instead of creating another;
+  one whose condition cleared is resolved like an open one. The resolved list now includes `resolved` ("cleared on its
+  own") and snoozed rows (with the day they may return), each with its open → closed dates.
+- **Search metrics** (E-MEA-16, `collectPerformance`): `search_ctr` = clicks ÷ impressions over snapshots that carry
+  both (null, not 0, when none do); `avg_position` is impression-weighted as Search Console averages it, a plain mean
+  (said so in its evidence) only when no snapshot has impressions. GA4 conversions are NOT synced yet.
+- **Autonomy preview** (E-SET-06, `autonomyPreview`): beside the full-autonomy switch, off → each row turning it on
+  changes (functions to auto from their current mode, queue-on-approval, the social idea gate); on → what switching off
+  puts back, from the snapshot taken when it went on. Rows that wouldn't change are left out.

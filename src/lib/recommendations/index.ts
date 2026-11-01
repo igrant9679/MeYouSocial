@@ -80,7 +80,8 @@ export async function generateRecommendations(workspaceId: string): Promise<numb
   await db.recommendation.updateMany({
     where: {
       workspaceId,
-      status: "open",
+      // A snoozed one whose condition cleared is resolved too (E-MEA-13).
+      status: { in: ["open", "snoozed"] },
       ruleKey: { in: RULES.map((r) => r.key).filter((k) => !failedRules.has(k)) },
       ...(fired.length ? { fingerprint: { notIn: fired } } : {}),
     },
@@ -101,11 +102,16 @@ export async function generateRecommendations(workspaceId: string): Promise<numb
         OR: [
           { status: { in: ["open", "accepted", "applied"] } },
           { status: "dismissed", updatedAt: { gte: cooldownSince } },
+          { status: "snoozed", updatedAt: { gte: new Date(Date.now() - SNOOZE_DAYS * 86_400_000) } },
         ],
       },
       select: { id: true },
     });
     if (existing) continue;
+    // A snooze that ran out on a finding still true comes back as the same
+    // item — keeping when it was first seen — rather than a new one (E-MEA-13).
+    const woke = await db.recommendation.updateMany({ where: { workspaceId, fingerprint: r.fingerprint, status: "snoozed" }, data: { status: "open" } });
+    if (woke.count) continue;
 
     await db.recommendation.create({
       data: {
@@ -267,10 +273,14 @@ export async function openRecommendations(workspaceId: string, limit = 20) {
   return rows.sort((a, b) => (SEVERITY_RANK[a.severity] ?? 3) - (SEVERITY_RANK[b.severity] ?? 3)).slice(0, limit);
 }
 
-export async function recentlyResolved(workspaceId: string, limit = 5) {
+/** Applied, dismissed, snoozed — and resolved, the ones that cleared on their own (E-MEA-13). */
+export async function recentlyResolved(workspaceId: string, limit = 8) {
   return db.recommendation.findMany({
-    where: { workspaceId, status: { in: ["applied", "dismissed"] } },
+    where: { workspaceId, status: { in: ["applied", "dismissed", "resolved", "snoozed"] } },
     orderBy: { updatedAt: "desc" },
     take: limit,
   });
 }
+
+/** How long a snooze hides a finding before it may come back (if it's still true). */
+export const SNOOZE_DAYS = 7;
