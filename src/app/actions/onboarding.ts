@@ -12,6 +12,7 @@ import { jobs } from "@/lib/jobs";
 import { registerOnboardingJobs } from "@/lib/jobs/onboarding";
 import { writeJson } from "@/lib/db/json";
 import { softLimitProblem } from "@/lib/soft-limits";
+import { mayCreateChannels, draftChannels, STALE_DRAFT_DAYS } from "@/lib/channel-drafts";
 
 registerOnboardingJobs();
 
@@ -25,7 +26,8 @@ const stepOneSchema = z.object({
 
 /** Creates the channel skeleton on step 1 of the wizard so subsequent steps can update it. */
 export async function startOnboardingAction(formData: FormData) {
-  const { workspace } = await requireRole("EDITOR");
+  const { workspace, membership } = await requireRole("EDITOR");
+  if (!(await mayCreateChannels(workspace.id, membership.role))) redirect("/onboarding/channel/new");
   const parsed = stepOneSchema.safeParse({
     niche: formData.get("niche"),
     style: formData.get("style"),
@@ -180,8 +182,46 @@ export async function finishOnboardingAction(formData: FormData) {
 }
 
 async function requireOwn(channelId: string) {
-  const { workspace } = await requireRole("EDITOR");
+  const { workspace, membership } = await requireRole("EDITOR");
+  // Continuing a wizard is starting a channel (E-SET-09): the same dial applies.
+  if (!(await mayCreateChannels(workspace.id, membership.role))) redirect("/onboarding/channel/new");
   const channel = await db.channel.findFirst({ where: { id: channelId, workspaceId: workspace.id } });
   if (!channel) redirect("/onboarding/channel/new");
   return { channel, workspace };
+}
+
+const draftsBack = (q: string): never => redirect(`/onboarding/channel/new?${q}`);
+
+/**
+ * Discard one unfinished channel (E-SET-09). Whoever may start channels may
+ * discard an EMPTY draft — nothing but the wizard's own fields and competitors;
+ * a draft with anything else on it goes through the usual (admin) delete.
+ */
+export async function discardDraftChannelAction(formData: FormData) {
+  const channelId = String(formData.get("channelId") ?? "");
+  const { workspace, membership, user } = await requireRole("EDITOR");
+  if (!(await mayCreateChannels(workspace.id, membership.role))) draftsBack("flashErr=" + encodeURIComponent("Only admins start or discard channels here."));
+  const draft = (await draftChannels(workspace.id)).find((d) => d.id === channelId);
+  if (!draft) draftsBack("flashErr=" + encodeURIComponent("That channel isn't an unfinished draft any more."));
+  if (!draft!.empty) draftsBack("flashErr=" + encodeURIComponent("That draft has content on it — an admin can delete it from the channel's settings."));
+  // Conditional: still a draft at the moment of deleting.
+  const { count } = await db.channel.deleteMany({ where: { id: channelId, workspaceId: workspace.id, differentiation: null } });
+  if (count) {
+    const { writeAudit } = await import("@/lib/governance");
+    await writeAudit({ workspaceId: workspace.id, actorId: user.id, action: "channel.draft_discarded", entityType: "channel", entityId: channelId, meta: { name: draft!.name } });
+  }
+  revalidatePath("/onboarding/channel/new");
+  draftsBack("flash=" + encodeURIComponent(count ? `Discarded “${draft!.name}”.` : "It was finished meanwhile, so it was kept."));
+}
+
+/** An admin clears every empty draft untouched for STALE_DRAFT_DAYS (E-SET-09). */
+export async function clearStaleDraftChannelsAction() {
+  const { workspace, user } = await requireRole("ADMIN");
+  const stale = (await draftChannels(workspace.id)).filter((d) => d.stale);
+  if (!stale.length) draftsBack("flash=" + encodeURIComponent(`No empty draft has sat untouched for ${STALE_DRAFT_DAYS} days.`));
+  const { count } = await db.channel.deleteMany({ where: { id: { in: stale.map((d) => d.id) }, workspaceId: workspace.id, differentiation: null } });
+  const { writeAudit } = await import("@/lib/governance");
+  await writeAudit({ workspaceId: workspace.id, actorId: user.id, action: "channel.drafts_cleared", entityType: "workspace", entityId: workspace.id, meta: { count, names: stale.map((d) => d.name) } });
+  revalidatePath("/onboarding/channel/new");
+  draftsBack("flash=" + encodeURIComponent(`Cleared ${count} unfinished channel${count === 1 ? "" : "s"}.`));
 }

@@ -1062,3 +1062,15 @@ before changing code in that area.
 - **Controls** on the channel's Submissions page are ADMIN (`saveSubmitFormAction`: open/closed, slug). `slugProblem`
   refuses anything but 3–40 lowercase letters/digits/dashes and anything shaped like a record id (it could shadow
   another channel's `/submit/<id>`); a taken slug is refused by name.
+
+## ⚠ Unfinished channels can be resumed or let go; a dial says who starts one (2026-11-01, audit Phase 5, growth part s)
+- **E-SET-09**: a channel is a DRAFT until wizard step 4 saves `differentiation` (that step starts the voice,
+  audience and ideas jobs). `lib/channel-drafts.ts` `draftChannels` lists them with `resume` (the first step not done:
+  2 while still "Untitled channel", 3 with no competitors, else 4), `empty` (nothing hangs off it but competitors) and
+  `stale` (empty and untouched for `STALE_DRAFT_DAYS` = 7). The wizard's first page shows "Unfinished channels" with
+  Resume and, for empty drafts only, Discard (`discardDraftChannelAction`, conditional on still being a draft,
+  audited); an admin gets "Clear n older than 7 days" (`clearStaleDraftChannelsAction`). A draft with content goes
+  through the usual admin channel delete.
+- **Who may start channels** — `channels:creators` on Settings → Workspace: empty = editors and admins (as before),
+  `admins` = admins only. `mayCreateChannels` gates the wizard page (an editor is told why), `startOnboardingAction`,
+  every later step (`requireOwn` — continuing is starting) and Discard.

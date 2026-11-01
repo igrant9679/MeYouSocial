@@ -6,6 +6,8 @@ import { z } from "zod";
 import { requireRole } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { modelChoiceProblem } from "@/lib/llm";
+import { setWorkspaceSetting } from "@/lib/settings";
+import { CHANNEL_CREATORS_SETTING } from "@/lib/channel-drafts";
 
 // Workspace settings: name, default channel, default model/language.
 const settingsSchema = z.object({
@@ -36,6 +38,8 @@ export async function updateWorkspaceSettingsAction(formData: FormData) {
       defaultLanguage: parsed.data.defaultLanguage || "en",
     },
   });
+  // Who may start channels (E-SET-09): empty = editors and admins, as before.
+  await setWorkspaceSetting(workspace.id, CHANNEL_CREATORS_SETTING, formData.get("channelCreators") === "admins" ? "admins" : "");
   revalidatePath("/admin/settings");
   redirect(`/admin/settings?flash=${encodeURIComponent("Workspace settings saved.")}`);
 }

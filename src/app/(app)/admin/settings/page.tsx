@@ -8,6 +8,8 @@ import { llm, modelChoices, resolveUsableModel } from "@/lib/llm";
 import { modelLabel } from "@/lib/llm/models";
 import { ModelOptions, ModelChoiceNote } from "@/components/ModelOptions";
 import { updateWorkspaceSettingsAction } from "@/app/actions/admin";
+import { getSetting } from "@/lib/settings";
+import { CHANNEL_CREATORS_SETTING } from "@/lib/channel-drafts";
 import { saveWorkspaceAccentAction, uploadWorkspaceLogoAction, clearWorkspaceLogoAction } from "@/app/actions/branding";
 
 // Workspace settings: name, defaults, and per-company branding (accent color +
@@ -23,10 +25,11 @@ export default async function AdminSettingsPage({ searchParams }: { searchParams
   const { workspace } = await requireRole("ADMIN");
   const { ok, err } = await searchParams;
   const channels = await db.channel.findMany({ where: { workspaceId: workspace.id }, orderBy: { createdAt: "asc" } });
-  const [choices, systemRuns, runs] = await Promise.all([
+  const [choices, systemRuns, runs, channelCreators] = await Promise.all([
     modelChoices(workspace.id),
     resolveUsableModel(llm.defaultModel, workspace.id),
     resolveUsableModel(workspace.defaultModel ?? "", workspace.id),
+    getSetting(CHANNEL_CREATORS_SETTING, workspace.id).catch(() => ""),
   ]);
 
   return (
@@ -66,6 +69,15 @@ export default async function AdminSettingsPage({ searchParams }: { searchParams
           <select name="defaultLanguage" defaultValue={workspace.defaultLanguage ?? "en"} className="border border-[var(--line-2)] rounded-lg p-2 text-sm">
             {LANGS.map((l) => (<option key={l} value={l}>{l}</option>))}
           </select>
+        </label>
+
+        <label className="flex flex-col gap-1">
+          <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">Who can start channels</span>
+          <select name="channelCreators" defaultValue={channelCreators === "admins" ? "admins" : ""} className="border border-[var(--line-2)] rounded-lg p-2 text-sm">
+            <option value="">Editors and admins</option>
+            <option value="admins">Admins only</option>
+          </select>
+          <span className="text-[11px] text-[var(--mute)]">Covers starting the channel wizard and picking up an unfinished one.</span>
         </label>
 
         <div className="flex justify-end"><SubmitButton className="btn primary">Save settings</SubmitButton></div>
