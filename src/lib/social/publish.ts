@@ -413,6 +413,11 @@ export async function publishSocialPost(postId: string, opts: { claimed?: boolea
     where: { id: post.id },
     data: { status, publishedAt: posted > 0 ? new Date() : null },
   });
+  // Say so now, not when someone next opens Sent (E-SOC-22).
+  if (status === "failed" || status === "partial") {
+    const { alertSendFailure } = await import("@/lib/social/send-alerts");
+    await alertSendFailure(post.id);
+  }
 }
 
 /**
@@ -422,8 +427,10 @@ export async function publishSocialPost(postId: string, opts: { claimed?: boolea
  */
 export async function publishDueSocialPosts(): Promise<number> {
   // ⚠ The global pause is the emergency brake; scheduled sends used to ignore
-  // it entirely. (notIn is safe here: workspaceId is never NULL.)
-  const paused = await pausedWorkspaceIds();
+  // it entirely. A paused social queue (E-SOC-06) holds sends the same way.
+  // (notIn is safe here: workspaceId is never NULL.)
+  const { socialQueuePausedIds } = await import("@/lib/social/queue-pause");
+  const paused = [...(await pausedWorkspaceIds()), ...(await socialQueuePausedIds())];
   const due = await db.socialPost.findMany({
     // ⚠ The approval filter is spelled as an OR over the two sendable values,
     // NOT `notIn: ["pending","changes"]` — SQL's NOT IN excludes NULL rows,
@@ -534,6 +541,10 @@ export async function reconcileStuckSocialPosts(): Promise<number> {
       data: { status, publishedAt: posted > 0 ? post.publishedAt ?? new Date() : null },
     });
     settled += moved.count;
+    if (moved.count && (status === "failed" || status === "partial")) {
+      const { alertSendFailure } = await import("@/lib/social/send-alerts");
+      await alertSendFailure(post.id);
+    }
   }
   return settled;
 }

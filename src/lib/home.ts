@@ -80,6 +80,10 @@ export async function getHomeData(workspaceId: string): Promise<HomeData> {
     readings,
     gscSite,
     ga4Property,
+    staleArticles,
+    staleSocial,
+    stuckArticles,
+    stuckSocial,
   ] = await Promise.all([
     getSocialOverview(workspaceId),
     db.blogPost.groupBy({ by: ["status"], where: { workspaceId }, _count: { _all: true } }),
@@ -99,6 +103,13 @@ export async function getHomeData(workspaceId: string): Promise<HomeData> {
     readingsForWorkspace(workspaceId, last30).catch(() => []),
     getSetting("gsc:site_url", workspaceId).catch(() => ""),
     getSetting("ga4:property_id", workspaceId).catch(() => ""),
+    // Stale triage (E-IDE-23): undecided a week, or approved a week and not made.
+    // From the last change, not birth: a "Not yet" is a decision and restarts it.
+    db.blogIdea.count({ where: { workspaceId, status: "discovered", updatedAt: { lt: last7 } } }),
+    db.socialIdea.count({ where: { workspaceId, status: "discovered", updatedAt: { lt: last7 } } }),
+    // An article idea keeps no approval time; its last change is the nearest.
+    db.blogIdea.count({ where: { workspaceId, status: "approved", updatedAt: { lt: last7 } } }),
+    db.socialIdea.count({ where: { workspaceId, status: "approved", OR: [{ approvedAt: { lt: last7 } }, { approvedAt: null, createdAt: { lt: last7 } }] } }),
   ]);
 
   const blogCount = (s: string) => blogByStatus.find((b) => b.status === s)?._count._all ?? 0;
@@ -138,17 +149,54 @@ export async function getHomeData(workspaceId: string): Promise<HomeData> {
       socialIdeasApproved ? `${socialIdeasApproved} social` : "",
     ].filter(Boolean);
     const noArticle = ideasDiscovered > 0 && ideasApproved === 0 ? " No article idea is approved, so the engine has no new article to write." : "";
+    const stale = staleArticles + staleSocial;
     decisions.push({
       module: "Blog",
       kind: "blog-ideas",
       severity: "info",
-      title: `${toTriage} idea${toTriage === 1 ? "" : "s"} to triage${parts.length > 1 ? ` — ${parts.join(", ")}` : ""}`,
+      title: `${toTriage} idea${toTriage === 1 ? "" : "s"} to triage${parts.length > 1 ? ` — ${parts.join(", ")}` : ""}${stale ? ` · ${stale} waiting more than a week` : ""}`,
       detail:
         (waiting.length
           ? `Approved ideas are made by the engine on its weekly allowances — waiting in that line now: ${waiting.join(", ")}.`
           : "Approved ideas are made by the engine on its weekly allowances; rejected ones stop coming back.") + noArticle,
       href: "/ideas",
       cta: "Triage",
+    });
+  }
+
+  // A paused social queue (E-SOC-06) holds every post until someone resumes it.
+  {
+    const { socialQueuePause } = await import("@/lib/social/queue-pause");
+    const qp = await socialQueuePause(workspaceId).catch(() => null);
+    if (qp) {
+      decisions.push({
+        module: "Social",
+        kind: "social-queue-paused",
+        severity: "warn",
+        title: "The social queue is paused",
+        detail: `Since ${formatDay(new Date(qp.since), await getPostingTimeZone(workspaceId).catch(() => "UTC"))}, by ${qp.by}${qp.note ? ` — “${qp.note}”` : ""}. Nothing scheduled goes out until an admin resumes it; articles carry on.`,
+        href: "/setup/automation#social-queue",
+        cta: "Resume it",
+      });
+    }
+  }
+
+  // Approved a week ago and still not made (E-IDE-23): the engine isn't taking
+  // them — its allowance, a manual dial, the pause — so a person has to.
+  const stuck = stuckArticles + stuckSocial;
+  if (stuck > 0) {
+    const { draftingBlockers } = await import("@/lib/idea-blockers");
+    const blockers = await draftingBlockers(workspaceId).catch(() => ({ article: null, social: null }));
+    const why = [stuckArticles ? blockers.article?.text : null, stuckSocial ? blockers.social?.text : null].filter((t, i, a): t is string => !!t && a.indexOf(t) === i);
+    const which = [stuckArticles ? `${stuckArticles} article` : "", stuckSocial ? `${stuckSocial} social` : ""].filter(Boolean).join(", ");
+    decisions.push({
+      module: "Blog",
+      kind: "ideas-approved-stuck",
+      severity: "warn",
+      title: `${stuck} approved idea${stuck === 1 ? " hasn't" : "s haven't"} been made in a week${stuckArticles && stuckSocial ? ` — ${which}` : ""}`,
+      detail: why.length ? why.join(" ") : "The engine makes approved ideas within its weekly allowance, highest priority first — Draft now makes one straight away, Not yet sends it back to Discovered.",
+      href: "/ideas",
+      cta: "Open the board",
     });
   }
 

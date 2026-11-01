@@ -34,16 +34,18 @@ export async function setSocialIdeaStatusAction(formData: FormData) {
   const status = String(formData.get("status") ?? "");
   if (!["discovered", "approved", "rejected"].includes(status)) return;
   const { user, workspace } = await requireRole("EDITOR");
-  // A drafted idea already has its post; its state is the post's now.
+  const before = await db.socialIdea.findFirst({ where: { id, workspaceId: workspace.id }, select: { status: true } });
+  // A drafted idea already has its post; its state is the post's now. Back to
+  // Discovered ("Not yet", E-IDE-25) forgets the approval time with it.
   const r = await db.socialIdea.updateMany({
     where: { id, workspaceId: workspace.id, status: { not: "drafted" } },
-    data: { status, ...(status === "approved" ? { approvedAt: new Date() } : {}) },
+    data: { status, ...(status === "approved" ? { approvedAt: new Date() } : status === "discovered" ? { approvedAt: null } : {}) },
   });
   if (r.count) {
     await writeAudit({
       workspaceId: workspace.id,
       actorId: user.id,
-      action: status === "approved" ? "social.idea_approved" : status === "rejected" ? "social.idea_rejected" : "social.idea_restored",
+      action: status === "approved" ? "social.idea_approved" : status === "rejected" ? "social.idea_rejected" : before?.status === "approved" ? "social.idea_snoozed" : "social.idea_restored",
       entityType: "social_idea",
       entityId: id,
     });

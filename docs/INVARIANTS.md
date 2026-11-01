@@ -838,3 +838,28 @@ before changing code in that area.
     and VIEWERs whose last activity (or joining, if never seen) is older are revoked (`membership.expired`, admins told).
     ⚠ Never an ADMIN (a workspace can't lock itself out) and never the operator.
 - SAML / per-workspace identity providers are NOT built (E-SEC-08's "later"); Google is the install's one SSO.
+
+## ⚠ Ideas: drafting order, Not yet, stale flags, lane health (2026-11-01, audit Phase 5, growth part a)
+- **Priority is the lever** (E-IDE-08): `DRAFT_ORDER` (lib/idea-drafting.ts) — highest `priority` first, unscored last, then
+  the longest-waiting — is what the autopilot and Auto-draft approved use; the board numbers approved articles the same way
+  ("next to draft", "#2 to draft"; a site change takes no place). Discovery's `ideationCells` sorts emptiest-first WEIGHTED by
+  the Topic's priority (`open / (1 + priority)`), so a priority-2 Topic is kept three times as full as a priority-0 one.
+- **Not yet** (E-IDE-25): an approved article or social idea goes back to Discovered without being rejected (audited
+  `ideas.snoozed` / `social.idea_snoozed`; a social idea's `approvedAt` is cleared).
+- **Stale triage** (E-IDE-23, lib/home.ts — so the Inbox AND the digest): the triage card adds "· N waiting more than a
+  week" (discovered and untouched 7+ days — `updatedAt`, so a "Not yet" restarts the clock); a WARN card "N approved ideas haven't been made in a week" names the drafting blocker when
+  there is one. ⚠ An article idea keeps no approval time — its `updatedAt` stands in (any edit resets it).
+- **Lane health** (E-IDE-20, lib/lane-health.ts) in each Topic lane's header: last idea, approval rate (approved / drafted /
+  merged out of all decided), articles published + social posts sent under the Topic, and the 7+-day backlog in amber.
+
+## ⚠ Pause the social queue only; failed sends are told at once (2026-11-01, audit Phase 5, growth part b)
+- **Social queue pause** (E-SOC-06, `lib/social/queue-pause.ts`, Settings → Automation → Social queue, admins):
+  `social:queue_paused` = `{since, by, note}`. `publishDueSocialPosts` skips those workspaces alongside the global pause, and
+  the evergreen recycler adds nothing to them; articles, discovery and every other dial carry on. Shown on Automation, the
+  Queue page and as a WARN Inbox card. ⚠ **Resume** asks what to do with posts whose time passed while paused (they'd all go
+  out at once): "put them in the next free slots" (default — `claimNextFreeSlot` in order, `timeChosen` false; one with no
+  free slot goes back to Drafts with its time, never out) or "send them now". The setting is cleared only after the moves.
+- **Failure alerts** (E-SOC-22, `lib/social/send-alerts.ts`): every place a post's status is rolled up from its legs — the
+  send, the stuck-send reconciler and the Zernio webhook — calls `alertSendFailure`: a `publish_failed` notification to
+  admins and editors linking the post (to retry), and when a leg's error reads like a lost connection an `account_broken`
+  one linking Connections. Both de-duplicated for a day by notify (`DEDUPE_HOURS`; reconnect per network). Never throws.

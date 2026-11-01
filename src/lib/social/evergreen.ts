@@ -52,6 +52,9 @@ export async function recycleEvergreenPosts(): Promise<number> {
   for (const { workspaceId } of wsRows) {
     const enabled = (await getSetting("social:evergreen_fill", workspaceId).catch(() => "")) === "true";
     if (!enabled) continue;
+    // A paused social queue (E-SOC-06) takes no new posts either.
+    const { socialQueuePause } = await import("@/lib/social/queue-pause");
+    if (await socialQueuePause(workspaceId)) continue;
     // The pause stops the recycler too: it writes posts that then send.
     if (await isGloballyPaused(workspaceId)) continue;
 

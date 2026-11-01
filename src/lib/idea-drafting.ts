@@ -1,6 +1,13 @@
 import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/governance";
-import type { BlogIdea } from "@prisma/client";
+import type { BlogIdea, Prisma } from "@prisma/client";
+
+/**
+ * The order approved article ideas are drafted in (E-IDE-08) — the autopilot,
+ * Auto-draft approved and the board's "#n to draft" all read this: highest
+ * priority first, unscored last, then the longest-waiting.
+ */
+export const DRAFT_ORDER: Prisma.BlogIdeaOrderByWithRelationInput[] = [{ priority: { sort: "desc", nulls: "last" } }, { createdAt: "asc" }];
 
 /**
  * The one way an article idea becomes an article — shared by the four doors:

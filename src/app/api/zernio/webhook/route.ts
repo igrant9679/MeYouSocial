@@ -275,6 +275,11 @@ export async function POST(req: NextRequest) {
         ...(posted > 0 ? {} : { publishedAt: null }),
       },
     });
+    // A leg Zernio reports failed is told at once (E-SOC-22; once a day per post).
+    if (posted < all.length && !stillPending) {
+      const { alertSendFailure } = await import("@/lib/social/send-alerts");
+      await alertSendFailure(target.postId);
+    }
     return NextResponse.json({ ok: true, updated: count });
   }
 

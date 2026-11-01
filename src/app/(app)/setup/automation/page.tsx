@@ -11,6 +11,8 @@ import { SubmitButton } from "@/components/SubmitButton";
 import { Banner } from "@/components/SocialPostCard";
 import { runAutopilotNowAction, setFunctionModeAction, toggleGlobalPauseAction, unscheduleAllSocialAction, saveWeeklyArticleTargetAction, toggleAutoSeoAction, toggleFullAutonomyAction } from "@/app/actions/blog-governance";
 import { saveSocialWorkflowSettingsAction } from "@/app/actions/social-workflow";
+import { pauseSocialQueueAction, resumeSocialQueueAction } from "@/app/actions/social-queue-pause";
+import { socialQueuePause, missedWhilePaused } from "@/lib/social/queue-pause";
 import { autonomyStatus } from "@/lib/autonomy";
 import { getSetting } from "@/lib/settings";
 import { formatInZone, getQueue } from "@/lib/social/slots";
@@ -55,6 +57,8 @@ export default async function SetupAutomation({ searchParams }: { searchParams: 
   const intervalMin = Math.max(5, parseInt(process.env.AUTOPILOT_INTERVAL_MIN ?? "30", 10) || 30);
   const autopilotOff = process.env.AUTOPILOT === "off";
   const scheduledSocial = admin ? await db.socialPost.count({ where: { workspaceId: workspace.id, status: "scheduled" } }) : 0;
+  const queuePause = await socialQueuePause(workspace.id);
+  const missedCount = queuePause ? (await missedWhilePaused(workspace.id)).length : 0;
   // E-ENG-03 / E-ENG-06: the last check-in, and today's allowance against its limit.
   const { generationsToday, DAILY_AI_BUDGET } = await import("@/lib/blog-autopilot");
   const [heartbeat, aiUsed] = await Promise.all([
@@ -120,6 +124,43 @@ export default async function SetupAutomation({ searchParams }: { searchParams: 
               <input type="hidden" name="intent" value={paused ? "resume" : "pause"} />
               <button className={paused ? "btn primary" : "btn"}>{paused ? <><Play className="w-4 h-4" /> Resume</> : <><OctagonPause className="w-4 h-4" /> Pause everything</>}</button>
             </form>
+          )}
+        </div>
+        {/* The social queue alone (E-SOC-06): vacation or crisis mode for social. */}
+        <div id="social-queue" className="card flex flex-col gap-2 scroll-mt-20" style={queuePause ? { background: "var(--amber-soft)" } : undefined} data-social-queue={queuePause ? "paused" : "running"}>
+          <div className="flex flex-wrap items-center gap-3">
+            <OctagonPause className="w-5 h-5" style={{ color: queuePause ? "var(--amber-on)" : "var(--mute)" }} />
+            <div className="flex-1 min-w-40">
+              <div className="text-sm font-semibold" style={queuePause ? { color: "var(--amber-on)" } : undefined}>Social queue {queuePause ? "— paused" : "— running"}</div>
+              <div className="text-xs text-[var(--mute)]">
+                {queuePause
+                  ? `Since ${formatZonedMoment(new Date(queuePause.since), queue.timeZone)}, by ${queuePause.by}${queuePause.note ? ` — “${queuePause.note}”` : ""}. Nothing scheduled goes out; articles and everything else carry on.`
+                  : "Hold every scheduled social post — for a holiday or a crisis — without touching articles or any other dial."}
+              </div>
+            </div>
+          </div>
+          {admin && !queuePause && (
+            <form action={pauseSocialQueueAction} className="flex flex-wrap items-center gap-2">
+              <input name="note" maxLength={200} placeholder="Why (optional) — e.g. office closed until the 4th" className="text-xs flex-1 min-w-48" />
+              <SubmitButton className="btn" pendingText="Pausing…"><OctagonPause className="w-4 h-4" /> Pause social</SubmitButton>
+            </form>
+          )}
+          {admin && queuePause && (
+            <div className="flex flex-col gap-1.5 text-xs">
+              {missedCount > 0 && <span><b>{missedCount} post{missedCount === 1 ? "" : "s"}</b> came due while paused.</span>}
+              <div className="flex flex-wrap gap-2">
+                <form action={resumeSocialQueueAction}>
+                  <input type="hidden" name="missed" value="reslot" />
+                  <SubmitButton className="btn primary" pendingText="Resuming…"><Play className="w-4 h-4" /> {missedCount > 0 ? "Resume — put them in the next free slots" : "Resume"}</SubmitButton>
+                </form>
+                {missedCount > 0 && (
+                  <form action={resumeSocialQueueAction}>
+                    <input type="hidden" name="missed" value="send" />
+                    <SubmitButton className="btn" pendingText="Resuming…">Resume — send them now</SubmitButton>
+                  </form>
+                )}
+              </div>
+            </div>
           )}
         </div>
         {admin && confirmUnschedule === "1" && (

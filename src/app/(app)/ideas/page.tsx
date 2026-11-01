@@ -22,6 +22,9 @@ import {
 import { addIdeaAction, discoverIdeasAction, regenerateIdeasAction, setBoardIdeaTopicAction, updateIdeaStatusAction, writeIdeaToCanvasAction } from "@/app/actions/ideas";
 import { draftSocialIdeaNowAction, setSocialIdeaStatusAction, updateSocialIdeaAction } from "@/app/actions/social-ideas";
 import { draftingBlockers } from "@/lib/idea-blockers";
+import { laneHealth, laneKey, STALE_DAYS, type LaneHealth } from "@/lib/lane-health";
+import { ideaChange } from "@/lib/idea-drafting";
+import { requestNow } from "@/lib/request-time";
 import { StageHeader } from "@/components/StageShell";
 import { IdeaTriage } from "@/components/IdeaTriage";
 import { canFollow, whoCanFix } from "@/lib/role-links";
@@ -67,6 +70,19 @@ export default async function IdeasBoard({ searchParams }: { searchParams: Promi
   // What actually stops the engine making approved ideas — the board used to
   // promise it would whatever the dials said (IDE-05).
   const blockers = await draftingBlockers(workspace.id);
+  // Each lane's health (E-IDE-20), and the order approved articles will be
+  // drafted in (E-IDE-08: DRAFT_ORDER — highest priority, then longest-waiting;
+  // a site change waits for a person and takes no place).
+  const health = await laneHealth(workspace.id);
+  const draftRank = new Map(
+    board.cards
+      .filter((c): c is Extract<BoardCard, { format: "article" }> => c.format === "article" && c.state === "approved")
+      .map((c) => c.row)
+      .filter((r) => ideaChange(r) !== "site_change")
+      .sort((a, b) => (b.priority ?? -1e9) - (a.priority ?? -1e9) || a.createdAt.getTime() - b.createdAt.getTime())
+      .map((r, i) => [r.id, i + 1] as const),
+  );
+  const now = requestNow();
   const waiting = (f: "article" | "social") => board.cards.filter((c) => c.format === f && c.state === "approved").length;
   const stalled = ([["article", "article", "articles"], ["social", "social post", "social posts"]] as const)
     .map(([f, one, many]) => ({ f, n: waiting(f), label: waiting(f) === 1 ? one : many, why: blockers[f] }))
@@ -243,6 +259,9 @@ export default async function IdeasBoard({ searchParams }: { searchParams: Promi
               open={i < OPEN_LANES || lane.topic === null}
               editor={editor}
               topics={topics}
+              health={health.get(laneKey(lane.topic?.id))}
+              draftRank={draftRank}
+              now={now}
             />
           ))}
         </div>
@@ -270,8 +289,8 @@ export default async function IdeasBoard({ searchParams }: { searchParams: Promi
 }
 
 // ── A lane: one Topic, three columns, Rejected under a disclosure ────────────
-function LaneSection({ lane, open, editor, topics }: {
-  lane: Lane; open: boolean; editor: boolean; topics: Topic[];
+function LaneSection({ lane, open, editor, topics, health, draftRank, now }: {
+  lane: Lane; open: boolean; editor: boolean; topics: Topic[]; health?: LaneHealth; draftRank: Map<string, number>; now: number;
 }) {
   const t = lane.topic;
   const by = (s: BoardState) => lane.cards.filter((c) => c.state === s);
@@ -300,6 +319,7 @@ function LaneSection({ lane, open, editor, topics }: {
           <span className="font-mono font-bold text-sm">No topic yet</span>
         )}
         <span className="text-[11px] text-[var(--mute)]">{live === 0 ? "nothing open" : breakdown}{rejected.length ? ` · ${rejected.length} rejected` : ""}</span>
+        {health && <LaneHealthLine h={health} now={now} />}
         <span className="flex-1" />
         {t && t.description && <span className="text-[11px] text-[var(--mute)] hidden md:inline truncate max-w-md">{t.description}</span>}
         {!t && <span className="text-[11px] text-[var(--mute)]">no Topic on these yet — tag each one and it moves to its lane</span>}
@@ -325,7 +345,7 @@ function LaneSection({ lane, open, editor, topics }: {
                 </p>
               ) : (
                 <ul className="flex flex-col gap-2">
-                  {items.map((c) => <Card key={`${c.format}-${c.row.id}`} c={c} editor={editor} topics={topics} lane={laneId} />)}
+                  {items.map((c) => <Card key={`${c.format}-${c.row.id}`} c={c} editor={editor} topics={topics} lane={laneId} draftRank={draftRank} />)}
                 </ul>
               )}
             </section>
@@ -336,7 +356,7 @@ function LaneSection({ lane, open, editor, topics }: {
         <details className="mt-3">
           <summary className="text-[11px] cursor-pointer text-[var(--mute)]">Rejected · {rejected.length} — won&apos;t come back unless restored</summary>
           <ul className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-2">
-            {rejected.map((c) => <Card key={`${c.format}-${c.row.id}`} c={c} editor={editor} topics={topics} lane={`${laneId}:rejected`} />)}
+            {rejected.map((c) => <Card key={`${c.format}-${c.row.id}`} c={c} editor={editor} topics={topics} lane={`${laneId}:rejected`} draftRank={draftRank} />)}
           </ul>
         </details>
       )}
@@ -344,9 +364,25 @@ function LaneSection({ lane, open, editor, topics }: {
   );
 }
 
-function Card({ c, editor, topics, lane }: { c: BoardCard; editor: boolean; topics: Topic[]; lane: string }) {
+/** A lane's health in its header (E-IDE-20): freshness, the week-old backlog, how often it's approved, what reached people. */
+function LaneHealthLine({ h, now }: { h: LaneHealth; now: number }) {
+  const days = h.lastIdeaAt ? Math.floor((now - h.lastIdeaAt.getTime()) / 86_400_000) : null;
+  const bits = [
+    days === null ? "no ideas yet" : `last idea ${days === 0 ? "today" : days === 1 ? "yesterday" : `${days} days ago`}`,
+    h.approvalRate === null ? null : `${Math.round(h.approvalRate * 100)}% approved`,
+    `${h.published} published`,
+  ].filter(Boolean);
+  return (
+    <span className="text-[11px] text-[var(--mute)]" data-lane-health>
+      · {bits.join(" · ")}
+      {h.waiting > 0 && <span style={{ color: "var(--amber-on)" }}> · {h.waiting} waiting {STALE_DAYS}+ days</span>}
+    </span>
+  );
+}
+
+function Card({ c, editor, topics, lane, draftRank }: { c: BoardCard; editor: boolean; topics: Topic[]; lane: string; draftRank: Map<string, number> }) {
   const select = editor && canSelect(c) ? lane : null;
-  if (c.format === "article") return <ArticleCard idea={c.row} editor={editor} topics={topics} select={select} />;
+  if (c.format === "article") return <ArticleCard idea={c.row} editor={editor} topics={topics} select={select} rank={draftRank.get(c.row.id)} />;
   if (c.format === "video") return <VideoCard idea={c.row} editor={editor} topics={topics} select={select} />;
   return <SocialCard idea={c.row} editor={editor} topics={topics} select={select} />;
 }
@@ -425,7 +461,7 @@ function TopicPicker({ format, id, topicId, topics, prominent }: { format: IdeaF
 }
 
 // ── Article card — everything the old blog board carried, unchanged ──────────
-function ArticleCard({ idea, editor, topics, select }: { idea: ArticleRow; editor: boolean; topics: Topic[]; select: string | null }) {
+function ArticleCard({ idea, editor, topics, select, rank }: { idea: ArticleRow; editor: boolean; topics: Topic[]; select: string | null; rank?: number }) {
   const motifs = parseMotifs(idea.motifs);
   const live = idea.status !== "drafted" && idea.status !== "merged";
   return (
@@ -436,6 +472,11 @@ function ArticleCard({ idea, editor, topics, select }: { idea: ArticleRow; edito
         <span className="text-xs font-semibold leading-snug flex-1">{idea.title}</span>
         {idea.priority != null && <Tag title={idea.priorityReason ?? undefined}>{idea.priority}</Tag>}
       </div>
+      {rank != null && (
+        <p className="text-[10px] mt-1 font-mono" style={{ color: "var(--violet-on)" }} data-draft-rank={rank} title="Approved articles are drafted highest priority first, then the longest-waiting">
+          {rank === 1 ? "next to draft" : `#${rank} to draft`}
+        </p>
+      )}
       {idea.angle && <p className="text-[11px] text-[var(--mute)] mt-1">{idea.angle}</p>}
 
       <div className="flex flex-wrap items-center gap-1 mt-1.5">
@@ -468,6 +509,14 @@ function ArticleCard({ idea, editor, topics, select }: { idea: ArticleRow; edito
               <input type="hidden" name="id" value={idea.id} />
               <input type="hidden" name="status" value="rejected" />
               <button className="btn text-[11px]" data-key="r">Reject</button>
+            </form>
+          )}
+          {/* E-IDE-25: back to Discovered without rejecting it. */}
+          {idea.status === "approved" && (
+            <form action={setBlogIdeaStatusAction}>
+              <input type="hidden" name="id" value={idea.id} />
+              <input type="hidden" name="status" value="discovered" />
+              <button className="btn text-[11px]" title="Back to Discovered — not rejected, and it won't be drafted until approved again">Not yet</button>
             </form>
           )}
           {idea.status !== "rejected" && (
@@ -611,6 +660,14 @@ function SocialCard({ idea, editor, topics, select }: { idea: SocialRow; editor:
               <input type="hidden" name="id" value={idea.id} />
               <input type="hidden" name="status" value="rejected" />
               <button className="btn text-[11px]" data-key="r">Reject</button>
+            </form>
+          )}
+          {/* E-IDE-25: back to Discovered without rejecting it. */}
+          {idea.status === "approved" && (
+            <form action={setSocialIdeaStatusAction}>
+              <input type="hidden" name="id" value={idea.id} />
+              <input type="hidden" name="status" value="discovered" />
+              <button className="btn text-[11px]" title="Back to Discovered — not rejected, and it won't be drafted until approved again">Not yet</button>
             </form>
           )}
           {/* The engine's writer, now (IDE-05) — approved social ideas had no

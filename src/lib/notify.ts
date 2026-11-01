@@ -80,7 +80,7 @@ const EMAIL_DEFAULT: Record<NotificationKind, boolean> = {
  * editor each time (ENG-13). One notice per thing per window; a different
  * title (held → failed) is a different notice.
  */
-const DEDUPE_HOURS: Partial<Record<NotificationKind, number>> = { publish_failed: 24 };
+const DEDUPE_HOURS: Partial<Record<NotificationKind, number>> = { publish_failed: 24, account_broken: 24 };
 
 export function isNotificationKind(k: string): k is NotificationKind {
   return (NOTIFICATION_KINDS as readonly string[]).includes(k);

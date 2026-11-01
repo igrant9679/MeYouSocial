@@ -29,7 +29,7 @@ import type { IdeaFormat } from "@/lib/ideas-board";
  * match at birth (lib/topic-match.ts), not planned here.
  */
 
-export type IdeationCell = { topicId: string; topicName: string; format: IdeaFormat; open: number };
+export type IdeationCell = { topicId: string; topicName: string; format: IdeaFormat; open: number; priority: number };
 
 /** Open ideas per Topic above which a person's Discover is refused. */
 export const MANUAL_CEILING = 12;
@@ -54,11 +54,15 @@ export async function ideationCells(workspaceId: string, formats: IdeaFormat[]):
   const openS = new Map(s.map((r) => [r.topicId, r._count._all]));
   const cells: IdeationCell[] = [];
   for (const t of topics) {
-    if (formats.includes("article")) cells.push({ topicId: t.id, topicName: t.name, format: "article", open: openA.get(t.id) ?? 0 });
-    if (formats.includes("social")) cells.push({ topicId: t.id, topicName: t.name, format: "social", open: openS.get(t.id) ?? 0 });
+    const priority = Math.max(0, t.priority);
+    if (formats.includes("article")) cells.push({ topicId: t.id, topicName: t.name, format: "article", open: openA.get(t.id) ?? 0, priority });
+    if (formats.includes("social")) cells.push({ topicId: t.id, topicName: t.name, format: "social", open: openS.get(t.id) ?? 0, priority });
   }
-  // Emptiest first; ties keep the priority order the query gave.
-  return cells.sort((x, y) => x.open - y.open);
+  // Emptiest first, weighted by the Topic's priority (E-IDE-08): open ideas
+  // count for less on a higher-priority Topic, so it's filled sooner and
+  // deeper — priority 2 holds three ideas for every one priority 0 holds.
+  // Ties keep the priority order the query gave.
+  return cells.sort((x, y) => x.open / (1 + x.priority) - y.open / (1 + y.priority));
 }
 
 export type IdeationRun = {

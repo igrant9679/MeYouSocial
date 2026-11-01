@@ -73,7 +73,8 @@ export async function setBlogIdeaStatusAction(formData: FormData) {
     await writeAudit({
       workspaceId: workspace.id,
       actorId: user.id,
-      action: status === "approved" ? "ideas.approved" : status === "rejected" ? "ideas.rejected" : "ideas.restored",
+      // Approved → discovered is a "not yet" (E-IDE-25), not a restore.
+      action: status === "approved" ? "ideas.approved" : status === "rejected" ? "ideas.rejected" : idea.status === "approved" ? "ideas.snoozed" : "ideas.restored",
       entityType: "blog_idea",
       entityId: id,
       meta: { from: idea.status, title: idea.title },
@@ -205,10 +206,10 @@ export async function draftFromIdeaAction(formData: FormData) {
 export async function autoDraftApprovedAction() {
   const { user, workspace } = await requireRole("EDITOR");
   if (await isGloballyPaused(workspace.id)) return;
-  const { draftIdeaCore, ideaChange, linkRefreshTargets } = await import("@/lib/idea-drafting");
+  const { draftIdeaCore, ideaChange, linkRefreshTargets, DRAFT_ORDER } = await import("@/lib/idea-drafting");
   const approved = (await linkRefreshTargets(workspace.id, await db.blogIdea.findMany({
     where: { workspaceId: workspace.id, status: "approved" },
-    orderBy: { createdAt: "asc" },
+    orderBy: DRAFT_ORDER,
     take: 50,
   }))).filter((i) => ideaChange(i) !== "site_change").slice(0, 2);
   for (const idea of approved) {

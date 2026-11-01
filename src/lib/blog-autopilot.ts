@@ -1631,12 +1631,13 @@ async function runAutopilotCycleUnlocked(workspaceId: string): Promise<CycleRepo
         });
         allowance = Math.min(2, Math.max(0, weeklyRaw - draftedThisWeek));
       }
-      // Oldest approved first, skipping the ones that are a change on the live
-      // site (retire / merge, or a refresh with nothing here to revise) — those
-      // wait for a person and must not starve the queue behind them.
-      const { draftIdeaCore, ideaChange, linkRefreshTargets } = await import("@/lib/idea-drafting");
+      // Highest priority first, then the longest-waiting (DRAFT_ORDER, E-IDE-08),
+      // skipping the ones that are a change on the live site (retire / merge, or
+      // a refresh with nothing here to revise) — those wait for a person and
+      // must not starve the queue behind them.
+      const { draftIdeaCore, ideaChange, linkRefreshTargets, DRAFT_ORDER } = await import("@/lib/idea-drafting");
       const approved = allowance > 0
-        ? (await linkRefreshTargets(workspaceId, await db.blogIdea.findMany({ where: { workspaceId, status: "approved" }, orderBy: { createdAt: "asc" }, take: 50 })))
+        ? (await linkRefreshTargets(workspaceId, await db.blogIdea.findMany({ where: { workspaceId, status: "approved" }, orderBy: DRAFT_ORDER, take: 50 })))
             .filter((i) => ideaChange(i) !== "site_change")
             .slice(0, allowance)
         : [];
