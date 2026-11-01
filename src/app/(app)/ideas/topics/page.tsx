@@ -1,12 +1,13 @@
 import Link from "next/link";
-import { Archive, Check, ChevronRight, Sparkles, Tags, Trash2 } from "lucide-react";
-import { requireMembership, canEdit } from "@/lib/acl";
+import { Archive, Check, ChevronRight, Sparkles, Tags } from "lucide-react";
+import { requireMembership, canEdit, canAdmin } from "@/lib/acl";
+import { DeleteButton } from "@/components/DeleteButton";
 import { SubmitButton } from "@/components/SubmitButton";
 import { EmptyState } from "@/components/EmptyState";
 import { AiAssist } from "@/components/AiAssist";
 import { StageHeader } from "@/components/StageShell";
 import { topicLedgers, topicSuggestions, untaggedIdeaCount } from "@/lib/topics";
-import { createTopicAction, deleteTopicAction, dismissTopicSuggestionAction, toggleTopicStatusAction, updateTopicAction } from "@/app/actions/brand-hub";
+import { createTopicAction, mergeTopicAction, dismissTopicSuggestionAction, toggleTopicStatusAction, updateTopicAction } from "@/app/actions/brand-hub";
 import { discoverIdeasAction } from "@/app/actions/ideas";
 
 // Topics — the spine (2026-09-21). Moved here from Brand because a Topic is
@@ -23,9 +24,13 @@ export default async function TopicsPage({ searchParams }: { searchParams: Promi
   const { workspace, membership } = await requireMembership();
   const { ok, err } = await searchParams;
   const editor = canEdit(membership.role);
+  // Merging and deleting re-file everyone's work, so they are an admin's (E-IDE-06).
+  const admin = canAdmin(membership.role);
   const [ledgers, untagged, suggestions] = await Promise.all([topicLedgers(workspace.id), untaggedIdeaCount(workspace.id), topicSuggestions(workspace.id)]);
   const active = ledgers.filter((t) => t.status === "active");
   const archived = ledgers.filter((t) => t.status !== "active");
+  // The Topics another can be merged into — every other one, active or archived.
+  const others = (id: string) => ledgers.filter((o) => o.id !== id).map((o) => ({ id: o.id, name: o.name }));
   const quiet = active.filter((t) => t.ideas.article + t.ideas.video + t.ideas.social === 0);
 
   return (
@@ -119,13 +124,13 @@ export default async function TopicsPage({ searchParams }: { searchParams: Promi
       ) : (
         <>
           <ul className="flex flex-col gap-2">
-            {active.map((t) => <TopicRow key={t.id} t={t} editor={editor} />)}
+            {active.map((t) => <TopicRow key={t.id} t={t} editor={editor} admin={admin} others={others(t.id)} />)}
           </ul>
           {archived.length > 0 && (
             <details className="mt-4">
               <summary className="text-xs cursor-pointer text-[var(--mute)]">Archived · {archived.length} — not discovered for, still on what they tagged</summary>
               <ul className="flex flex-col gap-2 mt-2">
-                {archived.map((t) => <TopicRow key={t.id} t={t} editor={editor} />)}
+                {archived.map((t) => <TopicRow key={t.id} t={t} editor={editor} admin={admin} others={others(t.id)} />)}
               </ul>
             </details>
           )}
@@ -135,7 +140,7 @@ export default async function TopicsPage({ searchParams }: { searchParams: Promi
   );
 }
 
-function TopicRow({ t, editor }: { t: Awaited<ReturnType<typeof topicLedgers>>[number]; editor: boolean }) {
+function TopicRow({ t, editor, admin, others }: { t: Awaited<ReturnType<typeof topicLedgers>>[number]; editor: boolean; admin: boolean; others: Array<{ id: string; name: string }> }) {
   const archived = t.status !== "active";
   const ideas = t.ideas.article + t.ideas.video + t.ideas.social;
   const made = t.made.articles + t.made.scripts + t.made.posts;
@@ -174,11 +179,10 @@ function TopicRow({ t, editor }: { t: Awaited<ReturnType<typeof topicLedgers>>[n
                 {archived ? <Check className="w-3.5 h-3.5" /> : <Archive className="w-3.5 h-3.5" />}
               </button>
             </form>
-            <form action={deleteTopicAction}>
-              <input type="hidden" name="id" value={t.id} />
-              <input type="hidden" name="back" value={BACK} />
-              <button className="btn sm" title="Delete — clears the tag from everything that carried it; deletes no content"><Trash2 className="w-3.5 h-3.5" /></button>
-            </form>
+            {admin && (
+              <DeleteButton kind="topic" id={t.id} name={t.name} returnTo={BACK} iconOnly
+                warning={`Its tag comes off ${ideas} idea${ideas === 1 ? "" : "s"} and ${made} made item${made === 1 ? "" : "s"}; no content is deleted, and discovery stops looking for it. To keep the work filed, merge it instead.`} />
+            )}
           </>
         )}
       </div>
@@ -198,6 +202,10 @@ function TopicRow({ t, editor }: { t: Awaited<ReturnType<typeof topicLedgers>>[n
         <form action={updateTopicAction} className="flex flex-wrap items-end gap-2">
           <input type="hidden" name="id" value={t.id} />
           <input type="hidden" name="back" value={BACK} />
+          <label className="text-xs min-w-[140px]">
+            <span className="block text-[10px] text-[var(--mute)] mb-1">Name</span>
+            <input name="name" defaultValue={t.name} required maxLength={120} className="w-full text-xs" data-topic-rename />
+          </label>
           <label className="text-xs flex-1 min-w-[180px]">
             <span className="block text-[10px] text-[var(--mute)] mb-1">Description</span>
             <input name="description" defaultValue={t.description ?? ""} className="w-full text-xs" placeholder="What this topic covers" />
@@ -227,6 +235,21 @@ function TopicRow({ t, editor }: { t: Awaited<ReturnType<typeof topicLedgers>>[n
           {t.description && <p className="text-xs text-[var(--slate)]">{t.description}</p>}
           {t.phrases.length > 0 && <p className="text-[11px] font-mono text-[var(--mute)] mt-1 flex items-center gap-1"><Tags className="w-3 h-3" /> {t.phrases.join(" · ")}</p>}
         </>
+      )}
+      {admin && others.length > 0 && (
+        <details className="mt-2" data-topic-merge>
+          <summary className="text-[11px] text-[var(--mute)] cursor-pointer">Merge into another Topic…</summary>
+          <form action={mergeTopicAction} className="flex flex-wrap items-center gap-2 mt-1.5">
+            <input type="hidden" name="id" value={t.id} />
+            <input type="hidden" name="back" value={BACK} />
+            <select name="into" required defaultValue="" className="text-xs" aria-label="Merge into">
+              <option value="" disabled>Choose a Topic</option>
+              {others.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
+            </select>
+            <SubmitButton className="btn sm" pendingText="Merging…">Merge</SubmitButton>
+            <span className="text-[11px] text-[var(--mute)]">Everything tagged “{t.name}” moves there, its phrases join, and “{t.name}” goes.</span>
+          </form>
+        </details>
       )}
     </li>
   );

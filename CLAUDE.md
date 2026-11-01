@@ -265,6 +265,7 @@ area, rather than loading all of them into every session.
 - The public topic form has controls — 2026-11-01, audit Phase 5, growth part r
 - Unfinished channels can be resumed or let go; a dial says who starts one — 2026-11-01, audit Phase 5, growth part s
 - Research ideas can take a remixed title — 2026-11-01, audit Phase 5, growth part t
+- Topics can be renamed, merged and safely deleted — 2026-11-01, audit Phase 5, growth part u
 
 ## Open items / things the user still owns
 - **Analytics: APIs enabled 2026-08-03** (Search Console + GA Admin + GA Data, on project

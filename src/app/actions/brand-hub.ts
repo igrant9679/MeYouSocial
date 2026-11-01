@@ -96,6 +96,15 @@ export async function createTopicAction(formData: FormData) {
 export async function updateTopicAction(formData: FormData) {
   const { workspace } = await requireRole("EDITOR");
   const id = String(formData.get("id") ?? "");
+  // Rename in place (E-IDE-06): absent leaves the name alone; a name another
+  // Topic here already has is refused rather than tripping the unique index.
+  const rawName = formData.get("name");
+  const name = rawName == null ? undefined : String(rawName).replace(/\s+/g, " ").trim().slice(0, 120);
+  if (name !== undefined) {
+    if (!name) topicBack(formData, "A Topic needs a name.", "err");
+    const clash = await db.topic.findFirst({ where: { workspaceId: workspace.id, id: { not: id }, name: { equals: name, mode: "insensitive" } }, select: { name: true } });
+    if (clash) topicBack(formData, `There's already a Topic called “${clash.name}” — merge into it instead.`, "err");
+  }
   // Every field is optional so a small form (the per-Topic page's priority
   // control) can send just the one it owns. A field that is ABSENT leaves the
   // stored value alone; one that is PRESENT and empty is a deliberate clear.
@@ -118,6 +127,7 @@ export async function updateTopicAction(formData: FormData) {
   await db.topic.updateMany({
     where: { id, workspaceId: workspace.id },
     data: {
+      ...(name === undefined ? {} : { name }),
       ...(description === undefined ? {} : { description }),
       ...(keywords === undefined ? {} : { keywords }),
       ...(priority === undefined ? {} : { priority }),
@@ -138,12 +148,27 @@ export async function toggleTopicStatusAction(formData: FormData) {
   topicRevalidate();
   topicBack(formData, topic.status === "active" ? "Topic archived." : "Topic reactivated.");
 }
-export async function deleteTopicAction(formData: FormData) {
-  const { workspace } = await requireRole("EDITOR");
+/**
+ * Merge one Topic into another (E-IDE-06) — ADMIN, because it deletes the
+ * first and re-files everyone's work. `lib/topic-ops.ts` does it in one
+ * transaction. (Deleting a Topic goes through the DeleteButton registry.)
+ */
+export async function mergeTopicAction(formData: FormData) {
+  const { workspace, user } = await requireRole("ADMIN");
   const id = String(formData.get("id") ?? "");
-  await db.topic.deleteMany({ where: { id, workspaceId: workspace.id } });
+  const intoId = String(formData.get("into") ?? "");
+  if (!intoId || intoId === id) topicBack(formData, "Pick another Topic to merge into.", "err");
+  const [from, into] = await Promise.all([
+    db.topic.findFirst({ where: { id, workspaceId: workspace.id }, select: { id: true, name: true } }),
+    db.topic.findFirst({ where: { id: intoId, workspaceId: workspace.id }, select: { id: true, name: true } }),
+  ]);
+  if (!from || !into) topicBack(formData, "One of those Topics is gone.", "err");
+  const { mergeTopics } = await import("@/lib/topic-ops");
+  const { retagged } = await mergeTopics(from!.id, into!.id);
+  const { writeAudit } = await import("@/lib/governance");
+  await writeAudit({ workspaceId: workspace.id, actorId: user.id, action: "topic.merged", entityType: "topic", entityId: into!.id, meta: { from: from!.name, into: into!.name, retagged } });
   topicRevalidate();
-  topicBack(formData, "Topic deleted.", "ok", { deleted: true });
+  topicBack(formData, `Merged “${from!.name}” into “${into!.name}” — ${retagged} item${retagged === 1 ? "" : "s"} re-tagged.`, "ok", { deleted: true });
 }
 
 /**

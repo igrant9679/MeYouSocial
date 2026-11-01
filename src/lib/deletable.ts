@@ -27,7 +27,7 @@ export type DeletableKind =
   | "task" | "asset" | "wikiDoc" | "audienceSubmission" | "audienceAvatar"
   | "invitation" | "membership" | "zernioAccount" | "workspace" | "campaign"
   | "zernioComment" | "brandFact" | "brandDocument" | "socialIdea"
-  | "specialDay" | "captionBatch" | "rssFeed" | "mediaItem" | "socialPost";
+  | "specialDay" | "captionBatch" | "rssFeed" | "mediaItem" | "socialPost" | "topic";
 
 export type DeletableTarget = { id: string; name: string };
 
@@ -116,6 +116,23 @@ export const DELETABLE: Record<DeletableKind, Deletable> = {
     },
     redirectTo: () => "/admin/channels",
     revalidate: ["/admin/channels", "/channels", "/"],
+  },
+
+  // A workspace Topic (E-IDE-06). Deleting it takes the TAG off everything that
+  // carried it — every relation is SetNull, and RssFeed.topicId (a plain
+  // column) is cleared here — and deletes no content, so the button's
+  // `warning` says that rather than an "Also deleted" list. ADMIN: it changes
+  // how everyone's work is filed and what discovery looks for.
+  topic: {
+    label: "topic",
+    role: "ADMIN",
+    find: (id, workspaceId) => db.topic.findFirst({ where: { id, workspaceId }, select: { id: true, name: true } }),
+    async remove(id, workspaceId) {
+      await db.rssFeed.updateMany({ where: { workspaceId, topicId: id }, data: { topicId: null } });
+      await db.topic.deleteMany({ where: { id, workspaceId } });
+    },
+    redirectTo: () => "/ideas/topics",
+    revalidate: ["/ideas", "/ideas/topics", "/measure/topics", "/brand"],
   },
 
   // A social idea on the board (2026-09-21). Its drafted post, if any, is a

@@ -1084,3 +1084,14 @@ before changing code in that area.
 - `ideaFromResearchAction` stores the picked title (article, video or social hook) and keeps the competitor's own title
   in the angle as the evidence ("… with “<their title>” — this title keeps its hook on a new subject"); no pick = the
   original title, as before. Without JavaScript the form still works.
+
+## ⚠ Topics can be renamed, merged and safely deleted (2026-11-01, audit Phase 5, growth part u)
+- **E-IDE-06, rename** (EDITOR): `updateTopicAction` takes an optional `name`; a name another Topic here already has —
+  compared case-insensitively — is refused with "merge into it instead" rather than tripping the unique index.
+- **Merge** (ADMIN, `mergeTopicAction` → `lib/topic-ops.ts` `mergeTopics`): one transaction re-tags every relation —
+  BlogPost, BlogIdea, SocialIdea, Idea, VideoRender, ContentProject, SocialPost and RssFeed (a plain `topicId` column,
+  no relation) — unions the related phrases (plus the merged Topic's name), keeps the higher priority, deletes the
+  merged Topic, and is audited `topic.merged`. ⚠ A new model with a `topicId` must join the merge list and the delete.
+- **Delete** went from a bespoke EDITOR action to the DeleteButton registry: kind `topic`, ADMIN. It takes the TAG off
+  (relations SetNull; RssFeed cleared by hand) and deletes no content, so the button carries a `warning` with the counts
+  — not the registry's "Also deleted" impact list, which would say the opposite of what happens.
