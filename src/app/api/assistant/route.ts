@@ -1,4 +1,4 @@
-import { requireMembership, canEdit } from "@/lib/acl";
+import { requireMembership } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { readJson } from "@/lib/db/json";
 import { runTurn } from "@/lib/assistant/session";
@@ -8,25 +8,19 @@ import type { AssistantStep } from "@/lib/assistant/run";
 /**
  * The assistant dock's API — the same turn the full page runs, as JSON, so
  * the dock can sit on every page. GET returns a thread's messages; POST runs
- * a turn. EDITOR and up, like the page.
+ * a turn. Any member: a viewer's turn runs with read tools only (E-ENG-15 —
+ * `toolAllowedFor` in lib/assistant/tools.ts, enforced where tools are
+ * offered, proposed and run), so it can explain but never change anything.
  */
 
-/**
- * The caller, or a 403 in JSON. `requireRole` redirects, and the dock parsed
- * the /forbidden page as JSON: every message a viewer sent failed with
- * "Unexpected token '<'" (ENG-17). Viewers no longer see the dock at all.
- */
+/** The caller. Never `requireRole` here: it redirects, and the dock would parse the /forbidden page as JSON (ENG-17). */
 async function caller() {
   const ctx = await requireMembership();
-  if (!canEdit(ctx.membership.role)) {
-    return { denied: Response.json({ error: "The assistant is for editors and admins." }, { status: 403 }) } as const;
-  }
   return { ctx } as const;
 }
 
 export async function GET(req: Request) {
   const c = await caller();
-  if ("denied" in c) return c.denied;
   const { workspace, user } = c.ctx;
   const threadId = new URL(req.url).searchParams.get("threadId") ?? "";
   if (!threadId) {
@@ -49,7 +43,6 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   const c = await caller();
-  if ("denied" in c) return c.denied;
   const { workspace, user, membership } = c.ctx;
   const body = (await req.json().catch(() => ({}))) as { threadId?: string; message?: string; page?: string; confirm?: string };
   const message = String(body.message ?? "").trim();

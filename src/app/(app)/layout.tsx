@@ -331,7 +331,8 @@ html[data-theme="dark"] .ws-brand {
               events don't linger until the next poll (ENG-19). */}
           <EngineStatus key={workspace.id} initial={ticker} timeZone={tickerZone} state={engineState} />
           <div className="flex-1" />
-          {editorUp && <AssistantDockButton />}
+          {/* Viewers too — theirs only looks things up (E-ENG-15). */}
+          <AssistantDockButton />
           <AiActivity />
           <Elsie steps={elsieSteps} tracks={elsieTracks} enabled={guide.enabled} outstanding={elsieOutstanding} snoozed={guide.snoozed} />
           <UnreadBell initial={unread} />
@@ -400,7 +401,7 @@ html[data-theme="dark"] .ws-brand {
         </main>
         {/* Keyed by workspace and scoped to the person: a switch starts on that
             workspace's own conversation (ENG-18). */}
-        {editorUp && <AssistantDock key={workspace.id} activeChannelId={active?.id ?? null} workspaceId={workspace.id} userId={user.id} />}
+        <AssistantDock key={workspace.id} activeChannelId={active?.id ?? null} workspaceId={workspace.id} userId={user.id} readOnly={!editorUp} />
       </div>
     </div>
   );

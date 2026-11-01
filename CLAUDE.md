@@ -260,6 +260,7 @@ area, rather than loading all of them into every session.
 - Each project has an upload checklist; its page is read-only for viewers — 2026-11-01, audit Phase 5, growth part m
 - Research reports you can use; generated blocks say who wrote them — 2026-11-01, audit Phase 5, growth part n
 - Every report table downloads as CSV — 2026-11-01, audit Phase 5, growth part o
+- Viewers get a read-only assistant — 2026-11-01, audit Phase 5, growth part p
 
 ## Open items / things the user still owns
 - **Analytics: APIs enabled 2026-08-03** (Search Console + GA Admin + GA Data, on project

@@ -1422,6 +1422,25 @@ export const TOOLS: Tool[] = [
 export const TOOLS_BY_NAME = new Map(TOOLS.map((t) => [t.name, t]));
 
 /**
+ * What a VIEWER's assistant may call (E-ENG-15): reads of what is already in
+ * the app, so a viewer can ask "what's going on?". Not the read tools that
+ * spend outside credits (web search, page and YouTube fetches, competitor
+ * research, the YouTube audit) or show settings and keys — those stay an
+ * editor's. A tool here must ALSO be `readOnly`; `toolAllowedFor` checks both.
+ */
+export const VIEWER_TOOLS: ReadonlySet<string> = new Set([
+  "next_steps", "pipeline_status", "inbox_items", "app_guide",
+  "list_ideas", "list_video_ideas", "list_articles", "article_checks", "list_social_posts", "list_keywords",
+  "list_topics", "topic_summary", "list_channels", "list_outliers",
+  "results_summary", "list_reports", "best_time", "list_research_sources", "read_research_source",
+]);
+
+/** Whether `role` may call `tool` at all — offered to the model, proposed, or run. */
+export function toolAllowedFor(tool: Tool, role: string): boolean {
+  return role !== "VIEWER" || (tool.readOnly === true && VIEWER_TOOLS.has(tool.name));
+}
+
+/**
  * Execute one tool for the assistant. Role-gated, audited, and errors are
  * returned as text (the model reads them) rather than thrown.
  */
@@ -1434,6 +1453,7 @@ export async function runTool(
   const tool = TOOLS_BY_NAME.get(name);
   if (!tool) return { ok: false, output: `unknown tool "${name}" — use one of: ${TOOLS.map((t) => t.name).join(", ")}` };
   if (tool.minRole === "ADMIN" && ctx.role !== "ADMIN") return { ok: false, output: "refused: only an admin can do this" };
+  if (!toolAllowedFor(tool, ctx.role)) return { ok: false, output: "refused: a viewer's assistant only looks things up — an editor can do this" };
   if (!opts.confirmed && (await confirmReason(tool, args, ctx)) !== null) return { ok: false, output: "refused: this needs the person's confirmation first" };
   if (!tool.readOnly) {
     // Paused: refuse anything that adds work, allow what calms things down

@@ -5,7 +5,7 @@ import { db } from "@/lib/db";
 import { brandContextBlock } from "@/lib/motifs";
 import { channelBrief } from "@/lib/assistant/context";
 import { APP_MAP_BRIEF } from "@/lib/assistant/knowledge";
-import { REFUSED_INTENTS, TOOLS, confirmReason, runTool, type ToolContext } from "@/lib/assistant/tools";
+import { REFUSED_INTENTS, TOOLS, confirmReason, runTool, toolAllowedFor, type ToolContext } from "@/lib/assistant/tools";
 
 /**
  * The assistant's turn loop.
@@ -57,8 +57,9 @@ export type AssistantResult = {
   error?: string;
 };
 
-function toolManual(): string {
-  return TOOLS.map((t) => {
+/** The tools this role may call — a viewer is never shown one it can't use (E-ENG-15). */
+function toolManual(role: string): string {
+  return TOOLS.filter((t) => toolAllowedFor(t, role)).map((t) => {
     const args = Object.entries(t.args).map(([k, v]) => `      "${k}": ${v}`).join("\n");
     const flags = [t.readOnly ? "read-only, cheap" : "", t.confirm ? "ASKS THE PERSON TO CONFIRM before running" : t.confirmWhen ? "ASKS THE PERSON TO CONFIRM when the engine would otherwise send or publish the result on its own" : "", t.minRole === "ADMIN" ? "admins only" : ""].filter(Boolean).join("; ");
     return `- ${t.name}${flags ? ` (${flags})` : ""}: ${t.description}${args ? `\n    args:\n${args}` : "\n    args: none"}`;
@@ -82,7 +83,10 @@ function systemPrompt(brand: string | null, workspaceName: string, role: string,
 ${PROTOCOL}
 
 Tools available to you:
-${toolManual()}
+${toolManual(role)}
+${role === "VIEWER" ? `
+This person is a VIEWER: they can read this workspace but not change it, and so can you — the tools above only look things up. Explain what is going on: what's waiting, what's scheduled, what the numbers say. If they ask for a change (approve, draft, publish, schedule, delete, change a setting), say plainly that an editor or admin can do it and name the page; never offer to do it yourself.
+` : ""}
 
 The app you both live in — where things are and how it runs:
 ${APP_MAP_BRIEF}
@@ -226,9 +230,10 @@ export async function runAssistant(
       // The re-check: the post or article still there, its time still ahead,
       // the role still allowed — what was shown may have changed since.
       const def = TOOLS.find((t) => t.name === pending.tool);
-      const roleRefused = def?.minRole === "ADMIN" && ctx.role !== "ADMIN";
+      const viewerRefused = !!def && !toolAllowedFor(def, ctx.role);
+      const roleRefused = viewerRefused || (def?.minRole === "ADMIN" && ctx.role !== "ADMIN");
       const recheck = roleRefused ? null : await buildPreview(pending.tool, pending.args, ctx);
-      const why = roleRefused ? "only an admin can do this" : recheck?.problem;
+      const why = viewerRefused ? "a viewer's assistant only looks things up" : roleRefused ? "only an admin can do this" : recheck?.problem;
       if (why) {
         steps.push({ kind: "tool", tool: pending.tool, args: pending.args, output: `not run: ${why}`, ok: false });
         transcript.push({ role: "user", content: `${message}\n\n[the person said yes to "${pending.summary}", but on checking again just now: ${why}. It was NOT done — tell them plainly.]` });
@@ -285,8 +290,16 @@ export async function runAssistant(
 
     if (!d.tool) return { ok: true, answer: "I couldn't work out what to do next.", steps, pending: null, error: "empty directive" };
 
-    // A tool that needs the person's yes: propose it and stop.
+    // A viewer's assistant only reads (E-ENG-15): nothing else is proposed or run.
     const def = TOOLS.find((t) => t.name === d.tool);
+    if (def && !toolAllowedFor(def, ctx.role)) {
+      transcript.push({ role: "assistant", content: JSON.stringify(d) });
+      transcript.push({ role: "user", content: `[tool result: ${d.tool}]\nrefused: this person is a viewer, so you can only look things up — tell them plainly that an editor or admin can do this, and where.` });
+      steps.push({ kind: "tool", tool: d.tool, args: d.args ?? {}, output: "refused: viewers can only look things up", ok: false });
+      continue;
+    }
+
+    // A tool that needs the person's yes: propose it and stop.
     const reason = def ? await confirmReason(def, d.args ?? {}, ctx) : null;
     if (def && reason !== null) {
       if (def.minRole === "ADMIN" && ctx.role !== "ADMIN") {

@@ -1023,3 +1023,15 @@ before changing code in that area.
   header row shifted every Topics column. `print:hidden`. ⚠ A new report table gets `data-csv` and a
   `CsvButton`; a cell whose value is only a bar or an icon exports blank. XLSX would need a new dependency — the
   owner's call, not done.
+
+## ⚠ Viewers get a read-only assistant (2026-11-01, audit Phase 5, growth part p)
+- **E-ENG-15**: the Ask dock and `/api/assistant` admit every member. A viewer's turn may call only
+  `VIEWER_TOOLS` (lib/assistant/tools.ts) — in-app reads like pipeline_status, inbox_items, list_* and
+  results_summary — and each must ALSO be `readOnly`; `toolAllowedFor(tool, role)` checks both. NOT a viewer's: the
+  read tools that spend outside credits (search_web, read_web_page, analyze_youtube_video, intel_*, research_competitor,
+  youtube_audit) and the ones that show settings (settings_status, connections_status). It is enforced in four places:
+  the tool manual the model is shown, before a call can become a proposal (so a viewer never gets a Yes card), when an
+  earlier proposal is confirmed, and in `runTool`. A viewer's prompt says they're a viewer and to name who can make a
+  change. The dock says it only looks things up and has no link to `/assistant`, which stays EDITOR (its viewer message
+  points at the Ask button); the run history stays EDITOR. ⚠ A new read tool is an editor's until it's added to
+  `VIEWER_TOOLS` on purpose.

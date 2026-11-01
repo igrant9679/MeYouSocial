@@ -95,8 +95,8 @@ export default async function AssistantPage({ searchParams }: { searchParams: Pr
     return (
       <main className="p-6 w-full max-w-2xl">
         <EmptyState
-          line="The assistant is for editors and admins, because it can change things here."
-          note="Ask an admin of this workspace if you need editor access."
+          line="This full assistant page is for editors and admins, because it can change things here."
+          note="The Ask button on any page answers your questions — as a viewer it looks things up and explains them, but changes nothing. Ask an admin if you need editor access."
           action={{ label: "Back to the Inbox", href: "/inbox" }}
         />
       </main>
