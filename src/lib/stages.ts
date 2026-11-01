@@ -104,6 +104,8 @@ export const STAGES: Record<(typeof STAGE_HREFS)[number], StageDef> = {
       { href: "/social/captions", label: "Captions" },
       { href: "/social/queue", label: "Queue" },
       { href: "/social/sent", label: "Sent" },
+      // The posts set to recycle, with their controls (E-SOC-15).
+      { href: "/social/evergreen", label: "Evergreen" },
       { href: "/social/drafts", label: "Drafts" },
       { href: "/social/calendar", label: "Calendar" },
       { href: "/social/media", label: "Media" },

@@ -66,18 +66,18 @@ export function ArticleList({ q, list, topics, members, editor, admin, timeZone,
         {q.status && <input type="hidden" name="status" value={q.status} />}
         <label className="text-xs">
           <span className="block text-[var(--mute)] mb-0.5">Title or keyword</span>
-          <input type="search" name="q" defaultValue={q.q} placeholder="Search…" className="w-48" />
+          <input type="search" name="q" defaultValue={q.q} placeholder="Search…" className="w-48 border border-[var(--line-2)] rounded-lg px-2 py-1 text-xs" />
         </label>
         <label className="text-xs">
           <span className="block text-[var(--mute)] mb-0.5">Topic</span>
-          <select name="topic" defaultValue={q.topic ?? ""} className="w-44">
+          <select name="topic" defaultValue={q.topic ?? ""} className="w-44 border border-[var(--line-2)] rounded-lg px-2 py-1 text-xs">
             <option value="">Any Topic</option>
             {topics.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
           </select>
         </label>
         <label className="text-xs">
           <span className="block text-[var(--mute)] mb-0.5">Reviewer</span>
-          <select name="reviewer" defaultValue={q.reviewer ?? ""} className="w-40">
+          <select name="reviewer" defaultValue={q.reviewer ?? ""} className="w-40 border border-[var(--line-2)] rounded-lg px-2 py-1 text-xs">
             <option value="">Anyone</option>
             <option value="none">No reviewer</option>
             {members.map((m) => <option key={m.userId} value={m.userId}>{m.name}</option>)}
@@ -98,7 +98,7 @@ export function ArticleList({ q, list, topics, members, editor, admin, timeZone,
             <div className="flex flex-wrap items-center gap-2 mb-3 p-2 rounded-lg border border-[var(--line)] text-xs" data-bulk-bar>
               <SelectAllBox />
               <span className="text-[var(--mute)]">With the ticked articles:</span>
-              <select name="reviewerId" defaultValue="" className="w-36" aria-label="Reviewer to set">
+              <select name="reviewerId" defaultValue="" className="w-36 border border-[var(--line-2)] rounded-lg px-2 py-1 text-xs" aria-label="Reviewer to set">
                 <option value="">no reviewer</option>
                 {members.map((m) => <option key={m.userId} value={m.userId}>{m.name}</option>)}
               </select>
@@ -109,9 +109,9 @@ export function ArticleList({ q, list, topics, members, editor, admin, timeZone,
                   <summary className="btn cursor-pointer list-none">Schedule…</summary>
                   <div className="absolute z-10 mt-1 p-3 card !shadow-lg flex flex-col gap-2 w-64">
                     <p className="m-0 text-[var(--mute)]">Ticked articles at final approval, in the order shown, from this day — {timeZone}.</p>
-                    <label>First day <input type="date" name="startDay" className="w-full" /></label>
-                    <label>Time <input type="time" name="time" defaultValue="09:00" className="w-full" /></label>
-                    <label>Every <input type="number" name="everyDays" defaultValue={1} min={1} max={14} className="w-16" /> day(s)</label>
+                    <label>First day <input type="date" name="startDay" className="w-full border border-[var(--line-2)] rounded-lg px-2 py-1 text-xs" /></label>
+                    <label>Time <input type="time" name="time" defaultValue="09:00" className="w-full border border-[var(--line-2)] rounded-lg px-2 py-1 text-xs" /></label>
+                    <label>Every <input type="number" name="everyDays" defaultValue={1} min={1} max={14} className="w-16 border border-[var(--line-2)] rounded-lg px-2 py-1 text-xs" /> day(s)</label>
                     <SubmitButton className="btn primary" name="op" value="schedule" pendingText="Scheduling…">Schedule</SubmitButton>
                   </div>
                 </details>

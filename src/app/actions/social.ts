@@ -73,7 +73,7 @@ const tabFlash = (to: string): Flash => (msg, kind = "err") => flashTo(to, msg, 
 function listBack(formData: FormData): Flash {
   const raw = String(formData.get("back") ?? "");
   // The list tabs, or one post's page (a cuid — lowercase letters and digits).
-  const ok = /^\/social\/(queue|sent|drafts|calendar|c[a-z0-9]{20,32})(\?[\w=&%.+-]*)?$/.test(raw);
+  const ok = /^\/social\/(queue|sent|drafts|calendar|evergreen|c[a-z0-9]{20,32})(\?[\w=&%.+-]*)?$/.test(raw);
   if (!ok) return backTo;
   const [path, query] = raw.split("?");
   // Keep the list's own filters; the flash rides alongside them.
@@ -910,4 +910,38 @@ export async function setEvergreenAction(formData: FormData) {
       : `Marked evergreen (every ${post.recycleEveryDays} days) — recycling starts once Evergreen fill is on in Settings → Automation.`,
     "ok",
   );
+}
+
+/**
+ * Evergreen library → a source's settings (E-SOC-15): how often, until when,
+ * at most how many times, and the texts its copies take turns with. Editors.
+ * Any evergreen source of this workspace — sent or not yet sent.
+ */
+export async function saveEvergreenSettingsAction(formData: FormData) {
+  const backTo: Flash = listBack(formData);
+  const { workspace, user } = await requireRole("EDITOR");
+  const id = String(formData.get("id") ?? "");
+  const post = await db.socialPost.findFirst({ where: { id, workspaceId: workspace.id, evergreen: true, recycledFromId: null }, select: { id: true, timesRecycled: true } });
+  if (!post) backTo("That isn't an evergreen post in this workspace.");
+  const every = parseInt(String(formData.get("recycleEveryDays") ?? ""), 10);
+  if (!Number.isFinite(every) || every < 1 || every > 365) backTo("Recycle every 1 to 365 days.");
+  const untilRaw = String(formData.get("recycleUntil") ?? "").trim();
+  let recycleUntil: Date | null = null;
+  if (untilRaw) {
+    const tz = await getPostingTimeZone(workspace.id);
+    // The end of that day in the posting zone: "until 30 Nov" includes the 30th.
+    recycleUntil = parseZonedInput(`${untilRaw}T23:59`, tz);
+    if (!recycleUntil) backTo("That end date couldn't be read.");
+  }
+  const maxRaw = String(formData.get("maxRecycles") ?? "").trim();
+  const maxRecycles = maxRaw === "" ? null : parseInt(maxRaw, 10);
+  if (maxRecycles != null && (!Number.isFinite(maxRecycles) || maxRecycles < 1 || maxRecycles > 1000)) backTo("At most 1 to 1000 times, or leave it empty for no limit.");
+  const { variantsFromText } = await import("@/lib/social/evergreen-rules");
+  const variants = variantsFromText(String(formData.get("variants") ?? ""));
+  await db.socialPost.update({ where: { id: post.id }, data: { recycleEveryDays: every, recycleUntil, maxRecycles, recycleVariants: JSON.stringify(variants) } });
+  const { writeAudit } = await import("@/lib/governance");
+  await writeAudit({ workspaceId: workspace.id, actorId: user.id, action: "social.evergreen_settings", entityType: "social_post", entityId: post.id, meta: { every, until: recycleUntil?.toISOString() ?? null, maxRecycles, variants: variants.length } });
+  revalidatePath("/social", "layout");
+  const done = maxRecycles != null && post.timesRecycled >= maxRecycles;
+  backTo(`Saved — every ${every} days${recycleUntil ? `, until ${untilRaw}` : ""}${maxRecycles != null ? `, at most ${maxRecycles} times` : ""}${variants.length ? `, ${variants.length} variant${variants.length === 1 ? "" : "s"} taking turns with the original` : ""}.${done ? " It has already been recycled that many times, so it won't go out again." : ""}`, "ok");
 }

@@ -3,6 +3,7 @@ import { getSetting } from "@/lib/settings";
 import { isGloballyPaused, writeAudit } from "@/lib/governance";
 import { notify } from "@/lib/notify";
 import { claimFree, formatInZone, getQueue, type FreeSlot } from "@/lib/social/slots";
+import { evergreenState, parseVariants, recycleText } from "@/lib/social/evergreen-rules";
 
 /**
  * Evergreen recycling — refill free queue slots with content that has already
@@ -94,11 +95,11 @@ export async function recycleEvergreenPosts(): Promise<number> {
       })).map((c) => c.recycledFromId!),
     );
 
+    // The cap, the end date, the copy in flight and the cooldown are one rule,
+    // shared with the Evergreen library (lib/social/evergreen-rules.ts).
     const eligible = sources
-      .filter((s) => !inFlight.has(s.id))
-      .filter((s) => !s.recycleUntil || s.recycleUntil.getTime() > now)
+      .filter((s) => evergreenState(s, inFlight.has(s.id), now).kind === "due")
       .map((s) => ({ s, lastOut: (s.lastRecycledAt ?? s.publishedAt ?? s.createdAt).getTime() }))
-      .filter(({ s, lastOut }) => lastOut <= now - Math.max(1, s.recycleEveryDays) * DAY_MS)
       // Least-recently-out first — the fairest rotation through the library.
       .sort((a, b) => a.lastOut - b.lastOut)
       .map(({ s }) => s);
@@ -112,6 +113,9 @@ export async function recycleEvergreenPosts(): Promise<number> {
 
       const targets = source.targets.filter((t) => connected.has(t.accountId));
       if (targets.length === 0) continue; // every original account is gone
+      // The original and its variants take turns (E-SOC-15). A variant replaces
+      // the text everywhere, so per-network wording of the original is dropped.
+      const turn = recycleText(source.text, parseVariants(source.recycleVariants), source.timesRecycled);
 
       const clone = await db.socialPost.create({
         data: {
@@ -120,7 +124,7 @@ export async function recycleEvergreenPosts(): Promise<number> {
           topicId: source.topicId,
           campaignId: source.campaignId,
           category: source.category,
-          text: source.text,
+          text: turn.text,
           mediaKeys: source.mediaKeys,
           // Same content, same delivery: first comment, link handling, logo.
           firstComment: source.firstComment,
@@ -139,7 +143,7 @@ export async function recycleEvergreenPosts(): Promise<number> {
               provider: t.provider,
               accountId: t.accountId,
               accountName: t.accountName,
-              text: t.text,
+              text: turn.variant == null ? t.text : null,
               mediaKeys: t.mediaKeys,
               // A clone republishes the SAME content, so it must go out in the
               // same shape — a source Story that recycled as a feed post would
@@ -166,7 +170,7 @@ export async function recycleEvergreenPosts(): Promise<number> {
         action: "social.recycled",
         entityType: "social_post",
         entityId: clone.id,
-        meta: { sourceId: source.id, scheduledAt: slot.at.toISOString() },
+        meta: { sourceId: source.id, scheduledAt: slot.at.toISOString(), variant: turn.variant },
       });
       await notify({
         workspaceId,

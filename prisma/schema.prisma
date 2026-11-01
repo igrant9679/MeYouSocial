@@ -1970,6 +1970,10 @@ model SocialPost {
   recycleUntil     DateTime? // null = no end date
   lastRecycledAt   DateTime?
   timesRecycled    Int       @default(0)
+  // E-SOC-15: stop after this many recycles (null = no limit), and alternative
+  // texts the clones rotate through (JSON array; the original is always one of them).
+  maxRecycles      Int?
+  recycleVariants  String    @default("[]")
   recycledFromId   String?
 
   // ── Approval workflow (opt-in: social:require_approval) ────────────────────

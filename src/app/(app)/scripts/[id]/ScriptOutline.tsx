@@ -55,7 +55,7 @@ export function ScriptOutline({ body, onJump, onReplace }: {
       <div className="mt-3 border-t border-[var(--line)] pt-2">
         <div className="flex items-center gap-2 mb-1">
           <span className="font-semibold">Retention markers</span>
-          <select value={every} onChange={(e) => setEvery(Number(e.target.value) as (typeof EVERY)[number])} className="text-[11px] py-0.5" aria-label="Marker interval" data-marker-every>
+          <select value={every} onChange={(e) => setEvery(Number(e.target.value) as (typeof EVERY)[number])} className="border border-[var(--line-2)] rounded-md px-1 py-0.5 text-[11px]" aria-label="Marker interval" data-marker-every>
             {EVERY.map((n) => <option key={n} value={n}>every {n}s</option>)}
           </select>
         </div>
@@ -78,8 +78,8 @@ export function ScriptOutline({ body, onJump, onReplace }: {
 
       <div className="mt-3 border-t border-[var(--line)] pt-2 flex flex-col gap-1.5" data-outline-find>
         <span className="font-semibold flex items-center gap-1"><Search className="w-3 h-3" /> Find and replace</span>
-        <input value={find} onChange={(e) => { setFind(e.target.value); setHit(0); setNote(null); }} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); next(); } }} placeholder="Find" aria-label="Find" className="text-xs w-full" data-find-input />
-        <input value={replace} onChange={(e) => setReplace(e.target.value)} placeholder="Replace with" aria-label="Replace with" className="text-xs w-full" data-replace-input />
+        <input value={find} onChange={(e) => { setFind(e.target.value); setHit(0); setNote(null); }} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); next(); } }} placeholder="Find" aria-label="Find" className="w-full border border-[var(--line-2)] rounded-lg px-2 py-1 text-xs" data-find-input />
+        <input value={replace} onChange={(e) => setReplace(e.target.value)} placeholder="Replace with" aria-label="Replace with" className="w-full border border-[var(--line-2)] rounded-lg px-2 py-1 text-xs" data-replace-input />
         <label className="flex items-center gap-1.5"><input type="checkbox" checked={matchCase} onChange={(e) => { setMatchCase(e.target.checked); setHit(0); }} /> Match case</label>
         <div className="flex items-center gap-1.5">
           <span className="text-[var(--mute)] flex-1" data-find-count>{find ? `${matches.length} match${matches.length === 1 ? "" : "es"}` : ""}</span>

@@ -1217,3 +1217,18 @@ before changing code in that area.
 - Clicking a section, a marker or **Next** selects that place in the editor and scrolls it into view (line-based, so a
   long wrapped paragraph lands near, not exactly). **Replace all** hands the new text to the editor, which autosaves it
   like typing — no separate save path.
+
+## ⚠ Evergreen has controls and a library (2026-11-01, audit Phase 5, growth part ae)
+- **E-SOC-15 — one rule** (`lib/social/evergreen-rules.ts` `evergreenState`): off → not sent yet → **finished** (the
+  cap, `SocialPost.maxRecycles`, reached) → **ended** (`recycleUntil` passed) → a copy in flight → cooling until last out
+  + `recycleEveryDays` → due. The recycler takes only "due" and the Evergreen library shows the same state, so the page
+  can't promise what the recycler won't do. Migration `20261101160000_evergreen_controls` (`maxRecycles`,
+  `recycleVariants`).
+- **Variants** (`recycleText`): the original and its variants take turns, a variant first (recycle 1 → variant 1 …, then
+  the original, then round again). A copy that uses a variant drops the targets' per-network wording (the variant is
+  the text everywhere); a copy of the original keeps it. The turn is recorded in the `social.recycled` audit meta.
+- **Distribute → Evergreen** (`/social/evergreen`): every evergreen source (not copies) with its state, count and cap,
+  end date, last copy, and what it and its copies have earned (`resultsForPosts` over source + copies). Editors get
+  **Settings** (`saveEvergreenSettingsAction`: every 1–365 days, until a day — the end of that day in the posting zone —,
+  at most 1–1000 or no limit, variants separated by a `---` line, at most 10) and **Stop recycling**. It says plainly when
+  Evergreen fill is off. `listBack` allows `/social/evergreen`.
