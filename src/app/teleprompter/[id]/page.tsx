@@ -2,9 +2,11 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireMembership } from "@/lib/acl";
 import { db } from "@/lib/db";
+import { prompterBlocks, spokenWords } from "@/lib/teleprompter";
 import { Teleprompter } from "./Teleprompter";
 
-// Teleprompter view, full-screen large text.
+// Teleprompter view, full-screen large text. The markdown comes out on the
+// server (E-VID-02), so the browser gets lines to read, not syntax.
 
 export default async function TeleprompterPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -13,6 +15,7 @@ export default async function TeleprompterPage({ params }: { params: Promise<{ i
     where: { id, channel: { workspaceId: workspace.id } },
   });
   if (!script) notFound();
+  const blocks = prompterBlocks(script.body);
 
   return (
     // A fixed-height column (VID-17): with min-h-screen the page grew with the
@@ -21,9 +24,12 @@ export default async function TeleprompterPage({ params }: { params: Promise<{ i
       <header className="px-5 py-3 flex items-center gap-3 border-b border-white/10">
         <Link href={`/scripts/${id}/publish`} className="text-xs font-mono text-white/60 hover:text-white">← Back</Link>
         <div className="flex-1" />
-        <div className="text-xs font-mono text-white/60 truncate">{script.title}</div>
+        <div className="hidden md:block text-[11px] font-mono text-white/40" data-prompter-keys>
+          Space play · ↑↓ speed · ←→ nudge · −+ size · M mirror · C countdown · F fullscreen · R top
+        </div>
+        <div className="text-xs font-mono text-white/60 truncate max-w-[40vw]">{script.title}</div>
       </header>
-      <Teleprompter body={script.body ?? ""} />
+      <Teleprompter blocks={blocks} words={spokenWords(blocks)} />
     </div>
   );
 }

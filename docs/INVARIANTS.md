@@ -1165,3 +1165,18 @@ before changing code in that area.
 - **Measure → Losing clicks**: the list with clicks, drop and position; editors get "Make a refresh idea"
   (`makeDecayRefreshIdeaAction`), which **measures again** rather than trusting the form; protected and unlinked
   articles say why there's no button; one with an idea links to it on the board. Its windows are fixed, not the picker's.
+
+## ⚠ A teleprompter driven by words per minute and the keyboard (2026-11-01, audit Phase 5, growth part aa)
+- **E-VID-02 — what it shows** (`lib/teleprompter.ts` `prompterBlocks`, run on the server): the script with markdown
+  out (emphasis, code, links keep their text, images and rules go, an HTML body loses its tags). Headings show as small
+  section labels and whole-line `[…]` / `(…)` lines as dim cues; **neither counts as spoken words** (`spokenWords`) —
+  the speed is words per minute, and counting direction as speech would run the text ahead of the voice.
+- **Speed**: pixels per second = wpm ÷ 60 × (text height ÷ spoken words), recomputed every frame, so a size change keeps
+  the pace. Default 150 wpm (`WORDS_PER_MINUTE`), 60–300 in 10s. "m:ss left" and words left come from how far down
+  the text the scroll is.
+- **Keys** (window listener; ignored in fields, and Space on a focused button is that button's press): Space play/pause
+  (a press during the countdown cancels it), ↑↓ speed, ←→ / PgUp PgDn nudge three lines, − + size, M mirror
+  (`scaleX(-1)` on the text), C countdown on/off, F fullscreen (the prompter element), R / Home back to the top.
+- **Reading line** at 35% of the height with the text above it fading; padding lets the first line start on it and
+  the last reach it. A 3-2-1 countdown before scrolling, on by default. Preferences (wpm, size, mirror, countdown) are
+  saved per browser through an external store — memory is the truth once read, so a private window still works.
