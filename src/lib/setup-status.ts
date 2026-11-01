@@ -17,7 +17,25 @@ import { getQueue, formatInZone } from "@/lib/social/slots";
  */
 
 export type ConnState = "ok" | "missing" | "partial";
-export type ConnRow = { key: string; label: string; state: ConnState; detail: string; href: string; note?: string };
+/**
+ * `required`: the daily loop (write → source → illustrate → share) stops without
+ * it, so only these count as "missing" in the headline (E-SET-03); the rest add
+ * a capability. `source`: where the key it reads comes from.
+ */
+export type ConnRow = { key: string; label: string; state: ConnState; detail: string; href: string; note?: string; required: boolean; source?: string };
+
+/** The loop can't run without these; everything else is a capability on top. */
+const REQUIRED: ReadonlySet<string> = new Set(["llm", "search", "images", "social"]);
+
+/** Which layer a key resolves from: this workspace's own, the platform's, or the server's environment. */
+async function keySource(workspaceId: string, settingKey: string, envName?: string): Promise<string | undefined> {
+  const { getWorkspaceSettingRaw } = await import("@/lib/settings");
+  if (await getWorkspaceSettingRaw(workspaceId, settingKey).catch(() => "")) return "this workspace's key";
+  const { db: d } = await import("@/lib/db");
+  if ((await d.setting.findUnique({ where: { key: settingKey } }).catch(() => null))?.value) return "the platform's key";
+  if (envName && process.env[envName]) return "the server's environment";
+  return undefined;
+}
 
 const hasValue = (v: string | null | undefined) => !!(v && v.trim());
 
@@ -56,7 +74,7 @@ export async function connectionRows(workspaceId: string): Promise<ConnRow[]> {
   const { providerRefusals } = await import("@/lib/llm/provider-health");
   const refusals = await providerRefusals(workspaceId).catch(() => []);
   const googleKey = llmKeys.some((k) => k.p === "google" && k.ok);
-  const rows: ConnRow[] = [
+  const rows: Array<Omit<ConnRow, "required">> = [
     {
       key: "llm", label: "Writing (LLM keys)", href: "/admin/api-keys",
       state: !llmOn.length ? "missing" : refusals.length ? "partial" : "ok",
@@ -134,7 +152,20 @@ export async function connectionRows(workspaceId: string): Promise<ConnRow[]> {
       note: "platform-wide",
     },
   ];
-  return rows;
+  // Where each key-backed row reads from (E-SET-03), so "ok" says whose key it is.
+  const sources: Record<string, Promise<string | undefined>> = {
+    llm: Promise.all(llmOn.map((p) => keySource(workspaceId, `api_key:${p}`))).then((s) => [...new Set(s.filter(Boolean))].join(" and ") || undefined),
+    search: keySource(workspaceId, hasValue(tavily) ? "api_key:tavily" : "api_key:serper", hasValue(tavily) ? "TAVILY_API_KEY" : "SERPER_API_KEY"),
+    "search-data": keySource(workspaceId, hasValue(dataforseo) ? "api_key:dataforseo" : "api_key:keywordseverywhere", hasValue(dataforseo) ? "DATAFORSEO_AUTH" : "KEYWORDS_EVERYWHERE_API_KEY"),
+    voice: keySource(workspaceId, "api_key:elevenlabs", "ELEVENLABS_API_KEY"),
+    shorts: keySource(workspaceId, "api_key:heygen", "HEYGEN_API_KEY"),
+    youtube: keySource(workspaceId, "api_key:youtube", "YOUTUBE_API_KEY"),
+  };
+  return Promise.all(rows.map(async (r) => ({
+    ...r,
+    required: REQUIRED.has(r.key),
+    ...(r.state !== "missing" && r.key in sources ? { source: await sources[r.key].catch(() => undefined) } : {}),
+  })));
 }
 
 const DAY = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
@@ -162,7 +193,9 @@ export async function setupOverview(workspaceId: string) {
     autonomy, paused, members, invitations,
     schedule: { slotsPerWeek, timeZone: queue.timeZone, timeZoneConfigured: queue.timeZoneConfigured, nextFree, campaigns },
     connections: conns,
-    missing: conns.filter((c) => c.state === "missing"),
+    // Only what the loop needs (E-SET-03); optional extras are counted apart.
+    missing: conns.filter((c) => c.required && c.state === "missing"),
+    extrasOff: conns.filter((c) => !c.required && c.state === "missing").length,
     publishDayLabel,
   };
 }

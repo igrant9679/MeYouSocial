@@ -434,7 +434,7 @@ export const TOOLS: Tool[] = [
     async run(_a, ctx) {
       const { connectionRows } = await import("@/lib/setup-status");
       const rows = await connectionRows(ctx.workspaceId);
-      return rows.map((r) => `${r.state.toUpperCase().padEnd(7)} ${r.label}: ${r.detail} → ${r.href}`).join("\n");
+      return rows.map((r) => `${r.state.toUpperCase().padEnd(7)} ${r.required ? "[needed]" : "[optional]"} ${r.label}: ${r.detail}${r.source ? ` (${r.source})` : ""} → ${r.href}`).join("\n");
     },
   },
   {

@@ -19,7 +19,9 @@ const STATE = {
 export default async function SetupConnections() {
   const { workspace, membership } = await requireMembership();
   const rows = await connectionRows(workspace.id);
-  const missing = rows.filter((r) => r.state === "missing").length;
+  // Only what the loop needs counts as missing (E-SET-03); the rest are extras.
+  const missing = rows.filter((r) => r.required && r.state === "missing").length;
+  const extrasOff = rows.filter((r) => !r.required && r.state === "missing").length;
 
   return (
     <div>
@@ -27,6 +29,7 @@ export default async function SetupConnections() {
         <h1 className="font-mono text-[22px] font-bold m-0">Connections</h1>
         <p className="text-[13px] text-[var(--mute)] m-0">
           {missing === 0 ? `Everything ${workspace.name}'s loop needs is connected.` : `${missing} thing${missing === 1 ? "" : "s"} the loop needs ${missing === 1 ? "is" : "are"} missing.`}
+          {extrasOff > 0 && ` ${extrasOff} optional extra${extrasOff === 1 ? "" : "s"} not set up.`}
         </p>
       </div>
       <section className="card">
@@ -40,8 +43,12 @@ export default async function SetupConnections() {
                   <Icon className="w-3.5 h-3.5" />
                 </span>
                 <div className="flex-1 min-w-48">
-                  <div className="text-sm font-semibold leading-snug">{r.label}{r.note && <span className="font-mono text-[10px] text-[var(--mute)] ml-2">{r.note}</span>}</div>
-                  <div className="text-[11px] text-[var(--mute)]">{r.detail}</div>
+                  <div className="text-sm font-semibold leading-snug">
+                    {r.label}
+                    <span className="font-mono text-[10px] ml-2 px-1.5 py-0.5 rounded-full" style={r.required ? { background: "var(--accent-soft)", color: "var(--accent-on)" } : { background: "var(--zebra)", color: "var(--mute)" }} data-conn-kind={r.required ? "required" : "optional"}>{r.required ? "needed" : "optional"}</span>
+                    {r.note && <span className="font-mono text-[10px] text-[var(--mute)] ml-2">{r.note}</span>}
+                  </div>
+                  <div className="text-[11px] text-[var(--mute)]">{r.detail}{r.source ? ` — ${r.source}` : ""}</div>
                 </div>
                 {/* Most fixes live on admin pages: say so rather than bounce (SHL-07). */}
                 {canFollow(r.href, membership.role)

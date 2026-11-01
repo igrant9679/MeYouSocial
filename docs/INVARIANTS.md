@@ -952,3 +952,12 @@ before changing code in that area.
   snippets", `actions/social-snippets.ts`, editors). The composer (new and edit) shows an **Insert** chip per snippet whose
   category is empty or matches the post's category; a click puts the text at the cursor, or at the end (a multi-line
   snippet on a new paragraph). Caption Studio doesn't offer them yet.
+
+## ⚠ Connections: needed vs optional, and whose key (2026-11-01, audit Phase 5, growth part j)
+- **`ConnRow.required`** (E-SET-03, lib/setup-status.ts): `REQUIRED` = writing (LLM), live web search, images and social
+  accounts — the daily loop stops without them. Only those count in Connections' "N things the loop needs are missing"
+  and the Settings overview's "N missing"; the rest are "optional extras not set up". Each row shows "needed" / "optional".
+- **`ConnRow.source`**: for key-backed rows that are connected, whose key it reads — "this workspace's key", "the
+  platform's key" or "the server's environment" (`keySource`, the same order the providers resolve). The assistant's
+  `list_connections` says both. ⚠ A new connection row decides `required` by adding its key to `REQUIRED` or not.
+- No live Test button (E-SEC-03's reason stands: it would spend tenants' credits).

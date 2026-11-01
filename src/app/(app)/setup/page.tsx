@@ -63,7 +63,7 @@ export default async function SetupOverview({ searchParams }: { searchParams: Pr
           {o.missing.length === 0
             ? <>Everything the loop needs is connected.</>
             : <><b>{o.missing.length}</b> missing: {o.missing.map((m) => m.label).join(", ")}.</>}
-          {" "}{o.connections.filter((c) => c.state === "ok").length} of {o.connections.length} connected.
+          {" "}{o.connections.filter((c) => c.state === "ok").length} of {o.connections.length} connected{o.extrasOff > 0 ? `; ${o.extrasOff} optional extra${o.extrasOff === 1 ? "" : "s"} not set up` : ""}.
         </Q>
 
         <Q icon={<Palette className="w-5 h-5" />} hue="rose" title="Brand and voice" href="/brand" cta="Brand">
