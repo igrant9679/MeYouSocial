@@ -6,6 +6,7 @@ import { topicMeasure } from "@/lib/topic-measure";
 import { getPostingTimeZone } from "@/lib/social/slots";
 import { RangePicker } from "@/components/RangePicker";
 import { measureRange, type RangeInput } from "@/lib/measure-range";
+import { CsvButton } from "@/components/CsvButton";
 
 // Measure → Topics: what each Topic earned, per format. One row per Topic,
 // columns per format, every cell measured or a dash — and the page says why
@@ -59,7 +60,8 @@ export default async function MeasureTopicsPage({ searchParams }: { searchParams
       ) : (
         <section className="card">
           <div className="overflow-x-auto">
-            <table className="w-full text-xs border-collapse max-md:block" data-narrow-cards>
+            <div className="flex justify-end mb-1"><CsvButton table="topics" filename="topics" /></div>
+            <table data-csv="topics" className="w-full text-xs border-collapse max-md:block" data-narrow-cards>
               <thead className="max-md:hidden">
                 <tr className="text-left text-[var(--mute)]">
                   <th className={th} rowSpan={2}>Topic</th>

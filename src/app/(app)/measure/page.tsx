@@ -8,6 +8,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { getPostingTimeZone } from "@/lib/social/slots";
 import { RangePicker } from "@/components/RangePicker";
 import { measureRange, type RangeInput } from "@/lib/measure-range";
+import { CsvButton } from "@/components/CsvButton";
 
 // Measure stage: the measured numbers only, never invented curves — the same
 // Results block Home showed, promoted to a stage with Reports, Insights and
@@ -80,7 +81,8 @@ export default async function MeasureStage({ searchParams }: { searchParams: Pro
         )}
         {perf.length > 0 && (
           <div className="overflow-x-auto mt-3">
-            <table className="w-full text-xs border-collapse">
+            <div className="flex justify-end mb-1"><CsvButton table="measure-articles" filename="articles-last-28-days" /></div>
+            <table data-csv="measure-articles" className="w-full text-xs border-collapse">
               <thead>
                 <tr className="text-left text-[var(--mute)]">
                   <th className="py-1.5 px-2 font-mono text-[9px] uppercase tracking-wider border-b-2 border-[var(--line)]">Post</th>

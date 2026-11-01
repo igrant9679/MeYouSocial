@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { toggleProtectAction, recordSnapshotAction } from "@/app/actions/blog-analytics";
 import { EmptyState } from "@/components/EmptyState";
 import { daysAgo } from "@/lib/request-time";
+import { CsvButton } from "@/components/CsvButton";
 
 // Blog analytics (Spark FR-14 port): manual snapshots per published post,
 // aggregate tiles, refresh candidates (position > 10), top performers, and the
@@ -124,7 +125,8 @@ export default async function BlogAnalyticsPage() {
         />
       ) : (
         <div className="card overflow-x-auto">
-          <table className="w-full text-xs">
+          <div className="flex justify-end mb-1"><CsvButton table="blog-analytics" filename="blog-analytics" /></div>
+          <table data-csv="blog-analytics" className="w-full text-xs">
             <thead>
               <tr className="text-left text-[var(--mute)] border-b border-[var(--line)]">
                 <th className="py-2 pr-3 font-semibold">Post</th>

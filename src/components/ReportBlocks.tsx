@@ -9,6 +9,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { daysAgo } from "@/lib/request-time";
 import { formatZonedMoment } from "@/lib/zoned-dates";
 import { getPostingTimeZone } from "@/lib/social/slots";
+import { CsvButton } from "@/components/CsvButton";
 
 /**
  * Report blocks — each one is an async server component that loads its own
@@ -145,7 +146,8 @@ export async function ReportBlock({ block, workspaceId, weeks, canAct = true }: 
             <Empty canAct={canAct} to="/publish" cta="See what's waiting">Nothing has been published from this workspace yet, so there is no content to rank.</Empty>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-xs border-collapse">
+              <div className="flex justify-end mb-1"><CsvButton table="report-content" filename="report-content" /></div>
+              <table data-csv="report-content" className="w-full text-xs border-collapse">
                 <thead><tr className="text-left text-[var(--mute)]">
                   {["Post", "Keyword", "Pos", "Δ vs prior 28 d", "Clicks"].map((h, i) => (
                     <th key={h} className={`py-1.5 px-2 font-mono text-[9px] uppercase tracking-wider border-b-2 border-[var(--line)] ${i >= 2 ? "text-right" : ""}`}>{h}</th>
@@ -375,7 +377,8 @@ export async function ReportBlock({ block, workspaceId, weeks, canAct = true }: 
             <Empty canAct={canAct} to="/social/compose" cta="Compose a post">No social posts yet.</Empty>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-xs border-collapse">
+              <div className="flex justify-end mb-1"><CsvButton table="report-social" filename="report-social-by-network" /></div>
+              <table data-csv="report-social" className="w-full text-xs border-collapse">
                 <thead><tr className="text-left text-[var(--mute)]">
                   {["Network", "Waiting", "Posted", "Failed"].map((h, i) => (
                     <th key={h} className={`py-1.5 px-2 font-mono text-[9px] uppercase tracking-wider border-b-2 border-[var(--line)] ${i > 0 ? "text-right" : ""}`}>{h}</th>
@@ -445,7 +448,8 @@ export async function ReportBlock({ block, workspaceId, weeks, canAct = true }: 
           ) : (
             <>
               <div className="overflow-x-auto">
-                <table className="w-full text-xs border-collapse">
+                <div className="flex justify-end mb-1"><CsvButton table="report-topics" filename="report-topics" /></div>
+                <table data-csv="report-topics" className="w-full text-xs border-collapse">
                   <thead>
                     <tr className="text-left text-[var(--mute)]">
                       <th className="py-1.5 px-2 font-mono text-[9px] uppercase tracking-wider border-b-2 border-[var(--line)]">Topic</th>

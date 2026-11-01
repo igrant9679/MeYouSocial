@@ -1011,3 +1011,15 @@ before changing code in that area.
   router (provider + model it picked) and flipped to `"mock"` by the fallback wrapper; the route runs
   `placeholderProblem` before writing and ends with `event: error` + the reason, which `StreamButton` shows instead of
   going quiet. ⚠ Any new streaming write must pass `answeredBy` and check it the same way.
+
+## ⚠ Every report table downloads as CSV (2026-11-01, audit Phase 5, growth part o)
+- **E-MEA-02**: `components/CsvButton.tsx` sits over each report table — Measure overview (articles, last 28 days),
+  Measure → Topics, the YouTube videos table, Insights (Topics, By network), Blog analytics, Blog report (Top content)
+  and the Reports blocks (content, social by network, topics). The table carries `data-csv="<key>"`; the button
+  serializes what the table SHOWS through `lib/csv.ts` `toCsv` (BOM, RFC 4180
+  quoting, formula-looking cells prefixed with `'`), so the file can't disagree with the page. A dash cell exports
+  **blank** — unmeasured is never 0 or "—" in a sheet. A multi-row header is laid out as a grid (row/col spans), so
+  each column is named once and in full ("Articles: Out / made") and lines up with its cells — taking only the last
+  header row shifted every Topics column. `print:hidden`. ⚠ A new report table gets `data-csv` and a
+  `CsvButton`; a cell whose value is only a bar or an icon exports blank. XLSX would need a new dependency — the
+  owner's call, not done.

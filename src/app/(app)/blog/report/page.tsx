@@ -9,6 +9,7 @@ import { hasSeriesData, postPerformance, unmeasuredWeeks, weeklySeries } from "@
 import { AreaChart, HBars } from "@/components/charts";
 import { MOTIF_SEED_BY_KEY, parseMotifs } from "@/lib/motifs";
 import { EmptyState } from "@/components/EmptyState";
+import { CsvButton } from "@/components/CsvButton";
 
 // The client-facing content report (Spark's agency deliverable, reborn).
 // Impressions and clicks are separate panels on purpose — their scales differ
@@ -136,7 +137,8 @@ export default async function BlogReportPage() {
             <EmptyState variant="inline" line="Nothing has been published yet, so there is no content to rank." action={{ label: "See what's waiting", href: "/publish" }} />
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-xs border-collapse">
+              <div className="flex justify-end mb-1"><CsvButton table="blog-top-content" filename="blog-top-content" /></div>
+              <table data-csv="blog-top-content" className="w-full text-xs border-collapse">
                 <thead>
                   <tr className="text-left text-[var(--mute)]">
                     <th className="py-1.5 px-2 font-mono text-[9px] uppercase tracking-wider border-b-2 border-[var(--line)]">Post</th>

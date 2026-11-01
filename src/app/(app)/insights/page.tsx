@@ -18,6 +18,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { RangePicker } from "@/components/RangePicker";
 import { measureRange, type RangeInput } from "@/lib/measure-range";
 import { getPostingTimeZone } from "@/lib/social/slots";
+import { CsvButton } from "@/components/CsvButton";
 
 // Insights — the read-only face of the metrics spine (src/lib/metrics).
 //
@@ -393,7 +394,8 @@ export default async function InsightsPage({
           />
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-xs">
+            <div className="flex justify-end mb-1"><CsvButton table="insights-topics" filename="insights-topics" /></div>
+            <table data-csv="insights-topics" className="w-full text-xs">
               <thead>
                 <tr className="text-[10px] uppercase tracking-wider text-[var(--mute)] text-left">
                   <th className="py-1 pr-3">Topic</th>
@@ -472,7 +474,8 @@ export default async function InsightsPage({
       {networks.length > 0 && (
         <div className="card mb-4 overflow-x-auto">
           <h3 className="font-mono text-[11px] font-bold mb-2">By network</h3>
-          <table className="w-full text-xs">
+          <div className="flex justify-end mb-1"><CsvButton table="insights-networks" filename="insights-by-network" /></div>
+          <table data-csv="insights-networks" className="w-full text-xs">
             <thead>
               <tr className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)] text-left">
                 <th className="pb-1">Network</th>

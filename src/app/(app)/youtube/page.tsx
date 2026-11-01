@@ -12,6 +12,7 @@ import { formatZonedMoment, formatShortDay } from "@/lib/zoned-dates";
 import { getPostingTimeZone } from "@/lib/social/slots";
 import { RangePicker } from "@/components/RangePicker";
 import { measureRange, type RangeInput } from "@/lib/measure-range";
+import { CsvButton } from "@/components/CsvButton";
 
 // Measure → YouTube: the channel audit. What the workspace's own channel did
 // over the window, from the YouTube Analytics API, and what to do about it.
@@ -197,7 +198,8 @@ export default async function YoutubeAuditPage({ searchParams }: { searchParams:
 
                 <h2 className="font-mono text-[13px] font-bold mb-2">Videos in the window <span className="text-[var(--mute)] font-normal">({a.videos.length}{a.videos.length === 200 ? ", API cap" : ""})</span></h2>
                 <div className="card overflow-x-auto mb-3">
-                  <table className="w-full text-xs border-collapse max-md:block" data-narrow-cards>
+                  <div className="flex justify-end mb-1"><CsvButton table="youtube-videos" filename="youtube-videos" /></div>
+                  <table data-csv="youtube-videos" className="w-full text-xs border-collapse max-md:block" data-narrow-cards>
                     <thead className="max-md:hidden">
                       <tr className="text-left text-[var(--mute)]">
                         {[["Video"], ["Published"], ["Type"], ["Views", "Views inside the window"], ["Views/hr", "Lifetime views divided by hours since publish"], ["Watched", "Average percentage of the video watched"], ["Avg view"], ["Likes"], ["Comments"], ["Subs +"]].map(([h, tip], i) => (
