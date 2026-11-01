@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { rejectedLine } from "@/lib/reject-reasons";
 import { readJson } from "@/lib/db/json";
 import { writeAudit, isGloballyPaused } from "@/lib/governance";
 import { llm, resolveUsableModel } from "@/lib/llm";
@@ -39,6 +40,8 @@ export async function discoverSocialIdeasCore(workspaceId: string, topicId: stri
   ]);
   if (!workspace) return 0;
 
+  // What the team said no to, and why (E-IDE-18).
+  const rejectedIdeas = await db.socialIdea.findMany({ where: { workspaceId, status: "rejected" }, select: { hook: true, rejectReason: true }, orderBy: { updatedAt: "desc" }, take: 20 });
   const phrases = readJson<string[]>(topic.keywords, []);
   const facts = [
     `Company: ${workspace.name}`,
@@ -48,6 +51,7 @@ export async function discoverSocialIdeasCore(workspaceId: string, topicId: stri
     `Topic: ${topic.name}${topic.description ? ` — ${topic.description}` : ""}${phrases.length ? ` (related phrases: ${phrases.slice(0, 8).join(", ")})` : ""}`,
     recentPosts.length ? `Recently published articles: ${recentPosts.map((p) => p.title).join(" · ")}` : "",
     recentIdeas.length ? `Avoid repeating these existing post ideas: ${recentIdeas.map((i) => i.hook).join(" | ")}` : "",
+    rejectedLine(rejectedIdeas.map((i) => ({ title: i.hook, rejectReason: i.rejectReason }))) ?? "",
   ].filter(Boolean);
 
   const res = await llm.complete({

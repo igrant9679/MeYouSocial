@@ -1,5 +1,6 @@
 "use server";
 
+import { isRejectReason } from "@/lib/reject-reasons";
 import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/acl";
 import { db } from "@/lib/db";
@@ -39,7 +40,12 @@ export async function setSocialIdeaStatusAction(formData: FormData) {
   // Discovered ("Not yet", E-IDE-25) forgets the approval time with it.
   const r = await db.socialIdea.updateMany({
     where: { id, workspaceId: workspace.id, status: { not: "drafted" } },
-    data: { status, ...(status === "approved" ? { approvedAt: new Date() } : status === "discovered" ? { approvedAt: null } : {}) },
+    data: {
+      status,
+      // A reason rides a reject (E-IDE-18); any other move clears it.
+      rejectReason: status === "rejected" && isRejectReason(String(formData.get("reason") ?? "")) ? String(formData.get("reason")) : null,
+      ...(status === "approved" ? { approvedAt: new Date() } : status === "discovered" ? { approvedAt: null } : {}),
+    },
   });
   if (r.count) {
     await writeAudit({
@@ -48,6 +54,8 @@ export async function setSocialIdeaStatusAction(formData: FormData) {
       action: status === "approved" ? "social.idea_approved" : status === "rejected" ? "social.idea_rejected" : before?.status === "approved" ? "social.idea_snoozed" : "social.idea_restored",
       entityType: "social_idea",
       entityId: id,
+      // Where it came from, so Undo puts it back (E-IDE-18).
+      meta: { from: before?.status ?? null },
     });
   }
   revalidate();

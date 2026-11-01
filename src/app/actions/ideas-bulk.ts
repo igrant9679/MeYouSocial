@@ -131,14 +131,14 @@ export async function bulkIdeasAction(formData: FormData) {
 
   if (sel.social.length) {
     const { from, to } = RULES.social[which];
-    const rows = await db.socialIdea.findMany({ where: { id: { in: sel.social }, workspaceId: ws, status: { in: from } }, select: { id: true } });
+    const rows = await db.socialIdea.findMany({ where: { id: { in: sel.social }, workspaceId: ws, status: { in: from } }, select: { id: true, status: true } });
     if (rows.length) {
       changed += (await db.socialIdea.updateMany({
         where: { id: { in: rows.map((r) => r.id) }, workspaceId: ws, status: { in: from } },
         data: { status: to, ...(to === "approved" ? { approvedAt: new Date() } : {}) },
       })).count;
       for (const r of rows) {
-        await writeAudit({ workspaceId: ws, actorId: user.id, action: to === "approved" ? "social.idea_approved" : "social.idea_rejected", entityType: "social_idea", entityId: r.id, meta: { bulk: true } });
+        await writeAudit({ workspaceId: ws, actorId: user.id, action: to === "approved" ? "social.idea_approved" : "social.idea_rejected", entityType: "social_idea", entityId: r.id, meta: { from: r.status, bulk: true } });
       }
     }
   }

@@ -1108,3 +1108,16 @@ before changing code in that area.
   attempts) `noticeGaveUp` in `lib/jobs/index.ts` sends notify kind `job_failed` — ADMINS only, in-app, one item per
   job kind a day with the repeat count — linking to `/admin/jobs?state=failed`. A failure with attempts left tells
   nobody. ⚠ A new job name gets a `JOB_LABELS` entry.
+
+## ⚠ A rejection can say why, be undone, and steer discovery (2026-11-01, audit Phase 5, growth part w)
+- **E-IDE-18**: `BlogIdea.rejectReason` / `SocialIdea.rejectReason` (migration `20261101150000_idea_reject_reason`),
+  keys from `lib/reject-reasons.ts` `REJECT_REASONS` (off_brand, duplicate, too_broad, wrong_audience). A reason can
+  ride the reject itself (`reason` on the status form) or be added after; ANY other status move clears it.
+- **The just-rejected bar** on the Ideas board (`justRejected`): this person's rejections from the last two minutes that
+  are still rejected, read from the audit rows every reject path writes (card, key press, bulk bar — social rows now
+  record `meta.from` too), so no path needs a redirect. Each row has **Undo** (`undoRejectAction`: back to `from`,
+  discovered or approved, only if still rejected; audited as a restore) and the four reasons (`setRejectReasonAction`,
+  only on a still-rejected idea). Rejected cards show their reason.
+- **Discovery hears it**: article (`discoverIdeasCore`) and social (`discoverSocialIdeasCore`) prompts get
+  `rejectedLine` — the 20 newest rejected titles with "[reason]" — as "propose nothing like them", on top of the old
+  "avoid duplicating" list. Video ideas (archived, not rejected) and deleting are unchanged: a deleted idea has no undo.

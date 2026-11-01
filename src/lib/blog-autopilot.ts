@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { rejectedLine } from "@/lib/reject-reasons";
 import { env } from "@/lib/env";
 import { llm, resolveUsableModel } from "@/lib/llm";
 import { readJson } from "@/lib/db/json";
@@ -117,6 +118,13 @@ export async function discoverIdeasCore(workspaceId: string, topicId?: string | 
     orderBy: { createdAt: "desc" },
     take: 30,
   });
+  // What the team said no to, and why (E-IDE-18) — steered away from, not just deduplicated.
+  const rejected = await db.blogIdea.findMany({
+    where: { workspaceId, status: "rejected" },
+    select: { title: true, rejectReason: true },
+    orderBy: { updatedAt: "desc" },
+    take: 20,
+  });
 
   // FR-5: ideas arrive tagged. Tier/audience/target page/motifs come from the
   // model; the priority score is computed from workspace facts afterwards.
@@ -152,6 +160,7 @@ export async function discoverIdeasCore(workspaceId: string, topicId?: string | 
     keywords.length ? `Keyword strategy (phrase → tier): ${keywords.map((k) => `${k.phrase} → ${k.tier}`).join("; ")}` : null,
     pages.length ? `Service pages that ideas can support:\n${pages.map((p) => `${p.url} — ${p.title}`).join("\n")}` : null,
     existing.length ? `Avoid duplicating these existing ideas: ${existing.map((i) => i.title).join(" | ")}` : null,
+    rejectedLine(rejected),
     `Generate ${want} blog post ideas.`,
   ]
     .filter(Boolean)

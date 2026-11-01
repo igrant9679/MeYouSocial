@@ -612,6 +612,8 @@ model BlogIdea {
   priorityReason String?
   // Dedupe against what's already published
   dedupeNote     String?  // "close to <published title>"
+  // Why it was rejected (E-IDE-18): lib/reject-reasons.ts keys; fed back into discovery.
+  rejectReason   String?
   refreshPostId  String?  // set when this should update a post instead of being new
   mergedIntoId   String?  // set when merged into another idea
   createdAt DateTime @default(now())
@@ -649,6 +651,8 @@ model SocialIdea {
   workspaceId      String
   topicId          String?
   hook             String   // the post in one line, ≤ 240 chars
+  // Why it was rejected (E-IDE-18): lib/reject-reasons.ts keys; fed back into discovery.
+  rejectReason     String?
   angle            String?  // why it works / what it is for
   status           String   @default("discovered") // discovered | approved | drafted | rejected
   source           String   @default("manual") // manual | discovered | research | article

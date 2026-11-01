@@ -1,5 +1,6 @@
 "use server";
 
+import { isRejectReason } from "@/lib/reject-reasons";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/acl";
@@ -65,7 +66,10 @@ export async function setBlogIdeaStatusAction(formData: FormData) {
   if (!idea) return;
   // Only between the open states: a drafted or merged idea can't be
   // re-approved into a second article (IDE-06).
-  const r = await db.blogIdea.updateMany({ where: { id, workspaceId: workspace.id, status: { in: ["discovered", "approved", "rejected"] } }, data: { status } });
+  // A reason rides a reject (E-IDE-18); any other move clears it.
+  const reason = String(formData.get("reason") ?? "");
+  const rejectReason = status === "rejected" && isRejectReason(reason) ? reason : null;
+  const r = await db.blogIdea.updateMany({ where: { id, workspaceId: workspace.id, status: { in: ["discovered", "approved", "rejected"] } }, data: { status, rejectReason } });
   if (!r.count) return;
   // Approval is the article side's one human gate, so who opened or closed it
   // is recorded — the row social ideas have always written.

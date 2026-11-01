@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { justRejected, REJECT_REASONS, isRejectReason } from "@/lib/reject-reasons";
+import { setRejectReasonAction, undoRejectAction } from "@/app/actions/idea-reject";
 import { Plus, Sparkles, Trash2, PenLine, Tags, ChevronRight } from "lucide-react";
 import { requireMembership, canEdit } from "@/lib/acl";
 import { SubmitButton } from "@/components/SubmitButton";
@@ -50,8 +52,10 @@ const OPEN_LANES = 8; // lanes past this many open collapsed, with their counts
 const BULK = "idea-bulk";
 
 export default async function IdeasBoard({ searchParams }: { searchParams: Promise<{ format?: string; channel?: string; q?: string; topic?: string; sort?: string; ok?: string; err?: string }> }) {
-  const { workspace, membership } = await requireMembership();
+  const { workspace, membership, user } = await requireMembership();
   const editor = canEdit(membership.role);
+  // What this person just rejected (E-IDE-18): Undo, and why — from the audit rows.
+  const recent = editor ? await justRejected(workspace.id, user.id) : [];
   const sp = await searchParams;
   const [board, studio] = await Promise.all([loadIdeasBoard(workspace.id, sp), studioState(workspace.id)]);
   const { lanes, counts, topics, totals } = board;
@@ -275,6 +279,31 @@ export default async function IdeasBoard({ searchParams }: { searchParams: Promi
         />
       ) : (
         <div className="flex flex-col gap-3">
+          {recent.length > 0 && (
+            <div className="card mb-3 text-xs flex flex-col gap-1.5" style={{ borderColor: "var(--rose)" }} data-just-rejected>
+              {recent.map((r) => (
+                <div key={`${r.format}:${r.id}`} className="flex flex-wrap items-center gap-1.5" data-rejected={`${r.format}:${r.id}`}>
+                  <span className="min-w-0">Rejected <b className="break-words">{r.title}</b></span>
+                  <form action={undoRejectAction}>
+                    <input type="hidden" name="format" value={r.format} />
+                    <input type="hidden" name="id" value={r.id} />
+                    <input type="hidden" name="from" value={r.from} />
+                    <SubmitButton className="btn sm" pendingText="…">Undo</SubmitButton>
+                  </form>
+                  <span className="text-[var(--mute)] ml-1">Why?</span>
+                  {(Object.keys(REJECT_REASONS) as Array<keyof typeof REJECT_REASONS>).map((k) => (
+                    <form key={k} action={setRejectReasonAction}>
+                      <input type="hidden" name="format" value={r.format} />
+                      <input type="hidden" name="id" value={r.id} />
+                      <input type="hidden" name="reason" value={k} />
+                      <button className={"btn sm" + (r.reason === k ? " primary" : "")} aria-pressed={r.reason === k}>{REJECT_REASONS[k]}</button>
+                    </form>
+                  ))}
+                </div>
+              ))}
+              <p className="m-0 text-[10px] text-[var(--mute)]">A reason tells discovery what to steer away from. This bar shows your rejections from the last two minutes.</p>
+            </div>
+          )}
           {editor && <IdeaTriage formId={BULK} back={back} topics={topics} />}
           {lanes.map((lane, i) => (
             <LaneSection
@@ -509,6 +538,7 @@ function ArticleCard({ idea, editor, topics, select, rank }: { idea: ArticleRow;
         {idea.source !== "manual" && <Tag>{idea.source === "ai" ? "discovered" : idea.source}</Tag>}
         {motifs.map((m) => <Tag key={m.key} hue={motifHue(m.key)}>{m.key} {m.weight}%</Tag>)}
         {idea.seasonalHook && <Tag hue="cyan">{idea.seasonalHook}</Tag>}
+        {idea.status === "rejected" && isRejectReason(idea.rejectReason) && <Tag hue="rose" title="Why it was rejected — discovery steers away from this">{REJECT_REASONS[idea.rejectReason]}</Tag>}
       </div>
       {idea.audience && <p className="text-[10px] text-[var(--mute)] mt-1">for {idea.audience}</p>}
       {idea.targetPage && <p className="text-[10px] text-[var(--mute)] mt-0.5 truncate">supports {idea.targetPage}</p>}
@@ -652,6 +682,7 @@ function SocialCard({ idea, editor, topics, select }: { idea: SocialRow; editor:
         <FormatChip format="social" />
         <span className="text-xs font-semibold leading-snug flex-1">{idea.hook}</span>
         {idea.priority != null && <Tag>{idea.priority}</Tag>}
+        {idea.status === "rejected" && isRejectReason(idea.rejectReason) && <Tag hue="rose" title="Why it was rejected — discovery steers away from this">{REJECT_REASONS[idea.rejectReason]}</Tag>}
       </div>
       {idea.angle && <p className="text-[11px] text-[var(--mute)] mt-1">{idea.angle}</p>}
       {source && (

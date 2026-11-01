@@ -267,6 +267,7 @@ area, rather than loading all of them into every session.
 - Research ideas can take a remixed title — 2026-11-01, audit Phase 5, growth part t
 - Topics can be renamed, merged and safely deleted — 2026-11-01, audit Phase 5, growth part u
 - The background queue has a page; a job that gives up says so — 2026-11-01, audit Phase 5, growth part v
+- A rejection can say why, be undone, and steer discovery — 2026-11-01, audit Phase 5, growth part w
 
 ## Open items / things the user still owns
 - **Analytics: APIs enabled 2026-08-03** (Search Console + GA Admin + GA Data, on project
