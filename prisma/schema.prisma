@@ -992,8 +992,11 @@ enum Role {
 }
 
 // Global key/value settings — currently used for in-app API key storage so admins
-// can paste provider keys via UI instead of editing Railway env vars. Values are
-// stored in plaintext; treat the DB as the secret boundary (same trust level as env).
+// can paste provider keys via UI instead of editing Railway env vars. Secret keys
+// (api_key:*, *:client_secret, *:webhook_secret, *:service_account, email:smtp)
+// are sealed with the keyring on write and opened on read by the db client
+// (src/lib/keyring.ts, E-SEC-04); a row written before 2026-10-31 is plain text
+// until the operator re-encrypts on Settings → Keyring.
 model Setting {
   key       String   @id
   value     String

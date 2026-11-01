@@ -117,9 +117,12 @@ before changing code in that area.
   Topic, audience, tier and motifs into the post and gives the writer the angle. `ideaChange()` decides
   what an idea means: a **refresh** (has `refreshPostId`) revises that published post in place —
   `refreshStartedAt` set, back through review, and its publish **updates the same WordPress post**
-  (`wpUpdatePost`; the publish sweep picks refreshes up too); **Retire / Merge, or a Refresh / Rewrite
-  with no post in the app, are site changes** a person makes in WordPress — never drafted. Rescoring
-  keeps a refresh idea's `refreshPostId`.
+  (`wpUpdatePost`; the publish sweep picks refreshes up too). A typed "Refresh: / Rewrite: <title>"
+  idea is linked to its article by exact bare title (`linkRefreshTargets`, lib/idea-drafting.ts — one
+  published article, case and quotes aside; a person's own `refreshPostId` is never replaced) and
+  becomes a refresh. **Retire / Merge, or a Refresh / Rewrite matching no article (or more than one),
+  are site changes** a person makes in WordPress — never drafted. Rescoring keeps a refresh idea's
+  `refreshPostId`.
 - **Renders are claimed** queued → rendering; a retry skips scenes already `done` with output; a render
   stuck in "rendering" over an hour is released to **failed** (not queued — a person retries it).
 - **The global pause is enforced at the routers**: `llm.complete/stream` and `images.generate` throw
@@ -162,7 +165,12 @@ before changing code in that area.
   review — clearing `scheduledAt` and the override (`CLEAR_APPROVAL`) — after Save, autosave, version
   restore, Regenerate, the craft/optimize buttons and the assistant's set_article_fields, and turns an
   edit to a live WordPress article into a refresh. Back out of final approval clears them too. Regenerate
-  on a live article revises it (refresh brief); on one published by hand off the app it's refused.
+  on a live article revises it (refresh brief). "Live" is `refreshableLive`: on WordPress through the
+  app, or published by hand with a `publishedUrl` (2026-10-31, `cea7f51`) — only one marked published
+  with no link is refused. A hand refresh goes out via Download HTML + "Mark as refreshed", which keeps
+  the original `publishedAt`, clears `refreshStartedAt` and audits `blog.refreshed_manually`;
+  `publishCore`, the publish action and the sweep refuse to send a hand refresh (`refreshStartedAt` set,
+  `wpPostId` null) to WordPress, which would make a second article at a new URL.
 - **Held articles are named** (ART-08): auto-review takes the least recently reviewed (`autoReviewedAt`),
   sets aside day-held claims before taking three, and the publish step runs `blockingChecks` before picking
   two (skips workspaces with no WordPress); /publish and the Inbox show the failing check at final approval.
@@ -758,3 +766,29 @@ before changing code in that area.
   workspace the person belongs to and sent to its admins. The operator's own account gets an amber nudge — NOT forced: the
   audit asked for "required for the operator"; forcing it is the owner's call.
 
+
+## ⚠ Every stored secret is on the keyring (2026-10-31, audit Phase 5, security part 7)
+- **`lib/keyring.ts`** (E-SEC-04): `TOKEN_ENCRYPTION_KEY` is the current key (new secrets are written with it);
+  `TOKEN_ENCRYPTION_KEY_PREVIOUS` (comma-separated) holds older keys that are still READ, never written. A key's id is
+  the first 8 hex of `sha256("mys-keyring:" + key)` — nothing else to configure. `blog-crypto`'s `encryptSecret` now
+  writes `{kid, iv, tag, data}`; a value from before has no `kid` and is opened by trying each key (GCM's tag decides).
+- **Secret settings are sealed at rest by the db client** (`lib/db.ts`, a `$extends` query hook on Setting and
+  WorkspaceSetting): keys matching `isSecretSetting` — `api_key:*`, `email:smtp`, `*:api_key`, `*:client_secret`,
+  `*:webhook_secret`, `*:service_account`, `*:password` — are stored `enc:v1:<kid>:<iv>:<tag>:<data>` on every
+  create / update / upsert / createMany / updateMany, and every read returns the plain value. So `getSetting`, the pages
+  that query the tables directly and the webhook's secret scan all see plain text unchanged. A plain row from before
+  reads as it is (read-both); `*:refresh_token` rows stay their callers' sealed JSON. ⚠ Don't filter a secret setting
+  by `value` in a `where` (it's ciphertext in the table); `value: { not: "" }` is fine. ⚠ `baseDb` is the client
+  WITHOUT the hook — only for the keyring sweep and the Auth.js adapter; never read a secret through it.
+- **A secret no configured key opens reads as not set** (`""`, logged once per key id) — never as ciphertext handed to a
+  provider. With no `TOKEN_ENCRYPTION_KEY` at all, secret settings are written plain (as before) with a warning, and
+  `encryptSecret` refuses (WordPress, Google sign-ins and two-factor can't be saved).
+- **Settings → Keyring** (`/admin/keyring`, operator only; `lib/keyring-sweep.ts`): counts per place (settings, Google
+  sign-ins, WordPress passwords, two-factor secrets) by state — current key / older key / no key id yet / not encrypted /
+  can't be read (listed with workspace, setting name and key id; never a value) — and **Re-encrypt** behind a tick. Each
+  row is replaced only if it still holds the value that was read (a save in between wins and is counted); affected
+  workspaces get a `security.keyring_reencrypted` audit row (no notice — no key changed). ⚠ **The operator runs it, never
+  an agent**: it rewrites LSI's and CF's secrets. Until it's run, production's existing keys stay plain text.
+- **Rotation**: current key → `TOKEN_ENCRYPTION_KEY_PREVIOUS`, new key → `TOKEN_ENCRYPTION_KEY`, deploy, Re-encrypt,
+  then drop the old key once no row shows it ("nothing uses it — safe to remove" on the page). Removing a key in use
+  makes those secrets unreadable; they'd have to be entered again.

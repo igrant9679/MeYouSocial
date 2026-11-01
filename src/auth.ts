@@ -4,7 +4,7 @@ import Google from "next-auth/providers/google";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
-import { db } from "@/lib/db";
+import { db, baseDb } from "@/lib/db";
 import { env } from "@/lib/env";
 
 declare module "next-auth" {
@@ -35,7 +35,7 @@ const googleProvider = env.ENABLE_GOOGLE_SSO && env.GOOGLE_CLIENT_ID && env.GOOG
   : [];
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
-  adapter: PrismaAdapter(db),
+  adapter: PrismaAdapter(baseDb),
   session: { strategy: "jwt" },
   // Empty → undefined, so a missing AUTH_SECRET makes Auth.js refuse requests
   // rather than sign sessions with something guessable (see lib/env.ts).

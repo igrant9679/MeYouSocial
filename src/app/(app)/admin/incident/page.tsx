@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ShieldAlert } from "lucide-react";
 import { requireRole, isPlatformOperator } from "@/lib/acl";
@@ -87,7 +88,7 @@ export default async function IncidentPage() {
         <div>
           <SubmitButton className="btn sm" pendingText="Running…">{incident ? "Run these steps" : "Declare the incident"}</SubmitButton>
         </div>
-        <span className="text-[var(--mute)]">After it: replace the keys that may have leaked (each workspace&apos;s Keys page has a rotation checklist) and check People.</span>
+        <span className="text-[var(--mute)]">After it: replace the keys that may have leaked (each workspace&apos;s Keys page has a rotation checklist), replace the encryption key if the database leaked (<Link href="/admin/keyring" className="underline">Keyring</Link>), and check People.</span>
       </form>
     </main>
   );

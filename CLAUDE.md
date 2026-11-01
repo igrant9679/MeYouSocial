@@ -242,6 +242,7 @@ area, rather than loading all of them into every session.
 - Incident mode; shared accounts wait for the operator — 2026-10-29, audit Phase 5, security part 4
 - Stored files have an owner — 2026-10-29, audit Phase 5, security part 5
 - Two-factor sign-in — 2026-10-29, audit Phase 5, security part 6
+- Every stored secret is on the keyring — 2026-10-31, audit Phase 5, security part 7
 
 ## Open items / things the user still owns
 - **Analytics: APIs enabled 2026-08-03** (Search Console + GA Admin + GA Data, on project

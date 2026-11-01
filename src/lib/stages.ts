@@ -173,7 +173,7 @@ export const STAGES: Record<(typeof STAGE_HREFS)[number], StageDef> = {
           ]
         : []),
       // The operator's pages; the unclaimed-accounts queue (E-SEC-15) rides Workspaces.
-      ...(operator ? [{ href: "/admin/workspaces", label: "Workspaces", also: ["/admin/unclaimed"] }, { href: "/admin/incident", label: "Incident" }] : []),
+      ...(operator ? [{ href: "/admin/workspaces", label: "Workspaces", also: ["/admin/unclaimed"] }, { href: "/admin/incident", label: "Incident" }, { href: "/admin/keyring", label: "Keyring" }] : []),
     ],
   },
 };

@@ -57,7 +57,8 @@ export default async function PlatformWorkspacesPage() {
             no membership needed. &ldquo;Enter&rdquo; joins you as admin and switches in, so every per-workspace admin
             page works there too.
             {" "}<Link href="/admin/unclaimed" className="underline">Unclaimed accounts →</Link>{" "}
-            <Link href="/admin/incident" className="underline">Incident mode →</Link>
+            <Link href="/admin/incident" className="underline">Incident mode →</Link>{" "}
+            <Link href="/admin/keyring" className="underline">Keyring →</Link>
           </p>
         </div>
       </div>
