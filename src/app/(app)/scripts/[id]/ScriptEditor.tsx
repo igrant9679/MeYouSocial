@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback, useTransition } from "react";
 import { Wand2, Sparkles, Save } from "lucide-react";
 import { saveBodyAction, improveSelectionAction, humanizeAction } from "@/app/actions/canvas";
 import { countWords, durationSeconds, formatDuration, MAX_WORDS } from "@/lib/canvas/duration";
+import { ScriptOutline } from "./ScriptOutline";
 
 // + + + — editing surface.
 // Autosaves on debounce, shows live wordcount + duration, exposes Highlight-and-Improve.
@@ -76,6 +77,19 @@ export function ScriptEditor({ scriptId, initialBody }: { scriptId: string; init
     else setSelection(null);
   }, []);
 
+  // The outline's jumps (E-VID-10): select the place and bring it into view.
+  // Line-based, so a long wrapped paragraph lands near rather than exactly.
+  const jumpTo = useCallback((offset: number, length: number) => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.focus();
+    el.setSelectionRange(offset, offset + length);
+    const line = el.value.slice(0, offset).split("\n").length - 1;
+    const lineHeight = parseFloat(getComputedStyle(el).lineHeight) || 24;
+    el.scrollTop = Math.max(0, line * lineHeight - el.clientHeight / 3);
+    captureSelection();
+  }, [captureSelection]);
+
   const words = countWords(body);
   const dur = formatDuration(durationSeconds(words));
   const wordPct = Math.min(100, Math.round((words / MAX_WORDS) * 100));
@@ -118,18 +132,21 @@ export function ScriptEditor({ scriptId, initialBody }: { scriptId: string; init
         </button>
       </div>
 
-      {/* Editor */}
-      <textarea
-        ref={textareaRef}
-        value={body}
-        onChange={(e) => setBody(e.target.value)}
-        onSelect={captureSelection}
-        onMouseUp={captureSelection}
-        onKeyUp={captureSelection}
-        placeholder="Your script appears here once you generate from the outline. You can also paste a draft directly and use Humanize to clean it up."
-        className="flex-1 min-h-[420px] w-full border border-[var(--line-2)] rounded-xl p-4 text-[15px] leading-[1.7] font-mono resize-none focus:outline-none focus:border-[var(--accent)]"
-        spellCheck
-      />
+      {/* Editor, with the outline beside it on wide screens and under it otherwise */}
+      <div className="flex-1 min-h-0 grid grid-cols-1 xl:grid-cols-[1fr_250px] gap-3">
+        <textarea
+          ref={textareaRef}
+          value={body}
+          onChange={(e) => setBody(e.target.value)}
+          onSelect={captureSelection}
+          onMouseUp={captureSelection}
+          onKeyUp={captureSelection}
+          placeholder="Your script appears here once you generate from the outline. You can also paste a draft directly and use Humanize to clean it up."
+          className="min-h-[420px] h-full w-full border border-[var(--line-2)] rounded-xl p-4 text-[15px] leading-[1.7] font-mono resize-none focus:outline-none focus:border-[var(--accent)]"
+          spellCheck
+        />
+        <ScriptOutline body={body} onJump={jumpTo} onReplace={setBody} />
+      </div>
 
       {/* Improve modal */}
       {improveOpen && selection && (

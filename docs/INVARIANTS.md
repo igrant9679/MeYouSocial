@@ -1205,3 +1205,15 @@ before changing code in that area.
 - **Repost** is the existing Duplicate (a copy to drafts, new content for approval). **Make evergreen / Stop recycling**
   (`setEvergreenAction`, EDITOR) only on a post that went out (posted or partial) and never on a recycled copy (clones are
   never sources). It says plainly when recycling is still waiting on the workspace's Evergreen fill; audited both ways.
+
+## ⚠ The script editor has an outline: sections, retention markers, find and replace (2026-11-01, audit Phase 5, growth part ad)
+- **E-VID-10** (`lib/script-outline.ts`, `scripts/[id]/ScriptOutline.tsx`, in the editor only — a viewer reads the script
+  without it): **sections** split at markdown headings (the text before the first heading is a section only when
+  something is said in it), each with its spoken length and where it starts; **retention markers** every 30 / 45 / 60 s
+  of speech pointing at the word where that second falls; **find and replace**, literal (never a pattern), case-
+  insensitive unless "Match case".
+- **Time is spoken time** at `WORDS_PER_MINUTE`, counting the same words the teleprompter counts — headings and
+  whole-line cues (`[…]`, `(…)`) take none — so the outline, the editor's duration-to-be and the prompter agree.
+- Clicking a section, a marker or **Next** selects that place in the editor and scrolls it into view (line-based, so a
+  long wrapped paragraph lands near, not exactly). **Replace all** hands the new text to the editor, which autosaves it
+  like typing — no separate save path.

@@ -274,6 +274,7 @@ area, rather than loading all of them into every session.
 - A teleprompter driven by words per minute and the keyboard — 2026-11-01, audit Phase 5, growth part aa
 - The Articles list filters, pages and acts in bulk — 2026-11-01, audit Phase 5, growth part ab
 - The Sent list shows results; top performers can be reposted or made evergreen — 2026-11-01, audit Phase 5, growth part ac
+- The script editor has an outline: sections, retention markers, find and replace — 2026-11-01, audit Phase 5, growth part ad
 
 ## Open items / things the user still owns
 - **Analytics: APIs enabled 2026-08-03** (Search Console + GA Admin + GA Data, on project
