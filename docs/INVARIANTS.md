@@ -961,3 +961,11 @@ before changing code in that area.
   platform's key" or "the server's environment" (`keySource`, the same order the providers resolve). The assistant's
   `list_connections` says both. ⚠ A new connection row decides `required` by adding its key to `REQUIRED` or not.
 - No live Test button (E-SEC-03's reason stands: it would spend tenants' credits).
+
+## ⚠ The video studio is read-only for viewers (2026-11-01, audit Phase 5, growth part k)
+- **E-VID-12**: viewers read the studio instead of meeting controls that bounce them to /forbidden. Script page: no
+  Builder link, agent, Track in production, Start over, title/model/template form or snapshot restore — the Plan tab shows
+  the answers and outline as text and the Script tab the script as text (the editor autosaves, so it's never a viewer's);
+  a "Read-only" note in the toolbar. Production board: no New project, advance, topic form or delete. Thumbnails: the
+  concepts made so far, not the tools or delete. Every action keeps its own `requireRole("EDITOR")` — this hides, the
+  actions refuse. The Videos pages already gated their controls.

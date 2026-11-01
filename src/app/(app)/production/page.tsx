@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ArrowRight, Plus, Tags } from "lucide-react";
-import { requireMembership } from "@/lib/acl";
+import { requireMembership, canEdit } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { setProjectStatusAction, createProjectAction, setProjectTopicAction } from "@/app/actions/production";
 import { DeleteButton } from "@/components/DeleteButton";
@@ -19,7 +19,9 @@ const STATUSES = [
 ] as const;
 
 export default async function ProductionBoardPage() {
-  const { workspace } = await requireMembership();
+  const { workspace, membership } = await requireMembership();
+  // Viewers see the board; moving, tagging and deleting are an editor's (E-VID-12).
+  const editor = canEdit(membership.role);
   const [projects, channels, topics] = await Promise.all([
     db.contentProject.findMany({
       where: { channel: { workspaceId: workspace.id } },
@@ -41,7 +43,7 @@ export default async function ProductionBoardPage() {
   return (
     <div>
       {/* Quick-add */}
-      {channels.length > 0 && (
+      {editor && channels.length > 0 && (
         <form action={createProjectAction} className="card flex items-end gap-2 mb-4 max-w-2xl">
           <label className="flex-1 flex flex-col gap-1">
             <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">New project</span>
@@ -88,7 +90,7 @@ export default async function ProductionBoardPage() {
                       {(() => {
                         const idx = STATUSES.findIndex((x) => x.key === p.status);
                         const next = STATUSES[idx + 1];
-                        if (!next) return null;
+                        if (!next || !editor) return null;
                         return (
                           <form action={setProjectStatusAction} title={`Move to ${next.label}`}>
                             <input type="hidden" name="id" value={p.id} />
@@ -104,7 +106,7 @@ export default async function ProductionBoardPage() {
                       <div className="font-semibold text-sm leading-tight">{p.title}</div>
                     )}
                     <div className="text-[11px] text-[var(--mute)] mt-1">{p.channel.name}{p.script ? ` · ${p.script.wordCount}w` : ""}</div>
-                    {topics.length > 0 ? (
+                    {editor && topics.length > 0 ? (
                       <form action={setProjectTopicAction} className="flex items-center gap-1 mt-1.5">
                         <input type="hidden" name="id" value={p.id} />
                         <Tags className="w-3 h-3 shrink-0" style={{ color: "var(--indigo-on)" }} />
@@ -120,9 +122,11 @@ export default async function ProductionBoardPage() {
                         <Tags className="w-3 h-3" /> {p.topic.name}
                       </div>
                     ) : null}
-                    <div className="mt-1.5">
-                      <DeleteButton kind="contentProject" id={p.id} name={p.title} confirmName returnTo="/production" iconOnly />
-                    </div>
+                    {editor && (
+                      <div className="mt-1.5">
+                        <DeleteButton kind="contentProject" id={p.id} name={p.title} confirmName returnTo="/production" iconOnly />
+                      </div>
+                    )}
                   </li>
                 ))}
               </ul>

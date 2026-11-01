@@ -2,7 +2,7 @@ import Link from "next/link";
 import { SubmitButton } from "@/components/SubmitButton";
 import { ArrowLeft, PenLine, FileText, MessageCircle, History, ListTree, Type, Bot } from "lucide-react";
 import { notFound } from "next/navigation";
-import { requireMembership } from "@/lib/acl";
+import { requireMembership, canEdit } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { readJson } from "@/lib/db/json";
 import { modelChoices, resolveUsableModel } from "@/lib/llm";
@@ -38,7 +38,9 @@ export default async function CanvasPage({
 }) {
   const { id } = await params;
   const { tab = "plan" } = await searchParams;
-  const { workspace } = await requireMembership();
+  const { workspace, membership } = await requireMembership();
+  // A viewer reads the studio; every control that changes it is an editor's (E-VID-12).
+  const editor = canEdit(membership.role);
   const tz = await getPostingTimeZone(workspace.id).catch(() => "UTC");
 
   const script = await db.script.findFirst({
@@ -105,10 +107,11 @@ export default async function CanvasPage({
         <div className="px-5 py-3 border-b border-[var(--line)] flex flex-col gap-2">
           <div className="flex items-center gap-3">
             <Link href={`/channels/${script.channelId}/scripts`} className="text-xs font-mono text-[var(--mute)] hover:text-[var(--accent)] flex items-center gap-1"><ArrowLeft className="w-3 h-3" /> {script.channel.name}</Link>
-            <Link href={`/scripts/${script.id}/builder`} className="text-xs font-mono text-[var(--mute)] hover:text-[var(--accent)] flex items-center gap-1" title="Switch to the 10-step Script Builder">Builder mode →</Link>
+            {editor && <Link href={`/scripts/${script.id}/builder`} className="text-xs font-mono text-[var(--mute)] hover:text-[var(--accent)] flex items-center gap-1" title="Switch to the 10-step Script Builder">Builder mode →</Link>}
             <span className="flex-1" />
+            {!editor && <span className="text-[11px] text-[var(--mute)]" data-read-only>Read-only — an editor can change this script.</span>}
             {/* Launch agent. Disabled while a run is in flight. */}
-            {(() => {
+            {editor && (() => {
               const latest = script.agentRuns[0];
               const inFlight = latest && (latest.status === "queued" || latest.status === "running");
               if (inFlight) return null;
@@ -127,15 +130,20 @@ export default async function CanvasPage({
               </Link>
             )}
             {/* promote into a tracked Content Project */}
-            <form action={promoteScriptAction}>
-              <input type="hidden" name="scriptId" value={script.id} />
-              <button type="submit" className="btn sm" title="Track this script in the production pipeline">Track in production →</button>
-            </form>
+            {editor && (
+              <form action={promoteScriptAction}>
+                <input type="hidden" name="scriptId" value={script.id} />
+                <button type="submit" className="btn sm" title="Track this script in the production pipeline">Track in production →</button>
+              </form>
+            )}
             {/* Start Over with warning */}
-            <StartOverButton scriptId={script.id} hasBody={!!script.body} />
+            {editor && <StartOverButton scriptId={script.id} hasBody={!!script.body} />}
           </div>
 
           {/* Title + model + template */}
+          {!editor ? (
+            <h1 className="font-mono font-bold text-lg m-0">{script.title}</h1>
+          ) : (
           <form action={updateScriptSettingsAction} className="flex flex-wrap items-center gap-2">
             <input type="hidden" name="scriptId" value={script.id} />
             <Type className="w-4 h-4 text-[var(--mute)]" />
@@ -167,6 +175,7 @@ export default async function CanvasPage({
             </label>
             <button type="submit" className="btn sm">Save</button>
           </form>
+          )}
 
           {/* Tabs */}
           <div className="flex items-center gap-1 mt-1">
@@ -191,9 +200,9 @@ export default async function CanvasPage({
             />
           )}
           {activeTab === "plan" ? (
-            <PlanTab script={{ id: script.id, outline }} hasBody={!!script.body} />
+            <PlanTab script={{ id: script.id, outline }} hasBody={!!script.body} editor={editor} />
           ) : (
-            <ScriptTab scriptId={script.id} body={script.body ?? ""} version={script.updatedAt.getTime()} hasOutline={!!outline.markdown} />
+            <ScriptTab scriptId={script.id} body={script.body ?? ""} version={script.updatedAt.getTime()} hasOutline={!!outline.markdown} editor={editor} />
           )}
         </div>
 
@@ -215,11 +224,13 @@ export default async function CanvasPage({
                     </summary>
                     <div className="mt-1 mb-2 ml-4">
                       <pre className="whitespace-pre-wrap text-xs max-h-64 overflow-auto p-2 rounded-lg bg-[var(--zebra)] m-0">{(v.body ?? v.outline ?? "").slice(0, 6000) || "(empty)"}</pre>
-                      <form action={restoreScriptVersionAction} className="mt-1">
-                        <input type="hidden" name="scriptId" value={script.id} />
-                        <input type="hidden" name="versionId" value={v.id} />
-                        <SubmitButton className="btn sm" pendingText="Restoring…">Restore this version</SubmitButton>
-                      </form>
+                      {editor && (
+                        <form action={restoreScriptVersionAction} className="mt-1">
+                          <input type="hidden" name="scriptId" value={script.id} />
+                          <input type="hidden" name="versionId" value={v.id} />
+                          <SubmitButton className="btn sm" pendingText="Restoring…">Restore this version</SubmitButton>
+                        </form>
+                      )}
                     </div>
                   </details>
                 </li>
@@ -243,7 +254,28 @@ function TabLink({ href, active, icon, children }: { href: string; active: boole
   );
 }
 
-function PlanTab({ script, hasBody }: { script: { id: string; outline: { questions?: Record<string, string>; markdown?: string } }; hasBody: boolean }) {
+function PlanTab({ script, hasBody, editor }: { script: { id: string; outline: { questions?: Record<string, string>; markdown?: string } }; hasBody: boolean; editor: boolean }) {
+  if (!editor) {
+    // The plan as text for a viewer (E-VID-12): the answers and the outline, nothing to press.
+    const q = script.outline.questions ?? {};
+    const answers = ([["takeaway", "One main takeaway"], ["concerns", "What worries the audience?"], ["points", "Key points to cover"], ["action", "Desired viewer action"]] as const).filter(([k]) => q[k]);
+    return (
+      <div className="flex flex-col gap-4">
+        <div className="card">
+          <h3 className="font-mono font-bold text-[15px] mb-2 flex items-center gap-2"><ListTree className="w-4 h-4" style={{ color: "var(--accent)" }} /> Planning questions</h3>
+          {answers.length ? (
+            <dl className="m-0 grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+              {answers.map(([k, label]) => <div key={k}><dt className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">{label}</dt><dd className="m-0 whitespace-pre-wrap">{q[k]}</dd></div>)}
+            </dl>
+          ) : <p className="text-sm text-[var(--mute)] m-0">Not answered yet.</p>}
+        </div>
+        <div className="card">
+          <h3 className="font-mono font-bold text-[15px] mb-2 flex items-center gap-2"><PenLine className="w-4 h-4" style={{ color: "var(--accent)" }} /> Outline</h3>
+          {script.outline.markdown ? <pre className="whitespace-pre-wrap text-sm font-mono leading-[1.6] m-0">{script.outline.markdown}</pre> : <p className="text-sm text-[var(--mute)] m-0">No outline yet.</p>}
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="flex flex-col gap-4">
       {/* Planning questions */}
@@ -328,7 +360,13 @@ function PlanField({ name, label, defaultValue }: { name: string; label: string;
   );
 }
 
-function ScriptTab({ scriptId, body, version, hasOutline }: { scriptId: string; body: string; version: number; hasOutline: boolean }) {
+function ScriptTab({ scriptId, body, version, hasOutline, editor }: { scriptId: string; body: string; version: number; hasOutline: boolean; editor: boolean }) {
+  // A viewer reads the script (E-VID-12) — the editor autosaves, so it isn't theirs to open.
+  if (!editor) {
+    return body
+      ? <article className="whitespace-pre-wrap text-sm leading-[1.7]" data-script-read-only>{body}</article>
+      : <p className="text-sm text-[var(--mute)] text-center py-12">No script written yet.</p>;
+  }
   if (!body && !hasOutline) {
     return (
       <div className="text-center py-12">

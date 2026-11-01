@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { canEdit } from "@/lib/acl";
 import { SubmitButton } from "@/components/SubmitButton";
 import { Image as ImageIcon, Wand2, Copy, History, AlertTriangle } from "lucide-react";
 import { getActiveChannel } from "@/lib/channel";
@@ -15,7 +16,9 @@ import { EmptyState } from "@/components/EmptyState";
 
 export default async function ThumbnailsPage({ searchParams }: { searchParams: Promise<{ mode?: string }> }) {
   const { mode = "brainstorm" } = await searchParams;
-  const { active, workspace } = await getActiveChannel();
+  const { active, workspace, membership } = await getActiveChannel();
+  // Viewers see the concepts already made; making new ones is an editor's (E-VID-12).
+  const editor = canEdit(membership.role);
 
   if (!active) {
     return (
@@ -72,7 +75,9 @@ export default async function ThumbnailsPage({ searchParams }: { searchParams: P
         <TabLink href="/thumbnails?mode=clone"      active={mode === "clone"}  icon={<Copy className="w-3.5 h-3.5" />}>Clone / Remix</TabLink>
       </div>
 
-      {mode === "clone" ? (
+      {!editor ? (
+        <p className="text-xs text-[var(--mute)] mb-6" data-read-only>Making thumbnails is for editors — the concepts made so far are below.</p>
+      ) : mode === "clone" ? (
         <form action={cloneThumbnailAction} className="card flex flex-col gap-3 max-w-2xl mb-6">
           <input type="hidden" name="channelId" value={active.id} />
           <h2 className="font-mono font-bold text-[14px] flex items-center gap-2">
@@ -152,9 +157,11 @@ export default async function ThumbnailsPage({ searchParams }: { searchParams: P
                       <div className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">{t.mode}{t.renderUrl ? " · rendered" : ""}</div>
                     </div>
                   </Link>
-                  <div className="px-2 pb-2 pt-1">
-                    <DeleteButton kind="thumbnail" id={t.id} name={t.title ?? "Untitled"} returnTo="/thumbnails" iconOnly />
-                  </div>
+                  {editor && (
+                    <div className="px-2 pb-2 pt-1">
+                      <DeleteButton kind="thumbnail" id={t.id} name={t.title ?? "Untitled"} returnTo="/thumbnails" iconOnly />
+                    </div>
+                  )}
                 </div>
               );
             })}
