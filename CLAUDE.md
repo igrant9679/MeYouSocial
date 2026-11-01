@@ -252,6 +252,7 @@ area, rather than loading all of them into every session.
 - Recommendations have a lifecycle; CTR and weighted position; the autonomy preview — 2026-11-01, audit Phase 5, growth part e
 - Ideas in spreadsheets; people basics; contextual help — 2026-11-01, audit Phase 5, growth part f
 - The assistant's run history and conversations — 2026-11-01, audit Phase 5, growth part g
+- Discover any format per Topic; post lists on phones; the bundle check — 2026-11-01, audit Phase 5, growth part h
 
 ## Open items / things the user still owns
 - **Analytics: APIs enabled 2026-08-03** (Search Console + GA Admin + GA Data, on project

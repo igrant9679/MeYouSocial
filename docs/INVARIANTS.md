@@ -934,3 +934,14 @@ before changing code in that area.
   the run history. The dock starts a NEW conversation when the remembered one has been idle over 6 hours
   (`IDLE_FRESH_MS`, unless a proposal is waiting) and says so; its header has a picker of recent conversations
   (`GET /api/assistant` returns them; a thread's GET returns `updatedAt`).
+
+## ⚠ Discover any format per Topic; post lists on phones; the bundle check (2026-11-01, audit Phase 5, growth part h)
+- **Discover** (E-IDE-07): the board's Discover takes a format — article, social post, or both — and a Topic (or the
+  emptiest), all through `discoverIdeasAction` → `runIdeation`. When every Topic is at the manual ceiling for ARTICLES
+  the article choices are disabled but social stays (each format's ceiling is its own, enforced in `runIdeation`).
+- **Phone lists** (E-SOC-13, components/PostList.tsx): below `md` the Queue / Sent / Drafts table renders each row as a
+  card (`max-md:` classes on table, rows and cells; the header hidden); nothing changed at `md` and up.
+- **Bundle check** (E-PRF-03, `scripts/check-bundle.mts`, `postbuild` — so Railway's build runs it too): fails the build
+  when a client chunk in `.next/static/chunks` carries the Node crypto polyfill (`createECDH`/`secp256k1`), the Prisma
+  client, or a server secret's name, when any chunk passes 600 KB, or the total passes 4 MB (2026-11-01: largest 228 KB,
+  total 1.25 MB). ⚠ If it fires, find the client component that imports server code — don't raise the budget to pass.

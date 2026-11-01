@@ -197,26 +197,33 @@ export default async function IdeasBoard({ searchParams }: { searchParams: Promi
                 ⚠ When every Topic is at the manual ceiling the button gives
                 way to the sentence — on 2026-10-15 four presses put 48 ideas
                 onto a board nobody had approved anything from. */}
-            {saturated ? (
-              <p className="text-xs m-0 px-3 py-2 rounded-lg" style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }}>
-                Every Topic already has {MANUAL_CEILING}+ open article ideas ({openArticlesByTopic.map((t) => `${t.name.slice(0, 28)}: ${t.open}`).join(" · ")}) — approve or reject some before discovering more.
+            {/* Article or social ideas, for one Topic or the emptiest (E-IDE-07) —
+                social ideation used to be the assistant's alone. When every Topic is
+                at the ceiling for articles the article choices give way, but social
+                stays (its ceiling is its own). */}
+            {saturated && (
+              <p className="text-xs m-0 px-3 py-2 rounded-lg basis-full" style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }}>
+                Every Topic already has {MANUAL_CEILING}+ open article ideas ({openArticlesByTopic.map((t) => `${t.name.slice(0, 28)}: ${t.open}`).join(" · ")}) — approve or reject some before discovering more articles.
               </p>
-            ) : (
-              <form action={discoverIdeasAction} className="flex items-center gap-2">
-                <input type="hidden" name="formats" value="article" />
-                <input type="hidden" name="back" value="/ideas" />
-                {topics.length > 0 && (
-                  <select name="topicId" defaultValue="" className="text-xs border border-[var(--line-2)] rounded-lg px-2 py-1.5" aria-label="Which Topic to discover ideas for">
-                    <option value="">emptiest Topics first</option>
-                    {topics.map((t) => {
-                      const open = openArticlesByTopic.find((o) => o.id === t.id)?.open ?? 0;
-                      return <option key={t.id} value={t.id} disabled={open >= MANUAL_CEILING}>only: {t.name}{open >= MANUAL_CEILING ? ` (${open} open — at the ceiling)` : ""}</option>;
-                    })}
-                  </select>
-                )}
-                <SubmitButton className="btn primary" pendingText="Discovering…"><Sparkles className="w-3.5 h-3.5" /> Discover article ideas</SubmitButton>
-              </form>
             )}
+            <form action={discoverIdeasAction} className="flex items-center gap-2 flex-wrap" data-discover>
+              <input type="hidden" name="back" value="/ideas" />
+              <select name="formats" defaultValue={saturated ? "social" : "article"} className="text-xs border border-[var(--line-2)] rounded-lg px-2 py-1.5" aria-label="Which kind of idea to discover">
+                <option value="article" disabled={saturated}>article ideas</option>
+                <option value="social">social post ideas</option>
+                <option value="article,social" disabled={saturated}>both</option>
+              </select>
+              {topics.length > 0 && (
+                <select name="topicId" defaultValue="" className="text-xs border border-[var(--line-2)] rounded-lg px-2 py-1.5" aria-label="Which Topic to discover ideas for">
+                  <option value="">emptiest Topics first</option>
+                  {topics.map((t) => {
+                    const open = openArticlesByTopic.find((o) => o.id === t.id)?.open ?? 0;
+                    return <option key={t.id} value={t.id}>only: {t.name}{open >= MANUAL_CEILING ? ` (${open} open articles — at the ceiling)` : ""}</option>;
+                  })}
+                </select>
+              )}
+              <SubmitButton className="btn primary" pendingText="Discovering…"><Sparkles className="w-3.5 h-3.5" /> Discover</SubmitButton>
+            </form>
             {channels.length > 0 && (
               <form action={regenerateIdeasAction} className="flex items-center gap-2">
                 {channels.length > 1 ? (

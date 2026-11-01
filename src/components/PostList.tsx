@@ -133,8 +133,9 @@ export async function PostList({
         />
       ) : (
         <div className="card !p-0 overflow-x-auto">
-          <table className="w-full text-xs border-collapse">
-            <thead>
+          {/* Below md each row is a card (E-SOC-13): the 1000 px table scrolled sideways on a phone. */}
+          <table className="w-full text-xs border-collapse max-md:block" data-post-list>
+            <thead className="max-md:hidden">
               <tr className="text-left text-[var(--mute)]">
                 {editor && tab !== "sent" && <th className="py-2 px-2 w-6 border-b-2 border-[var(--line)]" />}
                 <th className="py-2 px-2 font-mono text-[9px] uppercase tracking-wider border-b-2 border-[var(--line)]">Attachments</th>
@@ -145,7 +146,7 @@ export async function PostList({
                 <th className="py-2 px-2 font-mono text-[9px] uppercase tracking-wider border-b-2 border-[var(--line)] text-right">Actions</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="max-md:block">
               {rows.map(({ row: p, source, addedBy, onSlot }, i) => {
                 // Neighbours in this list, for earlier / later (E-SOC-05).
                 const prev = rows[i - 1]?.row;
@@ -163,12 +164,12 @@ export async function PostList({
                 const unsent = p.status === "draft" || p.status === "scheduled";
                 const unsure = [...new Set(p.targets.filter((t) => t.status === "failed" && mayHavePosted(t.error)).map((t) => networkFor(t.provider)?.label ?? t.provider))];
                 return (
-                  <tr key={p.id} className="align-top border-b border-[var(--line)] last:border-0">
+                  <tr key={p.id} className="align-top border-b border-[var(--line)] last:border-0 max-md:flex max-md:flex-wrap max-md:gap-x-3 max-md:gap-y-1.5 max-md:p-3">
                     {editor && tab !== "sent" && (
-                      <td className="py-2 px-2"><input type="checkbox" name="ids" value={p.id} form="bulk" aria-label="Select this post" /></td>
+                      <td className="py-2 px-2 max-md:p-0"><input type="checkbox" name="ids" value={p.id} form="bulk" aria-label="Select this post" /></td>
                     )}
-                    <td className="py-2 px-2 w-24">{listKeys(p.mediaKeys).length ? <MediaThumbs keys={listKeys(p.mediaKeys).slice(0, 1)} size="h-16 w-16" /> : <span className="text-[10px] text-[var(--mute)]">—</span>}</td>
-                    <td className="py-2 px-2 min-w-72 max-w-xl">
+                    <td className="py-2 px-2 w-24 max-md:p-0 max-md:w-auto">{listKeys(p.mediaKeys).length ? <MediaThumbs keys={listKeys(p.mediaKeys).slice(0, 1)} size="h-16 w-16" /> : <span className="text-[10px] text-[var(--mute)]">—</span>}</td>
+                    <td className="py-2 px-2 md:min-w-72 max-w-xl max-md:p-0 max-md:basis-full max-md:order-first">
                       <p className="m-0 whitespace-pre-wrap line-clamp-4 leading-snug">{p.text || <span className="text-[var(--mute)]">(no text)</span>}</p>
                       <p className="m-0 mt-1 text-[10px] text-[var(--mute)]">
                         Added {formatInZone(p.createdAt, tz)}{addedBy ? ` · by ${addedBy}` : ""} · {SOURCES.find((s) => s.value === source)?.label}
@@ -181,11 +182,11 @@ export async function PostList({
                         </p>
                       )}
                     </td>
-                    <td className="py-2 px-2 whitespace-nowrap">{p.category ? <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "var(--green-soft)", color: "var(--green-on)" }}>{p.category}</span> : <span className="text-[var(--mute)]">—</span>}</td>
-                    <td className="py-2 px-2 whitespace-nowrap">
+                    <td className="py-2 px-2 whitespace-nowrap max-md:p-0">{p.category ? <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "var(--green-soft)", color: "var(--green-on)" }}>{p.category}</span> : <span className="text-[var(--mute)]">—</span>}</td>
+                    <td className="py-2 px-2 whitespace-nowrap max-md:p-0">
                       <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: st.bg, color: st.fg }}>{typeLabel}</span>
                     </td>
-                    <td className="py-2 px-2 min-w-40">
+                    <td className="py-2 px-2 md:min-w-40 max-md:p-0 max-md:basis-full">
                       <div className="flex flex-wrap gap-1 mb-1">
                         {p.targets.map((t) => {
                           const net = networkFor(t.provider);
@@ -204,9 +205,9 @@ export async function PostList({
                       </div>
                       {when && <span className="font-mono text-[10px] text-[var(--mute)]">{tab === "drafts" ? "proposed " : ""}{formatInZone(when, tz)}</span>}
                     </td>
-                    <td className="py-2 px-2">
+                    <td className="py-2 px-2 max-md:p-0 max-md:basis-full">
                       {editor && (
-                        <div className="flex flex-wrap justify-end gap-1">
+                        <div className="flex flex-wrap justify-end max-md:justify-start gap-1">
                           {swappable(prev) && (
                             <form action={swapQueuedPostsAction}><input type="hidden" name="a" value={p.id} /><input type="hidden" name="b" value={prev!.id} /><input type="hidden" name="back" value={here} />
                               <SubmitButton className="btn sm" pendingText="…" title="Earlier — swap times with the post above"><ArrowUp className="w-3 h-3" /></SubmitButton></form>
