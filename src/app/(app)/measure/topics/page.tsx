@@ -13,7 +13,8 @@ import { measureRange, type RangeInput } from "@/lib/measure-range";
 
 const dash = <span className="text-[var(--mute)]" title="Not measured">—</span>;
 const th = "py-1.5 px-2 font-mono text-[9px] uppercase tracking-wider border-b-2 border-[var(--line)]";
-const td = "py-1.5 px-2 border-b border-[var(--line)] align-top";
+// Below md each Topic is a card of label: value rows (E-MEA-20) — `data-label` on each cell names it.
+const td = "py-1.5 px-2 border-b border-[var(--line)] align-top max-md:flex max-md:justify-between max-md:gap-3 max-md:py-1 max-md:px-0 max-md:border-0 max-md:text-right max-md:before:content-[attr(data-label)] max-md:before:text-[var(--mute)] max-md:before:text-left max-md:before:font-mono max-md:before:text-[10px] max-md:before:uppercase";
 const n = (v: number | null, suffix = "") => (v == null ? dash : <span className="font-mono tabular-nums">{v.toLocaleString()}{suffix}</span>);
 
 export default async function MeasureTopicsPage({ searchParams }: { searchParams: Promise<RangeInput> }) {
@@ -58,8 +59,8 @@ export default async function MeasureTopicsPage({ searchParams }: { searchParams
       ) : (
         <section className="card">
           <div className="overflow-x-auto">
-            <table className="w-full text-xs border-collapse">
-              <thead>
+            <table className="w-full text-xs border-collapse max-md:block" data-narrow-cards>
+              <thead className="max-md:hidden">
                 <tr className="text-left text-[var(--mute)]">
                   <th className={th} rowSpan={2}>Topic</th>
                   <th className={`${th} text-center`} colSpan={3} style={{ color: "var(--rose-on)" }}>Articles</th>
@@ -79,23 +80,23 @@ export default async function MeasureTopicsPage({ searchParams }: { searchParams
                   <th className={`${th} text-right`} title="Impressions as reported by the networks that report them">Impressions</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="max-md:block">
                 {m.rows.map((r) => (
-                  <tr key={r.id} style={r.status !== "active" ? { opacity: 0.6 } : undefined}>
-                    <td className={td}>
+                  <tr key={r.id} className="max-md:block max-md:border-b max-md:border-[var(--line)] max-md:py-2" style={r.status !== "active" ? { opacity: 0.6 } : undefined}>
+                    <td data-label="Topic" className={td}>
                       <Link href={`/ideas/topics/${r.id}`} className="font-semibold hover:underline">{r.name}</Link>
                       {r.status !== "active" && <span className="ml-1 font-mono text-[9px] uppercase text-[var(--mute)]">archived</span>}
                     </td>
-                    <td className={`${td} text-right font-mono tabular-nums`}>{r.articles.published} / {r.articles.made}</td>
-                    <td className={`${td} text-right`}>{r.articles.position == null ? dash : <span className="font-mono tabular-nums" title={`over ${r.articles.positionN} article${r.articles.positionN === 1 ? "" : "s"}`}>{r.articles.position}</span>}</td>
-                    <td className={`${td} text-right`}>{n(r.articles.clicks)}</td>
-                    <td className={`${td} text-right font-mono tabular-nums`}>{r.video.renders}</td>
-                    <td className={`${td} text-right`}>{r.video.views == null ? dash : <span className="font-mono tabular-nums" title={`${r.video.matched} video${r.video.matched === 1 ? "" : "s"} matched by keyword`}>{r.video.views.toLocaleString()}<span className="text-[9px] text-[var(--mute)] ml-1">kw</span></span>}</td>
-                    <td className={`${td} text-right`}>{n(r.video.avgViewPct, "%")}</td>
-                    <td className={`${td} text-right font-mono tabular-nums`}>{r.social.posted} / {r.social.posts}</td>
-                    <td className={`${td} text-right`}>{r.social.engagement == null ? dash : <span className="font-mono tabular-nums" title={`${r.social.n} reading${r.social.n === 1 ? "" : "s"}`}>{r.social.engagement.toLocaleString()}</span>}</td>
-                    <td className={`${td} text-right`}>{n(r.social.impressions)}</td>
-                    <td className={`${td} text-right`}>{r.ideasWaiting > 0 ? <Link href="/ideas" className="font-mono tabular-nums underline">{r.ideasWaiting}</Link> : <span className="font-mono tabular-nums">0</span>}</td>
+                    <td data-label="Articles out / made" className={`${td} text-right font-mono tabular-nums`}>{r.articles.published} / {r.articles.made}</td>
+                    <td data-label="Article position" className={`${td} text-right`}>{r.articles.position == null ? dash : <span className="font-mono tabular-nums" title={`over ${r.articles.positionN} article${r.articles.positionN === 1 ? "" : "s"}`}>{r.articles.position}</span>}</td>
+                    <td data-label="Search clicks" className={`${td} text-right`}>{n(r.articles.clicks)}</td>
+                    <td data-label="Renders" className={`${td} text-right font-mono tabular-nums`}>{r.video.renders}</td>
+                    <td data-label="YouTube views (90 days)" className={`${td} text-right`}>{r.video.views == null ? dash : <span className="font-mono tabular-nums" title={`${r.video.matched} video${r.video.matched === 1 ? "" : "s"} matched by keyword`}>{r.video.views.toLocaleString()}<span className="text-[9px] text-[var(--mute)] ml-1">kw</span></span>}</td>
+                    <td data-label="Retention" className={`${td} text-right`}>{n(r.video.avgViewPct, "%")}</td>
+                    <td data-label="Social out / made" className={`${td} text-right font-mono tabular-nums`}>{r.social.posted} / {r.social.posts}</td>
+                    <td data-label="Engagement" className={`${td} text-right`}>{r.social.engagement == null ? dash : <span className="font-mono tabular-nums" title={`${r.social.n} reading${r.social.n === 1 ? "" : "s"}`}>{r.social.engagement.toLocaleString()}</span>}</td>
+                    <td data-label="Impressions" className={`${td} text-right`}>{n(r.social.impressions)}</td>
+                    <td data-label="Ideas waiting" className={`${td} text-right`}>{r.ideasWaiting > 0 ? <Link href="/ideas" className="font-mono tabular-nums underline">{r.ideasWaiting}</Link> : <span className="font-mono tabular-nums">0</span>}</td>
                   </tr>
                 ))}
               </tbody>

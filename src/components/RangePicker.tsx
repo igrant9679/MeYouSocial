@@ -29,10 +29,11 @@ export function RangePicker({ range, path, note }: { range: MeasureRange; path: 
           </button>
         );
       })}
-      <span className="inline-flex items-center gap-1">
-        <input type="date" name="from" defaultValue={range.from} aria-label="From (first day)" className="text-xs border border-[var(--line-2)] rounded-lg px-1.5 py-0.5" />
+      {/* Below md the pair takes its own row and the inputs shrink to share it — side by side at their natural width they ran 11px past a 375px screen (E-MEA-20). */}
+      <span className="inline-flex items-center gap-1 max-md:flex max-md:w-full">
+        <input type="date" name="from" defaultValue={range.from} aria-label="From (first day)" className="text-xs border border-[var(--line-2)] rounded-lg px-1.5 py-0.5 max-md:flex-1 max-md:min-w-0" />
         <span className="text-[var(--mute)]">to</span>
-        <input type="date" name="to" defaultValue={range.to} aria-label="To (last day)" className="text-xs border border-[var(--line-2)] rounded-lg px-1.5 py-0.5" />
+        <input type="date" name="to" defaultValue={range.to} aria-label="To (last day)" className="text-xs border border-[var(--line-2)] rounded-lg px-1.5 py-0.5 max-md:flex-1 max-md:min-w-0" />
       </span>
       <label className="inline-flex items-center gap-1.5 cursor-pointer">
         <input type="checkbox" name="compare" value="1" defaultChecked={range.compare} />

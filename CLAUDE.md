@@ -256,6 +256,7 @@ area, rather than loading all of them into every session.
 - Saved hashtag sets and snippets — 2026-11-01, audit Phase 5, growth part i
 - Connections: needed vs optional, and whose key — 2026-11-01, audit Phase 5, growth part j
 - The video studio is read-only for viewers — 2026-11-01, audit Phase 5, growth part k
+- Wide report tables become cards on phones — 2026-11-01, audit Phase 5, growth part l
 
 ## Open items / things the user still owns
 - **Analytics: APIs enabled 2026-08-03** (Search Console + GA Admin + GA Data, on project

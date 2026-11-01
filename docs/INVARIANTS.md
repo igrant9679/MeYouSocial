@@ -969,3 +969,11 @@ before changing code in that area.
   a "Read-only" note in the toolbar. Production board: no New project, advance, topic form or delete. Thumbnails: the
   concepts made so far, not the tools or delete. Every action keeps its own `requireRole("EDITOR")` — this hides, the
   actions refuse. The Videos pages already gated their controls.
+
+## ⚠ Wide report tables become cards on phones (2026-11-01, audit Phase 5, growth part l)
+- **E-MEA-20**: Measure → Topics (11 columns) and the YouTube video table render below `md` as one card per row of
+  "label: value" lines — each `<td>` carries `data-label` and a `max-md:before:content-[attr(data-label)]` class, the
+  header row is hidden, the row is a block. ⚠ A column added to either table needs its `data-label` too, or its phone
+  line has no name. Unchanged at `md` and up.
+- **The Measure range picker fits a phone**: below `md` its two date inputs take their own row and shrink to share it
+  (`max-md:flex-1 max-md:min-w-0`) — at natural width they ran 11px past a 375px screen and `<main>` scrolled sideways.
