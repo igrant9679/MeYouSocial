@@ -22,6 +22,7 @@ import {
 import { addIdeaAction, discoverIdeasAction, regenerateIdeasAction, setBoardIdeaTopicAction, updateIdeaStatusAction, writeIdeaToCanvasAction } from "@/app/actions/ideas";
 import { draftSocialIdeaNowAction, setSocialIdeaStatusAction, updateSocialIdeaAction } from "@/app/actions/social-ideas";
 import { draftingBlockers } from "@/lib/idea-blockers";
+import { importIdeasCsvAction } from "@/app/actions/ideas-csv";
 import { laneHealth, laneKey, STALE_DAYS, type LaneHealth } from "@/lib/lane-health";
 import { ideaChange } from "@/lib/idea-drafting";
 import { requestNow } from "@/lib/request-time";
@@ -240,6 +241,22 @@ export default async function IdeasBoard({ searchParams }: { searchParams: Promi
           </div>
         </div>
       )}
+
+      {/* Sheets (E-IDE-24): the board as CSV, and back. */}
+      <details className="card mb-4 text-xs" data-sheets>
+        <summary className="cursor-pointer select-none text-[var(--mute)]">Spreadsheet — export or import CSV</summary>
+        <div className="mt-2 flex flex-col gap-2">
+          <span>Download: <a href="/api/ideas/export?kind=articles" className="underline">article ideas</a> · <a href="/api/ideas/export?kind=social" className="underline">social ideas</a> · <a href="/api/ideas/export?kind=keywords" className="underline">keywords</a>.</span>
+          {editor && (
+            <form action={importIdeasCsvAction} className="flex flex-wrap items-center gap-2">
+              <input type="hidden" name="kind" value="articles" />
+              <input type="file" name="file" accept=".csv,text/csv" required className="text-xs" />
+              <SubmitButton className="btn sm" pendingText="Importing…">Import article ideas</SubmitButton>
+              <span className="text-[var(--mute)] basis-full">The export&apos;s own columns; a <b>title</b> column is all it needs — ideas arrive as Discovered, a Topic is matched by name, duplicates are skipped.</span>
+            </form>
+          )}
+        </div>
+      </details>
 
       {lanes.length === 0 && (sp.q || sp.topic) ? (
         <p className="text-sm text-[var(--mute)]">No ideas match{sp.q ? ` “${sp.q}”` : ""}{sp.topic ? " in that Topic" : ""}. <Link href="/ideas" className="underline">Show everything</Link>.</p>

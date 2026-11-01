@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowLeft, KeyRound, Lightbulb, Plus, RefreshCw, Sparkles, Tags, Trash2, Wand2 } from "lucide-react";
 import { createTopicAction } from "@/app/actions/brand-hub";
 import { requireMembership, canEdit } from "@/lib/acl";
+import { importIdeasCsvAction } from "@/app/actions/ideas-csv";
 import { db } from "@/lib/db";
 import { SubmitButton } from "@/components/SubmitButton";
 import { getSearchDataProvider, searchDataVendorLabel, SEARCH_DATA_COUNTRIES } from "@/lib/search-data";
@@ -132,6 +133,22 @@ export default async function KeywordsPage({ searchParams }: { searchParams: Pro
           </p>
         </div>
       </div>
+
+      {/* Sheets (E-IDE-24): the board as CSV, and back. */}
+      <details className="card mb-4 text-xs" data-sheets>
+        <summary className="cursor-pointer select-none text-[var(--mute)]">Spreadsheet — export or import CSV</summary>
+        <div className="mt-2 flex flex-col gap-2">
+          <span>Download: <a href="/api/ideas/export?kind=keywords" className="underline">keywords</a>.</span>
+          {editor && (
+            <form action={importIdeasCsvAction} className="flex flex-wrap items-center gap-2">
+              <input type="hidden" name="kind" value="keywords" />
+              <input type="file" name="file" accept=".csv,text/csv" required className="text-xs" />
+              <SubmitButton className="btn sm" pendingText="Importing…">Import keywords</SubmitButton>
+              <span className="text-[var(--mute)] basis-full">The export&apos;s own columns; a <b>phrase</b> column is all it needs; tier, intent, cluster and notes are read if present; duplicates are skipped.</span>
+            </form>
+          )}
+        </div>
+      </details>
 
       {ok && (
         <div className="text-xs rounded-lg px-3 py-2 mb-3" style={{ background: "var(--green-soft)", color: "var(--green-on)" }}>{ok}</div>

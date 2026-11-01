@@ -1,17 +1,49 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { Search, HelpCircle, ExternalLink } from "lucide-react";
 import { HELP_CATEGORIES } from "@/lib/help";
 import type { Role } from "@prisma/client";
 import { canFollow, whoCanFix } from "@/lib/role-links";
 
-// Searchable + tag-filtered FAQ.
+// Searchable + tag-filtered FAQ. Deep-linkable (E-SHL-11): ?cat= picks a
+// category (the stage strips' "?" lands here), ?q= starts a search, and every
+// answer has its own #anchor that opens it. "/" focuses the search.
 
-export function HelpClient({ role }: { role: Role }) {
-  const [query, setQuery] = useState("");
-  const [activeCat, setActiveCat] = useState<string>("__all");
+/** A stable anchor for an answer: its category and the start of its question. */
+export function faqAnchor(catId: string, q: string): string {
+  return `faq-${catId}-${q.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 48)}`;
+}
+
+export function HelpClient({ role, initialQuery = "", initialCat = "__all" }: { role: Role; initialQuery?: string; initialCat?: string }) {
+  const [query, setQuery] = useState(initialQuery);
+  const [activeCat, setActiveCat] = useState<string>(HELP_CATEGORIES.some((c) => c.id === initialCat) ? initialCat : "__all");
+  const search = useRef<HTMLInputElement>(null);
+
+  // "/" focuses the search, unless someone is already typing somewhere.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (e.key !== "/" || e.ctrlKey || e.metaKey || e.altKey) return;
+      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+      e.preventDefault();
+      search.current?.focus();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  // A #faq-… link opens that answer and brings it into view.
+  useEffect(() => {
+    const open = () => {
+      const el = window.location.hash ? document.getElementById(decodeURIComponent(window.location.hash.slice(1))) : null;
+      if (el instanceof HTMLDetailsElement) { el.open = true; el.scrollIntoView({ block: "start" }); }
+    };
+    open();
+    window.addEventListener("hashchange", open);
+    return () => window.removeEventListener("hashchange", open);
+  }, []);
 
   const lower = query.trim().toLowerCase();
   const filtered = useMemo(() => {
@@ -57,9 +89,11 @@ export function HelpClient({ role }: { role: Role }) {
         <div className="card mb-4 flex items-center gap-2">
           <Search className="w-4 h-4 text-[var(--mute)]" />
           <input
+            ref={search}
+            aria-keyshortcuts="/"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search the help center… (e.g. how to switch channels, dark mode, agent)"
+            placeholder="Search the help center… press / (e.g. how to switch channels, dark mode, agent)"
             className="flex-1 bg-transparent border-0 focus:outline-none text-sm"
           />
           {query && <span className="text-[10px] font-mono text-[var(--mute)] uppercase">{totalMatches} match{totalMatches === 1 ? "" : "es"}</span>}
@@ -82,9 +116,10 @@ export function HelpClient({ role }: { role: Role }) {
               <ul className="m-0 p-0 flex flex-col gap-2">
                 {cat.entries.map((e, i) => (
                   <li key={i}>
-                    <details className="group">
+                    <details className="group scroll-mt-20" id={faqAnchor(cat.id, e.q)}>
                       <summary className="cursor-pointer text-sm font-semibold py-2 px-3 rounded-md hover:bg-[var(--zebra)] flex items-center gap-2">
                         <span className="flex-1">{e.q}</span>
+                        <a href={`#${faqAnchor(cat.id, e.q)}`} className="text-[var(--mute)] font-mono text-xs no-underline hover:text-[var(--ink)]" title="Link to this answer" aria-label="Link to this answer">#</a>
                         <span className="text-[var(--mute)] group-open:rotate-90 transition">▸</span>
                       </summary>
                       <div className="px-3 pb-3 pt-1 text-sm leading-[1.6] whitespace-pre-wrap" style={{ color: "var(--ink)" }}>

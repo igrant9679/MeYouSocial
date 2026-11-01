@@ -907,3 +907,19 @@ before changing code in that area.
 - **Autonomy preview** (E-SET-06, `autonomyPreview`): beside the full-autonomy switch, off → each row turning it on
   changes (functions to auto from their current mode, queue-on-approval, the social idea gate); on → what switching off
   puts back, from the snapshot taken when it went on. Rows that wouldn't change are left out.
+
+## ⚠ Ideas in spreadsheets; people basics; contextual help (2026-11-01, audit Phase 5, growth part f)
+- **CSV** (E-IDE-24, `lib/csv.ts`): RFC 4180 with a BOM. ⚠ A cell starting `= + - @` (or tab/CR) is exported with a
+  leading apostrophe so a spreadsheet can't run it as a formula; import strips it back. `/api/ideas/export?kind=articles |
+  social | keywords` (any member, active workspace). `importIdeasCsvAction` (editors; 1 MB, 500 rows): articles need a
+  `title` column — they arrive as **Discovered** (approval stays a person's), Topic matched by name (unknown → no Topic,
+  named in the flash), `priority` 0–100 kept, duplicates of open ideas skipped; keywords need `phrase` (tier/intent/
+  cluster/notes read). Audited `ideas.imported`. Controls in a "Spreadsheet" disclosure on Ideas and Keywords.
+- **People** (E-SET-02): the invite field takes up to 20 addresses (commas, spaces, lines) — each checked against the
+  workspace's domains, its own invitation, email and audit; the flash names who wasn't invited and why. Pending invitations
+  show "expired" (rose) or "tomorrow / in N days" (amber within two days), **Resend** (same link, seven more days,
+  `membership.invite_resent`) and **Copy link**. A revoked member has **Reinstate** (the role they had), audited as
+  `membership.added` (via reinstated) so an admin coming back tells the other admins.
+- **Contextual help** (E-SHL-11): each stage strip ends with a "?" to its Help category (`HELP_FOR` in StageStrip); Help
+  takes `?cat=` and `?q=`, every answer is `<details id="faq-<cat>-<slug of question>">` with a # link and opens on its
+  hash; "/" focuses the search unless someone is typing.

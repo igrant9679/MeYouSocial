@@ -5,7 +5,8 @@ import { SubmitButton } from "@/components/SubmitButton";
 import { DeleteButton } from "@/components/DeleteButton";
 import { getPublicUrl } from "@/lib/public-url";
 import { resolveEmailSender } from "@/lib/unipile/accounts";
-import { changeRoleAction, inviteAction, revokeAction } from "@/app/actions/people";
+import { changeRoleAction, inviteAction, revokeAction, resendInviteAction, reinstateAction } from "@/app/actions/people";
+import { CopyButton } from "@/components/CopyButton";
 import { ResetLinkButton } from "@/components/ResetLinkButton";
 import { requestNow } from "@/lib/request-time";
 import { getCurrentUser, isPlatformOperator } from "@/lib/acl";
@@ -64,8 +65,8 @@ export async function PeoplePanel({ workspaceId, workspaceName, returnTo }: { wo
         <h2 className="font-mono text-[15px] mb-3">Invite a member</h2>
         <form action={inviteAction} className="flex flex-wrap gap-2 items-end">
           <input type="hidden" name="returnTo" value={returnTo} />
-          <label className="flex flex-col text-xs font-mono uppercase text-[var(--mute)]">Email
-            <input name="email" type="email" required className="mt-1 border border-[var(--line-2)] rounded-lg px-3 py-2 text-sm min-w-[260px]" />
+          <label className="flex flex-col text-xs font-mono uppercase text-[var(--mute)]">Email — or several, separated by commas
+            <input name="email" type="email" multiple required placeholder="ana@acme.com, ben@acme.com" className="mt-1 border border-[var(--line-2)] rounded-lg px-3 py-2 text-sm min-w-[320px]" />
           </label>
           <label className="flex flex-col text-xs font-mono uppercase text-[var(--mute)]">Role
             <select name="role" defaultValue="EDITOR" className="mt-1 border border-[var(--line-2)] rounded-lg px-3 py-2 text-sm">
@@ -198,6 +199,13 @@ export async function PeoplePanel({ workspaceId, workspaceName, returnTo }: { wo
                           <button type="submit" className="btn sm">Revoke</button>
                         </form>
                       )}
+                      {m.status === "revoked" && (
+                        <form action={reinstateAction}>
+                          <input type="hidden" name="userId" value={m.userId} />
+                          <input type="hidden" name="returnTo" value={returnTo} />
+                          <button type="submit" className="btn sm" title="Back with the role they had">Reinstate</button>
+                        </form>
+                      )}
                       <DeleteButton kind="membership" id={m.id} name={m.user.email} returnTo={returnTo} label="Remove" />
                     </div>
                   </td>
@@ -216,7 +224,18 @@ export async function PeoplePanel({ workspaceId, workspaceName, returnTo }: { wo
               <li key={inv.id} className="border-t border-[var(--line)] first:border-t-0 py-2 text-sm flex items-center gap-3 flex-wrap">
                 <span className="font-mono text-xs text-[var(--mute)]">{inv.role}</span>
                 <span className="flex-1">{inv.email}</span>
-                <span className="text-xs text-[var(--mute)]">expires {formatDay(new Date(inv.expiresAt))}</span>
+                {(() => {
+                  const left = Math.ceil((new Date(inv.expiresAt).getTime() - now) / 86_400_000);
+                  return left <= 0
+                    ? <span className="pill" style={{ background: "var(--rose-soft)", color: "var(--rose-on)" }} data-invite-expired>expired</span>
+                    : <span className="text-xs" style={{ color: left <= 2 ? "var(--amber-on)" : "var(--mute)" }}>expires {formatDay(new Date(inv.expiresAt))}{left <= 2 ? ` — ${left === 1 ? "tomorrow" : `in ${left} days`}` : ""}</span>;
+                })()}
+                <form action={resendInviteAction}>
+                  <input type="hidden" name="id" value={inv.id} />
+                  <input type="hidden" name="returnTo" value={returnTo} />
+                  <button type="submit" className="btn sm" title="Email it again; the link gets seven more days">Resend</button>
+                </form>
+                <CopyButton text={`${origin}/invitations/${inv.token}`} label="Copy link" />
                 <DeleteButton kind="invitation" id={inv.id} name={inv.email} returnTo={returnTo} label="Revoke invite" />
                 {/* The join link, selectable so it can be passed along by hand when
                     the email can't deliver. Deliberately NOT an <a>: clicking one

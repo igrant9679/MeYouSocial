@@ -26,7 +26,8 @@ const SHORTCUTS = [
   { keys: "Tab",        action: "Move through form fields" },
 ];
 
-export default async function HelpPage() {
+export default async function HelpPage({ searchParams }: { searchParams: Promise<{ q?: string; cat?: string }> }) {
+  const sp = await searchParams;
   const theme = await getTheme();
   const { membership: { role } } = await requireMembership();
 
@@ -201,7 +202,7 @@ export default async function HelpPage() {
 
       {/* Searchable FAQ */}
       <h2 className="font-mono font-bold text-[15px] mb-3 mt-2">Frequently asked questions</h2>
-      <HelpClient role={role} />
+      <HelpClient role={role} initialQuery={(sp.q ?? "").slice(0, 100)} initialCat={sp.cat ?? "__all"} />
     </div>
   );
 }

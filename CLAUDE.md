@@ -250,6 +250,7 @@ area, rather than loading all of them into every session.
 - Polling backs off; long strips fold; the Inbox streams; notices roll up — 2026-11-01, audit Phase 5, growth part c
 - Articles: overlap checks, complete structured data, website health — 2026-11-01, audit Phase 5, growth part d
 - Recommendations have a lifecycle; CTR and weighted position; the autonomy preview — 2026-11-01, audit Phase 5, growth part e
+- Ideas in spreadsheets; people basics; contextual help — 2026-11-01, audit Phase 5, growth part f
 
 ## Open items / things the user still owns
 - **Analytics: APIs enabled 2026-08-03** (Search Console + GA Admin + GA Data, on project

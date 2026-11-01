@@ -9,6 +9,12 @@ import { noShellSnapshot, shellSnapshot, subscribeShell } from "@/lib/shell-live
 import type { Role } from "@prisma/client";
 import { canFollow } from "@/lib/role-links";
 
+/** Each stage's Help section, for the strip's "?" (E-SHL-11). */
+const HELP_FOR: Record<string, string> = {
+  "/research": "intel", "/ideas": "blog", "/drafts": "writing", "/publish": "publishing",
+  "/distribute": "social", "/measure": "insights", "/brand": "brand", "/setup": "team-admin",
+};
+
 /** Tabs shown inline at laptop widths before the rest fold into More (E-SHL-13). */
 const INLINE = 6;
 
@@ -112,6 +118,11 @@ export function StageStrip({
             ))}
           </div>
         </details>
+      )}
+      {HELP_FOR[key] && (
+        <Link href={`/help?cat=${HELP_FOR[key]}`} className="ml-auto text-[11px] font-mono font-bold w-6 h-6 grid place-items-center rounded-full border border-[var(--line)] text-[var(--mute)] hover:text-[var(--ink)]" title={`Help with ${stage.label}`} aria-label={`Help with ${stage.label}`} data-strip-help>
+          ?
+        </Link>
       )}
     </nav>
   );

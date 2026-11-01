@@ -35,42 +35,96 @@ function revalidateBoth() {
   revalidatePath("/inbox");
 }
 
+/**
+ * Invite one person, or several at once (E-SET-02): the field takes addresses
+ * separated by commas, spaces or new lines (up to 20). Each is checked against
+ * the workspace's domains, gets its own invitation and email, and is audited;
+ * the flash says who was invited and who wasn't.
+ */
 export async function inviteAction(formData: FormData) {
   const { workspace, user: actor } = await requireRole("ADMIN");
-  const parsed = inviteSchema.safeParse({ email: formData.get("email"), role: formData.get("role") });
-  if (!parsed.success) return;
-  // Only the workspace's own domains, when it set some (E-SEC-08).
-  const refusal = await joinRefusal(workspace.id, parsed.data.email);
-  if (refusal) redirect(`${back(formData)}?flashErr=${encodeURIComponent(refusal)}`);
-
-  const token = nanoid(40);
-  const invite = await db.invitation.create({
-    data: {
-      workspaceId: workspace.id,
-      email: parsed.data.email,
-      role: parsed.data.role,
-      token,
-      expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 7),
-    },
-  });
-  // Recorded like the assistant's invitations always were — an admin invitation
-  // also tells every other admin (E-SEC-12).
-  await writeAudit({
-    workspaceId: workspace.id,
-    actorId: actor.id,
-    action: "membership.invited",
-    entityType: "invitation",
-    entityId: invite.id,
-    meta: { email: parsed.data.email, role: parsed.data.role },
-  });
+  const role = String(formData.get("role") ?? "");
+  const raw = String(formData.get("email") ?? "");
+  const emails = [...new Set(raw.split(/[\s,;]+/).map((e) => e.trim().toLowerCase()).filter(Boolean))];
+  const to = back(formData);
+  if (!emails.length) redirect(`${to}?flashErr=${encodeURIComponent("Enter an email address.")}`);
+  if (emails.length > 20) redirect(`${to}?flashErr=${encodeURIComponent("Up to 20 at a time.")}`);
+  const invited: string[] = [];
+  const refused: string[] = [];
   const origin = await getPublicUrl();
-  await emailFor(workspace.id).send({
-    to: parsed.data.email,
-    subject: `You've been invited to ${workspace.name} on ${PRODUCT}`,
-    html: `<p>You've been invited to join <b>${workspace.name}</b> as a <b>${parsed.data.role}</b>.</p>
+  for (const email of emails) {
+    const parsed = inviteSchema.safeParse({ email, role });
+    if (!parsed.success) { refused.push(`${email} (not an email address)`); continue; }
+    // Only the workspace's own domains, when it set some (E-SEC-08).
+    const refusal = await joinRefusal(workspace.id, parsed.data.email);
+    if (refusal) { refused.push(`${email} (outside this workspace's domains)`); continue; }
+    const token = nanoid(40);
+    const invite = await db.invitation.create({
+      data: { workspaceId: workspace.id, email: parsed.data.email, role: parsed.data.role, token, expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 7) },
+    });
+    // Recorded like the assistant's invitations always were — an admin invitation
+    // also tells every other admin (E-SEC-12).
+    await writeAudit({
+      workspaceId: workspace.id,
+      actorId: actor.id,
+      action: "membership.invited",
+      entityType: "invitation",
+      entityId: invite.id,
+      meta: { email: parsed.data.email, role: parsed.data.role },
+    });
+    await emailFor(workspace.id).send({
+      to: parsed.data.email,
+      subject: `You've been invited to ${workspace.name} on ${PRODUCT}`,
+      html: `<p>You've been invited to join <b>${workspace.name}</b> as a <b>${parsed.data.role}</b>.</p>
            <p><a href="${origin}/invitations/${token}">Accept the invitation</a></p>`,
-  });
+    }).catch(() => null);
+    invited.push(parsed.data.email);
+  }
   revalidateBoth();
+  const msg = [
+    invited.length ? `Invited ${invited.length === 1 ? invited[0] : `${invited.length} people`}.` : "",
+    refused.length ? `Not invited: ${refused.join(", ")}.` : "",
+  ].filter(Boolean).join(" ");
+  redirect(`${to}?${invited.length ? "flash" : "flashErr"}=${encodeURIComponent(msg)}`);
+}
+
+/** Send an invitation again with seven more days on it (E-SET-02) — the same link. */
+export async function resendInviteAction(formData: FormData) {
+  const { workspace, user: actor } = await requireRole("ADMIN");
+  const id = String(formData.get("id") ?? "");
+  const to = back(formData);
+  const invite = await db.invitation.findFirst({ where: { id, workspaceId: workspace.id, acceptedAt: null } });
+  if (!invite) redirect(`${to}?flashErr=${encodeURIComponent("That invitation was accepted or withdrawn.")}`);
+  const refusal = await joinRefusal(workspace.id, invite!.email);
+  if (refusal) redirect(`${to}?flashErr=${encodeURIComponent(refusal)}`);
+  const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 7);
+  await db.invitation.update({ where: { id: invite!.id }, data: { expiresAt } });
+  const origin = await getPublicUrl();
+  const sent = await emailFor(workspace.id).send({
+    to: invite!.email,
+    subject: `Reminder: you've been invited to ${workspace.name} on ${PRODUCT}`,
+    html: `<p>You've been invited to join <b>${workspace.name}</b> as a <b>${invite!.role}</b>.</p>
+           <p><a href="${origin}/invitations/${invite!.token}">Accept the invitation</a></p>`,
+  }).catch(() => null);
+  await writeAudit({ workspaceId: workspace.id, actorId: actor.id, action: "membership.invite_resent", entityType: "invitation", entityId: invite!.id, meta: { email: invite!.email } });
+  revalidateBoth();
+  redirect(`${to}?flash=${encodeURIComponent(`Sent ${invite!.email} the invitation again${sent?.mocked ? " (logged, not delivered — no mailbox is connected; copy the link instead)" : ""} — it now expires in 7 days.`)}`);
+}
+
+/** Bring a revoked member back with the role they had (E-SET-02). */
+export async function reinstateAction(formData: FormData) {
+  const { workspace, user: actor } = await requireRole("ADMIN");
+  const userId = String(formData.get("userId") ?? "");
+  const to = back(formData);
+  const m = await db.membership.findFirst({ where: { workspaceId: workspace.id, userId, status: "revoked" }, include: { user: { select: { email: true } } } });
+  if (!m) redirect(`${to}?flashErr=${encodeURIComponent("That member isn't revoked.")}`);
+  const refusal = await joinRefusal(workspace.id, m!.user.email);
+  if (refusal) redirect(`${to}?flashErr=${encodeURIComponent(refusal)}`);
+  await db.membership.update({ where: { id: m!.id }, data: { status: "active" } });
+  // An admin coming back is an admin being added — every other admin hears (E-SEC-12).
+  await writeAudit({ workspaceId: workspace.id, actorId: actor.id, action: "membership.added", entityType: "membership", entityId: m!.id, meta: { email: m!.user.email, role: m!.role, via: "reinstated" } });
+  revalidateBoth();
+  redirect(`${to}?flash=${encodeURIComponent(`${m!.user.email} is back as ${m!.role.toLowerCase()}.`)}`);
 }
 
 export async function changeRoleAction(formData: FormData) {
