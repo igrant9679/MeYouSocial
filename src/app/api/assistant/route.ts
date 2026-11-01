@@ -40,6 +40,8 @@ export async function GET(req: Request) {
   return Response.json({
     threadId: thread.id,
     title: thread.title,
+    // The dock starts afresh after a long idle (E-ENG-11) — it reads this.
+    updatedAt: thread.updatedAt.toISOString(),
     pending: thread.pending ? readJson(thread.pending, null) : null,
     messages: thread.messages.map((m) => ({ id: m.id, role: m.role, content: m.content, steps: readJson<AssistantStep[]>(m.steps, []) })),
   });

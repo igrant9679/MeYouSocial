@@ -24,7 +24,8 @@ import { softLimitProblem } from "@/lib/soft-limits";
  * credentials), deleting a workspace or a person's account, sending email.
  */
 
-export type ToolContext = { workspaceId: string; userId: string; role: string; page?: string | null; channelId?: string | null };
+/** `threadId` is recorded on each run, so the run history links back to the conversation (E-ENG-10). */
+export type ToolContext = { workspaceId: string; userId: string; role: string; page?: string | null; channelId?: string | null; threadId?: string | null };
 
 export type Tool = {
   name: string;
@@ -1444,12 +1445,12 @@ export async function runTool(
   try {
     const output = await tool.run(args, ctx);
     if (!tool.readOnly) {
-      await writeAudit({ workspaceId: ctx.workspaceId, actorId: ctx.userId, action: "assistant.tool_run", entityType: "assistant", meta: { tool: name, args, ok: true } });
+      await writeAudit({ workspaceId: ctx.workspaceId, actorId: ctx.userId, action: "assistant.tool_run", entityType: "assistant", entityId: ctx.threadId ?? null, meta: { tool: name, args, ok: true, threadId: ctx.threadId ?? null } });
     }
     return { ok: true, output };
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
-    if (!tool.readOnly) await writeAudit({ workspaceId: ctx.workspaceId, actorId: ctx.userId, action: "assistant.tool_run", entityType: "assistant", meta: { tool: name, args, ok: false, error: msg.slice(0, 200) } });
+    if (!tool.readOnly) await writeAudit({ workspaceId: ctx.workspaceId, actorId: ctx.userId, action: "assistant.tool_run", entityType: "assistant", entityId: ctx.threadId ?? null, meta: { tool: name, args, ok: false, error: msg.slice(0, 200), threadId: ctx.threadId ?? null } });
     return { ok: false, output: `error: ${msg.slice(0, 300)}` };
   }
 }

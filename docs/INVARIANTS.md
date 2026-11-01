@@ -923,3 +923,14 @@ before changing code in that area.
 - **Contextual help** (E-SHL-11): each stage strip ends with a "?" to its Help category (`HELP_FOR` in StageStrip); Help
   takes `?cat=` and `?q=`, every answer is `<details id="faq-<cat>-<slug of question>">` with a # link and opens on its
   hash; "/" focuses the search unless someone is typing.
+
+## ⚠ The assistant's run history and conversations (2026-11-01, audit Phase 5, growth part g)
+- **Run history** (E-ENG-10, `/assistant/history`): every `assistant.tool_run` (write tools only — reads change
+  nothing): when, who (admins see the workspace; editors their own), the tool, its arguments summarised, done / failed
+  with the error, and the conversation — linked only when it's the viewer's own (threads are private). `ToolContext`
+  carries `threadId`; `runTool` records it as the audit row's `entityId` and in `meta`. Filter by tool or failures.
+- **Conversations** (E-ENG-11): `/assistant` lists your own 30 most recent, searchable over titles AND message text
+  (`?tq=`); rename and delete (with a tick) via `actions/assistant-threads.ts`, both scoped to `userId`. Deleting keeps
+  the run history. The dock starts a NEW conversation when the remembered one has been idle over 6 hours
+  (`IDLE_FRESH_MS`, unless a proposal is waiting) and says so; its header has a picker of recent conversations
+  (`GET /api/assistant` returns them; a thread's GET returns `updatedAt`).

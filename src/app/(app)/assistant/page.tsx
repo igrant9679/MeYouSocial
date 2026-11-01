@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { renameThreadAction, deleteThreadAction } from "@/app/actions/assistant-threads";
 import { Bot, MessageSquarePlus, Sparkles } from "lucide-react";
 import { db } from "@/lib/db";
 import { getActiveChannel } from "@/lib/channel";
@@ -83,7 +84,7 @@ const ASK_GROUPS: Array<{ title: string; blurb: string; examples: Array<{ q: str
  * `?q=` pre-fills the composer — the Intel pages' "Ask about this channel /
  * video" arrive this way (the Research chat folded in here, 2026-09-09).
  */
-export default async function AssistantPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
+export default async function AssistantPage({ searchParams }: { searchParams: Promise<{ q?: string; tq?: string }> }) {
   const { workspace, user, membership, active } = await getActiveChannel();
   const tz = await getPostingTimeZone(workspace.id).catch(() => "UTC");
   const examples = await examplesFor(workspace.id);
@@ -101,11 +102,16 @@ export default async function AssistantPage({ searchParams }: { searchParams: Pr
       </main>
     );
   }
-  const { q } = await searchParams;
+  const { q, tq: rawTq } = await searchParams;
+  const tq = typeof rawTq === "string" ? rawTq.trim().slice(0, 80) : "";
+  // Yours only; a search reads titles and what was said (E-ENG-11).
   const threads = await db.assistantThread.findMany({
-    where: { workspaceId: workspace.id, userId: user.id },
+    where: {
+      workspaceId: workspace.id, userId: user.id,
+      ...(tq ? { OR: [{ title: { contains: tq, mode: "insensitive" } }, { messages: { some: { content: { contains: tq, mode: "insensitive" } } } }] } : {}),
+    },
     orderBy: { updatedAt: "desc" },
-    take: 12,
+    take: 30,
     select: { id: true, title: true, updatedAt: true },
   });
   const reads = TOOLS.filter((t) => t.readOnly);
@@ -198,23 +204,47 @@ export default async function AssistantPage({ searchParams }: { searchParams: Pr
         </div>
       </details>
 
-      {threads.length > 0 && (
-        <div className="card mt-4">
-          <h2 className="text-sm font-semibold mb-2 flex items-center gap-2">
+      {/* Earlier conversations (E-ENG-11): search, rename, delete — your own only. */}
+      <div id="threads" className="card mt-4 scroll-mt-20" data-threads>
+        <div className="flex items-center gap-2 flex-wrap mb-2">
+          <h2 className="text-sm font-semibold flex items-center gap-2 flex-1 m-0">
             <MessageSquarePlus className="w-4 h-4" style={{ color: "var(--mute)" }} /> Earlier conversations
           </h2>
-          <ul className="flex flex-col gap-1">
+          <Link href="/assistant/history" className="text-xs underline">Run history — everything it changed</Link>
+        </div>
+        <form className="flex items-center gap-2 mb-2">
+          <input name="tq" defaultValue={tq} placeholder="Search your conversations…" className="text-xs flex-1 min-w-40" />
+          <button className="btn sm">Search</button>
+          {tq && <Link href="/assistant#threads" className="text-xs underline">Clear</Link>}
+        </form>
+        {threads.length === 0 ? (
+          <p className="text-xs text-[var(--mute)] m-0">{tq ? `Nothing matches “${tq}”.` : "None yet — ask something above."}</p>
+        ) : (
+          <ul className="flex flex-col gap-1.5 m-0 p-0">
             {threads.map((t) => (
-              <li key={t.id}>
-                <Link href={`/assistant/${t.id}`} className="text-xs underline">
-                  {t.title ?? "Untitled"}
-                </Link>
-                <span className="font-mono text-[10px] text-[var(--mute)]"> · {formatZonedMoment(t.updatedAt, tz)}</span>
+              <li key={t.id} className="text-xs flex items-center gap-2 flex-wrap" data-thread={t.id}>
+                <Link href={`/assistant/${t.id}`} className="underline">{t.title ?? "Untitled"}</Link>
+                <span className="font-mono text-[10px] text-[var(--mute)]">· {formatZonedMoment(t.updatedAt, tz)}</span>
+                <details className="ml-auto">
+                  <summary className="cursor-pointer text-[10px] text-[var(--mute)] select-none">Rename / delete</summary>
+                  <div className="flex flex-wrap items-center gap-2 mt-1">
+                    <form action={renameThreadAction} className="flex items-center gap-1">
+                      <input type="hidden" name="id" value={t.id} />
+                      <input name="title" defaultValue={t.title ?? ""} maxLength={80} className="text-xs w-48" aria-label="New name" />
+                      <button className="btn sm">Rename</button>
+                    </form>
+                    <form action={deleteThreadAction} className="flex items-center gap-1">
+                      <input type="hidden" name="id" value={t.id} />
+                      <label className="flex items-center gap-1 text-[10px]"><input type="checkbox" name="confirm" value="yes" /> sure</label>
+                      <button className="btn sm" style={{ color: "var(--rose-on)" }}>Delete</button>
+                    </form>
+                  </div>
+                </details>
               </li>
             ))}
           </ul>
-        </div>
-      )}
+        )}
+      </div>
     </main>
   );
 }

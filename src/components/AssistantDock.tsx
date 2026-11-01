@@ -31,10 +31,17 @@ const SUGGESTIONS = [
   "What's going out this week?",
 ];
 
+/** Idle past this, the dock starts a new conversation rather than continuing (E-ENG-11). */
+const IDLE_FRESH_MS = 6 * 3_600_000;
+
 export function AssistantDock({ activeChannelId = null, workspaceId, userId }: { activeChannelId?: string | null; workspaceId: string; userId: string }) {
   const pathname = usePathname() ?? "/";
   const [open, setOpen] = useState(false);
   const [threadId, setThreadId] = useState<string | null>(null);
+  // A conversation idle this long isn't continued in the dock (E-ENG-11) — the
+  // next question starts a new one; the old one stays under Assistant.
+  const [fresh, setFresh] = useState(false);
+  const [recent, setRecent] = useState<Array<{ id: string; title: string | null }>>([]);
   const [messages, setMessages] = useState<Msg[]>([]);
   const [options, setOptions] = useState<string[]>([]);
   const [links, setLinks] = useState<Array<{ label: string; href: string }>>([]);
@@ -63,13 +70,28 @@ export function AssistantDock({ activeChannelId = null, workspaceId, userId }: {
     if (!open || !threadId || messages.length) return;
     fetch(`/api/assistant?threadId=${encodeURIComponent(threadId)}`)
       .then((r) => (r.ok ? r.json() : null))
-      .then((d: { messages?: Msg[]; pending?: unknown } | null) => {
+      .then((d: { messages?: Msg[]; pending?: unknown; updatedAt?: string } | null) => {
         if (!d?.messages) { setThreadId(null); return; }
+        if (d.updatedAt && !d.pending && Date.now() - Date.parse(d.updatedAt) > IDLE_FRESH_MS) {
+          setThreadId(null);
+          setFresh(true);
+          try { localStorage.removeItem(storeKey); } catch { /* ignore */ }
+          return;
+        }
         setMessages(d.messages);
         if (d.pending) setOptions(["Yes, do it", "No"]);
       })
       .catch(() => null);
-  }, [open, threadId, messages.length]);
+  }, [open, threadId, messages.length, storeKey]);
+
+  // The picker's list: this person's recent conversations here.
+  useEffect(() => {
+    if (!open) return;
+    fetch("/api/assistant")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { threads?: Array<{ id: string; title: string | null }> } | null) => setRecent(d?.threads ?? []))
+      .catch(() => null);
+  }, [open, threadId]);
 
   // Open from anywhere: the header button dispatches this; Ctrl+/ too.
   useEffect(() => {
@@ -117,7 +139,8 @@ export function AssistantDock({ activeChannelId = null, workspaceId, userId }: {
   // The newest proposal on screen — its card's Yes carries this nonce (E-ENG-01).
   const lastNonce = [...messages].reverse().find((x) => x.role === "assistant")?.steps.find((x): x is Extract<AssistantStep, { kind: "confirm" }> => x.kind === "confirm")?.nonce;
 
-  const newThread = () => { setThreadId(null); setMessages([]); setOptions([]); setLinks([]); try { localStorage.removeItem(storeKey); } catch { /* ignore */ } };
+  const newThread = () => { setThreadId(null); setFresh(false); setMessages([]); setOptions([]); setLinks([]); try { localStorage.removeItem(storeKey); } catch { /* ignore */ } };
+  const pick = (id: string) => { if (!id || id === threadId) return; setFresh(false); setOptions([]); setLinks([]); setMessages([]); setThreadId(id); };
 
   return (
     <>
@@ -149,12 +172,21 @@ export function AssistantDock({ activeChannelId = null, workspaceId, userId }: {
             <span className="font-mono text-[12px] font-bold">Assistant</span>
             <span className="text-[10px] text-[var(--mute)] truncate">· on {pathname}</span>
             <span className="flex-1" />
+            {recent.length > 0 && (
+              <select value={threadId ?? ""} onChange={(e) => pick(e.target.value)} className="text-[10px] max-w-28 bg-transparent border border-[var(--line)] rounded px-1 py-0.5" aria-label="Earlier conversations" data-dock-threads>
+                <option value="">{threadId ? "Switch…" : "Earlier…"}</option>
+                {recent.map((t) => <option key={t.id} value={t.id}>{(t.title ?? "Untitled").slice(0, 40)}</option>)}
+              </select>
+            )}
             <button type="button" onClick={newThread} className="text-[10px] text-[var(--mute)] hover:text-[var(--ink)]" title="Start a new conversation">new</button>
             <Link href={threadId ? `/assistant/${threadId}` : "/assistant"} className="text-[10px] text-[var(--mute)] hover:text-[var(--ink)] inline-flex items-center gap-0.5" title="Open the full page"><ExternalLink className="w-3 h-3" /> full</Link>
             <button type="button" onClick={() => setOpen(false)} className="ml-1 text-[var(--mute)] hover:text-[var(--ink)]" aria-label="Close"><X className="w-4 h-4" /></button>
           </header>
 
           <div ref={listRef} className="flex-1 overflow-y-auto px-3 py-2 flex flex-col gap-2">
+            {messages.length === 0 && fresh && (
+              <p className="text-[11px] text-[var(--mute)] m-0" data-dock-fresh>It&apos;s been a while, so this is a new conversation — the last one is under <Link href="/assistant#threads" className="underline">Assistant</Link> (or pick it above).</p>
+            )}
             {messages.length === 0 && (
               <div className="text-xs text-[var(--mute)] leading-relaxed">
                 <p className="mb-2">I can do nearly everything you can do here — find and approve ideas, draft, review, publish, queue and send, read the numbers, change the dials — and I&apos;ll ask before anything goes out or changes a setting. Ask me what to do next whenever you&apos;re unsure.</p>

@@ -58,7 +58,7 @@ export async function runTurn(input: TurnInput): Promise<TurnOutput | null> {
     if (claimed.count === 1) pending = readJson<PendingAction | null>(thread.pending, null);
   }
   const result = await runAssistant(
-    { workspaceId: input.workspaceId, userId: input.userId, role: input.role, page: input.page ?? null, channelId: input.channelId ?? null },
+    { workspaceId: input.workspaceId, userId: input.userId, role: input.role, page: input.page ?? null, channelId: input.channelId ?? null, threadId: thread.id },
     prior.map((m) => ({ role: m.role === "user" ? ("user" as const) : ("assistant" as const), content: m.content })),
     message,
     pending,
