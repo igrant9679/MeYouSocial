@@ -24,6 +24,8 @@ const credentialsSchema = z.object({
 export class SecondFactorRequired extends CredentialsSignin { code = "second_factor"; }
 /** The code (or the five-minute step) didn't pass. */
 export class SecondFactorWrong extends CredentialsSignin { code = "second_factor_wrong"; }
+/** A workspace of theirs signs in with Google only (E-SEC-08) — the password path refuses them. */
+export class GoogleSignInRequired extends CredentialsSignin { code = "use_google"; }
 
 const googleProvider = env.ENABLE_GOOGLE_SSO && env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET
   ? [
@@ -81,6 +83,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (!user || !user.passwordHash) return null;
         const ok = await bcrypt.compare(parsed.data.password, user.passwordHash);
         if (!ok) return null;
+        const { mustUseGoogle } = await import("@/lib/access-policy");
+        if (await mustUseGoogle(user)) throw new GoogleSignInRequired();
         // Two-factor on: the password alone doesn't sign in — the page asks for a code.
         if (user.totpEnabledAt) throw new SecondFactorRequired();
         await db.user.update({ where: { id: user.id }, data: { lastActivityAt: new Date() } });

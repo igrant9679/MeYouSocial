@@ -8,6 +8,7 @@ import { requireRole } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/governance";
 import { withdrawInvitationsFor } from "@/lib/invitations";
+import { joinRefusal } from "@/lib/access-policy";
 import { emailFor } from "@/lib/email";
 import { getPublicUrl } from "@/lib/public-url";
 import { PRODUCT } from "@/lib/product";
@@ -38,6 +39,9 @@ export async function inviteAction(formData: FormData) {
   const { workspace, user: actor } = await requireRole("ADMIN");
   const parsed = inviteSchema.safeParse({ email: formData.get("email"), role: formData.get("role") });
   if (!parsed.success) return;
+  // Only the workspace's own domains, when it set some (E-SEC-08).
+  const refusal = await joinRefusal(workspace.id, parsed.data.email);
+  if (refusal) redirect(`${back(formData)}?flashErr=${encodeURIComponent(refusal)}`);
 
   const token = nanoid(40);
   const invite = await db.invitation.create({

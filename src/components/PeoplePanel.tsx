@@ -12,6 +12,8 @@ import { getCurrentUser, isPlatformOperator } from "@/lib/acl";
 import { getSetting } from "@/lib/settings";
 import { REQUIRE_SETTING } from "@/lib/two-factor";
 import { requireTwoFactorAction, resetTwoFactorAction } from "@/app/actions/two-factor";
+import { DOMAINS_SETTING, GOOGLE_ONLY_SETTING, EXPIRE_SETTING, parseDomains, domainOf, googleSsoAvailable } from "@/lib/access-policy";
+import { saveAccessPolicyAction } from "@/app/actions/access-policy";
 
 /** Members not seen for this many days are flagged for review (E-SEC-18). */
 const IDLE_DAYS = 60;
@@ -48,6 +50,13 @@ export async function PeoplePanel({ workspaceId, workspaceName, returnTo }: { wo
   const [me, required] = await Promise.all([getCurrentUser(), getSetting(REQUIRE_SETTING, workspaceId).then((v) => v === "true")]);
   const operator = isPlatformOperator(me?.email);
   const adminsWithout = members.filter((m) => m.status === "active" && m.role === "ADMIN" && !m.user.totpEnabledAt).length;
+  // Access rules (E-SEC-08, E-SEC-18).
+  const [domainsRaw, googleRaw, expireRaw] = await Promise.all([DOMAINS_SETTING, GOOGLE_ONLY_SETTING, EXPIRE_SETTING].map((k) => getSetting(k, workspaceId)));
+  const domains = parseDomains(domainsRaw);
+  const sso = googleSsoAvailable();
+  const googleOnly = googleRaw === "true";
+  const expireDays = Number(expireRaw) || 0;
+  const outside = domains.length ? members.filter((m) => m.status === "active" && !domains.includes(domainOf(m.user.email))) : [];
 
   return (
     <>
@@ -78,6 +87,46 @@ export async function PeoplePanel({ workspaceId, workspaceName, returnTo }: { wo
             <Link href="/admin/connections" className="underline">Connect one →</Link>
           </p>
         )}
+      </section>
+
+      {/* Access (E-SEC-08, E-SEC-18): who may join, how they sign in, when idle access ends. */}
+      <section id="access" className="card mb-5 scroll-mt-20" data-access-policy>
+        <h2 className="font-mono text-[15px] mb-1">Access</h2>
+        <p className="text-xs text-[var(--mute)] mb-3">Who may join this workspace, how they sign in, and when access ends for someone who stopped coming.</p>
+        <form action={saveAccessPolicyAction} className="flex flex-col gap-3 text-xs">
+          <input type="hidden" name="returnTo" value={returnTo} />
+          <label className="flex flex-col gap-1">
+            <span><b>Only these email domains</b> <span className="text-[var(--mute)]">— invitations and new members must be at one of them; leave empty for anyone</span></span>
+            <input name="domains" defaultValue={domains.join(", ")} placeholder="acme.com, acme.co.uk" className="border border-[var(--line-2)] rounded-lg px-3 py-2 text-sm max-w-md" />
+          </label>
+          {outside.length > 0 && (
+            <p className="m-0" style={{ color: "var(--amber-on)" }}>
+              {outside.length === 1 ? "One member is" : `${outside.length} members are`} outside these domains ({outside.map((m) => m.user.email).join(", ")}) — they keep access; revoke them below if they shouldn&apos;t.
+            </p>
+          )}
+          <label className="flex items-start gap-2">
+            <input type="checkbox" name="google" defaultChecked={googleOnly} disabled={!sso} className="mt-0.5" />
+            <span>
+              <b>Sign in with Google only</b>{" "}
+              <span className="text-[var(--mute)]">
+                {sso
+                  ? "— members can't use a password here; Google's own two-factor applies. The platform operator is exempt, as the way back in."
+                  : "— not available: Google sign-in isn't switched on for this install (the platform operator enables it)."}
+              </span>
+            </span>
+          </label>
+          <label className="flex items-center gap-2 flex-wrap">
+            <span><b>End access after</b></span>
+            <select name="expire" defaultValue={String(expireDays)} className="border border-[var(--line-2)] rounded-lg px-2 py-1.5 text-sm">
+              <option value="0">never</option>
+              <option value="60">60 days idle</option>
+              <option value="90">90 days idle</option>
+              <option value="180">180 days idle</option>
+            </select>
+            <span className="text-[var(--mute)]">— editors and viewers only, never admins; revoked, history kept; the admins are told.</span>
+          </label>
+          <div><SubmitButton className="btn sm" pendingText="Saving…">Save access rules</SubmitButton></div>
+        </form>
       </section>
 
       <section className="card mb-5">

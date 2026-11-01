@@ -13,6 +13,7 @@ import { emailFor } from "@/lib/email";
 import { getPublicUrl } from "@/lib/public-url";
 import { PRODUCT } from "@/lib/product";
 import { formatDay } from "@/lib/zoned-dates";
+import { joinRefusal } from "@/lib/access-policy";
 import { softDeleteWorkspace, restoreWorkspace, purgeWorkspace } from "@/lib/workspace-lifecycle";
 
 /**
@@ -168,6 +169,9 @@ export async function platformAddMemberAction(formData: FormData) {
 
   // Nobody joins a deleted workspace (E-SEC-14) — restore it first.
   const workspace = await db.workspace.findUnique({ where: { id: workspaceId, deletedAt: null }, select: { id: true, name: true } });
+  // Its own domains apply to the operator too (E-SEC-08) — change them by entering it.
+  const refusal = workspace ? await joinRefusal(workspaceId, email) : null;
+  if (refusal) back(`${workspace!.name}: ${refusal}`, false);
   if (!workspace) back("That workspace no longer exists.", false);
 
   const existing = await db.user.findUnique({ where: { email } });

@@ -823,3 +823,18 @@ before changing code in that area.
   streamed JSON file — every model with a `workspaceId` (from Prisma's DMMF, caches and the job queue left out) plus its
   channels' rows, members with their email. Never a secret: password/token/secret fields dropped by name, secret settings
   `[not exported]`. Linked from Settings → Workspace, the delete copy and the Deleted list; audited `workspace.exported`.
+
+## ⚠ Who may join, how they sign in, when idle access ends (2026-11-01, audit Phase 5, security part 9)
+- **`lib/access-policy.ts`** (E-SEC-08, E-SEC-18), set on Settings → People → Access (`saveAccessPolicyAction`, admins;
+  audited `security.access_policy_changed`, which tells the other admins):
+  - `security:allowed_domains` — invitations and new members only at these domains (`joinRefusal`): the People invite,
+    the assistant's `invite_member`, the operator's add-member and **`claimInvitation`** (an invitation from before the rule
+    is held to it). Existing members outside are flagged on People, never removed. An admin must keep their own domain in.
+  - `security:require_google_signin` — only when the install has Google SSO (`ENABLE_GOOGLE_SSO` + client id/secret):
+    `authorize`'s password path throws `GoogleSignInRequired` (`code = "use_google"`) for anyone actively in a live
+    workspace that requires it; the sign-in page says to use Google. ⚠ The platform operator is exempt — the way back in.
+    Off on this install today (SSO isn't enabled), so the box is disabled with the reason.
+  - `security:auto_expire_days` (60/90/180, off by default) — `expireIdleMembers`, in the metrics sweep: active EDITORs
+    and VIEWERs whose last activity (or joining, if never seen) is older are revoked (`membership.expired`, admins told).
+    ⚠ Never an ADMIN (a workspace can't lock itself out) and never the operator.
+- SAML / per-workspace identity providers are NOT built (E-SEC-08's "later"); Google is the install's one SSO.

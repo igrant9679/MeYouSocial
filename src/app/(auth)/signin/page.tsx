@@ -44,6 +44,8 @@ async function signinAction(formData: FormData) {
         redirect(`/signin?step=code${nextQ}`);
       }
     }
+    // A workspace of theirs signs in with Google only (E-SEC-08).
+    if (e instanceof CredentialsSignin && e.code === "use_google") redirect(`/signin?error=use_google${nextQ}`);
     redirect(`/signin?error=1${nextQ}`);
   }
 }
@@ -103,7 +105,8 @@ export default async function SignInPage({ searchParams }: { searchParams: Promi
       <div className="card w-full max-w-md">
         <h1 className="font-mono font-bold text-xl mb-1">Sign in</h1>
         <p className="text-sm text-[var(--mute)] mb-5">to {PRODUCT}</p>
-        {error === "expired" ? <p className="text-sm text-[var(--brand)] mb-3">That sign-in took more than five minutes — enter your password again.</p>
+        {error === "use_google" ? <p className="text-sm text-[var(--brand)] mb-3">Your company signs in with Google — use Continue with Google below.</p>
+          : error === "expired" ? <p className="text-sm text-[var(--brand)] mb-3">That sign-in took more than five minutes — enter your password again.</p>
           : error && <p className="text-sm text-[var(--brand)] mb-3">Invalid email or password.</p>}
         {reset === "1" && <p className="text-sm bg-[var(--green-soft)] text-[var(--green)] rounded-md px-3 py-2 mb-3">Password updated. Sign in with your new password.</p>}
         <form action={signinAction} className="flex flex-col gap-3">

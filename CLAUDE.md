@@ -244,6 +244,7 @@ area, rather than loading all of them into every session.
 - Two-factor sign-in — 2026-10-29, audit Phase 5, security part 6
 - Every stored secret is on the keyring — 2026-10-31, audit Phase 5, security part 7
 - Deleting a workspace keeps it for 30 days — 2026-11-01, audit Phase 5, security part 8
+- Who may join, how they sign in, when idle access ends — 2026-11-01, audit Phase 5, security part 9
 
 ## Open items / things the user still owns
 - **Analytics: APIs enabled 2026-08-03** (Search Console + GA Admin + GA Data, on project

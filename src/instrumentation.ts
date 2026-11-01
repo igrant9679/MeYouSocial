@@ -159,6 +159,14 @@ export async function register() {
     } catch (e) {
       console.error("[workspaces] purge failed:", e instanceof Error ? e.message : e);
     }
+    // Idle editors and viewers lose access where a workspace chose it (E-SEC-18).
+    try {
+      const { expireIdleMembers } = await import("@/lib/access-policy");
+      const expired = await expireIdleMembers();
+      if (expired) console.log(`[access] ${expired} idle membership(s) expired`);
+    } catch (e) {
+      console.error("[access] expiry failed:", e instanceof Error ? e.message : e);
+    }
   });
   setTimeout(metricsSweep, 3 * 60 * 1000);
   globals.__metricsTimer = setInterval(metricsSweep, metricsMin * 60 * 1000);

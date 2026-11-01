@@ -1267,6 +1267,9 @@ export const TOOLS: Tool[] = [
       const email = str(a.email, 200).toLowerCase();
       if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return "that is not an email address";
       const role = ["ADMIN", "EDITOR", "VIEWER"].includes(str(a.role, 10).toUpperCase()) ? str(a.role, 10).toUpperCase() : "EDITOR";
+      const { joinRefusal } = await import("@/lib/access-policy");
+      const refusal = await joinRefusal(ctx.workspaceId, email);
+      if (refusal) return refusal;
       const { nanoid } = await import("nanoid");
       const token = nanoid(40);
       const ws = await db.workspace.findUnique({ where: { id: ctx.workspaceId }, select: { name: true } });

@@ -32,8 +32,12 @@ export function sameEmail(a: string | null | undefined, b: string | null | undef
  */
 export async function claimInvitation(
   userId: string,
-  invite: Pick<Invitation, "id" | "workspaceId" | "role">,
+  invite: Pick<Invitation, "id" | "workspaceId" | "role" | "email">,
 ): Promise<boolean> {
+  // An invitation from before the workspace limited its domains (E-SEC-08) is
+  // held to the rule as it stands now.
+  const { joinRefusal } = await import("@/lib/access-policy");
+  if (await joinRefusal(invite.workspaceId, invite.email)) return false;
   return db.$transaction(async (tx) => {
     const claimed = await tx.invitation.updateMany({
       // never into a deleted workspace (E-SEC-14)
