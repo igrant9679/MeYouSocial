@@ -7,6 +7,7 @@ import { matchTopic, prepareTopics } from "@/lib/topic-match";
 import { studioState } from "@/lib/studio";
 import { ChannelAvatar } from "@/components/ChannelAvatar";
 import { ResearchIdeaForm } from "@/components/ResearchIdeaForm";
+import { alreadyAnIdea, openWorkIndex } from "@/lib/idea-duplicates";
 import { StageHeader, StageRow, StateChip } from "@/components/StageShell";
 import { EmptyState } from "@/components/EmptyState";
 
@@ -24,6 +25,8 @@ export default async function ResearchStage({ searchParams }: { searchParams: Pr
   const { workspace, membership } = await requireMembership();
   const { ok } = await searchParams;
   const editor = canEdit(membership.role);
+  // E-IDE-03: what each row already is on the board, for editors who could make it again.
+  const work = editor ? await openWorkIndex(workspace.id) : [];
   const [outliers, channels, bookmarks, indexedVideos, topics, studio, ownChannels] = await Promise.all([
     // ⚠ IDE-09: matched over the whole set — only the top 24 were looked at,
     // so a Topic read "nothing indexed" while matching outliers sat below the
@@ -121,7 +124,7 @@ export default async function ResearchStage({ searchParams }: { searchParams: Pr
                             {v.intelChannel.name} · {formatNum(v.views)} views · {v.format}
                           </div>
                         </div>
-                        {editor && <ResearchIdeaForm videoId={v.id} videoTitle={v.title} topics={topicOptions} channels={videoChannels} matchedTopicId={g.topic?.id ?? null} back="/research" compact />}
+                        {editor && <ResearchIdeaForm videoId={v.id} videoTitle={v.title} topics={topicOptions} channels={videoChannels} matchedTopicId={g.topic?.id ?? null} back="/research" compact already={alreadyAnIdea(work, v)} />}
                         <Link href={`/intel/videos/${v.id}`} className="btn sm">Open</Link>
                       </StageRow>
                     );

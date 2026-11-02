@@ -4,6 +4,7 @@ import { requireMembership, canEdit } from "@/lib/acl";
 import { matchTopic, prepareTopics } from "@/lib/topic-match";
 import { studioState } from "@/lib/studio";
 import { ResearchIdeaForm } from "@/components/ResearchIdeaForm";
+import { alreadyAnIdea, openWorkIndex, type OpenWork } from "@/lib/idea-duplicates";
 import { db } from "@/lib/db";
 import { readJson } from "@/lib/db/json";
 import { formatNum, formatVph } from "@/lib/intel";
@@ -31,7 +32,9 @@ export default async function BookmarksPage({ searchParams }: { searchParams: Pr
   ]);
   // The on-ramp's inputs: Topic options, the video channels (studio on), and
   // a keyword matcher for the pre-filled Topic (labelled as a match).
-  const ramp = editor ? { topics: topics.map((t) => ({ id: t.id, name: t.name })), channels: studio.show ? ownChannels : [], prepared: prepareTopics(topics) } : null;
+  // E-IDE-03: what each bookmark already is on the board.
+  const work = editor ? await openWorkIndex(workspace.id) : [];
+  const ramp = editor ? { topics: topics.map((t) => ({ id: t.id, name: t.name })), channels: studio.show ? ownChannels : [], prepared: prepareTopics(topics), work } : null;
 
   const channels = items.filter((b) => b.intelChannel);
   const videos = items.filter((b) => b.intelVideo);
@@ -86,7 +89,7 @@ export default async function BookmarksPage({ searchParams }: { searchParams: Pr
   );
 }
 
-type Ramp = { topics: Array<{ id: string; name: string }>; channels: Array<{ id: string; name: string }>; prepared: ReturnType<typeof prepareTopics> } | null;
+type Ramp = { topics: Array<{ id: string; name: string }>; channels: Array<{ id: string; name: string }>; prepared: ReturnType<typeof prepareTopics>; work: OpenWork[] } | null;
 
 function BookmarkRow({ bookmark, kind, ramp = null }: { ramp?: Ramp; bookmark: { id: string; tags: string; notes: string | null; intelChannel: { id: string; name: string | null; handle: string | null; subscribers: number | null; thumbnailUrl: string | null } | null; intelVideo: { id: string; title: string; outlierScore: number | null; views: bigint | null; viewsPerHour: number | null; intelChannel: { name: string | null } } | null }; kind: "channel" | "video" }) {
   const tags = readJson<string[]>(bookmark.tags, []);
@@ -116,7 +119,7 @@ function BookmarkRow({ bookmark, kind, ramp = null }: { ramp?: Ramp; bookmark: {
         <OutlierChip score={v.outlierScore} />
         <Link href={`/intel/videos/${v.id}`} className="font-semibold text-sm hover:text-[var(--accent)] flex-1 min-w-0 truncate">{v.title}</Link>
         <span className="text-xs text-[var(--mute)]">{v.intelChannel.name} · {formatNum(v.views)} views{v.viewsPerHour != null && <span title="Views per hour since publish"> · {formatVph(v.viewsPerHour)}/hr</span>}</span>
-        {ramp && <ResearchIdeaForm videoId={v.id} videoTitle={v.title} topics={ramp.topics} channels={ramp.channels} matchedTopicId={matchTopic(v.title, ramp.prepared)?.id ?? null} back="/intel/bookmarks" compact />}
+        {ramp && <ResearchIdeaForm videoId={v.id} videoTitle={v.title} topics={ramp.topics} channels={ramp.channels} matchedTopicId={matchTopic(v.title, ramp.prepared)?.id ?? null} back="/intel/bookmarks" compact already={alreadyAnIdea(ramp.work, v)} />}
         <form action={toggleBookmarkAction}>
           <input type="hidden" name="intelVideoId" value={v.id} />
           <button type="submit" className="btn sm" title="Remove"><Bookmark className="w-3.5 h-3.5" fill="currentColor" /></button>

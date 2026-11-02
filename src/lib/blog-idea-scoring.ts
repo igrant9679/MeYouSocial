@@ -16,7 +16,7 @@ const NOISE = new Set([
   "top", "ways", "tips", "should", "does", "from", "that", "this", "into", "about",
 ]);
 
-function keyTokens(s: string): Set<string> {
+export function keyTokens(s: string): Set<string> {
   return new Set((s.toLowerCase().match(WORD) ?? []).filter((w) => w.length > 3 && !NOISE.has(w)));
 }
 

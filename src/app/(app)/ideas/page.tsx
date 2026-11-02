@@ -31,6 +31,9 @@ import { requestNow } from "@/lib/request-time";
 import { StageHeader } from "@/components/StageShell";
 import { IdeaTriage } from "@/components/IdeaTriage";
 import { canFollow, whoCanFix } from "@/lib/role-links";
+import { duplicatesAmong, openWorkIndex, KIND_LABEL, type Match } from "@/lib/idea-duplicates";
+import { mergeDuplicateIdeaAction } from "@/app/actions/idea-merge";
+import { mergeBlogIdeasAction } from "@/app/actions/blog-ideas";
 
 // The Ideas stage IS the one board (One-Loop step 4), in Topic lanes since
 // 2026-09-21 ("Topics as the spine"). Article, video and social ideas share
@@ -88,6 +91,8 @@ export default async function IdeasBoard({ searchParams }: { searchParams: Promi
       .map((r, i) => [r.id, i + 1] as const),
   );
   const now = requestNow();
+  // E-IDE-03: the closest other open work for each open idea, across formats and drafts.
+  const dups = duplicatesAmong(await openWorkIndex(workspace.id));
   const waiting = (f: "article" | "social") => board.cards.filter((c) => c.format === f && c.state === "approved").length;
   const stalled = ([["article", "article", "articles"], ["social", "social post", "social posts"]] as const)
     .map(([f, one, many]) => ({ f, n: waiting(f), label: waiting(f) === 1 ? one : many, why: blockers[f] }))
@@ -315,6 +320,8 @@ export default async function IdeasBoard({ searchParams }: { searchParams: Promi
               health={health.get(laneKey(lane.topic?.id))}
               draftRank={draftRank}
               now={now}
+              dups={dups}
+              back={back}
             />
           ))}
         </div>
@@ -342,8 +349,8 @@ export default async function IdeasBoard({ searchParams }: { searchParams: Promi
 }
 
 // ── A lane: one Topic, three columns, Rejected under a disclosure ────────────
-function LaneSection({ lane, open, editor, topics, health, draftRank, now }: {
-  lane: Lane; open: boolean; editor: boolean; topics: Topic[]; health?: LaneHealth; draftRank: Map<string, number>; now: number;
+function LaneSection({ lane, open, editor, topics, health, draftRank, now, dups, back }: {
+  lane: Lane; open: boolean; editor: boolean; topics: Topic[]; health?: LaneHealth; draftRank: Map<string, number>; now: number; dups: Map<string, Match>; back: string;
 }) {
   const t = lane.topic;
   const by = (s: BoardState) => lane.cards.filter((c) => c.state === s);
@@ -398,7 +405,7 @@ function LaneSection({ lane, open, editor, topics, health, draftRank, now }: {
                 </p>
               ) : (
                 <ul className="flex flex-col gap-2">
-                  {items.map((c) => <Card key={`${c.format}-${c.row.id}`} c={c} editor={editor} topics={topics} lane={laneId} draftRank={draftRank} />)}
+                  {items.map((c) => <Card key={`${c.format}-${c.row.id}`} c={c} editor={editor} topics={topics} lane={laneId} draftRank={draftRank} dups={dups} back={back} />)}
                 </ul>
               )}
             </section>
@@ -409,7 +416,7 @@ function LaneSection({ lane, open, editor, topics, health, draftRank, now }: {
         <details className="mt-3">
           <summary className="text-[11px] cursor-pointer text-[var(--mute)]">Rejected · {rejected.length} — won&apos;t come back unless restored</summary>
           <ul className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-2">
-            {rejected.map((c) => <Card key={`${c.format}-${c.row.id}`} c={c} editor={editor} topics={topics} lane={`${laneId}:rejected`} draftRank={draftRank} />)}
+            {rejected.map((c) => <Card key={`${c.format}-${c.row.id}`} c={c} editor={editor} topics={topics} lane={`${laneId}:rejected`} draftRank={draftRank} dups={dups} back={back} />)}
           </ul>
         </details>
       )}
@@ -433,11 +440,43 @@ function LaneHealthLine({ h, now }: { h: LaneHealth; now: number }) {
   );
 }
 
-function Card({ c, editor, topics, lane, draftRank }: { c: BoardCard; editor: boolean; topics: Topic[]; lane: string; draftRank: Map<string, number> }) {
+function Card({ c, editor, topics, lane, draftRank, dups, back }: { c: BoardCard; editor: boolean; topics: Topic[]; lane: string; draftRank: Map<string, number>; dups: Map<string, Match>; back: string }) {
   const select = editor && canSelect(c) ? lane : null;
-  if (c.format === "article") return <ArticleCard idea={c.row} editor={editor} topics={topics} select={select} rank={draftRank.get(c.row.id)} />;
-  if (c.format === "video") return <VideoCard idea={c.row} editor={editor} topics={topics} select={select} />;
-  return <SocialCard idea={c.row} editor={editor} topics={topics} select={select} />;
+  const dup = dups.get(`${c.format}:${c.row.id}`);
+  if (c.format === "article") return <ArticleCard idea={c.row} editor={editor} topics={topics} select={select} rank={draftRank.get(c.row.id)} dup={dup} back={back} />;
+  if (c.format === "video") return <VideoCard idea={c.row} editor={editor} topics={topics} select={select} dup={dup} back={back} />;
+  return <SocialCard idea={c.row} editor={editor} topics={topics} select={select} dup={dup} back={back} />;
+}
+
+/**
+ * "Looks like …" (E-IDE-03): the closest other open work, in any format or
+ * already being written. Two ideas of the same kind can be merged from here
+ * (articles through their own merge); anything else is a pointer.
+ */
+function DupLine({ format, id, dup, canMerge, back }: { format: IdeaFormat; id: string; dup: Match; canMerge: boolean; back: string }) {
+  return (
+    <div className="mt-1 text-[10px] flex flex-wrap items-center gap-1.5" style={{ color: "var(--amber-on)" }} data-dup={`${dup.kind}:${dup.id}`}>
+      <span>
+        Looks like the {KIND_LABEL[dup.kind]} <Link href={dup.href} className="underline">“{dup.title.length > 70 ? `${dup.title.slice(0, 70)}…` : dup.title}”</Link>
+        <span className="text-[var(--mute)]"> · {Math.round(dup.sim * 100)}% the same words</span>
+      </span>
+      {canMerge && dup.kind === format && (format === "article" ? (
+        <form action={mergeBlogIdeasAction}>
+          <input type="hidden" name="sourceId" value={id} />
+          <input type="hidden" name="targetId" value={dup.id} />
+          <SubmitButton className="btn !text-[10px] !py-0 !px-1.5" pendingText="Merging…">Merge into it</SubmitButton>
+        </form>
+      ) : (
+        <form action={mergeDuplicateIdeaAction}>
+          <input type="hidden" name="format" value={format} />
+          <input type="hidden" name="sourceId" value={id} />
+          <input type="hidden" name="targetId" value={dup.id} />
+          <input type="hidden" name="back" value={back} />
+          <SubmitButton className="btn !text-[10px] !py-0 !px-1.5" pendingText="Merging…">Merge into it</SubmitButton>
+        </form>
+      ))}
+    </div>
+  );
 }
 
 /** The cards bulk triage may touch: the open states their own buttons act on (actions/ideas-bulk.ts keeps the same rules). */
@@ -514,7 +553,7 @@ function TopicPicker({ format, id, topicId, topics, prominent }: { format: IdeaF
 }
 
 // ── Article card — everything the old blog board carried, unchanged ──────────
-function ArticleCard({ idea, editor, topics, select, rank }: { idea: ArticleRow; editor: boolean; topics: Topic[]; select: string | null; rank?: number }) {
+function ArticleCard({ idea, editor, topics, select, rank, dup, back }: { idea: ArticleRow; editor: boolean; topics: Topic[]; select: string | null; rank?: number; dup?: Match; back: string }) {
   const motifs = parseMotifs(idea.motifs);
   const live = idea.status !== "drafted" && idea.status !== "merged";
   return (
@@ -525,6 +564,7 @@ function ArticleCard({ idea, editor, topics, select, rank }: { idea: ArticleRow;
         <span className="text-xs font-semibold leading-snug flex-1">{idea.title}</span>
         {idea.priority != null && <Tag title={idea.priorityReason ?? undefined}>{idea.priority}</Tag>}
       </div>
+      {dup && <DupLine format="article" id={idea.id} dup={dup} canMerge={editor && (idea.status === "discovered" || idea.status === "approved")} back={back} />}
       {rank != null && (
         <p className="text-[10px] mt-1 font-mono" style={{ color: "var(--violet-on)" }} data-draft-rank={rank} title="Approved articles are drafted highest priority first, then the longest-waiting">
           {rank === 1 ? "next to draft" : `#${rank} to draft`}
@@ -602,7 +642,7 @@ function ArticleCard({ idea, editor, topics, select, rank }: { idea: ArticleRow;
 }
 
 // ── Video card — the channel board's card, in the board's vocabulary ─────────
-function VideoCard({ idea, editor, topics, select }: { idea: VideoRow; editor: boolean; topics: Topic[]; select: string | null }) {
+function VideoCard({ idea, editor, topics, select, dup, back }: { idea: VideoRow; editor: boolean; topics: Topic[]; select: string | null; dup?: Match; back: string }) {
   const script = idea.scripts[0];
   const detail = `/channels/${idea.channel.id}/ideas/${idea.id}`;
   return (
@@ -613,6 +653,7 @@ function VideoCard({ idea, editor, topics, select }: { idea: VideoRow; editor: b
         <Link href={detail} className="text-xs font-semibold leading-snug flex-1 hover:underline">{idea.title}</Link>
         {idea.outlierScore != null && <OutlierChip score={idea.outlierScore} views={idea.sourceVideo?.views} size="xs" title={IDEA_TIPS.outlier} />}
       </div>
+      {dup && <DupLine format="video" id={idea.id} dup={dup} canMerge={editor && (idea.status === "new" || idea.status === "approved")} back={back} />}
       {idea.strategy && <p className="text-[11px] text-[var(--mute)] mt-1 line-clamp-2">{idea.strategy}</p>}
       <div className="flex flex-wrap items-center gap-1 mt-1.5">
         {idea.suggestedLength && <Tag>{idea.suggestedLength}</Tag>}
@@ -667,7 +708,7 @@ function VideoCard({ idea, editor, topics, select }: { idea: VideoRow; editor: b
 }
 
 // ── Social card — a post's idea: the hook, why, where it came from ───────────
-function SocialCard({ idea, editor, topics, select }: { idea: SocialRow; editor: boolean; topics: Topic[]; select: string | null }) {
+function SocialCard({ idea, editor, topics, select, dup, back }: { idea: SocialRow; editor: boolean; topics: Topic[]; select: string | null; dup?: Match; back: string }) {
   const live = idea.status !== "drafted";
   const source =
     idea.source === "article" && idea.sourceBlogPost ? { label: `from article: ${idea.sourceBlogPost.title}`, href: `/blog/${idea.sourceBlogPost.id}` }
@@ -684,6 +725,7 @@ function SocialCard({ idea, editor, topics, select }: { idea: SocialRow; editor:
         {idea.priority != null && <Tag>{idea.priority}</Tag>}
         {idea.status === "rejected" && isRejectReason(idea.rejectReason) && <Tag hue="rose" title="Why it was rejected — discovery steers away from this">{REJECT_REASONS[idea.rejectReason]}</Tag>}
       </div>
+      {dup && <DupLine format="social" id={idea.id} dup={dup} canMerge={editor && (idea.status === "discovered" || idea.status === "approved")} back={back} />}
       {idea.angle && <p className="text-[11px] text-[var(--mute)] mt-1">{idea.angle}</p>}
       {source && (
         <p className="text-[10px] text-[var(--mute)] mt-1 truncate">

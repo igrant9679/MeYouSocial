@@ -2,6 +2,8 @@ import { Lightbulb } from "lucide-react";
 import { SubmitButton } from "@/components/SubmitButton";
 import { ideaFromResearchAction } from "@/app/actions/ideas";
 import { TitleRemix } from "@/components/TitleRemix";
+import Link from "next/link";
+import { KIND_LABEL, type Match } from "@/lib/idea-duplicates";
 
 /**
  * Research's on-ramp to the board ("Topics as the spine", 2026-09-21): one
@@ -27,6 +29,7 @@ export function ResearchIdeaForm({
   matchedTopicId,
   back,
   compact = false,
+  already = null,
 }: {
   videoId: string;
   /** The competitor's title — shown as the "keep" choice beside the remixes (E-IDE-21). */
@@ -38,6 +41,8 @@ export function ResearchIdeaForm({
   back: string;
   /** One button, for a list row. */
   compact?: boolean;
+  /** Open work this already is (E-IDE-03) — made from this video, or a close title. Shown, never blocking. */
+  already?: Match | null;
 }) {
   const fields = (
     <>
@@ -58,8 +63,17 @@ export function ResearchIdeaForm({
     </>
   );
 
+  const note = already && (
+    <p className="m-0 text-[10px]" style={{ color: "var(--amber-on)" }} data-already-idea={`${already.kind}:${already.id}`}>
+      Already {already.sim === 1 ? "made into" : "close to"} the {KIND_LABEL[already.kind]}{" "}
+      <Link href={already.href} className="underline">“{already.title.length > 60 ? `${already.title.slice(0, 60)}…` : already.title}”</Link>
+    </p>
+  );
+
   if (compact) {
     return (
+      <div className="flex flex-col items-end gap-1">
+      {note}
       <details className="relative">
         <summary className="btn sm list-none cursor-pointer [&::-webkit-details-marker]:hidden" title="Add it to the Ideas board, linked back to this video">
           <Lightbulb className="w-3 h-3" /> Make it an idea
@@ -69,11 +83,13 @@ export function ResearchIdeaForm({
           <SubmitButton className="btn sm" pendingText="Adding…">Add to the board</SubmitButton>
         </form>
       </details>
+      </div>
     );
   }
 
   return (
     <form action={ideaFromResearchAction} className="flex flex-col gap-1.5">
+      {note}
       {fields}
       <SubmitButton className="btn w-full flex items-center justify-center gap-2" pendingText="Adding…" title="Add it to the Ideas board, linked back to this video">
         <Lightbulb className="w-4 h-4" /> Make it an idea

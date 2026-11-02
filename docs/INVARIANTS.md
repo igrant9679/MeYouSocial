@@ -1232,3 +1232,18 @@ before changing code in that area.
   **Settings** (`saveEvergreenSettingsAction`: every 1–365 days, until a day — the end of that day in the posting zone —,
   at most 1–1000 or no limit, variants separated by a `---` line, at most 10) and **Stop recycling**. It says plainly when
   Evergreen fill is off. `listBack` allows `/social/evergreen`.
+
+## ⚠ Duplicate ideas are flagged across formats and can be merged (2026-11-01, audit Phase 5, growth part af)
+- **E-IDE-03 — one index** (`lib/idea-duplicates.ts` `openWorkIndex`): the workspace's open article, video and social
+  ideas, articles being written (drafting → final approval) and draft scripts, compared on the meaningful words of the
+  title (`keyTokens` Jaccard, the idea scoring's own measure); `DUP_THRESHOLD` 0.5. It only points — nothing is merged,
+  hidden or held without a person.
+- **The board**: an open idea with close open work shows "Looks like the <kind> …, N% the same words" with a link
+  (ties go to work further along — a draft beats an idea). Two ideas of the **same kind** get **Merge into it**:
+  articles through their existing merge (`mergeBlogIdeasAction`), social and video through `mergeDuplicateIdeaAction`
+  (EDITOR, both open): the kept one gains the other's angle / strategy; the social one folded in is **rejected as
+  "duplicate"** (so discovery steers away from it), the video one **archived** (never one in progress); audited
+  `ideas.merged`. Cross-kind and draft matches are pointers only.
+- **Research and Intel rows** (`ResearchIdeaForm` `already`): "Already made into …" when an idea keeps this video as its
+  source (`sourceVideoId`, any format), else "Already close to …" for close open work. Shown, never blocking — making
+  another is still a person's call. Editors only (it's beside the button that makes one).
