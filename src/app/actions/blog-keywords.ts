@@ -248,17 +248,75 @@ export async function classifyIntentsAction() {
 export async function ideaFromKeywordAction(formData: FormData) {
   const id = String(formData.get("id"));
   const { workspace } = await requireRole("EDITOR");
+  const back = (key: "ok" | "err", text: string) => redirect(`/blog/keywords?${key}=${encodeURIComponent(text)}`);
   const kw = await db.keyword.findFirst({ where: { id, workspaceId: workspace.id } });
-  if (!kw) return;
+  if (!kw) back("err", "That keyword isn't in this workspace.");
+  // An open idea already aimed at this keyword is the idea — don't make a second.
+  const open = await db.blogIdea.findFirst({ where: { workspaceId: workspace.id, keyword: kw!.phrase, status: { in: ["discovered", "approved"] } }, select: { title: true } });
+  if (open) back("err", `“${open.title}” already targets “${kw!.phrase}”.`);
+  // A real working title from the intent (E-IDE-13), in the cluster's Topic —
+  // the Topic named like the cluster, else the one whose phrases match.
+  const { proposeKeywordTitle } = await import("@/lib/keyword-title");
+  const topics = await db.topic.findMany({ where: { workspaceId: workspace.id, status: "active" }, select: { id: true, name: true, keywords: true } });
+  let topic = kw!.cluster ? topics.find((t) => t.name.toLowerCase() === kw!.cluster!.toLowerCase()) ?? null : null;
+  if (!topic) {
+    const { matchTopic, prepareTopics } = await import("@/lib/topic-match");
+    const m = matchTopic(kw!.phrase, prepareTopics(topics));
+    topic = m ? topics.find((t) => t.id === m.id) ?? null : null;
+  }
+  const title = proposeKeywordTitle(kw!.phrase, kw!.intent);
   await db.blogIdea.create({
     data: {
       workspaceId: workspace.id,
-      title: `Article targeting "${kw.phrase}"`,
-      keyword: kw.phrase,
-      angle: kw.cluster ? `Part of the "${kw.cluster}" cluster${kw.intent ? `; ${kw.intent} intent` : ""}.` : null,
+      title,
+      keyword: kw!.phrase,
+      tier: kw!.tier,
+      topicId: topic?.id ?? null,
+      angle: [kw!.intent ? `For ${kw!.intent} searches` : null, kw!.cluster ? `part of the "${kw!.cluster}" cluster` : null, kw!.volume != null ? `${kw!.volume.toLocaleString()} searches a month` : null].filter(Boolean).join("; ") || null,
       source: "manual",
     },
   });
   revalidatePath("/blog");
-  revalidatePath("/blog/keywords");
+  revalidatePath("/ideas");
+  back("ok", `“${title}” is on the Ideas board${topic ? ` under ${topic.name}` : " (no Topic matched)"} — the title is a starting point to edit.`);
+}
+
+/**
+ * Bulk keyword actions (E-IDE-13): pause, resume, move to a cluster, set the
+ * tier, or delete (with the confirmation box). Editors; the ticked ids are
+ * narrowed to this workspace first.
+ */
+export async function bulkKeywordsAction(formData: FormData) {
+  const { workspace } = await requireRole("EDITOR");
+  const back = (key: "ok" | "err", text: string) => redirect(`/blog/keywords?${key}=${encodeURIComponent(text)}`);
+  const ids = [...new Set(formData.getAll("ids").map(String))].slice(0, 500);
+  if (!ids.length) back("err", "Tick at least one keyword first.");
+  const where = { id: { in: ids }, workspaceId: workspace.id };
+  const op = String(formData.get("op") ?? "");
+  const n = (count: number) => `${count} keyword${count === 1 ? "" : "s"}`;
+  if (op === "pause" || op === "resume") {
+    const r = await db.keyword.updateMany({ where, data: { status: op === "pause" ? "paused" : "active" } });
+    revalidatePath("/blog/keywords");
+    back("ok", `${op === "pause" ? "Paused" : "Resumed"} ${n(r.count)}.`);
+  }
+  if (op === "cluster") {
+    const cluster = String(formData.get("cluster") ?? "").trim().slice(0, 80) || null;
+    const r = await db.keyword.updateMany({ where, data: { cluster } });
+    revalidatePath("/blog/keywords");
+    back("ok", cluster ? `Moved ${n(r.count)} to “${cluster}”.` : `Took ${n(r.count)} out of their cluster.`);
+  }
+  if (op === "tier") {
+    const tier = parseInt(String(formData.get("tier") ?? ""), 10);
+    if (!(tier >= 1 && tier <= 4)) back("err", "Pick a tier from 1 to 4.");
+    const r = await db.keyword.updateMany({ where, data: { tier } });
+    revalidatePath("/blog/keywords");
+    back("ok", `Set ${n(r.count)} to tier ${tier}.`);
+  }
+  if (op === "delete") {
+    if (formData.get("confirm") !== "yes") back("err", "Deleting needs the confirmation box.");
+    const r = await db.keyword.deleteMany({ where });
+    revalidatePath("/blog/keywords");
+    back("ok", `Deleted ${n(r.count)}.`);
+  }
+  back("err", "Unknown action.");
 }

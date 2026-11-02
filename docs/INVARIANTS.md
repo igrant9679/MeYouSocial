@@ -1310,3 +1310,21 @@ before changing code in that area.
 - **Row numbers are the spreadsheet's**: blank rows are kept by the parser for numbering and skipped by the planner.
 - **Template** (`/api/social/import-template`, any member): every column with two example rows written for the
   workspace — its networks, posting zone, a campaign and a media item when it has them.
+
+## ⚠ Keywords edit in place and in bulk; ideas from keywords get real titles (2026-11-01, audit Phase 5, growth part am)
+- **Each keyword row edits in place** (E-IDE-13): an Edit fold under the phrase sets tier, intent and cluster
+  through `updateKeywordAction`, keeping the row's status. A person's intent replaces the AI's. Viewers get no Edit.
+- **One bulk bar spans every cluster's table**: the row boxes carry `form="kw-bulk"` so they join one form across
+  sections, and `SelectAllBox` takes a `formId` to tick them. `bulkKeywordsAction` (editors) narrows the ticked ids
+  to this workspace before it writes, then moves to a cluster (blank = none), sets the tier (1–4 only), pauses,
+  resumes, or deletes — delete needs the confirm box — and redirects with what it did. **Move is the bar's first
+  button** on purpose: Enter in the cluster field submits the first button, and that must not be Pause or Delete.
+- **An idea from a keyword gets a working title, not "Article targeting …"**: `lib/keyword-title.ts`
+  (`proposeKeywordTitle`, no model — instant, free, never a mock) shapes it by the phrase (how-to, question,
+  comparison) and the keyword's intent; a commercial phrase already starting "best"/"top" isn't doubled. The idea is
+  filed under the Topic named like the cluster (case-insensitive), else the one `matchTopic` finds in the phrase,
+  else none — and the message says which. It carries the keyword's tier.
+- **No second idea for a keyword**: an open (discovered or approved) idea with the same keyword refuses the button
+  and names that idea.
+- Inputs and selects on this page have the visible border (`border border-[var(--line-2)] rounded-lg`) — the add
+  form and the country picker had none.

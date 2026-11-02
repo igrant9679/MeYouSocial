@@ -5,10 +5,12 @@ import { requireMembership, canEdit } from "@/lib/acl";
 import { importIdeasCsvAction } from "@/app/actions/ideas-csv";
 import { db } from "@/lib/db";
 import { SubmitButton } from "@/components/SubmitButton";
+import { SelectAllBox } from "@/components/SelectAllBox";
 import { getSearchDataProvider, searchDataVendorLabel, SEARCH_DATA_COUNTRIES } from "@/lib/search-data";
 import { keywordCountry } from "@/lib/keyword-volumes";
 import {
   addKeywordAction,
+  bulkKeywordsAction,
   classifyIntentsAction,
   deleteKeywordAction,
   discoverKeywordsAction,
@@ -29,6 +31,8 @@ const INTENT_HUE: Record<string, string> = {
   transactional: "green",
   navigational: "violet",
 };
+const INTENTS = Object.keys(INTENT_HUE);
+const FIELD = "border border-[var(--line-2)] rounded-lg px-2 py-1 text-xs";
 
 type TrendPoint = { year: number; month: number; volume: number };
 
@@ -176,7 +180,7 @@ export default async function KeywordsPage({ searchParams }: { searchParams: Pro
           )}
           {provider && keywords.length > 0 && (
             <form action={refreshKeywordVolumesAction} className="flex items-center gap-1">
-              <select name="country" defaultValue={country} className="text-xs" aria-label="Country for search volume" title="Which country's searches the volumes measure">
+              <select name="country" defaultValue={country} className={FIELD} aria-label="Country for search volume" title="Which country's searches the volumes measure">
                 {SEARCH_DATA_COUNTRIES.map((c) => <option key={c.code} value={c.code}>{c.name}</option>)}
               </select>
               <SubmitButton className="btn" pendingText="Fetching…" title={`Fetch volume, CPC and competition for every active keyword from ${searchDataVendorLabel(provider.vendor)} (uses the vendor's credits)`}>
@@ -186,11 +190,11 @@ export default async function KeywordsPage({ searchParams }: { searchParams: Pro
           )}
           <span className="flex-1" />
           <form action={addKeywordAction} className="flex items-center gap-2">
-            <input name="phrase" required placeholder="add a keyword…" className="text-xs w-44" />
-            <select name="tier" defaultValue="3" className="text-xs" aria-label="Tier">
+            <input name="phrase" required placeholder="add a keyword…" className={`${FIELD} w-44`} />
+            <select name="tier" defaultValue="3" className={FIELD} aria-label="Tier">
               {[1, 2, 3, 4].map((t) => <option key={t} value={t}>T{t}</option>)}
             </select>
-            <input name="cluster" placeholder="cluster" className="text-xs w-28" />
+            <input name="cluster" placeholder="cluster" list="kw-clusters" className={`${FIELD} w-28`} />
             <button className="btn"><Plus className="w-3.5 h-3.5" /> Add</button>
           </form>
         </div>
@@ -231,7 +235,33 @@ export default async function KeywordsPage({ searchParams }: { searchParams: Pro
           )}
         </div>
       ) : (
-        [...clusters.entries()].map(([cluster, list]) => (
+        <>
+        {/* Bulk actions (E-IDE-13). The row boxes sit in every cluster's table
+            and join this form by their `form` attribute. Move comes first so
+            Enter in the cluster field moves rather than pauses. */}
+        {editor && (
+          <form id="kw-bulk" action={bulkKeywordsAction} className="card mb-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-xs" data-kw-bulk>
+            <SelectAllBox formId="kw-bulk" label="Select all" />
+            <span className="text-[var(--mute)]">Ticked:</span>
+            <span className="inline-flex items-center gap-1">
+              <input name="cluster" list="kw-clusters" placeholder="cluster (blank = none)" aria-label="Cluster to move the ticked keywords to" className={`${FIELD} w-40`} />
+              <button name="op" value="cluster" className="btn sm">Move</button>
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <select name="tier" defaultValue="3" aria-label="Tier for the ticked keywords" className={FIELD}>
+                {[1, 2, 3, 4].map((t) => <option key={t} value={t}>T{t}</option>)}
+              </select>
+              <button name="op" value="tier" className="btn sm">Set tier</button>
+            </span>
+            <button name="op" value="pause" className="btn sm">Pause</button>
+            <button name="op" value="resume" className="btn sm">Resume</button>
+            <span className="inline-flex items-center gap-1">
+              <label className="inline-flex items-center gap-1 cursor-pointer"><input type="checkbox" name="confirm" value="yes" /> confirm</label>
+              <button name="op" value="delete" className="btn sm" title="Delete the ticked keywords — tick confirm first"><Trash2 className="w-3 h-3" /> Delete</button>
+            </span>
+          </form>
+        )}
+        {[...clusters.entries()].map(([cluster, list]) => (
           <section key={cluster} className="card mb-3">
             <h2 className="text-xs font-semibold uppercase tracking-wide text-[var(--mute)] mb-2 flex items-center gap-2 flex-wrap">
               {cluster} <span className="font-mono">({list.length})</span>
@@ -254,6 +284,7 @@ export default async function KeywordsPage({ searchParams }: { searchParams: Pro
               <table className="w-full text-xs">
                 <thead>
                   <tr className="text-left text-[var(--mute)] border-b border-[var(--line)]">
+                    {editor && <th className="py-1.5 pr-2 w-5"><span className="sr-only">Select</span></th>}
                     <th className="py-1.5 pr-3 font-semibold">Keyword</th>
                     <th className="py-1.5 pr-3 font-semibold">Tier</th>
                     <th className="py-1.5 pr-3 font-semibold">Intent (AI)</th>
@@ -270,10 +301,35 @@ export default async function KeywordsPage({ searchParams }: { searchParams: Pro
                     const noData = k.volumeAt && k.volume == null;
                     const comp = k.competition != null ? competitionLabel(k.competition) : null;
                     return (
-                      <tr key={k.id} className="border-b border-[var(--line)] last:border-0 align-middle">
+                      <tr key={k.id} className="border-b border-[var(--line)] last:border-0 align-middle" data-kw-row={k.id}>
+                        {editor && (
+                          <td className="py-1.5 pr-2">
+                            <input type="checkbox" name="ids" value={k.id} form="kw-bulk" aria-label={`Select ${k.phrase}`} />
+                          </td>
+                        )}
                         <td className="py-1.5 pr-3">
                           <span className="font-semibold">{k.phrase}</span>
                           {k.status === "paused" && <span className="ml-1 text-[var(--mute)]">(paused)</span>}
+                          {/* Edit in place (E-IDE-13): tier, intent and cluster.
+                              A person's intent replaces the AI's. */}
+                          {editor && (
+                            <details className="mt-0.5" data-kw-edit>
+                              <summary className="cursor-pointer select-none text-[11px] text-[var(--mute)]">Edit</summary>
+                              <form action={updateKeywordAction} className="mt-1 flex flex-wrap items-center gap-1">
+                                <input type="hidden" name="id" value={k.id} />
+                                <input type="hidden" name="status" value={k.status} />
+                                <select name="tier" defaultValue={k.tier} aria-label={`Tier for ${k.phrase}`} className={FIELD}>
+                                  {[1, 2, 3, 4].map((t) => <option key={t} value={t}>T{t}</option>)}
+                                </select>
+                                <select name="intent" defaultValue={k.intent ?? ""} aria-label={`Intent for ${k.phrase}`} className={FIELD}>
+                                  {!k.intent && <option value="">intent…</option>}
+                                  {INTENTS.map((i) => <option key={i} value={i}>{i}</option>)}
+                                </select>
+                                <input name="cluster" defaultValue={k.cluster ?? ""} list="kw-clusters" placeholder="cluster" aria-label={`Cluster for ${k.phrase}`} className={`${FIELD} w-36`} />
+                                <SubmitButton className="btn sm" pendingText="Saving…">Save</SubmitButton>
+                              </form>
+                            </details>
+                          )}
                         </td>
                         <td className="py-1.5 pr-3 font-mono">T{k.tier}</td>
                         <td className="py-1.5 pr-3">
@@ -321,7 +377,7 @@ export default async function KeywordsPage({ searchParams }: { searchParams: Pro
                             <div className="flex items-center gap-1">
                               <form action={ideaFromKeywordAction}>
                                 <input type="hidden" name="id" value={k.id} />
-                                <button className="btn" title="Create a blog idea from this keyword"><Lightbulb className="w-3.5 h-3.5" /></button>
+                                <button className="btn" title="Make an idea from this keyword — a working title from its intent, under the matching Topic"><Lightbulb className="w-3.5 h-3.5" /></button>
                               </form>
                               <form action={updateKeywordAction} className="flex items-center gap-1">
                                 <input type="hidden" name="id" value={k.id} />
@@ -347,8 +403,12 @@ export default async function KeywordsPage({ searchParams }: { searchParams: Pro
               </table>
             </div>
           </section>
-        ))
+        ))}
+        </>
       )}
+      <datalist id="kw-clusters">
+        {[...clusters.keys()].filter((c) => c !== "unclustered").map((c) => <option key={c} value={c} />)}
+      </datalist>
     </main>
   );
 }
