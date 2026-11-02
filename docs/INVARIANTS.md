@@ -1429,3 +1429,14 @@ before changing code in that area.
   left behind and the message says how many. Audit rows on both sides (`social.copied_out` / `social.copied_in`).
 - `resolveApprovalForCreate` now lives in `lib/social/approval-for-create.ts` (a "use server" file can't export a
   helper without making it callable from the browser).
+
+## ⚠ The workspace switcher shows what waits elsewhere and keeps your place (2026-11-02, audit Phase 5, growth part at)
+- **Each other workspace's option says what needs this person there** (E-SHL-05, `lib/workspace-badges.ts`): the stage
+  strip's urgent counts summed (held articles unless autonomous, approvals, open audit items, unread replies — the same
+  lower bound the strip shows) and their unread notifications: "AT two — 2 need you · 2 unread". A pill beside the
+  switcher totals the others ("4 elsewhere"). The active workspace's own option stays plain (its strip shows its counts).
+  Counts reuse `stripCounts`' 10 s cache and stop after 8 workspaces.
+- **Switching keeps the section** (`switchLanding`, the switcher posts `back` = the current path): the same path in the
+  new workspace, cut at the first record id (a cuid or a number — that record belongs to the workspace being left) and
+  without its query; anything that isn't a plain in-app path, or is an auth/API/onboarding/file path, goes to the
+  Inbox. The membership check in `setActiveWorkspaceAction` is unchanged.

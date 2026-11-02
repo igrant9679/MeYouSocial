@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { requireUser, isPlatformOperator, ACTIVE_WS_COOKIE } from "@/lib/acl";
+import { switchLanding } from "@/lib/workspace-badges";
 
 /**
  * Multi-company users: switch the active workspace. Validated against the
@@ -21,7 +22,9 @@ export async function setActiveWorkspaceAction(formData: FormData) {
     path: "/",
     maxAge: 60 * 60 * 24 * 365,
   });
-  redirect("/inbox");
+  // The same section in the new workspace (E-SHL-05) — a record's page goes
+  // to its section, since that record belongs to the one being left.
+  redirect(switchLanding(String(formData.get("back") ?? "")));
 }
 
 /** Set the active-workspace cookie without the membership re-check — only for

@@ -19,6 +19,7 @@ import { stripCounts } from "@/lib/stage-counts";
 import { getPostingTimeZone } from "@/lib/social/slots";
 import { StageStrip } from "@/components/StageStrip";
 import { WorkspaceSwitcher } from "@/components/WorkspaceSwitcher";
+import { workspaceBadges } from "@/lib/workspace-badges";
 import { setActiveWorkspaceAction } from "@/app/actions/workspace-switch";
 import { storage } from "@/lib/storage";
 import { db } from "@/lib/db";
@@ -90,9 +91,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const userLabel = user.name ?? user.email.split("@")[0];
   const editorUp = canEdit(membership.role);
   const navItems = NAV.filter((n) => (!n.adminOnly || membership.role === "ADMIN") && (!n.editorOnly || editorUp));
-  const workspaceChoices = user.memberships
+  const activeChoices = user.memberships
     .filter((m) => m.status === "active")
     .map((m) => ({ id: m.workspaceId, name: m.workspace.name }));
+  // E-SHL-05: what needs this person in each OTHER workspace, for the switcher.
+  const badges = activeChoices.length > 1
+    ? await workspaceBadges(user.id, activeChoices.filter((w) => w.id !== workspace.id).map((w) => w.id)).catch(() => new Map())
+    : new Map();
+  const workspaceChoices = activeChoices.map((w) => ({ ...w, badge: badges.get(w.id) ?? null }));
   // Creating a workspace stands up a whole tenant, so it's the platform
   // operator's job, not a workspace admin's. Cosmetic only — the action
   // enforces the same check.
