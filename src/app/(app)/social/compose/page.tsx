@@ -6,14 +6,13 @@ import { readJson } from "@/lib/db/json";
 import { getSetting } from "@/lib/settings";
 import { SocialComposer } from "@/components/SocialComposer";
 import { storage } from "@/lib/storage";
-import { SubmitButton } from "@/components/SubmitButton";
 import { HelpTip } from "@/components/HelpTip";
 import { SOCIAL_TIPS } from "@/lib/help-tips";
 import { formatInZone, getQueue } from "@/lib/social/slots";
 import { listCategories } from "@/lib/social/categories";
 import { canWatermark } from "@/lib/social/watermark";
 import { optimalTime } from "@/lib/social/optimal";
-import { importSocialCsvAction } from "@/app/actions/social-workflow";
+import { SocialCsvImport } from "@/components/SocialCsvImport";
 import { saveSnippetAction, deleteSnippetAction } from "@/app/actions/social-snippets";
 import { Banner, SocialHeader } from "@/components/SocialPostCard";
 
@@ -151,12 +150,12 @@ export default async function SocialComposePage({ searchParams }: { searchParams
           <code className="font-mono">campaign</code> (by name),{" "}
           <code className="font-mono">category</code>,{" "}
           <code className="font-mono">evergreen</code> (true/false),{" "}
-          <code className="font-mono">recycleEveryDays</code>. Rows without a date land as drafts.
+          <code className="font-mono">recycleEveryDays</code>,{" "}
+          <code className="font-mono">timezone</code> (e.g. America/New_York, for that row&apos;s date),{" "}
+          <code className="font-mono">media</code> (names from the media library, a|b). Rows without a date land as drafts.
+          Check the file first: every row is judged and nothing is written.
         </p>
-        <form action={importSocialCsvAction} className="flex flex-wrap items-center gap-2" encType="multipart/form-data">
-          <input type="file" name="file" accept=".csv,text/csv" required className="text-xs" />
-          <SubmitButton className="btn sm" pendingText="Importing…">Import</SubmitButton>
-        </form>
+        <SocialCsvImport />
       </details>
     </div>
   );

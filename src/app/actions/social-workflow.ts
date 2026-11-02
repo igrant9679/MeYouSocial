@@ -7,7 +7,7 @@ import { db } from "@/lib/db";
 import { setWorkspaceSetting } from "@/lib/settings";
 import { writeAudit } from "@/lib/governance";
 import { notify } from "@/lib/notify";
-import { networkFor } from "@/lib/social/networks";
+import { CSV_MAX_BYTES, parseCsv, planImport } from "@/lib/social/csv-import";
 
 /**
  * Campaigns, the approval workflow, and bulk CSV import.
@@ -434,207 +434,102 @@ export async function saveSocialWorkflowSettingsAction(formData: FormData) {
 
 // ---- Bulk CSV import -----------------------------------------------------------
 
-const CSV_MAX_ROWS = 200;
-const CSV_MAX_BYTES = 1024 * 1024;
+export type CsvImportResult = {
+  mode: "check" | "import";
+  ok: boolean;
+  /** One line for the whole file. */
+  summary: string;
+  rows: Array<{ row: number; ok: boolean; message: string }>;
+};
 
 /**
- * A small RFC-4180-ish parser: quoted fields, doubled quotes, CR/LF. No
- * dependency for something this small, and the failure mode (a malformed
- * file) is reported per-row rather than crashing the import.
+ * Bulk import (E-SOC-16): "Check the file" plans every row and writes nothing;
+ * "Import" creates the rows that pass and skips the rest. Both report row by
+ * row (lib/social/csv-import.ts holds the rules, so the check can't disagree
+ * with the import). Used with useActionState — it returns, never redirects.
  */
-function parseCsv(text: string): string[][] {
-  const rows: string[][] = [];
-  let row: string[] = [];
-  let field = "";
-  let inQuotes = false;
-  for (let i = 0; i < text.length; i++) {
-    const ch = text[i];
-    if (inQuotes) {
-      if (ch === '"') {
-        if (text[i + 1] === '"') { field += '"'; i++; } else inQuotes = false;
-      } else field += ch;
-    } else if (ch === '"') {
-      inQuotes = true;
-    } else if (ch === ",") {
-      row.push(field); field = "";
-    } else if (ch === "\n" || ch === "\r") {
-      if (ch === "\r" && text[i + 1] === "\n") i++;
-      row.push(field); field = "";
-      if (row.some((f) => f.trim() !== "")) rows.push(row);
-      row = [];
-    } else field += ch;
-  }
-  row.push(field);
-  if (row.some((f) => f.trim() !== "")) rows.push(row);
-  return rows;
-}
-
-/**
- * Bulk import: one post per row. Columns (header row, case-insensitive):
- *   text (required) · scheduledAt · networks · campaign · category ·
- *   evergreen · recycleEveryDays
- *
- * Text-only by design — media can't ride in a CSV — so media-required
- * networks named in a row are dropped from it, with a note, rather than
- * letting the row half-fail at the network later (same rule the composer
- * enforces). Unknown campaign names are row errors, not auto-creates: an
- * import should never invent workspace structure from a typo.
- */
-export async function importSocialCsvAction(formData: FormData) {
-  const backTo: Flash = tabFlash("/social/compose");
+export async function importSocialCsvAction(_prev: CsvImportResult | null, formData: FormData): Promise<CsvImportResult> {
+  const mode = formData.get("op") === "check" ? "check" : "import";
+  const done = (summary: string, ok = false, rows: CsvImportResult["rows"] = []): CsvImportResult => ({ mode, ok, summary, rows });
   const { workspace, user, membership } = await requireRole("EDITOR");
   const file = formData.get("file");
-  if (!(file instanceof File) || file.size === 0) backTo("Choose a CSV file to import.");
-  if (file.size > CSV_MAX_BYTES) backTo("That file is over 1 MB — split it up.");
+  if (!(file instanceof File) || file.size === 0) return done("Choose a CSV file first.");
+  if (file.size > CSV_MAX_BYTES) return done("That file is over 1 MB — split it up.");
 
-  const rows = parseCsv(Buffer.from(await file.arrayBuffer()).toString("utf8"));
-  if (rows.length < 2) backTo("The file needs a header row and at least one post row.");
-  if (rows.length - 1 > CSV_MAX_ROWS) backTo(`That's ${rows.length - 1} rows — the cap is ${CSV_MAX_ROWS} per import.`);
+  const [accounts, campaigns, media] = await Promise.all([
+    db.zernioAccount.findMany({ where: { workspaceId: workspace.id, status: "connected" }, select: { platform: true, accountId: true, displayName: true, username: true } }),
+    db.campaign.findMany({ where: { workspaceId: workspace.id, status: "active" }, select: { id: true, name: true } }),
+    db.mediaItem.findMany({ where: { workspaceId: workspace.id }, select: { key: true, name: true, contentType: true } }),
+  ]);
+  const { getPostingTimeZone, formatInZone } = await import("@/lib/social/slots");
+  const timeZone = await getPostingTimeZone(workspace.id);
+  const { header, plans } = planImport(parseCsv(Buffer.from(await file.arrayBuffer()).toString("utf8")), { accounts, campaigns, media, timeZone, now: Date.now() });
+  if (header) return done(header);
 
-  const header = rows[0].map((h) => h.trim().toLowerCase());
-  const col = (name: string) => header.indexOf(name);
-  const iText = col("text");
-  if (iText === -1) backTo('The header row needs a "text" column.');
-  const iWhen = col("scheduledat");
-  const iNets = col("networks");
-  const iCampaign = col("campaign");
-  const iCategory = col("category");
-  const iEver = col("evergreen");
-  const iDays = col("recycleeverydays");
-
-  const accounts = await db.zernioAccount.findMany({
-    where: { workspaceId: workspace.id, status: "connected" },
-  });
-  if (accounts.length === 0) backTo("No connected social accounts to import against.");
-  const byPlatform = new Map<string, typeof accounts>();
-  for (const a of accounts) {
-    (byPlatform.get(a.platform) ?? byPlatform.set(a.platform, []).get(a.platform)!).push(a);
+  const good = plans.filter((p) => p.ok && p.post);
+  const rowsOut = plans.map((p) => ({
+    row: p.row,
+    ok: p.ok,
+    message: p.ok && p.post
+      ? [`${p.post.scheduledAt ? `${formatInZone(p.post.scheduledAt, p.post.zone)} (${p.post.zone})` : "draft, no date"}`, p.post.targets.map((t) => t.provider).filter((v, i, a) => a.indexOf(v) === i).join(", "), p.post.mediaKeys.length ? `${p.post.mediaKeys.length} media` : "", ...p.notes].filter(Boolean).join(" · ")
+      : `${p.error}${p.notes.length ? ` (${p.notes.join("; ")})` : ""}`,
+  }));
+  const bad = plans.length - good.length;
+  if (mode === "check") {
+    return done(`${good.length} of ${plans.length} row${plans.length === 1 ? "" : "s"} would import${bad ? `; ${bad} would be skipped — see why below` : ""}. Nothing was written.`, bad === 0, rowsOut);
   }
-
-  const campaigns = await db.campaign.findMany({ where: { workspaceId: workspace.id, status: "active" } });
-  const campaignByName = new Map(campaigns.map((c) => [c.name.toLowerCase(), c.id]));
 
   const { getSetting } = await import("@/lib/settings");
   const requireApproval = (await getSetting("social:require_approval", workspace.id).catch(() => "")) === "true";
   const held = requireApproval && membership.role !== "ADMIN";
   const approval = requireApproval ? (held ? "pending" : "approved") : null;
-
-  // Dates are read as wall clock in the posting timezone, in one unambiguous
-  // shape only: new Date() took ISO as server UTC and 11/12/2026 as November (SOC-22).
-  const { getPostingTimeZone, parseZonedInput, formatInZone } = await import("@/lib/social/slots");
-  const tz = await getPostingTimeZone(workspace.id);
-  let firstAt: Date | null = null;
-  let lastAt: Date | null = null;
-
-  let created = 0;
+  const { jobs } = await import("@/lib/jobs");
   let scheduled = 0;
-  const errors: string[] = [];
-  const notes: string[] = [];
-
-  for (let r = 1; r < rows.length; r++) {
-    const cells = rows[r];
-    const rowNo = r + 1; // human numbering, header = row 1
-    const text = (cells[iText] ?? "").trim().slice(0, 5000);
-    if (!text) { errors.push(`row ${rowNo}: empty text`); continue; }
-
-    // Networks: pipe/semicolon/space separated platform slugs; empty = all.
-    const netRaw = iNets >= 0 ? (cells[iNets] ?? "").trim() : "";
-    const wanted = netRaw
-      ? netRaw.toLowerCase().split(/[|;,\s]+/).filter(Boolean)
-      : [...byPlatform.keys()];
-    const unknown = wanted.filter((w) => !byPlatform.has(w));
-    if (unknown.length && netRaw) {
-      errors.push(`row ${rowNo}: no connected account for ${unknown.join(", ")}`);
-      continue;
-    }
-    // Text-only import: silently sending nothing to Instagram would be the
-    // half-failure the composer refuses, so drop those networks with a note.
-    const usable = wanted.filter((w) => byPlatform.has(w) && !networkFor(w)?.requiresMedia);
-    const dropped = wanted.filter((w) => byPlatform.has(w) && networkFor(w)?.requiresMedia);
-    if (dropped.length) notes.push(`row ${rowNo}: skipped ${dropped.join(", ")} (needs an image)`);
-    if (usable.length === 0) { errors.push(`row ${rowNo}: every named network needs an image`); continue; }
-
-    let campaignId: string | null = null;
-    if (iCampaign >= 0 && (cells[iCampaign] ?? "").trim()) {
-      campaignId = campaignByName.get(cells[iCampaign].trim().toLowerCase()) ?? null;
-      if (!campaignId) { errors.push(`row ${rowNo}: unknown campaign “${cells[iCampaign].trim()}”`); continue; }
-    }
-    const category = iCategory >= 0 ? (cells[iCategory] ?? "").trim().slice(0, 40) || null : null;
-    const evergreen = iEver >= 0 && /^(true|yes|1|y)$/i.test((cells[iEver] ?? "").trim());
-    const recycleEveryDays = iDays >= 0
-      ? Math.min(365, Math.max(1, parseInt((cells[iDays] ?? "").trim(), 10) || 30))
-      : 30;
-
-    let scheduledAt: Date | null = null;
-    if (iWhen >= 0 && (cells[iWhen] ?? "").trim()) {
-      const t = parseZonedInput(cells[iWhen], tz);
-      if (!t) { errors.push(`row ${rowNo}: unreadable date “${cells[iWhen].trim()}” — write it as 2026-12-11 09:00`); continue; }
-      if (t.getTime() < Date.now() - 60_000) { errors.push(`row ${rowNo}: that time has already passed`); continue; }
-      scheduledAt = t;
-    }
-
-    const targets = usable.flatMap((p) => byPlatform.get(p)!).map((a) => ({
-      provider: a.platform,
-      accountId: a.accountId,
-      accountName: a.displayName ?? a.username ?? a.platform,
-    }));
-
+  for (const p of good) {
+    const post = p.post!;
     const row = await db.socialPost.create({
       data: {
         workspaceId: workspace.id,
         createdById: user.id,
         source: "import",
-        campaignId,
-        category,
-        evergreen,
-        recycleEveryDays,
+        campaignId: post.campaignId,
+        category: post.category,
+        evergreen: post.evergreen,
+        recycleEveryDays: post.recycleEveryDays,
         approval,
-        text,
-        mediaKeys: "[]",
-        scheduledAt,
-        timeChosen: scheduledAt != null, // a time from the file, not a slot (SOC-17)
+        text: post.text,
+        mediaKeys: JSON.stringify(post.mediaKeys),
+        scheduledAt: post.scheduledAt,
+        timeChosen: post.scheduledAt != null, // a time from the file, not a slot (SOC-17)
         // Held rows stay drafts whatever the file asked for — same rule as the
         // composer. The requested time is kept for the approver.
-        status: scheduledAt && !held ? "scheduled" : "draft",
-        targets: { create: targets },
+        status: post.scheduledAt && !held ? "scheduled" : "draft",
+        targets: { create: post.targets },
       },
     });
-    // Imported rows are text-only by nature — the default-to-image job gives
-    // each one a generated picture in the background, worker-paced.
-    const { jobs } = await import("@/lib/jobs");
-    await jobs.enqueue("social.autoimage", { postId: row.id }, { refId: row.id, workspaceId: workspace.id });
-    created++;
-    if (scheduledAt && !held) scheduled++;
-    if (scheduledAt) {
-      if (!firstAt || scheduledAt < firstAt) firstAt = scheduledAt;
-      if (!lastAt || scheduledAt > lastAt) lastAt = scheduledAt;
-    }
+    // A row with no media gets the default-to-image treatment, worker-paced.
+    if (!post.mediaKeys.length) await jobs.enqueue("social.autoimage", { postId: row.id }, { refId: row.id, workspaceId: workspace.id });
+    if (post.scheduledAt && !held) scheduled++;
   }
-
-  if (created > 0 && held) {
+  if (good.length > 0 && held) {
     await notify({
       workspaceId: workspace.id,
       kind: "approval_needed",
-      title: `${created} imported post${created === 1 ? " is" : "s are"} waiting for approval`,
+      title: `${good.length} imported post${good.length === 1 ? " is" : "s are"} waiting for approval`,
       path: "/social",
       excludeUserId: user.id,
     });
   }
   await writeAudit({
     workspaceId: workspace.id, actorId: user.id, action: "social.csv_imported",
-    entityType: "social_post", meta: { created, scheduled, errors: errors.length },
+    entityType: "social_post", meta: { created: good.length, scheduled, errors: bad },
   });
-
   revalidatePath("/social", "layout");
-  const bits = [`Imported ${created} post${created === 1 ? "" : "s"}`];
-  if (scheduled > 0) bits.push(`${scheduled} scheduled`);
-  // Say how the dates were read, so a wrong zone shows up before the first send.
-  if (firstAt && lastAt) bits.push(`dates read in ${tz}: ${formatInZone(firstAt, tz)}${lastAt > firstAt ? ` to ${formatInZone(lastAt, tz)}` : ""}`);
-  if (held && created > 0) bits.push("all awaiting approval");
-  let msg = bits.join(" · ") + ".";
-  if (notes.length) msg += ` ${notes.slice(0, 3).join("; ")}${notes.length > 3 ? "…" : ""}.`;
-  if (errors.length) msg += ` ${errors.length} row${errors.length === 1 ? "" : "s"} skipped: ${errors.slice(0, 5).join("; ")}${errors.length > 5 ? "…" : ""}`;
-  backTo(msg, created > 0 ? "ok" : "err");
+  const bits = [`Imported ${good.length} post${good.length === 1 ? "" : "s"}`];
+  if (scheduled) bits.push(`${scheduled} scheduled`);
+  if (held && good.length) bits.push("all awaiting approval");
+  if (bad) bits.push(`${bad} row${bad === 1 ? "" : "s"} skipped — see why below`);
+  return done(`${bits.join(" · ")}.`, good.length > 0, rowsOut);
 }
 
 /**

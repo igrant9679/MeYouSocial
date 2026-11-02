@@ -1297,3 +1297,16 @@ before changing code in that area.
 - **Silent on thin or stale data**: each week needs click readings on 5+ days, the earlier week 50+ clicks, an article
   30+ impressions in each week, and the latest reading under 10 days old — an alarm that fires on noise teaches people to
   ignore it. Failing analytics syncs were already their own warn item (MEA-06) and are unchanged.
+
+## ⚠ Social CSV import: template, dry run, timezone and media (2026-11-01, audit Phase 5, growth part al)
+- **E-SOC-16 — one planner** (`lib/social/csv-import.ts` `planImport`): every row checked and turned into the post it
+  would create or the reason it can't; **"Check the file"** runs it and writes nothing, **"Import"** creates the rows that
+  pass and skips the rest — so the check can't disagree with the import. Both return row-by-row results to the page
+  (`components/SocialCsvImport.tsx`, `useActionState`; the action returns, it doesn't redirect).
+- **Columns**: text (required) · scheduledAt · **timezone** (an IANA zone for that row's date; unknown → row error; empty
+  → the posting zone) · networks · campaign · category · evergreen · recycleEveryDays · **media** (media-library items by
+  name or key, `|`-separated, up to 4; unknown → row error). With media, image-only networks are kept; video-only
+  networks need a video item; without media they're skipped with a note, as before. Unknown campaigns stay row errors.
+- **Row numbers are the spreadsheet's**: blank rows are kept by the parser for numbering and skipped by the planner.
+- **Template** (`/api/social/import-template`, any member): every column with two example rows written for the
+  workspace — its networks, posting zone, a campaign and a media item when it has them.
