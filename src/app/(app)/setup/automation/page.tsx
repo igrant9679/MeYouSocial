@@ -18,6 +18,8 @@ import { getSetting } from "@/lib/settings";
 import { formatInZone, getQueue } from "@/lib/social/slots";
 import { previewNextSweep, nextSweepFrom } from "@/lib/sweep-plan";
 import { NextSweepCard } from "@/components/NextSweepCard";
+import { EngineTimeline } from "@/components/EngineTimeline";
+import { KEEP_DAYS, timeline } from "@/lib/engine-timeline";
 
 // Settings → Automation: what runs by itself. The master switch, the global
 // pause, the function modes, the article cadence and publish day, SEO and
@@ -65,11 +67,13 @@ export default async function SetupAutomation({ searchParams }: { searchParams: 
   const missedCount = queuePause ? (await missedWhilePaused(workspace.id)).length : 0;
   // E-ENG-03 / E-ENG-06: the last check-in, and today's allowance against its limit.
   const { generationsToday, DAILY_AI_BUDGET } = await import("@/lib/blog-autopilot");
-  const [heartbeat, aiUsed, sweep] = await Promise.all([
+  const [heartbeat, aiUsed, sweep, cycleRows] = await Promise.all([
     readHeartbeat(workspace.id).catch(() => null),
     generationsToday(workspace.id).catch(() => null),
     // E-ENG-05: what the next cycle drafts, publishes and queues — read, never done.
     previewNextSweep(workspace.id).catch(() => null),
+    // E-ENG-04: the week's cycles, newest first.
+    db.engineCycle.findMany({ where: { workspaceId: workspace.id, at: { gte: new Date(requestNow() - KEEP_DAYS * 86_400_000) } }, orderBy: { at: "desc" }, take: 3000, select: { at: true, skipped: true, budgetReached: true, activity: true, failed: true, report: true } }).catch(() => []),
   ]);
   const nextSweepAt = heartbeat ? nextSweepFrom(new Date(heartbeat.at), intervalMin, requestNow()) : null;
   const nextFreeLabel = queue.free[0] ? formatInZone(queue.free[0].at, queue.timeZone) : null;
@@ -222,6 +226,7 @@ export default async function SetupAutomation({ searchParams }: { searchParams: 
           )}
         </div>
         {sweep && <NextSweepCard preview={sweep} timeZone={queue.timeZone} nextAt={nextSweepAt} autopilotOff={autopilotOff} />}
+        <EngineTimeline items={timeline(cycleRows, intervalMin)} cycles={cycleRows.length} timeZone={queue.timeZone} intervalMin={intervalMin} />
       </div>
 
       {/* Articles: cadence + publish day + SEO */}

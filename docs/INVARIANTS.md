@@ -1383,3 +1383,16 @@ before changing code in that area.
 - **`SearchSocialPreview` reads its own form's fields** (`title`, `slug`, `metaTitle`, `metaDescription`, `ogTitle`,
   `ogDescription`) through one `input` listener on the closest form — so it sits inside the settings form and saves
   nothing. The breadcrumb host is the WordPress connection's address, else the published URL's origin, else a placeholder.
+
+## ⚠ Automation shows a week of engine cycles, quiet runs folded and silences marked (2026-11-02, audit Phase 5, growth part aq)
+- **Every cycle that runs writes an `EngineCycle` row** (E-ENG-04, migration `20261102010000_engine_cycles`,
+  `recordCycle` in `lib/engine-timeline.ts`, called from `runAutopilotCycle` beside the check-in) — quiet and paused
+  ones too; the counts and failed steps are kept as JSON only when there's something to say. Rows older than 7 days are
+  pruned on the next write; the table cascades with the workspace. Busy (locked) cycles didn't run and write nothing.
+  Don't use the audit log for this: it only records cycles that did something, so it can't tell quiet from not running.
+- **`timeline()` folds** consecutive quiet, paused or allowance-spent runs into one item, keeps any cycle that did
+  something or failed on its own line (counts in words, each failed step with its message), and marks a **gap** where two
+  check-ins are more than twice the sweep interval apart — a dead sweep, not a quiet hour. The summary counts cycles,
+  ones that did something (a failure alone doesn't count), failures and gaps.
+- Settings → Automation shows it as "Engine activity — the last 7 days" under the next-sweep card, day headers in the
+  posting zone, newest 120 items. Everyone can read it; it changes nothing.

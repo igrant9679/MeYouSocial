@@ -102,6 +102,7 @@ model Workspace {
   metricSnapshots MetricSnapshot[]
   recommendations Recommendation[]
   jobs            Job[]
+  engineCycles    EngineCycle[]
 
   // This workspace's Zernio profile — Zernio's tenant boundary. Created lazily
   // the first time an account is connected, then reused.
@@ -990,6 +991,25 @@ model Recommendation {
 
   @@index([workspaceId, status, createdAt])
   @@index([workspaceId, fingerprint])
+}
+
+// One row per engine cycle that ran (E-ENG-04), idle and paused ones too, so
+// Automation can show a week of what the engine did — and where it didn't
+// check in at all. Kept 7 days (lib/engine-timeline.ts prunes on write).
+model EngineCycle {
+  id            String   @id @default(cuid())
+  workspaceId   String
+  at            DateTime @default(now())
+  skipped       String?  // "paused" — the cycle ran but the global pause held it
+  budgetReached Boolean  @default(false)
+  activity      Int      @default(0)
+  failed        Int      @default(0)
+  // The counts and failed steps, JSON; null for a cycle that did nothing.
+  report        String?
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, at])
 }
 
 model AuditLog {

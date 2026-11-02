@@ -1465,6 +1465,9 @@ export async function runAutopilotCycle(workspaceId: string): Promise<CycleRepor
         + r.autoAdvanced + r.autoQueued + r.published + r.videosPackaged + r.videosRendered,
       failed: r.failedSteps?.length ?? 0,
     }).catch(() => undefined);
+    // …and a row for the week's timeline on Automation (E-ENG-04).
+    const { recordCycle } = await import("@/lib/engine-timeline");
+    await recordCycle(workspaceId, r).catch(() => undefined);
     return r;
   }
   return { ...emptyReport(workspaceId), skipped: "busy" };
