@@ -14,6 +14,8 @@ import { SubmitButton } from "@/components/SubmitButton";
 import { DECAY_DROP, DECAY_MIN_PRIOR_CLICKS, decayingPosts } from "@/lib/content-decay";
 import { makeDecayRefreshIdeaAction } from "@/app/actions/content-decay";
 import { formatDay } from "@/lib/zoned-dates";
+import { marksFor } from "@/lib/chart-annotations";
+import { ChartMarkList, ChartNoteForm } from "@/components/ChartMarks";
 
 // Measure stage: the measured numbers only, never invented curves — the same
 // Results block Home showed, promoted to a stage with Reports, Insights and
@@ -24,7 +26,8 @@ export default async function MeasureStage({ searchParams }: { searchParams: Pro
   const sp = await searchParams;
   // One range for all of Measure (E-MEA-01): the curve shows that many whole
   // weeks, ending at the latest day with data (Search Console lags ~2 days).
-  const range = await measureRange(sp, await getPostingTimeZone(workspace.id).catch(() => "UTC"));
+  const tz = await getPostingTimeZone(workspace.id).catch(() => "UTC");
+  const range = await measureRange(sp, tz);
   const weeks = Math.min(52, Math.max(4, Math.round(range.days / 7)));
   const admin = canAdmin(membership.role);
   const editor = canEdit(membership.role);
@@ -37,6 +40,8 @@ export default async function MeasureStage({ searchParams }: { searchParams: Pro
     decayingPosts(workspace.id).catch(() => []),
   ]);
   const hasAnalytics = hasSeriesData(series);
+  // E-MEA-04: what happened in each week — publishes, sends, automation changes, notes.
+  const marks = hasAnalytics ? await marksFor(workspace.id, series) : [];
   const gaps = unmeasuredWeeks(series, "impressions");
   const latest = series[series.length - 1];
 
@@ -60,12 +65,14 @@ export default async function MeasureStage({ searchParams }: { searchParams: Pro
       <section className="card mb-4">
         {hasAnalytics ? (
           <>
-            <AreaChart points={series.map((p) => ({ label: p.label, value: p.impressions }))} color="var(--blue)" title={`Blog impressions — last ${weeks} weeks`} />
+            <AreaChart points={series.map((p) => ({ label: p.label, value: p.impressions }))} color="var(--blue)" title={`Blog impressions — last ${weeks} weeks`} marks={marks} />
             {gaps > 0 && (
               <p className="text-[10px] text-[var(--mute)] mt-1 mb-0">
                 {gaps} of the {series.length} weeks recorded nothing — those points sit at zero because there is no measurement, not because the number was zero.
               </p>
             )}
+            <ChartMarkList marks={marks} timeZone={tz} canDelete={editor} returnTo="/measure" />
+            {editor && <ChartNoteForm timeZone={tz} />}
           </>
         ) : (
           <EmptyState

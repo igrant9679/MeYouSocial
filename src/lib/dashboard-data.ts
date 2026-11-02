@@ -21,6 +21,9 @@ import { db } from "@/lib/db";
  */
 export type WeekPoint = {
   label: string;
+  /** The week's span — events at or after `from` and before `to` mark this point (E-MEA-04). */
+  from: Date;
+  to: Date;
   impressions: number;
   clicks: number;
   impressionsMeasured: boolean;
@@ -54,6 +57,8 @@ export async function weeklySeries(workspaceId: string, weeks = 8): Promise<Week
     buckets.push({
       // Dated (MEA-04): "W1…W8" said nothing about which weeks they were.
       label: from.toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" }),
+      from,
+      to,
       impressions: inBucket.reduce((a, s) => a + (s.impressions ?? 0), 0),
       clicks: inBucket.reduce((a, s) => a + (s.clicks ?? 0), 0),
       impressionsMeasured: inBucket.some((s) => s.impressions != null),

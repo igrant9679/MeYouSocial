@@ -3,6 +3,8 @@ import Link from "next/link";
 import { db } from "@/lib/db";
 import { autopilotFeed, hasSeriesData, homeStats, postPerformance, unmeasuredWeeks, weeklySeries } from "@/lib/dashboard-data";
 import { AreaChart, HBars } from "@/components/charts";
+import { marksFor } from "@/lib/chart-annotations";
+import { ChartMarkList } from "@/components/ChartMarks";
 import { MOTIF_SEED_BY_KEY, parseMotifs } from "@/lib/motifs";
 import type { BlockKey } from "@/lib/report-defs";
 import { EmptyState } from "@/components/EmptyState";
@@ -85,10 +87,12 @@ export async function ReportBlock({ block, workspaceId, weeks, canAct = true }: 
 
     case "impressions_chart": {
       const series = await weeklySeries(workspaceId, weeks);
+      const marks = hasSeriesData(series) ? await marksFor(workspaceId, series) : [];
+      const tz = marks.length ? await getPostingTimeZone(workspaceId).catch(() => "UTC") : "UTC";
       return (
         <Card title={`Impressions — last ${weeks} weeks`}>
           {hasSeriesData(series) ? (
-            <><AreaChart points={series.map((p) => ({ label: p.label, value: p.impressions }))} color="var(--blue)" title="Impressions" /><Gaps n={unmeasuredWeeks(series, "impressions")} of={series.length} /></>
+            <><AreaChart points={series.map((p) => ({ label: p.label, value: p.impressions }))} color="var(--blue)" title="Impressions" marks={marks} /><Gaps n={unmeasuredWeeks(series, "impressions")} of={series.length} /><ChartMarkList marks={marks} timeZone={tz} canDelete={false} returnTo="/reports" /></>
           ) : (
             <Empty canAct={canAct} to="/blog/analytics" cta="Add this week's numbers">No weekly impressions have been recorded, so there is no curve to draw — blank here means not measured, not zero.</Empty>
           )}
@@ -98,10 +102,12 @@ export async function ReportBlock({ block, workspaceId, weeks, canAct = true }: 
 
     case "clicks_chart": {
       const series = await weeklySeries(workspaceId, weeks);
+      const marks = hasSeriesData(series) ? await marksFor(workspaceId, series) : [];
+      const tz = marks.length ? await getPostingTimeZone(workspaceId).catch(() => "UTC") : "UTC";
       return (
         <Card title={`Clicks — last ${weeks} weeks`}>
           {hasSeriesData(series) ? (
-            <><AreaChart points={series.map((p) => ({ label: p.label, value: p.clicks }))} color="var(--teal)" title="Clicks" /><Gaps n={unmeasuredWeeks(series, "clicks")} of={series.length} /></>
+            <><AreaChart points={series.map((p) => ({ label: p.label, value: p.clicks }))} color="var(--teal)" title="Clicks" marks={marks} /><Gaps n={unmeasuredWeeks(series, "clicks")} of={series.length} /><ChartMarkList marks={marks} timeZone={tz} canDelete={false} returnTo="/reports" /></>
           ) : (
             <Empty canAct={canAct} to="/blog/analytics" cta="Add this week's numbers">No weekly clicks have been recorded yet.</Empty>
           )}

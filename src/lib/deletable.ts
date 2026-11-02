@@ -27,7 +27,7 @@ export type DeletableKind =
   | "task" | "asset" | "wikiDoc" | "audienceSubmission" | "audienceAvatar"
   | "invitation" | "membership" | "zernioAccount" | "workspace" | "campaign"
   | "zernioComment" | "brandFact" | "brandDocument" | "socialIdea"
-  | "specialDay" | "captionBatch" | "rssFeed" | "mediaItem" | "socialPost" | "topic" | "socialTemplate";
+  | "specialDay" | "captionBatch" | "rssFeed" | "mediaItem" | "socialPost" | "topic" | "socialTemplate" | "chartNote";
 
 export type DeletableTarget = { id: string; name: string };
 
@@ -156,6 +156,15 @@ export const DELETABLE: Record<DeletableKind, Deletable> = {
     find: (id, workspaceId) => db.socialTemplate.findFirst({ where: { id, workspaceId }, select: { id: true, name: true } }),
     async remove(id, workspaceId) { await db.socialTemplate.deleteMany({ where: { id, workspaceId } }); },
     revalidate: ["/social/compose"],
+  },
+  // A note on the charts (E-MEA-04): one line of a person's, nothing hangs off it.
+  chartNote: {
+    label: "note",
+    role: "EDITOR",
+    find: (id, workspaceId) => db.chartNote.findFirst({ where: { id, workspaceId }, select: { id: true, text: true } })
+      .then((r) => (r ? { id: r.id, name: r.text.length > 40 ? `${r.text.slice(0, 39)}…` : r.text } : null)),
+    async remove(id, workspaceId) { await db.chartNote.deleteMany({ where: { id, workspaceId } }); },
+    revalidate: ["/measure", "/blog/report"],
   },
   // RSS (2026-10-17): unfollowing deletes the feed and its item log; the
   // ideas and drafts it already made stay where they are.

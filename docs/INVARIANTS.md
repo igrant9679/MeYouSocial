@@ -1440,3 +1440,21 @@ before changing code in that area.
   new workspace, cut at the first record id (a cuid or a number — that record belongs to the workspace being left) and
   without its query; anything that isn't a plain in-app path, or is an auth/API/onboarding/file path, goes to the
   Inbox. The membership check in `setActiveWorkspaceAction` is unchanged.
+
+## ⚠ Charts mark what happened: publishes, sends, automation changes and notes (2026-11-02, audit Phase 5, growth part au)
+- **One reader, one placement rule** (E-MEA-04): `lib/chart-annotations.ts` `chartEvents` reads what already records
+  it — `BlogPost.publishedAt` (published), `SocialPost.publishedAt` (posted/partial), the audit log's automation
+  actions (autonomy on/off, function modes, the global pause from the page or the assistant, the social queue pause) —
+  plus `ChartNote` (migration `20261102030000_chart_notes`). `lib/chart-marks.ts` `placeEvents` puts each event in the
+  point whose span holds it (`[from, to)`; Measure's weeks carry `from`/`to` on `WeekPoint`, an article's readings use
+  `bucketsFromMoments`); events outside every point are left off — never stretched onto the nearest one.
+- **Drawing**: `AreaChart`'s `marks` — a dashed line with a glyph per kind on top (publish ● green, automation ◆ amber,
+  note ■ ink), social sends a violet tick on the baseline, a tooltip of at most four lines, several sends in one point
+  folded into "N social posts sent". `ChartMarkList` repeats every event as text under the chart (touch, screen
+  readers), folded when there are more than six. On Measure, the Blog report (one list for both panels), Reports'
+  impressions/clicks blocks and an article's Performance tab (its own publish, the posts that pointed at it, the
+  workspace's automation changes and notes).
+- **Notes**: editors add one on Measure (a day in the posting timezone, stored at its midnight there; not after today;
+  140 characters); delete through the DeleteButton registry (`chartNote`, EDITOR). Workspace-wide: a note shows on
+  every chart that spans its day. Search charts end at the latest reading, so a note for the last day or two waits for
+  that day's readings — the flash says so.

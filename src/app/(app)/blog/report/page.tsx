@@ -10,6 +10,8 @@ import { AreaChart, HBars } from "@/components/charts";
 import { MOTIF_SEED_BY_KEY, parseMotifs } from "@/lib/motifs";
 import { EmptyState } from "@/components/EmptyState";
 import { CsvButton } from "@/components/CsvButton";
+import { marksFor } from "@/lib/chart-annotations";
+import { ChartMarkList } from "@/components/ChartMarks";
 
 // The client-facing content report (Spark's agency deliverable, reborn).
 // Impressions and clicks are separate panels on purpose — their scales differ
@@ -51,6 +53,8 @@ export default async function BlogReportPage() {
   const hasAnalytics = hasSeriesData(series);
   const imprGaps = unmeasuredWeeks(series, "impressions");
   const clickGaps = unmeasuredWeeks(series, "clicks");
+  // E-MEA-04: the same weeks' events on both panels, listed once beneath them.
+  const marks = hasAnalytics ? await marksFor(workspace.id, series) : [];
   const awaitingAssets = reviewPosts.filter((p) => {
     const ok = (role: string) => p.images.some((i) => i.role === role && i.status === "approved");
     return !ok("featured") || !ok("og");
@@ -114,7 +118,7 @@ export default async function BlogReportPage() {
         <section className="card anim-rise ad-1">
           <h2 className="font-mono text-[13px] font-bold mb-2">Impressions / week</h2>
           {hasAnalytics ? (
-            <><AreaChart points={series.map((p) => ({ label: p.label, value: p.impressions }))} color="var(--blue)" title="Impressions per week" height={130} /><Gaps n={imprGaps} of={series.length} /></>
+            <><AreaChart points={series.map((p) => ({ label: p.label, value: p.impressions }))} color="var(--blue)" title="Impressions per week" height={130} marks={marks} /><Gaps n={imprGaps} of={series.length} /></>
           ) : (
             <EmptyChart editor={editor} />
           )}
@@ -122,12 +126,17 @@ export default async function BlogReportPage() {
         <section className="card anim-rise ad-2">
           <h2 className="font-mono text-[13px] font-bold mb-2">Clicks / week</h2>
           {hasAnalytics ? (
-            <><AreaChart points={series.map((p) => ({ label: p.label, value: p.clicks }))} color="var(--teal)" title="Clicks per week" height={130} /><Gaps n={clickGaps} of={series.length} /></>
+            <><AreaChart points={series.map((p) => ({ label: p.label, value: p.clicks }))} color="var(--teal)" title="Clicks per week" height={130} marks={marks} /><Gaps n={clickGaps} of={series.length} /></>
           ) : (
             <EmptyChart editor={editor} />
           )}
         </section>
       </div>
+      {marks.length > 0 && (
+        <section className="card mb-3 -mt-1 py-2">
+          <ChartMarkList marks={marks} timeZone={postingTz} canDelete={false} returnTo="/blog/report" />
+        </section>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-[1.5fr_1fr] gap-3 mb-3">
         {/* Top content */}

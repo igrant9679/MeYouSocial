@@ -6,6 +6,8 @@
  * blue/teal/amber/violet set passed the CVD-safety validator together.
  */
 
+import { MARK_COLOR, type PlacedMark } from "@/lib/chart-marks";
+
 type Pt = { label: string; value: number };
 
 function scale(points: Pt[], w: number, h: number, padL: number, padB: number, padT: number) {
@@ -23,29 +25,35 @@ function fmt(n: number): string {
   return String(n);
 }
 
-/** Area line chart with grid, endpoint label, and per-point hover tooltips. */
+/** Area line chart with grid, endpoint label, and per-point hover tooltips.
+ *  `marks` (E-MEA-04) draw what happened at a point: a dashed line with a glyph
+ *  per kind on top, social sends as a tick on the baseline, the events in a
+ *  tooltip — ChartMarkList repeats them as text for touch and screen readers. */
 export function AreaChart({
   points,
   color,
   title,
   height = 150,
+  marks,
 }: {
   points: Pt[];
   color: string;
   title: string;
   height?: number;
+  marks?: PlacedMark[];
 }) {
   const w = 460;
   const padL = 34;
   const padB = 18;
-  const padT = 14;
+  // Room above the curve for the marks' glyphs.
+  const padT = marks?.length ? 20 : 14;
   const { x, y, max } = scale(points, w, height, padL, padB, padT);
   const line = points.map((p, i) => `${i === 0 ? "M" : "L"}${x(i).toFixed(1)} ${y(p.value).toFixed(1)}`).join(" ");
   const area = `${line} L${x(points.length - 1).toFixed(1)} ${height - padB} L${x(0).toFixed(1)} ${height - padB} Z`;
   const last = points[points.length - 1];
 
   return (
-    <svg viewBox={`0 0 ${w} ${height}`} className="w-full h-auto block" role="img" aria-label={`${title}: latest ${fmt(last?.value ?? 0)}`}>
+    <svg viewBox={`0 0 ${w} ${height}`} className="w-full h-auto block" role="img" aria-label={`${title}: latest ${fmt(last?.value ?? 0)}${marks?.length ? `; ${marks.length} point${marks.length === 1 ? "" : "s"} marked with events, listed below` : ""}`}>
       {[0.33, 0.66, 1].map((f) => {
         const gy = y(max * f);
         return (
@@ -81,6 +89,34 @@ export function AreaChart({
               <text x={tx + tipW / 2} y={ty + 13} textAnchor="middle" fontSize="8.5" fill="var(--bg)" className="font-mono">
                 {p.label} · {fmt(p.value)}
               </text>
+            </g>
+          </g>
+        );
+      })}
+
+      {marks?.filter((m) => m.index >= 0 && m.index < points.length).map((m) => {
+        const cx = x(m.index);
+        const top = m.kinds.filter((k) => k !== "social");
+        const tipW = Math.min(w - padL - 4, Math.max(...m.lines.map((l) => l.length)) * 4.4 + 14);
+        const tx = Math.max(padL, Math.min(cx - tipW / 2, w - tipW - 4));
+        const tipH = m.lines.length * 11 + 8;
+        return (
+          <g key={`m${m.index}`} className="chart-pt" data-chart-mark={m.kinds.join(" ")}>
+            {top.length > 0 && <line x1={cx} y1={padT - 4} x2={cx} y2={height - padB} stroke="var(--mute)" strokeWidth="1" strokeDasharray="2 3" />}
+            {top.map((k, j) => {
+              const gx = cx + (j - (top.length - 1) / 2) * 8;
+              return k === "publish" ? <circle key={k} cx={gx} cy={7} r={3.2} fill={MARK_COLOR[k]} />
+                : k === "autonomy" ? <rect key={k} x={gx - 3} y={4} width={6} height={6} transform={`rotate(45 ${gx} 7)`} fill={MARK_COLOR[k]} />
+                : <rect key={k} x={gx - 3} y={4} width={6} height={6} rx={1} fill={MARK_COLOR[k]} />;
+            })}
+            {m.kinds.includes("social") && <line x1={cx} y1={height - padB - 6} x2={cx} y2={height - padB} stroke={MARK_COLOR.social} strokeWidth="2.5" strokeLinecap="round" />}
+            <rect x={cx - 7} y={0} width={14} height={padT} fill="transparent" />
+            <rect x={cx - 5} y={height - padB - 9} width={10} height={9} fill="transparent" />
+            <g className="chart-tip">
+              <rect x={tx} y={padT} width={tipW} height={tipH} rx={5} fill="var(--ink)" />
+              {m.lines.map((l, j) => (
+                <text key={j} x={tx + 7} y={padT + 14 + j * 11} fontSize="8.5" fill="var(--bg)">{l}</text>
+              ))}
             </g>
           </g>
         );

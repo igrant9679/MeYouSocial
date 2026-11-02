@@ -6,6 +6,9 @@ import { compact, resultsForPosts } from "@/lib/social/post-results";
 import { networkFor } from "@/lib/social/networks";
 import { formatDay, formatZonedMoment } from "@/lib/zoned-dates";
 import { requestNow } from "@/lib/request-time";
+import { marksFor } from "@/lib/chart-annotations";
+import { bucketsFromMoments } from "@/lib/chart-marks";
+import { ChartMarkList } from "@/components/ChartMarks";
 
 /**
  * One article's performance (E-MEA-06): its daily search numbers, the 28 days
@@ -52,6 +55,9 @@ export async function ArticlePerformance({ postId, workspaceId, publishedUrl, ti
   const recent = anchor == null ? [] : snaps.filter((s) => s.capturedAt.getTime() > anchor - WINDOW_DAYS * DAY);
   const prior = anchor == null ? [] : snaps.filter((s) => s.capturedAt.getTime() <= anchor - WINDOW_DAYS * DAY && s.capturedAt.getTime() > anchor - 2 * WINDOW_DAYS * DAY);
   const chart = anchor == null ? [] : snaps.filter((s) => s.capturedAt.getTime() > anchor - CHART_DAYS * DAY);
+  // E-MEA-04: this article's publish, the posts that pointed at it, and the
+  // workspace's automation changes and notes, on the readings they fall in.
+  const marks = chart.length ? await marksFor(workspaceId, bucketsFromMoments(chart.map((s) => s.capturedAt), DAY), { blogPostId: postId, socialPostIds: postIds }) : [];
   const metric = (label: string, now: number | null, before: number | null, fmt: (n: number) => string, lowerIsBetter = false) => {
     const delta = now != null && before != null && before !== 0 ? (now - before) / before : null;
     const good = delta == null ? null : lowerIsBetter ? delta < 0 : delta > 0;
@@ -85,9 +91,10 @@ export async function ArticlePerformance({ postId, workspaceId, publishedUrl, ti
               {metric("CTR", ctr(clicksNow, imprNow), ctr(clicksBefore, imprBefore), (n) => `${n.toFixed(1)}%`)}
               {metric("Avg position", weightedPosition(recent), weightedPosition(prior), (n) => n.toFixed(1), true)}
             </div>
-            <AreaChart points={chart.map((s) => ({ label: formatDay(s.capturedAt, "UTC"), value: s.clicks ?? 0 }))} color="var(--green)" title={`Clicks a day — last ${Math.min(CHART_DAYS, chart.length)} readings`} />
-            <AreaChart points={chart.map((s) => ({ label: formatDay(s.capturedAt, "UTC"), value: s.impressions ?? 0 }))} color="var(--blue)" title="Impressions a day" />
+            <AreaChart points={chart.map((s) => ({ label: formatDay(s.capturedAt, "UTC"), value: s.clicks ?? 0 }))} color="var(--green)" title={`Clicks a day — last ${Math.min(CHART_DAYS, chart.length)} readings`} marks={marks} />
+            <AreaChart points={chart.map((s) => ({ label: formatDay(s.capturedAt, "UTC"), value: s.impressions ?? 0 }))} color="var(--blue)" title="Impressions a day" marks={marks} />
             {chart.some((s) => s.clicks == null) && <p className="text-[10px] text-[var(--mute)] mt-1 mb-0">Days without a click reading are drawn at zero — not measured, not zero.</p>}
+            <ChartMarkList marks={marks} timeZone={timeZone} canDelete={false} returnTo={`/blog/${postId}?tab=performance`} />
           </>
         )}
         <p className="text-[11px] text-[var(--mute)] mt-3 mb-0" data-perf-queries>

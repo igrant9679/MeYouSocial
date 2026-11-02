@@ -104,6 +104,7 @@ model Workspace {
   jobs            Job[]
   engineCycles    EngineCycle[]
   socialTemplates SocialTemplate[]
+  chartNotes      ChartNote[]
 
   // This workspace's Zernio profile — Zernio's tenant boundary. Created lazily
   // the first time an account is connected, then reused.
@@ -2445,4 +2446,20 @@ model SocialSnippet {
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([workspaceId])
+}
+
+// Chart notes (E-MEA-04): a person's marker on a day — "Google core update",
+// "site redesign" — drawn on every chart of this workspace that spans it.
+// `at` is the start of that day in the posting timezone.
+model ChartNote {
+  id          String   @id @default(cuid())
+  workspaceId String
+  at          DateTime
+  text        String
+  createdById String?
+  createdAt   DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, at])
 }
