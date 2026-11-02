@@ -1287,3 +1287,13 @@ before changing code in that area.
 - Social page: editors get Approve / Reject / Not yet / Restore (the board's `setSocialIdeaStatusAction`) and an edit form
   (`updateSocialIdeaAction`); a drafted idea points editing at its post. Board card titles link to these pages, and the
   duplicate flags (part af) point social matches at them.
+
+## ⚠ Search anomalies reach the Inbox and the digest (2026-11-01, audit Phase 5, growth part ak)
+- **E-MEA-19** (`lib/search-anomalies.ts`, added to `getHomeData`'s decisions, so they show in the Inbox and make the
+  morning digest send): **search clicks falling week on week** — the workspace's published articles, the 7 days to the
+  **latest reading** against the 7 before, warn at a 30% drop; and **articles falling off page one** — impression-
+  weighted position ≤ 10 the week before and > 10 now. One item per article up to three, then one summary item (biggest
+  first, by impressions).
+- **Silent on thin or stale data**: each week needs click readings on 5+ days, the earlier week 50+ clicks, an article
+  30+ impressions in each week, and the latest reading under 10 days old — an alarm that fires on noise teaches people to
+  ignore it. Failing analytics syncs were already their own warn item (MEA-06) and are unchanged.

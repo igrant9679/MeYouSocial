@@ -347,6 +347,47 @@ export async function getHomeData(workspaceId: string): Promise<HomeData> {
     }
   }
 
+  // Measured anomalies (E-MEA-19): search clicks falling week on week, and
+  // articles slipping off page one — silent on thin or stale data.
+  {
+    const { searchAnomalies } = await import("@/lib/search-anomalies");
+    const { drop, fellOff } = await searchAnomalies(workspaceId).catch(() => ({ drop: null, fellOff: [] }));
+    if (drop) {
+      decisions.push({
+        module: "Blog",
+        kind: "search-clicks-drop",
+        severity: "warn",
+        title: `Search clicks fell ${Math.round(drop.drop * 100)}% week on week`,
+        detail: `${drop.recent} clicks in the 7 days to ${formatDay(drop.end, homeTz)}, against ${drop.prior} the week before. Measure shows which articles moved.`,
+        href: "/measure",
+        cta: "Open Measure",
+      });
+    }
+    if (fellOff.length > 3) {
+      decisions.push({
+        module: "Blog",
+        kind: "fell-off-page-one",
+        severity: "warn",
+        title: `${fellOff.length} articles fell off page one this week`,
+        detail: `Biggest first: ${fellOff.slice(0, 3).map((f) => `“${f.title.slice(0, 60)}” (${f.before.toFixed(1)} → ${f.after.toFixed(1)})`).join(", ")}.`,
+        href: "/measure",
+        cta: "Open Measure",
+      });
+    } else {
+      for (const f of fellOff) {
+        decisions.push({
+          module: "Blog",
+          kind: `fell-off-page-one-${f.postId}`,
+          severity: "warn",
+          title: `“${f.title.slice(0, 80)}” fell off page one`,
+          detail: `Average position ${f.before.toFixed(1)} → ${f.after.toFixed(1)} week on week, over ${f.impressions} impressions. A refresh may win it back.`,
+          href: `/blog/${f.postId}?tab=performance`,
+          cta: "See its numbers",
+        });
+      }
+    }
+  }
+
   // Warn before info; within a band, keep insertion order (Social's own
   // ordering is already deliberate).
   decisions.sort((a, b) => (a.severity === b.severity ? 0 : a.severity === "warn" ? -1 : 1));

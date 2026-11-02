@@ -281,6 +281,7 @@ area, rather than loading all of them into every session.
 - Readability coaching per section — 2026-11-01, audit Phase 5, growth part ah
 - Each campaign has its own page — 2026-11-01, audit Phase 5, growth part ai
 - Ideas have detail pages — 2026-11-01, audit Phase 5, growth part aj
+- Search anomalies reach the Inbox and the digest — 2026-11-01, audit Phase 5, growth part ak
 
 ## Open items / things the user still owns
 - **Analytics: APIs enabled 2026-08-03** (Search Console + GA Admin + GA Data, on project
