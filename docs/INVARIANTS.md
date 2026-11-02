@@ -1371,3 +1371,15 @@ before changing code in that area.
   cards). `--card` is now a token (white; `--bg` in both dark modes, as `.card` paints). **`scripts/check-css-vars.mts`
   runs in prebuild** and fails the build on a static `var(--x)` that no CSS file, style object or next/font defines
   (a `var()` with its own fallback is allowed; dynamic `var(--${hue}-…)` names can't be checked — use real hues).
+
+## ⚠ Articles preview their Google result and social cards as the fields are typed (2026-11-02, audit Phase 5, growth part ap)
+- **The Google result is cut by width, not characters** (E-ART-06, `lib/serp-preview.ts`, import-free so it runs in the
+  browser): about 600px of a 20px title and 920px of a 14px description, measured with Arial/Helvetica advance widths
+  (other characters count as an average letter), cut at a whole word with " ...". The page calls it an estimate and
+  Google may rewrite a title — never present the cut as Google's own. With no meta title the article title shows; with
+  no meta description the opening paragraph (headings skipped) shows **in italics**, labelled as Google's pick.
+- **Cards follow the export's image rule**: the approved OG image, else the approved featured one; none → a text-only
+  card, said so. A card image far from 1.91:1 is flagged as cropped. OG title/description fall back to the meta pair.
+- **`SearchSocialPreview` reads its own form's fields** (`title`, `slug`, `metaTitle`, `metaDescription`, `ogTitle`,
+  `ogDescription`) through one `input` listener on the closest form — so it sits inside the settings form and saves
+  nothing. The breadcrumb host is the WordPress connection's address, else the published URL's origin, else a placeholder.

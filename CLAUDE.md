@@ -286,6 +286,7 @@ area, rather than loading all of them into every session.
 - Keywords edit in place and in bulk; ideas from keywords get real titles — 2026-11-01, audit Phase 5, growth part am
 - RSS feeds filter by words, take the article's picture, and target default accounts — 2026-11-01, audit Phase 5, growth part an
 - Article versions say who made them and can be compared before a restore; colour tokens are checked at build — 2026-11-02, audit Phase 5, growth part ao
+- Articles preview their Google result and social cards as the fields are typed — 2026-11-02, audit Phase 5, growth part ap
 
 ## Open items / things the user still owns
 - **Analytics: APIs enabled 2026-08-03** (Search Console + GA Admin + GA Data, on project

@@ -100,6 +100,7 @@ import { resolveImageProviderName } from "@/lib/images";
 import { BLOG_EDITOR_TAB_TIPS, BLOG_EDITOR_TIPS, IMAGE_TIPS } from "@/lib/help-tips";
 import { formatZonedMoment } from "@/lib/zoned-dates";
 import { actorRecordedFrom, versionActor } from "@/lib/version-actor";
+import { SearchSocialPreview } from "./SearchSocialPreview";
 import { ArticlePerformance } from "./ArticlePerformance";
 import { ReadabilityCoach } from "./ReadabilityCoach";
 
@@ -265,6 +266,13 @@ export default async function BlogPostPage({
   const memberName = new Map(members.map((m) => [m.userId, m.user.name ?? m.user.email ?? m.userId]));
   const commentAuthor = (authorId: string | null) => (authorId ? (memberName.get(authorId) ?? "someone") : "system");
   const actorSince = post.versions.length ? await actorRecordedFrom() : null;
+  // Search and social previews (E-ART-06): the site the result points at, the
+  // text Google would pick with no description, and the card image — the
+  // approved OG image, else the approved featured one (as the export does).
+  const previewSite = wpConn?.baseUrl ?? (post.publishedUrl ? (() => { try { return new URL(post.publishedUrl!).origin; } catch { return null; } })() : null);
+  const previewExcerpt = (post.body ?? "").replace(/<h[1-6][\s\S]*?<\/h[1-6]>/gi, " ").replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/\s+/g, " ").trim().slice(0, 320);
+  const approvedImages = post.images.filter((i) => i.status === "approved");
+  const previewImage = approvedImages.find((i) => i.role === "og") ?? approvedImages.find((i) => i.role === "featured") ?? null;
   const openComments = post.comments.filter((c) => !c.resolved).length;
 
   const [modelChoiceList, inheritedModel, postModelRuns] = await Promise.all([
@@ -1153,6 +1161,17 @@ export default async function BlogPostPage({
             <input name="tags" defaultValue={tags.join(", ")} placeholder="connection default" className="w-full text-xs" disabled={!editor} />
           </label>
         </div>
+
+        {/* E-ART-06: how the fields above will look in Google and on cards — live as they're typed. */}
+        <details className="border-t border-[var(--line)] pt-3" open data-previews-fold>
+          <summary className="cursor-pointer select-none text-sm font-semibold mb-2">Search and social previews</summary>
+          <SearchSocialPreview
+            initial={{ title: post.title, slug: post.slug ?? "", metaTitle: post.metaTitle ?? "", metaDescription: post.metaDescription ?? "", ogTitle: post.ogTitle ?? "", ogDescription: post.ogDescription ?? "" }}
+            site={previewSite}
+            excerpt={previewExcerpt}
+            ogImage={previewImage ? { url: previewImage.url, width: previewImage.width, height: previewImage.height, role: previewImage.role } : null}
+          />
+        </details>
 
         {/* FR-2: motif voice — single or weighted blend. Blank = inherit the
             workspace default for this tier/audience. */}
