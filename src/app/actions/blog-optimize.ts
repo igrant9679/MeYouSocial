@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import { llm } from "@/lib/llm";
 import { getSearchProvider } from "@/lib/search";
 import { isGloballyPaused, writeAudit } from "@/lib/governance";
+import { hrefs, linkPhrase, normalizeUrl } from "@/lib/link-inventory";
 import { returnToReviewAfterEdit } from "@/lib/blog-gates";
 import { placeholderProblem } from "@/lib/studio-ai";
 
@@ -252,17 +253,17 @@ export async function applyInternalLinkAction(formData: FormData) {
   const { workspace } = await requireRole("EDITOR");
   const post = await db.blogPost.findFirst({ where: { id, workspaceId: workspace.id } });
   if (!post?.body || !anchor || !url) return backToOptimize(id, "That suggestion is incomplete — suggest links again.", "err");
-  if (post.body.includes(`href="${url}"`)) backToOptimize(id, "That page is already linked in this article.", "err");
+  if (post.protectedFromRewrite) backToOptimize(id, PROTECTED, "err");
+  // Already linked, however the address is written (www, a trailing slash, a query).
+  const target = normalizeUrl(url);
+  if (post.body.includes(`href="${url}"`) || hrefs(post.body).some((h) => normalizeUrl(h, post.publishedUrl ?? undefined) === target)) backToOptimize(id, "That page is already linked in this article.", "err");
 
-  // Find the anchor outside existing tags/links (simple heuristic: exact text
-  // match not preceded by ">" of an <a> tag within 100 chars).
-  const idx = post.body.toLowerCase().indexOf(anchor.toLowerCase());
-  if (idx < 0) backToOptimize(id, `“${anchor}” isn't in the article any more — suggest links again.`, "err");
-  const before = post.body.slice(Math.max(0, idx - 120), idx);
-  if (/<a\s[^>]*$/i.test(before)) backToOptimize(id, `“${anchor}” is already inside a link, so it was left alone.`, "err");
-  const original = post.body.slice(idx, idx + anchor.length);
-  const newBody = post.body.slice(0, idx) + `<a href="${url}">${original}</a>` + post.body.slice(idx + anchor.length);
-  await db.blogPost.update({ where: { id: post.id }, data: { body: newBody } });
+  // The first mention as whole words, outside every tag and existing link (E-ART-12's scanner).
+  if (post.body.toLowerCase().indexOf(anchor.toLowerCase()) < 0) backToOptimize(id, `“${anchor}” isn't in the article any more — suggest links again.`, "err");
+  const linked = linkPhrase(post.body, anchor, url);
+  if (!linked) backToOptimize(id, `“${anchor}” only appears inside a link or markup, so it was left alone.`, "err");
+  const original = linked!.text;
+  await db.blogPost.update({ where: { id: post.id }, data: { body: linked!.body } });
   await returnToReviewAfterEdit(workspace.id, post.id, "internal link");
   revalidatePath(`/blog/${id}`);
   backToOptimize(id, `Linked “${original}” to ${url}.`);

@@ -1472,3 +1472,22 @@ before changing code in that area.
   titles linked to their video pages, Add as Topic (the theme's words as phrases, so its titles then match it) and
   Discard. Research's Unmatched group links to it when it has themes.
 - `createTopicAction` refuses a name another Topic has in any case ("grant" when "Grant" exists), as a rename does.
+
+## ⚠ The site's internal links are an inventory: who links to whom, orphans, offers both ways (2026-11-02, audit Phase 5, growth part aw)
+- **The inventory is computed, not imported** (E-ART-12, `lib/link-inventory.ts` `loadInventory`): live articles —
+  published, or back in review for a refresh at the same URL — and `SitePage` rows (hand-added, or read from
+  WordPress). Addresses compare through `normalizeUrl` (https, no www, no query/hash/trailing slash, no port).
+  Articles' links come from their own bodies; a WordPress page's from the last read (`SitePage.source` "wordpress",
+  `linksTo`, `crawledAt` — migration `20261102040000_site_page_links`). An article and its crawled copy are one page.
+- **Read links from WordPress** (Website, editors): `wpListPosts` read-only, the content audit's call; same-host links
+  only; hand-added pages keep their title and topic; audited `site.links_read`.
+- **Offers are matched, never guessed**: `findFreePhrase` finds a phrase as whole words in one text run, outside every
+  tag, existing link, script and style. Inbound = other live articles that mention this one's focus keyword and don't
+  link here (protected ones skipped); outbound = pages whose focus keyword (or recorded topic) this one mentions.
+- **Link from there** edits ANOTHER article: refuses a protected one or one that already links here, snapshots a version
+  first (`lib/blog-versions.ts` — `snapshotBlogVersion`, the one writer blog.ts uses too), then
+  `returnToReviewAfterEdit` — a WordPress article goes back through review and republishes, and the flash says so; one
+  published elsewhere is told to change its live page by hand. `applyInternalLinkAction` (Link it) uses the same
+  scanner, refuses protected articles and an address already linked however it's written.
+- Website shows pages known, links between them and the pages nobody links to; the article's Optimize tab shows links
+  in and out, both offer lists and the AI's suggestions in one "Internal links" card.

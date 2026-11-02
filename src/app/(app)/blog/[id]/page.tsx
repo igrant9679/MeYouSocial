@@ -65,8 +65,6 @@ import {
 import {
   addFaqSectionAction,
   addKeyTakeawaysAction,
-  applyInternalLinkAction,
-  suggestInternalLinksAction,
 } from "@/app/actions/blog-optimize";
 import { FindingCards } from "@/components/FindingCards";
 import { getSearchProvider } from "@/lib/search";
@@ -102,6 +100,7 @@ import { formatZonedMoment } from "@/lib/zoned-dates";
 import { actorRecordedFrom, versionActor } from "@/lib/version-actor";
 import { SearchSocialPreview } from "./SearchSocialPreview";
 import { ArticlePerformance } from "./ArticlePerformance";
+import { InternalLinks } from "./InternalLinks";
 import { ReadabilityCoach } from "./ReadabilityCoach";
 
 // Blog post editor (Spark port, slice 1): SEO metadata + HTML body + grounded
@@ -1330,33 +1329,12 @@ export default async function BlogPostPage({
               <input type="hidden" name="id" value={post.id} />
               <SubmitButton className="btn" pendingText="Summarizing…">Add key takeaways</SubmitButton>
             </form>
-            <form action={suggestInternalLinksAction}>
-              <input type="hidden" name="id" value={post.id} />
-              <SubmitButton className="btn" pendingText="Matching…">Suggest internal links</SubmitButton>
-            </form>
           </div>
-
-          {linkSuggestions.length > 0 && (
-            <div className="mb-2">
-              <p className="text-xs font-semibold mb-1">Internal link suggestions:</p>
-              <ul className="text-xs flex flex-col gap-1">
-                {linkSuggestions.map((l) => (
-                  <li key={l.url} className="flex items-center gap-2">
-                    <form action={applyInternalLinkAction} className="shrink-0">
-                      <input type="hidden" name="id" value={post.id} />
-                      <input type="hidden" name="url" value={l.url} />
-                      <input type="hidden" name="anchorText" value={l.anchorText} />
-                      <button className="btn" title="Link the first free occurrence of the anchor text">Link it</button>
-                    </form>
-                    <span>&ldquo;{l.anchorText}&rdquo; → <span className="font-mono text-[10px] break-all">{l.url}</span></span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-
         </div>
       )}
+
+      {/* E-ART-12: links in and out, offers both ways, and the AI's suggestions. */}
+      <InternalLinks workspaceId={workspace.id} post={{ id: post.id, publishedUrl: post.publishedUrl, focusKeyword: post.focusKeyword, body: post.body }} editor={editor} aiSuggestions={linkSuggestions} />
 
       </>)}
 

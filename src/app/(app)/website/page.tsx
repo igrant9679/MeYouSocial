@@ -18,6 +18,9 @@ import {
 } from "@/lib/seo-plugins";
 import { addSitePageAction, deleteSitePageAction, importPublishedAsPagesAction } from "@/app/actions/blog-optimize";
 import { EmptyState } from "@/components/EmptyState";
+import { Banner } from "@/components/SocialPostCard";
+import { loadInventory } from "@/lib/link-inventory";
+import { readSiteLinksAction } from "@/app/actions/link-inventory";
 
 /**
  * Website — the Distribute-side home of "publish articles to my site".
@@ -44,8 +47,9 @@ function parseList(json: string): string[] {
   }
 }
 
-export default async function WebsitePage() {
+export default async function WebsitePage({ searchParams }: { searchParams: Promise<{ ok?: string; err?: string }> }) {
   const { workspace, membership } = await requireMembership();
+  const sp = await searchParams;
   const [conn, pages, exportable] = await Promise.all([
     db.wordPressConnection.findUnique({ where: { workspaceId: workspace.id } }),
     db.sitePage.findMany({ where: { workspaceId: workspace.id }, orderBy: { title: "asc" }, take: 100 }),
@@ -63,6 +67,9 @@ export default async function WebsitePage() {
   const plugin = conn && isSeoPlugin(conn.seoPlugin) ? conn.seoPlugin : "none";
   const activeMap = effectiveFieldMap(plugin, conn?.seoFieldMap);
   const slugRules = parseSlugRules(conn?.slugRules);
+  // E-ART-12: every known page and who links to whom.
+  const { inv } = await loadInventory(workspace.id);
+  const editor = canEdit(membership.role);
 
   return (
     <main className="p-6 w-full">
@@ -79,6 +86,8 @@ export default async function WebsitePage() {
           </p>
         </div>
       </div>
+      {sp.ok && <Banner kind="ok" text={sp.ok} />}
+      {sp.err && <Banner kind="err" text={sp.err} />}
 
       <div className="card">
         <div className="flex items-center gap-2 mb-3">
@@ -328,6 +337,43 @@ export default async function WebsitePage() {
         )}
       </div>
 
+      {/* Internal links (E-ART-12): published articles and recorded pages, who
+          links to whom — articles from their own text, WordPress pages from
+          the last read — and the pages nobody links to. */}
+      <div className="card mt-5" id="internal-links" data-site-links>
+        <div className="flex items-center gap-2 flex-wrap mb-1">
+          <h2 className="text-sm font-semibold flex-1">Internal links</h2>
+          {editor && conn && (
+            <form action={readSiteLinksAction}>
+              <SubmitButton className="btn sm" pendingText="Reading…">Read links from WordPress</SubmitButton>
+            </form>
+          )}
+        </div>
+        <p className="text-xs text-[var(--mute)] mt-0 mb-2" data-site-links-summary>
+          {inv.nodes.size} page{inv.nodes.size === 1 ? "" : "s"} known — published articles and the site pages below — with {inv.links} internal link{inv.links === 1 ? "" : "s"} between them.{" "}
+          {inv.lastCrawl ? <>WordPress last read {formatZonedMoment(inv.lastCrawl, tz)}.</> : conn ? "WordPress hasn't been read yet, so only the articles' own links are counted." : "Without WordPress, only the articles' own links are counted."}
+        </p>
+        {inv.orphans.length > 0 ? (
+          <>
+            <p className="text-[11px] font-semibold mb-1">{inv.orphans.length} page{inv.orphans.length === 1 ? "" : "s"} nobody links to</p>
+            <ul className="m-0 p-0 list-none flex flex-col gap-1 text-xs" data-orphans>
+              {inv.orphans.slice(0, 15).map((n) => (
+                <li key={n.url} className="flex items-center gap-2 min-w-0" data-orphan={n.kind}>
+                  {n.articleId
+                    ? <Link href={`/blog/${n.articleId}?tab=optimize#internal-links`} className="font-semibold hover:underline truncate">{n.title}</Link>
+                    : <a href={n.href} target="_blank" rel="noreferrer" className="font-semibold hover:underline truncate">{n.title}</a>}
+                  <span className="text-[10px] text-[var(--mute)] shrink-0">{n.kind === "article" ? "article" : n.kind === "wordpress" ? "on WordPress" : "added by hand"}</span>
+                </li>
+              ))}
+              {inv.orphans.length > 15 && <li className="text-[var(--mute)]">and {inv.orphans.length - 15} more</li>}
+            </ul>
+            <p className="text-[10px] text-[var(--mute)] mt-2 mb-0">An article&apos;s Optimize tab lists the other articles that mention its focus keyword, each a click from linking to it.</p>
+          </>
+        ) : inv.nodes.size > 0 ? (
+          <p className="text-xs m-0">Every known page has at least one link to it.</p>
+        ) : null}
+      </div>
+
       {/* Site page inventory — fuels internal-link suggestions (Wave B′). */}
       <div className="card mt-5">
         <div className="flex items-center gap-2 mb-2">
@@ -345,9 +391,9 @@ export default async function WebsitePage() {
         </p>
         {canEdit(membership.role) && (
           <form action={addSitePageAction} className="flex flex-wrap items-center gap-2 mb-2">
-            <input name="url" type="url" required placeholder="https://…" className="text-xs font-mono flex-1 min-w-48" />
-            <input name="title" required placeholder="page title" className="text-xs w-40" />
-            <input name="topic" placeholder="topic (optional)" className="text-xs w-32" />
+            <input name="url" type="url" required placeholder="https://…" className="border border-[var(--line-2)] rounded-lg px-2 py-1 text-xs font-mono flex-1 min-w-48" />
+            <input name="title" required placeholder="page title" className="border border-[var(--line-2)] rounded-lg px-2 py-1 text-xs w-40" />
+            <input name="topic" placeholder="topic (optional)" className="border border-[var(--line-2)] rounded-lg px-2 py-1 text-xs w-32" />
             <button className="btn">Add</button>
           </form>
         )}

@@ -347,6 +347,12 @@ model SitePage {
   url         String
   title       String
   topic       String?  // short description of what the page covers
+  // E-ART-12: "manual" (typed or imported) | "wordpress" (read from the site).
+  // A crawled page keeps the internal links it had when read — JSON array of
+  // normalized URLs — so the inventory knows who links to whom.
+  source      String    @default("manual")
+  linksTo     String?
+  crawledAt   DateTime?
   createdAt   DateTime @default(now())
 
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)

@@ -453,16 +453,8 @@ const CONFLICT_LABEL = "your edit, kept — the article changed elsewhere";
 
 /** Keep the last 20 versions per post. */
 async function snapshotVersion(postId: string, label: string, body: string | null, actorId: string | null) {
-  await db.blogPostVersion.create({ data: { postId, label, body, actorId } });
-  const excess = await db.blogPostVersion.findMany({
-    where: { postId },
-    orderBy: { createdAt: "desc" },
-    skip: 20,
-    select: { id: true },
-  });
-  if (excess.length) {
-    await db.blogPostVersion.deleteMany({ where: { id: { in: excess.map((v) => v.id) } } });
-  }
+  const { snapshotBlogVersion } = await import("@/lib/blog-versions");
+  await snapshotBlogVersion(postId, label, body, actorId);
 }
 
 export async function restoreBlogVersionAction(formData: FormData) {
