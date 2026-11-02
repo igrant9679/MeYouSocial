@@ -69,7 +69,7 @@ export const PAGE_SIZE = 40;
 
 export const listInclude = {
   targets: { select: { id: true, provider: true, accountId: true, accountName: true, status: true, error: true, platformPostUrl: true, postedAt: true } },
-  campaign: { select: { name: true, color: true } },
+  campaign: { select: { id: true, name: true, color: true } },
   topic: { select: { name: true } },
 } satisfies Prisma.SocialPostInclude;
 

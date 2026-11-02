@@ -122,7 +122,7 @@ export default async function SetupSchedule({ searchParams }: { searchParams: Pr
               return (
                 <div key={c.id} className="flex items-center gap-2 text-xs rounded-lg border border-[var(--line)] px-2 py-1.5">
                   <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: /^#[0-9a-fA-F]{6}$/.test(c.color ?? "") ? c.color! : "var(--blue)" }} />
-                  <span className="font-semibold">{c.name}</span>
+                  <Link href={`/social/campaigns/${c.id}`} className="font-semibold hover:underline" title="Its calendar, counts and results">{c.name}</Link>
                   {c.status === "archived" && <span className="font-mono text-[10px] text-[var(--mute)]">archived</span>}
                   {c.utmCampaign && <span className="font-mono text-[10px] text-[var(--mute)]">utm: {c.utmCampaign}</span>}
                   <span className="font-mono text-[10px] text-[var(--mute)]">{stats.length} post{stats.length === 1 ? "" : "s"} · {out} sent</span>

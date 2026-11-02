@@ -1267,3 +1267,12 @@ before changing code in that area.
   and the card says it can miss some or catch a false one), the passive phrase highlighted. A section too short to score
   shows "too short to score", never a number.
 - **Advisory only**: it never gates a publish and never edits the text — like the readability check beside it.
+
+## ⚠ Each campaign has its own page (2026-11-01, audit Phase 5, growth part ai)
+- **E-SOC-21** (`/social/campaigns/[id]`, any member, this workspace's campaigns only — else 404): counts by state
+  (drafts, scheduled, sent, partly sent, failed); a six-week calendar in the posting zone (two weeks back, four ahead,
+  today marked, each day's posts as chips coloured by state, undated drafts counted beneath); **by network** —
+  `byNetwork(latestPerTarget(...))` over this campaign's snapshots, so the latest reading per post per network, summed,
+  with a total row and a dash where nothing was measured; and its best posts by engagement (`resultsForPosts`).
+- Reached from the campaign name on Settings → Schedule and on a post row in Queue / Sent / Drafts (`listInclude`
+  carries the campaign id).

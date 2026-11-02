@@ -179,7 +179,7 @@ export async function PostList({
                       <p className="m-0 whitespace-pre-wrap line-clamp-4 leading-snug">{p.text || <span className="text-[var(--mute)]">(no text)</span>}</p>
                       <p className="m-0 mt-1 text-[10px] text-[var(--mute)]">
                         Added {formatInZone(p.createdAt, tz)}{addedBy ? ` · by ${addedBy}` : ""} · {SOURCES.find((s) => s.value === source)?.label}
-                        {p.campaign && <> · campaign {p.campaign.name}</>}
+                        {p.campaign && <> · campaign <Link href={`/social/campaigns/${p.campaign.id}`} className="hover:underline">{p.campaign.name}</Link></>}
                         {p.topic && <> · {p.topic.name}</>}
                       </p>
                       {tab === "sent" && p.targets.some((t) => t.status === "failed") && (
