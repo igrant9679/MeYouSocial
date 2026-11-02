@@ -2,6 +2,9 @@ import { db } from "@/lib/db";
 import { safeFetch } from "@/lib/net/safe-fetch";
 import { writeAudit } from "@/lib/governance";
 import { cleanTitle } from "@/lib/list-marker";
+import { networkFor } from "@/lib/social/networks";
+import { itemSkipReason, parseWords } from "@/lib/social/rss-filter";
+import { feedItemImage, storeItemImage } from "@/lib/social/rss-image";
 
 /**
  * RSS feeds (Socialmonials parity, phase 4, 2026-10-17). A workspace follows a
@@ -26,7 +29,7 @@ import { cleanTitle } from "@/lib/list-marker";
 // The guard itself is shared (lib/net/safe-fetch.ts); re-exported for the RSS actions.
 export { assertPublicUrl } from "@/lib/net/safe-fetch";
 
-export type FeedItem = { guid: string; link: string | null; title: string; summary: string | null; publishedAt: Date | null };
+export type FeedItem = { guid: string; link: string | null; title: string; summary: string | null; publishedAt: Date | null; image: string | null };
 export type ParsedFeed = { title: string | null; items: FeedItem[] };
 
 const decode = (s: string) =>
@@ -60,7 +63,7 @@ export function parseFeed(xml: string): ParsedFeed {
     const dateRaw = stripTags(tag(b, isAtom ? "updated" : "pubDate") ?? tag(b, "published") ?? tag(b, "dc:date") ?? "");
     const d = dateRaw ? new Date(dateRaw) : null;
     const summary = stripTags(tag(b, isAtom ? "summary" : "description") ?? tag(b, "content") ?? "") || null;
-    items.push({ guid: guid.slice(0, 500), link: link?.slice(0, 1000) ?? null, title: title.slice(0, 300), summary: summary?.slice(0, 600) ?? null, publishedAt: d && !Number.isNaN(d.getTime()) ? d : null });
+    items.push({ guid: guid.slice(0, 500), link: link?.slice(0, 1000) ?? null, title: title.slice(0, 300), summary: summary?.slice(0, 600) ?? null, publishedAt: d && !Number.isNaN(d.getTime()) ? d : null, image: feedItemImage(b)?.slice(0, 1000) ?? null });
   }
   return { title: channelTitle ? stripTags(channelTitle).slice(0, 200) : null, items };
 }
@@ -79,9 +82,16 @@ export async function fetchFeed(url: string): Promise<ParsedFeed> {
 const FIRST_READ_DAYS = 7;
 const FIRST_READ_MAX = 5;
 const PER_POLL_MAX = 10;
+// All the image look-ups in one poll share this, so a slow site can't hold
+// the sweep (or the Follow button) for minutes.
+const IMAGE_BUDGET_MS = 25_000;
+
+const readIds = (json: string | null | undefined): string[] => {
+  try { const v = JSON.parse(json ?? "[]"); return Array.isArray(v) ? v.map(String).slice(0, 30) : []; } catch { return []; }
+};
 
 /** Read one feed and act on what's new. Returns how many items became something. */
-export async function pollFeed(feedId: string): Promise<{ made: number; seen: number; error: string | null }> {
+export async function pollFeed(feedId: string): Promise<{ made: number; seen: number; skipped?: number; error: string | null }> {
   const feed = await db.rssFeed.findUnique({ where: { id: feedId }, include: { _count: { select: { items: true } } } });
   if (!feed || !feed.active) return { made: 0, seen: 0, error: null };
   let parsed: ParsedFeed;
@@ -96,12 +106,24 @@ export async function pollFeed(feedId: string): Promise<{ made: number; seen: nu
   const fresh = parsed.items.filter((i) => !known.has(i.guid));
   const firstRead = feed._count.items === 0;
   const cutoff = Date.now() - FIRST_READ_DAYS * 86_400_000;
+  // The feed's words (E-SOC-20) run before the caps, so skipped items never
+  // use up a poll's places. A skipped item is recorded with its reason.
+  const include = parseWords(feed.includeWords);
+  const exclude = parseWords(feed.excludeWords);
+  const skipped = new Map(fresh.map((i) => [i.guid, itemSkipReason(i, include, exclude)] as const).filter(([, r]) => r));
+  const wanted = fresh.filter((i) => !skipped.has(i.guid));
   const actOn = (firstRead
-    ? fresh.filter((i) => !i.publishedAt || i.publishedAt.getTime() >= cutoff).slice(0, FIRST_READ_MAX)
-    : fresh.slice(0, PER_POLL_MAX));
+    ? wanted.filter((i) => !i.publishedAt || i.publishedAt.getTime() >= cutoff).slice(0, FIRST_READ_MAX)
+    : wanted.slice(0, PER_POLL_MAX));
   const actIds = new Set(actOn.map((i) => i.guid));
   const { getSetting } = await import("@/lib/settings");
   const requireApproval = feed.mode === "drafts" && (await getSetting("social:require_approval", feed.workspaceId).catch(() => "")) === "true";
+  // Drafts' default accounts — only those still connected in this workspace.
+  const accountIds = feed.mode === "drafts" ? readIds(feed.accountIds) : [];
+  const accounts = accountIds.length
+    ? await db.zernioAccount.findMany({ where: { id: { in: accountIds }, workspaceId: feed.workspaceId, status: "connected" }, select: { accountId: true, platform: true, displayName: true, username: true } })
+    : [];
+  const imageDeadline = Date.now() + IMAGE_BUDGET_MS;
 
   let made = 0;
   let held = 0;
@@ -110,6 +132,10 @@ export async function pollFeed(feedId: string): Promise<{ made: number; seen: nu
     let postId: string | null = null;
     if (actIds.has(it.guid)) {
       if (feed.mode === "drafts") {
+        const imageKey = feed.useImage ? await storeItemImage(it, feed.workspaceId, imageDeadline) : null;
+        // A network that needs a picture (or a video) is left off a draft
+        // without one, as the CSV import does — never a target that can't send.
+        const targets = accounts.filter((a) => { const n = networkFor(a.platform); return !n?.requiresVideo && !(n?.requiresMedia && !imageKey); });
         const post = await db.socialPost.create({
           data: {
             workspaceId: feed.workspaceId,
@@ -118,11 +144,12 @@ export async function pollFeed(feedId: string): Promise<{ made: number; seen: nu
             topicId: feed.topicId,
             category: feed.category,
             text: [it.title, it.link].filter(Boolean).join("\n\n"),
-            mediaKeys: "[]",
+            mediaKeys: JSON.stringify(imageKey ? [imageKey] : []),
             status: "draft",
             // Nobody wrote this; with the workflow on, a person approves it
             // before full autonomy may queue it (audit SOC-02).
             approval: requireApproval ? "pending" : null,
+            ...(targets.length ? { targets: { create: targets.map((a) => ({ provider: a.platform, accountId: a.accountId, accountName: a.displayName ?? a.username })) } } : {}),
           },
         });
         if (requireApproval) held++;
@@ -144,11 +171,11 @@ export async function pollFeed(feedId: string): Promise<{ made: number; seen: nu
       made++;
     }
     await db.rssItem.create({
-      data: { feedId: feed.id, guid: it.guid, link: it.link, title: it.title, summary: it.summary, publishedAt: it.publishedAt, socialIdeaId, postId },
+      data: { feedId: feed.id, guid: it.guid, link: it.link, title: it.title, summary: it.summary, publishedAt: it.publishedAt, socialIdeaId, postId, skipped: skipped.get(it.guid)?.slice(0, 200) ?? null },
     }).catch(() => undefined); // a concurrent poll already recorded it
   }
   await db.rssFeed.update({ where: { id: feed.id }, data: { lastCheckedAt: new Date(), lastError: null, ...(parsed.title && !feed.title ? { title: parsed.title } : {}) } });
-  if (made) await writeAudit({ workspaceId: feed.workspaceId, action: "social.rss_items", entityType: "rss_feed", entityId: feed.id, meta: { made, mode: feed.mode, firstRead, held } });
+  if (made) await writeAudit({ workspaceId: feed.workspaceId, action: "social.rss_items", entityType: "rss_feed", entityId: feed.id, meta: { made, mode: feed.mode, firstRead, held, skipped: skipped.size } });
   if (held) {
     const { notify } = await import("@/lib/notify");
     await notify({
@@ -160,7 +187,7 @@ export async function pollFeed(feedId: string): Promise<{ made: number; seen: nu
       entityId: feed.id,
     });
   }
-  return { made, seen: fresh.length, error: null };
+  return { made, seen: fresh.length, skipped: skipped.size, error: null };
 }
 
 /** The sweep's step: every active feed not read in the last hour. */

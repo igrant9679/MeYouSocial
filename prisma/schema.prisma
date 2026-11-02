@@ -2320,6 +2320,16 @@ model RssFeed {
   mode          String    @default("ideas") // ideas | drafts
   topicId       String?
   category      String?
+  // Filters and defaults (E-SOC-20). Words are comma-separated phrases matched
+  // as whole words in the title and summary (social/rss-filter.ts): an exclude
+  // match always skips; with include words, an item needs one of them.
+  includeWords  String?
+  excludeWords  String?
+  // Drafts only: attach the item's picture — the feed's own image, else the
+  // linked page's og:image — stored in the media library.
+  useImage      Boolean   @default(false)
+  // Drafts only: JSON array of Zernio account ids each draft targets.
+  accountIds    String    @default("[]")
   active        Boolean   @default(true)
   lastCheckedAt DateTime?
   lastError     String?
@@ -2343,9 +2353,11 @@ model RssItem {
   title        String
   summary      String?
   publishedAt  DateTime?
-  // What it became (null = seen on the first read, older than the window).
+  // What it became (null = seen on the first read, older than the window,
+  // or skipped by the feed's words — then `skipped` says why).
   socialIdeaId String?
   postId       String?
+  skipped      String?
   createdAt    DateTime  @default(now())
 
   feed         RssFeed   @relation(fields: [feedId], references: [id], onDelete: Cascade)

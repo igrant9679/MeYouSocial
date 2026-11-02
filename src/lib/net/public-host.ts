@@ -21,7 +21,10 @@ function ipv4Private(ip: string): boolean {
     (a === 169 && b === 254) ||           // link-local / metadata
     (a === 172 && b >= 16 && b <= 31) ||
     (a === 192 && b === 168) ||
-    (a === 192 && b === 0) ||             // IETF protocol assignments
+    // 192.0.0.0/24 (IETF protocol assignments) and 192.0.2.0/24 (TEST-NET-1)
+    // only — the rest of 192.0.x.x is public: 192.0.64.0/18 is Automattic, so
+    // a /16 here refused every WordPress.com and VIP feed (github.blog, …).
+    (a === 192 && b === 0 && (p[2] === 0 || p[2] === 2)) ||
     (a === 198 && (b === 18 || b === 19)) || // benchmarking
     a >= 224                              // multicast + reserved
   );

@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { isFullyAutonomous } from "@/lib/autonomy";
 import { listCategories } from "@/lib/social/categories";
 import { formatInZone, getPostingTimeZone } from "@/lib/social/slots";
+import { networkFor } from "@/lib/social/networks";
 import { SubmitButton } from "@/components/SubmitButton";
 import { DeleteButton } from "@/components/DeleteButton";
 import { EmptyState } from "@/components/EmptyState";
@@ -21,19 +22,21 @@ export default async function RssPage({ searchParams }: { searchParams: Promise<
   const { workspace, membership } = await requireMembership();
   const editor = canEdit(membership.role);
   const sp = await searchParams;
-  const [feeds, topics, categories, autonomous, tz] = await Promise.all([
+  const [feeds, topics, categories, autonomous, tz, accounts] = await Promise.all([
     db.rssFeed.findMany({
       where: { workspaceId: workspace.id },
       orderBy: { createdAt: "asc" },
       // Newest by the feed's own date: a feed lists newest first, so insertion
       // order would show the oldest of a read first.
-      include: { items: { orderBy: [{ publishedAt: { sort: "desc", nulls: "last" } }, { createdAt: "desc" }], take: 5, select: { id: true, title: true, link: true, socialIdeaId: true, postId: true, createdAt: true } }, _count: { select: { items: true } } },
+      include: { items: { orderBy: [{ publishedAt: { sort: "desc", nulls: "last" } }, { createdAt: "desc" }], take: 5, select: { id: true, title: true, link: true, socialIdeaId: true, postId: true, skipped: true, createdAt: true } }, _count: { select: { items: true } } },
     }),
     db.topic.findMany({ where: { workspaceId: workspace.id, status: "active" }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
     listCategories(workspace.id),
     isFullyAutonomous(workspace.id),
     getPostingTimeZone(workspace.id),
+    db.zernioAccount.findMany({ where: { workspaceId: workspace.id, status: "connected" }, orderBy: [{ platform: "asc" }, { displayName: "asc" }], select: { id: true, platform: true, displayName: true, username: true } }),
   ]);
+  const accountName = new Map(accounts.map((a) => [a.id, `${a.displayName ?? a.username ?? a.platform} (${networkFor(a.platform)?.label ?? a.platform})`]));
   // The honest description of "drafts" depends on this workspace's autonomy.
   const draftsMeaning = autonomous
     ? "Draft posts — ⚠ full autonomy is on here, so the sweep queues them into free slots: they go out on their own."
@@ -60,6 +63,7 @@ export default async function RssPage({ searchParams }: { searchParams: Promise<
           <label className="text-xs"><span className="block text-[10px] text-[var(--mute)] mb-1">Category</span>
             <select name="category" defaultValue="Industry News" className={inputCls}><option value="">none</option>{categories.map((c) => <option key={c} value={c}>{c}</option>)}</select></label>
           <SubmitButton className="btn primary" pendingText="Reading the feed…"><Rss className="w-4 h-4" /> Follow</SubmitButton>
+          <FeedOptions accounts={accounts} accountName={accountName} />
           <span className="basis-full text-[10px] text-[var(--mute)]">The first read brings in at most 5 items from the last week; older ones are marked seen, so a busy feed can&apos;t flood the board.</span>
         </form>
       )}
@@ -87,6 +91,7 @@ export default async function RssPage({ searchParams }: { searchParams: Promise<
                 {f.url} · {f._count.items} item{f._count.items === 1 ? "" : "s"} seen · {f.lastCheckedAt ? `checked ${formatInZone(f.lastCheckedAt, tz)}` : "not checked yet"}
                 {f.lastError && <span style={{ color: "var(--rose-on)" }}> · last read failed: {f.lastError}</span>}
               </p>
+              <FeedRules feed={f} accountName={accountName} />
               {editor && (
                 <form action={updateFeedAction} className="flex flex-wrap items-end gap-2 mb-2">
                   <input type="hidden" name="id" value={f.id} />
@@ -94,6 +99,7 @@ export default async function RssPage({ searchParams }: { searchParams: Promise<
                   {topics.length > 0 && <select name="topicId" defaultValue={f.topicId ?? ""} className={inputCls} aria-label="Topic"><option value="">no topic</option>{topics.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</select>}
                   <select name="category" defaultValue={f.category ?? ""} className={inputCls} aria-label="Category"><option value="">no category</option>{categories.map((c) => <option key={c} value={c}>{c}</option>)}</select>
                   <SubmitButton className="btn sm" pendingText="…">Save</SubmitButton>
+                  <FeedOptions feed={f} accounts={accounts} accountName={accountName} />
                 </form>
               )}
               {f.items.length > 0 && (
@@ -101,7 +107,7 @@ export default async function RssPage({ searchParams }: { searchParams: Promise<
                   {f.items.map((it) => (
                     <li key={it.id}>
                       {it.link ? <a href={it.link} target="_blank" rel="noreferrer" className="hover:underline">{it.title}</a> : it.title}
-                      <span className="text-[10px] text-[var(--mute)]"> · {it.socialIdeaId ? <Link href="/ideas?format=social" className="underline">an idea on the board</Link> : it.postId ? <Link href={`/social/${it.postId}/edit`} className="underline">a draft</Link> : <span title="Not every item is brought in: the first read takes at most 5 from the past week and each later read at most 10, so a busy feed can't flood the board. The rest are marked seen so they never arrive late.">seen, not brought in</span>}</span>
+                      <span className="text-[10px] text-[var(--mute)]"> · {it.socialIdeaId ? <Link href="/ideas?format=social" className="underline">an idea on the board</Link> : it.postId ? <Link href={`/social/${it.postId}/edit`} className="underline">a draft</Link> : it.skipped ? <span data-rss-skipped title="The feed's words skipped it — change them under Filters and defaults.">skipped — {it.skipped}</span> : <span title="Not every item is brought in: the first read takes at most 5 from the past week and each later read at most 10, so a busy feed can't flood the board. The rest are marked seen so they never arrive late.">seen, not brought in</span>}</span>
                     </li>
                   ))}
                 </ul>
@@ -111,6 +117,54 @@ export default async function RssPage({ searchParams }: { searchParams: Promise<
         </ul>
       )}
     </div>
+  );
+}
+
+type FeedRulesInput = { mode: string; includeWords: string | null; excludeWords: string | null; useImage: boolean; accountIds: string };
+const readIds = (json: string) => { try { const v = JSON.parse(json); return Array.isArray(v) ? v.map(String) : []; } catch { return []; } };
+
+/** What this feed's words and defaults do, in one line — nothing when there are none. */
+function FeedRules({ feed, accountName }: { feed: FeedRulesInput; accountName: Map<string, string> }) {
+  const ids = readIds(feed.accountIds).filter((id) => accountName.has(id));
+  const parts = [
+    feed.includeWords ? `only items mentioning ${feed.includeWords}` : null,
+    feed.excludeWords ? `never ${feed.excludeWords}` : null,
+    feed.mode === "drafts" && feed.useImage ? "drafts take the article's picture" : null,
+    feed.mode === "drafts" && ids.length ? `drafts go to ${ids.map((id) => accountName.get(id)).join(", ")}` : null,
+  ].filter(Boolean);
+  if (!parts.length) return null;
+  return <p className="text-[11px] m-0 mb-2" data-rss-rules>{parts.join(" · ")}</p>;
+}
+
+/** The filters and defaults fields (E-SOC-20), folded so the form stays one line. */
+function FeedOptions({ feed, accounts, accountName }: { feed?: FeedRulesInput; accounts: { id: string }[]; accountName: Map<string, string> }) {
+  const chosen = new Set(feed ? readIds(feed.accountIds) : []);
+  const open = !!feed && (!!feed.includeWords || !!feed.excludeWords || feed.useImage || chosen.size > 0);
+  return (
+    <details className="basis-full text-xs" open={open} data-rss-options>
+      <summary className="cursor-pointer select-none text-[var(--mute)]">Filters and defaults</summary>
+      <div className="mt-2 flex flex-wrap items-end gap-3">
+        <label className="flex-1 min-w-56"><span className="block text-[10px] text-[var(--mute)] mb-1">Only items mentioning (commas between; blank = all)</span>
+          <input name="includeWords" defaultValue={feed?.includeWords ?? ""} placeholder="e.g. hiring, remote work" className={`${inputCls} w-full`} /></label>
+        <label className="flex-1 min-w-56"><span className="block text-[10px] text-[var(--mute)] mb-1">Never items mentioning</span>
+          <input name="excludeWords" defaultValue={feed?.excludeWords ?? ""} placeholder="e.g. sponsored, webinar" className={`${inputCls} w-full`} /></label>
+        <span className="basis-full text-[10px] text-[var(--mute)]">Whole words, in the title or summary. A &ldquo;never&rdquo; word always wins; skipped items are listed as skipped, with why.</span>
+        <label className="inline-flex items-center gap-1.5 cursor-pointer"><input type="checkbox" name="useImage" defaultChecked={feed?.useImage ?? false} /> Drafts take the article&apos;s picture</label>
+        <span className="text-[10px] text-[var(--mute)]">The feed&apos;s own image, else the page&apos;s preview image — kept in Media. Drafts mode only.</span>
+        {accounts.length > 0 ? (
+          <fieldset className="basis-full m-0 p-0 border-0">
+            <legend className="text-[10px] text-[var(--mute)] mb-1">Drafts go to (drafts mode only; a network that needs a picture is left off a draft without one)</legend>
+            <div className="flex flex-wrap gap-x-3 gap-y-1">
+              {accounts.map((a) => (
+                <label key={a.id} className="inline-flex items-center gap-1 cursor-pointer"><input type="checkbox" name="accountIds" value={a.id} defaultChecked={chosen.has(a.id)} /> {accountName.get(a.id)}</label>
+              ))}
+            </div>
+          </fieldset>
+        ) : (
+          <span className="basis-full text-[10px] text-[var(--mute)]">No connected accounts — drafts have none chosen until you connect one.</span>
+        )}
+      </div>
+    </details>
   );
 }
 

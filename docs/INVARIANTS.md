@@ -1328,3 +1328,25 @@ before changing code in that area.
   and names that idea.
 - Inputs and selects on this page have the visible border (`border border-[var(--line-2)] rounded-lg`) — the add
   form and the country picker had none.
+
+## ⚠ RSS feeds filter by words, take the article's picture, and target default accounts (2026-11-01, audit Phase 5, growth part an)
+- **Include and exclude words per feed** (E-SOC-20, `lib/social/rss-filter.ts`, migration `20261101180000_rss_filters`):
+  phrases split on commas or lines, stored lowercased as one line, matched as **whole words** in the title and summary.
+  An exclude match always wins; with include words set, an item needs one of them. The filter runs **before** the
+  first-read (5 from the last week) and per-poll (10) caps, so skipped items never use up places. A skipped item is still
+  recorded as seen, with `RssItem.skipped` saying why, and the page lists it as "skipped — …". Follow and Check now
+  say how many were skipped.
+- **Drafts can take the article's picture** (`useImage`, drafts mode only, `lib/social/rss-image.ts`): the feed's own image
+  first (media:content / media:thumbnail / an image enclosure / the first `<img>`), else the linked page's og:image or
+  twitter:image. Fetched through `safeFetch` (the feed's private-network guard), kept only as PNG/JPEG/GIF/WebP under
+  8 MB, stored with the workspace as owner and added to the media library. **One 25 s budget per poll** covers every
+  picture, so a slow site can't hold the sweep or the Follow button. Any failure means no picture — never a failed item.
+- **Default accounts for drafts** (`accountIds`, ZernioAccount row ids): narrowed to this workspace's connected accounts
+  when saved, and again when a draft is made. A network that needs a picture is left off a draft without one, and a
+  video-only network is never targeted — the same rule as the CSV import, so no draft carries a target that can't send.
+- **192.0.x.x is public except 192.0.0.0/24 and 192.0.2.0/24** (`lib/net/public-host.ts`). The guard used to refuse the
+  whole /16 as "IETF protocol assignments", but 192.0.64.0/18 is Automattic — so every feed on WordPress.com or WordPress
+  VIP (github.blog, …) was refused as "a private address". Never widen a reserved range past its real prefix; check a
+  real host in it before shipping a new one.
+- The feed line says what its rules do ("only items mentioning … · never … · drafts take the article's picture · drafts
+  go to …"); the fields sit in a "Filters and defaults" fold, open when the feed has any. Viewers see neither.
