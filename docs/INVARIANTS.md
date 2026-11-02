@@ -1258,3 +1258,12 @@ before changing code in that area.
 - **Social posts that pointed here**: posts made from the article's social ideas (`SocialIdea.sourceBlogPostId` →
   `socialPostId`) plus any post whose text carries its `publishedUrl`, each with `resultsForPosts` numbers and the clicks
   total — "not measured yet" when a sent post has no reading.
+
+## ⚠ Readability coaching per section (2026-11-01, audit Phase 5, growth part ah)
+- **E-ART-11** (`lib/readability.ts`, `blog/[id]/ReadabilityCoach.tsx` on the Optimize tab): the body (HTML or markdown)
+  split at its H2/H3 headings; each section's Flesch reading ease against the article's `readingLevel` (simple 60+,
+  standard 50+, advanced 30+; unset → standard, and it says so), with **long sentences** (over 20 / 25 / 30 words),
+  **long paragraphs** (over 90 / 120 / 150) and **passive voice** (a form of "to be" + a past participle — a heuristic,
+  and the card says it can miss some or catch a false one), the passive phrase highlighted. A section too short to score
+  shows "too short to score", never a number.
+- **Advisory only**: it never gates a publish and never edits the text — like the readability check beside it.

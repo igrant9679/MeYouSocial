@@ -100,6 +100,7 @@ import { resolveImageProviderName } from "@/lib/images";
 import { BLOG_EDITOR_TAB_TIPS, BLOG_EDITOR_TIPS, IMAGE_TIPS } from "@/lib/help-tips";
 import { formatZonedMoment } from "@/lib/zoned-dates";
 import { ArticlePerformance } from "./ArticlePerformance";
+import { ReadabilityCoach } from "./ReadabilityCoach";
 
 // Blog post editor (Spark port, slice 1): SEO metadata + HTML body + grounded
 // AI draft + the review-state machine. Publishing is an ADMIN act (human gate).
@@ -1291,6 +1292,9 @@ export default async function BlogPostPage({
           />
         </div>
       )}
+
+      {/* E-ART-11: each section against the target reading level, with what pulls it down. */}
+      <ReadabilityCoach body={post.body} readingLevel={post.readingLevel} />
 
       {/* Quick additions — one-click mechanical edits that predate the cards. */}
       {editor && post.body && (
