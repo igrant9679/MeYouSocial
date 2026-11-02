@@ -93,7 +93,7 @@ export function DeleteButton({
             onChange={(e) => setTyped(e.target.value)}
             autoComplete="off"
             spellCheck={false}
-            className="border border-[var(--line-2)] rounded-lg p-1.5 text-xs font-mono bg-[var(--bg)] text-[var(--fg)]"
+            className="border border-[var(--line-2)] rounded-lg p-1.5 text-xs font-mono bg-[var(--bg)] text-[var(--ink)]"
           />
         </label>
       )}

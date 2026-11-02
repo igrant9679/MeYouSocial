@@ -49,6 +49,7 @@
   --ink: #15181D; --slate: #2B3440; --mute: #6B7280;
   --line: #E7E9EE; --line-2: #D6D9DF;
   --bg: #FFFFFF; --panel: #F5F7FA; --zebra: #FAFBFC;
+  --card: #FFFFFF; /* what .card paints — dark modes swap it to --bg, as .card does */
   --accent: var(--brand); --accent-soft: var(--brand-soft);
   /* Darker accent for white-on-accent surfaces (primary buttons) so text clears
      WCAG AA 4.5:1 — plain --brand (#E5482F) on white text is only ~3.9:1. */
@@ -90,7 +91,7 @@
 html[data-theme="dark"] {
   --ink: #ECEEF2; --slate: #C8CCD4; --mute: #8A93A0;
   --line: #2A2F3A; --line-2: #353B49;
-  --bg: #0F1218; --panel: #161A22; --zebra: #1A1E27;
+  --bg: #0F1218; --panel: #161A22; --zebra: #1A1E27; --card: var(--bg);
   /* Soft pastel chip backgrounds → dark hue-tinted surfaces; foregrounds → lifted hues.
      --accent-soft/--accent-on follow via their var() references to --brand-*. */
   --brand-soft:  color-mix(in srgb, var(--brand)  18%, var(--bg));
@@ -120,7 +121,7 @@ html[data-theme="dark"] {
   html[data-theme="auto"] {
     --ink: #ECEEF2; --slate: #C8CCD4; --mute: #8A93A0;
     --line: #2A2F3A; --line-2: #353B49;
-    --bg: #0F1218; --panel: #161A22; --zebra: #1A1E27;
+    --bg: #0F1218; --panel: #161A22; --zebra: #1A1E27; --card: var(--bg);
     --brand-soft:  color-mix(in srgb, var(--brand)  18%, var(--bg));
     --violet-soft: color-mix(in srgb, var(--violet) 18%, var(--bg));
     --blue-soft:   color-mix(in srgb, var(--blue)   18%, var(--bg));

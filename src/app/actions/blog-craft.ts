@@ -50,7 +50,7 @@ export async function saveOutlineAction(formData: FormData) {
 export async function regenerateSectionAction(formData: FormData) {
   const id = String(formData.get("id"));
   const heading = String(formData.get("heading") ?? "").trim();
-  const { workspace } = await requireRole("EDITOR");
+  const { workspace, user } = await requireRole("EDITOR");
   if (await isGloballyPaused(workspace.id)) return;
   const post = await db.blogPost.findFirst({ where: { id, workspaceId: workspace.id } });
   if (!post?.body || !heading || post.protectedFromRewrite) return;
@@ -80,7 +80,7 @@ export async function regenerateSectionAction(formData: FormData) {
   const replacement = res.content.trim();
   if (!/^<h2/i.test(replacement)) return; // model went off-format — do nothing
 
-  await db.blogPostVersion.create({ data: { postId: post.id, label: `before section rewrite: ${heading.slice(0, 40)}`, body: post.body } });
+  await db.blogPostVersion.create({ data: { postId: post.id, label: `before section rewrite: ${heading.slice(0, 40)}`, body: post.body, actorId: user.id } });
   parts[idx] = replacement + "\n";
   await db.blogPost.update({ where: { id: post.id }, data: { body: parts.join("") } });
   await returnToReviewAfterEdit(workspace.id, post.id, "section rewrite");

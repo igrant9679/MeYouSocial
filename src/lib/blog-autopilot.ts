@@ -462,12 +462,12 @@ export async function generateDraftCore(workspaceId: string, postId: string, bri
   // Version history: preserve what generation is about to overwrite.
   if (post.body) {
     await db.blogPostVersion.create({
-      data: { postId: post.id, label: "before generation", body: post.body },
+      data: { postId: post.id, label: "before generation", body: post.body, actorId: brief.actorId ?? null },
     });
   }
   await db.blogPost.update({ where: { id: post.id }, data: { body: res.content } });
   // …and the draft itself, so a stale editor tab can never make it unrecoverable (ART-01).
-  await db.blogPostVersion.create({ data: { postId: post.id, label: "AI draft", body: res.content } });
+  await db.blogPostVersion.create({ data: { postId: post.id, label: "AI draft", body: res.content, actorId: brief.actorId ?? null } });
   await db.blogCitation.deleteMany({ where: { postId: post.id, verified: false } });
   const text = res.content.replace(/<[^>]+>/g, " ");
   // ⚠ Shared extractor (lib/citations-extract.ts): the old local regex dropped

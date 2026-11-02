@@ -1350,3 +1350,24 @@ before changing code in that area.
   real host in it before shipping a new one.
 - The feed line says what its rules do ("only items mentioning … · never … · drafts take the article's picture · drafts
   go to …"); the fields sit in a "Filters and defaults" fold, open when the feed has any. Viewers see neither.
+
+## ⚠ Article versions say who made them and can be compared before a restore (2026-11-02, audit Phase 5, growth part ao)
+- **Every version records its actor** (E-ART-03, `BlogPostVersion.actorId`, migration `20261101190000_version_actor`): all
+  seven writers pass it — saves and edit conflicts, restores, section rewrites, FAQ and key takeaways, applied findings
+  (`opts.actorId`), and generation (`brief.actorId`). Null means the engine, or auto-review for "before finding" rows.
+  `lib/version-actor.ts` names them; rows written **before the migration** (its `_prisma_migrations.finished_at`) say
+  "not recorded" — a person's save then looked the same as the engine's, so it never guesses. A new version writer must
+  pass the actor.
+- **`/blog/[id]/versions` compares any two versions, or one against the current text** (`lib/text-diff.ts`, no library):
+  the HTML as blocks (headings, paragraphs, list items…; images as "[image: alt]"), matched by LCS, then a word diff of
+  each edited pair; pairs only when they share ≥40% of words, else a removal and an addition. Long unchanged runs fold.
+  The tables are capped (4M block cells, 400K word cells) — past that a block or pair shows as replaced whole. Side by
+  side on desktop; stacked with Before/After labels on phones. Viewers can compare; Restore is for editors and only
+  when the version differs from the current text.
+- **Restore from the compare page answers there** (`back=versions`): "Restored “…”. The text it replaced is kept as
+  “before restore” — compared below", and the default compare then shows exactly what the restore changed.
+- **The palette's red is `--rose-*`; there is no `--red-*`.** Undefined tokens fail silently (the Keywords error banner,
+  falling-trend arrows and "high" competition pills were uncoloured; Elsie's tooltip arrow fell back to white on dark
+  cards). `--card` is now a token (white; `--bg` in both dark modes, as `.card` paints). **`scripts/check-css-vars.mts`
+  runs in prebuild** and fails the build on a static `var(--x)` that no CSS file, style object or next/font defines
+  (a `var()` with its own fallback is allowed; dynamic `var(--${hue}-…)` names can't be checked — use real hues).

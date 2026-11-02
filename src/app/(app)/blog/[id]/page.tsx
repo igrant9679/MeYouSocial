@@ -99,6 +99,7 @@ import { HelpTip } from "@/components/HelpTip";
 import { resolveImageProviderName } from "@/lib/images";
 import { BLOG_EDITOR_TAB_TIPS, BLOG_EDITOR_TIPS, IMAGE_TIPS } from "@/lib/help-tips";
 import { formatZonedMoment } from "@/lib/zoned-dates";
+import { actorRecordedFrom, versionActor } from "@/lib/version-actor";
 import { ArticlePerformance } from "./ArticlePerformance";
 import { ReadabilityCoach } from "./ReadabilityCoach";
 
@@ -263,6 +264,7 @@ export default async function BlogPostPage({
   });
   const memberName = new Map(members.map((m) => [m.userId, m.user.name ?? m.user.email ?? m.userId]));
   const commentAuthor = (authorId: string | null) => (authorId ? (memberName.get(authorId) ?? "someone") : "system");
+  const actorSince = post.versions.length ? await actorRecordedFrom() : null;
   const openComments = post.comments.filter((c) => !c.resolved).length;
 
   const [modelChoiceList, inheritedModel, postModelRuns] = await Promise.all([
@@ -1521,6 +1523,10 @@ export default async function BlogPostPage({
           <summary className="cursor-pointer select-none text-sm font-semibold">
             Version history <span className="font-mono text-xs text-[var(--mute)]">({post.versions.length})</span>
           </summary>
+          <p className="text-xs mt-2 mb-1">
+            <Link href={`/blog/${post.id}/versions`} className="underline" data-compare-link>Compare any two versions</Link>
+            <span className="text-[var(--mute)]"> — side by side, with the words that changed marked.</span>
+          </p>
           <ul className="mt-2 flex flex-col gap-1">
             {post.versions.map((v) => (
               <li key={v.id} className="flex items-center gap-2 text-xs border-b border-[var(--line)] pb-1 last:border-0">
@@ -1528,9 +1534,11 @@ export default async function BlogPostPage({
                   {formatZonedMoment(v.createdAt, tz)}
                 </span>
                 <span className="font-semibold">{v.label}</span>
+                <span className="text-[var(--mute)] shrink-0" data-version-actor>· {versionActor(v, memberName, actorSince)}</span>
                 <span className="text-[var(--mute)] flex-1 truncate">
                   {(v.body ?? "").replace(/<[^>]+>/g, " ").trim().slice(0, 80) || "(empty)"}
                 </span>
+                <Link href={`/blog/${post.id}/versions?a=${v.id}&b=current`} className="btn" title="See what changed between this version and the current text — and restore from there">Compare</Link>
                 {editor && (
                   <form action={restoreBlogVersionAction}>
                     <input type="hidden" name="versionId" value={v.id} />

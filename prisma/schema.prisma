@@ -297,6 +297,10 @@ model BlogPostVersion {
   postId    String
   label     String   // "generated", "saved", "restored from ..."
   body      String?
+  // Who caused it (E-ART-03): a person's user id; null = the engine (a
+  // generation it ran) or auto-review (a finding applied with nobody). Rows
+  // from before 2026-11-01 have none — the page says "not recorded".
+  actorId   String?
   createdAt DateTime @default(now())
 
   post BlogPost @relation(fields: [postId], references: [id], onDelete: Cascade)

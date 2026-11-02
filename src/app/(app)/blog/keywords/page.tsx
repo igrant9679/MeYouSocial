@@ -58,7 +58,7 @@ function trendDelta(points: TrendPoint[]): { pct: number; span: number } | null 
 function competitionLabel(c: number): { text: string; hue: string } {
   if (c < 0.34) return { text: "low", hue: "green" };
   if (c < 0.67) return { text: "medium", hue: "amber" };
-  return { text: "high", hue: "red" };
+  return { text: "high", hue: "rose" };
 }
 
 function Dash({ reason }: { reason: string }) {
@@ -158,7 +158,7 @@ export default async function KeywordsPage({ searchParams }: { searchParams: Pro
         <div className="text-xs rounded-lg px-3 py-2 mb-3" style={{ background: "var(--green-soft)", color: "var(--green-on)" }}>{ok}</div>
       )}
       {err && (
-        <div className="text-xs rounded-lg px-3 py-2 mb-3" style={{ background: "var(--red-soft)", color: "var(--red-on)" }}>{err}</div>
+        <div className="text-xs rounded-lg px-3 py-2 mb-3" style={{ background: "var(--rose-soft)", color: "var(--rose-on)" }}>{err}</div>
       )}
 
       {editor && (
@@ -352,7 +352,7 @@ export default async function KeywordsPage({ searchParams }: { searchParams: Pro
                           {delta ? (
                             <span
                               title={`${delta.pct > 0 ? "+" : ""}${delta.pct}% over ${delta.span} months`}
-                              style={{ color: delta.pct > 10 ? "var(--green-on)" : delta.pct < -10 ? "var(--red-on)" : "var(--mute)" }}
+                              style={{ color: delta.pct > 10 ? "var(--green-on)" : delta.pct < -10 ? "var(--rose-on)" : "var(--mute)" }}
                             >
                               {delta.pct > 10 ? "▲" : delta.pct < -10 ? "▼" : "→"} {Math.abs(delta.pct)}%
                             </span>

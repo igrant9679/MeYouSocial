@@ -145,9 +145,9 @@ export async function updateBlogPostAction(formData: FormData) {
   });
   if (bodyConflict) {
     // The newer text stays; theirs is kept where they can get it back.
-    await snapshotVersion(post.id, CONFLICT_LABEL, newBody);
+    await snapshotVersion(post.id, CONFLICT_LABEL, newBody, user.id);
   } else if (newBody !== post.body) {
-    await snapshotVersion(post.id, "saved", newBody);
+    await snapshotVersion(post.id, "saved", newBody, user.id);
   }
   if (wordsChanged) await returnToReviewAfterEdit(workspace.id, post.id, "edit", user.id);
   revalidatePath(`/blog/${post.id}`);
@@ -435,7 +435,7 @@ export async function autosaveBlogBodyAction(formData: FormData) {
   const current = bodyHash(before.body);
   if (base && base !== current) {
     const kept = await db.blogPostVersion.findFirst({ where: { postId: id, label: CONFLICT_LABEL, body }, select: { id: true } });
-    if (!kept) await snapshotVersion(id, CONFLICT_LABEL, body || null);
+    if (!kept) await snapshotVersion(id, CONFLICT_LABEL, body || null, user.id);
     return { ok: false as const, reason: "conflict" as const, hash: current };
   }
   const saved = await db.blogPost.updateMany({
@@ -452,8 +452,8 @@ export async function autosaveBlogBodyAction(formData: FormData) {
 const CONFLICT_LABEL = "your edit, kept — the article changed elsewhere";
 
 /** Keep the last 20 versions per post. */
-async function snapshotVersion(postId: string, label: string, body: string | null) {
-  await db.blogPostVersion.create({ data: { postId, label, body } });
+async function snapshotVersion(postId: string, label: string, body: string | null, actorId: string | null) {
+  await db.blogPostVersion.create({ data: { postId, label, body, actorId } });
   const excess = await db.blogPostVersion.findMany({
     where: { postId },
     orderBy: { createdAt: "desc" },
@@ -472,11 +472,18 @@ export async function restoreBlogVersionAction(formData: FormData) {
     where: { id: versionId, post: { workspaceId: workspace.id } },
     include: { post: { select: { id: true, body: true } } },
   });
-  if (!version) return;
-  await snapshotVersion(version.post.id, "before restore", version.post.body);
+  // From the compare page (E-ART-03) the answer comes back there, in words.
+  const fromCompare = formData.get("back") === "versions";
+  if (!version) {
+    if (fromCompare) redirect(`/blog?err=${encodeURIComponent("That version isn't in this workspace any more.")}`);
+    return;
+  }
+  await snapshotVersion(version.post.id, "before restore", version.post.body, user.id);
   await db.blogPost.update({ where: { id: version.post.id }, data: { body: version.body } });
   if (version.body !== version.post.body) await returnToReviewAfterEdit(workspace.id, version.post.id, "version restore", user.id);
   revalidatePath(`/blog/${version.post.id}`);
+  revalidatePath(`/blog/${version.post.id}/versions`);
+  if (fromCompare) redirect(`/blog/${version.post.id}/versions?ok=${encodeURIComponent(`Restored “${version.label}”. The text it replaced is kept as “before restore” — compared below.`)}`);
 }
 
 /**

@@ -311,7 +311,7 @@ export async function applyFindingCore(
 
   // Same write discipline as the editor: a version first, block-nesting
   // repaired on the way in, one audit row.
-  await db.blogPostVersion.create({ data: { postId: post.id, label: `before finding: ${finding.title.slice(0, 60)}`, body: post.body } });
+  await db.blogPostVersion.create({ data: { postId: post.id, label: `before finding: ${finding.title.slice(0, 60)}`, body: post.body, actorId: opts.actorId ?? null } });
   const nextBody = unwrapBlockParagraphs(insertProposal(post.body, finding.proposal, finding.anchor));
   await db.blogPost.update({ where: { id: post.id }, data: { body: nextBody } });
   await db.blogFinding.update({

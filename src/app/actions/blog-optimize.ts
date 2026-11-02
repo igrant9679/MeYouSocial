@@ -76,7 +76,7 @@ const PROTECTED = "This article is protected from rewrites, so nothing was added
 
 export async function addFaqSectionAction(formData: FormData) {
   const id = String(formData.get("id"));
-  const { workspace } = await requireRole("EDITOR");
+  const { workspace, user } = await requireRole("EDITOR");
   if (await isGloballyPaused(workspace.id)) backToOptimize(id, PAUSED, "err");
   const post = await db.blogPost.findFirst({ where: { id, workspaceId: workspace.id } });
   if (!post?.body) return backToOptimize(id, "This article has no text yet — write or draft it first.", "err");
@@ -103,7 +103,7 @@ export async function addFaqSectionAction(formData: FormData) {
   if (placeholder) backToOptimize(id, placeholder, "err");
   if (!pairs.length) backToOptimize(id, "The AI's answer had no usable questions, so nothing was added — try again.", "err");
 
-  await db.blogPostVersion.create({ data: { postId: post.id, label: "before FAQ section", body: post.body } });
+  await db.blogPostVersion.create({ data: { postId: post.id, label: "before FAQ section", body: post.body , actorId: user.id } });
   const html =
     `\n<h2>Frequently asked questions</h2>\n` +
     pairs.map((f) => `<h3>${f.q}</h3>\n<p>${f.a}</p>`).join("\n");
@@ -115,7 +115,7 @@ export async function addFaqSectionAction(formData: FormData) {
 
 export async function addKeyTakeawaysAction(formData: FormData) {
   const id = String(formData.get("id"));
-  const { workspace } = await requireRole("EDITOR");
+  const { workspace, user } = await requireRole("EDITOR");
   if (await isGloballyPaused(workspace.id)) backToOptimize(id, PAUSED, "err");
   const post = await db.blogPost.findFirst({ where: { id, workspaceId: workspace.id } });
   if (!post?.body) return backToOptimize(id, "This article has no text yet — write or draft it first.", "err");
@@ -141,7 +141,7 @@ export async function addKeyTakeawaysAction(formData: FormData) {
   if (placeholder) backToOptimize(id, placeholder, "err");
   if (!items.length) backToOptimize(id, "The AI's answer had no usable takeaways, so nothing was added — try again.", "err");
 
-  await db.blogPostVersion.create({ data: { postId: post.id, label: "before key takeaways", body: post.body } });
+  await db.blogPostVersion.create({ data: { postId: post.id, label: "before key takeaways", body: post.body , actorId: user.id } });
   const block = `<h2>Key takeaways</h2>\n<ul>\n${items.map((i) => `<li>${i}</li>`).join("\n")}\n</ul>\n`;
   // Insert after the first paragraph; fall back to prepending.
   const firstParaEnd = post.body.search(/<\/p>/i);
