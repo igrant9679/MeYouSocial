@@ -34,7 +34,7 @@ export async function openWorkIndex(workspaceId: string): Promise<OpenWork[]> {
   return [
     ...articles.map((i) => row("article", i.id, i.title, i.status, `/ideas/article/${i.id}`, i.sourceVideoId)),
     ...videos.map((i) => row("video", i.id, i.title, i.status, `/ideas?format=video&q=${encodeURIComponent(i.title.slice(0, 60))}`, i.sourceVideoId)),
-    ...socials.map((i) => row("social", i.id, i.hook, i.status, `/ideas?format=social&q=${encodeURIComponent(i.hook.slice(0, 60))}`, i.sourceVideoId)),
+    ...socials.map((i) => row("social", i.id, i.hook, i.status, `/ideas/social/${i.id}`, i.sourceVideoId)),
     ...drafts.map((p) => row("article_draft", p.id, p.title, p.status, `/blog/${p.id}`)),
     ...scripts.map((s) => row("script", s.id, s.title, s.status, `/scripts/${s.id}`)),
   ];

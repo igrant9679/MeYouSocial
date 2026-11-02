@@ -1276,3 +1276,14 @@ before changing code in that area.
   with a total row and a dash where nothing was measured; and its best posts by engagement (`resultsForPosts`).
 - Reached from the campaign name on Settings → Schedule and on a post row in Queue / Sent / Drafts (`listInclude`
   carries the campaign id).
+
+## ⚠ Ideas have detail pages (2026-11-01, audit Phase 5, growth part aj)
+- **E-IDE-16**: `/ideas/article/[id]` is now readable by **every member** (the Tags and Merge forms stay editors'), and
+  social ideas get `/ideas/social/[id]` (new). Both show what the idea is and where it came from (the research video, the
+  article whose angle it is, the feed link), its Topic, its priority with the lines the scoring wrote (`priorityReason`;
+  social ideas store none and say so), the post it became, what it was merged into, and its **history**
+  (`lib/idea-history.ts`: the audit rows its actions already write — approved, rejected, not yet, restored, merged in /
+  into, made from a finding or from Losing clicks — oldest first, with who; "the engine" where nobody acted).
+- Social page: editors get Approve / Reject / Not yet / Restore (the board's `setSocialIdeaStatusAction`) and an edit form
+  (`updateSocialIdeaAction`); a drafted idea points editing at its post. Board card titles link to these pages, and the
+  duplicate flags (part af) point social matches at them.

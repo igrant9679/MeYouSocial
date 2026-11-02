@@ -561,7 +561,7 @@ function ArticleCard({ idea, editor, topics, select, rank, dup, back }: { idea: 
       <div className="flex items-start gap-1.5">
         {select && <SelectBox lane={select} value={`article:${idea.id}`} label={idea.title} />}
         <FormatChip format="article" />
-        <span className="text-xs font-semibold leading-snug flex-1">{idea.title}</span>
+        <Link href={`/ideas/article/${idea.id}`} className="text-xs font-semibold leading-snug flex-1 hover:underline" data-idea-link>{idea.title}</Link>
         {idea.priority != null && <Tag title={idea.priorityReason ?? undefined}>{idea.priority}</Tag>}
       </div>
       {dup && <DupLine format="article" id={idea.id} dup={dup} canMerge={editor && (idea.status === "discovered" || idea.status === "approved")} back={back} />}
@@ -721,7 +721,7 @@ function SocialCard({ idea, editor, topics, select, dup, back }: { idea: SocialR
       <div className="flex items-start gap-1.5">
         {select && <SelectBox lane={select} value={`social:${idea.id}`} label={idea.hook} />}
         <FormatChip format="social" />
-        <span className="text-xs font-semibold leading-snug flex-1">{idea.hook}</span>
+        <Link href={`/ideas/social/${idea.id}`} className="text-xs font-semibold leading-snug flex-1 hover:underline" data-idea-link>{idea.hook}</Link>
         {idea.priority != null && <Tag>{idea.priority}</Tag>}
         {idea.status === "rejected" && isRejectReason(idea.rejectReason) && <Tag hue="rose" title="Why it was rejected — discovery steers away from this">{REJECT_REASONS[idea.rejectReason]}</Tag>}
       </div>
