@@ -9,6 +9,7 @@ import { StageHeader } from "@/components/StageShell";
 import { topicLedgers, topicSuggestions, untaggedIdeaCount } from "@/lib/topics";
 import { createTopicAction, mergeTopicAction, dismissTopicSuggestionAction, toggleTopicStatusAction, updateTopicAction } from "@/app/actions/brand-hub";
 import { discoverIdeasAction } from "@/app/actions/ideas";
+import { MIN_CHANNELS, MIN_VIDEOS, researchTopicSuggestions } from "@/lib/research-topics";
 
 // Topics — the spine (2026-09-21). Moved here from Brand because a Topic is
 // not identity, it is what the loop is ABOUT: Research is matched to it,
@@ -27,6 +28,8 @@ export default async function TopicsPage({ searchParams }: { searchParams: Promi
   // Merging and deleting re-file everyone's work, so they are an admin's (E-IDE-06).
   const admin = canAdmin(membership.role);
   const [ledgers, untagged, suggestions] = await Promise.all([topicLedgers(workspace.id), untaggedIdeaCount(workspace.id), topicSuggestions(workspace.id)]);
+  // E-IDE-22: themes in Research's outliers that no Topic covers — not the keyword suggestions' names again.
+  const research = editor ? await researchTopicSuggestions(workspace.id, suggestions.map((s) => s.name)).catch(() => null) : null;
   const active = ledgers.filter((t) => t.status === "active");
   const archived = ledgers.filter((t) => t.status !== "active");
   // The Topics another can be merged into — every other one, active or archived.
@@ -108,6 +111,50 @@ export default async function TopicsPage({ searchParams }: { searchParams: Promi
                   <input type="hidden" name="back" value={BACK} />
                   <SubmitButton className="btn sm" pendingText="…" title="Stop suggesting this cluster">Discard</SubmitButton>
                 </form>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {/* Suggested from Research (E-IDE-22): words several strong outliers
+          share, from more than one channel, among those no Topic matches.
+          Grouped by plain word overlap — no model — and said so. */}
+      {editor && research && research.suggestions.length > 0 && (
+        <section className="card mb-4" style={{ background: "var(--zebra)" }} id="from-research" data-research-suggestions>
+          <h2 className="font-mono text-[12px] font-bold mb-0.5">Suggested from Research</h2>
+          <p className="text-[11px] text-[var(--mute)] mb-2">
+            {research.unmatched} of Research&apos;s strong outliers match no Topic. These are words at least {MIN_VIDEOS} of them share, from {MIN_CHANNELS}+ channels — grouped by the words in their titles, nothing more.
+          </p>
+          <ul className="flex flex-col gap-2.5">
+            {research.suggestions.map((sg) => (
+              <li key={sg.term} className="text-xs border-t border-[var(--line)] first:border-0 pt-2 first:pt-0" data-research-suggestion={sg.term}>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-semibold">{sg.name}</span>
+                  <span className="font-mono text-[10px] text-[var(--mute)]">{sg.videos} outlier{sg.videos === 1 ? "" : "s"} · {sg.channels} channels · median {sg.medianScore.toFixed(1)}×</span>
+                  {sg.phrases.length > 1 && <span className="text-[10px] text-[var(--mute)] truncate max-w-md">also {sg.phrases.slice(1).join(" · ")}</span>}
+                  <span className="flex-1" />
+                  <form action={createTopicAction}>
+                    <input type="hidden" name="name" value={sg.name} />
+                    <input type="hidden" name="keywords" value={sg.phrases.join(", ")} />
+                    <input type="hidden" name="back" value={BACK} />
+                    <SubmitButton className="btn sm primary" pendingText="Adding…">Add as Topic</SubmitButton>
+                  </form>
+                  <form action={dismissTopicSuggestionAction}>
+                    <input type="hidden" name="name" value={sg.name} />
+                    <input type="hidden" name="back" value={BACK} />
+                    <SubmitButton className="btn sm" pendingText="…" title="Stop suggesting this theme, or any other using its words">Discard</SubmitButton>
+                  </form>
+                </div>
+                <ul className="m-0 mt-1 pl-3 list-none flex flex-col gap-0.5 text-[11px]">
+                  {sg.examples.map((e) => (
+                    <li key={e.id} className="truncate">
+                      <span className="font-mono text-[10px] text-[var(--mute)] mr-1.5">{e.score.toFixed(1)}×</span>
+                      <Link href={`/intel/videos/${e.id}`} className="hover:underline">{e.title}</Link>
+                      <span className="text-[var(--mute)]"> · {e.channelName}</span>
+                    </li>
+                  ))}
+                </ul>
               </li>
             ))}
           </ul>

@@ -1458,3 +1458,17 @@ before changing code in that area.
   140 characters); delete through the DeleteButton registry (`chartNote`, EDITOR). Workspace-wide: a note shows on
   every chart that spans its day. Search charts end at the latest reading, so a note for the last day or two waits for
   that day's readings — the flash says so.
+
+## ⚠ Research suggests Topics for the outliers no Topic covers (2026-11-02, audit Phase 5, growth part av)
+- **Themes, not a model** (E-IDE-22, `lib/research-topics.ts`): Research's strong outliers (2×+, past the views floor —
+  the set Research lists) that `matchTopic` places under no Topic are grouped by a word, or a pair of side-by-side words,
+  their titles share — at least `MIN_VIDEOS` (3) titles from `MIN_CHANNELS` (2) channels, so one channel's series is
+  never a theme. Greedy, outlier-weighted; each title in one theme at most; up to 6. Computed when read, never stored.
+- **A theme never reuses a word** of a Topic's name, a discarded suggestion or a keyword-cluster suggestion — discarding
+  "Grant writing" must not bring the same videos back as "Grant" or "Writing". Discards share
+  `topics:dismissed_suggestions` with the keyword suggestions; `researchTopicSuggestions` reads the keyword suggestions'
+  names itself unless given them, so Research's count and the Topics card agree.
+- **Ideas → Topics → "Suggested from Research"** (editors): name, outliers · channels · median ratio, the three strongest
+  titles linked to their video pages, Add as Topic (the theme's words as phrases, so its titles then match it) and
+  Discard. Research's Unmatched group links to it when it has themes.
+- `createTopicAction` refuses a name another Topic has in any case ("grant" when "Grant" exists), as a rename does.

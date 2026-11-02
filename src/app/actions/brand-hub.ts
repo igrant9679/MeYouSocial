@@ -84,8 +84,9 @@ export async function createTopicAction(formData: FormData) {
     .filter(Boolean)
     .slice(0, 30);
 
-  const existing = await db.topic.findFirst({ where: { workspaceId: workspace.id, name } });
-  if (existing) topicBack(formData, `“${name}” is already a topic.`, "err");
+  // Case-insensitive, as a rename is (E-IDE-06): "Grant writing" and "grant writing" are one Topic.
+  const existing = await db.topic.findFirst({ where: { workspaceId: workspace.id, name: { equals: name, mode: "insensitive" } }, select: { name: true } });
+  if (existing) topicBack(formData, `“${existing.name}” is already a topic.`, "err");
 
   await db.topic.create({
     data: { workspaceId: workspace.id, name, description, keywords: writeJson(keywords) },

@@ -292,6 +292,7 @@ area, rather than loading all of them into every session.
 - Posts can be saved as templates and copied to another workspace — 2026-11-02, audit Phase 5, growth part as
 - The workspace switcher shows what waits elsewhere and keeps your place — 2026-11-02, audit Phase 5, growth part at
 - Charts mark what happened: publishes, sends, automation changes and notes — 2026-11-02, audit Phase 5, growth part au
+- Research suggests Topics for the outliers no Topic covers — 2026-11-02, audit Phase 5, growth part av
 
 ## Open items / things the user still owns
 - **Analytics: APIs enabled 2026-08-03** (Search Console + GA Admin + GA Data, on project

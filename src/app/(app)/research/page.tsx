@@ -1,4 +1,5 @@
 import { OUTLIER_MIN_VIEWS } from "@/lib/intel";
+import { MIN_VIDEOS, researchTopicSuggestions } from "@/lib/research-topics";
 import Link from "next/link";
 import { requireMembership, canEdit } from "@/lib/acl";
 import { db } from "@/lib/db";
@@ -61,6 +62,10 @@ export default async function ResearchStage({ searchParams }: { searchParams: Pr
     ...(matched.get(null)?.length ? [{ topic: null, rows: matched.get(null)!.slice(0, PER_GROUP), total: matched.get(null)!.length }] : []),
   ];
   const topicOptions = topics.map((t) => ({ id: t.id, name: t.name }));
+  // E-IDE-22: themes among the unmatched, suggested as Topics on Ideas → Topics.
+  const themes = editor && (matched.get(null)?.length ?? 0) >= MIN_VIDEOS
+    ? (await researchTopicSuggestions(workspace.id).catch(() => null))?.suggestions.length ?? 0
+    : 0;
 
   return (
     <div>
@@ -99,6 +104,11 @@ export default async function ResearchStage({ searchParams }: { searchParams: Pr
                 {g.topic ? <Link href={`/ideas/topics/${g.topic.id}`} className="hover:underline">{g.topic.name}</Link> : "Unmatched"}
                 <span className="font-mono text-[11px] font-normal text-[var(--mute)]">{g.total > g.rows.length ? `${g.rows.length} of ${g.total}` : g.total}</span>
                 {g.topic && g.rows.length > 0 && <span className="text-[10px] font-normal text-[var(--mute)]">matched by keyword</span>}
+                {!g.topic && themes > 0 && (
+                  <Link href="/ideas/topics#from-research" className="text-[10px] font-normal underline text-[var(--mute)]" data-research-themes={themes}>
+                    {themes} theme{themes === 1 ? "" : "s"} in these, suggested as Topics →
+                  </Link>
+                )}
               </h2>
               {g.rows.length === 0 ? (
                 <p className="text-[11px] text-[var(--mute)] py-1 m-0">
