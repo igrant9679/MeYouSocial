@@ -27,7 +27,7 @@ export type DeletableKind =
   | "task" | "asset" | "wikiDoc" | "audienceSubmission" | "audienceAvatar"
   | "invitation" | "membership" | "zernioAccount" | "workspace" | "campaign"
   | "zernioComment" | "brandFact" | "brandDocument" | "socialIdea"
-  | "specialDay" | "captionBatch" | "rssFeed" | "mediaItem" | "socialPost" | "topic";
+  | "specialDay" | "captionBatch" | "rssFeed" | "mediaItem" | "socialPost" | "topic" | "socialTemplate";
 
 export type DeletableTarget = { id: string; name: string };
 
@@ -147,6 +147,15 @@ export const DELETABLE: Record<DeletableKind, Deletable> = {
     find: (id, workspaceId) => db.specialDay.findFirst({ where: { id, workspaceId }, select: { id: true, name: true } }),
     async remove(id, workspaceId) { await db.specialDay.deleteMany({ where: { id, workspaceId } }); },
     revalidate: ["/social/captions"],
+  },
+  // Post templates (E-SOC-23): the template only — posts started from it and
+  // the images it points at stay.
+  socialTemplate: {
+    label: "template",
+    role: "EDITOR",
+    find: (id, workspaceId) => db.socialTemplate.findFirst({ where: { id, workspaceId }, select: { id: true, name: true } }),
+    async remove(id, workspaceId) { await db.socialTemplate.deleteMany({ where: { id, workspaceId } }); },
+    revalidate: ["/social/compose"],
   },
   // RSS (2026-10-17): unfollowing deletes the feed and its item log; the
   // ideas and drafts it already made stay where they are.

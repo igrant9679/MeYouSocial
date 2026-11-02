@@ -107,6 +107,7 @@ export function SocialComposer({
   optimal,
   preloadMedia = [],
   snippets = [],
+  seed,
 }: {
   accounts: ComposerAccount[];
   topics?: ComposerTopic[];
@@ -125,6 +126,8 @@ export function SocialComposer({
   preloadMedia?: Array<{ key: string; url: string }>;
   /** Saved hashtag sets and snippets (E-SOC-10); a category narrows where one is offered. */
   snippets?: Array<{ id: string; name: string; body: string; category: string | null }>;
+  /** A template's content to start a NEW post from (E-SOC-23) — unlike `initial`, this isn't editing. */
+  seed?: { text: string; firstComment: string | null; category: string | null };
 }) {
   // Editing reuses this component wholesale rather than a parallel form — a
   // second implementation would drift from the composer's per-network rules.
@@ -132,7 +135,7 @@ export function SocialComposer({
   const [selected, setSelected] = useState<Set<string>>(
     new Set(initial ? initial.accountIds : accounts.length === 1 ? [accounts[0].id] : []),
   );
-  const [text, setText] = useState(initial?.text ?? "");
+  const [text, setText] = useState(initial?.text ?? seed?.text ?? "");
   const [topicId, setTopicId] = useState(initial?.topicId ?? "");
   const [campaignId, setCampaignId] = useState(initial?.campaignId ?? "");
   const [evergreen, setEvergreen] = useState(initial?.evergreen ?? false);
@@ -146,8 +149,8 @@ export function SocialComposer({
   const [when, setWhen] = useState<"now" | "schedule" | "draft" | "queue" | "optimal">(
     initial ? (initial.scheduledAtLocal ? "schedule" : "draft") : accounts.length === 0 ? "draft" : "now",
   );
-  const [category, setCategory] = useState(initial?.category ?? "");
-  const [firstComment, setFirstComment] = useState(initial?.firstComment ?? "");
+  const [category, setCategory] = useState(initial?.category ?? seed?.category ?? "");
+  const [firstComment, setFirstComment] = useState(initial?.firstComment ?? seed?.firstComment ?? "");
   const [tiktok, setTiktok] = useState<TikTokOptions>(initial?.tiktok ?? TIKTOK_DEFAULTS);
   const textRef = useRef<HTMLTextAreaElement>(null);
   const optimalPick = optimal && "label" in optimal ? optimal : null;

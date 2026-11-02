@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Copy, ExternalLink, Eye, Pencil, RotateCw } from "lucide-react";
+import { ArrowLeft, Copy, ExternalLink, Eye, LayoutTemplate, Pencil, RotateCw, Send } from "lucide-react";
 import { requireMembership, canEdit } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { readJson } from "@/lib/db/json";
@@ -10,6 +10,7 @@ import { mayHavePosted } from "@/lib/social/unknown-outcome";
 import { formatInZone, getPostingTimeZone } from "@/lib/social/slots";
 import { DELETABLE_POST_STATUSES } from "@/lib/social/post-lists";
 import { duplicateSocialPostAction, publishNowAction } from "@/app/actions/social";
+import { copyPostToWorkspaceAction, saveTemplateFromPostAction } from "@/app/actions/social-templates";
 import { SubmitButton } from "@/components/SubmitButton";
 import { DeleteButton } from "@/components/DeleteButton";
 import { MediaThumbs, STATUS_STYLE } from "@/components/SocialPostCard";
@@ -24,8 +25,13 @@ type SP = { ok?: string; err?: string };
 export default async function SocialPostPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<SP> }) {
   const { id } = await params;
   const { ok, err } = await searchParams;
-  const { workspace, membership } = await requireMembership();
+  const { workspace, membership, user } = await requireMembership();
   const editor = canEdit(membership.role);
+  // Other workspaces this person edits — where a copy can go (E-SOC-23).
+  const copyTargets = user.memberships
+    .filter((m) => m.status === "active" && m.workspaceId !== workspace.id && (m.role === "EDITOR" || m.role === "ADMIN"))
+    .map((m) => ({ id: m.workspaceId, name: m.workspace.name }))
+    .sort((a, b) => a.name.localeCompare(b.name));
 
   const [post, tz] = await Promise.all([
     db.socialPost.findFirst({
@@ -90,6 +96,28 @@ export default async function SocialPostPage({ params, searchParams }: { params:
           </div>
         )}
       </div>
+
+      {editor && (
+        <div className="card mb-3 flex flex-wrap items-end gap-x-4 gap-y-2 text-xs" data-reuse>
+          <form action={saveTemplateFromPostAction} className="flex items-end gap-1.5" data-save-template>
+            <input type="hidden" name="id" value={post.id} />
+            <label><span className="block text-[10px] text-[var(--mute)] mb-1">Template name</span>
+              <input name="name" maxLength={60} placeholder={name.slice(0, 40)} className="border border-[var(--line-2)] rounded-lg px-2 py-1 text-xs w-48" /></label>
+            <SubmitButton className="btn sm" pendingText="Saving…" title="Keep this post's words, first comment, images and category as a starting point in Compose"><LayoutTemplate className="w-3.5 h-3.5" /> Save as template</SubmitButton>
+          </form>
+          {copyTargets.length > 0 && (
+            <form action={copyPostToWorkspaceAction} className="flex items-end gap-1.5" data-copy-to>
+              <input type="hidden" name="id" value={post.id} />
+              <label><span className="block text-[10px] text-[var(--mute)] mb-1">Copy to another workspace</span>
+                <select name="workspaceId" required defaultValue="" className="border border-[var(--line-2)] rounded-lg px-2 py-1 text-xs">
+                  <option value="" disabled>Choose…</option>
+                  {copyTargets.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
+                </select></label>
+              <SubmitButton className="btn sm" pendingText="Copying…" title="A draft there with the same words and images — accounts are that workspace's own, so you choose them there"><Send className="w-3.5 h-3.5" /> Copy</SubmitButton>
+            </form>
+          )}
+        </div>
+      )}
 
       {(ok || err) && (
         <div className="card mb-3 text-sm" style={{ background: ok ? "var(--green-soft)" : "var(--rose-soft)", color: ok ? "var(--green-on)" : "var(--rose-on)" }}>

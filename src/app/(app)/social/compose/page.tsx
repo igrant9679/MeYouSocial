@@ -15,15 +15,16 @@ import { optimalTime } from "@/lib/social/optimal";
 import { SocialCsvImport } from "@/components/SocialCsvImport";
 import { saveSnippetAction, deleteSnippetAction } from "@/app/actions/social-snippets";
 import { Banner, SocialHeader } from "@/components/SocialPostCard";
+import { DeleteButton } from "@/components/DeleteButton";
 
 // Composing, and the bulk path that skips composing. Everything that CREATES a
 // post lives here; everything that manages one lives on the other tabs.
 
-type SP = { ok?: string; err?: string; media?: string | string[] };
+type SP = { ok?: string; err?: string; media?: string | string[]; template?: string };
 
 export default async function SocialComposePage({ searchParams }: { searchParams: Promise<SP> }) {
   const { workspace, membership } = await requireRole("EDITOR");
-  const { ok, err, media } = await searchParams;
+  const { ok, err, media, template: templateId } = await searchParams;
   // ?media=<id>&media=<id> — images picked on Distribute → Media.
   const mediaIds = (Array.isArray(media) ? media : media ? [media] : []).slice(0, 4);
   const picked = mediaIds.length
@@ -61,6 +62,12 @@ export default async function SocialComposePage({ searchParams }: { searchParams
   // The workspace's categories (Socialmonials' defaults until it saves its
   // own), with any slot lane that isn't on the list yet.
   const slotCategories = [...new Set(queue.slots.map((s) => s.category).filter((c): c is string => Boolean(c)))];
+  // Post templates (E-SOC-23): ?template=<id> starts a new post from one.
+  const templates = await db.socialTemplate.findMany({ where: { workspaceId: workspace.id }, orderBy: { name: "asc" }, select: { id: true, name: true, text: true, firstComment: true, category: true, mediaKeys: true } });
+  const template = templateId ? templates.find((t) => t.id === templateId) ?? null : null;
+  // Only images still in this workspace's library come along.
+  const templateKeys = template ? readJson<string[]>(template.mediaKeys, []).slice(0, 4) : [];
+  const templateMedia = templateKeys.length ? await db.mediaItem.findMany({ where: { workspaceId: workspace.id, key: { in: templateKeys } }, select: { key: true } }) : [];
   const snippets = await db.socialSnippet.findMany({ where: { workspaceId: workspace.id }, orderBy: { name: "asc" }, select: { id: true, name: true, body: true, category: true } });
   const [categories, watermarkAvailable, optimal] = await Promise.all([
     listCategories(workspace.id, slotCategories),
@@ -80,6 +87,8 @@ export default async function SocialComposePage({ searchParams }: { searchParams
 
       {ok && <Banner kind="ok" text={ok} />}
       {err && <Banner kind="err" text={err} />}
+      {template && <Banner kind="ok" text={`Started from the template “${template.name}” — choose the accounts, change anything, then send or save.${templateMedia.length < templateKeys.length ? " An image it used is no longer in Media, so it's left out." : ""}`} />}
+      {templateId && !template && <Banner kind="err" text="That template isn't here any more." />}
 
       {accounts.length === 0 && (
         <div className="card mb-4 text-xs" style={{ borderColor: "var(--amber)" }}>
@@ -97,10 +106,30 @@ export default async function SocialComposePage({ searchParams }: { searchParams
         approvalNotice={requireApproval && !canAdmin(membership.role)}
         queue={{ nextFree: nextFreeLabel, hasSlots, timeZone: queue.timeZone }}
         watermarkAvailable={watermarkAvailable}
-        preloadMedia={picked.map((m) => ({ key: m.key, url: storage.url(m.key) }))}
+        preloadMedia={(template ? templateMedia : picked).map((m) => ({ key: m.key, url: storage.url(m.key) }))}
+        seed={template ? { text: template.text, firstComment: template.firstComment, category: template.category } : undefined}
         optimal={optimal.ok ? { label: optimal.label, why: optimal.why } : { reason: optimal.reason }}
         snippets={snippets}
       />
+
+      {/* Post templates (E-SOC-23): saved from a post's page; Use starts a new post with its content. */}
+      <details id="templates" className="card mb-4 scroll-mt-20" open={templates.length > 0 && !template} data-templates>
+        <summary className="cursor-pointer text-sm font-semibold">Templates <span className="font-normal text-[var(--mute)]">({templates.length})</span></summary>
+        {templates.length === 0 ? (
+          <p className="text-xs text-[var(--mute)] mt-2 mb-0">None yet. Open any post and press <b>Save as template</b> — its words, first comment, images and category become a starting point here.</p>
+        ) : (
+          <ul className="m-0 p-0 mt-2 flex flex-col gap-1.5 list-none">
+            {templates.map((t) => (
+              <li key={t.id} className="text-xs flex items-start gap-2 border-t border-[var(--line)] first:border-t-0 pt-1.5" data-template={t.id}>
+                <b className="shrink-0">{t.name}</b>
+                <span className="flex-1 text-[var(--mute)] whitespace-pre-wrap line-clamp-2">{t.text || "(images only)"}</span>
+                <Link href={`/social/compose?template=${t.id}`} className="btn sm">Use</Link>
+                <DeleteButton kind="socialTemplate" id={t.id} name={t.name} returnTo="/social/compose" iconOnly />
+              </li>
+            ))}
+          </ul>
+        )}
+      </details>
 
       {/* Saved hashtag sets and snippets (E-SOC-10) — offered under the post text above. */}
       <details id="snippets" className="card mb-6 scroll-mt-20" data-snippet-manager>

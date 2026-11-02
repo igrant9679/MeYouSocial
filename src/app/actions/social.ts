@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { resolveApprovalForCreate } from "@/lib/social/approval-for-create";
 import { redirect } from "next/navigation";
 import { requireRole } from "@/lib/acl";
 import { db } from "@/lib/db";
@@ -150,25 +151,6 @@ async function storeMedia(files: FormDataEntryValue[], workspaceId: string): Pro
     if (keys.length >= MEDIA_MAX) break;
   }
   return keys;
-}
-
-/**
- * Approval workflow resolution for a post being created or resubmitted.
- *
- * When `social:require_approval` is on, a non-admin's post carries
- * approval="pending" and is HELD AS A DRAFT whatever send option they chose —
- * the requested time is kept on scheduledAt so approving can honor it. Admins'
- * own posts are stamped "approved" so the UI can say so. With the workflow
- * off, approval stays null and nothing changes.
- */
-async function resolveApprovalForCreate(
-  workspaceId: string, role: string,
-): Promise<{ requireApproval: boolean; approval: string | null; held: boolean }> {
-  const { getSetting } = await import("@/lib/settings");
-  const requireApproval = (await getSetting("social:require_approval", workspaceId).catch(() => "")) === "true";
-  if (!requireApproval) return { requireApproval, approval: null, held: false };
-  const held = role !== "ADMIN";
-  return { requireApproval, approval: held ? "pending" : "approved", held };
 }
 
 /** Campaign / category / evergreen fields shared by create and update. */

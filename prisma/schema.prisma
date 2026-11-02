@@ -103,6 +103,7 @@ model Workspace {
   recommendations Recommendation[]
   jobs            Job[]
   engineCycles    EngineCycle[]
+  socialTemplates SocialTemplate[]
 
   // This workspace's Zernio profile — Zernio's tenant boundary. Created lazily
   // the first time an account is connected, then reused.
@@ -2407,6 +2408,26 @@ model MediaItem {
 
   @@unique([workspaceId, key])
   @@index([workspaceId, createdAt])
+}
+
+// Post templates (E-SOC-23): a whole post — words, first comment, images and
+// category — saved from a post and started again from Compose. Networks aren't
+// kept: a template is the content, the accounts are chosen each time.
+model SocialTemplate {
+  id           String   @id @default(cuid())
+  workspaceId  String
+  name         String
+  text         String
+  firstComment String?
+  category     String?
+  mediaKeys    String   @default("[]") // JSON array of this workspace's storage keys
+  createdById  String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
 }
 
 // Saved hashtag sets and snippets (E-SOC-10): text a team reuses in posts —

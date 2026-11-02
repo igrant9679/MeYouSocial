@@ -1414,3 +1414,18 @@ before changing code in that area.
   rows, "was" from the row before). Nothing shows until a change is recorded — dials set before 2026-11-02 have no
   history. The audit log lists the rows ("Changed a setting").
 - Not done: finding a setting from Ctrl+K — there is no command palette yet.
+
+## ⚠ Posts can be saved as templates and copied to another workspace (2026-11-02, audit Phase 5, growth part as)
+- **Templates keep a post's content, not its networks** (E-SOC-23, `SocialTemplate`, migration
+  `20261102020000_social_templates`): words, first comment, category and image keys, saved from a post's page (Save as
+  template; 100 per workspace). Compose lists them (Use / delete through the `socialTemplate` registry kind);
+  `?template=<id>` starts a NEW post through the composer's `seed` prop — not `initial`, which means editing. Only images
+  still in this workspace's media library come along, and the banner says when one is left out.
+- **Copy to another workspace** (`copyPostToWorkspaceAction`, on the post page): only to a workspace where the person is
+  an active editor or admin and that isn't deleted — never the current one. The copy is a draft with **no accounts**
+  (accounts belong to a workspace), the target's approval rule applies to the person's role there, a category the target
+  doesn't have is dropped, and **each image is read and stored again with the target as owner** (plus a Media row), so
+  the target's members can open it — referencing the source's key would 404 for them. An image that can't be read is
+  left behind and the message says how many. Audit rows on both sides (`social.copied_out` / `social.copied_in`).
+- `resolveApprovalForCreate` now lives in `lib/social/approval-for-create.ts` (a "use server" file can't export a
+  helper without making it callable from the browser).
