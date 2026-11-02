@@ -288,6 +288,7 @@ area, rather than loading all of them into every session.
 - Article versions say who made them and can be compared before a restore; colour tokens are checked at build — 2026-11-02, audit Phase 5, growth part ao
 - Articles preview their Google result and social cards as the fields are typed — 2026-11-02, audit Phase 5, growth part ap
 - Automation shows a week of engine cycles, quiet runs folded and silences marked — 2026-11-02, audit Phase 5, growth part aq
+- Dials say who changed them and what they were — 2026-11-02, audit Phase 5, growth part ar
 
 ## Open items / things the user still owns
 - **Analytics: APIs enabled 2026-08-03** (Search Console + GA Admin + GA Data, on project

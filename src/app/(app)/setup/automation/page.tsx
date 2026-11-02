@@ -19,6 +19,9 @@ import { formatInZone, getQueue } from "@/lib/social/slots";
 import { previewNextSweep, nextSweepFrom } from "@/lib/sweep-plan";
 import { NextSweepCard } from "@/components/NextSweepCard";
 import { EngineTimeline } from "@/components/EngineTimeline";
+import { DialNote } from "@/components/DialNote";
+import { lastModeChanges, lastSettingChanges } from "@/lib/setting-history";
+import { AUTONOMY_KEY } from "@/lib/autonomy";
 import { KEEP_DAYS, timeline } from "@/lib/engine-timeline";
 
 // Settings → Automation: what runs by itself. The master switch, the global
@@ -67,14 +70,22 @@ export default async function SetupAutomation({ searchParams }: { searchParams: 
   const missedCount = queuePause ? (await missedWhilePaused(workspace.id)).length : 0;
   // E-ENG-03 / E-ENG-06: the last check-in, and today's allowance against its limit.
   const { generationsToday, DAILY_AI_BUDGET } = await import("@/lib/blog-autopilot");
-  const [heartbeat, aiUsed, sweep, cycleRows] = await Promise.all([
+  const [heartbeat, aiUsed, sweep, cycleRows, dialChanges, modeChanges] = await Promise.all([
     readHeartbeat(workspace.id).catch(() => null),
     generationsToday(workspace.id).catch(() => null),
     // E-ENG-05: what the next cycle drafts, publishes and queues — read, never done.
     previewNextSweep(workspace.id).catch(() => null),
     // E-ENG-04: the week's cycles, newest first.
     db.engineCycle.findMany({ where: { workspaceId: workspace.id, at: { gte: new Date(requestNow() - KEEP_DAYS * 86_400_000) } }, orderBy: { at: "desc" }, take: 3000, select: { at: true, skipped: true, budgetReached: true, activity: true, failed: true, report: true } }).catch(() => []),
+    // E-SET-05: who last changed each dial here, and from what.
+    lastSettingChanges(workspace.id, [AUTONOMY_KEY, "autopilot:weekly_articles", "autopilot:publish_day", "blog:auto_seo", "social:autoqueue", "social:evergreen_fill", "social:auto_image", "social:autogen", "social:autogen_weekly", "social:autogen_campaign", "ideas:social_gate", "social:source"]).catch(() => new Map()),
+    lastModeChanges(workspace.id).catch(() => new Map()),
   ]);
+  const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  const dayLabel = (v: string | null) => (v ? (DAYS[parseInt(v, 10)] ?? v) : "any day");
+  const campaignLabel = (v: string | null) => (v ? (campaigns.find((c) => c.id === v)?.name ?? "a campaign since removed") : "no campaign");
+  const onOff = (v: string | null) => (v === "true" ? "on" : "off");
+  const note = (key: string, fmt?: (v: string | null) => string) => <DialNote change={dialChanges.get(key)} timeZone={queue.timeZone} fmt={fmt} />;
   const nextSweepAt = heartbeat ? nextSweepFrom(new Date(heartbeat.at), intervalMin, requestNow()) : null;
   const nextFreeLabel = queue.free[0] ? formatInZone(queue.free[0].at, queue.timeZone) : null;
 
@@ -101,6 +112,7 @@ export default async function SetupAutomation({ searchParams }: { searchParams: 
           <b>The gates review as well as block:</b> with this on, the app fills missing SEO, renders missing images and has a vision model look at every AI image before approving it, and sources <span className="font-mono">[NEEDS SOURCE]</span> claims from live web search. <b>What still stops a post:</b> a claim no real source backs, an image that keeps failing inspection, or a provider outage — those hold at Review and reach your Inbox.
           {autonomy.requireApproval && <> Social posts are also held by <b>require approval</b> (under <Link href="/setup/people" className="underline">People</Link>), so they wait for an admin even with this on.</>}
         </p>
+        {note(AUTONOMY_KEY, (v) => (v === "true" ? "on" : "off"))}
         <div className="rounded-lg bg-[var(--zebra)] px-3 py-2 mb-3">
           <p className="font-mono text-[10px] text-[var(--mute)] m-0">
             {autonomy.modes.map((m) => `${FUNCTION_LABELS[m.fn as keyof typeof FUNCTION_LABELS] ?? m.fn}: ${m.mode}`).join(" · ")} · auto-queue {autonomy.autoqueue ? "on" : "off"} · {autonomy.weeklyArticles === "unset" ? "articles uncapped" : `${autonomy.weeklyArticles} article${Number(autonomy.weeklyArticles) === 1 ? "" : "s"} a week`} · publishes {autonomy.publishDay} · {autonomy.weeklySocial} social post{Number(autonomy.weeklySocial) === 1 ? "" : "s"} a week
@@ -235,6 +247,8 @@ export default async function SetupAutomation({ searchParams }: { searchParams: 
         <div className="flex flex-wrap items-center gap-3 py-2 border-b border-[var(--line)]">
           <div className="flex-1 min-w-56">
             <div className="text-sm">Weekly target and publish day</div>
+            {note("autopilot:weekly_articles", (v) => (v ? `${v} a week` : "no cap"))}
+            {note("autopilot:publish_day", dayLabel)}
             <div className="text-xs text-[var(--mute)]">
               The target caps how many articles the autopilot drafts in any rolling 7 days (empty = no cap, bounded by approved ideas and the daily AI budget). The publish day holds auto-publishing to one weekday in your posting timezone; a date set on a post by hand is always honoured.
             </div>
@@ -257,6 +271,7 @@ export default async function SetupAutomation({ searchParams }: { searchParams: 
           <div className="flex-1 min-w-56">
             <div className="text-sm">SEO metadata with every draft {autoSeo ? "— on" : "— off"}</div>
             <div className="text-xs text-[var(--mute)]">Meta title, description and slug generated with the article (the publish checks require all three). Only empty fields are filled.</div>
+            {note("blog:auto_seo", (v) => (v === "false" ? "off" : "on"))}
           </div>
           {admin ? (
             <form action={toggleAutoSeoAction}>
@@ -275,15 +290,15 @@ export default async function SetupAutomation({ searchParams }: { searchParams: 
           <form action={saveSocialWorkflowSettingsAction} className="flex flex-col gap-2">
             <label className="inline-flex items-start gap-2 text-xs cursor-pointer">
               <input type="checkbox" name="autoQueue" defaultChecked={autoQueue} className="mt-0.5" />
-              <span><b>Queue on approval.</b> Approving a post drops it into the next free slot ({nextFreeLabel ? <>next is <b>{nextFreeLabel}</b></> : "no free slot right now"}) instead of leaving it a draft.</span>
+              <span><b>Queue on approval.</b> Approving a post drops it into the next free slot ({nextFreeLabel ? <>next is <b>{nextFreeLabel}</b></> : "no free slot right now"}) instead of leaving it a draft.{note("social:autoqueue", onOff)}</span>
             </label>
             <label className="inline-flex items-start gap-2 text-xs cursor-pointer">
               <input type="checkbox" name="evergreenFill" defaultChecked={evergreenFill} className="mt-0.5" />
-              <span><b>Evergreen auto-fill.</b> Free slots in the next 7 days are refilled with eligible evergreen posts, each after its own cooldown.</span>
+              <span><b>Evergreen auto-fill.</b> Free slots in the next 7 days are refilled with eligible evergreen posts, each after its own cooldown.{note("social:evergreen_fill", onOff)}</span>
             </label>
             <label className="inline-flex items-start gap-2 text-xs cursor-pointer">
               <input type="checkbox" name="autoImage" defaultChecked={autoImage} className="mt-0.5" />
-              <span><b>Auto-generate an image</b> for any post composed without one (the image provider&apos;s per-image fee applies). Your own attachments always win.</span>
+              <span><b>Auto-generate an image</b> for any post composed without one (the image provider&apos;s per-image fee applies). Your own attachments always win.{note("social:auto_image", (v) => (v === "false" ? "off" : "on"))}</span>
             </label>
             <div className="flex items-start gap-2 text-xs">
               <label className="inline-flex items-start gap-2 cursor-pointer">
@@ -303,6 +318,9 @@ export default async function SetupAutomation({ searchParams }: { searchParams: 
                     </select>
                   </span>
                 )}
+                {note("social:autogen", onOff)}
+                {note("social:autogen_weekly", (v) => (v ? `${v} a week` : "5 a week (the default)"))}
+                {note("social:autogen_campaign", campaignLabel)}
               </span>
             </div>
             {/* The social idea gate (Topics as the spine, 2026-09-21). A social
@@ -320,6 +338,8 @@ export default async function SetupAutomation({ searchParams }: { searchParams: 
                 <input type="radio" name="socialGate" value="human" defaultChecked={socialGate === "human"} className="mt-0.5" />
                 <span><b>Wait for a person</b> — like article ideas; the Inbox counts them to triage.</span>
               </label>
+              {note("ideas:social_gate", (v) => (v === "human" ? "wait for a person" : "approve themselves"))}
+              {note("social:source", (v) => (v === "rotation" ? "the rotation generator" : "ideas"))}
               {socialSource === "rotation" && (
                 <p className="mt-2 mb-0" style={{ color: "var(--amber-on)" }}>
                   This workspace is on the <b>rotation</b> generator (the pre-idea-stage path: a Topic picked in turn, written straight into the queue, plus per-network variants on publish). Switch it back to ideas here.{" "}
@@ -340,7 +360,7 @@ export default async function SetupAutomation({ searchParams }: { searchParams: 
         <ul className="flex flex-col">
           {GOVERNED_FUNCTIONS.map((fn) => (
             <li key={fn} className="flex flex-wrap items-center gap-2 py-2 border-b border-[var(--line)] last:border-0">
-              <span className="text-sm flex-1 min-w-40">{FUNCTION_LABELS[fn]}</span>
+              <span className="text-sm flex-1 min-w-40">{FUNCTION_LABELS[fn]}<DialNote change={modeChanges.get(fn)} timeZone={queue.timeZone} fmt={(v) => v ?? "manual (the default)"} /></span>
               {MODES.map((m) => {
                 const active = modes[fn] === m;
                 const style = active

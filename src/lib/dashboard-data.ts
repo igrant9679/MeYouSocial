@@ -239,6 +239,7 @@ const FEED_LABELS: Record<string, { label: string; tone: FeedEvent["tone"] }> = 
   "video.rendered": { label: "Rendered a video", tone: "ok" },
   "video.render_failed": { label: "Video render failed", tone: "warn" },
   "autopilot.cycle": { label: "Autopilot cycle ran", tone: "info" },
+  "setting.changed": { label: "Changed a setting", tone: "info" },
   // SHL-03: the same actions the header pill names.
   "blog.auto_advanced": { label: "Moved an article on", tone: "info" },
   "blog.draft_failed": { label: "Couldn't draft an article", tone: "warn" },

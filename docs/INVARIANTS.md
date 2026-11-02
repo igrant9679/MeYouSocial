@@ -1396,3 +1396,21 @@ before changing code in that area.
   ones that did something (a failure alone doesn't count), failures and gaps.
 - Settings → Automation shows it as "Engine activity — the last 7 days" under the next-sweep card, day headers in the
   posting zone, newest 120 items. Everyone can read it; it changes nothing.
+
+## ⚠ Dials say who changed them and what they were (2026-11-02, audit Phase 5, growth part ar)
+- **`setWorkspaceSetting` records a change a person made** (E-SET-05, `lib/setting-history.ts`): it reads the value
+  before writing and, when the value changed, `recordSettingChange` writes a `setting.changed` audit row (entity
+  `setting`, the key as the entity id, `from`/`to` clipped to 300 chars). The actor is the signed-in person
+  (`getCurrentUser`); with no request — the engine's sweep — nothing is recorded, because those writes are
+  bookkeeping, not dials. No table, no caller changes: every one of the ~80 call sites is covered.
+- **Never recorded**: bookkeeping keys (cycle status, check-in, analytics sync status/unmatched, the autonomy restore
+  snapshot, the WordPress probe, provider refusals, the rotation stamp, refresh tokens). **Never a value**: secrets
+  (`isSecretSetting`, client secrets, tokens) — the row says only that it changed.
+- **A form's first save isn't a change**: forms write every field, so unset → the explicit default is skipped using
+  the known defaults (`DEFAULTS`: auto-SEO on, auto-image on, gate auto, source ideas, the rest off/5/none). Add a new
+  dial's default there if unset means something other than off/empty.
+- **Settings → Automation shows "Changed by X · when — was Y"** under the autonomy switch, the article cadence, publish
+  day, auto-SEO, each social dial and each function mode (`DialNote`; modes come from their own `governance.mode_set`
+  rows, "was" from the row before). Nothing shows until a change is recorded — dials set before 2026-11-02 have no
+  history. The audit log lists the rows ("Changed a setting").
+- Not done: finding a setting from Ctrl+K — there is no command palette yet.

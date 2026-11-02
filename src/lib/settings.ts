@@ -115,6 +115,7 @@ export async function setWorkspaceSetting(workspaceId: string, key: string, valu
   if (PLATFORM_MANAGED_KEYS.has(key)) {
     throw new Error(`"${key}" is platform-managed — write it with setPlatformSetting, not per workspace.`);
   }
+  const before = (await db.workspaceSetting.findUnique({ where: { workspaceId_key: { workspaceId, key } }, select: { value: true } }))?.value ?? "";
   if (!value) {
     await db.workspaceSetting.deleteMany({ where: { workspaceId, key } });
   } else {
@@ -125,6 +126,12 @@ export async function setWorkspaceSetting(workspaceId: string, key: string, valu
     });
   }
   invalidateSettingsCache();
+  // Who changed it, and from what (E-SET-05) — only when it did change, and
+  // only when a person caused it; never breaks the write.
+  if (before !== value) {
+    const { recordSettingChange } = await import("@/lib/setting-history");
+    await recordSettingChange(workspaceId, key, before || null, value || null).catch(() => undefined);
+  }
 }
 
 /** Platform-level (global) Setting write — for operator-managed infra config
