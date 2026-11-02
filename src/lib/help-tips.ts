@@ -206,6 +206,7 @@ export const BLOG_EDITOR_TAB_TIPS: Record<string, string> = {
   assets: "The featured and social images this post needs before it's allowed to publish.",
   distribute: "Where it goes once it's live — social variants, and packaging it as a video.",
   review: "The publish gates and the content score. A post can't advance until the required checks pass.",
+  performance: "How it is doing: search clicks and impressions by day, and the social posts that pointed at it.",
 };
 
 export const BLOG_EDITOR_TIPS = {

@@ -277,6 +277,7 @@ area, rather than loading all of them into every session.
 - The script editor has an outline: sections, retention markers, find and replace — 2026-11-01, audit Phase 5, growth part ad
 - Evergreen has controls and a library — 2026-11-01, audit Phase 5, growth part ae
 - Duplicate ideas are flagged across formats and can be merged — 2026-11-01, audit Phase 5, growth part af
+- Each article has a Performance tab — 2026-11-01, audit Phase 5, growth part ag
 
 ## Open items / things the user still owns
 - **Analytics: APIs enabled 2026-08-03** (Search Console + GA Admin + GA Data, on project

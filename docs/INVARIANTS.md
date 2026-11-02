@@ -1247,3 +1247,14 @@ before changing code in that area.
 - **Research and Intel rows** (`ResearchIdeaForm` `already`): "Already made into …" when an idea keeps this video as its
   source (`sourceVideoId`, any format), else "Already close to …" for close open work. Shown, never blocking — making
   another is still a person's call. Editors only (it's beside the button that makes one).
+
+## ⚠ Each article has a Performance tab (2026-11-01, audit Phase 5, growth part ag)
+- **E-MEA-06** (`blog/[id]/ArticlePerformance.tsx`, the article's Performance tab, any member): clicks, impressions, CTR
+  and impression-weighted position for the 28 days to **its latest reading** against the 28 before (as on Measure — never
+  "today"), with the change (position: lower is better); daily clicks and impressions for up to 90 readings (a day with no
+  reading is drawn at zero and said to be unmeasured).
+- **Top queries are not shown**: Search Console's per-query numbers aren't synced, and the tab says so instead of guessing
+  them from the focus keyword. Rank tracking (E-MEA-08) is what would fill it.
+- **Social posts that pointed here**: posts made from the article's social ideas (`SocialIdea.sourceBlogPostId` →
+  `socialPostId`) plus any post whose text carries its `publishedUrl`, each with `resultsForPosts` numbers and the clicks
+  total — "not measured yet" when a sent post has no reading.

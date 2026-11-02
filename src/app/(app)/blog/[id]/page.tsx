@@ -99,6 +99,7 @@ import { HelpTip } from "@/components/HelpTip";
 import { resolveImageProviderName } from "@/lib/images";
 import { BLOG_EDITOR_TAB_TIPS, BLOG_EDITOR_TIPS, IMAGE_TIPS } from "@/lib/help-tips";
 import { formatZonedMoment } from "@/lib/zoned-dates";
+import { ArticlePerformance } from "./ArticlePerformance";
 
 // Blog post editor (Spark port, slice 1): SEO metadata + HTML body + grounded
 // AI draft + the review-state machine. Publishing is an ADMIN act (human gate).
@@ -126,6 +127,8 @@ const TABS = [
   { key: "assets", label: "Assets" },
   { key: "distribute", label: "Distribute" },
   { key: "review", label: "Review" },
+  // E-MEA-06: how it is doing — search by day, and the social posts that pointed here.
+  { key: "performance", label: "Performance" },
 ] as const;
 type TabKey = (typeof TABS)[number]["key"];
 
@@ -442,6 +445,8 @@ export default async function BlogPostPage({
           xl, leaving a phantom empty column between the two. */}
       <div className="grid grid-cols-1 @4xl:grid-cols-[1fr_270px] gap-4 items-start">
       <div className="min-w-0">
+
+      {is("performance") && <ArticlePerformance postId={post.id} workspaceId={workspace.id} publishedUrl={post.publishedUrl} timeZone={tz} />}
 
       {is("distribute") && (<>
       {sp.social_ok && (
