@@ -680,7 +680,7 @@ export const TOOLS: Tool[] = [
   // ── Drafts ────────────────────────────────────────────────────────────────
   {
     name: "draft_article",
-    description: "Write a full grounded article from an existing idea (or from a title you pass), then give it images and SEO and park it at review. A minute or two. Never publishes.",
+    description: "Write a full grounded article from an existing idea (or from a title you pass). The prose takes a minute or so; its images and SEO then finish in the background and it parks at review on its own. Never publishes.",
     args: { ideaId: "id of the idea to draft (preferred)", title: "or a title, if there is no idea yet", keyword: "optional focus keyword when drafting from a title" },
     // Under full autonomy the engine reviews a fresh draft and publishes it on
     // its own, so "draft it" is in effect "publish it" — ask first (ENG-02).
@@ -698,11 +698,13 @@ export const TOOLS: Tool[] = [
       if (idea.status === "drafted" && idea.postId) return `that idea was already drafted as article ${idea.postId} (/blog/${idea.postId})`;
       // Same claim and refresh rules as the board and the sweep.
       const { draftIdeaCore } = await import("@/lib/idea-drafting");
-      const r = await draftIdeaCore(ctx.workspaceId, idea.id, { from: ["discovered", "approved"], actorId: ctx.userId, finish: "inline" });
+      // E-ENG-12: the prose is written here; images and SEO — the long part —
+      // finish in the background job (blog.finishdraft), so the conversation
+      // isn't held for minutes and Stop isn't waiting on an image provider.
+      const r = await draftIdeaCore(ctx.workspaceId, idea.id, { from: ["discovered", "approved"], actorId: ctx.userId, finish: "job" });
       if (!r.ok) return `not drafted: ${r.message}${r.postId ? ` (/blog/${r.postId})` : ""}`;
-      const done = r.finished ?? { imagesGenerated: 0, seoOptimized: 0 };
       const what = r.change === "refresh" ? `revised the live article ${r.postId} for a refresh (WordPress keeps the current version until the revision is published, which updates it in place)` : `drafted article ${r.postId} ("${idea.title}")`;
-      return `${what} — at draft_review, ${done.imagesGenerated} image(s) generated, SEO ${done.seoOptimized ? "written" : "unchanged"}. Auto-review takes it from here; article_checks says what is left. /blog/${r.postId}`;
+      return `${what} — the prose is written; its images and SEO are finishing in the background (Settings → Jobs shows it), then it parks at review and auto-review takes it from there. article_checks says what is left. /blog/${r.postId}`;
     },
   },
   {

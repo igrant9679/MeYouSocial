@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { readJson, writeJson } from "@/lib/db/json";
-import { runAssistant, type AssistantResult, type AssistantStep, type PendingAction } from "@/lib/assistant/run";
+import { runAssistant, type AssistantResult, type AssistantStep, type PendingAction, type TurnLive } from "@/lib/assistant/run";
 import { outsideIn } from "@/lib/assistant/tools";
 
 /**
@@ -21,6 +21,8 @@ export type TurnInput = {
   channelId?: string | null;
   /** The nonce a confirm card's Yes carried (E-ENG-01); absent for anything typed. */
   confirm?: string | null;
+  /** E-ENG-12: hear the thread id as soon as it exists, and each step as it runs. */
+  live?: { onThread?: (threadId: string) => void; onProgress?: TurnLive["onProgress"] };
 };
 
 /** `messageId`: the stored reply — what an Undo names (E-ENG-09). */
@@ -34,6 +36,13 @@ export async function runTurn(input: TurnInput): Promise<TurnOutput | null> {
     ? await db.assistantThread.findFirst({ where: { id: input.threadId, workspaceId: input.workspaceId, userId: input.userId } })
     : await db.assistantThread.create({ data: { workspaceId: input.workspaceId, userId: input.userId, title: message.slice(0, 80) } });
   if (!thread) return null;
+  input.live?.onThread?.(thread.id);
+  // Stop applies to a press made after this turn began, never to an old one.
+  const startedAt = new Date();
+  const shouldStop = async () => {
+    const t = await db.assistantThread.findUnique({ where: { id: thread.id }, select: { stopRequestedAt: true } });
+    return !!t?.stopRequestedAt && t.stopRequestedAt >= startedAt;
+  };
 
   // The NEWEST twenty, in order (ENG-11): ascending + take kept the opening
   // exchange forever, so after twenty messages the model never saw the
@@ -71,6 +80,7 @@ export async function runTurn(input: TurnInput): Promise<TurnOutput | null> {
     pending,
     input.confirm ?? null,
     { outside: carriedOutside },
+    { onProgress: input.live?.onProgress, shouldStop },
   );
 
   // A refusal or a broken run is still a turn: record what the person was

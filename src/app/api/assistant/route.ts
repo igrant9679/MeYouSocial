@@ -45,11 +45,11 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   const c = await caller();
   const { workspace, user, membership } = c.ctx;
-  const body = (await req.json().catch(() => ({}))) as { threadId?: string; message?: string; page?: string; confirm?: string };
+  const body = (await req.json().catch(() => ({}))) as { threadId?: string; message?: string; page?: string; confirm?: string; stream?: boolean };
   const message = String(body.message ?? "").trim();
   if (!message) return Response.json({ error: "empty message" }, { status: 400 });
   const { active } = await getActiveChannel();
-  const out = await runTurn({
+  const input = {
     workspaceId: workspace.id,
     userId: user.id,
     role: membership.role,
@@ -58,10 +58,41 @@ export async function POST(req: Request) {
     page: typeof body.page === "string" && body.page.startsWith("/") ? body.page.slice(0, 200) : null,
     channelId: active?.id ?? null,
     confirm: typeof body.confirm === "string" && body.confirm ? body.confirm.slice(0, 40) : null,
-  });
+  };
+
+  // E-ENG-12: the dock asks for a stream — one JSON line per event: the
+  // thread, each step as it starts and ends, then the reply. A thread that
+  // isn't this person's is a 404 before anything streams, as before.
+  if (body.stream) {
+    if (input.threadId && !(await db.assistantThread.count({ where: { id: input.threadId, workspaceId: workspace.id, userId: user.id } }))) {
+      return Response.json({ error: "no thread" }, { status: 404 });
+    }
+    const enc = new TextEncoder();
+    const stream = new ReadableStream({
+      async start(controller) {
+        const send = (o: unknown) => { try { controller.enqueue(enc.encode(JSON.stringify(o) + "\n")); } catch { /* the reader went away; the turn still finishes */ } };
+        try {
+          const out = await runTurn({ ...input, live: { onThread: (threadId) => send({ type: "thread", threadId }), onProgress: (e) => send({ type: "progress", ...e }) } });
+          send(out ? { type: "reply", ...replyJson(out) } : { type: "error", error: "no thread" });
+        } catch (e) {
+          send({ type: "error", error: e instanceof Error ? e.message.slice(0, 200) : "the turn failed" });
+        } finally {
+          try { controller.close(); } catch { /* already closed */ }
+        }
+      },
+    });
+    return new Response(stream, { headers: { "content-type": "application/x-ndjson; charset=utf-8", "cache-control": "no-store", "x-accel-buffering": "no" } });
+  }
+
+  const out = await runTurn(input);
   if (!out) return Response.json({ error: "no thread" }, { status: 404 });
+  return Response.json(replyJson(out));
+}
+
+/** The reply as the dock reads it — the same shape streamed or not. */
+function replyJson(out: NonNullable<Awaited<ReturnType<typeof runTurn>>>) {
   const r = out.result;
-  return Response.json({
+  return {
     threadId: out.threadId,
     messageId: out.messageId,
     answer: r.error && !r.answer ? r.error : r.answer,
@@ -72,5 +103,5 @@ export async function POST(req: Request) {
     pending: r.pending ?? null,
     error: r.error ?? null,
     usage: r.usage?.calls ? r.usage : null,
-  });
+  };
 }

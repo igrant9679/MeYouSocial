@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bot, Loader2, SendHorizonal, X, Wrench, ExternalLink, Sparkles } from "lucide-react";
+import { Bot, Loader2, SendHorizonal, X, Wrench, ExternalLink, Sparkles, Square } from "lucide-react";
 import { MarkdownMessage } from "@/components/MarkdownMessage";
 import { ConfirmCard } from "@/components/ConfirmCard";
 import { UploadButton } from "@/components/UploadButton";
@@ -49,6 +49,10 @@ export function AssistantDock({ activeChannelId = null, workspaceId, userId, rea
   const [options, setOptions] = useState<string[]>([]);
   const [links, setLinks] = useState<Array<{ label: string; href: string }>>([]);
   const [busy, setBusy] = useState(false);
+  // E-ENG-12: the step the running turn is on, and its thread (for Stop).
+  const [live, setLive] = useState<string | null>(null);
+  const [stopping, setStopping] = useState(false);
+  const runningThread = useRef<string | null>(null);
   const [text, setText] = useState("");
   const listRef = useRef<HTMLDivElement>(null);
 
@@ -116,9 +120,13 @@ export function AssistantDock({ activeChannelId = null, workspaceId, userId, rea
     setLinks([]);
     setMessages((ms) => [...ms, { id: `u-${Date.now()}`, role: "user", content: m, steps: [] }]);
     setText("");
+    setLive("Thinking");
+    setStopping(false);
+    runningThread.current = threadId;
     try {
+      // Streamed (E-ENG-12): one JSON line per event — the thread, each step, then the reply.
       const post = (id: string | null) =>
-        fetch("/api/assistant", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ threadId: id, message: m, page: pathname, ...(confirm ? { confirm } : {}) }) });
+        fetch("/api/assistant", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ threadId: id, message: m, page: pathname, stream: true, ...(confirm ? { confirm } : {}) }) });
       let r = await post(threadId);
       // The remembered conversation is gone (deleted, or another workspace's):
       // start a new one with this message instead of failing every send.
@@ -126,8 +134,31 @@ export function AssistantDock({ activeChannelId = null, workspaceId, userId, rea
         setMessages((ms) => ms.filter((x) => x.role === "user" && x.content === m));
         r = await post(null);
       }
-      const d = (await r.json().catch(() => ({ error: `HTTP ${r.status}` }))) as Reply & { error?: string };
-      if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
+      if (!r.ok || !r.body) {
+        const e = (await r.json().catch(() => ({ error: `HTTP ${r.status}` }))) as { error?: string };
+        throw new Error(e.error || `HTTP ${r.status}`);
+      }
+      let d: Reply | null = null;
+      const reader = r.body.getReader();
+      const dec = new TextDecoder();
+      let buf = "";
+      for (;;) {
+        const { value, done } = await reader.read();
+        if (value) buf += dec.decode(value, { stream: true });
+        let nl: number;
+        while ((nl = buf.indexOf("\n")) >= 0) {
+          const line = buf.slice(0, nl).trim();
+          buf = buf.slice(nl + 1);
+          if (!line) continue;
+          const ev = JSON.parse(line) as { type: string; threadId?: string; kind?: string; label?: string; error?: string } & Partial<Reply>;
+          if (ev.type === "thread" && ev.threadId) { runningThread.current = ev.threadId; setThreadId(ev.threadId); }
+          else if (ev.type === "progress" && ev.label) setLive(ev.label);
+          else if (ev.type === "reply") d = ev as Reply;
+          else if (ev.type === "error") throw new Error(ev.error || "the turn failed");
+        }
+        if (done) break;
+      }
+      if (!d) throw new Error("the reply never arrived");
       setThreadId(d.threadId);
       setMessages((ms) => [...ms, { id: d.messageId ?? `a-${Date.now()}`, role: "assistant", content: d.answer, steps: d.steps ?? [], tokens: d.usage ? d.usage.inputTokens + d.usage.outputTokens : null }]);
       setOptions(d.options ?? []);
@@ -136,8 +167,18 @@ export function AssistantDock({ activeChannelId = null, workspaceId, userId, rea
       setMessages((ms) => [...ms, { id: `e-${Date.now()}`, role: "assistant", content: `Something went wrong: ${e instanceof Error ? e.message : String(e)}. Try again, or open the full page at /assistant.`, steps: [] }]);
     } finally {
       setBusy(false);
+      setLive(null);
+      runningThread.current = null;
     }
   }, [busy, threadId, pathname]);
+
+  // Stop (E-ENG-12): the running turn finishes the step it's on and starts no other.
+  const stop = useCallback(async () => {
+    const id = runningThread.current;
+    if (!id) return;
+    setStopping(true);
+    await fetch("/api/assistant/stop", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ threadId: id }) }).catch(() => null);
+  }, []);
 
   // The newest proposal on screen — its card's Yes carries this nonce (E-ENG-01).
   const lastNonce = [...messages].reverse().find((x) => x.role === "assistant")?.steps.find((x): x is Extract<AssistantStep, { kind: "confirm" }> => x.kind === "confirm")?.nonce;
@@ -239,7 +280,17 @@ export function AssistantDock({ activeChannelId = null, workspaceId, userId, rea
                 </div>
               );
             })}
-            {busy && <div className="self-start text-[11px] text-[var(--mute)] inline-flex items-center gap-1.5"><Loader2 className="w-3 h-3 animate-spin" /> Working — this may take a minute if it&apos;s writing something.</div>}
+            {busy && (
+              <div className="self-start text-[11px] text-[var(--mute)] inline-flex items-center gap-1.5 flex-wrap" data-assistant-live>
+                <Loader2 className="w-3 h-3 animate-spin" />
+                <span data-live-step>{stopping ? "Stopping after this step…" : `${live ?? "Working"}…`}</span>
+                {!stopping && (
+                  <button type="button" onClick={stop} className="btn sm !py-0 !px-1.5 inline-flex items-center gap-1" data-stop title="Finish the step it's on and do nothing more">
+                    <Square className="w-3 h-3" /> Stop
+                  </button>
+                )}
+              </div>
+            )}
             {(options.length > 0 || links.length > 0) && !busy && (
               <div className="flex flex-wrap gap-1.5 self-start">
                 {options.map((o) => <button key={o} type="button" onClick={() => send(o, /^yes/i.test(o) ? lastNonce : undefined)} className={`btn sm ${/^yes/i.test(o) ? "primary" : ""}`}>{o}</button>)}

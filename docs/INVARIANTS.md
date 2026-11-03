@@ -1751,3 +1751,19 @@ before changing code in that area.
   dock's turn and history). The dock gets the stored `messageId` and shows Undo buttons (`components/AssistantUndo.tsx`,
   hidden once the ten minutes pass); the conversation page shows them under the reply and marks what was undone.
 - The assistant eval has a scenario for it ("an Undo works only for the person who asked, and only once").
+
+## ⚠ The dock shows each assistant step as it runs, and Stop ends a turn between steps (2026-11-03, audit Phase 5, growth part bm)
+- **Live steps** (E-ENG-12): `runAssistant` takes `TurnLive` — `onProgress` hears `thinking` before each model call,
+  `tool` (the model's own "why" line, else `TOOL_ACTIVITY`, else the tool's name) before each tool and `tool_done` after.
+  `POST /api/assistant` with `stream: true` answers `application/x-ndjson`: one line for the thread, one per step, then
+  the reply in exactly the shape the plain JSON answer has (`replyJson`). A thread that isn't the caller's is still a 404
+  BEFORE anything streams. The dock reads the stream and shows the step it's on; the plain JSON path is unchanged.
+- ⚠ **Stop is between steps, never inside one**: `POST /api/assistant/stop` marks the caller's own thread
+  (`AssistantThread.stopRequestedAt`, migration `20261103030000_assistant_stop`); the turn checks before each model call
+  and before each tool, and only a press made AFTER the turn began counts — an old press never stops the next turn. A
+  stopped turn says what it ran. A tool mid-run always finishes, so nothing is left half-written.
+- **Long work leaves the conversation**: the assistant's `draft_article` writes the prose and hands images and SEO to
+  the `blog.finishdraft` job (`finish: "job"`, as a person's click does) — the turn isn't held for minutes on an image
+  provider, and its reply says the draft finishes in the background.
+- The assistant eval covers it: Stop finishes the step it's on and starts no other, and that press doesn't stop the
+  next turn (made deterministic by having the stand-in model wait for the press before answering).

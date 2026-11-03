@@ -44,6 +44,15 @@ import { REFUSED_INTENTS, TOOLS, confirmReason, hostOf, hostsIn, outsideIn, runT
 
 const MAX_STEPS = 10;
 
+/** What a step looks like while it runs, when the model gave no "why" (E-ENG-12). */
+const TOOL_ACTIVITY: Record<string, string> = {
+  next_steps: "Working out what's next", pipeline_status: "Reading the pipeline", inbox_items: "Reading the Inbox",
+  list_ideas: "Reading the ideas", list_articles: "Reading the articles", list_social_posts: "Reading the social posts",
+  draft_article: "Drafting the article — a minute or two", discover_ideas: "Discovering ideas", draft_social_post: "Writing the post",
+  search_web: "Searching the web", read_web_page: "Reading the page", analyze_youtube_video: "Reading the video's transcript",
+  generate_images: "Making images", generate_seo: "Writing the SEO fields", results_summary: "Reading the results",
+};
+
 export type AssistantStep =
   /** `undo`: offered for ten minutes when the tool can be put back (E-ENG-09; lib/assistant/undo.ts). */
   | { kind: "tool"; tool: string; args: Record<string, unknown>; output: string; ok: boolean; undo?: StepUndo }
@@ -51,6 +60,12 @@ export type AssistantStep =
   | { kind: "ask"; text: string; options: string[] }
   /** A proposal (E-ENG-01): the card is built from `preview`; its Yes must carry `nonce`. */
   | { kind: "confirm"; tool: string; args: Record<string, unknown>; summary: string; nonce?: string; preview?: ConfirmPreview; expiresAt?: string };
+
+/** What the dock shows while a turn runs (E-ENG-12): the step it is on. */
+export type AssistantProgress = { kind: "thinking"; label: string } | { kind: "tool"; tool: string; label: string } | { kind: "tool_done"; tool: string; ok: boolean };
+
+/** A turn's live wiring: who hears each step, and whether the person pressed Stop. */
+export type TurnLive = { onProgress?: (e: AssistantProgress) => void; shouldStop?: () => Promise<boolean> };
 
 export type PendingAction = { tool: string; args: Record<string, unknown>; summary: string; askedAt: string; nonce?: string };
 
@@ -205,9 +220,10 @@ export async function runAssistant(
   pending: PendingAction | null = null,
   confirm: string | null = null,
   carried: { outside?: string[] } = {},
+  live: TurnLive = {},
 ): Promise<AssistantResult> {
   const usage = { calls: 0, inputTokens: 0, outputTokens: 0 };
-  const result = await runTurnLoop(ctx, history, message, pending, confirm, carried, usage);
+  const result = await runTurnLoop(ctx, history, message, pending, confirm, carried, usage, live);
   return { ...result, usage };
 }
 
@@ -221,7 +237,18 @@ async function runTurnLoop(
   /** Outside text already in the conversation the model sees (session.ts reads it off earlier steps). */
   carried: { outside?: string[] } = {},
   usage: { calls: number; inputTokens: number; outputTokens: number } = { calls: 0, inputTokens: 0, outputTokens: 0 },
+  live: TurnLive = {},
 ): Promise<AssistantResult> {
+  const say = (e: AssistantProgress) => { try { live.onProgress?.(e); } catch { /* a closed stream mustn't stop the turn */ } };
+  // Stop (E-ENG-12): checked between steps — never mid-tool, so nothing is left half-done.
+  const stopped = async (): Promise<AssistantResult | null> => {
+    if (!(await live.shouldStop?.().catch(() => false))) return null;
+    const did = steps.filter((s): s is Extract<AssistantStep, { kind: "tool" }> => s.kind === "tool");
+    return {
+      ok: true, steps, pending: null,
+      answer: did.length ? `Stopped, as you asked. Before stopping I ran: ${did.map((s) => s.tool).join(", ")} — each step above says what it did.` : "Stopped, as you asked — nothing was done.",
+    };
+  };
   const workspace = await db.workspace.findUnique({ where: { id: ctx.workspaceId }, select: { name: true, defaultModel: true } });
   if (!workspace) return { ok: false, answer: "", steps: [], error: "workspace not found" };
   const [brand, channel] = await Promise.all([
@@ -295,6 +322,9 @@ async function runTurnLoop(
   }
 
   for (let step = 0; step < MAX_STEPS; step++) {
+    const halt = await stopped();
+    if (halt) return halt;
+    say({ kind: "thinking", label: step === 0 ? "Thinking" : "Reading what that returned" });
     // allowWhilePaused: the conversation itself still runs while paused (so the
     // person can ask what is happening and calm things down); the tools it
     // calls are gated in runTool.
@@ -379,7 +409,11 @@ async function runTurnLoop(
       return { ok: true, answer, steps, options: ["Yes, do it", "No"], pending: proposal };
     }
 
+    const haltBeforeTool = await stopped();
+    if (haltBeforeTool) return haltBeforeTool;
+    say({ kind: "tool", tool: d.tool, label: d.why?.trim() || TOOL_ACTIVITY[d.tool] || `Running ${d.tool.replace(/_/g, " ")}` });
     const { ok, output, undo } = await runTool(d.tool, d.args ?? {}, ctx);
+    say({ kind: "tool_done", tool: d.tool, ok });
     const brought = ok ? outsideIn(d.tool, output) : null;
     if (brought) outside.add(brought);
     steps.push({ kind: "tool", tool: d.tool, args: d.args ?? {}, output, ok, ...(undo ? { undo } : {}) });

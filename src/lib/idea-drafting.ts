@@ -110,8 +110,9 @@ export type IdeaDraftResult =
 /**
  * Draft one idea. `from` is the idea statuses this door may draft (the sweep:
  * approved; a person's click: discovered or approved). `finish` decides who
- * parks the draft at review: the caller inline (the sweep and the assistant
- * wait for it) or the blog.finishdraft job (a click shouldn't wait on images).
+ * parks the draft at review: the caller inline (the sweep
+ * waits for it) or the blog.finishdraft job (a click, or the assistant — neither
+ * should wait on images; E-ENG-12).
  */
 export async function draftIdeaCore(
   workspaceId: string,
