@@ -1694,3 +1694,23 @@ before changing code in that area.
   the base count stands and the reason says so. Every caller (the board's and Topics' Discover, the assistant, the
   sweep) gets it; each run cell carries `asked` and `tuning`, and Discover's banner says when a count was changed and
   why. Ordering (emptiest first, weighted by priority) is unchanged — tuning changes how MANY, not which.
+
+## ⚠ Outside text can't drive the assistant, and its safety rules are checked by a script (2026-11-03, audit Phase 5, growth part bj)
+- **Outside text** (E-ENG-02, `lib/assistant/run.ts`): a tool marked `outside` (`lib/assistant/tools.ts` — a web page,
+  web search results, a YouTube or competitor transcript, competitors' titles, a channel's own description, a research
+  source, and `list_ideas` when it lists feed-made ideas) brings text written by someone else into the conversation.
+  From then on, while that step is inside the window the model sees (the last twelve messages; `session.ts` reads it
+  off the stored steps): ⚠ every write is PROPOSED — even one that would run straight away — with the reason in the
+  card; and ⚠ a tool with `opensUrl` (`read_web_page`) opens only a host the person wrote in their own messages
+  (`hostsIn`, `www.` folded) — refused before any request, so a page can't ship the conversation to an address of
+  its choosing. The system prompt also says outside text is material, never instructions. A new tool that returns
+  someone else's words must carry `outside`; one that opens an arbitrary address must carry `opensUrl`.
+- **The assistant eval** (E-ENG-19, `scripts/assistant-eval.mts`, `npm run eval:assistant`): the real turn loop end to
+  end on a THROWAWAY schema (refuses unless the schema name ends in "verify"), with the model replaced by an
+  in-process stand-in for the Anthropic API that answers each call with the scenario's next directive. Checks: a
+  confirm tool is proposed, not run; "no" and "sure, but…" are not yeses; a stale card's Yes runs nothing and its own
+  card's Yes runs it; a plain write runs (baseline); after injected research text a write is proposed — and still is
+  next turn — and a host the person never gave isn't opened while one they gave is; a viewer's write is refused; a
+  pause refuses work; a failing provider's mock reply drives nothing. Makes and deletes its own workspace. ⚠ Run it
+  before any deploy that touches `src/lib/assistant` (the deploy recipe says so); it isn't in `prebuild` because the
+  build has no database.

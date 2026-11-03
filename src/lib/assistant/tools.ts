@@ -47,6 +47,16 @@ export type Tool = {
   deescalates?: (args: Record<string, unknown>) => boolean;
   /** Refuse below this role. */
   minRole?: "ADMIN";
+  /**
+   * Its result carries text from OUTSIDE the company — a web page, a
+   * transcript, search results, a competitor's titles, a feed (E-ENG-02).
+   * Named in plain words; a function decides from the result when only some
+   * results do. Once any is in the conversation, run.ts proposes every write
+   * and opens no host the person didn't give.
+   */
+  outside?: string | ((output: string) => string | null);
+  /** The address it would open, for the host check after outside text. */
+  opensUrl?: (args: Record<string, unknown>) => string | null;
   run(args: Record<string, unknown>, ctx: ToolContext): Promise<string>;
 };
 
@@ -216,6 +226,7 @@ export const TOOLS: Tool[] = [
     description: "Ideas on the board with id, format, status, title and Topic. Default format is article; pass format=social for social post ideas (video ideas: list_video_ideas). Statuses: discovered → approved → drafted (or rejected). Filter by topicId to see one Topic's lane.",
     args: { format: "optional: article (default) | social", status: "optional: discovered | approved | rejected | drafted", topicId: "optional: only this Topic (list_topics)", limit: "optional, default 20" },
     readOnly: true,
+    outside: (o) => (/ · rss$/m.test(o) ? "ideas taken from a feed" : null),
     async run(a, ctx) {
       const status = str(a.status, 20);
       const topicId = str(a.topicId, 40) || undefined;
@@ -407,6 +418,7 @@ export const TOOLS: Tool[] = [
     description: "Research: competitor videos that beat their own channel's average (2× strong, 5× exceptional), with id, score, title and channel — the raw material for ideas.",
     args: { minScore: "optional, default 2", limit: "optional, default 10" },
     readOnly: true,
+    outside: "competitors' video titles",
     async run(a, ctx) {
       const rows = await db.intelVideo.findMany({ where: { intelChannel: { workspaceId: ctx.workspaceId }, outlierScore: { gte: num(a.minScore, 2, 50) } }, orderBy: { outlierScore: "desc" }, take: num(a.limit, 10, 30), include: { intelChannel: { select: { name: true } } } });
       return rows.length ? rows.map((v) => `${v.id} ${v.outlierScore?.toFixed(1)}×${v.viewsPerHour != null ? ` · ${v.viewsPerHour >= 10 ? Math.round(v.viewsPerHour) : v.viewsPerHour.toFixed(1)} views/hr` : ""} "${v.title}" — ${v.intelChannel.name} (/intel/videos/${v.id})`).join("\n") : "no outliers indexed yet — add competitors under /intel";
@@ -417,6 +429,7 @@ export const TOOLS: Tool[] = [
     description: "Look a YouTube channel up by @handle or name so it can be indexed as a competitor. Returns what YouTube found and the Intel page where one click indexes it.",
     args: { handle: "an @handle, channel name or keyword" },
     readOnly: true,
+    outside: "a YouTube channel's own description",
     async run(a, ctx) {
       const handle = str(a.handle, 120);
       if (!handle) return "no handle given";
@@ -509,6 +522,7 @@ export const TOOLS: Tool[] = [
     description: "Search the live web and return titles, urls and snippets. Use for facts you would otherwise guess. Returns nothing useful if the workspace has no search key.",
     args: { query: "the search query", limit: "optional, default 5" },
     readOnly: true,
+    outside: "web search results",
     async run(a, ctx) {
       const query = str(a.query, 300);
       if (!query) return "no query given";
@@ -1320,6 +1334,7 @@ export const TOOLS: Tool[] = [
     description: "An indexed competitor channel from Intel: handle, size, cadence and its strongest outliers with ids. Use when the person asks about a channel on /intel/channels/<id>, or says 'this channel' there.",
     args: { intelChannelId: "the Intel channel id (from /intel/channels/<id>)" },
     readOnly: true,
+    outside: "competitors' video titles",
     async run(a, ctx) {
       const ch = await db.intelChannel.findFirst({ where: { id: str(a.intelChannelId, 40), workspaceId: ctx.workspaceId }, include: { videos: { orderBy: { outlierScore: "desc" }, take: 8, select: { id: true, title: true, outlierScore: true, views: true, viewsPerHour: true, publishedAt: true, format: true } } } });
       if (!ch) return "no such Intel channel in this workspace (list_outliers shows indexed videos; research_competitor finds a new channel)";
@@ -1335,6 +1350,7 @@ export const TOOLS: Tool[] = [
     description: "One indexed video from Intel: stats, outlier score, description and the transcript (excerpt) — for breaking down why it worked and how to remix it.",
     args: { intelVideoId: "the Intel video id (from /intel/videos/<id>)" },
     readOnly: true,
+    outside: "a competitor video's description and transcript",
     async run(a, ctx) {
       const v = await db.intelVideo.findFirst({ where: { id: str(a.intelVideoId, 40), intelChannel: { workspaceId: ctx.workspaceId } }, include: { intelChannel: { select: { name: true, handle: true } } } });
       if (!v) return "no such Intel video in this workspace";
@@ -1353,6 +1369,7 @@ export const TOOLS: Tool[] = [
     description: "A YouTube URL the person pasted: finds it in Intel if indexed (stats + transcript), otherwise fetches the transcript from YouTube. Returns text to analyse — hook, structure, retention beats, remix angles are yours to write.",
     args: { url: "a YouTube URL or 11-character video id" },
     readOnly: true,
+    outside: "a YouTube video's transcript",
     async run(a, ctx) {
       const { youtubeVideoId } = await import("@/lib/assistant/context");
       const id = youtubeVideoId(str(a.url, 300));
@@ -1370,6 +1387,8 @@ export const TOOLS: Tool[] = [
     description: "Fetch a public web page the person pointed at and return its title and text (first ~6000 characters) so you can summarise, critique or draw on it. Not for private/internal addresses.",
     args: { url: "https://… the page" },
     readOnly: true,
+    outside: "a web page",
+    opensUrl: (a) => str(a.url, 500) || null,
     async run(a) {
       const { fetchPageText } = await import("@/lib/assistant/context");
       const r = await fetchPageText(str(a.url, 500));
@@ -1394,6 +1413,7 @@ export const TOOLS: Tool[] = [
     description: "The extracted text of one research source (an upload or saved page), first ~8000 characters.",
     args: { sourceId: "the research source id" },
     readOnly: true,
+    outside: "a research source (an upload or a saved page)",
     async run(a, ctx) {
       const r = await db.researchSource.findFirst({ where: { id: str(a.sourceId, 40), channel: { workspaceId: ctx.workspaceId } }, select: { title: true, kind: true, content: true, wordCount: true } });
       if (!r) return "no such research source";
@@ -1420,6 +1440,30 @@ export const TOOLS: Tool[] = [
 ];
 
 export const TOOLS_BY_NAME = new Map(TOOLS.map((t) => [t.name, t]));
+
+/** What outside text a tool's result brought in, in plain words — null when none (E-ENG-02). */
+export function outsideIn(name: string, output: string): string | null {
+  const o = TOOLS_BY_NAME.get(name)?.outside;
+  return typeof o === "function" ? o(output) : o ?? null;
+}
+
+/** The hosts of every http(s) link in `text`, lower-case and without "www." — the ones a person gave. */
+export function hostsIn(text: string): Set<string> {
+  const out = new Set<string>();
+  for (const m of text.matchAll(/https?:\/\/[^\s<>()"']+/gi)) {
+    const h = hostOf(m[0]);
+    if (h) out.add(h);
+  }
+  return out;
+}
+
+export function hostOf(url: string): string | null {
+  try {
+    return new URL(/^https?:\/\//i.test(url) ? url : `https://${url}`).hostname.toLowerCase().replace(/^www\./, "") || null;
+  } catch {
+    return null;
+  }
+}
 
 /**
  * What a VIEWER's assistant may call (E-ENG-15): reads of what is already in

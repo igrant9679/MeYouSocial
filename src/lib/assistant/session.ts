@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { readJson, writeJson } from "@/lib/db/json";
-import { runAssistant, type AssistantResult, type PendingAction } from "@/lib/assistant/run";
+import { runAssistant, type AssistantResult, type AssistantStep, type PendingAction } from "@/lib/assistant/run";
+import { outsideIn } from "@/lib/assistant/tools";
 
 /**
  * One assistant turn, persisted: the person's message, the run, the reply,
@@ -40,8 +41,13 @@ export async function runTurn(input: TurnInput): Promise<TurnOutput | null> {
     where: { threadId: thread.id },
     orderBy: { createdAt: "desc" },
     take: 20,
-    select: { role: true, content: true },
+    select: { role: true, content: true, steps: true },
   })).reverse();
+  // Outside text an earlier step brought in, among the messages the model
+  // still sees (run.ts keeps the last twelve) — the rules hold until it's gone (E-ENG-02).
+  const carriedOutside = [...new Set(prior.slice(-12).flatMap((m) =>
+    readJson<AssistantStep[]>(m.steps, []).flatMap((s) => (s.kind === "tool" && s.ok ? [outsideIn(s.tool, s.output)] : [])).filter((x): x is string => !!x),
+  ))];
 
   await db.assistantMessage.create({ data: { threadId: thread.id, role: "user", content: message } });
 
@@ -63,6 +69,7 @@ export async function runTurn(input: TurnInput): Promise<TurnOutput | null> {
     message,
     pending,
     input.confirm ?? null,
+    { outside: carriedOutside },
   );
 
   // A refusal or a broken run is still a turn: record what the person was
