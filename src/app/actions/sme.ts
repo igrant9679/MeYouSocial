@@ -30,6 +30,8 @@ export async function createSmeProfileAction(formData: FormData) {
       workspaceId: workspace.id,
       name: name.slice(0, 120),
       role: str(formData, "role", 120),
+      // E-IDE-14: a real person drafts speak as, or a persona they're written for.
+      kind: String(formData.get("kind") ?? "") === "persona" ? "persona" : "expert",
     },
   });
   revalidatePath(PATH);
@@ -42,13 +44,17 @@ export async function saveSmeProfileAction(formData: FormData) {
   const current = await db.smeProfile.findFirst({ where: { id, workspaceId: workspace.id } });
   if (!current) return;
 
-  const topics = JSON.stringify(
-    String(formData.get("topics") ?? "")
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean)
-      .slice(0, 24),
-  );
+  // E-IDE-14: the Topics an expert speaks on are links, not free words —
+  // only this workspace's Topics, and none for a persona (it never speaks).
+  const wanted = current.kind === "expert" ? formData.getAll("topicId").map(String).filter(Boolean).slice(0, 50) : [];
+  const topicIds = wanted.length
+    ? (await db.topic.findMany({ where: { workspaceId: workspace.id, id: { in: wanted } }, select: { id: true } })).map((t) => t.id)
+    : [];
+  const linked = (await db.smeProfile.findUnique({ where: { id: current.id }, select: { topicLinks: { select: { id: true } } } }))?.topicLinks.map((t) => t.id) ?? [];
+  const linksChanged = [...topicIds].sort().join() !== [...linked].sort().join();
+  if (linksChanged) {
+    await db.smeProfile.update({ where: { id: current.id }, data: { topicLinks: { set: topicIds.map((tid) => ({ id: tid })) } } });
+  }
   const next = {
     name: String(formData.get("name") ?? "").trim().slice(0, 120) || current.name,
     role: str(formData, "role", 120),
@@ -57,7 +63,6 @@ export async function saveSmeProfileAction(formData: FormData) {
     answers: JSON.stringify(readAnswers(formData)),
     alwaysSay: str(formData, "alwaysSay", 2000),
     neverSay: str(formData, "neverSay", 2000),
-    topics,
   };
 
   // Snapshot only when something actually changed.
@@ -93,6 +98,65 @@ export async function saveSmeProfileAction(formData: FormData) {
       meta: { version: current.version + 1 },
     });
   }
+  revalidatePath(`${PATH}/${id}`);
+  revalidatePath(PATH);
+}
+
+/** E-IDE-14: say whether this is a real expert or an audience persona. A persona never speaks in a draft. */
+export async function setSmeKindAction(formData: FormData) {
+  const id = String(formData.get("id"));
+  const kind = String(formData.get("kind")) === "persona" ? "persona" : "expert";
+  const { workspace, user } = await requireRole("EDITOR");
+  const p = await db.smeProfile.findFirst({ where: { id, workspaceId: workspace.id }, select: { id: true, kind: true } });
+  if (!p || p.kind === kind) return;
+  // A persona speaks on no Topic, and no draft should keep speaking as one.
+  await db.smeProfile.update({ where: { id: p.id }, data: { kind, ...(kind === "persona" ? { topicLinks: { set: [] } } : {}) } });
+  const freed = kind === "persona"
+    ? (await db.blogPost.updateMany({ where: { workspaceId: workspace.id, smeProfileId: p.id, status: { notIn: ["published"] } }, data: { smeProfileId: null } })).count
+    : 0;
+  await writeAudit({ workspaceId: workspace.id, actorId: user.id, action: "sme.kind_set", entityType: "sme_profile", entityId: p.id, meta: { kind, unassigned: freed } });
+  revalidatePath(PATH);
+  revalidatePath(`${PATH}/${id}`);
+}
+
+/**
+ * Pending answers (E-IDE-14): what was drafted from a source waits here until
+ * the expert accepts it — as written, or as they correct it — or discards it.
+ * Only accepted answers ever reach a draft.
+ */
+export async function resolvePendingAnswerAction(formData: FormData) {
+  const id = String(formData.get("id"));
+  const q = String(formData.get("q") ?? "");
+  const verdict = String(formData.get("verdict") ?? "");
+  const { workspace, user } = await requireRole("EDITOR");
+  const p = await db.smeProfile.findFirst({ where: { id, workspaceId: workspace.id } });
+  if (!p) return;
+  const pending = parseAnswers(p.pendingAnswers);
+  const ids = q === "*" ? Object.keys(pending) : pending[q] ? [q] : [];
+  if (!ids.length) return;
+  const answers = parseAnswers(p.answers);
+  if (verdict === "accept") {
+    for (const k of ids) {
+      const edited = q === "*" ? "" : String(formData.get("text") ?? "").trim().slice(0, 4000);
+      answers[k] = edited || pending[k];
+    }
+  }
+  for (const k of ids) delete pending[k];
+  if (verdict === "accept") {
+    await db.smeProfileVersion.create({
+      data: {
+        profileId: p.id,
+        version: p.version,
+        data: JSON.stringify({ name: p.name, role: p.role, credentials: p.credentials, bio: p.bio, answers: p.answers, alwaysSay: p.alwaysSay, neverSay: p.neverSay, topics: p.topics }),
+        editedById: user.id,
+      },
+    });
+  }
+  await db.smeProfile.update({
+    where: { id: p.id },
+    data: { pendingAnswers: JSON.stringify(pending), ...(verdict === "accept" ? { answers: JSON.stringify(answers), version: p.version + 1 } : {}) },
+  });
+  await writeAudit({ workspaceId: workspace.id, actorId: user.id, action: verdict === "accept" ? "sme.pending_accepted" : "sme.pending_discarded", entityType: "sme_profile", entityId: p.id, meta: { questions: ids } });
   revalidatePath(`${PATH}/${id}`);
   revalidatePath(PATH);
 }
@@ -232,19 +296,21 @@ export async function seedSmeFromSourceAction(formData: FormData) {
     extracted = {};
   }
 
-  // Never overwrite what the expert wrote themselves.
-  const merged = { ...existing };
+  // ⚠ Drafted answers are NOT the expert's words (IDE-21): they wait as
+  // pending until the expert accepts them, and never cover an answer given
+  // or one already waiting.
+  const pending = parseAnswers(profile.pendingAnswers);
   let added = 0;
   for (const q of INTAKE_QUESTIONS) {
     const v = extracted[q.id];
-    if (!existing[q.id] && typeof v === "string" && v.trim().length > 20) {
-      merged[q.id] = v.trim().slice(0, 4000);
+    if (!existing[q.id] && !pending[q.id] && typeof v === "string" && v.trim().length > 20) {
+      pending[q.id] = v.trim().slice(0, 4000);
       added++;
     }
   }
   if (!added) return;
 
-  await db.smeProfile.update({ where: { id: profile.id }, data: { answers: JSON.stringify(merged) } });
+  await db.smeProfile.update({ where: { id: profile.id }, data: { pendingAnswers: JSON.stringify(pending) } });
   await writeAudit({
     workspaceId: workspace.id,
     action: "sme.seeded_from_source",

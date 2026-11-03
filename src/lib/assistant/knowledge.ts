@@ -120,7 +120,7 @@ A person outranks the checks. Any clearing act — answering or dismissing a que
 What runs by itself — Settings → Automation: full autonomy, global pause, autopilot status and Run cycle now, the weekly article target and publish day, SEO with every draft, the social auto-dials (queue on approval, evergreen, auto-image, auto-generate n a week with an optional campaign), and the function modes.
 When things go out — Settings → Schedule: posting slots and timezone, measured best time to post, link tagging, campaigns.
 Keys and connections — Settings → Connections: one row per thing the loop needs (AI keys, live search, images, video, voice, shorts, YouTube, channels, social accounts, mailbox, WordPress, analytics, storage), connected or not, each linking to the page that fixes it.
-Brand and voice — Brand: company info, the seven Motifs, the brand kit and image specs, the AI brand context, and the experts the writing quotes.
+Brand and voice — Brand: company info, the seven Motifs, the brand kit and image specs, the AI brand context, and the experts the writing quotes (real people, each linked to the Topics they speak on) apart from the audience personas it is written for.
 Video studio — a switch on the Settings overview: Scripts, Thumbnails, Videos and Production show under Drafts only when a YouTube channel exists and it is on; nothing is deleted by turning it off.`,
   },
   {

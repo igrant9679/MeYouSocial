@@ -143,40 +143,38 @@ type ProfileRow = {
   topics: string;
 };
 
-const WORD = /[a-z0-9]+/g;
-
-function tokens(s: string): Set<string> {
-  return new Set((s.toLowerCase().match(WORD) ?? []).filter((w) => w.length > 3));
-}
-
 /**
- * Pick the expert for a post: the explicit choice, else the best topic match,
- * else — when only one active expert exists — that one. No match returns null
- * rather than guessing, so a draft is never attributed to the wrong person.
+ * Pick the expert a post speaks as (E-IDE-14). In order:
+ *   1. the post's own choice — when it is an active EXPERT;
+ *   2. the experts linked to the post's Topic — one, or the best prepared of
+ *      several (most questions answered, then the longest-standing);
+ *   3. the workspace's only active expert, when that expert is linked to no
+ *      Topic at all (it speaks for everything).
+ * Otherwise null. ⚠ Personas never speak: a persona is who the content is
+ * FOR. And no word-matching any more — one shared word between a title and
+ * an expert's topic list used to be enough to "write as" them (IDE-21).
  */
 export async function selectSmeProfile(
   workspaceId: string,
-  post: { smeProfileId?: string | null; title?: string; focusKeyword?: string | null; audience?: string | null },
+  post: { smeProfileId?: string | null; topicId?: string | null; title?: string; focusKeyword?: string | null; audience?: string | null },
 ): Promise<ProfileRow | null> {
-  const profiles = await db.smeProfile.findMany({ where: { workspaceId, status: "active" } });
+  const profiles = await db.smeProfile.findMany({
+    where: { workspaceId, status: "active", kind: "expert" },
+    orderBy: { createdAt: "asc" },
+    include: { topicLinks: { select: { id: true } } },
+  });
   if (!profiles.length) return null;
   if (post.smeProfileId) {
     const chosen = profiles.find((p) => p.id === post.smeProfileId);
     if (chosen) return chosen;
   }
-
-  const haystack = tokens([post.title ?? "", post.focusKeyword ?? "", post.audience ?? ""].join(" "));
-  if (haystack.size) {
-    let best: { profile: ProfileRow; score: number } | null = null;
-    for (const p of profiles) {
-      const topicWords = tokens(parseTopics(p.topics).join(" "));
-      let score = 0;
-      for (const t of topicWords) if (haystack.has(t)) score++;
-      if (score > 0 && (!best || score > best.score)) best = { profile: p, score };
+  if (post.topicId) {
+    const onTopic = profiles.filter((p) => p.topicLinks.some((t) => t.id === post.topicId));
+    if (onTopic.length) {
+      return [...onTopic].sort((a, b) => completeness(parseAnswers(b.answers)).answered - completeness(parseAnswers(a.answers)).answered)[0];
     }
-    if (best) return best.profile;
   }
-  return profiles.length === 1 ? profiles[0] : null;
+  return profiles.length === 1 && profiles[0].topicLinks.length === 0 ? profiles[0] : null;
 }
 
 /** The grounding block. Long-form: everything the expert gave us. */

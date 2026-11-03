@@ -303,8 +303,9 @@ export default async function BlogPostPage({
   ]);
   // FR-3: the expert roster, plus who would be auto-matched if none is pinned.
   const [experts, matchedSme, topics] = await Promise.all([
+    // Only real experts can be spoken as — never an audience persona (E-IDE-14).
     db.smeProfile.findMany({
-      where: { workspaceId: workspace.id, status: "active" },
+      where: { workspaceId: workspace.id, status: "active", kind: "expert" },
       orderBy: { name: "asc" },
       select: { id: true, name: true, role: true },
     }),
@@ -1215,7 +1216,7 @@ export default async function BlogPostPage({
               Expert <span className="font-mono">{post.smeProfileId ? "" : matchedSme ? `(auto: ${matchedSme.name})` : "(none matched)"}</span>
             </span>
             <select name="smeProfileId" defaultValue={post.smeProfileId ?? ""} className="w-full text-xs" disabled={!editor}>
-              <option value="">auto-match by topic</option>
+              <option value="">the expert on this post&apos;s Topic</option>
               {experts.map((e) => <option key={e.id} value={e.id}>{e.name}{e.role ? ` — ${e.role}` : ""}</option>)}
             </select>
           </label>

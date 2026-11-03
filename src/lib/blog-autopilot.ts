@@ -21,7 +21,7 @@ import {
 import { buildSeoMeta, effectiveFieldMap, isSeoPlugin, verifySeoMeta } from "@/lib/seo-plugins";
 import { renderForPublish, stripLeadingH1 } from "@/lib/blog-render";
 import { isRenderProfile, parseRenderRules } from "@/lib/design-render";
-import { smePromptFor } from "@/lib/sme";
+import { selectSmeProfile, smeBlock, smePromptFor } from "@/lib/sme";
 import { loadEditorialContext } from "@/lib/blog-slop";
 import { notify } from "@/lib/notify";
 import { storage } from "@/lib/storage";
@@ -377,11 +377,12 @@ export async function generateDraftCore(workspaceId: string, postId: string, bri
   const voice = channel?.voiceProfiles[0];
   // FR-2: the motif blend (post selection, else the workspace default for this
   // tier/audience) is the tone engine — it replaced the old 4-option tone field.
-  const [motifs, guardrails, sme] = await Promise.all([
+  const [motifs, guardrails, speaker] = await Promise.all([
     motifPromptFor(workspaceId, post),
     brandContextBlock(workspaceId),
-    smePromptFor(workspaceId, post),
+    selectSmeProfile(workspaceId, post),
   ]);
+  const sme = speaker ? smeBlock(speaker) : null;
 
   const system = [
     "You are a senior content writer producing an SEO blog post draft as clean HTML (h2/h3, p, ul/li — no <html>/<body> wrapper).",
@@ -468,7 +469,10 @@ export async function generateDraftCore(workspaceId: string, postId: string, bri
       data: { postId: post.id, label: "before generation", body: post.body, actorId: brief.actorId ?? null },
     });
   }
-  await db.blogPost.update({ where: { id: post.id }, data: { body: res.content } });
+  // The expert the draft spoke as is recorded on it (E-IDE-14), so the
+  // expert's page can list the drafts that quoted them and a rewrite keeps
+  // the same voice.
+  await db.blogPost.update({ where: { id: post.id }, data: { body: res.content, ...(speaker && !post.smeProfileId ? { smeProfileId: speaker.id } : {}) } });
   // …and the draft itself, so a stale editor tab can never make it unrecoverable (ART-01).
   await db.blogPostVersion.create({ data: { postId: post.id, label: "AI draft", body: res.content, actorId: brief.actorId ?? null } });
   await db.blogCitation.deleteMany({ where: { postId: post.id, verified: false } });

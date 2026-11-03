@@ -194,6 +194,12 @@ export const HELP_CATEGORIES: FaqCategory[] = [
         tags: ["search console", "queries", "rank", "position", "keywords", "gsc", "seo", "performance"],
       },
       {
+        q: "What's the difference between an expert and a persona?",
+        a: "An **expert** is a real person whose knowledge a draft speaks in — their experience, opinions, credentials and what they never claim. A **persona** is an audience the content is written FOR, like \"Compliance officer\"; it never speaks in a draft. Under **Ideas → Experts**, each profile says which it is (a role rather than a person is a persona — open it and press **This is an audience persona**).\n\nA draft speaks as the expert picked on the article, else the expert linked to the article's **Topic** (tick the Topics on the expert's page), else — when there is only one expert and they're linked to no Topic — that expert. Nothing else: a title merely sharing a word with an expert no longer makes the draft speak as them. Each draft records who it spoke as, and the expert's page lists those drafts.\n\n**Draft answers from source** reads a page or pasted text and drafts answers, but they wait under **Waiting for …** until the expert accepts them (as written or corrected) — they are never used in a draft, or treated as the expert's own words, before then.",
+        links: [{ label: "Experts →", href: "/blog/experts" }],
+        tags: ["expert", "experts", "persona", "personas", "sme", "speaks as", "topic", "audience"],
+      },
+      {
         q: "The Ideas board is long — how do I get through it?",
         a: "Each column in a Topic's lane shows its first **20** cards; **Show 20 more** under it adds the next twenty (the address remembers it, so a reload or a shared link keeps the view). For a flat list, switch to **Table** beside the search: every idea as one row — title, format, Topic, state, score, when it was added — open work first, 50 to a page, with the same tick boxes, so the bulk bar (approve, reject, set a Topic, delete) works on a page at a time. Search, the Topic filter and the order apply to both views. On a card, **Topic** opens one picker for the board, and a social idea's **Edit** opens its own page.",
         links: [{ label: "Ideas →", href: "/ideas" }],

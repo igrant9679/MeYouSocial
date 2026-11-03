@@ -2005,3 +2005,19 @@ before changing code in that area.
   as Save edits, then `rewriteOne` narrows the scenario to that item, gives the batch's other captions as what not to
   echo (and a countdown its series context), keeps day, time, image and Include, and re-runs the whole batch's flags.
   A posted caption is refused; a mock or failed model changes nothing (as for a whole batch).
+
+## ⚠ Experts are real people linked to Topics; personas never speak; drafted answers wait (2026-11-03, audit Phase 5, growth part cd)
+- **Expert or persona** (E-IDE-14 / IDE-21): `SmeProfile.kind` — "expert" (a real person a draft speaks as) or
+  "persona" (an audience the content is FOR). ⚠ A persona never speaks: `selectSmeProfile` reads experts only, the
+  post editor offers experts only, and marking a profile a persona unlinks its Topics and frees the unpublished
+  drafts that spoke as it. Experts and personas are listed apart on Experts and on Brand.
+- ⚠ **No word matching**: a draft speaks as (1) the post's own pick, (2) the expert(s) linked to the post's Topic
+  (`topicLinks`, implicit m2m `_ExpertTopics`) — the best prepared (most answers, then the oldest) when several, (3)
+  the workspace's only expert when linked to no Topic. Otherwise nobody. One shared word between a title and an
+  expert's free "topics" list used to be enough to write as them; that list is kept for the record, shown as "no
+  longer used", and never matched. Someone answering in the Inbox becomes an expert linked to that post's Topic.
+- **The draft records its expert**: `generateDraftCore` sets `smeProfileId` to the expert it spoke as when the post had
+  none, so the expert's page lists "Drafts that speak as …" and a rewrite keeps the voice.
+- ⚠ **Drafted answers wait**: "Draft answers from source" writes `pendingAnswers`, never `answers` — never an answer
+  given or one already waiting. `smeBlock` reads `answers` only, so a pending answer never reaches a draft. "Waiting
+  for …" accepts (as written or corrected — a new profile version) or discards each, or all.

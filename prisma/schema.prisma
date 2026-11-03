@@ -557,13 +557,22 @@ model SmeProfile {
   answers     String   @default("{}")
   alwaysSay   String?  // house lines this expert always uses
   neverSay    String?  // hard "never claim this" rules — enforced in prompts
-  topics      String   @default("[]") // JSON array; used to auto-match a post to an expert
+  topics      String   @default("[]") // JSON array of free words — no longer used to match (E-IDE-14); kept for the record
   status      String   @default("active") // active | archived
+  // E-IDE-14: a real person whose expertise a draft speaks in ("expert"), or
+  // an audience persona the content is FOR ("persona") — a persona never
+  // speaks in a draft.
+  kind        String   @default("expert")
+  // Answers drafted from source material, waiting for the expert to accept —
+  // never their words until they do. JSON keyed like `answers`.
+  pendingAnswers String @default("{}")
   version     Int      @default(1)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   versions SmeProfileVersion[]
+  // The Topics this expert speaks on — how a draft finds its expert.
+  topicLinks Topic[] @relation("ExpertTopics")
 
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
@@ -2389,6 +2398,7 @@ model Topic {
   videoRenders  VideoRender[]
   projects      ContentProject[]
 
+  experts      SmeProfile[] @relation("ExpertTopics")
   @@unique([workspaceId, name])
   @@index([workspaceId, status])
 }

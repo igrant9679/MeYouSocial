@@ -34,7 +34,7 @@ export default async function BrandPage({ searchParams }: { searchParams: Promis
   const [kit, org, personas, activeTopics, archivedTopics, keywordCount, clusters, socials] = await Promise.all([
     db.brandKit.findUnique({ where: { workspaceId: workspace.id } }),
     db.orgProfile.findUnique({ where: { workspaceId: workspace.id } }),
-    db.smeProfile.findMany({ where: { workspaceId: workspace.id, status: "active" }, orderBy: { createdAt: "asc" }, take: 12 }),
+    db.smeProfile.findMany({ where: { workspaceId: workspace.id, status: "active" }, orderBy: { createdAt: "asc" }, take: 24, select: { id: true, name: true, role: true, kind: true } }),
     db.topic.count({ where: { workspaceId: workspace.id, status: "active" } }),
     db.topic.count({ where: { workspaceId: workspace.id, status: { not: "active" } } }),
     db.keyword.count({ where: { workspaceId: workspace.id } }),
@@ -174,27 +174,37 @@ export default async function BrandPage({ searchParams }: { searchParams: Promis
       </div>
 
       {/* ── Personas ────────────────────────────────────────────────────── */}
-      <SectionHead icon={<Users className="w-4 h-4" style={{ color: "var(--indigo-on)" }} />} title="Personas"
-        note="The experts this company's content speaks as — voice, credentials, and what they never claim." />
-      <div className="card mb-6">
+      {/* E-IDE-14: experts (who the content speaks as) and audience personas (who it's for) are different things. */}
+      <SectionHead icon={<Users className="w-4 h-4" style={{ color: "var(--indigo-on)" }} />} title="Experts and personas"
+        note="Experts are real people the content speaks as — their knowledge, credentials and what they never claim. Personas are the audiences it is written for." />
+      <div className="card mb-6" data-brand-people>
         {personas.length === 0 ? (
           <EmptyState
             variant="inline"
-            line="No active persona."
-            note="A persona gives drafts a credible, consistent voice — who the content speaks as, their credentials, and what they never claim."
-            action={editor ? { label: "Add a persona", href: "/blog/experts#add-expert" } : null}
+            line="No experts or personas yet."
+            note="An expert gives drafts a credible, consistent voice — who the content speaks as, their credentials, and what they never claim."
+            action={editor ? { label: "Add an expert", href: "/blog/experts#add-expert" } : null}
           />
         ) : (
-          <ul className="flex flex-wrap gap-2 mb-2">
-            {personas.map((p) => (
-              <li key={p.id} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-[var(--line-2)] text-xs">
-                <span className="font-semibold">{p.name}</span>
-                {p.role && <span className="text-[var(--mute)]">{p.role}</span>}
-              </li>
-            ))}
-          </ul>
+          (["expert", "persona"] as const).map((kind) => {
+            const group = personas.filter((p) => (p.kind === "persona" ? "persona" : "expert") === kind);
+            if (!group.length) return null;
+            return (
+              <div key={kind} className="mb-2" data-brand-group={kind}>
+                <span className="block text-[10px] font-mono uppercase tracking-wider text-[var(--mute)] mb-1">{kind === "expert" ? "Experts — speak in drafts" : "Audience personas — content is for them"}</span>
+                <ul className="flex flex-wrap gap-2 m-0 p-0 list-none">
+                  {group.map((p) => (
+                    <li key={p.id} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-[var(--line-2)] text-xs">
+                      <span className="font-semibold">{p.name}</span>
+                      {p.role && <span className="text-[var(--mute)]">{p.role}</span>}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            );
+          })
         )}
-        <Link href="/blog/experts" className="btn sm">Manage personas <ExternalLink className="w-3 h-3" /></Link>
+        <Link href="/blog/experts" className="btn sm">Manage experts and personas <ExternalLink className="w-3 h-3" /></Link>
       </div>
 
       {/* ── Keywords + social ───────────────────────────────────────────── */}

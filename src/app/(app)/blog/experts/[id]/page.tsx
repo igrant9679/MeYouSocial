@@ -6,9 +6,11 @@ import { db } from "@/lib/db";
 import { SubmitButton } from "@/components/SubmitButton";
 import {
   deleteSmeProfileAction,
+  resolvePendingAnswerAction,
   restoreSmeVersionAction,
   saveSmeProfileAction,
   seedSmeFromSourceAction,
+  setSmeKindAction,
   setSmeStatusAction,
 } from "@/app/actions/sme";
 import { INTAKE_QUESTIONS, completeness, parseAnswers, parseTopics } from "@/lib/sme";
@@ -25,9 +27,17 @@ export default async function SmeProfilePage({ params }: { params: Promise<{ id:
   const tz = await getPostingTimeZone(workspace.id).catch(() => "UTC");
   const profile = await db.smeProfile.findFirst({
     where: { id, workspaceId: workspace.id },
-    include: { versions: { orderBy: { version: "desc" }, take: 8 } },
+    include: { versions: { orderBy: { version: "desc" }, take: 8 }, topicLinks: { select: { id: true } } },
   });
   if (!profile) notFound();
+  // E-IDE-14: the Topics an expert can speak on, what waits for them, and the drafts that spoke as them.
+  const linked = new Set(profile.topicLinks.map((t) => t.id));
+  const [allTopics, spoke] = await Promise.all([
+    db.topic.findMany({ where: { workspaceId: workspace.id, OR: [{ status: "active" }, { id: { in: [...linked] } }] }, orderBy: [{ priority: "desc" }, { name: "asc" }], select: { id: true, name: true, status: true } }),
+    db.blogPost.findMany({ where: { workspaceId: workspace.id, smeProfileId: profile.id }, orderBy: { updatedAt: "desc" }, take: 30, select: { id: true, title: true, status: true, updatedAt: true } }),
+  ]);
+  const persona = profile.kind === "persona";
+  const pending = parseAnswers(profile.pendingAnswers);
 
   const editor = canEdit(membership.role);
   const admin = canAdmin(membership.role);
@@ -42,12 +52,28 @@ export default async function SmeProfilePage({ params }: { params: Promise<{ id:
       </Link>
       <div className="flex flex-wrap items-center gap-3 mb-5">
         <div className="min-w-40 flex-1">
-          <h1 className="font-mono font-bold text-2xl leading-tight">{profile.name}</h1>
+          <h1 className="font-mono font-bold text-2xl leading-tight flex items-center gap-2 flex-wrap">
+            {profile.name}
+            <span className="font-mono text-[10px] uppercase px-2 py-0.5 rounded-full" data-kind={profile.kind} style={persona ? { background: "var(--indigo-soft)", color: "var(--indigo-on)" } : { background: "var(--cyan-soft)", color: "var(--cyan-on)" }}>
+              {persona ? "audience persona" : "expert"}
+            </span>
+          </h1>
           <p className="text-xs text-[var(--mute)]">
-            {done.answered}/{done.total} questions answered · v{profile.version}
+            {persona
+              ? "Who the content is for — a persona never speaks in a draft."
+              : `${done.answered}/${done.total} questions answered · v${profile.version}`}
             {profile.status === "archived" ? " · archived" : ""}
           </p>
         </div>
+        {editor && (
+          <form action={setSmeKindAction}>
+            <input type="hidden" name="id" value={profile.id} />
+            <input type="hidden" name="kind" value={persona ? "expert" : "persona"} />
+            <SubmitButton className="btn" title={persona ? "A real person whose knowledge drafts can speak in" : "A role or audience the content is written for — it stops speaking in drafts"}>
+              {persona ? "This is a real person" : "This is an audience persona"}
+            </SubmitButton>
+          </form>
+        )}
         {editor && (
           <form action={setSmeStatusAction}>
             <input type="hidden" name="id" value={profile.id} />
@@ -75,12 +101,30 @@ export default async function SmeProfilePage({ params }: { params: Promise<{ id:
             <input name="role" defaultValue={profile.role ?? ""} className="w-full" disabled={!editor} />
           </label>
         </div>
-        <label className="text-sm">
-          <span className="block text-xs text-[var(--mute)] mb-1">
-            Topics they own <span className="font-mono">(comma-separated — used to match posts to this expert)</span>
-          </span>
-          <input name="topics" defaultValue={topics.join(", ")} placeholder="accessibility, wcag, section 508" className="w-full text-xs" disabled={!editor} />
-        </label>
+        {!persona && (
+          <fieldset className="text-sm" data-expert-topics>
+            <legend className="block text-xs text-[var(--mute)] mb-1">
+              Topics they speak on — a draft on one of these speaks as them. None ticked: they speak on every Topic while they are the only expert.
+            </legend>
+            {allTopics.length === 0 ? (
+              <p className="text-xs text-[var(--mute)] m-0">No Topics yet — add them under Ideas → Topics.</p>
+            ) : (
+              <div className="flex flex-wrap gap-x-3 gap-y-1">
+                {allTopics.map((t) => (
+                  <label key={t.id} className="inline-flex items-center gap-1 text-xs">
+                    <input type="checkbox" name="topicId" value={t.id} defaultChecked={linked.has(t.id)} disabled={!editor} />
+                    {t.name}{t.status !== "active" ? " (archived)" : ""}
+                  </label>
+                ))}
+              </div>
+            )}
+            {topics.length > 0 && (
+              <p className="text-[11px] text-[var(--mute)] mt-1 mb-0" data-old-topic-words>
+                The words this profile used to be matched by — no longer used: {topics.join(", ")}.
+              </p>
+            )}
+          </fieldset>
+        )}
         <label className="text-sm">
           <span className="block text-xs text-[var(--mute)] mb-1">Credentials</span>
           <input name="credentials" defaultValue={profile.credentials ?? ""} placeholder="only ones that genuinely exist — drafts may cite these" className="w-full text-xs" disabled={!editor} />
@@ -132,14 +176,72 @@ export default async function SmeProfilePage({ params }: { params: Promise<{ id:
         {editor && <div><SubmitButton className="btn primary">Save profile</SubmitButton></div>}
       </form>
 
+      {/* E-IDE-14: drafted answers wait for the expert. */}
+      {Object.keys(pending).length > 0 && (
+        <section className="card mt-5 flex flex-col gap-3" data-pending-answers>
+          <div className="flex items-center gap-2 flex-wrap">
+            <h2 className="text-sm font-semibold m-0">Waiting for {profile.name}</h2>
+            <span className="text-xs text-[var(--mute)] flex-1">Drafted from a source — not their words until they accept them. Drafts don&apos;t use these.</span>
+            {editor && (
+              <>
+                <form action={resolvePendingAnswerAction}>
+                  <input type="hidden" name="id" value={profile.id} />
+                  <input type="hidden" name="q" value="*" />
+                  <input type="hidden" name="verdict" value="accept" />
+                  <SubmitButton className="btn sm" pendingText="…">Accept all as drafted</SubmitButton>
+                </form>
+                <form action={resolvePendingAnswerAction}>
+                  <input type="hidden" name="id" value={profile.id} />
+                  <input type="hidden" name="q" value="*" />
+                  <input type="hidden" name="verdict" value="discard" />
+                  <SubmitButton className="btn sm" pendingText="…">Discard all</SubmitButton>
+                </form>
+              </>
+            )}
+          </div>
+          {INTAKE_QUESTIONS.filter((q) => pending[q.id]).map((q) => (
+            <form key={q.id} action={resolvePendingAnswerAction} className="flex flex-col gap-1.5 border-t border-[var(--line)] pt-2" data-pending={q.id}>
+              <input type="hidden" name="id" value={profile.id} />
+              <input type="hidden" name="q" value={q.id} />
+              <span className="text-xs font-semibold">{q.question}</span>
+              <textarea name="text" defaultValue={pending[q.id]} rows={3} className="w-full text-xs" disabled={!editor} />
+              {editor && (
+                <div className="flex gap-1.5">
+                  <SubmitButton className="btn sm primary" name="verdict" value="accept" pendingText="…">Accept as written above</SubmitButton>
+                  <SubmitButton className="btn sm" name="verdict" value="discard" pendingText="…">Discard</SubmitButton>
+                </div>
+              )}
+            </form>
+          ))}
+        </section>
+      )}
+
+      {!persona && (
+        <section className="card mt-5" data-expert-drafts>
+          <h2 className="text-sm font-semibold mb-1">Drafts that speak as {profile.name}</h2>
+          {spoke.length === 0 ? (
+            <p className="text-xs text-[var(--mute)] m-0">None yet — a draft records its expert when it is written.</p>
+          ) : (
+            <ul className="m-0 p-0 list-none flex flex-col gap-1 text-xs">
+              {spoke.map((b) => (
+                <li key={b.id} className="flex items-center gap-2 border-b border-[var(--line)] pb-1 last:border-0" data-expert-draft={b.id}>
+                  <Link href={`/blog/${b.id}`} className="flex-1 min-w-0 truncate underline">{b.title}</Link>
+                  <span className="font-mono text-[10px] text-[var(--mute)]">{b.status.replace(/_/g, " ")} · {formatZonedMoment(b.updatedAt, tz)}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
+
       {/* Seed from existing material (FR-3) */}
       {editor && (
         <form action={seedSmeFromSourceAction} className="card mt-5 flex flex-col gap-2">
           <h2 className="text-sm font-semibold">Seed from existing material</h2>
           <p className="text-xs text-[var(--mute)]">
-            Pull draft answers out of a services page, portfolio, or prior article. Only unanswered questions are
-            filled, nothing you wrote is overwritten, and extraction can only surface what the source actually says —
-            treat the result as a draft to correct, not a finished profile.
+            Pull draft answers out of a services page, portfolio, or prior article. They wait above for {profile.name} to
+            accept or correct — never their words until then, and never used in a draft. Only unanswered questions are
+            drafted, and extraction can only surface what the source actually says.
           </p>
           <input type="hidden" name="id" value={profile.id} />
           <input name="sourceUrl" type="url" placeholder="https://…" className="w-full font-mono text-xs" />

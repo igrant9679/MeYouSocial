@@ -378,6 +378,8 @@ export async function answerFindingCore(
         workspaceId,
         name: actor.name?.trim() || actor.email,
         topics: JSON.stringify(post.focusKeyword ? [post.focusKeyword] : []),
+        // The Topic they just answered on is one they speak on (E-IDE-14).
+        ...(post.topicId ? { topicLinks: { connect: [{ id: post.topicId }] } } : {}),
       },
       select: pick,
     });
