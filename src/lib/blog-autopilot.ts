@@ -1216,7 +1216,12 @@ async function persistRenderOutput(
  * storyboard (each counts against the daily cap), persists output to storage,
  * and generates the SRT from scene timings. Minutes-long — background only.
  */
-export async function processRenderCore(workspaceId: string, renderId: string): Promise<boolean> {
+export async function processRenderCore(
+  workspaceId: string,
+  renderId: string,
+  // E-VID-07: told after each finished scene — the background job's progress and heartbeat.
+  opts: { onScene?: (done: number, total: number) => Promise<void> } = {},
+): Promise<boolean> {
   if (await isGloballyPaused(workspaceId)) return false;
   const render = await db.videoRender.findFirst({ where: { id: renderId, workspaceId, status: "queued" } });
   if (!render) return false;
@@ -1255,6 +1260,10 @@ export async function processRenderCore(workspaceId: string, renderId: string): 
         // Cancelled (VID-09) — stop before paying for the next scene.
         const still = await db.videoRender.count({ where: { id: render.id, status: "rendering" } });
         if (!still) return false;
+        // Live status (E-VID-07): this scene is the one being paid for now. A
+        // board stopped here shows it "interrupted", and Retry renders it again.
+        scenes[i] = { ...scenes[i], status: "rendering", outputUrl: null };
+        await db.videoRender.updateMany({ where: { id: render.id, status: "rendering" }, data: { scenes: JSON.stringify(scenes) } });
         const out = await provider.render({
           prompt: scenes[i].prompt,
           seconds: scenes[i].seconds,
@@ -1265,6 +1274,7 @@ export async function processRenderCore(workspaceId: string, renderId: string): 
         if (i === 0) firstDurable = durable;
         scenes[i] = { ...scenes[i], outputUrl: durable ?? out.url, status: "done" };
         await db.videoRender.update({ where: { id: render.id }, data: { scenes: JSON.stringify(scenes) } });
+        await opts.onScene?.(scenes.filter((x) => x.status === "done" && x.outputUrl).length, scenes.length);
       }
       // Conditional: a board cancelled during its last scene stays cancelled.
       const finished = await db.videoRender.updateMany({
@@ -1360,6 +1370,13 @@ export async function assembleRenderCore(workspaceId: string, renderId: string):
   if (!render || render.status !== "done") return false;
   const scenes = parseScenes(render.scenes);
   if (scenes.filter((s) => s.outputUrl).length < 2) return false;
+  // The mock's clips are one public sample film, minutes long: stitching three
+  // copies cost a ~150 MB download each and minutes of ffmpeg per mock board,
+  // for a file nobody can use (E-VID-07). A real render assembles itself.
+  if (render.provider === "mock") {
+    await db.videoRender.update({ where: { id: render.id }, data: { assemblyStatus: "skipped", assemblyError: null } });
+    return false;
+  }
 
   await db.videoRender.update({
     where: { id: render.id },

@@ -1,13 +1,16 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { requireRole } from "@/lib/acl";
 import { db } from "@/lib/db";
-import { assembleRenderCore, packageVideoCore, processRenderCore } from "@/lib/blog-autopilot";
+import { assembleRenderCore, packageVideoCore } from "@/lib/blog-autopilot";
 import { estimateCostUsd } from "@/lib/video";
 import { parseScenes, scenesToNarration, scenesToSrt, snapSceneSeconds } from "@/lib/captions";
 import { getTtsProvider } from "@/lib/tts";
 import { isGloballyPaused, writeAudit } from "@/lib/governance";
+import { jobs } from "@/lib/jobs";
+import { registerVideoRenderJobs, VIDEO_RENDER_JOB } from "@/lib/jobs/video-render";
 
 /**
  * Phase 4 video actions. Packaging is cheap (one LLM call); rendering costs
@@ -42,11 +45,66 @@ export async function setRenderTopicAction(formData: FormData) {
   revalidatePath(`/videos/${render.id}`);
 }
 
+/**
+ * "Render now" (ADMIN — it spends provider money). Queued as a background job
+ * (E-VID-07) instead of holding the request open for minutes; the board's page
+ * refreshes while it renders scene by scene. One job per board at a time.
+ */
 export async function processRenderNowAction(formData: FormData) {
   const id = String(formData.get("id"));
-  const { workspace } = await requireRole("ADMIN");
-  await processRenderCore(workspace.id, id);
+  const back = String(formData.get("back") ?? "") === "list" ? "/videos" : `/videos/${id}`;
+  const { workspace, user } = await requireRole("ADMIN");
+  const render = await db.videoRender.findFirst({ where: { id, workspaceId: workspace.id }, select: { id: true, status: true } });
+  if (!render) return;
+  const go = (k: "flash" | "flashErr", m: string): never => redirect(`${back}?${k}=${encodeURIComponent(m)}`);
+  if (render.status !== "queued") go("flashErr", render.status === "rendering" ? "It's already rendering." : "Only a queued board can be rendered — Retry a stopped one first.");
+  if (await isGloballyPaused(workspace.id)) go("flashErr", "Automation is paused for this workspace, so nothing renders until it's resumed.");
+  registerVideoRenderJobs();
+  const last = await jobs.latestFor(VIDEO_RENDER_JOB, render.id);
+  if (last && (last.state === "queued" || last.state === "running")) go("flashErr", "A render of this board is already on its way.");
+  await jobs.enqueue(VIDEO_RENDER_JOB, { workspaceId: workspace.id, renderId: render.id }, { refId: render.id, workspaceId: workspace.id, maxAttempts: 1 });
+  await writeAudit({ workspaceId: workspace.id, actorId: user.id, action: "video.render_started", entityType: "video_render", entityId: render.id });
   revalidatePath("/videos");
+  go("flash", "Rendering in the background — this page updates as each scene finishes.");
+}
+
+/**
+ * Render one finished scene again (E-VID-07), keeping every other clip: the
+ * scene is reset and the board queued, so the next render — Render now or the
+ * engine's video step — pays for that scene only. The stitched cut is cleared;
+ * it would no longer match the clips.
+ */
+export async function rerenderSceneAction(formData: FormData) {
+  const id = String(formData.get("id"));
+  const index = Number(formData.get("index"));
+  const { workspace, user } = await requireRole("EDITOR");
+  const render = await db.videoRender.findFirst({ where: { id, workspaceId: workspace.id } });
+  if (!render || (render.status !== "done" && render.status !== "failed")) return;
+  const scenes = parseScenes(render.scenes);
+  const scene = Number.isInteger(index) ? scenes[index] : undefined;
+  const single = scenes.length <= 1;
+  if (!single && !(scene && scene.status === "done" && scene.outputUrl)) return;
+  if (!single) scenes[index] = { ...scene!, outputUrl: null, status: "planned" };
+  // Conditional on the status read, so it can't re-queue a board that started rendering meanwhile.
+  const r = await db.videoRender.updateMany({
+    where: { id: render.id, status: render.status },
+    data: {
+      status: "queued",
+      error: null,
+      ...(single ? { outputUrl: null, storedUrl: null } : { scenes: JSON.stringify(scenes) }),
+      assembledUrl: null,
+      assemblyStatus: null,
+      assemblyError: null,
+    },
+  });
+  if (r.count) {
+    await writeAudit({
+      workspaceId: workspace.id, actorId: user.id, action: "video.scene_rerender_queued",
+      entityType: "video_render", entityId: render.id, meta: { scene: single ? 1 : index + 1 },
+    });
+  }
+  revalidatePath("/videos");
+  redirect(`/videos/${render.id}?flash=${encodeURIComponent(r.count ? `Scene ${single ? 1 : index + 1} will render again; the other clips are kept. The board is queued.` : "The board changed meanwhile — nothing was queued.")}`);
 }
 
 /**

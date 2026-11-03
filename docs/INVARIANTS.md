@@ -1517,3 +1517,24 @@ before changing code in that area.
   effect as one string. (Found in the browser: a selection's state change wiped every mark.)
 - The comment form posts straight to `addBlogCommentAction` (works without JavaScript); its fields are uncontrolled so
   React's reset after a send clears them.
+
+## ⚠ Renders run in the background, show each scene as it goes, and re-render one scene (2026-11-02, audit Phase 5, growth part ay)
+- **Render now is a background job** (E-VID-07): `video.render` (`lib/jobs/video-render.ts`, registered in
+  `registerAllJobs`, labelled "Render a video board") — ADMIN, one per board at a time (`jobs.latestFor`), refused on a
+  board that isn't queued or when automation is paused, audited `video.render_started`. ⚠ **ONE attempt**
+  (`maxAttempts: 1`): a render spends money, and a failed board already keeps its clips for a person's Retry — an
+  automatic retry would pay again with nobody deciding. Each finished scene reports progress through
+  `processRenderCore(…, { onScene })`, which is also the job's heartbeat (15-minute stale claim).
+- **Live status is in the scenes JSON**: `processRenderCore` writes a scene `status: "rendering"` (conditional on the
+  board still rendering) BEFORE paying for it, and `done` with its clip after. `lib/video-progress.ts` reads it:
+  `sceneState` (done / rendering now / next / not rendered yet / interrupted — a "rendering" scene on a stopped
+  board) and `boardProgress` ("Rendering scene 2 of 3 · 1 of 3 clips done", "Stopped … Retry renders the 2 that
+  didn't finish"). The board page and the Videos list show it; both refresh themselves while a board or its job runs.
+- **Render this scene again** (`rerenderSceneAction`, EDITOR, done or stopped boards): resets one finished scene and
+  queues the board conditionally on the status read, so the next render pays for that scene only; the stitched cut
+  is cleared (it no longer matches). A single-clip board's "Render again" clears its output. Audited
+  `video.scene_rerender_queued`. Cancel, the stale-render sweep and the clip-keeping Retry already existed (VID-03/09).
+- **Mock clips are never stitched**: the mock's clip is one public sample film, minutes long — assembling a mock board
+  downloaded ~150 MB per scene and ran minutes of ffmpeg for nothing. `assembleRenderCore` marks it
+  `assemblyStatus: "skipped"` and the page says so. Assembly refuses a clip whose Content-Length would pass the 200 MB
+  limit BEFORE reading it into memory (a too-big narration is dropped, the cut kept).

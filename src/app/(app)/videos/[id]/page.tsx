@@ -15,11 +15,18 @@ import {
   generateSrtAction,
   generateVoiceoverAction,
   processRenderNowAction,
+  rerenderSceneAction,
   retryRenderAction,
   cancelRenderAction,
   updateSceneAction,
 } from "@/app/actions/videos";
 import { AiAssist } from "@/components/AiAssist";
+import { Banner } from "@/components/SocialPostCard";
+import { jobs } from "@/lib/jobs";
+import { VIDEO_RENDER_JOB } from "@/lib/jobs/video-render";
+import { boardProgress, SCENE_STATE_LABEL, sceneState, type SceneState } from "@/lib/video-progress";
+
+const SCENE_STATE_COLOR: Record<SceneState, string> = { done: "var(--green-on)", rendering: "var(--blue-on)", next: "var(--amber-on)", waiting: "var(--mute)", interrupted: "var(--rose-on)" };
 
 // The storyboard editor: scene-by-scene plan for one render. Scenes are
 // editable until rendering starts; after that the board becomes the record of
@@ -41,8 +48,14 @@ const SCENE_GRADIENTS = [
   "linear-gradient(135deg,#DB2777,#D97706)",
 ];
 
-export default async function StoryboardPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function StoryboardPage({
+  params, searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ flash?: string; flashErr?: string }>;
+}) {
   const { id } = await params;
+  const sp = await searchParams;
   const { workspace, membership } = await requireMembership();
   const render = await db.videoRender.findFirst({ where: { id, workspaceId: workspace.id } });
   if (!render) notFound();
@@ -55,6 +68,11 @@ export default async function StoryboardPage({ params }: { params: Promise<{ id:
   const post = render.blogPostId
     ? await db.blogPost.findUnique({ where: { id: render.blogPostId }, select: { id: true, title: true } })
     : null;
+  // E-VID-07: where the board is, scene by scene, and the background render's own end.
+  const progress = boardProgress(render.status, scenes);
+  const job = await jobs.latestFor(VIDEO_RENDER_JOB, render.id);
+  const jobActive = job?.state === "queued" || job?.state === "running";
+  const rerenderable = editor && (render.status === "done" || render.status === "failed");
 
   return (
     <main className="w-full">
@@ -77,9 +95,27 @@ export default async function StoryboardPage({ params }: { params: Promise<{ id:
           {render.status}
         </span>
       </div>
+      {sp.flash && <Banner kind="ok" text={sp.flash} />}
+      {sp.flashErr && <Banner kind="err" text={sp.flashErr} />}
+      {(progress.line || jobActive) && (
+        <p className="font-mono text-[11px] mb-2" style={{ color: `var(--${hue}-on)` }} data-render-progress>
+          {progress.line || "Starting…"}
+          {jobActive && render.status === "queued" ? " · Render now is starting it" : ""}
+          {progress.total > 1 && (render.status === "rendering" || render.status === "queued") && (
+            <span className="inline-block align-middle ml-2 w-28 h-1.5 rounded-full overflow-hidden" style={{ background: "var(--line)" }} aria-hidden>
+              <span className="block h-full" style={{ width: `${Math.round((progress.done / progress.total) * 100)}%`, background: `var(--${hue})` }} />
+            </span>
+          )}
+        </p>
+      )}
       {render.error && (
         <p className="text-xs mb-2 px-3 py-2 rounded-lg" style={{ background: "var(--rose-soft)", color: "var(--rose-on)" }}>
           {render.error}
+        </p>
+      )}
+      {job?.state === "failed" && job.error && render.status !== "done" && (
+        <p className="text-xs mb-2 px-3 py-2 rounded-lg" style={{ background: "var(--rose-soft)", color: "var(--rose-on)" }} data-render-job-failed>
+          The background render stopped: {job.error.slice(0, 300)}
         </p>
       )}
 
@@ -96,11 +132,11 @@ export default async function StoryboardPage({ params }: { params: Promise<{ id:
             <SubmitButton className="btn" pendingText="Cancelling…">Cancel render</SubmitButton>
           </form>
         )}
-        {(render.status === "queued" || render.status === "rendering") && <AutoRefresh />}
-        {render.status === "queued" && admin && (
+        {(render.status === "queued" || render.status === "rendering" || jobActive) && <AutoRefresh />}
+        {render.status === "queued" && admin && !jobActive && (
           <form action={processRenderNowAction}>
             <input type="hidden" name="id" value={render.id} />
-            <SubmitButton className="btn primary" pendingText="Rendering… (can take minutes)">
+            <SubmitButton className="btn primary" pendingText="Starting…" title="Renders in the background; this page follows it scene by scene">
               <Play className="w-4 h-4" /> Render now
             </SubmitButton>
           </form>
@@ -131,6 +167,15 @@ export default async function StoryboardPage({ params }: { params: Promise<{ id:
             </div>
             <div className="p-3 flex-1 flex flex-col gap-2">
               {editable ? (
+                <>
+                {/* A stopped or queued board is still editable — show where each scene is, and its clip. */}
+                <p className="font-mono text-[10px] text-[var(--mute)]" data-scene-state={sceneState(render.status, scene, i, scenes)}>
+                  <span style={{ color: SCENE_STATE_COLOR[sceneState(render.status, scene, i, scenes)] }}>{SCENE_STATE_LABEL[sceneState(render.status, scene, i, scenes)]}</span>
+                  {scene.status === "done" && scene.outputUrl ? " · a new prompt or length renders it again" : ""}
+                </p>
+                {scene.outputUrl && (
+                  <video src={scene.outputUrl} controls preload="none" className="w-full rounded-lg border border-[var(--line)]" />
+                )}
                 <form action={updateSceneAction} className="flex flex-col gap-2 flex-1">
                   <input type="hidden" name="id" value={render.id} />
                   <input type="hidden" name="index" value={i} />
@@ -147,13 +192,40 @@ export default async function StoryboardPage({ params }: { params: Promise<{ id:
                     <SubmitButton className="btn sm">Save</SubmitButton>
                   </div>
                 </form>
+                {rerenderable && scenes.length > 1 && scene.status === "done" && scene.outputUrl && (
+                  <form action={rerenderSceneAction}>
+                    <input type="hidden" name="id" value={render.id} />
+                    <input type="hidden" name="index" value={i} />
+                    <SubmitButton className="btn sm w-full" pendingText="Queuing…" title="Reset this scene and queue the board; the other clips are kept and not paid for again">
+                      <RotateCcw className="w-3 h-3" /> Render this scene again
+                    </SubmitButton>
+                  </form>
+                )}
+                </>
               ) : (
                 <>
                   <p className="text-[11px] leading-snug flex-1">{scene.prompt}</p>
                   {scene.text && <p className="text-[11px] font-semibold">“{scene.text}”</p>}
-                  <p className="font-mono text-[10px] text-[var(--mute)]">{scene.seconds}s · {scene.status}</p>
+                  {(() => {
+                    const st = sceneState(render.status, scene, i, scenes);
+                    return (
+                      <p className="font-mono text-[10px] text-[var(--mute)]" data-scene-state={st}>
+                        {scene.seconds}s ·{" "}
+                        <span style={{ color: SCENE_STATE_COLOR[st] }}>{SCENE_STATE_LABEL[st]}</span>
+                      </p>
+                    );
+                  })()}
                   {scene.outputUrl && (
                     <video src={scene.outputUrl} controls preload="none" className="w-full rounded-lg border border-[var(--line)]" />
+                  )}
+                  {rerenderable && scenes.length > 1 && scene.status === "done" && scene.outputUrl && (
+                    <form action={rerenderSceneAction}>
+                      <input type="hidden" name="id" value={render.id} />
+                      <input type="hidden" name="index" value={i} />
+                      <SubmitButton className="btn sm w-full" pendingText="Queuing…" title="Reset this scene and queue the board; the other clips are kept and not paid for again">
+                        <RotateCcw className="w-3 h-3" /> Render this scene again
+                      </SubmitButton>
+                    </form>
                   )}
                 </>
               )}
@@ -207,7 +279,9 @@ export default async function StoryboardPage({ params }: { params: Promise<{ id:
           ) : (
             <>
               <p className="text-xs text-[var(--mute)]">
-                {render.assemblyStatus === "unavailable"
+                {render.provider === "mock"
+                  ? "These are the mock provider's sample clips, so there's nothing to stitch — a real render (with a video key) assembles itself."
+                  : render.assemblyStatus === "unavailable"
                   ? "This deployment has no ffmpeg binary, so the clips can't be stitched here. Per-scene clips above are unaffected."
                   : render.assemblyStatus === "failed"
                     ? "Assembly failed — the render itself is fine and every scene above still plays."
@@ -222,7 +296,7 @@ export default async function StoryboardPage({ params }: { params: Promise<{ id:
               )}
               {/* Offered even after "unavailable": that status is a snapshot of
                   the deploy that tried, and a later one may well have ffmpeg. */}
-              {editor && renderedClips > 1 && (
+              {editor && renderedClips > 1 && render.provider !== "mock" && (
                 <div className="mt-2">
                   <form action={assembleRenderAction}>
                     <input type="hidden" name="id" value={render.id} />
@@ -249,6 +323,13 @@ export default async function StoryboardPage({ params }: { params: Promise<{ id:
                 ? "⚠ Provider URL only — Veo links expire in ~2 days and this one couldn't be persisted."
                 : "Mock sample output (no cost)."}
           </p>
+          {rerenderable && (
+            <form action={rerenderSceneAction} className="mt-2">
+              <input type="hidden" name="id" value={render.id} />
+              <input type="hidden" name="index" value={0} />
+              <SubmitButton className="btn sm" pendingText="Queuing…" title="Queue this clip to render again"><RotateCcw className="w-3 h-3" /> Render again</SubmitButton>
+            </form>
+          )}
         </div>
       )}
 

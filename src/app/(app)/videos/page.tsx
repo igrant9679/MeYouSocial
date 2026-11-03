@@ -12,6 +12,9 @@ import { brandedShortReadiness } from "@/lib/branded-video";
 import { HelpTip } from "@/components/HelpTip";
 import { VIDEO_TIPS } from "@/lib/help-tips";
 import { EmptyState } from "@/components/EmptyState";
+import { Banner } from "@/components/SocialPostCard";
+import { parseScenes } from "@/lib/captions";
+import { boardProgress } from "@/lib/video-progress";
 
 // Phase 4 — short-form video renders. Queue → render → play. Mock provider by
 // default; Veo activates via USE_MOCK_VIDEO=false + a Google key.
@@ -23,7 +26,8 @@ const STATUS_HUE: Record<string, string> = {
   failed: "rose",
 };
 
-export default async function VideosPage() {
+export default async function VideosPage({ searchParams }: { searchParams: Promise<{ flash?: string; flashErr?: string }> }) {
+  const sp = await searchParams;
   const { workspace, membership } = await requireMembership();
   const admin = canAdmin(membership.role);
   const editor = canEdit(membership.role);
@@ -173,6 +177,8 @@ export default async function VideosPage() {
       </div>
 
       {renders.some((r) => r.status === "queued" || r.status === "rendering") && <AutoRefresh />}
+      {sp.flash && <Banner kind="ok" text={sp.flash} />}
+      {sp.flashErr && <Banner kind="err" text={sp.flashErr} />}
       {renders.length === 0 ? (
         <EmptyState
           line="No videos have been rendered yet."
@@ -210,7 +216,8 @@ export default async function VideosPage() {
                 {admin && r.status === "queued" && (
                   <form action={processRenderNowAction}>
                     <input type="hidden" name="id" value={r.id} />
-                    <SubmitButton className="btn" pendingText="Rendering…"><Play className="w-3.5 h-3.5" /> Render now</SubmitButton>
+                    <input type="hidden" name="back" value="list" />
+                    <SubmitButton className="btn" pendingText="Starting…" title="Renders in the background"><Play className="w-3.5 h-3.5" /> Render now</SubmitButton>
                   </form>
                 )}
                 {admin && (
@@ -220,6 +227,10 @@ export default async function VideosPage() {
                   </form>
                 )}
               </div>
+              {(() => {
+                const line = boardProgress(r.status, parseScenes(r.scenes)).line;
+                return line ? <p className="font-mono text-[10px] mb-1" style={{ color: `var(--${STATUS_HUE[r.status] ?? "cyan"}-on)` }} data-render-progress>{line}</p> : null;
+              })()}
               {r.blogPostId && posts.get(r.blogPostId) && (
                 <p className="text-xs text-[var(--mute)] mb-1">
                   from <Link href={`/blog/${r.blogPostId}`} className="underline">{posts.get(r.blogPostId)}</Link>

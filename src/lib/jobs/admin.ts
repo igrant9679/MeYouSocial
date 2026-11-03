@@ -15,6 +15,7 @@ export const JOB_LABELS: Record<string, string> = {
   "onboarding.ideas": "Starter ideas for a channel",
   "onboarding.voice": "Train a channel's voice",
   "social.autoimage": "Make a social post's image",
+  "video.render": "Render a video board",
 };
 export const jobLabel = (name: string) => JOB_LABELS[name] ?? name;
 

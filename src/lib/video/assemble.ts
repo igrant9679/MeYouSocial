@@ -91,7 +91,10 @@ function run(bin: string, args: string[], timeoutMs = FFMPEG_TIMEOUT_MS): Promis
  * by session-gated routes, so they must be read through the storage layer —
  * fetching them would 401. Provider URLs (unpersisted Veo output) are fetched.
  */
-async function readSource(url: string): Promise<Buffer | null> {
+/** A clip whose declared size would pass what's left of the assembly limit — refused before it's downloaded. */
+class ClipTooBig extends Error {}
+
+async function readSource(url: string, maxBytes: number): Promise<Buffer | null> {
   try {
     if (url.startsWith("/uploads/")) {
       return await storage.get(decodeURIComponent(url.slice("/uploads/".length)));
@@ -103,8 +106,15 @@ async function readSource(url: string): Promise<Buffer | null> {
     // Public hosts only, every redirect re-checked (E-SEC-01) — a clip URL is never a door into the network.
     const res = await safeFetch(url, { signal: AbortSignal.timeout(120_000) });
     if (!res.ok) return null;
+    // The size it says it is, checked BEFORE reading it all into memory (E-VID-07).
+    const declared = Number(res.headers.get("content-length"));
+    if (Number.isFinite(declared) && declared > maxBytes) {
+      await res.body?.cancel().catch(() => {});
+      throw new ClipTooBig(`A clip is ${Math.round(declared / 1048576)} MB, which would pass the ${Math.round(MAX_TOTAL_INPUT_BYTES / 1048576)} MB assembly limit — it wasn't downloaded.`);
+    }
     return Buffer.from(await res.arrayBuffer());
-  } catch {
+  } catch (e) {
+    if (e instanceof ClipTooBig) throw e;
     return null;
   }
 }
@@ -154,7 +164,7 @@ export async function assembleScenes(
     const normalized: string[] = [];
     let totalIn = 0;
     for (let i = 0; i < clips.length; i++) {
-      const buf = await readSource(clips[i].outputUrl!);
+      const buf = await readSource(clips[i].outputUrl!, MAX_TOTAL_INPUT_BYTES - totalIn);
       if (!buf?.byteLength) {
         // Name the actual cause. A scene that never persisted keeps the bare
         // provider URI, which is not publicly readable and expires in ~2 days —
@@ -217,7 +227,8 @@ export async function assembleScenes(
     //    over a 6s board produced a 2s file.
     let withVoiceover = false;
     if (voiceoverUrl) {
-      const vo = await readSource(voiceoverUrl);
+      // Too big to be narration: leave the cut without it rather than fail it.
+      const vo = await readSource(voiceoverUrl, MAX_TOTAL_INPUT_BYTES).catch(() => null);
       if (vo && looksLikeAudio(vo)) {
         const voPath = path.join(dir, "voiceover.bin");
         const muxed = path.join(dir, "final.mp4");

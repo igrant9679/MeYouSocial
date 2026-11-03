@@ -911,7 +911,7 @@ model VideoRender {
   voiceoverUrl String?  // TTS output, when a TTS provider is configured
   // Assembly (ffmpeg): the storyboard's clips stitched into ONE file.
   assembledUrl    String? // stored single-file cut of the whole board
-  assemblyStatus  String? // null (never attempted) | assembling | done | failed | unavailable
+  assemblyStatus  String? // null (never attempted) | assembling | done | failed | unavailable | skipped (mock sample clips)
   assemblyError   String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
