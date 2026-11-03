@@ -187,21 +187,28 @@ export type EditorialContext = {
   smeName: string | null;
   neverSay: string | null;
   guardrails: string | null;
+  /** Review comments not yet resolved (E-ART-15); absent when the post had no id to count by. */
+  openComments?: number;
+  /** BrandKit.blockOnOpenComments: open comments hold final approval. */
+  blockOnOpenComments?: boolean;
 };
 
 /** Resolve the rules this post is answerable to. */
 export async function loadEditorialContext(
   workspaceId: string,
-  post: { smeProfileId?: string | null; title?: string; focusKeyword?: string | null; audience?: string | null },
+  post: { id?: string; smeProfileId?: string | null; title?: string; focusKeyword?: string | null; audience?: string | null },
 ): Promise<EditorialContext> {
-  const [sme, brand] = await Promise.all([
+  const [sme, brand, openComments] = await Promise.all([
     selectSmeProfile(workspaceId, post),
-    db.brandKit.findUnique({ where: { workspaceId }, select: { toneGuardrails: true } }),
+    db.brandKit.findUnique({ where: { workspaceId }, select: { toneGuardrails: true, blockOnOpenComments: true } }),
+    post.id ? db.blogComment.count({ where: { postId: post.id, resolved: false } }) : Promise.resolve(undefined),
   ]);
   return {
     smeName: sme?.name ?? null,
     neverSay: sme?.neverSay ?? null,
     guardrails: brand?.toneGuardrails ?? null,
+    openComments,
+    blockOnOpenComments: brand?.blockOnOpenComments ?? false,
   };
 }
 
@@ -272,6 +279,18 @@ export function editorialChecks(body: string, ctx: EditorialContext): CheckResul
     required: false,
     detail: ctx.smeName ?? "no expert matched — the draft speaks for nobody in particular",
   });
+
+  // E-ART-15: open review comments — a required check when the workspace says
+  // they hold final approval, otherwise shown only while there are some.
+  if (ctx.openComments !== undefined && (ctx.blockOnOpenComments || ctx.openComments > 0)) {
+    checks.push({
+      id: "open-comments",
+      label: "Review comments resolved",
+      pass: ctx.openComments === 0,
+      required: !!ctx.blockOnOpenComments,
+      detail: ctx.openComments === 0 ? "none open" : `${ctx.openComments} open${ctx.blockOnOpenComments ? " — they hold final approval" : ""}`,
+    });
+  }
 
   return checks;
 }

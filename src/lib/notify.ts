@@ -24,6 +24,8 @@ export const NOTIFICATION_KINDS = [
   "scheduled",
   "assigned",
   "comment",
+  // Someone @mentioned this person in a review comment (E-ART-15).
+  "mentioned",
   "account_broken",
   // An unattended AI generation failed and was refused (mock fallback /
   // provider down). The autopilot retries on its own, so this is chatty-tier.
@@ -49,6 +51,7 @@ export const KIND_LABELS: Record<NotificationKind, string> = {
   scheduled: "A post was scheduled",
   assigned: "I was assigned a review",
   comment: "A comment on something I'm on",
+  mentioned: "Someone @mentioned me in a comment",
   account_broken: "A connected account stopped working",
   generation_failed: "An AI generation failed and was refused",
   security: "A security change — roles, admins, keys, accounts (admins)",
@@ -66,6 +69,8 @@ const EMAIL_DEFAULT: Record<NotificationKind, boolean> = {
   scheduled: false,
   assigned: true,
   comment: false,
+  // Emailed by default: a mention is someone asking this person by name.
+  mentioned: true,
   // Emailed by default: this one is silent until a post fails, which is the
   // exact failure mode it exists to prevent.
   account_broken: true,

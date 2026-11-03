@@ -472,6 +472,8 @@ export type BrandKitView = {
   requireImagesToPublish: boolean;
   aiImagesEnabled: boolean;
   brandInBodyImages: boolean;
+  /** E-ART-15: open review comments hold final approval. */
+  blockOnOpenComments: boolean;
   /** false when no row exists yet — the page shows the defaults as placeholders. */
   configured: boolean;
 };
@@ -486,6 +488,7 @@ const BRAND_DEFAULTS = {
   requireImagesToPublish: true,
   aiImagesEnabled: false,
   brandInBodyImages: false,
+  blockOnOpenComments: false,
 };
 
 /** Never writes — an unconfigured workspace reads as sensible defaults. */
@@ -525,6 +528,7 @@ export async function getBrandKit(workspaceId: string): Promise<BrandKitView> {
     requireImagesToPublish: row.requireImagesToPublish,
     aiImagesEnabled: row.aiImagesEnabled,
     brandInBodyImages: row.brandInBodyImages,
+    blockOnOpenComments: row.blockOnOpenComments,
     configured: true,
   };
 }

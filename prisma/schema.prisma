@@ -414,6 +414,8 @@ model BrandKit {
   requireImagesToPublish Boolean @default(true)  // featured + OG required before publish
   aiImagesEnabled        Boolean @default(false) // AI generation, always human-reviewed
   brandInBodyImages      Boolean @default(false) // OG is always branded; opt in for the rest
+  // E-ART-15: open review comments hold final approval (a required check, not advisory)
+  blockOnOpenComments    Boolean @default(false)
   updatedAt      DateTime @updatedAt
 
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
@@ -814,6 +816,10 @@ model BlogComment {
   body      String
   anchor    String?  // the quoted passage or heading this refers to
   resolved  Boolean  @default(false)
+  // E-ART-15: who it @mentions (resolved at write, lib/comment-anchors.ts), and who resolved it.
+  mentionIds   String[]  @default([])
+  resolvedById String?
+  resolvedAt   DateTime?
   createdAt DateTime @default(now())
 
   post BlogPost @relation(fields: [postId], references: [id], onDelete: Cascade)

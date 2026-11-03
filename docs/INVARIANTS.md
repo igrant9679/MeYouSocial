@@ -1491,3 +1491,29 @@ before changing code in that area.
   scanner, refuses protected articles and an address already linked however it's written.
 - Website shows pages known, links between them and the pages nobody links to; the article's Optimize tab shows links
   in and out, both offer lists and the AI's suggestions in one "Internal links" card.
+
+## ⚠ Review comments quote the text, @mention people, and can hold final approval (2026-11-02, audit Phase 5, growth part ax)
+- **A comment quotes words, not an offset** (E-ART-15, FR-10 kept): the Review tab shows the article's text
+  (`stripExecutableHtml`); selecting words offers "Comment on this", which fills the quote field (still editable,
+  a typed heading still works). `lib/comment-anchors.ts` `anchorPresent` compares with whitespace collapsed, case
+  folded, entities decoded and each tag a word break; a quote no longer in the text says "no longer in the article"
+  and is never marked. Marks are DOM-only (`CommentAnchors.tsx`) — never saved, exported or sent to WordPress.
+- **@mentions are resolved at write** against the workspace's active members (`parseMentions`: at each "@" that starts
+  a word, the LONGEST full name or email local part; a tie mentions both) and stored on `BlogComment.mentionIds`
+  (migration `20261102050000_anchored_comments`). A name typed for someone outside the workspace reaches nobody.
+  Mentioned people get a `mentioned` notification (emailed by default) linked to `?tab=review#comment-<id>`; the
+  reviewer and author get the old `comment` notice unless they were mentioned or wrote it.
+- **Resolve records who and when** (`resolvedById`, `resolvedAt`, conditional on the state seen, audited
+  resolved/reopened). **Delete is the author's or an admin's**, not any editor's.
+- **Brand → Review policy: "Open review comments hold final approval"** (`BrandKit.blockOnOpenComments`, default
+  off). `loadEditorialContext` counts open comments for every caller, so `editorialChecks` adds "Review comments
+  resolved" — REQUIRED when the dial is on (the advance action, bulk Advance, the engine's `advanceIfReadyCore` and
+  the assistant's checks all read it), advisory and shown only while some are open when it's off. An admin's
+  "Advance anyway" still covers it, as it covers every check.
+- ⚠ **React 19 rewrites `innerHTML` whenever the `dangerouslySetInnerHTML` OBJECT changes**, not only its string.
+  Any DOM added after React set the HTML (the marks here) is wiped by the next re-render unless the object is
+  memoized on the string — and an `eslint-disable` of a react-hooks rule makes the React Compiler skip the whole
+  component, so nothing is memoized for you. `CommentableText` memoizes `{ __html }` and passes the anchors to its
+  effect as one string. (Found in the browser: a selection's state change wiped every mark.)
+- The comment form posts straight to `addBlogCommentAction` (works without JavaScript); its fields are uncontrolled so
+  React's reset after a send clears them.

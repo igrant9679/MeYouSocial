@@ -63,6 +63,8 @@ export async function saveBrandKitAction(formData: FormData) {
     requireImagesToPublish: formData.get("requireImagesToPublish") === "on",
     aiImagesEnabled: formData.get("aiImagesEnabled") === "on",
     brandInBodyImages: formData.get("brandInBodyImages") === "on",
+    // E-ART-15 review policy
+    blockOnOpenComments: formData.get("blockOnOpenComments") === "on",
   };
   await db.brandKit.upsert({
     where: { workspaceId: workspace.id },

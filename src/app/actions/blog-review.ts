@@ -5,6 +5,7 @@ import { requireRole } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/governance";
 import { notify } from "@/lib/notify";
+import { parseMentions } from "@/lib/comment-anchors";
 
 /**
  * FR-10 — reviewer assignment and inline comments.
@@ -53,58 +54,110 @@ export async function assignReviewerAction(formData: FormData) {
 
 export async function addBlogCommentAction(formData: FormData) {
   const postId = String(formData.get("postId"));
-  const body = String(formData.get("body") ?? "").trim();
+  const body = String(formData.get("body") ?? "").trim().slice(0, 4000);
   if (!body) return;
   const { user, workspace } = await requireRole("EDITOR");
   const post = await db.blogPost.findFirst({ where: { id: postId, workspaceId: workspace.id } });
   if (!post) return;
 
-  await db.blogComment.create({
+  // E-ART-15: @mentions are resolved now, against the people in this
+  // workspace, so a name typed later can't reach someone who wasn't here.
+  const members = await db.membership.findMany({
+    where: { workspaceId: workspace.id, status: "active" },
+    select: { userId: true, user: { select: { name: true, email: true } } },
+  });
+  const mentionIds = parseMentions(body, members.map((m) => ({ userId: m.userId, name: m.user.name, email: m.user.email })))
+    .filter((id) => id !== user.id);
+
+  const comment = await db.blogComment.create({
     data: {
       postId,
       authorId: user.id,
-      body: body.slice(0, 4000),
-      anchor: String(formData.get("anchor") ?? "").trim().slice(0, 300) || null,
+      body,
+      anchor: String(formData.get("anchor") ?? "").trim().replace(/\s+/g, " ").slice(0, 300) || null,
+      mentionIds,
     },
   });
+  const path = `/blog/${post.id}?tab=review#comment-${comment.id}`;
+  const author = user.name ?? user.email ?? "Someone";
+
+  if (mentionIds.length) {
+    await notify({
+      workspaceId: workspace.id,
+      kind: "mentioned",
+      title: `${author} mentioned you on "${post.title}"`,
+      body: body.slice(0, 300),
+      path,
+      entityType: "blog_post",
+      entityId: post.id,
+      userIds: mentionIds,
+    });
+  }
 
   // Tell the people actually on this post — the reviewer and the author — not
-  // the whole workspace.
+  // the whole workspace; anyone mentioned has already been told.
   const recipients = [post.reviewerId, post.createdById].filter(
-    (id): id is string => !!id && id !== user.id,
+    (id): id is string => !!id && id !== user.id && !mentionIds.includes(id),
   );
-  await notify({
+  if (recipients.length || !mentionIds.length) {
+    await notify({
+      workspaceId: workspace.id,
+      kind: "comment",
+      title: `New comment on "${post.title}"`,
+      body: body.slice(0, 300),
+      path,
+      entityType: "blog_post",
+      entityId: post.id,
+      userIds: recipients.length ? recipients : undefined,
+      excludeUserId: user.id,
+    });
+  }
+  await writeAudit({
     workspaceId: workspace.id,
-    kind: "comment",
-    title: `New comment on "${post.title}"`,
-    body: body.slice(0, 300),
-    path: `/blog/${post.id}`,
+    actorId: user.id,
+    action: "blog.comment_added",
     entityType: "blog_post",
     entityId: post.id,
-    userIds: recipients.length ? recipients : undefined,
-    excludeUserId: user.id,
+    meta: { commentId: comment.id, anchored: !!comment.anchor, mentions: mentionIds.length },
   });
   revalidatePath(`/blog/${postId}`);
 }
 
 export async function resolveBlogCommentAction(formData: FormData) {
   const id = String(formData.get("id"));
-  const { workspace } = await requireRole("EDITOR");
+  const { user, workspace } = await requireRole("EDITOR");
   const comment = await db.blogComment.findFirst({
     where: { id, post: { workspaceId: workspace.id } },
   });
   if (!comment) return;
-  await db.blogComment.update({ where: { id }, data: { resolved: !comment.resolved } });
+  const resolved = !comment.resolved;
+  // Conditional on the state this person saw, so two clicks don't undo each other.
+  const r = await db.blogComment.updateMany({
+    where: { id, resolved: comment.resolved },
+    data: resolved ? { resolved, resolvedById: user.id, resolvedAt: new Date() } : { resolved, resolvedById: null, resolvedAt: null },
+  });
+  if (r.count) {
+    await writeAudit({
+      workspaceId: workspace.id,
+      actorId: user.id,
+      action: resolved ? "blog.comment_resolved" : "blog.comment_reopened",
+      entityType: "blog_post",
+      entityId: comment.postId,
+      meta: { commentId: id },
+    });
+  }
   revalidatePath(`/blog/${comment.postId}`);
 }
 
+/** Its author, or an admin — someone else's note isn't an editor's to take back. */
 export async function deleteBlogCommentAction(formData: FormData) {
   const id = String(formData.get("id"));
-  const { workspace } = await requireRole("EDITOR");
+  const { user, workspace, membership } = await requireRole("EDITOR");
   const comment = await db.blogComment.findFirst({
     where: { id, post: { workspaceId: workspace.id } },
   });
   if (!comment) return;
+  if (comment.authorId !== user.id && membership.role !== "ADMIN") return;
   await db.blogComment.delete({ where: { id } });
   revalidatePath(`/blog/${comment.postId}`);
 }

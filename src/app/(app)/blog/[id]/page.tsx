@@ -31,7 +31,6 @@ import { loadEditorialContext } from "@/lib/blog-slop";
 import { renderForPublish } from "@/lib/blog-render";
 import { PROFILE_LABELS, isRenderProfile, parseRenderRules, reportSummary } from "@/lib/design-render";
 import {
-  addBlogCommentAction,
   assignReviewerAction,
   deleteBlogCommentAction,
   resolveBlogCommentAction,
@@ -70,6 +69,9 @@ import { FindingCards } from "@/components/FindingCards";
 import { getSearchProvider } from "@/lib/search";
 import { SubmitButton } from "@/components/SubmitButton";
 import { BlogBodyEditor } from "@/components/BlogBodyEditor";
+import { anchorPresent, mentionHandles, mentionSegments } from "@/lib/comment-anchors";
+import { stripExecutableHtml } from "@/lib/html-safety";
+import { AnchoredCommentForm, CommentableText } from "./CommentAnchors";
 import {
   addCitationAction,
   advanceBlogStatusAction,
@@ -273,6 +275,19 @@ export default async function BlogPostPage({
   const approvedImages = post.images.filter((i) => i.status === "approved");
   const previewImage = approvedImages.find((i) => i.role === "og") ?? approvedImages.find((i) => i.role === "featured") ?? null;
   const openComments = post.comments.filter((c) => !c.resolved).length;
+  // E-ART-15: the article's text to quote from (no scripts), the open comments'
+  // passages still in it, and who can be @mentioned.
+  const commentHtml = tab === "review" && post.body ? stripExecutableHtml(post.body) : null;
+  const commentMarks = post.comments.filter((c) => !c.resolved && c.anchor && anchorPresent(post.body, c.anchor)).map((c) => ({ id: c.id, text: c.anchor! }));
+  const mentionHandlesById = new Map(members.map((m) => [m.userId, mentionHandles({ userId: m.userId, name: m.user.name, email: m.user.email })]));
+  const mentionOptions = members
+    .filter((m) => m.userId !== membership.userId)
+    .map((m) => {
+      const handles = mentionHandlesById.get(m.userId) ?? [];
+      return { userId: m.userId, label: m.user.name ? `${m.user.name}${m.user.email ? ` · ${m.user.email}` : ""}` : (m.user.email ?? m.userId), insert: handles[0] ?? m.userId, handles };
+    })
+    .filter((m) => m.handles.length > 0);
+  const commentPolicy = { block: (await db.brandKit.findUnique({ where: { workspaceId: workspace.id }, select: { blockOnOpenComments: true } }))?.blockOnOpenComments ?? false };
 
   const [modelChoiceList, inheritedModel, postModelRuns] = await Promise.all([
     modelChoices(workspace.id),
@@ -942,27 +957,42 @@ export default async function BlogPostPage({
           )}
         </div>
 
+        {commentPolicy.block && (
+          <p className="text-[11px] mb-2" style={{ color: openComments ? "var(--amber-on)" : "var(--mute)" }} data-comments-hold>
+            Open comments hold final approval{openComments ? ` — ${openComments} to resolve first` : ""} ·{" "}
+            <Link href="/blog/brand" className="underline">Brand → Review policy</Link>
+          </p>
+        )}
         {post.comments.length === 0 ? (
           <p className="text-xs text-[var(--mute)] mb-2">
-            No comments. Quote the passage you mean in the anchor field so the note survives later edits.
+            No comments yet. Select words in the article below to quote them, or type the heading you mean; @name tells someone.
           </p>
         ) : (
-          <ul className="flex flex-col gap-2 mb-3">
-            {post.comments.map((c) => (
+          <ul className="flex flex-col gap-2 mb-3" data-comment-list>
+            {post.comments.map((c) => {
+              const present = anchorPresent(post.body, c.anchor);
+              const handles = c.mentionIds.flatMap((uid) => mentionHandlesById.get(uid) ?? []);
+              return (
               <li
                 key={c.id}
-                className="text-xs border-b border-[var(--line)] pb-2 last:border-0"
+                id={`comment-${c.id}`}
+                data-comment={c.resolved ? "resolved" : "open"}
+                className="text-xs border-b border-[var(--line)] pb-2 last:border-0 scroll-mt-24"
                 style={c.resolved ? { opacity: 0.6 } : undefined}
               >
                 {c.anchor && (
-                  <p className="border-l-2 pl-2 mb-1 text-[var(--mute)]" style={{ borderColor: "var(--line)" }}>
-                    “{c.anchor}”
+                  <p className="border-l-2 pl-2 mb-1 text-[var(--mute)]" style={{ borderColor: present ? "var(--amber)" : "var(--line)" }}>
+                    {present && !c.resolved && post.body ? <a href={`#anchor-${c.id}`} className="hover:underline" title="Show this passage in the article">“{c.anchor}”</a> : <>“{c.anchor}”</>}
+                    {!present && <span className="ml-1 font-mono text-[10px]" style={{ color: "var(--amber-on)" }} data-anchor-gone>· no longer in the article</span>}
                   </p>
                 )}
-                <p className="whitespace-pre-wrap">{c.body}</p>
+                <p className="whitespace-pre-wrap">
+                  {mentionSegments(c.body, handles).map((seg, i) => (seg.mention ? <b key={i} className="font-semibold" style={{ color: "var(--violet-on)" }} data-mention>{seg.text}</b> : <span key={i}>{seg.text}</span>))}
+                </p>
                 <div className="flex flex-wrap items-center gap-2 mt-1">
                   <span className="font-mono text-[10px] text-[var(--mute)]">
                     {commentAuthor(c.authorId)} · {formatZonedMoment(c.createdAt, tz)}
+                    {c.resolved && c.resolvedById ? <> · resolved by {commentAuthor(c.resolvedById)}{c.resolvedAt ? ` ${formatZonedMoment(c.resolvedAt, tz)}` : ""}</> : null}
                   </span>
                   {editor && (
                     <>
@@ -970,26 +1000,36 @@ export default async function BlogPostPage({
                         <input type="hidden" name="id" value={c.id} />
                         <button className="btn text-[11px]">{c.resolved ? "Reopen" : "Resolve"}</button>
                       </form>
-                      <form action={deleteBlogCommentAction}>
-                        <input type="hidden" name="id" value={c.id} />
-                        <button className="btn text-[11px]" title="Delete comment"><Trash2 className="w-3 h-3" /></button>
-                      </form>
+                      {(c.authorId === membership.userId || canAdmin(membership.role)) && (
+                        <form action={deleteBlogCommentAction}>
+                          <input type="hidden" name="id" value={c.id} />
+                          <button className="btn text-[11px]" title="Delete comment" aria-label="Delete comment"><Trash2 className="w-3 h-3" /></button>
+                        </form>
+                      )}
                     </>
                   )}
                 </div>
               </li>
-            ))}
+              );
+            })}
           </ul>
         )}
 
-        {editor && (
-          <form action={addBlogCommentAction} className="flex flex-col gap-2">
-            <input type="hidden" name="postId" value={post.id} />
-            <input name="anchor" placeholder="the passage or heading this is about (optional)" className="w-full text-xs" />
-            <textarea name="body" required rows={2} placeholder="Leave a note…" className="w-full text-xs" />
-            <div><SubmitButton className="btn">Comment</SubmitButton></div>
-          </form>
-        )}
+        {editor ? (
+          <AnchoredCommentForm
+            postId={post.id}
+            html={commentHtml}
+            anchors={commentMarks}
+            members={mentionOptions}
+          />
+        ) : commentHtml ? (
+          <details className="mt-2" data-comment-text>
+            <summary className="cursor-pointer select-none text-xs font-semibold mb-1">The article, with the passages comments are about</summary>
+            <div className="max-h-[28rem] overflow-y-auto border border-[var(--line)] rounded-lg px-3 py-2">
+              <CommentableText html={commentHtml} anchors={commentMarks} />
+            </div>
+          </details>
+        ) : null}
       </div>
 
       {/* Citations (truthfulness dossier) */}
