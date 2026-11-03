@@ -17,6 +17,8 @@ import { analyseBestTimes, MIN_POSTS, MIN_PER_BUCKET, OUTPERFORM, type BestTimeR
 import { addCategoryAction, createCampaignAction, removeCategoryAction, toggleCampaignAction } from "@/app/actions/social-workflow";
 import { listCategories } from "@/lib/social/categories";
 import { Banner } from "@/components/SocialPostCard";
+import { saveLinkInBioAction } from "@/app/actions/link-in-bio";
+import { LIB_ENABLED, LIB_SLUG } from "@/lib/link-in-bio";
 
 // Settings → Schedule: when things go out. The posting slots and timezone,
 // the measured best times, link tagging and campaigns (moved from Social →
@@ -29,6 +31,8 @@ export default async function SetupSchedule({ searchParams }: { searchParams: Pr
   const { workspace, membership } = await requireMembership();
   const { ok, err } = await searchParams;
   const isAdmin = canAdmin(membership.role);
+  const [bioEnabled, bioSlug] = await Promise.all([getSetting(LIB_ENABLED, workspace.id).catch(() => ""), getSetting(LIB_SLUG, workspace.id).catch(() => "")]);
+  const bio = { enabled: bioEnabled === "true", slug: bioSlug, suggested: workspace.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40) || "our-links" };
   const [campaigns, posts, utm, queue, bestTimes, publishDay, categories] = await Promise.all([
     db.campaign.findMany({ where: { workspaceId: workspace.id }, orderBy: [{ status: "asc" }, { name: "asc" }] }),
     db.socialPost.findMany({ where: { workspaceId: workspace.id }, select: { status: true, campaign: { select: { name: true } } }, take: 500 }),
@@ -106,6 +110,29 @@ export default async function SetupSchedule({ searchParams }: { searchParams: Pr
           <label className="text-[11px] text-[var(--mute)]">Campaign<input name="campaign" defaultValue={utm.campaign} placeholder="(optional)" className="w-36 text-xs block mt-0.5" /></label>
           <SubmitButton className="btn sm" pendingText="Saving…">Save</SubmitButton>
         </form>
+      </details>
+
+      {/* E-SOC-11: a public page of the links in recently sent posts, tagged utm_source=linkinbio. */}
+      <details className="card mb-6" id="link-in-bio" open={bio.enabled} data-link-in-bio-card>
+        <summary className="cursor-pointer text-sm font-semibold flex items-center gap-2">
+          <LinkIcon className="w-4 h-4" style={{ color: "var(--blue-on)" }} /> Link in bio
+          <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: bio.enabled ? "var(--green-soft)" : "var(--zebra)", color: bio.enabled ? "var(--green-on)" : "var(--mute)" }}>{bio.enabled ? "on" : "off"}</span>
+        </summary>
+        <p className="text-[11px] text-[var(--mute)] mt-2 mb-2 leading-relaxed">
+          One public page for the link a profile allows: the links in your recently sent posts, newest first, one per
+          destination, with an article&apos;s own title where the link is yours. Each is tagged <span className="font-mono">utm_source=linkinbio</span> so
+          its clicks are told apart. Only what was already posted appears; nothing needs signing in to see it.
+          {bio.enabled && bio.slug && <> Live at <a href={`/l/${bio.slug}`} className="underline font-mono" target="_blank" rel="noreferrer">/l/{bio.slug}</a>.</>}
+        </p>
+        {isAdmin ? (
+          <form action={saveLinkInBioAction} className="flex flex-wrap items-end gap-2">
+            <label className="inline-flex items-center gap-1.5 text-xs"><input type="checkbox" name="enabled" defaultChecked={bio.enabled} /> On</label>
+            <label className="text-[11px] text-[var(--mute)]">Address<span className="flex items-center gap-1 mt-0.5"><span className="font-mono text-xs">/l/</span><input name="slug" defaultValue={bio.slug} placeholder={bio.suggested} maxLength={40} className="w-44 text-xs font-mono border border-[var(--line-2)] rounded-lg px-2 py-1" /></span></label>
+            <SubmitButton className="btn sm" pendingText="Saving…">Save</SubmitButton>
+          </form>
+        ) : (
+          <p className="text-[11px] text-[var(--mute)] m-0">An admin turns it on and picks its address.</p>
+        )}
       </details>
 
       <details className="card mb-6">

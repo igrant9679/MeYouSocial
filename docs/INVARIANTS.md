@@ -1651,3 +1651,17 @@ before changing code in that area.
   saying until when); the `support:viewing` setting puts a line in the shell for every member while it lasts
   (nothing once its time has passed). The operator's own banner says nothing can be changed, with End
   (`endSupportViewAction`: cookie and record cleared, audited `membership.support_view_ended`).
+
+## ⚠ A link-in-bio page lists what was already posted, tagged as its own source (2026-11-03, audit Phase 5, growth part bg)
+- **`/l/<slug>`** (E-SOC-11, `lib/link-in-bio.ts`, `app/l/[slug]`): public, no sign-in, `noindex`. The first link of
+  each sent post (`posted` / `partial`, newest first), one per destination (`normalizeUrl` — www, trailing slash,
+  query and hash don't make a new one), at most 12; a published article's own title when the link is ours, else the
+  post's first sentence without links or #/@ marks. Drafts and unsent posts never appear — only what the networks
+  already showed.
+- ⚠ **Every link is re-tagged**: any `utm_*` removed, then `utm_source=linkinbio`, `utm_medium=social`,
+  `utm_campaign` = the post's campaign tag or `link_in_bio` — a click from the bio page credited to the network it
+  was first posted on would be the wrong story.
+- **Off until an admin turns it on** (Settings → Schedule → Link in bio, `saveLinkInBioAction`, ADMIN, audited
+  `social.link_in_bio_saved`): settings `linkinbio:enabled` / `linkinbio:slug`; the address is 3–40 lowercase
+  letters, digits or hyphens, unique across workspaces (refused, never suffixed). Off, or a deleted workspace, is a
+  404.
