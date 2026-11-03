@@ -26,6 +26,7 @@ import { storage } from "@/lib/storage";
 import { db } from "@/lib/db";
 import { Elsie } from "@/components/Elsie";
 import { MobileTabBar } from "@/components/MobileTabBar";
+import { CommandPalette, PaletteButton } from "@/components/CommandPalette";
 import { cookies } from "next/headers";
 import { setTabBarAction } from "@/app/actions/shell-prefs";
 import { setGuideEnabledAction } from "@/app/actions/guide";
@@ -336,6 +337,8 @@ html[data-theme="dark"] .ws-brand {
           </div>
           <div className="flex-1" />
           {/* Viewers too — theirs only looks things up (E-ENG-15). */}
+          {/* Ctrl+K: one box for pages, content and Help (E-SHL-06). */}
+          <PaletteButton />
           <AssistantDockButton phone={tabBar} />
           <AiActivity />
           <Elsie steps={elsieSteps} tracks={elsieTracks} enabled={guide.enabled} outstanding={elsieOutstanding} snoozed={guide.snoozed} resumeAt={guide.at} />
@@ -422,6 +425,7 @@ html[data-theme="dark"] .ws-brand {
             workspace's own conversation (ENG-18). */}
         <AssistantDock key={workspace.id} activeChannelId={active?.id ?? null} workspaceId={workspace.id} userId={user.id} readOnly={!editorUp} floatingButton={!tabBar} />
         {tabBar && <MobileTabBar counts={counts} />}
+        <CommandPalette />
       </div>
     </div>
   );

@@ -172,6 +172,18 @@ export function AssistantDock({ activeChannelId = null, workspaceId, userId, rea
     }
   }, [busy, threadId, pathname]);
 
+  // Ctrl+K's "Ask the assistant: …" (E-SHL-06): open the dock and send it.
+  useEffect(() => {
+    const onAsk = (e: Event) => {
+      const text = (e as CustomEvent<string>).detail;
+      if (typeof text !== "string" || !text.trim()) return;
+      setOpen(true);
+      void send(text);
+    };
+    window.addEventListener("assistant:ask", onAsk);
+    return () => window.removeEventListener("assistant:ask", onAsk);
+  }, [send]);
+
   // Stop (E-ENG-12): the running turn finishes the step it's on and starts no other.
   const stop = useCallback(async () => {
     const id = runningThread.current;

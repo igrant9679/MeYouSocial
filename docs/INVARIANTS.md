@@ -1830,3 +1830,18 @@ before changing code in that area.
   over from the old sixteen-item rail; the leftovers were removed, since only the rail reads `NAV_TIPS`.
 - `check-routes` and `check-guide-anchors` read `RAIL` itself now; both used to parse the layout's source text for
   `const NAV`, which would have silently checked nothing once it moved.
+
+## ⚠ Ctrl+K searches pages, content and Help from anywhere, and never offers a page you can't open (2026-11-03, audit Phase 5, growth part br)
+- **The box** (E-SHL-06, `components/CommandPalette.tsx`, mounted once in the app layout): Ctrl+K / ⌘K, the header's
+  Search button or a `palette:open` event. Results grouped by kind; ↑ ↓ move, Enter opens, Esc closes. The last row
+  always offers "Ask the assistant: …", which fires `assistant:ask` — the dock opens and sends it. Ctrl+/ stays the
+  assistant's. ⚠ The input autofocuses as it mounts (typing right after the shortcut used to be lost), and Enter acts
+  only on results for the text as typed now (`hitsFor`) — a stale or still-loading list used to send Enter to the ask
+  row.
+- **The search** (`lib/global-search.ts`, `GET /api/search`, any member): pages from `RAIL` and every stage tab
+  (studio and admin tabs per the person), filtered by `canFollow` — the rail's own gate — so an editor is never
+  offered Keys and a viewer never the Assistant; this workspace's articles, ideas of all three formats, social posts
+  and Topics (a few each, newest first, each linking to its own page); Help answers, each opening Help on its own
+  question. ⚠ Matching is by every meaningful word (`queryWords`: stop words dropped, at most five, accents and case
+  folded), anywhere in the text — "donor webinar" finds "our donor retention webinar", "how do I publish" finds the
+  Help answers and the Publish page. A word-start or whole-phrase match in the title ranks first.
