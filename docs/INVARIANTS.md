@@ -1556,3 +1556,26 @@ before changing code in that area.
   to the last day Search Console has reported**, not to now — it runs ~2 days behind, and pacing to now called every
   week "behind" on Wednesday. Counts the app records itself pace to now. No reading in the period is "not measured
   yet", never zero. Each channel card carries its goal's pace chip.
+
+## ⚠ Personal settings: say what happened, a zone to read in, an email change that's proven, and deleting yourself (2026-11-03, audit Phase 5, growth part ba)
+- **Every personal form says what happened** (E-SHL-09, `actions/profile.ts` → `/settings?ok=|error=…#section`,
+  messages in the page's ERRORS/OKS maps). Password change needs the new password twice; every password field has
+  Show/Hide (`components/PasswordInput.tsx`, a type="button" toggle).
+- **A personal time zone is for READING** (`User.timeZone`, `lib/display-zone.ts` `displayTimeZone`): notifications,
+  comment times, the audit log (and its CSV and day filter), the assistant's history and conversations, the job
+  queue. ⚠ **Never use it where a time is typed or scheduled** — posting slots, publish dates, calendars, the composer,
+  Measure's ranges stay in the posting zone so a time means the same moment to the whole team. No locale choice: the
+  app keeps one date style (E-SHL-16).
+- **Changing the sign-in email is proven by the new address**: password re-entered, the join-domain rule of every
+  member workspace applied (E-SEC-08), an address in use refused generically, rate-limited; a one-day token
+  (`VerificationToken` identifier `email:<userId>:<address>`, helpers in `lib/account.ts` — NOT exported from the
+  "use server" file, where any async export is browser-callable) mailed to the new address and a warning to the old.
+  `/verify/email/[token]` confirms with a button, signed out is fine; taken meanwhile → `/verify/email/taken`.
+  Audited `account.email_changed` in each workspace; admins get a security notice.
+- **Delete my account anonymises, never deletes the row** (`deleteMyAccountAction`): a script chat REQUIRES its
+  author and the audit log and authored work point at people. Name → "Deleted user", address →
+  `deleted-<id>@deleted.invalid`, password / two-factor / zone cleared, `User.deletedAt` set; memberships, sign-ins,
+  sessions, notifications, preferences and tokens deleted, its API tokens revoked. `getCurrentUser` returns null for a
+  deleted user, so every existing session ends at once. Refused for the platform operator and for the only admin of a
+  live workspace (`soleAdminOf` — hand it over first); needs the address typed and the password. Audited
+  `account.deleted`; admins get a security notice. Migration `20261103010000_personal_settings`.

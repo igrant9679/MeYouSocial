@@ -1,10 +1,14 @@
 import Link from "next/link";
-import { User, Mail, Lock, Palette, ShieldCheck, Building2, Plus } from "lucide-react";
+import { User, Mail, Lock, Palette, ShieldCheck, Building2, Plus, Clock, Trash2 } from "lucide-react";
 import { requireUser, isPlatformOperator } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { setThemeAction, getTheme, setContentSizeAction, getContentSize } from "@/app/actions/theme";
 import { CONTENT_SIZES, SIZE_LABELS } from "@/lib/ui-size";
-import { updateProfileAction, changePasswordAction } from "@/app/actions/profile";
+import { updateProfileAction, changePasswordAction, setTimeZoneAction, requestEmailChangeAction, cancelEmailChangeAction, deleteMyAccountAction } from "@/app/actions/profile";
+import { pendingEmailChange, soleAdminOf } from "@/lib/account";
+import { timeZoneChoices } from "@/lib/display-zone";
+import { PasswordInput } from "@/components/PasswordInput";
+import { formatZonedMoment } from "@/lib/zoned-dates";
 import { resendVerificationAction } from "@/app/actions/auth-flows";
 import { SubmitButton } from "@/components/SubmitButton";
 import { ValidatedInput } from "@/components/ValidatedInput";
@@ -16,9 +20,44 @@ import { formatDay } from "@/lib/zoned-dates";
 // User-level settings (distinct from /admin/settings which is workspace-level).
 // Linked from the avatar button in the left rail.
 
-export default async function UserSettingsPage({ searchParams }: { searchParams: Promise<{ error?: string; ok?: string }> }) {
+// What each ?error= / ?ok= from the profile actions means (E-SHL-09: every form says what happened).
+const ERRORS: Record<string, string> = {
+  name: "A display name needs at least one character (120 at most).",
+  wrongpass: "Current password doesn't match.",
+  invalid: "New password must be 8+ characters.",
+  mismatch: "The new password and its confirmation don't match.",
+  zone: "That isn't a time zone this server knows.",
+  "email-invalid": "That doesn't look like an email address.",
+  "email-same": "That's already your sign-in email.",
+  "email-operator": "The platform operator's address is set by the deployment, not here.",
+  "email-password": "Your password didn't match, so nothing was sent.",
+  "email-slow": "Too many requests — wait a few minutes and try again.",
+  "email-taken": "That address can't be used for this account.",
+  "delete-operator": "The platform operator's account can't be deleted from here.",
+  "delete-confirm": "Type your sign-in email exactly to confirm.",
+  "delete-password": "Your password didn't match, so nothing was deleted.",
+};
+const OKS: Record<string, string> = {
+  profile: "Saved.",
+  password: "Password updated.",
+  zone: "Time zone saved.",
+  "email-sent": "Check the new address's inbox — the change happens when you open the link there. Your current address was told too.",
+  "email-cancelled": "The email change was cancelled.",
+  "email-changed": "Your sign-in email is changed. Use the new address next time you sign in.",
+};
+
+export default async function UserSettingsPage({ searchParams }: { searchParams: Promise<{ error?: string; ok?: string; ws?: string }> }) {
   const user = await requireUser();
-  const { error, ok } = await searchParams;
+  const { error, ok, ws } = await searchParams;
+  const flash = (keys: string[]) => (
+    <>
+      {error && keys.includes(error) && <p className="text-sm mb-2 rounded-md px-3 py-2" style={{ background: "var(--rose-soft)", color: "var(--rose-on)" }} data-settings-error={error}>{ERRORS[error]}</p>}
+      {ok && keys.includes(ok) && <p className="text-sm mb-2 rounded-md px-3 py-2" style={{ background: "var(--green-soft)", color: "var(--green-on)" }} data-settings-ok={ok}>{OKS[ok]}</p>}
+    </>
+  );
+  const [pending, sole] = await Promise.all([pendingEmailChange(user.id), soleAdminOf(user.id)]);
+  const operator = isPlatformOperator(user.email);
+  const zones = timeZoneChoices();
   const [theme, size] = await Promise.all([getTheme(), getContentSize()]);
   const memberships = await db.membership.findMany({
     where: { userId: user.id, status: "active", workspace: { deletedAt: null } },
@@ -50,8 +89,9 @@ export default async function UserSettingsPage({ searchParams }: { searchParams:
       </div>
 
       {/* Profile */}
-      <section className="card mb-4">
+      <section className="card mb-4" id="profile">
         <h2 className="font-mono font-bold text-[14px] mb-3 flex items-center gap-2"><User className="w-4 h-4" style={{ color: "var(--accent-on)" }} /> Profile</h2>
+        {flash(["name", "profile"])}
         <form action={updateProfileAction} className="flex flex-col gap-3">
           <ValidatedInput
             label="Display name"
@@ -59,48 +99,74 @@ export default async function UserSettingsPage({ searchParams }: { searchParams:
             name="name" defaultValue={user.name ?? ""} required autoComplete="name"
             className="border border-[var(--line-2)] rounded-lg p-2 text-sm"
           />
-          <label className="flex flex-col gap-1">
-            <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">Email <span className="opacity-50">(read-only — contact admin to change)</span></span>
-            <input value={user.email} readOnly className="border border-[var(--line-2)] rounded-lg p-2 text-sm bg-[var(--zebra)] font-mono" />
-          </label>
           <div className="flex justify-end"><SubmitButton className="btn primary sm" pendingText="Saving…">Save profile</SubmitButton></div>
         </form>
       </section>
 
-      {/* Email verification */}
-      <section className="card mb-4">
-        <h2 className="font-mono font-bold text-[14px] mb-3 flex items-center gap-2"><Mail className="w-4 h-4" style={{ color: "var(--blue-on)" }} /> Email verification</h2>
-        {user.emailVerified ? (
-          <p className="text-sm text-[var(--green)] flex items-center gap-1.5"><ShieldCheck className="w-4 h-4" /> Verified on {formatDay(new Date(user.emailVerified))}.</p>
-        ) : (
-          <div className="flex items-center gap-3">
-            <p className="text-sm text-[var(--mute)] flex-1">Your email isn&apos;t verified yet.</p>
-            <form action={resendVerificationAction}><SubmitButton className="btn primary sm" pendingText="Sending…">Resend verification</SubmitButton></form>
+      {/* Sign-in email (E-SHL-09): verification, and a change the new address has to confirm. */}
+      <section className="card mb-4" id="email">
+        <h2 className="font-mono font-bold text-[14px] mb-3 flex items-center gap-2"><Mail className="w-4 h-4" style={{ color: "var(--blue-on)" }} /> Sign-in email</h2>
+        {flash(["email-invalid", "email-same", "email-operator", "email-password", "email-slow", "email-taken", "email-sent", "email-cancelled", "email-changed"])}
+        {error === "email-domain" && <p className="text-sm mb-2 rounded-md px-3 py-2" style={{ background: "var(--rose-soft)", color: "var(--rose-on)" }} data-settings-error="email-domain">{ws ?? "A workspace you're in"} only takes some email domains, so that address can&apos;t be used there.</p>}
+        <p className="text-sm mb-2"><span className="font-mono">{user.email}</span>{" "}
+          {user.emailVerified
+            ? <span className="text-[var(--green-on)] inline-flex items-center gap-1"><ShieldCheck className="w-3.5 h-3.5" /> verified {formatDay(new Date(user.emailVerified))}</span>
+            : <span className="text-[var(--mute)]">— not verified yet</span>}
+        </p>
+        {!user.emailVerified && (
+          <form action={resendVerificationAction} className="mb-3"><SubmitButton className="btn primary sm" pendingText="Sending…">Resend verification</SubmitButton></form>
+        )}
+        {pending ? (
+          <div className="flex items-center gap-2 flex-wrap text-xs rounded-lg px-3 py-2" style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }} data-email-pending>
+            <span className="flex-1 min-w-0">Waiting for <b className="font-mono">{pending.email}</b> to confirm — the link works until {formatZonedMoment(pending.expires, user.timeZone ?? "UTC")}.</span>
+            <form action={cancelEmailChangeAction}><SubmitButton className="btn sm" pendingText="Cancelling…">Cancel the change</SubmitButton></form>
           </div>
+        ) : operator ? (
+          <p className="text-xs text-[var(--mute)] m-0">The platform operator&apos;s address is set by the deployment.</p>
+        ) : (
+          <details data-email-change-form>
+            <summary className="cursor-pointer select-none text-xs font-semibold">Change your sign-in email</summary>
+            <form action={requestEmailChangeAction} className="flex flex-col gap-3 mt-2">
+              <label className="flex flex-col gap-1">
+                <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">New email</span>
+                <input name="email" type="email" required autoComplete="email" className="border border-[var(--line-2)] rounded-lg p-2 text-sm" />
+              </label>
+              {user.passwordHash && <PasswordInput label="Your password" name="password" autoComplete="current-password" />}
+              <p className="text-[11px] text-[var(--mute)] m-0">A link goes to the new address; nothing changes until it&apos;s opened. Your current address is told.</p>
+              <div className="flex justify-end"><SubmitButton className="btn primary sm" pendingText="Sending…">Send the confirmation link</SubmitButton></div>
+            </form>
+          </details>
         )}
       </section>
 
       {/* Change password */}
-      <section className="card mb-4">
+      <section className="card mb-4" id="password">
         <h2 className="font-mono font-bold text-[14px] mb-3 flex items-center gap-2"><Lock className="w-4 h-4" style={{ color: "var(--amber-on)" }} /> Change password</h2>
-        {error === "wrongpass" && <p className="text-sm text-[var(--brand)] mb-2">Current password doesn&apos;t match.</p>}
-        {error === "invalid"   && <p className="text-sm text-[var(--brand)] mb-2">New password must be 8+ characters.</p>}
-        {error === "nopass"    && <p className="text-sm text-[var(--brand)] mb-2">No password is set on this account. Use <Link href="/forgot" className="text-[var(--accent)] font-semibold">Forgot password</Link> instead.</p>}
-        {ok === "password"     && <p className="text-sm text-[var(--green)] bg-[var(--green-soft)] rounded-md px-3 py-2 mb-2">Password updated.</p>}
+        {flash(["wrongpass", "invalid", "mismatch", "password"])}
+        {error === "nopass" && <p className="text-sm text-[var(--brand)] mb-2">No password is set on this account. Use <Link href="/forgot" className="text-[var(--accent)] font-semibold">Forgot password</Link> instead.</p>}
         <form action={changePasswordAction} className="flex flex-col gap-3">
-          <ValidatedInput
-            label="Current password"
-            labelClassName="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]"
-            name="current" type="password" required autoComplete="current-password"
-            className="border border-[var(--line-2)] rounded-lg p-2 text-sm"
-          />
-          <ValidatedInput
-            label="New password (8+ chars)"
-            labelClassName="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]"
-            name="next" type="password" required minLength={8} autoComplete="new-password" errorMessage="Use at least 8 characters."
-            className="border border-[var(--line-2)] rounded-lg p-2 text-sm"
-          />
+          <PasswordInput label="Current password" name="current" autoComplete="current-password" />
+          <PasswordInput label="New password (8+ chars)" name="next" autoComplete="new-password" minLength={8} />
+          <PasswordInput label="New password again" name="confirm" autoComplete="new-password" minLength={8} />
           <div className="flex justify-end"><SubmitButton className="btn primary sm" pendingText="Updating…">Change password</SubmitButton></div>
+        </form>
+      </section>
+
+      {/* Time zone (E-SHL-09): the zone times are READ in — schedules keep the posting zone. */}
+      <section className="card mb-4" id="zone">
+        <h2 className="font-mono font-bold text-[14px] mb-2 flex items-center gap-2"><Clock className="w-4 h-4" style={{ color: "var(--indigo-on)" }} /> Time zone</h2>
+        {flash(["zone"])}
+        <p className="text-xs text-[var(--mute)] mb-3">
+          Times you read — notifications, comments, the audit log, the assistant&apos;s history, the job queue — show in this zone.
+          Anything you schedule or type a time into (posting slots, publish dates, the calendar, Measure&apos;s ranges) stays in each
+          workspace&apos;s posting zone, so a time means the same moment to everyone on the team.
+        </p>
+        <form action={setTimeZoneAction} className="flex items-center gap-2 flex-wrap">
+          <select name="timeZone" defaultValue={user.timeZone ?? ""} className="border border-[var(--line-2)] rounded-lg px-2 py-1.5 text-sm max-w-full" aria-label="Your time zone" data-zone-select>
+            <option value="">Each workspace&apos;s posting zone</option>
+            {zones.map((z) => <option key={z} value={z}>{z.replace(/_/g, " ")}</option>)}
+          </select>
+          <SubmitButton className="btn primary sm" pendingText="Saving…">Save</SubmitButton>
         </form>
       </section>
 
@@ -203,6 +269,35 @@ export default async function UserSettingsPage({ searchParams }: { searchParams:
             </Link>
           )}
         </div>
+      </section>
+
+      {/* Delete my account (E-SHL-09): personal data goes; authored work stays as "Deleted user". */}
+      <section className="card mb-4" id="delete" style={{ borderColor: "var(--rose)" }}>
+        <h2 className="font-mono font-bold text-[14px] mb-2 flex items-center gap-2"><Trash2 className="w-4 h-4" style={{ color: "var(--rose-on)" }} /> Delete my account</h2>
+        {flash(["delete-operator", "delete-confirm", "delete-password"])}
+        {error === "delete-sole" && <p className="text-sm mb-2 rounded-md px-3 py-2" style={{ background: "var(--rose-soft)", color: "var(--rose-on)" }} data-settings-error="delete-sole">You&apos;re the only admin of {ws}. Make someone else an admin there first (Settings → People), or delete the workspace.</p>}
+        <p className="text-xs text-[var(--mute)] mb-3">
+          Your name, address, password, two-factor, sign-ins, memberships, notifications and API tokens are removed, and you&apos;re
+          signed out everywhere. What you made — articles, posts, scripts, comments — stays with each workspace, credited to
+          &ldquo;Deleted user&rdquo;, and the audit log keeps its record. This can&apos;t be undone.
+        </p>
+        {operator ? (
+          <p className="text-xs text-[var(--mute)] m-0">The platform operator&apos;s account can&apos;t be deleted from here.</p>
+        ) : sole.length ? (
+          <p className="text-xs m-0" style={{ color: "var(--amber-on)" }} data-delete-blocked>You&apos;re the only admin of {sole.join(", ")} — hand that over first.</p>
+        ) : (
+          <details data-delete-form>
+            <summary className="cursor-pointer select-none text-xs font-semibold" style={{ color: "var(--rose-on)" }}>Delete my account…</summary>
+            <form action={deleteMyAccountAction} className="flex flex-col gap-3 mt-2">
+              <label className="flex flex-col gap-1">
+                <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">Type your sign-in email to confirm</span>
+                <input name="confirmEmail" required autoComplete="off" placeholder={user.email} className="border border-[var(--line-2)] rounded-lg p-2 text-sm font-mono" />
+              </label>
+              {user.passwordHash && <PasswordInput label="Your password" name="password" autoComplete="current-password" />}
+              <div className="flex justify-end"><SubmitButton className="btn sm !bg-[var(--rose)] !text-white" pendingText="Deleting…">Delete my account</SubmitButton></div>
+            </form>
+          </details>
+        )}
       </section>
     </div>
   );

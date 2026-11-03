@@ -33,6 +33,9 @@ export function securityTitle(action: string, entityId: string | null | undefine
     case "security.incident_declared": return `The platform operator declared a security incident: ${str(meta.note) ?? "no details given"}`;
     case "security.incident_ended": return "The platform operator ended the security incident";
     case "security.2fa_disabled": return `${who} turned off two-factor sign-in`;
+    // E-SHL-09: a sign-in address moved, or an account deleted itself — either can be a takeover's last step.
+    case "account.email_changed": return `${who} changed their sign-in email to ${str(meta.to) ?? "a new address"}`;
+    case "account.deleted": return `${who} deleted their account`;
     case "security.2fa_reset": return `The platform operator turned off two-factor sign-in for ${who}`;
     case "security.2fa_requirement_changed": return meta.required ? "Two-factor sign-in is now required for admins" : "Two-factor sign-in is no longer required for admins";
     case "integration.adopted":

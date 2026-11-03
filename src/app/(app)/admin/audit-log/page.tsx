@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ScrollText, Download } from "lucide-react";
 import { requireRole } from "@/lib/acl";
 import { db } from "@/lib/db";
-import { getPostingTimeZone } from "@/lib/social/slots";
+import { displayTimeZone } from "@/lib/display-zone";
 import { formatZonedMoment } from "@/lib/zoned-dates";
 import { actorNames, auditWhere, type AuditFilter } from "@/lib/audit-log";
 import { EmptyState } from "@/components/EmptyState";
@@ -19,7 +19,8 @@ const sel = "border border-[var(--line-2)] rounded-lg px-2 py-1.5 text-xs";
 export default async function AuditLogPage({ searchParams }: { searchParams: Promise<AuditFilter & { page?: string }> }) {
   const { workspace } = await requireRole("ADMIN");
   const sp = await searchParams;
-  const tz = await getPostingTimeZone(workspace.id).catch(() => "UTC");
+  // E-SHL-09: the reader's own zone when they chose one — this page only shows times.
+  const tz = await displayTimeZone(workspace.id);
   const page = Math.max(1, parseInt(sp.page ?? "1", 10) || 1);
   const where = auditWhere(workspace.id, sp, tz);
   const since90 = daysAgo(90);

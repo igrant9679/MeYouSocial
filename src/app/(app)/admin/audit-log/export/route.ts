@@ -1,6 +1,6 @@
 import { requireRole } from "@/lib/acl";
 import { db } from "@/lib/db";
-import { getPostingTimeZone } from "@/lib/social/slots";
+import { displayTimeZone } from "@/lib/display-zone";
 import { formatZonedMoment } from "@/lib/zoned-dates";
 import { actorNames, auditWhere, csvCell } from "@/lib/audit-log";
 
@@ -15,7 +15,8 @@ export async function GET(req: Request) {
   const { workspace } = await requireRole("ADMIN");
   const q = new URL(req.url).searchParams;
   const f = { who: q.get("who") ?? undefined, action: q.get("action") ?? undefined, entity: q.get("entity") ?? undefined, from: q.get("from") ?? undefined, to: q.get("to") ?? undefined };
-  const tz = await getPostingTimeZone(workspace.id).catch(() => "UTC");
+  // E-SHL-09: the reader's own zone when they chose one — this page only shows times.
+  const tz = await displayTimeZone(workspace.id);
   const rows = await db.auditLog.findMany({ where: auditWhere(workspace.id, f, tz), orderBy: { createdAt: "desc" }, take: MAX });
   const names = await actorNames(rows.map((r) => r.actorId ?? ""));
   const lines = [

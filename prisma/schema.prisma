@@ -1139,6 +1139,11 @@ model User {
   totpEnabledAt DateTime?
   totpLastStep  Int?
   totpRecovery  String?
+  // E-SHL-09: the zone this person reads times in (null = each workspace's
+  // posting zone), and "delete my account" — the row is kept, its personal
+  // data removed, so authored work and the audit log keep their references.
+  timeZone      String?
+  deletedAt     DateTime?
 
   memberships   Membership[]
   accounts      Account[]

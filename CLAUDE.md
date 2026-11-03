@@ -297,6 +297,7 @@ area, rather than loading all of them into every session.
 - Review comments quote the text, @mention people, and can hold final approval — 2026-11-02, audit Phase 5, growth part ax
 - Renders run in the background, show each scene as it goes, and re-render one scene — 2026-11-02, audit Phase 5, growth part ay
 - Measure opens on every channel at once, and goals say whether the period is on pace — 2026-11-03, audit Phase 5, growth part az
+- Personal settings: say what happened, a zone to read in, an email change that's proven, and deleting yourself — 2026-11-03, audit Phase 5, growth part ba
 
 ## Open items / things the user still owns
 - **Analytics: APIs enabled 2026-08-03** (Search Console + GA Admin + GA Data, on project

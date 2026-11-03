@@ -8,7 +8,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { AssistantComposer } from "@/components/AssistantComposer";
 import { TOOLS, REFUSED_INTENTS } from "@/lib/assistant/tools";
 import { formatZonedMoment } from "@/lib/zoned-dates";
-import { getPostingTimeZone } from "@/lib/social/slots";
+import { displayTimeZone } from "@/lib/display-zone";
 
 /**
  * ⚠ What you can ASK, in sentences — not the tool registry (audit B4/D5).
@@ -86,7 +86,8 @@ const ASK_GROUPS: Array<{ title: string; blurb: string; examples: Array<{ q: str
  */
 export default async function AssistantPage({ searchParams }: { searchParams: Promise<{ q?: string; tq?: string }> }) {
   const { workspace, user, membership, active } = await getActiveChannel();
-  const tz = await getPostingTimeZone(workspace.id).catch(() => "UTC");
+  // E-SHL-09: the reader's own zone when they chose one — this page only shows times.
+  const tz = await displayTimeZone(workspace.id);
   const examples = await examplesFor(workspace.id);
   // It acts — drafts, queues, publishes — so it is for editors and admins; a
   // viewer's messages used to fail with a parse error instead (ENG-17).

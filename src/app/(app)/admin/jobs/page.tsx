@@ -4,7 +4,7 @@ import { requireRole } from "@/lib/acl";
 import { SubmitButton } from "@/components/SubmitButton";
 import { retryJobAction, cancelJobAction } from "@/app/actions/jobs-admin";
 import { asJobFilter, jobsOverview, JOB_FILTERS } from "@/lib/jobs/admin";
-import { getPostingTimeZone } from "@/lib/social/slots";
+import { displayTimeZone } from "@/lib/display-zone";
 import { formatZonedMoment } from "@/lib/zoned-dates";
 
 // Settings → Jobs (E-ENG-17): this workspace's background queue. Admins only
@@ -25,7 +25,7 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
   const filter = asJobFilter((await searchParams).state);
   const [{ counts, rows }, tz] = await Promise.all([
     jobsOverview(workspace.id, filter),
-    getPostingTimeZone(workspace.id).catch(() => "UTC"),
+    displayTimeZone(workspace.id), // E-SHL-09: the reader's zone — times shown only
   ]);
   const count = (f: (typeof JOB_FILTERS)[number]) => (f === "attention" ? null : counts[f]);
 

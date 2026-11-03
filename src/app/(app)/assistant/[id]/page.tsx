@@ -8,7 +8,7 @@ import { readJson } from "@/lib/db/json";
 import { AssistantComposer } from "@/components/AssistantComposer";
 import { MarkdownMessage } from "@/components/MarkdownMessage";
 import { ConfirmCard } from "@/components/ConfirmCard";
-import { getPostingTimeZone } from "@/lib/social/slots";
+import { displayTimeZone } from "@/lib/display-zone";
 import { formatZonedMoment } from "@/lib/zoned-dates";
 import type { AssistantStep, PendingAction } from "@/lib/assistant/run";
 // A quick reply is just a message — the same action the composer uses.
@@ -35,7 +35,8 @@ export default async function AssistantThreadPage({ params }: { params: Promise<
   const quick = pending ? ["Yes, do it", "No"] : lastAsk?.options ?? [];
   // The Yes is bound to the proposal it answers (E-ENG-01).
   const lastConfirm = lastSteps.find((s): s is Extract<AssistantStep, { kind: "confirm" }> => s.kind === "confirm");
-  const tz = await getPostingTimeZone(workspace.id).catch(() => "UTC");
+  // E-SHL-09: the reader's own zone when they chose one — this page only shows times.
+  const tz = await displayTimeZone(workspace.id);
 
   return (
     <main className="p-6 w-full max-w-4xl">

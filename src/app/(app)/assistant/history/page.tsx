@@ -4,7 +4,7 @@ import { requireRole, canAdmin } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { actorNames } from "@/lib/audit-log";
 import { formatZonedMoment } from "@/lib/zoned-dates";
-import { getPostingTimeZone } from "@/lib/social/slots";
+import { displayTimeZone } from "@/lib/display-zone";
 
 // Assistant → Run history (E-ENG-10): every action the assistant took — what,
 // with which arguments, whether it worked, for whom, and the conversation it
@@ -26,7 +26,8 @@ export default async function AssistantHistoryPage({ searchParams }: { searchPar
   const { user, workspace, membership } = await requireRole("EDITOR");
   const admin = canAdmin(membership.role);
   const sp = await searchParams;
-  const tz = await getPostingTimeZone(workspace.id).catch(() => "UTC");
+  // E-SHL-09: the reader's own zone when they chose one — this page only shows times.
+  const tz = await displayTimeZone(workspace.id);
   const rows = await db.auditLog.findMany({
     where: { workspaceId: workspace.id, action: "assistant.tool_run", ...(admin ? {} : { actorId: user.id }) },
     orderBy: { createdAt: "desc" },

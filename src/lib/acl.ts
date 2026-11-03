@@ -28,6 +28,9 @@ export const getCurrentUser = cache(async () => {
     // from /admin/workspaces.
     include: { memberships: { where: { workspace: { deletedAt: null } }, include: { workspace: true } } },
   });
+  // A deleted account (E-SHL-09) is signed out everywhere at once: a session
+  // made before the delete still names the row, which is kept anonymised.
+  if (user?.deletedAt) return null;
   // Activity, refreshed at most hourly (E-SEC-18): sessions last for weeks, so
   // the sign-in stamp alone made everyone who stayed signed in look idle.
   if (user && (!user.lastActivityAt || Date.now() - user.lastActivityAt.getTime() > 3_600_000)) {

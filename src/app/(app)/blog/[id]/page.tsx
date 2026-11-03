@@ -71,6 +71,7 @@ import { SubmitButton } from "@/components/SubmitButton";
 import { BlogBodyEditor } from "@/components/BlogBodyEditor";
 import { anchorPresent, mentionHandles, mentionSegments } from "@/lib/comment-anchors";
 import { stripExecutableHtml } from "@/lib/html-safety";
+import { displayTimeZone } from "@/lib/display-zone";
 import { AnchoredCommentForm, CommentableText } from "./CommentAnchors";
 import {
   addCitationAction,
@@ -287,6 +288,8 @@ export default async function BlogPostPage({
       return { userId: m.userId, label: m.user.name ? `${m.user.name}${m.user.email ? ` · ${m.user.email}` : ""}` : (m.user.email ?? m.userId), insert: handles[0] ?? m.userId, handles };
     })
     .filter((m) => m.handles.length > 0);
+  // E-SHL-09: comment times in the reader's own zone (schedules on this page keep the posting zone).
+  const readTz = await displayTimeZone(workspace.id);
   const commentPolicy = { block: (await db.brandKit.findUnique({ where: { workspaceId: workspace.id }, select: { blockOnOpenComments: true } }))?.blockOnOpenComments ?? false };
 
   const [modelChoiceList, inheritedModel, postModelRuns] = await Promise.all([
@@ -991,8 +994,8 @@ export default async function BlogPostPage({
                 </p>
                 <div className="flex flex-wrap items-center gap-2 mt-1">
                   <span className="font-mono text-[10px] text-[var(--mute)]">
-                    {commentAuthor(c.authorId)} · {formatZonedMoment(c.createdAt, tz)}
-                    {c.resolved && c.resolvedById ? <> · resolved by {commentAuthor(c.resolvedById)}{c.resolvedAt ? ` ${formatZonedMoment(c.resolvedAt, tz)}` : ""}</> : null}
+                    {commentAuthor(c.authorId)} · {formatZonedMoment(c.createdAt, readTz)}
+                    {c.resolved && c.resolvedById ? <> · resolved by {commentAuthor(c.resolvedById)}{c.resolvedAt ? ` ${formatZonedMoment(c.resolvedAt, readTz)}` : ""}</> : null}
                   </span>
                   {editor && (
                     <>

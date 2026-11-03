@@ -1,5 +1,6 @@
 import { formatZonedMoment } from "@/lib/zoned-dates";
 import { getPostingTimeZone } from "@/lib/social/slots";
+import { isTimeZone } from "@/lib/display-zone";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Bell } from "lucide-react";
@@ -58,6 +59,8 @@ export default async function NotificationsPage({ searchParams }: { searchParams
   ]);
   if (q.page > list.pages) redirect(notificationsHref(q, { page: list.pages }));
   // Each item's time in its own workspace's posting zone — the zone its schedules are in.
+  // E-SHL-09: one zone for everything when the reader chose theirs; else each workspace's own.
+  const mine = user.timeZone && isTimeZone(user.timeZone) ? user.timeZone : null;
   const zones = new Map(
     await Promise.all([...new Set(list.items.map((i) => i.workspaceId))].map(async (id) => [id, await getPostingTimeZone(id).catch(() => "UTC")] as const)),
   );
@@ -176,7 +179,7 @@ export default async function NotificationsPage({ searchParams }: { searchParams
                   )}
                   {n.body && <p className="text-xs text-[var(--mute)] mt-0.5">{n.body}</p>}
                   <p className="font-mono text-[10px] text-[var(--mute)] mt-0.5">
-                    {formatZonedMoment(n.createdAt, zones.get(n.workspaceId) ?? "UTC")}
+                    {formatZonedMoment(n.createdAt, mine ?? zones.get(n.workspaceId) ?? "UTC")}
                     {n.emailedAt ? " · emailed" : ""}
                   </p>
                 </div>
