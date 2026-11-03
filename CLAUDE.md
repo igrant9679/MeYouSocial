@@ -181,6 +181,11 @@ but it means **bad output can look like real output**. Rules learned the hard wa
   `--<hue>-soft`, `--<hue>-on`; dark mode derives soft/on via `color-mix`, so **use the tokens, not
   raw hex**. ⚠ `.btn` / `.card` are **unlayered** and beat Tailwind utilities — a bare `hidden` on a
   `.btn` does nothing; use `!`-marked utilities.
+- **Type** (2026-11-03, the owner's call) — one face, **Plus Jakarta Sans** (`layout.tsx`, `--font-sans`).
+  ⚠ `font-mono` is the app's **display style** for headings, labels, chips and numbers, and is NOT a
+  monospace any more (`--font-mono` points at Jakarta). Real code gets IBM Plex Mono through
+  `--font-code`: `pre`, `code`, `kbd`, `samp`, `textarea.font-mono` and `.font-code` — use `.font-code` for
+  anything that must line up character by character.
 - **Shared UI** `SubmitButton`, `MobileNav`, `ChannelSwitcher`, `ValidatedInput`, `DeleteButton`
   (one registry in `src/lib/deletable.ts`, one action, 15 kinds — don't add bespoke delete actions).
 

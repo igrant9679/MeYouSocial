@@ -81,9 +81,15 @@
   --color-accent-soft: var(--accent-soft);
   --color-accent-strong: var(--accent-strong);
   /* next/font (root layout) exposes the optimized faces via these variables.
-     Reference them first; the named family + system stacks are fallbacks. */
-  --font-sans: var(--font-plex-sans), 'IBM Plex Sans', system-ui, sans-serif;
-  --font-mono: var(--font-plex-mono), 'IBM Plex Mono', ui-monospace, monospace;
+     Reference them first; the named family + system stacks are fallbacks.
+     ⚠ One face for the app (2026-11-03, the owner's call): Plus Jakarta Sans for
+     text, headings, labels and chips alike. `font-mono` is the app's display
+     style for headings, labels and numbers — it is NOT a monospace any more;
+     real code (pre, code, kbd, samp, code-editing textareas, .font-code) keeps
+     IBM Plex Mono through --font-code. */
+  --font-sans: var(--font-jakarta), 'Plus Jakarta Sans', system-ui, sans-serif;
+  --font-mono: var(--font-jakarta), 'Plus Jakarta Sans', system-ui, sans-serif;
+  --font-code: var(--font-plex-mono), 'IBM Plex Mono', ui-monospace, monospace;
 }
 
 /* Dark mode. Triggered by [data-theme="dark"] OR by prefers-color-scheme
@@ -149,8 +155,14 @@ html[data-theme="dark"] {
 
 html, body { height: 100%; }
 
+/* Large headings sit a little tighter, as display type does. In the base layer
+   so a heading's own tracking-* utility still wins. */
+@layer base {
+  h1, h2 { letter-spacing: -0.012em; }
+}
+
 body {
-  font-family: var(--font-plex-sans), 'IBM Plex Sans', system-ui, -apple-system, sans-serif;
+  font-family: var(--font-jakarta), 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
   color: var(--ink);
   background: #E7EAF0;
   background-image:
@@ -208,7 +220,10 @@ html[data-theme="dark"] .btn.primary { background-color: var(--accent) !importan
 }
 
 /* Reusable mockup-derived utility classes */
-.font-mono { font-family: var(--font-plex-mono), 'IBM Plex Mono', ui-monospace, monospace; }
+.font-mono { font-family: var(--font-mono); }
+/* Code stays monospace: listings, inline code, keys, and the textareas that
+   edit JSON or code (they carry font-mono for the old look). */
+pre, code, kbd, samp, textarea.font-mono, .font-code { font-family: var(--font-code); }
 .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; font-weight: 600; font-size: 13px; border-radius: 9px; padding: 8px 13px; border: 1px solid var(--line-2); background: #fff; cursor: pointer; color: var(--slate); transition: .15s; }
 .btn:disabled { opacity: .55; cursor: not-allowed; }
 .btn:hover { border-color: var(--accent); }
@@ -216,8 +231,8 @@ html[data-theme="dark"] .btn.primary { background-color: var(--accent) !importan
 .btn.primary:hover { filter: brightness(.95); }
 .btn.sm { padding: 5px 10px; font-size: 12px; }
 .card { background: #fff; border: 1px solid var(--line); border-radius: 13px; padding: 16px; }
-.tag { font-size: 11px; font-family: var(--font-plex-mono), 'IBM Plex Mono', monospace; padding: 2px 8px; border-radius: 6px; background: var(--accent-soft); color: var(--accent-on); font-weight: 600; }
-.pill { font-family: var(--font-plex-mono), 'IBM Plex Mono', monospace; font-size: 10.5px; font-weight: 700; padding: 3px 9px; border-radius: 999px; display: inline-flex; align-items: center; gap: 5px; }
+.tag { font-size: 11px; font-family: var(--font-sans); padding: 2px 8px; border-radius: 6px; background: var(--accent-soft); color: var(--accent-on); font-weight: 600; }
+.pill { font-family: var(--font-sans); font-size: 10.5px; font-weight: 700; padding: 3px 9px; border-radius: 999px; display: inline-flex; align-items: center; gap: 5px; }
 
 /* Interactive-card lift: hover raises 2px with shadow, press settles back.
    Apply to link/button cards only — static cards stay still. */

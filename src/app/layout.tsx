@@ -1,18 +1,21 @@
 import type { Metadata } from "next";
-import { IBM_Plex_Sans, IBM_Plex_Mono } from "next/font/google";
+import { Plus_Jakarta_Sans, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 import { getContentSize, getTheme } from "@/app/actions/theme";
 import { SIZE_ZOOM } from "@/lib/ui-size";
 import { PRODUCT, PRODUCT_TAGLINE } from "@/lib/product";
 
-const plexSans = IBM_Plex_Sans({
-  weight: ["400", "500", "600", "700"],
+// The app's one face (2026-11-03, the owner's call): a geometric sans for text,
+// headings, labels and numbers. Plex Mono is kept for code only — see the
+// font tokens at the top of globals.css.
+const jakarta = Plus_Jakarta_Sans({
+  weight: ["400", "500", "600", "700", "800"],
   subsets: ["latin"],
-  variable: "--font-plex-sans",
+  variable: "--font-jakarta",
 });
 
 const plexMono = IBM_Plex_Mono({
-  weight: ["400", "500", "600", "700"],
+  weight: ["400", "600"],
   subsets: ["latin"],
   variable: "--font-plex-mono",
 });
@@ -39,7 +42,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     <html
       lang="en"
       data-theme={theme}
-      className={`${plexSans.variable} ${plexMono.variable} h-full antialiased`}
+      className={`${jakarta.variable} ${plexMono.variable} h-full antialiased`}
     >
       {/* Content-size setting: zoom scales px-based utilities too, which a root
           font-size change would miss. 1 renders as no-op.
