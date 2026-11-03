@@ -10,6 +10,7 @@ import { db } from "@/lib/db";
 export const JOB_LABELS: Record<string, string> = {
   "agent.run": "Script agent run",
   "blog.finishdraft": "Finish an article draft",
+  "analytics.backfill": "Pull 16 months of analytics history",
   "brand.extractdoc": "Read a brand document",
   "onboarding.audience": "Build a channel's audience avatar",
   "onboarding.ideas": "Starter ideas for a channel",

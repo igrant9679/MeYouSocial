@@ -227,10 +227,13 @@ export async function draftIdeaCore(
       // finishes it with retries rather than leaving the post in "drafting".
       console.error(`[idea-drafting] finishing ${postId} failed, queued as a job:`, e instanceof Error ? e.message : e);
       const { jobs } = await import("@/lib/jobs");
+      (await import("@/lib/jobs/blog-draft")).registerBlogDraftJobs();
       await jobs.enqueue("blog.finishdraft", { workspaceId, postId }, { refId: postId, workspaceId });
     }
   } else {
     const { jobs } = await import("@/lib/jobs");
+    // Registered where it's enqueued (as the video render does): the enqueue runs it at once here.
+    (await import("@/lib/jobs/blog-draft")).registerBlogDraftJobs();
     await jobs.enqueue("blog.finishdraft", { workspaceId, postId }, { refId: postId, workspaceId });
   }
   return { ok: true, change: target ? "refresh" : "new", postId, finished };

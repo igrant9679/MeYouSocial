@@ -27,6 +27,83 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 /** GSC data lags ~2 days and is revised for a while after; re-pull a week. */
 const DEFAULT_LOOKBACK_DAYS = 10;
 
+/**
+ * The backfill (E-MEA-09): Search Console keeps 16 months, so a newly
+ * connected site can show its history instead of ten days. Pulled in windows
+ * of BACKFILL_WINDOW_DAYS, newest first, as a background job.
+ */
+export const BACKFILL_DAYS = 480;
+export const BACKFILL_WINDOW_DAYS = 60;
+export const BACKFILL_SETTING = "analytics:backfilled_at";
+
+/** The backfill's windows, newest first: [start, end] pairs covering BACKFILL_DAYS up to two days ago. */
+export function backfillWindows(now = new Date()): Array<{ start: Date; end: Date }> {
+  const out: Array<{ start: Date; end: Date }> = [];
+  const last = new Date(now.getTime() - 2 * DAY_MS);
+  const first = new Date(now.getTime() - BACKFILL_DAYS * DAY_MS);
+  let end = last;
+  while (end > first) {
+    const start = new Date(Math.max(first.getTime(), end.getTime() - (BACKFILL_WINDOW_DAYS - 1) * DAY_MS));
+    out.push({ start, end });
+    end = new Date(start.getTime() - DAY_MS);
+  }
+  return out;
+}
+
+/**
+ * Pull the history window by window, newest first, through the same sync the
+ * sweep runs (E-MEA-09). A window that fails is named and the rest still run;
+ * a window with no data isn't a failure. Records when it ran (BACKFILL_SETTING)
+ * when any window worked, and audits the totals either way.
+ */
+export async function runAnalyticsBackfill(
+  workspaceId: string,
+  hooks: { log?: (m: string) => void; progress?: (fraction: number) => Promise<void> | void } = {},
+  now = new Date(),
+): Promise<{ rows: number; windows: number; failed: string[] }> {
+  const windows = backfillWindows(now);
+  let rows = 0;
+  const failed: string[] = [];
+  for (let i = 0; i < windows.length; i++) {
+    const w = windows[i];
+    const span = `${ymd(w.start)} → ${ymd(w.end)}`;
+    try {
+      const out = await syncWorkspaceAnalytics(workspaceId, undefined, w);
+      rows += out.rowsWritten;
+      if (!out.ok && out.rowsWritten === 0 && !/returned no data/.test(out.message)) failed.push(`${span}: ${out.message.slice(0, 120)}`);
+      hooks.log?.(`${span}: ${out.rowsWritten} rows`);
+    } catch (e) {
+      failed.push(`${span}: ${e instanceof Error ? e.message.slice(0, 120) : String(e)}`);
+    }
+    await hooks.progress?.((i + 1) / windows.length);
+  }
+  const { setWorkspaceSetting } = await import("@/lib/settings");
+  const { writeAudit } = await import("@/lib/governance");
+  // Recorded only when some window worked: a run where every window failed
+  // (a dead key) mustn't stop the automatic one from trying again.
+  if (failed.length < windows.length) await setWorkspaceSetting(workspaceId, BACKFILL_SETTING, now.toISOString());
+  await writeAudit({ workspaceId, action: "analytics.backfilled", entityType: "workspace", entityId: workspaceId, meta: { rows, windows: windows.length, failed } });
+  return { rows, windows: windows.length, failed };
+}
+
+/**
+ * Queue the backfill (one at a time per workspace). `onlyIfNever`: the
+ * automatic one on first connect — a workspace that already has its history
+ * isn't pulled again.
+ */
+export async function queueAnalyticsBackfill(workspaceId: string, opts: { onlyIfNever?: boolean } = {}): Promise<"queued" | "running" | "done-before"> {
+  const { getSetting } = await import("@/lib/settings");
+  if (opts.onlyIfNever && (await getSetting(BACKFILL_SETTING, workspaceId))) return "done-before";
+  const refId = `analytics-backfill:${workspaceId}`;
+  if (await db.job.count({ where: { name: "analytics.backfill", refId, state: { in: ["queued", "running"] } } })) return "running";
+  // Registered here too: enqueue runs the job at once in THIS module graph,
+  // and the worker's own registration isn't there when AUTOPILOT is off.
+  const [{ jobs }, { registerAnalyticsJobs }] = await Promise.all([import("@/lib/jobs"), import("@/lib/jobs/analytics")]);
+  registerAnalyticsJobs();
+  await jobs.enqueue("analytics.backfill", { workspaceId }, { refId, workspaceId, maxAttempts: 1 });
+  return "queued";
+}
+
 export type SyncOutcome = {
   ok: boolean;
   message: string;
@@ -88,6 +165,8 @@ type DailyRow = { impressions?: number; clicks?: number; position?: number; sess
 export async function syncWorkspaceAnalytics(
   workspaceId: string,
   lookbackDays = DEFAULT_LOOKBACK_DAYS,
+  /** An explicit window in the past (the backfill, E-MEA-09); rows outside it are untouched. */
+  range?: { start: Date; end: Date },
 ): Promise<SyncOutcome> {
   const [gsc, ga4] = await Promise.all([getGscConfig(workspaceId), getGa4Config(workspaceId)]);
   const sources: string[] = [];
@@ -118,8 +197,8 @@ export async function syncWorkspaceAnalytics(
   }
 
   // GSC lags ~2 days; asking for today just returns nothing.
-  const endDate = ymd(new Date(Date.now() - 2 * DAY_MS));
-  const startDate = ymd(new Date(Date.now() - lookbackDays * DAY_MS));
+  const endDate = ymd(range ? range.end : new Date(Date.now() - 2 * DAY_MS));
+  const startDate = ymd(range ? range.start : new Date(Date.now() - lookbackDays * DAY_MS));
 
   // Accumulate per (postId, day) so both providers merge into one row.
   const fresh = new Map<string, DailyRow & { posWeight?: number }>();
@@ -210,8 +289,10 @@ export async function syncWorkspaceAnalytics(
     // succeeded replaces them — Search Console revises recent days. Manual
     // rows are protected by the source filter, as before.
     const windowStart = new Date(`${startDate}T00:00:00.000Z`);
+    // A past window (the backfill) ends where it ends — the days after it aren't this sync's to replace.
+    const windowEnd = range ? new Date(`${endDate}T23:59:59.999Z`) : undefined;
     const existing = await db.blogSnapshot.findMany({
-      where: { post: { workspaceId }, source: { in: ["gsc", "ga4", "sync"] }, capturedAt: { gte: windowStart } },
+      where: { post: { workspaceId }, source: { in: ["gsc", "ga4", "sync"] }, capturedAt: { gte: windowStart, ...(windowEnd ? { lte: windowEnd } : {}) } },
       select: { id: true, postId: true, capturedAt: true, clicks: true, impressions: true, position: true, sessions: true },
     });
     const merged = new Map<string, DailyRow>();

@@ -46,8 +46,10 @@ export async function saveGscAction(formData: FormData) {
   // E-MEA-11: verified access says nothing about WHICH site — compare it with ours.
   const { gscSiteWarning } = await import("@/lib/analytics/site-check");
   const warn = result.ok ? await gscSiteWarning(workspace.id, siteUrl).catch(() => null) : null;
+  // E-MEA-09: the first working connection pulls the site's history too.
+  const history = result.ok ? await queueBackfillQuietly(workspace.id) : "";
   revalidatePath("/admin/analytics");
-  back(warn ? `${result.message} ⚠ ${warn}` : result.message, result.ok && !warn);
+  back(`${warn ? `${result.message} ⚠ ${warn}` : result.message}${history}`, result.ok && !warn);
 }
 
 export async function clearGscAction() {
@@ -88,8 +90,9 @@ export async function saveGa4Action(formData: FormData) {
   // E-MEA-11: the property's web streams against this workspace's website.
   const { ga4StreamWarning } = await import("@/lib/analytics/site-check");
   const warn = result.ok ? await ga4StreamWarning(workspace.id).catch(() => null) : null;
+  const history = result.ok ? await queueBackfillQuietly(workspace.id) : "";
   revalidatePath("/admin/analytics");
-  back(warn ? `${result.message} ⚠ ${warn}` : result.message, result.ok && !warn);
+  back(`${warn ? `${result.message} ⚠ ${warn}` : result.message}${history}`, result.ok && !warn);
 }
 
 export async function clearGa4Action() {
@@ -128,6 +131,22 @@ export async function linkUnmatchedPageAction(formData: FormData) {
   await forgetUnmatched(workspace.id, urlKey(url)).catch(() => undefined);
   revalidatePath("/admin/analytics");
   back(`Linked ${url} to “${post.title}”. The next sync (or Sync now) attaches its numbers.`, true);
+}
+
+/** The automatic backfill on a first working connection; its words for the banner, or "" (E-MEA-09). */
+async function queueBackfillQuietly(workspaceId: string): Promise<string> {
+  const { queueAnalyticsBackfill } = await import("@/lib/analytics/sync");
+  const r = await queueAnalyticsBackfill(workspaceId, { onlyIfNever: true }).catch(() => null);
+  return r === "queued" ? " Pulling the last 16 months of history in the background." : "";
+}
+
+/** "Pull 16 months of history" — for a site connected before the backfill existed, or to fill gaps. */
+export async function backfillAnalyticsAction() {
+  const { workspace } = await requireRole("ADMIN");
+  const { queueAnalyticsBackfill } = await import("@/lib/analytics/sync");
+  const r = await queueAnalyticsBackfill(workspace.id);
+  revalidatePath("/admin/analytics");
+  back(r === "running" ? "The history is already being pulled — Settings → Jobs shows how far it is." : "Pulling the last 16 months in the background — Settings → Jobs shows how far it is; Insights fills in as it goes.", true);
 }
 
 export async function syncAnalyticsNowAction() {

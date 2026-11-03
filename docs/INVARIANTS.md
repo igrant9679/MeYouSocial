@@ -1858,3 +1858,20 @@ before changing code in that area.
 - **Uploads from the channel id** (E-IDE-10): `listVideos` derives the uploads playlist (`UC…` → `UU…`) instead of a
   `channels` call to look it up; only an id of another shape still asks. The per-workspace units on Usage and the
   24-hour channel-search cache were already in place (IDE-13).
+
+## ⚠ A connected site gets 16 months of search history, pulled in the background (2026-11-03, audit Phase 5, growth part bt)
+- **The backfill** (E-MEA-09, `lib/analytics/sync.ts` `runAnalyticsBackfill`, job `analytics.backfill`, single attempt):
+  `BACKFILL_DAYS` (480 — Search Console keeps 16 months) in `BACKFILL_WINDOW_DAYS` (60) windows, newest first, through
+  the same `syncWorkspaceAnalytics` the sweep runs — now with an explicit `range`, whose rows are replaced only INSIDE
+  the window (the days after a past window are not that run's to touch). A window that fails is named and the rest
+  still run; a window with no data isn't a failure.
+- **When**: the first working Search Console or GA4 connection queues it by itself (`queueAnalyticsBackfill`,
+  `onlyIfNever`), and Settings → Analytics has "Pull 16 months of history" for a site connected before this existed or
+  to fill gaps. One at a time per workspace (refId `analytics-backfill:<ws>`); the button greys while one runs and the
+  page says when the history was last pulled (`analytics:backfilled_at`). ⚠ That date is recorded only when some
+  window worked: a run where every window failed (a dead key) must not stop the automatic one from trying again.
+  Audited `analytics.backfilled` with the totals either way.
+- ⚠ **A job's handler is registered where it's enqueued** (`queueAnalyticsBackfill` → `registerAnalyticsJobs()`;
+  `lib/idea-drafting.ts` → `registerBlogDraftJobs()`, as `actions/videos.ts` does for renders): `jobs.enqueue` runs the
+  job at once in the enqueuing module graph, and a missing handler fails it for good ("No handler registered", not
+  retried). The worker's `registerAllJobs()` only runs when AUTOPILOT isn't off.

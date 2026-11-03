@@ -20,9 +20,11 @@ import {
   connectGoogleAnalyticsAction,
   disconnectGoogleAnalyticsAction,
   syncAnalyticsNowAction,
+  backfillAnalyticsAction,
   linkUnmatchedPageAction,
 } from "@/app/actions/analytics-connections";
-import { readSyncStatus, readUnmatched, SOURCE_LABEL } from "@/lib/analytics/sync";
+import { readSyncStatus, readUnmatched, SOURCE_LABEL, BACKFILL_SETTING } from "@/lib/analytics/sync";
+import { getSetting } from "@/lib/settings";
 import { formatZonedMoment, formatDay } from "@/lib/zoned-dates";
 import { getPostingTimeZone } from "@/lib/social/slots";
 
@@ -40,6 +42,11 @@ export default async function AnalyticsConnectionsPage({
   const isOperator = isPlatformOperator(user.email);
   const { ok, err } = await searchParams;
 
+  // E-MEA-09: when the 16 months of history were last pulled, and whether a pull is under way.
+  const [backfilledAt, backfillRunning] = await Promise.all([
+    getSetting(BACKFILL_SETTING, workspace.id).catch(() => ""),
+    db.job.count({ where: { name: "analytics.backfill", refId: `analytics-backfill:${workspace.id}`, state: { in: ["queued", "running"] } } }),
+  ]);
   const [gsc, ga4, yt, ytCfg, gaOauth, origin, rows, driveSa, syncStatus, unmatched, linkable] = await Promise.all([
     getGscConfig(workspace.id),
     getGa4Config(workspace.id),
@@ -322,6 +329,19 @@ export default async function AnalyticsConnectionsPage({
           <form action={syncAnalyticsNowAction}>
             <SubmitButton className="btn" pendingText="Syncing…"><RefreshCw className="w-3.5 h-3.5" /> Sync now</SubmitButton>
           </form>
+          <form action={backfillAnalyticsAction} data-backfill>
+            <SubmitButton className="btn" pendingText="Queueing…" disabled={backfillRunning > 0}
+              title="Search Console keeps 16 months; this pulls all of it into Insights, in the background">
+              {backfillRunning > 0 ? "Pulling history…" : "Pull 16 months of history"}
+            </SubmitButton>
+          </form>
+          <p className="basis-full m-0 text-[11px] text-[var(--mute)]" data-backfill-status>
+            {backfillRunning > 0
+              ? <>The history is being pulled now — <Link href="/admin/jobs" className="underline">Jobs</Link> shows how far it is.</>
+              : backfilledAt
+                ? <>The last 16 months were pulled {formatZonedMoment(new Date(backfilledAt), tz)}; the regular sync keeps the last ten days fresh.</>
+                : <>Only the last ten days have been synced so far. A first working connection pulls the history by itself; this does it for a site connected before then.</>}
+          </p>
           {/* The last run per source (MEA-06) — a failure used to reach only the server log. */}
           {(syncStatus.gsc || syncStatus.ga4) && (
             <ul className="basis-full m-0 p-0 list-none text-[11px] flex flex-col gap-0.5">
