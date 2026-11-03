@@ -460,7 +460,7 @@ export async function ReportBlock({ block, workspaceId, weeks, canAct = true }: 
                     <tr className="text-left text-[var(--mute)]">
                       <th className="py-1.5 px-2 font-mono text-[9px] uppercase tracking-wider border-b-2 border-[var(--line)]">Topic</th>
                       <th className="py-1.5 px-2 font-mono text-[9px] uppercase tracking-wider border-b-2 border-[var(--line)] text-right" title="Published / made · clicks">Articles</th>
-                      <th className="py-1.5 px-2 font-mono text-[9px] uppercase tracking-wider border-b-2 border-[var(--line)] text-right" title="Renders · views of channel videos matched by keyword">Video</th>
+                      <th className="py-1.5 px-2 font-mono text-[9px] uppercase tracking-wider border-b-2 border-[var(--line)] text-right" title="Renders · views of the Topic's linked uploads, plus videos matched by keyword (kw)">Video</th>
                       <th className="py-1.5 px-2 font-mono text-[9px] uppercase tracking-wider border-b-2 border-[var(--line)] text-right" title="Posted / made · engagement">Social</th>
                       <th className="py-1.5 px-2 font-mono text-[9px] uppercase tracking-wider border-b-2 border-[var(--line)] text-right">Ideas waiting</th>
                     </tr>
@@ -470,7 +470,7 @@ export async function ReportBlock({ block, workspaceId, weeks, canAct = true }: 
                       <tr key={r.id}>
                         <td className="py-1.5 px-2 border-b border-[var(--line)]"><Link href={`/ideas/topics/${r.id}`} className="hover:underline">{r.name}</Link></td>
                         <td className="py-1.5 px-2 border-b border-[var(--line)] text-right"><span className={num}>{r.articles.published}/{r.articles.made}</span> · {t(r.articles.clicks)}</td>
-                        <td className="py-1.5 px-2 border-b border-[var(--line)] text-right"><span className={num}>{r.video.renders}</span> · {t(r.video.views)}{r.video.views != null && <span className="text-[9px] text-[var(--mute)] ml-0.5">kw</span>}</td>
+                        <td className="py-1.5 px-2 border-b border-[var(--line)] text-right"><span className={num}>{r.video.renders}</span> · {t(r.video.views)}{r.video.views != null && r.video.matched > 0 && <span className="text-[9px] text-[var(--mute)] ml-0.5">kw</span>}</td>
                         <td className="py-1.5 px-2 border-b border-[var(--line)] text-right"><span className={num}>{r.social.posted}/{r.social.posts}</span> · {t(r.social.engagement)}</td>
                         <td className="py-1.5 px-2 border-b border-[var(--line)] text-right"><span className={num}>{r.ideasWaiting}</span></td>
                       </tr>
@@ -479,7 +479,7 @@ export async function ReportBlock({ block, workspaceId, weeks, canAct = true }: 
                 </table>
               </div>
               <p className="text-[10px] text-[var(--mute)] mt-2 mb-0">
-                A dash is not measured, never zero; <span className="font-mono">kw</span> = matched by keyword. Reasons and the full columns: <Link href="/measure/topics" className="underline">Measure → Topics</Link>.
+                A dash is not measured, never zero; <span className="font-mono">kw</span> = includes videos matched by keyword rather than linked to a project. Reasons and the full columns: <Link href="/measure/topics" className="underline">Measure → Topics</Link>.
               </p>
             </>
           )}

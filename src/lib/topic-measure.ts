@@ -12,10 +12,11 @@ import { matchTopic, prepareTopics } from "@/lib/topic-match";
  * Every cell is measured or a dash, and the page says which:
  *   articles — positions and clicks from BlogSnapshot rows joined to posts
  *              tagged with the Topic (Search Console, or entered by hand);
- *   video    — the YouTube audit's per-video numbers, MATCHED BY KEYWORD to
- *              the Topic because the app has no link from a render to the
- *              uploaded video. Labelled as a match wherever shown; never
- *              stored; a dash with a reason when YouTube isn't connected;
+ *   video    — the YouTube audit's per-video numbers: a project's own linked
+ *              upload counts for the project's Topic (E-MEA-17); a video no
+ *              project claims is MATCHED BY KEYWORD to a Topic's name, and
+ *              labelled as a match wherever shown; never stored; a dash with
+ *              a reason when YouTube isn't connected;
  *   social   — the latest engagement reading per sent target (lib/social/
  *              performance) summed over posts tagged with the Topic.
  * Counts (made, out, ideas waiting) come from lib/topics — facts, not
@@ -41,10 +42,12 @@ export type TopicMeasureRow = {
   };
   video: {
     renders: number;
-    /** Audit videos whose title matched this Topic by keyword. */
+    /** Audit videos linked to a project on this Topic — its own uploads. */
+    linked: number;
+    /** Audit videos no project claims whose title matched this Topic by keyword. */
     matched: number;
     views: number | null;
-    /** Mean average-view percentage over matched videos reporting one. */
+    /** Mean average-view percentage over linked and matched videos reporting one. */
     avgViewPct: number | null;
   };
   social: {
@@ -100,20 +103,29 @@ export async function topicMeasure(workspaceId: string, days: number | MetricsRa
   const sentTagged = await db.socialPostTarget.count({ where: { status: "posted", postedAt: within(range), post: { workspaceId, topicId: { in: ids } } } });
   if (sentTagged > 0 && readings.length === 0) notes.social = `${sentTagged} tagged post${sentTagged === 1 ? " was" : "s were"} sent in the ${range.label} but no engagement has been pulled back yet — check the Zernio connection under Settings → Connections.`;
 
-  // Video: audit videos matched to Topics by keyword.
+  // Video: a project's linked upload counts for the project's Topic; a video no
+  // project claims falls back to a keyword match on its title (E-MEA-17).
   const prepared = prepareTopics(await db.topic.findMany({ where: { id: { in: ids } }, select: { id: true, name: true, keywords: true } }));
-  const videoByTopic = new Map<string, { matched: number; views: number; pct: number[] }>();
+  const claimed = new Map(
+    (await db.contentProject.findMany({ where: { channel: { workspaceId }, youtubeVideoId: { not: null } }, select: { youtubeVideoId: true, topicId: true } }))
+      .map((p) => [p.youtubeVideoId!, p.topicId]),
+  );
+  const videoByTopic = new Map<string, { linked: number; matched: number; views: number; pct: number[] }>();
   if (audit.state === "ok") {
     for (const v of audit.audit.videos) {
-      const m = matchTopic(v.title, prepared);
-      if (!m) continue;
-      const cur = videoByTopic.get(m.id) ?? { matched: 0, views: 0, pct: [] };
-      cur.matched += 1;
+      // A claimed video is its project's, even when that project has no Topic
+      // here — it is never also matched to some other Topic by its title.
+      const own = claimed.has(v.id);
+      const topicId = own ? claimed.get(v.id) : matchTopic(v.title, prepared)?.id;
+      if (!topicId || !ids.includes(topicId)) continue;
+      const cur = videoByTopic.get(topicId) ?? { linked: 0, matched: 0, views: 0, pct: [] };
+      if (own) cur.linked += 1;
+      else cur.matched += 1;
       cur.views += v.views;
       if (v.avgViewPct != null) cur.pct.push(v.avgViewPct);
-      videoByTopic.set(m.id, cur);
+      videoByTopic.set(topicId, cur);
     }
-    if (audit.audit.videos.length > 0 && videoByTopic.size === 0) notes.video = "YouTube is connected, but none of its video titles matches a Topic's name or phrases by keyword — add phrases on Topics so titles match.";
+    if (audit.audit.videos.length > 0 && videoByTopic.size === 0) notes.video = "YouTube is connected, but no video is linked to a project on a Topic and none of their titles matches a Topic's name or phrases — link each project to its upload, or add phrases on Topics.";
   } else if (audit.state === "not_connected") {
     notes.video = "YouTube isn't connected, so no video views or retention can be shown — connect it under Settings → Analytics.";
   } else {
@@ -144,6 +156,7 @@ export async function topicMeasure(workspaceId: string, days: number | MetricsRa
       },
       video: {
         renders: t.made.scripts, // scripts + renders are counted together in the ledger; renders alone below
+        linked: vid?.linked ?? 0,
         matched: vid?.matched ?? 0,
         views: vid ? vid.views : null,
         avgViewPct: vid && vid.pct.length ? Math.round(vid.pct.reduce((a, b) => a + b, 0) / vid.pct.length) : null,

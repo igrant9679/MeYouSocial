@@ -1644,6 +1644,9 @@ model ContentProject {
   keywords       String   @default("[]")
   // Upload checklist (E-VID-04): JSON { step: { at, by } } — lib/upload-checklist.ts.
   uploadChecklist String  @default("{}")
+  // The project's own YouTube upload (E-MEA-17) — an 11-character video id,
+  // so a Topic's video numbers are this video's, not a keyword match.
+  youtubeVideoId  String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 

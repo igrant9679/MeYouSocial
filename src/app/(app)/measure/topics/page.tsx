@@ -99,7 +99,7 @@ export default async function MeasureTopicsPage({ searchParams }: { searchParams
                     <td data-label="Article position" className={`${td} text-right`}>{r.articles.position == null ? dash : <span className="font-mono tabular-nums" title={`over ${r.articles.positionN} article${r.articles.positionN === 1 ? "" : "s"}`}>{r.articles.position}</span>}</td>
                     <td data-label="Search clicks" className={`${td} text-right`}>{n(r.articles.clicks)}</td>
                     <td data-label="Renders" className={`${td} text-right font-mono tabular-nums`}>{r.video.renders}</td>
-                    <td data-label="YouTube views (90 days)" className={`${td} text-right`}>{r.video.views == null ? dash : <span className="font-mono tabular-nums" title={`${r.video.matched} video${r.video.matched === 1 ? "" : "s"} matched by keyword`}>{r.video.views.toLocaleString()}<span className="text-[9px] text-[var(--mute)] ml-1">kw</span></span>}</td>
+                    <td data-label="YouTube views (90 days)" className={`${td} text-right`}>{r.video.views == null ? dash : <span className="font-mono tabular-nums" data-video-basis={r.video.matched ? "kw" : "linked"} title={[r.video.linked ? `${r.video.linked} linked upload${r.video.linked === 1 ? "" : "s"}` : "", r.video.matched ? `${r.video.matched} matched by keyword` : ""].filter(Boolean).join(" + ")}>{r.video.views.toLocaleString()}{r.video.matched > 0 && <span className="text-[9px] text-[var(--mute)] ml-1">kw</span>}</span>}</td>
                     <td data-label="Retention" className={`${td} text-right`}>{n(r.video.avgViewPct, "%")}</td>
                     <td data-label="Social out / made" className={`${td} text-right font-mono tabular-nums`}>{r.social.posted} / {r.social.posts}</td>
                     <td data-label="Engagement" className={`${td} text-right`}>{r.social.engagement == null ? dash : <span className="font-mono tabular-nums" title={`${r.social.n} reading${r.social.n === 1 ? "" : "s"}`}>{r.social.engagement.toLocaleString()}</span>}</td>
@@ -111,7 +111,7 @@ export default async function MeasureTopicsPage({ searchParams }: { searchParams
             </table>
           </div>
           <div className="text-[10px] text-[var(--mute)] mt-3 flex flex-col gap-1">
-            <p className="m-0">A dash is not measured, never zero. <span className="font-mono">kw</span> = matched by keyword: the app has no link from a render to the uploaded video, so a Topic&apos;s YouTube numbers are its channel videos whose titles match the Topic&apos;s name or phrases.</p>
+            <p className="m-0">A dash is not measured, never zero. YouTube numbers are a project&apos;s own linked upload (link it on the project&apos;s page); <span className="font-mono">kw</span> marks a figure that also counts videos no project claims whose titles match the Topic&apos;s name or phrases.</p>
             {m.notes.articles && <p className="m-0">Articles: {m.notes.articles}</p>}
             {m.notes.video && <p className="m-0">Video: {m.notes.video}</p>}
             {m.notes.social && <p className="m-0">Social: {m.notes.social}</p>}

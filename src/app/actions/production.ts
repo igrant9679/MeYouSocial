@@ -37,6 +37,7 @@ export async function saveAutoTaskRulesAction(formData: FormData) {
 }
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requireRole } from "@/lib/acl";
 import { db } from "@/lib/db";
@@ -171,6 +172,43 @@ export async function setUploadStepAction(formData: FormData) {
   }
   revalidatePath(`/production/projects/${id}`);
   revalidatePath("/production");
+}
+
+/**
+ * Link the project to its YouTube upload (E-MEA-17): a pasted link or id,
+ * or one of the suggested uploads. One video belongs to one project. Linking
+ * ticks "Uploaded" if nobody has — the video being on YouTube is the proof.
+ */
+export async function linkYoutubeVideoAction(formData: FormData) {
+  const id = String(formData.get("id"));
+  const { workspace, user } = await requireRole("EDITOR");
+  const back = (key: "ok" | "err", msg: string): never => redirect(`/production/projects/${id}?${key}=${encodeURIComponent(msg)}#youtube`);
+  const { youtubeVideoIdFrom } = await import("@/lib/youtube/video-link");
+  const videoId = youtubeVideoIdFrom(String(formData.get("video") ?? ""));
+  if (!videoId) back("err", "That isn't a YouTube video link or id — paste the watch, share, Shorts or Studio link.");
+  const project = await db.contentProject.findFirst({ where: { id, channel: { workspaceId: workspace.id } }, select: { id: true, uploadChecklist: true } });
+  if (!project) redirect("/production");
+  const other = await db.contentProject.findFirst({
+    where: { youtubeVideoId: videoId, id: { not: id }, channel: { workspaceId: workspace.id } },
+    select: { title: true },
+  });
+  if (other) back("err", `That video is already linked to “${other.title}”. Unlink it there first.`);
+  const list = readChecklist(project.uploadChecklist);
+  if (!list.uploaded) list.uploaded = { at: new Date().toISOString(), by: user.id };
+  await db.contentProject.update({ where: { id }, data: { youtubeVideoId: videoId, uploadChecklist: writeJson(list) } });
+  revalidatePath(`/production/projects/${id}`);
+  revalidatePath("/production");
+  revalidatePath("/measure/topics");
+  back("ok", "Linked — this project's Topic now counts this video's own numbers.");
+}
+
+export async function unlinkYoutubeVideoAction(formData: FormData) {
+  const id = String(formData.get("id"));
+  const { workspace } = await requireRole("EDITOR");
+  await db.contentProject.updateMany({ where: { id, channel: { workspaceId: workspace.id } }, data: { youtubeVideoId: null } });
+  revalidatePath(`/production/projects/${id}`);
+  revalidatePath("/measure/topics");
+  redirect(`/production/projects/${id}?ok=${encodeURIComponent("Unlinked.")}#youtube`);
 }
 
 export async function setProjectPublishDateAction(formData: FormData) {

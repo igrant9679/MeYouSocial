@@ -1921,3 +1921,16 @@ before changing code in that area.
   and every redirect hop must stay on it — the same trust the REST calls already have; anything else is reported, not
   fetched. Never throws; a page that can't be read says why. The first one of each tag wins, as it does for the
   networks; nothing after `</head>` counts.
+
+## ⚠ A project carries its YouTube upload; a Topic counts its own videos before any keyword match (2026-11-03, audit Phase 5, growth part bx)
+- **The link** (E-MEA-17): `ContentProject.youtubeVideoId` (11 chars). On the project's page, **YouTube video**:
+  paste a watch, share, Shorts, live, embed or Studio link or the bare id (`youtubeVideoIdFrom` — never a guess from
+  another host or a malformed id), or **Link this** on a suggested upload (`suggestUploads`: at least half the project
+  title's words, never a video another project has). One video belongs to one project — a second link is refused
+  and names the first. Linking ticks the upload checklist's **Uploaded** if nobody has. The page shows the video's
+  90-day views and retention from the STORED audit (`cachedYoutubeAudit` — a page view never spends quota), or says
+  it isn't in the window yet. Viewers read it; editors link and unlink.
+- ⚠ **Linked beats keyword** (`topic-measure.ts`): a claimed video counts for its project's Topic — even when its
+  title matches another Topic — and is never also matched by title; a project with no Topic still claims it. Only
+  unclaimed videos fall back to the keyword match. `video.linked` / `video.matched` are counted apart; the Topics
+  table and the report block show **kw** only when a figure includes a keyword match.

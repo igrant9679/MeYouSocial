@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { SubmitButton } from "@/components/SubmitButton";
-import { ArrowLeft, BarChart3, Tag, Hash, GitBranch, FileText, BookOpen, ListChecks, Check } from "lucide-react";
+import { ArrowLeft, Tag, Hash, GitBranch, FileText, BookOpen, ListChecks, Check, SquarePlay } from "lucide-react";
 import { notFound } from "next/navigation";
 import { requireMembership, canEdit } from "@/lib/acl";
 import { db } from "@/lib/db";
@@ -10,7 +10,9 @@ import {
   setProjectKeywordsAction,
   repurposeProjectAction,
 } from "@/app/actions/growth";
-import { setProjectStatusAction, setProjectPublishDateAction, setUploadStepAction } from "@/app/actions/production";
+import { setProjectStatusAction, setProjectPublishDateAction, setUploadStepAction, linkYoutubeVideoAction, unlinkYoutubeVideoAction } from "@/app/actions/production";
+import { cachedYoutubeAudit } from "@/lib/youtube/analytics";
+import { suggestUploads, watchUrl } from "@/lib/youtube/video-link";
 import { UPLOAD_STEPS, readChecklist, checklistDone } from "@/lib/upload-checklist";
 import { attachChecklistAction } from "@/app/actions/final-pass";
 import { formatDay } from "@/lib/zoned-dates";
@@ -25,8 +27,9 @@ const MERIT_COLOR: Record<string, { color: string; soft: string }> = {
   experiment: { color: "#6D28D9", soft: "#EDE7FB" },
 };
 
-export default async function ProjectDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function ProjectDetailPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ ok?: string; err?: string }> }) {
   const { id } = await params;
+  const { ok, err } = await searchParams;
   const { workspace, membership } = await requireMembership();
   // Viewers read the project; every control on it is an editor's (E-VID-12).
   const editor = canEdit(membership.role);
@@ -62,6 +65,18 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
     project.scriptId ? db.thumbnail.count({ where: { scriptId: project.scriptId } }) : Promise.resolve(0),
   ]);
   const nameOf = new Map(tickedBy.map((u) => [u.id, u.name ?? u.email ?? "someone"]));
+
+  // Its YouTube upload (E-MEA-17): the stored audit only — never a live fetch
+  // on a page view — for the linked video's numbers and for suggestions.
+  const audit = await cachedYoutubeAudit(workspace.id, 90).catch(() => ({ state: "none" as const }));
+  const auditVideos = audit.state === "ok" ? audit.audit.videos : [];
+  const linked = project.youtubeVideoId ? auditVideos.find((v) => v.id === project.youtubeVideoId) ?? null : null;
+  const suggestions = editor && !project.youtubeVideoId && auditVideos.length
+    ? suggestUploads(project.title, auditVideos, new Set(
+        (await db.contentProject.findMany({ where: { channel: { workspaceId: workspace.id }, youtubeVideoId: { not: null } }, select: { youtubeVideoId: true } }))
+          .map((p) => p.youtubeVideoId!),
+      ))
+    : [];
 
   const keywords = readJson<string[]>(project.keywords, []);
 
@@ -169,6 +184,70 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
           )}
         </section>
 
+        {/* Its YouTube upload (E-MEA-17) */}
+        <section className="card" id="youtube" data-youtube-link>
+          <h2 className="font-mono font-bold text-[14px] mb-3 flex items-center gap-2">
+            <SquarePlay className="w-4 h-4" style={{ color: "var(--rose)" }} /> YouTube video
+          </h2>
+          {(ok || err) && (
+            <p className="text-xs m-0 mb-2" style={{ color: ok ? "var(--green-on)" : "var(--rose-on)" }}>{ok ?? err}</p>
+          )}
+          {project.youtubeVideoId ? (
+            <div className="text-sm flex flex-col gap-1.5" data-linked-video={project.youtubeVideoId}>
+              <a href={watchUrl(project.youtubeVideoId)} target="_blank" rel="noreferrer" className="underline break-all">{linked?.title ?? watchUrl(project.youtubeVideoId)}</a>
+              {linked ? (
+                <p className="m-0 text-xs text-[var(--mute)]" data-linked-numbers>
+                  {linked.views.toLocaleString()} views in the last 90 days
+                  {linked.avgViewPct != null ? ` · ${Math.round(linked.avgViewPct)}% average viewed` : ""}
+                  {linked.publishedAt ? ` · published ${formatDay(new Date(linked.publishedAt))}` : ""}
+                  {" "}— counted on its Topic as this video&apos;s own numbers.
+                </p>
+              ) : (
+                <p className="m-0 text-xs text-[var(--mute)]">
+                  {audit.state === "not_connected"
+                    ? "YouTube isn't connected, so its numbers can't be shown — connect it under Settings → Analytics."
+                    : "Not in the channel's last 90 days of views yet — its numbers appear once YouTube reports them and the audit is read."}
+                </p>
+              )}
+              {editor && (
+                <form action={unlinkYoutubeVideoAction}>
+                  <input type="hidden" name="id" value={project.id} />
+                  <SubmitButton className="btn sm" pendingText="…">Unlink</SubmitButton>
+                </form>
+              )}
+            </div>
+          ) : editor ? (
+            <div className="flex flex-col gap-2">
+              <p className="text-xs text-[var(--mute)] m-0">Once it&apos;s uploaded, link the video so its Topic counts its own views and retention instead of matching titles by keyword.</p>
+              <form action={linkYoutubeVideoAction} className="flex gap-1.5">
+                <input type="hidden" name="id" value={project.id} />
+                <input name="video" required placeholder="Paste the YouTube link or video id" className="flex-1 min-w-0 border border-[var(--line-2)] rounded-lg px-2 py-1 text-xs" />
+                <SubmitButton className="btn sm" pendingText="Linking…">Link</SubmitButton>
+              </form>
+              {suggestions.length > 0 && (
+                <div className="text-xs" data-video-suggestions>
+                  <span className="text-[var(--mute)]">Looks like one of these:</span>
+                  <ul className="m-0 mt-1 p-0 list-none flex flex-col gap-1">
+                    {suggestions.map((v) => (
+                      <li key={v.id} className="flex items-center gap-2">
+                        <a href={v.url} target="_blank" rel="noreferrer" className="flex-1 min-w-0 truncate underline">{v.title}</a>
+                        <span className="text-[var(--mute)] font-mono text-[10px]">{v.views.toLocaleString()} views</span>
+                        <form action={linkYoutubeVideoAction}>
+                          <input type="hidden" name="id" value={project.id} />
+                          <input type="hidden" name="video" value={v.id} />
+                          <SubmitButton className="btn sm" pendingText="…">Link this</SubmitButton>
+                        </form>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          ) : (
+            <p className="text-xs text-[var(--mute)] m-0">Not linked to its YouTube upload yet.</p>
+          )}
+        </section>
+
         {/* Merit + Keywords */}
         <section className="card">
           <h2 className="font-mono font-bold text-[14px] mb-3 flex items-center gap-2"><Tag className="w-4 h-4" style={{ color: "#6D28D9" }} /> Strategy tags</h2>
@@ -206,18 +285,6 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
             <button type="submit" className="btn sm self-end">Save</button>
           </form>
           )}
-        </section>
-
-        {/* Performance */}
-        <section className="card">
-          <h2 className="font-mono font-bold text-[14px] mb-3 flex items-center gap-2"><BarChart3 className="w-4 h-4" style={{ color: "#2563EB" }} /> Performance</h2>
-          {/* VID-08: the only rows here were invented by "Sync stats now" (a hash
-              of the project id), and a project isn't linked to its YouTube
-              video, so nothing real can be shown yet. */}
-          <p className="text-xs text-[var(--mute)]">
-            No performance numbers: a project isn&apos;t linked to its published YouTube video yet, so there&apos;s nothing real to read.
-            Channel-level numbers are under Measure.
-          </p>
         </section>
 
         {/* Task progress rollup */}

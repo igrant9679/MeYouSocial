@@ -170,6 +170,12 @@ export const HELP_CATEGORIES: FaqCategory[] = [
         tags: ["topic", "theme", "tagging", "reports"],
       },
       {
+        q: "Why does a Topic's YouTube number say kw — and how do I make it the real video's?",
+        a: "**kw** means the figure includes channel videos *matched by keyword*: their titles mention the Topic's name or phrases, which is a guess. Make it exact by linking each production project to its upload: on the project's page, under **YouTube video**, paste the watch, share, Shorts or Studio link (or pick one of the suggested uploads). That video then counts for the project's Topic as its own — views and retention from the YouTube audit — and is never also matched to another Topic by its title. One video belongs to one project, and linking ticks the checklist's **Uploaded** step if nobody has. Numbers appear once the video has views in the audit's 90 days and the audit has been read.",
+        links: [{ label: "Measure → Topics →", href: "/measure/topics" }, { label: "Production →", href: "/production" }],
+        tags: ["youtube", "video", "topic", "kw", "keyword", "link", "upload", "views", "retention"],
+      },
+      {
         q: "Where do I change the tone of what gets written?",
         a: "Tone of voice lives in **Brand → Tone & motifs** as the 7 Motifs, alongside the asset policy. They're editable rows rather than fixed prompt text, and each piece resolves a weighted blend of them — so changing a Motif changes every future generation that uses it, without you touching any prompt.",
         links: [{ label: "Tone & motifs →", href: "/blog/brand" }],

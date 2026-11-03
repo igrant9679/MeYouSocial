@@ -320,6 +320,7 @@ area, rather than loading all of them into every session.
 - Brand is one page for who the company is — each field has one editor — 2026-11-03, audit Phase 5, growth part bu
 - A leg that lost access gets Reconnect and retry — and goes again only on evidence of the reconnect — 2026-11-03, audit Phase 5, growth part bv
 - Stored is not shown: after a publish the live page's share-card tags are read and checked — 2026-11-03, audit Phase 5, growth part bw
+- A project carries its YouTube upload; a Topic counts its own videos before any keyword match — 2026-11-03, audit Phase 5, growth part bx
 
 ## Open items / things the user still owns
 - **Analytics: APIs enabled 2026-08-03** (Search Console + GA Admin + GA Data, on project
