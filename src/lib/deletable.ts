@@ -241,7 +241,7 @@ export const DELETABLE: Record<DeletableKind, Deletable> = {
     find: (id, workspaceId) => db.brandFact.findFirst({ where: { id, workspaceId }, select: { id: true, title: true } })
       .then((r) => (r ? { id: r.id, name: r.title } : null)),
     async remove(id, workspaceId) { await db.brandFact.deleteMany({ where: { id, workspaceId } }); },
-    revalidate: ["/blog/brand"],
+    revalidate: ["/brand", "/blog/brand"],
   },
 
   brandDocument: {
@@ -254,7 +254,7 @@ export const DELETABLE: Record<DeletableKind, Deletable> = {
     // what stops the document reaching a prompt, which is what this button is
     // for; reclaiming the file is a storage-wide job, not this kind's business.
     async remove(id, workspaceId) { await db.brandDocument.deleteMany({ where: { id, workspaceId } }); },
-    revalidate: ["/blog/brand"],
+    revalidate: ["/brand", "/blog/brand"],
   },
 
   idea: {

@@ -38,14 +38,10 @@ function intField(fd: FormData, k: string, fallback: number, min: number, max: n
 
 export async function saveBrandKitAction(formData: FormData) {
   const { user, workspace } = await requireRole("ADMIN");
+  // ⚠ No logo, colours, fonts or footer here (E-ART-20): Brand → Overview is
+  // their one editor (saveBrandIdentityAction). This form doesn't render them,
+  // and writing them from here would blank them.
   const data = {
-    primaryColor: str(formData, "primaryColor", 32),
-    secondaryColor: str(formData, "secondaryColor", 32),
-    accentColor: str(formData, "accentColor", 32),
-    headingFont: str(formData, "headingFont", 80),
-    bodyFont: str(formData, "bodyFont", 80),
-    logoUrl: str(formData, "logoUrl", 500),
-    footerCredit: str(formData, "footerCredit", 300),
     toneGuardrails: str(formData, "toneGuardrails", 2000),
     featuredImageWidth: intField(formData, "featuredImageWidth", 1920, 200, 6000),
     featuredImageHeight: intField(formData, "featuredImageHeight", 1080, 200, 6000),

@@ -29,7 +29,8 @@ import {
  * that, so they must come from a person.
  */
 
-const BRAND_PATH = "/blog/brand";
+/** Brand context lives on the one Brand page (E-ART-20). */
+const BRAND_PATH = "/brand";
 
 function flash(msg: string, kind: "err" | "ok" = "err"): never {
   redirect(`${BRAND_PATH}?${kind}=${encodeURIComponent(msg)}#context`);

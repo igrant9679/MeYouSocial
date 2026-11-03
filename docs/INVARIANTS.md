@@ -1875,3 +1875,15 @@ before changing code in that area.
   `lib/idea-drafting.ts` → `registerBlogDraftJobs()`, as `actions/videos.ts` does for renders): `jobs.enqueue` runs the
   job at once in the enqueuing module graph, and a missing handler fails it for good ("No handler registered", not
   retried). The worker's `registerAllJobs()` only runs when AUTOPILOT isn't off.
+
+## ⚠ Brand is one page for who the company is — each field has one editor (2026-11-03, audit Phase 5, growth part bu)
+- **One page** (E-ART-20): Brand → Overview (`/brand`) holds the identity — logo, colours, fonts, footer credit
+  (`#identity`, `saveBrandIdentityAction`) — the company info (`#company`, `saveOrgProfileAction`), the brand context
+  (`#context`: differentiators, products, documents — `BrandContextSection`, its actions now land on `/brand`), and
+  the links to personas, keywords and accounts. Tone & motifs (`/blog/brand`) keeps how the company SOUNDS and what it
+  generates: tone guardrails, image sizes, rendering, asset and review policy, the heading spec, the Motifs.
+- ⚠ **One editor per field**: the company description, industry and audience were edited on Brand AND on
+  `/blog/organization`, whose plain textarea updated `description` without `descriptionHtml`, so the two could drift.
+  That page now redirects to `/brand#company`, and its tab is gone. Logo, colours, fonts and the footer were editable on
+  both Brand and Tone & motifs. ⚠ `saveBrandKitAction` no longer writes them at all: its form doesn't render them, and
+  writing absent fields would blank them. Tone & motifs points to Brand for them instead.

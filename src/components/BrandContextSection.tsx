@@ -16,7 +16,7 @@ import {
  * the company different, what its products actually do, and the text of its own
  * brand documents.
  *
- * Sits above the Motifs on /blog/brand because it answers a different question:
+ * Sits on Brand → Overview (since E-ART-20; it was above the Motifs) because it answers a different question:
  * the Motifs decide how the workspace SOUNDS, these rows decide what it may
  * SAY. Assist refuses to draft from nothing for exactly this reason, so nothing
  * on this card is AI-assisted — an invented differentiator would be injected

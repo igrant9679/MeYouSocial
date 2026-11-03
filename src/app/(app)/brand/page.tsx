@@ -15,6 +15,7 @@ import { saveBrandIdentityAction } from "@/app/actions/brand-hub";
 import { networkFor } from "@/lib/social/networks";
 import { AiAssist } from "@/components/AiAssist";
 import { EmptyState } from "@/components/EmptyState";
+import { BrandContextSection } from "@/components/BrandContextSection";
 
 // Brand — the workspace's identity in one place: colours, company info,
 // personas, topics, keywords and connected social accounts. Everything here is
@@ -40,6 +41,16 @@ export default async function BrandPage({ searchParams }: { searchParams: Promis
     db.keyword.findMany({ where: { workspaceId: workspace.id, cluster: { not: null } }, select: { cluster: true }, take: 200 }),
     db.zernioAccount.findMany({ where: { workspaceId: workspace.id, status: "connected" }, orderBy: { createdAt: "asc" } }),
   ]);
+  // E-ART-20: the brand context (what makes us different, products, documents) lives here now.
+  const [facts, documents] = await Promise.all([
+    db.brandFact.findMany({ where: { workspaceId: workspace.id }, orderBy: [{ position: "asc" }, { createdAt: "asc" }] }),
+    db.brandDocument.findMany({ where: { workspaceId: workspace.id }, orderBy: { createdAt: "asc" } }),
+  ]);
+  const differentiators = facts.filter((f) => f.kind === "differentiator");
+  const features = facts.filter((f) => f.kind === "feature");
+  const contextChars =
+    differentiators.concat(features).reduce((n, f) => n + f.title.length + (f.detail?.length ?? 0), 0) +
+    documents.filter((d) => d.includeInContext && d.text).reduce((n, d) => n + d.chars, 0);
 
   const clusterNames = [...new Set(clusters.map((c) => c.cluster).filter(Boolean) as string[])].slice(0, 8);
   const logoUrl = workspace.logoKey ? storage.url(workspace.logoKey) : null;
@@ -63,6 +74,8 @@ export default async function BrandPage({ searchParams }: { searchParams: Promis
       {err && <Banner kind="err" text={err} />}
 
       {/* ── Brand identity: colours + fonts ─────────────────────────────── */}
+      {/* E-ART-20: the one editor for logo, colours, fonts and footer — Tone & motifs points here. */}
+      <span id="identity" className="block scroll-mt-4" aria-hidden />
       <SectionHead icon={<Palette className="w-4 h-4" style={{ color: "var(--pink-on)" }} />} title="Brand identity"
         note="Colours and fonts used in generated content — blog images, OG cards and published output." />
       <form action={saveBrandIdentityAction} className="card mb-6 flex flex-col gap-3">
@@ -108,6 +121,8 @@ export default async function BrandPage({ searchParams }: { searchParams: Promis
       </div>
 
       {/* ── Company info ────────────────────────────────────────────────── */}
+      {/* The one editor for the description, industry and audience (the Organization page redirects here). */}
+      <span id="company" className="block scroll-mt-4" aria-hidden />
       <SectionHead icon={<Building2 className="w-4 h-4" style={{ color: "var(--teal-on)" }} />} title="Company info"
         note="What this company does, for whom. Every AI draft is grounded in this." />
       <form action={saveOrgProfileAction} className="card mb-6 flex flex-col gap-3">
@@ -139,6 +154,9 @@ export default async function BrandPage({ searchParams }: { searchParams: Promis
         </div>
         {editor && <SubmitButton className="btn primary self-start">Save company info</SubmitButton>}
       </form>
+
+      {/* What makes the company different, its products, its documents (E-ART-20) — moved from Tone & motifs. */}
+      <BrandContextSection admin={admin} differentiators={differentiators} features={features} documents={documents} contextChars={contextChars} />
 
       {/* ── Topics — moved to Ideas → Topics on 2026-09-21 ("Topics as the spine").
           A one-line pointer stays so nobody hunting for them here is stranded;

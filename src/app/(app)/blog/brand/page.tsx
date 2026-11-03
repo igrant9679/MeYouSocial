@@ -34,7 +34,6 @@ import {
   parseRenderRules,
 } from "@/lib/design-render";
 import { AiAssist } from "@/components/AiAssist";
-import { BrandContextSection } from "@/components/BrandContextSection";
 import { formatDay } from "@/lib/zoned-dates";
 import { getPostingTimeZone } from "@/lib/social/slots";
 
@@ -48,25 +47,12 @@ export default async function BrandPage({ searchParams }: { searchParams: Promis
   const tz = await getPostingTimeZone(workspace.id).catch(() => "UTC");
   const admin = canAdmin(membership.role);
   const { ok, err } = await searchParams;
-  const [brand, directives, defaults, platformMap, facts, documents] = await Promise.all([
+  const [brand, directives, defaults, platformMap] = await Promise.all([
     getBrandKit(workspace.id),
     ensureMotifDirectives(workspace.id),
     db.motifDefault.findMany({ where: { workspaceId: workspace.id }, orderBy: [{ tier: "asc" }, { createdAt: "asc" }] }),
     getPlatformMotifs(workspace.id),
-    db.brandFact.findMany({
-      where: { workspaceId: workspace.id },
-      orderBy: [{ position: "asc" }, { createdAt: "asc" }],
-    }),
-    db.brandDocument.findMany({
-      where: { workspaceId: workspace.id },
-      orderBy: { createdAt: "asc" },
-    }),
   ]);
-  const differentiators = facts.filter((f) => f.kind === "differentiator");
-  const features = facts.filter((f) => f.kind === "feature");
-  const contextChars =
-    differentiators.concat(features).reduce((n, f) => n + f.title.length + (f.detail?.length ?? 0), 0) +
-    documents.filter((d) => d.includeInContext && d.text).reduce((n, d) => n + d.chars, 0);
   const renderRules = parseRenderRules(brand.renderRules);
   const history = await db.motifDirectiveVersion.findMany({
     where: { directiveId: { in: directives.map((d) => d.id) } },
@@ -108,13 +94,8 @@ export default async function BrandPage({ searchParams }: { searchParams: Promis
         </div>
       )}
 
-      <BrandContextSection
-        admin={admin}
-        differentiators={differentiators}
-        features={features}
-        documents={documents}
-        contextChars={contextChars}
-      />
+      {/* What makes the company different, its products and its documents moved
+          to Brand → Overview (E-ART-20): one page for who the company is. */}
 
       {/* ---- Brand kit ---- */}
       <form action={saveBrandKitAction} className="card flex flex-col gap-4">
@@ -124,36 +105,9 @@ export default async function BrandPage({ searchParams }: { searchParams: Promis
             This workspace&apos;s own brand — used for published output and image briefs, not for the app&apos;s own theme.
           </p>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <label className="text-sm">
-            <span className="block text-xs text-[var(--mute)] mb-1">Primary colour</span>
-            <input name="primaryColor" defaultValue={brand.primaryColor ?? ""} placeholder="#0D5A84" className="w-full font-mono text-xs" disabled={!admin} />
-          </label>
-          <label className="text-sm">
-            <span className="block text-xs text-[var(--mute)] mb-1">Secondary colour</span>
-            <input name="secondaryColor" defaultValue={brand.secondaryColor ?? ""} placeholder="#343433" className="w-full font-mono text-xs" disabled={!admin} />
-          </label>
-          <label className="text-sm">
-            <span className="block text-xs text-[var(--mute)] mb-1">Accent colour</span>
-            <input name="accentColor" defaultValue={brand.accentColor ?? ""} placeholder="#E5482F" className="w-full font-mono text-xs" disabled={!admin} />
-          </label>
-          <label className="text-sm">
-            <span className="block text-xs text-[var(--mute)] mb-1">Heading font</span>
-            <input name="headingFont" defaultValue={brand.headingFont ?? ""} placeholder="Quicksand" className="w-full text-xs" disabled={!admin} />
-          </label>
-          <label className="text-sm">
-            <span className="block text-xs text-[var(--mute)] mb-1">Body font</span>
-            <input name="bodyFont" defaultValue={brand.bodyFont ?? ""} placeholder="Kollektif" className="w-full text-xs" disabled={!admin} />
-          </label>
-          <label className="text-sm">
-            <span className="block text-xs text-[var(--mute)] mb-1">Logo URL</span>
-            <input name="logoUrl" type="url" defaultValue={brand.logoUrl ?? ""} placeholder="https://…/logo.svg" className="w-full font-mono text-xs" disabled={!admin} />
-          </label>
-        </div>
-        <label className="text-sm">
-          <span className="block text-xs text-[var(--mute)] mb-1">Footer credit</span>
-          <input name="footerCredit" defaultValue={brand.footerCredit ?? ""} placeholder="© LSI Media — all rights reserved" className="w-full text-xs" disabled={!admin} />
-        </label>
+        <p className="text-xs m-0" data-identity-moved>
+          The logo, colours, fonts and footer credit are on <Link href="/brand#identity" className="underline">Brand → Overview</Link> — one place for them.
+        </p>
         <label className="text-sm">
           <span className="block text-xs text-[var(--mute)] mb-1">
             Tone guardrails <span className="font-mono">(hard rules injected into every generation)</span>

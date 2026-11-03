@@ -132,7 +132,6 @@ export const STAGES: Record<(typeof STAGE_HREFS)[number], StageDef> = {
     label: "Brand",
     tabs: () => [
       { href: "/blog/brand", label: "Tone & motifs" },
-      { href: "/blog/organization", label: "Organization" },
     ],
   },
   "/setup": {

@@ -54,7 +54,7 @@ Ask me "what needs my attention?" and I will read the same data and can do the n
     title: "The monthly routine (about an hour, admin)",
     keywords: ["monthly", "month", "review", "tune", "dials", "quotas", "strategy"],
     body: `1. Insights and Reports: what ranked, what got clicked, which networks earned their place. Decide what to do more of.
-2. Brand → Tone & motifs: adjust Motif weights, retire topics that ran dry, add what the numbers say is working; refresh the AI brand context (differentiators, products, documents — never AI-written).
+2. Brand → Tone & motifs: adjust Motif weights, retire topics that ran dry, add what the numbers say is working. Brand → Overview: refresh the brand context (differentiators, products, documents — never AI-written).
 3. Settings → Automation: raise the weekly article and social targets if review has been consistently easy; lower anything producing more than can be honestly reviewed; consider evergreen recycling once there is a body of posts worth resurfacing.
 4. Settings → Connections: everything the loop needs still connected; provider billing; analytics still pointing at the right properties.
 5. Settings → People: joiners, leavers, pending invitations.

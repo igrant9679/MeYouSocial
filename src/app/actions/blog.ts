@@ -641,7 +641,7 @@ export async function saveOrgProfileAction(formData: FormData) {
     update: data,
     create: { workspaceId: workspace.id, ...data },
   });
-  revalidatePath("/blog/organization");
+  revalidatePath("/brand");
   revalidatePath("/brand");
   revalidatePath("/blog");
 }

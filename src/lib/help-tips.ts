@@ -125,7 +125,6 @@ export const BLOG_TAB_TIPS: Record<string, string> = {
   "/setup": "Every dial, under the question it answers: who can do what, what runs by itself, when things go out, what is connected — plus the operator tabs (keys, analytics, email, workspace, usage) for admins.",
   "/blog/automation": "Moved to Settings → Automation.",
   "/blog/brand": "Tone of voice (the 7 Motifs) and the image policy that gates publishing.",
-  "/blog/organization": "Company details that ground drafts in who you actually are.",
   "/website": "WordPress connection, theme template, and HTML export for any other site.",
 };
 
