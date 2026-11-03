@@ -1907,3 +1907,17 @@ before changing code in that area.
   queue hold it (it waits). A removed account that comes back under a new id is matched by the **same handle on the
   same network**, exactly one — never a guess between two accounts. Success is told to whoever asked (`published`);
   failure is told by the send itself.
+
+## ⚠ Stored is not shown: after a publish the live page's share-card tags are read and checked (2026-11-03, audit Phase 5, growth part bw)
+- **The check** (E-ART-05; the upload of the OG image to the media library and its mapping to og:image shipped as
+  ART-06): after a publish goes live, `checkLiveHead` (`src/lib/live-head.ts`) reads the article's own page and
+  judges the tags the networks read — **og:image** (the image this publish uploaded, compared by file so WordPress's
+  `-1200x630`/`-scaled` copies match; a different one is a warning — another plugin or a page cache; none is
+  missing), **og:url** (the article or its canonical) and **twitter:card** (`summary_large_image`; `summary` is a
+  warning). It lands in the publish report as `liveHead`, on the article's Distribute tab as **On the live page**
+  (with **Check the live page** for editors — read-only on the site), and on the Website page as "n of 3 right".
+  A draft hand-off has no public page and isn't read.
+- ⚠ **Only the connected site is read**: the page's host must be the WordPress connection's own host (www. aside),
+  and every redirect hop must stay on it — the same trust the REST calls already have; anything else is reported, not
+  fetched. Never throws; a page that can't be read says why. The first one of each tag wins, as it does for the
+  networks; nothing after `</head>` counts.

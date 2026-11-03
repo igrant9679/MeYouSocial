@@ -85,7 +85,8 @@ import {
   updateBlogPostAction,
   verifyCitationAction,
 } from "@/app/actions/blog";
-import { publishToWordPressAction, pushSeoMetaAction } from "@/app/actions/blog-wp";
+import { checkLiveSocialTagsAction, publishToWordPressAction, pushSeoMetaAction } from "@/app/actions/blog-wp";
+import type { LiveHead } from "@/lib/live-head";
 import { markPublishedManuallyAction } from "@/app/actions/blog-export";
 import {
   deleteSocialVariantAction,
@@ -241,6 +242,9 @@ export default async function BlogPostPage({
     featuredUploadError?: string | null;
     categories: { missed: string[] };
     tags: { missed: string[] };
+    ogImageUrl?: string | null;
+    ogUploadError?: string | null;
+    liveHead?: LiveHead | null;
   } | null = null;
   try {
     publishReport = post.publishReport ? JSON.parse(post.publishReport) : null;
@@ -594,6 +598,48 @@ export default async function BlogPostPage({
         </div>
       )}
 
+      {post.publishedUrl && (
+        // What the live page tells Facebook, LinkedIn and X (E-ART-05) —
+        // stored by the SEO plugin is not the same as shown on the page.
+        <div className="card mb-4 text-xs" data-live-head>
+          <div className="flex items-center gap-2 flex-wrap mb-1">
+            <h3 className="text-xs font-semibold m-0">On the live page</h3>
+            <span className="text-[var(--mute)]">
+              {publishReport?.liveHead
+                ? <>checked {formatZonedMoment(new Date(publishReport.liveHead.at), readTz)}</>
+                : "not checked yet"}
+            </span>
+            <span className="flex-1" />
+            {editor && wpConn && (
+              <form action={checkLiveSocialTagsAction}>
+                <input type="hidden" name="postId" value={post.id} />
+                <SubmitButton className="btn sm" pendingText="Reading the page…" title="Read the article's page on the site and check the tags networks use for the share card">Check the live page</SubmitButton>
+              </form>
+            )}
+          </div>
+          {publishReport?.liveHead?.error ? (
+            <p className="m-0" style={{ color: "var(--amber-on)" }}>{publishReport.liveHead.error}</p>
+          ) : publishReport?.liveHead?.checks ? (
+            <ul className="flex flex-col gap-1 m-0 p-0 list-none">
+              {publishReport.liveHead.checks.map((c) => (
+                <li key={c.tag} className="flex items-start gap-2" data-live-tag={c.tag} data-state={c.state}>
+                  {c.state === "ok" ? (
+                    <Check className="w-3.5 h-3.5 mt-0.5 shrink-0" style={{ color: "var(--green-on)" }} />
+                  ) : c.state === "warn" ? (
+                    <CircleAlert className="w-3.5 h-3.5 mt-0.5 shrink-0" style={{ color: "var(--amber-on)" }} />
+                  ) : (
+                    <X className="w-3.5 h-3.5 mt-0.5 shrink-0" style={{ color: "var(--rose-on)" }} />
+                  )}
+                  <span><span className="font-mono">{c.tag}</span> <span className="text-[var(--mute)]">· {c.note}</span></span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="m-0 text-[var(--mute)]">Published before the page was read after each publish — check it to see what the share card will use.</p>
+          )}
+        </div>
+      )}
+
       </>)}
 
       {is("review") && (<>
@@ -755,6 +801,14 @@ export default async function BlogPostPage({
                 {publishReport.seo.length === 0 && (
                   <li className="text-[var(--mute)]">No SEO plugin mapped — only the post content was sent.</li>
                 )}
+                {publishReport.ogImageUrl ? (
+                  <li className="flex items-start gap-2">
+                    <Check className="w-3.5 h-3.5 mt-0.5 shrink-0" style={{ color: "var(--green-on)" }} />
+                    <span>OG image <span className="text-[var(--mute)]">· public at <a href={publishReport.ogImageUrl} target="_blank" rel="noreferrer" className="underline break-all">{publishReport.ogImageUrl}</a></span></span>
+                  </li>
+                ) : publishReport.ogUploadError ? (
+                  <li style={{ color: "var(--rose-on)" }}>OG image upload to the media library failed: {publishReport.ogUploadError}. Shares use the featured image instead.</li>
+                ) : null}
                 {publishReport.featuredUploadFailed && (
                   <li style={{ color: "var(--rose-on)" }}>Featured image upload to the media library failed{publishReport.featuredUploadError ? `: ${publishReport.featuredUploadError}` : ""}. The post is live without it — set the featured image in WordPress by hand, or fix the cause (a host upload limit, a bad file) before the next publish.</li>
                 )}

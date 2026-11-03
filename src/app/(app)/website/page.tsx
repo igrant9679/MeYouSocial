@@ -177,6 +177,14 @@ export default async function WebsitePage({ searchParams }: { searchParams: Prom
                 {report.inline ? ` · images in the body: ${report.inline.uploaded} uploaded${report.inline.failed ? `, ${report.inline.failed} failed` : ""}` : ""}
                 {report.missedTerms.length ? ` · not found on the site: ${report.missedTerms.join(", ")}` : ""}
               </span>
+              {report.live && (
+                <span className="text-[var(--mute)]" data-live-summary>
+                  Share card tags on the live page:{" "}
+                  {report.live.error
+                    ? <span style={{ color: "var(--amber-on)" }}>couldn&apos;t read it — {report.live.error}</span>
+                    : <b style={{ color: report.live.right === report.live.of ? "var(--green-on)" : "var(--amber-on)" }}>{report.live.right} of {report.live.of} right{report.live.off.length ? ` (${report.live.off.join(", ")} need a look)` : ""}</b>}
+                </span>
+              )}
             </div>
           ) : (
             <p className="m-0 text-[var(--mute)]">Nothing published to it from here yet.</p>

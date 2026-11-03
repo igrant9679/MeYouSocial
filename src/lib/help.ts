@@ -325,6 +325,12 @@ export const HELP_CATEGORIES: FaqCategory[] = [
         tags: ["og image", "lockup", "logo", "branded", "images", "gate"],
       },
       {
+        q: "How do I know a shared article shows the right picture?",
+        a: "Publishing puts the OG image in the site's media library and hands it to your SEO plugin, then **reads the live article page** and checks the tags Facebook, LinkedIn and X use for the share card: **og:image** (is it the image we uploaded?), **og:url** (does it point at the article?) and **twitter:card** (the large-image card). The result is under **On the live page** on the article's Distribute tab, and the Website page sums up the last one. A missing tag usually means the SEO plugin isn't printing it (or isn't installed); a different image usually means another plugin or a page cache — clear the cache, then press **Check the live page** to read it again. Only the connected site's own pages are read.",
+        links: [{ label: "Website →", href: "/website" }],
+        tags: ["og image", "share card", "open graph", "twitter card", "facebook", "linkedin", "preview", "seo plugin"],
+      },
+      {
         q: "What are the 7 Motifs?",
         a: "The tone engine. Each motif (Visionary, Competitive, Succinct, Sincere, Exclusive, Social, Informative) is an editable, versioned style directive that steers every generation. Pick a single motif or a weighted blend per post — the strongest weight sets structure and voice, the rest color the intro and CTA. Configure directives, defaults by tier/audience, and per-channel mappings under **Brand → Tone & motifs**.",
         links: [{ label: "Brand & motifs →", href: "/blog/brand" }],

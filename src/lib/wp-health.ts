@@ -78,6 +78,8 @@ export type PublishReportView = {
   featuredError: string | null;
   inline: { uploaded: number; failed: number } | null;
   missedTerms: string[];
+  /** The live page's social tags (E-ART-05): how many are right, or why it couldn't be read. */
+  live: { right: number; of: number; off: string[]; error: string | null } | null;
 };
 
 /** The latest article's publish report, readable. */
@@ -106,5 +108,11 @@ export async function latestPublishReport(workspaceId: string): Promise<PublishR
     featuredError: typeof r.featuredUploadError === "string" ? r.featuredUploadError : null,
     inline: (r.inlineImages as { uploaded: number; failed: number } | undefined) ?? null,
     missedTerms: [...(cats?.missed ?? []), ...(tags?.missed ?? [])].slice(0, 6),
+    live: (() => {
+      const l = r.liveHead as { error?: string; checks?: { tag: string; state: string }[] } | null | undefined;
+      if (!l) return null;
+      const checks = Array.isArray(l.checks) ? l.checks : [];
+      return { right: checks.filter((c) => c.state === "ok").length, of: checks.length, off: checks.filter((c) => c.state !== "ok").map((c) => c.tag), error: typeof l.error === "string" ? l.error : null };
+    })(),
   };
 }

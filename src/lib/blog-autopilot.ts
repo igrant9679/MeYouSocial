@@ -826,6 +826,10 @@ export async function publishCore(workspaceId: string, postId: string): Promise<
     // for REST. Read the post back and report what actually landed.
     const readBack = await wpReadPost(creds, created.id);
     const seoOutcomes = verifySeoMeta(fieldMap, seoValues, readBack?.meta ?? null);
+    // And "stored" is not "shown": read the live page's social tags (E-ART-05).
+    // A draft hand-off has no public page to read.
+    const { checkLiveHead } = await import("@/lib/live-head");
+    const liveHead = status === "publish" ? await checkLiveHead(created.link, conn.baseUrl, ogPublicUrl) : null;
     const report = {
       at: new Date().toISOString(),
       wpPostId: created.id,
@@ -844,6 +848,7 @@ export async function publishCore(workspaceId: string, postId: string): Promise<
       featuredUploadError,
       ogImageUrl: ogPublicUrl,
       ogUploadError,
+      liveHead,
       inlineImages: { uploaded: inline.uploaded, failed: inline.failed },
       categories: { requested: categoryNames, applied: readBack?.categories.length ?? cats.ids.length, missed: cats.missed },
       tags: { requested: tagNames, applied: readBack?.tags.length ?? tags.ids.length, missed: tags.missed },

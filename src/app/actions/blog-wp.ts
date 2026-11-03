@@ -222,6 +222,38 @@ export async function pushSeoMetaAction(formData: FormData) {
   );
 }
 
+/**
+ * Read the live article page again and check its social tags (E-ART-05) —
+ * after fixing the SEO plugin, clearing a page cache, or just to see. Only
+ * reads the page; nothing on the site changes.
+ */
+export async function checkLiveSocialTagsAction(formData: FormData) {
+  const postId = String(formData.get("postId"));
+  const { workspace } = await requireRole("EDITOR");
+  const back = (msg: string, ok = false): never =>
+    redirect(`/blog/${postId}?tab=distribute&${ok ? "flash" : "flashErr"}=${encodeURIComponent(msg.slice(0, 300))}`);
+  const post = await db.blogPost.findFirst({ where: { id: postId, workspaceId: workspace.id }, select: { id: true, publishedUrl: true, publishReport: true } });
+  if (!post) redirect("/blog");
+  if (!post.publishedUrl) back("This article isn't live yet — there's no page to read.");
+  const conn = await db.wordPressConnection.findUnique({ where: { workspaceId: workspace.id }, select: { baseUrl: true } });
+  if (!conn) back("No WordPress connection — set one up on Distribute → Website.");
+  let report: Record<string, unknown> = {};
+  try {
+    report = JSON.parse(post.publishReport ?? "{}") as Record<string, unknown>;
+  } catch {
+    report = {};
+  }
+  const { checkLiveHead } = await import("@/lib/live-head");
+  const ogImageUrl = typeof report.ogImageUrl === "string" ? report.ogImageUrl : null;
+  const live = await checkLiveHead(post.publishedUrl!, conn!.baseUrl, ogImageUrl);
+  await db.blogPost.update({ where: { id: post.id }, data: { publishReport: JSON.stringify({ ...report, liveHead: live }) } });
+  revalidatePath(`/blog/${post.id}`);
+  revalidatePath("/website");
+  if (live.error) back(`Couldn't check the live page: ${live.error}`);
+  const off = (live.checks ?? []).filter((c) => c.state !== "ok");
+  back(off.length ? `Checked the live page: ${off.map((c) => c.tag).join(", ")} ${off.length === 1 ? "needs" : "need"} a look.` : "Checked the live page: og:image, og:url and twitter:card are right.", off.length === 0);
+}
+
 export async function publishToWordPressAction(formData: FormData) {
   const postId = String(formData.get("postId"));
   const dryRun = String(formData.get("dryRun")) === "1";
