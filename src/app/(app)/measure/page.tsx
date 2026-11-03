@@ -16,6 +16,9 @@ import { makeDecayRefreshIdeaAction } from "@/app/actions/content-decay";
 import { formatDay } from "@/lib/zoned-dates";
 import { marksFor } from "@/lib/chart-annotations";
 import { ChartMarkList, ChartNoteForm } from "@/components/ChartMarks";
+import { channelOverview } from "@/lib/channel-overview";
+import { goalProgress } from "@/lib/goals";
+import { ChannelCards, GoalsCard } from "@/components/MeasureOverview";
 
 // Measure stage: the measured numbers only, never invented curves — the same
 // Results block Home showed, promoted to a stage with Reports, Insights and
@@ -31,14 +34,22 @@ export default async function MeasureStage({ searchParams }: { searchParams: Pro
   const weeks = Math.min(52, Math.max(4, Math.round(range.days / 7)));
   const admin = canAdmin(membership.role);
   const editor = canEdit(membership.role);
-  const [series, perf, withData, decaying] = await Promise.all([
+  const [series, perf, withData, decaying, cards, goals] = await Promise.all([
     weeklySeries(workspace.id, weeks),
     postPerformance(workspace.id, 12, { status: "published" }),
     // Published posts with at least one snapshot — not every row in the table (MEA-09).
     db.blogPost.count({ where: { workspaceId: workspace.id, status: "published", snapshots: { some: {} } } }),
     // E-MEA-15: articles losing clicks — fixed 28-day windows, not the picker's range.
     decayingPosts(workspace.id).catch(() => []),
+    // E-MEA-18 / E-MEA-05: the first screen — each channel over the range, and the goals' pace.
+    channelOverview(workspace.id, range),
+    goalProgress(workspace.id, tz),
   ]);
+  const goalSetters = [...new Set(goals.map((g) => g.updatedById).filter((v): v is string => !!v))];
+  const setterNames = new Map(
+    (goalSetters.length ? await db.user.findMany({ where: { id: { in: goalSetters } }, select: { id: true, name: true, email: true } }) : [])
+      .map((u) => [u.id, u.name ?? u.email ?? "someone"]),
+  );
   const hasAnalytics = hasSeriesData(series);
   // E-MEA-04: what happened in each week — publishes, sends, automation changes, notes.
   const marks = hasAnalytics ? await marksFor(workspace.id, series) : [];
@@ -61,6 +72,9 @@ export default async function MeasureStage({ searchParams }: { searchParams: Pro
       {sp.err && <Banner kind="err" text={sp.err} />}
 
       <RangePicker range={range} path="/measure" note={`The curve is ${weeks} whole weeks to the latest data; the table is each post's own last 28 days.`} />
+
+      <ChannelCards cards={cards} goals={goals} rangeLabel={range.label} />
+      <GoalsCard goals={goals} admin={admin} timeZone={tz} names={setterNames} />
 
       <section className="card mb-4">
         {hasAnalytics ? (

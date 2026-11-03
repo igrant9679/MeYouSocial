@@ -264,6 +264,23 @@ async function putSetting(workspaceId: string, key: string, value: string) {
   await db.workspaceSetting.upsert({ where: { workspaceId_key: { workspaceId, key } }, update: { value }, create: { workspaceId, key, value } });
 }
 
+/**
+ * The stored audit only, however old — never a live fetch (E-MEA-18). Measure's
+ * overview reads this on every view and must not spend the channel's quota; the
+ * YouTube audit page is where a read happens.
+ */
+export async function cachedYoutubeAudit(workspaceId: string, days: AuditWindow): Promise<{ state: "not_connected" } | { state: "none" } | { state: "ok"; audit: YoutubeAudit }> {
+  const { connected, channel } = await youtubeOauthConnected(workspaceId);
+  if (!connected) return { state: "not_connected" };
+  const row = await db.workspaceSetting.findUnique({ where: { workspaceId_key: { workspaceId, key: cacheKey(days, channel) } } }).catch(() => null);
+  if (!row) return { state: "none" };
+  try {
+    return { state: "ok", audit: JSON.parse(row.value) as YoutubeAudit };
+  } catch {
+    return { state: "none" };
+  }
+}
+
 /** Cached audit for the page; `refresh` forces a live fetch. */
 export async function youtubeAuditFor(workspaceId: string, days: AuditWindow, opts: { refresh?: boolean } = {}): Promise<AuditResult> {
   const { connected, channel } = await youtubeOauthConnected(workspaceId);

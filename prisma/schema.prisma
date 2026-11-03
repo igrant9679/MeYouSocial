@@ -105,6 +105,7 @@ model Workspace {
   engineCycles    EngineCycle[]
   socialTemplates SocialTemplate[]
   chartNotes      ChartNote[]
+  goals           Goal[]
 
   // This workspace's Zernio profile — Zernio's tenant boundary. Created lazily
   // the first time an account is connected, then reused.
@@ -2474,4 +2475,21 @@ model ChartNote {
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([workspaceId, at])
+}
+
+// E-MEA-05: a target per metric for the week or the month (lib/goals.ts paces it).
+// One goal per metric; set by admins on Measure.
+model Goal {
+  id          String   @id @default(cuid())
+  workspaceId String
+  metric      String   // search_clicks | articles_published | social_posts_sent | social_engagement
+  period      String   // week | month — the posting zone's calendar
+  target      Int
+  updatedById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, metric])
 }

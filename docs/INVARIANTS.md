@@ -1538,3 +1538,21 @@ before changing code in that area.
   downloaded ~150 MB per scene and ran minutes of ffmpeg for nothing. `assembleRenderCore` marks it
   `assemblyStatus: "skipped"` and the page says so. Assembly refuses a clip whose Content-Length would pass the 200 MB
   limit BEFORE reading it into memory (a too-big narration is dropped, the cut kept).
+
+## ⚠ Measure opens on every channel at once, and goals say whether the period is on pace (2026-11-03, audit Phase 5, growth part az)
+- **Across channels** (E-MEA-18, `lib/channel-overview.ts`, `components/MeasureOverview.tsx` `ChannelCards`): Search,
+  Social, YouTube and Production over the picker's range against the period before. Every figure comes from the
+  collectors the tabs use (`collectPerformance`, `collectSocialPerformance`, counts of sent posts, published articles,
+  made posts, finished boards), so the overview can't disagree with the tab under it; unmeasured is a dash with the
+  reason; an unchanged figure says "no change". ⚠ **YouTube is read from the stored audit only**
+  (`cachedYoutubeAudit` — never a live fetch, which would spend the channel's quota on every Measure view), for the
+  window nearest the range, dated "as read on …".
+- **Goals** (E-MEA-05, `lib/goals.ts`, table `Goal` — one per metric, migration `20261102060000_goals`): search
+  clicks, articles published, social posts sent, social engagements; a week (Monday-based) or a month, in the
+  posting zone's calendar (`periodBounds`). ADMIN sets them on Measure (`saveGoalsAction`: whole numbers, blank
+  removes, each change audited `goal.set` / `goal.removed` with what it was); everyone reads them.
+- **Pace** (`pace`): met once reached; on pace at or above the straight line; "a little behind" within 20% of it;
+  behind below; under a tenth of the period measured is too early to call (on pace). ⚠ **Search clicks are paced
+  to the last day Search Console has reported**, not to now — it runs ~2 days behind, and pacing to now called every
+  week "behind" on Wednesday. Counts the app records itself pace to now. No reading in the period is "not measured
+  yet", never zero. Each channel card carries its goal's pace chip.
