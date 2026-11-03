@@ -122,6 +122,38 @@ const OPEN_VIDEO = ["new", "approved"];
 const OPEN_SOCIAL = ["discovered", "approved"];
 const OPEN_TAKE = 200;
 const CLOSED_TAKE = 60;
+/**
+ * A board that scales (E-IDE-17). A lane column shows COLUMN_SHOW cards and
+ * "Show 20 more" adds as many; the counts in the URL (`more`, one
+ * "lane:column:n" per opened column) so a reload or a shared link keeps the
+ * same view and no script is needed. The table view pages TABLE_PAGE rows.
+ */
+export const COLUMN_SHOW = 20;
+export const TABLE_PAGE = 50;
+const MORE_KEY = /^(none|c[a-z0-9]{20,32}):(discovered|approved|drafted|rejected):(\d{1,3})$/;
+
+/** The opened columns in a `more` param; anything malformed is ignored. */
+export function parseMore(raw: string | undefined): Map<string, number> {
+  const out = new Map<string, number>();
+  for (const part of (raw ?? "").split(",").slice(0, 40)) {
+    const m = part.match(MORE_KEY);
+    if (m) out.set(`${m[1]}:${m[2]}`, Math.min(Math.max(Number(m[3]), COLUMN_SHOW), 400));
+  }
+  return out;
+}
+
+/** How many cards a column shows. */
+export function shownIn(more: Map<string, number>, lane: string, column: string): number {
+  return more.get(`${lane}:${column}`) ?? COLUMN_SHOW;
+}
+
+/** The `more` param with one column opened by another COLUMN_SHOW. */
+export function moreParam(more: Map<string, number>, lane: string, column: string): string {
+  const next = new Map(more);
+  next.set(`${lane}:${column}`, shownIn(more, lane, column) + COLUMN_SHOW);
+  return [...next].map(([k, n]) => `${k}:${n}`).join(",");
+}
+
 export function isIdeaFormat(v: unknown): v is IdeaFormat {
   return typeof v === "string" && (FORMATS as string[]).includes(v);
 }

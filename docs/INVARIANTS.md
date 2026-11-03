@@ -1934,3 +1934,16 @@ before changing code in that area.
   title matches another Topic — and is never also matched by title; a project with no Topic still claims it. Only
   unclaimed videos fall back to the keyword match. `video.linked` / `video.matched` are counted apart; the Topics
   table and the report block show **kw** only when a figure includes a keyword match.
+
+## The Ideas board scales: 20 cards a column, a paged table, one Topic picker (2026-11-03, audit Phase 5, growth part by)
+- **Columns page** (E-IDE-17): a lane column shows `COLUMN_SHOW` (20) cards; **Show 20 more** adds as many, and
+  Rejected pages the same way. The opened counts live in the URL (`more`, "lane:column:n" — `parseMore` ignores
+  anything malformed and caps a column at 400), so a reload or a shared link keeps the view; a lane with an opened
+  column stays open and the link lands back on it (`#lane-…`). "Select all" counts and ticks only cards on screen.
+- **Table** (`?view=table`): every card the filters keep, as one row (title → the idea's page, format, Topic, state,
+  score, added), open work first in the board's own order, `TABLE_PAGE` (50) a page with a pager; rows tick into the
+  same bulk bar (`data-lane="table"`), rejected rows don't. Search, Topic and order apply to both views; viewers get
+  both without boxes or buttons.
+- ⚠ **No per-card forms for rare edits**: a card's Topic is a button (`data-topic-pick`) opening the board's ONE
+  `IdeaTopicDialog` — the old per-card form repeated every Topic in every card, page and payload. A social idea's
+  Edit is a link to its page. Don't put a form with a list in a card again.

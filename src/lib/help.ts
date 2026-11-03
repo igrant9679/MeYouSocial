@@ -176,6 +176,12 @@ export const HELP_CATEGORIES: FaqCategory[] = [
         tags: ["youtube", "video", "topic", "kw", "keyword", "link", "upload", "views", "retention"],
       },
       {
+        q: "The Ideas board is long — how do I get through it?",
+        a: "Each column in a Topic's lane shows its first **20** cards; **Show 20 more** under it adds the next twenty (the address remembers it, so a reload or a shared link keeps the view). For a flat list, switch to **Table** beside the search: every idea as one row — title, format, Topic, state, score, when it was added — open work first, 50 to a page, with the same tick boxes, so the bulk bar (approve, reject, set a Topic, delete) works on a page at a time. Search, the Topic filter and the order apply to both views. On a card, **Topic** opens one picker for the board, and a social idea's **Edit** opens its own page.",
+        links: [{ label: "Ideas →", href: "/ideas" }],
+        tags: ["ideas", "board", "table", "show more", "pages", "bulk", "triage"],
+      },
+      {
         q: "Where do I change the tone of what gets written?",
         a: "Tone of voice lives in **Brand → Tone & motifs** as the 7 Motifs, alongside the asset policy. They're editable rows rather than fixed prompt text, and each piece resolves a weighted blend of them — so changing a Motif changes every future generation that uses it, without you touching any prompt.",
         links: [{ label: "Tone & motifs →", href: "/blog/brand" }],
@@ -850,7 +856,7 @@ export const HELP_CATEGORIES: FaqCategory[] = [
       },
       {
         q: "What keyboard shortcuts exist?",
-        a: "**Ctrl/⌘+/** — Open the Ask dock (the assistant) on any page.\n**Ctrl/⌘+Shift+/** — Open the Prompt Library in the assistant or a canvas chat.\n**Esc** — Close any modal (Prompt Library, Improve dialog).\nForm fields support Tab and Shift+Tab as expected.",
+        a: "**Ctrl/⌘+K** — Search pages, content and Help from anywhere.\n**Ctrl/⌘+/** — Open the Ask dock (the assistant) on any page.\n**Ctrl/⌘+Shift+/** — Open the Prompt Library in the assistant or a canvas chat.\n**Esc** — Close any modal (Prompt Library, Improve dialog, the Topic picker).\nOn the **Ideas board**: **j** / **k** move between cards, **x** ticks one, **a** / **r** approve or reject it, **?** lists them.\nForm fields support Tab and Shift+Tab as expected.",
         tags: ["shortcuts", "keyboard"],
       },
     ],

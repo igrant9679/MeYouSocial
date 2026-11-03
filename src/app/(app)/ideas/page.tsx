@@ -10,7 +10,7 @@ import { OutlierChip } from "@/components/OutlierChip";
 import { IDEA_TIPS } from "@/lib/help-tips";
 import { motifHue, motifSummaryLabel, parseMotifs } from "@/lib/motifs";
 import {
-  loadIdeasBoard, LANE_STATES, STATES,
+  loadIdeasBoard, LANE_STATES, STATES, TABLE_PAGE, cardTitle, moreParam, parseMore, shownIn,
   type ArticleRow, type BoardCard, type BoardState, type IdeaFormat, type Lane, type SocialRow, type VideoRow,
 } from "@/lib/ideas-board";
 import { studioState } from "@/lib/studio";
@@ -21,8 +21,8 @@ import {
   rescoreBlogIdeasAction,
   setBlogIdeaStatusAction,
 } from "@/app/actions/blog-ideas";
-import { addIdeaAction, discoverIdeasAction, regenerateIdeasAction, setBoardIdeaTopicAction, updateIdeaStatusAction, writeIdeaToCanvasAction } from "@/app/actions/ideas";
-import { draftSocialIdeaNowAction, setSocialIdeaStatusAction, updateSocialIdeaAction } from "@/app/actions/social-ideas";
+import { addIdeaAction, discoverIdeasAction, regenerateIdeasAction, updateIdeaStatusAction, writeIdeaToCanvasAction } from "@/app/actions/ideas";
+import { draftSocialIdeaNowAction, setSocialIdeaStatusAction } from "@/app/actions/social-ideas";
 import { draftingBlockers } from "@/lib/idea-blockers";
 import { importIdeasCsvAction } from "@/app/actions/ideas-csv";
 import { laneHealth, laneKey, STALE_DAYS, type LaneHealth } from "@/lib/lane-health";
@@ -30,6 +30,8 @@ import { ideaChange } from "@/lib/idea-drafting";
 import { requestNow } from "@/lib/request-time";
 import { StageHeader } from "@/components/StageShell";
 import { IdeaTriage } from "@/components/IdeaTriage";
+import { IdeaTopicDialog } from "@/components/IdeaTopicDialog";
+import { formatDay } from "@/lib/zoned-dates";
 import { canFollow, whoCanFix } from "@/lib/role-links";
 import { duplicatesAmong, openWorkIndex, KIND_LABEL, type Match } from "@/lib/idea-duplicates";
 import { mergeDuplicateIdeaAction } from "@/app/actions/idea-merge";
@@ -54,7 +56,7 @@ const OPEN_LANES = 8; // lanes past this many open collapsed, with their counts
 // box names it, so ticking anywhere on the page fills the one form (E-IDE-01).
 const BULK = "idea-bulk";
 
-export default async function IdeasBoard({ searchParams }: { searchParams: Promise<{ format?: string; channel?: string; q?: string; topic?: string; sort?: string; ok?: string; err?: string }> }) {
+export default async function IdeasBoard({ searchParams }: { searchParams: Promise<{ format?: string; channel?: string; q?: string; topic?: string; sort?: string; view?: string; more?: string; page?: string; ok?: string; err?: string }> }) {
   const { workspace, membership, user } = await requireMembership();
   const editor = canEdit(membership.role);
   // What this person just rejected (E-IDE-18): Undo, and why — from the audit rows.
@@ -100,8 +102,16 @@ export default async function IdeasBoard({ searchParams }: { searchParams: Promi
   const engineMakes = !blockers.article || !blockers.social;
   // Bulk actions come back to this exact view, filters kept.
   const backParams = new URLSearchParams();
-  for (const k of ["format", "channel", "q", "topic", "sort"] as const) if (sp[k]) backParams.set(k, sp[k]!);
+  for (const k of ["format", "channel", "q", "topic", "sort", "view", "more", "page"] as const) if (sp[k]) backParams.set(k, sp[k]!);
   const back = backParams.toString() ? `/ideas?${backParams.toString()}` : "/ideas";
+  // E-IDE-17: the board pages each column; the table pages the rows. Both in the URL.
+  const more = parseMore(sp.more);
+  const table = sp.view === "table";
+  const hrefWith = (over: Partial<Record<"view" | "more" | "page", string | null>>, hash = "") => {
+    const q = new URLSearchParams(backParams);
+    for (const [k, v] of Object.entries(over)) { if (v) q.set(k, v); else q.delete(k); }
+    return `/ideas${q.toString() ? `?${q.toString()}` : ""}${hash}`;
+  };
 
   return (
     <div>
@@ -163,7 +173,12 @@ export default async function IdeasBoard({ searchParams }: { searchParams: Promi
             <option value="newest">newest first</option>
             <option value="source">by source</option>
           </select>
+          {table && <input type="hidden" name="view" value="table" />}
           <button className="btn sm">Show</button>
+          <span className="inline-flex rounded-lg border border-[var(--line-2)] overflow-hidden text-xs ml-1" data-view-toggle>
+            <Link href={hrefWith({ view: null, page: null })} className="px-2 py-1" style={!table ? { background: "var(--blue-soft)", color: "var(--blue-on)" } : undefined} aria-current={!table ? "page" : undefined}>Board</Link>
+            <Link href={hrefWith({ view: "table", more: null })} className="px-2 py-1 border-l border-[var(--line-2)]" style={table ? { background: "var(--blue-soft)", color: "var(--blue-on)" } : undefined} aria-current={table ? "page" : undefined}>Table</Link>
+          </span>
           {(sp.q || sp.topic || (sp.sort && sp.sort !== "priority")) && (
             <Link href={sp.channel ? `/ideas?channel=${sp.channel}` : sp.format ? `/ideas?format=${sp.format}` : "/ideas"} className="text-xs underline">Clear</Link>
           )}
@@ -310,11 +325,19 @@ export default async function IdeasBoard({ searchParams }: { searchParams: Promi
             </div>
           )}
           {editor && <IdeaTriage formId={BULK} back={back} topics={topics} />}
-          {lanes.map((lane, i) => (
+          {editor && topics.length > 0 && <IdeaTopicDialog topics={topics} />}
+          {table ? (
+            <IdeasTable
+              cards={board.cards.filter((c) => lanes.some((l) => l.cards.includes(c)))}
+              page={Math.max(1, Number(sp.page) || 1)}
+              editor={editor}
+              pageHref={(n) => hrefWith({ page: n > 1 ? String(n) : null })}
+            />
+          ) : lanes.map((lane, i) => (
             <LaneSection
               key={lane.topic?.id ?? "none"}
               lane={lane}
-              open={i < OPEN_LANES || lane.topic === null}
+              open={i < OPEN_LANES || lane.topic === null || [...more.keys()].some((k) => k.startsWith(`${lane.topic?.id ?? "none"}:`))}
               editor={editor}
               topics={topics}
               health={health.get(laneKey(lane.topic?.id))}
@@ -322,6 +345,8 @@ export default async function IdeasBoard({ searchParams }: { searchParams: Promi
               now={now}
               dups={dups}
               back={back}
+              shown={(col) => shownIn(more, lane.topic?.id ?? "none", col)}
+              moreHref={(col) => hrefWith({ more: moreParam(more, lane.topic?.id ?? "none", col) }, `#lane-${lane.topic?.id ?? "none"}`)}
             />
           ))}
         </div>
@@ -349,8 +374,9 @@ export default async function IdeasBoard({ searchParams }: { searchParams: Promi
 }
 
 // ── A lane: one Topic, three columns, Rejected under a disclosure ────────────
-function LaneSection({ lane, open, editor, topics, health, draftRank, now, dups, back }: {
+function LaneSection({ lane, open, editor, topics, health, draftRank, now, dups, back, shown, moreHref }: {
   lane: Lane; open: boolean; editor: boolean; topics: Topic[]; health?: LaneHealth; draftRank: Map<string, number>; now: number; dups: Map<string, Match>; back: string;
+  shown: (column: BoardState) => number; moreHref: (column: BoardState) => string;
 }) {
   const t = lane.topic;
   const by = (s: BoardState) => lane.cards.filter((c) => c.state === s);
@@ -363,10 +389,14 @@ function LaneSection({ lane, open, editor, topics, health, draftRank, now, dups,
     fmt("social") ? `${fmt("social")} social` : "",
   ].filter(Boolean).join(" · ");
   const laneId = t?.id ?? "none";
-  const selectable = editor ? lane.cards.filter((c) => c.state !== "rejected" && canSelect(c)).length : 0;
+  // Only what's on screen can be ticked: a column shows its first `shown` cards.
+  const selectable = editor
+    ? LANE_STATES.reduce((n, col) => n + by(col.state).slice(0, shown(col.state)).filter(canSelect).length, 0)
+    : 0;
+  const rejectedShown = rejected.slice(0, shown("rejected"));
 
   return (
-    <details className="card" open={open}>
+    <details className="card" open={open} id={`lane-${laneId}`}>
       <summary className="cursor-pointer list-none flex items-center gap-2 flex-wrap">
         <ChevronRight className="w-3.5 h-3.5 shrink-0 text-[var(--mute)] transition-transform [details[open]>summary>&]:rotate-90" />
         {t ? (
@@ -388,16 +418,17 @@ function LaneSection({ lane, open, editor, topics, health, draftRank, now, dups,
       {selectable > 0 && (
         <label className="text-[11px] text-[var(--mute)] inline-flex items-center gap-1.5 mt-3 cursor-pointer">
           <input type="checkbox" data-lane-toggle={laneId} />
-          Select all {selectable} open in this lane
+          Select all {selectable} shown in this lane
         </label>
       )}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3">
         {LANE_STATES.map((col) => {
-          const items = by(col.state);
+          const all = by(col.state);
+          const items = all.slice(0, shown(col.state));
           return (
             <section key={col.state}>
               <h3 className="flex items-center justify-between text-[10px] font-semibold uppercase tracking-wide mb-1" style={{ color: `var(--${col.hue}-on)` }}>
-                {col.title} <span className="font-mono">{items.length}</span>
+                {col.title} <span className="font-mono">{all.length}</span>
               </h3>
               {items.length === 0 ? (
                 <p className="text-[11px] text-[var(--mute)] py-1 leading-snug">
@@ -408,16 +439,26 @@ function LaneSection({ lane, open, editor, topics, health, draftRank, now, dups,
                   {items.map((c) => <Card key={`${c.format}-${c.row.id}`} c={c} editor={editor} topics={topics} lane={laneId} draftRank={draftRank} dups={dups} back={back} />)}
                 </ul>
               )}
+              {all.length > items.length && (
+                <Link href={moreHref(col.state)} scroll={false} className="block text-[11px] text-center mt-2 py-1 rounded-md border border-dashed border-[var(--line-2)] text-[var(--mute)] hover:text-[var(--ink)]" data-show-more={`${laneId}:${col.state}`}>
+                  Show {Math.min(20, all.length - items.length)} more · {all.length - items.length} not shown
+                </Link>
+              )}
             </section>
           );
         })}
       </div>
       {rejected.length > 0 && (
-        <details className="mt-3">
+        <details className="mt-3" open={rejectedShown.length > 20}>
           <summary className="text-[11px] cursor-pointer text-[var(--mute)]">Rejected · {rejected.length} — won&apos;t come back unless restored</summary>
           <ul className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-2">
-            {rejected.map((c) => <Card key={`${c.format}-${c.row.id}`} c={c} editor={editor} topics={topics} lane={`${laneId}:rejected`} draftRank={draftRank} dups={dups} back={back} />)}
+            {rejectedShown.map((c) => <Card key={`${c.format}-${c.row.id}`} c={c} editor={editor} topics={topics} lane={`${laneId}:rejected`} draftRank={draftRank} dups={dups} back={back} />)}
           </ul>
+          {rejected.length > rejectedShown.length && (
+            <Link href={moreHref("rejected")} scroll={false} className="block text-[11px] text-center mt-2 text-[var(--mute)] underline" data-show-more={`${laneId}:rejected`}>
+              Show {Math.min(20, rejected.length - rejectedShown.length)} more rejected · {rejected.length - rejectedShown.length} not shown
+            </Link>
+          )}
         </details>
       )}
     </details>
@@ -480,6 +521,77 @@ function DupLine({ format, id, dup, canMerge, back }: { format: IdeaFormat; id: 
 }
 
 /** The cards bulk triage may touch: the open states their own buttons act on (actions/ideas-bulk.ts keeps the same rules). */
+// ── The table view (E-IDE-17): every card as one row, paged ──────────────────
+const STATE_ORDER: Record<BoardState, number> = { discovered: 0, approved: 1, drafted: 2, rejected: 3 };
+const ideaHref = (c: BoardCard) =>
+  c.format === "article" ? `/ideas/article/${c.row.id}` : c.format === "social" ? `/ideas/social/${c.row.id}` : `/channels/${c.row.channel.id}/ideas/${c.row.id}`;
+const ideaScore = (c: BoardCard): string =>
+  c.format === "video" ? (c.row.outlierScore != null ? `${c.row.outlierScore.toFixed(1)}×` : "—") : c.row.priority != null ? String(c.row.priority) : "—";
+const ideaTopic = (c: BoardCard): string | null =>
+  c.format === "video" ? c.row.workspaceTopic?.name ?? null : c.row.topic?.name ?? null;
+
+function IdeasTable({ cards, page, editor, pageHref }: { cards: BoardCard[]; page: number; editor: boolean; pageHref: (n: number) => string }) {
+  // Open work first, in the board's own order within each state.
+  const rows = cards.map((c, i) => ({ c, i })).sort((a, b) => STATE_ORDER[a.c.state] - STATE_ORDER[b.c.state] || a.i - b.i).map((x) => x.c);
+  const pages = Math.max(1, Math.ceil(rows.length / TABLE_PAGE));
+  const at = Math.min(page, pages);
+  const slice = rows.slice((at - 1) * TABLE_PAGE, at * TABLE_PAGE);
+  const th = "py-1.5 px-2 font-mono text-[9px] uppercase tracking-wider text-left text-[var(--mute)] border-b-2 border-[var(--line)]";
+  const td = "py-1.5 px-2 border-b border-[var(--line)] align-top";
+  const pick = editor ? slice.filter((c) => c.state !== "rejected" && canSelect(c)).length : 0;
+  return (
+    <div className="card" data-ideas-table>
+      <div className="flex items-center gap-2 flex-wrap text-[11px] text-[var(--mute)] mb-2">
+        {pick > 0 && (
+          <label className="inline-flex items-center gap-1.5 cursor-pointer">
+            <input type="checkbox" data-lane-toggle="table" /> Select all {pick} on this page
+          </label>
+        )}
+        <span className="flex-1" />
+        <span data-table-range>{rows.length === 0 ? "No ideas" : `${(at - 1) * TABLE_PAGE + 1}–${(at - 1) * TABLE_PAGE + slice.length} of ${rows.length}`}</span>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-xs border-collapse">
+          <thead>
+            <tr>
+              {editor && <th className={th} aria-label="Select" />}
+              <th className={th}>Idea</th>
+              <th className={th}>Format</th>
+              <th className={th}>Topic</th>
+              <th className={th}>State</th>
+              <th className={`${th} text-right`} title="An article or post's priority; a video's measured outlier">Score</th>
+              <th className={`${th} text-right`}>Added</th>
+            </tr>
+          </thead>
+          <tbody>
+            {slice.map((c) => {
+              const st = STATES.find((s) => s.state === c.state)!;
+              return (
+                <tr key={`${c.format}-${c.row.id}`} data-idea-row={`${c.format}:${c.row.id}`}>
+                  {editor && <td className={td}>{c.state !== "rejected" && canSelect(c) && <SelectBox lane="table" value={`${c.format}:${c.row.id}`} label={cardTitle(c)} />}</td>}
+                  <td className={td}><Link href={ideaHref(c)} className="font-semibold hover:underline">{cardTitle(c)}</Link></td>
+                  <td className={td}><FormatChip format={c.format} channel={c.format === "video" ? c.row.channel.name : undefined} /></td>
+                  <td className={td}>{ideaTopic(c) ?? <span className="text-[var(--mute)]">—</span>}</td>
+                  <td className={td}><span style={{ color: `var(--${st.hue}-on)` }}>{st.title}</span></td>
+                  <td className={`${td} text-right font-mono tabular-nums`}>{ideaScore(c)}</td>
+                  <td className={`${td} text-right font-mono tabular-nums text-[var(--mute)] whitespace-nowrap`}>{formatDay(c.createdAt)}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      {pages > 1 && (
+        <nav className="flex items-center justify-center gap-3 mt-3 text-xs" aria-label="Pages" data-table-pager>
+          {at > 1 ? <Link href={pageHref(at - 1)} className="btn sm">← Previous</Link> : <span className="btn sm opacity-40" aria-disabled>← Previous</span>}
+          <span className="text-[var(--mute)]">Page {at} of {pages}</span>
+          {at < pages ? <Link href={pageHref(at + 1)} className="btn sm">Next →</Link> : <span className="btn sm opacity-40" aria-disabled>Next →</span>}
+        </nav>
+      )}
+    </div>
+  );
+}
+
 function canSelect(c: BoardCard): boolean {
   if (c.format === "article") return ["discovered", "approved", "rejected"].includes(c.row.status);
   if (c.format === "video") return ["new", "approved", "archived"].includes(c.row.status);
@@ -529,26 +641,25 @@ function Tag({ children, hue, title }: { children: React.ReactNode; hue?: string
 }
 
 /** The one "tag it" control, any format. Sits under a disclosure on tagged cards and in the open on untagged ones. */
-function TopicPicker({ format, id, topicId, topics, prominent }: { format: IdeaFormat; id: string; topicId: string | null; topics: Topic[]; prominent: boolean }) {
+/**
+ * The card's Topic control: a button that opens the board's one shared picker
+ * (components/IdeaTopicDialog.tsx) — not a form with every Topic in it on every
+ * card (E-IDE-17). Untagged cards get it as their prominent action.
+ */
+function TopicPicker({ format, id, topicId, topics, prominent, title }: { format: IdeaFormat; id: string; topicId: string | null; topics: Topic[]; prominent: boolean; title: string }) {
   if (topics.length === 0) return null;
-  const form = (
-    <form action={setBoardIdeaTopicAction} className="flex items-center gap-1.5 mt-1.5">
-      <input type="hidden" name="format" value={format} />
-      <input type="hidden" name="id" value={id} />
-      <Tags className="w-3.5 h-3.5 shrink-0" style={{ color: "var(--indigo-on)" }} />
-      <select name="topicId" defaultValue={topicId ?? ""} className="text-[11px] border border-[var(--line-2)] rounded-md px-1.5 py-1 flex-1 min-w-0" aria-label="Topic">
-        <option value="">no topic</option>
-        {topics.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
-      </select>
-      <SubmitButton className="btn sm" pendingText="…">{prominent ? "Tag it" : "Set"}</SubmitButton>
-    </form>
-  );
-  if (prominent) return <div className="mt-1">{form}</div>;
   return (
-    <details className="mt-2">
-      <summary className="text-[11px] cursor-pointer text-[var(--mute)]">Topic</summary>
-      {form}
-    </details>
+    <button
+      type="button"
+      data-topic-pick
+      data-format={format}
+      data-id={id}
+      data-topic={topicId ?? ""}
+      data-title={title.slice(0, 160)}
+      className={prominent ? "btn sm mt-1.5" : "mt-2 text-[11px] text-[var(--mute)] underline decoration-dotted"}
+    >
+      {prominent ? <><Tags className="w-3.5 h-3.5" style={{ color: "var(--indigo-on)" }} /> Tag it with a Topic</> : "Topic"}
+    </button>
   );
 }
 
@@ -629,7 +740,7 @@ function ArticleCard({ idea, editor, topics, select, rank, dup, back }: { idea: 
         <Link href={`/blog/${idea.postId}`} className="text-[11px] underline mt-2 inline-block">Open the draft</Link>
       )}
 
-      {editor && live && <TopicPicker format="article" id={idea.id} topicId={idea.topicId} topics={topics} prominent={!idea.topicId} />}
+      {editor && live && <TopicPicker format="article" id={idea.id} topicId={idea.topicId} topics={topics} prominent={!idea.topicId} title={idea.title} />}
 
       {/* Tags and merge live on the idea's own page (IDE-20): this panel, with a
           list of every other open idea, made the board's HTML grow with the
@@ -702,7 +813,7 @@ function VideoCard({ idea, editor, topics, select, dup, back }: { idea: VideoRow
         <Link href={script.workflow === "builder" ? `/scripts/${script.id}/builder` : `/scripts/${script.id}`} className="text-[11px] underline mt-2 inline-block">Open the script</Link>
       )}
 
-      {editor && idea.status !== "archived" && <TopicPicker format="video" id={idea.id} topicId={idea.topicId} topics={topics} prominent={!idea.topicId} />}
+      {editor && idea.status !== "archived" && <TopicPicker format="video" id={idea.id} topicId={idea.topicId} topics={topics} prominent={!idea.topicId} title={idea.title} />}
     </li>
   );
 }
@@ -779,19 +890,10 @@ function SocialCard({ idea, editor, topics, select, dup, back }: { idea: SocialR
         </div>
       )}
 
-      {editor && live && <TopicPicker format="social" id={idea.id} topicId={idea.topicId} topics={topics} prominent={!idea.topicId} />}
+      {editor && live && <TopicPicker format="social" id={idea.id} topicId={idea.topicId} topics={topics} prominent={!idea.topicId} title={idea.hook} />}
 
-      {editor && live && (
-        <details className="mt-2">
-          <summary className="text-[11px] cursor-pointer text-[var(--mute)]">Edit</summary>
-          <form action={updateSocialIdeaAction} className="flex flex-col gap-1.5 mt-1.5">
-            <input type="hidden" name="id" value={idea.id} />
-            <textarea name="hook" defaultValue={idea.hook} rows={2} maxLength={240} className="w-full text-xs" />
-            <input name="angle" defaultValue={idea.angle ?? ""} placeholder="why it works" className="w-full text-xs" />
-            <SubmitButton className="btn text-[11px]">Save</SubmitButton>
-          </form>
-        </details>
-      )}
+      {/* Editing lives on the idea's own page (E-IDE-17) — not a form in every card. */}
+      {editor && live && <Link href={`/ideas/social/${idea.id}`} className="ml-3 text-[11px] text-[var(--mute)] underline decoration-dotted">Edit</Link>}
     </li>
   );
 }
