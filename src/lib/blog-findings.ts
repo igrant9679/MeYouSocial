@@ -72,6 +72,7 @@ async function askForFindings(
   user: string,
 ): Promise<{ findings: DraftFinding[]; mock: boolean }> {
   const res = await llm.complete({
+    purpose: "article.findings",
     model,
     system,
     messages: [{ role: "user", content: user }],
@@ -417,6 +418,7 @@ export async function weaveFindingCore(workspaceId: string, findingId: string): 
   const headings = [...post.body.matchAll(H2)].map((m) => stripTags(m[1])).filter(Boolean);
 
   const res = await llm.complete({
+    purpose: "article.findings",
     model: await resolveUsableModel(post.model ?? workspace?.defaultModel ?? llm.defaultModel, workspaceId),
     system:
       "You add the author's first-hand experience to a blog article. Given the article, a finding, and the author's own answers, write the passage that resolves the finding: two to five sentences of HTML (<p>, optionally one <h3>) in the article's voice — first person plural unless the answers are clearly personal. " +

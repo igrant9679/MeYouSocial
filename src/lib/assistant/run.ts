@@ -64,6 +64,8 @@ export type AssistantResult = {
   pending?: PendingAction | null;
   /** Set when the run stopped for a reason worth showing rather than hiding. */
   error?: string;
+  /** What this turn's model calls took, summed (E-ENG-07); a streamed or uncounted call adds nothing. */
+  usage?: { calls: number; inputTokens: number; outputTokens: number };
 };
 
 /** The tools this role may call — a viewer is never shown one it can't use (E-ENG-15). */
@@ -193,7 +195,21 @@ export function proposalExpired(p: PendingAction, now = Date.now()): boolean {
   return !Number.isFinite(asked) || now - asked > PROPOSAL_TTL_MS;
 }
 
+/** One turn, with what its model calls took (E-ENG-07) — see runTurnLoop for the loop itself. */
 export async function runAssistant(
+  ctx: ToolContext,
+  history: Array<{ role: "user" | "assistant"; content: string }>,
+  message: string,
+  pending: PendingAction | null = null,
+  confirm: string | null = null,
+  carried: { outside?: string[] } = {},
+): Promise<AssistantResult> {
+  const usage = { calls: 0, inputTokens: 0, outputTokens: 0 };
+  const result = await runTurnLoop(ctx, history, message, pending, confirm, carried, usage);
+  return { ...result, usage };
+}
+
+async function runTurnLoop(
   ctx: ToolContext,
   history: Array<{ role: "user" | "assistant"; content: string }>,
   message: string,
@@ -202,6 +218,7 @@ export async function runAssistant(
   confirm: string | null = null,
   /** Outside text already in the conversation the model sees (session.ts reads it off earlier steps). */
   carried: { outside?: string[] } = {},
+  usage: { calls: number; inputTokens: number; outputTokens: number } = { calls: 0, inputTokens: 0, outputTokens: 0 },
 ): Promise<AssistantResult> {
   const workspace = await db.workspace.findUnique({ where: { id: ctx.workspaceId }, select: { name: true, defaultModel: true } });
   if (!workspace) return { ok: false, answer: "", steps: [], error: "workspace not found" };
@@ -279,7 +296,10 @@ export async function runAssistant(
     // allowWhilePaused: the conversation itself still runs while paused (so the
     // person can ask what is happening and calm things down); the tools it
     // calls are gated in runTool.
-    const res = await llm.complete({ model, system, messages: transcript, workspaceId: ctx.workspaceId, maxTokens: 2000, allowWhilePaused: true });
+    const res = await llm.complete({ purpose: "assistant", model, system, messages: transcript, workspaceId: ctx.workspaceId, maxTokens: 2000, allowWhilePaused: true });
+    usage.calls += 1;
+    usage.inputTokens += res.inputTokens ?? 0;
+    usage.outputTokens += res.outputTokens ?? 0;
 
     if (res.provider === "mock") {
       return {

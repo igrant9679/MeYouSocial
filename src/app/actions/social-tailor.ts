@@ -114,6 +114,7 @@ export async function tailorPostForNetworksAction(input: {
   try {
     const model = await resolveUsableModel(workspace.defaultModel ?? llm.defaultModel, workspace.id);
     const res = await llm.complete({
+      purpose: "social.tailor",
       model,
       system,
       messages: [{ role: "user", content: prompt }],

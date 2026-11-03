@@ -39,6 +39,12 @@ export type LLMRequest = {
    * de-escalate — its tools are gated separately (lib/assistant/tools.ts).
    */
   allowWhilePaused?: boolean;
+  /**
+   * What the call is FOR — a lib/ai-spend.ts PURPOSE_LABEL key ("article.draft",
+   * "assistant"…). Metered with the call, so Usage can say what the tokens went
+   * on (E-ENG-07). Every call site names one.
+   */
+  purpose?: string;
 };
 
 export type LLMResponse = {

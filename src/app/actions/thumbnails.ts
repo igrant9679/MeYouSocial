@@ -49,6 +49,7 @@ export async function brainstormThumbnailsAction(formData: FormData) {
 
   // 1) Generate four concept descriptions via the LLM router.
   const completion = await llm.complete({
+    purpose: "thumbnails",
     model: channel.defaultModel ?? "",
     system: `Produce 4 sharply distinct YouTube thumbnail concepts for the given video.
 Return EXACTLY 4 numbered lines: "LABEL — short visual brief".

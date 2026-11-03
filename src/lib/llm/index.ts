@@ -133,7 +133,7 @@ export const llm = {
     // key is missing or USE_MOCK_LLM is on, so `p.id` is the truth in every case
     // the wrapper didn't already stamp.
     const provider = out.provider ?? p.id;
-    await meterAi({ workspaceId: req.workspaceId, action: "ai.text", provider, model: req.model, inputTokens: out.inputTokens, outputTokens: out.outputTokens });
+    await meterAi({ workspaceId: req.workspaceId, action: "ai.text", provider, model: req.model, inputTokens: out.inputTokens, outputTokens: out.outputTokens, purpose: req.purpose });
     return { ...out, provider };
   },
   async *stream(req: LLMRequest): AsyncIterable<string> {
@@ -144,7 +144,7 @@ export const llm = {
     for await (const chunk of p.stream(req)) yield chunk;
     // No token counts on a stream, and a mid-stream fallback isn't visible
     // here — the row says who was asked.
-    await meterAi({ workspaceId: req.workspaceId, action: "ai.text", provider: p.id, model: req.model });
+    await meterAi({ workspaceId: req.workspaceId, action: "ai.text", provider: p.id, model: req.model, purpose: req.purpose });
   },
   invalidateKeyCache,
 };

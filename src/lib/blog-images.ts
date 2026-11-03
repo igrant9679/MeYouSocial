@@ -271,6 +271,7 @@ export async function generateImageBriefsCore(workspaceId: string, postId: strin
     .join("\n");
 
   const res = await llm.complete({
+    purpose: "article.images",
     model: await resolveUsableModel(post.model ?? workspace.defaultModel ?? llm.defaultModel, workspaceId),
     system,
     messages: [{ role: "user", content: prompt }],

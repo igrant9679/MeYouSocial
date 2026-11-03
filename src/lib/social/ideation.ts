@@ -55,6 +55,7 @@ export async function discoverSocialIdeasCore(workspaceId: string, topicId: stri
   ].filter(Boolean);
 
   const res = await llm.complete({
+    purpose: "ideas.discover",
     model: await resolveUsableModel(workspace.defaultModel ?? llm.defaultModel, workspaceId),
     system:
       "You propose social media post IDEAS for a real company's feed — not finished posts. " +
@@ -146,6 +147,7 @@ export async function socialIdeasFromArticle(workspaceId: string, postId: string
   const want = Math.max(1, Math.min(5, Math.round(count)));
 
   const res = await llm.complete({
+    purpose: "article.variants",
     model: await resolveUsableModel(workspace.defaultModel ?? llm.defaultModel, workspaceId),
     system:
       "You propose social post IDEAS that promote one published article — each a different angle on it, not a summary. " +

@@ -106,6 +106,7 @@ ${contextLines || "(none)"}`;
   // no key for, and the router's mock answered as "Claude".
   const model = await resolveUsableModel(chat.channel.defaultModel ?? workspace.defaultModel ?? "claude-sonnet", workspace.id);
   const reply = await llm.complete({
+    purpose: "chat",
     model,
     system,
     messages: [...history, { role: "user", content: parsed.data.content }],
@@ -131,6 +132,7 @@ ${contextLines || "(none)"}`;
     if (limit) redirect(`/chat/${chat.id}?flashErr=${encodeURIComponent(`Your message was answered; no script was made. ${limit}`)}`);
     // spin a Script project from the conversation so far and redirect.
     const synthesis = await llm.complete({
+      purpose: "chat",
       model,
       system: "Synthesize the discussion into a working script title.",
       messages: history.concat([{ role: "user", content: parsed.data.content }]),

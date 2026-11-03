@@ -193,6 +193,7 @@ export async function draftFieldAction(input: {
       workspace.id,
     );
     const res = await llm.complete({
+      purpose: "assist",
       model,
       system,
       messages: [{ role: "user", content: prompt }],

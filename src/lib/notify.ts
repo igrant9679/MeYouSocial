@@ -40,6 +40,7 @@ export const NOTIFICATION_KINDS = [
   // the in-app digest, so a bell item would be spam). Listed here so the
   // preference row and its toggle exist in the Notifications UI.
   "daily_digest",
+  "ai_budget",
 ] as const;
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
 
@@ -58,6 +59,7 @@ export const KIND_LABELS: Record<NotificationKind, string> = {
   submission: "A topic suggestion arrived on a channel's public form",
   job_failed: "A background job gave up after its retries (admins)",
   daily_digest: "The morning digest of what needs me (admins, email only)",
+  ai_budget: "AI use passed 80% or 100% of the month's token budget (admins)",
 };
 
 /** Email defaults to off for the chatty kinds, on for the ones that need a human. */
@@ -87,6 +89,8 @@ const EMAIL_DEFAULT: Record<NotificationKind, boolean> = {
   // Default-on: it only ever sends when a warn-severity decision is waiting,
   // so the quiet-day cost is zero. digest.ts reads this preference directly.
   daily_digest: true,
+  // Once a month per threshold, to admins only (lib/ai-spend.ts).
+  ai_budget: true,
 };
 
 /**

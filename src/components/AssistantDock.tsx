@@ -20,8 +20,9 @@ import type { AssistantStep } from "@/lib/assistant/run";
  * never lost or don't know what to do next." Hence the opening suggestion.
  */
 
-type Msg = { id: string; role: "user" | "assistant"; content: string; steps: AssistantStep[] };
-type Reply = { threadId: string; answer: string; steps: AssistantStep[]; options: string[]; links: Array<{ label: string; href: string }>; pending: unknown; error: string | null };
+/** `tokens`: what the reply's model calls took, in + out (E-ENG-07); null when none were counted. */
+type Msg = { id: string; role: "user" | "assistant"; content: string; steps: AssistantStep[]; tokens?: number | null };
+type Reply = { threadId: string; answer: string; steps: AssistantStep[]; options: string[]; links: Array<{ label: string; href: string }>; pending: unknown; error: string | null; usage?: { inputTokens: number; outputTokens: number } | null };
 
 const SUGGESTIONS = [
   "What should I do next?",
@@ -127,7 +128,7 @@ export function AssistantDock({ activeChannelId = null, workspaceId, userId, rea
       const d = (await r.json().catch(() => ({ error: `HTTP ${r.status}` }))) as Reply & { error?: string };
       if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
       setThreadId(d.threadId);
-      setMessages((ms) => [...ms, { id: `a-${Date.now()}`, role: "assistant", content: d.answer, steps: d.steps ?? [] }]);
+      setMessages((ms) => [...ms, { id: `a-${Date.now()}`, role: "assistant", content: d.answer, steps: d.steps ?? [], tokens: d.usage ? d.usage.inputTokens + d.usage.outputTokens : null }]);
       setOptions(d.options ?? []);
       setLinks(d.links ?? []);
     } catch (e) {
@@ -211,6 +212,9 @@ export function AssistantDock({ activeChannelId = null, workspaceId, userId, rea
                   {confirmStep && (
                     <ConfirmCard tool={confirmStep.tool} summary={confirmStep.summary} preview={confirmStep.preview}
                       expires={confirmStep.expiresAt ? new Date(confirmStep.expiresAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : null} />
+                  )}
+                  {m.role === "assistant" && m.tokens != null && (
+                    <p className="m-0 mt-1 text-[10px] font-mono text-[var(--mute)]" data-reply-tokens={m.tokens} title="Tokens this reply's model calls took, in and out — Settings → Usage has the month">{m.tokens.toLocaleString("en-GB")} tokens</p>
                   )}
                   {tools.length > 0 && (
                     <details className="mt-1">

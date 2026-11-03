@@ -37,7 +37,7 @@ export async function GET(req: Request) {
     // The dock starts afresh after a long idle (E-ENG-11) — it reads this.
     updatedAt: thread.updatedAt.toISOString(),
     pending: thread.pending ? readJson(thread.pending, null) : null,
-    messages: thread.messages.map((m) => ({ id: m.id, role: m.role, content: m.content, steps: readJson<AssistantStep[]>(m.steps, []) })),
+    messages: thread.messages.map((m) => ({ id: m.id, role: m.role, content: m.content, steps: readJson<AssistantStep[]>(m.steps, []), tokens: m.inputTokens != null || m.outputTokens != null ? (m.inputTokens ?? 0) + (m.outputTokens ?? 0) : null })),
   });
 }
 
@@ -68,5 +68,6 @@ export async function POST(req: Request) {
     links: r.links ?? [],
     pending: r.pending ?? null,
     error: r.error ?? null,
+    usage: r.usage?.calls ? r.usage : null,
   });
 }

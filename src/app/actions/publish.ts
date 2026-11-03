@@ -45,6 +45,7 @@ export async function generatePromoAction(formData: FormData) {
   if (!script) return;
 
   const result = await llm.complete({
+    purpose: "script.publish",
     model: script.model ?? script.channel.defaultModel ?? "",
     system: `You produce YouTube publishing assets for the channel "${script.channel.name}" (niche: ${script.channel.nicheDescription}).
 Follow the user instruction below and return ONLY the requested asset, no preamble.`,

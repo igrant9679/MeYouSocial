@@ -2,12 +2,16 @@ import { formatZonedMoment } from "@/lib/zoned-dates";
 import { getPostingTimeZone } from "@/lib/social/slots";
 import Link from "next/link";
 import { BarChart3, Users, Sparkles, PenLine, Image as ImageIcon, Bot, FileText, Share2, Gauge } from "lucide-react";
-import { requireRole } from "@/lib/acl";
+import { requireRole, isPlatformOperator } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { formatNum } from "@/lib/intel";
 import { youtubeUnitsSince } from "@/lib/youtube";
 import { AGENT_RUN_ACTION, THUMBNAIL_ACTIONS, monthStartUtc } from "@/lib/soft-limits";
-import { PROVIDER_LABEL, modelLabel } from "@/lib/llm/models";
+import { MODELS, PROVIDER_LABEL, modelLabel } from "@/lib/llm/models";
+import { BUDGET_KEY, BUDGET_THRESHOLDS, PRICES_KEY, estimateCost, formatUsd, parseBudget, parsePrices, purposeLabel } from "@/lib/ai-spend";
+import { getSetting } from "@/lib/settings";
+import { SubmitButton } from "@/components/SubmitButton";
+import { saveModelPricesAction, saveTokenBudgetAction } from "@/app/actions/ai-spend";
 
 // Usage: what this workspace made this month (UTC), what each AI provider was
 // asked for, and the soft limits. The limits cap each PERSON, so they're shown
@@ -15,8 +19,10 @@ import { PROVIDER_LABEL, modelLabel } from "@/lib/llm/models";
 
 const PROVIDER_NAME: Record<string, string> = { ...PROVIDER_LABEL, openai: "OpenAI", mock: "Placeholder" };
 
-export default async function AdminUsagePage() {
-  const { workspace } = await requireRole("ADMIN");
+export default async function AdminUsagePage({ searchParams }: { searchParams: Promise<{ ok?: string; err?: string }> }) {
+  const { user, workspace } = await requireRole("ADMIN");
+  const { ok, err } = await searchParams;
+  const operator = isPlatformOperator(user.email);
   const ws = workspace.id;
   const postingTz = await getPostingTimeZone(ws);
   const now = new Date();
@@ -29,7 +35,7 @@ export default async function AdminUsagePage() {
   const dayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
   const [ytToday, ytMonth] = await Promise.all([youtubeUnitsSince(ws, dayStart), youtubeUnitsSince(ws, monthStart)]);
   const month = { gte: monthStart };
-  const [activeUsers, totalChannels, articles, socialPosts, scripts, thumbnails, agentRuns, totalScripts, aiRows, firstAiRow, recentUsageLogs] = await Promise.all([
+  const [activeUsers, totalChannels, articles, socialPosts, scripts, thumbnails, agentRuns, totalScripts, aiRows, firstAiRow, recentUsageLogs, purposeRows, priceRow, budgetRaw] = await Promise.all([
     db.user.count({ where: { memberships: { some: { workspaceId: ws, status: "active" } }, lastActivityAt: { gte: weekStart } } }),
     db.channel.count({ where: { workspaceId: ws } }),
     db.blogPost.count({ where: { workspaceId: ws, createdAt: month } }),
@@ -48,7 +54,40 @@ export default async function AdminUsagePage() {
     db.usageLog.findFirst({ where: { workspaceId: ws, action: { in: ["ai.text", "ai.image"] } }, orderBy: { createdAt: "asc" }, select: { createdAt: true } }),
     // The metered rows are summed above, not listed one by one.
     db.usageLog.findMany({ where: { workspaceId: ws, action: { notIn: ["youtube.api", "ai.text", "ai.image"] } }, orderBy: { createdAt: "desc" }, take: 15 }),
+    // E-ENG-07: what the tokens went on, per model so each can be priced.
+    db.usageLog.groupBy({
+      by: ["purpose", "model"],
+      where: { workspaceId: ws, action: "ai.text", createdAt: month },
+      _count: { _all: true },
+      _sum: { inputTokens: true, outputTokens: true, tokens: true },
+    }),
+    // The operator's prices are platform-wide: the global row, never a workspace's.
+    db.setting.findUnique({ where: { key: PRICES_KEY }, select: { value: true } }),
+    getSetting(BUDGET_KEY, ws),
   ]);
+  const prices = parsePrices(priceRow?.value);
+  const budget = parseBudget(budgetRaw);
+  const usedTokens = purposeRows.reduce((n, r) => n + (r._sum.tokens ?? 0), 0);
+  const budgetPct = budget ? (usedTokens / budget) * 100 : 0;
+  // By purpose: summed over models; the cost only from models with a price.
+  type PurposeLine = { purpose: string | null; calls: number; inTok: number; outTok: number; cost: number | null; unpriced: number };
+  const byPurpose = new Map<string, PurposeLine>();
+  for (const r of purposeRows) {
+    const k = r.purpose ?? "";
+    const line = byPurpose.get(k) ?? { purpose: r.purpose, calls: 0, inTok: 0, outTok: 0, cost: null, unpriced: 0 };
+    line.calls += r._count._all;
+    line.inTok += r._sum.inputTokens ?? 0;
+    line.outTok += r._sum.outputTokens ?? 0;
+    const c = estimateCost(prices[r.model ?? ""], r._sum.inputTokens, r._sum.outputTokens);
+    if (c != null) line.cost = (line.cost ?? 0) + c;
+    else line.unpriced += r._sum.tokens ?? 0;
+    byPurpose.set(k, line);
+  }
+  const purposes = [...byPurpose.values()].sort((a, b) => b.inTok + b.outTok - (a.inTok + a.outTok));
+  const totalCost = purposes.reduce((n, p) => n + (p.cost ?? 0), 0);
+  const anyPriced = purposes.some((p) => p.cost != null);
+  const seenModels = [...new Set(purposeRows.map((r) => r.model).filter((m): m is string => !!m))];
+  const priceModels = [...new Set([...MODELS.map((m) => m.id), ...seenModels])];
 
   // Per person this month — what the soft limits count (lib/soft-limits.ts).
   const [scriptsBy, thumbsBy, runsBy] = await Promise.all([
@@ -101,6 +140,64 @@ export default async function AdminUsagePage() {
         A channel search costs 100, every other read 1; the key&apos;s daily pool (10,000 by default) may be shared with other workspaces.
       </p>
 
+      {(ok || err) && (
+        <p className="text-xs mb-3 px-3 py-2 rounded-lg" style={ok ? { background: "var(--green-soft)", color: "var(--green-on)" } : { background: "var(--rose-soft)", color: "var(--rose-on)" }}>{ok ?? err}</p>
+      )}
+
+      {/* E-ENG-07: the month's tokens against a budget that warns */}
+      <section className="card mb-4" id="ai-budget" data-ai-budget>
+        <h2 className="font-mono font-bold text-[14px] mb-1">AI tokens this month</h2>
+        <p className="text-[11px] text-[var(--mute)] mb-2">
+          <b className="font-mono text-[var(--ink)]" data-used-tokens={usedTokens}>{usedTokens.toLocaleString("en-GB")}</b> tokens in and out since the 1st (UTC)
+          {budget ? <> of a <b className="font-mono text-[var(--ink)]">{budget.toLocaleString("en-GB")}</b> budget — <b data-budget-pct={Math.floor(budgetPct)}>{Math.floor(budgetPct)}%</b></> : <> — no budget set</>}
+          {anyPriced ? <> · about <b className="font-mono text-[var(--ink)]" data-total-cost>{formatUsd(totalCost)}</b> at the prices set</> : null}.
+          {" "}Admins are told once at {BUDGET_THRESHOLDS.join("% and ")}%; nothing is stopped — the pause in Settings → Automation does that.
+        </p>
+        {budget ? (
+          <div className="h-1.5 mb-3 rounded-full bg-[var(--line)] overflow-hidden">
+            <div className="h-full rounded-full" style={{ width: Math.min(100, budgetPct) + "%", background: budgetPct >= 100 ? "var(--rose)" : budgetPct >= 80 ? "var(--amber)" : "var(--green)" }} />
+          </div>
+        ) : null}
+        <form action={saveTokenBudgetAction} className="flex flex-wrap items-end gap-2">
+          <label className="text-xs">
+            <span className="block text-[10px] text-[var(--mute)] mb-1">Monthly budget, tokens (blank for none)</span>
+            <input name="budget" inputMode="numeric" defaultValue={budget ?? ""} placeholder="e.g. 5000000" className="w-44 font-mono text-xs border border-[var(--line-2)] rounded-lg px-2 py-1" />
+          </label>
+          <SubmitButton className="btn sm">Save budget</SubmitButton>
+        </form>
+      </section>
+
+      {/* E-ENG-07: what the tokens went on */}
+      <section className="card mb-4" data-ai-purposes>
+        <h2 className="font-mono font-bold text-[14px] mb-1">What the AI was asked for this month</h2>
+        <p className="text-[11px] text-[var(--mute)] mb-3">
+          Every text call names what it was for.{" "}
+          {anyPriced
+            ? "Cost is an estimate at the prices the platform operator set — not a bill; a dash means no model it used has a price."
+            : "No model it used has a price set, so this shows tokens; the platform operator can add prices for an estimate."}{" "}
+          Calls before 3 Nov 2026 weren&apos;t named.
+        </p>
+        {purposes.length === 0 ? (
+          <p className="text-xs text-[var(--mute)] py-2">No AI text calls this month.</p>
+        ) : (
+          <ul className="m-0 p-0 list-none flex flex-col">
+            {purposes.map((p) => (
+              <li key={p.purpose ?? "none"} className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 text-xs py-1.5 border-t border-[var(--line)] first:border-0" data-purpose={p.purpose ?? "none"}>
+                <span className="font-semibold min-w-[12rem]">{purposeLabel(p.purpose)}</span>
+                <span className="font-mono text-[11px] text-[var(--mute)] flex flex-wrap gap-x-3">
+                  <span><b className="text-[var(--ink)]">{p.calls.toLocaleString("en-GB")}</b> call{p.calls === 1 ? "" : "s"}</span>
+                  <span><b className="text-[var(--ink)]">{p.inTok.toLocaleString("en-GB")}</b> in</span>
+                  <span><b className="text-[var(--ink)]">{p.outTok.toLocaleString("en-GB")}</b> out</span>
+                  <span title={p.unpriced ? `${p.unpriced.toLocaleString("en-GB")} tokens on models with no price aren't in this` : undefined} data-purpose-cost>
+                    {p.cost != null ? <>≈ <b className="text-[var(--ink)]">{formatUsd(p.cost)}</b>{p.unpriced ? " + unpriced" : ""}</> : "—"}
+                  </span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
       {/* AI by provider */}
       <section className="card mb-4">
         <h2 className="font-mono font-bold text-[14px] mb-1">AI by provider this month</h2>
@@ -119,7 +216,7 @@ export default async function AdminUsagePage() {
               <thead>
                 <tr className="text-left text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">
                   <th className="py-1 pr-3">Kind</th><th className="py-1 pr-3">Provider</th><th className="py-1 pr-3">Model</th>
-                  <th className="py-1 pr-3 text-right">Calls</th><th className="py-1 pr-3 text-right">Tokens in</th><th className="py-1 text-right">Tokens out</th>
+                  <th className="py-1 pr-3 text-right">Calls</th><th className="py-1 pr-3 text-right">Tokens in</th><th className="py-1 pr-3 text-right">Tokens out</th><th className="py-1 text-right">Estimate</th>
                 </tr>
               </thead>
               <tbody>
@@ -130,7 +227,8 @@ export default async function AdminUsagePage() {
                     <td className="py-1.5 pr-3 font-mono">{r.action === "ai.text" && r.model ? modelLabel(r.model) : "—"}</td>
                     <td className="py-1.5 pr-3 text-right font-mono">{r._count._all.toLocaleString("en-GB")}</td>
                     <td className="py-1.5 pr-3 text-right font-mono">{r._sum.inputTokens != null ? r._sum.inputTokens.toLocaleString("en-GB") : "—"}</td>
-                    <td className="py-1.5 text-right font-mono">{r._sum.outputTokens != null ? r._sum.outputTokens.toLocaleString("en-GB") : "—"}</td>
+                    <td className="py-1.5 pr-3 text-right font-mono">{r._sum.outputTokens != null ? r._sum.outputTokens.toLocaleString("en-GB") : "—"}</td>
+                    <td className="py-1.5 text-right font-mono">{rowEstimate(r.action === "ai.text" ? prices[r.model ?? ""] : undefined, r._sum.inputTokens, r._sum.outputTokens)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -138,6 +236,27 @@ export default async function AdminUsagePage() {
           </div>
         )}
       </section>
+
+      {/* E-ENG-07: the operator's prices — platform-wide, estimates only */}
+      {operator && (
+        <details className="card mb-4" data-model-prices>
+          <summary className="font-mono font-bold text-[14px] cursor-pointer">Model prices (platform operator)</summary>
+          <p className="text-[11px] text-[var(--mute)] mt-1 mb-3">
+            Dollars per million tokens, from each provider&apos;s price page — every workspace&apos;s estimates use them. Leave both blank for a model with no price. Nothing is charged.
+          </p>
+          <form action={saveModelPricesAction} className="flex flex-col gap-1.5">
+            <input type="hidden" name="seen" value={seenModels.join(",")} />
+            {priceModels.map((id) => (
+              <div key={id} className="flex flex-wrap items-center gap-2 text-xs">
+                <span className="min-w-[10rem] font-mono">{modelLabel(id)}</span>
+                <label className="inline-flex items-center gap-1">in $<input name={`in:${id}`} inputMode="decimal" defaultValue={prices[id]?.in ?? ""} className="w-20 font-mono text-xs border border-[var(--line-2)] rounded-lg px-2 py-0.5" aria-label={`${id} input price per million tokens`} /></label>
+                <label className="inline-flex items-center gap-1">out $<input name={`out:${id}`} inputMode="decimal" defaultValue={prices[id]?.out ?? ""} className="w-20 font-mono text-xs border border-[var(--line-2)] rounded-lg px-2 py-0.5" aria-label={`${id} output price per million tokens`} /></label>
+              </div>
+            ))}
+            <div><SubmitButton className="btn sm mt-1">Save prices</SubmitButton></div>
+          </form>
+        </details>
+      )}
 
       {/* Soft limits, per person */}
       <section className="card mb-4">
@@ -209,6 +328,12 @@ export default async function AdminUsagePage() {
       </div>
     </div>
   );
+}
+
+/** One provider row's estimate: "≈ $1.20", or a dash with no price (E-ENG-07). */
+function rowEstimate(price: Parameters<typeof estimateCost>[0], inTok: number | null, outTok: number | null): string {
+  const c = estimateCost(price, inTok, outTok);
+  return c != null ? `≈ ${formatUsd(c)}` : "—";
 }
 
 function Tile({ label, value, cap, color, icon }: { label: string; value: number; cap?: number | null; color: string; icon: React.ReactNode }) {

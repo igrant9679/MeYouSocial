@@ -29,6 +29,7 @@ export function parseRemixes(raw: string, original: string, max = 3): string[] {
 /** Remixes of `title` about `subject`, or why there are none (the mock never suggests). */
 export async function remixTitles(input: { title: string; subject: string; workspaceId: string }): Promise<{ titles: string[] } | { error: string }> {
   const res = await llm.complete({
+    purpose: "ideas.remix",
     model: "",
     system: "You rewrite video titles for a different subject. Keep the hook — the structure, the promise, any number and the tension — and change what the title is about. Reply with exactly three titles, one per line: no numbering, no quotes, nothing else.",
     messages: [{ role: "user", content: `Title: ${input.title}\nNew subject: ${input.subject}` }],

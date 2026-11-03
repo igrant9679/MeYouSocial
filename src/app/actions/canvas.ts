@@ -136,6 +136,7 @@ export async function generateOutlineAction(formData: FormData) {
   const audienceKQ = readJson<string[]>(script.channel.audience?.keyQuestions ?? null, []);
 
   const result = await llm.complete({
+    purpose: "script.canvas",
     model: script.model ?? script.channel.defaultModel ?? "",
     system: systemForOutline({
       channelName: script.channel.name,
@@ -203,6 +204,7 @@ export async function generateScriptAction(formData: FormData) {
   }
 
   const result = await llm.complete({
+    purpose: "script.canvas",
     model: script.model ?? script.channel.defaultModel ?? "",
     system: systemForScript({
       channelName: script.channel.name,
@@ -299,6 +301,7 @@ export async function humanizeAction(formData: FormData) {
   if (!script.body) return;
 
   const result = await llm.complete({
+    purpose: "script.canvas",
     model: script.model ?? script.channel.defaultModel ?? "",
     system: HUMANIZE_SYSTEM,
     messages: [
@@ -342,6 +345,7 @@ export async function improveSelectionAction(formData: FormData) {
   if (!selection.trim()) return;
 
   const result = await llm.complete({
+    purpose: "script.canvas",
     model: script.model ?? script.channel.defaultModel ?? "",
     system: systemForImprove(instruction),
     messages: [{ role: "user", content: selection }],

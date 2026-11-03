@@ -145,6 +145,9 @@ model AssistantMessage {
   /// JSON array of the tool calls this turn made, so the UI can show its work
   /// instead of asking the reader to trust a summary.
   steps     String   @default("[]")
+  /// What this reply's model calls took, summed over its steps (E-ENG-07); null on a person's message.
+  inputTokens  Int?
+  outputTokens Int?
   createdAt DateTime @default(now())
 
   thread    AssistantThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
@@ -1603,6 +1606,8 @@ model UsageLog {
   inputTokens  Int?
   outputTokens Int?
   words       Int?
+  /// What the call was FOR (ai.text rows, E-ENG-07): lib/ai-spend.ts PURPOSE_LABEL keys; null before 2026-11-03.
+  purpose     String?
   createdAt   DateTime @default(now())
 
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)

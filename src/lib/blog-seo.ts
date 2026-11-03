@@ -45,6 +45,7 @@ export async function generateSeoMetaCore(
   ]);
 
   const res = await llm.complete({
+    purpose: "article.seo",
     model: await resolveUsableModel(post.model ?? workspace.defaultModel ?? llm.defaultModel, workspaceId),
     system:
       'Generate SEO metadata. Respond ONLY with JSON: {"metaTitle": string (≤60 chars), "metaDescription": string (≤155 chars, compelling, ends with a benefit), "slug": string (lowercase-hyphenated, ≤6 words)}.',

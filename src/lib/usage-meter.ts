@@ -14,6 +14,8 @@ export async function meterAi(row: {
   model?: string | null;
   inputTokens?: number | null;
   outputTokens?: number | null;
+  /** What the call was for (E-ENG-07), text calls only. */
+  purpose?: string | null;
 }): Promise<void> {
   if (!row.workspaceId) return;
   const counted = row.inputTokens != null || row.outputTokens != null;
@@ -27,7 +29,14 @@ export async function meterAi(row: {
         inputTokens: row.inputTokens ?? null,
         outputTokens: row.outputTokens ?? null,
         tokens: counted ? (row.inputTokens ?? 0) + (row.outputTokens ?? 0) : null,
+        purpose: row.purpose ?? null,
       },
     })
     .catch(() => {});
+  // A counted text call may cross the workspace's token budget (E-ENG-07);
+  // checked at most once a minute per workspace, never throws.
+  if (counted && row.action === "ai.text") {
+    const { checkTokenBudget } = await import("@/lib/ai-spend");
+    await checkTokenBudget(row.workspaceId);
+  }
 }

@@ -37,6 +37,7 @@ const KIND_HUE: Record<NotificationKind, string> = {
   submission: "pink",
   job_failed: "rose",
   daily_digest: "teal",
+  ai_budget: "amber",
 };
 
 export default async function NotificationsPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
@@ -272,4 +273,5 @@ const DEFAULT_EMAIL: Record<NotificationKind, boolean> = {
   submission: false,
   job_failed: false,
   daily_digest: true,
+  ai_budget: true,
 };

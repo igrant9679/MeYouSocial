@@ -62,6 +62,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       const answered = { provider: "", model: "" };
       try {
         for await (const chunk of llm.stream({
+          purpose: "script.generate",
           model: script.model ?? script.channel.defaultModel ?? "",
           system,
           messages: [{ role: "user", content: userContent }],

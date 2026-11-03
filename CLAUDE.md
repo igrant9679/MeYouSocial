@@ -307,6 +307,7 @@ area, rather than loading all of them into every session.
 - The composer previews and counts what will be sent; X is counted the way X counts — 2026-11-03, audit Phase 5, growth part bh
 - Discovery learns from approval rates: each Topic's run asks for more or fewer, within bounds — 2026-11-03, audit Phase 5, growth part bi
 - Outside text can't drive the assistant, and its safety rules are checked by a script — 2026-11-03, audit Phase 5, growth part bj
+- Every AI call names what it was for; tokens per reply; a budget that warns; money only at the operator's prices — 2026-11-03, audit Phase 5, growth part bk
 
 ## Open items / things the user still owns
 - **Analytics: APIs enabled 2026-08-03** (Search Console + GA Admin + GA Data, on project

@@ -80,6 +80,9 @@ export async function runTurn(input: TurnInput): Promise<TurnOutput | null> {
       role: "assistant",
       content: result.error && !result.answer ? result.error : result.answer,
       steps: writeJson(result.steps),
+      // E-ENG-07: what the reply took; null when no model call was counted (a card's stale Yes).
+      inputTokens: result.usage?.calls ? result.usage.inputTokens : null,
+      outputTokens: result.usage?.calls ? result.usage.outputTokens : null,
     },
   });
   await db.assistantThread.update({

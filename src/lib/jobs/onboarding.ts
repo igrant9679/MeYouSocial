@@ -113,6 +113,7 @@ export function registerOnboardingJobs() {
         const model = await resolveUsableModel(channel.defaultModel ?? llm.defaultModel, channel.workspaceId);
         try {
           const completion = await llm.complete({
+            purpose: "onboarding",
             // ⚠ NOT a hard-coded model. These three jobs used to pin
             // "claude-sonnet" while every other generation path resolves
             // `channel.defaultModel` first — so pointing a channel at Gemini
@@ -198,6 +199,7 @@ export function registerOnboardingJobs() {
         ? `Top videos: ${(await youtubeFor(channel.workspaceId).listVideos(channel.linkedYoutubeId, 5)).map((v) => v.title).join("; ")}`
         : `Description: ${channel.nicheDescription}`;
       const completion = await llm.complete({
+        purpose: "onboarding",
         // See the note in onboarding.voice — a model this workspace can reach.
         model: await resolveUsableModel(channel.defaultModel ?? llm.defaultModel, channel.workspaceId),
         system: "You generate audience avatars with demographics, psychographics, online behavior, offline behavior, and key questions.",
@@ -324,6 +326,7 @@ export function registerOnboardingJobs() {
 
     try {
       const completion = await llm.complete({
+        purpose: "onboarding",
         // See the note in onboarding.voice — a model this workspace can reach.
         model: await resolveUsableModel(channel.defaultModel ?? llm.defaultModel, channel.workspaceId),
         system: "You convert outlier video titles into 10 fresh idea titles for a creator in a related niche, preserving each one's hook structure.",

@@ -1714,3 +1714,22 @@ before changing code in that area.
   pause refuses work; a failing provider's mock reply drives nothing. Makes and deletes its own workspace. ⚠ Run it
   before any deploy that touches `src/lib/assistant` (the deploy recipe says so); it isn't in `prebuild` because the
   build has no database.
+
+## ⚠ Every AI call names what it was for; tokens per reply; a budget that warns; money only at the operator's prices (2026-11-03, audit Phase 5, growth part bk)
+- **Purpose** (E-ENG-07): `LLMRequest.purpose` — every `llm.complete` / `llm.stream` call site names one
+  (`lib/ai-spend.ts` `PURPOSE_LABEL`: "article.draft", "ideas.discover", "assistant", "social.tailor", …) and the
+  router meters it onto `UsageLog.purpose` (migration `20261103020000_ai_spend`). ⚠ A new call site names a purpose
+  and, if new, adds its label; rows from before 2026-11-03 are "Not named (older calls)".
+- **Usage** (`/admin/usage`): the month's tokens (UTC, from the 1st) against the budget; "What the AI was asked for"
+  per purpose — calls, tokens in/out, an estimate; the provider table gains an Estimate column.
+- ⚠ **Money is an estimate at prices the PLATFORM OPERATOR typed** (global Setting `ai:prices`, USD per million
+  tokens per model, `saveModelPricesAction`, audited `ai.prices_set`; the page reads the global row, never a
+  workspace's). No built-in price list — a guessed price is a number nobody measured — and no charge: there is still
+  no billing anywhere. A model with no price shows tokens and a dash.
+- **Budget** (`ai:monthly_token_budget`, a workspace admin's dial via `setWorkspaceSetting`): `checkTokenBudget` runs
+  after each counted text call, at most once a minute per workspace per process, and tells the workspace's ADMINS once
+  a month per threshold (80%, 100%) — kind `ai_budget`, entity id `ai-budget:<YYYY-MM>:<pct>` so replicas can't
+  double-send. ⚠ It warns, it doesn't stop: the global pause stops generation.
+- **Assistant replies** carry their tokens: `runAssistant` sums every model call in the turn (`AssistantResult.usage`),
+  `AssistantMessage.inputTokens/outputTokens` store it, the dock and the conversation page show it. A streamed call
+  reports no tokens (as before).

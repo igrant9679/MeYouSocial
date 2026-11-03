@@ -217,6 +217,7 @@ export async function seedSmeFromSourceAction(formData: FormData) {
     .join("\n\n");
 
   const res = await llm.complete({
+    purpose: "experts",
     model: llm.defaultModel,
     system,
     messages: [{ role: "user", content: prompt }],

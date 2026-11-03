@@ -43,6 +43,7 @@ export async function generateCaptions(workspaceId: string, input: ScenarioInput
   });
   const model = await resolveUsableModel(workspace.defaultModel ?? llm.defaultModel, workspaceId);
   const res = await llm.complete({
+    purpose: "captions",
     model,
     system,
     messages: [{ role: "user", content: user }],

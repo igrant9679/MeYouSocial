@@ -118,6 +118,7 @@ async function writePostFromIdea(
 
   const model = await resolveUsableModel(workspace.defaultModel ?? llm.defaultModel, workspaceId);
   const res = await llm.complete({
+    purpose: "social.draft",
     model,
     system:
       "You write ONE social media post for a real company's feed, from the idea you are given. " +

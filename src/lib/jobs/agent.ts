@@ -114,6 +114,7 @@ export function registerAgentJobs() {
       // ── 2. Outline ─────────────────────────────────────────────────────
       await mark("outline", { status: "running", startedAt: new Date().toISOString() });
       const outlineRes = await llm.complete({
+        purpose: "script.agent",
         ...call,
         system: systemForOutline({
           channelName: script.channel.name,
@@ -137,6 +138,7 @@ export function registerAgentJobs() {
       // ── 3. Script ──────────────────────────────────────────────────────
       await mark("script", { status: "running", startedAt: new Date().toISOString() });
       const scriptRes = await llm.complete({
+        purpose: "script.agent",
         ...call,
         system: systemForScript({
           channelName: script.channel.name,
@@ -158,6 +160,7 @@ export function registerAgentJobs() {
       // ── 4a. QA: retention optimization ─────────────────────────────────
       await mark("qa_retention", { status: "running", startedAt: new Date().toISOString() });
       const retention = await llm.complete({
+        purpose: "script.agent",
         ...call,
         system: "Pass over a YouTube script and improve retention: punch up the hook, add curiosity gaps between sections, ensure every 30s makes a promise or pays one off. PRESERVE voice and structure. Return ONLY the rewritten script.",
         messages: [{ role: "user", content: body }],
@@ -172,6 +175,7 @@ export function registerAgentJobs() {
       // ── 4b. QA: humanize ───────────────────────────────────────────────
       await mark("qa_humanize", { status: "running", startedAt: new Date().toISOString() });
       const humanized = await llm.complete({
+        purpose: "script.agent",
         ...call,
         system: HUMANIZE_SYSTEM,
         messages: [{ role: "user", content: `Voice: ${voice}\n\nScript:\n${body}` }],
@@ -187,6 +191,7 @@ export function registerAgentJobs() {
       // ── 4c. QA: repetition cleanup ─────────────────────────────────────
       await mark("qa_repetition", { status: "running", startedAt: new Date().toISOString() });
       const dedup = await llm.complete({
+        purpose: "script.agent",
         ...call,
         system: "Pass over a YouTube script and remove repeated points, redundant phrasings, and any place where the same idea is restated within two paragraphs. Keep length within 5% of the original. PRESERVE voice. Return ONLY the rewritten script.",
         messages: [{ role: "user", content: body }],
@@ -201,6 +206,7 @@ export function registerAgentJobs() {
       // ── 5. Voiceover prep ──────────────────────────────────────────────
       await mark("voiceover", { status: "running", startedAt: new Date().toISOString() });
       const vo = await llm.complete({
+        purpose: "script.agent",
         ...call,
         system: "Format a script for AI voiceover: 1 sentence per line, no slashes, no parentheticals the narrator would read aloud, no em-dashes (replace with commas), expand 'e.g.'/'i.e.'/etc. Keep section headers as their own lines. Return ONLY the formatted script.",
         messages: [{ role: "user", content: body }],

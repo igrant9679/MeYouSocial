@@ -247,6 +247,7 @@ async function autoSourceCitations(workspaceId: string, post: PostRow): Promise<
     }
 
     const res = await llm.complete({
+      purpose: "article.review",
       model: await resolveUsableModel(post.model ?? workspace?.defaultModel ?? llm.defaultModel, workspaceId),
       system:
         "You judge whether a source SUPPORTS a factual claim. Support means the source's content states or evidences " +

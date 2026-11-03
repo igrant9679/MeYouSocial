@@ -57,6 +57,11 @@ export default async function AssistantThreadPage({ params }: { params: Promise<
                   ? <UserIcon className="w-3.5 h-3.5" style={{ color: "var(--mute)" }} />
                   : <Bot className="w-3.5 h-3.5" style={{ color: "var(--violet-on)" }} />}
                 <span className="font-mono text-[10px] uppercase tracking-wider text-[var(--mute)]">{m.role}</span>
+                {m.role === "assistant" && (m.inputTokens != null || m.outputTokens != null) && (
+                  <span className="font-mono text-[10px] text-[var(--mute)]" data-reply-tokens title="What this reply's model calls took — Settings → Usage has the month">
+                    {(m.inputTokens ?? 0).toLocaleString("en-GB")} in · {(m.outputTokens ?? 0).toLocaleString("en-GB")} out
+                  </span>
+                )}
                 {confirm && <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full inline-flex items-center gap-1" style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }}><ShieldQuestion className="w-3 h-3" /> waiting for your yes</span>}
               </div>
               {m.role === "user"

@@ -66,6 +66,7 @@ export async function borrowVoiceAction(formData: FormData) {
   const transcripts = (await Promise.all(usable.map((v) => youtubeFor(workspace.id).getTranscript(v.id)))).filter(Boolean) as string[];
 
   const completion = await llm.complete({
+    purpose: "voice",
     model: channel.defaultModel ?? "",
     system: "You produce a structured voice profile from creator transcripts. Identify archetype, delivery, rhetoric, diction, and any signature phrases.",
     messages: [{
@@ -178,6 +179,7 @@ export async function refineVoiceSimpleAction(formData: FormData) {
   const current = readJson<Record<string, unknown>>(profile.data, {});
   // Ask the LLM to apply the instruction to the structured voice payload.
   const result = await llm.complete({
+    purpose: "voice",
     model: "claude-sonnet",
     system: "You revise a creator voice profile. Apply the user's natural-language instruction and return the updated JSON.",
     messages: [
@@ -230,6 +232,7 @@ export async function generateVoicePreviewAction(formData: FormData) {
 
   const current = readJson<Record<string, unknown>>(profile.data, {});
   const sample = await llm.complete({
+    purpose: "voice",
     model: "claude-sonnet",
     system: "You write a short (3-4 sentence) sample of YouTube spoken-style script that demonstrates the supplied voice profile.",
     messages: [

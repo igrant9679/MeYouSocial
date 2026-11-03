@@ -106,6 +106,7 @@ export async function discoverKeywordsAction() {
     .join("\n\n");
 
   const res = await llm.complete({
+    purpose: "keywords",
     model: workspace.defaultModel ?? llm.defaultModel,
     system,
     messages: [{ role: "user", content: prompt }],
@@ -189,6 +190,7 @@ export async function classifyIntentsAction() {
     where: { workspaceId: workspace.id, OR: [{ intent: null }, { cluster: null }] },
   });
   const res = await llm.complete({
+    purpose: "keywords",
     model: workspace.defaultModel ?? llm.defaultModel,
     system:
       "You are an SEO strategist. For every phrase given, return its search intent and a short topical cluster name. " +
