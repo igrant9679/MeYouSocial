@@ -1608,3 +1608,17 @@ before changing code in that area.
   articles (clicks, latest position) and posts (engagement). Same bases as Measure → Topics, so the two agree.
 - Measures with no reading are dashes; counts (published, sent) are facts and show 0. Both tables download as CSV.
   Linked from Measure → Topics with its first two Topics.
+
+## ⚠ A new workspace can start from one the operator runs — an allowlist travels, nothing else (2026-11-03, audit Phase 5, growth part bd)
+- **Start from** on `/onboarding/workspace` (E-SET-04, operator only — `createWorkspaceAction` keeps its operator
+  check): any workspace the operator is an active member of, each option saying what it would hand on
+  (`templateSummary`), with four parts to tick — dials, posting slots, motifs, Topics (`lib/workspace-template.ts`).
+  A template id the operator isn't a member of is refused before anything is made.
+- ⚠ **Dials are an ALLOWLIST** (`TEMPLATE_DIAL_KEYS`): approvals, the queue, social generation, UTM tags, the posting
+  zone, categories, publish day, weekly articles, the idea gate, auto-SEO, keyword country, image quality, the
+  digest, production auto-tasks. Never: API keys, OAuth tokens, connected channels/sites, join domains, campaign or
+  account ids, caches, engine bookkeeping, autonomy or function modes (a new workspace starts manual). Add a key to
+  the list only if it's a choice about how to work, not about whose accounts.
+- Slots keep weekday, minute, enabled and category; motifs copy the current wording as version 1; only active Topics
+  with their phrases and priority. Never copied: the brand kit, people, content. Audited in the new workspace as
+  `workspace.created_from_template` with what was copied.

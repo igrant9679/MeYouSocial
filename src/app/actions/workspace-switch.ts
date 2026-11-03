@@ -3,6 +3,8 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
+import { TEMPLATE_PARTS, copyFromTemplate } from "@/lib/workspace-template";
+import { writeAudit } from "@/lib/governance";
 import { requireUser, isPlatformOperator, ACTIVE_WS_COOKIE } from "@/lib/acl";
 import { switchLanding } from "@/lib/workspace-badges";
 
@@ -80,8 +82,24 @@ export async function createWorkspaceAction(formData: FormData) {
     redirect(`${back}?error=${encodeURIComponent(`You're already in a workspace called “${name}”.`)}`);
   }
 
+  // E-SET-04: start from a workspace the operator is a member of — only the
+  // parts ticked, and only what lib/workspace-template.ts allows to travel.
+  const templateId = String(formData.get("templateId") ?? "").trim();
+  const template = templateId ? user.memberships.find((m) => m.status === "active" && m.workspaceId === templateId) : null;
+  if (templateId && !template) {
+    redirect(`${back}?error=${encodeURIComponent("That workspace can't be used as a template.")}`);
+  }
+  const parts = TEMPLATE_PARTS.filter((p) => formData.get(`part_${p}`) === "on");
+
   const workspace = await db.workspace.create({ data: { name } });
   await db.membership.create({ data: { userId: user.id, workspaceId: workspace.id, role: "ADMIN" } });
+  if (template && parts.length) {
+    const copied = await copyFromTemplate(template.workspaceId, workspace.id, parts);
+    await writeAudit({
+      workspaceId: workspace.id, actorId: user.id, action: "workspace.created_from_template", entityType: "workspace", entityId: workspace.id,
+      meta: { from: template.workspace.name, fromId: template.workspaceId, parts, copied },
+    });
+  }
   await setActive(workspace.id);
   redirect("/inbox");
 }

@@ -9,6 +9,7 @@ import { pendingInvitationsFor } from "@/lib/invitations";
 import { signOut } from "@/auth";
 import { db } from "@/lib/db";
 import { formatDay } from "@/lib/zoned-dates";
+import { TEMPLATE_PART_LABEL, TEMPLATE_PARTS, templateSummary } from "@/lib/workspace-template";
 
 async function signOutAction() {
   "use server";
@@ -43,6 +44,10 @@ export default async function NewWorkspacePage({
   // page is still where a member-of-nothing lands, so it must say something
   // useful to them rather than 404 or bounce.
   const canCreate = isPlatformOperator(user.email);
+  // E-SET-04: the operator's own workspaces, offered as templates with what each would hand on.
+  const templates = canCreate
+    ? await Promise.all(active.map(async (m) => ({ id: m.workspaceId, name: m.workspace.name, counts: await templateSummary(m.workspaceId) })))
+    : [];
 
   if (!canCreate) {
     // Invitations waiting for this address can't be accepted from here by
@@ -148,6 +153,27 @@ export default async function NewWorkspacePage({
             autoComplete="organization"
             className="border border-[var(--line-2)] rounded-lg p-2 text-sm"
           />
+          {templates.length > 0 && (
+            <fieldset className="border border-[var(--line-2)] rounded-lg p-3 flex flex-col gap-2 text-xs min-w-0" data-template-pick>
+              {/* min-w-0: a fieldset's minimum width is its content's, and an option's long label would widen the page on a phone. */}
+              <legend className="px-1 text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">Start from</legend>
+              <select name="templateId" defaultValue="" className="border border-[var(--line-2)] rounded-lg p-2 text-sm w-full min-w-0" aria-label="Start from">
+                <option value="">A blank workspace</option>
+                {templates.map((t) => (
+                  <option key={t.id} value={t.id}>{t.name} — {t.counts.dials} dials, {t.counts.slots} slots, {t.counts.motifs} motifs, {t.counts.topics} Topics</option>
+                ))}
+              </select>
+              {TEMPLATE_PARTS.map((p) => (
+                <label key={p} className="inline-flex items-center gap-1.5">
+                  <input type="checkbox" name={`part_${p}`} defaultChecked /> {TEMPLATE_PART_LABEL[p]}
+                </label>
+              ))}
+              <p className="text-[11px] text-[var(--mute)] m-0">
+                Copied only when a workspace is chosen. Never copied: keys, connected accounts and sites, the brand kit,
+                people, content, or autonomy — a new workspace starts manual.
+              </p>
+            </fieldset>
+          )}
           <p className="text-[11px] text-[var(--mute)] leading-relaxed">
             You&apos;ll be its admin. Everything is scoped per workspace — brand, topics, posts, connected accounts and
             API keys — so nothing is shared with any other company on this install. You can rename it later under
