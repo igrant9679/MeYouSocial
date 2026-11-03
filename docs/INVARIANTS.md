@@ -1579,3 +1579,21 @@ before changing code in that area.
   deleted user, so every existing session ends at once. Refused for the platform operator and for the only admin of a
   live workspace (`soleAdminOf` — hand it over first); needs the address typed and the password. Audited
   `account.deleted`; admins get a security notice. Migration `20261103010000_personal_settings`.
+
+## ⚠ Script versions compare like articles, and the editor never writes over a newer text (2026-11-03, audit Phase 5, growth part bb)
+- **`/scripts/[id]/versions`** (E-VID-01): the script or the outline, any two kept snapshots or one against the
+  current text, side by side with changed words marked (`lib/text-diff.ts` `textBlocks` — blank lines split
+  paragraphs, "#" lines are headings, "-", "*", "1." lines list items), Restore from there (`back=versions`). Viewers
+  read it; restoring is an editor's. The diff view is one shared component (`components/DiffView.tsx`) for articles
+  and scripts. Snapshots before every overwrite already existed (VID-02).
+- ⚠ **The autosave carries the hash of the stored text the editor last saw** (`saveBodyAction` → `SaveBodyResult`;
+  the page passes `serverHash` = `bodyHash(body)`). A different stored text — an agent run, Humanize or a restore in
+  another tab — refuses the save, keeps the editor's text as a version "your edit, kept (the script changed
+  elsewhere)", and the editor shows "Load the new text" / "Keep mine" (`force=1`: the newer stored text is kept as a
+  version first). ⚠ After a conflict the editor KEEPS its stale hash and blocks autosave until the person chooses —
+  adopting the new hash made "Keep mine" a plain save that skipped keeping the newer text (caught in verification).
+  The write itself is conditional on the body read, so a write landing in between is never lost. A save without a
+  hash (an older tab) behaves as before. Saves arrive with CRLF line endings (multipart), and hashes are taken of
+  what's stored, so they stay consistent.
+- **While an agent run is queued or running, saves wait** (`busy` — the editor retries every 10 s and says so) and
+  Restore is refused with the reason; the run's own snapshots keep what it replaced.

@@ -13,6 +13,7 @@ import { STUDIO_TIMEOUT_MS, placeholderProblem, templateBlock } from "@/lib/stud
 import { countWords, durationSeconds, MAX_WORDS } from "@/lib/canvas/duration";
 import { systemForOutline, systemForScript, systemForImprove, HUMANIZE_SYSTEM } from "@/lib/canvas/prompts";
 import { outlineForRestore, snapshotScript } from "@/lib/script-versions";
+import { bodyHash } from "@/lib/blog-gates";
 
 // Helper — load + authorize a script.
 async function load(scriptId: string) {
@@ -239,20 +240,54 @@ export async function generateScriptAction(formData: FormData) {
 }
 
 /** Autosave the body. Called from the client editor on debounce. */
-export async function saveBodyAction(formData: FormData) {
+export type SaveBodyResult =
+  | { ok: true; hash: string }
+  /** The stored text changed since this editor last saw it; the editor's text was kept as a version. */
+  | { ok: false; conflict: true; hash: string }
+  /** An agent run is writing this script now; nothing was saved. */
+  | { ok: false; busy: true };
+
+/**
+ * The editor's autosave (E-VID-01). It sends the hash of the stored text it
+ * started from; if the stored text has changed since — an agent run, Humanize in
+ * another tab, a restore — the save is refused rather than written over it, and
+ * the editor's text is kept as a version ("your edit, kept") for the person to
+ * choose. `force` is that choice: "keep mine" (the newer stored text becomes a
+ * version first). While an agent run is going, saves wait.
+ */
+export async function saveBodyAction(formData: FormData): Promise<SaveBodyResult> {
   const scriptId = String(formData.get("scriptId"));
   const body = String(formData.get("body") ?? "");
+  const baseHash = String(formData.get("baseHash") ?? "");
+  const force = formData.get("force") === "1";
   const { script } = await load(scriptId);
+  const running = await db.agentRun.count({ where: { scriptId: script.id, status: { in: ["queued", "running"] } } });
+  if (running) return { ok: false, busy: true };
+  const stored = bodyHash(script.body);
+  if (baseHash && baseHash !== stored && script.body !== body) {
+    if (!force) {
+      await snapshotScript({ id: script.id, body, outline: script.outline, wordCount: countWords(body) }, "your edit, kept (the script changed elsewhere)");
+      return { ok: false, conflict: true, hash: stored };
+    }
+    await snapshotScript(script, "before keeping an editor's text over a newer one");
+  }
   const words = countWords(body);
-  await db.script.update({
-    where: { id: script.id },
+  // Conditional on the text read above, so a write landing between the read and this one isn't lost.
+  const r = await db.script.updateMany({
+    where: { id: script.id, body: script.body },
     data: {
       body,
       wordCount: Math.min(words, MAX_WORDS),
       durationSeconds: durationSeconds(words),
     },
   });
+  if (!r.count) {
+    const now = await db.script.findUnique({ where: { id: script.id }, select: { body: true } });
+    await snapshotScript({ id: script.id, body, outline: script.outline, wordCount: words }, "your edit, kept (the script changed elsewhere)");
+    return { ok: false, conflict: true, hash: bodyHash(now?.body ?? null) };
+  }
   // No revalidate — autosave shouldn't bounce the UI.
+  return { ok: true, hash: bodyHash(body) };
 }
 
 // ── Humanize / Improve ────────────────────────────────────────────────────
@@ -340,6 +375,10 @@ export async function restoreScriptVersionAction(formData: FormData) {
   const { script } = await load(scriptId);
   const v = await db.scriptVersion.findFirst({ where: { id: versionId, scriptId: script.id } });
   if (!v) return;
+  // E-VID-01: not while an agent run is writing it — the run would overwrite the restore.
+  if (await db.agentRun.count({ where: { scriptId: script.id, status: { in: ["queued", "running"] } } })) {
+    redirect(`/scripts/${script.id}/versions?err=${encodeURIComponent("An agent run is writing this script — restore once it finishes.")}`);
+  }
   await snapshotScript(script, "before restore");
   const body = v.body ?? script.body;
   const words = countWords(body ?? "");
@@ -356,6 +395,9 @@ export async function restoreScriptVersionAction(formData: FormData) {
     },
   });
   revalidatePath(`/scripts/${script.id}`);
+  if (formData.get("back") === "versions") {
+    redirect(`/scripts/${script.id}/versions?ok=${encodeURIComponent(`Restored “${(v.label ?? "a version").slice(0, 60)}”. The text before it is kept as a version.`)}`);
+  }
 }
 
 // ── Misc ──────────────────────────────────────────────────────────────────

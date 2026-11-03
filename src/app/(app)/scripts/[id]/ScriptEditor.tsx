@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { Wand2, Sparkles, Save } from "lucide-react";
 import { saveBodyAction, improveSelectionAction, humanizeAction } from "@/app/actions/canvas";
 import { countWords, durationSeconds, formatDuration, MAX_WORDS } from "@/lib/canvas/duration";
@@ -14,10 +15,20 @@ import { ScriptOutline } from "./ScriptOutline";
 // Humanize would otherwise rewrite a version without the last keystrokes. The
 // page keys this component on the row's updatedAt, so a server rewrite
 // remounts it on the new text; unsaved typing is flushed on hide and unmount.
+//
+// ⚠ E-VID-01: every save carries the hash of the stored text this editor last
+// saw. An agent run (or Humanize in another tab) that rewrote the script while
+// this one stayed open used to be overwritten by the next keystroke; now the
+// save is refused, the typing is kept as a version, and the person chooses —
+// load the new text, or keep theirs. While an agent run is writing, saves wait.
 
-export function ScriptEditor({ scriptId, initialBody }: { scriptId: string; initialBody: string }) {
+type SaveState = "idle" | "saving" | "saved" | "error" | "conflict" | "busy";
+
+export function ScriptEditor({ scriptId, initialBody, serverHash }: { scriptId: string; initialBody: string; serverHash: string }) {
+  const router = useRouter();
   const [body, setBody] = useState(initialBody);
-  const [saved, setSaved] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [saved, setSaved] = useState<SaveState>("idle");
+  const baseHash = useRef(serverHash);
   const [selection, setSelection] = useState<{ start: number; end: number } | null>(null);
   const [improveOpen, setImproveOpen] = useState(false);
   const [instruction, setInstruction] = useState("");
@@ -28,21 +39,35 @@ export function ScriptEditor({ scriptId, initialBody }: { scriptId: string; init
   const latest = useRef(initialBody);
   useEffect(() => { latest.current = body; }, [body]);
 
-  /** Save what's on screen now, if it isn't saved. False when the save failed. */
-  const flush = useCallback(async (): Promise<boolean> => {
+  /** Save what's on screen now, if it isn't saved. False when the save failed or was refused. */
+  const blocked = useRef(false);
+  const flush = useCallback(async (force = false): Promise<boolean> => {
     if (timer.current) { clearTimeout(timer.current); timer.current = null; }
     const text = latest.current;
     if (text === lastSaved.current) return true;
+    if (blocked.current && !force) return false; // a conflict waits for the person's choice
     setSaved("saving");
     try {
       const fd = new FormData();
       fd.set("scriptId", scriptId);
       fd.set("body", text);
-      await saveBodyAction(fd);
-      lastSaved.current = text;
-      setSaved("saved");
-      setTimeout(() => setSaved((s) => (s === "saved" ? "idle" : s)), 1200);
-      return true;
+      fd.set("baseHash", baseHash.current);
+      if (force) fd.set("force", "1");
+      const r = await saveBodyAction(fd);
+      if (r.ok) {
+        baseHash.current = r.hash;
+        blocked.current = false;
+        lastSaved.current = text;
+        setSaved("saved");
+        setTimeout(() => setSaved((s) => (s === "saved" ? "idle" : s)), 1200);
+        return true;
+      }
+      if ("busy" in r) { setSaved("busy"); return false; }
+      // Keep the stale hash: "Keep mine" sends it with force, so the server
+      // keeps the newer text as a version before writing this one.
+      blocked.current = true;
+      setSaved("conflict");
+      return false;
     } catch {
       setSaved("error");
       return false;
@@ -51,12 +76,19 @@ export function ScriptEditor({ scriptId, initialBody }: { scriptId: string; init
 
   // Debounced autosave
   useEffect(() => {
-    if (body === lastSaved.current) return;
+    if (body === lastSaved.current || blocked.current) return;
     if (timer.current) clearTimeout(timer.current);
     setSaved("saving");
     timer.current = setTimeout(() => { void flush(); }, 800);
     return () => { if (timer.current) clearTimeout(timer.current); };
   }, [body, flush]);
+
+  // An agent run holds the script: try again every 10 s until it's done.
+  useEffect(() => {
+    if (saved !== "busy") return;
+    const t = setInterval(() => { void flush(); }, 10_000);
+    return () => clearInterval(t);
+  }, [saved, flush]);
 
   // Leaving the tab or the page mustn't drop the last keystrokes.
   useEffect(() => {
@@ -96,6 +128,18 @@ export function ScriptEditor({ scriptId, initialBody }: { scriptId: string; init
 
   return (
     <div className="flex flex-col gap-3 h-full">
+      {saved === "conflict" && (
+        <div role="alert" className="flex flex-wrap items-center gap-2 text-xs rounded-lg px-3 py-2" style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }} data-script-conflict>
+          <span className="flex-1 min-w-0">This script changed elsewhere — an agent run, Humanize, or another tab. Your text wasn&apos;t written over it; it&apos;s kept under Versions.</span>
+          <button type="button" className="btn sm" onClick={() => { blocked.current = false; lastSaved.current = latest.current; router.refresh(); }}>Load the new text</button>
+          <button type="button" className="btn sm" onClick={() => { void flush(true); }}>Keep mine</button>
+        </div>
+      )}
+      {saved === "busy" && (
+        <div role="status" className="text-xs rounded-lg px-3 py-2" style={{ background: "var(--blue-soft)", color: "var(--blue-on)" }} data-script-busy>
+          An agent run is writing this script. Your typing stays here and saves when the run finishes — the page reloads with its result, so copy anything you need first.
+        </div>
+      )}
       {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-2">
         <SaveBadge state={saved} />
@@ -198,8 +242,8 @@ export function ScriptEditor({ scriptId, initialBody }: { scriptId: string; init
   );
 }
 
-function SaveBadge({ state }: { state: "idle" | "saving" | "saved" | "error" }) {
-  if (state === "idle") return null;
+function SaveBadge({ state }: { state: SaveState }) {
+  if (state === "idle" || state === "conflict" || state === "busy") return null;
   if (state === "error") {
     return (
       <span role="alert" className="flex items-center gap-1 text-[10px] font-mono uppercase tracking-wider px-2 py-1 rounded-md" style={{ background: "var(--rose-soft)", color: "var(--rose-on)" }}>

@@ -11,6 +11,7 @@ import { ModelOptions } from "@/components/ModelOptions";
 import { formatDuration } from "@/lib/canvas/duration";
 import { MarkdownMessage } from "@/components/MarkdownMessage";
 import { ScriptEditor } from "./ScriptEditor";
+import { bodyHash } from "@/lib/blog-gates";
 import { StartOverButton } from "./StartOverButton";
 import { AgentPanel } from "./AgentPanel";
 import { StreamButton } from "./StreamButton";
@@ -217,6 +218,7 @@ export default async function CanvasPage({
         {script.versions.length > 0 && (
           <details className="border-t border-[var(--line)] px-5 py-2">
             <summary className="text-xs font-mono text-[var(--mute)] cursor-pointer flex items-center gap-1.5"><History className="w-3.5 h-3.5" /> Version snapshots ({script.versions.length})</summary>
+            <p className="text-[11px] m-0 mt-2"><Link href={`/scripts/${script.id}/versions`} className="underline" data-compare-versions>Compare any two versions, or one with the current text →</Link></p>
             <ul className="m-0 p-0 mt-2 text-xs flex flex-col gap-1 list-none">
               {script.versions.map((v) => (
                 <li key={v.id}>
@@ -398,5 +400,5 @@ function ScriptTab({ scriptId, body, version, hasOutline, editor }: { scriptId: 
   // Keyed on the row's updatedAt: a server rewrite (Humanize, Improve,
   // Regenerate, a restore) remounts the editor on the new text instead of the
   // next keystroke saving the old one back over it (VID-06).
-  return <ScriptEditor key={version} scriptId={scriptId} initialBody={body} />;
+  return <ScriptEditor key={version} scriptId={scriptId} initialBody={body} serverHash={bodyHash(body)} />;
 }

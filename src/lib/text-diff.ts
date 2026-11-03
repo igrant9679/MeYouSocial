@@ -69,6 +69,32 @@ function lcs<T>(a: T[], b: T[], eq: (x: T, y: T) => boolean, maxCells: number): 
 }
 
 /** Word-level difference of two texts, as the left (old) and right (new) sides. */
+/**
+ * A plain-text or markdown script as blocks (E-VID-01): blank lines separate
+ * paragraphs, "#" lines are headings, "-", "*" and "1." lines are list items.
+ * Lines inside a paragraph join with a space, as the teleprompter reads them.
+ */
+export function textBlocks(text: string | null | undefined): Block[] {
+  const out: Block[] = [];
+  let buf: string[] = [];
+  const flush = () => {
+    const t = buf.join(" ").replace(/\s+/g, " ").trim();
+    if (t) out.push({ tag: "p", text: t });
+    buf = [];
+  };
+  for (const raw of (text ?? "").replace(/\r\n?/g, "\n").split("\n")) {
+    const line = raw.trim();
+    if (!line) { flush(); continue; }
+    const h = /^(#{1,6})\s+(.*)$/.exec(line);
+    if (h) { flush(); out.push({ tag: `h${Math.min(6, Math.max(2, h[1].length))}`, text: h[2].trim() }); continue; }
+    const li = /^(?:[-*•]|\d+[.)])\s+(.*)$/.exec(line);
+    if (li) { flush(); out.push({ tag: "li", text: li[1].trim() }); continue; }
+    buf.push(line);
+  }
+  flush();
+  return out;
+}
+
 export function diffWords(a: string, b: string): { left: Seg[]; right: Seg[] } {
   const wa = a.split(/\s+/).filter(Boolean), wb = b.split(/\s+/).filter(Boolean);
   const pairs = lcs(wa, wb, (x, y) => x === y, 400_000);
