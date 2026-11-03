@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { cache } from "react";
 import { cookies } from "next/headers";
 import type { Role } from "@prisma/client";
+import { SUPPORT_MEMBERSHIP_ID, supportCookieWorkspace } from "@/lib/support-view";
 
 /** Cookie holding the user's chosen workspace (multi-company users). */
 export const ACTIVE_WS_COOKIE = "meyousocial_ws";
@@ -47,6 +48,20 @@ export async function requireUser() {
 
 export async function requireMembership(workspaceId?: string) {
   const user = await requireUser();
+  // E-SET-10: the operator's read-only support view — a synthetic VIEWER of the
+  // workspace the support cookie names, while it's the one switched to. Every
+  // write needs EDITOR or ADMIN, so nothing there can be changed.
+  if (isPlatformOperator(user.email)) {
+    const support = await supportCookieWorkspace();
+    const chosen = (await cookies()).get(ACTIVE_WS_COOKIE)?.value;
+    if (support && (workspaceId ? workspaceId === support : chosen === support)) {
+      const ws = await db.workspace.findFirst({ where: { id: support, deletedAt: null } });
+      if (ws) {
+        const membership = { id: SUPPORT_MEMBERSHIP_ID, userId: user.id, workspaceId: ws.id, role: "VIEWER" as Role, status: "active", createdAt: new Date(), workspace: ws };
+        return { user, membership, workspace: ws };
+      }
+    }
+  }
   const memberships = user.memberships.filter((m) => m.status === "active");
   if (memberships.length === 0) redirect("/onboarding/workspace");
   let target;
@@ -80,8 +95,14 @@ export async function activeWorkspaceIdFor(userId: string): Promise<string | nul
     where: { userId, status: "active", workspace: { deletedAt: null } },
     select: { workspaceId: true },
   });
-  if (memberships.length === 0) return null;
   const chosen = (await cookies()).get(ACTIVE_WS_COOKIE)?.value;
+  // The operator's support view (E-SET-10): the pollers follow it like the pages do.
+  const support = await supportCookieWorkspace();
+  if (support && chosen === support) {
+    const u = await db.user.findUnique({ where: { id: userId }, select: { email: true } });
+    if (isPlatformOperator(u?.email) && (await db.workspace.count({ where: { id: support, deletedAt: null } }))) return support;
+  }
+  if (memberships.length === 0) return null;
   return memberships.find((m) => m.workspaceId === chosen)?.workspaceId ?? memberships[0].workspaceId;
 }
 

@@ -302,6 +302,7 @@ area, rather than loading all of them into every session.
 - Topics compare side by side, week by week and item by item — 2026-11-03, audit Phase 5, growth part bc
 - A new workspace can start from one the operator runs — an allowlist travels, nothing else — 2026-11-03, audit Phase 5, growth part bd
 - The operator sees every tenant's health on one page — 2026-11-03, audit Phase 5, growth part be
+- The operator can look at a tenant read-only, and the tenant sees it — 2026-11-03, audit Phase 5, growth part bf
 
 ## Open items / things the user still owns
 - **Analytics: APIs enabled 2026-08-03** (Search Console + GA Admin + GA Data, on project

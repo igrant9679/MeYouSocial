@@ -1638,3 +1638,16 @@ before changing code in that area.
 - ⚠ **A JSX text that follows an expression, holds an HTML entity (`&apos;`) and wraps onto the next line loses its
   leading space** in this build ("{n} with … engine&apos;s⏎…" compiled to `n,"with…"` and rendered "4with"). Put an
   explicit `{" "}` after the expression. Plain text without an entity keeps its space.
+
+## ⚠ The operator can look at a tenant read-only, and the tenant sees it (2026-11-03, audit Phase 5, growth part bf)
+- **View read-only** beside Enter on /admin/workspaces (E-SET-10, `platformViewWorkspaceAction`, operator only): a
+  4-hour httpOnly cookie (`mys_support_view`, `lib/support-view.ts`) plus the switched-to workspace. For the
+  operator ONLY, `requireMembership` then answers with a synthetic VIEWER membership of that workspace
+  (`SUPPORT_MEMBERSHIP_ID`) — no row in Membership, nothing in People. ⚠ Read-only holds because every write already
+  requires EDITOR or ADMIN; don't add a write a viewer may make without asking whether a support view should make
+  it. `activeWorkspaceIdFor` follows it so the header's pollers read the same workspace. A non-operator holding the
+  cookie gets nothing from it.
+- **The tenant sees it**: starting is audited (`membership.support_view_started`, a security notice to its admins
+  saying until when); the `support:viewing` setting puts a line in the shell for every member while it lasts
+  (nothing once its time has passed). The operator's own banner says nothing can be changed, with End
+  (`endSupportViewAction`: cookie and record cleared, audited `membership.support_view_ended`).

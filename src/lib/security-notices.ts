@@ -19,6 +19,7 @@ export function securityTitle(action: string, entityId: string | null | undefine
     case "membership.added": return meta.role === "ADMIN" ? `${who} was added as an admin` : null;
     case "membership.invited": return meta.role === "ADMIN" ? `${who} was invited as an admin` : null;
     case "membership.entered": return `The platform operator (${who}) entered this workspace`;
+    case "membership.support_view_started": return `The platform operator (${who}) is viewing this workspace read-only, for support${typeof meta.until === "string" ? `, until ${meta.until.slice(11, 16)} UTC` : ""}`;
     case "api_key.saved": return `The ${entityId ?? "API"} key was changed`;
     case "api_key.removed": return `The ${entityId ?? "API"} key was removed`;
     case "api_token.created": return `An API token “${str(meta.name) ?? "unnamed"}” (${meta.scope === "write" ? "read and write" : "read"}) was made`;

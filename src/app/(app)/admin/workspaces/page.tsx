@@ -10,6 +10,7 @@ import {
   platformCreateWorkspaceAction,
   platformDeleteWorkspaceAction,
   platformEnterWorkspaceAction,
+  platformViewWorkspaceAction,
   platformAddMemberAction,
   platformChangeRoleAction,
   platformToggleMembershipAction,
@@ -121,6 +122,13 @@ export default async function PlatformWorkspacesPage() {
                 <input type="hidden" name="id" value={ws.id} />
                 <SubmitButton className="btn sm" pendingText="Entering…" title="Join as admin and switch into this workspace">
                   <LogIn className="w-3.5 h-3.5" /> Enter
+                </SubmitButton>
+              </form>
+              {/* E-SET-10: look without joining — a viewer's eyes, nothing writable, shown to its members. */}
+              <form action={platformViewWorkspaceAction}>
+                <input type="hidden" name="id" value={ws.id} />
+                <SubmitButton className="btn sm" pendingText="Opening…" title="See it as a viewer does, without joining — nothing can be changed, and its members see that you're looking">
+                  View read-only
                 </SubmitButton>
               </form>
             </div>

@@ -8,6 +8,7 @@ import { nanoid } from "nanoid";
 import { db } from "@/lib/db";
 import { TEMPLATE_PARTS, copyFromTemplate } from "@/lib/workspace-template";
 import { requireUser, isPlatformOperator, ACTIVE_WS_COOKIE } from "@/lib/acl";
+import { SUPPORT_COOKIE, SUPPORT_HOURS, SUPPORT_SETTING } from "@/lib/support-view";
 import { writeAudit } from "@/lib/governance";
 import { DELETABLE } from "@/lib/deletable";
 import { emailFor } from "@/lib/email";
@@ -161,6 +162,45 @@ export async function platformEnterWorkspaceAction(formData: FormData) {
     httpOnly: true, sameSite: "lax", path: "/", maxAge: 60 * 60 * 24 * 365,
   });
   redirect("/inbox");
+}
+
+/**
+ * Read-only "view as" for support (E-SET-10): switch into a workspace as a
+ * viewer without joining it — lib/support-view.ts. Audited (its admins get a
+ * security notice) and shown to its members in the shell until it ends.
+ */
+export async function platformViewWorkspaceAction(formData: FormData) {
+  const user = await requireOperator();
+  const workspaceId = String(formData.get("id") ?? "").trim();
+  const workspace = await db.workspace.findUnique({ where: { id: workspaceId }, select: { id: true, name: true, deletedAt: true } });
+  if (!workspace) back("That workspace no longer exists.", false);
+  if (workspace!.deletedAt) back(`“${workspace!.name}” is deleted — restore it before looking at it.`, false);
+  const since = new Date();
+  const until = new Date(since.getTime() + SUPPORT_HOURS * 3600_000);
+  const jar = await cookies();
+  const opts = { httpOnly: true, sameSite: "lax" as const, path: "/" };
+  jar.set(SUPPORT_COOKIE, workspaceId, { ...opts, maxAge: SUPPORT_HOURS * 3600 });
+  jar.set(ACTIVE_WS_COOKIE, workspaceId, { ...opts, maxAge: 60 * 60 * 24 * 365 });
+  await db.workspaceSetting.upsert({
+    where: { workspaceId_key: { workspaceId, key: SUPPORT_SETTING } },
+    update: { value: JSON.stringify({ email: user.email, since: since.toISOString(), until: until.toISOString() }) },
+    create: { workspaceId, key: SUPPORT_SETTING, value: JSON.stringify({ email: user.email, since: since.toISOString(), until: until.toISOString() }) },
+  });
+  await writeAudit({ workspaceId, actorId: user.id, action: "membership.support_view_started", entityType: "workspace", entityId: workspaceId, meta: { email: user.email, until: until.toISOString() } });
+  redirect("/inbox");
+}
+
+export async function endSupportViewAction() {
+  const user = await requireOperator();
+  const jar = await cookies();
+  const workspaceId = jar.get(SUPPORT_COOKIE)?.value;
+  jar.delete(SUPPORT_COOKIE);
+  if (workspaceId) {
+    if (jar.get(ACTIVE_WS_COOKIE)?.value === workspaceId) jar.delete(ACTIVE_WS_COOKIE);
+    await db.workspaceSetting.deleteMany({ where: { workspaceId, key: SUPPORT_SETTING } });
+    await writeAudit({ workspaceId, actorId: user.id, action: "membership.support_view_ended", entityType: "workspace", entityId: workspaceId, meta: { email: user.email } });
+  }
+  redirect(PAGE);
 }
 
 // ── Members ──────────────────────────────────────────────────────────────────

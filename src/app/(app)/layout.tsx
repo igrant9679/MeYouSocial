@@ -34,6 +34,9 @@ import { getGuideState } from "@/app/actions/guide";
 import { relevantSteps, outstandingSetup, availableTracks, type SetupState } from "@/lib/guide/steps";
 import { BRAND, PRODUCT, PRODUCT_SHORT } from "@/lib/product";
 import { currentIncident } from "@/lib/incident";
+import { formatZonedMoment } from "@/lib/zoned-dates";
+import { SUPPORT_MEMBERSHIP_ID, activeSupportView } from "@/lib/support-view";
+import { endSupportViewAction } from "@/app/actions/platform-workspaces";
 
 // Each nav item carries its own brand color so the rail reads as a vibrant chip strip
 // (mirrors the CreateUp_Mockups.html per-module accent palette).
@@ -166,6 +169,10 @@ html[data-theme="dark"] .ws-brand {
     // An incident the operator declared (E-SEC-06) — a 30s-cached platform setting.
     membership.role === "ADMIN" ? currentIncident() : Promise.resolve(null),
   ]);
+  // E-SET-10: a support view of this workspace — the operator's own (synthetic
+  // membership) or, for its members, the operator looking in.
+  const supportSelf = membership.id === SUPPORT_MEMBERSHIP_ID;
+  const supportView = await activeSupportView(workspace.id).catch(() => null);
 
   const engineState = { paused: enginePaused, autonomous: engineAutonomous, heartbeat, autopilotOff: process.env.AUTOPILOT === "off" };
 
@@ -373,6 +380,20 @@ html[data-theme="dark"] .ws-brand {
           <div role="status" className="px-4 py-2 text-xs flex items-center gap-2 flex-wrap" style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }}>
             <b>Your platform-operator account signs in with a password alone.</b>
             <Link href="/account/two-factor" className="underline">Turn on two-factor sign-in</Link>
+          </div>
+        )}
+
+        {/* Read-only support view (E-SET-10): the operator's banner, and the line its members see. */}
+        {supportSelf && (
+          <div role="status" className="px-4 py-2 text-xs flex items-center gap-2 flex-wrap" style={{ background: "var(--violet-soft)", color: "var(--violet-on)" }} data-support-self>
+            <b>Support view of {workspace.name}:</b>
+            <span>you see it as a viewer and nothing here can be changed{supportView ? ` — until ${formatZonedMoment(new Date(supportView.until), tickerZone)}` : ""}.</span>
+            <form action={endSupportViewAction}><button className="underline">End the support view</button></form>
+          </div>
+        )}
+        {!supportSelf && supportView && (
+          <div role="status" className="px-4 py-2 text-xs flex items-center gap-2 flex-wrap" style={{ background: "var(--violet-soft)", color: "var(--violet-on)" }} data-support-visible>
+            <span>The platform operator ({supportView.email}) is looking at this workspace read-only, for support, until {formatZonedMoment(new Date(supportView.until), tickerZone)}.</span>
           </div>
         )}
 
