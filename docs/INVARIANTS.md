@@ -1785,3 +1785,19 @@ before changing code in that area.
 - ⚠ **A summary built from outside text keeps the outside-text rules on** (`summaryOutside`): once a folded message had
   read a page, transcript or search, every write in that conversation is proposed — the summary could carry an
   injected instruction past the twelve-message window that used to end the rule.
+
+## ⚠ Elsie can be resumed where "Not now" left her — her button still only turns her off and on (2026-11-03, audit Phase 5, growth part bo)
+- **Resume** (E-SHL-07): "Not now" stores the tour and the step it was on (cookie `meyousocial_elsie_at`,
+  `<track>:<step>`, `snoozeGuideAction(at)`) as well as the session snooze. While she's on but dismissed, a **Resume
+  tour · n/N** control sits beside her button; pressing it clears the snooze (`resumeGuideAction`) and opens on that
+  step of that tour — a chosen tour comes back as the chosen tour. On load she starts at the saved step if it's still
+  to do. Reaching the end clears the position (`clearGuidePositionAction`); turning her back on clears it with the
+  progress. ⚠ The Elsie button is still the on/off switch — and switching her on resets progress, which is exactly why
+  Resume is a separate control.
+- ⚠ **Her step list holds still while she's open** (`held` in `Elsie.tsx`): Next marks a step done, that server action
+  refreshes the layout, and the server's list drops the step — an index into a list shrinking underneath it skipped
+  the next step (found while verifying this part: "3 / 7" became "3 / 6" on a different step). She takes the server's
+  newest list only while closed (dismissed or off).
+- Already in place and unchanged: steps are role- and studio-aware (`lib/guide/steps.ts` `stepVisible` — setup steps
+  are an admin's, studio steps wait for the studio, a step whose page the role can't open is skipped), and the
+  anchor-integrity test runs before every build (`scripts/check-guide-anchors.mts` in `prebuild`).

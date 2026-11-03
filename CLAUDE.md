@@ -311,6 +311,7 @@ area, rather than loading all of them into every session.
 - The assistant's writes can be undone for ten minutes — only by their person, only if untouched since — 2026-11-03, audit Phase 5, growth part bl
 - The dock shows each assistant step as it runs, and Stop ends a turn between steps — 2026-11-03, audit Phase 5, growth part bm
 - The assistant's prompt is cached, and what scrolls out of its window is summarised, not lost — 2026-11-03, audit Phase 5, growth part bn
+- Elsie can be resumed where "Not now" left her — her button still only turns her off and on — 2026-11-03, audit Phase 5, growth part bo
 
 ## Open items / things the user still owns
 - **Analytics: APIs enabled 2026-08-03** (Search Console + GA Admin + GA Data, on project

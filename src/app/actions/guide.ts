@@ -30,9 +30,12 @@ const DONE_COOKIE = "meyousocial_elsie_done";
  * someone again tomorrow without ever nagging them today.
  */
 const SNOOZE_COOKIE = "meyousocial_elsie_snooze";
+/** Where a tour was left by "Not now" (E-SHL-07): `<track id or empty>:<step id>`. Cleared when a tour finishes. */
+const AT_COOKIE = "meyousocial_elsie_at";
 const YEAR = 60 * 60 * 24 * 365;
 
-export type GuideState = { enabled: boolean; done: string[]; snoozed: boolean };
+/** `at`: the tour and step "Not now" left, so Resume opens there (E-SHL-07). */
+export type GuideState = { enabled: boolean; done: string[]; snoozed: boolean; at: { track: string | null; step: string } | null };
 
 function opts() {
   // Client-readable: the tour reads its own state without a round trip.
@@ -51,13 +54,33 @@ export async function getGuideState(): Promise<GuideState> {
     .filter(Boolean)
     // Bound it: a corrupted cookie must not grow without limit.
     .slice(0, 60);
-  return { enabled, done, snoozed: jar.get(SNOOZE_COOKIE)?.value === "1" };
+  const rawAt = (jar.get(AT_COOKIE)?.value ?? "").slice(0, 120);
+  const sep = rawAt.indexOf(":");
+  const at = sep >= 0 && rawAt.slice(sep + 1) ? { track: rawAt.slice(0, sep) || null, step: rawAt.slice(sep + 1) } : null;
+  return { enabled, done, snoozed: jar.get(SNOOZE_COOKIE)?.value === "1", at };
 }
 
-/** "Not now" — stop auto-opening for the rest of this browser session. */
-export async function snoozeGuideAction() {
+/**
+ * "Not now" — stop auto-opening for the rest of this browser session, and
+ * remember the tour and step it was on, so Resume opens there (E-SHL-07).
+ */
+export async function snoozeGuideAction(at?: { track: string | null; step: string }) {
   const jar = await cookies();
   jar.set(SNOOZE_COOKIE, "1", { httpOnly: false, sameSite: "lax", path: "/" });
+  const clean = (v: string) => v.replace(/[^a-z0-9_-]/gi, "").slice(0, 60);
+  if (at?.step) jar.set(AT_COOKIE, `${clean(at.track ?? "")}:${clean(at.step)}`, opts());
+}
+
+/** Resume — open again where "Not now" left her, auto-opening as before. */
+export async function resumeGuideAction() {
+  const jar = await cookies();
+  jar.set(SNOOZE_COOKIE, "", { httpOnly: false, sameSite: "lax", path: "/", maxAge: 0 });
+}
+
+/** A tour reached its end: nothing to resume. */
+export async function clearGuidePositionAction() {
+  const jar = await cookies();
+  jar.set(AT_COOKIE, "", { ...opts(), maxAge: 0 });
 }
 
 export async function setGuideEnabledAction(formData: FormData) {
@@ -69,6 +92,7 @@ export async function setGuideEnabledAction(formData: FormData) {
   // nothing for someone who had finished or dismissed the tour.
   if (on) {
     jar.set(DONE_COOKIE, "", { ...opts(), maxAge: 0 });
+    jar.set(AT_COOKIE, "", { ...opts(), maxAge: 0 });
     jar.set(SNOOZE_COOKIE, "", { httpOnly: false, sameSite: "lax", path: "/", maxAge: 0 });
   }
   revalidatePath("/", "layout");

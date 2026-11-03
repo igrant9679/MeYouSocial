@@ -347,7 +347,7 @@ html[data-theme="dark"] .ws-brand {
           {/* Viewers too — theirs only looks things up (E-ENG-15). */}
           <AssistantDockButton />
           <AiActivity />
-          <Elsie steps={elsieSteps} tracks={elsieTracks} enabled={guide.enabled} outstanding={elsieOutstanding} snoozed={guide.snoozed} />
+          <Elsie steps={elsieSteps} tracks={elsieTracks} enabled={guide.enabled} outstanding={elsieOutstanding} snoozed={guide.snoozed} resumeAt={guide.at} />
           <UnreadBell initial={unread} />
           {/* The header's one poll (E-SHL-01): the pill, the bell and the strip's badges read it. */}
           <ShellPoll initial={{ workspaceId: workspace.id, events: ticker, state: engineState, unread, counts }} />

@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { Compass, X, ArrowRight, ArrowLeft, Check } from "lucide-react";
-import { markGuideStepsDoneAction, setGuideEnabledAction, snoozeGuideAction } from "@/app/actions/guide";
+import { Compass, X, ArrowRight, ArrowLeft, Check, Play } from "lucide-react";
+import { clearGuidePositionAction, markGuideStepsDoneAction, resumeGuideAction, setGuideEnabledAction, snoozeGuideAction } from "@/app/actions/guide";
 
 /**
  * Elsie — LSI Media's in-app guide. ("L-S-I" said aloud is *el-ess-eye*.)
@@ -49,11 +49,12 @@ function findAnchor(key: string): HTMLElement | null {
 export type ElsieTrack = { id: string; label: string; blurb: string; steps: ElsieStep[] };
 
 export function Elsie({
-  steps: defaultSteps,
-  tracks = [],
+  steps: serverSteps,
+  tracks: serverTracks = [],
   enabled,
   outstanding,
   snoozed,
+  resumeAt = null,
 }: {
   /** Already filtered server-side to what's relevant and not yet done. */
   steps: ElsieStep[];
@@ -68,23 +69,40 @@ export function Elsie({
   outstanding: number;
   /** Dismissed earlier this session — she stays available but won't auto-open. */
   snoozed: boolean;
+  /** Where "Not now" left the last tour (E-SHL-07): she starts there, and Resume opens there. */
+  resumeAt?: { track: string | null; step: string } | null;
 }) {
   const router = useRouter();
   const pathname = usePathname();
-  const [index, setIndex] = useState(0);
-  /**
-   * A tour picked from the welcome card. Null = the default run (outstanding
-   * setup, then the short tour). Switching resets to the first step of it.
-   */
-  const [chosen, setChosen] = useState<string | null>(null);
-  // Welcome is dropped from a chosen tour — it's the card you picked from.
-  const steps = chosen
-    ? (tracks.find((t) => t.id === chosen)?.steps.filter((x) => x.id !== "welcome") ?? defaultSteps)
-    : defaultSteps;
   // "Not now" hides the overlay without switching Elsie off. Seeded from the
   // session snooze so a dismissal survives navigation — this component
   // re-mounts constantly, and local state alone reset on every page change.
   const [dismissed, setDismissed] = useState(snoozed);
+  // Held still while she's open: Next marks a step done, the layout refreshes,
+  // and the server's list drops that step — an index into a list shrinking
+  // under it skipped the step after (found verifying E-SHL-07). While she's
+  // closed she takes the server's newest lists, keeping her place by step id.
+  const [held, setHeld] = useState({ steps: serverSteps, tracks: serverTracks });
+  const listFor = (h: typeof held, track: string | null) =>
+    track ? (h.tracks.find((t) => t.id === track)?.steps.filter((x) => x.id !== "welcome") ?? h.steps) : h.steps;
+  // The tour and step "Not now" left (E-SHL-07): a chosen tour comes back as
+  // that tour, and the index starts on that step if it's still to do.
+  const resumeTrack = resumeAt?.track && held.tracks.some((t) => t.id === resumeAt.track) ? resumeAt.track : null;
+  const [index, setIndex] = useState(() => Math.max(0, listFor(held, resumeTrack).findIndex((x) => x.id === resumeAt?.step)));
+  /**
+   * A tour picked from the welcome card. Null = the default run (outstanding
+   * setup, then the short tour). Switching resets to the first step of it.
+   */
+  const [chosen, setChosen] = useState<string | null>(resumeTrack);
+  if ((dismissed || !enabled) && (held.steps !== serverSteps || held.tracks !== serverTracks)) {
+    const next = { steps: serverSteps, tracks: serverTracks };
+    const at = listFor(held, chosen)[index]?.id;
+    setHeld(next);
+    setIndex(Math.max(0, listFor(next, chosen).findIndex((x) => x.id === at)));
+  }
+  const tracks = held.tracks;
+  // Welcome is dropped from a chosen tour — it's the card you picked from.
+  const steps = listFor(held, chosen);
   /**
    * Whether the CURRENT step was reached by the user pressing Next/Back.
    *
@@ -268,16 +286,25 @@ export function Elsie({
       if (completed) {
         // Reached the end — record the lot so she doesn't start over.
         void markGuideStepsDoneAction(steps.map((s) => s.id));
+        void clearGuidePositionAction();
       } else {
         // "Not now". Deliberately does NOT mark the current step done: you
         // dismissed it, you didn't complete it, so it should be waiting where
         // you left it. The snooze is what stops her reappearing — and it has to
         // be server-side, because this component remounts on every navigation.
-        void snoozeGuideAction();
+        void snoozeGuideAction(steps[index] ? { track: chosen, step: steps[index].id } : undefined);
       }
     },
-    [steps],
+    [steps, index, chosen],
   );
+
+  // Resume (E-SHL-07): back where "Not now" left her — the toggle beside it
+  // turns her off, which is not the same thing.
+  const resume = useCallback(() => {
+    userDriven.current = true;
+    setDismissed(false);
+    void resumeGuideAction();
+  }, []);
 
   const next = useCallback(() => {
     userDriven.current = true;
@@ -339,6 +366,19 @@ export function Elsie({
           )}
         </button>
       </form>
+
+      {enabled && dismissed && step && (
+        <button
+          type="button"
+          onClick={resume}
+          data-elsie-resume
+          title={`Pick the tour up where you left it: “${step.title}”`}
+          className="shrink-0 inline-flex items-center gap-1 h-8 px-2 rounded-lg text-[11px] font-semibold hover:bg-[var(--zebra)]"
+          style={{ color: "var(--accent-on)" }}
+        >
+          <Play className="w-3.5 h-3.5" /> <span className="hidden @md:inline">Resume tour</span> <span className="font-mono text-[10px] text-[var(--mute)]">{index + 1}/{steps.length}</span>
+        </button>
+      )}
 
       {open && ready && (
         <div className="fixed inset-0 z-[100]" role="presentation">
