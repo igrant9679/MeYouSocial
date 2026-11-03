@@ -1,6 +1,7 @@
 import { llm, resolveUsableModel } from "@/lib/llm";
 import { randomBytes } from "node:crypto";
 import { buildPreview, type ConfirmPreview } from "@/lib/assistant/preview";
+import type { StepUndo } from "@/lib/assistant/undo";
 import { db } from "@/lib/db";
 import { brandContextBlock } from "@/lib/motifs";
 import { channelBrief } from "@/lib/assistant/context";
@@ -44,7 +45,8 @@ import { REFUSED_INTENTS, TOOLS, confirmReason, hostOf, hostsIn, outsideIn, runT
 const MAX_STEPS = 10;
 
 export type AssistantStep =
-  | { kind: "tool"; tool: string; args: Record<string, unknown>; output: string; ok: boolean }
+  /** `undo`: offered for ten minutes when the tool can be put back (E-ENG-09; lib/assistant/undo.ts). */
+  | { kind: "tool"; tool: string; args: Record<string, unknown>; output: string; ok: boolean; undo?: StepUndo }
   | { kind: "answer"; text: string; links?: Array<{ label: string; href: string }> }
   | { kind: "ask"; text: string; options: string[] }
   /** A proposal (E-ENG-01): the card is built from `preview`; its Yes must carry `nonce`. */
@@ -271,10 +273,10 @@ async function runTurnLoop(
         steps.push({ kind: "tool", tool: pending.tool, args: pending.args, output: `not run: ${why}`, ok: false });
         transcript.push({ role: "user", content: `${message}\n\n[the person said yes to "${pending.summary}", but on checking again just now: ${why}. It was NOT done — tell them plainly.]` });
       } else {
-        const { ok, output } = await runTool(pending.tool, pending.args, ctx, { confirmed: true });
+        const { ok, output, undo } = await runTool(pending.tool, pending.args, ctx, { confirmed: true });
         const brought = ok ? outsideIn(pending.tool, output) : null;
         if (brought) outside.add(brought);
-        steps.push({ kind: "tool", tool: pending.tool, args: pending.args, output, ok });
+        steps.push({ kind: "tool", tool: pending.tool, args: pending.args, output, ok, ...(undo ? { undo } : {}) });
         transcript.push({ role: "assistant", content: JSON.stringify({ tool: pending.tool, args: pending.args, why: pending.summary }) });
         transcript.push({ role: "user", content: `[the person confirmed; tool result: ${pending.tool}]\n${output}\n\nNow tell them what happened and the natural next step.` });
       }
@@ -377,10 +379,10 @@ async function runTurnLoop(
       return { ok: true, answer, steps, options: ["Yes, do it", "No"], pending: proposal };
     }
 
-    const { ok, output } = await runTool(d.tool, d.args ?? {}, ctx);
+    const { ok, output, undo } = await runTool(d.tool, d.args ?? {}, ctx);
     const brought = ok ? outsideIn(d.tool, output) : null;
     if (brought) outside.add(brought);
-    steps.push({ kind: "tool", tool: d.tool, args: d.args ?? {}, output, ok });
+    steps.push({ kind: "tool", tool: d.tool, args: d.args ?? {}, output, ok, ...(undo ? { undo } : {}) });
     transcript.push({ role: "assistant", content: JSON.stringify({ tool: d.tool, args: d.args, why: d.why }) });
     transcript.push({ role: "user", content: `[tool result: ${d.tool}]\n${output}` });
   }

@@ -10,8 +10,9 @@
 // scenario lists, so what is checked is the loop's own behaviour, never a
 // model's good manners: nothing outward-facing runs without a yes, a decline
 // or a "yes, but…" is not a yes, a stale card's Yes runs nothing, outside text
-// can't drive a write or open a host the person never gave, a viewer only
-// reads, a pause refuses work, and a mock reply never drives a tool. It makes
+// can't drive a write or open a host the person never gave, an Undo works
+// once and only for its person, a viewer only reads, a pause refuses work,
+// and a mock reply never drives a tool. It makes
 // its own workspace and deletes it after; exit code 1 on any failure.
 import http from "node:http";
 import type { AddressInfo } from "node:net";
@@ -146,6 +147,19 @@ try {
     check("…while a host the person gave is still opened", !!given && !/^not run: /.test(given.output), given);
   } else {
     check("the injection fixture could be made (a channel and a research source)", false);
+  }
+
+  // 6b. An Undo puts a write back — only for the person who asked, and once (E-ENG-09).
+  {
+    const { undoStep } = await import("@/lib/assistant/undo");
+    script = [say({ tool: "add_idea", args: { title: "An idea to take back" } }), say({ answer: "Added." })];
+    r = await turn(editor.id, "EDITOR", "Add an idea: an idea to take back");
+    const index = r.result.steps.findIndex((s) => s.kind === "tool" && s.tool === "add_idea");
+    const made = () => db.blogIdea.count({ where: { workspaceId: ws.id, title: "An idea to take back" } });
+    const byAdmin = await undoStep({ workspaceId: ws.id, userId: admin.id, role: "ADMIN", messageId: r.messageId, index });
+    const mine = await undoStep({ workspaceId: ws.id, userId: editor.id, role: "EDITOR", messageId: r.messageId, index });
+    const again = await undoStep({ workspaceId: ws.id, userId: editor.id, role: "EDITOR", messageId: r.messageId, index });
+    check("an Undo works only for the person who asked, and only once", index >= 0 && !byAdmin.ok && mine.ok && !again.ok && (await made()) === 0, { index, byAdmin, mine, again });
   }
 
   // 7. A viewer's assistant only reads.

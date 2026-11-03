@@ -23,7 +23,8 @@ export type TurnInput = {
   confirm?: string | null;
 };
 
-export type TurnOutput = { threadId: string; result: AssistantResult };
+/** `messageId`: the stored reply — what an Undo names (E-ENG-09). */
+export type TurnOutput = { threadId: string; messageId: string; result: AssistantResult };
 
 export async function runTurn(input: TurnInput): Promise<TurnOutput | null> {
   const message = input.message.trim().slice(0, 4000);
@@ -74,7 +75,7 @@ export async function runTurn(input: TurnInput): Promise<TurnOutput | null> {
 
   // A refusal or a broken run is still a turn: record what the person was
   // told, so the transcript never has a question with no answer under it.
-  await db.assistantMessage.create({
+  const reply = await db.assistantMessage.create({
     data: {
       threadId: thread.id,
       role: "assistant",
@@ -90,5 +91,5 @@ export async function runTurn(input: TurnInput): Promise<TurnOutput | null> {
     data: { updatedAt: new Date(), pending: result.pending ? writeJson(result.pending) : null },
   });
 
-  return { threadId: thread.id, result };
+  return { threadId: thread.id, messageId: reply.id, result };
 }

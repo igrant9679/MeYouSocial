@@ -1493,7 +1493,7 @@ export async function runTool(
   args: Record<string, unknown>,
   ctx: ToolContext,
   opts: { confirmed?: boolean } = {},
-): Promise<{ ok: boolean; output: string }> {
+): Promise<{ ok: boolean; output: string; undo?: import("@/lib/assistant/undo").StepUndo }> {
   const tool = TOOLS_BY_NAME.get(name);
   if (!tool) return { ok: false, output: `unknown tool "${name}" — use one of: ${TOOLS.map((t) => t.name).join(", ")}` };
   if (tool.minRole === "ADMIN" && ctx.role !== "ADMIN") return { ok: false, output: "refused: only an admin can do this" };
@@ -1507,11 +1507,13 @@ export async function runTool(
     if (await isGloballyPaused(ctx.workspaceId) && !tool.deescalates?.(args)) return { ok: false, output: "refused: the workspace is globally paused (Settings → Automation) — only calming actions run (unschedule, switch autonomy or a function off, reject an idea, resume)" };
   }
   try {
-    const output = await tool.run(args, ctx);
+    // A write with an undoer is read before and after, so its step can offer Undo (E-ENG-09).
+    const { withUndo } = await import("@/lib/assistant/undo");
+    const result = await withUndo(name, args, ctx, async () => ({ ok: true, output: await tool.run(args, ctx) }));
     if (!tool.readOnly) {
       await writeAudit({ workspaceId: ctx.workspaceId, actorId: ctx.userId, action: "assistant.tool_run", entityType: "assistant", entityId: ctx.threadId ?? null, meta: { tool: name, args, ok: true, threadId: ctx.threadId ?? null } });
     }
-    return { ok: true, output };
+    return result;
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     if (!tool.readOnly) await writeAudit({ workspaceId: ctx.workspaceId, actorId: ctx.userId, action: "assistant.tool_run", entityType: "assistant", entityId: ctx.threadId ?? null, meta: { tool: name, args, ok: false, error: msg.slice(0, 200), threadId: ctx.threadId ?? null } });

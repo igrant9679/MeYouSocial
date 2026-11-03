@@ -4,6 +4,7 @@ import { readJson } from "@/lib/db/json";
 import { runTurn } from "@/lib/assistant/session";
 import { getActiveChannel } from "@/lib/channel";
 import type { AssistantStep } from "@/lib/assistant/run";
+import { publicSteps } from "@/lib/assistant/undo";
 
 /**
  * The assistant dock's API — the same turn the full page runs, as JSON, so
@@ -37,7 +38,7 @@ export async function GET(req: Request) {
     // The dock starts afresh after a long idle (E-ENG-11) — it reads this.
     updatedAt: thread.updatedAt.toISOString(),
     pending: thread.pending ? readJson(thread.pending, null) : null,
-    messages: thread.messages.map((m) => ({ id: m.id, role: m.role, content: m.content, steps: readJson<AssistantStep[]>(m.steps, []), tokens: m.inputTokens != null || m.outputTokens != null ? (m.inputTokens ?? 0) + (m.outputTokens ?? 0) : null })),
+    messages: thread.messages.map((m) => ({ id: m.id, role: m.role, content: m.content, steps: publicSteps(readJson<AssistantStep[]>(m.steps, [])), tokens: m.inputTokens != null || m.outputTokens != null ? (m.inputTokens ?? 0) + (m.outputTokens ?? 0) : null })),
   });
 }
 
@@ -62,8 +63,10 @@ export async function POST(req: Request) {
   const r = out.result;
   return Response.json({
     threadId: out.threadId,
+    messageId: out.messageId,
     answer: r.error && !r.answer ? r.error : r.answer,
-    steps: r.steps,
+    // An undo's snapshots stay on the server (E-ENG-09).
+    steps: publicSteps(r.steps),
     options: r.options ?? [],
     links: r.links ?? [],
     pending: r.pending ?? null,

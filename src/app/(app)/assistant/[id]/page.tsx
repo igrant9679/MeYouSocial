@@ -13,13 +13,17 @@ import { formatZonedMoment } from "@/lib/zoned-dates";
 import type { AssistantStep, PendingAction } from "@/lib/assistant/run";
 // A quick reply is just a message — the same action the composer uses.
 import { sendAssistantMessageAction as sendQuick } from "@/app/actions/assistant";
+import { undoAssistantStepFormAction } from "@/app/actions/assistant-undo";
+import { openUndos } from "@/lib/assistant/undo";
+import { Undo2 } from "lucide-react";
 
 /** One conversation. Tool calls are shown, not summarised — the point is that
  *  you can see what it actually did rather than take its word for it. A
  *  question's choices and an unanswered proposal render as buttons that post
  *  the reply, so the page is as interactive as the dock. */
-export default async function AssistantThreadPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function AssistantThreadPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ ok?: string; err?: string }> }) {
   const { id } = await params;
+  const { ok, err } = await searchParams;
   const { workspace, user } = await requireRole("EDITOR");
   const { active } = await getActiveChannel();
   const thread = await db.assistantThread.findFirst({
@@ -44,12 +48,18 @@ export default async function AssistantThreadPage({ params }: { params: Promise<
         <ArrowLeft className="w-3.5 h-3.5" /> Assistant
       </Link>
       <h1 className="font-mono font-bold text-xl mb-4">{thread.title ?? "Conversation"}</h1>
+      {(ok || err) && (
+        <p className="text-xs mb-3 px-3 py-2 rounded-lg" style={ok ? { background: "var(--green-soft)", color: "var(--green-on)" } : { background: "var(--rose-soft)", color: "var(--rose-on)" }}>{ok ?? err}</p>
+      )}
 
       <div className="flex flex-col gap-3 mb-4">
         {thread.messages.map((m) => {
           const steps = readJson<AssistantStep[]>(m.steps, []);
           const tools = steps.filter((s): s is Extract<AssistantStep, { kind: "tool" }> => s.kind === "tool");
           const confirm = steps.find((s): s is Extract<AssistantStep, { kind: "confirm" }> => s.kind === "confirm");
+          // E-ENG-09: the steps that can still be put back, and the ones that were.
+          const undos = openUndos(steps);
+          const undone = steps.flatMap((s) => (s.kind === "tool" && s.undo?.done ? [s] : []));
           return (
             <div key={m.id} className="card">
               <div className="flex items-center gap-2 mb-1">
@@ -86,6 +96,22 @@ export default async function AssistantThreadPage({ params }: { params: Promise<
                     ))}
                   </ul>
                 </details>
+              )}
+              {(undos.length > 0 || undone.length > 0) && (
+                <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                  {undos.map(({ index, undo }) => (
+                    <form key={index} action={undoAssistantStepFormAction}>
+                      <input type="hidden" name="messageId" value={m.id} />
+                      <input type="hidden" name="index" value={index} />
+                      <button className="btn sm inline-flex items-center gap-1" data-undo={index} title={`Offered until ${formatZonedMoment(new Date(undo.until), tz)}`}>
+                        <Undo2 className="w-3 h-3" /> {undo.label}
+                      </button>
+                    </form>
+                  ))}
+                  {undone.map((s, i) => (
+                    <span key={i} className="text-[10px] font-mono text-[var(--mute)]" data-undone>↩ undone {s.undo?.done ? formatZonedMoment(new Date(s.undo.done), tz) : ""}</span>
+                  ))}
+                </div>
               )}
             </div>
           );

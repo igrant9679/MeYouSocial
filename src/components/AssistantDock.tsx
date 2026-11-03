@@ -7,6 +7,7 @@ import { Bot, Loader2, SendHorizonal, X, Wrench, ExternalLink, Sparkles } from "
 import { MarkdownMessage } from "@/components/MarkdownMessage";
 import { ConfirmCard } from "@/components/ConfirmCard";
 import { UploadButton } from "@/components/UploadButton";
+import { UndoButtons } from "@/components/AssistantUndo";
 import type { AssistantStep } from "@/lib/assistant/run";
 
 /**
@@ -22,7 +23,7 @@ import type { AssistantStep } from "@/lib/assistant/run";
 
 /** `tokens`: what the reply's model calls took, in + out (E-ENG-07); null when none were counted. */
 type Msg = { id: string; role: "user" | "assistant"; content: string; steps: AssistantStep[]; tokens?: number | null };
-type Reply = { threadId: string; answer: string; steps: AssistantStep[]; options: string[]; links: Array<{ label: string; href: string }>; pending: unknown; error: string | null; usage?: { inputTokens: number; outputTokens: number } | null };
+type Reply = { threadId: string; messageId?: string; answer: string; steps: AssistantStep[]; options: string[]; links: Array<{ label: string; href: string }>; pending: unknown; error: string | null; usage?: { inputTokens: number; outputTokens: number } | null };
 
 const SUGGESTIONS = [
   "What should I do next?",
@@ -128,7 +129,7 @@ export function AssistantDock({ activeChannelId = null, workspaceId, userId, rea
       const d = (await r.json().catch(() => ({ error: `HTTP ${r.status}` }))) as Reply & { error?: string };
       if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
       setThreadId(d.threadId);
-      setMessages((ms) => [...ms, { id: `a-${Date.now()}`, role: "assistant", content: d.answer, steps: d.steps ?? [], tokens: d.usage ? d.usage.inputTokens + d.usage.outputTokens : null }]);
+      setMessages((ms) => [...ms, { id: d.messageId ?? `a-${Date.now()}`, role: "assistant", content: d.answer, steps: d.steps ?? [], tokens: d.usage ? d.usage.inputTokens + d.usage.outputTokens : null }]);
       setOptions(d.options ?? []);
       setLinks(d.links ?? []);
     } catch (e) {
@@ -212,6 +213,12 @@ export function AssistantDock({ activeChannelId = null, workspaceId, userId, rea
                   {confirmStep && (
                     <ConfirmCard tool={confirmStep.tool} summary={confirmStep.summary} preview={confirmStep.preview}
                       expires={confirmStep.expiresAt ? new Date(confirmStep.expiresAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : null} />
+                  )}
+                  {m.role === "assistant" && !m.id.startsWith("a-") && (
+                    <UndoButtons messageId={m.id} steps={m.steps} onUndone={(index, said) => setMessages((ms) => [
+                      ...ms.map((x) => (x.id === m.id ? { ...x, steps: x.steps.map((st, i) => (i === index && st.kind === "tool" && st.undo ? { ...st, undo: { ...st.undo, done: new Date().toISOString() } } : st)) } : x)),
+                      { id: `u-${index}-${m.id}`, role: "assistant" as const, content: said, steps: [] },
+                    ])} />
                   )}
                   {m.role === "assistant" && m.tokens != null && (
                     <p className="m-0 mt-1 text-[10px] font-mono text-[var(--mute)]" data-reply-tokens={m.tokens} title="Tokens this reply's model calls took, in and out — Settings → Usage has the month">{m.tokens.toLocaleString("en-GB")} tokens</p>

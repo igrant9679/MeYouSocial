@@ -1733,3 +1733,21 @@ before changing code in that area.
 - **Assistant replies** carry their tokens: `runAssistant` sums every model call in the turn (`AssistantResult.usage`),
   `AssistantMessage.inputTokens/outputTokens` store it, the dock and the conversation page show it. A streamed call
   reports no tokens (as before).
+
+## ⚠ The assistant's writes can be undone for ten minutes — only by their person, only if untouched since (2026-11-03, audit Phase 5, growth part bl)
+- **Undo** (E-ENG-09, `lib/assistant/undo.ts`): a tool with an entry in `UNDOERS` is READ before it runs and again
+  after (`withUndo`, called from `runTool`); when something changed, the step carries `undo` { label, until (+10 min),
+  state { before, after } }. Undoers: idea decisions (article/social/video), add_idea / add_topic / draft_social_post
+  (deleted if still as made), add_keyword (removed, or its tier restored), add_posting_slots (only the new ones),
+  unschedule_social_post (back to its time if still ahead), the weekly target, publish day, time zone, video studio,
+  social dials, a function's mode, the pause, a member's role. ⚠ No undoer — so no button — for publishing, sending,
+  invitations, full autonomy (several dials at once) and the approval dial (its own action writes it).
+- ⚠ **`undoStep` makes every check**: the reply is in THIS person's thread in this workspace, inside the window, not
+  undone yet, their role still allows the tool, and a fresh read matches the after-snapshot — if anyone or anything
+  changed it since, it refuses rather than overwrite them. Claimed atomically (the stored steps must be unchanged),
+  so a double press undoes once; a failed write un-claims. Audited `assistant.tool_undone`, and an assistant message
+  ("↩ Undone — …") goes into the conversation so the model and the person both see it.
+- ⚠ **The snapshots never leave the server**: `publicSteps` strips `undo.state` from everything the API returns (the
+  dock's turn and history). The dock gets the stored `messageId` and shows Undo buttons (`components/AssistantUndo.tsx`,
+  hidden once the ten minutes pass); the conversation page shows them under the reply and marks what was undone.
+- The assistant eval has a scenario for it ("an Undo works only for the person who asked, and only once").
