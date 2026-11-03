@@ -1,6 +1,7 @@
 "use server";
 
 import { requireRole } from "@/lib/acl";
+import { postLength } from "@/lib/social/text-length";
 import { llm, resolveUsableModel } from "@/lib/llm";
 import { motifPromptFor, brandContextBlock } from "@/lib/motifs";
 import { networkFor } from "@/lib/social/networks";
@@ -72,7 +73,7 @@ export async function tailorPostForNetworksAction(input: {
   // suits keeps the base — that's what "if necessary" means.
   const needsWork = providers.filter((p) => {
     const net = networkFor(p)!;
-    if (text.length > net.charLimit) return true;
+    if (postLength(p, text) > net.charLimit) return true;
     // Instagram/Pinterest/Reddit/TikTok read badly in a generic voice even when
     // they fit; the rest are close enough to the base to leave alone.
     return ["instagram", "pinterest", "reddit", "tiktok", "threads", "snapchat"].includes(p);
@@ -137,7 +138,7 @@ export async function tailorPostForNetworksAction(input: {
     // silently truncated — cutting someone's post mid-sentence is worse than
     // telling them it needs another pass.
     const stillOver = Object.entries(parsed)
-      .filter(([p, v]) => v.length > (networkFor(p)?.charLimit ?? 3000))
+      .filter(([p, v]) => postLength(p, v) > (networkFor(p)?.charLimit ?? 3000))
       .map(([p]) => p);
 
     return { ok: true, variants: parsed, skipped, provider, stillOver };

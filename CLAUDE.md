@@ -304,6 +304,7 @@ area, rather than loading all of them into every session.
 - The operator sees every tenant's health on one page — 2026-11-03, audit Phase 5, growth part be
 - The operator can look at a tenant read-only, and the tenant sees it — 2026-11-03, audit Phase 5, growth part bf
 - A link-in-bio page lists what was already posted, tagged as its own source — 2026-11-03, audit Phase 5, growth part bg
+- The composer previews and counts what will be sent; X is counted the way X counts — 2026-11-03, audit Phase 5, growth part bh
 
 ## Open items / things the user still owns
 - **Analytics: APIs enabled 2026-08-03** (Search Console + GA Admin + GA Data, on project

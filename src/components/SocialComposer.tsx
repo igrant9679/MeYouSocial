@@ -8,7 +8,9 @@ import { generateComposerImageAction } from "@/app/actions/social-image-gen";
 import { tailorPostForNetworksAction } from "@/app/actions/social-tailor";
 import { networkFor } from "@/lib/social/networks";
 import { subFormatsFor, AUTOMATIC_SUB_FORMAT } from "@/lib/social/sub-formats";
-import { FIRST_COMMENT_NETWORKS, TIKTOK_COMMERCIAL, TIKTOK_DEFAULTS, TIKTOK_PRIVACY, type TikTokOptions } from "@/lib/social/platform-options";
+import { FIRST_COMMENT_NETWORKS, TIKTOK_COMMERCIAL, TIKTOK_DEFAULTS, TIKTOK_PRIVACY, splitLinks, supportsFirstComment, type TikTokOptions } from "@/lib/social/platform-options";
+import { applyUtm, type UtmConfig } from "@/lib/social/utm-apply";
+import { lengthNote, postLength } from "@/lib/social/text-length";
 import { WATERMARK_POSITIONS } from "@/lib/social/watermark-options";
 import { HelpTip, WithTip } from "@/components/HelpTip";
 import { SOCIAL_TIPS } from "@/lib/help-tips";
@@ -19,7 +21,7 @@ type GenImage = { key: string; url: string; provider: string };
 
 export type ComposerAccount = { id: string; provider: string; name: string | null };
 export type ComposerTopic = { id: string; name: string; keywords: string[] };
-export type ComposerCampaign = { id: string; name: string; color: string | null };
+export type ComposerCampaign = { id: string; name: string; color: string | null; utmCampaign?: string | null };
 
 /** An existing post being edited. Absent = composing a new one. */
 export type ComposerInitial = {
@@ -108,6 +110,7 @@ export function SocialComposer({
   preloadMedia = [],
   snippets = [],
   seed,
+  utm,
 }: {
   accounts: ComposerAccount[];
   topics?: ComposerTopic[];
@@ -128,6 +131,8 @@ export function SocialComposer({
   snippets?: Array<{ id: string; name: string; body: string; category: string | null }>;
   /** A template's content to start a NEW post from (E-SOC-23) — unlike `initial`, this isn't editing. */
   seed?: { text: string; firstComment: string | null; category: string | null };
+  /** The workspace's link tagging (E-SOC-09): previews show links as the send will tag them. */
+  utm?: UtmConfig;
 }) {
   // Editing reuses this component wholesale rather than a parallel form — a
   // second implementation would drift from the composer's per-network rules.
@@ -151,6 +156,11 @@ export function SocialComposer({
   );
   const [category, setCategory] = useState(initial?.category ?? seed?.category ?? "");
   const [firstComment, setFirstComment] = useState(initial?.firstComment ?? seed?.firstComment ?? "");
+  // Controlled so the previews follow them (E-SOC-09): moving links to the first
+  // comment, each network's own first comment, and Story / Reel / feed.
+  const [linkToComment, setLinkToComment] = useState(initial?.linkToFirstComment ?? false);
+  const [ownComments, setOwnComments] = useState<Record<string, string>>(initial?.firstComments ?? {});
+  const [subFormats, setSubFormats] = useState<Record<string, string>>(initial?.subFormats ?? {});
   const [tiktok, setTiktok] = useState<TikTokOptions>(initial?.tiktok ?? TIKTOK_DEFAULTS);
   const textRef = useRef<HTMLTextAreaElement>(null);
   const optimalPick = optimal && "label" in optimal ? optimal : null;
@@ -271,7 +281,28 @@ export function SocialComposer({
     }
   }
 
-  const anyOver = selectedProviders.some((p) => effectiveText(p).length > (networkFor(p)?.charLimit ?? 3000));
+  // What each network will be SENT (E-SOC-09), built the way lib/social/publish.ts
+  // builds it: links tagged (the campaign's own tag first), then — where a first
+  // comment exists — links moved out of the caption into it. Counting and the
+  // previews read this, so a counter can't pass a post the send would refuse.
+  const campaignUtm = campaigns.find((c) => c.id === campaignId)?.utmCampaign?.trim() ?? "";
+  const utmCfg = utm ? (campaignUtm ? { ...utm, campaign: campaignUtm } : utm) : null;
+  const tag = (t: string, p: string) => (utmCfg ? applyUtm(t, utmCfg, p) : t);
+  const sendFor = (p: string): { text: string; comment: string | null } => {
+    let out = tag(effectiveText(p), p);
+    const takesComment = supportsFirstComment(p, subFormats[p] || null);
+    const own = ((customizing.has(p) ? ownComments[p] : "") || firstComment).trim();
+    let comment = takesComment && own ? tag(own, p) : null;
+    if (linkToComment && takesComment) {
+      const { caption, links } = splitLinks(out);
+      if (links.length && caption) {
+        out = caption;
+        comment = [links.join("\n"), comment].filter(Boolean).join("\n\n");
+      }
+    }
+    return { text: out, comment };
+  };
+  const anyOver = selectedProviders.some((p) => postLength(p, sendFor(p).text) > (networkFor(p)?.charLimit ?? 3000));
   // Over-limit blocks SENDING (the network would refuse) but never PARKING:
   // "save as draft and trim later" is the whole point of drafts. Editing an
   // existing post with when="draft" is the same parking action.
@@ -570,7 +601,7 @@ export function SocialComposer({
             placeholder="Optional — e.g. the link, or a question to start the conversation"
             className="w-full border border-[var(--line-2)] rounded-lg p-2 text-sm resize-y" />
           <label className="inline-flex items-center gap-1.5 text-xs mt-1 cursor-pointer">
-            <input type="checkbox" name="linkToFirstComment" defaultChecked={initial?.linkToFirstComment ?? false} />
+            <input type="checkbox" name="linkToFirstComment" checked={linkToComment} onChange={(e) => setLinkToComment(e.target.checked)} />
             Move links from the caption to the first comment
           </label>
           <span className="text-[10px] text-[var(--mute)] ml-2">LinkedIn and Instagram both hold back posts with a link in the caption. X and TikTok keep the link where it is.</span>
@@ -673,8 +704,9 @@ export function SocialComposer({
             const net = networkFor(p);
             const limit = net?.charLimit ?? 3000;
             const isCustom = customizing.has(p);
-            const eff = effectiveText(p);
-            const over = eff.length > limit;
+            const sentLen = postLength(p, sendFor(p).text);
+            const over = sentLen > limit;
+            const how = lengthNote(p);
             const mediaCount = effectiveMediaCount(p);
             const vFiles = variantFiles[p] ?? [];
             return (
@@ -683,8 +715,8 @@ export function SocialComposer({
                   <span className="w-2 h-2 rounded-full" style={{ background: net?.color ?? "var(--mute)" }} />
                   <span className="text-xs font-semibold">{net?.label ?? p}</span>
                   <WithTip text={SOCIAL_TIPS.charCount} side="bottom" wide>
-                    <span className="font-mono text-[11px]" style={{ color: over ? "var(--rose-on)" : "var(--mute)" }}>
-                      {eff.length}/{limit}{over ? " — over limit" : ""}
+                    <span className="font-mono text-[11px]" style={{ color: over ? "var(--rose-on)" : "var(--mute)" }} title={how ?? "As sent, links tagged"} data-char-count={p}>
+                      {sentLen}/{limit}{how ? " weighted" : ""}{over ? " — over limit" : ""}
                     </span>
                   </WithTip>
                   {mediaCount > 0 && (
@@ -710,7 +742,8 @@ export function SocialComposer({
                       Publish as
                       <select
                         name={`subformat_${p}`}
-                        defaultValue={initial?.subFormats?.[p] ?? ""}
+                        value={subFormats[p] ?? ""}
+                        onChange={(e) => setSubFormats((v) => ({ ...v, [p]: e.target.value }))}
                         className="border border-[var(--line-2)] rounded px-1 py-0.5 text-[11px]"
                       >
                         {/* A Reel needs a video the composer can't attach yet. One
@@ -784,7 +817,8 @@ export function SocialComposer({
                       {FIRST_COMMENT_NETWORKS.has(p.toLowerCase()) && (
                         <textarea
                           name={`firstcomment_${p}`}
-                          defaultValue={initial?.firstComments?.[p] ?? ""}
+                          value={ownComments[p] ?? ""}
+                          onChange={(e) => setOwnComments((v) => ({ ...v, [p]: e.target.value }))}
                           rows={2}
                           maxLength={2000}
                           placeholder={`First comment just for ${net?.label ?? p} (blank = the shared one)`}
@@ -832,7 +866,8 @@ export function SocialComposer({
                     key={p}
                     provider={p}
                     accountName={account?.name ?? null}
-                    text={effectiveText(p)}
+                    text={sendFor(p).text}
+                    comment={sendFor(p).comment}
                     images={previewImagesFor(p)}
                   />
                 );
@@ -841,8 +876,9 @@ export function SocialComposer({
           )}
           {showPreview && (
             <p className="text-[10px] text-[var(--mute)] mt-1.5">
-              Approximate rendering — networks apply their own fonts, cropping and link handling. Campaign/UTM tags are
-              added to links at send time and aren&apos;t shown here.
+              Approximate rendering — networks apply their own fonts and cropping. The text is what will be sent:
+              {utmCfg?.enabled ? " links carry the tags added at send," : " link tagging is off (Settings → Schedule),"} and a first comment shows where the
+              network takes one.
             </p>
           )}
         </div>
@@ -990,17 +1026,23 @@ function PlatformPreview({
   provider,
   accountName,
   text,
+  comment,
   images,
 }: {
   provider: string;
   accountName: string | null;
   text: string;
+  /** The first comment as it will be posted (links moved there, tags added), or null where there's none. */
+  comment: string | null;
   images: string[];
 }) {
   const net = networkFor(provider);
   const limit = net?.charLimit ?? 3000;
-  const truncated = text.length > limit;
-  const shown = truncated ? text.slice(0, limit) : text;
+  const length = postLength(provider, text);
+  const truncated = length > limit;
+  // X's weighting can't be cut by characters — say how far over instead of slicing.
+  const weighted = !!lengthNote(provider);
+  const shown = truncated && !weighted ? text.slice(0, limit) : text;
   const slug = provider.toLowerCase();
   const imageFirst = ["instagram", "pinterest", "tiktok"].includes(slug);
   const square = imageFirst;
@@ -1049,13 +1091,19 @@ function PlatformPreview({
       {shown && (
         <p className="px-3 py-2 text-[13px] whitespace-pre-wrap break-words leading-snug">
           {shown}
-          {truncated && <span style={{ color: "var(--rose-on)" }}>… ✂ cut at {limit} characters</span>}
+          {truncated && <span style={{ color: "var(--rose-on)" }}>{weighted ? ` — ${length - limit} over ${net?.label ?? provider}'s ${limit}` : `… ✂ cut at ${limit} characters`}</span>}
         </p>
       )}
       {!imageFirst && imageBlock}
       <div className="px-3 py-1.5 border-t border-[var(--line)] flex gap-4 text-[10px] font-mono text-[var(--mute)]">
         <span>Like</span><span>Comment</span><span>Share</span>
       </div>
+      {comment && (
+        <div className="px-3 py-2 border-t border-[var(--line)] flex gap-2 items-start" data-preview-comment={provider}>
+          <span className="w-5 h-5 rounded-full shrink-0 grid place-items-center text-[9px] font-bold" style={{ background: net?.color ?? "var(--mute)", color: "#fff" }}>{name.slice(0, 1).toUpperCase()}</span>
+          <p className="m-0 text-[12px] whitespace-pre-wrap break-words leading-snug min-w-0"><span className="font-semibold">First comment · </span>{comment}</p>
+        </div>
+      )}
     </div>
   );
 }

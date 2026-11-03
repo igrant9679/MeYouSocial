@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { postLength } from "@/lib/social/text-length";
 import { getSetting } from "@/lib/settings";
 import { getQueue, formatInZone } from "@/lib/social/slots";
 import { networkFor } from "@/lib/social/networks";
@@ -329,8 +330,9 @@ export async function getSocialOverview(workspaceId: string): Promise<SocialOver
       const net = networkFor(t.provider);
       if (!net) continue;
       const text = t.text ?? p.text;
-      if (net.charLimit && text.length > net.charLimit) {
-        overLimit.push({ id: p.id, label: net.label, len: text.length, limit: net.charLimit });
+      const len = postLength(t.provider, text);
+      if (net.charLimit && len > net.charLimit) {
+        overLimit.push({ id: p.id, label: net.label, len, limit: net.charLimit });
       }
       const keys = t.mediaKeys ? readJson<string[]>(t.mediaKeys, []) : baseKeys;
       if (net.requiresMedia && keys.length === 0) {

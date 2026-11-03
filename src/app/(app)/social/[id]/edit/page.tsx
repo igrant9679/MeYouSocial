@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getUtmConfig } from "@/lib/social/utm";
 import { notFound, redirect } from "next/navigation";
 import { ArrowLeft, Pencil } from "lucide-react";
 import { requireRole } from "@/lib/acl";
@@ -26,6 +27,8 @@ export default async function EditSocialPostPage({ params }: { params: Promise<{
   const { id } = await params;
   const { workspace } = await requireRole("EDITOR");
 
+  // E-SOC-09: the previews show links as the send will tag them.
+  const utm = await getUtmConfig(workspace.id);
   const [post, accounts, topicRows, campaigns] = await Promise.all([
     db.socialPost.findFirst({ where: { id, workspaceId: workspace.id }, include: { targets: true } }),
     db.zernioAccount.findMany({
@@ -41,7 +44,7 @@ export default async function EditSocialPostPage({ params }: { params: Promise<{
     db.campaign.findMany({
       where: { workspaceId: workspace.id, status: "active" },
       orderBy: { name: "asc" },
-      select: { id: true, name: true, color: true },
+      select: { id: true, name: true, color: true, utmCampaign: true },
     }),
   ]);
   if (!post) notFound();
@@ -146,6 +149,7 @@ export default async function EditSocialPostPage({ params }: { params: Promise<{
           accounts={composerAccounts}
           topics={topicRows.map((t) => ({ id: t.id, name: t.name, keywords: readJson<string[]>(t.keywords, []) }))}
           campaigns={campaigns}
+          utm={utm}
           categories={categories}
           approvalNotice={post.approval === "pending" || post.approval === "changes"}
           initial={initial}

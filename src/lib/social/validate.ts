@@ -3,6 +3,7 @@ import { readJson } from "@/lib/db/json";
 import { networkFor } from "@/lib/social/networks";
 import { subFormatsFor } from "@/lib/social/sub-formats";
 import { readTargetOptions, tiktokRefusal } from "@/lib/social/platform-options";
+import { lengthNote, postLength } from "@/lib/social/text-length";
 
 /**
  * One set of network rules for every path that schedules or sends a post
@@ -54,8 +55,11 @@ export function legProblem(leg: LegInput, post: { text: string; mediaKeys: strin
     if (refusal) return refusal;
   }
   const text = sendText ?? leg.text ?? post.text;
-  if (net && text.length > net.charLimit) {
-    return `Too long for ${label}: ${text.length} characters, the limit is ${net.charLimit}. Shorten it or customize the ${label} text.`;
+  // As the network counts it — X weighs links as 23 and emoji / most non-Latin letters as 2 (E-SOC-09).
+  const length = postLength(leg.provider, text);
+  if (net && length > net.charLimit) {
+    const how = lengthNote(leg.provider);
+    return `Too long for ${label}: ${length} characters${how ? ` (${how})` : ""}, the limit is ${net.charLimit}. Shorten it or customize the ${label} text.`;
   }
   return null;
 }

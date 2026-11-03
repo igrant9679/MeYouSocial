@@ -1,4 +1,7 @@
 import { getSetting } from "@/lib/settings";
+import { applyUtm, UTM_DEFAULTS, type UtmConfig } from "@/lib/social/utm-apply";
+
+export { applyUtm, sourceForProvider, UTM_DEFAULTS, type UtmConfig } from "@/lib/social/utm-apply";
 
 /**
  * UTM tagging for social links.
@@ -17,15 +20,6 @@ import { getSetting } from "@/lib/settings";
  *   - if anything about a URL fails to parse, the original text is kept.
  */
 
-export type UtmConfig = {
-  enabled: boolean;
-  source: string; // "" = use the network name (linkedin / x / instagram)
-  medium: string;
-  campaign: string;
-};
-
-export const UTM_DEFAULTS: UtmConfig = { enabled: false, source: "", medium: "social", campaign: "" };
-
 export async function getUtmConfig(workspaceId?: string | null): Promise<UtmConfig> {
   const [enabled, source, medium, campaign] = await Promise.all([
     getSetting("social:utm_enabled", workspaceId).catch(() => ""),
@@ -39,47 +33,6 @@ export async function getUtmConfig(workspaceId?: string | null): Promise<UtmConf
     medium: (medium ?? "").trim() || UTM_DEFAULTS.medium,
     campaign: (campaign ?? "").trim(),
   };
-}
-
-/** Network → a clean utm_source value. LINKEDIN → linkedin. */
-export function sourceForProvider(provider: string): string {
-  return provider.trim().toLowerCase().replace(/[^a-z0-9_-]/g, "") || "social";
-}
-
-// Trailing punctuation is almost always sentence punctuation, not part of the
-// URL — capture it separately so "see https://x.com/a." doesn't tag ".".
-const URL_RE = /https?:\/\/[^\s<>()[\]{}"']+/g;
-
-/**
- * Append UTM params to every eligible link in `text`. Pure and synchronous so
- * it can be fixture-tested without a database.
- */
-export function applyUtm(text: string, cfg: UtmConfig, provider: string): string {
-  if (!cfg.enabled || !text) return text;
-  const source = cfg.source || sourceForProvider(provider);
-
-  return text.replace(URL_RE, (match) => {
-    // Peel trailing punctuation back off the match.
-    let url = match;
-    let trailing = "";
-    while (url.length > 0 && /[.,;:!?]$/.test(url)) {
-      trailing = url.slice(-1) + trailing;
-      url = url.slice(0, -1);
-    }
-    try {
-      const parsed = new URL(url);
-      // Never touch a link that is already tagged.
-      for (const key of parsed.searchParams.keys()) {
-        if (key.toLowerCase().startsWith("utm_")) return match;
-      }
-      parsed.searchParams.set("utm_source", source);
-      if (cfg.medium) parsed.searchParams.set("utm_medium", cfg.medium);
-      if (cfg.campaign) parsed.searchParams.set("utm_campaign", cfg.campaign);
-      return parsed.toString() + trailing;
-    } catch {
-      return match; // unparseable — leave the author's text untouched
-    }
-  });
 }
 
 /**

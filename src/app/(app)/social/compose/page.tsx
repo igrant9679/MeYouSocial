@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getUtmConfig } from "@/lib/social/utm";
 import { PenSquare, FileUp } from "lucide-react";
 import { requireRole, canAdmin } from "@/lib/acl";
 import { db } from "@/lib/db";
@@ -31,6 +32,8 @@ export default async function SocialComposePage({ searchParams }: { searchParams
     ? await db.mediaItem.findMany({ where: { id: { in: mediaIds }, workspaceId: workspace.id }, select: { key: true } })
     : [];
 
+  // E-SOC-09: the previews show links as the send will tag them.
+  const utm = await getUtmConfig(workspace.id);
   const [accounts, topicRows, campaigns, queue, requireApproval] = await Promise.all([
     db.zernioAccount.findMany({
       where: { workspaceId: workspace.id, status: "connected" },
@@ -101,7 +104,8 @@ export default async function SocialComposePage({ searchParams }: { searchParams
       <SocialComposer
         accounts={composerAccounts}
         topics={topics}
-        campaigns={campaigns.map((c) => ({ id: c.id, name: c.name, color: c.color }))}
+        campaigns={campaigns.map((c) => ({ id: c.id, name: c.name, color: c.color, utmCampaign: c.utmCampaign }))}
+        utm={utm}
         categories={categories}
         approvalNotice={requireApproval && !canAdmin(membership.role)}
         queue={{ nextFree: nextFreeLabel, hasSlots, timeZone: queue.timeZone }}

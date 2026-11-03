@@ -1665,3 +1665,17 @@ before changing code in that area.
   `social.link_in_bio_saved`): settings `linkinbio:enabled` / `linkinbio:slug`; the address is 3–40 lowercase
   letters, digits or hyphens, unique across workspaces (refused, never suffixed). Off, or a deleted workspace, is a
   404.
+
+## ⚠ The composer previews and counts what will be sent; X is counted the way X counts (2026-11-03, audit Phase 5, growth part bh)
+- **Previews show the sent text** (E-SOC-09, `SocialComposer` `sendFor`): built the way `lib/social/publish.ts`
+  builds it — links tagged by the same `applyUtm` (now in the pure `lib/social/utm-apply.ts`, re-exported by
+  `utm.ts`; the post's campaign tag beats the workspace's), then, where a first comment exists
+  (`supportsFirstComment`, so never a Story, X or TikTok), "Move links to the first comment" takes them out of the
+  caption (`splitLinks`). Each card shows the first comment as it will be posted. ⚠ Change one and change the other:
+  the preview and the send must stay the same arithmetic. The link-moving checkbox, each network's own first
+  comment and Story/Reel are controlled now, so the preview follows them.
+- ⚠ **X counts weighted characters** (`lib/social/text-length.ts` `xWeightedLength`, twitter-text v3's weights):
+  every link 23, Latin 1, CJK / most other scripts / an emoji (a whole ZWJ sequence) 2, after NFC. `postLength` is
+  what the composer's counters, the send-time check (`legProblem`), the tailor and the overview's over-limit list
+  all use — a `.length` count refused short posts with long links and passed CJK posts X rejected. The counters
+  count the text AS SENT (tags included), the same text the send checks.
