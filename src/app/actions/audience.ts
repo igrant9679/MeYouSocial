@@ -10,6 +10,10 @@ import { images } from "@/lib/images";
 
 registerOnboardingJobs();
 
+const SECTION_LABEL: Record<string, string> = {
+  demographics: "demographics", psychographics: "psychographics", onlineBehavior: "online behaviour", offlineBehavior: "offline behaviour", keyQuestions: "key questions",
+};
+
 /** Edit any section of the avatar manually. */
 export async function updateAudienceSectionAction(formData: FormData) {
   const channelId = String(formData.get("channelId"));
@@ -17,7 +21,7 @@ export async function updateAudienceSectionAction(formData: FormData) {
   const value = String(formData.get("value") ?? "");
   if (!["demographics", "psychographics", "onlineBehavior", "offlineBehavior", "keyQuestions"].includes(section)) return;
 
-  const { workspace } = await requireRole("EDITOR");
+  const { workspace, user } = await requireRole("EDITOR");
   const channel = await db.channel.findFirst({ where: { id: channelId, workspaceId: workspace.id } });
   if (!channel) return;
 
@@ -26,7 +30,9 @@ export async function updateAudienceSectionAction(formData: FormData) {
       ? writeJson(value.split(/\n+/).map((s) => s.trim()).filter(Boolean))
       : writeJson({ summary: value });
 
-  await db.audienceAvatar.upsert({
+  const { audienceSnapshot, saveVersion } = await import("@/lib/profile-versions");
+  const existing = await db.audienceAvatar.findUnique({ where: { channelId } });
+  const avatar = await db.audienceAvatar.upsert({
     where: { channelId },
     update: { [section]: payload },
     create: {
@@ -34,6 +40,8 @@ export async function updateAudienceSectionAction(formData: FormData) {
       [section]: payload,
     },
   });
+  // Every edit is a version (E-SET-07), so a refresh or a slip can be undone.
+  await saveVersion({ kind: "audience", profileId: avatar.id, channelId, snapshot: audienceSnapshot(avatar), label: `Edited ${SECTION_LABEL[section] ?? section}`, userId: user.id, before: existing ? audienceSnapshot(existing) : null });
   revalidatePath(`/channels/${channelId}/audience`);
 }
 

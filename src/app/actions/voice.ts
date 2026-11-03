@@ -142,6 +142,7 @@ export async function deleteVoiceProfileAction(formData: FormData) {
   });
   if (!profile || profile.isDefault) return; // Don't allow deleting the default
   await db.voiceProfile.delete({ where: { id: profile.id } });
+  await db.profileVersion.deleteMany({ where: { kind: "voice", profileId: profile.id } });
   revalidatePath(`/channels/${profile.channelId}/voice`);
 }
 
@@ -163,59 +164,113 @@ export async function setScriptVoiceAction(formData: FormData) {
   revalidatePath(`/scripts/${scriptId}`);
 }
 
-/** Simple mode: tweak the voice with natural-language instructions. */
-export async function refineVoiceSimpleAction(formData: FormData) {
-  const channelId = String(formData.get("channelId"));
-  const voiceId = String(formData.get("voiceId"));
-  const instruction = String(formData.get("instruction") ?? "").trim();
-  if (!instruction) return;
+// ── Re-training makes a new version (E-SET-07) ─────────────────────────────
 
-  const { workspace } = await requireRole("EDITOR");
-  const profile = await db.voiceProfile.findFirst({
-    where: { id: voiceId, channel: { workspaceId: workspace.id } },
-  });
+type Sample = { id: string; label: string; chars: number; body: string };
+
+/** The newest writing samples, trimmed to a budget — training input for the model. */
+function samplesBlock(samples: Sample[], budget = 12_000): string {
+  const parts: string[] = [];
+  let left = budget;
+  for (const s of [...samples].reverse()) {
+    if (left <= 200) break;
+    const body = s.body.slice(0, left);
+    parts.push(`--- ${s.label} ---\n${body}`);
+    left -= body.length;
+  }
+  return parts.length ? `\n\nWriting samples by this creator — match how they actually write:\n${parts.join("\n\n")}` : "";
+}
+
+const voiceBack = (channelId: string, voiceId: string, msg: string, ok = false): never =>
+  redirect(`/channels/${channelId}/voice?profile=${voiceId}&${ok ? "ok" : "err"}=${encodeURIComponent(msg)}`);
+
+/**
+ * Ask the model for the whole profile back, apply it, and keep it as a version.
+ * The scratch keys ("_preview"…) stay as they were; a mock or non-JSON answer
+ * changes nothing and says so (ENG-06 — fluent mock text must never stand in
+ * for a trained voice).
+ */
+async function retrainVoice(opts: { channelId: string; voiceId: string; workspaceId: string; userId: string; ask: string; label: string; trainedFrom?: string }) {
+  const profile = await db.voiceProfile.findFirst({ where: { id: opts.voiceId, channelId: opts.channelId, channel: { workspaceId: opts.workspaceId } } });
   if (!profile) return;
-
-  const current = readJson<Record<string, unknown>>(profile.data, {});
-  // Ask the LLM to apply the instruction to the structured voice payload.
+  const { jsonObjectFrom, saveVersion, voiceSnapshot } = await import("@/lib/profile-versions");
+  const before = voiceSnapshot(profile.data);
+  const samples = readJson<Sample[]>(profile.samples, []);
   const result = await llm.complete({
     purpose: "voice",
     model: "claude-sonnet",
-    system: "You revise a creator voice profile. Apply the user's natural-language instruction and return the updated JSON.",
-    messages: [
-      { role: "user", content: `Instruction: ${instruction}\n\nCurrent profile JSON:\n${JSON.stringify(current, null, 2)}` },
-    ],
-    workspaceId: workspace.id,
+    system: "You maintain a creator's voice profile. Return the COMPLETE updated profile as ONE JSON object with the same keys as the current one (archetype, delivery, rhetoric, diction, extras, summary, …). Respond with the JSON object only.",
+    messages: [{ role: "user", content: `${opts.ask}\n\nCurrent profile JSON:\n${JSON.stringify(before, null, 2)}${samplesBlock(samples)}` }],
+    workspaceId: opts.workspaceId,
   });
-
-  await db.voiceProfile.update({
-    where: { id: profile.id },
-    data: {
-      data: writeJson({ ...current, _lastInstruction: instruction, _refined: result.content.slice(0, 1500) }),
-    },
-  });
-  revalidatePath(`/channels/${channelId}/voice`);
+  if (result.provider === "mock") voiceBack(opts.channelId, profile.id, "No AI provider this workspace can use answered — nothing changed.");
+  const next = jsonObjectFrom(result.content);
+  if (!next) voiceBack(opts.channelId, profile.id, "The model's answer wasn't a voice profile — nothing changed.");
+  const content = voiceSnapshot(JSON.stringify(next));
+  if (opts.trainedFrom) content.source = { trained: true, basis: opts.trainedFrom };
+  const scratch = Object.fromEntries(Object.entries(readJson<Record<string, unknown>>(profile.data, {})).filter(([k]) => k.startsWith("_")));
+  await db.voiceProfile.update({ where: { id: profile.id }, data: { data: writeJson({ ...content, ...scratch }) } });
+  await saveVersion({ kind: "voice", profileId: profile.id, channelId: opts.channelId, snapshot: content, label: opts.label, userId: opts.userId, before });
+  revalidatePath(`/channels/${opts.channelId}/voice`);
+  return profile.id;
 }
 
-/** Advanced mode: persist the full structured edit. */
+/** Simple mode: tweak the voice with natural-language instructions — the writing samples inform it. */
+export async function refineVoiceSimpleAction(formData: FormData) {
+  const channelId = String(formData.get("channelId"));
+  const voiceId = String(formData.get("voiceId"));
+  const instruction = String(formData.get("instruction") ?? "").trim().slice(0, 500);
+  if (!instruction) return;
+  const { workspace, user } = await requireRole("EDITOR");
+  const id = await retrainVoice({ channelId, voiceId, workspaceId: workspace.id, userId: user.id, ask: `Apply this instruction: ${instruction}`, label: `Refined: ${instruction}` });
+  if (id) {
+    const p = await db.voiceProfile.findUnique({ where: { id }, select: { data: true } });
+    await db.voiceProfile.update({ where: { id }, data: { data: writeJson({ ...readJson<Record<string, unknown>>(p?.data ?? "{}", {}), _lastInstruction: instruction }) } });
+    voiceBack(channelId, id, "Refined — kept as a new version.", true);
+  }
+}
+
+/** Re-derive the voice from the writing samples alone. */
+export async function retrainVoiceFromSamplesAction(formData: FormData) {
+  const channelId = String(formData.get("channelId"));
+  const voiceId = String(formData.get("voiceId"));
+  const { workspace, user } = await requireRole("EDITOR");
+  const profile = await db.voiceProfile.findFirst({ where: { id: voiceId, channelId, channel: { workspaceId: workspace.id } }, select: { samples: true } });
+  if (!profile) return;
+  const n = readJson<Sample[]>(profile.samples, []).length;
+  if (!n) voiceBack(channelId, voiceId, "Add a writing sample first — retraining reads them.");
+  const basis = `${n} writing sample${n === 1 ? "" : "s"}`;
+  const id = await retrainVoice({
+    channelId, voiceId, workspaceId: workspace.id, userId: user.id,
+    ask: "Derive this creator's voice from their writing samples below: how they open, their sentence rhythm, word choice, humour, how they argue and sign off. Keep what the samples don't contradict.",
+    label: `Retrained from ${basis}`,
+    trainedFrom: basis,
+  });
+  if (id) voiceBack(channelId, id, `Retrained from ${basis} — kept as a new version.`, true);
+}
+
+/** Advanced mode: persist the full structured edit, as a version. */
 export async function updateVoiceAdvancedAction(formData: FormData) {
   const channelId = String(formData.get("channelId"));
   const voiceId = String(formData.get("voiceId"));
   const raw = String(formData.get("data") ?? "{}");
 
-  let parsed: unknown;
-  try { parsed = JSON.parse(raw); } catch { return; }
-
-  const { workspace } = await requireRole("EDITOR");
+  const { workspace, user } = await requireRole("EDITOR");
   const profile = await db.voiceProfile.findFirst({
     where: { id: voiceId, channel: { workspaceId: workspace.id } },
   });
   if (!profile) return;
+  let parsed: unknown;
+  try { parsed = JSON.parse(raw); } catch { parsed = null; }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) voiceBack(channelId, profile.id, "That isn't a JSON object — nothing was saved.");
 
+  const { saveVersion, voiceSnapshot } = await import("@/lib/profile-versions");
+  const before = voiceSnapshot(profile.data);
   await db.voiceProfile.update({
     where: { id: profile.id },
     data: { data: writeJson(parsed) },
   });
+  await saveVersion({ kind: "voice", profileId: profile.id, channelId: profile.channelId, snapshot: voiceSnapshot(JSON.stringify(parsed)), label: "Edited", userId: user.id, before });
   revalidatePath(`/channels/${channelId}/voice`);
 }
 

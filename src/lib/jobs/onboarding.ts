@@ -187,11 +187,11 @@ export function registerOnboardingJobs() {
         "How will this look in 3 years?",
       ]),
     };
-    await db.audienceAvatar.upsert({
-      where: { channelId },
-      update: baseline,
-      create: { channelId, ...baseline },
-    });
+    // A refresh of an avatar that exists keeps it until a real answer replaces
+    // it — the baseline used to overwrite a hand-written avatar first, so a
+    // failed model call left generic text where the team's work had been.
+    const prior = await db.audienceAvatar.findUnique({ where: { channelId } });
+    if (!prior) await db.audienceAvatar.create({ data: { channelId, ...baseline } });
     await ctx.progress(0.4);
 
     try {
@@ -222,7 +222,7 @@ export function registerOnboardingJobs() {
       if (!parsed) throw new Error("the model's answer wasn't the JSON asked for");
       const text = (v: unknown) => (typeof v === "string" && v.trim() ? writeJson({ summary: v.trim().slice(0, 600) }) : undefined);
       const questions = Array.isArray(parsed.keyQuestions) ? parsed.keyQuestions.filter((q): q is string => typeof q === "string" && Boolean(q.trim())).slice(0, 5) : [];
-      await db.audienceAvatar.update({
+      const avatar = await db.audienceAvatar.update({
         where: { channelId },
         data: {
           demographics: text(parsed.demographics),
@@ -232,8 +232,14 @@ export function registerOnboardingJobs() {
           ...(questions.length ? { keyQuestions: writeJson(questions) } : {}),
         },
       });
+      // Kept as a version (E-SET-07): a refresh can be compared and undone.
+      const { audienceSnapshot, saveVersion } = await import("@/lib/profile-versions");
+      await saveVersion({
+        kind: "audience", profileId: avatar.id, channelId, snapshot: audienceSnapshot(avatar),
+        label: prior ? "Refreshed from YouTube" : "Generated", before: prior ? audienceSnapshot(prior) : null,
+      });
     } catch (e) {
-      ctx.log(`audience: LLM enrichment failed, keeping baseline. ${e instanceof Error ? e.message : e}`);
+      ctx.log(`audience: LLM enrichment failed, keeping ${prior ? "the avatar as it was" : "the baseline"}. ${e instanceof Error ? e.message : e}`);
     }
     await ctx.progress(1);
   });

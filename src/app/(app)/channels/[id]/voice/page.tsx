@@ -14,7 +14,12 @@ import {
   createVoiceProfileAction,
   setDefaultVoiceAction,
   deleteVoiceProfileAction,
+  retrainVoiceFromSamplesAction,
 } from "@/app/actions/voice";
+import { canEdit } from "@/lib/acl";
+import { listVersions, voiceSnapshot } from "@/lib/profile-versions";
+import { displayTimeZone } from "@/lib/display-zone";
+import { ProfileVersions } from "@/components/ProfileVersions";
 
 // MU-03 — Voice editor. Implements..08:
 //   01 auto-train · 02 baseline · 03 Simple · 04 Advanced · 05 samples ·
@@ -42,11 +47,12 @@ export default async function ChannelVoicePage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ profile?: string; error?: string }>;
+  searchParams: Promise<{ profile?: string; error?: string; ok?: string; err?: string }>;
 }) {
   const { id } = await params;
-  const { profile: profileParam, error } = await searchParams;
-  await requireChannel(id);
+  const { profile: profileParam, error, ok, err } = await searchParams;
+  const { workspace, membership } = await requireChannel(id);
+  const editor = canEdit(membership.role);
 
   const profiles = await db.voiceProfile.findMany({
     where: { channelId: id },
@@ -64,6 +70,8 @@ export default async function ChannelVoicePage({
   const active = profiles.find((p) => p.id === profileParam) ?? profiles.find((p) => p.isDefault) ?? profiles[0];
   const data = readJson<VoiceData>(active.data, {});
   const samples = readJson<Sample[]>(active.samples, []);
+  // E-SET-07: every refine, retrain, edit and restore of this profile.
+  const [versions, readTz] = await Promise.all([listVersions("voice", active.id, voiceSnapshot(active.data)), displayTimeZone(workspace.id)]);
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-4">
@@ -141,6 +149,10 @@ export default async function ChannelVoicePage({
           )}
         </div>
 
+        {(ok || err) && (
+          <div className="card text-sm" data-voice-flash style={{ background: ok ? "var(--green-soft)" : "var(--rose-soft)", color: ok ? "var(--green-on)" : "var(--rose-on)" }}>{ok ?? err}</div>
+        )}
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {/* Simple mode */}
           <section className="card">
@@ -190,7 +202,15 @@ export default async function ChannelVoicePage({
         {/* Writing samples */}
         <section className="card">
           <h2 className="font-mono text-[14px] font-bold mb-3 flex items-center gap-2"><FileText className="w-4 h-4" style={{ color: "#2563EB" }} /> Writing samples <span className="text-xs text-[var(--mute)] font-normal">— up to 50,000 chars each</span></h2>
-          <p className="text-xs text-[var(--mute)] mb-3">Paste blog posts, threads, transcripts, or other scripts you&apos;ve written. More samples = better voice match.</p>
+          <p className="text-xs text-[var(--mute)] mb-3">Paste blog posts, threads, transcripts, or other scripts you&apos;ve written. More samples = better voice match — Simple mode reads them too.</p>
+          {samples.length > 0 && (
+            <form action={retrainVoiceFromSamplesAction} className="mb-3 flex items-center gap-2 flex-wrap">
+              <input type="hidden" name="channelId" value={id} />
+              <input type="hidden" name="voiceId" value={active.id} />
+              <SubmitButton className="btn sm" pendingText="Retraining…" title="Re-derive this voice from the samples below — what it is now is kept as a version"><Sparkles className="w-3.5 h-3.5" /> Retrain from {samples.length} sample{samples.length === 1 ? "" : "s"}</SubmitButton>
+              <span className="text-[11px] text-[var(--mute)]">Makes a new version; the one before can be restored.</span>
+            </form>
+          )}
 
           <form action={addVoiceSampleAction} className="flex flex-col gap-2 mb-4">
             <input type="hidden" name="voiceId" value={active.id} />
@@ -215,6 +235,8 @@ export default async function ChannelVoicePage({
             ))}
           </ul>
         </section>
+
+        <ProfileVersions versions={versions} editor={editor} timeZone={readTz} noun="voice" />
       </div>
     </div>
   );

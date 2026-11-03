@@ -176,6 +176,12 @@ export const HELP_CATEGORIES: FaqCategory[] = [
         tags: ["youtube", "video", "topic", "kw", "keyword", "link", "upload", "views", "retention"],
       },
       {
+        q: "I refined my channel's voice and don't like it — can I go back?",
+        a: "Yes. A channel's **voice profiles** and its **audience avatar** keep **versions**: every Simple-mode refine, **Retrain from samples**, Advanced edit, section edit, refresh from YouTube and restore keeps the state it produced (the first change also keeps how it was before). Under **Versions** on the Voice or Audience page, each says what made it, who and when; **Compare with now** lists the fields that differ, and **Restore** brings it back — what's there now is kept as a version too, so a restore can be undone the same way. Writing samples are what training reads, not part of a version: Simple mode reads them alongside your instruction, and **Retrain from N samples** re-derives the voice from them alone. A refresh from YouTube that fails now leaves the avatar as it was.",
+        links: [{ label: "Channels →", href: "/channels" }],
+        tags: ["voice", "audience", "avatar", "versions", "restore", "undo", "retrain", "samples", "persona"],
+      },
+      {
         q: "Which searches find my articles — and where do my keywords rank?",
         a: "Once Search Console is connected (Settings → Analytics), each sync also reads **what people searched**: the last 28 days by page and search, kept as one rolling snapshot that the next sync replaces. An article's **Performance** tab lists the searches that found it — clicks, impressions, CTR and Google's average position for each, with its focus keyword marked (or a note that it isn't among them). **Keywords** gains a **Google** column: each keyword's position over the same 28 days, weighted by impressions across every page that showed for it, with the page that did best. A dash means no impressions in the window, or not synced yet. Each page keeps its top 20 searches, plus every search that is one of your keywords.",
         links: [{ label: "Keywords →", href: "/blog/keywords" }, { label: "Analytics settings →", href: "/admin/analytics" }],

@@ -9,6 +9,10 @@ import {
   refreshAudienceAction,
   generateAudiencePhotoAction,
 } from "@/app/actions/audience";
+import { canEdit } from "@/lib/acl";
+import { audienceSnapshot, listVersions } from "@/lib/profile-versions";
+import { displayTimeZone } from "@/lib/display-zone";
+import { ProfileVersions } from "@/components/ProfileVersions";
 
 // MU-13 — Audience Avatar./03/04/05.
 
@@ -19,9 +23,11 @@ const SECTIONS = [
   { key: "offlineBehavior", label: "Offline behavior" },
 ] as const;
 
-export default async function ChannelAudiencePage({ params }: { params: Promise<{ id: string }> }) {
+export default async function ChannelAudiencePage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ ok?: string; err?: string }> }) {
   const { id } = await params;
-  await requireChannel(id);
+  const { ok, err } = await searchParams;
+  const { workspace, membership } = await requireChannel(id);
+  const editor = canEdit(membership.role);
   const audience = await db.audienceAvatar.findUnique({ where: { channelId: id } });
 
   if (!audience) {
@@ -37,6 +43,8 @@ export default async function ChannelAudiencePage({ params }: { params: Promise<
   }
 
   const keyQuestions = readJson<string[]>(audience.keyQuestions, []);
+  // E-SET-07: every edit and refresh of the avatar, to compare and restore.
+  const [versions, readTz] = await Promise.all([listVersions("audience", audience.id, audienceSnapshot(audience)), displayTimeZone(workspace.id)]);
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -54,7 +62,7 @@ export default async function ChannelAudiencePage({ params }: { params: Promise<
         </form>
         <form action={refreshAudienceAction} className="mt-3">
           <input type="hidden" name="channelId" value={id} />
-          <button type="submit" className="btn w-full" title="Re-generate avatar from latest YouTube data (overwrites edits)">Refresh avatar from YT data</button>
+          <button type="submit" className="btn w-full" title="Re-generate the avatar from the latest YouTube data — what it is now is kept as a version you can restore">Refresh avatar from YT data</button>
         </form>
         {/* Deleting is not the same as refreshing: refresh overwrites from
             YouTube data, this clears the profile so the page returns to its
@@ -66,6 +74,9 @@ export default async function ChannelAudiencePage({ params }: { params: Promise<
       </aside>
 
       <div className="lg:col-span-2 flex flex-col gap-3">
+        {(ok || err) && (
+          <div className="card text-sm" style={{ background: ok ? "var(--green-soft)" : "var(--rose-soft)", color: ok ? "var(--green-on)" : "var(--rose-on)" }}>{ok ?? err}</div>
+        )}
         {SECTIONS.map((s) => {
           const value = readJson<{ summary?: string; placeholder?: boolean }>(audience[s.key] as string, {});
           return (
@@ -113,6 +124,8 @@ export default async function ChannelAudiencePage({ params }: { params: Promise<
             </div>
           </form>
         </section>
+
+        <ProfileVersions versions={versions} editor={editor} timeZone={readTz} noun="audience avatar" />
       </div>
     </div>
   );

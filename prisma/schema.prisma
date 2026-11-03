@@ -1297,6 +1297,7 @@ model Channel {
   thumbnails         Thumbnail[]
   assets             Asset[]
   wikiDocs           WikiDoc[]
+  profileVersions ProfileVersion[]
 }
 
 model VoiceProfile {
@@ -1311,6 +1312,26 @@ model VoiceProfile {
   updatedAt   DateTime @updatedAt
 
   channel     Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+}
+
+// Versions of a voice profile or an audience avatar (E-SET-07): every refine,
+// edit, retrain, refresh or restore leaves the state it produced here, so any
+// earlier one can be compared and brought back. The snapshot is the profile's
+// own content (a voice's data without its scratch "_" keys; an avatar's five
+// sections) — writing samples are training INPUT, not part of a version.
+model ProfileVersion {
+  id          String   @id @default(cuid())
+  kind        String   // voice | audience
+  profileId   String   // VoiceProfile.id or AudienceAvatar.id
+  channelId   String
+  snapshot    String   // JSON
+  label       String   // what made it: "Refined: …", "Edited", "Retrained from 3 samples", "Restored version 2"
+  createdById String?
+  createdAt   DateTime @default(now())
+
+  channel Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+
+  @@index([kind, profileId, createdAt])
 }
 
 model AudienceAvatar {

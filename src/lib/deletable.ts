@@ -374,7 +374,11 @@ export const DELETABLE: Record<DeletableKind, Deletable> = {
     role: "EDITOR",
     find: (id, workspaceId) => db.audienceAvatar.findFirst({ where: { id, channel: { workspaceId } }, select: { id: true, channelId: true } })
       .then((r) => (r ? { id: r.id, name: "audience profile" } : null)),
-    async remove(id, workspaceId) { await db.audienceAvatar.deleteMany({ where: { id, channel: { workspaceId } } }); },
+    async remove(id, workspaceId) {
+      const { count } = await db.audienceAvatar.deleteMany({ where: { id, channel: { workspaceId } } });
+      // Its versions (E-SET-07) go with it — a new avatar starts its own.
+      if (count) await db.profileVersion.deleteMany({ where: { kind: "audience", profileId: id } });
+    },
     revalidate: [],
   },
 

@@ -1961,3 +1961,19 @@ before changing code in that area.
   focus keyword marked — fetched even when it ranks below the top 20 — or named as missing. Keywords' **Google**
   column (`keywordRanks`): impression-weighted position across every page for the phrase, with the best page (clicks,
   then impressions); a dash with the window when there were no impressions, or a note when never synced.
+
+## ⚠ Voice profiles and audience avatars keep versions; re-training applies the model's answer or nothing (2026-11-03, audit Phase 5, growth part ca)
+- **Versions** (E-SET-07, `src/lib/profile-versions.ts`, model `ProfileVersion`): every voice refine, **Retrain from
+  samples**, Advanced edit, audience section edit, refresh from YouTube and restore calls `saveVersion` with the state
+  it produced; the first change also keeps "As it was". A save equal to the latest version is no version; 30 are
+  kept per profile. A snapshot is the profile's own content — a voice's `data` WITHOUT its "_" scratch keys
+  (`_preview`, `_lastInstruction`), an avatar's five sections; writing samples are training input, not versioned.
+  The Voice and Audience pages list them (who, when, what made each) with **Compare with now** (field by dotted path)
+  and **Restore** (editors; itself a version). Deleting a profile deletes its versions.
+- ⚠ **Re-training applies the answer or nothing**: Simple mode used to store the model's reply as a note and change
+  nothing. Now `retrainVoice` asks for the whole profile as JSON, with the newest writing samples, and applies it —
+  the scratch keys stay the page's; a mock answer (no usable provider) or a non-JSON reply changes nothing and says
+  so (ENG-06). **Retrain from N samples** re-derives it from the samples and records `source.basis`.
+- ⚠ **A refresh never blanks a real avatar**: `onboarding.audience` writes its generic baseline only when there is
+  no avatar yet; on a refresh the existing one stays until a real answer replaces it, so a failed model call leaves
+  the team's text in place (it used to write the placeholder first).

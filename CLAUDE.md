@@ -323,6 +323,7 @@ area, rather than loading all of them into every session.
 - A project carries its YouTube upload; a Topic counts its own videos before any keyword match — 2026-11-03, audit Phase 5, growth part bx
 - The Ideas board scales: 20 cards a column, a paged table, one Topic picker — 2026-11-03, audit Phase 5, growth part by
 - What people searched is a 28-day snapshot, replaced whole; keywords rank by it — 2026-11-03, audit Phase 5, growth part bz
+- Voice profiles and audience avatars keep versions; re-training applies the model's answer or nothing — 2026-11-03, audit Phase 5, growth part ca
 
 ## Open items / things the user still owns
 - **Analytics: APIs enabled 2026-08-03** (Search Console + GA Admin + GA Data, on project
