@@ -19,6 +19,7 @@ import {
 } from "@/app/actions/platform-workspaces";
 import { RESTORE_DAYS, purgedWorkspaces } from "@/lib/workspace-lifecycle";
 import { actorNames } from "@/lib/audit-log";
+import { TEMPLATE_PART_LABEL, TEMPLATE_PARTS, templateSummary } from "@/lib/workspace-template";
 
 // Settings → Workspaces: the PLATFORM operator's cross-tenant surface. Everything
 // here works on any workspace regardless of the operator's own memberships —
@@ -53,6 +54,7 @@ export default async function PlatformWorkspacesPage() {
     purgedWorkspaces(),
   ]);
   const deleters = await actorNames(deleted.map((d) => d.deletedById ?? ""));
+  const templates = await Promise.all(workspaces.map(async (w) => ({ id: w.id, name: w.name, counts: await templateSummary(w.id) })));
   const impacts = new Map(
     await Promise.all(
       workspaces.map(async (w) => [w.id, await deletionImpact("workspace", w.id, w.id)] as const),
@@ -73,7 +75,8 @@ export default async function PlatformWorkspacesPage() {
             page works there too.
             {" "}<Link href="/admin/unclaimed" className="underline">Unclaimed accounts →</Link>{" "}
             <Link href="/admin/incident" className="underline">Incident mode →</Link>{" "}
-            <Link href="/admin/keyring" className="underline">Keyring →</Link>
+            <Link href="/admin/keyring" className="underline">Keyring →</Link>{" "}
+            <Link href="/admin/console" className="underline" data-console-link>Console — every tenant&apos;s health →</Link>
           </p>
         </div>
       </div>
@@ -82,9 +85,23 @@ export default async function PlatformWorkspacesPage() {
       <form action={platformCreateWorkspaceAction} className="card mb-4 flex flex-wrap items-end gap-2">
         <label className="flex-1 min-w-52 text-[11px] text-[var(--mute)]">
           New workspace name
-          <input name="name" required minLength={2} maxLength={60} placeholder="Acme Inc." className="w-full text-sm mt-0.5" />
+          <input name="name" required minLength={2} maxLength={60} placeholder="Acme Inc." className="w-full text-sm mt-0.5 border border-[var(--line-2)] rounded-lg px-2 py-1" />
+        </label>
+        {/* E-SET-04: start from a workspace — only lib/workspace-template.ts's allowlist travels. */}
+        <label className="flex-1 min-w-52 text-[11px] text-[var(--mute)]">
+          Start from
+          <select name="templateId" defaultValue="" className="w-full min-w-0 text-sm mt-0.5 border border-[var(--line-2)] rounded-lg px-2 py-1" data-template-pick>
+            <option value="">A blank workspace</option>
+            {templates.map((t) => <option key={t.id} value={t.id}>{t.name} — {t.counts.dials} dials, {t.counts.slots} slots, {t.counts.motifs} motifs, {t.counts.topics} Topics</option>)}
+          </select>
         </label>
         <SubmitButton className="btn primary" pendingText="Creating…">Create workspace</SubmitButton>
+        <div className="w-full flex flex-wrap gap-x-4 gap-y-1 text-[11px]">
+          {TEMPLATE_PARTS.map((p) => (
+            <label key={p} className="inline-flex items-center gap-1.5"><input type="checkbox" name={`part_${p}`} defaultChecked /> {TEMPLATE_PART_LABEL[p]}</label>
+          ))}
+          <span className="text-[var(--mute)]">— copied only when a workspace is chosen; never keys, connections, the brand kit, people, content or autonomy.</span>
+        </div>
       </form>
 
       {workspaces.map((ws) => {

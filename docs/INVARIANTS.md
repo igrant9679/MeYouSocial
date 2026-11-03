@@ -1622,3 +1622,19 @@ before changing code in that area.
 - Slots keep weekday, minute, enabled and category; motifs copy the current wording as version 1; only active Topics
   with their phrases and priority. Never copied: the brand kit, people, content. Audited in the new workspace as
   `workspace.created_from_template` with what was copied.
+
+## ⚠ The operator sees every tenant's health on one page (2026-11-03, audit Phase 5, growth part be)
+- **`/admin/console`** (E-SHL-15, operator only — `requireRole("ADMIN")` plus `isPlatformOperator`, like
+  /admin/workspaces; linked from it): one row per live workspace — what needs a person (the stage strip's urgent
+  counts), the engine's last check-in (`readHeartbeat`: never / paused / silent past two hours / ok with its note),
+  analytics (`readSyncStatus`: failing sources named with their message), the website (`lastProbe`: "bad" after two
+  failures in a row, as Website → Health), the needed connections missing and whose keys the rest run on (own /
+  platform / server, from `connectionRows`' `source`), what's failing (Zernio accounts not connected, publish and
+  account notices of the last 7 days), members and admins, and the last member activity.
+- ⚠ **It never calls a provider**: every cell is a stored status, so opening it can't spend quota, time out on a
+  dead connector, or touch a tenant. Each column reads the helper the tenant's own page reads, so they agree.
+- The operator's own create form on /admin/workspaces takes the same template choice as /onboarding/workspace
+  (any live workspace there — the operator runs them all), and the flash says what came over.
+- ⚠ **A JSX text that follows an expression, holds an HTML entity (`&apos;`) and wraps onto the next line loses its
+  leading space** in this build ("{n} with … engine&apos;s⏎…" compiled to `n,"with…"` and rendered "4with"). Put an
+  explicit `{" "}` after the expression. Plain text without an entity keeps its space.

@@ -6,6 +6,7 @@ import { cookies } from "next/headers";
 import { z } from "zod";
 import { nanoid } from "nanoid";
 import { db } from "@/lib/db";
+import { TEMPLATE_PARTS, copyFromTemplate } from "@/lib/workspace-template";
 import { requireUser, isPlatformOperator, ACTIVE_WS_COOKIE } from "@/lib/acl";
 import { writeAudit } from "@/lib/governance";
 import { DELETABLE } from "@/lib/deletable";
@@ -50,14 +51,29 @@ export async function platformCreateWorkspaceAction(formData: FormData) {
   const clash = await db.workspace.findFirst({ where: { name: { equals: name, mode: "insensitive" } }, select: { name: true, deletedAt: true } });
   if (clash) back(clash.deletedAt ? `A deleted workspace called “${clash.name}” is waiting to be purged — restore it, or purge it first.` : `A workspace called “${clash.name}” already exists.`, false);
 
+  // E-SET-04: start from any live workspace — the operator runs them all here.
+  const templateId = String(formData.get("templateId") ?? "").trim();
+  const template = templateId ? await db.workspace.findFirst({ where: { id: templateId, deletedAt: null }, select: { id: true, name: true } }) : null;
+  if (templateId && !template) back("That workspace can't be used as a template.", false);
+  const parts = TEMPLATE_PARTS.filter((p) => formData.get(`part_${p}`) === "on");
+
   const workspace = await db.workspace.create({ data: { name } });
   await writeAudit({
     workspaceId: workspace.id, actorId: user.id,
     action: "workspace.created", entityType: "workspace", entityId: workspace.id,
     meta: { name, via: "platform" },
   });
+  let copiedNote = "";
+  if (template && parts.length) {
+    const copied = await copyFromTemplate(template.id, workspace.id, parts);
+    await writeAudit({
+      workspaceId: workspace.id, actorId: user.id, action: "workspace.created_from_template", entityType: "workspace", entityId: workspace.id,
+      meta: { from: template.name, fromId: template.id, parts, copied },
+    });
+    copiedNote = ` From “${template.name}”: ${copied.dials} dials, ${copied.slots} slots, ${copied.motifs} motifs, ${copied.topics} Topics.`;
+  }
   revalidatePath(PAGE);
-  back(`Created workspace “${name}”. Add members below, or enter it to configure.`);
+  back(`Created workspace “${name}”.${copiedNote} Add members below, or enter it to configure.`);
 }
 
 /**
