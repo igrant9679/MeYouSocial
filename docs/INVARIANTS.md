@@ -1991,3 +1991,17 @@ before changing code in that area.
   campaign's page → **Visits it brought** by landing page (the article linked). A campaign without its own code says
   why its visits can't be told apart. This rests on the send-time tagging (utm_source = network, utm_medium =
   social, utm_campaign = the campaign's code) — keep the two in step.
+
+## Caption Studio: a holiday library dated by rule, past days marked, one caption rewritten at a time (2026-11-03, audit Phase 5, growth part cc)
+- **The holiday library** (E-SOC-19, `caption-studio/holidays.ts`): US, UK, Canada, Australia and international days,
+  each with its RULE — fixed date, n-th or last weekday, Western Easter by the Gregorian computus (Good Friday, Easter
+  Monday, Mothering Sunday as offsets), US Thanksgiving offsets (Black Friday … Giving Tuesday), Victoria Day as the
+  Monday on or before May 24. ⚠ No date is typed in for a year. Added days arrive `verified` with `source:
+  "library"`; the page shows each day's rule, because a government can still move a holiday for one year. The
+  library opens on the workspace's search country (`keywords:country`; others → international).
+- **Past days**: on the month's list a day before today (posting zone) is marked **passed** and counted; a batch
+  already never posts one (SOC-05).
+- **Rewrite this one**: a submit on the batch form (`mode=rewrite:N`) — the batch's edits are folded in first, exactly
+  as Save edits, then `rewriteOne` narrows the scenario to that item, gives the batch's other captions as what not to
+  echo (and a countdown its series context), keeps day, time, image and Include, and re-runs the whole batch's flags.
+  A posted caption is refused; a mock or failed model changes nothing (as for a whole batch).

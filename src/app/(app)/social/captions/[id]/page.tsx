@@ -66,7 +66,7 @@ export default async function CaptionBatchPage({ params, searchParams }: { param
           {items.map((it, i) => {
             const text = assemble(it);
             return (
-              <li key={i} className="card" style={it.postId ? { opacity: 0.7 } : it.flags?.length ? { borderColor: "var(--amber)" } : undefined}>
+              <li key={i} id={`cap-${i}`} className="card scroll-mt-4" style={it.postId ? { opacity: 0.7 } : it.flags?.length ? { borderColor: "var(--amber)" } : undefined}>
                 <div className="flex items-center gap-2 flex-wrap mb-2">
                   {!it.postId && editor && (
                     <label className="inline-flex items-center gap-1 text-xs cursor-pointer">
@@ -80,6 +80,12 @@ export default async function CaptionBatchPage({ params, searchParams }: { param
                   {it.postId
                     ? <Link href={`/social/${it.postId}/edit`} className="text-[11px] underline">Saved as a post — open it</Link>
                     : <span className="font-mono text-[10px] text-[var(--mute)]">{text.length} characters · X version {it.x.length}/280</span>}
+                  {/* E-SOC-19: one caption again — the batch's edits are saved first, the others kept. */}
+                  {!it.postId && editor && (
+                    <SubmitButton className="btn sm" name="mode" value={`rewrite:${i}`} pendingText="Rewriting…" title="Write just this caption again, different from the others — your edits to the rest are saved first">
+                      <RotateCw className="w-3 h-3" /> Rewrite this one
+                    </SubmitButton>
+                  )}
                 </div>
                 {it.flags?.length > 0 && !it.postId && (
                   <ul className="m-0 mb-2 p-2 rounded-lg text-[11px] flex flex-col gap-0.5 list-none" style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }}>

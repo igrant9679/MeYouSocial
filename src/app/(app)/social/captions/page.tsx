@@ -13,7 +13,10 @@ import { Banner } from "@/components/SocialPostCard";
 import { SCENARIOS, type Scenario } from "@/lib/caption-studio/prompts";
 import { COUNTDOWN_STAGES, todayIn, shiftDay } from "@/lib/caption-studio/timing";
 import { dayLabel, monthRange, shiftMonth } from "@/lib/caption-studio/special-days";
+import { HOLIDAY_COUNTRIES, holidaysIn, isHolidayCountry, libraryCountryFor, type HolidayCountry } from "@/lib/caption-studio/holidays";
+import { keywordCountry } from "@/lib/keyword-volumes";
 import {
+  addLibraryDaysAction,
   addSpecialDayAction,
   generateBatchAction,
   pasteSpecialDaysAction,
@@ -25,7 +28,7 @@ import {
 // app (Socialmonials parity, phase 3, 2026-10-17). Four scenarios; each
 // generates a BATCH a person reviews before anything reaches the queue.
 
-type SP = { s?: string; month?: string; ok?: string; err?: string; flash?: string };
+type SP = { s?: string; month?: string; lib?: string; ok?: string; err?: string; flash?: string };
 const ICONS: Record<Scenario, React.ReactNode> = {
   special_days: <CalendarDays className="w-4 h-4" />,
   campaign: <Megaphone className="w-4 h-4" />,
@@ -53,6 +56,11 @@ export default async function CaptionStudioPage({ searchParams }: { searchParams
   ]);
   const selectedCount = days.filter((d) => d.selected).length;
   const unverified = days.filter((d) => !d.verified).length;
+  const passedCount = days.filter((d) => d.day < today).length;
+  // The holiday library (E-SOC-19): this month's days for one country, by rule.
+  const libCountry: HolidayCountry = isHolidayCountry(sp.lib) ? sp.lib : libraryCountryFor(await keywordCountry(workspace.id));
+  const holidays = scenario === "special_days" ? holidaysIn(libCountry, range.year, Number(month.slice(5))) : [];
+  const onList = new Set(days.map((d) => `${d.day}|${d.name.toLowerCase()}`));
 
   return (
     <div>
@@ -84,7 +92,7 @@ export default async function CaptionStudioPage({ searchParams }: { searchParams
               <Link href={`/social/captions?s=special_days&month=${shiftMonth(month, -1)}`} className="btn sm">←</Link>
               <h2 className="font-mono text-[14px] font-bold m-0">{range.label}</h2>
               <Link href={`/social/captions?s=special_days&month=${shiftMonth(month, 1)}`} className="btn sm">→</Link>
-              <span className="text-[11px] text-[var(--mute)]">{days.length} day{days.length === 1 ? "" : "s"} · {selectedCount} picked{unverified ? ` · ${unverified} date${unverified === 1 ? "" : "s"} to check` : ""}</span>
+              <span className="text-[11px] text-[var(--mute)]">{days.length} day{days.length === 1 ? "" : "s"} · {selectedCount} picked{unverified ? ` · ${unverified} date${unverified === 1 ? "" : "s"} to check` : ""}{passedCount ? ` · ${passedCount} already passed` : ""}</span>
               <span className="flex-1" />
               <form action={rollForwardAction}>
                 <input type="hidden" name="month" value={month} />
@@ -109,14 +117,18 @@ export default async function CaptionStudioPage({ searchParams }: { searchParams
                   <tbody>
                     {days.map((d) => {
                       const fid = `sd-${d.id}`;
+                      // E-SOC-19: a day already behind us can't be posted on.
+                      const passed = d.day < today;
                       return (
-                        <tr key={d.id} className="border-b border-[var(--line)] last:border-0 align-middle" style={d.selected ? { background: "var(--green-soft)" } : undefined}>
+                        <tr key={d.id} className="border-b border-[var(--line)] last:border-0 align-middle" data-passed={passed ? "1" : undefined} style={passed ? { opacity: 0.6 } : d.selected ? { background: "var(--green-soft)" } : undefined}>
                           {/* One form per row; inputs join it via form=, so the table stays valid HTML. */}
                           <td className="py-1.5 px-2"><input type="checkbox" name="selected" form={fid} defaultChecked={d.selected} aria-label={`Pick ${d.name}`} /></td>
                           <td className="py-1.5 px-2 whitespace-nowrap"><input type="date" name="day" form={fid} defaultValue={d.day} className={inputCls} /></td>
                           <td className="py-1.5 px-2">
                             <span className="font-semibold">{d.name}</span>
                             <span className="text-[10px] text-[var(--mute)] ml-1">{dayLabel(d.day)}{d.selected && d.selectedBy ? ` · picked by ${d.selectedBy}` : ""}</span>
+                            {passed && <span className="ml-1 font-mono text-[9px] uppercase px-1.5 py-0.5 rounded-full" style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }} title="This date has already passed — a caption for it won't be posted">passed</span>}
+                            {d.source === "library" && <span className="ml-1 text-[10px] text-[var(--mute)]" title="Added from the holiday library — its date comes from the day's rule">· library</span>}
                           </td>
                           <td className="py-1.5 px-2 whitespace-nowrap">
                             <label className="inline-flex items-center gap-1">
@@ -157,6 +169,43 @@ export default async function CaptionStudioPage({ searchParams }: { searchParams
               <div><SubmitButton className="btn sm" pendingText="Adding…">Add these</SubmitButton> <span className="text-[10px] text-[var(--mute)]">Lines without a date are reported back, never guessed. The year is {range.year} unless a line says otherwise.</span></div>
             </form>
           </div>
+
+          {/* E-SOC-19: the holiday library — each date computed from its rule. */}
+          <form action={addLibraryDaysAction} className="card mb-3" data-holiday-library>
+            <input type="hidden" name="month" value={month} />
+            <input type="hidden" name="country" value={libCountry} />
+            <div className="flex items-center gap-1.5 flex-wrap mb-2">
+              <h3 className="font-mono text-[13px] font-bold m-0 mr-1">From the holiday library</h3>
+              {HOLIDAY_COUNTRIES.map((c) => (
+                <Link key={c.code} href={`/social/captions?s=special_days&month=${month}&lib=${c.code}`} className={`btn sm ${c.code === libCountry ? "primary" : ""}`} aria-current={c.code === libCountry ? "true" : undefined}>{c.name}</Link>
+              ))}
+            </div>
+            {holidays.length === 0 ? (
+              <p className="text-xs text-[var(--mute)] m-0">Nothing in the {HOLIDAY_COUNTRIES.find((c) => c.code === libCountry)?.name} library for {range.label}.</p>
+            ) : (
+              <>
+                <ul className="m-0 p-0 list-none grid gap-1 sm:grid-cols-2">
+                  {holidays.map((h) => {
+                    const listed = onList.has(`${h.date}|${h.name.toLowerCase()}`);
+                    const passed = h.date < today;
+                    return (
+                      <li key={h.key} className="text-xs flex items-start gap-2" data-library-day={h.key}>
+                        <input type="checkbox" name="key" value={h.key} disabled={listed} defaultChecked={false} aria-label={`Add ${h.name}`} className="mt-0.5" />
+                        <span className="flex-1 min-w-0">
+                          <b>{h.name}</b> <span className="text-[var(--mute)]">· {dayLabel(h.date)} · {h.kind}</span>
+                          <span className="block text-[10px] text-[var(--mute)]">{h.rule}{listed ? " · on the list" : ""}{passed ? " · passed" : ""}</span>
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+                <div className="mt-2 flex items-center gap-2 flex-wrap">
+                  <SubmitButton className="btn sm" pendingText="Adding…">Add the ticked days</SubmitButton>
+                  <span className="text-[10px] text-[var(--mute)]">Dates come from each day&apos;s rule, so they arrive checked. A government can still move a holiday for one year — the rule beside each says what it follows.</span>
+                </div>
+              </>
+            )}
+          </form>
 
           <form action={generateBatchAction} className="card flex flex-wrap items-end gap-2 mb-6">
             <input type="hidden" name="scenario" value="special_days" />

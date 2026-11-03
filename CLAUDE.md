@@ -330,6 +330,7 @@ area, rather than loading all of them into every session.
 - What people searched is a 28-day snapshot, replaced whole; keywords rank by it — 2026-11-03, audit Phase 5, growth part bz
 - Voice profiles and audience avatars keep versions; re-training applies the model's answer or nothing — 2026-11-03, audit Phase 5, growth part ca
 - The visits social brought are a 28-day GA4 snapshot, social rows only, replaced whole — 2026-11-03, audit Phase 5, growth part cb
+- Caption Studio: a holiday library dated by rule, past days marked, one caption rewritten at a time — 2026-11-03, audit Phase 5, growth part cc
 
 ## Open items / things the user still owns
 - **Analytics: APIs enabled 2026-08-03** (Search Console + GA Admin + GA Data, on project

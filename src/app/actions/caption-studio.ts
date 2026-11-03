@@ -15,6 +15,7 @@ import { assemble, checkBatch, type CaptionItem, type Flag } from "@/lib/caption
 import { SCENARIOS, type Scenario, type ScenarioInput } from "@/lib/caption-studio/prompts";
 import { countdownDays, dayAt, parsePostAt, COUNTDOWN_STAGES, type StageKey } from "@/lib/caption-studio/timing";
 import { isValidDay, monthRange, nextYearDay, parsePastedDays } from "@/lib/caption-studio/special-days";
+import { HOLIDAY_COUNTRIES, holidaysIn, isHolidayCountry } from "@/lib/caption-studio/holidays";
 
 // Caption Studio — the team's "Caption Prompts & Scenarios" doc as a flow
 // in the app (Socialmonials parity, phase 3, 2026-10-17). Nothing generated
@@ -86,6 +87,29 @@ export async function pasteSpecialDaysAction(formData: FormData) {
   revalidatePath("/social/captions");
   const msg = `Added ${r.count} special day${r.count === 1 ? "" : "s"}${days.length > r.count ? ` (${days.length - r.count} already on the list)` : ""}.${unreadable.length ? ` Couldn't read a date in ${unreadable.length} line${unreadable.length === 1 ? "" : "s"}: “${unreadable.slice(0, 3).join("”, “")}”${unreadable.length > 3 ? "…" : ""} — add those with their date.` : ""}`;
   studio({ s: "special_days", month }, r.count || !unreadable.length ? { ok: msg } : { err: msg });
+}
+
+/**
+ * Days from the holiday library (E-SOC-19): computed from their rules, so
+ * they arrive as checked dates ("library"). Ones already on the list stay as
+ * they are.
+ */
+export async function addLibraryDaysAction(formData: FormData) {
+  const { workspace } = await requireRole("EDITOR");
+  const month = String(formData.get("month") ?? "");
+  const country = String(formData.get("country") ?? "");
+  const range = monthRange(month);
+  if (!range || !isHolidayCountry(country)) studio({ s: "special_days" }, { err: "Pick a month and a country." });
+  const wanted = new Set(formData.getAll("key").map(String));
+  const days = holidaysIn(country, range.year, Number(month.slice(5))).filter((h) => wanted.has(h.key));
+  if (!days.length) studio({ s: "special_days", month, lib: country }, { err: "Tick at least one day to add." });
+  const r = await db.specialDay.createMany({
+    data: days.map((d) => ({ workspaceId: workspace.id, name: d.name, day: d.date, note: null, verified: true, source: "library" })),
+    skipDuplicates: true,
+  });
+  revalidatePath("/social/captions");
+  const from = HOLIDAY_COUNTRIES.find((c) => c.code === country)?.name ?? country;
+  studio({ s: "special_days", month, lib: country }, { ok: `Added ${r.count} day${r.count === 1 ? "" : "s"} from the ${from} library${days.length > r.count ? ` (${days.length - r.count} already on the list)` : ""}.` });
 }
 
 /**
@@ -303,6 +327,55 @@ export async function regenerateBatchAction(formData: FormData) {
   redirect(`/social/captions/${batch.id}`);
 }
 
+/**
+ * Write one caption of a batch again (E-SOC-19): the scenario narrowed to
+ * that item, with the batch's other captions given as what not to echo, so
+ * the fresh one stays different from its neighbours. Day, time, image and
+ * Include stay; the whole batch's flags are re-run. Mutates `items`.
+ */
+async function rewriteOne(workspaceId: string, userId: string, stored: ScenarioInput | null, items: BatchItem[], n: number): Promise<{ ok?: string; err?: string }> {
+  const it = items[n];
+  if (!stored || !it || !Number.isInteger(n)) return { err: "That caption isn't in this batch." };
+  if (it.postId) return { err: "That caption is already a post — edit it there." };
+  const others = items.filter((_, j) => j !== n).map(assemble);
+  const avoid = others.length
+    ? `The other captions in this batch — make this one clearly different: don't echo their openings, phrases, emojis or hashtags.\n${others.map((o, j) => `--- other ${j + 1} ---\n${o}`).join("\n")}`
+    : "";
+  const notes = (extra: string) => [stored.notes, extra, avoid].filter(Boolean).join("\n\n") || null;
+  let one: ScenarioInput;
+  switch (stored.scenario) {
+    case "special_days": {
+      const day = stored.days[n];
+      if (!day) return { err: "That caption isn't in this batch." };
+      one = { ...stored, days: [day], notes: notes("") };
+      break;
+    }
+    case "campaign":
+      one = { ...stored, count: 1, previous: [...stored.previous, ...others].slice(-12) };
+      break;
+    case "images": {
+      const image = stored.images[n];
+      if (!image) return { err: "That caption isn't in this batch." };
+      one = { ...stored, images: [image], previous: [...stored.previous, ...others].slice(-12) };
+      break;
+    }
+    case "countdown": {
+      const stage = stored.stages[n];
+      if (!stage) return { err: "That caption isn't in this batch." };
+      one = { ...stored, stages: [stage], notes: notes("This rewrites one post of a connected series; it must still read as part of it.") };
+      break;
+    }
+  }
+  const res = await generateCaptions(workspaceId, one, userId);
+  if (!res.ok) return { err: res.error };
+  const fresh = res.items[0];
+  items[n] = { ...it, header: fresh.header, body: fresh.body, hashtags: fresh.hashtags, x: fresh.x };
+  const previous = stored.scenario === "campaign" || stored.scenario === "images" ? stored.previous : [];
+  const flags = checkBatch(items, previous);
+  items.forEach((x, j) => { x.flags = flags[j]; });
+  return { ok: `Rewrote ${it.item.replace(/\s*\(\d{4}-\d{2}-\d{2}\)$/, "")} — the rest of the batch is as you left it.` };
+}
+
 // ── Review → posts ─────────────────────────────────────────────────────────
 
 /**
@@ -351,6 +424,15 @@ export async function saveBatchAction(formData: FormData) {
   items.forEach((it, i) => { it.flags = flags[i]; });
   await db.captionBatch.update({ where: { id: batch.id }, data: { items: writeJson(items) } });
   if (mode === "edits") here({ ok: "Saved your edits." });
+  // "Rewrite this one" (E-SOC-19): the batch's edits are kept (folded in
+  // above, like Save edits), then just that caption is written again.
+  if (mode.startsWith("rewrite:")) {
+    const n = Number(mode.slice("rewrite:".length));
+    const msg = await rewriteOne(workspace.id, user.id, stored, items, n);
+    if (msg.ok) await db.captionBatch.update({ where: { id: batch.id }, data: { items: writeJson(items) } });
+    revalidatePath(`/social/captions/${batch.id}`);
+    redirect(`/social/captions/${batch.id}?${msg.ok ? `ok=${encodeURIComponent(msg.ok)}` : `err=${encodeURIComponent(msg.err ?? "")}`}#cap-${n}`);
+  }
 
   // 2. Make posts from the included captions.
   const accountIds = formData.getAll("accountIds").map(String).filter(Boolean);
