@@ -2,10 +2,23 @@
 
 import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
-  Bold, Italic, Link2, Link2Off, List, ListOrdered, Quote, Redo2, RemoveFormatting, Underline, Undo2,
+  Bold, ImagePlus, Italic, Link2, Link2Off, List, ListOrdered, Quote, Redo2, RemoveFormatting, Table, Underline, Undo2,
 } from "lucide-react";
 import { plainTextToRichHtml, looksLikeHtml, richTextToPlainText } from "@/lib/richtext";
 import { stripExecutableHtml } from "@/lib/html-safety";
+import { blankTableHtml, looksLikeMarkdown, markdownToHtml } from "@/lib/markdown-paste";
+
+/**
+ * The article editor's extras (E-ART-18): images from the article and the
+ * workspace's media, the site's own articles to link to, a table, Markdown
+ * paste and keyboard shortcuts. Description fields don't get them.
+ */
+export type EditorExtras = {
+  media: Array<{ url: string; alt: string | null; label: string }>;
+  links: Array<{ title: string; url: string }>;
+};
+
+const attr = (v: string) => v.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
 
 /**
  * A traditional WYSIWYG editor: one writing surface, a formatting toolbar, and
@@ -58,7 +71,7 @@ const Surface = memo(
     seed: string;
     placeholder?: string;
     minHeight: number;
-    handlers: React.RefObject<{ sync: () => void; remember: () => void; onPaste: (e: React.ClipboardEvent<HTMLDivElement>) => void }>;
+    handlers: React.RefObject<{ sync: () => void; remember: () => void; onPaste: (e: React.ClipboardEvent<HTMLDivElement>) => void; onKeyDown: (e: React.KeyboardEvent<HTMLDivElement>) => void }>;
   }) {
     return (
       <div
@@ -70,6 +83,7 @@ const Surface = memo(
         onKeyUp={() => handlers.current?.remember()}
         onMouseUp={() => handlers.current?.remember()}
         onPaste={(e) => handlers.current?.onPaste(e)}
+        onKeyDown={(e) => handlers.current?.onKeyDown(e)}
         dangerouslySetInnerHTML={{ __html: seed }}
         data-placeholder={placeholder}
         role="textbox"
@@ -92,6 +106,7 @@ export function RichTextEditor({
   placeholder,
   minHeight = 200,
   onChange,
+  extras,
 }: {
   /** Hidden field carrying the HTML. */
   name: string;
@@ -104,6 +119,8 @@ export function RichTextEditor({
   placeholder?: string;
   minHeight?: number;
   onChange?: (html: string) => void;
+  /** E-ART-18: the article editor's media, links, table, Markdown paste and shortcuts. */
+  extras?: EditorExtras;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   // ⚠ The seed is mounted as live HTML, so it is stripped of anything
@@ -118,6 +135,7 @@ export function RichTextEditor({
     return looksLikeHtml(text) ? stripExecutableHtml(text) : plainTextToRichHtml(text);
   });
   const [linkOpen, setLinkOpen] = useState(false);
+  const [imageOpen, setImageOpen] = useState(false);
   const [linkUrl, setLinkUrl] = useState("");
   const savedRange = useRef<Range | null>(null);
   const plainRef = useRef<HTMLTextAreaElement>(null);
@@ -197,7 +215,10 @@ export function RichTextEditor({
     e.preventDefault();
     const clipboardHtml = e.clipboardData.getData("text/html");
     const clipboardText = e.clipboardData.getData("text/plain");
-    if (clipboardHtml) {
+    if (!clipboardHtml && extras && looksLikeMarkdown(clipboardText)) {
+      // Markdown from a chat window or a notes app arrives formatted (E-ART-18).
+      document.execCommand("insertHTML", false, stripExecutableHtml(markdownToHtml(clipboardText)));
+    } else if (clipboardHtml) {
       // Sanitize with the DOM here; the server sanitizes again on save.
       const doc = new DOMParser().parseFromString(clipboardHtml, "text/html");
       doc.querySelectorAll("script,style,meta,link,iframe,object,embed").forEach((n) => n.remove());
@@ -225,11 +246,36 @@ export function RichTextEditor({
     exec("createLink", href);
   }
 
+  /**
+   * The article editor's shortcuts (E-ART-18): Ctrl/⌘+K a link, Ctrl/⌘+Alt+2,
+   * 3, 4 a heading and 0 a paragraph, Ctrl/⌘+Shift+7 and 8 the lists. Bold,
+   * italic and underline are the browser's own. ⚠ Ctrl/⌘+K is stopped here so
+   * the app's search (it listens on window) stays shut while you write.
+   */
+  function onKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
+    if (!extras || disabled || !(e.ctrlKey || e.metaKey)) return;
+    const take = (run: () => void) => { e.preventDefault(); e.stopPropagation(); remember(); run(); };
+    if (!e.altKey && !e.shiftKey && e.key.toLowerCase() === "k") return take(() => setLinkOpen(true));
+    if (e.altKey && !e.shiftKey) {
+      const block = ({ Digit2: "h2", Digit3: "h3", Digit4: "h4", Digit0: "p" } as Record<string, string>)[e.code];
+      if (block) return take(() => exec("formatBlock", block));
+    }
+    if (e.shiftKey && !e.altKey) {
+      if (e.code === "Digit7") return take(() => exec("insertOrderedList"));
+      if (e.code === "Digit8") return take(() => exec("insertUnorderedList"));
+    }
+  }
+
+  function insertImage(m: EditorExtras["media"][number]) {
+    setImageOpen(false);
+    exec("insertHTML", `<img src="${attr(m.url)}" alt="${attr(m.alt ?? "")}">`);
+  }
+
   // Surface never re-renders, so it reads its handlers from here instead of
   // from the closure it mounted with.
-  const handlersRef = useRef({ sync, remember, onPaste });
+  const handlersRef = useRef({ sync, remember, onPaste, onKeyDown });
   useLayoutEffect(() => {
-    handlersRef.current = { sync, remember, onPaste };
+    handlersRef.current = { sync, remember, onPaste, onKeyDown };
   });
 
   const words = richTextToPlainText(html).split(/\s+/).filter(Boolean).length;
@@ -276,11 +322,18 @@ export function RichTextEditor({
           <Tool {...toolProps} onClick={() => exec("insertOrderedList")} title="Numbered list"><ListOrdered className="w-3.5 h-3.5" /></Tool>
           <Tool {...toolProps} onClick={() => exec("formatBlock", "blockquote")} title="Quote"><Quote className="w-3.5 h-3.5" /></Tool>
           <span className="w-px h-4 bg-[var(--line)] mx-1" />
-          <Tool {...toolProps} onClick={() => { remember(); setLinkOpen((v) => !v); }} title="Insert link" active={linkOpen}>
+          <Tool {...toolProps} onClick={() => { remember(); setLinkOpen((v) => !v); }} title={extras ? "Insert link (Ctrl+K)" : "Insert link"} active={linkOpen}>
             <Link2 className="w-3.5 h-3.5" />
           </Tool>
           <Tool {...toolProps} onClick={() => exec("unlink")} title="Remove link"><Link2Off className="w-3.5 h-3.5" /></Tool>
           <Tool {...toolProps} onClick={() => exec("removeFormat")} title="Clear formatting"><RemoveFormatting className="w-3.5 h-3.5" /></Tool>
+          {extras && (
+            <>
+              <span className="w-px h-4 bg-[var(--line)] mx-1" />
+              <Tool {...toolProps} onClick={() => { remember(); setImageOpen((v) => !v); }} title="Insert an image from this article or the media library" active={imageOpen}><ImagePlus className="w-3.5 h-3.5" /></Tool>
+              <Tool {...toolProps} onClick={() => exec("insertHTML", blankTableHtml())} title="Insert a table"><Table className="w-3.5 h-3.5" /></Tool>
+            </>
+          )}
           <span className="w-px h-4 bg-[var(--line)] mx-1" />
           <Tool {...toolProps} onClick={() => exec("undo")} title="Undo"><Undo2 className="w-3.5 h-3.5" /></Tool>
           <Tool {...toolProps} onClick={() => exec("redo")} title="Redo"><Redo2 className="w-3.5 h-3.5" /></Tool>
@@ -292,8 +345,38 @@ export function RichTextEditor({
         </div>
       )}
 
+      {imageOpen && extras && !disabled && (
+        <div className="rounded-lg border border-[var(--line)] p-2" data-image-picker>
+          {extras.media.length === 0 ? (
+            <p className="text-xs text-[var(--mute)] m-0">No images yet — generate or attach them on the Assets tab, or upload to Media.</p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {extras.media.map((m) => (
+                <button key={m.url} type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => insertImage(m)} className="w-24 text-left" title={m.alt ?? m.label} data-insert-image={m.url}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={m.url} alt={m.alt ?? ""} className="w-24 h-16 object-cover rounded border border-[var(--line)]" />
+                  <span className="block text-[10px] text-[var(--mute)] truncate">{m.label}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {linkOpen && !disabled && (
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 flex-wrap">
+          {extras && extras.links.length > 0 && (
+            <select
+              onChange={(e) => { if (e.target.value) setLinkUrl(e.target.value); }}
+              defaultValue=""
+              className="text-xs max-w-64"
+              aria-label="Link to one of your articles"
+              data-internal-links
+            >
+              <option value="">One of your articles…</option>
+              {extras.links.map((l) => <option key={l.url} value={l.url}>{l.title}</option>)}
+            </select>
+          )}
           <input
             value={linkUrl}
             onChange={(e) => setLinkUrl(e.target.value)}

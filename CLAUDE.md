@@ -332,6 +332,7 @@ area, rather than loading all of them into every session.
 - The visits social brought are a 28-day GA4 snapshot, social rows only, replaced whole — 2026-11-03, audit Phase 5, growth part cb
 - Caption Studio: a holiday library dated by rule, past days marked, one caption rewritten at a time — 2026-11-03, audit Phase 5, growth part cc
 - Experts are real people linked to Topics; personas never speak; drafted answers wait — 2026-11-03, audit Phase 5, growth part cd
+- The article editor inserts images, tables and internal links, takes Markdown, and has shortcuts — 2026-11-03, audit Phase 5, growth part ce
 
 ## Open items / things the user still owns
 - **Analytics: APIs enabled 2026-08-03** (Search Console + GA Admin + GA Data, on project

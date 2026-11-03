@@ -294,6 +294,22 @@ export default async function BlogPostPage({
     .filter((m) => m.handles.length > 0);
   // E-SHL-09: comment times in the reader's own zone (schedules on this page keep the posting zone).
   const readTz = await displayTimeZone(workspace.id);
+  // E-ART-18: what the editor's toolbar can insert — this article's images and
+  // the workspace's media, and the site's own live articles to link to.
+  const [mediaItems, liveArticles] = editor
+    ? await Promise.all([
+        db.mediaItem.findMany({ where: { workspaceId: workspace.id, OR: [{ contentType: { startsWith: "image/" } }, { contentType: null }] }, orderBy: { createdAt: "desc" }, take: 24, select: { key: true, name: true, description: true } }),
+        db.blogPost.findMany({ where: { workspaceId: workspace.id, status: "published", publishedUrl: { not: null }, id: { not: post.id } }, orderBy: { publishedAt: "desc" }, take: 200, select: { title: true, publishedUrl: true } }),
+      ])
+    : [[], []];
+  const { storage } = await import("@/lib/storage");
+  const editorExtras = {
+    media: [
+      ...post.images.filter((i) => i.url).map((i) => ({ url: i.url, alt: i.altText ?? null, label: i.role === "og" ? "OG image" : i.role === "featured" ? "Featured image" : i.role })),
+      ...mediaItems.map((m) => ({ url: storage.url(m.key), alt: m.description ?? null, label: m.name })),
+    ],
+    links: liveArticles.map((a) => ({ title: a.title, url: a.publishedUrl! })),
+  };
   const commentPolicy = { block: (await db.brandKit.findUnique({ where: { workspaceId: workspace.id }, select: { blockOnOpenComments: true } }))?.blockOnOpenComments ?? false };
 
   const [modelChoiceList, inheritedModel, postModelRuns] = await Promise.all([
@@ -1313,7 +1329,7 @@ export default async function BlogPostPage({
           </p>
         </div>
 
-        <BlogBodyEditor postId={post.id} initialBody={post.body ?? ""} serverHash={bodyHash(post.body)} disabled={!editor} />
+        <BlogBodyEditor postId={post.id} initialBody={post.body ?? ""} serverHash={bodyHash(post.body)} disabled={!editor} extras={editorExtras} />
 
         {editor && (
           <div className="flex items-center gap-2">

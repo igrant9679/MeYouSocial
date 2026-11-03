@@ -3,7 +3,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Code2, Eye, PencilLine } from "lucide-react";
 import { autosaveBlogBodyAction } from "@/app/actions/blog";
-import { RichTextEditor } from "@/components/RichTextEditor";
+import { RichTextEditor, type EditorExtras } from "@/components/RichTextEditor";
 
 /**
  * Blog body editor: a WYSIWYG surface, the HTML source, and a rendered preview,
@@ -52,9 +52,12 @@ export function BlogBodyEditor({
   initialBody,
   serverHash,
   disabled,
+  extras,
 }: {
   postId: string;
   initialBody: string;
+  /** E-ART-18: images to insert and articles to link to, for the rich surface. */
+  extras?: EditorExtras;
   /** Hash of the stored body this render was made from (lib/blog-gates bodyHash). */
   serverHash: string;
   disabled?: boolean;
@@ -268,6 +271,7 @@ export function BlogBodyEditor({
           minHeight={380}
           placeholder="Write here, or generate a grounded AI draft below."
           onChange={setBody}
+          extras={extras}
         />
       )}
 

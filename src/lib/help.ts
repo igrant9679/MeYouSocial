@@ -194,6 +194,12 @@ export const HELP_CATEGORIES: FaqCategory[] = [
         tags: ["search console", "queries", "rank", "position", "keywords", "gsc", "seo", "performance"],
       },
       {
+        q: "What can the article editor's toolbar do?",
+        a: "Beyond bold, lists, quotes and links, the article editor (Write tab) can:\n\n· **Insert an image** — pick from this article's own images or the workspace's **Media**; it goes where the cursor is, and publishing puts it in the site's media library like any other.\n· **Insert a table** — a header row and two rows to fill in.\n· **Link to one of your articles** — the link box lists your live articles, so an internal link is a pick, not a copy-paste.\n· **Paste Markdown** — text from a chat window, a README or notes app (## headings, - lists, **bold**, [links](…)) arrives formatted instead of with the symbols showing. Links are kept only when they're web, email or on your site.\n· **Keyboard shortcuts** — Ctrl/⌘+K a link, Ctrl/⌘+Alt+2/3/4 a heading, Ctrl/⌘+Alt+0 a paragraph, Ctrl/⌘+Shift+7/8 a list.",
+        links: [{ label: "Articles →", href: "/blog" }],
+        tags: ["editor", "toolbar", "image", "table", "link", "markdown", "paste", "shortcuts", "article"],
+      },
+      {
         q: "What's the difference between an expert and a persona?",
         a: "An **expert** is a real person whose knowledge a draft speaks in — their experience, opinions, credentials and what they never claim. A **persona** is an audience the content is written FOR, like \"Compliance officer\"; it never speaks in a draft. Under **Ideas → Experts**, each profile says which it is (a role rather than a person is a persona — open it and press **This is an audience persona**).\n\nA draft speaks as the expert picked on the article, else the expert linked to the article's **Topic** (tick the Topics on the expert's page), else — when there is only one expert and they're linked to no Topic — that expert. Nothing else: a title merely sharing a word with an expert no longer makes the draft speak as them. Each draft records who it spoke as, and the expert's page lists those drafts.\n\n**Draft answers from source** reads a page or pasted text and drafts answers, but they wait under **Waiting for …** until the expert accepts them (as written or corrected) — they are never used in a draft, or treated as the expert's own words, before then.",
         links: [{ label: "Experts →", href: "/blog/experts" }],
@@ -880,7 +886,7 @@ export const HELP_CATEGORIES: FaqCategory[] = [
       },
       {
         q: "What keyboard shortcuts exist?",
-        a: "**Ctrl/⌘+K** — Search pages, content and Help from anywhere.\n**Ctrl/⌘+/** — Open the Ask dock (the assistant) on any page.\n**Ctrl/⌘+Shift+/** — Open the Prompt Library in the assistant or a canvas chat.\n**Esc** — Close any modal (Prompt Library, Improve dialog, the Topic picker).\nOn the **Ideas board**: **j** / **k** move between cards, **x** ticks one, **a** / **r** approve or reject it, **?** lists them.\nForm fields support Tab and Shift+Tab as expected.",
+        a: "**Ctrl/⌘+K** — Search pages, content and Help from anywhere.\n**Ctrl/⌘+/** — Open the Ask dock (the assistant) on any page.\n**Ctrl/⌘+Shift+/** — Open the Prompt Library in the assistant or a canvas chat.\n**Esc** — Close any modal (Prompt Library, Improve dialog, the Topic picker).\nOn the **Ideas board**: **j** / **k** move between cards, **x** ticks one, **a** / **r** approve or reject it, **?** lists them.\nIn the **article editor**: **Ctrl/⌘+K** inserts a link (search stays shut while you write), **Ctrl/⌘+Alt+2 / 3 / 4** make a heading and **Ctrl/⌘+Alt+0** a paragraph, **Ctrl/⌘+Shift+7 / 8** a numbered or bulleted list, and Ctrl/⌘+B / I / U as everywhere.\nForm fields support Tab and Shift+Tab as expected.",
         tags: ["shortcuts", "keyboard"],
       },
     ],

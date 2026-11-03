@@ -2021,3 +2021,17 @@ before changing code in that area.
 - ⚠ **Drafted answers wait**: "Draft answers from source" writes `pendingAnswers`, never `answers` — never an answer
   given or one already waiting. `smeBlock` reads `answers` only, so a pending answer never reaches a draft. "Waiting
   for …" accepts (as written or corrected — a new profile version) or discards each, or all.
+
+## The article editor inserts images, tables and internal links, takes Markdown, and has shortcuts (2026-11-03, audit Phase 5, growth part ce)
+- **Extras, articles only** (E-ART-18): `RichTextEditor` takes `extras` (`EditorExtras`: media + links), passed by
+  `BlogBodyEditor` from the article page — description fields don't get them. **Insert an image** lists this article's
+  images and the workspace's Media (inserted where the cursor was; publishing moves app images into the site's media
+  library as before, ART-06); **Insert a table** puts a header row and two rows; the link box lists the workspace's
+  live articles (`publishedUrl`) to pick.
+- **Markdown paste** (`lib/markdown-paste.ts`): plain text that reads as Markdown becomes HTML — # and ## are h2 (an
+  article's h1 is its title), ### h3, deeper h4; lists, quotes, rules, bold, italic, code, links. Everything is escaped
+  first and a link is kept only for http(s), mailto or the site's own paths; the result goes through
+  `stripExecutableHtml` like any paste.
+- **Shortcuts**: Ctrl/⌘+K a link, Ctrl/⌘+Alt+2/3/4 a heading, +0 a paragraph, Ctrl/⌘+Shift+7/8 the lists. ⚠ The
+  editor stops Ctrl/⌘+K from bubbling, so the app's search (it listens on window) stays shut while writing; it
+  opens everywhere else as before. They go through the `Surface` handlers ref like paste — the surface never re-renders.
