@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { readsLikeLostConnection } from "@/lib/social/reconnect-retry";
 
 /**
  * Tell people the moment a social send fails (E-SOC-22). A failed or partly
@@ -11,8 +12,6 @@ import { db } from "@/lib/db";
  * A leg whose error reads like a lost connection also raises `account_broken`
  * at once, pointing at Connections rather than the post.
  */
-const RECONNECT = /reconnect|re-?auth|token|expired|unauthori[sz]ed|permission|not authorized|access denied|\b40[13]\b/i;
-
 export async function alertSendFailure(postId: string): Promise<void> {
   try {
     const post = await db.socialPost.findUnique({
@@ -34,7 +33,8 @@ export async function alertSendFailure(postId: string): Promise<void> {
       entityType: "social_post",
       entityId: post.id,
     });
-    const lost = failed.filter((t) => t.error && RECONNECT.test(t.error));
+    // One rule with "Reconnect and retry" (social/reconnect-retry.ts).
+    const lost = failed.filter((t) => readsLikeLostConnection(t.error));
     if (lost.length) {
       await notify({
         workspaceId: post.workspaceId,

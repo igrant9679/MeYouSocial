@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { db } from "@/lib/db";
 import { getSetting } from "@/lib/settings";
 import { verifyZernioSignature, listZernioAccounts } from "@/lib/zernio";
@@ -113,6 +113,14 @@ export async function POST(req: NextRequest) {
     const found = remote.find((a) => a.id === accountId);
     if (!found) return NextResponse.json({ ok: true, ignored: "account not visible" });
     await saveZernioAccount(workspace.id, found);
+    // A connect is the evidence "Reconnect and retry" waits for: the legs
+    // waiting on this account go now — after the answer, so Zernio isn't kept
+    // waiting on a send (E-SOC-07).
+    const workspaceId = workspace.id;
+    after(async () => {
+      const { retryAfterReconnect } = await import("@/lib/social/reconnect-retry");
+      await retryAfterReconnect(workspaceId, { accountIds: [found.id] }).catch((e) => console.warn("[zernio] retry after reconnect failed:", e));
+    });
     return NextResponse.json({ ok: true });
   }
 

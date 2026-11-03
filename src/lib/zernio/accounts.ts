@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/governance";
-import { createZernioProfile, listZernioProfiles, listZernioAccounts, type ZernioAccountInfo } from "@/lib/zernio";
+import { createZernioProfile, listZernioProfiles, listZernioAccounts, zernioConnectLink, type ZernioAccountInfo } from "@/lib/zernio";
+import { getPublicUrl } from "@/lib/public-url";
 
 /**
  * DB-side resolvers for a workspace's Zernio profile and connected accounts.
@@ -132,6 +133,7 @@ export async function syncZernioAccounts(
   // Recorded, and every admin told (E-SEC-12): it decides whose accounts post here.
   if (adopted) await writeAudit({ workspaceId, action: "integration.adopted", entityType: "zernio_profile", entityId: profileId, meta: { kind: "zernio_profile" } });
 
+  const healthBefore = new Map((await db.zernioAccount.findMany({ where: { workspaceId }, select: HEALTH })).map((a) => [a.accountId, a]));
   const remote = await listZernioAccounts({ profileId, workspaceId });
   for (const a of remote) await saveZernioAccount(workspaceId, a);
 
@@ -140,5 +142,25 @@ export async function syncZernioAccounts(
     where: { workspaceId, accountId: { notIn: keep.length ? keep : ["__none__"] }, status: "connected" },
     data: { status: "disconnected" },
   });
+  // An account this sync saw come back (broken before, healthy now) or arrive
+  // is evidence of a reconnect: send the legs that were waiting on it (E-SOC-07).
+  const { recovered, retryAfterReconnect } = await import("@/lib/social/reconnect-retry");
+  const back = recovered(healthBefore, await db.zernioAccount.findMany({ where: { workspaceId }, select: HEALTH }));
+  if (back.length) await retryAfterReconnect(workspaceId, { accountIds: back }).catch(() => []);
   return { found: remote.length, removed: count, profileId, adopted };
+}
+
+const HEALTH = {
+  accountId: true, status: true, needsReconnection: true, platformStatus: true,
+  platformStatusReason: true, intentionalDisconnectAt: true, tokenExpiresAt: true,
+} as const;
+
+/**
+ * Zernio's connect page for one network on this workspace's profile, sending
+ * the browser back to `returnTo` (a path here). The account itself arrives
+ * through the signed `account.connected` webhook, which carries the profileId.
+ */
+export async function connectLinkFor(workspaceId: string, platform: string, returnTo: string): Promise<string> {
+  const profileId = await ensureZernioProfile(workspaceId);
+  return zernioConnectLink({ platform, profileId, redirectUrl: `${await getPublicUrl()}${returnTo}`, workspaceId });
 }

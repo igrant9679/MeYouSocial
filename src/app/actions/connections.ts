@@ -48,25 +48,16 @@ export async function connectAccountAction() {
 export async function connectSocialAccountAction(formData: FormData) {
   const { workspace } = await requireRole("ADMIN");
   const platform = String(formData.get("platform") ?? "").toLowerCase();
-  const { platformFor, zernioConfigured, zernioConnectLink } = await import("@/lib/zernio");
+  const { platformFor, zernioConfigured } = await import("@/lib/zernio");
   if (!platformFor(platform)) redirect("/admin/connections?err=" + encodeURIComponent("Unknown platform."));
   if (!(await zernioConfigured(workspace.id))) {
     redirect("/admin/connections?err=" + encodeURIComponent("Zernio isn't configured yet — add the API key below."));
   }
 
-  const origin = await getPublicUrl();
   let url: string;
   try {
-    const { ensureZernioProfile } = await import("@/lib/zernio/accounts");
-    const profileId = await ensureZernioProfile(workspace.id);
-    url = await zernioConnectLink({
-      platform,
-      profileId,
-      // Zernio sends the browser back here; the account itself arrives via the
-      // signed `account.connected` webhook, which carries the profileId.
-      redirectUrl: `${origin}/admin/connections?connected=1`,
-      workspaceId: workspace.id,
-    });
+    const { connectLinkFor } = await import("@/lib/zernio/accounts");
+    url = await connectLinkFor(workspace.id, platform, "/admin/connections?connected=1");
   } catch (e) {
     redirect(`/admin/connections?err=${encodeURIComponent(e instanceof Error ? e.message : "connect failed")}`);
   }

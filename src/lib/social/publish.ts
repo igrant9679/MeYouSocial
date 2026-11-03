@@ -186,7 +186,7 @@ function makeUploader(workspaceId: string, watermark: Watermarker = null): Media
  * them — or one of them and the sweep — can no longer send the same post
  * twice. Returns quietly when someone else holds the claim or it's already out.
  */
-export async function publishSocialPost(postId: string, opts: { claimed?: boolean } = {}): Promise<void> {
+export async function publishSocialPost(postId: string, opts: { claimed?: boolean; only?: string[] } = {}): Promise<void> {
   const post = await db.socialPost.findUnique({
     where: { id: postId },
     include: { targets: true, campaign: { select: { utmCampaign: true } } },
@@ -229,6 +229,11 @@ export async function publishSocialPost(postId: string, opts: { claimed?: boolea
     }
     return;
   }
+  // Only the legs asked for, when a caller names them: a retry after a
+  // reconnect sends what was waiting on that account, not every other failure
+  // on the post (E-SOC-07). The roll-up below still reads every leg.
+  const sending = opts.only ? pending.filter((t) => opts.only!.includes(t.id)) : pending;
+  if (sending.length === 0) return;
 
   if (!opts.claimed) {
     // The claim for direct sends (the sweep claims before calling). Only one
@@ -257,7 +262,7 @@ export async function publishSocialPost(postId: string, opts: { claimed?: boolea
     // URLs, so an id over the specs changed on every retry and Zernio's
     // duplicate guard never matched one (audit SOC-12).
     const fingerprint: unknown[] = [];
-    for (const t of pending) {
+    for (const t of sending) {
       let text = await tagLinksForNetwork(
         t.text ?? post.text, post.workspaceId, t.provider, post.campaign?.utmCampaign,
       );
@@ -354,7 +359,7 @@ export async function publishSocialPost(postId: string, opts: { claimed?: boolea
     const byAccount = new Map(result.perPlatform.filter((p) => p.accountId).map((p) => [p.accountId!, p]));
     const byPlatform = new Map(result.perPlatform.map((p) => [p.platform, p]));
 
-    for (const t of pending) {
+    for (const t of sending) {
       if (refused.has(t.id)) continue;
       const leg = byAccount.get(t.accountId) ?? byPlatform.get(t.provider.toLowerCase());
       // A 409 (content-hash duplicate) carries no per-platform detail, but it
@@ -394,7 +399,7 @@ export async function publishSocialPost(postId: string, opts: { claimed?: boolea
     // refused ones already carry their own reason.
     if (!(e instanceof NothingToSend)) {
       await db.socialPostTarget.updateMany({
-        where: { id: { in: pending.filter((t) => !refused.has(t.id)).map((t) => t.id) } },
+        where: { id: { in: sending.filter((t) => !refused.has(t.id)).map((t) => t.id) } },
         data: { status: "failed", error: (e instanceof Error ? e.message : String(e)).slice(0, 500) },
       });
     }

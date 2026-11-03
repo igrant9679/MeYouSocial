@@ -2195,6 +2195,11 @@ model SocialPostTarget {
   platformPostUrl String?
   error           String?
   postedAt        DateTime?
+  // "Reconnect and retry" (E-SOC-07): someone asked for this failed leg to go
+  // again once its account is reconnected. Cleared when it is retried; ignored
+  // after a day (social/reconnect-retry.ts).
+  retryOnReconnectAt DateTime?
+  retryOnReconnectBy String?
 
   post      SocialPost       @relation(fields: [postId], references: [id], onDelete: Cascade)
   snapshots SocialSnapshot[]

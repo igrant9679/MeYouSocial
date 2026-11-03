@@ -1887,3 +1887,23 @@ before changing code in that area.
   That page now redirects to `/brand#company`, and its tab is gone. Logo, colours, fonts and the footer were editable on
   both Brand and Tone & motifs. ⚠ `saveBrandKitAction` no longer writes them at all: its form doesn't render them, and
   writing absent fields would blank them. Tone & motifs points to Brand for them instead.
+
+## ⚠ A leg that lost access gets Reconnect and retry — and goes again only on evidence of the reconnect (2026-11-03, audit Phase 5, growth part bv)
+- **The button** (E-SOC-07): on a post's page, a failed leg whose account is broken, deliberately disconnected or
+  gone, or whose error reads like lost access (`readsLikeLostConnection` in `social/reconnect-retry.ts` — the one rule
+  `alertSendFailure`'s `account_broken` uses too; ⚠ a "duplicate" 403 is NOT lost access, and of Facebook's
+  OAuthExceptions only code 190 is), offers **Reconnect and retry** to an admin (records the request on the leg —
+  `SocialPostTarget.retryOnReconnectAt/By` — then straight to the network's connect page, back to the post) and
+  **Retry when reconnected** to an editor (records it; an admin reconnects). A waiting leg shows until when, **Check
+  now** and **Don't retry**. A request is let go after `RETRY_WINDOW_HOURS` (24); Retry failed still works.
+- ⚠ **Evidence, never a healthy-looking sync**: Zernio often doesn't know a token died (the network said so only when
+  we posted), so a sync that finds the account fine is NOT a reason to send. The evidence is the signed
+  `account.connected` webhook (sent in `after()`, so Zernio isn't kept waiting), a sync that saw the account go
+  broken → healthy or newly appear (`recovered`, run at the end of `syncZernioAccounts` — Refresh and the health
+  sweep), or the person's own Check now.
+- **Only the waiting legs go**: `publishSocialPost(postId, { only })` sends the named legs; the roll-up still reads
+  every leg, so a duplicate beside it stays failed and the post stays partial. Clearing the request is the claim
+  (one trigger sends), and the send keeps every rule a send has: approval, the global pause and the paused social
+  queue hold it (it waits). A removed account that comes back under a new id is matched by the **same handle on the
+  same network**, exactly one — never a guess between two accounts. Success is told to whoever asked (`published`);
+  failure is told by the send itself.

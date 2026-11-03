@@ -1,16 +1,18 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Copy, ExternalLink, Eye, LayoutTemplate, Pencil, RotateCw, Send } from "lucide-react";
+import { ArrowLeft, Copy, ExternalLink, Eye, LayoutTemplate, Link2, Pencil, RotateCw, Send } from "lucide-react";
 import { requireMembership, canEdit } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { readJson } from "@/lib/db/json";
 import { networkFor } from "@/lib/social/networks";
 import { subFormatLabel } from "@/lib/social/sub-formats";
 import { mayHavePosted } from "@/lib/social/unknown-outcome";
+import { needsReconnect, retryCutoff, RETRY_WINDOW_HOURS } from "@/lib/social/reconnect-retry";
 import { formatInZone, getPostingTimeZone } from "@/lib/social/slots";
 import { DELETABLE_POST_STATUSES } from "@/lib/social/post-lists";
 import { duplicateSocialPostAction, publishNowAction } from "@/app/actions/social";
 import { copyPostToWorkspaceAction, saveTemplateFromPostAction } from "@/app/actions/social-templates";
+import { cancelReconnectRetryAction, checkReconnectAction, reconnectAndRetryAction } from "@/app/actions/social-reconnect";
 import { SubmitButton } from "@/components/SubmitButton";
 import { DeleteButton } from "@/components/DeleteButton";
 import { MediaThumbs, STATUS_STYLE } from "@/components/SocialPostCard";
@@ -20,11 +22,11 @@ import { MediaThumbs, STATUS_STYLE } from "@/components/SocialPostCard";
 // editor, which refuses them (SOC-20). The record is never edited here; a
 // failed or partly-posted post can be retried, and any post duplicated.
 
-type SP = { ok?: string; err?: string };
+type SP = { ok?: string; err?: string; reconnected?: string };
 
 export default async function SocialPostPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<SP> }) {
   const { id } = await params;
-  const { ok, err } = await searchParams;
+  const { ok, err, reconnected } = await searchParams;
   const { workspace, membership, user } = await requireMembership();
   const editor = canEdit(membership.role);
   // Other workspaces this person edits — where a copy can go (E-SOC-23).
@@ -45,6 +47,17 @@ export default async function SocialPostPage({ params, searchParams }: { params:
     getPostingTimeZone(workspace.id),
   ]);
   if (!post) notFound();
+  // Each leg's account, for "Reconnect and retry" (E-SOC-07).
+  const accounts = new Map(
+    (await db.zernioAccount.findMany({
+      where: { workspaceId: workspace.id, accountId: { in: post.targets.map((t) => t.accountId) } },
+      select: { accountId: true, status: true, needsReconnection: true, platformStatus: true, platformStatusReason: true, intentionalDisconnectAt: true, tokenExpiresAt: true },
+    })).map((a) => [a.accountId, a]),
+  );
+  const admin = membership.role === "ADMIN";
+  const cutoff = retryCutoff();
+  const waitingOn = (t: { status: string; retryOnReconnectAt: Date | null }) => t.status === "failed" && !!t.retryOnReconnectAt && t.retryOnReconnectAt >= cutoff;
+  const waitingNets = [...new Set(post.targets.filter(waitingOn).map((t) => networkFor(t.provider)?.label ?? t.provider))];
 
   const st = STATUS_STYLE[post.status] ?? STATUS_STYLE.draft;
   const unsent = post.status === "draft" || post.status === "scheduled";
@@ -124,6 +137,11 @@ export default async function SocialPostPage({ params, searchParams }: { params:
           {ok ?? err}
         </div>
       )}
+      {reconnected && waitingNets.length > 0 && (
+        <div className="card mb-3 text-xs" data-reconnected style={{ background: "var(--blue-soft)", color: "var(--blue-on)" }}>
+          Back from connecting. {waitingNets.join(", ")} {waitingNets.length === 1 ? "goes" : "go"} again as soon as Zernio confirms the account — or press Check now below.
+        </div>
+      )}
       {canRetry && unsure.length > 0 && (
         <div className="card mb-3 text-xs" style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }}>
           We never heard back from {unsure.join(", ")} — {unsure.length === 1 ? "it" : "they"} may have posted. Check {unsure.length === 1 ? "that network" : "those networks"} before you retry, or it may go out twice.
@@ -165,6 +183,39 @@ export default async function SocialPostPage({ params, searchParams }: { params:
                     {t.status === "failed" && mayHavePosted(t.error) && " — this one may have posted anyway; check the network before retrying."}
                   </p>
                 )}
+                {waitingOn(t) ? (
+                  <div className="mt-2 flex items-center gap-2 flex-wrap" data-reconnect-waiting>
+                    <span className="text-[var(--mute)]">
+                      Waiting for {net?.label ?? t.provider} to be reconnected — it goes again by itself until {formatInZone(new Date(t.retryOnReconnectAt!.getTime() + RETRY_WINDOW_HOURS * 3_600_000), tz)}.
+                    </span>
+                    {editor && (
+                      <>
+                        <form action={checkReconnectAction}>
+                          <input type="hidden" name="id" value={post.id} />
+                          <SubmitButton className="btn sm" pendingText="Checking…" title="Re-read the accounts and send it now if the account is back">
+                            <RotateCw className="w-3 h-3" /> Check now
+                          </SubmitButton>
+                        </form>
+                        <form action={cancelReconnectRetryAction}>
+                          <input type="hidden" name="target" value={t.id} />
+                          <SubmitButton className="btn sm" pendingText="…" title="Stop waiting — Retry failed still works">Don&apos;t retry</SubmitButton>
+                        </form>
+                      </>
+                    )}
+                  </div>
+                ) : editor && needsReconnect(t, accounts.get(t.accountId)) ? (
+                  <form action={reconnectAndRetryAction} className="mt-2 flex items-center gap-2 flex-wrap" data-reconnect-retry>
+                    <input type="hidden" name="target" value={t.id} />
+                    <SubmitButton
+                      className="btn sm"
+                      pendingText="Opening…"
+                      title={admin ? `Connect ${net?.label ?? t.provider} again; this goes out by itself once it's back` : "An admin reconnects accounts — this goes out by itself once they do"}
+                    >
+                      <Link2 className="w-3 h-3" /> {admin ? "Reconnect and retry" : "Retry when reconnected"}
+                    </SubmitButton>
+                    <span className="text-[var(--mute)]">{net?.label ?? t.provider} lost access{admin ? "" : " — an admin can reconnect it"}.</span>
+                  </form>
+                ) : null}
                 {t.text && <p className="m-0 mt-1.5 text-[var(--slate)] whitespace-pre-wrap"><span className="text-[var(--mute)]">Own text: </span>{t.text}</p>}
                 {t.firstComment && <p className="m-0 mt-1.5 text-[var(--slate)] whitespace-pre-wrap"><span className="text-[var(--mute)]">First comment: </span>{t.firstComment}</p>}
                 {media.length > 0 && <div className="mt-1.5"><MediaThumbs keys={media} size="h-12 w-12" /></div>}

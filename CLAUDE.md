@@ -318,6 +318,7 @@ area, rather than loading all of them into every session.
 - Intel re-reads competitor channels every week by itself, and listing uploads skips a lookup — 2026-11-03, audit Phase 5, growth part bs
 - A connected site gets 16 months of search history, pulled in the background — 2026-11-03, audit Phase 5, growth part bt
 - Brand is one page for who the company is — each field has one editor — 2026-11-03, audit Phase 5, growth part bu
+- A leg that lost access gets Reconnect and retry — and goes again only on evidence of the reconnect — 2026-11-03, audit Phase 5, growth part bv
 
 ## Open items / things the user still owns
 - **Analytics: APIs enabled 2026-08-03** (Search Console + GA Admin + GA Data, on project
