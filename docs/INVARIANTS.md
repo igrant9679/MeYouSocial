@@ -1801,3 +1801,17 @@ before changing code in that area.
 - Already in place and unchanged: steps are role- and studio-aware (`lib/guide/steps.ts` `stepVisible` — setup steps
   are an admin's, studio steps wait for the studio, a step whose page the role can't open is skipped), and the
   anchor-integrity test runs before every build (`scripts/check-guide-anchors.mts` in `prebuild`).
+
+## ⚠ Phones get bottom tabs, a header with Ask and the bell, and the engine and Elsie in the drawer (2026-11-03, audit Phase 5, growth part bp)
+- **Bottom tabs** (E-SHL-10, `components/MobileTabBar.tsx`, `md:hidden`): Inbox · Ideas · Drafts · Distribute · More —
+  the strip's own badges from the shell's one poll (Ideas = discovered, Drafts = held articles, Distribute = approvals +
+  unseen replies; the Inbox has no cheap count, so no badge); More opens the drawer (`mobilenav:open`). On by default;
+  "Hide the bottom tabs" in the drawer sets cookie `mys_tabbar=off` (`actions/shell-prefs.ts`). ⚠ With the tabs, `<main>`
+  keeps `max-md:pb-24` so nothing ends under them; without, the old padding.
+- ⚠ **Exactly one Ask at every width**: with the tabs, the header's Ask shows on phones too and the floating pill is gone
+  (it sat on the tabs) — `AssistantDockButton phone` / `AssistantDock floatingButton`; without them, the pill as before.
+  The header stays put: `<main>` is the scroll container at every width (measured — the window never scrolls).
+- **The drawer** (`MobileNav extra`): the engine status (`EngineStatus inDrawer` — the header copy is `hidden @2xl:block`,
+  so on a phone it had never been visible at all), "Open the guided tour" (closes the drawer and fires `elsie:open`,
+  which Elsie answers like Resume), Elsie on/off, and the tab bar's switch. Elsie's own header buttons are `hidden
+  md:…` — her overlay stays mounted at every width, only the buttons moved.

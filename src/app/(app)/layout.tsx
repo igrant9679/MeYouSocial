@@ -24,6 +24,10 @@ import { setActiveWorkspaceAction } from "@/app/actions/workspace-switch";
 import { storage } from "@/lib/storage";
 import { db } from "@/lib/db";
 import { Elsie } from "@/components/Elsie";
+import { MobileTabBar } from "@/components/MobileTabBar";
+import { cookies } from "next/headers";
+import { setTabBarAction } from "@/app/actions/shell-prefs";
+import { setGuideEnabledAction } from "@/app/actions/guide";
 import { AiActivity } from "@/components/AiActivity";
 import { ShellPoll } from "@/components/ShellPoll";
 import { UnreadBell } from "@/components/UnreadBell";
@@ -180,6 +184,8 @@ html[data-theme="dark"] .ws-brand {
   // has actually done, so she never walks anyone through work already finished.
   // All counts, deliberately — cheap enough to run on every page render.
   const guide = await getGuideState();
+  // E-SHL-10: the phone's bottom tabs, unless this browser turned them off.
+  const tabBar = (await cookies()).get("mys_tabbar")?.value !== "off";
   const [llmKeyRows, wsLlmKeyRows, zernioKeyRow, socialAccounts, emailAccounts, topics, postingSlots, blogPosts, storageBackend, analyticsRows] = await Promise.all([
     db.setting.count({ where: { key: { in: ["api_key:anthropic", "api_key:google"] }, NOT: { value: "" } } }),
     // ⚠ Workspace keys count too. This only looked at PLATFORM settings, so a
@@ -303,7 +309,27 @@ html[data-theme="dark"] .ws-brand {
       <div className="flex-1 min-w-0 flex flex-col">
         <header className="min-h-[60px] border-b border-[var(--line)] app-header flex items-center gap-2 md:gap-3 px-3 md:px-6 py-2 flex-shrink-0 flex-wrap">
           <div className="md:hidden">
-            <MobileNav items={navItems} userLabel={userLabel} signOutAction={signOutAction} logoUrl={logoUrl} brandName={brandName} coBranded={isBranded} />
+            <MobileNav items={navItems} userLabel={userLabel} signOutAction={signOutAction} logoUrl={logoUrl} brandName={brandName} coBranded={isBranded}
+              // E-SHL-10: on a phone the header keeps Ask, the bell and the avatar; the engine
+              // pill, Elsie and the tab bar's switch live here.
+              extra={
+                <div className="flex flex-col gap-2 mb-3" data-drawer-extra>
+                  <EngineStatus key={`m-${workspace.id}`} initial={ticker} timeZone={tickerZone} state={engineState} inDrawer />
+                  <div className="flex flex-wrap gap-1.5">
+                    {guide.enabled && (
+                      <button type="button" data-drawer-elsie className="btn sm" data-open-elsie>Open the guided tour</button>
+                    )}
+                    <form action={setGuideEnabledAction}>
+                      <input type="hidden" name="on" value={guide.enabled ? "0" : "1"} />
+                      <button className="btn sm">{guide.enabled ? "Turn Elsie off" : "Turn Elsie on"}</button>
+                    </form>
+                    <form action={setTabBarAction}>
+                      <input type="hidden" name="on" value={tabBar ? "0" : "1"} />
+                      <button className="btn sm" data-tabbar-toggle>{tabBar ? "Hide the bottom tabs" : "Show the bottom tabs"}</button>
+                    </form>
+                  </div>
+                </div>
+              } />
           </div>
           {workspaceChoices.length > 1 || canCreateWorkspace ? (
             // Multi-company user: the workspace name becomes a switcher. The
@@ -342,10 +368,12 @@ html[data-theme="dark"] .ws-brand {
           <Link href="/channels" className="btn !hidden @min-[88rem]:!inline-flex" title="Manage all channels">Manage channels</Link>
           {/* Keyed by workspace: a switch remounts it, so the last company's
               events don't linger until the next poll (ENG-19). */}
-          <EngineStatus key={workspace.id} initial={ticker} timeZone={tickerZone} state={engineState} />
+          <div className="hidden md:contents">
+            <EngineStatus key={workspace.id} initial={ticker} timeZone={tickerZone} state={engineState} />
+          </div>
           <div className="flex-1" />
           {/* Viewers too — theirs only looks things up (E-ENG-15). */}
-          <AssistantDockButton />
+          <AssistantDockButton phone={tabBar} />
           <AiActivity />
           <Elsie steps={elsieSteps} tracks={elsieTracks} enabled={guide.enabled} outstanding={elsieOutstanding} snoozed={guide.snoozed} resumeAt={guide.at} />
           <UnreadBell initial={unread} />
@@ -412,7 +440,8 @@ html[data-theme="dark"] .ws-brand {
             (shell minus rail), the width that actually constrains them. */}
         {/* Suspense: FlashBanner reads useSearchParams, which Next requires be
             suspended so a page can still be prerendered around it. */}
-        <main className="flex-1 overflow-auto bg-[var(--panel)] p-6 @container">
+        {/* With the bottom tabs, a phone keeps room for them under the page. */}
+        <main className={"flex-1 overflow-auto bg-[var(--panel)] p-6 @container" + (tabBar ? " max-md:pb-24" : "")}>
           {/* The persistent stage strip: Overview + the stage's tabs on every
               page a stage owns, so entering a tab never loses the tabs. */}
           <StageStrip
@@ -428,7 +457,8 @@ html[data-theme="dark"] .ws-brand {
         </main>
         {/* Keyed by workspace and scoped to the person: a switch starts on that
             workspace's own conversation (ENG-18). */}
-        <AssistantDock key={workspace.id} activeChannelId={active?.id ?? null} workspaceId={workspace.id} userId={user.id} readOnly={!editorUp} />
+        <AssistantDock key={workspace.id} activeChannelId={active?.id ?? null} workspaceId={workspace.id} userId={user.id} readOnly={!editorUp} floatingButton={!tabBar} />
+        {tabBar && <MobileTabBar counts={counts} />}
       </div>
     </div>
   );

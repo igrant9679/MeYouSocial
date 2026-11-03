@@ -67,10 +67,13 @@ export function EngineStatus({
   initial,
   state: initialState,
   timeZone,
+  inDrawer = false,
 }: {
   initial: EngineEvent[];
   state: EngineState;
   timeZone: string;
+  /** The phone's drawer (E-SHL-10): always shown there, full width, its panel inside the drawer. */
+  inDrawer?: boolean;
 }) {
   // The shell poll's values once it has any (E-SHL-01); the server's until then.
   const live = useSyncExternalStore(subscribeShell, shellSnapshot, noShellSnapshot);
@@ -119,7 +122,7 @@ export function EngineStatus({
       : "Running with your approval at the checkpoints you set.";
 
   return (
-    <div ref={box} className="relative hidden @2xl:block">
+    <div ref={box} className={inDrawer ? "relative block" : "relative hidden @2xl:block"}>
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
@@ -142,7 +145,7 @@ export function EngineStatus({
         <div
           role="dialog"
           aria-label="Recent engine activity"
-          className="absolute top-full left-0 mt-1.5 w-[26rem] max-w-[90vw] card z-50 shadow-xl"
+          className={inDrawer ? "mt-1.5 w-full card shadow-xl" : "absolute top-full left-0 mt-1.5 w-[26rem] max-w-[90vw] card z-50 shadow-xl"}
         >
           <h2 className="text-sm font-semibold mb-0.5">What the engine is doing</h2>
           <p className="text-xs text-[var(--mute)] mb-1">{mode}</p>

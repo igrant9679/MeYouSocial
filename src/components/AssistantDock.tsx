@@ -37,7 +37,7 @@ const SUGGESTIONS = [
 const IDLE_FRESH_MS = 6 * 3_600_000;
 
 /** `readOnly`: a viewer's dock (E-ENG-15) — it says it can only look things up, and doesn't link to the editors' full page. */
-export function AssistantDock({ activeChannelId = null, workspaceId, userId, readOnly = false }: { activeChannelId?: string | null; workspaceId: string; userId: string; readOnly?: boolean }) {
+export function AssistantDock({ activeChannelId = null, workspaceId, userId, readOnly = false, floatingButton = true }: { activeChannelId?: string | null; workspaceId: string; userId: string; readOnly?: boolean; floatingButton?: boolean }) {
   const pathname = usePathname() ?? "/";
   const [open, setOpen] = useState(false);
   const [threadId, setThreadId] = useState<string | null>(null);
@@ -188,7 +188,7 @@ export function AssistantDock({ activeChannelId = null, workspaceId, userId, rea
 
   return (
     <>
-      {!open && (
+      {!open && floatingButton && (
         <button
           type="button"
           onClick={() => setOpen(true)}
@@ -339,12 +339,14 @@ export function AssistantDock({ activeChannelId = null, workspaceId, userId, rea
  * exactly one "Ask" is offered at any width (audit B1.5). The `!` marks are
  * load-bearing — `.btn` is unlayered in globals.css and beats a plain `hidden`.
  */
-export function AssistantDockButton() {
+export function AssistantDockButton({ phone = false }: { phone?: boolean }) {
   return (
     <button
       type="button"
       onClick={() => window.dispatchEvent(new CustomEvent("assistant:open"))}
-      className="btn sm !hidden md:!inline-flex items-center gap-1.5"
+      // With the phone's bottom tabs the floating pill is gone (it sat on them),
+      // so this is the phone's Ask too (E-SHL-10).
+      className={`btn sm ${phone ? "!inline-flex" : "!hidden md:!inline-flex"} items-center gap-1.5`}
       title="Ask the assistant anything, or what to do next (Ctrl+/)"
     >
       <Bot className="w-3.5 h-3.5" style={{ color: "var(--violet-on)" }} /> Ask

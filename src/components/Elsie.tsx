@@ -305,6 +305,11 @@ export function Elsie({
     setDismissed(false);
     void resumeGuideAction();
   }, []);
+  // The phone drawer's "Open the guided tour" (E-SHL-10).
+  useEffect(() => {
+    window.addEventListener("elsie:open", resume);
+    return () => window.removeEventListener("elsie:open", resume);
+  }, [resume]);
 
   const next = useCallback(() => {
     userDriven.current = true;
@@ -342,7 +347,7 @@ export function Elsie({
   return (
     <>
       {/* The top-bar switch. A form, so it works before hydration too. */}
-      <form action={setGuideEnabledAction} className="shrink-0">
+      <form action={setGuideEnabledAction} className="shrink-0 hidden md:block">
         <input type="hidden" name="on" value={enabled ? "0" : "1"} />
         <button
           type="submit"
@@ -373,7 +378,7 @@ export function Elsie({
           onClick={resume}
           data-elsie-resume
           title={`Pick the tour up where you left it: “${step.title}”`}
-          className="shrink-0 inline-flex items-center gap-1 h-8 px-2 rounded-lg text-[11px] font-semibold hover:bg-[var(--zebra)]"
+          className="shrink-0 hidden md:inline-flex items-center gap-1 h-8 px-2 rounded-lg text-[11px] font-semibold hover:bg-[var(--zebra)]"
           style={{ color: "var(--accent-on)" }}
         >
           <Play className="w-3.5 h-3.5" /> <span className="hidden @md:inline">Resume tour</span> <span className="font-mono text-[10px] text-[var(--mute)]">{index + 1}/{steps.length}</span>

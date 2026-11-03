@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -26,6 +26,7 @@ export function MobileNav({
   logoUrl,
   brandName = BRAND,
   coBranded = false,
+  extra = null,
 }: {
   items: LeftRailItem[];
   userLabel: string;
@@ -34,8 +35,16 @@ export function MobileNav({
   brandName?: string;
   /** Workspace has its own branding — show the product byline alongside it. */
   coBranded?: boolean;
+  /** What a phone moves out of the header (E-SHL-10): the engine pill, Elsie, the tab bar's switch. */
+  extra?: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
+  // The bottom tabs' "More" opens this drawer (E-SHL-10).
+  useEffect(() => {
+    const onOpen = () => setOpen(true);
+    window.addEventListener("mobilenav:open", onOpen);
+    return () => window.removeEventListener("mobilenav:open", onOpen);
+  }, []);
   const pathname = usePathname() ?? "";
 
   return (
@@ -81,6 +90,16 @@ export function MobileNav({
               </button>
             </div>
 
+            {extra && (
+              <div
+                onClick={(e) => {
+                  // "Open the guided tour": close the drawer and hand over to Elsie.
+                  if ((e.target as HTMLElement).closest("[data-open-elsie]")) { setOpen(false); window.dispatchEvent(new Event("elsie:open")); }
+                }}
+              >
+                {extra}
+              </div>
+            )}
             <div className="flex flex-col gap-1 overflow-y-auto">
               {items.map((n, i) => {
                 const Icon = ICONS[n.icon];
