@@ -17,6 +17,22 @@ export const DRAFTS_PER_SWEEP = 2;
 export const PUBLISHES_PER_SWEEP = 2;
 /** Full autonomy queues at most this many drafts a sweep. */
 export const QUEUES_PER_SWEEP = 10;
+/** Intel's competitor channels are re-read when older than this (E-IDE-09)… */
+export const INTEL_REFRESH_DAYS = 7;
+/** …a few per sweep — about three YouTube units each, from a pool other workspaces may share. */
+export const INTEL_REFRESH_PER_SWEEP = 3;
+
+/** The competitor channels the next sweep re-reads: the longest-unread first, none read in the last week. */
+export async function intelToRefresh(workspaceId: string, now = new Date()) {
+  const cutoff = new Date(now.getTime() - INTEL_REFRESH_DAYS * 86_400_000);
+  const { db } = await import("@/lib/db");
+  return db.intelChannel.findMany({
+    where: { workspaceId, OR: [{ lastIndexedAt: { lt: cutoff } }, { lastIndexedAt: null }] },
+    orderBy: { lastIndexedAt: { sort: "asc", nulls: "first" } },
+    take: INTEL_REFRESH_PER_SWEEP,
+    select: { id: true, youtubeId: true, name: true, handle: true, lastIndexedAt: true },
+  });
+}
 
 /**
  * The approved ideas the drafting step takes next: highest priority, then the
@@ -148,9 +164,15 @@ export async function previewNextSweep(workspaceId: string, now = new Date()) {
     }
   }
 
+  // E-IDE-09: competitor channels due a re-read — only when a real YouTube key is there.
+  const { youtubeConfigured } = await import("@/lib/youtube");
+  const youtube = await youtubeConfigured(workspaceId);
+  const intel = { youtube, picks: youtube ? await intelToRefresh(workspaceId, now) : [] };
+
   return {
     paused,
     overBudget,
+    intel,
     modes: { drafting: modes.blog_drafting, publishing: modes.publishing },
     autonomous,
     drafting,

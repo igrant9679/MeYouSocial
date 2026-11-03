@@ -1845,3 +1845,16 @@ before changing code in that area.
   question. ⚠ Matching is by every meaningful word (`queryWords`: stop words dropped, at most five, accents and case
   folded), anywhere in the text — "donor webinar" finds "our donor retention webinar", "how do I publish" finds the
   Help answers and the Publish page. A word-start or whole-phrase match in the title ranks first.
+
+## ⚠ Intel re-reads competitor channels every week by itself, and listing uploads skips a lookup (2026-11-03, audit Phase 5, growth part bs)
+- **The re-read** (E-IDE-09): the sweep's `intel` step (after RSS) re-reads up to `INTEL_REFRESH_PER_SWEEP` (3) competitor
+  channels unread for `INTEL_REFRESH_DAYS` (7) — never-read first, then the longest-unread (`lib/sweep-plan.ts`
+  `intelToRefresh`, the one pick both the sweep and Automation's "Next sweep will…" preview read). Subscribers, views,
+  the latest uploads and outlier scores are replaced, as Re-read does (`indexIntelChannel`); the pages' "Read on" /
+  "Read from YouTube" dates say how fresh they are. Counted as `CycleReport.intelRefreshed`. Not AI and no mode: it
+  reads public figures. ⚠ Only with a real YouTube key (`youtubeConfigured`: a key and no mock) — the mock must never
+  overwrite measured figures, and with no key every attempt would only fail. About three units a channel, metered on
+  the workspace like every YouTube call; the pool may be shared, so it stays a few per sweep.
+- **Uploads from the channel id** (E-IDE-10): `listVideos` derives the uploads playlist (`UC…` → `UU…`) instead of a
+  `channels` call to look it up; only an id of another shape still asks. The per-workspace units on Usage and the
+  24-hour channel-search cache were already in place (IDE-13).

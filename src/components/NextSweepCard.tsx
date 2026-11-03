@@ -117,6 +117,22 @@ export function NextSweepCard({ preview, timeZone, nextAt, autopilotOff }: {
               </>
             )}
           </section>
+          <section data-sweep-intel>
+            <div className="font-semibold mb-0.5">Re-read competitor channels</div>
+            {!preview.intel.youtube ? (
+              <p className="m-0 text-[var(--mute)]">Nothing — there&apos;s no YouTube key, so Intel&apos;s figures are read only when someone presses Re-read.</p>
+            ) : preview.intel.picks.length === 0 ? (
+              <p className="m-0 text-[var(--mute)]">Nothing — every competitor channel was read from YouTube in the last week.</p>
+            ) : (
+              <ul className="m-0 pl-4">
+                {preview.intel.picks.map((c) => (
+                  <li key={c.id} data-sweep-intel-pick={c.id}>
+                    {c.name ?? c.handle ?? "a channel"} — {c.lastIndexedAt ? `last read ${formatInZone(c.lastIndexedAt, timeZone)}` : "never read"}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
           <p className="m-0 text-[var(--mute)]">Slots shown aren&apos;t held — queueing something yourself first can take one.</p>
         </div>
       )}

@@ -273,10 +273,11 @@ const realFor = (workspaceId?: string): YouTubeProvider => ({
     return list[0] ?? null;
   },
   async listVideos(channelId, limit = 20) {
-    const ch = await ytGet<{ items?: YtChannelItem[] }>("channels", {
-      part: "contentDetails", id: channelId,
-    }, workspaceId);
-    const uploads = ch.items?.[0]?.contentDetails?.relatedPlaylists?.uploads;
+    // A channel's uploads playlist is its id with UC → UU (E-IDE-10): no
+    // channels.list call to look it up. Only an id of another shape asks.
+    const uploads = /^UC[\w-]{22}$/.test(channelId)
+      ? `UU${channelId.slice(2)}`
+      : (await ytGet<{ items?: YtChannelItem[] }>("channels", { part: "contentDetails", id: channelId }, workspaceId)).items?.[0]?.contentDetails?.relatedPlaylists?.uploads;
     if (!uploads) return [];
     const pl = await ytGet<{ items?: Array<{ contentDetails?: { videoId?: string } }> }>("playlistItems", {
       part: "contentDetails", playlistId: uploads, maxResults: String(Math.min(limit, 50)),
@@ -357,6 +358,21 @@ const unavailable: YouTubeProvider = {
   async searchChannels() { return []; },
   async getTranscript() { return null; },
 };
+
+/**
+ * Whether this workspace reaches the REAL YouTube Data API — a key and no
+ * mock. Unattended reads (the sweep's Intel re-read, E-IDE-09) ask first: with
+ * no key they'd only fail, and the mock must never overwrite measured figures.
+ */
+export async function youtubeConfigured(workspaceId?: string): Promise<boolean> {
+  if (env.USE_MOCK_YOUTUBE) return false;
+  try {
+    const { getApiKey } = await import("@/lib/llm/keys");
+    return Boolean((await getApiKey("youtube", workspaceId)) || env.YOUTUBE_API_KEY);
+  } catch {
+    return Boolean(env.YOUTUBE_API_KEY);
+  }
+}
 
 async function pick(workspaceId?: string): Promise<YouTubeProvider> {
   // Explicit opt-in only — for local development and demos.

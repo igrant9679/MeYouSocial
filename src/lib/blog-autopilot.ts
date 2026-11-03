@@ -1464,6 +1464,8 @@ export type CycleReport = {
   published: number;
   videosPackaged: number;
   videosRendered: number;
+  /** Competitor channels re-read from YouTube this cycle (E-IDE-09). */
+  intelRefreshed?: number;
 };
 
 /**
@@ -1708,6 +1710,23 @@ async function runAutopilotCycleUnlocked(workspaceId: string): Promise<CycleRepo
   await step("rss", async () => {
     const { pollDueFeeds } = await import("@/lib/social/rss");
     report.ideasCreated += await pollDueFeeds(workspaceId);
+  });
+
+  // 2¾. Intel (E-IDE-09): competitor channels unread for a week are re-read —
+  // subscribers, views, the latest uploads, outlier scores — a few per cycle,
+  // so the numbers Research shows don't quietly age. Not AI, no mode: it reads
+  // public figures, and only with a real YouTube key (never the mock).
+  await step("intel", async () => {
+    const [{ youtubeConfigured, youtubeFor }, { intelToRefresh }, { indexIntelChannel }] = await Promise.all([
+      import("@/lib/youtube"), import("@/lib/sweep-plan"), import("@/lib/intel-index"),
+    ]);
+    if (!(await youtubeConfigured(workspaceId))) return;
+    for (const ch of await intelToRefresh(workspaceId)) {
+      const source = await youtubeFor(workspaceId).findChannel(ch.youtubeId).catch(() => null);
+      if (!source) continue;
+      await indexIntelChannel(workspaceId, source);
+      report.intelRefreshed = (report.intelRefreshed ?? 0) + 1;
+    }
   });
 
   await step("social", async () => {
