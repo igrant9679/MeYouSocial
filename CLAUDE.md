@@ -322,6 +322,7 @@ area, rather than loading all of them into every session.
 - Stored is not shown: after a publish the live page's share-card tags are read and checked — 2026-11-03, audit Phase 5, growth part bw
 - A project carries its YouTube upload; a Topic counts its own videos before any keyword match — 2026-11-03, audit Phase 5, growth part bx
 - The Ideas board scales: 20 cards a column, a paged table, one Topic picker — 2026-11-03, audit Phase 5, growth part by
+- What people searched is a 28-day snapshot, replaced whole; keywords rank by it — 2026-11-03, audit Phase 5, growth part bz
 
 ## Open items / things the user still owns
 - **Analytics: APIs enabled 2026-08-03** (Search Console + GA Admin + GA Data, on project

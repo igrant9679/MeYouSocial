@@ -247,7 +247,22 @@ export async function syncWorkspaceAnalytics(
         }
         fresh.set(k, cur);
       }
-      outcome.gsc = { ok: true, message: `${rows.length} page-day row${rows.length === 1 ? "" : "s"}, ${matched} matched a post`, rows: matched };
+      // What people searched (E-MEA-08): the last 28 days by page × query,
+      // replaced whole. Only on a normal sync — a backfill window is history,
+      // and the query snapshot is always the latest window. Its own failure
+      // never costs the day rows above.
+      let queries = "";
+      if (!range) {
+        try {
+          const { syncSearchQueries, MAX_QUERY_ROWS } = await import("@/lib/search-queries");
+          const kept = await syncSearchQueries(workspaceId, index, urlKey, (s, e) =>
+            gscQueryAll(workspaceId, { startDate: s, endDate: e, dimensions: ["page", "query"], maxRows: MAX_QUERY_ROWS }));
+          queries = `; ${kept} search quer${kept === 1 ? "y" : "ies"} kept`;
+        } catch (e) {
+          queries = `; search queries not read (${(e instanceof Error ? e.message : String(e)).slice(0, 120)})`;
+        }
+      }
+      outcome.gsc = { ok: true, message: `${rows.length} page-day row${rows.length === 1 ? "" : "s"}, ${matched} matched a post${queries}`, rows: matched };
     } catch (e) {
       outcome.gsc = { ok: false, message: sourceError(e, gsc.cred.kind === "oauth" ? `The connected Google account (${gsc.identity}) needs access to this property in Search Console.` : `Add ${gsc.identity} as a user on this property in Search Console → Settings → Users and permissions.`), rows: 0 };
     }

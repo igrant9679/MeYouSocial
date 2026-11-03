@@ -176,6 +176,12 @@ export const HELP_CATEGORIES: FaqCategory[] = [
         tags: ["youtube", "video", "topic", "kw", "keyword", "link", "upload", "views", "retention"],
       },
       {
+        q: "Which searches find my articles — and where do my keywords rank?",
+        a: "Once Search Console is connected (Settings → Analytics), each sync also reads **what people searched**: the last 28 days by page and search, kept as one rolling snapshot that the next sync replaces. An article's **Performance** tab lists the searches that found it — clicks, impressions, CTR and Google's average position for each, with its focus keyword marked (or a note that it isn't among them). **Keywords** gains a **Google** column: each keyword's position over the same 28 days, weighted by impressions across every page that showed for it, with the page that did best. A dash means no impressions in the window, or not synced yet. Each page keeps its top 20 searches, plus every search that is one of your keywords.",
+        links: [{ label: "Keywords →", href: "/blog/keywords" }, { label: "Analytics settings →", href: "/admin/analytics" }],
+        tags: ["search console", "queries", "rank", "position", "keywords", "gsc", "seo", "performance"],
+      },
+      {
         q: "The Ideas board is long — how do I get through it?",
         a: "Each column in a Topic's lane shows its first **20** cards; **Show 20 more** under it adds the next twenty (the address remembers it, so a reload or a shared link keeps the view). For a flat list, switch to **Table** beside the search: every idea as one row — title, format, Topic, state, score, when it was added — open work first, 50 to a page, with the same tick boxes, so the bulk bar (approve, reject, set a Topic, delete) works on a page at a time. Search, the Topic filter and the order apply to both views. On a card, **Topic** opens one picker for the board, and a social idea's **Edit** opens its own page.",
         links: [{ label: "Ideas →", href: "/ideas" }],

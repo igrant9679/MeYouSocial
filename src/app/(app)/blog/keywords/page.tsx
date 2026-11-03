@@ -19,6 +19,7 @@ import {
   updateKeywordAction,
 } from "@/app/actions/blog-keywords";
 import { formatDay } from "@/lib/zoned-dates";
+import { keywordRanks, normQuery, queryWindow } from "@/lib/search-queries";
 
 // Keyword strategy (Wave A′). Tiers are editorial priority; intent + clusters
 // are AI-classified — the page says so. Volume / competition come only from a
@@ -78,6 +79,12 @@ export default async function KeywordsPage({ searchParams }: { searchParams: Pro
     keywordCountry(workspace.id),
     db.topic.findMany({ where: { workspaceId: workspace.id }, select: { name: true } }).then((r) => new Set(r.map((t) => t.name.toLowerCase()))),
   ]);
+
+  // Where each keyword ranks in Google over the stored window (E-MEA-08).
+  const [ranks, qWindow] = await Promise.all([keywordRanks(workspace.id, keywords.map((k) => k.phrase)), queryWindow(workspace.id)]);
+  const rankReason = qWindow
+    ? `No impressions in Google for this phrase in ${formatDay(qWindow.start, "UTC")} – ${formatDay(qWindow.end, "UTC")}.`
+    : "Search Console isn't synced yet — connect it under Settings → Analytics.";
 
   const clusters = new Map<string, typeof keywords>();
   for (const k of keywords) {
@@ -292,6 +299,7 @@ export default async function KeywordsPage({ searchParams }: { searchParams: Pro
                     <th className="py-1.5 pr-3 font-semibold text-right" title="Change across the stored months of history (newest vs oldest)">Trend</th>
                     <th className="py-1.5 pr-3 font-semibold" title="The provider's paid-competition index, 0–100">Competition</th>
                     <th className="py-1.5 pr-3 font-semibold text-right" title="Cost per click, USD">CPC</th>
+                    <th className="py-1.5 pr-3 font-semibold text-right" title="Google's average position for the phrase over the last 28 days of Search Console, weighted by impressions, and the page that did best">Google</th>
                     {editor && <th className="py-1.5 font-semibold">Actions</th>}
                   </tr>
                 </thead>
@@ -371,6 +379,20 @@ export default async function KeywordsPage({ searchParams }: { searchParams: Pro
                         </td>
                         <td className="py-1.5 pr-3 font-mono text-right">
                           {k.cpc != null ? `$${k.cpc.toFixed(2)}` : <Dash reason={noData ? "No data for this phrase." : noVolumeReason} />}
+                        </td>
+                        <td className="py-1.5 pr-3 text-right" data-kw-rank={ranks.get(normQuery(k.phrase))?.position ?? ""}>
+                          {(() => {
+                            const r = ranks.get(normQuery(k.phrase));
+                            if (!r) return <Dash reason={rankReason} />;
+                            return (
+                              <span className="font-mono tabular-nums" title={`${r.clicks.toLocaleString()} clicks · ${r.impressions.toLocaleString()} impressions · best page ${r.page}`}>
+                                #{r.position.toFixed(1)}
+                                {r.postId
+                                  ? <Link href={`/blog/${r.postId}?tab=performance`} className="block text-[10px] text-[var(--mute)] underline truncate max-w-40 ml-auto">{r.postTitle ?? r.page}</Link>
+                                  : <span className="block text-[10px] text-[var(--mute)] truncate max-w-40 ml-auto">{r.page}</span>}
+                              </span>
+                            );
+                          })()}
                         </td>
                         {editor && (
                           <td className="py-1.5">

@@ -1947,3 +1947,17 @@ before changing code in that area.
 - ⚠ **No per-card forms for rare edits**: a card's Topic is a button (`data-topic-pick`) opening the board's ONE
   `IdeaTopicDialog` — the old per-card form repeated every Topic in every card, page and payload. A social idea's
   Edit is a link to its page. Don't put a form with a list in a card again.
+
+## ⚠ What people searched is a 28-day snapshot, replaced whole; keywords rank by it (2026-11-03, audit Phase 5, growth part bz)
+- **The read** (E-MEA-08): after its page × date pass, a normal analytics sync (never a backfill window) reads
+  Search Console page × query over the last `QUERY_WINDOW_DAYS` (28, ending two days back) and REPLACES the
+  workspace's `SearchQuery` rows in one transaction — a rolling snapshot, ⚠ never summed across syncs. Its failure is
+  reported on the GSC outcome and never costs the day rows.
+- **What's kept** (`pickQueryRows`): page spellings merge through the sync's `urlKey` (clicks and impressions add,
+  position impression-weighted); queries are compared normalised (`normQuery`: lower case, single spaces); each page
+  keeps its top `QUERIES_PER_PAGE` (20) by clicks, then impressions, plus every row whose query is an active keyword.
+  `postId` is set when the page is an article; other pages keep their rows without one.
+- **Shown**: an article's Performance tab lists "Searches that found it" (clicks, impressions, CTR, position), its
+  focus keyword marked — fetched even when it ranks below the top 20 — or named as missing. Keywords' **Google**
+  column (`keywordRanks`): impression-weighted position across every page for the phrase, with the best page (clicks,
+  then impressions); a dash with the window when there were no impressions, or a note when never synced.

@@ -9,13 +9,14 @@ import { requestNow } from "@/lib/request-time";
 import { marksFor } from "@/lib/chart-annotations";
 import { bucketsFromMoments } from "@/lib/chart-marks";
 import { ChartMarkList } from "@/components/ChartMarks";
+import { normQuery, queryWindow, topQueriesForPost } from "@/lib/search-queries";
 
 /**
  * One article's performance (E-MEA-06): its daily search numbers, the 28 days
  * to its latest reading against the 28 before, and the social posts that
- * pointed at it with what each earned. Search Console&apos;s per-query numbers
- * aren't synced, so there are no "top queries" to show — the page says so
- * rather than guessing them from the keyword.
+ * pointed at it with what each earned, and (E-MEA-08) the searches that found
+ * it — Search Console's page × query rows over the last 28 days, with the
+ * article's focus keyword marked or said to be missing.
  */
 
 const DAY = 86_400_000;
@@ -39,6 +40,8 @@ export async function ArticlePerformance({ postId, workspaceId, publishedUrl, ti
       : Promise.resolve([] as Array<{ id: string }>),
   ]);
   const postIds = [...new Set([...fromIdeas.map((i) => i.socialPostId!), ...byLink.map((p) => p.id)])];
+  const focus = await db.blogPost.findUnique({ where: { id: postId }, select: { focusKeyword: true } }).then((p) => (p?.focusKeyword ? normQuery(p.focusKeyword) : null));
+  const [queries, qWindow] = await Promise.all([topQueriesForPost(postId, focus), queryWindow(workspaceId)]);
   const [posts, results] = await Promise.all([
     postIds.length
       ? db.socialPost.findMany({
@@ -97,9 +100,49 @@ export async function ArticlePerformance({ postId, workspaceId, publishedUrl, ti
             <ChartMarkList marks={marks} timeZone={timeZone} canDelete={false} returnTo={`/blog/${postId}?tab=performance`} />
           </>
         )}
-        <p className="text-[11px] text-[var(--mute)] mt-3 mb-0" data-perf-queries>
-          <b>Top queries:</b> not available — Search Console&apos;s per-query numbers aren&apos;t synced yet, so the searches that found this article can&apos;t be listed without guessing.
-        </p>
+        <div className="mt-4" data-perf-queries>
+          <h3 className="text-xs font-semibold m-0 mb-1">Searches that found it</h3>
+          {queries.length === 0 ? (
+            <p className="text-[11px] text-[var(--mute)] m-0">
+              {qWindow
+                ? `No searches recorded for this article in ${formatDay(qWindow.start, "UTC")} – ${formatDay(qWindow.end, "UTC")} — it may not show in Google yet, or only for searches too rare for Search Console to report.`
+                : "Not read yet — the searches arrive with the Search Console sync (Settings → Analytics)."}
+            </p>
+          ) : (
+            <>
+              <p className="text-[11px] text-[var(--mute)] m-0 mb-1.5">{formatDay(queries[0].windowStart, "UTC")} – {formatDay(queries[0].windowEnd, "UTC")}, from Search Console. Position is Google&apos;s average for the search, weighted by impressions.</p>
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs border-collapse">
+                  <thead>
+                    <tr className="text-left text-[9px] uppercase tracking-wider font-mono text-[var(--mute)]">
+                      <th className="py-1 pr-3">Search</th>
+                      <th className="py-1 pr-3 text-right">Clicks</th>
+                      <th className="py-1 pr-3 text-right">Impressions</th>
+                      <th className="py-1 pr-3 text-right">CTR</th>
+                      <th className="py-1 text-right">Position</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {queries.map((q) => (
+                      <tr key={q.query} className="border-t border-[var(--line)]" data-query={q.query} data-focus={q.query === focus ? "1" : undefined}>
+                        <td className="py-1 pr-3">{q.query}{q.query === focus && <span className="ml-1.5 font-mono text-[9px] uppercase px-1 py-0.5 rounded" style={{ background: "var(--violet-soft)", color: "var(--violet-on)" }}>focus keyword</span>}</td>
+                        <td className="py-1 pr-3 text-right font-mono tabular-nums">{q.clicks.toLocaleString()}</td>
+                        <td className="py-1 pr-3 text-right font-mono tabular-nums">{q.impressions.toLocaleString()}</td>
+                        <td className="py-1 pr-3 text-right font-mono tabular-nums">{q.impressions ? `${((q.clicks / q.impressions) * 100).toFixed(1)}%` : "—"}</td>
+                        <td className="py-1 text-right font-mono tabular-nums">{q.position.toFixed(1)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {focus && !queries.some((q) => q.query === focus) && (
+                <p className="text-[11px] m-0 mt-1.5" style={{ color: "var(--amber-on)" }} data-focus-missing>
+                  Its focus keyword “{focus}” isn&apos;t among the searches that found it in this window.
+                </p>
+              )}
+            </>
+          )}
+        </div>
       </section>
 
       <section className="card" data-perf-social>

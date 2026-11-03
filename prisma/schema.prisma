@@ -78,6 +78,7 @@ model Workspace {
   orgProfile      OrgProfile?
   assistantThreads AssistantThread[]
   keywords        Keyword[]
+  searchQueries   SearchQuery[]
   sitePages       SitePage[]
   brandKit        BrandKit?
   motifDirectives MotifDirective[]
@@ -301,6 +302,7 @@ model BlogPost {
   variants  SocialVariant[]
   socialIdeas SocialIdea[]
   snapshots BlogSnapshot[]
+  searchQueries SearchQuery[]
   versions  BlogPostVersion[]
 
   @@index([workspaceId, status])
@@ -768,6 +770,32 @@ model BlogSnapshot {
 
   post BlogPost @relation(fields: [postId], references: [id], onDelete: Cascade)
 
+  @@index([postId])
+}
+
+// What people searched to find each page (E-MEA-08): Search Console's page ×
+// query rows over the last 28 days, REPLACED whole by every sync — a rolling
+// snapshot, never summed across syncs. Kept: each page's top queries, plus every
+// row whose query is one of the workspace's keywords (rank tracking). `page` is
+// the sync's urlKey, so http/https, www and a trailing slash are one page.
+model SearchQuery {
+  id          String   @id @default(cuid())
+  workspaceId String
+  postId      String?  // the article that page is, when it matched one
+  page        String
+  query       String
+  clicks      Int
+  impressions Int
+  position    Float    // impression-weighted over the window, as Search Console averages it
+  windowStart DateTime
+  windowEnd   DateTime
+  syncedAt    DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  post      BlogPost? @relation(fields: [postId], references: [id], onDelete: SetNull)
+
+  @@unique([workspaceId, page, query])
+  @@index([workspaceId, query])
   @@index([postId])
 }
 
