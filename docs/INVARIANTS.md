@@ -1597,3 +1597,14 @@ before changing code in that area.
   what's stored, so they stay consistent.
 - **While an agent run is queued or running, saves wait** (`busy` — the editor retries every 10 s and says so) and
   Restore is refused with the reason; the run's own snapshots keep what it replaced.
+
+## ⚠ Topics compare side by side, week by week and item by item (2026-11-03, audit Phase 5, growth part bc)
+- **`/measure/topics/compare?t=…&t=…&range=N`** (E-MEA-12, `lib/topic-compare.ts`): two to four of this workspace's
+  Topics (another workspace's id is ignored; more than four says so) over the same whole weeks of the range
+  (`weekBuckets` — a remainder under a day joins the week before, the latest 26 weeks kept). Per Topic: search
+  clicks from BlogSnapshot rows of its published articles; clicks per article over the articles with a reading;
+  articles published in the range; posts sent (a post to three networks is one post); engagement as the latest
+  reading of each target sent in the week; engagement per post over the posts with a reading. Then each Topic's top
+  articles (clicks, latest position) and posts (engagement). Same bases as Measure → Topics, so the two agree.
+- Measures with no reading are dashes; counts (published, sent) are facts and show 0. Both tables download as CSV.
+  Linked from Measure → Topics with its first two Topics.

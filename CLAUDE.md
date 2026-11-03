@@ -299,6 +299,7 @@ area, rather than loading all of them into every session.
 - Measure opens on every channel at once, and goals say whether the period is on pace — 2026-11-03, audit Phase 5, growth part az
 - Personal settings: say what happened, a zone to read in, an email change that's proven, and deleting yourself — 2026-11-03, audit Phase 5, growth part ba
 - Script versions compare like articles, and the editor never writes over a newer text — 2026-11-03, audit Phase 5, growth part bb
+- Topics compare side by side, week by week and item by item — 2026-11-03, audit Phase 5, growth part bc
 
 ## Open items / things the user still owns
 - **Analytics: APIs enabled 2026-08-03** (Search Console + GA Admin + GA Data, on project

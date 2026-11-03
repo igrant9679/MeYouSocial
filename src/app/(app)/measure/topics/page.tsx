@@ -50,6 +50,12 @@ export default async function MeasureTopicsPage({ searchParams }: { searchParams
       />
 
       <RangePicker range={range} path="/measure/topics" note="Counts are all time and YouTube views a fixed 90 days; clicks and engagement follow the range." />
+      {m.rows.length >= 2 && (
+        <p className="text-xs mb-3 -mt-1">
+          {/* E-MEA-12: side by side over the same weeks, item by item. */}
+          <Link href={`/measure/topics/compare?${m.rows.slice(0, 2).map((r) => `t=${r.id}`).join("&")}${range.preset ? `&range=${range.preset}` : ""}`} className="underline" data-compare-link>Compare Topics side by side, week by week →</Link>
+        </p>
+      )}
 
       {m.rows.length === 0 ? (
         <EmptyState
