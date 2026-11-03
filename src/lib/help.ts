@@ -194,6 +194,12 @@ export const HELP_CATEGORIES: FaqCategory[] = [
         tags: ["search console", "queries", "rank", "position", "keywords", "gsc", "seo", "performance"],
       },
       {
+        q: "Can I use my own picture for an article's featured or OG image?",
+        a: "Yes — on the article's **Assets** tab, each image has **Or from your device or Media**: upload a file (PNG, JPEG, GIF, WebP, AVIF or TIFF, up to 15 MB) or pick one already in **Media**. It is cropped to the brand's size for that image (Brand → Tone & motifs sets them; 1920×1080 and 1200×630 by default) around what the picture is about — never stretched or letterboxed — and re-saved as a JPEG a site will accept. The **OG image** gets your logo lockup composited on, exactly like a generated one (and the featured image too when the brand puts its mark on body images); if the lockup can't be added, the image says so and the publish gate holds it. A picture you chose counts as reviewed, and an upload is also kept in Media to use again. Attaching by URL still works as before.",
+        links: [{ label: "Articles →", href: "/blog" }],
+        tags: ["image", "featured image", "og image", "upload", "media", "crop", "lockup", "logo"],
+      },
+      {
         q: "What can the article editor's toolbar do?",
         a: "Beyond bold, lists, quotes and links, the article editor (Write tab) can:\n\n· **Insert an image** — pick from this article's own images or the workspace's **Media**; it goes where the cursor is, and publishing puts it in the site's media library like any other.\n· **Insert a table** — a header row and two rows to fill in.\n· **Link to one of your articles** — the link box lists your live articles, so an internal link is a pick, not a copy-paste.\n· **Paste Markdown** — text from a chat window, a README or notes app (## headings, - lists, **bold**, [links](…)) arrives formatted instead of with the symbols showing. Links are kept only when they're web, email or on your site.\n· **Keyboard shortcuts** — Ctrl/⌘+K a link, Ctrl/⌘+Alt+2/3/4 a heading, Ctrl/⌘+Alt+0 a paragraph, Ctrl/⌘+Shift+7/8 a list.",
         links: [{ label: "Articles →", href: "/blog" }],

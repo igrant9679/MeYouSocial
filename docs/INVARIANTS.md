@@ -2035,3 +2035,14 @@ before changing code in that area.
 - **Shortcuts**: Ctrl/⌘+K a link, Ctrl/⌘+Alt+2/3/4 a heading, +0 a paragraph, Ctrl/⌘+Shift+7/8 the lists. ⚠ The
   editor stops Ctrl/⌘+K from bubbling, so the app's search (it listens on window) stays shut while writing; it
   opens everywhere else as before. They go through the `Surface` handlers ref like paste — the surface never re-renders.
+
+## An article's images can come from the device or Media — cropped to spec, the OG branded (2026-11-03, audit Phase 5, growth part cf)
+- **Upload or pick** (E-ART-04): on the Assets tab each image role has "Or from your device or Media"
+  (`placeBlogImageAction` → `placeImageCore`). A file (PNG, JPEG, GIF, WebP, AVIF, TIFF, ≤ 15 MB) or a Media image of
+  THIS workspace is turned (EXIF), cropped to the role's spec with sharp's ATTENTION strategy (around the subject —
+  never stretched, never letterboxed), flattened on white and re-encoded JPEG, stored with the workspace as owner,
+  and attached `approved` (a human chose it) with source `upload` | `library`. An upload's original is also kept in
+  Media — only AFTER the placement succeeded, so a file sharp can't read is refused and leaves nothing anywhere.
+- **The lockup**: the OG — and the featured image when `brandInBodyImages` — gets `applyBrandLockup` exactly as a
+  generated one; `branded` is what actually happened (a failed composite says so, and the gate holds the OG). Audit
+  `blog.image_placed` records the size and the lockup outcome. Attach-by-URL is unchanged.

@@ -351,6 +351,76 @@ export async function attachImageCore(
 }
 
 /**
+ * An image from the person's device or the Media library, made ready for its
+ * role (E-ART-04): cropped to the brand's pixel spec around what the picture
+ * is about (sharp's attention crop — no stretching, no letterbox), flattened
+ * onto white and re-encoded, so the dimension gate passes and the file is a
+ * sane size for the site's upload limit. The OG image — and the featured one
+ * when the brand puts its mark in body images — gets the logo lockup
+ * composited exactly as a generated one does; `branded` records whether that
+ * actually happened. A human chose the picture, so it lands approved.
+ */
+export async function placeImageCore(
+  workspaceId: string,
+  postId: string,
+  role: ImageRole,
+  bytes: Buffer,
+  opts: { altText: string | null; source: "upload" | "library"; name: string; actorId?: string | null },
+): Promise<{ ok: true; width: number; height: number; branded: boolean } | { ok: false; error: string }> {
+  const post = await db.blogPost.findFirst({ where: { id: postId, workspaceId }, select: { id: true } });
+  if (!post) return { ok: false, error: "That article isn't in this workspace." };
+  const brand = await getBrandKit(workspaceId);
+  const spec = specFor(role, brand);
+  const sharp = (await import("sharp")).default;
+  let fitted: Buffer;
+  try {
+    fitted = await sharp(bytes, { failOn: "error" })
+      .rotate() // honour the camera's orientation before cropping
+      .resize(spec.width, spec.height, { fit: "cover", position: sharp.strategy.attention })
+      .flatten({ background: "#ffffff" })
+      .jpeg({ quality: 86, mozjpeg: true })
+      .toBuffer();
+  } catch {
+    return { ok: false, error: "That file couldn't be read as an image." };
+  }
+  const wantsLockup = role === "og" || brand.brandInBodyImages;
+  let branded = false;
+  if (wantsLockup) {
+    try {
+      const workspace = await db.workspace.findUnique({ where: { id: workspaceId }, select: { name: true } });
+      const { applyBrandLockup, loadBrandLogo } = await import("@/lib/images/lockup");
+      const withMark = await applyBrandLockup(fitted, { brandName: workspace?.name ?? "", logo: await loadBrandLogo(workspaceId), width: spec.width, height: spec.height });
+      fitted = await sharp(withMark).jpeg({ quality: 86, mozjpeg: true }).toBuffer();
+      branded = true;
+    } catch (e) {
+      // Stored un-branded and said so: the publish gate holds an OG without its mark.
+      console.warn("[blog-images] lockup failed on a placed image:", e instanceof Error ? e.message : e);
+    }
+  }
+  const { storage } = await import("@/lib/storage");
+  const stored = await storage.put(`${role}-${opts.name.replace(/[^\w.-]+/g, "-").slice(0, 60) || "image"}.jpg`, fitted, "image/jpeg", workspaceId);
+  const data = {
+    url: stored.url,
+    altText: opts.altText?.slice(0, 200) ?? null,
+    width: spec.width,
+    height: spec.height,
+    source: opts.source,
+    status: "approved", // a human chose this picture — that is the review
+    branded,
+  };
+  await db.blogImage.upsert({ where: { postId_role: { postId, role } }, update: data, create: { postId, role, ...data } });
+  await writeAudit({
+    workspaceId,
+    actorId: opts.actorId ?? null,
+    action: "blog.image_placed",
+    entityType: "blog_post",
+    entityId: postId,
+    meta: { role, source: opts.source, size: `${spec.width}x${spec.height}`, lockup: wantsLockup ? (branded ? "composited" : "FAILED") : "none" },
+  });
+  return { ok: true, width: spec.width, height: spec.height, branded };
+}
+
+/**
  * Alt text from an art-direction brief: its first sentence, which describes
  * the subject ("Tactile 3D render of a tarnished brass coin-meter…"). Capped
  * at a word boundary under the 200-char column limit.

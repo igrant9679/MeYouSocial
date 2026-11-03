@@ -43,6 +43,7 @@ import {
 import {
   approveBlogImageAction,
   attachBlogImageAction,
+  placeBlogImageAction,
   deleteBlogImageAction,
   generateBlogImageAction,
   generateImageBriefsAction,
@@ -979,6 +980,26 @@ export default async function BlogPostPage({
                       )}
                       <SubmitButton className="btn" pendingText="Measuring…">{img ? "Replace" : "Attach"}</SubmitButton>
                     </div>
+                  </form>
+                )}
+
+                {/* E-ART-04: from the device or the Media library — cropped to the spec, the OG branded. */}
+                {editor && (
+                  <form action={placeBlogImageAction} encType="multipart/form-data" className="flex flex-col gap-2 border-t border-[var(--line)] pt-2" data-place-image={role}>
+                    <input type="hidden" name="postId" value={post.id} />
+                    <input type="hidden" name="role" value={role} />
+                    <span className="text-[11px] text-[var(--mute)]">
+                      Or from your device or Media — cropped to {spec.width}×{spec.height} around the subject{role === "og" || brand.brandInBodyImages ? ", with your logo lockup" : ""}.
+                    </span>
+                    <input type="file" name="file" accept="image/png,image/jpeg,image/gif,image/webp,image/avif,image/tiff" className="text-xs" aria-label={`Upload the ${ROLE_LABELS[role].toLowerCase()}`} />
+                    {mediaItems.length > 0 && (
+                      <select name="mediaKey" defaultValue="" className="text-xs" aria-label="Pick from Media">
+                        <option value="">…or pick one from Media</option>
+                        {mediaItems.map((m) => <option key={m.key} value={m.key}>{m.name}</option>)}
+                      </select>
+                    )}
+                    <input name="altText" placeholder="alt text — describe the picture" className="w-full text-xs" />
+                    <div><SubmitButton className="btn" pendingText="Cropping…">Use this image</SubmitButton></div>
                   </form>
                 )}
 

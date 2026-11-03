@@ -2,6 +2,7 @@
 
 import { advanceIfReadyCore } from "@/lib/blog-gates";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { requireRole } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/governance";
@@ -10,6 +11,8 @@ import {
   generateImageBriefsCore,
   generateImageCore,
   isImageRole,
+  placeImageCore,
+  ROLE_LABELS,
   parseImageDimensions,
   probeImageDimensions,
 } from "@/lib/blog-images";
@@ -41,6 +44,60 @@ export async function attachBlogImageAction(formData: FormData) {
     formData.get("branded") === "on",
   );
   revalidatePath(`/blog/${postId}`);
+}
+
+const UPLOAD_TYPES = new Set(["image/png", "image/jpeg", "image/gif", "image/webp", "image/avif", "image/tiff"]);
+const UPLOAD_BYTES = 15 * 1024 * 1024;
+
+/**
+ * E-ART-04: an image from the device or the Media library, cropped to the
+ * role's spec (and branded, for the OG) by `placeImageCore`. An upload is also
+ * kept in Media, so it can be picked again for another article or a post.
+ */
+export async function placeBlogImageAction(formData: FormData) {
+  const postId = String(formData.get("postId"));
+  const role = String(formData.get("role"));
+  const { workspace, user } = await requireRole("EDITOR");
+  function back(msg: string, ok = false): never {
+    redirect(`/blog/${postId}?tab=assets&${ok ? "flash" : "flashErr"}=${encodeURIComponent(msg)}`);
+  }
+  if (!isImageRole(role)) back("Pick featured or OG.");
+  const altText = String(formData.get("altText") ?? "").trim() || null;
+  const file = formData.get("file");
+  const mediaKey = String(formData.get("mediaKey") ?? "").trim();
+  let bytes: Buffer | null = null;
+  let name = "image";
+  let source: "upload" | "library" = "upload";
+  let upload: File | null = null;
+  if (file instanceof File && file.size > 0) {
+    if (!UPLOAD_TYPES.has(file.type)) back("Upload a PNG, JPEG, GIF, WebP, AVIF or TIFF image.");
+    if (file.size > UPLOAD_BYTES) back("Images must be under 15 MB.");
+    bytes = Buffer.from(await file.arrayBuffer());
+    name = file.name;
+    upload = file;
+  } else if (mediaKey) {
+    const item = await db.mediaItem.findFirst({ where: { workspaceId: workspace.id, key: mediaKey }, select: { key: true, name: true, description: true } });
+    if (!item) back("That image isn't in this workspace's Media.");
+    const { storage } = await import("@/lib/storage");
+    bytes = await storage.get(item.key);
+    if (!bytes) back("That Media image couldn't be read from storage.");
+    name = item.name;
+    source = "library";
+  } else {
+    back("Choose a file, or pick one from Media.");
+  }
+  const res = await placeImageCore(workspace.id, postId, role, bytes!, { altText, source, name, actorId: user.id });
+  revalidatePath(`/blog/${postId}`);
+  if (!res.ok) back(res.error);
+  // The original goes to Media too, to be picked again elsewhere — only once it
+  // has proven to be an image, so a refused file leaves nothing behind.
+  if (upload) {
+    const { storage } = await import("@/lib/storage");
+    const kept = await storage.put(upload.name, bytes!, upload.type, workspace.id);
+    await db.mediaItem.create({ data: { workspaceId: workspace.id, key: kept.key, name: upload.name.slice(0, 200), description: altText, contentType: upload.type, createdById: user.id } });
+  }
+  await advanceIfReadyCore(workspace.id, postId, "placed an image");
+  back(`${ROLE_LABELS[role]} set — cropped to ${res.width}×${res.height}${res.branded ? " with your logo lockup" : role === "og" ? " (the logo lockup couldn't be added — check the brand logo)" : ""}.`, true);
 }
 
 export async function generateBlogImageAction(formData: FormData) {
