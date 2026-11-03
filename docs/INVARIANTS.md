@@ -1679,3 +1679,18 @@ before changing code in that area.
   what the composer's counters, the send-time check (`legProblem`), the tailor and the overview's over-limit list
   all use — a `.length` count refused short posts with long links and passed CJK posts X rejected. The counters
   count the text AS SENT (tags included), the same text the send checks.
+
+## ⚠ Discovery learns from approval rates: each Topic's run asks for more or fewer, within bounds (2026-11-03, audit Phase 5, growth part bi)
+- **How ideas fare** (E-IDE-19, `lib/idea-yield.ts` `ideaYield`): per (format, Topic, source) over the last
+  `YIELD_WINDOW_DAYS` (90) of article and social ideas — ideas, decided, approved (approved or drafted), rejected, and
+  of the approved how many went out (an article published, a post posted/partial). ⚠ A merged idea is neither yes nor
+  no — merging says it was a duplicate. Shown on Ideas → Topics (a by-source card, and each Topic's next run) and on a
+  Topic's own page (its sources), through `components/IdeaYield.tsx`.
+- ⚠ **`cellTuning` is the only place discovery learns from it**: `runIdeation` asks each cell for
+  `PER_CELL` (4) × factor, where the factor is the engine's own approval rate in that Topic and format (source
+  `ENGINE_SOURCE`: article "ai", social "discovered"), smoothed toward the workspace's rate for that format as if
+  `MIN_DECIDED` (5) more had been decided at it, divided by the workspace's rate, and clamped to
+  `TUNE_MIN..TUNE_MAX` (0.5–1.5); never below 1. Under `MIN_DECIDED` decisions, or with nothing approved anywhere,
+  the base count stands and the reason says so. Every caller (the board's and Topics' Discover, the assistant, the
+  sweep) gets it; each run cell carries `asked` and `tuning`, and Discover's banner says when a count was changed and
+  why. Ordering (emptiest first, weighted by priority) is unchanged — tuning changes how MANY, not which.

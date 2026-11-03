@@ -10,6 +10,10 @@ import { topicLedgers, topicSuggestions, untaggedIdeaCount } from "@/lib/topics"
 import { createTopicAction, mergeTopicAction, dismissTopicSuggestionAction, toggleTopicStatusAction, updateTopicAction } from "@/app/actions/brand-hub";
 import { discoverIdeasAction } from "@/app/actions/ideas";
 import { MIN_CHANNELS, MIN_VIDEOS, researchTopicSuggestions } from "@/lib/research-topics";
+import { cellTuning, ideaYield, summarize, YIELD_WINDOW_DAYS, type CellTuning, type YieldRow } from "@/lib/idea-yield";
+import { PER_CELL } from "@/lib/ideation";
+import { SOURCE_LABEL } from "@/lib/idea-history";
+import { TuningLines, YieldFigures } from "@/components/IdeaYield";
 
 // Topics — the spine (2026-09-21). Moved here from Brand because a Topic is
 // not identity, it is what the loop is ABOUT: Research is matched to it,
@@ -27,7 +31,12 @@ export default async function TopicsPage({ searchParams }: { searchParams: Promi
   const editor = canEdit(membership.role);
   // Merging and deleting re-file everyone's work, so they are an admin's (E-IDE-06).
   const admin = canAdmin(membership.role);
-  const [ledgers, untagged, suggestions] = await Promise.all([topicLedgers(workspace.id), untaggedIdeaCount(workspace.id), topicSuggestions(workspace.id)]);
+  const [ledgers, untagged, suggestions, yields] = await Promise.all([
+    topicLedgers(workspace.id),
+    untaggedIdeaCount(workspace.id),
+    topicSuggestions(workspace.id),
+    ideaYield(workspace.id).catch(() => [] as YieldRow[]),
+  ]);
   // E-IDE-22: themes in Research's outliers that no Topic covers — not the keyword suggestions' names again.
   const research = editor ? await researchTopicSuggestions(workspace.id, suggestions.map((s) => s.name)).catch(() => null) : null;
   const active = ledgers.filter((t) => t.status === "active");
@@ -35,6 +44,11 @@ export default async function TopicsPage({ searchParams }: { searchParams: Promi
   // The Topics another can be merged into — every other one, active or archived.
   const others = (id: string) => ledgers.filter((o) => o.id !== id).map((o) => ({ id: o.id, name: o.name }));
   const quiet = active.filter((t) => t.ideas.article + t.ideas.video + t.ideas.social === 0);
+  // E-IDE-19: how each source's ideas fared, and what each Topic's next run asks for.
+  const bySource = [...new Set(yields.map((r) => `${r.format}|${r.source}`))]
+    .map((k) => { const [format, source] = k.split("|"); return { format, source, y: summarize(yields.filter((r) => r.format === format && r.source === source)) }; })
+    .sort((a, b) => b.y.ideas - a.y.ideas);
+  const tuningFor = (id: string) => ({ article: cellTuning(yields, id, "article", PER_CELL), social: cellTuning(yields, id, "social", PER_CELL) });
 
   return (
     <div>
@@ -161,6 +175,23 @@ export default async function TopicsPage({ searchParams }: { searchParams: Promi
         </section>
       )}
 
+      {bySource.length > 0 && (
+        <section className="card mb-4" data-idea-yield>
+          <h2 className="font-mono text-[12px] font-bold mb-0.5">How ideas fare, by where they came from</h2>
+          <p className="text-[11px] text-[var(--mute)] mb-2">
+            Article and social ideas from the last {YIELD_WINDOW_DAYS} days. Approved counts drafted ones; a merged duplicate counts as neither. Out = of those approved, published or sent.
+          </p>
+          <ul className="m-0 p-0 list-none flex flex-col">
+            {bySource.map(({ format, source, y }) => (
+              <li key={`${format}-${source}`} className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 text-xs py-1 border-t border-[var(--line)] first:border-0" data-yield-source={`${format}:${source}`}>
+                <span className="font-semibold min-w-[12rem]">{format === "article" ? "Articles" : "Social"} · {SOURCE_LABEL[source] ?? source}</span>
+                <YieldFigures y={y} />
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       {ledgers.length === 0 ? (
         <EmptyState
           line="No Topics yet."
@@ -171,7 +202,7 @@ export default async function TopicsPage({ searchParams }: { searchParams: Promi
       ) : (
         <>
           <ul className="flex flex-col gap-2">
-            {active.map((t) => <TopicRow key={t.id} t={t} editor={editor} admin={admin} others={others(t.id)} />)}
+            {active.map((t) => <TopicRow key={t.id} t={t} editor={editor} admin={admin} others={others(t.id)} tuning={tuningFor(t.id)} />)}
           </ul>
           {archived.length > 0 && (
             <details className="mt-4">
@@ -187,7 +218,7 @@ export default async function TopicsPage({ searchParams }: { searchParams: Promi
   );
 }
 
-function TopicRow({ t, editor, admin, others }: { t: Awaited<ReturnType<typeof topicLedgers>>[number]; editor: boolean; admin: boolean; others: Array<{ id: string; name: string }> }) {
+function TopicRow({ t, editor, admin, others, tuning }: { t: Awaited<ReturnType<typeof topicLedgers>>[number]; editor: boolean; admin: boolean; others: Array<{ id: string; name: string }>; tuning?: { article: CellTuning; social: CellTuning } }) {
   const archived = t.status !== "active";
   const ideas = t.ideas.article + t.ideas.video + t.ideas.social;
   const made = t.made.articles + t.made.scripts + t.made.posts;
@@ -244,6 +275,7 @@ function TopicRow({ t, editor, admin, others }: { t: Awaited<ReturnType<typeof t
         <span title="Articles, scripts and social posts that exist for it"><b className="text-[var(--ink)] tabular-nums">{made}</b> made</span>
         <span title="Published articles and posted social"><b className="text-[var(--ink)] tabular-nums">{out}</b> out</span>
       </div>
+      {tuning && !archived && <TuningLines tuning={tuning} id={t.id} />}
 
       {editor ? (
         <form action={updateTopicAction} className="flex flex-wrap items-end gap-2">

@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import type { IdeaFormat } from "@/lib/ideas-board";
+import { cellTuning, ideaYield, type YieldRow } from "@/lib/idea-yield";
 
 /**
  * Ideation per Topic, per format ("Topics as the spine", 2026-09-21).
@@ -30,6 +31,9 @@ import type { IdeaFormat } from "@/lib/ideas-board";
  */
 
 export type IdeationCell = { topicId: string; topicName: string; format: IdeaFormat; open: number; priority: number };
+
+/** Ideas one cell's run asks for before its approval rate tunes it (lib/idea-yield.ts). */
+export const PER_CELL = 4;
 
 /** Open ideas per Topic above which a person's Discover is refused. */
 export const MANUAL_CEILING = 12;
@@ -67,7 +71,8 @@ export async function ideationCells(workspaceId: string, formats: IdeaFormat[]):
 
 export type IdeationRun = {
   created: number;
-  cells: Array<IdeationCell & { created: number }>;
+  /** Each cell run: `asked` is the count its approval rate tuned it to (E-IDE-19), `tuning` says why. */
+  cells: Array<IdeationCell & { created: number; asked: number; tuning: string }>;
   untargeted: boolean;
   /** Cells a person's ceiling refused, so the message can name them. */
   skipped: IdeationCell[];
@@ -110,14 +115,20 @@ export async function runIdeation(
   const todo = eligible.filter((c) => c.open < ceiling).slice(0, maxCells);
   run.saturated = eligible.length > 0 && todo.length === 0;
 
+  // How many each cell asks for follows how its discovered ideas have fared
+  // (E-IDE-19, lib/idea-yield.ts): bounded, and the base count until a Topic
+  // has enough decisions to judge by.
+  const base = opts.perCell ?? PER_CELL;
+  const yields = todo.length ? await ideaYield(workspaceId).catch(() => [] as YieldRow[]) : [];
   for (const cell of todo) {
+    const tune = cellTuning(yields, cell.topicId, cell.format, base);
     const created =
       cell.format === "article"
-        ? await discoverIdeasCore(workspaceId, cell.topicId, opts.perCell ?? 4, actorId)
+        ? await discoverIdeasCore(workspaceId, cell.topicId, tune.count, actorId)
         : cell.format === "social"
-          ? await discoverSocialIdeasCore(workspaceId, cell.topicId, opts.perCell ?? 4, actorId)
+          ? await discoverSocialIdeasCore(workspaceId, cell.topicId, tune.count, actorId)
           : 0;
-    run.cells.push({ ...cell, created });
+    run.cells.push({ ...cell, created, asked: tune.count, tuning: tune.reason });
     run.created += created;
   }
   return run;

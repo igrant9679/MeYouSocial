@@ -10,6 +10,10 @@ import { StageHeader, StateChip } from "@/components/StageShell";
 import { ARTICLE_STATE, SOCIAL_STATE, VIDEO_STATE, STATES, type BoardState } from "@/lib/ideas-board";
 import { toggleTopicStatusAction, updateTopicAction } from "@/app/actions/brand-hub";
 import { discoverIdeasAction } from "@/app/actions/ideas";
+import { cellTuning, ideaYield, summarize, YIELD_WINDOW_DAYS, type YieldRow } from "@/lib/idea-yield";
+import { PER_CELL } from "@/lib/ideation";
+import { SOURCE_LABEL } from "@/lib/idea-history";
+import { TuningLines, YieldFigures } from "@/components/IdeaYield";
 
 // One Topic, from the inside: what it is, the ideas about it by format and
 // state, what has been made and gone out, and (Measure → Topics) what it
@@ -29,7 +33,7 @@ export default async function TopicPage({ params, searchParams }: { params: Prom
   const back = `/ideas/topics/${topic.id}`;
   const phrases = readJson<string[]>(topic.keywords, []);
 
-  const [articleIdeas, videoIdeas, socialIdeas, articles, renders, posts, scripts] = await Promise.all([
+  const [articleIdeas, videoIdeas, socialIdeas, articles, renders, posts, scripts, yields] = await Promise.all([
     db.blogIdea.findMany({ where: { workspaceId: workspace.id, topicId: topic.id }, orderBy: [{ priority: "desc" }, { createdAt: "desc" }], take: 60, select: { id: true, title: true, status: true, postId: true } }),
     db.idea.findMany({ where: { channel: { workspaceId: workspace.id }, topicId: topic.id }, orderBy: [{ outlierScore: "desc" }, { createdAt: "desc" }], take: 60, select: { id: true, title: true, status: true, channelId: true } }),
     db.socialIdea.findMany({ where: { workspaceId: workspace.id, topicId: topic.id }, orderBy: [{ priority: "desc" }, { createdAt: "desc" }], take: 60, select: { id: true, hook: true, status: true, socialPostId: true } }),
@@ -37,7 +41,14 @@ export default async function TopicPage({ params, searchParams }: { params: Prom
     db.videoRender.findMany({ where: { workspaceId: workspace.id, topicId: topic.id }, orderBy: { createdAt: "desc" }, take: TAKE, select: { id: true, title: true, status: true, createdAt: true } }),
     db.socialPost.findMany({ where: { workspaceId: workspace.id, topicId: topic.id }, orderBy: [{ publishedAt: "desc" }, { scheduledAt: "desc" }], take: TAKE, select: { id: true, text: true, status: true, scheduledAt: true, publishedAt: true } }),
     db.script.findMany({ where: { channel: { workspaceId: workspace.id }, idea: { topicId: topic.id } }, orderBy: { updatedAt: "desc" }, take: TAKE, select: { id: true, title: true, status: true, workflow: true } }),
+    ideaYield(workspace.id).catch(() => [] as YieldRow[]),
   ]);
+  // E-IDE-19: this Topic's ideas by where they came from, and what discovery asks for next.
+  const mine = yields.filter((r) => r.topicId === topic.id);
+  const bySource = [...new Set(mine.map((r) => `${r.format}|${r.source}`))]
+    .map((k) => { const [format, source] = k.split("|"); return { format, source, y: summarize(mine.filter((r) => r.format === format && r.source === source)) }; })
+    .sort((a, b) => b.y.ideas - a.y.ideas);
+  const tuning = { article: cellTuning(yields, topic.id, "article", PER_CELL), social: cellTuning(yields, topic.id, "social", PER_CELL) };
 
   type Mini = { key: string; format: "article" | "video" | "social"; title: string; state: BoardState; href: string | null };
   const mini: Mini[] = [
@@ -113,6 +124,22 @@ export default async function TopicPage({ params, searchParams }: { params: Prom
         </div>
         <p className="text-[11px] text-[var(--mute)] mt-2 m-0">Edit the description and phrases on <Link href="/ideas/topics" className="underline">Topics</Link>.</p>
       </div>
+
+      {bySource.length > 0 && (
+        <section className="card mb-4" data-idea-yield>
+          <h2 className="font-mono text-[12px] font-bold mb-0.5">How its ideas fare</h2>
+          <p className="text-[11px] text-[var(--mute)] mb-2">The last {YIELD_WINDOW_DAYS} days, by where each idea came from. Out = of those approved, published or sent.</p>
+          <ul className="m-0 p-0 list-none flex flex-col mb-2">
+            {bySource.map(({ format, source, y }) => (
+              <li key={`${format}-${source}`} className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 text-xs py-1 border-t border-[var(--line)] first:border-0" data-yield-source={`${format}:${source}`}>
+                <span className="font-semibold min-w-[12rem]">{format === "article" ? "Articles" : "Social"} · {SOURCE_LABEL[source] ?? source}</span>
+                <YieldFigures y={y} />
+              </li>
+            ))}
+          </ul>
+          {topic.status === "active" && <TuningLines tuning={tuning} id={topic.id} />}
+        </section>
+      )}
 
       {/* Ideas about it, the board's three columns */}
       <h2 className="font-mono text-[13px] font-bold mb-2">Ideas</h2>

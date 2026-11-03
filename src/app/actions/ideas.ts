@@ -186,7 +186,7 @@ export async function discoverIdeasAction(formData?: FormData) {
   const rawBack = String(formData?.get("back") ?? "/ideas");
   // The Ideas board, or Articles' own Discover buttons (IDE-03).
   const back = /^\/ideas(\/|$)/.test(rawBack) || rawBack === "/blog" ? rawBack.split("?")[0] : "/ideas";
-  const { runIdeation, MANUAL_CEILING } = await import("@/lib/ideation");
+  const { runIdeation, MANUAL_CEILING, PER_CELL } = await import("@/lib/ideation");
   const run = await runIdeation(workspace.id, {
     formats: formats.length ? formats : ["article"],
     maxCells: topicId ? formats.length || 1 : 3,
@@ -211,7 +211,9 @@ export async function discoverIdeasAction(formData?: FormData) {
   }
   const per = run.cells.filter((c) => c.created).map((c) => `${c.created} for “${c.topicName}”`).join(", ");
   const skipped = run.skipped.length ? ` Skipped ${run.skipped.map((c) => `“${c.topicName}” (${c.open} open)`).join(", ")} — at the ${MANUAL_CEILING}-idea ceiling.` : "";
-  redirect(`${back}?ok=${encodeURIComponent(`Discovered ${n(run.created, "idea")}${per ? ` — ${per}` : run.untargeted ? " (untagged: no Topics yet)" : ""}.${skipped}`)}`);
+  // A count its approval rate changed is said, so a smaller run isn't a mystery (E-IDE-19).
+  const tuned = run.cells.filter((c) => c.asked !== PER_CELL).map((c) => ` “${c.topicName}” asked for ${c.asked}, not ${PER_CELL}: ${c.tuning}.`).join("");
+  redirect(`${back}?ok=${encodeURIComponent(`Discovered ${n(run.created, "idea")}${per ? ` — ${per}` : run.untargeted ? " (untagged: no Topics yet)" : ""}.${skipped}${tuned}`)}`);
 }
 
 /** Write action: create a Script with the idea's context pre-loaded; open Canvas. */
