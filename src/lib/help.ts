@@ -182,6 +182,12 @@ export const HELP_CATEGORIES: FaqCategory[] = [
         tags: ["voice", "audience", "avatar", "versions", "restore", "undo", "retrain", "samples", "persona"],
       },
       {
+        q: "Do our social posts actually send people to the articles?",
+        a: "Once GA4 is connected (Settings → Analytics), each sync also reads **the visits social brought**: the last 28 days of sessions by landing page, source and campaign, kept as one rolling snapshot the next sync replaces. Only social visits are kept — a network as the source (GA4's spellings like lnkd.in or t.co count as LinkedIn and X), medium \"social\", or one of your campaigns' codes. An article's **Performance** tab shows **Visits it brought** by network and campaign, with how many were engaged; a **campaign's page** shows the sessions its tagged links brought and which articles they landed on. It works because the app tags the links it sends per network (utm_source = the network, utm_campaign = the campaign's code) — a campaign without its own code can't be told apart from other posts.",
+        links: [{ label: "Campaigns →", href: "/setup/schedule" }, { label: "Analytics settings →", href: "/admin/analytics" }],
+        tags: ["ga4", "attribution", "utm", "sessions", "visits", "campaign", "social traffic", "performance"],
+      },
+      {
         q: "Which searches find my articles — and where do my keywords rank?",
         a: "Once Search Console is connected (Settings → Analytics), each sync also reads **what people searched**: the last 28 days by page and search, kept as one rolling snapshot that the next sync replaces. An article's **Performance** tab lists the searches that found it — clicks, impressions, CTR and Google's average position for each, with its focus keyword marked (or a note that it isn't among them). **Keywords** gains a **Google** column: each keyword's position over the same 28 days, weighted by impressions across every page that showed for it, with the page that did best. A dash means no impressions in the window, or not synced yet. Each page keeps its top 20 searches, plus every search that is one of your keywords.",
         links: [{ label: "Keywords →", href: "/blog/keywords" }, { label: "Analytics settings →", href: "/admin/analytics" }],

@@ -1977,3 +1977,17 @@ before changing code in that area.
 - ⚠ **A refresh never blanks a real avatar**: `onboarding.audience` writes its generic baseline only when there is
   no avatar yet; on a refresh the existing one stays until a real answer replaces it, so a failed model call leaves
   the team's text in place (it used to write the placeholder first).
+
+## ⚠ The visits social brought are a 28-day GA4 snapshot, social rows only, replaced whole (2026-11-03, audit Phase 5, growth part cb)
+- **The read** (E-MEA-07): after its path × date pass, a normal analytics sync (never a backfill window) reads GA4
+  sessions + engaged sessions by landingPage × sessionSource × sessionMedium × sessionCampaignName over the last
+  `VISIT_WINDOW_DAYS` (28, ending yesterday) and REPLACES the workspace's `SocialVisit` rows — ⚠ never summed across
+  syncs; its failure is reported on the GA4 status and never costs the day rows.
+- **What's kept** (`pickVisitRows`): social only — a network as the source (`networkOfSource`: GA4's spellings like
+  lnkd.in, t.co, m.facebook.com are one network), medium "social", or a code one of the workspace's campaigns uses
+  (case-insensitive). Search, direct and other campaigns' codes are dropped. Page spellings merge through `urlKey`;
+  `postId` when the landing page is an article, `campaignId` when the code is a campaign's.
+- **Shown**: an article's Performance tab → **Visits it brought** (by network and campaign, sessions, engaged %); a
+  campaign's page → **Visits it brought** by landing page (the article linked). A campaign without its own code says
+  why its visits can't be told apart. This rests on the send-time tagging (utm_source = network, utm_medium =
+  social, utm_campaign = the campaign's code) — keep the two in step.

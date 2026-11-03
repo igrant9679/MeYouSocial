@@ -10,6 +10,7 @@ import { marksFor } from "@/lib/chart-annotations";
 import { bucketsFromMoments } from "@/lib/chart-marks";
 import { ChartMarkList } from "@/components/ChartMarks";
 import { normQuery, queryWindow, topQueriesForPost } from "@/lib/search-queries";
+import { visitsForPost, visitWindow } from "@/lib/social-visits";
 
 /**
  * One article's performance (E-MEA-06): its daily search numbers, the 28 days
@@ -41,7 +42,8 @@ export async function ArticlePerformance({ postId, workspaceId, publishedUrl, ti
   ]);
   const postIds = [...new Set([...fromIdeas.map((i) => i.socialPostId!), ...byLink.map((p) => p.id)])];
   const focus = await db.blogPost.findUnique({ where: { id: postId }, select: { focusKeyword: true } }).then((p) => (p?.focusKeyword ? normQuery(p.focusKeyword) : null));
-  const [queries, qWindow] = await Promise.all([topQueriesForPost(postId, focus), queryWindow(workspaceId)]);
+  const [queries, qWindow, visits, vWindow] = await Promise.all([topQueriesForPost(postId, focus), queryWindow(workspaceId), visitsForPost(postId), visitWindow(workspaceId)]);
+  const visitTotal = visits.reduce((a, v) => a + v.sessions, 0);
   const [posts, results] = await Promise.all([
     postIds.length
       ? db.socialPost.findMany({
@@ -173,6 +175,41 @@ export async function ArticlePerformance({ postId, workspaceId, publishedUrl, ti
             })}
           </ul>
         )}
+        {/* E-MEA-07: what those posts brought — GA4 sessions that landed here from social. */}
+        <div className="mt-4" data-perf-visits>
+          <h3 className="text-xs font-semibold m-0 mb-1">Visits it brought</h3>
+          {visits.length === 0 ? (
+            <p className="text-[11px] text-[var(--mute)] m-0">
+              {vWindow
+                ? `No visits from social landed on this article in ${formatDay(vWindow.start, "UTC")} – ${formatDay(vWindow.end, "UTC")}.`
+                : "Not read yet — visits arrive with the GA4 sync (Settings → Analytics), from the links the app tags per network."}
+            </p>
+          ) : (
+            <>
+              <p className="text-[11px] text-[var(--mute)] m-0 mb-1.5"><b>{visitTotal.toLocaleString()}</b> session{visitTotal === 1 ? "" : "s"} from social, {formatDay(visits[0].windowStart, "UTC")} – {formatDay(visits[0].windowEnd, "UTC")}, from GA4.</p>
+              <table className="w-full text-xs border-collapse">
+                <thead>
+                  <tr className="text-left text-[9px] uppercase tracking-wider font-mono text-[var(--mute)]">
+                    <th className="py-1 pr-3">Network</th>
+                    <th className="py-1 pr-3">Campaign</th>
+                    <th className="py-1 pr-3 text-right">Sessions</th>
+                    <th className="py-1 text-right" title="GA4's engaged sessions: 10 seconds or more, a key event, or two page views">Engaged</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {visits.map((v) => (
+                    <tr key={`${v.network}:${v.campaign ?? ""}`} className="border-t border-[var(--line)]" data-visit={`${v.network}:${v.campaign ?? ""}`}>
+                      <td className="py-1 pr-3">{networkFor(v.network)?.label ?? v.network}</td>
+                      <td className="py-1 pr-3">{v.campaignId ? <Link href={`/social/campaigns/${v.campaignId}`} className="underline">{v.campaignName ?? v.campaign}</Link> : v.campaign ?? <span className="text-[var(--mute)]">—</span>}</td>
+                      <td className="py-1 pr-3 text-right font-mono tabular-nums">{v.sessions.toLocaleString()}</td>
+                      <td className="py-1 text-right font-mono tabular-nums">{v.sessions ? `${Math.round((v.engaged / v.sessions) * 100)}%` : "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </>
+          )}
+        </div>
       </section>
     </div>
   );

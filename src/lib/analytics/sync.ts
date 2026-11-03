@@ -288,7 +288,21 @@ export async function syncWorkspaceAnalytics(
         cur.sessions = (cur.sessions ?? 0) + Number(r.metrics[0] ?? 0);
         fresh.set(k, cur);
       }
-      outcome.ga4 = { ok: true, message: `${rows.length} path-day row${rows.length === 1 ? "" : "s"}, ${matched} matched a post`, rows: matched };
+      // The visits social posts brought (E-MEA-07): the last 28 days by
+      // landing page × source × medium × campaign, social rows only,
+      // replaced whole. Normal syncs only; its failure never costs the rows above.
+      let visits = "";
+      if (!range) {
+        try {
+          const { syncSocialVisits, MAX_VISIT_ROWS } = await import("@/lib/social-visits");
+          const kept = await syncSocialVisits(workspaceId, index, urlKey, (s, e) =>
+            ga4RunReportAll(workspaceId, { startDate: s, endDate: e, dimensions: ["landingPage", "sessionSource", "sessionMedium", "sessionCampaignName"], metrics: ["sessions", "engagedSessions"], maxRows: MAX_VISIT_ROWS }));
+          visits = `; ${kept} social visit row${kept === 1 ? "" : "s"} kept`;
+        } catch (e) {
+          visits = `; social visits not read (${(e instanceof Error ? e.message : String(e)).slice(0, 120)})`;
+        }
+      }
+      outcome.ga4 = { ok: true, message: `${rows.length} path-day row${rows.length === 1 ? "" : "s"}, ${matched} matched a post${visits}`, rows: matched };
     } catch (e) {
       outcome.ga4 = { ok: false, message: sourceError(e, ga4.cred.kind === "oauth" ? `The connected Google account (${ga4.identity}) needs at least Viewer access to this GA4 property.` : `Grant ${ga4.identity} the Viewer role on this property (GA4 → Admin → Property access management).`), rows: 0 };
     }

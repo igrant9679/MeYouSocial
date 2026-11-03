@@ -324,6 +324,7 @@ area, rather than loading all of them into every session.
 - The Ideas board scales: 20 cards a column, a paged table, one Topic picker — 2026-11-03, audit Phase 5, growth part by
 - What people searched is a 28-day snapshot, replaced whole; keywords rank by it — 2026-11-03, audit Phase 5, growth part bz
 - Voice profiles and audience avatars keep versions; re-training applies the model's answer or nothing — 2026-11-03, audit Phase 5, growth part ca
+- The visits social brought are a 28-day GA4 snapshot, social rows only, replaced whole — 2026-11-03, audit Phase 5, growth part cb
 
 ## Open items / things the user still owns
 - **Analytics: APIs enabled 2026-08-03** (Search Console + GA Admin + GA Data, on project

@@ -6,8 +6,9 @@ import { db } from "@/lib/db";
 import { getPostingTimeZone } from "@/lib/social/slots";
 import { byNetwork, latestPerTarget } from "@/lib/social/performance";
 import { compact, resultsForPosts } from "@/lib/social/post-results";
+import { visitsForCampaign } from "@/lib/social-visits";
 import { networkFor } from "@/lib/social/networks";
-import { formatZonedMoment } from "@/lib/zoned-dates";
+import { formatDay, formatZonedMoment } from "@/lib/zoned-dates";
 import { requestNow } from "@/lib/request-time";
 
 // A campaign's own page (E-SOC-21): what's in it by state, a calendar of its
@@ -42,6 +43,9 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
     }),
   ]);
   const networks = byNetwork(latestPerTarget(snaps));
+  // E-MEA-07: the sessions its tagged links brought, by where they landed.
+  const visits = await visitsForCampaign(campaign.id);
+  const visitTotal = visits.pages.reduce((a, p) => a + p.sessions, 0);
   const results = await resultsForPosts(posts.map((p) => p.id));
   const total = (pick: (n: (typeof networks)[number]) => number | null) => {
     const v = networks.map(pick).filter((n): n is number => n != null);
@@ -152,6 +156,41 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
               </tbody>
             </table>
           </div>
+        )}
+      </section>
+
+      <section className="card mb-4" data-campaign-visits>
+        <h2 className="text-sm font-semibold mb-0.5">Visits it brought</h2>
+        {visits.pages.length === 0 ? (
+          <p className="text-xs text-[var(--mute)] m-0">
+            {campaign.utmCampaign
+              ? `No sessions tagged “${campaign.utmCampaign}” in GA4's last 28 days yet — they arrive with the GA4 sync.`
+              : "This campaign has no campaign code of its own, so its visits can't be told apart from other posts' — give it one to count them."}
+          </p>
+        ) : (
+          <>
+            <p className="text-xs text-[var(--mute)] mt-0 mb-2"><b>{visitTotal.toLocaleString()}</b> session{visitTotal === 1 ? "" : "s"} tagged “{campaign.utmCampaign}”{visits.window ? `, ${formatDay(visits.window.start, "UTC")} – ${formatDay(visits.window.end, "UTC")}` : ""}, from GA4.</p>
+            <table className="w-full text-xs border-collapse">
+              <thead>
+                <tr className="text-left text-[9px] uppercase tracking-wider font-mono text-[var(--mute)]">
+                  <th className="py-1 pr-3">Landed on</th>
+                  <th className="py-1 pr-3">From</th>
+                  <th className="py-1 pr-3 text-right">Sessions</th>
+                  <th className="py-1 text-right">Engaged</th>
+                </tr>
+              </thead>
+              <tbody>
+                {visits.pages.map((v) => (
+                  <tr key={v.page} className="border-t border-[var(--line)]" data-campaign-visit={v.page}>
+                    <td className="py-1 pr-3">{v.postId ? <Link href={`/blog/${v.postId}?tab=performance`} className="underline">{v.title ?? v.page}</Link> : <span className="font-mono">{v.page}</span>}</td>
+                    <td className="py-1 pr-3">{v.networks.map((n) => networkFor(n)?.label ?? n).join(", ")}</td>
+                    <td className="py-1 pr-3 text-right font-mono tabular-nums">{v.sessions.toLocaleString()}</td>
+                    <td className="py-1 text-right font-mono tabular-nums">{v.sessions ? `${Math.round((v.engaged / v.sessions) * 100)}%` : "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
         )}
       </section>
 

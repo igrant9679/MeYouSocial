@@ -79,6 +79,7 @@ model Workspace {
   assistantThreads AssistantThread[]
   keywords        Keyword[]
   searchQueries   SearchQuery[]
+  socialVisits    SocialVisit[]
   sitePages       SitePage[]
   brandKit        BrandKit?
   motifDirectives MotifDirective[]
@@ -303,6 +304,7 @@ model BlogPost {
   socialIdeas SocialIdea[]
   snapshots BlogSnapshot[]
   searchQueries SearchQuery[]
+  socialVisits  SocialVisit[]
   versions  BlogPostVersion[]
 
   @@index([workspaceId, status])
@@ -797,6 +799,34 @@ model SearchQuery {
   @@unique([workspaceId, page, query])
   @@index([workspaceId, query])
   @@index([postId])
+}
+
+// Visits social posts brought (E-MEA-07): GA4 sessions by landing page ×
+// source × medium × campaign over the last 28 days, social rows only, REPLACED
+// whole by every sync (like SearchQuery). `network` is one name however GA4
+// spelled the source (lnkd.in and linkedin are one); `campaign` is the
+// utm_campaign it carried, `campaignId` the campaign that code belongs to.
+model SocialVisit {
+  id          String   @id @default(cuid())
+  workspaceId String
+  postId      String?  // the article landed on, when it is one
+  campaignId  String?
+  page        String
+  network     String
+  campaign    String?
+  sessions    Int
+  engaged     Int      // GA4 engaged sessions
+  windowStart DateTime
+  windowEnd   DateTime
+  syncedAt    DateTime @default(now())
+
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  post        BlogPost? @relation(fields: [postId], references: [id], onDelete: SetNull)
+  campaignRef Campaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId])
+  @@index([postId])
+  @@index([campaignId])
 }
 
 // The three-mode autonomy dial: one row per governed function per workspace.
@@ -2044,6 +2074,7 @@ model Campaign {
   workspace Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   posts     SocialPost[]
   captionBatches CaptionBatch[]
+  socialVisits SocialVisit[]
 
   @@unique([workspaceId, name])
   @@index([workspaceId, status])
