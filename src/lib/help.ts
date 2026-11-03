@@ -1,3 +1,4 @@
+import { railSentence, stagesAndTabs } from "@/lib/stage-copy";
 // Searchable Help / FAQ content.
 // Plain data so the UI is purely client-side searchable.
 //
@@ -41,7 +42,7 @@ export const HELP_CATEGORIES: FaqCategory[] = [
       },
       {
         q: "What are all the icons on the left bar?",
-        a: "The rail is the loop, in the order work moves. Top to bottom: **Inbox** (everything waiting on a person — the landing page), **Assistant**, then the six stages — **Research** (Intel, bookmarks, competitors), **Ideas** (the one board, plus keywords and experts), **Drafts** (articles, and the video studio when it is on), **Publish** (approvals, content audit, website, blog calendar), **Distribute** (compose, calendar, engage), **Measure** (reports, insights, analytics) — then the **Setup** group for admins (**Settings**, **Channels**, **Brand**), and **Help**. At the bottom: your profile and sign out. Inside a stage, a strip along the top shows its Overview and tabs with count badges.\n\nYou don't have to memorise any of it — **hover any rail entry and a bubble tells you what that module is for**. The rail collapses to icons on a narrow window, and the same hover still names it.",
+        a: `The rail is the loop, in the order work moves. Top to bottom: ${railSentence({ bold: true })}. The stages and their tabs: ${stagesAndTabs()}. At the bottom: your profile and sign out. Inside a stage, a strip along the top shows its Overview and tabs with count badges.\n\nYou don't have to memorise any of it — **hover any rail entry and a bubble tells you what that module is for**. The rail collapses to icons on a narrow window, and the same hover still names it.`,
         tags: ["nav", "rail", "icons", "hover", "tooltip"],
       },
       {

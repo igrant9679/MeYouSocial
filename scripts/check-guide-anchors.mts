@@ -30,10 +30,10 @@ const anchors = new Set<string>();
 for (const file of walk(SRC)) {
   for (const m of readFileSync(file, "utf8").matchAll(/data-elsie="([^"]+)"/g)) anchors.add(m[1]);
 }
-// The rail: LeftRailNav renders data-elsie={`nav${href}`} for each NAV entry.
-const layout = readFileSync(join(SRC, "app", "(app)", "layout.tsx"), "utf8");
-const nav = layout.slice(layout.indexOf("const NAV"), layout.indexOf("];", layout.indexOf("const NAV")));
-for (const m of nav.matchAll(/\{ href: "([^"]+)"/g)) anchors.add(`nav${m[1]}`);
+// The rail: LeftRailNav renders data-elsie={`nav${href}`} for each entry of
+// lib/nav.ts RAIL (it left the layout in E-SHL-12, so read the data itself).
+const { RAIL } = await import("../src/lib/nav");
+for (const n of RAIL) anchors.add(`nav${n.href}`);
 
 /** "page" | "redirect" | "missing" for an app route (static paths only). */
 function pageKind(href: string): "page" | "redirect" | "missing" {

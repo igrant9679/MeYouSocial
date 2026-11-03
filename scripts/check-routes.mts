@@ -4,7 +4,7 @@
 // requireRole and the map doesn't, a link is shown to someone who bounces to
 // /forbidden (or hidden from someone who could open it). This catches both.
 //
-// Checked: the rail (NAV in app/(app)/layout.tsx), every stage tab (lib/stages.ts,
+// Checked: the rail (RAIL in lib/nav.ts), every stage tab (lib/stages.ts,
 // with every flag on), Help's links (lib/help.ts), Elsie's routes and links
 // (lib/guide/steps.ts) and the Inbox's (lib/home.ts).
 //
@@ -65,9 +65,9 @@ function gateOf(route: Route): Role {
 
 // ── The links ──────────────────────────────────────────────────────────────────
 const links: { href: string; from: string }[] = [];
-const layout = readFileSync(join(APP, "(app)", "layout.tsx"), "utf8");
-const nav = layout.slice(layout.indexOf("const NAV"), layout.indexOf("];", layout.indexOf("const NAV")));
-for (const m of nav.matchAll(/\{ href: "([^"]+)"/g)) links.push({ href: m[1], from: "rail" });
+// The rail's data lives in lib/nav.ts since E-SHL-12 — read it, not the layout's text.
+const { RAIL } = await import("../src/lib/nav");
+for (const n of RAIL) links.push({ href: n.href, from: "rail" });
 for (const [key, stage] of Object.entries(STAGES)) {
   links.push({ href: stage.href, from: `stage ${key}` });
   for (const t of stage.tabs({ channelId: "CHANNEL", studio: true, admin: true, operator: true })) {

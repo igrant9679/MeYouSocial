@@ -1815,3 +1815,18 @@ before changing code in that area.
   so on a phone it had never been visible at all), "Open the guided tour" (closes the drawer and fires `elsie:open`,
   which Elsie answers like Resume), Elsie on/off, and the tab bar's switch. Elsie's own header buttons are `hidden
   md:…` — her overlay stays mounted at every width, only the buttons moved.
+
+## ⚠ The app's map in the help and the assistant is built from the rail and the stages, and a check keeps it so (2026-11-03, audit Phase 5, growth part bq)
+- **One source** (E-SHL-12): the rail's data moved out of the layout into `lib/nav.ts` (`RAIL`; the layout filters it by
+  role). `lib/stage-copy.ts` builds the words from `RAIL` and `lib/stages.ts`: `loopSentence`, `railSentence`,
+  `stagesAndTabs` (each stage's tabs for everyone, then what the video studio, admins and the operator add, plus a
+  hand-written `STAGE_NOTES` clause where tab names can't say it) and `stageUrls`. The assistant's `APP_MAP_BRIEF`, its
+  "The app, page by page" topic and the Help FAQ about the rail use them. They had drifted: Topics, Evergreen, Roles,
+  Audit log, Jobs and API tokens were tabs the assistant had never heard of. ⚠ Don't write a stage or tab list by hand
+  again. A new tab shows up everywhere on its own; only `STAGE_NOTES` is prose.
+- ⚠ **`scripts/check-help-copy.mts` runs in `prebuild`**: every rail entry has a hover tip in `NAV_TIPS`, and no tip
+  outlives its rail entry. The assistant's map and topic must carry the generated text, and that text must name every
+  stage tab for every kind of viewer. It found two rail entries with no tip (Assistant, Settings) and eleven tips left
+  over from the old sixteen-item rail; the leftovers were removed, since only the rail reads `NAV_TIPS`.
+- `check-routes` and `check-guide-anchors` read `RAIL` itself now; both used to parse the layout's source text for
+  `const NAV`, which would have silently checked nothing once it moved.

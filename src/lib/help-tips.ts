@@ -12,26 +12,17 @@
 
 /** What each left-rail module is for, keyed by href. */
 export const NAV_TIPS: Record<string, string> = {
+  "/assistant": "Ask it to do or explain anything in the app. Anything that goes out or is hard to undo is proposed first and waits for your yes. Also the Ask button on every page (Ctrl+/).",
   "/inbox": "Everything waiting on a person — approvals, questions, claims, images, invitations — with the action on the card, and how the pipeline is doing beneath.",
   "/channels": "One YouTube channel per entry. Each carries its own voice, audience, ideas and scripts — switch channels and the whole app follows.",
-  "/intel": "Research: pull in other people's videos and find the outliers — the ones that beat their own channel's average — with views per hour beside each.",
   "/research": "Competitor channels and the outlier videos that beat their own average — Intel, bookmarks, competitors and chat live here. Turn an outlier into an idea from the row.",
   "/ideas": "One stage for every idea: blog ideas by state with approve and draft on the row, and each channel's video ideas a tab away.",
   "/drafts": "Everything being written or rendered — articles drafting or in review, scripts, video renders.",
   "/publish": "The two gates in front of going out — social approvals and the content audit — then articles at final approval, when they go (the publish day, or a date you set), and what went live.",
   "/distribute": "The queue on your posting slots, the drafts behind it, and replies waiting. Compose, calendar, engage and performance are tabs.",
   "/measure": "Search impressions and clicks, engagement, reports — measured numbers only, never invented curves.",
-  "/scripts": "Long-form scripts. Open one to write with the AI, or run the agent end to end.",
-  "/blog": "The article workspace — drafting, SEO, images and publishing to WordPress. Separate from video scripts.",
-  "/reports": "Build a report from your own data and export it as a PDF.",
-  "/insights": "What actually happened after you published: engagement, search and traffic, once those are connected.",
-  "/videos": "Turn a post or idea into a rendered video. Packaging first, then rendering.",
-  "/social": "Compose once, post to your connected social accounts — now, at a time you pick, or into a recurring slot.",
-  "/website": "Publish articles to your website: WordPress connected directly, or any site via HTML export.",
   "/brand": "The things every generation should obey: colours, logo, company info, personas and tone.",
-  "/ideas/topics": "The themes everything hangs off: research is matched to them, ideas in every format are discovered per topic, and Measure reports what each one earned.",
-  "/thumbnails": "Thumbnail concepts and images for a video.",
-  "/production": "A board for the work itself — who's doing what, and what's blocked.",
+  "/setup": "Every dial, under the question it answers: who can do what, what runs by itself, when things go out, what is connected. Admins also get the operator pages as tabs.",
   "/help": "Guides, FAQs and search. Start here if you're new.",
 };
 
