@@ -1767,3 +1767,21 @@ before changing code in that area.
   provider, and its reply says the draft finishes in the background.
 - The assistant eval covers it: Stop finishes the step it's on and starts no other, and that press doesn't stop the
   next turn (made deterministic by having the stand-in model wait for the press before answering).
+
+## ⚠ The assistant's prompt is cached, and what scrolls out of its window is summarised, not lost (2026-11-03, audit Phase 5, growth part bn)
+- **Prompt caching** (E-ENG-08): `LLMRequest.systemCached` is a STABLE prefix — Anthropic sends it as its own system
+  block with `cache_control: ephemeral` (the assistant's ~10k-token manual is then read at a tenth of the price on
+  every later call within the cache's lifetime); Google gets it prepended (Gemini caches prefixes implicitly). ⚠ In
+  `run.ts`, `systemPrompt` (identity, protocol, tool manual, app map, rules, brand) must not vary turn to turn — any
+  change is a cache miss for every turn; what does vary (the page, the channel, the summary) is `turnContext`, sent as
+  `system` after it. `LLMResponse.inputTokens` counts cache reads and writes too (`cachedInputTokens` says how many were
+  reads), so Usage's estimate errs high and says so.
+- **Not done, on purpose**: a per-page subset of tools. With the manual cached its size costs a tenth; a subset would
+  change the cached prefix per page (a miss every time the person moves) and hide tools they may ask for anyway.
+- **Summaries** (`session.ts` `foldOldMessages`): the model sees the last 12 messages; once FOLD_BATCH (4) or more
+  have scrolled out since the last fold, the old summary plus those messages become a new one (≤ ~150 words, purpose
+  `assistant.summary`), stored on the thread (`summary`, `summaryThrough`, migration `20261103040000_assistant_summary`)
+  and given to the next turns as context. A mock reply is never stored; a failed fold keeps the old summary.
+- ⚠ **A summary built from outside text keeps the outside-text rules on** (`summaryOutside`): once a folded message had
+  read a page, transcript or search, every write in that conversation is proposed — the summary could carry an
+  injected instruction past the twelve-message window that used to end the rule.

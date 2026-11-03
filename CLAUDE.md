@@ -310,6 +310,7 @@ area, rather than loading all of them into every session.
 - Every AI call names what it was for; tokens per reply; a budget that warns; money only at the operator's prices — 2026-11-03, audit Phase 5, growth part bk
 - The assistant's writes can be undone for ten minutes — only by their person, only if untouched since — 2026-11-03, audit Phase 5, growth part bl
 - The dock shows each assistant step as it runs, and Stop ends a turn between steps — 2026-11-03, audit Phase 5, growth part bm
+- The assistant's prompt is cached, and what scrolls out of its window is summarised, not lost — 2026-11-03, audit Phase 5, growth part bn
 
 ## Open items / things the user still owns
 - **Analytics: APIs enabled 2026-08-03** (Search Console + GA Admin + GA Data, on project

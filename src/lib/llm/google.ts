@@ -43,7 +43,7 @@ export function createGoogleProvider(apiKey: string): LLMProvider {
           parts: [{ text: m.content }],
         })),
       config: {
-        systemInstruction: req.system ? { parts: [{ text: req.system }] } : undefined,
+        systemInstruction: req.system || req.systemCached ? { parts: [{ text: [req.systemCached, req.system].filter(Boolean).join("\n\n") }] } : undefined,
         temperature: req.temperature,
         // ⚠ Reasoning cushion. The gemini-2.5 family spends output tokens on
         // internal thinking BEFORE emitting text, so a caller's tight cap

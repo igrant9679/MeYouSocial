@@ -27,6 +27,7 @@ export type ModelPrice = { in: number; out: number };
 
 export const PURPOSE_LABEL: Record<string, string> = {
   assistant: "The assistant",
+  "assistant.summary": "Summarising long conversations",
   assist: "Draft buttons on fields",
   "ideas.discover": "Discovering ideas",
   "ideas.remix": "Remixed titles from Research",

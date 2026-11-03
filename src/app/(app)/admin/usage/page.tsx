@@ -173,7 +173,7 @@ export default async function AdminUsagePage({ searchParams }: { searchParams: P
         <p className="text-[11px] text-[var(--mute)] mb-3">
           Every text call names what it was for.{" "}
           {anyPriced
-            ? "Cost is an estimate at the prices the platform operator set — not a bill; a dash means no model it used has a price."
+            ? "Cost is an estimate at the prices the platform operator set — not a bill; a dash means no model it used has a price. Input read from a provider's prompt cache is counted at the full input price, so it errs high."
             : "No model it used has a price set, so this shows tokens; the platform operator can add prices for an estimate."}{" "}
           Calls before 3 Nov 2026 weren&apos;t named.
         </p>

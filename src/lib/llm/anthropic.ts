@@ -20,10 +20,15 @@ export function createAnthropicProvider(apiKey: string): LLMProvider {
     return MODEL_MAP[id] ?? MODEL_MAP["claude-sonnet"];
   }
 
-  function packMessages(req: LLMRequest): { system: string | undefined; messages: { role: "user" | "assistant"; content: string }[] } {
+  function packMessages(req: LLMRequest): { system: string | Anthropic.TextBlockParam[] | undefined; messages: { role: "user" | "assistant"; content: string }[] } {
     // Claude's API expects the system prompt as a top-level field, not in messages.
+    // A stable prefix is its own block, marked for the prompt cache (E-ENG-08):
+    // the assistant's ~10k-token manual is then read at a tenth of the price.
+    const system: string | Anthropic.TextBlockParam[] | undefined = req.systemCached
+      ? [{ type: "text", text: req.systemCached, cache_control: { type: "ephemeral" } }, ...(req.system ? [{ type: "text" as const, text: req.system }] : [])]
+      : req.system;
     return {
-      system: req.system,
+      system,
       messages: req.messages
         .filter((m) => m.role !== "system")
         .map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
@@ -45,11 +50,15 @@ export function createAnthropicProvider(apiKey: string): LLMProvider {
       const text = res.content
         .map((b) => (b.type === "text" ? b.text : ""))
         .join("");
+      // input_tokens excludes what the cache wrote and read; the total is what was processed.
+      const cacheRead = res.usage.cache_read_input_tokens ?? 0;
+      const cacheWrite = res.usage.cache_creation_input_tokens ?? 0;
       return {
         model: req.model,
         content: text,
-        inputTokens: res.usage.input_tokens,
+        inputTokens: res.usage.input_tokens + cacheRead + cacheWrite,
         outputTokens: res.usage.output_tokens,
+        cachedInputTokens: cacheRead,
       };
     },
     async *stream(req: LLMRequest): AsyncIterable<string> {

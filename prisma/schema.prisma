@@ -130,6 +130,12 @@ model AssistantThread {
   pending     String?
   /// Stop pressed (E-ENG-12): a turn that started before this stops at its next step.
   stopRequestedAt DateTime?
+  /// What scrolled out of the model's window, summarised (E-ENG-08): through
+  /// `summaryThrough` (the newest message folded in), and whether any of it
+  /// had read outside text — which then keeps the outside-text rules on.
+  summary         String?
+  summaryThrough  DateTime?
+  summaryOutside  Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

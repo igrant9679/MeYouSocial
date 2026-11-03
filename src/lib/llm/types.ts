@@ -13,6 +13,13 @@ export type LLMRequest = {
   maxTokens?: number;
   /** Optional system prompt; merged with messages by the provider. */
   system?: string;
+  /**
+   * A STABLE prefix of the system prompt that the provider may cache between
+   * calls (E-ENG-08): Anthropic marks it `cache_control: ephemeral`; others get
+   * it prepended to `system`. Put only what doesn't change turn to turn here —
+   * any change to it is a cache miss.
+   */
+  systemCached?: string;
   /** Multi-tenant: resolve the provider key for THIS workspace (its own key
    *  wins over the platform's). Omitted = platform/global key. */
   workspaceId?: string;
@@ -67,6 +74,8 @@ export type LLMResponse = {
   /** Approximate; providers may report exact counts. */
   inputTokens?: number;
   outputTokens?: number;
+  /** Of `inputTokens`, how many were read from the provider's prompt cache (E-ENG-08). */
+  cachedInputTokens?: number;
 };
 
 export interface LLMProvider {
