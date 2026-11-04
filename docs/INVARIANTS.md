@@ -2076,3 +2076,21 @@ before changing code in that area.
 - **The card** is on the Review tab (closed unless `?pv=`), Desktop / Phone (390px) / Open full size, plus
   WordPress's own `?preview=true` link for a draft hand-off (`publishReport.draftLink`) until the article is live.
   Nothing is cached — a theme change shows on the next look.
+
+## A report can be emailed on a schedule — to members only, through the workspace's mailbox, never "sent" when it went nowhere (2026-11-03, audit Phase 5, growth part ch)
+- **One reading, two renderings** (E-MEA-03): `lib/report-pdf.ts` `reportContent()` reads a report's blocks into
+  sections of lines (the PDF route's old logic, moved); `renderReportPdf()` is the download, `renderReportEmail()` the
+  email (inline styles, the same lines, links to the report and its PDF). Change what a report says in ONE place.
+- **ReportSchedule** rows (ADMIN sets them up on the report page; everyone sees them): weekly (weekday) or monthly
+  (day 1–28, so every month has it) at an hour on the workspace's POSTING-ZONE wall clock (`nextRunAt`, via
+  `zonedTimeToUtc`). Recipients are **user ids of active members** — saved only if every pick is a member, re-checked
+  at every send (a removed member is left out and the result says so). No free-typed addresses: a client is invited
+  as a Viewer. At most `MAX_SCHEDULES` (20) per workspace. Remove goes through the shared DeleteButton
+  (`reportSchedule` kind).
+- **The sweep** (`sweepScheduledReports`, instrumentation, every 15 min beside the digest): CLAIMS a due row by moving
+  `nextAt` on with a compare-and-set on its old value — two ticks or replicas can't both send it — then sends. A slot
+  more than `LATE_HOURS` (36) late is skipped and said so. Resuming a paused schedule starts from now (no burst).
+- **Outcomes are honest** (`outcomeSentence`): a mocked send (no mailbox connected) is "Not delivered", never "Sent";
+  `lastSentAt` moves only when at least one person got it; partial failures are counted. Audit
+  `report.schedule_sent` / `report.schedule_undelivered` (+ created/changed/paused/resumed). A schedule whose report no
+  longer exists pauses itself and says why.

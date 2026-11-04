@@ -41,6 +41,7 @@ export async function register() {
     __analyticsTimer?: ReturnType<typeof setInterval>;
     __jobsTimer?: ReturnType<typeof setInterval>;
     __digestTimer?: ReturnType<typeof setInterval>;
+    __reportsTimer?: ReturnType<typeof setInterval>;
   };
   if (globals.__autopilotTimer) return; // HMR / double-register guard
 
@@ -249,6 +250,18 @@ export async function register() {
   setTimeout(digestSweep, 4 * 60 * 1000);
   globals.__digestTimer = setInterval(digestSweep, digestMin * 60 * 1000);
   console.log(`[digest] armed — every ${digestMin} min`);
+
+  // Scheduled reports (E-MEA-03): each due schedule is claimed (nextAt moved
+  // on, compare-and-set) before its email goes, so a tick or a second replica
+  // can't send it twice. Same cadence as the digest.
+  const reportsSweep = guarded("reports", 5 * 60_000, async () => {
+    const { sweepScheduledReports } = await import("@/lib/report-schedules");
+    const { sent, skipped } = await sweepScheduledReports();
+    if (sent > 0 || skipped > 0) console.log(`[reports] sent ${sent}, skipped ${skipped} late`);
+  });
+  setTimeout(reportsSweep, 6 * 60 * 1000);
+  globals.__reportsTimer = setInterval(reportsSweep, digestMin * 60 * 1000);
+  console.log(`[reports] armed — every ${digestMin} min`);
 }
 
 const WARM_ROUTES = [

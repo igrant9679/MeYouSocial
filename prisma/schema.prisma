@@ -80,6 +80,7 @@ model Workspace {
   keywords        Keyword[]
   searchQueries   SearchQuery[]
   socialVisits    SocialVisit[]
+  reportSchedules ReportSchedule[]
   sitePages       SitePage[]
   brandKit        BrandKit?
   motifDirectives MotifDirective[]
@@ -836,6 +837,32 @@ model SocialVisit {
   @@index([workspaceId])
   @@index([postId])
   @@index([campaignId])
+}
+
+// E-MEA-03: a report emailed on a schedule to named MEMBERS of the workspace
+// (client viewers included). Recipients are user ids, re-checked at every send.
+model ReportSchedule {
+  id            String    @id @default(cuid())
+  workspaceId   String
+  reportKey     String
+  cadence       String    // weekly | monthly
+  weekday       Int       @default(1) // 0 Sun … 6 Sat — weekly
+  monthDay      Int       @default(1) // 1–28 — monthly
+  hour          Int       @default(9) // wall clock in the workspace's posting zone
+  recipients    String    @default("[]") // JSON array of userIds
+  enabled       Boolean   @default(true)
+  nextAt        DateTime
+  lastAttemptAt DateTime?
+  lastSentAt    DateTime? // the last attempt that reached at least one person
+  lastResult    String?   // what the last attempt did, in words
+  createdById   String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([enabled, nextAt])
+  @@index([workspaceId, reportKey])
 }
 
 // The three-mode autonomy dial: one row per governed function per workspace.

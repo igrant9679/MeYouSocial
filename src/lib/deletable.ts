@@ -27,7 +27,7 @@ export type DeletableKind =
   | "task" | "asset" | "wikiDoc" | "audienceSubmission" | "audienceAvatar"
   | "invitation" | "membership" | "zernioAccount" | "workspace" | "campaign"
   | "zernioComment" | "brandFact" | "brandDocument" | "socialIdea"
-  | "specialDay" | "captionBatch" | "rssFeed" | "mediaItem" | "socialPost" | "topic" | "socialTemplate" | "chartNote";
+  | "specialDay" | "captionBatch" | "rssFeed" | "mediaItem" | "socialPost" | "topic" | "socialTemplate" | "chartNote" | "reportSchedule";
 
 export type DeletableTarget = { id: string; name: string };
 
@@ -165,6 +165,15 @@ export const DELETABLE: Record<DeletableKind, Deletable> = {
       .then((r) => (r ? { id: r.id, name: r.text.length > 40 ? `${r.text.slice(0, 39)}…` : r.text } : null)),
     async remove(id, workspaceId) { await db.chartNote.deleteMany({ where: { id, workspaceId } }); },
     revalidate: ["/measure", "/blog/report"],
+  },
+  // E-MEA-03: a report emailed on a schedule. ADMIN, like setting one up.
+  reportSchedule: {
+    label: "report schedule",
+    role: "ADMIN",
+    find: (id, workspaceId) => db.reportSchedule.findFirst({ where: { id, workspaceId }, select: { id: true, reportKey: true, cadence: true } })
+      .then((r) => (r ? { id: r.id, name: `${r.cadence} ${r.reportKey}` } : null)),
+    async remove(id, workspaceId) { await db.reportSchedule.deleteMany({ where: { id, workspaceId } }); },
+    revalidate: ["/reports"],
   },
   // RSS (2026-10-17): unfollowing deletes the feed and its item log; the
   // ideas and drafts it already made stay where they are.

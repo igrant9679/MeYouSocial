@@ -338,6 +338,12 @@ export const HELP_CATEGORIES: FaqCategory[] = [
         tags: ["pdf", "export", "client"],
       },
       {
+        q: "Can a report be emailed to a client every week or month?",
+        a: "Yes — open the report and use **Email this report on a schedule**: weekly on a day, or monthly on a date (1–28), at an hour on this workspace's clock (its posting time zone), to people you tick. The email is the report itself — the same numbers as the PDF — with links to open the report and download the PDF. It goes out from this workspace's connected mailbox, like the morning digest.\n\n· **Who can get it:** members of this workspace only. To send it to a client, invite them as a **Viewer** (Settings → People) and tick them. Someone who leaves the workspace stops getting it at once.\n· **Send now** sends it straight away, **Pause** stops it, **Change** edits the day, time or people, **Remove** deletes the schedule.\n· Each schedule says what its last send did. With no mailbox connected it says **not delivered** — it never claims to have sent. If the app was down at the time, a send more than a day and a half late is skipped and says so.\n· Admins set schedules up; everyone can see them.",
+        links: [{ label: "Reports →", href: "/reports" }],
+        tags: ["report", "schedule", "email", "client", "weekly", "monthly", "pdf", "viewer"],
+      },
+      {
         q: "How do I build my own report?",
         a: "Reports → **New custom report** → name it. It starts with a KPI row; open **Customize** to add any blocks from the library in any order. It then appears in the hub alongside the stock ten.",
         tags: ["custom report", "builder"],

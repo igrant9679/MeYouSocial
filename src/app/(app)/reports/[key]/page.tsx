@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, ArrowDown, ArrowUp, Download, RotateCcw, Settings2, Trash2, X } from "lucide-react";
-import { requireMembership, canEdit } from "@/lib/acl";
+import { requireMembership, canEdit, canAdmin } from "@/lib/acl";
 import { SubmitButton } from "@/components/SubmitButton";
 import { ReportBlock } from "@/components/ReportBlocks";
+import { ReportSchedules } from "@/components/ReportSchedules";
 import { BLOCK_KEYS, BLOCK_LABELS, getReport } from "@/lib/report-defs";
 import {
   addReportBlockAction,
@@ -74,6 +75,9 @@ export default async function ReportPage({
           </Link>
         )}
       </div>
+
+      {/* E-MEA-03: this report by email, on a schedule, to members (client viewers included). */}
+      <ReportSchedules workspaceId={workspace.id} reportKey={report.key} admin={canAdmin(membership.role)} />
 
       <div className={customizing ? "grid grid-cols-1 @4xl:grid-cols-[1fr_260px] gap-4 items-start" : ""}>
         <div className="flex flex-col gap-3 min-w-0">
