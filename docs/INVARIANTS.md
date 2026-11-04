@@ -2113,3 +2113,20 @@ before changing code in that area.
   (a draft is not a licence to post as a lost account; a failed send keeps it waiting), or **Decline** with a reason
   the author is told. Audit `social.comment_submitted` / `comment_replied` (with `approvedFor`, `edited`) /
   `comment_declined`. Never dispatched by a sweep. DMs are unchanged — still the editor's to send.
+
+## Videos: captions follow the voice, download as SRT or VTT, burn in on request; each channel has a voice (2026-11-03, audit Phase 5, growth part cj)
+- **The voice** (E-VID-08): ElevenLabs is called at `/with-timestamps`, so a voiceover comes back with each word's
+  start and end (`wordsFromAlignment`), stored as `VideoRender.voiceWords`. The voice is the render's script's
+  CHANNEL's `voiceId` (validated `looksLikeVoiceId` on save — a pasted URL or name is refused), else the default.
+  `ELEVENLABS_BASE_URL` exists only so a stand-in can answer in tests. The mock still stores text, never audio.
+- **Narration from the script**: `scriptToNarration` reads only the spoken words — headings, `[…]` directions,
+  `(pause)`/`(b-roll …)` and markup dropped (HTML headings removed BEFORE closing tags become line breaks — the unit run caught a heading being read aloud); the scenes' lines stay the alternative. `narrationSource` records which.
+- **Captions** are timed to the VOICE when there is word timing (`wordsToSrt`: ≤ 4 words / 32 chars, a sentence ends a
+  caption, each on screen exactly while its words are said) and to the scenes otherwise; `captionsTimedBy` says which.
+  A new voiceover re-times captions that were timed to the old one (they would drift). `/videos/<id>/captions?format=
+  srt|vtt` downloads them (any member; another workspace's is a 404).
+- **Burned in** only when asked (`burnCaptions`, the assemble form's checkbox): a last ffmpeg pass draws them with
+  libass in **Geist, the TTF that ships inside Next** (no font needed on the host), the font copied into the job's
+  folder and named by a RELATIVE path with ffmpeg run in that folder (a Windows drive colon breaks filter syntax).
+  `captionsBurned` is what the stored cut actually has; a burn that fails keeps the cut without them and says why
+  (`assemblyError` beside a done status).

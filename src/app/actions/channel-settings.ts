@@ -6,6 +6,7 @@ import { z } from "zod";
 import { requireRole } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { modelChoiceProblem } from "@/lib/llm";
+import { looksLikeVoiceId } from "@/lib/tts";
 
 const schema = z.object({
   channelId: z.string(),
@@ -16,6 +17,7 @@ const schema = z.object({
   defaultModel: z.string().max(80).optional(),
   defaultLanguage: z.string().max(8).optional(),
   defaultTemplateId: z.string().max(80).optional(),
+  voiceId: z.string().max(80).optional(),
 });
 
 export async function updateChannelSettingsAction(formData: FormData) {
@@ -28,6 +30,7 @@ export async function updateChannelSettingsAction(formData: FormData) {
     defaultModel: formData.get("defaultModel") ?? undefined,
     defaultLanguage: formData.get("defaultLanguage") ?? undefined,
     defaultTemplateId: formData.get("defaultTemplateId") ?? undefined,
+    voiceId: formData.get("voiceId") ?? undefined,
   });
   if (!parsed.success) return;
 
@@ -37,6 +40,11 @@ export async function updateChannelSettingsAction(formData: FormData) {
   // Only a model that can write here (audit SET-01); the stored one may stay.
   const problem = await modelChoiceProblem(parsed.data.defaultModel, workspace.id, exists.defaultModel);
   if (problem) redirect(`/channels/${exists.id}/settings?flashErr=${encodeURIComponent(`Nothing was saved. ${problem}`)}`);
+  // E-VID-08: the channel's narration voice — an ElevenLabs voice id, or blank for the default.
+  const voiceId = (parsed.data.voiceId ?? "").trim();
+  if (voiceId && !looksLikeVoiceId(voiceId)) {
+    redirect(`/channels/${exists.id}/settings?flashErr=${encodeURIComponent("Nothing was saved. The narration voice should be an ElevenLabs voice ID — letters and digits, like 21m00Tcm4TlvDq8ikWAM (copy it from the voice's page in ElevenLabs).")}`);
+  }
 
   await db.channel.update({
     where: { id: parsed.data.channelId },
@@ -48,6 +56,7 @@ export async function updateChannelSettingsAction(formData: FormData) {
       defaultModel: parsed.data.defaultModel || null,
       defaultLanguage: parsed.data.defaultLanguage || "en",
       defaultTemplateId: parsed.data.defaultTemplateId || null,
+      voiceId: voiceId || null,
     },
   });
   revalidatePath(`/channels/${parsed.data.channelId}/settings`);

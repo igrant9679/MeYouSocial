@@ -1020,6 +1020,13 @@ model VideoRender {
   assembledUrl    String? // stored single-file cut of the whole board
   assemblyStatus  String? // null (never attempted) | assembling | done | failed | unavailable | skipped (mock sample clips)
   assemblyError   String?
+  // Captions and voice (E-VID-08).
+  burnCaptions    Boolean  @default(false) // draw the captions into the picture at assembly
+  captionsBurned  Boolean  @default(false) // the stored cut actually has them (a failed burn says why in assemblyError)
+  captionsTimedBy String?  // scenes | voice — what the current SRT is timed to
+  voiceWords      String?  // JSON [{word,start,end}] — the narration's word timing, when the provider gave it
+  voiceId         String?  // the voice that spoke the current voiceover
+  narrationSource String?  // script | scenes — what the narrator read
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -1338,6 +1345,8 @@ model Channel {
   defaultModel       String?
   defaultLanguage    String   @default("en")
   defaultTemplateId  String?
+  /** The channel's narration voice (an ElevenLabs voice id; E-VID-08). Null = the provider's default. */
+  voiceId            String?
   accentColor        String?  // matches mockup per-module accent
   thumbnailConfig    String?  // FR-THUMB-06 — brand assets + style prefs (JSON)
   limitThumbnailsPerMonth Int? // FR-THUMB-07 — optional per-channel cap

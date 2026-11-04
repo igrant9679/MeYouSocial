@@ -6,7 +6,7 @@ import { requireRole } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { assembleRenderCore, packageVideoCore } from "@/lib/blog-autopilot";
 import { estimateCostUsd } from "@/lib/video";
-import { parseScenes, scenesToNarration, scenesToSrt, snapSceneSeconds } from "@/lib/captions";
+import { parseScenes, scenesToNarration, scenesToSrt, scriptToNarration, snapSceneSeconds, wordsToSrt, type TimedWord } from "@/lib/captions";
 import { getTtsProvider } from "@/lib/tts";
 import { isGloballyPaused, writeAudit } from "@/lib/governance";
 import { jobs } from "@/lib/jobs";
@@ -115,6 +115,10 @@ export async function rerenderSceneAction(formData: FormData) {
 export async function assembleRenderAction(formData: FormData) {
   const id = String(formData.get("id"));
   const { workspace } = await requireRole("EDITOR");
+  // E-VID-08: the (re-)assemble form says whether the captions go into the picture.
+  if (formData.has("burnChoice")) {
+    await db.videoRender.updateMany({ where: { id, workspaceId: workspace.id }, data: { burnCaptions: formData.get("burn") === "on" } });
+  }
   await assembleRenderCore(workspace.id, id);
   revalidatePath("/videos");
   revalidatePath(`/videos/${id}`);
@@ -242,9 +246,25 @@ export async function generateSrtAction(formData: FormData) {
   const render = await db.videoRender.findFirst({ where: { id, workspaceId: workspace.id } });
   if (!render) return;
   const scenes = parseScenes(render.scenes);
-  if (!scenes.length) return;
-  await db.videoRender.update({ where: { id: render.id }, data: { srt: scenesToSrt(scenes) } });
+  // E-VID-08: when the narration came back with word timing, the captions
+  // follow the voice word by word; otherwise they're timed from the scenes.
+  const words = parseWords(render.voiceWords);
+  if (words.length) {
+    await db.videoRender.update({ where: { id: render.id }, data: { srt: wordsToSrt(words), captionsTimedBy: "voice" } });
+  } else {
+    if (!scenes.length) return;
+    await db.videoRender.update({ where: { id: render.id }, data: { srt: scenesToSrt(scenes), captionsTimedBy: "scenes" } });
+  }
   revalidatePath(`/videos/${id}`);
+}
+
+function parseWords(raw: string | null | undefined): TimedWord[] {
+  try {
+    const v = JSON.parse(raw ?? "[]");
+    return Array.isArray(v) ? v.filter((w): w is TimedWord => !!w && typeof w.word === "string" && Number.isFinite(w.start) && Number.isFinite(w.end)) : [];
+  } catch {
+    return [];
+  }
 }
 
 export async function generateVoiceoverAction(formData: FormData) {
@@ -254,18 +274,35 @@ export async function generateVoiceoverAction(formData: FormData) {
   const render = await db.videoRender.findFirst({ where: { id, workspaceId: workspace.id } });
   if (!render) return;
   const scenes = parseScenes(render.scenes);
-  const narration = scenesToNarration(render.title, scenes);
+  // E-VID-08: narration from the script itself (its spoken words, directions
+  // dropped) when the render has one and that's asked for; else the scenes.
+  // The voice is the script's channel's own, else the provider's default.
+  const script = render.scriptId
+    ? await db.script.findFirst({ where: { id: render.scriptId, channel: { workspaceId: workspace.id } }, select: { body: true, channel: { select: { voiceId: true } } } })
+    : null;
+  const fromScript = String(formData.get("source") ?? "") === "script" && !!script?.body?.trim();
+  const narration = fromScript ? scriptToNarration(script!.body!) : scenesToNarration(render.title, scenes);
   if (narration.trim().length < 10) return;
   const tts = await getTtsProvider(workspace.id);
-  const out = await tts.speak(narration);
-  await db.videoRender.update({ where: { id: render.id }, data: { voiceoverUrl: out.url } });
+  const out = await tts.speak(narration, { voiceId: script?.channel.voiceId ?? null });
+  await db.videoRender.update({
+    where: { id: render.id },
+    data: {
+      voiceoverUrl: out.url,
+      voiceId: out.voice ?? null,
+      narrationSource: fromScript ? "script" : "scenes",
+      // New narration, new timing: captions timed to the OLD voice would drift.
+      voiceWords: out.words?.length ? JSON.stringify(out.words) : null,
+      ...(render.captionsTimedBy === "voice" ? { srt: out.words?.length ? wordsToSrt(out.words) : null, captionsTimedBy: out.words?.length ? "voice" : null } : {}),
+    },
+  });
   await writeAudit({
     workspaceId: workspace.id,
     actorId: user.id,
     action: "video.voiceover_generated",
     entityType: "video_render",
     entityId: render.id,
-    meta: { provider: out.provider, isAudio: out.isAudio },
+    meta: { provider: out.provider, isAudio: out.isAudio, voice: out.voice ?? null, source: fromScript ? "script" : "scenes", timedWords: out.words?.length ?? 0 },
   });
   revalidatePath(`/videos/${id}`);
 }

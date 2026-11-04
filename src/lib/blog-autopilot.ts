@@ -1398,17 +1398,19 @@ export async function assembleRenderCore(workspaceId: string, renderId: string):
   });
   try {
     const { assembleScenes } = await import("@/lib/video/assemble");
-    const out = await assembleScenes(scenes, render.aspect, render.voiceoverUrl, workspaceId);
+    // E-VID-08: captions drawn into the picture when the render asks for it.
+    const out = await assembleScenes(scenes, render.aspect, render.voiceoverUrl, workspaceId, { burnSrt: render.burnCaptions ? render.srt : null });
     await db.videoRender.update({
       where: { id: render.id },
-      data: { assembledUrl: out.url, assemblyStatus: "done", assemblyError: null },
+      // A burn that failed leaves the cut without captions; its reason rides in assemblyError beside a done status.
+      data: { assembledUrl: out.url, assemblyStatus: "done", assemblyError: typeof out.burned === "string" ? out.burned : null, captionsBurned: out.burned === true },
     });
     await writeAudit({
       workspaceId,
       action: "video.assembled",
       entityType: "video_render",
       entityId: render.id,
-      meta: { clips: out.clips, bytes: out.bytes, withVoiceover: out.withVoiceover },
+      meta: { clips: out.clips, bytes: out.bytes, withVoiceover: out.withVoiceover, captionsBurned: out.burned === true },
     });
     return true;
   } catch (e) {

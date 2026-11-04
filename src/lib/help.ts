@@ -517,6 +517,12 @@ export const HELP_CATEGORIES: FaqCategory[] = [
         tags: ["voiceover", "tts", "elevenlabs", "audio"],
       },
       {
+        q: "How do captions and the voice work on a video?",
+        a: "On a video's page:\n\n· **Voice** — **Generate voiceover** reads either the **script** (just its spoken words — headings, [B-roll] notes and (pause) directions are left out) or the scene lines, in the **channel's own voice**: set it under the channel's Settings → **Narration voice** (an ElevenLabs voice ID; blank uses the default voice). It needs ElevenLabs switched on under Settings → Keys; otherwise the narration is saved as text and says so.\n· **Captions** — with a real voiceover, **Time captions to the narration** makes captions that follow the voice word by word, a few words at a time. Without one they're timed from the scenes. Download them as **.srt** or **.vtt** for YouTube or any editor.\n· **Burned-in captions** — tick **Burn captions in** when you assemble (or re-assemble) the full video and they're drawn into the picture. If that ever fails, the cut is kept without them and the page says why.",
+        links: [{ label: "Videos →", href: "/videos" }],
+        tags: ["captions", "subtitles", "srt", "vtt", "burn in", "voice", "voiceover", "narration", "elevenlabs", "video"],
+      },
+      {
         q: "How do I get ONE video file instead of separate scene clips?",
         a: "A multi-scene board renders one clip per scene. **Assemble full video** (on the storyboard page) stitches them with ffmpeg: every clip is scaled and padded onto one canvas for the render's aspect ratio, then concatenated in scene order. If a real voiceover exists it replaces the soundtrack over the whole cut. Assembly runs automatically as soon as a multi-scene render finishes, and it's re-runnable — do that after regenerating a voiceover. It costs no provider money, only CPU. Captions stay a separate SRT file; they are not burned in.",
         links: [{ label: "Videos →", href: "/videos" }],

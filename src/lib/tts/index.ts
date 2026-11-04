@@ -1,5 +1,6 @@
 import { storage } from "@/lib/storage";
 import { getApiKey } from "@/lib/llm/keys";
+import { wordsFromAlignment, type CharAlignment, type TimedWord } from "@/lib/captions";
 
 /**
  * Text-to-speech seam (voiceovers for video packages). House pattern: provider
@@ -15,11 +16,16 @@ export type TtsResult = {
   url: string;
   provider: string;
   isAudio: boolean;
+  /** The voice that spoke (a real provider only). */
+  voice?: string | null;
+  /** Each spoken word's start and end, when the provider times them (E-VID-08). */
+  words?: TimedWord[] | null;
 };
 
 export interface TtsProvider {
   name: string;
-  speak(text: string): Promise<TtsResult>;
+  /** `voiceId` — a channel's own voice (E-VID-08); the provider's default when absent or malformed. */
+  speak(text: string, opts?: { voiceId?: string | null }): Promise<TtsResult>;
 }
 
 const mockTts = (workspaceId?: string): TtsProvider => ({
@@ -37,12 +43,25 @@ const mockTts = (workspaceId?: string): TtsProvider => ({
 
 const ELEVEN_VOICE = "21m00Tcm4TlvDq8ikWAM"; // "Rachel" — ElevenLabs' default public voice
 
+/** An ElevenLabs voice id: letters and digits (20 today). Checked so a pasted name or URL fails with a reason. */
+export function looksLikeVoiceId(v: string): boolean {
+  return /^[A-Za-z0-9]{12,40}$/.test(v.trim());
+}
+
+/**
+ * ElevenLabs, asked for the audio WITH its character timing (`/with-timestamps`),
+ * so captions can follow the narration word by word (E-VID-08). The voice is
+ * the caller's (a channel's own voice) or the default. A base URL override
+ * exists only so a stand-in can answer in tests; production uses the real host.
+ */
 const elevenLabsTts = (workspaceId?: string): TtsProvider => ({
   name: "elevenlabs",
-  async speak(text) {
+  async speak(text, opts) {
     const apiKey = await getApiKey("elevenlabs", workspaceId);
     if (!apiKey) throw new Error("No ElevenLabs key configured (Settings → Keys)");
-    const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${ELEVEN_VOICE}`, {
+    const voice = opts?.voiceId && looksLikeVoiceId(opts.voiceId) ? opts.voiceId.trim() : ELEVEN_VOICE;
+    const base = (process.env.ELEVENLABS_BASE_URL || "https://api.elevenlabs.io").replace(/\/+$/, "");
+    const res = await fetch(`${base}/v1/text-to-speech/${voice}/with-timestamps`, {
       method: "POST",
       headers: { "xi-api-key": apiKey, "Content-Type": "application/json" },
       body: JSON.stringify({ text: text.slice(0, 5000), model_id: "eleven_multilingual_v2" }),
@@ -52,9 +71,12 @@ const elevenLabsTts = (workspaceId?: string): TtsProvider => ({
       const detail = await res.text().catch(() => "");
       throw new Error(`ElevenLabs HTTP ${res.status}: ${detail.slice(0, 150)}`);
     }
-    const buf = Buffer.from(await res.arrayBuffer());
+    const body = (await res.json()) as { audio_base64?: string; alignment?: CharAlignment | null };
+    if (!body.audio_base64) throw new Error("ElevenLabs answered without audio.");
+    const buf = Buffer.from(body.audio_base64, "base64");
     const file = await storage.put("voiceover.mp3", buf, "audio/mpeg", workspaceId ?? null);
-    return { url: file.url, provider: "elevenlabs", isAudio: true };
+    const words = body.alignment ? wordsFromAlignment(body.alignment) : [];
+    return { url: file.url, provider: "elevenlabs", isAudio: true, voice, words: words.length ? words : null };
   },
 });
 

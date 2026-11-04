@@ -70,9 +70,9 @@ async function resolveFfmpeg(): Promise<string | null> {
   return null;
 }
 
-function run(bin: string, args: string[], timeoutMs = FFMPEG_TIMEOUT_MS): Promise<string> {
+function run(bin: string, args: string[], timeoutMs = FFMPEG_TIMEOUT_MS, cwd?: string): Promise<string> {
   return new Promise((resolve, reject) => {
-    execFile(bin, args, { timeout: timeoutMs, maxBuffer: 8 * 1024 * 1024 }, (err, stdout, stderr) => {
+    execFile(bin, args, { timeout: timeoutMs, maxBuffer: 8 * 1024 * 1024, cwd }, (err, stdout, stderr) => {
       if (err) {
         // ffmpeg writes everything to stderr; the last lines carry the reason.
         const tail = String(stderr || err.message).trim().split("\n").slice(-4).join(" ").slice(0, 400);
@@ -132,7 +132,17 @@ export type AssemblyResult = {
   bytes: number;
   clips: number;
   withVoiceover: boolean;
+  /** Captions drawn into the picture (E-VID-08): true, or why not. */
+  burned: true | string | null;
 };
+
+/**
+ * The font burned-in captions are drawn in: Geist, which ships inside Next
+ * (node_modules is present at runtime), so no font has to be installed on the
+ * host. Copied into the job's folder and named by a RELATIVE path — ffmpeg's
+ * filter syntax treats a Windows drive colon as an option separator.
+ */
+const CAPTION_FONT = path.join(process.cwd(), "node_modules", "next", "dist", "compiled", "@vercel", "og", "Geist-Regular.ttf");
 
 /**
  * Normalize every clip to one codec/size/framerate, concat them, and (when a
@@ -144,6 +154,7 @@ export async function assembleScenes(
   aspect: string,
   voiceoverUrl: string | null | undefined,
   owner: string,
+  opts: { burnSrt?: string | null } = {},
 ): Promise<AssemblyResult> {
   const bin = await resolveFfmpeg();
   if (!bin) {
@@ -249,10 +260,33 @@ export async function assembleScenes(
       }
     }
 
+    // 4. Captions drawn into the picture, when asked for (E-VID-08). A burn that
+    //    fails leaves the cut without them and says why — never the whole file.
+    let burned: true | string | null = null;
+    if (opts.burnSrt?.trim()) {
+      try {
+        await fs.mkdir(path.join(dir, "fonts"), { recursive: true });
+        await fs.copyFile(CAPTION_FONT, path.join(dir, "fonts", "Geist-Regular.ttf"));
+        await fs.writeFile(path.join(dir, "captions.srt"), opts.burnSrt, "utf8");
+        const out = path.join(dir, "captioned.mp4");
+        const style = "FontName=Geist,FontSize=16,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BorderStyle=1,Outline=2,Shadow=0,MarginV=60";
+        await run(bin, [
+          "-y", "-i", path.basename(assembled),
+          "-vf", `subtitles=captions.srt:fontsdir=fonts:force_style='${style}'`,
+          "-c:v", "libx264", "-preset", "veryfast", "-crf", "23", "-pix_fmt", "yuv420p",
+          "-c:a", "copy", "-movflags", "+faststart", path.basename(out),
+        ], FFMPEG_TIMEOUT_MS, dir);
+        assembled = out;
+        burned = true;
+      } catch (e) {
+        burned = `Captions couldn't be burned in (${e instanceof Error ? e.message.slice(0, 160) : "ffmpeg failed"}) — the cut is without them; the SRT/VTT files still work.`;
+      }
+    }
+
     const bytes = (await fs.stat(assembled)).size;
     if (bytes > MAX_OUTPUT_BYTES) throw new Error("Assembled file exceeds the 200MB storage limit.");
     const stored = await storage.put("assembled.mp4", await fs.readFile(assembled), "video/mp4", owner);
-    return { url: stored.url, bytes, clips: clips.length, withVoiceover };
+    return { url: stored.url, bytes, clips: clips.length, withVoiceover, burned };
   } finally {
     await fs.rm(dir, { recursive: true, force: true }).catch(() => {});
   }

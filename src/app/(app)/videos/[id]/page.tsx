@@ -141,15 +141,22 @@ export default async function StoryboardPage({
             </SubmitButton>
           </form>
         )}
-        {editor && scenes.length > 0 && (
+        {editor && (scenes.length > 0 || !!render.voiceWords) && (
           <form action={generateSrtAction}>
             <input type="hidden" name="id" value={render.id} />
-            <SubmitButton className="btn" pendingText="Generating…"><Captions className="w-4 h-4" /> {render.srt ? "Regenerate captions" : "Generate captions (SRT)"}</SubmitButton>
+            <SubmitButton className="btn" pendingText="Generating…"><Captions className="w-4 h-4" /> {render.voiceWords && render.captionsTimedBy !== "voice" ? "Time captions to the narration" : render.srt ? "Regenerate captions" : "Generate captions"}</SubmitButton>
           </form>
         )}
         {editor && (
-          <form action={generateVoiceoverAction}>
+          <form action={generateVoiceoverAction} className="flex flex-wrap items-center gap-1.5" data-voiceover-form="">
             <input type="hidden" name="id" value={render.id} />
+            {/* E-VID-08: read the script itself, or the scenes' on-screen lines. */}
+            {render.scriptId && (
+              <select name="source" defaultValue={render.narrationSource === "scenes" ? "scenes" : "script"} className="text-xs" aria-label="What the narrator reads">
+                <option value="script">Narrate the script</option>
+                <option value="scenes">Narrate the scene lines</option>
+              </select>
+            )}
             <SubmitButton className="btn" pendingText="Speaking…"><Mic className="w-4 h-4" /> {render.voiceoverUrl ? "Regenerate voiceover" : "Generate voiceover"}</SubmitButton>
           </form>
         )}
@@ -263,14 +270,24 @@ export default async function StoryboardPage({
               <video src={render.assembledUrl} controls className="w-full max-w-sm rounded-xl border border-[var(--line)]" />
               <p className="text-[11px] text-[var(--mute)] mt-1.5">
                 All {renderedClips} clips stitched into one file
-                {render.voiceoverUrl ? ", narration muxed over the cut where available" : ""}. Captions stay a
-                separate SRT sidecar — they are not burned in.
+                {render.voiceoverUrl ? ", narration muxed over the cut where available" : ""}.{" "}
+                {render.captionsBurned ? "Captions are burned into the picture." : "Captions stay separate SRT/VTT files — tick Burn captions in and re-assemble to draw them into the picture."}
               </p>
+              {/* A burn that failed leaves the cut without captions and says why (E-VID-08). */}
+              {render.assemblyError && (
+                <p className="text-[11px] mt-1.5 px-2.5 py-1.5 rounded-lg" style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }} data-burn-note="">
+                  {render.assemblyError}
+                </p>
+              )}
               <div className="flex flex-wrap items-center gap-2 mt-2">
                 <a href={render.assembledUrl} download className="btn sm"><Download className="w-3.5 h-3.5" /> Download</a>
                 {editor && (
-                  <form action={assembleRenderAction}>
+                  <form action={assembleRenderAction} className="flex items-center gap-1.5" data-assemble-form="">
                     <input type="hidden" name="id" value={render.id} />
+                    <input type="hidden" name="burnChoice" value="1" />
+                    <label className="inline-flex items-center gap-1 text-[11px]" title={render.srt ? "Draw the captions into the picture" : "Generate captions first"}>
+                      <input type="checkbox" name="burn" defaultChecked={render.burnCaptions} disabled={!render.srt} /> Burn captions in
+                    </label>
                     <SubmitButton className="btn sm" pendingText="Assembling…">Re-assemble</SubmitButton>
                   </form>
                 )}
@@ -298,8 +315,12 @@ export default async function StoryboardPage({
                   the deploy that tried, and a later one may well have ffmpeg. */}
               {editor && renderedClips > 1 && render.provider !== "mock" && (
                 <div className="mt-2">
-                  <form action={assembleRenderAction}>
+                  <form action={assembleRenderAction} className="flex flex-wrap items-center gap-2" data-assemble-form="">
                     <input type="hidden" name="id" value={render.id} />
+                    <input type="hidden" name="burnChoice" value="1" />
+                    <label className="inline-flex items-center gap-1 text-[11px]" title={render.srt ? "Draw the captions into the picture" : "Generate captions first"}>
+                      <input type="checkbox" name="burn" defaultChecked={render.burnCaptions} disabled={!render.srt} /> Burn captions in
+                    </label>
                     <SubmitButton className="btn primary" pendingText="Assembling… (encodes every clip)">
                       <Film className="w-4 h-4" /> {render.assemblyStatus ? "Try assembly again" : "Assemble full video"}
                     </SubmitButton>
@@ -342,16 +363,31 @@ export default async function StoryboardPage({
               Configure ElevenLabs under <Link href="/admin/api-keys" className="underline">Settings → Keys</Link> for real audio.
             </p>
           ) : (
-            <audio src={render.voiceoverUrl} controls className="w-full max-w-sm" />
+            <>
+              <audio src={render.voiceoverUrl} controls className="w-full max-w-sm" />
+              <p className="text-[11px] text-[var(--mute)] mt-1" data-voice-note="">
+                Read from {render.narrationSource === "script" ? "the script" : "the scene lines"}
+                {render.voiceId ? <> · voice <span className="font-mono">{render.voiceId}</span></> : null}
+                {render.voiceWords ? " · timed word by word, so captions can follow it" : ""}.
+              </p>
+            </>
           )}
         </div>
       )}
 
       {render.srt && (
         <details className="card">
-          <summary className="cursor-pointer text-sm font-semibold">Captions (SRT)</summary>
-          <pre className="mt-2 text-[11px] font-mono whitespace-pre-wrap p-2 rounded-lg" style={{ background: "var(--panel)" }}>{render.srt}</pre>
-          <p className="text-[11px] text-[var(--mute)] mt-1">Timed from scene durations — paste into YouTube or burn in at assembly.</p>
+          <summary className="cursor-pointer text-sm font-semibold">Captions</summary>
+          <div className="flex flex-wrap items-center gap-2 mt-2">
+            <a href={`/videos/${render.id}/captions?format=srt`} className="btn sm" data-captions-download="srt"><Download className="w-3.5 h-3.5" /> .srt</a>
+            <a href={`/videos/${render.id}/captions?format=vtt`} className="btn sm" data-captions-download="vtt"><Download className="w-3.5 h-3.5" /> .vtt</a>
+            <span className="text-[11px] text-[var(--mute)]" data-captions-timing={render.captionsTimedBy ?? "scenes"}>
+              {render.captionsTimedBy === "voice" ? "Timed to the narration, word by word." : "Timed from scene durations."}
+              {render.captionsTimedBy !== "voice" && render.voiceWords ? " Regenerate captions to time them to the narration." : ""}
+            </span>
+          </div>
+          <pre className="mt-2 text-[11px] font-code whitespace-pre-wrap p-2 rounded-lg" style={{ background: "var(--panel)" }}>{render.srt}</pre>
+          <p className="text-[11px] text-[var(--mute)] mt-1">Upload either file to YouTube, or burn them into the picture when you assemble.</p>
         </details>
       )}
     </main>

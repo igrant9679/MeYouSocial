@@ -65,6 +65,8 @@ export default async function ChannelSettingsPage({ params }: { params: Promise<
             <option value="">No default</option>
             {templates.map((t) => (<option key={t.id} value={t.id}>{t.name} ({t.kind})</option>))}
           </SelectField>
+          {/* E-VID-08: the voice this channel's videos are narrated in. */}
+          <Field name="voiceId" label="Narration voice (ElevenLabs voice ID)" defaultValue={channel.voiceId ?? ""} placeholder="Blank = the default voice (Rachel)" />
         </fieldset>
 
         <div className="flex justify-end">
