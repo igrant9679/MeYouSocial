@@ -50,7 +50,7 @@ export const KIND_LABELS: Record<NotificationKind, string> = {
   published: "A post was published",
   publish_failed: "A publish failed",
   scheduled: "A post was scheduled",
-  assigned: "I was assigned a review",
+  assigned: "I was given something — a review, or an Engage thread",
   comment: "A comment on something I'm on",
   mentioned: "Someone @mentioned me in a comment",
   account_broken: "A connected account stopped working",

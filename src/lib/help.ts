@@ -669,6 +669,12 @@ export const HELP_CATEGORIES: FaqCategory[] = [
         tags: ["first comment", "link", "linkedin", "instagram", "facebook"],
       },
       {
+        q: "Can our team share Engage — who answers what?",
+        a: "Yes. In **Distribute → Engage**:\n\n· **Assign a thread** — open a message thread or a post's comments and pick someone under **Assigned to** (any editor or admin here). They get a notification, the list shows who has it, and **Assigned to me** filters to yours.\n· **Saved replies** — the reply box has **Insert a saved reply**: your snippets from Compose, with any category named like \"Replies\" listed first. It goes in where the cursor is.\n· **The 24-hour window** — Facebook and Instagram only take a DM reply within 24 hours of the person's last message, so an open thread counts down the time left (amber under three hours, then \"closed\").\n· **Set aside one comment** — inside a post's comments, set aside a single comment (spam, or nothing to say). It stays on the post; it just stops counting as work.\n· **Approval for editors' public replies** — while this workspace reviews posts before they go out, an editor's comment on a post is **submitted for approval** instead of posted. Admins see it waiting at the top of Engage and on the post, can edit it, then **Approve & send** or **Decline** (with a reason the editor is told). Direct messages stay the editor's to send.\n\nNone of this reaches the network until someone presses Send or an admin approves.",
+        links: [{ label: "Engage →", href: "/social/engage" }],
+        tags: ["engage", "inbox", "assign", "team", "saved replies", "approval", "24-hour", "dm", "comment"],
+      },
+      {
         q: "How does TikTok posting work?",
         a: "When a TikTok account is selected, its card appears: **who can view the video** (TikTok requires you to choose — there is no default), whether others may comment, duet or stitch, the **AI-generated** and **commercial content** disclosures, and **Hold as draft in TikTok** to finish it in the TikTok app. TikTok's music and branded-content declarations are shown before you send, as TikTok requires.",
         links: [{ label: "Compose →", href: "/social/compose" }],

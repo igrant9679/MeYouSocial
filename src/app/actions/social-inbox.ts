@@ -287,3 +287,155 @@ export async function replyOnPostAction(formData: FormData) {
   revalidatePath("/social", "layout");
   back(`Comment posted on ${account.platform}.`, "ok");
 }
+
+// ── Team inbox (E-SOC-17) ─────────────────────────────────────────────────────
+
+/** Where an Engage thread lives, for links in notifications and the way back. */
+function threadPath(kind: string, targetId: string, accountId: string): string {
+  const acct = `&acct=${encodeURIComponent(accountId)}`;
+  if (kind === "conversation") return `/social/engage?dm=${encodeURIComponent(targetId)}${acct}`;
+  if (kind === "comment") return `/social/engage?post=${encodeURIComponent(targetId)}${acct}`;
+  return "/social/engage";
+}
+
+/**
+ * Give a thread to someone in the team (or take it back). EDITOR, like
+ * answering. The assignee must be an active editor or admin here — a viewer
+ * can't answer, and a former member can't be handed work. Nothing is sent to
+ * the network; the assignee gets an "assigned" notification.
+ */
+export async function assignInboxThreadAction(formData: FormData) {
+  const { workspace, membership, user } = await requireRole("EDITOR");
+  const kind = String(formData.get("kind") ?? "");
+  const targetId = String(formData.get("targetId") ?? "");
+  const accountId = String(formData.get("accountId") ?? "");
+  const assigneeId = String(formData.get("assigneeId") ?? "").trim();
+  const here = threadPath(kind, targetId, accountId);
+  const back: Flash = (msg, k = "err") => flashTo(here, msg, k);
+  const { isAssignableKind } = await import("@/lib/inbox-team");
+  if (!isAssignableKind(kind) || !targetId) back("Couldn't tell which thread that was.");
+  if (!assigneeId) {
+    await db.engageAssignment.deleteMany({ where: { workspaceId: workspace.id, kind, targetId } });
+    await writeAudit({ workspaceId: workspace.id, actorId: membership.userId, action: "social.inbox_unassigned", entityType: `inbox_${kind}`, entityId: targetId });
+    revalidatePath("/social/engage");
+    back("Unassigned — it's anyone's again.", "ok");
+  }
+  const assignee = await db.membership.findFirst({
+    where: { workspaceId: workspace.id, userId: assigneeId, status: "active", role: { in: ["ADMIN", "EDITOR"] } },
+    select: { userId: true, user: { select: { name: true, email: true } } },
+  });
+  if (!assignee) back("Only an editor or admin of this workspace can be given a thread.");
+  const name = assignee!.user.name ?? assignee!.user.email ?? "them";
+  await db.engageAssignment.upsert({
+    where: { workspaceId_kind_targetId: { workspaceId: workspace.id, kind, targetId } },
+    create: { workspaceId: workspace.id, kind, targetId, accountId: accountId || null, assigneeId, assignedById: membership.userId },
+    update: { assigneeId, assignedById: membership.userId, accountId: accountId || null },
+  });
+  await writeAudit({ workspaceId: workspace.id, actorId: membership.userId, action: "social.inbox_assigned", entityType: `inbox_${kind}`, entityId: targetId, meta: { assignee: name } });
+  if (assigneeId !== membership.userId) {
+    const { notify } = await import("@/lib/notify");
+    await notify({
+      workspaceId: workspace.id,
+      kind: "assigned",
+      title: `${user.name ?? user.email ?? "Someone"} gave you ${kind === "conversation" ? "a message thread" : kind === "comment" ? "a post's comments" : "a review"} in Engage`,
+      path: here,
+      entityType: `inbox_${kind}`,
+      entityId: targetId,
+      userIds: [assigneeId],
+      excludeUserId: membership.userId,
+    });
+  }
+  revalidatePath("/social/engage");
+  back(assigneeId === membership.userId ? "It's yours now." : `Given to ${name} — they've been told.`, "ok");
+}
+
+/**
+ * An editor's public reply while this workspace reviews posts: it waits as a
+ * draft for an admin to release. Nothing reaches the network here. One waiting
+ * reply per post — writing again replaces it (and says so).
+ */
+export async function submitCommentForApprovalAction(formData: FormData) {
+  const { workspace, membership, user } = await requireRole("EDITOR");
+  const postId = String(formData.get("postId") ?? "");
+  const accountId = String(formData.get("accountId") ?? "");
+  const here = threadPath("comment", postId, accountId);
+  const back: Flash = (msg, k = "err") => flashTo(here, msg, k);
+  if (!postId || !accountId) back("Couldn't tell which post that was.");
+  await requireOwnAccount(workspace.id, accountId, back);
+  const message = requireMessage(formData.get("message"), back);
+  const existing = await db.inboxReplyDraft.findUnique({ where: { workspaceId_kind_targetId: { workspaceId: workspace.id, kind: "comment", targetId: postId } }, select: { id: true } });
+  await db.inboxReplyDraft.upsert({
+    where: { workspaceId_kind_targetId: { workspaceId: workspace.id, kind: "comment", targetId: postId } },
+    create: { workspaceId: workspace.id, kind: "comment", targetId: postId, accountId, message, authorId: membership.userId, authorName: user.name ?? user.email ?? null },
+    update: { accountId, message, authorId: membership.userId, authorName: user.name ?? user.email ?? null },
+  });
+  await writeAudit({ workspaceId: workspace.id, actorId: membership.userId, action: "social.comment_submitted", entityType: "zernio_post", entityId: postId, meta: { chars: message.length, replaced: !!existing } });
+  const { notify } = await import("@/lib/notify");
+  await notify({
+    workspaceId: workspace.id,
+    kind: "approval_needed",
+    title: `${user.name ?? user.email ?? "An editor"} wrote a public comment reply for approval`,
+    body: message.slice(0, 140),
+    path: here,
+    entityType: "zernio_post",
+    entityId: postId,
+    excludeUserId: membership.userId,
+  });
+  revalidatePath("/social/engage");
+  back(existing ? "Updated — the reply waiting for approval is now this text." : "Sent for approval — an admin will see it on this post. Nothing is public yet.", "ok");
+}
+
+/** ADMIN: release an editor's waiting reply — the text as the admin leaves it. */
+export async function approveCommentReplyAction(formData: FormData) {
+  const { workspace, membership } = await requireRole("ADMIN");
+  const draftId = String(formData.get("draftId") ?? "");
+  const draft = await db.inboxReplyDraft.findFirst({ where: { id: draftId, workspaceId: workspace.id, kind: "comment" } });
+  if (!draft) redirect("/social/engage?err=" + encodeURIComponent("That reply isn't waiting any more."));
+  const here = threadPath("comment", draft.targetId, draft.accountId);
+  const back: Flash = (msg, k = "err") => flashTo(here, msg, k);
+  // Re-resolved now: a waiting reply is not a licence to post as an account the workspace has since lost.
+  const account = await requireOwnAccount(workspace.id, draft.accountId, back);
+  const message = requireMessage(formData.get("message") ?? draft.message, back);
+  try {
+    await replyOnPost({ workspaceId: workspace.id, postId: draft.targetId, accountId: draft.accountId, message });
+  } catch (e) {
+    const detail = e instanceof Error ? e.message : String(e);
+    await writeAudit({
+      workspaceId: workspace.id, actorId: membership.userId,
+      action: "social.comment_reply_failed", entityType: "zernio_post", entityId: draft.targetId,
+      meta: { platform: account.platform, chars: message.length, approvedFor: draft.authorName, error: detail.slice(0, 300) },
+    });
+    back(`Couldn't post that comment — it's still waiting. ${explainInboxSendError(detail)}`);
+  }
+  await db.inboxReplyDraft.deleteMany({ where: { id: draft.id, workspaceId: workspace.id } });
+  await writeAudit({
+    workspaceId: workspace.id, actorId: membership.userId,
+    action: "social.comment_replied", entityType: "zernio_post", entityId: draft.targetId,
+    meta: { platform: account.platform, account: account.displayName ?? account.username, chars: message.length, approvedFor: draft.authorName, edited: message !== draft.message },
+  });
+  if (draft.authorId && draft.authorId !== membership.userId) {
+    const { notify } = await import("@/lib/notify");
+    await notify({ workspaceId: workspace.id, kind: "approval_decided", title: `Your comment reply was approved and posted${message !== draft.message ? " (with edits)" : ""}`, path: here, entityType: "zernio_post", entityId: draft.targetId, userIds: [draft.authorId] });
+  }
+  await markInboxStale(workspace.id);
+  revalidatePath("/social", "layout");
+  back(`Approved — comment posted on ${account.platform}.`, "ok");
+}
+
+/** ADMIN: send a waiting reply back. Nothing is posted; the author is told why. */
+export async function declineCommentReplyAction(formData: FormData) {
+  const { workspace, membership } = await requireRole("ADMIN");
+  const draftId = String(formData.get("draftId") ?? "");
+  const reason = String(formData.get("reason") ?? "").trim().slice(0, 300);
+  const draft = await db.inboxReplyDraft.findFirst({ where: { id: draftId, workspaceId: workspace.id, kind: "comment" } });
+  if (!draft) redirect("/social/engage?err=" + encodeURIComponent("That reply isn't waiting any more."));
+  const here = threadPath("comment", draft.targetId, draft.accountId);
+  await db.inboxReplyDraft.deleteMany({ where: { id: draft.id, workspaceId: workspace.id } });
+  await writeAudit({ workspaceId: workspace.id, actorId: membership.userId, action: "social.comment_declined", entityType: "zernio_post", entityId: draft.targetId, meta: { author: draft.authorName, reason: reason || null } });
+  if (draft.authorId && draft.authorId !== membership.userId) {
+    const { notify } = await import("@/lib/notify");
+    await notify({ workspaceId: workspace.id, kind: "approval_decided", title: "Your comment reply wasn't approved", body: reason ? `Why: ${reason}` : "No reason given.", path: here, entityType: "zernio_post", entityId: draft.targetId, userIds: [draft.authorId] });
+  }
+  revalidatePath("/social/engage");
+  flashTo(here, "Declined — nothing was posted, and the author has been told.", "ok");
+}

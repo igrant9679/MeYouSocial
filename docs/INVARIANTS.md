@@ -2094,3 +2094,22 @@ before changing code in that area.
   `lastSentAt` moves only when at least one person got it; partial failures are counted. Audit
   `report.schedule_sent` / `report.schedule_undelivered` (+ created/changed/paused/resumed). A schedule whose report no
   longer exists pauses itself and says why.
+
+## Engage is a team inbox: threads have owners, replies come from saved answers, editors' public replies wait for an admin (2026-11-03, audit Phase 5, growth part ci)
+- **Assignment** (E-SOC-17): `EngageAssignment`, one per (kind, target) — `conversation` (a DM thread), `comment` (a
+  post's comments). `assignInboxThreadAction` (EDITOR) gives it to an ACTIVE EDITOR/ADMIN of this workspace only
+  (a viewer can't answer, an outsider id is refused), tells them (`assigned` notification, never the person who did
+  it), and "Nobody" deletes the row. The list shows who has each; `?mine=1` ("Assigned to me") filters to yours.
+- **Saved replies** are the workspace's `SocialSnippet`s (the composer's library), categories matching /repl/i
+  first; the reply box inserts one at the cursor. **The 24-hour DM window** is a live countdown in the box
+  (`windowClosesAt` from `messagingWindow`; amber under 3 h, "closed" after). The reply box is a client component:
+  its helpers live in `lib/inbox-team-shared.ts` (no db) — never import `lib/inbox-team.ts` from the client.
+- **Per-comment set aside**: inside an open post, kind `postComment` keyed by the COMMENT id folds one comment away
+  (the post-level `comment` state is unchanged). Our memory only; the comment stays on the post.
+- **Approval for editors' public replies**: while `social:require_approval` is on, an editor's comment on a post is an
+  `InboxReplyDraft` of kind `comment` (one per post; writing again replaces it), admins are told
+  (`approval_needed`), and nothing reaches the network. An ADMIN sees it at the top of Engage and on the post,
+  may edit it, and **Approve & send** posts it through the same `replyOnPost` with the account RE-RESOLVED then
+  (a draft is not a licence to post as a lost account; a failed send keeps it waiting), or **Decline** with a reason
+  the author is told. Audit `social.comment_submitted` / `comment_replied` (with `approvedFor`, `edited`) /
+  `comment_declined`. Never dispatched by a sweep. DMs are unchanged — still the editor's to send.

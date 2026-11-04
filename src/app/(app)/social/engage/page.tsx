@@ -31,7 +31,12 @@ import {
   replyToReviewAction,
   saveReviewReplyDraftAction,
   discardReviewReplyDraftAction,
+  assignInboxThreadAction,
+  submitCommentForApprovalAction,
+  approveCommentReplyAction,
+  declineCommentReplyAction,
 } from "@/app/actions/social-inbox";
+import { assignableMembers, savedRepliesFor, windowClosesAt } from "@/lib/inbox-team";
 
 /**
  * Engage — the direct messages and post comments Zernio can see, in one place.
@@ -49,13 +54,41 @@ import {
  * would quietly assert nobody had written to you.
  */
 
-type SP = { dm?: string; post?: string; acct?: string; net?: string; ok?: string; err?: string; fresh?: string };
+type SP = { dm?: string; post?: string; acct?: string; net?: string; ok?: string; err?: string; fresh?: string; mine?: string };
+
+/**
+ * E-SOC-17: give a thread to someone in the team. A form beside the thread,
+ * never inside a row's link (the nesting trap InboxItemState describes).
+ */
+function AssignControl({ kind, targetId, accountId, current, members }: { kind: "conversation" | "comment"; targetId: string; accountId: string; current: string | null; members: Array<{ userId: string; name: string }> }) {
+  return (
+    <form action={assignInboxThreadAction} className="flex items-center gap-1.5 text-[11px]" data-assign={kind}>
+      <input type="hidden" name="kind" value={kind} />
+      <input type="hidden" name="targetId" value={targetId} />
+      <input type="hidden" name="accountId" value={accountId} />
+      <label className="text-[var(--mute)]" htmlFor={`assign-${kind}-${targetId}`}>Assigned to</label>
+      <select id={`assign-${kind}-${targetId}`} name="assigneeId" defaultValue={current ?? ""} className="text-[11px]">
+        <option value="">Nobody</option>
+        {members.map((m) => <option key={m.userId} value={m.userId}>{m.name}</option>)}
+      </select>
+      <SubmitButton className="btn sm" pendingText="Saving…">Save</SubmitButton>
+    </form>
+  );
+}
+
+function AssignedChip({ name }: { name: string }) {
+  return (
+    <span className="font-mono text-[9.5px] px-1.5 rounded-full flex-shrink-0" style={{ background: "var(--blue-soft)", color: "var(--blue-on)" }} data-assigned-to={name} title={`Assigned to ${name}`}>
+      → {name}
+    </span>
+  );
+}
 
 const DM_NETWORKS = ["facebook", "instagram", "linkedin", "twitter"];
 
 export default async function EngagePage({ searchParams }: { searchParams: Promise<SP> }) {
   const { workspace, membership } = await requireRole("EDITOR");
-  const { dm, post, acct, net, ok, err, fresh } = await searchParams;
+  const { dm, post, acct, net, ok, err, fresh, mine: mineParam } = await searchParams;
 
   const isAdmin = canAdmin(membership.role);
   // Mirrors the guard in replyOnPostAction: public comments are admin-only
@@ -148,6 +181,26 @@ export default async function EngagePage({ searchParams }: { searchParams: Promi
   const openConvo = conversations.find((c) => c.id === dm);
   const openPost = posts.find((p) => p.id === post);
 
+  // E-SOC-17, the team inbox: who has which thread, public replies waiting for
+  // an admin, the saved answers, and who can be given a thread.
+  const [assignments, commentDrafts, savedReplies, team] = await Promise.all([
+    db.engageAssignment.findMany({ where: { workspaceId: workspace.id } }),
+    db.inboxReplyDraft.findMany({ where: { workspaceId: workspace.id, kind: "comment" }, orderBy: { updatedAt: "desc" } }),
+    savedRepliesFor(workspace.id),
+    assignableMembers(workspace.id),
+  ]);
+  const teamName = new Map(team.map((m) => [m.userId, m.name]));
+  const assigneeOf = (kind: string, id: string) => assignments.find((a) => a.kind === kind && a.targetId === id)?.assigneeId ?? null;
+  const assigneeName = (kind: string, id: string) => {
+    const a = assigneeOf(kind, id);
+    return a ? (teamName.get(a) ?? "a former member") : null;
+  };
+  const mineOnly = mineParam === "1";
+  const myCount = assignments.filter((a) => a.assigneeId === membership.userId).length;
+  const shownConvos = mineOnly ? openConvos.filter((c) => assigneeOf("conversation", c.id) === membership.userId) : openConvos;
+  const shownPosts = mineOnly ? withComments.filter((p) => assigneeOf("comment", p.id) === membership.userId) : withComments;
+  const pendingOn = (postId: string) => commentDrafts.find((d) => d.targetId === postId) ?? null;
+
   return (
     <div className="p-6 w-full">
       <SocialHeader
@@ -158,6 +211,31 @@ export default async function EngagePage({ searchParams }: { searchParams: Promi
 
       {ok && <Banner kind="ok" text={ok} />}
       {err && <Banner kind="err" text={err} />}
+
+      {/* E-SOC-17: editors' public replies waiting for an admin — each a link to its post. */}
+      {isAdmin && commentDrafts.length > 0 && (
+        <div className="card mb-3 text-xs" style={{ borderColor: "var(--amber)" }} data-replies-waiting={commentDrafts.length}>
+          <b>{commentDrafts.length} {commentDrafts.length === 1 ? "reply is" : "replies are"} waiting for your approval</b>
+          <span className="text-[var(--mute)]"> — nothing is public until you approve it.</span>
+          <ul className="mt-1.5 flex flex-col gap-1">
+            {commentDrafts.map((d) => (
+              <li key={d.id}>
+                <Link href={`/social/engage?post=${encodeURIComponent(d.targetId)}&acct=${encodeURIComponent(d.accountId)}`} className="underline">
+                  {d.authorName ?? "An editor"}: &ldquo;{d.message.slice(0, 80)}{d.message.length > 80 ? "…" : ""}&rdquo;
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* E-SOC-17: the threads given to me. */}
+      <div className="flex flex-wrap items-center gap-1.5 mb-2 text-xs">
+        <Link href={mineOnly ? backHere : `${backHere}${net ? "&" : "?"}mine=1`} className={`btn sm ${mineOnly ? "primary" : ""}`} data-mine-link={myCount}>
+          Assigned to me{myCount > 0 ? ` (${myCount})` : ""}
+        </Link>
+        {mineOnly && <span className="text-[var(--mute)]">Showing only the threads given to you.</span>}
+      </div>
 
       {/* Network filter + what each one can actually do. */}
       <div className="flex flex-wrap items-center gap-1.5 mb-3">
@@ -395,6 +473,9 @@ export default async function EngagePage({ searchParams }: { searchParams: Promi
                   </a>
                 )}
               </div>
+              <div className="mb-3 -mt-1">
+                <AssignControl kind="conversation" targetId={openConvo.id} accountId={openConvo.accountId} current={assigneeOf("conversation", openConvo.id)} members={team} />
+              </div>
               {thread.length === 0 ? (
                 <p className="text-xs text-[var(--mute)]">No messages came back for this thread.</p>
               ) : (
@@ -443,19 +524,27 @@ export default async function EngagePage({ searchParams }: { searchParams: Promi
                   </div>
                 ) : null;
               })()}
-              <InboxReply
-                action={sendInboxReplyAction}
-                hidden={{ conversationId: openConvo.id, accountId: openConvo.accountId }}
-                asLabel={openConvo.accountUsername ?? networkFor(openConvo.platform)?.label ?? openConvo.platform}
-                placeholder={`Reply to ${openConvo.participantName ?? "them"}…`}
-              />
+              {(() => {
+                // E-SOC-17: the same window as a live countdown while it's open.
+                const w = messagingWindow(openConvo.platform, thread);
+                return (
+                  <InboxReply
+                    action={sendInboxReplyAction}
+                    hidden={{ conversationId: openConvo.id, accountId: openConvo.accountId }}
+                    asLabel={openConvo.accountUsername ?? networkFor(openConvo.platform)?.label ?? openConvo.platform}
+                    placeholder={`Reply to ${openConvo.participantName ?? "them"}…`}
+                    savedReplies={savedReplies}
+                    windowClosesAt={windowClosesAt(w.applies, w.lastInboundAt)?.toISOString() ?? null}
+                  />
+                );
+              })()}
             </div>
           ) : conversations.length === 0 ? (
             <EmptyOrUnsupported connected={connected} filtered={net} kind="dms" />
           ) : (
             <>
               <div className="card flex flex-col divide-y divide-[var(--line)]">
-                {openConvos.map((c) => {
+                {shownConvos.map((c) => {
                   const st = itemState("conversation", c.id);
                   return (
                     // ⚠ The row is a flex CONTAINER; the link is one child and
@@ -481,6 +570,7 @@ export default async function EngagePage({ searchParams }: { searchParams: Promi
                           </span>
                           <span className="block text-[11px] text-[var(--mute)] truncate">{c.lastMessage ?? "—"}</span>
                         </span>
+                        {assigneeName("conversation", c.id) && <span className="pt-0.5"><AssignedChip name={assigneeName("conversation", c.id)!} /></span>}
                         <span className="font-mono text-[9.5px] text-[var(--mute)] flex-shrink-0 pt-1">{when(c.updatedTime)}</span>
                       </Link>
                       <span className="flex-shrink-0 pt-0.5">
@@ -489,8 +579,8 @@ export default async function EngagePage({ searchParams }: { searchParams: Promi
                     </div>
                   );
                 })}
-                {openConvos.length === 0 && (
-                  <p className="text-xs text-[var(--mute)] py-2 m-0">Every thread has been set aside.</p>
+                {shownConvos.length === 0 && (
+                  <p className="text-xs text-[var(--mute)] py-2 m-0">{mineOnly ? "No message thread is assigned to you." : "Every thread has been set aside."}</p>
                 )}
               </div>
 
@@ -546,65 +636,142 @@ export default async function EngagePage({ searchParams }: { searchParams: Promi
                   </a>
                 )}
               </div>
-              {comments.length === 0 ? (
-                <p className="text-xs text-[var(--mute)]">No comments came back for this post.</p>
-              ) : (
-                <div className="flex flex-col gap-2">
-                  {comments.map((c) => (
-                    <div key={c.id} className="text-xs border-l-2 pl-2" style={{ borderColor: c.authorIsOwner ? "var(--blue)" : "var(--line-2)" }}>
-                      <div className="flex items-start gap-2">
-                        <div className="flex-1 min-w-0">
-                          <div className="font-mono text-[9.5px] text-[var(--mute)] mb-0.5">
-                            {c.authorName ?? "Unknown"}{c.authorIsOwner ? " (you)" : ""} · {when(c.createdTime)}
-                            {c.likeCount > 0 && <> · {c.likeCount} like{c.likeCount === 1 ? "" : "s"}</>}
-                          </div>
-                          <p className="whitespace-pre-wrap break-words text-[var(--slate)]">{c.message}</p>
+              <div className="mb-3 -mt-1">
+                <AssignControl kind="comment" targetId={openPost.id} accountId={openPost.accountId} current={assigneeOf("comment", openPost.id)} members={team} />
+              </div>
+              {(() => {
+                // E-SOC-17: a single comment can be set aside here (spam, or nothing to say) —
+                // our memory only; it stays on the post unless an admin deletes it.
+                const threadHere = `/social/engage?post=${encodeURIComponent(openPost.id)}&acct=${encodeURIComponent(openPost.accountId)}`;
+                const shown = comments.filter((c) => itemState("postComment", c.id) !== "aside");
+                const asideHere = comments.filter((c) => itemState("postComment", c.id) === "aside");
+                const row = (c: (typeof comments)[number], aside: boolean) => (
+                  <div key={c.id} className="text-xs border-l-2 pl-2" style={{ borderColor: c.authorIsOwner ? "var(--blue)" : "var(--line-2)" }}>
+                    <div className="flex items-start gap-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="font-mono text-[9.5px] text-[var(--mute)] mb-0.5">
+                          {c.authorName ?? "Unknown"}{c.authorIsOwner ? " (you)" : ""} · {when(c.createdTime)}
+                          {c.likeCount > 0 && <> · {c.likeCount} like{c.likeCount === 1 ? "" : "s"}</>}
                         </div>
-                        {/* Shown only where the NETWORK says we may — `canDelete`
-                            is true for our own comments and for others' on a page
-                            we administer. A button that always 403s would read as
-                            broken rather than as governed. */}
-                        {/* ⚠ BOTH gates. `canDelete` is the NETWORK's verdict;
-                            DELETABLE.zernioComment.role is "ADMIN", and
-                            deleteEntityAction redirects a non-admin to
-                            /forbidden — so an EDITOR was shown a button that
-                            threw them off the page. */}
-                        {c.canDelete && isAdmin && (
-                          <DeleteButton
-                            kind="zernioComment"
-                            id={commentRef(openPost.id, c.id, openPost.accountId)}
-                            name={c.message.slice(0, 60)}
-                            returnTo={`/social/engage?post=${encodeURIComponent(openPost.id)}&acct=${encodeURIComponent(openPost.accountId)}`}
-                            iconOnly
-                            className="btn sm flex-shrink-0"
-                          />
-                        )}
-                        {c.canDelete && !isAdmin && (
-                          <span className="font-mono text-[9.5px] text-[var(--mute)] flex-shrink-0 pt-0.5" title="deleteEntityAction requires ADMIN">
-                            admin removes
-                          </span>
-                        )}
+                        <p className="whitespace-pre-wrap break-words text-[var(--slate)]">{c.message}</p>
                       </div>
-
+                      {!c.authorIsOwner && (
+                        <span className="flex-shrink-0">
+                          <InboxItemState kind="postComment" targetId={c.id} back={threadHere} state={aside ? "aside" : itemState("postComment", c.id)} compact />
+                        </span>
+                      )}
+                      {/* Shown only where the NETWORK says we may — `canDelete`
+                          is true for our own comments and for others' on a page
+                          we administer. A button that always 403s would read as
+                          broken rather than as governed. */}
+                      {/* ⚠ BOTH gates. `canDelete` is the NETWORK's verdict;
+                          DELETABLE.zernioComment.role is "ADMIN", and
+                          deleteEntityAction redirects a non-admin to
+                          /forbidden — so an EDITOR was shown a button that
+                          threw them off the page. */}
+                      {c.canDelete && isAdmin && (
+                        <DeleteButton
+                          kind="zernioComment"
+                          id={commentRef(openPost.id, c.id, openPost.accountId)}
+                          name={c.message.slice(0, 60)}
+                          returnTo={threadHere}
+                          iconOnly
+                          className="btn sm flex-shrink-0"
+                        />
+                      )}
+                      {c.canDelete && !isAdmin && (
+                        <span className="font-mono text-[9.5px] text-[var(--mute)] flex-shrink-0 pt-0.5" title="deleteEntityAction requires ADMIN">
+                          admin removes
+                        </span>
+                      )}
                     </div>
-                  ))}
-                </div>
-              )}
-              {commentsLocked ? (
-                <p className="text-[11px] mt-3 pt-3 border-t border-[var(--line)] text-[var(--mute)]">
-                  This workspace reviews posts before they go out, so public comments are admin-only. Direct-message
-                  replies are still yours to send.
-                </p>
-              ) : (
-                <InboxReply
-                  action={replyOnPostAction}
-                  hidden={{ postId: openPost.id, accountId: openPost.accountId }}
-                  asLabel={openPost.accountUsername ?? networkFor(openPost.platform)?.label ?? openPost.platform}
-                  placeholder="Add a comment on this post…"
-                  // Not a threaded reply — say so, because "reply" implies one.
-                  publicNote="posts publicly as a new comment on the post, not threaded under a reply"
-                />
-              )}
+                  </div>
+                );
+                return comments.length === 0 ? (
+                  <p className="text-xs text-[var(--mute)]">No comments came back for this post.</p>
+                ) : (
+                  <>
+                    <div className="flex flex-col gap-2">
+                      {shown.map((c) => row(c, false))}
+                      {shown.length === 0 && <p className="text-xs text-[var(--mute)] m-0">Every comment here has been set aside.</p>}
+                    </div>
+                    {asideHere.length > 0 && (
+                      <details className="mt-2" data-comments-aside={asideHere.length}>
+                        <summary className="text-xs text-[var(--mute)] cursor-pointer select-none">
+                          Set aside ({asideHere.length}) — still on the post, no longer counted as work
+                        </summary>
+                        <div className="flex flex-col gap-2 mt-2" style={{ opacity: 0.7 }}>{asideHere.map((c) => row(c, true))}</div>
+                      </details>
+                    )}
+                  </>
+                );
+              })()}
+              {(() => {
+                // E-SOC-17: a public reply an editor wrote while posts are reviewed waits here for an admin.
+                const pending = pendingOn(openPost.id);
+                if (pending && isAdmin) {
+                  return (
+                    <div className="mt-3 pt-3 border-t border-[var(--line)] text-xs" data-pending-reply="">
+                      <p className="mb-1.5">
+                        <b>{pending.authorName ?? "An editor"}</b> wrote this reply for your approval
+                        <span className="text-[var(--mute)]"> · {when(pending.updatedAt.toISOString())} · nothing is public yet</span>
+                      </p>
+                      <form action={approveCommentReplyAction} className="flex flex-col gap-1.5" data-approve-reply="">
+                        <input type="hidden" name="draftId" value={pending.id} />
+                        <textarea name="message" defaultValue={pending.message} rows={3} className="w-full text-xs border border-[var(--line-2)] rounded-lg px-2 py-1.5 resize-y" aria-label="The reply, as it will be posted" />
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] text-[var(--mute)]">Posts publicly as <b>{openPost.accountUsername ?? networkFor(openPost.platform)?.label ?? openPost.platform}</b> — edit it first if you like.</span>
+                          <span className="flex-1" />
+                          <SubmitButton className="btn sm primary" pendingText="Posting…">Approve &amp; send</SubmitButton>
+                        </div>
+                      </form>
+                      <form action={declineCommentReplyAction} className="flex items-center gap-1.5 mt-1.5" data-decline-reply="">
+                        <input type="hidden" name="draftId" value={pending.id} />
+                        <input name="reason" placeholder="Why not (optional — the author is told)" className="text-xs flex-1" aria-label="Why it's declined" />
+                        <SubmitButton className="btn sm" pendingText="Declining…">Decline</SubmitButton>
+                      </form>
+                    </div>
+                  );
+                }
+                if (commentsLocked) {
+                  return (
+                    <>
+                      {pending && (
+                        <p className="text-[11px] mt-3 pt-3 border-t border-[var(--line)] font-mono" style={{ color: "var(--amber-on)" }} data-pending-reply="">
+                          Waiting for an admin&apos;s approval — {pending.authorName ?? "an editor"}&apos;s reply below. Change it and submit again to replace it.
+                        </p>
+                      )}
+                      <p className="text-[11px] mt-3 text-[var(--mute)]">
+                        This workspace reviews posts before they go out, so a public comment from you waits for an admin to approve it.
+                        Direct-message replies are still yours to send.
+                      </p>
+                      <InboxReply
+                        key={pending?.updatedAt.toISOString() ?? "no-pending"}
+                        draftAction={submitCommentForApprovalAction}
+                        draftLabel="Submit for approval"
+                        draftTitle="An admin approves it before it's posted. Nothing is public yet."
+                        initialText={pending?.message}
+                        hidden={{ postId: openPost.id, accountId: openPost.accountId }}
+                        asLabel={openPost.accountUsername ?? networkFor(openPost.platform)?.label ?? openPost.platform}
+                        placeholder="Write a comment for an admin to approve…"
+                        publicNote="posts publicly once approved, as a new comment on the post"
+                        savedReplies={savedReplies}
+                      />
+                    </>
+                  );
+                }
+                return (
+                  <InboxReply
+                    action={replyOnPostAction}
+                    hidden={{ postId: openPost.id, accountId: openPost.accountId }}
+                    asLabel={openPost.accountUsername ?? networkFor(openPost.platform)?.label ?? openPost.platform}
+                    placeholder="Add a comment on this post…"
+                    // Not a threaded reply — say so, because "reply" implies one.
+                    publicNote="posts publicly as a new comment on the post, not threaded under a reply"
+                    savedReplies={savedReplies}
+                  />
+                );
+              })()}
             </div>
           ) : withComments.length === 0 ? (
             <>
@@ -623,7 +790,7 @@ export default async function EngagePage({ searchParams }: { searchParams: Promi
                     (api/zernio/webhook/route.ts:180). Keyed per comment it
                     would match no event, hide nothing, and still report
                     success — a button that does nothing. */}
-                {withComments.map((p) => {
+                {shownPosts.map((p) => {
                   const st = itemState("comment", p.id);
                   return (
                     <div key={`${p.platform}-${p.id}`} className="flex items-start gap-2 py-2 first:pt-0 last:pb-0" style={st === "read" ? { opacity: 0.72 } : undefined}>
@@ -633,6 +800,10 @@ export default async function EngagePage({ searchParams }: { searchParams: Promi
                       >
                         <span className="pt-1"><NetDot platform={p.platform} /></span>
                         <span className="flex-1 min-w-0 text-xs text-[var(--slate)] truncate group-hover:underline">{p.content}</span>
+                        {pendingOn(p.id) && (
+                          <span className="font-mono text-[9.5px] px-1.5 rounded-full flex-shrink-0" style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }}>reply awaiting approval</span>
+                        )}
+                        {assigneeName("comment", p.id) && <AssignedChip name={assigneeName("comment", p.id)!} />}
                         <span className="flex items-center gap-2 flex-shrink-0 font-mono text-[9.5px] text-[var(--mute)] pt-0.5">
                           <span className="inline-flex items-center gap-0.5"><MessageCircle className="w-3 h-3" />{p.commentCount}</span>
                           {p.likeCount > 0 && <span className="inline-flex items-center gap-0.5"><Heart className="w-3 h-3" />{p.likeCount}</span>}
@@ -644,6 +815,9 @@ export default async function EngagePage({ searchParams }: { searchParams: Promi
                     </div>
                   );
                 })}
+                {shownPosts.length === 0 && (
+                  <p className="text-xs text-[var(--mute)] py-2 m-0">No post&apos;s comments are assigned to you.</p>
+                )}
               </div>
               {quiet > 0 && (
                 <p className="text-[11px] text-[var(--mute)] mt-2">

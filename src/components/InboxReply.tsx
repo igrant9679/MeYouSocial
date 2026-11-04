@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
-import { Send, FileText, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Send, FileText, X, Clock } from "lucide-react";
 import { SubmitButton } from "@/components/SubmitButton";
+import { formatWindowLeft, WINDOW_WARN_MS, type SavedReply } from "@/lib/inbox-team-shared";
 
 /**
  * The reply box in Engage.
@@ -34,6 +35,10 @@ export function InboxReply({
   discardDraftAction,
   initialText,
   draftNote,
+  draftLabel,
+  draftTitle,
+  savedReplies,
+  windowClosesAt,
 }: {
   /**
    * The send. OMIT IT to get a draft-only box — that is what an editor sees
@@ -56,11 +61,40 @@ export function InboxReply({
   initialText?: string;
   /** e.g. "Draft saved 10 Aug by Idris" — only when one actually exists. */
   draftNote?: string;
+  /** The draft button's words and tooltip, when "Save draft" isn't what it does (E-SOC-17: "Submit for approval"). */
+  draftLabel?: string;
+  draftTitle?: string;
+  /** The workspace's saved snippets, to drop into the reply (E-SOC-17). */
+  savedReplies?: SavedReply[];
+  /** ISO time the 24-hour DM window shuts — shown as a live countdown. */
+  windowClosesAt?: string | null;
 }) {
   const [text, setText] = useState(initialText ?? "");
+  const box = useRef<HTMLTextAreaElement>(null);
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!windowClosesAt) return;
+    const t = setInterval(() => setNow(Date.now()), 30_000);
+    return () => clearInterval(t);
+  }, [windowClosesAt]);
   const trimmed = text.trim();
   const over = trimmed.length > maxLength;
   const empty = trimmed.length === 0;
+  const closes = windowClosesAt ? new Date(windowClosesAt) : null;
+  const leftMs = closes ? closes.getTime() - now : 0;
+
+  // A saved reply goes in at the cursor (or replaces a selection), not over what's written.
+  const insert = (body: string) => {
+    const el = box.current;
+    const start = el?.selectionStart ?? text.length;
+    const end = el?.selectionEnd ?? text.length;
+    const next = text.slice(0, start) + body + text.slice(end);
+    setText(next);
+    requestAnimationFrame(() => {
+      el?.focus();
+      el?.setSelectionRange(start + body.length, start + body.length);
+    });
+  };
 
   // Enter-to-submit and a bare click both fall through to the form's own
   // action, so the DEFAULT must be the safe one when there is no Send button.
@@ -78,7 +112,45 @@ export function InboxReply({
           {draftNote} · not sent
         </p>
       )}
+      {(closes || (savedReplies && savedReplies.length > 0)) && (
+        <div className="flex flex-wrap items-center gap-2 mb-1.5">
+          {closes && (
+            <span
+              className="inline-flex items-center gap-1 font-mono text-[10px] px-1.5 py-0.5 rounded-full"
+              data-reply-window={leftMs > 0 ? "open" : "closed"}
+              title="Meta only accepts a reply within 24 hours of their last message"
+              style={
+                leftMs <= 0 ? { background: "var(--rose-soft)", color: "var(--rose-on)" }
+                  : leftMs < WINDOW_WARN_MS ? { background: "var(--amber-soft)", color: "var(--amber-on)" }
+                  : { background: "var(--panel)", color: "var(--mute)" }
+              }
+            >
+              <Clock className="w-3 h-3" aria-hidden />
+              Reply window: {formatWindowLeft(closes, new Date(now))}
+            </span>
+          )}
+          <span className="flex-1" />
+          {savedReplies && savedReplies.length > 0 && (
+            <select
+              aria-label="Insert a saved reply"
+              className="text-[11px] max-w-[16rem]"
+              value=""
+              data-saved-replies=""
+              onChange={(e) => {
+                const r = savedReplies.find((s) => s.id === e.target.value);
+                if (r) insert(r.body);
+              }}
+            >
+              <option value="">Insert a saved reply…</option>
+              {savedReplies.map((r) => (
+                <option key={r.id} value={r.id}>{r.category ? `${r.category} · ` : ""}{r.name}</option>
+              ))}
+            </select>
+          )}
+        </div>
+      )}
       <textarea
+        ref={box}
         name="message"
         value={text}
         onChange={(e) => setText(e.target.value)}
@@ -117,10 +189,10 @@ export function InboxReply({
             title={
               empty ? "Write something first"
                 : over ? "Too long"
-                : "Save this to come back to. Nothing is sent."
+                : draftTitle ?? "Save this to come back to. Nothing is sent."
             }
           >
-            <FileText className="w-3.5 h-3.5" /> Save draft
+            <FileText className="w-3.5 h-3.5" /> {draftLabel ?? "Save draft"}
           </SubmitButton>
         )}
         {action && (

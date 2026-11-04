@@ -81,6 +81,7 @@ model Workspace {
   searchQueries   SearchQuery[]
   socialVisits    SocialVisit[]
   reportSchedules ReportSchedule[]
+  engageAssignments EngageAssignment[]
   sitePages       SitePage[]
   brandKit        BrandKit?
   motifDirectives MotifDirective[]
@@ -2050,6 +2051,30 @@ model InboxReplyDraft {
 
   @@unique([workspaceId, kind, targetId])
   @@index([workspaceId, kind])
+}
+
+/**
+ * Who in the team owns an Engage thread (E-SOC-17). One per item; reassigning
+ * replaces it, unassigning deletes it. Our memory only — the network never
+ * hears of it. `kind` matches SocialInboxItemState: conversation (a DM thread),
+ * comment (a post's comments), review.
+ */
+model EngageAssignment {
+  id           String   @id @default(cuid())
+  workspaceId  String
+  kind         String
+  targetId     String
+  /** The account the thread is read through, for the link back. */
+  accountId    String?
+  assigneeId   String
+  assignedById String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, kind, targetId])
+  @@index([workspaceId, assigneeId])
 }
 
 model ZernioAccount {

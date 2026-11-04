@@ -34,7 +34,7 @@ export function InboxItemState({
   reason,
   compact = false,
 }: {
-  kind: "review" | "conversation" | "comment";
+  kind: "review" | "conversation" | "comment" | "postComment";
   targetId: string;
   back: string;
   /** null = untouched, or the state already recorded. */
