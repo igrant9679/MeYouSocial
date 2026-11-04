@@ -6,8 +6,9 @@ import { safeFetch } from "@/lib/net/safe-fetch";
 import { getBrandKit } from "@/lib/motifs";
 
 /**
- * Read-only share links (E-MEA-14): one report, for someone without an
- * account — a client — until it expires or an admin turns it off.
+ * Share links for someone without an account — a client: a read-only report
+ * (kind `report`, E-MEA-14) or one held post to approve (kind `post-approval`,
+ * E-SOC-03) — until it expires, is answered, or an admin turns it off.
  *
  * The token in the link is `<linkId>.<signature>`, the signature an HMAC of
  * the id under a key derived from AUTH_SECRET (as two-factor's tokens are).
@@ -18,6 +19,8 @@ import { getBrandKit } from "@/lib/motifs";
  */
 
 export const SHARE_DAYS = [7, 30, 90] as const;
+/** How long a client approval link stays open (E-SOC-03). */
+export const APPROVAL_DAYS = [3, 7, 14] as const;
 
 function signature(id: string): string {
   return createHmac("sha256", `share:${env.AUTH_SECRET}`).update(id).digest("base64url").slice(0, 32);

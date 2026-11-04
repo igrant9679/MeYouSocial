@@ -2183,3 +2183,17 @@ before changing code in that area.
   Unicode TTF inside Next — instead of Latin-1 Helvetica. ⚠ sharp is imported ON USE (`await import("sharp")`) like
   everywhere else: a top-level import put a second libvips in the build's prerender worker beside Next's and the
   icon route failed with GLib "invalid property" errors.
+
+## A client can approve or send back a held post through a one-answer link, without an account (2026-11-03, audit Phase 5, growth part co)
+- **The link** (E-SOC-03): a `ShareLink` of kind `post-approval` (targetKey = the post) — the same signed `<id>.<HMAC>`
+  token as report links (`lib/share-links.ts`). An ADMIN makes it on Distribute → Approvals ("Ask a client to approve",
+  3/7/14 days) for a post whose `approval` is `pending`; a new link for the same post turns older ones off.
+- **The page** `/a/<token>` (no session, noindex) shows that one post — text, its pictures embedded (storage is
+  session-gated), the accounts and the time — in the workspace's colour and logo, with Approve and Ask for changes.
+- **The answer** (`actions/client-approval.ts`): the TOKEN is the permission, re-checked on every call; it acts only
+  if the link's sender is still an active ADMIN of that workspace, and goes through the SAME `approvePost` /
+  `requestChanges` as the in-app buttons — moved to `lib/social/review.ts` and NOT exported from a "use server" file
+  (they take a userId and a workspaceId; as server actions any browser could pass someone else's). It acts in the
+  sender's name, is audited as the client's (`social.client_approved` / `client_changes_requested`, actorId null,
+  the label), notifies the team, and turns the link off: one answer per link, a replay changes nothing. A changes
+  note reaches the author prefixed with the client's label.

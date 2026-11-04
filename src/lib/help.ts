@@ -356,6 +356,12 @@ export const HELP_CATEGORIES: FaqCategory[] = [
         tags: ["share", "link", "client", "read-only", "white label", "pdf", "logo", "brand"],
       },
       {
+        q: "Can a client approve a post without an account?",
+        a: "Yes — while this workspace reviews posts, open **Distribute → Approvals** and use **Ask a client to approve** (admins): pick a post that's waiting, say who it's for and how long the link stays open (3, 7 or 14 days), then copy the link and send it. Your client sees that one post — its text, pictures, the accounts it goes to and when — in your colours and logo, and answers **Approve** or **Ask for changes** with a note. Their answer goes through the same path as your own buttons (an approved post is scheduled or queued as usual; changes go back to the author with the note), it's recorded as theirs, and your team is told. Each link takes one answer, then closes; it also closes on its date or when you turn it off.",
+        links: [{ label: "Approvals →", href: "/social/approvals" }],
+        tags: ["client", "approval", "approve", "link", "no account", "share", "review"],
+      },
+      {
         q: "How do I build my own report?",
         a: "Reports → **New custom report** → name it. It starts with a KPI row; open **Customize** to add any blocks from the library in any order. It then appears in the hub alongside the stock ten.",
         tags: ["custom report", "builder"],

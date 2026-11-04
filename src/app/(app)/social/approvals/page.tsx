@@ -8,6 +8,7 @@ import { Banner, PostCard, Section, SocialHeader } from "@/components/SocialPost
 import { EmptyState } from "@/components/EmptyState";
 import { ApprovalBar } from "@/components/ApprovalBar";
 import { threadsFor } from "@/lib/social/post-comments";
+import { ApprovalLinks } from "@/components/ApprovalLinks";
 
 // The review queue. A queue nobody sees is a queue nobody clears, which is why
 // it gets its own tab with an urgent badge rather than a section three screens
@@ -63,6 +64,9 @@ export default async function SocialApprovalsPage({ searchParams }: { searchPara
           {isAdmin && <Link href="/setup/people" className="underline">Turn it on under Settings → People</Link>}
         </div>
       )}
+
+      {/* E-SOC-03: send a held post to a client without an account. */}
+      {isAdmin && <ApprovalLinks workspaceId={workspace.id} />}
 
       {!isAdmin && awaiting.length > 0 && (
         <div className="card mb-4 text-xs text-[var(--mute)]">
