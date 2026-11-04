@@ -2213,3 +2213,15 @@ before changing code in that area.
   the refusal message now lead to this checklist.
 - **Re-review with a diff**: while a WordPress article is being refreshed, its Review tab shows what the revision changes
   against the post on the site now (`compareWithLive(…, { refresh: true })`); pushing stays a published-only act.
+
+## A take can be recorded at the teleprompter and lands in Assets on the project (2026-11-03, audit Phase 5, growth part cq)
+- **Record** (E-VID-14, `teleprompter/[id]/PrompterRecorder.tsx`, editors only): `getUserMedia` (camera + mic, asked by the
+  browser first) → `MediaRecorder` (the first supported of VP9/VP8 WebM, WebM, MP4), a mirrored self-view only while
+  recording, a running clock; the tracks are STOPPED on Stop and on unmount (no lit camera after). Refusals are named:
+  access refused, no device, device busy, no recorder support.
+- **Saving** (`POST /api/recordings`, EDITOR): the BYTES must be WebM (EBML) or MP4/MOV (ftyp) — a declared type doesn't
+  count — up to 200 MB; the script must be this workspace's. Stored with the workspace as owner, an `Asset` of the
+  script's channel (kind `upload`, source `recording`, tags `recording` + `script:<id>`, named "Take N — <title>"),
+  linked to the script's ContentProject when it has one; audited `video.take_recorded`.
+- ⚠ Verified with a real WebM (VP8/Opus from ffmpeg) through the route and with the button's no-camera path in the
+  browser pane; a real camera capture was not exercisable here.

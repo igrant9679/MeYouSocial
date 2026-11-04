@@ -553,6 +553,12 @@ export const HELP_CATEGORIES: FaqCategory[] = [
         tags: ["shot list", "b-roll", "broll", "shots", "film queue", "assets", "script", "recording"],
       },
       {
+        q: "Can I record myself reading the script?",
+        a: "Yes — open the script's **Teleprompter** (from Publish) and press **Record** at the top. The browser asks for the camera and microphone first; a small self-view sits in the corner while the prompter scrolls. Press **Stop** and the take is saved as **Take 1, Take 2…** in **Assets**, linked to the script's project so the Edit Bay finds it. Takes up to 200 MB (record a long one in parts, or upload a file to Assets). Nothing is recorded until you press Record, and the camera is switched off when you stop. Editors and admins can record.",
+        links: [{ label: "Assets →", href: "/production/assets" }],
+        tags: ["record", "teleprompter", "camera", "take", "video", "webcam"],
+      },
+      {
         q: "Can I turn a long script into a Short?",
         a: "Yes — open the script and press **Cut a Short**. The AI writes a 30–60 second vertical version from that script alone (no new facts or numbers): 75–150 spoken words with a hook and a call to action, saved as its own script beside the original (each links to the other), plus a 9:16 storyboard of 4–8 scenes in **Videos**. The storyboard renders like any other — with the video queue when video rendering is on (Settings → Automation), or with **Render now** — so check it before it spends anything. If no AI model answers, or what comes back is the wrong length, nothing is made and you're told why. The script needs at least 150 words.",
         links: [{ label: "Videos →", href: "/videos" }],

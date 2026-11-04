@@ -344,6 +344,7 @@ area, rather than loading all of them into every session.
 - A report can be shared read-only with someone without an account; report PDFs are white-labelled — 2026-11-03, audit Phase 5, growth part cn
 - A client can approve or send back a held post through a one-answer link, without an account — 2026-11-03, audit Phase 5, growth part co
 - Retiring or merging an article comes with a redirect checklist; a refresh is re-reviewed against the live post — 2026-11-03, audit Phase 5, growth part cp
+- A take can be recorded at the teleprompter and lands in Assets on the project — 2026-11-03, audit Phase 5, growth part cq
 
 ## Open items / things the user still owns
 - **Analytics: APIs enabled 2026-08-03** (Search Console + GA Admin + GA Data, on project
