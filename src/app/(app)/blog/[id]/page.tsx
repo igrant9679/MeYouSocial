@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { DiffRows } from "@/components/DiffView";
+import { compareWithLive } from "@/lib/wp-update";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Check, ChevronLeft, ChevronRight, CircleAlert, MonitorSmartphone, ShieldCheck, Sparkles, Trash2, X, Send } from "lucide-react";
 import { requireMembership, canEdit, canAdmin } from "@/lib/acl";
@@ -590,6 +592,10 @@ export default async function BlogPostPage({
               {wpConn && post.wpPostId != null && post.status === "published" && !post.refreshStartedAt && (
                 <Link href={`/blog/${post.id}/update`} className="btn sm" data-update-link="">Update on WordPress…</Link>
               )}
+              {/* E-IDE-04: fold it into another article, or take it down, without a dead end. */}
+              {post.status === "published" && post.publishedUrl && (
+                <Link href={`/blog/${post.id}/retire`} className="btn sm" data-retire-link="">{post.retiredAt ? "Retired — see the checklist" : "Retire or merge…"}</Link>
+              )}
               {admin && wpConn && post.wpPostId != null && (
                 <form action={pushSeoMetaAction}>
                   <input type="hidden" name="postId" value={post.id} />
@@ -680,6 +686,29 @@ export default async function BlogPostPage({
       </>)}
 
       {is("review") && (<>
+      {/* E-IDE-04: a refresh is re-reviewed against what's live now. */}
+      {post.refreshStartedAt && post.wpPostId != null && (await (async () => {
+        const cmp = await compareWithLive(workspace.id, post.id, { refresh: true });
+        return (
+          <details className="card mb-4" data-refresh-diff="" open>
+            <summary className="cursor-pointer select-none text-sm font-semibold">What this refresh changes against the live article</summary>
+            {!cmp.ok ? (
+              <p className="text-xs text-[var(--mute)] mt-2 mb-0">{cmp.error}</p>
+            ) : cmp.unchanged ? (
+              <p className="text-xs text-[var(--mute)] mt-2 mb-0" data-refresh-unchanged="">Nothing yet — the revision reads the same as the live article.</p>
+            ) : (
+              <>
+                <p className="text-xs mt-2" data-refresh-stats={`${cmp.stats.added}/${cmp.stats.removed}`}>
+                  <b>{cmp.stats.added}</b> word{cmp.stats.added === 1 ? "" : "s"} added, <b>{cmp.stats.removed}</b> removed
+                  {cmp.title.changed && <> · the title changes</>}{cmp.excerpt.changed && <> · the description changes</>}
+                  {cmp.imagesChanged.length > 0 && <> · new {cmp.imagesChanged.join(" and ")}</>} — read against the post on the site now.
+                </p>
+                {(cmp.stats.added > 0 || cmp.stats.removed > 0) && <DiffRows rows={cmp.rows} />}
+              </>
+            )}
+          </details>
+        );
+      })())}
       {/* Pre-publish checks (Spark gates — server-enforced on advance) */}
       <details className="card mb-4" open={!gatesPass}>
         {/* `title` on the summary rather than a <HelpTip> inside it — a button

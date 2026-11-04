@@ -10,6 +10,7 @@ import { IdeaFacts, IdeaHistory, IdeaPriority } from "@/components/IdeaDetail";
 import { ideaHistory, SOURCE_LABEL } from "@/lib/idea-history";
 import { getPostingTimeZone } from "@/lib/social/slots";
 import { REJECT_REASONS, isRejectReason } from "@/lib/reject-reasons";
+import { ideaChange } from "@/lib/idea-drafting";
 
 // One article idea's page, off the board (IDE-20): every card carried this
 // form and a list of every other open idea plus 60 site pages, so the board's
@@ -74,6 +75,8 @@ export default async function ArticleIdeaPage({ params, searchParams }: { params
         ...(idea.keyword ? [{ label: "Keyword", value: idea.keyword }] : []),
         ...(idea.angle ? [{ label: "Angle", value: idea.angle }] : []),
         ...(refreshOf ? [{ label: "Refreshes", value: <Link href={`/blog/${refreshOf.id}`} className="underline">{refreshOf.title}</Link> }] : []),
+        // E-IDE-04: a "Retire…" / "Merge…" idea is a site change — it leads to the redirect checklist, not a draft.
+        ...(refreshOf && ideaChange(idea) === "site_change" ? [{ label: "Site change", value: <Link href={`/blog/${refreshOf.id}/retire`} className="underline" data-idea-retire-link="">Open the retire / merge checklist</Link> }] : []),
         ...(post ? [{ label: "Article", value: <><Link href={`/blog/${post.id}`} className="underline">{post.title}</Link> <span className="text-[var(--mute)]">· {post.status.replace(/_/g, " ")}</span></> }] : []),
         ...(mergedInto ? [{ label: "Merged into", value: <Link href={`/ideas/article/${mergedInto.id}`} className="underline">{mergedInto.title}</Link> }] : []),
       ]} />

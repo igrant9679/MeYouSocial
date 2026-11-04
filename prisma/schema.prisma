@@ -277,6 +277,9 @@ model BlogPost {
   // through review); its next publish UPDATES the WordPress post in place at
   // the same URL instead of creating one. Cleared on that publish.
   refreshStartedAt DateTime?
+  // E-IDE-04: retired or merged — the old address now points at redirectTo (a 301 on the site).
+  retiredAt        DateTime?
+  redirectTo       String?
   // An admin's explicit override of the required checks ("Advance anyway"):
   // recorded, not silent — who, when, why. It holds for the BODY it was given
   // for (`gateOverrideHash`, md5 of the body then): any later change to the

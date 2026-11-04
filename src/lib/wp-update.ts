@@ -42,10 +42,16 @@ export function liveBodyForDiff(content: string): string {
   return content.replace(/<script\b[^>]*application\/ld\+json[^>]*>[\s\S]*?<\/script>/gi, "").replace(/<script\b[\s\S]*?<\/script>/gi, "");
 }
 
-export async function compareWithLive(workspaceId: string, postId: string): Promise<LiveComparison> {
+/**
+ * `refresh`: also compare an article that's back in review as a refresh
+ * (E-IDE-04) — the re-review shows what the revision changes against the
+ * live post. Pushing stays a published-only act (the update page checks).
+ */
+export async function compareWithLive(workspaceId: string, postId: string, opts: { refresh?: boolean } = {}): Promise<LiveComparison> {
   const post = await db.blogPost.findFirst({ where: { id: postId, workspaceId }, include: { images: true } });
   if (!post?.body) return { ok: false, error: "That article has no body." };
-  if (post.wpPostId == null || post.status !== "published") return { ok: false, error: "Only an article that's live on WordPress can be updated there." };
+  const inRefresh = opts.refresh === true && post.refreshStartedAt != null;
+  if (post.wpPostId == null || (post.status !== "published" && !inRefresh)) return { ok: false, error: "Only an article that's live on WordPress can be updated there." };
   const conn = await db.wordPressConnection.findUnique({ where: { workspaceId } });
   if (!conn) return { ok: false, error: "No WordPress site is connected." };
   let creds: WpCredentials;

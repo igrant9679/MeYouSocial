@@ -2197,3 +2197,19 @@ before changing code in that area.
   sender's name, is audited as the client's (`social.client_approved` / `client_changes_requested`, actorId null,
   the label), notifies the team, and turns the link off: one answer per link, a replay changes nothing. A changes
   note reaches the author prefixed with the client's label.
+
+## Retiring or merging an article comes with a redirect checklist; a refresh is re-reviewed against the live post (2026-11-03, audit Phase 5, growth part cp)
+- **Retire or merge** (E-IDE-04, `/blog/<id>/retire`, from a live article's Distribute line): choose where its address
+  points — another live, unretired article (a merge) or any http(s) address — and the checklist shows (1) the 301 in
+  Apache / Nginx / Redirection-CSV form (`redirectLines`), (2) the workspace's own articles that link to it in any form
+  of the address (absolute, without the slash, the bare path, www or not — `addressForms`/`countLinksTo`), (3) the old
+  WordPress post, (4) the record here. Nothing touches a site by itself.
+- **Repoint** (`repointLinksAction`, EDITOR): every link in those articles → the new address, each article snapshotted
+  first ("before repointing links …"); one awaiting final approval goes back to review (its approved text changed); a
+  live one stays published and is listed for Update on WordPress. **Move it to draft on WordPress** is ADMIN
+  (`wpSetPostStatus` draft — its redirect sits OUTSIDE the try: a catch swallowed Next's redirect and showed "NEXT_REDIRECT"; the check caught it). **Mark it retired** sets `BlogPost.retiredAt` + `redirectTo`: the content-decay detector
+  skips it (no more refresh ideas) and a refresh of it is refused with the reason.
+- **Site-change ideas** ("Retire…"/"Merge…", `ideaChange` = site_change) still can't be drafted; their detail page and
+  the refusal message now lead to this checklist.
+- **Re-review with a diff**: while a WordPress article is being refreshed, its Review tab shows what the revision changes
+  against the post on the site now (`compareWithLive(…, { refresh: true })`); pushing stays a published-only act.

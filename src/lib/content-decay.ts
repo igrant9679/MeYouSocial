@@ -47,7 +47,8 @@ const sumOrNull = (rows: Array<number | null>) => (rows.some((v) => v != null) ?
 
 export async function decayingPosts(workspaceId: string, now = Date.now()): Promise<Decay[]> {
   const posts = await db.blogPost.findMany({
-    where: { workspaceId, status: "published" },
+    // A retired article (E-IDE-04) points elsewhere now — its decline is expected, not a refresh idea.
+    where: { workspaceId, status: "published", retiredAt: null },
     select: {
       id: true, title: true, focusKeyword: true, protectedFromRewrite: true, wpPostId: true, publishedUrl: true,
       snapshots: {

@@ -218,6 +218,12 @@ export const HELP_CATEGORIES: FaqCategory[] = [
         tags: ["update", "wordpress", "edit", "live", "republish", "diff", "fix", "typo"],
       },
       {
+        q: "How do I retire an old article, or merge it into another?",
+        a: "Open the article, go to **Distribute**, and press **Retire or merge…** on the WordPress line. Choose where its address should point — one of your live articles (a merge) or any address — and you get a checklist so nothing becomes a dead end:\n\n1. **The 301 redirect** — ready to paste for Apache, Nginx or the WordPress Redirection plugin.\n2. **Your own links** — every article here that links to it; **Point them at the new address** changes them all (each saved as a version first; live ones then need **Update on WordPress**).\n3. **The old post on WordPress** — an admin can move it to draft from here, once the redirect is in place.\n4. **Record it** — the article is marked retired, says where it points, and stops producing refresh ideas.\n\nWhen an article is being **refreshed**, its Review tab also shows what the revision changes against the live post, word by word.",
+        links: [{ label: "Articles →", href: "/blog" }],
+        tags: ["retire", "merge", "redirect", "301", "dead link", "internal links", "refresh", "diff"],
+      },
+      {
         q: "What's the difference between an expert and a persona?",
         a: "An **expert** is a real person whose knowledge a draft speaks in — their experience, opinions, credentials and what they never claim. A **persona** is an audience the content is written FOR, like \"Compliance officer\"; it never speaks in a draft. Under **Ideas → Experts**, each profile says which it is (a role rather than a person is a persona — open it and press **This is an audience persona**).\n\nA draft speaks as the expert picked on the article, else the expert linked to the article's **Topic** (tick the Topics on the expert's page), else — when there is only one expert and they're linked to no Topic — that expert. Nothing else: a title merely sharing a word with an expert no longer makes the draft speak as them. Each draft records who it spoke as, and the expert's page lists those drafts.\n\n**Draft answers from source** reads a page or pasted text and drafts answers, but they wait under **Waiting for …** until the expert accepts them (as written or corrected) — they are never used in a draft, or treated as the expert's own words, before then.",
         links: [{ label: "Experts →", href: "/blog/experts" }],

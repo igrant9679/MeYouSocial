@@ -101,7 +101,7 @@ export async function linkRefreshTargets<T extends Pick<BlogIdea, "id" | "title"
 }
 
 export const SITE_CHANGE_MESSAGE =
-  "This idea is a change to a page on the live site, not a new article — the app won't draft it. Make it in WordPress: rewrite the page in place, or 301-redirect it to the page that replaces it (never delete the URL). Then reject the idea here to clear it.";
+  "This idea is a change to a page on the live site, not a new article — the app won't draft it. To retire or merge it, open the article's Retire or merge… checklist (Distribute tab): the 301 redirect to add, your own links to repoint, the old post to take down (never delete the URL). To rewrite it, regenerate the article instead. Then reject the idea here to clear it.";
 
 export type IdeaDraftResult =
   | { ok: true; change: "new" | "refresh"; postId: string; finished: { imagesGenerated: number; seoOptimized: number } | null }
@@ -133,11 +133,14 @@ export async function draftIdeaCore(
   if (change === "refresh") {
     const post = await db.blogPost.findFirst({
       where: { id: idea.refreshPostId!, workspaceId },
-      select: { id: true, status: true, body: true, protectedFromRewrite: true, wpPostId: true, publishedUrl: true },
+      select: { id: true, status: true, body: true, protectedFromRewrite: true, wpPostId: true, publishedUrl: true, retiredAt: true },
     });
     if (!post || !post.body) return { ok: false, reason: "site_change", message: SITE_CHANGE_MESSAGE };
     if (post.protectedFromRewrite) {
       return { ok: false, reason: "protected", message: "The article this would refresh is protected from rewrites. Lift the protection on the article first, or reject the idea.", postId: post.id };
+    }
+    if (post.retiredAt) {
+      return { ok: false, reason: "site_change", message: "The article this would refresh has been retired (it redirects elsewhere now). Reject the idea, or refresh the article it points to.", postId: post.id };
     }
     if (post.status !== "published") {
       return { ok: false, reason: "taken", message: "The article this would refresh isn't live (it is in review or being revised already). Let it finish first.", postId: post.id };
