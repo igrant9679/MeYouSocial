@@ -2130,3 +2130,15 @@ before changing code in that area.
   folder and named by a RELATIVE path with ffmpeg run in that folder (a Windows drive colon breaks filter syntax).
   `captionsBurned` is what the stored cut actually has; a burn that fails keeps the cut without them and says why
   (`assemblyError` beside a done status).
+
+## A script's marked shots become Assets on its project, and the Film Queue lists what's left to film (2026-11-03, audit Phase 5, growth part ck)
+- **Read, never invented** (E-VID-09): `lib/shot-list.ts` `extractShotList` takes the writer's own markers —
+  `[B-roll: …]`, `[Shot: …]`, `[Cutaway: …]`, `[Insert: …]`, `[Graphic: …]`, `(b-roll …)` — filed under the heading
+  above them ("Opening" before the first), de-duplicated per section. A section with no marker asks for nothing.
+- **Sync is idempotent** (`syncShotList`): each shot is an `Asset` (kind broll | shot | graphic, `source "shot_list"`,
+  tags `section:<heading>` and `script:<id>`) linked by `AssetLink` to the script's ContentProject. A shot already there
+  (same section + words) is left as it is — with any file attached; one taken out of the script is NOT deleted (it may
+  be filmed) and is only counted. Scoped to the workspace through the script's channel.
+- **Fills itself**: `setProjectStatusAction` → `recording` syncs the project's script. The script studio's **Shots**
+  tab shows each shot's state (not in Assets yet / in Assets / filmed = a url or upload on the asset) and the button.
+  The Film Queue shows a project's shots by section, open while any are left, filmed ones struck through.

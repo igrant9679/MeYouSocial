@@ -4,6 +4,7 @@ import { Clapperboard, ArrowRight, Film } from "lucide-react";
 import { requireMembership } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { setProjectStatusAction } from "@/app/actions/production";
+import { SHOT_SOURCE, shotSection } from "@/lib/shot-list";
 
 // Film Queue: projects in Recording, grouped by shoot day (publishDate).
 
@@ -63,14 +64,28 @@ export default async function FilmQueuePage({ searchParams }: { searchParams: Pr
                     <div className="text-[11px] text-[var(--mute)]">{p.channel.name}</div>
                   </div>
                 </div>
-                {p.assetLinks.length > 0 && (
-                  <details className="mt-2">
-                    <summary className="text-[11px] text-[var(--mute)] cursor-pointer flex items-center gap-1.5"><Film className="w-3 h-3" /> Shot list ({p.assetLinks.length})</summary>
-                    <ul className="m-0 p-0 mt-1.5 text-[11px]">
-                      {p.assetLinks.map((al) => (<li key={al.id} className="py-0.5">· {al.asset.name}</li>))}
-                    </ul>
-                  </details>
-                )}
+                {p.assetLinks.length > 0 && (() => {
+                  // E-VID-09: a shot is filmed once a file is attached to its asset.
+                  const filmed = (a: { url: string | null; uploadKey: string | null }) => !!(a.url || a.uploadKey);
+                  const toFilm = p.assetLinks.filter((al) => !filmed(al.asset)).length;
+                  return (
+                    <details className="mt-2" open={toFilm > 0} data-film-shots={toFilm}>
+                      <summary className="text-[11px] text-[var(--mute)] cursor-pointer flex items-center gap-1.5">
+                        <Film className="w-3 h-3" /> Shot list — {toFilm} to film{p.assetLinks.length > toFilm ? `, ${p.assetLinks.length - toFilm} done` : ""}
+                      </summary>
+                      <ul className="m-0 p-0 mt-1.5 text-[11px]">
+                        {p.assetLinks.map((al) => {
+                          const sec = al.asset.source === SHOT_SOURCE ? shotSection(al.asset.tags) : "";
+                          return (
+                            <li key={al.id} className="py-0.5" style={filmed(al.asset) ? { opacity: 0.55, textDecoration: "line-through" } : undefined}>
+                              · {sec && <span className="text-[var(--mute)]">{sec}: </span>}{al.asset.name}
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </details>
+                  );
+                })()}
                 <form action={setProjectStatusAction} className="mt-3">
                   <input type="hidden" name="id" value={p.id} />
                   <input type="hidden" name="status" value="editing" />

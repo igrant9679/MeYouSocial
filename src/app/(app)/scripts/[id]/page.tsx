@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { SubmitButton } from "@/components/SubmitButton";
-import { ArrowLeft, PenLine, FileText, MessageCircle, History, ListTree, Type, Bot } from "lucide-react";
+import { ArrowLeft, PenLine, FileText, MessageCircle, History, ListTree, Type, Bot, Clapperboard } from "lucide-react";
+import { ShotList } from "@/components/ShotList";
 import { notFound } from "next/navigation";
 import { requireMembership, canEdit } from "@/lib/acl";
 import { db } from "@/lib/db";
@@ -64,7 +65,8 @@ export default async function CanvasPage({
     db.template.findMany({ where: { OR: [{ channelId: script.channelId }, { channelId: null }] }, orderBy: { name: "asc" } }),
     db.voiceProfile.findMany({ where: { channelId: script.channelId }, orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }] }),
   ]);
-  const activeTab = (tab === "script" ? "script" : "plan") as "plan" | "script";
+  // E-VID-09: the Shots tab lists what the script asks to be filmed.
+  const activeTab = (tab === "script" ? "script" : tab === "shots" ? "shots" : "plan") as "plan" | "script" | "shots";
   const [choices, inherited] = await Promise.all([
     modelChoices(workspace.id),
     resolveUsableModel(script.channel.defaultModel ?? "", workspace.id),
@@ -183,6 +185,7 @@ export default async function CanvasPage({
           <div className="flex items-center gap-1 mt-1">
             <TabLink href={`/scripts/${script.id}?tab=plan`} active={activeTab === "plan"} icon={<ListTree className="w-3.5 h-3.5" />}>Plan</TabLink>
             <TabLink href={`/scripts/${script.id}?tab=script`} active={activeTab === "script"} icon={<FileText className="w-3.5 h-3.5" />}>Script</TabLink>
+            <TabLink href={`/scripts/${script.id}?tab=shots`} active={activeTab === "shots"} icon={<Clapperboard className="w-3.5 h-3.5" />}>Shots</TabLink>
             <span className="flex-1" />
             {script.body && (
               <span className="text-[11px] font-mono text-[var(--mute)]">
@@ -202,12 +205,14 @@ export default async function CanvasPage({
             />
           )}
           {/* Who last wrote this tab's block (E-VID-13); nothing for text written before stamps existed. */}
-          {(activeTab === "plan" ? script.outlineBy : script.bodyBy) && (
+          {activeTab !== "shots" && (activeTab === "plan" ? script.outlineBy : script.bodyBy) && (
             <div className="mb-2 flex justify-end" data-provenance-row>
               <ProvenanceChip stamp={activeTab === "plan" ? script.outlineBy : script.bodyBy} what={activeTab === "plan" ? "outline" : "script"} timeZone={tz} />
             </div>
           )}
-          {activeTab === "plan" ? (
+          {activeTab === "shots" ? (
+            <ShotList workspaceId={workspace.id} scriptId={script.id} body={script.body ?? ""} editor={editor} />
+          ) : activeTab === "plan" ? (
             <PlanTab script={{ id: script.id, outline }} hasBody={!!script.body} editor={editor} />
           ) : (
             <ScriptTab scriptId={script.id} body={script.body ?? ""} version={script.updatedAt.getTime()} hasOutline={!!outline.markdown} editor={editor} />

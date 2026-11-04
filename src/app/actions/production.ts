@@ -123,6 +123,15 @@ export async function setProjectStatusAction(formData: FormData) {
     where: { id, channel: { workspaceId: workspace.id } },
     data: { status },
   });
+  // E-VID-09: into Recording, the script's marked shots go to Assets (linked
+  // here), so the Film Queue lists what to film without anyone copying it out.
+  if (status === "recording") {
+    const project = await db.contentProject.findFirst({ where: { id, channel: { workspaceId: workspace.id } }, select: { scriptId: true } });
+    if (project?.scriptId) {
+      const { syncShotList } = await import("@/lib/shot-list");
+      await syncShotList(workspace.id, project.scriptId).catch(() => null);
+    }
+  }
   revalidatePath("/production");
   revalidatePath("/production/writers-room");
   revalidatePath("/production/film-queue");

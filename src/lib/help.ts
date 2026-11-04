@@ -523,6 +523,12 @@ export const HELP_CATEGORIES: FaqCategory[] = [
         tags: ["captions", "subtitles", "srt", "vtt", "burn in", "voice", "voiceover", "narration", "elevenlabs", "video"],
       },
       {
+        q: "Can the script tell us what to film?",
+        a: "Yes. Mark shots where they belong in the script — **[B-roll: the shop front at dawn]**, **[Shot: close on the dough]**, **[Cutaway: …]**, **[Insert: …]** or **[Graphic: …]** — and the script's **Shots** tab lists them under the heading they sit in. **Put in Assets** saves them to Assets, linked to the script's project; when that project moves to **Recording** any new ones are added by themselves, and the **Film Queue** lists what's left to film, section by section. A shot counts as filmed once a file is attached to it in Assets. Nothing is invented: a section with no marker asks for nothing, and a shot you take out of the script is kept in Assets (it may already be filmed).",
+        links: [{ label: "Film Queue →", href: "/production/film-queue" }],
+        tags: ["shot list", "b-roll", "broll", "shots", "film queue", "assets", "script", "recording"],
+      },
+      {
         q: "How do I get ONE video file instead of separate scene clips?",
         a: "A multi-scene board renders one clip per scene. **Assemble full video** (on the storyboard page) stitches them with ffmpeg: every clip is scaled and padded onto one canvas for the render's aspect ratio, then concatenated in scene order. If a real voiceover exists it replaces the soundtrack over the whole cut. Assembly runs automatically as soon as a multi-scene render finishes, and it's re-runnable — do that after regenerating a voiceover. It costs no provider money, only CPU. Captions stay a separate SRT file; they are not burned in.",
         links: [{ label: "Videos →", href: "/videos" }],
