@@ -26,10 +26,10 @@ type SP = { ok?: string; err?: string; media?: string | string[]; template?: str
 export default async function SocialComposePage({ searchParams }: { searchParams: Promise<SP> }) {
   const { workspace, membership } = await requireRole("EDITOR");
   const { ok, err, media, template: templateId } = await searchParams;
-  // ?media=<id>&media=<id> — images picked on Distribute → Media.
+  // ?media=<id>&media=<id> — images and videos picked on Distribute → Media.
   const mediaIds = (Array.isArray(media) ? media : media ? [media] : []).slice(0, 4);
   const picked = mediaIds.length
-    ? await db.mediaItem.findMany({ where: { id: { in: mediaIds }, workspaceId: workspace.id }, select: { key: true } })
+    ? await db.mediaItem.findMany({ where: { id: { in: mediaIds }, workspaceId: workspace.id }, select: { key: true, contentType: true } })
     : [];
 
   // E-SOC-09: the previews show links as the send will tag them.
@@ -70,7 +70,7 @@ export default async function SocialComposePage({ searchParams }: { searchParams
   const template = templateId ? templates.find((t) => t.id === templateId) ?? null : null;
   // Only images still in this workspace's library come along.
   const templateKeys = template ? readJson<string[]>(template.mediaKeys, []).slice(0, 4) : [];
-  const templateMedia = templateKeys.length ? await db.mediaItem.findMany({ where: { workspaceId: workspace.id, key: { in: templateKeys } }, select: { key: true } }) : [];
+  const templateMedia = templateKeys.length ? await db.mediaItem.findMany({ where: { workspaceId: workspace.id, key: { in: templateKeys } }, select: { key: true, contentType: true } }) : [];
   const snippets = await db.socialSnippet.findMany({ where: { workspaceId: workspace.id }, orderBy: { name: "asc" }, select: { id: true, name: true, body: true, category: true } });
   const [categories, watermarkAvailable, optimal] = await Promise.all([
     listCategories(workspace.id, slotCategories),
@@ -110,7 +110,7 @@ export default async function SocialComposePage({ searchParams }: { searchParams
         approvalNotice={requireApproval && !canAdmin(membership.role)}
         queue={{ nextFree: nextFreeLabel, hasSlots, timeZone: queue.timeZone }}
         watermarkAvailable={watermarkAvailable}
-        preloadMedia={(template ? templateMedia : picked).map((m) => ({ key: m.key, url: storage.url(m.key) }))}
+        preloadMedia={(template ? templateMedia : picked).map((m) => ({ key: m.key, url: storage.url(m.key), video: !!m.contentType?.startsWith("video/") }))}
         seed={template ? { text: template.text, firstComment: template.firstComment, category: template.category } : undefined}
         optimal={optimal.ok ? { label: optimal.label, why: optimal.why } : { reason: optimal.reason }}
         snippets={snippets}

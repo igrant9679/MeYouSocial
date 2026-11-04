@@ -21,8 +21,23 @@ const SECURITY_HEADERS = [
   { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), payment=()" },
 ];
 const CSP_HEADER = [{ key: "Content-Security-Policy", value: BASE_CSP }];
+/**
+ * The teleprompter records a take (E-VID-14), so it alone may ask for this
+ * site's camera and microphone. Listed after SECURITY_HEADERS: the last rule to
+ * set a header wins. ⚠ Until 2026-11-03 `camera=()` held here too and the
+ * browser refused Record before it asked anyone.
+ */
+const PROMPTER_PERMISSIONS = [{ key: "Permissions-Policy", value: "camera=(self), microphone=(self), geolocation=(), payment=()" }];
 
 const nextConfig: NextConfig = {
+  experimental: {
+    // A server action's body is capped at 1 MB by default, so every form upload
+    // over that (a photo in the composer, Media, Caption Studio, an article
+    // image) failed with a bare 500 until 2026-11-03 — the routes' own limits
+    // (15 MB an image, 60 MB a video) never got a say. A little over the
+    // largest of them.
+    serverActions: { bodySizeLimit: "64mb" },
+  },
   // pdfkit reads its font metrics (.afm files) from disk at runtime — bundling
   // it breaks those reads, so it stays an external package (node_modules is
   // present in the runtime container).
@@ -34,6 +49,7 @@ const nextConfig: NextConfig = {
       { source: "/(.*)", headers: SECURITY_HEADERS },
       // Every path ("/" included) except the routes that send their own.
       { source: `/:path((?!${OWN_CSP_PATHS.join("|")}).*)`, headers: CSP_HEADER },
+      { source: "/teleprompter/:path*", headers: PROMPTER_PERMISSIONS },
     ];
   },
 };

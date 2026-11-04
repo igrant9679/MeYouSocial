@@ -3,6 +3,7 @@ import { requireRole } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { storage } from "@/lib/storage";
 import { writeAudit } from "@/lib/governance";
+import { videoKind } from "@/lib/media-probe";
 
 /**
  * POST /api/recordings — a take recorded in the browser at the teleprompter
@@ -17,13 +18,6 @@ import { writeAudit } from "@/lib/governance";
 export const dynamic = "force-dynamic";
 
 const MAX_BYTES = 200 * 1024 * 1024;
-
-/** WebM/Matroska or MP4/MOV, from the first bytes. Pure. */
-function videoKind(b: Buffer): "webm" | "mp4" | null {
-  if (b.length >= 4 && b[0] === 0x1a && b[1] === 0x45 && b[2] === 0xdf && b[3] === 0xa3) return "webm";
-  if (b.length >= 12 && b.toString("ascii", 4, 8) === "ftyp") return "mp4";
-  return null;
-}
 
 export async function POST(req: Request) {
   const { workspace, user } = await requireRole("EDITOR");

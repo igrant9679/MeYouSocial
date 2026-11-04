@@ -8,10 +8,12 @@ import { DeleteButton } from "@/components/DeleteButton";
 import { EmptyState } from "@/components/EmptyState";
 import { Banner } from "@/components/SocialPostCard";
 import { updateMediaAction, uploadMediaAction } from "@/app/actions/media-library";
+import { formatSeconds } from "@/lib/media-probe";
 
 // Distribute → Media (Socialmonials parity, phase 4, 2026-10-17): the
-// workspace's images, kept for reuse. A description here is what Caption
-// Studio's "from image descriptions" writes from.
+// workspace's images — and since E-SOC-08 its videos, with the length and
+// frame size read from each — kept for reuse. A description here is what
+// Caption Studio's "from image descriptions" writes from.
 
 type SP = { ok?: string; err?: string; flash?: string };
 const inputCls = "border border-[var(--line-2)] rounded-lg px-2 py-1.5 text-xs";
@@ -26,7 +28,7 @@ export default async function MediaLibraryPage({ searchParams }: { searchParams:
     <div>
       <div className="flex items-baseline gap-3 flex-wrap mb-3">
         <h1 className="font-mono text-[22px] font-bold m-0">Media</h1>
-        <p className="text-[13px] text-[var(--mute)] m-0">Images kept for reuse — attach them to a post, or write a caption for each in Caption Studio from its description.</p>
+        <p className="text-[13px] text-[var(--mute)] m-0">Images and videos kept for reuse — attach them to a post, or write a caption for each in Caption Studio from its description.</p>
       </div>
       {sp.ok && <Banner kind="ok" text={sp.ok} />}
       {sp.err && <Banner kind="err" text={sp.err} />}
@@ -34,14 +36,14 @@ export default async function MediaLibraryPage({ searchParams }: { searchParams:
 
       {editor && (
         <form action={uploadMediaAction} encType="multipart/form-data" className="card mb-4 flex flex-wrap items-end gap-2">
-          <label className="text-xs"><span className="block text-[10px] text-[var(--mute)] mb-1">Images (up to 20)</span><input type="file" name="files" multiple required accept="image/png,image/jpeg,image/gif,image/webp" className="text-xs" /></label>
+          <label className="text-xs"><span className="block text-[10px] text-[var(--mute)] mb-1">Images or videos (up to 20; a video up to 60 MB)</span><input type="file" name="files" multiple required accept="image/png,image/jpeg,image/gif,image/webp,video/mp4,video/quicktime,video/webm" className="text-xs" /></label>
           <label className="text-xs flex-1 min-w-64"><span className="block text-[10px] text-[var(--mute)] mb-1">Description (optional — applies to all; edit each below)</span><input name="description" maxLength={600} className={`${inputCls} w-full`} placeholder="What the picture shows — Caption Studio writes from this" /></label>
           <SubmitButton className="btn primary" pendingText="Uploading…"><ImagePlus className="w-4 h-4" /> Add to the library</SubmitButton>
         </form>
       )}
 
       {items.length === 0 ? (
-        <EmptyState line="The library is empty." note="Images you upload here can be attached to any post, and their descriptions become captions in Caption Studio." />
+        <EmptyState line="The library is empty." note="Images and videos you upload here can be attached to any post, and their descriptions become captions in Caption Studio." />
       ) : (
         <>
           {editor && (
@@ -53,11 +55,20 @@ export default async function MediaLibraryPage({ searchParams }: { searchParams:
           )}
           <ul className="grid gap-3 m-0 p-0 list-none" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))" }}>
             {items.map((m) => (
-              <li key={m.id} className="card !p-2 flex flex-col gap-1.5">
-                <a href={storage.url(m.key)} target="_blank" rel="noreferrer">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={storage.url(m.key)} alt={m.description ?? m.name} className="w-full aspect-video object-cover rounded-lg border border-[var(--line)]" />
-                </a>
+              <li key={m.id} className="card !p-2 flex flex-col gap-1.5" {...(m.contentType?.startsWith("video/") ? { "data-media-video": "" } : {})}>
+                {m.contentType?.startsWith("video/") ? (
+                  <>
+                    <video src={storage.url(m.key)} controls preload="metadata" className="w-full aspect-video object-cover rounded-lg border border-[var(--line)] bg-black" />
+                    <p className="text-[11px] text-[var(--mute)] m-0 font-mono" data-media-facts="">
+                      Video{m.durationSec != null ? ` · ${formatSeconds(m.durationSec)}` : " · length not read"}{m.width && m.height ? ` · ${m.width}×${m.height}` : ""}
+                    </p>
+                  </>
+                ) : (
+                  <a href={storage.url(m.key)} target="_blank" rel="noreferrer">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={storage.url(m.key)} alt={m.description ?? m.name} className="w-full aspect-video object-cover rounded-lg border border-[var(--line)]" />
+                  </a>
+                )}
                 {editor ? (
                   <form action={updateMediaAction} className="flex flex-col gap-1">
                     <input type="hidden" name="id" value={m.id} />

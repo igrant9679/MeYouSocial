@@ -13,8 +13,8 @@ export type ZernioPlatform = {
    *  the composer's counter rather than something the API enforces. */
   charLimit: number;
   requiresMedia?: boolean;
-  /** Takes a video and nothing else (YouTube). The app attaches images only, so
-   *  such a leg can't succeed until video upload exists (SOC-13). */
+  /** Takes a video and nothing else (YouTube). Videos attach from the composer
+   *  and Media since E-SOC-08; a leg without one is refused (SOC-13). */
   requiresVideo?: boolean;
   color: string;
 };

@@ -17,7 +17,23 @@ import { SOCIAL_TIPS } from "@/lib/help-tips";
 import { AiAssist } from "@/components/AiAssist";
 
 /** A composer-generated AI image, already stored server-side. */
-type GenImage = { key: string; url: string; provider: string };
+type GenImage = { key: string; url: string; provider: string; video?: boolean };
+/** What a preview shows for one attachment. */
+type PreviewMedia = { url: string; video: boolean };
+
+const IMAGE_ACCEPT = "image/png,image/jpeg,image/gif,image/webp";
+const MEDIA_ACCEPT = `${IMAGE_ACCEPT},video/mp4,video/quicktime,video/webm`;
+/** A post's files travel in one request, capped at 64 MB on the server
+ *  (next.config); VIDEO_BYTES in lib/media-probe, which can't load here. */
+const UPLOAD_LIMIT = 60 * 1024 * 1024;
+const isVideoFile = (f?: File) => !!f?.type.startsWith("video/");
+
+/** "2 images, 1 video". Pure. */
+function mediaWords(items: PreviewMedia[]): string {
+  const v = items.filter((m) => m.video).length;
+  const i = items.length - v;
+  return [i ? `${i} image${i > 1 ? "s" : ""}` : "", v ? `${v} video${v > 1 ? "s" : ""}` : ""].filter(Boolean).join(", ");
+}
 
 export type ComposerAccount = { id: string; provider: string; name: string | null };
 export type ComposerTopic = { id: string; name: string; keywords: string[] };
@@ -126,7 +142,7 @@ export function SocialComposer({
   watermarkAvailable?: boolean;
   optimal?: ComposerOptimal;
   /** Library images picked on Distribute → Media, attached as base media. */
-  preloadMedia?: Array<{ key: string; url: string }>;
+  preloadMedia?: Array<{ key: string; url: string; video?: boolean }>;
   /** Saved hashtag sets and snippets (E-SOC-10); a category narrows where one is offered. */
   snippets?: Array<{ id: string; name: string; body: string; category: string | null }>;
   /** A template's content to start a NEW post from (E-SOC-23) — unlike `initial`, this isn't editing. */
@@ -171,7 +187,7 @@ export function SocialComposer({
   // attached to the post only on submit (hidden generatedKeys inputs).
   // Library images arrive like AI images: already stored, attached on submit
   // through the same hidden generatedKeys inputs (and the same server check).
-  const [genImages, setGenImages] = useState<GenImage[]>(preloadMedia.slice(0, 4).map((m) => ({ key: m.key, url: m.url, provider: "library" })));
+  const [genImages, setGenImages] = useState<GenImage[]>(preloadMedia.slice(0, 4).map((m) => ({ key: m.key, url: m.url, provider: "library", video: m.video })));
   const [genBusy, setGenBusy] = useState(false);
   const [genError, setGenError] = useState<string | null>(null);
   const [genGuidance, setGenGuidance] = useState("");
@@ -211,11 +227,14 @@ export function SocialComposer({
     customizing.has(p) && (variantFiles[p]?.length ?? 0) > 0
       ? variantFiles[p].length
       : files.length + genImages.length;
-  /** Image URLs a network's preview should show, mirroring effectiveMediaCount. */
-  const previewImagesFor = (p: string) =>
+  /** What a network's preview should show, mirroring effectiveMediaCount. */
+  const previewImagesFor = (p: string): PreviewMedia[] =>
     customizing.has(p) && (variantFiles[p]?.length ?? 0) > 0
-      ? variantFileUrls[p] ?? []
-      : [...fileUrls, ...genImages.map((g) => g.url)];
+      ? (variantFileUrls[p] ?? []).map((url, i) => ({ url, video: isVideoFile(variantFiles[p][i]) }))
+      : [...fileUrls.map((url, i) => ({ url, video: isVideoFile(files[i]) })), ...genImages.map((g) => ({ url: g.url, video: !!g.video }))];
+  // Said before the upload starts: over the server's cap the whole save fails.
+  const uploadBytes = [...files, ...[...customizing].flatMap((p) => variantFiles[p] ?? [])].reduce((n, f) => n + f.size, 0);
+  const tooBig = uploadBytes > UPLOAD_LIMIT;
 
   /** Accept one proposed variant: turn on that network's override and fill it. */
   function acceptProposal(providerUpper: string) {
@@ -358,7 +377,8 @@ export function SocialComposer({
   const noAccounts = accounts.length === 0;
 
   return (
-    <form data-elsie="social-composer" action={editing ? updateSocialPostAction : createSocialPostAction} className="card mb-6 flex flex-col gap-3" encType="multipart/form-data">
+    <form data-elsie="social-composer" action={editing ? updateSocialPostAction : createSocialPostAction} className="card mb-6 flex flex-col gap-3" encType="multipart/form-data"
+      onSubmit={(e) => { if (tooBig) e.preventDefault(); }}>
       {editing && <input type="hidden" name="id" value={initial!.id} />}
       {/* Tells the save which networks are customized, so "Use base" can clear a
           network's own image (SOC-18). Older tabs without it keep the old rule. */}
@@ -525,8 +545,8 @@ export function SocialComposer({
         {/* Base media */}
         <div className="flex items-center gap-2 flex-wrap mt-2">
           <label className="btn sm cursor-pointer">
-            <ImagePlus className="w-4 h-4" /> Add image
-            <input ref={baseInput} type="file" name="media" accept="image/png,image/jpeg,image/gif,image/webp" multiple className="sr-only"
+            <ImagePlus className="w-4 h-4" /> Add image or video
+            <input ref={baseInput} type="file" name="media" accept={MEDIA_ACCEPT} multiple className="sr-only"
               onChange={(e) => setFiles(Array.from(e.target.files ?? []).slice(0, 4))} />
           </label>
           {/* AI image — generated from the post text, PROPOSED as a removable
@@ -569,8 +589,12 @@ export function SocialComposer({
             {genImages.map((g, i) => (
               <span key={g.key} className="relative inline-block">
                 <input type="hidden" name="generatedKeys" value={g.key} />
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={g.url} alt={`AI image ${i + 1}`} className="h-20 w-20 rounded-lg object-cover border border-[var(--line)]" />
+                {g.video ? (
+                  <video src={g.url} muted preload="metadata" className="h-20 w-20 rounded-lg object-cover border border-[var(--line)] bg-black" data-attached-video="" />
+                ) : (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={g.url} alt={`AI image ${i + 1}`} className="h-20 w-20 rounded-lg object-cover border border-[var(--line)]" />
+                )}
                 <span className="absolute bottom-0.5 left-0.5 font-mono text-[9px] px-1 rounded" style={{ background: "var(--panel)", color: "var(--mute)" }}>
                   {g.provider}
                 </span>
@@ -708,6 +732,8 @@ export function SocialComposer({
             const over = sentLen > limit;
             const how = lengthNote(p);
             const mediaCount = effectiveMediaCount(p);
+            const media = previewImagesFor(p);
+            const hasVideo = media.some((m) => m.video);
             const vFiles = variantFiles[p] ?? [];
             return (
               <div key={p} className="rounded-lg border border-[var(--line)] p-2">
@@ -721,17 +747,21 @@ export function SocialComposer({
                   </WithTip>
                   {mediaCount > 0 && (
                     <span className="font-mono text-[10px] text-[var(--mute)]">
-                      {mediaCount} image{mediaCount > 1 ? "s" : ""}{isCustom && vFiles.length > 0 ? " (own)" : ""}
+                      {mediaWords(media)}{isCustom && vFiles.length > 0 ? " (own)" : ""}
                     </span>
                   )}
-                  {/* YouTube takes video only, and this composer attaches images —
-                      say so here rather than let the leg fail at send (SOC-13). */}
+                  {/* YouTube takes a video only — said here rather than let the
+                      leg fail at send (SOC-13); the save refuses it too. */}
                   {net?.requiresVideo ? (
-                    <span className="text-[11px] text-[var(--rose-on)]" title="The app can only attach images today, so a YouTube post can't be sent from here.">needs a video — not available yet</span>
+                    !hasVideo && <span className="text-[11px] text-[var(--amber-on)]" title={`${net.label} takes a video — attach an MP4, MOV or WebM.`} data-needs-video={p}>needs a video</span>
                   ) : net?.requiresMedia && mediaCount === 0 && (
                     <WithTip text={SOCIAL_TIPS.needsImage} side="bottom" wide>
                       <span className="text-[11px] text-[var(--amber-on)]">needs an image</span>
                     </WithTip>
+                  )}
+                  {/* X sends a video on its own (E-SOC-08); its length is checked on save. */}
+                  {net?.provider === "twitter" && hasVideo && media.length > 1 && (
+                    <span className="text-[11px] text-[var(--rose-on)]" data-x-video-alone="">takes one video on its own</span>
                   )}
                   {/* Story / Reel, but only where the network takes a choice.
                       Most don't: YouTube detects Shorts from duration and
@@ -746,12 +776,10 @@ export function SocialComposer({
                         onChange={(e) => setSubFormats((v) => ({ ...v, [p]: e.target.value }))}
                         className="border border-[var(--line-2)] rounded px-1 py-0.5 text-[11px]"
                       >
-                        {/* A Reel needs a video the composer can't attach yet. One
-                            already stored stays selectable: a disabled option isn't
-                            submitted, so a save would quietly make it a feed post. */}
+                        {/* A Reel needs a video — the save refuses one without. */}
                         {subFormatsFor(p).map((o) => (
-                          <option key={o.value} value={o.value} title={o.hint} disabled={o.requiresVideo && initial?.subFormats?.[p] !== o.value}>
-                            {o.label}{o.requiresVideo ? " (needs a video — not available yet)" : ""}
+                          <option key={o.value} value={o.value} title={o.hint}>
+                            {o.label}{o.requiresVideo ? " (needs a video)" : ""}
                           </option>
                         ))}
                       </select>
@@ -806,10 +834,10 @@ export function SocialComposer({
                     />
                     <div className="flex items-center gap-2 flex-wrap mt-2">
                       <label className="btn sm cursor-pointer">
-                        <ImagePlus className="w-4 h-4" /> Image for {net?.label ?? p}
+                        <ImagePlus className="w-4 h-4" /> Image or video for {net?.label ?? p}
                         <input
                           ref={(el) => { variantInputs.current[p] = el; }}
-                          type="file" name={`media_${p}`} accept="image/png,image/jpeg,image/gif,image/webp" multiple className="sr-only"
+                          type="file" name={`media_${p}`} accept={MEDIA_ACCEPT} multiple className="sr-only"
                           onChange={(e) => setVariantFiles((v) => ({ ...v, [p]: Array.from(e.target.files ?? []).slice(0, 4) }))}
                         />
                       </label>
@@ -888,9 +916,15 @@ export function SocialComposer({
       {editing && initial!.existingMedia > 0 && (
         <label className="inline-flex items-center gap-2 text-xs text-[var(--mute)]">
           <input type="checkbox" name="clearMedia" checked={clearMedia} onChange={(e) => setClearMedia(e.target.checked)} />
-          Remove the {initial!.existingMedia} image{initial!.existingMedia === 1 ? "" : "s"} already on this post
+          Remove the {initial!.existingMedia} file{initial!.existingMedia === 1 ? "" : "s"} already on this post
           <span className="text-[10px]">(attaching new ones replaces them anyway)</span>
         </label>
+      )}
+
+      {tooBig && (
+        <p className="text-xs m-0" style={{ color: "var(--rose-on)" }} data-upload-too-big="">
+          These files come to {Math.round(uploadBytes / 1024 / 1024)} MB, and one post can carry {UPLOAD_LIMIT / 1024 / 1024} MB. Remove one, or attach a shorter video.
+        </p>
       )}
 
       {/* Schedule + submit */}
@@ -1034,7 +1068,7 @@ function PlatformPreview({
   text: string;
   /** The first comment as it will be posted (links moved there, tags added), or null where there's none. */
   comment: string | null;
-  images: string[];
+  images: PreviewMedia[];
 }) {
   const net = networkFor(provider);
   const limit = net?.charLimit ?? 3000;
@@ -1051,15 +1085,19 @@ function PlatformPreview({
   const imageBlock =
     images.length > 0 ? (
       <div className={images.length > 1 ? "grid grid-cols-2 gap-0.5" : ""}>
-        {images.slice(0, 4).map((u, i) => (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            key={i}
-            src={u}
-            alt=""
-            className={`w-full object-cover ${square ? "aspect-square" : "aspect-video"}`}
-          />
-        ))}
+        {images.slice(0, 4).map((m, i) =>
+          m.video ? (
+            <video key={i} src={m.url} muted controls preload="metadata" className={`w-full object-cover bg-black ${square ? "aspect-square" : "aspect-video"}`} />
+          ) : (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              key={i}
+              src={m.url}
+              alt=""
+              className={`w-full object-cover ${square ? "aspect-square" : "aspect-video"}`}
+            />
+          ),
+        )}
       </div>
     ) : imageFirst ? (
       <div className="aspect-square grid place-items-center text-[11px]" style={{ background: "var(--zebra)", color: "var(--amber-on)" }}>

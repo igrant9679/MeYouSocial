@@ -44,19 +44,20 @@ export async function copyPostToWorkspaceAction(formData: FormData) {
   const target = await db.membership.findFirst({ where: { userId: user.id, workspaceId: targetId, status: "active", role: { in: ["EDITOR", "ADMIN"] }, workspace: { deletedAt: null } }, select: { role: true, workspace: { select: { id: true, name: true } } } });
   if (!target || target.workspace.id === workspace.id) back(here, "err", "You can only copy to another workspace you edit.");
 
-  // Images: read each and store it again, owned by the target workspace.
+  // Images and videos: read each and store it again, owned by the target
+  // workspace — a video with the length Media measured (E-SOC-08).
   const keys = readJson<string[]>(post!.mediaKeys, []);
   const copied: string[] = [];
   let lost = 0;
   for (const key of keys) {
     const bytes = await storage.get(key).catch(() => null);
     if (!bytes) { lost++; continue; }
-    const item = await db.mediaItem.findFirst({ where: { workspaceId: workspace.id, key }, select: { name: true, contentType: true, description: true } });
+    const item = await db.mediaItem.findFirst({ where: { workspaceId: workspace.id, key }, select: { name: true, contentType: true, description: true, durationSec: true, width: true, height: true } });
     const name = item?.name ?? key.split("/").pop() ?? "image";
     const type = item?.contentType ?? TYPES[path.extname(name).toLowerCase()] ?? "application/octet-stream";
     const stored = await storage.put(name, bytes, type, target!.workspace.id);
     copied.push(stored.key);
-    await db.mediaItem.create({ data: { workspaceId: target!.workspace.id, key: stored.key, name: name.slice(0, 200), description: item?.description ?? null, contentType: type, createdById: user.id } }).catch(() => undefined);
+    await db.mediaItem.create({ data: { workspaceId: target!.workspace.id, key: stored.key, name: name.slice(0, 200), description: item?.description ?? null, contentType: type, durationSec: item?.durationSec ?? null, width: item?.width ?? null, height: item?.height ?? null, createdById: user.id } }).catch(() => undefined);
   }
   // The target's own categories decide whether this one carries over.
   const { listCategories } = await import("@/lib/social/categories");

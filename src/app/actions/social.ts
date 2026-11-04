@@ -8,7 +8,8 @@ import { db } from "@/lib/db";
 import { storage } from "@/lib/storage";
 import { writeJson, readJson } from "@/lib/db/json";
 import { publishSocialPost } from "@/lib/social/publish";
-import { legProblem, scheduleRefusal } from "@/lib/social/validate";
+import { legProblem, scheduleRefusal, videosAmong } from "@/lib/social/validate";
+import { probeVideo, VIDEO_BYTES, VIDEO_TYPES, videoKind, type VideoFacts } from "@/lib/media-probe";
 import { networkFor } from "@/lib/social/networks";
 import { normaliseSubFormat, subFormatsFor } from "@/lib/social/sub-formats";
 import { readTargetOptions, supportsFirstComment, tiktokOptionsFromForm, tiktokRefusal, type TargetOptions } from "@/lib/social/platform-options";
@@ -129,7 +130,7 @@ function assertMediaWhereRequired(
 function assertNetworkRules(
   providers: string[],
   leg: (provider: string) => { text: string | null; mediaKeys: string | null; subFormat: string | null },
-  post: { text: string; mediaKeys: string | null },
+  post: { text: string; mediaKeys: string | null; videos: Record<string, number | null> },
   formData: FormData,
 ): void {
   for (const provider of new Set(providers)) {
@@ -139,15 +140,42 @@ function assertNetworkRules(
   }
 }
 
-async function storeMedia(files: FormDataEntryValue[], workspaceId: string): Promise<string[]> {
+/**
+ * Videos this request stored, with what ffmpeg read from them (E-SOC-08). The
+ * rules use them at once (`videosKnown`); Media gets them only once the post is
+ * saved (`keepFresh`), so a refused post leaves nothing in the library.
+ */
+type FreshVideos = Map<string, { name: string; contentType: string; facts: VideoFacts | null }>;
+
+/** What the network rules know of the videos among `keys`: Media's records, then this request's own. */
+async function videosKnown(workspaceId: string, keys: string[], fresh: FreshVideos): Promise<Record<string, number | null>> {
+  const known = await videosAmong(workspaceId, keys);
+  for (const [key, v] of fresh) known[key] = v.facts?.durationSec ?? null;
+  return known;
+}
+
+/** This request's videos join Media with their facts — after the post is saved. */
+async function keepFresh(workspaceId: string, userId: string, fresh: FreshVideos): Promise<void> {
+  if (!fresh.size) return;
+  await db.mediaItem.createMany({
+    data: [...fresh].map(([key, v]) => ({ workspaceId, key, name: v.name, contentType: v.contentType, durationSec: v.facts?.durationSec ?? null, width: v.facts?.width ?? null, height: v.facts?.height ?? null, createdById: userId })),
+    skipDuplicates: true,
+  });
+}
+
+async function storeMedia(files: FormDataEntryValue[], workspaceId: string, fresh: FreshVideos): Promise<string[]> {
   const keys: string[] = [];
   for (const f of files) {
     if (!(f instanceof File) || f.size === 0) continue;
-    if (!IMAGE_TYPES.has(f.type)) backTo("Only PNG, JPEG, GIF or WebP images are supported.");
-    if (f.size > MEDIA_BYTES) backTo("Each image must be under 15 MB.");
+    const isVideo = VIDEO_TYPES.has(f.type);
+    if (!isVideo && !IMAGE_TYPES.has(f.type)) backTo("Only PNG, JPEG, GIF or WebP images, or MP4, MOV or WebM videos, can be attached.");
+    if (!isVideo && f.size > MEDIA_BYTES) backTo("Each image must be under 15 MB.");
+    if (isVideo && f.size > VIDEO_BYTES) backTo(`Each video must be under ${VIDEO_BYTES / 1024 / 1024} MB.`);
     const bytes = Buffer.from(await f.arrayBuffer());
+    if (isVideo && !videoKind(bytes)) backTo(`${f.name.slice(0, 80)} doesn't read as an MP4, MOV or WebM video.`);
     const stored = await storage.put(f.name, bytes, f.type, workspaceId);
     keys.push(stored.key);
+    if (isVideo) fresh.set(stored.key, { name: f.name.slice(0, 200), contentType: f.type, facts: await probeVideo(bytes) });
     if (keys.length >= MEDIA_MAX) break;
   }
   return keys;
@@ -232,15 +260,9 @@ export async function createSocialPostAction(formData: FormData) {
   // the composer runs in draft-only mode before any account is connected.
   // Anything that actually SENDS still needs somewhere to send.
   if (accountIds.length === 0 && when !== "draft") backTo("Pick at least one account to post to — or save it as a draft.");
-  const uploaded = await storeMedia(formData.getAll("media"), workspace.id);
+  const fresh: FreshVideos = new Map();
+  const uploaded = await storeMedia(formData.getAll("media"), workspace.id, fresh);
   const mediaKeys = [...uploaded, ...generatedKeysFrom(formData)];
-  // Uploads join the workspace's media library (Distribute → Media) for reuse.
-  if (uploaded.length) {
-    await db.mediaItem.createMany({
-      data: uploaded.map((key) => ({ workspaceId: workspace.id, key, name: key.split("/").pop()?.slice(0, 200) || "image", createdById: user.id })),
-      skipDuplicates: true,
-    });
-  }
   if (!text && mediaKeys.length === 0) backTo("Write something or attach an image.");
 
   const accounts = accountIds.length === 0 ? [] : await resolveSelectedAccounts(workspace.id, accountIds);
@@ -310,7 +332,7 @@ export async function createSocialPostAction(formData: FormData) {
   const mediaByProvider = new Map<string, string | null>();
   for (const provider of new Set(accounts.map((a) => a.provider.toUpperCase()))) {
     const files = formData.getAll(`media_${provider}`);
-    const keys = await storeMedia(files, workspace.id);
+    const keys = await storeMedia(files, workspace.id, fresh);
     mediaByProvider.set(provider, keys.length ? writeJson(keys) : null);
   }
 
@@ -341,10 +363,11 @@ export async function createSocialPostAction(formData: FormData) {
         backTo(`A ${opt.label.toLowerCase()} on ${networkFor(provider)?.label ?? provider} needs an image or video — attach one, or switch it back to a feed post.`);
       }
     }
+    const videos = await videosKnown(workspace.id, [...mediaKeys, ...[...mediaByProvider.values()].flatMap((m) => readJson<string[]>(m, []))], fresh);
     assertNetworkRules(
       accounts.map((a) => a.provider),
       (p) => ({ text: variantFor(p), mediaKeys: mediaByProvider.get(p.toUpperCase()) ?? null, subFormat: subFormatFor(p) }),
-      { text, mediaKeys: writeJson(mediaKeys) },
+      { text, mediaKeys: writeJson(mediaKeys), videos },
       formData,
     );
   }
@@ -384,6 +407,18 @@ export async function createSocialPostAction(formData: FormData) {
     },
   });
 
+  // Uploads join the workspace's media library (Distribute → Media) for reuse —
+  // once the post is saved, so a refused one leaves nothing there. Videos go
+  // with what was read from them, before a send that reads them (E-SOC-08).
+  await keepFresh(workspace.id, user.id, fresh);
+  const images = uploaded.filter((k) => !fresh.has(k));
+  if (images.length) {
+    await db.mediaItem.createMany({
+      data: images.map((key) => ({ workspaceId: workspace.id, key, name: key.split("/").pop()?.slice(0, 200) || "image", createdById: user.id })),
+      skipDuplicates: true,
+    });
+  }
+
   // Default-to-image: a post composed without media gets one generated in the
   // background (social.autoimage skips honestly when the provider is mock or
   // the workspace opted out). Not for post-now — the send would race the render.
@@ -409,7 +444,11 @@ export async function createSocialPostAction(formData: FormData) {
   }
 
   if (status === "publishing") {
-    await publishSocialPost(post.id);
+    // ⚠ `claimed`: this request created the row already "publishing", so it IS
+    // the claim. Without it publish's own claim (draft/scheduled/failed only)
+    // matched nothing and returned — from 2026-10-26 to 11-03 Post now sent
+    // nothing, and the reconciler failed it as "interrupted" 15 minutes later.
+    await publishSocialPost(post.id, { claimed: true });
     revalidatePath("/social", "layout");
     backTo("Post sent — check the queue for per-network status.", "ok");
   }
@@ -560,7 +599,8 @@ export async function updateSocialPostAction(formData: FormData) {
   // generated AI images count as "new media" exactly like uploads do.
   let mediaKeys = readJson<string[]>(post!.mediaKeys, []);
   if (String(formData.get("clearMedia") ?? "") === "on") mediaKeys = [];
-  const added = [...(await storeMedia(formData.getAll("media"), workspace.id)), ...generatedKeysFrom(formData)];
+  const fresh: FreshVideos = new Map();
+  const added = [...(await storeMedia(formData.getAll("media"), workspace.id, fresh)), ...generatedKeysFrom(formData)];
   if (added.length) mediaKeys = added;
   if (!text && mediaKeys.length === 0) backTo("Write something or attach an image.");
 
@@ -630,7 +670,7 @@ export async function updateSocialPostAction(formData: FormData) {
   // so an edit that doesn't touch images keeps the ones already chosen.
   const mediaByProvider = new Map<string, string | null | undefined>();
   for (const provider of new Set(accounts.map((a) => a.provider.toUpperCase()))) {
-    const keys = await storeMedia(formData.getAll(`media_${provider}`), workspace.id);
+    const keys = await storeMedia(formData.getAll(`media_${provider}`), workspace.id, fresh);
     // A new upload replaces. No upload: a network switched back to "Use base"
     // loses its own images (null); one still customized keeps them (undefined).
     // Only forms that mark their customized networks get the clear (SOC-18).
@@ -668,10 +708,11 @@ export async function updateSocialPostAction(formData: FormData) {
         backTo(`A ${opt.label.toLowerCase()} on ${networkFor(provider)?.label ?? provider} needs an image or video — attach one, or switch it back to a feed post.`);
       }
     }
+    const videos = await videosKnown(workspace.id, [...mediaKeys, ...accounts.flatMap((a) => readJson<string[]>(effectiveMedia(a.provider), []))], fresh);
     assertNetworkRules(
       accounts.map((a) => a.provider),
       (p) => ({ text: variantFor(p), mediaKeys: effectiveMedia(p), subFormat: subFormatFor(p) }),
-      { text, mediaKeys: writeJson(mediaKeys) },
+      { text, mediaKeys: writeJson(mediaKeys), videos },
       formData,
     );
   }
@@ -740,6 +781,7 @@ export async function updateSocialPostAction(formData: FormData) {
       }
     }
   });
+  await keepFresh(workspace.id, user.id, fresh);
   if (sentForReview) approval = "pending";
 
   // Same default-to-image rule on edit: clearing the images (or never having

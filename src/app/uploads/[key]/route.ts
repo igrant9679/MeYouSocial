@@ -27,6 +27,7 @@ function storedFileHeaders(type: string): Record<string, string> {
 const EXT_TYPE: Record<string, string> = {
   ".mp4": "video/mp4",
   ".webm": "video/webm",
+  ".mov": "video/quicktime",
   ".mp3": "audio/mpeg",
   ".wav": "audio/wav",
   ".srt": "text/plain; charset=utf-8",

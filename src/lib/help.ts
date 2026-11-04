@@ -478,9 +478,9 @@ export const HELP_CATEGORIES: FaqCategory[] = [
       },
       {
         q: "Can I import many social posts at once?",
-        a: "Yes — **Distribute → Compose → Import from CSV**, one post per row, up to 200 rows. Columns: `text` (required), `scheduledAt`, `networks`, `campaign` (by name), `category`, `evergreen`, `recycleEveryDays`. Rows with a future date are scheduled, the rest land as drafts. The import is text-only, so networks that require an image (Instagram, Pinterest, YouTube…) are skipped per row with a note rather than being allowed to half-fail later. If approval is required, imported posts wait for it like everything else.",
+        a: "Yes — **Distribute → Compose → Import from CSV**, one post per row, up to 200 rows. Columns: `text` (required), `scheduledAt`, `networks`, `campaign` (by name), `category`, `evergreen`, `recycleEveryDays`. Rows with a future date are scheduled, the rest land as drafts. A `media` column attaches files already in **Media** by name (several separated by `|`); a network a row can't satisfy — an image for Instagram or Pinterest, a video for YouTube — is skipped for that row with a note rather than being allowed to half-fail later. If approval is required, imported posts wait for it like everything else.",
         links: [{ label: "Distribute →", href: "/distribute" }],
-        tags: ["csv", "import", "bulk", "social", "schedule"],
+        tags: ["csv", "import", "bulk", "social", "schedule", "media"],
       },
       {
         q: "What is link tagging (UTM) under Settings → Schedule?",
@@ -557,6 +557,12 @@ export const HELP_CATEGORIES: FaqCategory[] = [
         a: "Yes — open the script's **Teleprompter** (from Publish) and press **Record** at the top. The browser asks for the camera and microphone first; a small self-view sits in the corner while the prompter scrolls. Press **Stop** and the take is saved as **Take 1, Take 2…** in **Assets**, linked to the script's project so the Edit Bay finds it. Takes up to 200 MB (record a long one in parts, or upload a file to Assets). Nothing is recorded until you press Record, and the camera is switched off when you stop. Editors and admins can record.",
         links: [{ label: "Assets →", href: "/production/assets" }],
         tags: ["record", "teleprompter", "camera", "take", "video", "webcam"],
+      },
+      {
+        q: "Can I post a video?",
+        a: "Yes — in **Distribute → Compose**, **Add image or video** takes an MP4, MOV or WebM up to 60 MB (one post's files together can come to 60 MB; an image can be up to 15 MB), or pick one kept in **Media**, which holds videos too. YouTube needs a video, and so does a Facebook or Instagram **Reel**. The app reads each video's length and frame size when it's stored — Media shows them — and checks the networks' rules before anything goes: **X** takes one video on its own, up to 2:20. The previews play the video as it will be attached.",
+        links: [{ label: "Compose →", href: "/social/compose" }, { label: "Media →", href: "/social/media" }],
+        tags: ["video", "upload", "youtube", "reel", "mp4", "mov", "webm", "x", "media"],
       },
       {
         q: "Can I turn a long script into a Short?",

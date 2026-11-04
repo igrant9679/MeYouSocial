@@ -15,7 +15,7 @@ import {
   type ZernioPostTargetSpec,
 } from "@/lib/zernio";
 import { MAY_HAVE_POSTED } from "@/lib/social/unknown-outcome";
-import { legProblem } from "@/lib/social/validate";
+import { legProblem, videosAmong } from "@/lib/social/validate";
 
 /** Every leg was refused before sending — not an error to record on them again. */
 class NothingToSend extends Error {}
@@ -252,6 +252,8 @@ export async function publishSocialPost(postId: string, opts: { claimed?: boolea
 
     const upload = makeUploader(post.workspaceId, await watermarkerFor(post.workspaceId, normaliseWatermark(post.watermark)));
     const baseKeys = readJson<string[]>(post.mediaKeys, []);
+    // Which keys are videos, and how long — Drive keys have no extension (E-SOC-08).
+    const videos = await videosAmong(post.workspaceId, [...baseKeys, ...sending.flatMap((t) => (t.mediaKeys ? readJson<string[]>(t.mediaKeys, []) : []))]);
 
     // One platform entry per pending target, tagging links PER NETWORK so GA4
     // can tell the sources apart. Tagging happens here, at send, so the stored
@@ -285,7 +287,7 @@ export async function publishSocialPost(postId: string, opts: { claimed?: boolea
       // A leg its network is certain to reject (no video for YouTube, no image
       // for Instagram, no TikTok audience, past the length limit with links
       // tagged) fails here with the reason; the other legs still go (SOC-13/14).
-      const problem = legProblem(t, post, text);
+      const problem = legProblem(t, { ...post, videos }, text);
       if (problem) {
         refused.set(t.id, problem);
         continue;

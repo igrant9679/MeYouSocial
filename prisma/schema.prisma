@@ -2617,6 +2617,10 @@ model MediaItem {
   name        String
   description String?
   contentType String?
+  // E-SOC-08: a video's measurements, read once from the file (ffmpeg) when it's stored.
+  durationSec Float?
+  width       Int?
+  height      Int?
   createdById String?
   createdAt   DateTime  @default(now())
 

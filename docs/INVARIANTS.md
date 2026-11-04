@@ -2225,3 +2225,31 @@ before changing code in that area.
   linked to the script's ContentProject when it has one; audited `video.take_recorded`.
 - ⚠ Verified with a real WebM (VP8/Opus from ffmpeg) through the route and with the button's no-camera path in the
   browser pane; a real camera capture was not exercisable here.
+
+## Posts carry videos, checked by what Media measured; Post now holds its claim; a form upload may be 64 MB (2026-11-03, audit Phase 5, growth part cr)
+- **The body limit** (`next.config.ts` → `experimental.serverActions.bodySizeLimit: "64mb"`): a server action's body is
+  1 MB by default, so EVERY form upload over 1 MB — a photo in the composer, Media, Caption Studio, an article image —
+  failed with a bare 500 before the action's own limits (15 MB an image, 60 MB a video) were reached. Proven on the
+  build before the change with a 3.1 MB PNG; don't lower it below the largest per-file limit.
+- **Video posts** (E-SOC-08): the composer (base and per-network media) and Media take MP4, MOV or WebM up to
+  `VIDEO_BYTES` (60 MB, `lib/media-probe.ts`) — the BYTES must be one (`videoKind`: EBML or an ftyp box), a declared
+  type doesn't count. Every stored video gets a `MediaItem` with `contentType` and what `probeVideo` read with the
+  bundled ffmpeg (`durationSec`, `width`, `height`; null when unreadable — never guessed). In the composer the facts
+  are held for the request (`FreshVideos` → `videosKnown`) and written to Media only AFTER the post is saved
+  (`keepFresh`; the base images moved after the save too), so a refused post leaves nothing in the library — and
+  before a post-now send, which reads them. The composer warns and doesn't submit when one post's files pass 60 MB.
+- ⚠ **A key is a video by Media's record, not only its extension** — Drive keys (`gdrive:<id>`) have none.
+  `videosAmong(workspaceId, keys)` (validate.ts) returns each video key's measured length (or null), and every caller
+  of `legProblem` passes it as `post.videos`: the composer's create and edit, `postProblems`, and publish (once per
+  send). Without it an extensionless video counted as no video and YouTube was refused.
+- **Rules**: YouTube and a Reel need a video ("attach one (MP4, MOV or WebM), or deselect"); **X** takes one video
+  on its own and at most 2:20 — the length refused only when it was MEASURED. The composer says "needs a video" /
+  "takes one video on its own" per network; the old "not available yet" blocks and the disabled Reel option are gone.
+- **The teleprompter's camera**: the app-wide `Permissions-Policy` says `camera=(), microphone=()`; `/teleprompter/*`
+  alone gets `camera=(self), microphone=(self)` from a LATER next.config rule (the last rule to set a header wins).
+  Until this part the browser refused cq's Record before it asked anyone.
+- ⚠ **Post now passes `{ claimed: true }`** (`createSocialPostAction`): the composer creates the row already
+  "publishing", which IS the claim; publish's own claim takes draft/scheduled/failed/partial only, so without the flag
+  it matched nothing and returned. From 2026-10-26 (`01620ce`) to this part Post now sent nothing and the reconciler
+  failed it 15 minutes later as "interrupted" — no production post was hit (read-only check: no manual posts in that
+  window). Any new caller that writes "publishing" itself must pass `claimed`.
