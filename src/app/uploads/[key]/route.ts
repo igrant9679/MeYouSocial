@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireMembership } from "@/lib/acl";
 import { localProvider } from "@/lib/storage";
 import { mayOpen } from "@/lib/storage/owners";
+import { BASE_CSP, STORED_FILE_CSP } from "@/lib/csp";
 
 // GET /uploads/<key> — serves locally-stored files (dev default, and any files
 // that predate the Drive backend). This route did not exist before: local
@@ -15,12 +16,12 @@ export const dynamic = "force-dynamic";
  * Tenant-uploaded bytes must never run as a page of this origin (audit
  * SEC-14): nosniff so the browser keeps our type, and a sandbox CSP so a file
  * opened directly can't script. PDFs are left out of the sandbox — Chrome
- * refuses to render a sandboxed PDF — and keep nosniff.
+ * refuses to render a sandboxed PDF — and get the general policy. ⚠ This route
+ * sends the WHOLE policy: next.config leaves it out of the general one, which
+ * would otherwise replace this (lib/csp.ts).
  */
 function storedFileHeaders(type: string): Record<string, string> {
-  return type.startsWith("application/pdf")
-    ? { "X-Content-Type-Options": "nosniff" }
-    : { "X-Content-Type-Options": "nosniff", "Content-Security-Policy": "sandbox; default-src 'none'; img-src 'self' data:; media-src 'self'; style-src 'unsafe-inline'" };
+  return { "X-Content-Type-Options": "nosniff", "Content-Security-Policy": type.startsWith("application/pdf") ? BASE_CSP : STORED_FILE_CSP };
 }
 
 const EXT_TYPE: Record<string, string> = {

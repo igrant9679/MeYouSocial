@@ -206,6 +206,12 @@ export const HELP_CATEGORIES: FaqCategory[] = [
         tags: ["editor", "toolbar", "image", "table", "link", "markdown", "paste", "shortcuts", "article"],
       },
       {
+        q: "Can I see how an article will look on our website before it goes live?",
+        a: "Yes — the article's **Review** tab has **How it will look on the site**. It takes a real page of your connected site (your newest live article there, or the home page) and puts this article in place of that page's own headline, featured image and body, rendered exactly as publishing will send it — so you see your theme's fonts, widths, colours, header and footer. Switch between **Desktop** and **Phone**, or **Open full size**. A bar at the top says which page the look came from; if that page has no article layout, its stylesheets go round a plain article, and with no site connected it's a plain readable page. Scripts don't run in the preview, so menus, sliders and embeds sit still (an embed shows as a labelled box). After a hand-off as a WordPress draft, the card also links **WordPress's own preview** of that draft (you'll need to be signed in to WordPress).",
+        links: [{ label: "Articles →", href: "/blog" }],
+        tags: ["preview", "look", "theme", "website", "wordpress", "draft", "phone", "mobile"],
+      },
+      {
         q: "What's the difference between an expert and a persona?",
         a: "An **expert** is a real person whose knowledge a draft speaks in — their experience, opinions, credentials and what they never claim. A **persona** is an audience the content is written FOR, like \"Compliance officer\"; it never speaks in a draft. Under **Ideas → Experts**, each profile says which it is (a role rather than a person is a persona — open it and press **This is an audience persona**).\n\nA draft speaks as the expert picked on the article, else the expert linked to the article's **Topic** (tick the Topics on the expert's page), else — when there is only one expert and they're linked to no Topic — that expert. Nothing else: a title merely sharing a word with an expert no longer makes the draft speak as them. Each draft records who it spoke as, and the expert's page lists those drafts.\n\n**Draft answers from source** reads a page or pasted text and drafts answers, but they wait under **Waiting for …** until the expert accepts them (as written or corrected) — they are never used in a draft, or treated as the expert's own words, before then.",
         links: [{ label: "Experts →", href: "/blog/experts" }],

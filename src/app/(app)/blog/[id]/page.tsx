@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Check, ChevronLeft, ChevronRight, CircleAlert, ShieldCheck, Sparkles, Trash2, X, Send } from "lucide-react";
+import { ArrowLeft, Check, ChevronLeft, ChevronRight, CircleAlert, MonitorSmartphone, ShieldCheck, Sparkles, Trash2, X, Send } from "lucide-react";
 import { requireMembership, canEdit, canAdmin } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { runBlogChecks } from "@/lib/blog-checks";
@@ -144,7 +144,7 @@ export default async function BlogPostPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ tab?: string; social_ok?: string; social_err?: string; flash?: string; flashErr?: string }>;
+  searchParams: Promise<{ tab?: string; social_ok?: string; social_err?: string; flash?: string; flashErr?: string; pv?: string }>;
 }) {
   const { id } = await params;
   const sp = await searchParams;
@@ -237,6 +237,7 @@ export default async function BlogPostPage({
   }
   let publishReport: {
     status: string;
+    draftLink?: string;
     seo: Array<{ key: string; accepted: boolean; stored: string | null }>;
     seoUnverified: boolean;
     featuredUploadFailed: boolean;
@@ -281,6 +282,20 @@ export default async function BlogPostPage({
   const approvedImages = post.images.filter((i) => i.status === "approved");
   const previewImage = approvedImages.find((i) => i.role === "og") ?? approvedImages.find((i) => i.role === "featured") ?? null;
   const openComments = post.comments.filter((c) => !c.resolved).length;
+  // E-ART-17: the frame's width, and WordPress's own preview of a draft hand-off
+  // (until the article goes live, when the draft link is history).
+  const pvPhone = sp.pv === "phone";
+  const wpDraftPreview = (() => {
+    if (!publishReport?.draftLink || post.status === "published") return null;
+    try {
+      const u = new URL(publishReport.draftLink);
+      if (!/^https?:$/.test(u.protocol)) return null;
+      u.searchParams.set("preview", "true");
+      return u.toString();
+    } catch {
+      return null;
+    }
+  })();
   // E-ART-15: the article's text to quote from (no scripts), the open comments'
   // passages still in it, and who can be @mentioned.
   const commentHtml = tab === "review" && post.body ? stripExecutableHtml(post.body) : null;
@@ -709,6 +724,42 @@ export default async function BlogPostPage({
             </li>
           ))}
         </ul>
+      </details>
+
+      {/* E-ART-17: the article in a real page of the site, as readers will see it. */}
+      <details className="card mb-4" id="site-preview" data-site-preview-card="" open={!!sp.pv}>
+        <summary className="cursor-pointer select-none text-sm font-semibold flex items-center gap-2 flex-wrap">
+          <MonitorSmartphone className="w-4 h-4" />
+          How it will look on the site
+          {previewSite && <span className="font-mono text-[10px] font-normal text-[var(--mute)]">{previewSite.replace(/^https?:\/\//, "")}</span>}
+        </summary>
+        <p className="text-xs text-[var(--mute)] mt-2">
+          {previewSite
+            ? "This article — rendered exactly as publishing sends it — inside a real page of the site, borrowed from your newest live article there (or the home page), so the theme's fonts, widths and header show. Scripts don't run in the preview, so menus and sliders sit still; the bar at the top says which page the look came from."
+            : "No site is connected yet, so this is a plain readable page. Connect WordPress on the Website page to preview in your theme."}
+        </p>
+        <div className="flex flex-wrap items-center gap-2 text-xs mt-2">
+          <Link href={`/blog/${post.id}?tab=review&pv=desktop#site-preview`} className={`btn sm ${!pvPhone ? "primary" : ""}`} aria-current={!pvPhone ? "true" : undefined}>Desktop</Link>
+          <Link href={`/blog/${post.id}?tab=review&pv=phone#site-preview`} className={`btn sm ${pvPhone ? "primary" : ""}`} aria-current={pvPhone ? "true" : undefined}>Phone</Link>
+          <a href={`/api/blog-preview/${post.id}`} target="_blank" rel="noopener" className="underline">Open full size</a>
+          {wpDraftPreview && (
+            <a href={wpDraftPreview} target="_blank" rel="noreferrer noopener" className="underline" data-wp-draft-preview="">
+              WordPress&apos;s own preview of the draft (sign in to WordPress to see it)
+            </a>
+          )}
+        </div>
+        <div className="mt-2 flex justify-center rounded-lg overflow-hidden p-2" style={{ background: "var(--panel)" }}>
+          <iframe
+            title="The article as it will look on the site"
+            src={`/api/blog-preview/${post.id}`}
+            sandbox="allow-same-origin"
+            loading="lazy"
+            referrerPolicy="no-referrer"
+            data-site-preview-frame={pvPhone ? "phone" : "desktop"}
+            className="block bg-white rounded"
+            style={{ width: pvPhone ? 390 : "100%", maxWidth: "100%", height: 760, border: 0 }}
+          />
+        </div>
       </details>
 
       </>)}

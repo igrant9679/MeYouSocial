@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireMembership } from "@/lib/acl";
 import { GDRIVE_KEY_PREFIX, gdriveFetchMedia } from "@/lib/storage/gdrive";
 import { mayOpen } from "@/lib/storage/owners";
+import { BASE_CSP, STORED_FILE_CSP } from "@/lib/csp";
 
 // GET /api/files/gdrive:<fileId> — streams a Drive-stored file to signed-in
 // members. Files stay private in Drive; the Range header is forwarded so
@@ -47,10 +48,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ key:
   // Tenant-uploaded bytes must never run as a page of this origin (audit
   // SEC-14) — an SVG stored before SVG uploads were refused included. A
   // sandboxed PDF won't render in Chrome, so PDFs get nosniff only.
+  // ⚠ The WHOLE policy: next.config leaves this route out of the general one,
+  // which would otherwise replace it (lib/csp.ts).
   headers.set("X-Content-Type-Options", "nosniff");
-  if (!(headers.get("content-type") ?? "").startsWith("application/pdf")) {
-    headers.set("Content-Security-Policy", "sandbox; default-src 'none'; img-src 'self' data:; media-src 'self'; style-src 'unsafe-inline'");
-  }
+  headers.set("Content-Security-Policy", (headers.get("content-type") ?? "").startsWith("application/pdf") ? BASE_CSP : STORED_FILE_CSP);
   if (!headers.has("accept-ranges")) headers.set("accept-ranges", "bytes");
   return new NextResponse(upstream.body, { status: upstream.status, headers });
 }

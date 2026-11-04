@@ -695,8 +695,10 @@ before changing code in that area.
 - **Security headers on every response** (E-SEC-02, `next.config.ts` `headers()`): CSP `object-src 'none'; base-uri 'self';
   frame-ancestors 'self'`, X-Frame-Options SAMEORIGIN, nosniff, strict-origin-when-cross-origin, Permissions-Policy with
   camera/microphone/geolocation/payment off. ⚠ script/style/connect are deliberately NOT restricted — Next's inline
-  scripts need a per-request nonce (every page dynamic); that strict CSP is its own step. Stored files keep their own
-  sandbox CSP on top. Every raw-HTML render is a sanitised body or a fixed string; the brand colour is hex-checked.
+  scripts need a per-request nonce (every page dynamic); that strict CSP is its own step. ⚠ Corrected 2026-11-03
+  (growth part cg): "stored files keep their own sandbox CSP on top" was FALSE — a next.config header replaces the same
+  header from a route, so the general CSP overwrote it. The CSP now skips `OWN_CSP_PATHS` and those routes send a
+  complete policy (`lib/csp.ts`; see the cg section). Every raw-HTML render is a sanitised body or a fixed string; the brand colour is hex-checked.
 - **Safe fetching** (E-SEC-01): the video assembler's clip download goes through `safeFetch` too; the remaining raw
   fetches are provider-returned outputs (Veo) or fixed Google endpoints.
 
@@ -2046,3 +2048,31 @@ before changing code in that area.
 - **The lockup**: the OG — and the featured image when `brandInBodyImages` — gets `applyBrandLockup` exactly as a
   generated one; `branded` is what actually happened (a failed composite says so, and the gate holds the OG). Audit
   `blog.image_placed` records the size and the lockup outcome. Attach-by-URL is unchanged.
+
+## An article previews inside a real page of the site, nothing on that page runs, and a route's own CSP is never overwritten (2026-11-03, audit Phase 5, growth part cg)
+- **Borrowed page** (E-ART-17): `GET /api/blog-preview/<postId>` (any member; another workspace's post is a 404)
+  renders the body exactly as publishing does (`renderForPublish(stripLeadingH1(body))`, the brand's profile, spec
+  and rules) and `lib/site-preview` puts it into a page of the connected site: the workspace's two newest live
+  articles ON THAT HOST (`onSite`), then the home page — the first that reads wins. Only the connected host is read,
+  same-host redirects only (as `lib/live-head`). The page's body, headline and featured slot are found by theme class
+  (`CONTENT_CLASSES` / `TITLE_CLASSES` / `FEATURED_CLASSES`, nesting counted) and replaced — the headline and slot only
+  inside the article around the body, never a sidebar or a related list; a slot with no approved featured image is
+  EMPTIED, never left showing another article's picture. A page with no article body to replace gives its `<head>`
+  (stylesheets, fonts) around a WordPress-shaped article ("styles"); no site, or nothing readable, gives a plain page
+  ("plain"). A bar at the top says which, and the response carries `x-preview-mode`.
+- **Nothing runs**: scripts, noscript, frames, objects, embeds, `<base>`, refresh metas, resource hints and every
+  `on*` handler are stripped (template AND body), `javascript:` links neutralised, lazy images given their real
+  source; relative addresses (attributes, srcset, `url()` and `@import` in styles) made absolute BEFORE our body goes
+  in, so the app's own `/uploads/` images stay app-relative and load. The response policy is `PREVIEW_CSP` —
+  styles, fonts, images only, no forms, `sandbox allow-same-origin` (so a full-size tab is sandboxed too) — and the
+  Review tab's frame is `sandbox="allow-same-origin"` with no `allow-scripts`. Never add `allow-scripts` alongside
+  `allow-same-origin`: that pair lets the frame lift its own sandbox. Body embeds become a labelled box.
+- **⚠ A next.config header beats the same header set by a route.** The general CSP was on every path, so it silently
+  REPLACED the stored-file routes' sandbox policy (SEC-14) from E-SEC-02 until now — and this route's policy too (the
+  local check caught it). Every CSP now lives in `lib/csp.ts`: next.config sends `BASE_CSP` to every path EXCEPT
+  `OWN_CSP_PATHS` (`uploads/`, `api/files/`, `api/blog-preview/`), and each of those routes sends a complete policy
+  of its own (`STORED_FILE_CSP`, or `BASE_CSP` for a PDF; `PREVIEW_CSP`). A new route with its own CSP must be added
+  to `OWN_CSP_PATHS`, or its header never reaches the browser.
+- **The card** is on the Review tab (closed unless `?pv=`), Desktop / Phone (390px) / Open full size, plus
+  WordPress's own `?preview=true` link for a draft hand-off (`publishReport.draftLink`) until the article is live.
+  Nothing is cached — a theme change shows on the next look.

@@ -334,6 +334,7 @@ area, rather than loading all of them into every session.
 - Experts are real people linked to Topics; personas never speak; drafted answers wait — 2026-11-03, audit Phase 5, growth part cd
 - The article editor inserts images, tables and internal links, takes Markdown, and has shortcuts — 2026-11-03, audit Phase 5, growth part ce
 - An article's images can come from the device or Media — cropped to spec, the OG branded — 2026-11-03, audit Phase 5, growth part cf
+- An article previews inside a real page of the site, nothing there runs; a route's own CSP is never overwritten — 2026-11-03, audit Phase 5, growth part cg
 
 ## Open items / things the user still owns
 - **Analytics: APIs enabled 2026-08-03** (Search Console + GA Admin + GA Data, on project
