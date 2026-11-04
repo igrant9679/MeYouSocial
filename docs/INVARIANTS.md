@@ -2153,3 +2153,17 @@ before changing code in that area.
   deleting the long script leaves the Short), stamped `bodyBy` with the model; and a `VideoRender` (9:16, `queued`, its
   `scriptId` the Short) — so it renders like any board: by the autopilot's video step when video rendering is on, or
   Render now. The flash says that. A Short offers no Cut a Short of its own; each script links to the other.
+
+## A live article's edits go to its WordPress post after a diff against what the site says now (2026-11-03, audit Phase 5, growth part cm)
+- **Compare first** (E-ART-02, `lib/wp-update.ts` `compareWithLive`): the live post is read back with edit context
+  (`wpReadPostContent`) and diffed block by block, word by word (`lib/text-diff`, rendered by `DiffRows`) against what
+  publishing would send now — the same `renderForPublish(stripLeadingH1(body))`. Our JSON-LD script is removed from the
+  live side; images compare by alt text, so a URL the site rewrote isn't a change. Title and description are compared
+  separately; approved images newer than `publishedAt` are listed (they're uploaded again). Unreadable post → an honest
+  error, never a comparison against nothing.
+- **Push** (`updateOnWordPressAction`, ADMIN; the page `/blog/<id>/update` is visible to any member): refused when
+  nothing differs or when `blockingChecks` fail (a [NEEDS SOURCE] marker included) — before WordPress hears of it.
+  Otherwise `publishCore(…, { update: true })`: a published post with a WordPress id and no refresh in progress takes
+  the refresh path (same send, same read-back, images re-uploaded only if changed) WITHOUT going back through review;
+  status stays published, the address stays the same; audited `blog.updated_wordpress` plus `blog.update_pushed` with
+  what changed. A rewrite that needs review is still a refresh.

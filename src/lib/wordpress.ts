@@ -474,3 +474,39 @@ export async function wpUploadMediaBytes(
     return { ok: false, error: e instanceof Error ? `${e.name}: ${e.message.slice(0, 200)}` : String(e) };
   }
 }
+
+/**
+ * What a post on the site says now, raw (edit context): its title, body,
+ * excerpt and link (E-ART-02). Null when it can't be read — the caller says so
+ * rather than comparing against nothing.
+ */
+export async function wpReadPostContent(
+  c: WpCredentials,
+  id: number,
+): Promise<{ title: string; content: string; excerpt: string; link: string; modified: string | null; status: string } | null> {
+  try {
+    const res = await fetch(api(c, `/posts/${id}?context=edit`), {
+      headers: { Authorization: authHeader(c) },
+      signal: AbortSignal.timeout(20000),
+    });
+    if (!res.ok) return null;
+    const p = (await res.json()) as {
+      title?: { raw?: string; rendered?: string };
+      content?: { raw?: string; rendered?: string };
+      excerpt?: { raw?: string; rendered?: string };
+      link?: string;
+      modified_gmt?: string;
+      status?: string;
+    };
+    return {
+      title: p.title?.raw ?? p.title?.rendered ?? "",
+      content: p.content?.raw ?? p.content?.rendered ?? "",
+      excerpt: p.excerpt?.raw ?? p.excerpt?.rendered ?? "",
+      link: p.link ?? "",
+      modified: p.modified_gmt ? `${p.modified_gmt}Z` : null,
+      status: p.status ?? "unknown",
+    };
+  } catch {
+    return null;
+  }
+}

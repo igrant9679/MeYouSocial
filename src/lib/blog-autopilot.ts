@@ -648,13 +648,16 @@ export async function generateVariantsCore(workspaceId: string, postId: string, 
   return rows.length;
 }
 
-export async function publishCore(workspaceId: string, postId: string): Promise<boolean> {
+export async function publishCore(workspaceId: string, postId: string, opts: { update?: boolean } = {}): Promise<boolean> {
   const post = await db.blogPost.findFirst({ where: { id: postId, workspaceId } });
   if (!post || !post.body) return false;
   if (post.status !== "final_approval" && post.status !== "published") return false;
   // A refresh (lib/idea-drafting.ts) took a live post back through review; its
   // publish replaces that WordPress post in place, at the same URL.
-  const isRefresh = post.wpPostId != null && post.refreshStartedAt != null && post.status === "final_approval";
+  // E-ART-02: "Update on WordPress" — a live article's edits pushed to the same
+  // post without a trip back through review; the same send as a refresh.
+  const isUpdate = opts.update === true && post.wpPostId != null && post.status === "published" && post.refreshStartedAt == null;
+  const isRefresh = isUpdate || (post.wpPostId != null && post.refreshStartedAt != null && post.status === "final_approval");
   // A refresh of an article published by hand lives at its own link, not on
   // WordPress: publishing it here would make a second article at a new URL.
   // It goes out by hand (Download HTML, Mark as published).
@@ -876,7 +879,7 @@ export async function publishCore(workspaceId: string, postId: string): Promise<
     });
     await writeAudit({
       workspaceId,
-      action: isRefresh ? "blog.refreshed_wordpress" : status === "publish" ? "blog.published_wordpress" : "blog.drafted_to_wordpress",
+      action: isUpdate ? "blog.updated_wordpress" : isRefresh ? "blog.refreshed_wordpress" : status === "publish" ? "blog.published_wordpress" : "blog.drafted_to_wordpress",
       entityType: "blog_post",
       entityId: post.id,
       meta: {

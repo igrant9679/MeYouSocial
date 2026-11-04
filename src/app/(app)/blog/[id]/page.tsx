@@ -586,6 +586,10 @@ export default async function BlogPostPage({
               {/* Published is exactly when re-pushing meta matters (the SEO
                   plugin choice changed after the article went out) — the
                   button must live in THIS branch, not the unpublished one. */}
+              {/* E-ART-02: see what would change on the live post, and push it. */}
+              {wpConn && post.wpPostId != null && post.status === "published" && !post.refreshStartedAt && (
+                <Link href={`/blog/${post.id}/update`} className="btn sm" data-update-link="">Update on WordPress…</Link>
+              )}
               {admin && wpConn && post.wpPostId != null && (
                 <form action={pushSeoMetaAction}>
                   <input type="hidden" name="postId" value={post.id} />

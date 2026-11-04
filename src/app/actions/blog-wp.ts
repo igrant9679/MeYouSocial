@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import { encryptSecret, decryptSecret, type Encrypted } from "@/lib/blog-crypto";
 import { wpTestConnection, type WpCredentials } from "@/lib/wordpress";
 import { publishCore } from "@/lib/blog-autopilot";
+import { blockingChecks } from "@/lib/blog-gates";
 import { writeAudit } from "@/lib/governance";
 import { DEFAULT_SLUG_RULES, SEO_FIELDS, defaultFieldMap, isSeoPlugin } from "@/lib/seo-plugins";
 
@@ -277,4 +278,35 @@ export async function publishToWordPressAction(formData: FormData) {
   await publishCore(workspace.id, postId);
   revalidatePath(`/blog/${postId}`);
   revalidatePath("/blog");
+}
+
+/**
+ * E-ART-02: push a live article's edits to its WordPress post — ADMIN, like
+ * publishing. Compared first (what would change, against what the site says
+ * now); refused when nothing changed or the publish gates hold it; the same
+ * send as a refresh, without a trip back through review. The audit row
+ * carries what changed.
+ */
+export async function updateOnWordPressAction(formData: FormData) {
+  const postId = String(formData.get("postId") ?? "");
+  const { workspace, user } = await requireRole("ADMIN");
+  const back = (msg: string, ok: boolean): never => redirect(`/blog/${encodeURIComponent(postId)}/update?${ok ? "flash" : "flashErr"}=${encodeURIComponent(msg)}`);
+  const { compareWithLive } = await import("@/lib/wp-update");
+  const cmp = await compareWithLive(workspace.id, postId);
+  if (!cmp.ok) back(cmp.error, false);
+  if (cmp.ok && cmp.unchanged) back("Nothing to update — the site already says exactly this.", false);
+  const blocking = await blockingChecks(workspace.id, postId);
+  if (blocking?.length) back(`Held by the publish checks: ${blocking.join("; ")}.`, false);
+  const ok = await publishCore(workspace.id, postId, { update: true });
+  if (!ok) back("WordPress didn't take the update — see the last publish report on the article's Optimize tab.", false);
+  await writeAudit({
+    workspaceId: workspace.id,
+    actorId: user.id,
+    action: "blog.update_pushed",
+    entityType: "blog_post",
+    entityId: postId,
+    meta: cmp.ok ? { added: cmp.stats.added, removed: cmp.stats.removed, blocks: cmp.stats.blocks, title: cmp.title.changed, description: cmp.excerpt.changed, images: cmp.imagesChanged } : {},
+  });
+  revalidatePath(`/blog/${postId}`);
+  redirect(`/blog/${encodeURIComponent(postId)}?flash=${encodeURIComponent("Updated on WordPress — the live post now has these edits, at the same address.")}`);
 }
