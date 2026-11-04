@@ -2142,3 +2142,14 @@ before changing code in that area.
 - **Fills itself**: `setProjectStatusAction` → `recording` syncs the project's script. The script studio's **Shots**
   tab shows each shot's state (not in Assets yet / in Assets / filmed = a url or upload on the asset) and the button.
   The Film Queue shows a project's shots by section, open while any are left, filmed ones struck through.
+
+## A long script can be cut into a Short: its own script, and a 9:16 storyboard in the pipeline (2026-11-03, audit Phase 5, growth part cl)
+- **Cut a Short** (E-VID-11, `lib/shorts.ts` `cutShortCore`, EDITOR): the model (the script's, else the channel's, else
+  the workspace's, via `resolveUsableModel`; purpose `script.short`) writes JSON `{title, script, scenes}` from the
+  long script ALONE (≥ 150 words required, checked before any call). ⚠ The mock is refused (a mock board would spend
+  render money on nonsense — same rule as `packageVideoCore`). `readShortAnswer` bounds it: 60–170 spoken words,
+  3+ scenes, 24–64 s of 4/6/8-second scenes — otherwise refused with the reason and NOTHING saved.
+- **What it makes**: a Script in the same channel (`Short: <title>`, `cutFromId` → the original — a plain id, no FK, so
+  deleting the long script leaves the Short), stamped `bodyBy` with the model; and a `VideoRender` (9:16, `queued`, its
+  `scriptId` the Short) — so it renders like any board: by the autopilot's video step when video rendering is on, or
+  Render now. The flash says that. A Short offers no Cut a Short of its own; each script links to the other.

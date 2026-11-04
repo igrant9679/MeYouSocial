@@ -212,6 +212,12 @@ export const HELP_CATEGORIES: FaqCategory[] = [
         tags: ["preview", "look", "theme", "website", "wordpress", "draft", "phone", "mobile"],
       },
       {
+        q: "I fixed something in a live article — how do I get it onto the site?",
+        a: "Open the article and press **Update on WordPress…** (on the WordPress line once it's live). The page reads the post back from your site and shows exactly what would change against what's there now — words added and removed, block by block, plus the title, the description and any new featured or OG image. An admin presses **Update on WordPress** to replace the live post in place, at the same address; it's recorded with what changed. The same publish checks apply (a [NEEDS SOURCE] marker or a failing required check holds it, and says which), and if nothing differs it says so instead of sending. For a bigger rewrite that should go back through review, use a refresh instead.",
+        links: [{ label: "Articles →", href: "/blog" }],
+        tags: ["update", "wordpress", "edit", "live", "republish", "diff", "fix", "typo"],
+      },
+      {
         q: "What's the difference between an expert and a persona?",
         a: "An **expert** is a real person whose knowledge a draft speaks in — their experience, opinions, credentials and what they never claim. A **persona** is an audience the content is written FOR, like \"Compliance officer\"; it never speaks in a draft. Under **Ideas → Experts**, each profile says which it is (a role rather than a person is a persona — open it and press **This is an audience persona**).\n\nA draft speaks as the expert picked on the article, else the expert linked to the article's **Topic** (tick the Topics on the expert's page), else — when there is only one expert and they're linked to no Topic — that expert. Nothing else: a title merely sharing a word with an expert no longer makes the draft speak as them. Each draft records who it spoke as, and the expert's page lists those drafts.\n\n**Draft answers from source** reads a page or pasted text and drafts answers, but they wait under **Waiting for …** until the expert accepts them (as written or corrected) — they are never used in a draft, or treated as the expert's own words, before then.",
         links: [{ label: "Experts →", href: "/blog/experts" }],
@@ -527,6 +533,12 @@ export const HELP_CATEGORIES: FaqCategory[] = [
         a: "Yes. Mark shots where they belong in the script — **[B-roll: the shop front at dawn]**, **[Shot: close on the dough]**, **[Cutaway: …]**, **[Insert: …]** or **[Graphic: …]** — and the script's **Shots** tab lists them under the heading they sit in. **Put in Assets** saves them to Assets, linked to the script's project; when that project moves to **Recording** any new ones are added by themselves, and the **Film Queue** lists what's left to film, section by section. A shot counts as filmed once a file is attached to it in Assets. Nothing is invented: a section with no marker asks for nothing, and a shot you take out of the script is kept in Assets (it may already be filmed).",
         links: [{ label: "Film Queue →", href: "/production/film-queue" }],
         tags: ["shot list", "b-roll", "broll", "shots", "film queue", "assets", "script", "recording"],
+      },
+      {
+        q: "Can I turn a long script into a Short?",
+        a: "Yes — open the script and press **Cut a Short**. The AI writes a 30–60 second vertical version from that script alone (no new facts or numbers): 75–150 spoken words with a hook and a call to action, saved as its own script beside the original (each links to the other), plus a 9:16 storyboard of 4–8 scenes in **Videos**. The storyboard renders like any other — with the video queue when video rendering is on (Settings → Automation), or with **Render now** — so check it before it spends anything. If no AI model answers, or what comes back is the wrong length, nothing is made and you're told why. The script needs at least 150 words.",
+        links: [{ label: "Videos →", href: "/videos" }],
+        tags: ["short", "shorts", "reels", "tiktok", "vertical", "cut", "script", "storyboard"],
       },
       {
         q: "How do I get ONE video file instead of separate scene clips?",

@@ -19,6 +19,7 @@ import { StreamButton } from "./StreamButton";
 import { ProvenanceChip } from "@/components/ProvenanceChip";
 import { launchAgentAction } from "@/app/actions/agent";
 import { promoteScriptAction } from "@/app/actions/production";
+import { cutShortAction } from "@/app/actions/shorts";
 import {
   savePlanQuestionsAction,
   generateOutlineAction,
@@ -71,6 +72,10 @@ export default async function CanvasPage({
     modelChoices(workspace.id),
     resolveUsableModel(script.channel.defaultModel ?? "", workspace.id),
   ]);
+  // E-VID-11: Shorts cut from this script, each with its storyboard.
+  const shorts = await db.script.findMany({ where: { cutFromId: script.id, channel: { workspaceId: workspace.id } }, select: { id: true, title: true }, orderBy: { createdAt: "desc" }, take: 6 });
+  const shortBoards = shorts.length ? await db.videoRender.findMany({ where: { workspaceId: workspace.id, scriptId: { in: shorts.map((s) => s.id) } }, select: { id: true, scriptId: true } }) : [];
+  const cutFrom = script.cutFromId ? await db.script.findFirst({ where: { id: script.cutFromId, channel: { workspaceId: workspace.id } }, select: { id: true, title: true } }) : null;
 
   // Zoom-corrected height: a bare 100vh here renders 22% taller than the window
   // at the XL content size. See the note at the top of globals.css.
@@ -128,6 +133,13 @@ export default async function CanvasPage({
                 </form>
               );
             })()}
+            {/* E-VID-11: a 30–60 s vertical version, as its own script and storyboard. */}
+            {editor && script.body && !script.cutFromId && (
+              <form action={cutShortAction}>
+                <input type="hidden" name="scriptId" value={script.id} />
+                <SubmitButton className="btn sm" pendingText="Cutting…" title="Write a 30–60 second vertical Short from this script, as its own script and a storyboard ready to render">Cut a Short</SubmitButton>
+              </form>
+            )}
             {script.body && (
               <Link href={`/scripts/${script.id}/publish`} className="btn sm flex items-center gap-1.5" title="Export, teleprompter, promo assets">
                 Publish →
@@ -143,6 +155,22 @@ export default async function CanvasPage({
             {/* Start Over with warning */}
             {editor && <StartOverButton scriptId={script.id} hasBody={!!script.body} />}
           </div>
+
+          {(shorts.length > 0 || cutFrom) && (
+            <p className="text-[11px] text-[var(--mute)] m-0" data-shorts="">
+              {cutFrom && <>A Short cut from <Link href={`/scripts/${cutFrom.id}`} className="underline">{cutFrom.title}</Link>. </>}
+              {shorts.length > 0 && <>Shorts cut from this: {shorts.map((s, i) => {
+                const board = shortBoards.find((b) => b.scriptId === s.id);
+                return (
+                  <span key={s.id}>
+                    {i > 0 && " · "}
+                    <Link href={`/scripts/${s.id}`} className="underline">{s.title}</Link>
+                    {board && <> (<Link href={`/videos/${board.id}`} className="underline">storyboard</Link>)</>}
+                  </span>
+                );
+              })}</>}
+            </p>
+          )}
 
           {/* Title + model + template */}
           {!editor ? (

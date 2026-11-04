@@ -50,6 +50,7 @@ export const PURPOSE_LABEL: Record<string, string> = {
   "script.canvas": "Script canvas",
   "script.agent": "Agent Mode",
   "script.publish": "Publishing packages for scripts",
+  "script.short": "Shorts cut from long scripts",
   chat: "Channel chat",
   research: "Research reports",
   experts: "Expert interviews",

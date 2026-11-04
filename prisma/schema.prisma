@@ -1602,6 +1602,7 @@ model Script {
   outline        String?  // JSON plan
   builderSteps   String?  // JSON for classic builder
   body           String?  // current rich text / markdown
+  cutFromId      String?  // E-VID-11: the long script this Short was cut from (no FK — the original may be deleted)
   // Who last wrote the outline / the body (E-VID-13): "provider|model|ISO" (lib/provenance.ts).
   outlineBy      String?
   bodyBy         String?
