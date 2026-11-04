@@ -1,5 +1,6 @@
 import { requireMembership } from "@/lib/acl";
 import { reportContent, renderReportPdf } from "@/lib/report-pdf";
+import { brandingFor } from "@/lib/share-links";
 
 /**
  * PDF export — the client-deliverable version of a report. Text and tables
@@ -17,7 +18,8 @@ export async function GET(_req: Request, ctx: { params: Promise<{ key: string }>
   const { workspace } = await requireMembership();
   const content = await reportContent(workspace.id, workspace.name, key);
   if (!content) return new Response("Not found", { status: 404 });
-  const buf = await renderReportPdf(content);
+  // White-labelled (E-MEA-14): the workspace's own logo and colour, a cover, page numbers.
+  const buf = await renderReportPdf(content, await brandingFor(workspace.id, workspace.name));
   return new Response(new Uint8Array(buf), {
     headers: {
       "Content-Type": "application/pdf",

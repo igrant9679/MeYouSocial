@@ -82,6 +82,7 @@ model Workspace {
   socialVisits    SocialVisit[]
   reportSchedules ReportSchedule[]
   engageAssignments EngageAssignment[]
+  shareLinks      ShareLink[]
   sitePages       SitePage[]
   brandKit        BrandKit?
   motifDirectives MotifDirective[]
@@ -864,6 +865,26 @@ model ReportSchedule {
 
   @@index([enabled, nextAt])
   @@index([workspaceId, reportKey])
+}
+
+// E-MEA-14: a read-only link to one report for someone without an account.
+// The token is <id>.<HMAC of the id> (lib/share-links.ts) — nothing secret is stored.
+model ShareLink {
+  id           String    @id @default(cuid())
+  workspaceId  String
+  kind         String    // report
+  targetKey    String    // the report's key
+  label        String?   // who it's for, in the admin's words
+  expiresAt    DateTime
+  revokedAt    DateTime?
+  createdById  String?
+  views        Int       @default(0)
+  lastViewedAt DateTime?
+  createdAt    DateTime  @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, kind, targetKey])
 }
 
 // The three-mode autonomy dial: one row per governed function per workspace.

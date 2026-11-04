@@ -5,6 +5,7 @@ import { requireMembership, canEdit, canAdmin } from "@/lib/acl";
 import { SubmitButton } from "@/components/SubmitButton";
 import { ReportBlock } from "@/components/ReportBlocks";
 import { ReportSchedules } from "@/components/ReportSchedules";
+import { ReportShareLinks } from "@/components/ReportShareLinks";
 import { BLOCK_KEYS, BLOCK_LABELS, getReport } from "@/lib/report-defs";
 import {
   addReportBlockAction,
@@ -78,6 +79,8 @@ export default async function ReportPage({
 
       {/* E-MEA-03: this report by email, on a schedule, to members (client viewers included). */}
       <ReportSchedules workspaceId={workspace.id} reportKey={report.key} admin={canAdmin(membership.role)} />
+      {/* E-MEA-14: a read-only link for a client without an account — admins only (a link is the report). */}
+      {canAdmin(membership.role) && <ReportShareLinks workspaceId={workspace.id} reportKey={report.key} />}
 
       <div className={customizing ? "grid grid-cols-1 @4xl:grid-cols-[1fr_260px] gap-4 items-start" : ""}>
         <div className="flex flex-col gap-3 min-w-0">

@@ -1,4 +1,6 @@
 import PDFDocument from "pdfkit";
+import { existsSync } from "node:fs";
+import path from "node:path";
 import { getReport } from "@/lib/report-defs";
 import { homeStats, postPerformance, weeklySeries, hasSeriesData } from "@/lib/dashboard-data";
 import { db } from "@/lib/db";
@@ -123,39 +125,78 @@ export async function reportContent(workspaceId: string, workspaceName: string, 
   };
 }
 
-/** The PDF. */
-export async function renderReportPdf(c: ReportContent): Promise<Buffer> {
-  const doc = new PDFDocument({ size: "A4", margin: 48 });
+/**
+ * The font the PDF is set in: Geist, the TTF that ships inside Next — a
+ * Unicode font, so names with accents and non-Latin text print (the built-in
+ * Helvetica is Latin-1 only). Missing (an unusual install) → Helvetica.
+ */
+const PDF_FONT = path.join(process.cwd(), "node_modules", "next", "dist", "compiled", "@vercel", "og", "Geist-Regular.ttf");
+
+/** Who the PDF is for (E-MEA-14): the workspace's name, colour and logo. */
+export type PdfBranding = { name: string; color: string; logo: Buffer | null };
+
+/**
+ * The PDF, white-labelled (E-MEA-14): a cover page with the workspace's logo,
+ * name and colour; the report; page numbers on every page. No app branding on
+ * the cover — the client's report is the client's.
+ */
+export async function renderReportPdf(c: ReportContent, brand?: PdfBranding): Promise<Buffer> {
+  const doc = new PDFDocument({ size: "A4", margin: 48, bufferPages: true, info: { Title: c.name, Author: brand?.name ?? c.workspaceName } });
   const chunks: Buffer[] = [];
   doc.on("data", (chunk: Buffer) => chunks.push(chunk));
   const done = new Promise<Buffer>((resolve) => doc.on("end", () => resolve(Buffer.concat(chunks))));
 
+  let regular = "Helvetica";
+  let bold = "Helvetica-Bold";
+  if (existsSync(PDF_FONT)) {
+    doc.registerFont("Geist", PDF_FONT);
+    regular = "Geist";
+    bold = "Geist"; // one weight ships; size and colour carry the hierarchy
+  }
   const ink = "#15181D";
   const mute = "#6B7280";
-  const coral = "#E5482F";
+  const accent = brand?.color ?? ink;
 
-  // Masthead
-  doc.rect(48, 48, 26, 26).fill(ink);
-  doc.save();
-  doc.polygon([52, 70], [52, 55], [60, 65], [62, 62], [62, 70]).fill("#FFFFFF");
-  doc.polygon([62, 62], [65, 66], [70, 55], [70, 70], [66, 70], [66, 64]).fill(coral);
-  doc.restore();
-  doc.fillColor(ink).font("Helvetica-Bold").fontSize(18).text(c.name, 84, 50);
-  doc.fillColor(mute).font("Helvetica").fontSize(9)
-    .text(`${c.workspaceName} · last ${c.weeks} weeks · generated ${c.generated} · ${PRODUCT}`, 84, 72);
-  doc.moveTo(48, 90).lineTo(547, 90).strokeColor("#E7E9EE").stroke();
-  doc.y = 104;
-  doc.x = 48;
+  // Cover
+  doc.rect(0, 0, doc.page.width, 14).fill(accent);
+  let y = 150;
+  if (brand?.logo) {
+    try {
+      doc.image(brand.logo, 48, 90, { fit: [240, 96] });
+      y = 220;
+    } catch {
+      y = 150;
+    }
+  }
+  doc.fillColor(accent).font(bold).fontSize(28).text(c.name, 48, y, { width: 499 });
+  doc.moveDown(0.4);
+  doc.fillColor(ink).font(regular).fontSize(14).text(brand?.name ?? c.workspaceName, { width: 499 });
+  doc.moveDown(0.3);
+  doc.fillColor(mute).fontSize(11).text(`The last ${c.weeks} weeks · prepared ${c.generated}`, { width: 499 });
 
+  // The report
+  doc.addPage();
+  doc.fillColor(accent).font(bold).fontSize(18).text(c.name, 48, 48);
+  doc.moveTo(48, doc.y + 6).lineTo(547, doc.y + 6).strokeColor("#E7E9EE").stroke();
+  doc.y += 14;
   for (const s of c.sections) {
     doc.moveDown(0.8);
-    doc.fillColor(ink).font("Helvetica-Bold").fontSize(12).text(s.title);
+    doc.fillColor(accent).font(bold).fontSize(13).text(s.title);
     doc.moveDown(0.3);
-    for (const l of s.lines) doc.fillColor(l.muted ? mute : ink).font("Helvetica").fontSize(10).text(l.text);
+    for (const l of s.lines) doc.fillColor(l.muted ? mute : ink).font(regular).fontSize(10).text(l.text);
   }
-
   doc.moveDown(1.2);
-  doc.fillColor(mute).fontSize(8).text(c.dataNote);
+  doc.fillColor(mute).font(regular).fontSize(8).text(c.dataNote);
+
+  // Page numbers on every page, cover included.
+  const range = doc.bufferedPageRange();
+  for (let i = range.start; i < range.start + range.count; i++) {
+    doc.switchToPage(i);
+    const bottom = doc.page.margins.bottom;
+    doc.page.margins.bottom = 0; // writing in the margin must not open a new page
+    doc.fillColor(mute).font(regular).fontSize(8).text(`${brand?.name ?? c.workspaceName} · ${c.name} · page ${i - range.start + 1} of ${range.count}`, 48, doc.page.height - 32, { width: 499, align: "center", lineBreak: false });
+    doc.page.margins.bottom = bottom;
+  }
   doc.end();
   return done;
 }

@@ -350,6 +350,12 @@ export const HELP_CATEGORIES: FaqCategory[] = [
         tags: ["report", "schedule", "email", "client", "weekly", "monthly", "pdf", "viewer"],
       },
       {
+        q: "Can a client see a report without an account?",
+        a: "Yes — on the report, **Share a read-only link** (admins): give it a label (who it's for) and how long it stays open (7, 30 or 90 days), then copy the link. Whoever opens it sees **this report only**, read-only, in your brand colour and logo (Brand → set the primary colour and logo), with a **PDF** to download. The list shows how often each link was opened; **Turn off** closes one at once, and it closes by itself on its date. A link that's off or expired just says it doesn't open.\n\nReport PDFs — shared or downloaded in the app — have a cover page with your logo, your colour, page numbers, and a font that prints accented and non-Latin names.",
+        links: [{ label: "Reports →", href: "/reports" }],
+        tags: ["share", "link", "client", "read-only", "white label", "pdf", "logo", "brand"],
+      },
+      {
         q: "How do I build my own report?",
         a: "Reports → **New custom report** → name it. It starts with a KPI row; open **Customize** to add any blocks from the library in any order. It then appears in the hub alongside the stock ten.",
         tags: ["custom report", "builder"],

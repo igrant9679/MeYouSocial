@@ -2167,3 +2167,19 @@ before changing code in that area.
   the refresh path (same send, same read-back, images re-uploaded only if changed) WITHOUT going back through review;
   status stays published, the address stays the same; audited `blog.updated_wordpress` plus `blog.update_pushed` with
   what changed. A rewrite that needs review is still a refresh.
+
+## A report can be shared read-only with someone without an account; report PDFs are white-labelled (2026-11-03, audit Phase 5, growth part cn)
+- **Share links** (E-MEA-14, `lib/share-links.ts`): a `ShareLink` row says what is shared (kind `report`, the report
+  key), for whom (label), until when, and how often it was opened. The token is `<id>.<HMAC-SHA256 of the id under
+  "share:"+AUTH_SECRET>` (first 32 chars, compared in constant time) — nothing secret is stored, so an admin can copy
+  the link again; ⚠ rotating AUTH_SECRET turns every link off. ADMIN makes them (7/30/90 days, ≤ 50 open per
+  workspace) and turns them off; editors and viewers don't see the card (a link IS the report).
+- **The public page** `/r/<token>` (no session, `noindex`) shows that ONE report via the same `reportContent`, in the
+  workspace's primary colour (hex-checked) and logo (`brandingFor`: read through storage — our URLs are session-gated
+  — or fetched with `safeFetch`, converted to PNG by sharp, embedded as a data URI), plus `/r/<token>/pdf`. A wrong,
+  expired, turned-off or deleted-workspace link says only "This link doesn't open".
+- **PDFs** (shared or in-app) are white-labelled by `renderReportPdf(content, brand)`: a cover (logo, report name,
+  workspace, period), the brand colour on headings, "page n of N" on every page (bufferPages), and Geist — the
+  Unicode TTF inside Next — instead of Latin-1 Helvetica. ⚠ sharp is imported ON USE (`await import("sharp")`) like
+  everywhere else: a top-level import put a second libvips in the build's prerender worker beside Next's and the
+  icon route failed with GLib "invalid property" errors.

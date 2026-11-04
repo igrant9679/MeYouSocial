@@ -341,6 +341,7 @@ area, rather than loading all of them into every session.
 - A script's marked shots become Assets on its project; the Film Queue lists what's left to film — 2026-11-03, audit Phase 5, growth part ck
 - A long script can be cut into a Short: its own script and a 9:16 storyboard in the pipeline — 2026-11-03, audit Phase 5, growth part cl
 - A live article's edits go to its WordPress post after a diff against what the site says now — 2026-11-03, audit Phase 5, growth part cm
+- A report can be shared read-only with someone without an account; report PDFs are white-labelled — 2026-11-03, audit Phase 5, growth part cn
 
 ## Open items / things the user still owns
 - **Analytics: APIs enabled 2026-08-03** (Search Console + GA Admin + GA Data, on project
