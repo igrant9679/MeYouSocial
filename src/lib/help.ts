@@ -553,8 +553,14 @@ export const HELP_CATEGORIES: FaqCategory[] = [
         tags: ["shot list", "b-roll", "broll", "shots", "film queue", "assets", "script", "recording"],
       },
       {
+        q: "What can I attach to the assistant or a chat, and how big?",
+        a: "The **paperclip** (and **Upload file** in a chat) takes a **PDF, Word (.docx), text, Markdown, CSV, JSON or an image**, up to **2,500 MB**. It's saved as research on the channel and read, so the assistant can use what's in it: it reads a long document a part at a time and says which part. A big file goes up in pieces with a progress bar, and survives a dropped connection; if it does stop, attach the same file again and it carries on from there.\n\nWhat's read has limits, and the file says so when it reaches one (the note is on the channel's **Research** page, with **Read again**):\n· A PDF or Word file is read up to **512 MB**; a larger one is kept and can be opened, but not read.\n· The first **1,000,000 characters** of a document are kept — about 170,000 words.\n· A scanned PDF has no text in it. Gemini can transcribe one up to 18 MB where a Google key is set (it costs a call); otherwise it says so.\n· A PDF with a password can't be read until the password is removed. An old .doc has to be saved as .docx first.\n· An image is described by a vision model (Google or OpenAI key).\n\nVideo and sound can't be attached here, because the assistant can't watch or listen to them. A video for a post goes in **Distribute → Media**. Deleting a file from Research deletes the stored copy too.",
+        links: [{ label: "Channels →", href: "/admin/channels" }],
+        tags: ["attach", "upload", "paperclip", "pdf", "word", "docx", "file size", "research", "assistant", "limit"],
+      },
+      {
         q: "Can I record myself reading the script?",
-        a: "Yes — open the script's **Teleprompter** (from Publish) and press **Record** at the top. The browser asks for the camera and microphone first; a small self-view sits in the corner while the prompter scrolls. Press **Stop** and the take is saved as **Take 1, Take 2…** in **Assets**, linked to the script's project so the Edit Bay finds it. Takes up to 200 MB (record a long one in parts, or upload a file to Assets). Nothing is recorded until you press Record, and the camera is switched off when you stop. Editors and admins can record.",
+        a: "Yes — open the script's **Teleprompter** (from Publish) and press **Record** at the top. The browser asks for the camera and microphone first; a small self-view sits in the corner while the prompter scrolls. Press **Stop** and the take is saved as **Take 1, Take 2…** in **Assets**, linked to the script's project so the Edit Bay finds it. Takes up to 200 MB (record a long one in parts). Nothing is recorded until you press Record, and the camera is switched off when you stop. Editors and admins can record.",
         links: [{ label: "Assets →", href: "/production/assets" }],
         tags: ["record", "teleprompter", "camera", "take", "video", "webcam"],
       },

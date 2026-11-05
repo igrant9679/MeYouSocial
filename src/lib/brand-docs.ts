@@ -18,16 +18,20 @@ import { getApiKey } from "@/lib/llm/keys";
  *     ~50-line central-directory walk + `inflateRawSync`, in the same spirit as
  *     the hand-written gdrive and Zernio clients: one predictable format
  *     against Node's own zlib beats another package in the bundle graph.
- *   - **PDF** — no deterministic path without a parser dependency, so this one
- *     goes to Gemini (which reads PDFs natively) in a BACKGROUND JOB. Slow,
- *     costs a call, and can fail — hence the `extracting` state and an honest
- *     error rather than an empty document that looks fine.
+ *   - **PDF** — read by pdf-parse in a process of its own (lib/documents/read.ts),
+ *     in a BACKGROUND JOB: a big one is minutes of work. A scan has no text to
+ *     read, so that one goes to Gemini (which reads PDFs natively), which costs a
+ *     call and can fail — hence the `extracting` state and an honest error rather
+ *     than an empty document that looks fine.
  *   - **Pasted text** — always available, and the answer for anything else.
  *     A format we can't read is refused AT UPLOAD with that advice, instead of
  *     being stored as a decoration.
  */
 
-export const BRAND_DOC_MAX_BYTES = 10 * 1024 * 1024;
+/** One form post carries 64 MB (next.config). A brand guide bigger than this belongs in pieces, as research. */
+export const BRAND_DOC_MAX_BYTES = 60 * 1024 * 1024;
+/** What Gemini takes inline; a scan past it can't be sent. */
+export const PDF_INLINE_MAX_BYTES = 18 * 1024 * 1024;
 
 /** Hard cap per document. Long enough for a real brand guide, short enough that
  *  one document can't eat a whole prompt. Truncation is always disclosed. */
@@ -65,7 +69,7 @@ export function brandDocFormat(name: string, mimeType: string | null | undefined
   return EXT_FORMATS[name.slice(dot).toLowerCase()] ?? null;
 }
 
-/** True when reading this format needs the `brand.extractdoc` job (an LLM call). */
+/** True when reading this format needs the `brand.extractdoc` job (minutes of work, or an LLM call). */
 export function brandDocNeedsJob(format: Format): boolean {
   return format === "pdf";
 }
@@ -203,13 +207,26 @@ const PDF_PROMPT =
   "Transcribe this document's text content in reading order as plain text. Preserve headings and list structure with simple markdown. Do not summarise, do not comment, do not add anything that is not in the document. If a page is an image with no text, write nothing for it.";
 
 /**
- * Read a PDF by asking Gemini to transcribe it. Throws with a human reason —
- * the caller records it in `extractError` so the document says why it's empty.
+ * Read a PDF: its text layer first, free and exact; a scan has none, so Gemini
+ * transcribes that one. Returns a human reason rather than throwing — the caller
+ * records it in `extractError` so the document says why it's empty.
+ * `scanOnly`: the caller has already read the text layer and found nothing.
  */
-export async function extractBrandDocPdf(bytes: Buffer, workspaceId: string): Promise<ExtractResult> {
+export async function extractBrandDocPdf(bytes: Buffer, workspaceId: string, opts: { scanOnly?: boolean } = {}): Promise<ExtractResult> {
+  if (!opts.scanOnly) {
+    const { readDocumentBytes } = await import("@/lib/documents/read");
+    const reading = await readDocumentBytes("pdf", bytes);
+    if (reading.ok && reading.text.trim()) return clean(reading.text);
+    if (!reading.ok && reading.reason === "encrypted") return { error: "That PDF is protected by a password. Remove the password and upload it again, or paste the text." };
+    if (!reading.ok && reading.reason === "failed") return { error: "That PDF took longer than five minutes to read, or more memory than the reader gets. Paste the text you need instead." };
+  }
+  // No text layer, or the reader couldn't make sense of it: Gemini is the last try.
+  if (bytes.byteLength > PDF_INLINE_MAX_BYTES) {
+    return { error: `This looks like a scan, and at ${Math.round(bytes.byteLength / 1048576)} MB it's too large to send to be read. Paste the text instead.` };
+  }
   const key = await getApiKey("google", workspaceId).catch(() => "");
   if (!key) {
-    return { error: "Reading a PDF needs a Google API key for this workspace (Settings → Keys). Paste the text, or upload .docx, instead." };
+    return { error: "This looks like a scan, and reading one needs a Google API key for this workspace (Settings → Keys). Paste the text instead." };
   }
   try {
     const { GoogleGenAI } = await import("@google/genai");

@@ -9,6 +9,10 @@ import { youtubeFor } from "@/lib/youtube";
 import { placeholderProblem } from "@/lib/studio-ai";
 import { passStamp } from "@/lib/provenance";
 import { anglesFromReport } from "@/lib/report-angles";
+import { storage } from "@/lib/storage";
+
+/** Research that's a stored file, not a page or a report. */
+const FILE_KINDS = ["pdf", "word", "text", "image"];
 
 // /..04 — Deep AI Research tool.
 // Multi-source: web search + (optionally) competitor YT channels + LLM synthesis.
@@ -115,9 +119,33 @@ export async function deleteResearchAction(formData: FormData) {
   const id = String(formData.get("id"));
   const channelId = String(formData.get("channelId"));
   const { workspace } = await requireRole("EDITOR");
+  const source = await db.researchSource.findFirst({ where: { id, channel: { workspaceId: workspace.id } }, select: { kind: true, ref: true } });
   await db.researchSource.deleteMany({
     where: { id, channel: { workspaceId: workspace.id } },
   });
+  // An attached file goes with it: it can be 2,500 MB of someone's Drive (E-ENG-13).
+  if (source && FILE_KINDS.includes(source.kind)) {
+    await storage.remove(source.ref).catch(() => false);
+    await db.storedObject.deleteMany({ where: { key: source.ref, workspaceId: workspace.id } });
+  }
+  revalidatePath(`/channels/${channelId}/research`);
+}
+
+/** Read an attached file over again: after a key is added, a password removed, or a reading that failed (E-ENG-13). */
+export async function rereadResearchAction(formData: FormData) {
+  const id = String(formData.get("id"));
+  const channelId = String(formData.get("channelId"));
+  const { workspace, user } = await requireRole("EDITOR");
+  const { count } = await db.researchSource.updateMany({
+    where: { id, kind: { in: FILE_KINDS }, readState: { notIn: ["reading", "unread"] }, channel: { workspaceId: workspace.id } },
+    data: { readState: "reading", readNote: null },
+  });
+  if (count) {
+    const { jobs } = await import("@/lib/jobs");
+    const { registerResearchReadJobs } = await import("@/lib/jobs/research-read");
+    registerResearchReadJobs();
+    await jobs.enqueue("research.read", { sourceId: id, actorId: user.id }, { refId: id, workspaceId: workspace.id });
+  }
   revalidatePath(`/channels/${channelId}/research`);
 }
 

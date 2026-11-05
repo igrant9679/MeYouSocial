@@ -94,6 +94,7 @@ model Workspace {
   specialDays     SpecialDay[]
   rssFeeds        RssFeed[]
   mediaItems      MediaItem[]
+  uploadSessions  UploadSession[]
   captionBatches  CaptionBatch[]
   wordPressConnection WordPressConnection?
   functionModes   FunctionMode[]
@@ -1684,6 +1685,12 @@ model ResearchSource {
   ref         String   // URL or upload key
   title       String?
   content     String?  // extracted text / transcript
+  // A file's reading (E-ENG-13): reading | ready | failed, or unread for one saved
+  // before the app could read it. readNote says what a person should know — why it
+  // wasn't read, or that only part of it was. Pages and saved reports are "ready".
+  readState   String   @default("ready")
+  readNote    String?
+  bytes       BigInt?
   // An AI report's writer (lib/provenance.ts stamp) and the web results it was
   // given, JSON [{ title, url }] (E-IDE-15).
   writtenBy   String?
@@ -1694,6 +1701,35 @@ model ResearchSource {
 
   channel     Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
   script      Script?  @relation(fields: [scriptId], references: [id], onDelete: Cascade)
+}
+
+// A file coming up in pieces (E-ENG-13). Railway gives a request body five
+// minutes, so a big attachment can't be one request: each piece is its own, can be
+// retried, and the same person attaching the same file carries on where it stopped.
+model UploadSession {
+  id          String   @id @default(cuid())
+  workspaceId String
+  userId      String
+  channelId   String
+  scriptId    String?
+  chatId      String?
+  name        String
+  contentType String
+  kind        String   // pdf | word | text | image
+  size        BigInt
+  received    BigInt   @default(0)
+  fingerprint String   // name, size and modified time, as the browser reports them
+  backend     String   // whole (one piece, stored in one go) | gdrive | local
+  remote      String?  // Drive's session address, sealed; a local part file's name
+  storedKey   String?  // the finished file
+  sourceId    String?  // the ResearchSource it became, so a repeated finish finds it
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, userId, fingerprint])
+  @@index([updatedAt])
 }
 
 model Thumbnail {

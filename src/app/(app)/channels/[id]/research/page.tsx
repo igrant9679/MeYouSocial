@@ -2,7 +2,7 @@ import { FileSearch, Star, Trash2, Lightbulb } from "lucide-react";
 import { SubmitButton } from "@/components/SubmitButton";
 import { requireChannel } from "@/lib/channel";
 import { db } from "@/lib/db";
-import { deepResearchAction, starResearchAction, deleteResearchAction, ideasFromReportAction } from "@/app/actions/research";
+import { deepResearchAction, starResearchAction, deleteResearchAction, ideasFromReportAction, rereadResearchAction } from "@/app/actions/research";
 import { AiAssist } from "@/components/AiAssist";
 import { canEdit } from "@/lib/acl";
 import { MarkdownMessage } from "@/components/MarkdownMessage";
@@ -10,9 +10,15 @@ import { ProvenanceChip } from "@/components/ProvenanceChip";
 import { readJson } from "@/lib/db/json";
 import { getPostingTimeZone } from "@/lib/social/slots";
 import { formatZonedMoment } from "@/lib/zoned-dates";
+import { AutoRefresh } from "@/components/AutoRefresh";
+import { storage } from "@/lib/storage";
+import { formatBytes } from "@/lib/documents/kinds";
 
 // MU — Research library. deep tool,..05 manage sources,
 // starred research persists across all scripts.
+
+/** What the page itself shows of a long document: the page shouldn't weigh a megabyte. */
+const SHOWN_CHARS = 50_000;
 
 export default async function ChannelResearchPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ focus?: string }> }) {
   const { id } = await params;
@@ -22,12 +28,17 @@ export default async function ChannelResearchPage({ params, searchParams }: { pa
   const editor = canEdit(membership.role);
   const tz = await getPostingTimeZone(workspace.id).catch(() => "UTC");
 
+  // The list without the text: a document can be a million characters now (E-ENG-13).
   const sources = await db.researchSource.findMany({
     where: { channelId: id, scriptId: null },
     orderBy: [{ starred: "desc" }, { createdAt: "desc" }],
     take: 60,
+    select: { id: true, title: true, ref: true, starred: true, readState: true },
   });
-  const focused = focus ? sources.find((s) => s.id === focus) : sources[0];
+  const focusedId = focus && sources.some((s) => s.id === focus) ? focus : sources[0]?.id;
+  const focused = focusedId ? await db.researchSource.findUnique({ where: { id: focusedId } }) : null;
+  const isFile = !!focused && ["pdf", "word", "text", "image"].includes(focused.kind);
+  const text = focused?.content ?? null;
   // The web results a report was given (E-IDE-15) — http(s) links only, as stored.
   const storedSources = readJson<unknown>(focused?.webSources ?? null, []);
   const webSources = (Array.isArray(storedSources) ? storedSources as { title?: unknown; url?: unknown }[] : [])
@@ -114,9 +125,26 @@ export default async function ChannelResearchPage({ params, searchParams }: { pa
                 </>)}
               </div>
               <div className="text-xs text-[var(--mute)] mb-3 flex flex-wrap items-center gap-x-2 gap-y-1">
-                <span>{formatZonedMoment(focused.createdAt, tz)} · {focused.wordCount.toLocaleString()} words{focused.starred && " · ★ pinned across all scripts"}</span>
+                <span>
+                  {formatZonedMoment(focused.createdAt, tz)} · {focused.wordCount.toLocaleString()} words{focused.bytes != null && ` · ${formatBytes(Number(focused.bytes))}`}{focused.starred && " · ★ pinned across all scripts"}
+                  {isFile && <> · <a href={storage.url(focused.ref)} target="_blank" rel="noreferrer" className="underline" data-open-original="">open the file</a></>}
+                </span>
                 <ProvenanceChip stamp={focused.writtenBy} what="report" timeZone={tz} />
               </div>
+              {isFile && (focused.readState === "reading" || focused.readState === "unread") && (
+                <p className="text-xs mb-3" data-research-reading="">Reading this file… it carries on in the background, and this page shows the text when it&apos;s done.</p>
+              )}
+              {(focused.readState === "reading" || focused.readState === "unread") && <AutoRefresh seconds={5} />}
+              {focused.readNote && (
+                <p className="text-xs mb-3" style={{ color: "var(--amber-on)" }} data-research-note="">{focused.readNote}</p>
+              )}
+              {editor && isFile && focused.readState !== "reading" && focused.readState !== "unread" && (
+                <form action={rereadResearchAction} className="mb-3">
+                  <input type="hidden" name="id" value={focused.id} />
+                  <input type="hidden" name="channelId" value={id} />
+                  <SubmitButton className="btn sm" pendingText="Starting…" data-read-again="">Read again</SubmitButton>
+                </form>
+              )}
               {editor && focused.kind === "ai_research" && (
                 <form action={ideasFromReportAction} className="mb-3" data-make-ideas>
                   <input type="hidden" name="id" value={focused.id} />
@@ -126,7 +154,12 @@ export default async function ChannelResearchPage({ params, searchParams }: { pa
               {/* A report is the model's markdown, rendered without raw HTML (E-IDE-15); other sources stay as extracted text. */}
               {focused.kind === "ai_research"
                 ? <div data-report-rendered><MarkdownMessage content={focused.content ?? "(empty)"} /></div>
-                : <pre className="text-sm whitespace-pre-wrap font-sans leading-[1.6]">{focused.content ?? "(empty)"}</pre>}
+                : isFile && !text
+                  ? <p className="text-sm text-[var(--mute)]">{focused.readState === "reading" || focused.readState === "unread" ? "No text yet." : "No text could be taken from this file."}</p>
+                  : <pre className="text-sm whitespace-pre-wrap font-sans leading-[1.6]">{(text ?? "(empty)").slice(0, SHOWN_CHARS)}</pre>}
+              {text && text.length > SHOWN_CHARS && focused.kind !== "ai_research" && (
+                <p className="text-xs text-[var(--mute)] mt-2" data-research-shown="">Showing the first {SHOWN_CHARS.toLocaleString("en-US")} of {text.length.toLocaleString("en-US")} characters here. The assistant can read all of them.</p>
+              )}
               {webSources.length > 0 && (
                 <details className="mt-4 border-t border-[var(--line)] pt-3" data-web-sources>
                   <summary className="text-xs font-mono uppercase tracking-wider text-[var(--mute)] cursor-pointer">Web results it was given ({webSources.length})</summary>

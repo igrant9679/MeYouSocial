@@ -2253,3 +2253,50 @@ before changing code in that area.
   it matched nothing and returned. From 2026-10-26 (`01620ce`) to this part Post now sent nothing and the reconciler
   failed it 15 minutes later as "interrupted" — no production post was hit (read-only check: no manual posts in that
   window). Any new caller that writes "publishing" itself must pass `claimed`.
+
+## Attached files are read, and can be 2,500 MB — in pieces, never in memory (2026-11-05, audit Phase 5, growth part cs)
+- **Reading** (E-ENG-13, closes ENG-14's PDF/Word half): `pdf-parse` (2.x, pdf.js) and `mammoth` run ONLY in
+  `scripts/read-document.cjs`, a child process started by `lib/documents/read.ts` with `--max-old-space-size=1024`,
+  a 5-minute limit, an environment with NO secrets (PATH and temp only) and one reading at a time. Nothing in the app
+  imports the parsers. pdf.js gets `isEvalSupported: false` (a font must never become code). A DOCX whose
+  `word/document.xml` says it unpacks past 256 MB is refused before mammoth opens it (zip bomb). Measured: a 252 MB
+  PDF peaks at 345 MB, 1,500 pages of text at 160 MB — so `READ_MAX_BYTES` is 512 MB; past it a file is KEPT and says
+  it wasn't read. `TEXT_MAX_CHARS` 1,000,000; a longer one says how much was kept. Every outcome writes text or a
+  `readNote` a person can act on (password, damaged, scan, too big, timed out, no vision key, provider refused) — a
+  refusing vision key is never called "no key".
+- **A scan** (a PDF with no text layer) goes to Gemini only when a Google key is set and it's ≤ 18 MB
+  (`PDF_INLINE_MAX_BYTES`), and its note says a model transcribed it. Brand documents use the same reader first
+  (free, exact) and Gemini only for a scan; their limit is 60 MB (one form post carries 64 MB).
+- **`ResearchSource.readState`**: `reading | ready | failed | unread`, with `readNote` and `bytes`. Reading is the
+  `research.read` job (`enqueue` runs it at once; durable if the container dies; heartbeat every 30 s). Every reader
+  of the text respects the state: `contextText` (a chat) says "still being read" and gives at most 12,000 characters
+  with "the first N of M; don't speak for the rest"; `read_research_source` pages through 8,000 at a time
+  (`from`, and it says where to go next); `list_research_sources` says "not read". ⚠ Prompts that embed starred
+  research already slice to 400–600 characters — keep any new one sliced; a document can be a million characters.
+- **Uploads come up in pieces** (`/api/uploads/sessions` → `[id]` PUT/GET/POST/DELETE; the old multipart
+  `/api/uploads` is gone). ⚠ Railway gives a request BODY five minutes, so a big file can't be one request:
+  `CHUNK_BYTES` is 8 MiB (a multiple of Drive's 256 KiB). Up to `UPLOAD_MAX_BYTES` = 2,500 MiB, shown as
+  "2,500 MB" (`formatBytes` stays in MB so the limit reads as set). A file of one piece is stored in one go — the
+  path every small file always took; a bigger one streams each piece straight into Drive's resumable upload
+  (`gdriveBeginResumable` / `gdriveSendPiece` / `gdriveResumableStatus`; `redirect: "manual"`, because 308 is
+  Drive's "keep going"; Drive may keep less than it was sent, and its Range is believed) or appends to a part file
+  on local storage (a gigabyte of free disk checked first). Nothing holds more than one piece in memory.
+- **Pieces are checked**: only the next one is taken (409 says where things stand), a full 8 MiB unless it's the
+  last, never over 8 MiB, and the FIRST piece must be what the name says (`contentProblem`: `%PDF-`, a zip for
+  .docx — an OLE header means an old .doc renamed —, image signatures, no NUL bytes in text). A stored file's type
+  comes from the allow-list (`uploadKind`), never the browser. Drive's session address is sealed with the keyring;
+  one that a retired key can't open is an expired upload, not an error.
+- **Resuming**: the same person attaching the same file (name, size, modified time) to the same place within six
+  days carries on from what Drive says it has. The paperclip retries a piece about nine times with backoff, re-asks
+  how much arrived after any failure (a lost reply isn't a lost piece), shows a bar, MB and time left, and has a
+  stop button; leaving the page asks first. Finishing twice returns the same source.
+- **Housekeeping** (`sweepUploads`, every 30 minutes): uploads untouched for a week are dropped (Drive told), finished
+  sessions after a day, readings whose job ended still "reading" are marked failed, and `unread` files are sent to be
+  read, five a sweep. The boot runs the reader's `--self-check` on the server and keeps it in the Setting
+  `documents:reader_check` — the parsers carry a native part and want a recent node, and this is how a deploy proves
+  them. Deleting an attached file from Research deletes the stored copy and its owner row.
+- **Serving**: `/uploads/<key>` streams the file from disk (with ranges) instead of loading it.
+- Migration `20261105090000_research_reading` cleared the stand-in sentence ("text extraction is stubbed in mock
+  mode") stored as four LSI Media files' text, and marked them and any upload with no text `unread`.
+- ⚠ Verified against a stand-in Drive written from Google's documented protocol; the first real resumable upload to
+  Google happens in production.

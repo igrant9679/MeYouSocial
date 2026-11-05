@@ -1,5 +1,9 @@
-import { promises as fs } from "node:fs";
+import { createWriteStream, promises as fs } from "node:fs";
+import os from "node:os";
 import path from "node:path";
+import { pipeline } from "node:stream/promises";
+import { Readable, Transform } from "node:stream";
+import type { ReadableStream as WebReadableStream } from "node:stream/web";
 import { nanoid } from "nanoid";
 import { env } from "@/lib/env";
 
@@ -61,6 +65,26 @@ class LocalStorage implements StorageProvider {
   url(key: string): string {
     return `/uploads/${key}`;
   }
+  /** Where a stored file lives, or null when this isn't a key — so a big file can be streamed, not loaded. */
+  pathOf(key: string): string | null {
+    return /^[A-Za-z0-9_-]+(\.[A-Za-z0-9]+)?$/.test(key) ? path.join(this.root, key) : null;
+  }
+  /** A file coming up in pieces (lib/storage/chunked.ts). Its folder isn't a key, so it can't be served. */
+  partPath(name: string): string {
+    return path.join(this.root, ".uploading", name);
+  }
+  async ensureParts(): Promise<string> {
+    const dir = path.join(this.root, ".uploading");
+    await fs.mkdir(dir, { recursive: true });
+    return dir;
+  }
+  /** A whole part file becomes a stored one. */
+  async adoptPart(part: string, originalName: string): Promise<string> {
+    await this.ensure();
+    const key = nanoid(16) + path.extname(originalName);
+    await fs.rename(part, path.join(this.root, key));
+    return key;
+  }
   async remove(key: string): Promise<boolean> {
     if (!/^[A-Za-z0-9_-]+(\.[A-Za-z0-9]+)?$/.test(key)) return false;
     try {
@@ -111,6 +135,13 @@ export function invalidateStorageCache() {
  */
 export type OwnedStorage = Omit<StorageProvider, "put"> & {
   put(name: string, data: Buffer | Uint8Array, contentType: string | undefined, owner: string | null): Promise<StoredFile>;
+  /** The first `bytes` bytes (all of a smaller file), without fetching the rest. Null when it can't be read. */
+  head(key: string, bytes: number): Promise<Buffer | null>;
+  /**
+   * The file at a path on this machine, without holding it in memory. "too-big" past
+   * `maxBytes` (nothing kept); null when it can't be fetched. Call `done` afterwards.
+   */
+  fileOnDisk(key: string, maxBytes: number): Promise<{ path: string; done(): Promise<void> } | "too-big" | null>;
 };
 
 export const storage: OwnedStorage = {
@@ -137,6 +168,68 @@ export const storage: OwnedStorage = {
       return gdriveProvider.get(key);
     }
     return localProvider.get(key);
+  },
+  async head(key, bytes) {
+    if (key.startsWith("gdrive:")) {
+      const { gdriveFetchMedia } = await import("@/lib/storage/gdrive");
+      const res = await gdriveFetchMedia(key.slice("gdrive:".length), `bytes=0-${bytes - 1}`).catch(() => null);
+      if (!res?.body || !(res.ok || res.status === 206)) return null;
+      // The Range is a request: stop reading at the size asked for whatever comes back.
+      const parts: Buffer[] = [];
+      let have = 0;
+      const reader = res.body.getReader();
+      while (have < bytes) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        parts.push(Buffer.from(value));
+        have += value.byteLength;
+      }
+      await reader.cancel().catch(() => {});
+      return Buffer.concat(parts).subarray(0, bytes);
+    }
+    const file = localProvider.pathOf(key);
+    const handle = file ? await fs.open(file, "r").catch(() => null) : null;
+    if (!handle) return null;
+    try {
+      const buf = Buffer.alloc(bytes);
+      const { bytesRead } = await handle.read(buf, 0, bytes, 0);
+      return buf.subarray(0, bytesRead);
+    } finally {
+      await handle.close();
+    }
+  },
+  async fileOnDisk(key, maxBytes) {
+    if (!key.startsWith("gdrive:")) {
+      const file = localProvider.pathOf(key);
+      const stat = file ? await fs.stat(file).catch(() => null) : null;
+      if (!file || !stat?.isFile()) return null;
+      return stat.size > maxBytes ? "too-big" : { path: file, done: async () => {} };
+    }
+    const { gdriveFetchMedia } = await import("@/lib/storage/gdrive");
+    const res = await gdriveFetchMedia(key.slice("gdrive:".length)).catch(() => null);
+    if (!res?.ok || !res.body) return null;
+    const declared = Number(res.headers.get("content-length") ?? 0);
+    if (declared > maxBytes) {
+      await res.body.cancel().catch(() => {});
+      return "too-big";
+    }
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "mys-file-"));
+    const done = () => fs.rm(dir, { recursive: true, force: true }).catch(() => {});
+    const out = path.join(dir, "file.bin");
+    let seen = 0;
+    const counted = new Transform({
+      transform(chunk: Buffer, _enc, next) {
+        seen += chunk.byteLength;
+        next(seen > maxBytes ? new Error("too-big") : null, chunk);
+      },
+    });
+    try {
+      await pipeline(Readable.fromWeb(res.body as unknown as WebReadableStream), counted, createWriteStream(out));
+      return { path: out, done };
+    } catch {
+      await done();
+      return seen > maxBytes ? "too-big" : null;
+    }
   },
   url(key) {
     return key.startsWith("gdrive:") ? `/api/files/${encodeURIComponent(key)}` : `/uploads/${key}`;

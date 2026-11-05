@@ -24,6 +24,8 @@ export const LIMITS = {
   totpPerUser: { limit: 10, windowSec: 300 },
   // The public topic form (E-SET-08): five suggestions per address per channel per ten minutes.
   submitPerIp: { limit: 5, windowSec: 600 },
+  // Attaching files (E-ENG-13): one person's new uploads, which can each be 2,500 MB of someone's Drive.
+  uploadsPerUser: { limit: 60, windowSec: 3600 },
 } as const;
 export type LimitName = keyof typeof LIMITS;
 

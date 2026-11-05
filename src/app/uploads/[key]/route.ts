@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireMembership } from "@/lib/acl";
+import { createReadStream, promises as fs } from "node:fs";
+import { Readable } from "node:stream";
 import { localProvider } from "@/lib/storage";
 import { mayOpen } from "@/lib/storage/owners";
 import { BASE_CSP, STORED_FILE_CSP } from "@/lib/csp";
@@ -48,8 +50,12 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ key:
   const { key } = await params;
   // Another workspace's file is "not found", not "forbidden" — no confirmation it exists (E-SEC-11).
   if (!(await mayOpen(key, user))) return new NextResponse("Not found", { status: 404 });
-  const buf = await localProvider.get(key); // validates the key shape itself
-  if (!buf) return new NextResponse("Not found", { status: 404 });
+  // Streamed, never loaded: a stored file can be 2,500 MB (E-ENG-13).
+  const file = localProvider.pathOf(key); // validates the key shape itself
+  const stat = file ? await fs.stat(file).catch(() => null) : null;
+  if (!file || !stat?.isFile()) return new NextResponse("Not found", { status: 404 });
+  const size = stat.size;
+  const body = (start: number, end: number) => Readable.toWeb(createReadStream(file, { start, end })) as unknown as ReadableStream<Uint8Array>;
 
   const ext = key.slice(key.lastIndexOf(".")).toLowerCase();
   const type = EXT_TYPE[ext] ?? "application/octet-stream";
@@ -63,18 +69,18 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ key:
   const range = req.headers.get("range");
   const m = range?.match(/^bytes=(\d*)-(\d*)$/);
   if (m && (m[1] || m[2])) {
-    const start = m[1] ? parseInt(m[1], 10) : Math.max(0, buf.byteLength - parseInt(m[2], 10));
-    const end = m[1] && m[2] ? Math.min(parseInt(m[2], 10), buf.byteLength - 1) : buf.byteLength - 1;
-    if (start >= buf.byteLength || start > end) {
-      headers.set("Content-Range", `bytes */${buf.byteLength}`);
+    const start = m[1] ? parseInt(m[1], 10) : Math.max(0, size - parseInt(m[2], 10));
+    const end = m[1] && m[2] ? Math.min(parseInt(m[2], 10), size - 1) : size - 1;
+    if (start >= size || start > end) {
+      headers.set("Content-Range", `bytes */${size}`);
       return new NextResponse(null, { status: 416, headers });
     }
-    const slice = buf.subarray(start, end + 1);
-    headers.set("Content-Range", `bytes ${start}-${end}/${buf.byteLength}`);
-    headers.set("Content-Length", String(slice.byteLength));
-    return new NextResponse(new Uint8Array(slice), { status: 206, headers });
+    headers.set("Content-Range", `bytes ${start}-${end}/${size}`);
+    headers.set("Content-Length", String(end - start + 1));
+    return new NextResponse(body(start, end), { status: 206, headers });
   }
 
-  headers.set("Content-Length", String(buf.byteLength));
-  return new NextResponse(new Uint8Array(buf), { status: 200, headers });
+  headers.set("Content-Length", String(size));
+  // An empty file has no last byte to read up to.
+  return new NextResponse(size ? body(0, size - 1) : null, { status: 200, headers });
 }

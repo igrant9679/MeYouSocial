@@ -401,6 +401,7 @@ export async function registerAllJobs(): Promise<void> {
     { registerBrandDocJobs },
     { registerVideoRenderJobs },
     { registerAnalyticsJobs },
+    { registerResearchReadJobs },
   ] = await Promise.all([
     import("@/lib/jobs/onboarding"),
     import("@/lib/jobs/agent"),
@@ -409,6 +410,7 @@ export async function registerAllJobs(): Promise<void> {
     import("@/lib/jobs/brand-doc"),
     import("@/lib/jobs/video-render"),
     import("@/lib/jobs/analytics"),
+    import("@/lib/jobs/research-read"),
   ]);
   registerOnboardingJobs();
   registerAgentJobs();
@@ -417,4 +419,5 @@ export async function registerAllJobs(): Promise<void> {
   registerBrandDocJobs();
   registerVideoRenderJobs();
   registerAnalyticsJobs();
+  registerResearchReadJobs();
 }

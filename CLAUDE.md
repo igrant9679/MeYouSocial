@@ -346,6 +346,7 @@ area, rather than loading all of them into every session.
 - Retiring or merging an article comes with a redirect checklist; a refresh is re-reviewed against the live post — 2026-11-03, audit Phase 5, growth part cp
 - A take can be recorded at the teleprompter and lands in Assets on the project — 2026-11-03, audit Phase 5, growth part cq
 - Posts carry videos, checked by what Media measured; Post now holds its claim; a form upload may be 64 MB — 2026-11-03, audit Phase 5, growth part cr
+- Attached files are read, and can be 2,500 MB — in pieces, never in memory — 2026-11-05, audit Phase 5, growth part cs
 
 ## Open items / things the user still owns
 - **Analytics: APIs enabled 2026-08-03** (Search Console + GA Admin + GA Data, on project

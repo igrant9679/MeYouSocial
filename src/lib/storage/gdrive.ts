@@ -34,8 +34,10 @@ export type GdriveConfig = {
   folderId: string;
 };
 
-const DRIVE = "https://www.googleapis.com/drive/v3";
-const DRIVE_UPLOAD = "https://www.googleapis.com/upload/drive/v3";
+// Overridable so a check can run against a stand-in, like ZERNIO_BASE_URL.
+const GOOGLE_API = (process.env.GDRIVE_BASE_URL || "https://www.googleapis.com").replace(/\/+$/, "");
+const DRIVE = `${GOOGLE_API}/drive/v3`;
+const DRIVE_UPLOAD = `${GOOGLE_API}/upload/drive/v3`;
 const SCOPE = "https://www.googleapis.com/auth/drive";
 
 export const GDRIVE_KEY_PREFIX = "gdrive:";
@@ -242,8 +244,13 @@ async function driveUpload(access: DriveAccess, name: string, data: Buffer, cont
     body: new Uint8Array(body),
     signal: AbortSignal.timeout(300_000),
   });
-  if (!res.ok) {
-    const detail = await res.text().catch(() => "");
+  if (!res.ok) throw uploadFailure(access, res.status, await res.text().catch(() => ""));
+  const out = (await res.json()) as { id?: string };
+  if (!out.id) throw new Error("Drive upload returned no file id");
+  return { id: out.id };
+}
+
+function uploadFailure(access: DriveAccess, status: number, detail: string): Error {
     // Name the fix rather than dumping Google's JSON. These two are, in
     // practice, the only 403s this call produces, and they need opposite
     // actions — so telling them apart is the whole value of the message.
@@ -260,14 +267,14 @@ async function driveUpload(access: DriveAccess, name: string, data: Buffer, cont
     // Workspace would be nonsense. Branch on the mode, not just the reason code.
     if (detail.includes("storageQuotaExceeded")) {
       if (access.mode === "oauth") {
-        throw new Error(
+        return new Error(
           `Drive upload failed: ${access.label} is out of Google storage.` +
           ` Free space in that account (Drive, Gmail and Photos share one quota) or upgrade its Google One plan, then try again.`,
         );
       }
       // The service account OWNS what it uploads, and its own Drive quota is
       // separate from the folder owner's — sharing a folder grants no space.
-      throw new Error(
+      return new Error(
         `Drive upload failed: the service account (${access.label}) has no Drive storage of its own.` +
         ` A service account owns every file it uploads, and that storage is separate from the folder owner's —` +
         ` sharing a folder with it grants permission, never quota, so a My Drive folder can never work.` +
@@ -275,20 +282,113 @@ async function driveUpload(access: DriveAccess, name: string, data: Buffer, cont
         ` (Google Workspace only), add ${access.label} as a member with Content manager, and use a folder ID from inside it.`,
       );
     }
-    if (res.status === 403 && /Insufficient permissions for the specified parent|insufficientFilePermissions/i.test(detail)) {
+    if (status === 403 && /Insufficient permissions for the specified parent|insufficientFilePermissions/i.test(detail)) {
       // Almost always: the folder is shared with the SA as VIEWER, or not at
       // all. Read access is enough to pass the folder check and still fail here.
-      throw new Error(
+      return new Error(
         `Drive upload failed: the folder is reachable but not writable by ${access.label}.` +
         ` Open the folder in Drive → Share, add that address with the EDITOR role (Viewer isn't enough), and untick "Notify people".` +
         ` If it lives in a Shared Drive, add the service account as a member of the drive with Content manager.`,
       );
     }
-    throw new Error(`Drive upload failed (HTTP ${res.status}): ${driveErrorMessage(detail)}`);
+    return new Error(`Drive upload failed (HTTP ${status}): ${driveErrorMessage(detail)}`);
+}
+
+// ── Resumable uploads (E-ENG-13) ─────────────────────────────────────
+
+/** Drive has forgotten this upload (a session lasts a week). */
+export class ResumableGone extends Error {}
+/** Worth asking again: a 5xx, a 429, or the connection dropped. */
+export class ResumableBusy extends Error {}
+
+const safeFileName = (name: string) => `${nanoid(10)}-${name.replace(/[^\w.-]+/g, "_").slice(0, 80) || "file"}`;
+
+/** A token for the next piece. It outlives no long upload (an hour), so each piece asks; the folder check isn't repeated. */
+async function freshToken(): Promise<string | null> {
+  if ((await getDriveAuthMode()) === "oauth") {
+    const { gdriveOauthAccessToken } = await import("@/lib/storage/gdrive-oauth");
+    return gdriveOauthAccessToken();
   }
-  const out = (await res.json()) as { id?: string };
-  if (!out.id) throw new Error("Drive upload returned no file id");
-  return { id: out.id };
+  const cfg = await getGdriveConfig();
+  return cfg ? accessToken(cfg.sa) : null;
+}
+
+/** Open an upload; the answer is the address its pieces go to. */
+export async function gdriveBeginResumable(name: string, contentType: string, size: number): Promise<string> {
+  const access = requireAccess(await resolveDriveAccess());
+  const res = await fetch(`${DRIVE_UPLOAD}/files?uploadType=resumable&supportsAllDrives=true&fields=id,size`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${access.token}`,
+      "Content-Type": "application/json; charset=UTF-8",
+      "X-Upload-Content-Type": contentType,
+      "X-Upload-Content-Length": String(size),
+    },
+    body: JSON.stringify({ name: safeFileName(name), parents: [access.folderId] }),
+    signal: AbortSignal.timeout(30_000),
+  });
+  if (!res.ok) throw uploadFailure(access, res.status, await res.text().catch(() => ""));
+  const location = res.headers.get("location");
+  if (!location) throw new Error("Drive didn't give an address to upload to.");
+  return location;
+}
+
+/**
+ * What Drive says about an upload: how much it holds, and the file once it's whole.
+ * ⚠ 308 is Drive's "keep going", not a redirect (hence `redirect: "manual"` on every
+ * call), and it holds only what its Range says — sometimes less than was sent.
+ */
+async function resumableReply(res: Response, total: number): Promise<{ received: number; id?: string }> {
+  if (res.status === 200 || res.status === 201) {
+    const out = (await res.json()) as { id?: string; size?: string };
+    if (!out.id) throw new Error("Drive finished the upload but returned no file id.");
+    if (out.size != null && Number(out.size) !== total) throw new Error(`Drive stored ${out.size} bytes of ${total}.`);
+    return { received: total, id: out.id };
+  }
+  if (res.status === 308) {
+    const m = res.headers.get("range")?.match(/bytes=0-(\d+)/);
+    return { received: m ? Number(m[1]) + 1 : 0 };
+  }
+  if (res.status === 404 || res.status === 410) throw new ResumableGone("Drive no longer has this upload.");
+  if (res.status === 429 || res.status >= 500) throw new ResumableBusy(`Drive answered ${res.status}.`);
+  const access = requireAccess(await resolveDriveAccess());
+  throw uploadFailure(access, res.status, await res.text().catch(() => ""));
+}
+
+async function resumablePut(session: string, headers: Record<string, string>, body: Uint8Array | undefined, total: number, timeoutMs: number) {
+  const token = await freshToken();
+  let res: Response;
+  try {
+    res = await fetch(session, {
+      method: "PUT",
+      headers: { ...headers, ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      ...(body ? { body: new Uint8Array(body) } : {}),
+      redirect: "manual",
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+  } catch (e) {
+    throw new ResumableBusy(e instanceof Error ? e.message : "The connection to Drive dropped.");
+  }
+  return resumableReply(res, total);
+}
+
+export function gdriveSendPiece(session: string, start: number, bytes: Uint8Array, total: number) {
+  return resumablePut(session, { "Content-Range": `bytes ${start}-${start + bytes.byteLength - 1}/${total}` }, bytes, total, 180_000);
+}
+
+export function gdriveResumableStatus(session: string, total: number) {
+  return resumablePut(session, { "Content-Range": `bytes */${total}`, "Content-Length": "0" }, undefined, total, 30_000);
+}
+
+/** Tell Drive to drop an unfinished upload. Best effort: it forgets on its own after a week. */
+export async function gdriveCancelResumable(session: string): Promise<void> {
+  const token = await freshToken().catch(() => null);
+  await fetch(session, {
+    method: "DELETE",
+    headers: { "Content-Length": "0", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    redirect: "manual",
+    signal: AbortSignal.timeout(15_000),
+  }).catch(() => null);
 }
 
 /**
@@ -419,8 +519,7 @@ export const gdriveProvider: StorageProvider = {
     const buf = Buffer.isBuffer(data) ? data : Buffer.from(data);
     // Keep the human-readable name visible in the Drive folder, prefixed for
     // uniqueness (Drive allows duplicate names, humans browsing don't enjoy them).
-    const safeName = name.replace(/[^\w.-]+/g, "_").slice(0, 80) || "file";
-    const { id } = await driveUpload(access, `${nanoid(10)}-${safeName}`, buf, contentType || "application/octet-stream");
+    const { id } = await driveUpload(access, safeFileName(name), buf, contentType || "application/octet-stream");
     const key = `${GDRIVE_KEY_PREFIX}${id}`;
     return {
       key,

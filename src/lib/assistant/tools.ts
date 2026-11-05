@@ -1400,26 +1400,32 @@ export const TOOLS: Tool[] = [
   },
   {
     name: "list_research_sources",
-    description: "Files and pages saved as research on a channel (uploads from the composer's paperclip land here): id, kind, title, words, starred.",
+    description: "Files and pages saved as research on a channel (uploads from the composer's paperclip land here): id, kind, title, words, starred, and whether a file could be read.",
     args: { channelId: "optional; the active channel when omitted", limit: "optional, default 20" },
     readOnly: true,
     async run(a, ctx) {
       const channelId = str(a.channelId, 40) || ctx.channelId || "";
       if (!channelId) return "no channel — give a channelId (list_channels)";
-      const rows = await db.researchSource.findMany({ where: { channelId, channel: { workspaceId: ctx.workspaceId } }, orderBy: { createdAt: "desc" }, take: num(a.limit, 20, 50), select: { id: true, kind: true, title: true, ref: true, wordCount: true, starred: true, createdAt: true } });
-      return rows.length ? rows.map((r) => `${r.id} [${r.kind}${r.starred ? " ★" : ""}] ${r.title ?? r.ref} — ${r.wordCount} words, ${when(r.createdAt)}`).join("\n") : "no research sources on this channel yet — the paperclip in the composer adds one";
+      const rows = await db.researchSource.findMany({ where: { channelId, channel: { workspaceId: ctx.workspaceId } }, orderBy: { createdAt: "desc" }, take: num(a.limit, 20, 50), select: { id: true, kind: true, title: true, ref: true, wordCount: true, readState: true, starred: true, createdAt: true } });
+      return rows.length ? rows.map((r) => `${r.id} [${r.kind}${r.starred ? " ★" : ""}] ${r.title ?? r.ref} — ${r.readState === "reading" || r.readState === "unread" ? "still being read" : r.readState === "failed" ? "not read" : `${r.wordCount} words`}, ${when(r.createdAt)}`).join("\n") : "no research sources on this channel yet — the paperclip in the composer adds one";
     },
   },
   {
     name: "read_research_source",
-    description: "The extracted text of one research source (an upload or saved page), first ~8000 characters.",
-    args: { sourceId: "the research source id" },
+    description: "The extracted text of one research source (an upload or saved page), about 8000 characters at a time. A long one says where it stopped; pass that number as `from` to read on — read as much as the question needs, and say which part you read.",
+    args: { sourceId: "the research source id", from: "optional character to start from, default 0" },
     readOnly: true,
     outside: "a research source (an upload or a saved page)",
     async run(a, ctx) {
-      const r = await db.researchSource.findFirst({ where: { id: str(a.sourceId, 40), channel: { workspaceId: ctx.workspaceId } }, select: { title: true, kind: true, content: true, wordCount: true } });
+      const r = await db.researchSource.findFirst({ where: { id: str(a.sourceId, 40), channel: { workspaceId: ctx.workspaceId } }, select: { title: true, kind: true, content: true, wordCount: true, readState: true, readNote: true } });
       if (!r) return "no such research source";
-      return `${r.title ?? "(untitled)"} [${r.kind}] — ${r.wordCount} words\n\n${(r.content ?? "(no text was extracted)").slice(0, 8000)}`;
+      const head = `${r.title ?? "(untitled)"} [${r.kind}] — ${r.wordCount} words`;
+      if (r.readState === "reading" || r.readState === "unread") return `${head}\n\nIt's still being read — try again in a minute; don't describe it until then.`;
+      if (!r.content) return `${head}\n\n${r.readNote ?? "(no text was extracted)"} Don't describe its contents.`;
+      const from = Math.min(Math.max(0, Math.floor(Number(a.from) || 0)), r.content.length);
+      const to = Math.min(from + 8000, r.content.length);
+      const where = from > 0 || to < r.content.length ? `\nCharacters ${from.toLocaleString("en-US")}–${to.toLocaleString("en-US")} of ${r.content.length.toLocaleString("en-US")}.${to < r.content.length ? ` To read on, call this again with from=${to}.` : " That's the end."}` : "";
+      return `${head}${r.readNote ? `\nNote: ${r.readNote}` : ""}${where}\n\n${r.content.slice(from, to)}`;
     },
   },
   {

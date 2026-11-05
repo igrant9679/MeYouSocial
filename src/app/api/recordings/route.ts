@@ -25,7 +25,7 @@ export async function POST(req: Request) {
   const file = form?.get("file");
   const scriptId = String(form?.get("scriptId") ?? "");
   if (!(file instanceof File) || file.size === 0) return NextResponse.json({ ok: false, error: "No recording came through." }, { status: 400 });
-  if (file.size > MAX_BYTES) return NextResponse.json({ ok: false, error: "That take is over 200 MB — record a shorter one, or upload it to Assets from a file." }, { status: 413 });
+  if (file.size > MAX_BYTES) return NextResponse.json({ ok: false, error: "That take is over 200 MB — record a shorter one." }, { status: 413 });
   const script = await db.script.findFirst({ where: { id: scriptId, channel: { workspaceId: workspace.id } }, select: { id: true, title: true, channelId: true, contentProject: { select: { id: true } } } });
   if (!script) return NextResponse.json({ ok: false, error: "That script isn't in this workspace." }, { status: 404 });
   const bytes = Buffer.from(await file.arrayBuffer());

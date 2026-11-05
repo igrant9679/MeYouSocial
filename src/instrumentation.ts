@@ -42,6 +42,7 @@ export async function register() {
     __jobsTimer?: ReturnType<typeof setInterval>;
     __digestTimer?: ReturnType<typeof setInterval>;
     __reportsTimer?: ReturnType<typeof setInterval>;
+    __uploadsTimer?: ReturnType<typeof setInterval>;
   };
   if (globals.__autopilotTimer) return; // HMR / double-register guard
 
@@ -133,6 +134,20 @@ export async function register() {
   setTimeout(jobsSweep, 15 * 1000);
   globals.__jobsTimer = setInterval(jobsSweep, jobsSec * 1000);
   console.log(`[jobs] worker armed — every ${jobsSec}s`);
+
+  // Attached files (E-ENG-13): uploads nobody came back to, readings that stopped,
+  // files saved before the app could read them. And once at boot, prove the
+  // parsers load on this machine (lib/documents/read.ts).
+  const uploadsSweep = guarded("uploads", 10 * 60_000, async () => {
+    const { sweepUploads } = await import("@/lib/storage/chunked");
+    const { dropped, started } = await sweepUploads();
+    if (dropped || started) console.log(`[uploads] ${dropped} abandoned upload(s) dropped, ${started} file(s) sent to be read`);
+  });
+  setTimeout(() => {
+    void import("@/lib/documents/read").then((m) => m.recordReaderCheck()).catch((e) => console.error("[documents] reader check failed:", e instanceof Error ? e.message : e));
+  }, 20 * 1000);
+  setTimeout(uploadsSweep, 90 * 1000);
+  globals.__uploadsTimer = setInterval(uploadsSweep, 30 * 60_000);
 
   // Metrics rollup — freezes point-in-time values (WIP, stalls) so trends have a
   // real history. Upserts per (workspace, day, metric), so running it several
