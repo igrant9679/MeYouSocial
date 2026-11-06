@@ -43,6 +43,7 @@ export async function register() {
     __digestTimer?: ReturnType<typeof setInterval>;
     __reportsTimer?: ReturnType<typeof setInterval>;
     __uploadsTimer?: ReturnType<typeof setInterval>;
+    __thumbTestsTimer?: ReturnType<typeof setInterval>;
   };
   if (globals.__autopilotTimer) return; // HMR / double-register guard
 
@@ -148,6 +149,17 @@ export async function register() {
   }, 20 * 1000);
   setTimeout(uploadsSweep, 90 * 1000);
   globals.__uploadsTimer = setInterval(uploadsSweep, 30 * 60_000);
+
+  // Thumbnail tests (E-VID-05): rotate a test whose window is up, read new
+  // reach days, score the ones whose reports are in. Every three hours is
+  // plenty — windows are days long and YouTube's reports arrive daily.
+  const thumbTestsSweep = guarded("thumbnail-tests", 20 * 60_000, async () => {
+    const { advanceThumbnailTests } = await import("@/lib/youtube/thumbnail-test");
+    const { rotated, scored } = await advanceThumbnailTests();
+    if (rotated || scored) console.log(`[thumbnail-tests] ${rotated} rotated, ${scored} scored`);
+  });
+  setTimeout(thumbTestsSweep, 5 * 60_000);
+  globals.__thumbTestsTimer = setInterval(thumbTestsSweep, 3 * 60 * 60_000);
 
   // Metrics rollup — freezes point-in-time values (WIP, stalls) so trends have a
   // real history. Upserts per (workspace, day, metric), so running it several

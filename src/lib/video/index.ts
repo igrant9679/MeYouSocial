@@ -33,8 +33,15 @@ export interface VideoProvider {
   render(req: VideoRenderRequest): Promise<VideoRenderResult>;
 }
 
-export function estimateCostUsd(seconds: number): number {
-  return Math.round(seconds * env.VIDEO_COST_PER_SECOND * 100) / 100;
+/**
+ * A board's cost at the platform operator's price per second for the model
+ * that renders (E-VID-06) — null when no price is set. ⚠ Never a built-in
+ * figure: this used env VIDEO_COST_PER_SECOND's guessed default of $0.75.
+ */
+export async function estimateRenderUsd(seconds: number): Promise<number | null> {
+  const { videoPrices } = await import("@/lib/video-spend");
+  const p = (await videoPrices())[VIDEO_MODEL];
+  return p == null ? null : Math.round(seconds * p * 100) / 100;
 }
 
 // ── Mock ─────────────────────────────────────────────────────────────────────
@@ -59,6 +66,8 @@ const mockProvider: VideoProvider = {
 // The live key lists only the veo-3.1 *-preview models; -fast- is the cheapest
 // and was proven by the first real render on 2026-08-03. Probe before changing.
 const VEO_MODEL = process.env.VEO_MODEL ?? "veo-3.1-fast-generate-preview";
+/** The model a real render is billed as — what Usage prices and meters (E-VID-06). */
+export const VIDEO_MODEL = VEO_MODEL;
 const VEO_POLL_MS = 10_000;
 const VEO_TIMEOUT_MS = 6 * 60 * 1000;
 

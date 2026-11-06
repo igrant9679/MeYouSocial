@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { requireRole } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { assembleRenderCore, packageVideoCore } from "@/lib/blog-autopilot";
-import { estimateCostUsd } from "@/lib/video";
+import { estimateRenderUsd } from "@/lib/video";
 import { parseScenes, scenesToNarration, scenesToSrt, scriptToNarration, snapSceneSeconds, wordsToSrt, type TimedWord } from "@/lib/captions";
 import { getTtsProvider } from "@/lib/tts";
 import { isGloballyPaused, writeAudit } from "@/lib/governance";
@@ -57,6 +57,9 @@ export async function processRenderNowAction(formData: FormData) {
   const render = await db.videoRender.findFirst({ where: { id, workspaceId: workspace.id }, select: { id: true, status: true } });
   if (!render) return;
   const go = (k: "flash" | "flashErr", m: string): never => redirect(`${back}?${k}=${encodeURIComponent(m)}`);
+  // Cost before spending (E-VID-06): the first press shows the total on the
+  // board and asks; only that confirmation renders.
+  if (String(formData.get("intent") ?? "") !== "confirmed") redirect(`/videos/${render.id}?confirmRender=1#render-confirm`);
   if (render.status !== "queued") go("flashErr", render.status === "rendering" ? "It's already rendering." : "Only a queued board can be rendered — Retry a stopped one first.");
   if (await isGloballyPaused(workspace.id)) go("flashErr", "Automation is paused for this workspace, so nothing renders until it's resumed.");
   registerVideoRenderJobs();
@@ -235,7 +238,7 @@ async function persistScenes(renderId: string, scenes: ReturnType<typeof parseSc
       scenes: JSON.stringify(scenes),
       prompt: scenes[0]?.prompt.slice(0, 2000) ?? "",
       seconds: totalSeconds,
-      costEstimate: estimateCostUsd(totalSeconds),
+      costEstimate: await estimateRenderUsd(totalSeconds),
     },
   });
 }

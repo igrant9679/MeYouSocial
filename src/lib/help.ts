@@ -441,6 +441,24 @@ export const HELP_CATEGORIES: FaqCategory[] = [
         tags: ["veo", "provider", "mock", "cost"],
       },
       {
+        q: "What will a video cost before I render it?",
+        a: "Veo bills per second of video, and a scene here is 4, 6 or 8 seconds. **Render now** first shows the board's total — the scenes it would pay for (finished clips aren't paid for again), their seconds, and the cost at the price per second the platform operator set on **Usage** — with this month's seconds so far and the budget. Only the second press renders. Without a price it shows seconds and says so: Publisher never guesses a price.\n\nAn admin can set a **monthly video budget in seconds** on Usage. Past it the engine renders nothing on its own (the Inbox says so); Render now still can, after showing the total. Each scene a real provider renders is counted; placeholder renders cost nothing.",
+        links: [{ label: "Usage →", href: "/admin/usage#video-budget" }],
+        tags: ["veo", "cost", "price", "budget", "render", "seconds"],
+      },
+      {
+        q: "Can Publisher upload a video to YouTube for me?",
+        a: "Yes, from a project's page (admins): **Upload to YouTube** sends one of the project's own video files — a teleprompter take, a video Asset linked to it, or a finished storyboard cut of its script — to the workspace's connected channel, with a title, description (the script's publishing package and chapters fill it in), tags, who can see it, an optional publish time and a thumbnail. It shows a summary to say yes to first, uploads in the background in pieces (it resumes if interrupted, and Retry carries on), and links the project to the new video.\n\nTwo things YouTube decides: uploads from a Google Cloud project YouTube hasn't audited stay **private** whatever you choose, until the project passes YouTube's API audit; and a custom thumbnail needs a verified channel. Captions aren't sent — that needs a wider YouTube permission — so add the SRT in Studio.",
+        links: [{ label: "Production →", href: "/production" }],
+        tags: ["youtube", "upload", "publish", "video", "thumbnail"],
+      },
+      {
+        q: "Can I test which thumbnail gets more clicks?",
+        a: "Yes, on a project linked to its YouTube video (admins): **Thumbnail test** takes two or three of the project's images and puts each on the video for 3, 5, 7 or 14 days in turn. Each one is then scored by the **impressions and click-through rate YouTube reports for it** — those reports arrive about two days late, so the verdict comes a few days after the last thumbnail's turn. A winner is named only when the difference is clear on at least 1,000 impressions each, and it's put back on the video; otherwise it says there's no clear difference.\n\nThe thumbnails run one after another, not side by side, so a news day or a burst of recommendations can sway one turn — treat a small gap as a tie. Titles can't be tested: changing a title needs a wider YouTube permission than the channel granted. A channel needs to be verified to take custom thumbnails.",
+        links: [{ label: "Production →", href: "/production" }],
+        tags: ["youtube", "thumbnail", "a/b", "test", "ctr", "click-through"],
+      },
+      {
         q: "Can I edit a social post after writing it?",
         a: "Yes — **Edit** appears on any post that hasn't been sent (drafts and scheduled). It opens the full composer with everything already filled in: base text, per-network variants, targets, topic and time. Saving **never sends** — you choose \"keep as draft\" or \"schedule\", and publishing stays a separate, deliberate act from the queue. Once a post has actually gone out it can no longer be edited, because the record has to keep saying what really was published; duplicate it instead. Images stay as they are unless you tick remove or attach new ones.",
         links: [{ label: "Distribute →", href: "/distribute" }],

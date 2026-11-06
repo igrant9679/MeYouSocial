@@ -28,7 +28,8 @@ import { storage } from "@/lib/storage";
 import { parseScenes, scenesToSrt, snapSceneSeconds } from "@/lib/captions";
 import { autoTaskForRenderFailure } from "@/lib/auto-tasks";
 import { getModes, isGloballyPaused, writeAudit } from "@/lib/governance";
-import { getVideoProvider, estimateCostUsd } from "@/lib/video";
+import { getVideoProvider, estimateRenderUsd, VIDEO_MODEL } from "@/lib/video";
+import { meterVideoScene } from "@/lib/video-spend";
 import { getApiKey } from "@/lib/llm/keys";
 import { templateGuidance, trackLabel, trackWordTarget } from "@/lib/blog-templates";
 import { cleanTitle, stripListMarker } from "@/lib/list-marker";
@@ -1132,7 +1133,7 @@ export async function packageVideoCore(workspaceId: string, blogPostId: string):
       scenes: JSON.stringify(scenes),
       seconds: totalSeconds,
       aspect: "9:16",
-      costEstimate: estimateCostUsd(totalSeconds),
+      costEstimate: await estimateRenderUsd(totalSeconds),
     },
   });
   await writeAudit({
@@ -1287,6 +1288,8 @@ export async function processRenderCore(
           aspect: render.aspect as "9:16" | "16:9" | "1:1",
           workspaceId,
         });
+        // Every paid scene is counted, in seconds, for the month's meter (E-VID-06).
+        await meterVideoScene({ workspaceId, provider: out.provider, model: VIDEO_MODEL, seconds: out.seconds ?? scenes[i].seconds });
         const durable = await persistRenderOutput(out.url, out.provider, workspaceId);
         if (i === 0) firstDurable = durable;
         scenes[i] = { ...scenes[i], outputUrl: durable ?? out.url, status: "done" };
@@ -1312,6 +1315,7 @@ export async function processRenderCore(
         aspect: render.aspect as "9:16" | "16:9" | "1:1",
         workspaceId,
       });
+      await meterVideoScene({ workspaceId, provider: out.provider, model: VIDEO_MODEL, seconds: out.seconds ?? render.seconds });
       const durable = await persistRenderOutput(out.url, out.provider, workspaceId);
       const finished = await db.videoRender.updateMany({
         where: { id: render.id, status: "rendering" },
@@ -2008,7 +2012,13 @@ async function runAutopilotCycleUnlocked(workspaceId: string): Promise<CycleRepo
         where: { workspaceId, status: "queued" },
         orderBy: { createdAt: "asc" },
       });
-      if (queued && (await processRenderCore(workspaceId, queued.id))) report.videosRendered++;
+      // Never past the month's video budget unattended (E-VID-06): the board waits,
+      // and the Inbox says why. Render now still can, after showing the total.
+      const { monthSpend, scenesToPay } = await import("@/lib/video-spend");
+      const spend = queued ? await monthSpend(workspaceId) : null;
+      const owed = queued ? scenesToPay(parseScenes(queued.scenes)).reduce((a, s) => a + s.seconds, 0) || queued.seconds : 0;
+      const overBudget = spend?.budget != null && spend.seconds + owed > spend.budget;
+      if (queued && !overBudget && (await processRenderCore(workspaceId, queued.id))) report.videosRendered++;
     }
   });
 

@@ -102,8 +102,12 @@ export async function reportContent(workspaceId: string, workspaceName: string, 
         const renders = await db.videoRender.findMany({ where: { workspaceId }, take: 12, orderBy: { createdAt: "desc" } });
         const line = section("Video renders");
         if (!renders.length) line("No renders yet.", true);
-        const spend = renders.filter((r) => r.status === "done").reduce((a, r) => a + (r.costEstimate ?? 0), 0);
-        if (renders.length) line(`Estimated spend on completed renders: ${money(spend)} (provider estimates).`);
+        const done = renders.filter((r) => r.status === "done");
+        const priced = done.filter((r) => r.costEstimate != null);
+        const spend = priced.reduce((a, r) => a + (r.costEstimate ?? 0), 0);
+        if (renders.length) line(priced.length
+          ? `Estimated spend on completed renders: ${money(spend)} at the operator's prices (estimates, not invoices).`
+          : `${done.reduce((a, r) => a + r.seconds, 0)} seconds rendered — no price set, so no cost is shown.`);
         for (const r of renders) line(`[${r.status}] ${r.title} — ${r.seconds}s`);
         break;
       }

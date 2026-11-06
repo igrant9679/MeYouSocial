@@ -389,6 +389,27 @@ export async function getHomeData(workspaceId: string): Promise<HomeData> {
     }
   }
 
+  // E-VID-06: the month's video budget is used and boards are waiting — the
+  // engine renders nothing unattended past it, so say so rather than go quiet.
+  {
+    const queuedRenders = await db.videoRender.count({ where: { workspaceId, status: "queued" } });
+    if (queuedRenders) {
+      const { monthSpend } = await import("@/lib/video-spend");
+      const v = await monthSpend(workspaceId).catch(() => null);
+      if (v?.over) {
+        decisions.push({
+          module: "Setup",
+          kind: "video-budget-reached",
+          severity: "warn",
+          title: `${queuedRenders} video render${queuedRenders === 1 ? " waits" : "s wait"} — this month's video budget is used`,
+          detail: `${v.seconds} of ${v.budget} seconds rendered since the 1st. The engine won't render more unattended until next month; an admin can raise the budget on Usage, or press Render now on a board after seeing its total.`,
+          href: "/admin/usage#video-budget",
+          cta: "Open Usage",
+        });
+      }
+    }
+  }
+
   // Warn before info; within a band, keep insertion order (Social's own
   // ordering is already deliberate).
   decisions.sort((a, b) => (a.severity === b.severity ? 0 : a.severity === "warn" ? -1 : 1));

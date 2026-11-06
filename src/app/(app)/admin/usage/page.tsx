@@ -11,7 +11,9 @@ import { MODELS, PROVIDER_LABEL, modelLabel } from "@/lib/llm/models";
 import { BUDGET_KEY, BUDGET_THRESHOLDS, PRICES_KEY, estimateCost, formatUsd, parseBudget, parsePrices, purposeLabel } from "@/lib/ai-spend";
 import { getSetting } from "@/lib/settings";
 import { SubmitButton } from "@/components/SubmitButton";
-import { saveModelPricesAction, saveTokenBudgetAction } from "@/app/actions/ai-spend";
+import { saveModelPricesAction, saveTokenBudgetAction, saveVideoBudgetAction, saveVideoPricesAction } from "@/app/actions/ai-spend";
+import { monthSpend, videoPrices, usd, perSecondUsd, VIDEO_SCENE_ACTION } from "@/lib/video-spend";
+import { VIDEO_MODEL } from "@/lib/video";
 
 // Usage: what this workspace made this month (UTC), what each AI provider was
 // asked for, and the soft limits. The limits cap each PERSON, so they're shown
@@ -66,6 +68,14 @@ export default async function AdminUsagePage({ searchParams }: { searchParams: P
     getSetting(BUDGET_KEY, ws),
   ]);
   const prices = parsePrices(priceRow?.value);
+  // E-VID-06: video by the second — the month's metered scenes, the operator's prices, the workspace's budget.
+  const [video, vPrices, videoModelsSeen] = await Promise.all([
+    monthSpend(ws),
+    videoPrices(),
+    db.usageLog.findMany({ where: { action: VIDEO_SCENE_ACTION, model: { not: null } }, distinct: ["model"], select: { model: true }, take: 20 }),
+  ]);
+  const videoModels = [...new Set([VIDEO_MODEL, ...videoModelsSeen.map((m) => m.model!), ...Object.keys(vPrices)])];
+  const videoPct = video.budget ? (video.seconds / video.budget) * 100 : 0;
   const budget = parseBudget(budgetRaw);
   const usedTokens = purposeRows.reduce((n, r) => n + (r._sum.tokens ?? 0), 0);
   const budgetPct = budget ? (usedTokens / budget) * 100 : 0;
@@ -167,6 +177,30 @@ export default async function AdminUsagePage({ searchParams }: { searchParams: P
         </form>
       </section>
 
+      {/* E-VID-06: video is billed by the second — counted per scene a real provider rendered */}
+      <section className="card mb-4" id="video-budget" data-video-budget>
+        <h2 className="font-mono font-bold text-[14px] mb-1">Video this month</h2>
+        <p className="text-[11px] text-[var(--mute)] mb-2">
+          <b className="font-mono text-[var(--ink)]" data-video-seconds={video.seconds}>{video.seconds.toLocaleString("en-GB")}</b> seconds rendered since the 1st (UTC)
+          {video.usd != null ? <> · about <b className="font-mono text-[var(--ink)]">{usd(video.usd)}</b> at the prices set</> : null}
+          {video.unpricedSeconds ? <> · {video.unpricedSeconds} s by a model with no price</> : null}
+          {video.budget ? <> · budget <b className="font-mono text-[var(--ink)]">{video.budget.toLocaleString("en-GB")}</b> seconds — <b>{Math.floor(videoPct)}%</b></> : <> · no budget set</>}.
+          {" "}Past the budget the engine renders nothing unattended; Render now still can, after showing the total. Placeholder renders cost nothing and aren&apos;t counted.
+        </p>
+        {video.budget ? (
+          <div className="h-1.5 mb-3 rounded-full bg-[var(--line)] overflow-hidden">
+            <div className="h-full rounded-full" style={{ width: Math.min(100, videoPct) + "%", background: videoPct >= 100 ? "var(--rose)" : videoPct >= 80 ? "var(--amber)" : "var(--green)" }} />
+          </div>
+        ) : null}
+        <form action={saveVideoBudgetAction} className="flex flex-wrap items-end gap-2">
+          <label className="text-xs">
+            <span className="block text-[10px] text-[var(--mute)] mb-1">Monthly budget, seconds of video (blank for none)</span>
+            <input key={`vb:${video.budget ?? ""}`} name="budget" inputMode="numeric" defaultValue={video.budget ?? ""} placeholder="e.g. 600" className="w-44 font-mono text-xs border border-[var(--line-2)] rounded-lg px-2 py-1" />
+          </label>
+          <SubmitButton className="btn sm">Save video budget</SubmitButton>
+        </form>
+      </section>
+
       {/* E-ENG-07: what the tokens went on */}
       <section className="card mb-4" data-ai-purposes>
         <h2 className="font-mono font-bold text-[14px] mb-1">What the AI was asked for this month</h2>
@@ -254,6 +288,27 @@ export default async function AdminUsagePage({ searchParams }: { searchParams: P
               </div>
             ))}
             <div><SubmitButton className="btn sm mt-1">Save prices</SubmitButton></div>
+          </form>
+        </details>
+      )}
+
+      {/* E-VID-06: the operator's price per second of video — platform-wide, estimates only */}
+      {operator && (
+        <details className="card mb-4" data-video-prices>
+          <summary className="font-mono font-bold text-[14px] cursor-pointer">Video prices (platform operator)</summary>
+          <p className="text-[11px] text-[var(--mute)] mt-1 mb-3">
+            Dollars per second of generated video, from the provider&apos;s price page — every board&apos;s estimate and the confirm before Render use them. Blank = no price (seconds only). Nothing is charged.
+          </p>
+          <form action={saveVideoPricesAction} className="flex flex-col gap-1.5">
+            <input type="hidden" name="models" value={videoModels.join(",")} />
+            {videoModels.map((id) => (
+              <label key={id} className="flex flex-wrap items-center gap-2 text-xs">
+                <span className="min-w-[16rem] font-mono">{id}{id === VIDEO_MODEL ? " (renders now)" : ""}</span>
+                $<input name={`vp:${id}`} inputMode="decimal" defaultValue={vPrices[id] ?? ""} className="w-24 font-mono text-xs border border-[var(--line-2)] rounded-lg px-2 py-0.5" aria-label={`${id} price per second`} /> a second
+                {vPrices[id] != null ? <span className="text-[var(--mute)]">· an 8-second scene ≈ {usd(8 * vPrices[id])} (now {perSecondUsd(vPrices[id])}/s)</span> : null}
+              </label>
+            ))}
+            <div><SubmitButton className="btn sm mt-1">Save video prices</SubmitButton></div>
           </form>
         </details>
       )}

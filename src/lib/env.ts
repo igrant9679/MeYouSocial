@@ -92,7 +92,6 @@ export const env = {
   // (Setting api_key:heygen) with these env fallbacks, same as every provider.
   HEYGEN_API_KEY: str(process.env.HEYGEN_API_KEY) || str(process.env.HYPERFRAMES_API_KEY),
   VIDEO_MAX_SECONDS: num(process.env.VIDEO_MAX_SECONDS) ?? 8, // short-form first
-  VIDEO_COST_PER_SECOND: num(process.env.VIDEO_COST_PER_SECOND) ?? 0.75, // rough Veo estimate, USD
   VIDEO_DAILY_RENDER_CAP: num(process.env.VIDEO_DAILY_RENDER_CAP) ?? 3,
 
   STORAGE_BACKEND: str(process.env.STORAGE_BACKEND, "local") as "local" | "s3" | "gdrive",

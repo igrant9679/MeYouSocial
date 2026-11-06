@@ -349,6 +349,9 @@ area, rather than loading all of them into every session.
 - Attached files are read, and can be 2,500 MB — in pieces, never in memory — 2026-11-05, audit Phase 5, growth part cs
 - A draft a person parked stays parked — the engine never queues a held post — 2026-11-06, audit SOC-04 / E-SOC-01, growth part ct
 - The team's tracker: buttons say what happened, dropdowns keep what was saved, an AI refusal is named — 2026-11-06, growth part cu
+- Video costs only at the operator's price, asked before it's spent, metered in seconds — 2026-11-06, audit E-VID-06, growth part cv
+- A project's video can go to YouTube — asked first, in pieces, resumable — 2026-11-06, audit E-VID-03, growth part cw
+- A thumbnail test rotates on the live video and is scored by YouTube's reach reports — 2026-11-06, audit E-VID-05, growth part cx
 
 ## Open items / things the user still owns
 - **Analytics: APIs enabled 2026-08-03** (Search Console + GA Admin + GA Data, on project

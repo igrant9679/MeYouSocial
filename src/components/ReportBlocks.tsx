@@ -412,7 +412,9 @@ export async function ReportBlock({ block, workspaceId, weeks, canAct = true }: 
 
     case "video_table": {
       const renders = await db.videoRender.findMany({ where: { workspaceId }, orderBy: { createdAt: "desc" }, take: 12 });
-      const spend = renders.filter((r) => r.status === "done").reduce((a, r) => a + (r.costEstimate ?? 0), 0);
+      const doneRenders = renders.filter((r) => r.status === "done");
+      const priced = doneRenders.filter((r) => r.costEstimate != null);
+      const spend = priced.reduce((a, r) => a + (r.costEstimate ?? 0), 0);
       return (
         <Card title="Video renders">
           {renders.length === 0 ? (
@@ -420,7 +422,9 @@ export async function ReportBlock({ block, workspaceId, weeks, canAct = true }: 
           ) : (
             <>
               <p className="text-[11px] text-[var(--mute)] mb-2">
-                Estimated spend on completed renders: <b className={num}>${spend.toFixed(2)}</b> (provider estimates, not invoices)
+                {priced.length
+                  ? <>Estimated spend on completed renders: <b className={num}>${spend.toFixed(2)}</b> at the operator&apos;s prices — estimates, not invoices{priced.length < doneRenders.length ? `; ${doneRenders.length - priced.length} unpriced` : ""}</>
+                  : <>{doneRenders.reduce((a, r) => a + r.seconds, 0)} seconds rendered — no price set, so no cost is shown</>}
               </p>
               <ul className="m-0 p-0 text-xs">
                 {renders.map((r) => (
@@ -430,7 +434,7 @@ export async function ReportBlock({ block, workspaceId, weeks, canAct = true }: 
                       color: r.status === "done" ? "var(--green-on)" : r.status === "failed" ? "var(--rose-on)" : "var(--mute)",
                     }}>{r.status}</span>
                     <span className="flex-1 truncate font-semibold">{r.title}</span>
-                    <span className={`${num} text-[var(--mute)]`}>{r.seconds}s · ${r.costEstimate?.toFixed(2) ?? "—"}</span>
+                    <span className={`${num} text-[var(--mute)]`}>{r.seconds}s · {r.costEstimate != null ? `$${r.costEstimate.toFixed(2)}` : "—"}</span>
                   </li>
                 ))}
               </ul>

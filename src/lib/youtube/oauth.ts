@@ -25,7 +25,8 @@ export const YOUTUBE_SCOPES = [
 ].join(" ");
 
 const AUTH_ENDPOINT = "https://accounts.google.com/o/oauth2/v2/auth";
-const TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token";
+// GOOGLE_OAUTH_TOKEN_URL points the refresh at a stand-in for tests (E-VID-03); unset in production.
+const TOKEN_ENDPOINT = process.env.GOOGLE_OAUTH_TOKEN_URL || "https://oauth2.googleapis.com/token";
 
 export type YoutubeOauthConfig = { clientId: string; clientSecret: string };
 

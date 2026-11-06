@@ -2351,3 +2351,52 @@ before changing code in that area.
   keeps the shell around a failure, with Try again and the error's digest.
 - The Production board has an empty state; Connections names `USE_MOCK_YOUTUBE` when it's on and its Fix links go to the
   key's own row; Insights says social figures count posts sent from this app.
+
+## Video costs only at the operator's price, asked before it's spent, metered in seconds (2026-11-06, audit E-VID-06, growth part cv)
+- ⚠ **No built-in video price.** `estimateRenderUsd` (`lib/video/index.ts`) is seconds × the platform operator's price per
+  second for `VIDEO_MODEL` (global Setting `video:prices`, saved on Usage by `saveVideoPricesAction`, audited
+  `video.prices_set`), or null. Env `VIDEO_COST_PER_SECOND` (default $0.75, "rough Veo estimate") is gone, and migration
+  `20261106120000_video_cost` made `VideoRender.costEstimate` nullable and cleared every stored guess. No price = seconds and
+  "no price set", never a dollar.
+- **Render now asks first**: the first press goes to `/videos/<id>?confirmRender=1`; the card counts only the scenes it would
+  PAY for (`scenesToPay` — a done scene with a kept clip isn't paid again), their seconds, the total at the operator's price
+  (`perSecondUsd` keeps the typed precision), this month so far and the budget, and says when it goes past it. Only
+  `intent=confirmed` queues the render. Each scene shows its own cost; a kept clip says "(paid)".
+- **Metered in seconds**: every scene a real provider renders writes a UsageLog `video.scene` row with `seconds`
+  (`meterVideoScene` in `processRenderCore`); mock renders cost nothing and aren't counted. `monthSpend` sums the UTC month,
+  priced at today's prices, unpriced seconds named.
+- **Budget** (`video:monthly_seconds_budget`, a workspace admin's dial on Usage): the engine's video step renders nothing
+  unattended once the month's seconds plus the board's would pass it, and the Inbox says why when boards wait. Render now
+  still can, after showing the total. Reports and the PDF show spend only from priced renders, else seconds.
+
+## A project's video can go to YouTube — asked first, in pieces, resumable (2026-11-06, audit E-VID-03, growth part cw)
+- `YoutubeUpload` (migration `20261106130000_youtube_upload`): draft → queued → uploading → done | failed. Admins only, from the
+  project page: one of the project's OWN files (`projectUploadSources`: video Assets linked to it — teleprompter takes land
+  there — and a done render of its script), a title, description and tags filled from the script's publishing package
+  (chapters included, labelled as timed from the words), privacy (Private by default), an optional publish time (forces
+  private until then), made-for-kids (required), and a thumbnail from the project's images.
+- The first press makes a **draft summary** to say yes to (what, to which channel, as what); only the confirm queues the job.
+  Refused before anything is sent: no connection, a paused workspace, a file that isn't the project's, a title over 100
+  characters, `<` or `>`, a description over 5,000 bytes, tags over 500 characters, a publish time under 15 minutes ahead.
+- `youtube.upload` job (`lib/jobs/youtube-upload.ts`, one attempt per press): the file comes onto disk once (Drive streams to a
+  temp file), then YouTube's **resumable upload** in 8 MiB pieces (`lib/youtube/upload.ts`; 308 = keep going and its Range is
+  believed; `redirect: "manual"`; a lost reply re-asks how much arrived; a forgotten session starts once more). The session
+  address is sealed on the row and cleared when done. A refused thumbnail (`thumbnails.set` needs a verified channel) is a
+  note, not a failure. The project takes the new video id unless it already had one. Audited `youtube.upload_started` /
+  `youtube.uploaded` / `youtube.upload_retried`; Retry resumes.
+- ⚠ YouTube keeps uploads from an UNAUDITED Cloud project private whatever privacy is asked — the card says so. Captions aren't
+  sent (they need `youtube.force-ssl`, not granted). `YOUTUBE_UPLOAD_BASE_URL` / `GOOGLE_OAUTH_TOKEN_URL` exist for stand-ins
+  only. ⚠ Verified against a stand-in written from Google's documented protocol; the first real upload happens in production.
+
+## A thumbnail test rotates on the live video and is scored by YouTube's reach reports (2026-11-06, audit E-VID-05, growth part cx)
+- `ThumbnailTest` (migration `20261106140000_thumbnail_test`): draft → running → measuring → done | stopped | failed. Admins, on a
+  project linked to its video: two or three of the project's images, 3/5/7/14 days each. The yes puts A on the video
+  (`thumbnails.set`) and makes the channel's reach-report job once (`channel_reach_basic_a1`, kept in `youtube:reach_job`).
+- The sweep (`advanceThumbnailTests`, every 3 hours; "Check now" runs one test) rotates when a window is up, reads new reach
+  days (CSV, this video's rows only, `video_thumbnail_impressions` × `_ctr`), and scores `REPORT_LAG_DAYS` (3) after the last
+  window — reports arrive about two days late. A day a thumbnail changed counts for no one.
+- ⚠ **A winner is named only when clear**: at least 1,000 impressions each and a two-proportion z-test p < 0.05 against every
+  other; then it's put back on the video. Otherwise "no clear difference" or "no verdict yet", with the numbers. Sequential
+  windows aren't randomised — the card says to treat a small gap as a tie.
+- ⚠ Titles aren't tested: `videos.update` needs `youtube.force-ssl`. Verified against a stand-in Reporting API; no real channel
+  has run one.

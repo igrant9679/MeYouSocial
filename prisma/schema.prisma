@@ -95,6 +95,8 @@ model Workspace {
   rssFeeds        RssFeed[]
   mediaItems      MediaItem[]
   uploadSessions  UploadSession[]
+  youtubeUploads  YoutubeUpload[]
+  thumbnailTests  ThumbnailTest[]
   captionBatches  CaptionBatch[]
   wordPressConnection WordPressConnection?
   functionModes   FunctionMode[]
@@ -1034,7 +1036,9 @@ model VideoRender {
   aspect       String   @default("9:16") // short-form first
   outputUrl    String?
   error        String?
-  costEstimate Float    @default(0)
+  // E-VID-06: seconds × the platform operator's price when it was set — null when there was no price.
+  // ⚠ Never a built-in figure (a guessed $0.75 a second until 2026-11-06; those were cleared).
+  costEstimate Float?
   // Storyboard (slice 4): multi-scene plan. JSON [{prompt, seconds, text}].
   // `prompt` above stays the first scene for back-compat with older renders.
   scenes       String   @default("[]")
@@ -1706,6 +1710,70 @@ model ResearchSource {
 // A file coming up in pieces (E-ENG-13). Railway gives a request body five
 // minutes, so a big attachment can't be one request: each piece is its own, can be
 // retried, and the same person attaching the same file carries on where it stopped.
+// A thumbnail A/B on a published video (E-VID-05): each variant is the video's
+// thumbnail for `daysEach` days in turn (thumbnails.set), then each window is
+// scored from YouTube's reach reports (thumbnail impressions and click-through
+// per day). draft -> running -> measuring -> done | stopped | failed. A winner
+// is named only on a clear difference; titles aren't tested (youtube.force-ssl).
+model ThumbnailTest {
+  id          String   @id @default(cuid())
+  workspaceId String
+  projectId   String?
+  videoId     String
+  variants    String // JSON [{ key, label }], A first
+  daysEach    Int      @default(7)
+  state       String   @default("draft")
+  current     Int      @default(0) // the variant on the video now
+  windows     String   @default("[]") // JSON [{ variant, from, to, setOk, note? }]
+  dayData     String   @default("{}") // JSON { "YYYY-MM-DD": { impressions, clicks } } — this video's reach days
+  result      String? // JSON Verdict (lib/youtube/thumbnail-test.ts)
+  error       String?
+  createdById String?
+  startedAt   DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([state])
+  @@index([workspaceId, projectId])
+}
+
+// A project's video sent to the workspace's YouTube channel (E-VID-03). A row
+// starts as "draft" (the summary waiting for an admin's yes), then queued ->
+// uploading -> done | failed. The resumable session address is sealed; a dead
+// job resumes from what YouTube says it holds. Captions aren't sent (they need
+// youtube.force-ssl); a custom thumbnail's refusal is a note, not a failure.
+model YoutubeUpload {
+  id            String    @id @default(cuid())
+  workspaceId   String
+  projectId     String?
+  sourceKey     String
+  sourceName    String
+  contentType   String
+  size          BigInt?
+  sent          BigInt    @default(0)
+  title         String
+  description   String    @default("")
+  tags          String    @default("[]")
+  privacy       String    @default("private") // private | unlisted | public
+  publishAt     DateTime?
+  madeForKids   Boolean   @default(false)
+  thumbnailKey  String?
+  state         String    @default("draft") // draft | queued | uploading | done | failed
+  session       String? // sealed (lib/keyring) — YouTube's resumable session address
+  videoId       String?
+  thumbnailNote String?
+  error         String?
+  createdById   String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, projectId])
+}
+
 model UploadSession {
   id          String   @id @default(cuid())
   workspaceId String
@@ -1802,6 +1870,8 @@ model UsageLog {
   words       Int?
   /// What the call was FOR (ai.text rows, E-ENG-07): lib/ai-spend.ts PURPOSE_LABEL keys; null before 2026-11-03.
   purpose     String?
+  /// Seconds of video a real provider rendered (`video.scene` rows, E-VID-06).
+  seconds     Int?
   createdAt   DateTime @default(now())
 
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)

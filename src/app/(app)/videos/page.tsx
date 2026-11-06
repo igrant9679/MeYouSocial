@@ -54,9 +54,10 @@ export default async function VideosPage({ searchParams }: { searchParams: Promi
     brandedShortReadiness(workspace.id),
     db.brandedShort.findMany({ where: { workspaceId: workspace.id }, orderBy: { createdAt: "desc" }, take: 12 }),
   ]);
-  const todaySpend = renders
-    .filter((r) => (r.status === "done" || r.status === "rendering") && r.updatedAt >= dayStart)
-    .reduce((a, r) => a + r.costEstimate, 0);
+  // E-VID-06: money only at the operator's prices — a day with no priced render shows none.
+  const todayRenders = renders.filter((r) => (r.status === "done" || r.status === "rendering") && r.updatedAt >= dayStart);
+  const todayPriced = todayRenders.filter((r) => r.costEstimate != null);
+  const todaySpend = todayPriced.reduce((a, r) => a + (r.costEstimate ?? 0), 0);
   const posts = new Map(
     (
       await db.blogPost.findMany({
@@ -102,7 +103,7 @@ export default async function VideosPage({ searchParams }: { searchParams: Promi
             />
           </div>
           <span className="font-mono text-xs font-bold tabular-nums shrink-0">
-            {todayCount}/{env.VIDEO_DAILY_RENDER_CAP} renders · est ${todaySpend.toFixed(2)}
+            {todayCount}/{env.VIDEO_DAILY_RENDER_CAP} renders{todayPriced.length ? ` · about $${todaySpend.toFixed(2)}` : ""}
           </span>
         </div>
         <p className="text-[11px] text-[var(--mute)] mt-1.5">
@@ -198,7 +199,7 @@ export default async function VideosPage({ searchParams }: { searchParams: Promi
                 </span>
                 <Link href={`/videos/${r.id}`} className="text-sm font-bold flex-1 min-w-0 truncate hover:underline">{r.title}</Link>
                 <span className="font-mono text-[10px] text-[var(--mute)]">
-                  {r.provider} · {r.seconds}s · {r.aspect} · est ${r.costEstimate.toFixed(2)}
+                  {r.provider} · {r.seconds}s · {r.aspect}{r.costEstimate != null ? ` · about $${r.costEstimate.toFixed(2)}` : ""}
                 </span>
                 <Link href={`/videos/${r.id}`} className="btn sm">Storyboard</Link>
                 {editor && r.status === "failed" && (
@@ -217,7 +218,7 @@ export default async function VideosPage({ searchParams }: { searchParams: Promi
                   <form action={processRenderNowAction}>
                     <input type="hidden" name="id" value={r.id} />
                     <input type="hidden" name="back" value="list" />
-                    <SubmitButton className="btn" pendingText="Starting…" title="Renders in the background"><Play className="w-3.5 h-3.5" /> Render now</SubmitButton>
+                    <SubmitButton className="btn" pendingText="Starting…" title="Shows what it costs first, then renders in the background"><Play className="w-3.5 h-3.5" /> Render now</SubmitButton>
                   </form>
                 )}
                 {admin && (

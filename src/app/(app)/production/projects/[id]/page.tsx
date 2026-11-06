@@ -2,7 +2,15 @@ import Link from "next/link";
 import { SubmitButton } from "@/components/SubmitButton";
 import { ArrowLeft, Tag, Hash, GitBranch, FileText, BookOpen, ListChecks, Check, SquarePlay } from "lucide-react";
 import { notFound } from "next/navigation";
-import { requireMembership, canEdit } from "@/lib/acl";
+import { requireMembership, canEdit, canAdmin } from "@/lib/acl";
+import { AutoRefresh } from "@/components/AutoRefresh";
+import { formatBytes } from "@/lib/documents/kinds";
+import { getPostingTimeZone } from "@/lib/social/slots";
+import { youtubeOauthConnected } from "@/lib/youtube/oauth";
+import { projectUploadSources } from "@/lib/youtube/upload-sources";
+import { confirmYoutubeUploadAction, startYoutubeUploadAction, youtubeUploadStepAction } from "@/app/actions/youtube-upload";
+import { confirmThumbnailTestAction, startThumbnailTestAction, thumbnailTestStepAction } from "@/app/actions/thumbnail-test";
+import { readJsonOr, type TestWindow, type Variant, type Verdict } from "@/lib/youtube/thumbnail-test";
 import { db } from "@/lib/db";
 import { readJson } from "@/lib/db/json";
 import {
@@ -15,7 +23,7 @@ import { cachedYoutubeAudit } from "@/lib/youtube/analytics";
 import { suggestUploads, watchUrl } from "@/lib/youtube/video-link";
 import { UPLOAD_STEPS, readChecklist, checklistDone } from "@/lib/upload-checklist";
 import { attachChecklistAction } from "@/app/actions/final-pass";
-import { formatDay } from "@/lib/zoned-dates";
+import { formatDay, formatZonedMoment } from "@/lib/zoned-dates";
 
 const STATUS_LABEL: Record<string, string> = {
   idea: "Idea", research_writing: "Research/Writing", recording: "Recording", editing: "Editing", scheduled: "Scheduled", published: "Published",
@@ -45,6 +53,30 @@ export default async function ProjectDetailPage({ params, searchParams }: { para
     },
   });
   if (!project) notFound();
+  // E-VID-03: what can go to YouTube, and how earlier uploads went — admins only.
+  const admin = canAdmin(membership.role);
+  const [uploads, ytLink, uploadSources, tz, scriptOutline] = admin
+    ? await Promise.all([
+        db.youtubeUpload.findMany({ where: { workspaceId: workspace.id, projectId: project.id }, orderBy: { createdAt: "desc" }, take: 5 }),
+        youtubeOauthConnected(workspace.id),
+        projectUploadSources(workspace.id, project.id, project.scriptId),
+        getPostingTimeZone(workspace.id),
+        project.scriptId ? db.script.findUnique({ where: { id: project.scriptId }, select: { outline: true } }) : Promise.resolve(null),
+      ])
+    : [[], { connected: false, channel: "" }, { videos: [], images: [] }, "UTC", null] as const;
+  const ytConnected = ytLink.connected;
+  // E-VID-05: the video's thumbnail tests, newest first.
+  const thumbTests = admin && project.youtubeVideoId
+    ? await db.thumbnailTest.findMany({ where: { workspaceId: workspace.id, projectId: project.id }, orderBy: { createdAt: "desc" }, take: 3 })
+    : [];
+  const ytChannel = ytLink.channel;
+  const pkg = readJson<{ publish?: Record<string, string> }>(scriptOutline?.outline ?? null, {}).publish ?? {};
+  const uploadDefaults = {
+    title: (pkg.title ?? project.title).slice(0, 100),
+    description: [pkg.description ?? "", pkg.chapters ?? ""].filter(Boolean).join("\n\n").slice(0, 4900),
+    tags: pkg.tags ? pkg.tags.split(/[,\n]/).map((t) => t.trim().replace(/^#/, "")).filter(Boolean).join(", ") : readJson<string[]>(project.keywords, []).join(", "),
+    chaptersNote: pkg.chapters ? "The chapters come from the script's publishing package, timed from its words — check them against the final cut." : "",
+  };
 
   // VID-08: no production numbers are shown, so none are read.
   const wikiDocs = editor ? await db.wikiDoc.findMany({
@@ -247,6 +279,160 @@ export default async function ProjectDetailPage({ params, searchParams }: { para
             <p className="text-xs text-[var(--mute)] m-0">Not linked to its YouTube upload yet.</p>
           )}
         </section>
+
+        {/* E-VID-03: upload this project's video to the connected channel — admins, Private by default, asked first */}
+        {admin && (
+          <section className="card scroll-mt-20" id="youtube-upload" data-youtube-upload>
+            <h2 className="font-mono font-bold text-[14px] mb-2 flex items-center gap-2">
+              <SquarePlay className="w-4 h-4" style={{ color: "var(--rose)" }} /> Upload to YouTube
+            </h2>
+            {uploads.map((u) => (
+              <div key={u.id} className="text-xs mb-2 p-2 rounded-lg" style={{ background: "var(--zebra)" }} data-upload-state={u.state}>
+                <b>{u.title}</b> · <span className="font-mono">{u.state === "draft" ? "waiting for your yes" : u.state}</span>
+                {u.state === "uploading" && u.size ? <> · {Math.floor((Number(u.sent) / Number(u.size)) * 100)}% ({formatBytes(Number(u.sent))} of {formatBytes(Number(u.size))})</> : null}
+                {u.videoId && <> · <a href={watchUrl(u.videoId)} target="_blank" rel="noreferrer" className="underline">open on YouTube</a> · <a href={`https://studio.youtube.com/video/${u.videoId}/edit`} target="_blank" rel="noreferrer" className="underline">Studio</a></>}
+                {u.thumbnailNote && <span className="block text-[var(--mute)]">{u.thumbnailNote}</span>}
+                {u.error && <span className="block" style={{ color: "var(--rose-on)" }}>{u.error}</span>}
+                {u.state === "draft" && (
+                  <div className="mt-1.5" data-upload-confirm>
+                    <p className="m-0 mb-1.5">
+                      Upload <b>{u.sourceName}</b> to <b>{ytChannel || "the connected channel"}</b> as{" "}
+                      <b>{u.publishAt ? `private until ${formatZonedMoment(u.publishAt, tz)}, then public` : u.privacy}</b>
+                      {u.madeForKids ? ", made for kids" : ""}{u.thumbnailKey ? ", with a custom thumbnail" : ""}?
+                    </p>
+                    <div className="flex gap-2">
+                      <form action={confirmYoutubeUploadAction}><input type="hidden" name="id" value={u.id} /><SubmitButton className="btn primary sm" pendingText="Starting…">Upload</SubmitButton></form>
+                      <form action={youtubeUploadStepAction}><input type="hidden" name="id" value={u.id} /><input type="hidden" name="op" value="discard" /><SubmitButton className="btn sm" pendingText="…">Not now</SubmitButton></form>
+                    </div>
+                  </div>
+                )}
+                {u.state === "failed" && (
+                  <form action={youtubeUploadStepAction} className="mt-1.5 flex gap-2">
+                    <input type="hidden" name="id" value={u.id} />
+                    <SubmitButton className="btn sm" name="op" value="retry" pendingText="…">Retry</SubmitButton>
+                    <SubmitButton className="btn sm" name="op" value="discard" pendingText="…">Remove</SubmitButton>
+                  </form>
+                )}
+              </div>
+            ))}
+            {uploads.some((u) => u.state === "queued" || u.state === "uploading") && <AutoRefresh />}
+            {!ytConnected ? (
+              <p className="text-xs text-[var(--mute)] m-0">No YouTube channel is connected for uploads — connect it under <Link href="/setup/connections" className="underline">Settings → Connections</Link> (Google asks for upload permission there).</p>
+            ) : uploadSources.videos.length === 0 ? (
+              <p className="text-xs text-[var(--mute)] m-0">This project has no video file to send yet — a take recorded at the teleprompter, a video Asset linked to it, or a finished storyboard cut of its script.</p>
+            ) : (
+              <form action={startYoutubeUploadAction} className="flex flex-col gap-2 text-xs">
+                <input type="hidden" name="projectId" value={project.id} />
+                <label className="flex flex-col gap-1">Video
+                  <select name="source" required className="border border-[var(--line-2)] rounded-lg px-2 py-1">
+                    {uploadSources.videos.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
+                  </select>
+                </label>
+                <label className="flex flex-col gap-1">Title <span className="text-[var(--mute)]">(up to 100 characters)</span>
+                  <input name="title" required maxLength={100} defaultValue={uploadDefaults.title} className="border border-[var(--line-2)] rounded-lg px-2 py-1" />
+                </label>
+                <label className="flex flex-col gap-1">Description
+                  <textarea name="description" rows={6} maxLength={5000} defaultValue={uploadDefaults.description} className="border border-[var(--line-2)] rounded-lg px-2 py-1 font-code text-[11px]" />
+                  {uploadDefaults.chaptersNote && <span className="text-[var(--mute)]">{uploadDefaults.chaptersNote}</span>}
+                </label>
+                <label className="flex flex-col gap-1">Tags <span className="text-[var(--mute)]">(comma-separated)</span>
+                  <input name="tags" defaultValue={uploadDefaults.tags} className="border border-[var(--line-2)] rounded-lg px-2 py-1" />
+                </label>
+                <div className="flex flex-wrap gap-3 items-end">
+                  <label className="flex flex-col gap-1">Who can see it
+                    <select name="privacy" defaultValue="private" className="border border-[var(--line-2)] rounded-lg px-2 py-1">
+                      <option value="private">Private</option>
+                      <option value="unlisted">Unlisted</option>
+                      <option value="public">Public</option>
+                    </select>
+                  </label>
+                  <label className="flex flex-col gap-1">Publish at <span className="text-[var(--mute)]">({tz}, optional — stays private until then)</span>
+                    <input type="datetime-local" name="publishAt" className="border border-[var(--line-2)] rounded-lg px-2 py-1" />
+                  </label>
+                  {uploadSources.images.length > 0 && (
+                    <label className="flex flex-col gap-1">Thumbnail
+                      <select name="thumbnail" defaultValue="" className="border border-[var(--line-2)] rounded-lg px-2 py-1">
+                        <option value="">YouTube picks one</option>
+                        {uploadSources.images.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
+                      </select>
+                    </label>
+                  )}
+                </div>
+                <fieldset className="flex gap-3 items-center border-0 p-0 m-0">
+                  <legend className="mb-1">Made for kids? <span className="text-[var(--mute)]">YouTube requires an answer</span></legend>
+                  <label className="inline-flex items-center gap-1"><input type="radio" name="madeForKids" value="no" required /> No</label>
+                  <label className="inline-flex items-center gap-1"><input type="radio" name="madeForKids" value="yes" /> Yes</label>
+                </fieldset>
+                <p className="text-[11px] text-[var(--mute)] m-0">
+                  ⚠ YouTube keeps every upload from a Google Cloud project it hasn&apos;t audited <b>private</b>, whatever is chosen here, until the project passes YouTube&apos;s API audit. Captions aren&apos;t sent (that needs a wider YouTube permission) — add the SRT in Studio.
+                </p>
+                <div><SubmitButton className="btn sm" pendingText="Checking…">Review the upload…</SubmitButton></div>
+              </form>
+            )}
+          </section>
+        )}
+
+        {/* E-VID-05: a thumbnail A/B on the published video, scored by YouTube's reach reports — admins */}
+        {admin && project.youtubeVideoId && (
+          <section className="card scroll-mt-20" id="thumbnail-test" data-thumbnail-test>
+            <h2 className="font-mono font-bold text-[14px] mb-2 flex items-center gap-2">
+              <SquarePlay className="w-4 h-4" style={{ color: "var(--amber-on)" }} /> Thumbnail test
+            </h2>
+            {thumbTests.map((t) => {
+              const variants = readJsonOr<Variant[]>(t.variants, []);
+              const windows = readJsonOr<TestWindow[]>(t.windows, []);
+              const verdict = readJsonOr<Verdict | null>(t.result, null);
+              return (
+                <div key={t.id} className="text-xs mb-2 p-2 rounded-lg" style={{ background: "var(--zebra)" }} data-test-state={t.state}>
+                  <p className="m-0 mb-1"><b>{t.state === "draft" ? "Waiting for your yes" : t.state === "running" ? `Running — showing ${variants[t.current]?.label ?? "?"}` : t.state === "measuring" ? "Waiting for YouTube's numbers" : t.state}</b> · {t.daysEach} days each</p>
+                  <ul className="m-0 p-0 list-none flex flex-col gap-0.5">
+                    {variants.map((v, i) => {
+                      const w = windows.find((x) => x.variant === i);
+                      const r = verdict?.results.find((x) => x.variant === i);
+                      return (
+                        <li key={i} className="flex flex-wrap gap-x-2" data-variant={i}>
+                          <span className="font-semibold">{v.label}</span>
+                          <span className="text-[var(--mute)]">{w ? `${formatZonedMoment(new Date(w.from), tz)}${w.to ? ` – ${formatZonedMoment(new Date(w.to), tz)}` : " – now"}${w.setOk ? "" : " (not set)"}` : "not yet shown"}</span>
+                          {r && r.impressions > 0 && <span className="font-mono">{r.impressions.toLocaleString("en-GB")} impressions · {r.ctr != null ? `${(r.ctr * 100).toFixed(1)}%` : "—"} click-through · {r.days} day{r.days === 1 ? "" : "s"}</span>}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                  {verdict && t.state !== "draft" && <p className="m-0 mt-1" data-test-verdict>{verdict.sentence}</p>}
+                  {t.error && <p className="m-0 mt-1" style={{ color: "var(--rose-on)" }}>{t.error}</p>}
+                  <div className="flex gap-2 mt-1.5">
+                    {t.state === "draft" && <form action={confirmThumbnailTestAction}><input type="hidden" name="id" value={t.id} /><SubmitButton className="btn primary sm" pendingText="Setting A…">Start — put {variants[0]?.label.split(" — ")[0]} on the video</SubmitButton></form>}
+                    {(t.state === "running" || t.state === "measuring") && <form action={thumbnailTestStepAction}><input type="hidden" name="id" value={t.id} /><SubmitButton className="btn sm" name="op" value="check" pendingText="Checking…">Check now</SubmitButton></form>}
+                    {(t.state === "running" || t.state === "measuring") && <form action={thumbnailTestStepAction}><input type="hidden" name="id" value={t.id} /><SubmitButton className="btn sm" name="op" value="stop" pendingText="…">Stop</SubmitButton></form>}
+                    {(t.state === "draft" || t.state === "failed" || t.state === "stopped" || t.state === "done") && <form action={thumbnailTestStepAction}><input type="hidden" name="id" value={t.id} /><SubmitButton className="btn sm" name="op" value="discard" pendingText="…">{t.state === "draft" ? "Not now" : "Remove"}</SubmitButton></form>}
+                  </div>
+                </div>
+              );
+            })}
+            {!thumbTests.some((t) => t.state === "running" || t.state === "measuring" || t.state === "draft") && (uploadSources.images.length < 2 ? (
+              <p className="text-xs text-[var(--mute)] m-0">Link two or three thumbnail images to this project (Thumbnail Studio renders of its script, or image Assets) to compare them on the video.</p>
+            ) : (
+              <form action={startThumbnailTestAction} className="flex flex-col gap-2 text-xs">
+                <input type="hidden" name="projectId" value={project.id} />
+                <fieldset className="border-0 p-0 m-0 flex flex-col gap-1">
+                  <legend className="mb-1">Compare (two or three, in the order they run):</legend>
+                  {uploadSources.images.map((s) => (
+                    <label key={s.value} className="inline-flex items-center gap-1.5"><input type="checkbox" name="variant" value={s.value} /> {s.label}</label>
+                  ))}
+                </fieldset>
+                <label className="inline-flex items-center gap-1.5">Each runs
+                  <select name="daysEach" defaultValue="7" className="border border-[var(--line-2)] rounded-lg px-2 py-1">
+                    {[3, 5, 7, 14].map((d) => <option key={d} value={d}>{d} days</option>)}
+                  </select>
+                </label>
+                <p className="text-[11px] text-[var(--mute)] m-0">
+                  Each thumbnail is the video&apos;s thumbnail for its days in turn, then each is scored by the impressions and click-through YouTube reports for it. A winner is named only when the difference is clear on at least 1,000 impressions each; it&apos;s put back on the video. Titles can&apos;t be tested — that needs a wider YouTube permission than the channel granted.
+                </p>
+                <div><SubmitButton className="btn sm" pendingText="…">Review the test…</SubmitButton></div>
+              </form>
+            ))}
+          </section>
+        )}
 
         {/* Merit + Keywords */}
         <section className="card">

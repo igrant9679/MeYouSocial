@@ -15,7 +15,7 @@
 import { db } from "@/lib/db";
 import { llm, resolveUsableModel } from "@/lib/llm";
 import { parseScenes } from "@/lib/captions";
-import { estimateCostUsd } from "@/lib/video";
+import { estimateRenderUsd } from "@/lib/video";
 import { passStamp } from "@/lib/provenance";
 import { writeAudit } from "@/lib/governance";
 
@@ -100,7 +100,7 @@ export async function cutShortCore(workspaceId: string, scriptId: string, actorI
       scenes: JSON.stringify(short.scenes),
       seconds,
       aspect: "9:16",
-      costEstimate: estimateCostUsd(seconds),
+      costEstimate: await estimateRenderUsd(seconds),
     },
   });
   await writeAudit({ workspaceId, actorId, action: "script.short_cut", entityType: "script", entityId: long.id, meta: { shortScriptId: made.id, renderId: render.id, words, seconds, scenes: short.scenes.length, provider: res.provider, model: res.model } });
