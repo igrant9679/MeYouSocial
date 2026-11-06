@@ -349,9 +349,12 @@ async function runTurnLoop(
     usage.outputTokens += res.outputTokens ?? 0;
 
     if (res.provider === "mock") {
+      // The real reason, not always "no key" (tracker #25: LSI's Google key was
+      // there and out of credits, and every question got the same wrong answer).
+      const { whyNoAiReply } = await import("@/lib/llm/provider-health");
       return {
         ok: false, answer: "", steps,
-        error: "This workspace has no working AI key, so I'd be guessing rather than thinking — and I'm not going to run anything against your content on a guess. Add a key under Settings → Keys.",
+        error: `I couldn't get an answer from the AI, so I'm not going to guess or run anything against your content. ${await whyNoAiReply(ctx.workspaceId)}`,
       };
     }
 

@@ -16,6 +16,7 @@ import { readTargetOptions, supportsFirstComment, tiktokOptionsFromForm, tiktokR
 import { normaliseWatermark } from "@/lib/social/watermark";
 import { addCategory } from "@/lib/social/categories";
 import { claimNextFreeSlot, formatInZone, getPostingTimeZone, parseZonedInput, queueFailureMessage } from "@/lib/social/slots";
+import { holdBy, RELEASED } from "@/lib/social/hold";
 
 // Social scheduler actions. A post fans out to one or more connected social
 // accounts (Zernio), either now or at a scheduled time. Media is optional and
@@ -105,6 +106,9 @@ function backTo(msg: string, kind: "err" | "ok" = "err"): never {
 function assertMediaWhereRequired(
   providers: string[],
   mediaFor: (provider: string) => string[],
+  // The calling action's own message route — the module default landed on /social,
+  // away from the composer the person was using (tracker #16).
+  refuse: (msg: string) => never = backTo,
 ): void {
   // A video-only network (YouTube) is left to assertNetworkRules, which says
   // it needs a VIDEO — "attach an image" would be the wrong advice.
@@ -116,7 +120,7 @@ function assertMediaWhereRequired(
     missing.length === 1
       ? missing[0]
       : `${missing.slice(0, -1).join(", ")} and ${missing[missing.length - 1]}`;
-  backTo(
+  refuse(
     `${list} ${missing.length === 1 ? "needs" : "need"} an image — attach one, or deselect ${missing.length === 1 ? "it" : "them"}.`,
   );
 }
@@ -132,11 +136,12 @@ function assertNetworkRules(
   leg: (provider: string) => { text: string | null; mediaKeys: string | null; subFormat: string | null },
   post: { text: string; mediaKeys: string | null; videos: Record<string, number | null> },
   formData: FormData,
+  refuse: (msg: string) => never = backTo,
 ): void {
   for (const provider of new Set(providers)) {
     const tiktok = tiktokOptionsFromForm(formData, provider.toUpperCase());
     const problem = legProblem({ provider, ...leg(provider), options: tiktok ? JSON.stringify({ tiktok }) : null }, post);
-    if (problem) backTo(problem);
+    if (problem) refuse(problem);
   }
 }
 
@@ -163,17 +168,23 @@ async function keepFresh(workspaceId: string, userId: string, fresh: FreshVideos
   });
 }
 
-async function storeMedia(files: FormDataEntryValue[], workspaceId: string, fresh: FreshVideos): Promise<string[]> {
+async function storeMedia(files: FormDataEntryValue[], workspaceId: string, fresh: FreshVideos, refuse: (msg: string) => never = backTo): Promise<string[]> {
   const keys: string[] = [];
   for (const f of files) {
     if (!(f instanceof File) || f.size === 0) continue;
     const isVideo = VIDEO_TYPES.has(f.type);
-    if (!isVideo && !IMAGE_TYPES.has(f.type)) backTo("Only PNG, JPEG, GIF or WebP images, or MP4, MOV or WebM videos, can be attached.");
-    if (!isVideo && f.size > MEDIA_BYTES) backTo("Each image must be under 15 MB.");
-    if (isVideo && f.size > VIDEO_BYTES) backTo(`Each video must be under ${VIDEO_BYTES / 1024 / 1024} MB.`);
+    if (!isVideo && !IMAGE_TYPES.has(f.type)) refuse("Only PNG, JPEG, GIF or WebP images, or MP4, MOV or WebM videos, can be attached.");
+    if (!isVideo && f.size > MEDIA_BYTES) refuse("Each image must be under 15 MB.");
+    if (isVideo && f.size > VIDEO_BYTES) refuse(`Each video must be under ${VIDEO_BYTES / 1024 / 1024} MB.`);
     const bytes = Buffer.from(await f.arrayBuffer());
-    if (isVideo && !videoKind(bytes)) backTo(`${f.name.slice(0, 80)} doesn't read as an MP4, MOV or WebM video.`);
-    const stored = await storage.put(f.name, bytes, f.type, workspaceId);
+    if (isVideo && !videoKind(bytes)) refuse(`${f.name.slice(0, 80)} doesn't read as an MP4, MOV or WebM video.`);
+    // A storage failure (Drive's token, a full disk) is said, not thrown to the
+    // bare "This page couldn't load" screen (tracker #16).
+    const stored = await storage.put(f.name, bytes, f.type, workspaceId).catch((e: unknown) => {
+      console.warn("[social] storing an attachment failed:", e instanceof Error ? e.message : e);
+      return null;
+    });
+    if (!stored) refuse(`${f.name.slice(0, 80)} couldn't be stored just now — nothing was posted. Try again in a minute; if it keeps failing, check the storage connection under Settings → Keys.`);
     keys.push(stored.key);
     if (isVideo) fresh.set(stored.key, { name: f.name.slice(0, 200), contentType: f.type, facts: await probeVideo(bytes) });
     if (keys.length >= MEDIA_MAX) break;
@@ -261,7 +272,7 @@ export async function createSocialPostAction(formData: FormData) {
   // Anything that actually SENDS still needs somewhere to send.
   if (accountIds.length === 0 && when !== "draft") backTo("Pick at least one account to post to — or save it as a draft.");
   const fresh: FreshVideos = new Map();
-  const uploaded = await storeMedia(formData.getAll("media"), workspace.id, fresh);
+  const uploaded = await storeMedia(formData.getAll("media"), workspace.id, fresh, backTo);
   const mediaKeys = [...uploaded, ...generatedKeysFrom(formData)];
   if (!text && mediaKeys.length === 0) backTo("Write something or attach an image.");
 
@@ -332,7 +343,7 @@ export async function createSocialPostAction(formData: FormData) {
   const mediaByProvider = new Map<string, string | null>();
   for (const provider of new Set(accounts.map((a) => a.provider.toUpperCase()))) {
     const files = formData.getAll(`media_${provider}`);
-    const keys = await storeMedia(files, workspace.id, fresh);
+    const keys = await storeMedia(files, workspace.id, fresh, backTo);
     mediaByProvider.set(provider, keys.length ? writeJson(keys) : null);
   }
 
@@ -350,6 +361,7 @@ export async function createSocialPostAction(formData: FormData) {
     assertMediaWhereRequired(
       accounts.map((a) => a.provider),
       (p) => readJson<string[]>(mediaByProvider.get(p.toUpperCase()), mediaKeys),
+      backTo,
     );
     assertTikTokReady(formData, accounts.map((a) => a.provider), backTo);
     // A Story or a Reel cannot be text — the network rejects it at publish, long
@@ -369,6 +381,7 @@ export async function createSocialPostAction(formData: FormData) {
       (p) => ({ text: variantFor(p), mediaKeys: mediaByProvider.get(p.toUpperCase()) ?? null, subFormat: subFormatFor(p) }),
       { text, mediaKeys: writeJson(mediaKeys), videos },
       formData,
+      backTo,
     );
   }
 
@@ -392,6 +405,8 @@ export async function createSocialPostAction(formData: FormData) {
       // A person picked this time (or Optimal did); a queued post sits in a slot (SOC-17).
       timeChosen: when === "schedule" || when === "optimal",
       status,
+      // Saved as a draft by a person: held, so full autonomy won't queue it (SOC-04).
+      ...(when === "draft" ? holdBy(user.id) : {}),
       targets: {
         create: accounts.map((a) => ({
           provider: a.provider,
@@ -500,14 +515,15 @@ export async function publishNowAction(formData: FormData) {
 
 /** Scheduled → draft, so it can be edited/rescheduled instead of firing. */
 export async function cancelScheduledAction(formData: FormData) {
-  const { workspace } = await requireRole("EDITOR");
+  const { workspace, user } = await requireRole("EDITOR");
   const id = String(formData.get("id") ?? "");
+  // Held: under full autonomy an undated draft was queued again within half an hour (SOC-04).
   await db.socialPost.updateMany({
     where: { id, workspaceId: workspace.id, status: "scheduled" },
-    data: { status: "draft", scheduledAt: null },
+    data: { status: "draft", scheduledAt: null, ...holdBy(user.id) },
   });
   revalidatePath("/social", "layout");
-  backTo("Moved to drafts.", "ok");
+  backTo("Moved to drafts and held there — nothing queues it until someone does.", "ok");
 }
 
 // Deleting a post goes through the registry (`socialPost` in lib/deletable.ts):
@@ -600,7 +616,7 @@ export async function updateSocialPostAction(formData: FormData) {
   let mediaKeys = readJson<string[]>(post!.mediaKeys, []);
   if (String(formData.get("clearMedia") ?? "") === "on") mediaKeys = [];
   const fresh: FreshVideos = new Map();
-  const added = [...(await storeMedia(formData.getAll("media"), workspace.id, fresh)), ...generatedKeysFrom(formData)];
+  const added = [...(await storeMedia(formData.getAll("media"), workspace.id, fresh, backTo)), ...generatedKeysFrom(formData)];
   if (added.length) mediaKeys = added;
   if (!text && mediaKeys.length === 0) backTo("Write something or attach an image.");
 
@@ -670,7 +686,7 @@ export async function updateSocialPostAction(formData: FormData) {
   // so an edit that doesn't touch images keeps the ones already chosen.
   const mediaByProvider = new Map<string, string | null | undefined>();
   for (const provider of new Set(accounts.map((a) => a.provider.toUpperCase()))) {
-    const keys = await storeMedia(formData.getAll(`media_${provider}`), workspace.id, fresh);
+    const keys = await storeMedia(formData.getAll(`media_${provider}`), workspace.id, fresh, backTo);
     // A new upload replaces. No upload: a network switched back to "Use base"
     // loses its own images (null); one still customized keeps them (undefined).
     // Only forms that mark their customized networks get the clear (SOC-18).
@@ -696,6 +712,7 @@ export async function updateSocialPostAction(formData: FormData) {
     assertMediaWhereRequired(
       accounts.map((a) => a.provider),
       (p) => readJson<string[]>(effectiveMedia(p), mediaKeys),
+      backTo,
     );
     // Same rule as the composer: a Story or Reel with no media is refused here
     // rather than by the network, hours later, with the author long gone.
@@ -714,6 +731,7 @@ export async function updateSocialPostAction(formData: FormData) {
       (p) => ({ text: variantFor(p), mediaKeys: effectiveMedia(p), subFormat: subFormatFor(p) }),
       { text, mediaKeys: writeJson(mediaKeys), videos },
       formData,
+      backTo,
     );
   }
 
@@ -764,6 +782,8 @@ export async function updateSocialPostAction(formData: FormData) {
       data: {
         text, mediaKeys: writeJson(mediaKeys), topicId, scheduledAt, status,
         timeChosen: when === "schedule" || when === "optimal",
+        // Kept as a draft: held (SOC-04). Scheduled or queued: let go.
+        ...(when === "draft" ? holdBy(user.id) : status === "scheduled" ? RELEASED : {}),
         campaignId, category, evergreen, recycleEveryDays, approval, reviewNote,
         firstComment, linkToFirstComment, watermark,
       },
@@ -834,13 +854,14 @@ export async function updateSocialPostAction(formData: FormData) {
 export async function unscheduleSocialPostAction(formData: FormData) {
   const backTo: Flash = listBack(formData);
   const id = String(formData.get("id") ?? "");
-  const { workspace } = await requireRole("EDITOR");
+  const { workspace, user } = await requireRole("EDITOR");
+  // Held (SOC-04): the full-autonomy sweep would otherwise queue it straight back.
   const updated = await db.socialPost.updateMany({
     where: { id, workspaceId: workspace.id, status: "scheduled" },
-    data: { status: "draft", scheduledAt: null },
+    data: { status: "draft", scheduledAt: null, ...holdBy(user.id) },
   });
   revalidatePath("/social", "layout");
-  backTo(updated.count ? "Moved back to drafts." : "That post isn't scheduled.", updated.count ? "ok" : "err");
+  backTo(updated.count ? "Moved back to drafts and held there — nothing queues it until someone does." : "That post isn't scheduled.", updated.count ? "ok" : "err");
 }
 
 /** Save UTM link-tagging settings for this workspace. */
@@ -899,7 +920,7 @@ export async function rescheduleSocialPostAction(id: string, isoDateTime: string
   await db.socialPost.update({
     where: { id: post.id },
     // Dropped on a time by hand — no longer a slot the queue placed (SOC-17).
-    data: { scheduledAt: when, status: "scheduled", timeChosen: true },
+    data: { scheduledAt: when, status: "scheduled", timeChosen: true, ...RELEASED },
   });
   revalidatePath("/social", "layout");
   return { ok: true, message: "Moved." };

@@ -127,7 +127,7 @@ export default async function ProjectDetailPage({ params, searchParams }: { para
             <input type="hidden" name="id" value={project.id} />
             <label className="flex flex-col gap-1 flex-1">
               <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">Status</span>
-              <select name="status" defaultValue={project.status} className="border border-[var(--line-2)] rounded-lg p-2 text-sm">
+              <select key={`status:${project.status}`} name="status" defaultValue={project.status} className="border border-[var(--line-2)] rounded-lg p-2 text-sm">
                 {Object.entries(STATUS_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
               </select>
             </label>
@@ -257,7 +257,7 @@ export default async function ProjectDetailPage({ params, searchParams }: { para
             <input type="hidden" name="id" value={project.id} />
             <label className="flex flex-col gap-1 flex-1">
               <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">Idea merit</span>
-              <select name="merit" defaultValue={project.ideaMerit ?? ""} className="border border-[var(--line-2)] rounded-lg p-2 text-sm">
+              <select key={`merit:${project.ideaMerit ?? ""}`} name="merit" defaultValue={project.ideaMerit ?? ""} className="border border-[var(--line-2)] rounded-lg p-2 text-sm">
                 <option value="">—</option>
                 <option value="pillar">Content pillar</option>
                 <option value="trending">Trending topic</option>

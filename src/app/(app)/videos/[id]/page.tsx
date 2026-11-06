@@ -152,7 +152,7 @@ export default async function StoryboardPage({
             <input type="hidden" name="id" value={render.id} />
             {/* E-VID-08: read the script itself, or the scenes' on-screen lines. */}
             {render.scriptId && (
-              <select name="source" defaultValue={render.narrationSource === "scenes" ? "scenes" : "script"} className="text-xs" aria-label="What the narrator reads">
+              <select key={`source:${render.narrationSource === "scenes" ? "scenes" : "script"}`} name="source" defaultValue={render.narrationSource === "scenes" ? "scenes" : "script"} className="text-xs" aria-label="What the narrator reads">
                 <option value="script">Narrate the script</option>
                 <option value="scenes">Narrate the scene lines</option>
               </select>
@@ -191,7 +191,7 @@ export default async function StoryboardPage({
                   <input name="text" defaultValue={scene.text ?? ""} placeholder="on-screen text (≤8 words)" className="w-full text-[11px]" />
                   <div className="flex items-center gap-2">
                     {/* Veo renders 4, 6 or 8 seconds (VID-11). */}
-                    <select name="seconds" defaultValue={scene.seconds} className="w-16 font-mono text-[11px]" aria-label="Seconds">
+                    <select key={`seconds:${scene.seconds}`} name="seconds" defaultValue={scene.seconds} className="w-16 font-mono text-[11px]" aria-label="Seconds">
                       {SCENE_SECONDS.filter((s) => s <= Math.max(4, env.VIDEO_MAX_SECONDS)).map((s) => <option key={s} value={s}>{s}</option>)}
                     </select>
                     <span className="text-[10px] text-[var(--mute)]">sec</span>

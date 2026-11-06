@@ -162,13 +162,13 @@ export default async function IdeasBoard({ searchParams }: { searchParams: Promi
           {sp.channel && <input type="hidden" name="channel" value={sp.channel} />}
           <input type="search" name="q" defaultValue={sp.q ?? ""} placeholder="Search titles" aria-label="Search idea titles" className="text-xs w-48" />
           {topics.length > 0 && (
-            <select name="topic" defaultValue={sp.topic ?? ""} aria-label="Topic" className="text-xs max-w-48">
+            <select key={`topic:${sp.topic ?? ""}`} name="topic" defaultValue={sp.topic ?? ""} aria-label="Topic" className="text-xs max-w-48">
               <option value="">every Topic</option>
               {topics.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
               <option value="none">no Topic yet</option>
             </select>
           )}
-          <select name="sort" defaultValue={sp.sort ?? "priority"} aria-label="Order within each column" className="text-xs">
+          <select key={`sort:${sp.sort ?? "priority"}`} name="sort" defaultValue={sp.sort ?? "priority"} aria-label="Order within each column" className="text-xs">
             <option value="priority">by priority</option>
             <option value="newest">newest first</option>
             <option value="source">by source</option>
@@ -232,7 +232,7 @@ export default async function IdeasBoard({ searchParams }: { searchParams: Promi
             )}
             <form action={discoverIdeasAction} className="flex items-center gap-2 flex-wrap" data-discover>
               <input type="hidden" name="back" value="/ideas" />
-              <select name="formats" defaultValue={saturated ? "social" : "article"} className="text-xs border border-[var(--line-2)] rounded-lg px-2 py-1.5" aria-label="Which kind of idea to discover">
+              <select key={`formats:${saturated ? "social" : "article"}`} name="formats" defaultValue={saturated ? "social" : "article"} className="text-xs border border-[var(--line-2)] rounded-lg px-2 py-1.5" aria-label="Which kind of idea to discover">
                 <option value="article" disabled={saturated}>article ideas</option>
                 <option value="social">social post ideas</option>
                 <option value="article,social" disabled={saturated}>both</option>
@@ -251,7 +251,7 @@ export default async function IdeasBoard({ searchParams }: { searchParams: Promi
             {channels.length > 0 && (
               <form action={regenerateIdeasAction} className="flex items-center gap-2">
                 {channels.length > 1 ? (
-                  <select name="channelId" defaultValue={sp.channel ?? channels[0].id} className="text-xs border border-[var(--line-2)] rounded-lg px-2 py-1.5" aria-label="Channel to generate video ideas for">
+                  <select key={`channelId:${sp.channel ?? channels[0].id}`} name="channelId" defaultValue={sp.channel ?? channels[0].id} className="text-xs border border-[var(--line-2)] rounded-lg px-2 py-1.5" aria-label="Channel to generate video ideas for">
                     {channels.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </select>
                 ) : (

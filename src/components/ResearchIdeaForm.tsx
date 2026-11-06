@@ -54,7 +54,7 @@ export function ResearchIdeaForm({
         <option value="social">Social post</option>
       </select>
       {topics.length > 0 && (
-        <select name="topicId" className="text-[11px] border border-[var(--line-2)] rounded-md px-1.5 py-1" aria-label="Topic" defaultValue={matchedTopicId ?? ""} title={matchedTopicId ? "Matched by keyword — change it if the match is wrong" : "No Topic matched by keyword"}>
+        <select key={`topicId:${matchedTopicId ?? ""}`} name="topicId" className="text-[11px] border border-[var(--line-2)] rounded-md px-1.5 py-1" aria-label="Topic" defaultValue={matchedTopicId ?? ""} title={matchedTopicId ? "Matched by keyword — change it if the match is wrong" : "No Topic matched by keyword"}>
           <option value="">no topic</option>
           {topics.map((t) => <option key={t.id} value={t.id}>{t.name}{t.id === matchedTopicId ? " (matched)" : ""}</option>)}
         </select>

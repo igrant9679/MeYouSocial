@@ -100,7 +100,7 @@ export default async function ChannelTemplatesPage({ params, searchParams }: { p
                   </label>
                   <label className="flex flex-col gap-1">
                     <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">Kind</span>
-                    <select name="kind" defaultValue={focused.kind} className="border border-[var(--line-2)] rounded-lg p-2 text-sm">
+                    <select key={`kind:${focused.kind}`} name="kind" defaultValue={focused.kind} className="border border-[var(--line-2)] rounded-lg p-2 text-sm">
                       <option value="long">Long-form</option>
                       <option value="short">Shorts</option>
                     </select>

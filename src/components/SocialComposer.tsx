@@ -6,6 +6,7 @@ import { SubmitButton } from "@/components/SubmitButton";
 import { createSocialPostAction, updateSocialPostAction } from "@/app/actions/social";
 import { generateComposerImageAction } from "@/app/actions/social-image-gen";
 import { tailorPostForNetworksAction } from "@/app/actions/social-tailor";
+import { saveMyDefaultAccountsAction } from "@/app/actions/social-defaults";
 import { networkFor } from "@/lib/social/networks";
 import { subFormatsFor, AUTOMATIC_SUB_FORMAT } from "@/lib/social/sub-formats";
 import { FIRST_COMMENT_NETWORKS, TIKTOK_COMMERCIAL, TIKTOK_DEFAULTS, TIKTOK_PRIVACY, splitLinks, supportsFirstComment, type TikTokOptions } from "@/lib/social/platform-options";
@@ -27,6 +28,31 @@ const MEDIA_ACCEPT = `${IMAGE_ACCEPT},video/mp4,video/quicktime,video/webm`;
  *  (next.config); VIDEO_BYTES in lib/media-probe, which can't load here. */
 const UPLOAD_LIMIT = 60 * 1024 * 1024;
 const isVideoFile = (f?: File) => !!f?.type.startsWith("video/");
+
+/**
+ * An attached file as a picture of itself (tracker #14: a bare file name was
+ * confusing), with its name underneath and a remove button. `url` is the
+ * object URL the previews already use.
+ */
+function FileThumb({ file, url, onRemove }: { file: File; url: string | undefined; onRemove: () => void }) {
+  return (
+    <span className="relative inline-flex flex-col items-center gap-0.5 w-20" data-attached-file title={file.name}>
+      {url && isVideoFile(file) ? (
+        <video src={url} muted preload="metadata" className="h-20 w-20 rounded-lg object-cover border border-[var(--line)] bg-black" />
+      ) : url ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={url} alt={file.name} className="h-20 w-20 rounded-lg object-cover border border-[var(--line)]" />
+      ) : (
+        <span className="h-20 w-20 rounded-lg border border-[var(--line)] grid place-items-center text-[10px] text-[var(--mute)]">file</span>
+      )}
+      <span className="font-mono text-[9px] text-[var(--mute)] truncate w-full text-center">{file.name}</span>
+      <button type="button" aria-label={`Remove ${file.name}`} onClick={onRemove}
+        className="absolute -top-1.5 -right-1.5 rounded-full p-0.5 border border-[var(--line-2)]" style={{ background: "var(--panel)" }}>
+        <X className="w-3 h-3" />
+      </button>
+    </span>
+  );
+}
 
 /** "2 images, 1 video". Pure. */
 function mediaWords(items: PreviewMedia[]): string {
@@ -127,6 +153,7 @@ export function SocialComposer({
   snippets = [],
   seed,
   utm,
+  defaultAccountIds = [],
 }: {
   accounts: ComposerAccount[];
   topics?: ComposerTopic[];
@@ -149,13 +176,30 @@ export function SocialComposer({
   seed?: { text: string; firstComment: string | null; category: string | null };
   /** The workspace's link tagging (E-SOC-09): previews show links as the send will tag them. */
   utm?: UtmConfig;
+  /** This person's saved starting selection (tracker #32), already narrowed to connected accounts. */
+  defaultAccountIds?: string[];
 }) {
   // Editing reuses this component wholesale rather than a parallel form — a
   // second implementation would drift from the composer's per-network rules.
   const editing = Boolean(initial);
   const [selected, setSelected] = useState<Set<string>>(
-    new Set(initial ? initial.accountIds : accounts.length === 1 ? [accounts[0].id] : []),
+    new Set(initial ? initial.accountIds : defaultAccountIds.length ? defaultAccountIds : accounts.length === 1 ? [accounts[0].id] : []),
   );
+  // "Make this my default": saved without leaving the page, so the post being written survives.
+  const [defaultNote, setDefaultNote] = useState<string | null>(null);
+  const [savingDefault, setSavingDefault] = useState(false);
+  const saveDefault = async () => {
+    setSavingDefault(true);
+    setDefaultNote(null);
+    try {
+      const r = await saveMyDefaultAccountsAction([...selected]);
+      setDefaultNote(r.message);
+    } catch {
+      setDefaultNote("Couldn't save the default — try again.");
+    } finally {
+      setSavingDefault(false);
+    }
+  };
   const [text, setText] = useState(initial?.text ?? seed?.text ?? "");
   const [topicId, setTopicId] = useState(initial?.topicId ?? "");
   const [campaignId, setCampaignId] = useState(initial?.campaignId ?? "");
@@ -393,6 +437,13 @@ export function SocialComposer({
               <button type="button" className="underline" onClick={() => setSelected(new Set())}>Clear all</button>
             </span>
           )}
+          {accounts.length > 1 && !editing && (
+            <button type="button" className="normal-case tracking-normal underline ml-2 disabled:opacity-50" onClick={() => void saveDefault()} disabled={savingDefault}
+              title="New posts you write here start with these accounts ticked — just for you" data-save-default>
+              {savingDefault ? "Saving…" : selected.size ? "Make this my default" : "Clear my default"}
+            </button>
+          )}
+          {defaultNote && <span className="normal-case tracking-normal ml-2" style={{ color: "var(--green-on)" }} role="status">{defaultNote}</span>}
         </div>
         <div className="flex flex-wrap gap-2">
           {accounts.map((a) => {
@@ -571,16 +622,15 @@ export function SocialComposer({
             className="border border-[var(--line-2)] rounded-lg px-2 py-1 text-xs min-w-56 flex-1 max-w-md"
             onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); if (!genBusy) void generateAiImage(); } }}
           />
-          {files.map((f, i) => (
-            <span key={i} className="inline-flex items-center gap-1 text-[11px] font-mono px-2 py-1 rounded-lg" style={{ background: "var(--panel)" }}>
-              {f.name.slice(0, 20)}
-              <button type="button" aria-label={`Remove ${f.name}`}
-                onClick={() => { const next = files.filter((_, j) => j !== i); setFiles(next); syncInput(baseInput.current, next); }}>
-                <X className="w-3 h-3" />
-              </button>
-            </span>
-          ))}
         </div>
+        {files.length > 0 && (
+          <div className="flex items-start gap-2 flex-wrap mt-2">
+            {files.map((f, i) => (
+              <FileThumb key={i} file={f} url={fileUrls[i]}
+                onRemove={() => { const next = files.filter((_, j) => j !== i); setFiles(next); syncInput(baseInput.current, next); }} />
+            ))}
+          </div>
+        )}
         {genError && (
           <p className="text-[11px] mt-1" style={{ color: "var(--amber-on)" }}>{genError}</p>
         )}
@@ -853,15 +903,14 @@ export function SocialComposer({
                           className="w-full border border-[var(--line-2)] rounded-lg p-2 text-xs resize-y"
                         />
                       )}
-                      {vFiles.map((f, i) => (
-                        <span key={i} className="inline-flex items-center gap-1 text-[11px] font-mono px-2 py-1 rounded-lg" style={{ background: "var(--panel)" }}>
-                          {f.name.slice(0, 20)}
-                          <button type="button" aria-label={`Remove ${f.name}`}
-                            onClick={() => { const next = vFiles.filter((_, j) => j !== i); setVariantFiles((v) => ({ ...v, [p]: next })); syncInput(variantInputs.current[p], next); }}>
-                            <X className="w-3 h-3" />
-                          </button>
-                        </span>
-                      ))}
+                      {vFiles.length > 0 && (
+                        <div className="flex items-start gap-2 flex-wrap">
+                          {vFiles.map((f, i) => (
+                            <FileThumb key={i} file={f} url={variantFileUrls[p]?.[i]}
+                              onRemove={() => { const next = vFiles.filter((_, j) => j !== i); setVariantFiles((v) => ({ ...v, [p]: next })); syncInput(variantInputs.current[p], next); }} />
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </>
                 )}

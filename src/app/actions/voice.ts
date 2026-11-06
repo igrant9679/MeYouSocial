@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { requireRole } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { readJson, writeJson } from "@/lib/db/json";
-import { llm } from "@/lib/llm";
+import { llm, resolveUsableModel } from "@/lib/llm";
 import { youtubeFor } from "@/lib/youtube";
 
 // ── — Writing samples ──────────────────────────────────────
@@ -57,28 +57,51 @@ export async function borrowVoiceAction(formData: FormData) {
   const channel = await db.channel.findFirst({ where: { id: channelId, workspaceId: workspace.id } });
   if (!channel) return;
 
-  // Look up the channel + grab its top-video transcripts.
+  const fail = (m: string): never => redirect(`/channels/${channelId}/voice?err=${encodeURIComponent(m)}`);
+  // Look up the channel and read what YouTube shares about its videos.
   const source = await youtubeFor(workspace.id).findChannel(handle);
   if (!source) redirect(`/channels/${channelId}/voice?error=notfound`);
 
-  const videos = await youtubeFor(workspace.id).listVideos(source!.id, 8);
-  const usable = videos.filter((v) => v.durationSeconds >= 180).slice(0, 5);
-  const transcripts = (await Promise.all(usable.map((v) => youtubeFor(workspace.id).getTranscript(v.id)))).filter(Boolean) as string[];
+  // ⚠ Titles and descriptions, the way onboarding trains a voice (tracker #24):
+  // transcripts come back null on the real provider (caption download needs the
+  // channel OWNER's OAuth), so borrowing sent the model nothing, and it wrote
+  // "INCOMPLETE - MOCK DATA" into LSI's default voice. Transcripts still join
+  // in when a provider returns them.
+  const videos = await youtubeFor(workspace.id).listVideos(source!.id, 25).catch(() => []);
+  const corpus = videos
+    .map((v) => [v.title, (v.description ?? "").slice(0, 600)].filter(Boolean).join("\n").trim())
+    .filter((t) => t.length > 0);
+  if (corpus.length < 3) fail(`Only ${corpus.length} of ${source!.handle ?? source!.name}'s videos could be read — a voice needs at least 3. Nothing was saved.`);
+  const transcripts = (await Promise.all(videos.slice(0, 5).map((v) => youtubeFor(workspace.id).getTranscript(v.id).catch(() => null)))).filter(Boolean) as string[];
+  const basis = transcripts.length ? "transcripts plus video titles and descriptions" : "video titles and descriptions";
 
   const completion = await llm.complete({
     purpose: "voice",
-    model: channel.defaultModel ?? "",
-    system: "You produce a structured voice profile from creator transcripts. Identify archetype, delivery, rhetoric, diction, and any signature phrases.",
+    // A model this workspace can reach — the bare channel default went to a provider with no key.
+    model: await resolveUsableModel(channel.defaultModel ?? "", workspace.id),
+    timeoutMs: 120_000,
+    system:
+      "You produce a structured voice profile of another creator from their own written material: archetype, delivery, rhetoric, diction and signature phrases." +
+      " Ground every claim in the supplied text; where it can't evidence something (spoken cadence or energy can't be read from titles), say \"not evidenced by the available material\".",
     messages: [{
       role: "user",
-      content: `Source channel: ${source!.handle ?? source!.name}\n\nTranscripts:\n${transcripts.join("\n\n---\n\n").slice(0, 12_000)}\n\nReturn a JSON-ish profile.`,
+      content:
+        `Source channel: ${source!.handle ?? source!.name}\nMaterial below is: ${basis}.\n\n` +
+        (transcripts.length ? `Transcripts:\n${transcripts.join("\n\n---\n\n").slice(0, 6000)}\n\n` : "") +
+        `Video titles and descriptions (${corpus.length} videos):\n${corpus.join("\n\n---\n\n").slice(0, 8000)}\n\nReturn the profile.`,
     }],
     workspaceId: workspace.id,
   });
+  // A placeholder reply is never stored as a voice.
+  if (completion.provider === "mock" || !completion.content.trim()) {
+    const { whyNoAiReply } = await import("@/lib/llm/provider-health");
+    fail(`Nothing was saved. ${await whyNoAiReply(workspace.id)}`);
+  }
 
   const data = {
     borrowedFrom: source!.handle ?? source!.name,
-    summary: completion.content.slice(0, 2000),
+    summary: completion.content.slice(0, 4000),
+    source: { trained: true, basis: `${basis} of ${source!.handle ?? source!.name}`, videos: corpus.length, transcripts: transcripts.length, model: completion.model, provider: completion.provider },
     archetype: { age: "—", profession: "—" },
     delivery: { cadence: "matched-to-source" },
     rhetoric: { hooks: ["matched-to-source"] },
@@ -91,7 +114,8 @@ export async function borrowVoiceAction(formData: FormData) {
       label,
       isDefault: false,
       data: writeJson(data),
-      samples: writeJson(usable.map((v) => ({ id: v.id, label: v.title, chars: 0, body: "(transcript ref)" }))),
+      // Samples are the person's own writing; the borrowed material is named in `source`.
+      samples: writeJson([]),
     },
   });
   revalidatePath(`/channels/${channelId}/voice`);

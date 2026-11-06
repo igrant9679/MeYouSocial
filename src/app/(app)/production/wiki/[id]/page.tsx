@@ -23,7 +23,7 @@ export default async function WikiDocPage({ params }: { params: Promise<{ id: st
       <form action={upsertWikiDocAction} className="card flex flex-col gap-3">
         <input type="hidden" name="id" value={doc.id} />
         <input name="title" defaultValue={doc.title} required className="font-mono font-bold text-xl border-0 border-b border-transparent hover:border-[var(--line-2)] focus:border-[var(--accent)] focus:outline-none bg-transparent pb-1" />
-        <select name="channelId" defaultValue={doc.channelId ?? ""} className="border border-[var(--line-2)] rounded-lg p-2 text-sm self-start">
+        <select key={`channelId:${doc.channelId ?? ""}`} name="channelId" defaultValue={doc.channelId ?? ""} className="border border-[var(--line-2)] rounded-lg p-2 text-sm self-start">
           <option value="">Whole workspace</option>
           {channels.map((c) => (<option key={c.id} value={c.id}>{c.name}</option>))}
         </select>

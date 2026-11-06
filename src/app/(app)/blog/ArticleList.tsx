@@ -70,14 +70,14 @@ export function ArticleList({ q, list, topics, members, editor, admin, timeZone,
         </label>
         <label className="text-xs">
           <span className="block text-[var(--mute)] mb-0.5">Topic</span>
-          <select name="topic" defaultValue={q.topic ?? ""} className="w-44 border border-[var(--line-2)] rounded-lg px-2 py-1 text-xs">
+          <select key={`topic:${q.topic ?? ""}`} name="topic" defaultValue={q.topic ?? ""} className="w-44 border border-[var(--line-2)] rounded-lg px-2 py-1 text-xs">
             <option value="">Any Topic</option>
             {topics.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
           </select>
         </label>
         <label className="text-xs">
           <span className="block text-[var(--mute)] mb-0.5">Reviewer</span>
-          <select name="reviewer" defaultValue={q.reviewer ?? ""} className="w-40 border border-[var(--line-2)] rounded-lg px-2 py-1 text-xs">
+          <select key={`reviewer:${q.reviewer ?? ""}`} name="reviewer" defaultValue={q.reviewer ?? ""} className="w-40 border border-[var(--line-2)] rounded-lg px-2 py-1 text-xs">
             <option value="">Anyone</option>
             <option value="none">No reviewer</option>
             {members.map((m) => <option key={m.userId} value={m.userId}>{m.name}</option>)}

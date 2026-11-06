@@ -83,7 +83,7 @@ export default async function ChannelSettingsPage({ params }: { params: Promise<
           </span>
           <input name="handle" required placeholder="@new-handle" className="border border-[var(--line-2)] rounded-lg p-2 text-sm font-mono" />
         </label>
-        <button type="submit" className="btn">Relink &amp; retrain</button>
+        <SubmitButton className="btn" pendingText="Relinking and retraining…">Relink &amp; retrain</SubmitButton>
       </form>
       {channel.linkedYoutubeId && (
         <p className="text-[11px] text-[var(--mute)] mt-1 px-1">

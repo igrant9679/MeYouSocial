@@ -162,7 +162,7 @@ export default async function UserSettingsPage({ searchParams }: { searchParams:
           workspace&apos;s posting zone, so a time means the same moment to everyone on the team.
         </p>
         <form action={setTimeZoneAction} className="flex items-center gap-2 flex-wrap">
-          <select name="timeZone" defaultValue={user.timeZone ?? ""} className="border border-[var(--line-2)] rounded-lg px-2 py-1.5 text-sm max-w-full" aria-label="Your time zone" data-zone-select>
+          <select key={`timeZone:${user.timeZone ?? ""}`} name="timeZone" defaultValue={user.timeZone ?? ""} className="border border-[var(--line-2)] rounded-lg px-2 py-1.5 text-sm max-w-full" aria-label="Your time zone" data-zone-select>
             <option value="">Each workspace&apos;s posting zone</option>
             {zones.map((z) => <option key={z} value={z}>{z.replace(/_/g, " ")}</option>)}
           </select>

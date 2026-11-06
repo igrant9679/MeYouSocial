@@ -2272,6 +2272,11 @@ model SocialPost {
   // manual | import | engine | evergreen | assistant | captions | rss.
   // Null on rows older than 2026-10-17 — lib/social/post-lists.ts derives it.
   source             String?
+  // SOC-04 / E-SOC-01: a person parked this draft (Move to drafts, Cancel,
+  // Save as draft, Hold). The full-autonomy sweep never gives a held draft a
+  // slot and Queue all leaves it; a person queueing or scheduling it lets go.
+  heldAt             DateTime?
+  heldById           String?
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

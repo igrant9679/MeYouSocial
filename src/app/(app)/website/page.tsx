@@ -206,7 +206,7 @@ export default async function WebsitePage({ searchParams }: { searchParams: Prom
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <label className="text-sm">
               <span className="block text-xs text-[var(--mute)] mb-1">SEO plugin</span>
-              <select name="seoPlugin" defaultValue={conn.seoPlugin} className="w-full text-xs" disabled={!admin}>
+              <select key={`seoPlugin:${conn.seoPlugin}`} name="seoPlugin" defaultValue={conn.seoPlugin} className="w-full text-xs" disabled={!admin}>
                 {SEO_PLUGINS.map((p) => (
                   <option key={p} value={p}>{SEO_PLUGIN_LABELS[p]}</option>
                 ))}

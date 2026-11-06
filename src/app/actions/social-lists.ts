@@ -8,6 +8,7 @@ import { claimNextFreeSlot, getPostingTimeZone, queueFailureMessage, zonedParts,
 import { formatDay } from "@/lib/zoned-dates";
 import { writeAudit } from "@/lib/governance";
 import { DELETABLE_POST_STATUSES } from "@/lib/social/post-lists";
+import { holdBy, RELEASED } from "@/lib/social/hold";
 
 // Bulk actions on the Queue / Sent / Drafts lists (Socialmonials parity,
 // 2026-10-17). One action, an `op`, a set of ids — every write re-filters by
@@ -45,12 +46,30 @@ export async function bulkPostsAction(formData: FormData) {
   }
 
   if (op === "unschedule") {
+    // Held (SOC-04): under full autonomy the sweep would queue them straight back.
     const r = await db.socialPost.updateMany({
       where: { id: { in: ids }, workspaceId: workspace.id, status: "scheduled" },
-      data: { status: "draft", scheduledAt: null },
+      data: { status: "draft", scheduledAt: null, ...holdBy(user.id) },
     });
     revalidatePath("/social", "layout");
-    back(formData, `Moved ${n(r.count, "post")} back to drafts${r.count < ids.length ? ` — ${ids.length - r.count} weren't scheduled` : ""}.`, "ok");
+    back(formData, `Moved ${n(r.count, "post")} back to drafts and held them there${r.count < ids.length ? ` — ${ids.length - r.count} weren't scheduled` : ""}.`, "ok");
+  }
+
+  // Hold / Let go (SOC-04 / E-SOC-01): a held draft is never given a slot by
+  // the full-autonomy sweep, and Queue all leaves it. Drafts only.
+  if (op === "hold" || op === "release") {
+    const r = await db.socialPost.updateMany({
+      where: { id: { in: ids }, workspaceId: workspace.id, status: "draft", heldAt: op === "hold" ? null : { not: null } },
+      data: op === "hold" ? holdBy(user.id) : RELEASED,
+    });
+    if (r.count) await writeAudit({ workspaceId: workspace.id, actorId: user.id, action: op === "hold" ? "social.held" : "social.released", entityType: "social_post", meta: { asked: ids.length, changed: r.count } });
+    revalidatePath("/social", "layout");
+    const { isFullyAutonomous } = await import("@/lib/autonomy");
+    const full = await isFullyAutonomous(workspace.id);
+    back(formData, op === "hold"
+      ? `Held ${n(r.count, "draft")} — ${full ? "the engine won't queue them" : "Queue all leaves them"} until someone queues or schedules them.${r.count < ids.length ? ` ${ids.length - r.count} weren't drafts, or were held already.` : ""}`
+      : `Let go of ${n(r.count, "draft")}${full ? " — under full autonomy the engine gives each one without a time the next free slot" : ""}.${r.count < ids.length ? ` ${ids.length - r.count} weren't held.` : ""}`,
+    r.count ? "ok" : "err");
   }
 
   if (op === "queue") {
@@ -80,13 +99,14 @@ export async function bulkPostsAction(formData: FormData) {
       // never re-slotted (audit SOC-06); a time that has passed is skipped.
       if (d.scheduledAt) {
         if (d.scheduledAt.getTime() <= Date.now() + 60_000) { passed++; continue; }
-        await db.socialPost.updateMany({ where: { id: d.id, status: "draft" }, data: { status: "scheduled" } });
+        await db.socialPost.updateMany({ where: { id: d.id, status: "draft" }, data: { status: "scheduled", ...RELEASED } });
         queued++;
         continue;
       }
       const claim = await claimNextFreeSlot(workspace.id, d.id, d.category);
       if ("error" in claim) { failure = queueFailureMessage(claim.error); break; }
-      await db.socialPost.update({ where: { id: d.id }, data: { status: "scheduled", scheduledAt: claim.at, timeChosen: false } });
+      // Ticked and queued by a person: that lets go of a hold (SOC-04).
+      await db.socialPost.update({ where: { id: d.id }, data: { status: "scheduled", scheduledAt: claim.at, timeChosen: false, ...RELEASED } });
       queued++;
     }
     revalidatePath("/social", "layout");

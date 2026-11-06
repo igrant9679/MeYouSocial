@@ -117,9 +117,23 @@ export default async function ChannelVoicePage({
           <div className="flex-1">
             <h1 className="font-mono font-bold text-xl leading-tight flex items-center gap-2">
               {active.label}
-              {active.isDefault && <span className="text-[10px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: "#FBEED5", color: "#D97706" }}>default</span>}
+              {active.isDefault && <span className="text-[10px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }}>default</span>}
               {data.borrowedFrom && <span className="text-[10px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: "var(--accent-soft)", color: "var(--accent)" }}>borrowed from {data.borrowedFrom}</span>}
             </h1>
+            {/* A profile the AI wrote from PLACEHOLDER data says so in its own
+                text (tracker #24: LSI's default voice read "INCOMPLETE - MOCK
+                DATA DETECTED"). The page says it louder, and what to do. */}
+            {/mock (data|transcripts)|INCOMPLETE\s*-\s*MOCK|INSUFFICIENT DATA/i.test(data.summary ?? "") ? (
+              <p className="text-[11px] mt-0.5" style={{ color: "var(--rose-on)" }} data-voice-placeholder>
+                <b>Built from placeholder data</b> — the AI says so in its own summary; it was made before real YouTube data could be read.
+                {active.isDefault ? " Scripts on this channel use it as their default voice. " : " "}
+                {data.borrowedFrom ? `Borrow ${data.borrowedFrom} again, ` : "Retrain it from writing samples, "}or make another profile the default.
+              </p>
+            ) : !data.source ? (
+              <p className="text-[11px] text-[var(--mute)] mt-0.5" data-voice-unrecorded>
+                No record of what built this voice — profiles only started recording it on 27 Jul 2026. If it reads generic, retrain it.
+              </p>
+            ) : null}
             {/* An untrained profile is a generic placeholder — it must not read
                 as if it were learned from the channel. Say which it is. */}
             {data.source && (
@@ -174,7 +188,7 @@ export default async function ChannelVoicePage({
             <form action={generateVoicePreviewAction} className="mt-4">
               <input type="hidden" name="channelId" value={id} />
               <input type="hidden" name="voiceId" value={active.id} />
-              <button type="submit" className="btn">Generate preview</button>
+              <SubmitButton className="btn" pendingText="Writing a preview…">Generate preview</SubmitButton>
             </form>
             {data._preview && (
               <div className="mt-3 text-sm bg-[var(--zebra)] rounded-md p-3 whitespace-pre-wrap">{data._preview}</div>

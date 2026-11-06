@@ -165,6 +165,8 @@ export function ScriptEditor({ scriptId, initialBody, serverHash }: { scriptId: 
           type="button"
           className="btn primary sm flex items-center gap-1.5"
           disabled={words < 50 || pending}
+          // A disabled button said nothing about why (tracker #10).
+          title={words < 50 ? `Humanize rewrites a whole script — write at least 50 words first (${words} so far)` : "Rewrite the script so it reads as spoken, not written — what it is now is kept as a version"}
           onClick={() => startTransition(async () => {
             if (!(await flush())) return;
             const fd = new FormData();

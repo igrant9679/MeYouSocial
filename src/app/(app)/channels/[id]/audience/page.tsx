@@ -58,11 +58,11 @@ export default async function ChannelAudiencePage({ params, searchParams }: { pa
         )}
         <form action={generateAudiencePhotoAction}>
           <input type="hidden" name="channelId" value={id} />
-          <button type="submit" className="btn w-full">{audience.photoUrl ? "Refresh photo" : "Generate photo"}</button>
+          <SubmitButton className="btn w-full" pendingText="Generating…">{audience.photoUrl ? "Refresh photo" : "Generate photo"}</SubmitButton>
         </form>
         <form action={refreshAudienceAction} className="mt-3">
           <input type="hidden" name="channelId" value={id} />
-          <button type="submit" className="btn w-full" title="Re-generate the avatar from the latest YouTube data — what it is now is kept as a version you can restore">Refresh avatar from YT data</button>
+          <SubmitButton className="btn w-full" pendingText="Refreshing…" title="Re-generate the avatar from the latest YouTube data — what it is now is kept as a version you can restore">Refresh avatar from YT data</SubmitButton>
         </form>
         {/* Deleting is not the same as refreshing: refresh overwrites from
             YouTube data, this clears the profile so the page returns to its

@@ -49,7 +49,7 @@ export default async function AdminSettingsPage({ searchParams }: { searchParams
 
         <label className="flex flex-col gap-1">
           <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">Default channel (visible to new users)</span>
-          <select name="defaultChannelId" defaultValue={workspace.defaultChannelId ?? ""} className="border border-[var(--line-2)] rounded-lg p-2 text-sm">
+          <select key={`defaultChannelId:${workspace.defaultChannelId ?? ""}`} name="defaultChannelId" defaultValue={workspace.defaultChannelId ?? ""} className="border border-[var(--line-2)] rounded-lg p-2 text-sm">
             <option value="">No default</option>
             {channels.map((c) => (<option key={c.id} value={c.id}>{c.name}</option>))}
           </select>
@@ -57,7 +57,7 @@ export default async function AdminSettingsPage({ searchParams }: { searchParams
 
         <label className="flex flex-col gap-1">
           <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">Default AI model</span>
-          <select name="defaultModel" defaultValue={workspace.defaultModel ?? ""} className="border border-[var(--line-2)] rounded-lg p-2 text-sm">
+          <select key={`defaultModel:${workspace.defaultModel ?? ""}`} name="defaultModel" defaultValue={workspace.defaultModel ?? ""} className="border border-[var(--line-2)] rounded-lg p-2 text-sm">
             <option value="">Use the system default ({modelLabel(systemRuns)})</option>
             <ModelOptions choices={choices} current={workspace.defaultModel} detail />
           </select>
@@ -66,14 +66,14 @@ export default async function AdminSettingsPage({ searchParams }: { searchParams
 
         <label className="flex flex-col gap-1">
           <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">Default language (18N-01)</span>
-          <select name="defaultLanguage" defaultValue={workspace.defaultLanguage ?? "en"} className="border border-[var(--line-2)] rounded-lg p-2 text-sm">
+          <select key={`defaultLanguage:${workspace.defaultLanguage ?? "en"}`} name="defaultLanguage" defaultValue={workspace.defaultLanguage ?? "en"} className="border border-[var(--line-2)] rounded-lg p-2 text-sm">
             {LANGS.map((l) => (<option key={l} value={l}>{l}</option>))}
           </select>
         </label>
 
         <label className="flex flex-col gap-1">
           <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">Who can start channels</span>
-          <select name="channelCreators" defaultValue={channelCreators === "admins" ? "admins" : ""} className="border border-[var(--line-2)] rounded-lg p-2 text-sm">
+          <select key={`channelCreators:${channelCreators === "admins" ? "admins" : ""}`} name="channelCreators" defaultValue={channelCreators === "admins" ? "admins" : ""} className="border border-[var(--line-2)] rounded-lg p-2 text-sm">
             <option value="">Editors and admins</option>
             <option value="admins">Admins only</option>
           </select>

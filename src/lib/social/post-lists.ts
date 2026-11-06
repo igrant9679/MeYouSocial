@@ -63,7 +63,11 @@ export const TYPES: Record<ListTab, Array<{ value: string; label: string }>> = {
   ],
 };
 
-export type ListFilter = { q?: string; category?: string; type?: string; profile?: string; source?: string; page?: number };
+/** `sort` flips each tab's natural order (tracker #21): Queue soonest-first, Sent and Drafts newest-first. */
+export type ListFilter = { q?: string; category?: string; type?: string; profile?: string; source?: string; page?: number; sort?: "asc" | "desc" };
+
+/** Each tab's natural order, which `sort` overrides. */
+export const NATURAL_SORT: Record<ListTab, "asc" | "desc"> = { queue: "asc", sent: "desc", drafts: "desc" };
 
 export const PAGE_SIZE = 40;
 
@@ -106,8 +110,9 @@ export async function loadPostList(workspaceId: string, tab: ListTab, f: ListFil
   else if (tab === "drafts" && f.type === "draft") and.push({ OR: [{ approval: null }, { approval: { notIn: ["pending", "changes"] } }] });
   if (and.length) where.AND = and;
 
+  const dir = f.sort ?? NATURAL_SORT[tab];
   const orderBy: Prisma.SocialPostOrderByWithRelationInput[] =
-    tab === "queue" ? [{ scheduledAt: "asc" }] : tab === "sent" ? [{ publishedAt: "desc" }, { updatedAt: "desc" }] : [{ updatedAt: "desc" }];
+    tab === "queue" ? [{ scheduledAt: dir }] : tab === "sent" ? [{ publishedAt: dir }, { updatedAt: dir }] : [{ updatedAt: dir }];
 
   const page = Math.max(1, f.page ?? 1);
   // Queue "type" needs the slot grid, so it is filtered after the read; the

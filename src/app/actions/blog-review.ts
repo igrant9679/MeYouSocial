@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { requireRole } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/governance";
@@ -21,13 +22,20 @@ export async function assignReviewerAction(formData: FormData) {
   const { user, workspace } = await requireRole("EDITOR");
   const post = await db.blogPost.findFirst({ where: { id, workspaceId: workspace.id } });
   if (!post) return;
+  // Every outcome is said (tracker #31: Assign looked dead — the select also snapped back).
+  const back = (kind: "flash" | "flashErr", m: string): never => redirect(`/blog/${post.id}?tab=review&${kind}=${encodeURIComponent(m)}`);
 
+  let reviewerName: string | null = null;
   if (reviewerId) {
     const member = await db.membership.findFirst({
       where: { workspaceId: workspace.id, userId: reviewerId, status: "active" },
+      select: { user: { select: { name: true, email: true } } },
     });
-    if (!member) return; // never assign someone who isn't in the workspace
+    // never assign someone who isn't in the workspace
+    if (!member) back("flashErr", "That person isn't an active member of this workspace — nothing changed.");
+    reviewerName = member!.user.name ?? member!.user.email;
   }
+  if (reviewerId === post.reviewerId) back("flash", reviewerId ? `${reviewerName} is already the reviewer.` : "There's no reviewer to clear.");
 
   await db.blogPost.update({ where: { id: post.id }, data: { reviewerId } });
   await writeAudit({
@@ -50,6 +58,7 @@ export async function assignReviewerAction(formData: FormData) {
     });
   }
   revalidatePath(`/blog/${post.id}`);
+  back("flash", !reviewerId ? "Reviewer cleared." : reviewerId === user.id ? "You're the reviewer now." : `${reviewerName} is the reviewer — they've been notified.`);
 }
 
 export async function addBlogCommentAction(formData: FormData) {

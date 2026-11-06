@@ -129,6 +129,11 @@ export async function rescoreBlogIdeasAction() {
   });
   revalidatePath("/ideas");
   revalidatePath("/blog");
+  // Said, not silent (tracker #27). Editing an idea already rescores, so "none changed" is the usual answer.
+  const open = await db.blogIdea.count({ where: { workspaceId: workspace.id, status: { in: ["discovered", "approved"] } } });
+  redirect(`/ideas?ok=${encodeURIComponent(changed
+    ? `Recomputed ${open} open article idea${open === 1 ? "" : "s"} — ${changed} changed priority.`
+    : `Recomputed ${open} open article idea${open === 1 ? "" : "s"} — all were already up to date (editing an idea rescores it at once). Video ideas aren't scored this way.`)}`);
 }
 
 /**

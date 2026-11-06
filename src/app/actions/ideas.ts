@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { jobs } from "@/lib/jobs";
 import { requireRole } from "@/lib/acl";
 import { db } from "@/lib/db";
@@ -54,8 +55,11 @@ export async function regenerateIdeasAction(formData: FormData) {
   const { workspace } = await requireRole("EDITOR");
   const channel = await db.channel.findFirst({ where: { id: channelId, workspaceId: workspace.id } });
   if (!channel) return;
-  await jobs.enqueue("onboarding.ideas", { channelId: channel.id }, { refId: channel.id, workspaceId: workspace.id });
+  // One attempt: a refusing provider (out of credits) shouldn't be asked three times.
+  await jobs.enqueue("onboarding.ideas", { channelId: channel.id, onDemand: true }, { refId: channel.id, workspaceId: workspace.id, maxAttempts: 1 });
   revalidateBoards(channelId);
+  // Said, not silent (tracker #27): the ideas arrive from a background job.
+  redirect(`/ideas?ok=${encodeURIComponent(`Writing 10 video ideas for ${channel.name} — they appear on the board in a minute or two. If the AI can't answer, the activity light at the top right says why.`)}`);
 }
 
 /**

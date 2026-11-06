@@ -156,6 +156,8 @@ export async function updateBlogPostAction(formData: FormData) {
     redirect(`/blog/${post.id}?flashErr=${encodeURIComponent(`The article's text changed elsewhere while you were editing (the engine, Verify, or another tab). The newer text was kept; yours is under Versions as “your edit, kept”. Your other fields were saved.${modelProblem ? ` The model wasn't changed: ${modelProblem}` : ""}`)}`);
   }
   if (modelProblem) redirect(`/blog/${post.id}?flashErr=${encodeURIComponent(`Your other changes were saved; the model wasn't changed. ${modelProblem}`)}`);
+  // Said, not silent (tracker #30): Save used to refresh the page and nothing else.
+  redirect(`/blog/${post.id}?flash=${encodeURIComponent(newBody !== post.body ? "Saved — the text is kept as a version under Versions." : "Saved.")}${wordsChanged ? encodeURIComponent(" The wording changed, so it goes back through review.") : ""}`);
 }
 
 /** Move a post one step forward/backward along the review chain. */

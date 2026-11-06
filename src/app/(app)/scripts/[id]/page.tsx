@@ -127,9 +127,9 @@ export default async function CanvasPage({
               return (
                 <form action={launchAgentAction}>
                   <input type="hidden" name="scriptId" value={script.id} />
-                  <button type="submit" className="btn sm flex items-center gap-1.5" style={{ background: "var(--accent-soft)", color: "var(--accent)", borderColor: "var(--accent)" }} title="Run the automated research+outline+script+QA pipeline">
+                  <SubmitButton className="btn sm flex items-center gap-1.5" style={{ background: "var(--accent-soft)", color: "var(--accent)", borderColor: "var(--accent)" }} title="Run the automated research+outline+script+QA pipeline" pendingText="Starting the Agent…">
                     <Bot className="w-3.5 h-3.5" /> {script.body ? "Re-run Agent" : "Run Agent"}
-                  </button>
+                  </SubmitButton>
                 </form>
               );
             })()}
@@ -178,18 +178,21 @@ export default async function CanvasPage({
           ) : (
           <form action={updateScriptSettingsAction} className="flex flex-wrap items-center gap-2">
             <input type="hidden" name="scriptId" value={script.id} />
+            <input type="hidden" name="tab" value={activeTab} />
             <Type className="w-4 h-4 text-[var(--mute)]" />
             <input name="title" defaultValue={script.title} className="font-mono font-bold text-lg border-0 border-b border-transparent hover:border-[var(--line-2)] focus:border-[var(--accent)] focus:outline-none flex-1 min-w-[200px] bg-transparent" />
             <label className="flex items-center gap-1 text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">
               Model
-              <select name="model" defaultValue={script.model ?? ""} className="border border-[var(--line-2)] rounded-md p-1 text-xs font-mono">
+              {/* Keyed on the saved value: React 19 resets a form after its action, and an
+                  unkeyed select snapped back to its first value — "the voice doesn't save" (tracker #9). */}
+              <select key={`model-${script.model ?? ""}`} name="model" defaultValue={script.model ?? ""} className="border border-[var(--line-2)] rounded-md p-1 text-xs font-mono">
                 <option value="">Channel default ({modelLabel(inherited)})</option>
                 <ModelOptions choices={choices} current={script.model} />
               </select>
             </label>
             <label className="flex items-center gap-1 text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">
               Template
-              <select name="templateId" defaultValue={script.templateId ?? ""} className="border border-[var(--line-2)] rounded-md p-1 text-xs font-mono">
+              <select key={`tpl-${script.templateId ?? ""}`} name="templateId" defaultValue={script.templateId ?? ""} className="border border-[var(--line-2)] rounded-md p-1 text-xs font-mono">
                 <option value="">None</option>
                 {templates.map((t) => (
                   <option key={t.id} value={t.id}>{t.name}</option>
@@ -198,14 +201,16 @@ export default async function CanvasPage({
             </label>
             <label className="flex items-center gap-1 text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">
               Voice
-              <select name="voiceProfileId" defaultValue={script.voiceProfileId ?? ""} className="border border-[var(--line-2)] rounded-md p-1 text-xs font-mono">
+              <select key={`voice-${script.voiceProfileId ?? ""}`} name="voiceProfileId" defaultValue={script.voiceProfileId ?? ""} className="border border-[var(--line-2)] rounded-md p-1 text-xs font-mono">
                 <option value="">Channel default</option>
                 {voiceProfiles.map((v) => (
                   <option key={v.id} value={v.id}>{v.label}{v.isDefault ? " (default)" : ""}</option>
                 ))}
               </select>
             </label>
-            <button type="submit" className="btn sm">Save</button>
+            <SubmitButton className="btn sm" pendingText="Saving…">Save</SubmitButton>
+            {/* Templates are viewed and edited on the channel (tracker #3 — they were hard to find). */}
+            <Link href={`/channels/${script.channelId}/templates`} className="text-[11px] underline text-[var(--mute)]">Edit templates</Link>
           </form>
           )}
 
@@ -325,13 +330,13 @@ function PlanTab({ script, hasBody, editor }: { script: { id: string; outline: {
         <h3 className="font-mono font-bold text-[15px] mb-3 flex items-center gap-2"><ListTree className="w-4 h-4" style={{ color: "var(--accent)" }} /> Planning questions</h3>
         <input type="hidden" name="scriptId" value={script.id} />
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <PlanField name="takeaway" label="One main takeaway" defaultValue={script.outline.questions?.takeaway} />
-          <PlanField name="concerns" label="What worries the audience?" defaultValue={script.outline.questions?.concerns} />
-          <PlanField name="points" label="Key points to cover" defaultValue={script.outline.questions?.points} />
-          <PlanField name="action" label="Desired viewer action" defaultValue={script.outline.questions?.action} />
+          <PlanField name="takeaway" label="One main takeaway" max={2000} defaultValue={script.outline.questions?.takeaway} />
+          <PlanField name="concerns" label="What worries the audience?" max={2000} defaultValue={script.outline.questions?.concerns} />
+          <PlanField name="points" label="Key points to cover" max={4000} defaultValue={script.outline.questions?.points} />
+          <PlanField name="action" label="Desired viewer action" max={1000} defaultValue={script.outline.questions?.action} />
         </div>
         <div className="flex justify-end mt-3">
-          <button type="submit" className="btn sm">Save answers</button>
+          <SubmitButton className="btn sm" pendingText="Saving…">Save answers</SubmitButton>
         </div>
       </form>
 
@@ -342,7 +347,7 @@ function PlanTab({ script, hasBody, editor }: { script: { id: string; outline: {
           <span className="flex-1" />
           <form action={generateOutlineAction}>
             <input type="hidden" name="scriptId" value={script.id} />
-            <button type="submit" className="btn sm">{script.outline.markdown ? "Regenerate" : "Generate outline"}</button>
+            <SubmitButton className="btn sm" pendingText="Writing the outline…">{script.outline.markdown ? "Regenerate" : "Generate outline"}</SubmitButton>
           </form>
           <StreamButton scriptId={script.id} stage="outline" label="Stream outline" />
         </div>
@@ -393,11 +398,11 @@ function PlanTab({ script, hasBody, editor }: { script: { id: string; outline: {
   );
 }
 
-function PlanField({ name, label, defaultValue }: { name: string; label: string; defaultValue?: string }) {
+function PlanField({ name, label, defaultValue, max }: { name: string; label: string; defaultValue?: string; max: number }) {
   return (
     <label className="flex flex-col gap-1">
       <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">{label}</span>
-      <textarea name={name} rows={2} defaultValue={defaultValue ?? ""} className="border border-[var(--line-2)] rounded-md p-2 text-sm" />
+      <textarea name={name} rows={2} maxLength={max} defaultValue={defaultValue ?? ""} className="border border-[var(--line-2)] rounded-md p-2 text-sm" />
     </label>
   );
 }

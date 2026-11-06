@@ -326,10 +326,13 @@ export async function queueAllDraftsAction() {
   const all = await db.socialPost.findMany({
     where: { workspaceId: workspace.id, status: "draft" },
     orderBy: { createdAt: "asc" },
-    select: { id: true, approval: true, category: true, scheduledAt: true, _count: { select: { targets: true } } },
+    select: { id: true, approval: true, category: true, scheduledAt: true, heldAt: true, _count: { select: { targets: true } } },
   });
   if (all.length === 0) backTo("No drafts to queue.");
 
+  // A draft a person held stays where they put it (SOC-04): ticking it and
+  // queueing it, or scheduling it, is how it goes — not a sweep of the lot.
+  const parked = all.filter((d) => d.heldAt).length;
   // Held posts are skipped, not failed on — "queue everything that's allowed
   // to go" is what the button means once an approval workflow exists.
   let requireApproval = false;
@@ -338,11 +341,17 @@ export async function queueAllDraftsAction() {
     requireApproval = (await getSetting("social:require_approval", workspace.id).catch(() => "")) === "true";
   }
   const allowed = all.filter(
-    (d) => d.approval !== "pending" && d.approval !== "changes" &&
+    (d) => !d.heldAt && d.approval !== "pending" && d.approval !== "changes" &&
       !(requireApproval && d.approval === null),
   );
-  const held = all.length - allowed.length;
-  if (allowed.length === 0) backTo(`All ${held} draft${held === 1 ? " is" : "s are"} waiting on approval.`);
+  const held = all.length - allowed.length - parked;
+  if (allowed.length === 0) {
+    backTo(!parked
+      ? `All ${held} draft${held === 1 ? " is" : "s are"} waiting on approval.`
+      : !held
+        ? `All ${parked} draft${parked === 1 ? " is" : "s are"} held — tick ${parked === 1 ? "it" : "them"} on Drafts and queue, or let go.`
+        : `Nothing to queue — ${held} waiting on approval, ${parked} held.`);
+  }
   const withTargets = allowed.filter((d) => d._count.targets > 0);
   const noTargets = allowed.length - withTargets.length;
   // A draft its networks would certainly reject stays a draft, named (SOC-14).
@@ -402,5 +411,6 @@ export async function queueAllDraftsAction() {
   if (noTargets > 0) bits.push(`${noTargets} skipped — no account to post to.`);
   if (ruledOut.length > 0) bits.push(`${ruledOut.length} skipped — a network would reject ${ruledOut.length === 1 ? "it" : "them"} (${ruledOut[0]}${ruledOut.length > 1 ? " …" : ""}).`);
   if (held > 0) bits.push(`${held} skipped (awaiting approval).`);
+  if (parked > 0) bits.push(`${parked} held — left on Drafts.`);
   backTo(bits.join(" "), "ok");
 }

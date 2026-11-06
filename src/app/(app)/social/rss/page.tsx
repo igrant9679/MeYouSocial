@@ -96,8 +96,8 @@ export default async function RssPage({ searchParams }: { searchParams: Promise<
                 <form action={updateFeedAction} className="flex flex-wrap items-end gap-2 mb-2">
                   <input type="hidden" name="id" value={f.id} />
                   <ModeSelect draftsMeaning={draftsMeaning} value={f.mode} />
-                  {topics.length > 0 && <select name="topicId" defaultValue={f.topicId ?? ""} className={inputCls} aria-label="Topic"><option value="">no topic</option>{topics.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</select>}
-                  <select name="category" defaultValue={f.category ?? ""} className={inputCls} aria-label="Category"><option value="">no category</option>{categories.map((c) => <option key={c} value={c}>{c}</option>)}</select>
+                  {topics.length > 0 && <select key={`topicId:${f.topicId ?? ""}`} name="topicId" defaultValue={f.topicId ?? ""} className={inputCls} aria-label="Topic"><option value="">no topic</option>{topics.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</select>}
+                  <select key={`category:${f.category ?? ""}`} name="category" defaultValue={f.category ?? ""} className={inputCls} aria-label="Category"><option value="">no category</option>{categories.map((c) => <option key={c} value={c}>{c}</option>)}</select>
                   <SubmitButton className="btn sm" pendingText="…">Save</SubmitButton>
                   <FeedOptions feed={f} accounts={accounts} accountName={accountName} />
                 </form>

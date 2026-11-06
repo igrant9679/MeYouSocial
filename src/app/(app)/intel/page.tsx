@@ -98,7 +98,7 @@ export default async function IntelPage({ searchParams }: { searchParams: Promis
         <NumField name="subsMax" label="Subs max" defaultValue={params.subsMax} />
         <label className="flex flex-col gap-1">
           <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">Format</span>
-          <select name="format" defaultValue={params.format ?? ""} className="border border-[var(--line-2)] rounded-lg p-2.5 text-sm">
+          <select key={`format:${params.format ?? ""}`} name="format" defaultValue={params.format ?? ""} className="border border-[var(--line-2)] rounded-lg p-2.5 text-sm">
             <option value="">Both</option>
             <option value="long">Long-form</option>
             <option value="short">Shorts</option>

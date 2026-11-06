@@ -57,17 +57,17 @@ export default async function AuditLogPage({ searchParams }: { searchParams: Pro
       </div>
 
       <form method="get" action="/admin/audit-log" className="card mb-3 flex flex-wrap items-center gap-2 text-xs">
-        <select name="who" defaultValue={sp.who ?? ""} aria-label="Person" className={sel}>
+        <select key={`who:${sp.who ?? ""}`} name="who" defaultValue={sp.who ?? ""} aria-label="Person" className={sel}>
           <option value="">Everyone</option>
           <option value="engine">The engine (no person)</option>
           {members.map((m) => <option key={m.userId} value={m.userId}>{m.user.name ?? m.user.email} · {m.role.toLowerCase()}{m.status !== "active" ? " (removed)" : ""}</option>)}
         </select>
-        <select name="action" defaultValue={sp.action ?? ""} aria-label="Action" className={sel}>
+        <select key={`action:${sp.action ?? ""}`} name="action" defaultValue={sp.action ?? ""} aria-label="Action" className={sel}>
           <option value="">Every action</option>
           {[...new Set(actions.map((a) => a.action.split(".")[0]))].map((g) => <option key={`${g}.`} value={`${g}.`}>{g}.* (any)</option>)}
           {actions.map((a) => <option key={a.action} value={a.action}>{a.action} · {a._count._all}</option>)}
         </select>
-        <select name="entity" defaultValue={sp.entity ?? ""} aria-label="Entity" className={sel}>
+        <select key={`entity:${sp.entity ?? ""}`} name="entity" defaultValue={sp.entity ?? ""} aria-label="Entity" className={sel}>
           <option value="">Every kind of thing</option>
           {entities.map((e) => <option key={e.entityType} value={e.entityType}>{e.entityType}</option>)}
         </select>

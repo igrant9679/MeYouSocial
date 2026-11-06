@@ -118,7 +118,7 @@ export async function PeoplePanel({ workspaceId, workspaceName, returnTo }: { wo
           </label>
           <label className="flex items-center gap-2 flex-wrap">
             <span><b>End access after</b></span>
-            <select name="expire" defaultValue={String(expireDays)} className="border border-[var(--line-2)] rounded-lg px-2 py-1.5 text-sm">
+            <select key={`expire:${String(expireDays)}`} name="expire" defaultValue={String(expireDays)} className="border border-[var(--line-2)] rounded-lg px-2 py-1.5 text-sm">
               <option value="0">never</option>
               <option value="60">60 days idle</option>
               <option value="90">90 days idle</option>
@@ -170,7 +170,7 @@ export async function PeoplePanel({ workspaceId, workspaceName, returnTo }: { wo
                         <option value="EDITOR">Editor</option>
                         <option value="VIEWER">Viewer</option>
                       </select>
-                      <button type="submit" className="btn sm">Save</button>
+                      <SubmitButton className="btn sm" pendingText="Saving…">Save</SubmitButton>
                     </form>
                   </td>
                   <td><span className="pill" style={{ background: m.status === "active" ? "var(--green-soft)" : "var(--rose-soft)", color: m.status === "active" ? "var(--green)" : "var(--rose)" }}>{m.status}</span></td>
@@ -196,7 +196,8 @@ export async function PeoplePanel({ workspaceId, workspaceName, returnTo }: { wo
                       {m.status === "active" && (
                         <form action={revokeAction}>
                           <input type="hidden" name="userId" value={m.userId} />
-                          <button type="submit" className="btn sm">Revoke</button>
+                          <input type="hidden" name="returnTo" value={returnTo} />
+                          <SubmitButton className="btn sm" pendingText="Revoking…">Revoke</SubmitButton>
                         </form>
                       )}
                       {m.status === "revoked" && (

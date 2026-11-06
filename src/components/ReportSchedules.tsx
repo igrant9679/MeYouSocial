@@ -24,26 +24,26 @@ function ScheduleForm({ reportKey, members, d, submit }: { reportKey: string; me
       <div className="flex flex-wrap items-end gap-2">
         <label className="flex flex-col gap-0.5">
           <span className="text-[var(--mute)]">How often</span>
-          <select name="cadence" defaultValue={d.cadence}>
+          <select key={`cadence:${d.cadence}`} name="cadence" defaultValue={d.cadence}>
             <option value="weekly">Weekly</option>
             <option value="monthly">Monthly</option>
           </select>
         </label>
         <label className="flex flex-col gap-0.5">
           <span className="text-[var(--mute)]">Weekly, on</span>
-          <select name="weekday" defaultValue={String(d.weekday)}>
+          <select key={`weekday:${String(d.weekday)}`} name="weekday" defaultValue={String(d.weekday)}>
             {[1, 2, 3, 4, 5, 6, 0].map((w) => <option key={w} value={w}>{WEEKDAY_NAMES[w]}</option>)}
           </select>
         </label>
         <label className="flex flex-col gap-0.5">
           <span className="text-[var(--mute)]">Monthly, on the</span>
-          <select name="monthDay" defaultValue={String(d.monthDay)}>
+          <select key={`monthDay:${String(d.monthDay)}`} name="monthDay" defaultValue={String(d.monthDay)}>
             {Array.from({ length: 28 }, (_, i) => i + 1).map((n) => <option key={n} value={n}>{n}</option>)}
           </select>
         </label>
         <label className="flex flex-col gap-0.5">
           <span className="text-[var(--mute)]">At</span>
-          <select name="hour" defaultValue={String(d.hour)}>
+          <select key={`hour:${String(d.hour)}`} name="hour" defaultValue={String(d.hour)}>
             {Array.from({ length: 24 }, (_, h) => h).map((h) => <option key={h} value={h}>{`${String(h).padStart(2, "0")}:00`}</option>)}
           </select>
         </label>

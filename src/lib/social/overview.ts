@@ -136,6 +136,17 @@ export async function getSocialOverview(workspaceId: string): Promise<SocialOver
   const in7 = new Date(now.getTime() + 7 * DAY);
   const last30 = new Date(now.getTime() - 30 * DAY);
 
+  // ⚠ The headline counts are COUNTED, not read off the 300-post sample below —
+  // a workspace with more posts was undercounted in the Inbox (tracker #26).
+  // Definitions match the Queue / Drafts tabs the numbers link to.
+  const [nScheduled, nDrafts, nAwaiting, nChanges, nPosted, nPosted30] = await Promise.all([
+    db.socialPost.count({ where: { workspaceId, status: { in: ["scheduled", "publishing"] } } }),
+    db.socialPost.count({ where: { workspaceId, status: "draft", OR: [{ approval: null }, { approval: { notIn: ["pending", "changes"] } }] } }),
+    db.socialPost.count({ where: { workspaceId, approval: "pending", status: { notIn: ["posted", "partial"] } } }),
+    db.socialPost.count({ where: { workspaceId, approval: "changes", status: { notIn: ["posted", "partial"] } } }),
+    db.socialPost.count({ where: { workspaceId, status: { in: ["posted", "partial"] } } }),
+    db.socialPost.count({ where: { workspaceId, status: { in: ["posted", "partial"] }, publishedAt: { gte: last30 } } }),
+  ]);
   const [accountRows, posts, queue, zernioReady, requireApproval] = await Promise.all([
     db.zernioAccount.findMany({
       where: { workspaceId },
@@ -193,11 +204,8 @@ export async function getSocialOverview(workspaceId: string): Promise<SocialOver
   const neverChecked = accounts.filter((a) => a.healthCheckedAt === null);
 
   // ── Counts ────────────────────────────────────────────────────────────────
+  // The headline counts are the exact ones above; the sample serves the next send only.
   const scheduled = posts.filter((p) => p.status === "scheduled");
-  const awaiting = posts.filter((p) => p.approval === "pending");
-  const changes = posts.filter((p) => p.approval === "changes");
-  const drafts = posts.filter((p) => p.status === "draft" && p.approval !== "pending");
-  const posted = posts.filter((p) => ["posted", "partial"].includes(p.status));
 
   // ── Next send ─────────────────────────────────────────────────────────────
   const upcoming = scheduled
@@ -278,22 +286,22 @@ export async function getSocialOverview(workspaceId: string): Promise<SocialOver
     });
   }
 
-  if (awaiting.length > 0) {
+  if (nAwaiting > 0) {
     attention.push({
       kind: "awaiting-approval",
       severity: "warn",
-      title: `${awaiting.length} post${awaiting.length === 1 ? "" : "s"} awaiting approval`,
+      title: `${nAwaiting} post${nAwaiting === 1 ? "" : "s"} awaiting approval`,
       detail: "Held until an admin approves. Nothing here can be sent, scheduled or queued.",
       href: "/social/approvals",
       cta: "Review",
     });
   }
 
-  if (changes.length > 0) {
+  if (nChanges > 0) {
     attention.push({
       kind: "changes-requested",
       severity: "info",
-      title: `${changes.length} post${changes.length === 1 ? "" : "s"} sent back for changes`,
+      title: `${nChanges} post${nChanges === 1 ? "" : "s"} sent back for changes`,
       detail: "Editing one resubmits it for approval automatically.",
       href: "/social/approvals",
       cta: "Open",
@@ -383,13 +391,13 @@ export async function getSocialOverview(workspaceId: string): Promise<SocialOver
     });
   }
 
-  if (requireApproval && drafts.length > 0 && awaiting.length === 0) {
+  if (requireApproval && nDrafts > 0 && nAwaiting === 0) {
     // Nothing broken — just worth saying, because approval-on plus untouched
     // drafts is the state where people wonder why nothing is going out.
     attention.push({
       kind: "drafts-idle",
       severity: "info",
-      title: `${drafts.length} draft${drafts.length === 1 ? "" : "s"} not yet queued`,
+      title: `${nDrafts} draft${nDrafts === 1 ? "" : "s"} not yet queued`,
       detail: "Approved drafts still need queueing before they'll send.",
       href: "/social/calendar",
       cta: "Queue them",
@@ -409,12 +417,12 @@ export async function getSocialOverview(workspaceId: string): Promise<SocialOver
     freeSlotsAhead,
     nextSend,
     counts: {
-      scheduled: scheduled.length,
-      drafts: drafts.length,
-      awaitingApproval: awaiting.length,
-      changesRequested: changes.length,
-      postedAllTime: posted.length,
-      postedLast30: posted.filter((p) => p.publishedAt && p.publishedAt >= last30).length,
+      scheduled: nScheduled,
+      drafts: nDrafts,
+      awaitingApproval: nAwaiting,
+      changesRequested: nChanges,
+      postedAllTime: nPosted,
+      postedLast30: nPosted30,
     },
     attention,
   };

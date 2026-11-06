@@ -753,6 +753,12 @@ export const HELP_CATEGORIES: FaqCategory[] = [
         tags: ["drafts", "autonomy", "special days", "date"],
       },
       {
+        q: "I moved a post back to drafts — will the engine send it anyway?",
+        a: "No. A post a person parks is **held**: Move to drafts, Cancel, Save as draft in the composer, or **Hold** on Drafts. Under full autonomy the engine gives drafts without a time the next free slot within about half an hour — but never a held one, and **Queue all** leaves held drafts too. Held drafts wear a **Held** chip on Drafts. Queueing or scheduling one yourself lets go of the hold, and so does **Let go**. Drafts the engine wrote itself (auto-generated, RSS, captions) aren't held — under full autonomy they're meant to go out.\n\nIn the composer, **Make this my default** remembers which accounts you post to, so new posts start with them ticked — just for you.",
+        links: [{ label: "Drafts →", href: "/social/drafts" }],
+        tags: ["drafts", "hold", "held", "autonomy", "move to drafts", "default accounts"],
+      },
+      {
         q: "How do RSS feeds work?",
         a: "Distribute → **RSS**: paste a feed address (most end in /feed, /rss or .xml). Publisher reads it about once an hour, and each new item becomes either a **social idea on the board** — waiting for someone to approve it, and drafted with its link when it is — or a **draft post** (title and link). On a workspace with full autonomy on, drafts go out on their own, and the page says so.\n\nThe first read brings in at most five items from the past week, so following a busy feed can't flood the board.",
         links: [{ label: "Open RSS →", href: "/social/rss" }],

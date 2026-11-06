@@ -88,12 +88,12 @@ export default async function ScriptVersionsPage({ params, searchParams }: { par
           <form method="get" className="card mb-3 flex flex-wrap items-end gap-2 text-xs" data-version-pick>
             <input type="hidden" name="part" value={part} />
             <label className="min-w-0"><span className="block text-[10px] text-[var(--mute)] mb-1">From (older)</span>
-              <select name="a" defaultValue={aKey} className={field} aria-label="Compare from">
+              <select key={`a:${aKey}`} name="a" defaultValue={aKey} className={field} aria-label="Compare from">
                 <option value={CURRENT}>The current text</option>
                 {versions.map((v) => <option key={v.id} value={v.id}>{describe(v)}</option>)}
               </select></label>
             <label className="min-w-0"><span className="block text-[10px] text-[var(--mute)] mb-1">To (newer)</span>
-              <select name="b" defaultValue={bKey} className={field} aria-label="Compare to">
+              <select key={`b:${bKey}`} name="b" defaultValue={bKey} className={field} aria-label="Compare to">
                 <option value={CURRENT}>The current text</option>
                 {versions.map((v) => <option key={v.id} value={v.id}>{describe(v)}</option>)}
               </select></label>

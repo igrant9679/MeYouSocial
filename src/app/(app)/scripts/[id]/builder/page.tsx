@@ -233,7 +233,7 @@ function StepTitle({ scriptId, state, fallback }: { scriptId: string; state: Bui
       <form action={suggestBuilderTitlesAction} className="flex justify-between items-center">
         <h3 className="font-mono text-xs uppercase tracking-wider text-[var(--mute)]">AI suggestions</h3>
         <input type="hidden" name="scriptId" value={scriptId} />
-        <button type="submit" className="btn sm">Suggest titles</button>
+        <SubmitButton className="btn sm" pendingText="Suggesting…">Suggest titles</SubmitButton>
       </form>
 
       {state.titleVariants.length > 0 && (
@@ -296,7 +296,7 @@ function StepHook({ scriptId, state }: { scriptId: string; state: BuilderState }
       <form action={suggestBuilderHooksAction} className="flex justify-between items-center">
         <h3 className="font-mono text-xs uppercase tracking-wider text-[var(--mute)]">AI suggestions</h3>
         <input type="hidden" name="scriptId" value={scriptId} />
-        <button type="submit" className="btn sm">Suggest hooks</button>
+        <SubmitButton className="btn sm" pendingText="Suggesting…">Suggest hooks</SubmitButton>
       </form>
 
       {state.hookVariants.length > 0 && (
@@ -347,7 +347,7 @@ function StepDraft({ scriptId, state }: { scriptId: string; state: BuilderState 
             <form action={regenerateBuilderSectionAction}>
               <input type="hidden" name="scriptId" value={scriptId} />
               <input type="hidden" name="index" value={i} />
-              <button type="submit" className="btn sm flex items-center gap-1.5"><RefreshCw className="w-3.5 h-3.5" /> Regenerate</button>
+              <SubmitButton className="btn sm flex items-center gap-1.5" pendingText="Rewriting…"><RefreshCw className="w-3.5 h-3.5" /> Regenerate</SubmitButton>
             </form>
           </div>
           <pre className="text-sm whitespace-pre-wrap font-sans leading-[1.6]">{s.content}</pre>

@@ -5,18 +5,20 @@ import { db } from "@/lib/db";
 import { setProjectStatusAction, createProjectAction, setProjectTopicAction } from "@/app/actions/production";
 import { DeleteButton } from "@/components/DeleteButton";
 import { SubmitButton } from "@/components/SubmitButton";
+import { EmptyState } from "@/components/EmptyState";
 import { UPLOAD_STEPS, readChecklist, checklistDone } from "@/lib/upload-checklist";
 
 // Configurable Production Board: all content by status, with click-to-advance.
 // Drag-and-drop is omitted v1; the forward arrow is the supported way to advance a stage.
 
 const STATUSES = [
-  { key: "idea", label: "Idea", color: "#D97706", soft: "#FBEED5" },
-  { key: "research_writing", label: "Research/Writing", color: "#2563EB", soft: "#E5EDFD" },
-  { key: "recording", label: "Recording", color: "#6D28D9", soft: "#EDE7FB" },
-  { key: "editing", label: "Editing", color: "#4F46E5", soft: "#E7E6FB" },
-  { key: "scheduled", label: "Scheduled", color: "#0D9488", soft: "#D7F1ED" },
-  { key: "published", label: "Published", color: "#15924B", soft: "#E0F2E8" },
+  // Theme tokens, not hex, so dark mode follows (tracker #18).
+  { key: "idea", label: "Idea", color: "var(--amber-on)", soft: "var(--amber-soft)" },
+  { key: "research_writing", label: "Research/Writing", color: "var(--blue-on)", soft: "var(--blue-soft)" },
+  { key: "recording", label: "Recording", color: "var(--violet-on)", soft: "var(--violet-soft)" },
+  { key: "editing", label: "Editing", color: "var(--indigo-on)", soft: "var(--indigo-soft)" },
+  { key: "scheduled", label: "Scheduled", color: "var(--teal-on)", soft: "var(--teal-soft)" },
+  { key: "published", label: "Published", color: "var(--green-on)", soft: "var(--green-soft)" },
 ] as const;
 
 export default async function ProductionBoardPage() {
@@ -69,12 +71,22 @@ export default async function ProductionBoardPage() {
         </form>
       )}
 
+      {/* A blank board said nothing (tracker #8): say what a project is and how one gets here. */}
+      {projects.length === 0 && (
+        <EmptyState
+          line="No projects on the board yet."
+          note={editor
+            ? (channels.length ? "A project is one video tracked from idea to published. Add one above, or open a script and press Track in production." : "A project belongs to a channel — add a channel first, then projects can be tracked here.")
+            : "A project is one video tracked from idea to published. An editor adds them here, or from a script's Track in production."}
+        />
+      )}
+
       {/* Kanban */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 min-h-[400px]">
         {STATUSES.map((s) => {
           const items = projects.filter((p) => p.status === s.key);
           return (
-            <section key={s.key} className="card" style={{ background: s.soft + "55" }}>
+            <section key={s.key} className="card" style={{ background: `color-mix(in srgb, ${s.soft} 33%, transparent)` }}>
               <div className="flex items-center gap-2 mb-2">
                 <span className="w-2 h-2 rounded-full" style={{ background: s.color }} />
                 <h2 className="font-mono font-bold text-xs uppercase tracking-wider" style={{ color: s.color }}>{s.label}</h2>
@@ -115,7 +127,7 @@ export default async function ProductionBoardPage() {
                       <form action={setProjectTopicAction} className="flex items-center gap-1 mt-1.5">
                         <input type="hidden" name="id" value={p.id} />
                         <Tags className="w-3 h-3 shrink-0" style={{ color: "var(--indigo-on)" }} />
-                        <select name="topicId" defaultValue={p.topicId ?? ""} aria-label="Topic"
+                        <select key={`topicId:${p.topicId ?? ""}`} name="topicId" defaultValue={p.topicId ?? ""} aria-label="Topic"
                           className="text-[10px] border border-[var(--line-2)] rounded px-1 py-0.5 flex-1 min-w-0">
                           <option value="">no topic</option>
                           {topics.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}

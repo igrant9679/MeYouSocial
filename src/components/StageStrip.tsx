@@ -1,6 +1,6 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
+import { useState, useSyncExternalStore, type MouseEvent } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { STAGES, currentTab, stageFor } from "@/lib/stages";
@@ -53,13 +53,28 @@ export function StageStrip({
   const pathname = usePathname() ?? "";
   // Badges follow the shell poll (E-SHL-01) — they were the layout's, frozen until it re-rendered.
   const live = useSyncExternalStore(subscribeShell, shellSnapshot, noShellSnapshot);
+  // The tab just clicked lights AT ONCE (tracker #12): the path only changes
+  // when the next page arrives, and a heavy one (Engage) left the old tab lit
+  // for seconds, as if the click hadn't landed. Kept only while the path is
+  // the one it was clicked from, so it can never outlive the navigation.
+  const [clicked, setClicked] = useState<{ href: string; from: string } | null>(null);
   const counts = live?.counts ?? serverCounts;
   const key = stageFor(pathname);
   if (!key) return null;
   const stage = STAGES[key];
   const tabs = stage.tabs({ channelId: activeChannelId, studio, admin, operator }).filter((t) => canFollow(t.href, role));
-  const onOverview = pathname === stage.href;
-  const current = onOverview ? null : currentTab(pathname, tabs);
+  // A tab on this same path (the one you're on, or a ?query variant) is never "pending".
+  const pendingHref = clicked && clicked.from === pathname && clicked.href.split("?")[0] !== pathname ? clicked.href : null;
+  // A page no tab owns (an idea's or a post's own page) lights Overview, so the
+  // strip always says where you are (tracker #2) — it used to light nothing.
+  const matched = pendingHref || pathname === stage.href ? null : currentTab(pathname, tabs);
+  const onOverview = pendingHref ? pendingHref === stage.href : pathname === stage.href || !matched;
+  const current = pendingHref ? tabs.find((t) => t.href === pendingHref) ?? null : matched;
+  // A plain left click only — a new tab or window leaves this page where it is.
+  const press = (href: string) => (e: MouseEvent) => {
+    if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    setClicked({ href, from: pathname });
+  };
 
   const badge = (href: string) => {
     const c = counts[href.split("?")[0]];
@@ -91,7 +106,7 @@ export function StageStrip({
       className="sticky top-0 z-30 -mx-6 -mt-6 mb-5 px-6 flex items-center gap-1 flex-wrap max-sm:flex-nowrap max-sm:overflow-x-auto max-sm:whitespace-nowrap border-b border-[var(--line)] bg-[var(--panel)]"
     >
       <span className="font-mono text-[10.5px] font-bold uppercase tracking-wider text-[var(--mute)] pr-2 py-2">{stage.label}</span>
-      <Link href={stage.href} aria-current={onOverview ? "page" : undefined} className={linkClass} style={onOverview ? lit : dim}>
+      <Link href={stage.href} aria-current={pathname === stage.href && !pendingHref ? "page" : undefined} className={linkClass} style={onOverview ? lit : dim} onClick={press(stage.href)} data-pending={onOverview && pendingHref ? "" : undefined}>
         Overview{badge(stage.href)}
       </Link>
       {tabs.map((t, i) => {
@@ -100,19 +115,20 @@ export function StageStrip({
         // never the one you're on. Phones keep the scrolling row.
         const folds = overflow && i >= INLINE && !on;
         return (
-          <Link key={t.href} href={t.href} aria-current={on ? "page" : undefined} className={`${linkClass} hover:text-[var(--ink)]${folds ? " sm:hidden xl:inline-flex" : ""}`} style={on ? lit : dim}>
+          <Link key={t.href} href={t.href} aria-current={on && !pendingHref ? "page" : undefined} className={`${linkClass} hover:text-[var(--ink)]${folds ? " sm:hidden xl:inline-flex" : ""}`} style={on ? lit : dim} onClick={press(t.href)} data-pending={on && pendingHref ? "" : undefined}>
             {t.label}{badge(t.href)}
           </Link>
         );
       })}
       {overflow && (
-        <details key={pathname} className="relative hidden sm:block xl:hidden" data-strip-more>
+        // Keyed on the clicked tab too, so picking one from More closes the menu at once.
+        <details key={`${pathname}|${pendingHref ?? ""}`} className="relative hidden sm:block xl:hidden" data-strip-more>
           <summary className={`${linkClass} cursor-pointer list-none`} style={dim}>
             More ▾{moreBadge > 0 && <span className="font-mono text-[9.5px] font-bold px-1.5 py-px rounded-full leading-4" style={{ background: moreUrgent ? "var(--rose-soft)" : "var(--zebra)", color: moreUrgent ? "var(--rose-on)" : "var(--mute)" }}>{moreBadge}</span>}
           </summary>
           <div className="absolute right-0 top-full mt-1 z-40 min-w-44 rounded-lg border border-[var(--line)] bg-[var(--panel)] shadow-lg py-1 flex flex-col">
             {folded.map((t) => (
-              <Link key={t.href} href={t.href} className="text-[12px] px-3 py-1.5 hover:bg-[var(--zebra)] flex items-center justify-between gap-2">
+              <Link key={t.href} href={t.href} onClick={press(t.href)} className="text-[12px] px-3 py-1.5 hover:bg-[var(--zebra)] flex items-center justify-between gap-2">
                 {t.label}{badge(t.href)}
               </Link>
             ))}

@@ -240,7 +240,7 @@ export default async function VideosPage({ searchParams }: { searchParams: Promi
                 <form action={setRenderTopicAction} className="flex items-center gap-1.5 mb-2">
                   <input type="hidden" name="id" value={r.id} />
                   <Tags className="w-3.5 h-3.5 shrink-0" style={{ color: "var(--indigo-on)" }} />
-                  <select name="topicId" defaultValue={r.topicId ?? ""} aria-label="Topic"
+                  <select key={`topicId:${r.topicId ?? ""}`} name="topicId" defaultValue={r.topicId ?? ""} aria-label="Topic"
                     className="text-[11px] border border-[var(--line-2)] rounded-md px-1.5 py-1 max-w-[220px]">
                     <option value="">no topic</option>
                     {topics.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}

@@ -67,7 +67,7 @@ function AssignControl({ kind, targetId, accountId, current, members }: { kind: 
       <input type="hidden" name="targetId" value={targetId} />
       <input type="hidden" name="accountId" value={accountId} />
       <label className="text-[var(--mute)]" htmlFor={`assign-${kind}-${targetId}`}>Assigned to</label>
-      <select id={`assign-${kind}-${targetId}`} name="assigneeId" defaultValue={current ?? ""} className="text-[11px]">
+      <select key={`assigneeId:${current ?? ""}`} id={`assign-${kind}-${targetId}`} name="assigneeId" defaultValue={current ?? ""} className="text-[11px]">
         <option value="">Nobody</option>
         {members.map((m) => <option key={m.userId} value={m.userId}>{m.name}</option>)}
       </select>

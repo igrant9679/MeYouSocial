@@ -108,7 +108,7 @@ export default async function IntelChannelPage({ params, searchParams }: { param
             <h2 className="font-mono text-[14px] font-bold flex items-center gap-2"><Eye className="w-4 h-4" style={{ color: "#D97706" }} /> Top videos</h2>
             <span className="flex-1" />
             <form>
-              <select name="sort" defaultValue={sort} className="border border-[var(--line-2)] rounded-md px-2 py-1 text-xs font-mono">
+              <select key={`sort:${sort}`} name="sort" defaultValue={sort} className="border border-[var(--line-2)] rounded-md px-2 py-1 text-xs font-mono">
                 <option value="outlier">Highest outlier</option>
                 <option value="views">Most views</option>
                 <option value="vph">Most views per hour</option>

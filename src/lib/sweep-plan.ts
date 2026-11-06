@@ -101,7 +101,8 @@ export async function publishCandidates(workspaceId: string, mode: string, now =
  */
 export async function queueableDrafts(workspaceId: string) {
   return db.socialPost.findMany({
-    where: { workspaceId, status: "draft", scheduledAt: null, OR: [{ approval: null }, { approval: "approved" }] },
+    // ⚠ heldAt: null — a draft a person parked is never given a slot (SOC-04).
+    where: { workspaceId, status: "draft", scheduledAt: null, heldAt: null, OR: [{ approval: null }, { approval: "approved" }] },
     orderBy: { createdAt: "asc" },
     take: 100,
     select: { id: true, category: true, text: true },

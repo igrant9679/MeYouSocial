@@ -28,6 +28,7 @@ export function securityTitle(action: string, entityId: string | null | undefine
       const d = Array.isArray(meta.domains) && meta.domains.length ? `only ${(meta.domains as string[]).map((x) => `@${x}`).join(", ")}` : "any email domain";
       return `Access rules changed: ${d}; ${meta.googleOnly ? "Google sign-in only" : "passwords allowed"}; ${meta.expireDays ? `idle editors and viewers lose access after ${meta.expireDays} days` : "no automatic expiry"}`;
     }
+    case "membership.revoked": return `${who} was revoked — they can't sign in to this workspace until reinstated`;
     case "membership.expired": return `${who} lost access after ${typeof meta.days === "number" ? meta.days : "too many"} days without signing in`;
     case "workspace.deleted": return `This workspace was deleted by ${meta.via === "platform" ? "the platform operator" : "one of its admins"} — it's kept until ${typeof meta.purgeAfter === "string" ? meta.purgeAfter.slice(0, 10) : "the end of its restore window"}, then purged; the platform operator can restore it until then`;
     case "workspace.restored": return "The platform operator restored this workspace";

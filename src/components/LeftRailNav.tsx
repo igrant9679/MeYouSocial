@@ -48,7 +48,8 @@ export type LeftRailItem = {
 // of its tabs — the module pages kept their URLs (One-Loop step 3).
 export function isNavActive(href: string, pathname: string): boolean {
   // The Inbox is the landing page; the old Home URL redirects to it.
-  if (href === "/inbox") return pathname === "/inbox" || pathname === "/dashboard" || pathname === "/";
+  // Notifications are the Inbox's too (tracker #2: that page lit nothing in the rail).
+  if (href === "/inbox") return pathname === "/inbox" || pathname === "/dashboard" || pathname === "/" || pathname === "/notifications" || pathname.startsWith("/notifications/");
   const stage = stageFor(pathname);
   if ((STAGE_HREFS as readonly string[]).includes(href)) return stage === href;
   // A page that belongs to a stage lights only the stage — otherwise a channel's

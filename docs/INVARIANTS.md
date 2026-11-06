@@ -2300,3 +2300,54 @@ before changing code in that area.
   mode") stored as four LSI Media files' text, and marked them and any upload with no text `unread`.
 - ⚠ Verified against a stand-in Drive written from Google's documented protocol; the first real resumable upload to
   Google happens in production.
+
+## A draft a person parked stays parked — the engine never queues a held post (2026-11-06, audit SOC-04 / E-SOC-01, growth part ct)
+- `SocialPost.heldAt` / `heldById` (migration `20261106090000_social_post_hold`). **Held = a PERSON parked it**: Move to
+  drafts (the row, the bulk bar, the assistant's `unschedule_social_post`), Cancel, Save as draft in the composer (a new
+  post, or an edit kept as a draft), and Hold on Drafts (`lib/social/hold.ts`: `holdBy`, `RELEASED`). Drafts the engine
+  makes — auto-generation, RSS, captions, the assistant's own draft tool, imports — are NOT held: under full autonomy
+  they are meant to go out.
+- ⚠ `queueableDrafts` (`lib/sweep-plan.ts`) filters `heldAt: null`; the full-autonomy sweep and "Next sweep will…" both
+  read it. Any new auto-queue selector carries the same filter. Queue all leaves held drafts and counts them in its
+  message. Ticking a held draft and Add to queue, scheduling it in the composer, dropping it on the calendar, or the
+  assistant queueing or scheduling it lets go (`RELEASED`); so does undoing the assistant's unschedule.
+- Drafts: a Held chip, Hold / Let go per row and in bulk (`op=hold|release`, audit `social.held` / `social.released`),
+  and the sentence says — when full autonomy is on — that an undated draft gets the next free slot within about half
+  an hour unless it's held.
+- Built as a column the selectors read. Sending is untouched: no shared send gate (an earlier `send-gate.ts` attempt
+  was stopped, and this does not rebuild it).
+
+## The team's tracker: buttons say what happened, dropdowns keep what was saved, an AI refusal is named (2026-11-06, growth part cu)
+- ⚠ **A `<select defaultValue={saved}>` in a server-action form is keyed on that value** (`key={`name:${value}`}`).
+  React 19 resets a form after its action, and an unkeyed select snapped back to the value it first rendered — read as
+  "won't save" (the script's voice, the article's reviewer and fields). 64 selects in server components were keyed by
+  a codemod, plus the script settings by hand. A new one gets a key too.
+- **AI buttons show they're working** (`SubmitButton`): the script's outline and Agent, the builder's titles, hooks and
+  section regenerate, thumbnail CTR scoring, the voice preview, the audience photo and avatar, Relink & retrain.
+- **Saves say so**: script settings (names the voice), plan answers (a too-long answer is refused out loud; the fields
+  carry `maxLength`), article Save, Assign reviewer (who and that they were told / already / cleared), every Brand save
+  (a blank motif field is refused — it used to save as the old text, silently), Revoke (a flash, a `membership.revoked`
+  audit row and a security notice to admins), keyword discovery (added N / all already here / no usable list / paused),
+  Generate 10 video ideas (on its way — and an on-demand run that gets no answer FAILS its job with the reason, one
+  attempt, instead of finishing "done" with nothing), Recompute priorities (N recomputed, M changed).
+- ⚠ **A placeholder reply names its cause**: `whyNoAiReply` / `describeRefusal` (`lib/llm/provider-health.ts`) — a
+  recorded refusal (credits, quota, key, and where to fix it), else "no AI key", else "didn't answer". The assistant,
+  keyword discovery and classification, voice borrowing and idea generation use it. "No working AI key" said while a key
+  was there and refusing (LSI's Google 402) is gone. The router does NOT switch a refusing workspace to another
+  provider: moving a tenant onto another (possibly platform-paid) key is the owner's call.
+- **Borrow a voice** trains on the other channel's titles and descriptions, like onboarding (transcripts are null without
+  the channel owner's OAuth), refuses under 3 readable videos, never stores a placeholder reply, and records `source`.
+  The voice page flags a profile whose own text says it came from mock data — LSI Media's default voice "Dan Martell"
+  (2026-07-26) does — and one with no record of what built it.
+- **Inbox "How things are"**: the social counts are COUNTED (they were read off a 300-post sample), with the definitions of
+  the tabs they link to; impressions are "of posts sent in the last 28 days", linking to Measure's 28-day range;
+  Published (7d) links to range=7.
+- Queue / Sent / Drafts take `sort` (each tab's natural order, flipped); the earlier/later arrows only in natural order.
+- **Composer**: attached files show as thumbnails; the media helpers' refusals come back to the composer, not `/social`;
+  a storage failure is a message, not a crash; each person can save default accounts (`social:default_accounts:<userId>`,
+  set from the composer without leaving the post).
+- **Shell**: the stage strip lights a clicked tab at once (pending until the path changes, never for a same-path tab); a
+  page no tab owns lights Overview; `/notifications` lights the Inbox; `/social` has a loading boundary; `(app)/error.tsx`
+  keeps the shell around a failure, with Try again and the error's digest.
+- The Production board has an empty state; Connections names `USE_MOCK_YOUTUBE` when it's on and its Fix links go to the
+  key's own row; Insights says social figures count posts sent from this app.

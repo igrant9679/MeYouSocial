@@ -156,18 +156,23 @@ export async function changeRoleAction(formData: FormData) {
 }
 
 export async function revokeAction(formData: FormData) {
-  const { workspace, membership: me } = await requireRole("ADMIN");
+  const { workspace, membership: me, user: actor } = await requireRole("ADMIN");
   const userId = String(formData.get("userId") ?? "");
-  if (userId === me.userId) return;
-  await db.membership.updateMany({
-    where: { workspaceId: workspace.id, userId },
+  const to = back(formData);
+  // Said, not silent (tracker #5): a refused or finished Revoke looked like nothing happened.
+  if (userId === me.userId) redirect(`${to}?flashErr=${encodeURIComponent("You can't revoke yourself — another admin has to.")}`);
+  const r = await db.membership.updateMany({
+    where: { workspaceId: workspace.id, userId, status: "active" },
     data: { status: "revoked" },
   });
+  if (!r.count) redirect(`${to}?flashErr=${encodeURIComponent("That person isn't an active member — nothing changed.")}`);
   // An invitation still waiting for this person would let them straight back
   // in — accepting reactivates a membership. Revoking withdraws it too.
   const target = await db.user.findUnique({ where: { id: userId }, select: { email: true } });
   await withdrawInvitationsFor(workspace.id, target?.email);
+  await writeAudit({ workspaceId: workspace.id, actorId: actor.id, action: "membership.revoked", entityType: "membership", entityId: userId, meta: { email: target?.email ?? null } });
   revalidateBoth();
+  redirect(`${to}?flash=${encodeURIComponent(`${target?.email ?? "The member"} is revoked — their history stays, and Reinstate brings them back.`)}`);
 }
 
 export type ResetLinkState = { link?: string; error?: string } | null;

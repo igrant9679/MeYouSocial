@@ -59,7 +59,7 @@ export default async function AssistantHistoryPage({ searchParams }: { searchPar
       </div>
 
       <form className="flex flex-wrap items-center gap-2 text-xs mb-3">
-        <select name="tool" defaultValue={sp.tool ?? ""} className="border border-[var(--line-2)] rounded-lg px-2 py-1.5">
+        <select key={`tool:${sp.tool ?? ""}`} name="tool" defaultValue={sp.tool ?? ""} className="border border-[var(--line-2)] rounded-lg px-2 py-1.5">
           <option value="">Every action</option>
           {tools.map((t) => <option key={t} value={t}>{t}</option>)}
         </select>

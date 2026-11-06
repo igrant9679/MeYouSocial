@@ -1,6 +1,7 @@
 import { TEXT_PROVIDERS } from "@/lib/llm/models";
 import { db } from "@/lib/db";
 import { getSetting } from "@/lib/settings";
+import { env } from "@/lib/env";
 import { getApiKey, KEY_PROVIDERS } from "@/lib/llm/keys";
 import { resolveImageProviderName } from "@/lib/images";
 import { getVideoProviderSetting } from "@/lib/video";
@@ -105,19 +106,22 @@ export async function connectionRows(workspaceId: string): Promise<ConnRow[]> {
       detail: videoProvider === "mock" ? "set to mock" : googleKey ? `${videoProvider} on the Google key` : "auto, but no Google key — renders would be placeholders",
     },
     {
-      key: "voice", label: "Voice (ElevenLabs)", href: "/admin/api-keys",
+      key: "voice", label: "Voice (ElevenLabs)", href: "/admin/api-keys#key-elevenlabs",
       state: hasValue(elevenlabs) && ttsProvider !== "mock" ? "ok" : "missing",
       detail: hasValue(elevenlabs) ? (ttsProvider === "mock" ? "key present, provider set to mock" : "key present") : "no key — voiceovers are silent placeholders",
     },
     {
-      key: "shorts", label: "Branded shorts (HeyGen)", href: "/admin/api-keys",
+      key: "shorts", label: "Branded shorts (HeyGen)", href: "/admin/api-keys#key-heygen",
       state: hasValue(heygen) ? "ok" : "missing",
       detail: hasValue(heygen) ? "key present" : "no key — the Render branded short button stays off",
     },
     {
-      key: "youtube", label: "YouTube Data API", href: "/admin/api-keys",
-      state: hasValue(youtube) ? "ok" : "missing",
-      detail: hasValue(youtube) ? "platform key present" : "no key — Intel lookups are mocked",
+      key: "youtube", label: "YouTube Data API", href: "/admin/api-keys#key-youtube",
+      // A present key is not a working one while the server forces the mock (tracker #24).
+      state: hasValue(youtube) && !env.USE_MOCK_YOUTUBE ? "ok" : "missing",
+      detail: env.USE_MOCK_YOUTUBE
+        ? "USE_MOCK_YOUTUBE is on for this server — every YouTube read is a placeholder, key or not"
+        : hasValue(youtube) ? "platform key present" : "no key — Intel lookups are mocked",
     },
     {
       key: "channels", label: "YouTube channels", href: "/channels",

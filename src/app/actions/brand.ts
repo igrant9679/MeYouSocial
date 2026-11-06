@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { requireRole } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/governance";
@@ -24,6 +25,8 @@ import { RENDER_PATTERNS, isRenderProfile } from "@/lib/design-render";
  */
 
 const BRAND_PATH = "/blog/brand";
+// Every save says what happened (tracker #4: nothing on Tone & motifs ever confirmed).
+const done = (kind: "ok" | "err", m: string): never => redirect(`${BRAND_PATH}?${kind}=${encodeURIComponent(m)}`);
 
 const str = (fd: FormData, k: string, max = 500) => {
   const v = String(fd.get(k) ?? "").trim();
@@ -74,6 +77,7 @@ export async function saveBrandKitAction(formData: FormData) {
     entityType: "brand_kit",
   });
   revalidatePath(BRAND_PATH);
+  done("ok", "Brand kit saved.");
 }
 
 /** H1–H6 pixel size + top/bottom margins (+ optional weight/line-height/colour). */
@@ -106,6 +110,7 @@ export async function saveHeadingSpecAction(formData: FormData) {
     entityType: "brand_kit",
   });
   revalidatePath(BRAND_PATH);
+  done("ok", "Heading and image rules saved.");
 }
 
 // ---- Motif directives ---------------------------------------------------------
@@ -120,6 +125,10 @@ export async function saveMotifDirectiveAction(formData: FormData) {
     where: { workspaceId_key: { workspaceId: workspace.id, key } },
   });
   if (!current) return;
+
+  // A cleared field used to save as the OLD text, silently (tracker #4) — say so instead.
+  const blank = (["label", "summary", "voice", "rhythm", "evidence", "cta"] as const).filter((k) => formData.has(k) && !str(formData, k));
+  if (blank.length) done("err", `Nothing was saved — ${blank.join(", ")} can't be blank. Write something, or use Reset to go back to the default wording.`);
 
   const next = {
     label: str(formData, "label", 60) ?? current.label,
@@ -136,7 +145,7 @@ export async function saveMotifDirectiveAction(formData: FormData) {
     next.rhythm === current.rhythm &&
     next.evidence === current.evidence &&
     next.cta === current.cta;
-  if (unchanged) return;
+  if (unchanged) done("ok", "No changes — the motif is as it was.");
 
   await db.motifDirectiveVersion.create({
     data: {
@@ -167,6 +176,7 @@ export async function saveMotifDirectiveAction(formData: FormData) {
     meta: { key, version: current.version + 1 },
   });
   revalidatePath(BRAND_PATH);
+  done("ok", `“${next.label}” saved as version ${current.version + 1} — earlier wording is under its history.`);
 }
 
 /** Restore a previous version (itself recorded as a new version — never lossy). */
@@ -222,6 +232,7 @@ export async function restoreMotifDirectiveAction(formData: FormData) {
     meta: { restoredFrom: version.version },
   });
   revalidatePath(BRAND_PATH);
+  done("ok", "Restored — the wording it replaced is kept as a version too.");
 }
 
 /** Reset one motif back to the framework seed text (kept as a version too). */
@@ -273,6 +284,7 @@ export async function resetMotifDirectiveAction(formData: FormData) {
     meta: { key },
   });
   revalidatePath(BRAND_PATH);
+  done("ok", "Reset to the default wording — the old wording is kept as a version.");
 }
 
 // ---- Defaults + platform mapping ------------------------------------------------
@@ -301,6 +313,7 @@ export async function saveMotifDefaultAction(formData: FormData) {
     meta: { tier, audience, motifs },
   });
   revalidatePath(BRAND_PATH);
+  done("ok", "Default saved.");
 }
 
 export async function deleteMotifDefaultAction(formData: FormData) {
@@ -308,6 +321,7 @@ export async function deleteMotifDefaultAction(formData: FormData) {
   const { workspace } = await requireRole("ADMIN");
   await db.motifDefault.deleteMany({ where: { id, workspaceId: workspace.id } });
   revalidatePath(BRAND_PATH);
+  done("ok", "Default removed.");
 }
 
 export async function setPlatformMotifAction(formData: FormData) {
@@ -334,4 +348,5 @@ export async function setPlatformMotifAction(formData: FormData) {
     meta: { platform, motifKey: motifKey || null },
   });
   revalidatePath(BRAND_PATH);
+  done("ok", motifKey ? "Platform tone saved." : "Platform tone cleared — it follows the post's own blend.");
 }

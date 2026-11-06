@@ -113,7 +113,12 @@ export async function savePlanQuestionsAction(formData: FormData) {
     points: formData.get("points") ?? undefined,
     action: formData.get("action") ?? undefined,
   });
-  if (!parsed.success) return;
+  // Said, not swallowed (tracker #13): a too-long answer used to save nothing, silently.
+  if (!parsed.success) {
+    const id = String(formData.get("scriptId") ?? "");
+    if (!id) return;
+    redirect(`/scripts/${encodeURIComponent(id)}?tab=plan&flashErr=${encodeURIComponent("Nothing was saved — an answer is too long (takeaway and worries 2,000 characters, key points 4,000, the action 1,000).")}`);
+  }
   const { script } = await load(parsed.data.scriptId);
 
   const outline = readJson<{ questions?: Record<string, string>; sections?: unknown }>(script.outline ?? null, {});
@@ -125,6 +130,7 @@ export async function savePlanQuestionsAction(formData: FormData) {
   };
   await db.script.update({ where: { id: script.id }, data: { outline: writeJson(outline) } });
   revalidatePath(`/scripts/${script.id}`);
+  redirect(`/scripts/${script.id}?tab=plan&flash=${encodeURIComponent("Answers saved — the outline uses them the next time it's generated.")}`);
 }
 
 /** Generate (or regenerate) the outline using planning answers. */
@@ -439,7 +445,11 @@ export async function updateScriptSettingsAction(formData: FormData) {
     templateId: formData.get("templateId") || undefined,
     voiceProfileId: formData.get("voiceProfileId") || undefined,
   });
-  if (!parsed.success) return;
+  if (!parsed.success) {
+    const id = String(formData.get("scriptId") ?? "");
+    if (!id) return;
+    redirect(`/scripts/${encodeURIComponent(id)}?flashErr=${encodeURIComponent("Nothing was saved — the script needs a title (up to 200 characters).")}`);
+  }
   const { script, workspace } = await load(parsed.data.scriptId);
   // Only a model that can write here (audit SET-01); the stored one may stay.
   const problem = await modelChoiceProblem(parsed.data.model, workspace.id, script.model);
@@ -462,4 +472,8 @@ export async function updateScriptSettingsAction(formData: FormData) {
     },
   });
   revalidatePath(`/scripts/${script.id}`);
+  // Said out loud (tracker #9): the voice looked unsaved because nothing answered.
+  const voice = voiceProfileId ? (await db.voiceProfile.findUnique({ where: { id: voiceProfileId }, select: { label: true } }))?.label : null;
+  const tab = String(formData.get("tab") ?? "");
+  redirect(`/scripts/${script.id}?${/^(plan|script|chat|history|shots)$/.test(tab) ? `tab=${tab}&` : ""}flash=${encodeURIComponent(`Saved — ${voice ? `voice “${voice}”` : "the channel's default voice"}${parsed.data.model ? `, model ${parsed.data.model}` : ""}.`)}`);
 }

@@ -4,7 +4,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireRole } from "@/lib/acl";
 import { db } from "@/lib/db";
-import { llm } from "@/lib/llm";
+import { llm, resolveUsableModel } from "@/lib/llm";
+import { whyNoAiReply } from "@/lib/llm/provider-health";
 import { isGloballyPaused, writeAudit } from "@/lib/governance";
 import { setWorkspaceSetting } from "@/lib/settings";
 import { isSearchDataCountry, searchDataVendorLabel } from "@/lib/search-data";
@@ -84,7 +85,9 @@ export async function deleteKeywordAction(formData: FormData) {
 /** AI keyword discovery grounded in the org profile; dedupes against existing. */
 export async function discoverKeywordsAction() {
   const { workspace } = await requireRole("EDITOR");
-  if (await isGloballyPaused(workspace.id)) return;
+  // Every outcome says what happened (tracker #19): paused, refused, nothing usable, or N added.
+  const done = (kind: "ok" | "err", m: string): never => redirect(`/blog/keywords?${kind}=${encodeURIComponent(m)}`);
+  if (await isGloballyPaused(workspace.id)) done("err", "Automation is paused for this workspace, so the AI isn't called until it's resumed.");
   const [org, existing] = await Promise.all([
     db.orgProfile.findUnique({ where: { workspaceId: workspace.id } }),
     db.keyword.findMany({ where: { workspaceId: workspace.id }, select: { phrase: true }, take: 100 }),
@@ -107,7 +110,8 @@ export async function discoverKeywordsAction() {
 
   const res = await llm.complete({
     purpose: "keywords",
-    model: workspace.defaultModel ?? llm.defaultModel,
+    // A model this workspace can reach (the channel/workspace/env chain).
+    model: await resolveUsableModel(workspace.defaultModel ?? "", workspace.id),
     system,
     messages: [{ role: "user", content: prompt }],
     // ⚠ 8000, not 1500 — the documented reasoning-model trap (CLAUDE.md). Both
@@ -128,7 +132,7 @@ export async function discoverKeywordsAction() {
       entityType: "keyword",
       meta: { provider: "mock", reason: "provider unavailable — refused to store mock keywords" },
     });
-    redirect(`/blog/keywords?err=${encodeURIComponent("No working AI key for this workspace, so nothing was generated — add one under Settings → Keys.")}`);
+    done("err", `Nothing was generated. ${await whyNoAiReply(workspace.id)}`);
   }
   let rows: Array<{ phrase?: string; tier?: number; intent?: string; cluster?: string }> = [];
   try {
@@ -137,7 +141,7 @@ export async function discoverKeywordsAction() {
   } catch {
     rows = [];
   }
-  let created = 0;
+  const before = await db.keyword.count({ where: { workspaceId: workspace.id } });
   const written: string[] = [];
   for (const r of rows.slice(0, 12)) {
     // stripListMarker: the model writes JSON but still leaves "- " inside the
@@ -156,8 +160,9 @@ export async function discoverKeywordsAction() {
         cluster: typeof r.cluster === "string" ? r.cluster.trim().slice(0, 80) || null : null,
       },
     });
-    created++;
   }
+  // New rows only — the upsert leaves a phrase that was already here untouched.
+  const created = (await db.keyword.count({ where: { workspaceId: workspace.id } })) - before;
   await writeAudit({
     workspaceId: workspace.id,
     action: "keywords.ai_discovery",
@@ -167,6 +172,9 @@ export async function discoverKeywordsAction() {
   // The model proposes phrases; only the provider may attach numbers to them.
   await syncNewPhrases(workspace.id, written);
   revalidatePath("/blog/keywords");
+  if (!written.length) done("err", "The model answered but gave no keywords in the form asked for — try again.");
+  if (!created) done("err", `The model suggested ${written.length} keyword${written.length === 1 ? "" : "s"}, but all were already here — nothing new was added.`);
+  done("ok", `Added ${created} new keyword${created === 1 ? "" : "s"}${written.length > created ? ` (${written.length - created} suggested were already here)` : ""}. Intent and clusters are the model's; volumes come from the search-data provider.`);
 }
 
 /**
@@ -205,7 +213,7 @@ export async function classifyIntentsAction() {
     workspaceId: workspace.id,
   });
   if (res.provider === "mock") {
-    redirect(`/blog/keywords?err=${encodeURIComponent("No working AI key for this workspace, so nothing was classified — add one under Settings → Keys.")}`);
+    redirect(`/blog/keywords?err=${encodeURIComponent(`Nothing was classified. ${await whyNoAiReply(workspace.id)}`)}`);
   }
   let map: Record<string, { intent?: string; cluster?: string }> = {};
   try {

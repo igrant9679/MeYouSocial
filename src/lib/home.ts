@@ -61,7 +61,8 @@ const DAY = 24 * 60 * 60 * 1000;
 export async function getHomeData(workspaceId: string): Promise<HomeData> {
   const now = new Date();
   const last7 = new Date(now.getTime() - 7 * DAY);
-  const last30 = new Date(now.getTime() - 30 * DAY);
+  // Measure's own 28-day window, so the Inbox's impressions match the page they link to (tracker #26).
+  const last28 = new Date(now.getTime() - 28 * DAY);
 
   const [
     social,
@@ -100,7 +101,7 @@ export async function getHomeData(workspaceId: string): Promise<HomeData> {
     db.socialPost.count({
       where: { workspaceId, status: { in: ["posted", "partial"] }, publishedAt: { gte: last7 } },
     }),
-    readingsForWorkspace(workspaceId, last30).catch(() => []),
+    readingsForWorkspace(workspaceId, last28).catch(() => []),
     getSetting("gsc:site_url", workspaceId).catch(() => ""),
     getSetting("ga4:property_id", workspaceId).catch(() => ""),
     // Stale triage (E-IDE-23): undecided a week, or approved a week and not made.
@@ -425,9 +426,9 @@ export async function getHomeData(workspaceId: string): Promise<HomeData> {
       total: blogDrafting + socialDrafts,
       parts: [
         { label: "blog", n: blogDrafting, href: "/blog?view=list" },
-        { label: "social", n: socialDrafts, href: "/social/calendar" },
+        { label: "social", n: socialDrafts, href: "/social/drafts" },
       ],
-      href: "/blog?view=list",
+      href: blogDrafting >= socialDrafts ? "/blog?view=list" : "/social/drafts",
     },
     {
       key: "approve",
@@ -437,14 +438,15 @@ export async function getHomeData(workspaceId: string): Promise<HomeData> {
         { label: "blog", n: approveBlog, href: "/blog?view=list" },
         { label: "social", n: approveSocial, href: "/social/approvals" },
       ],
-      href: "/social/approvals",
+      // The headline goes where most of the waiting is — it always went to social approvals.
+      href: approveBlog > approveSocial ? "/blog?view=list" : "/social/approvals",
     },
     {
       key: "schedule",
       label: "Scheduled",
       total: social.counts.scheduled,
-      parts: [{ label: "social", n: social.counts.scheduled, href: "/social/calendar" }],
-      href: "/social/calendar",
+      parts: [{ label: "social", n: social.counts.scheduled, href: "/social/queue" }],
+      href: "/social/queue",
     },
     {
       key: "publish",
@@ -452,17 +454,18 @@ export async function getHomeData(workspaceId: string): Promise<HomeData> {
       total: publishedBlog7 + publishedSocial7,
       parts: [
         { label: "blog", n: publishedBlog7, href: "/blog" },
-        { label: "social", n: publishedSocial7, href: "/social/performance" },
+        { label: "social", n: publishedSocial7, href: "/social/performance?range=7" },
       ],
-      href: "/social/performance",
+      href: "/social/performance?range=7",
     },
     {
       key: "measure",
-      label: "Impressions (30d)",
+      // The latest reading of posts SENT in the last 28 days (their impressions so far), social only.
+      label: "Impressions (28d posts)",
       total: impressions30,
       reason: "no engagement measured yet — it syncs a few times a day once posts are out",
       parts: [],
-      href: "/social/performance",
+      href: "/social/performance?range=28",
     },
   ];
 

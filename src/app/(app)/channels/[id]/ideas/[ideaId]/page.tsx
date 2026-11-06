@@ -61,7 +61,7 @@ export default async function IdeaDetailPage({ params }: { params: Promise<{ id:
         <input type="hidden" name="ideaId" value={idea.id} />
         <label className="flex flex-col gap-1 flex-1">
           <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">Idea merit (content-mix balancing)</span>
-          <select name="merit" defaultValue={idea.merit ?? ""} className="border border-[var(--line-2)] rounded-lg p-2 text-sm">
+          <select key={`merit:${idea.merit ?? ""}`} name="merit" defaultValue={idea.merit ?? ""} className="border border-[var(--line-2)] rounded-lg p-2 text-sm">
             <option value="">—</option>
             <option value="pillar">Content pillar</option>
             <option value="trending">Trending topic</option>

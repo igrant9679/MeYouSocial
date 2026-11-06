@@ -146,7 +146,7 @@ export default async function CaptionBatchPage({ params, searchParams }: { param
               <span className="flex-1" />
               <label className="inline-flex items-center gap-1">
                 <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">Category</span>
-                <select name="category" defaultValue={defaultCategory} className={inputCls}>
+                <select key={`category:${defaultCategory}`} name="category" defaultValue={defaultCategory} className={inputCls}>
                   <option value="">— none —</option>
                   {categories.map((c) => <option key={c} value={c}>{c}</option>)}
                 </select>

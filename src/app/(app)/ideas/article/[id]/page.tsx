@@ -101,7 +101,7 @@ export default async function ArticleIdeaPage({ params, searchParams }: { params
               <label className="text-[11px] text-[var(--mute)]">Keyword<input name="keyword" defaultValue={idea.keyword ?? ""} className={field} /></label>
               <label className="text-[11px] text-[var(--mute)]">Audience<input name="audience" defaultValue={idea.audience ?? ""} className={field} /></label>
               <label className="text-[11px] text-[var(--mute)]">Tier
-                <select name="tier" defaultValue={idea.tier?.toString() ?? ""} className={field}>
+                <select key={`tier:${idea.tier?.toString() ?? ""}`} name="tier" defaultValue={idea.tier?.toString() ?? ""} className={field}>
                   <option value="">no tier</option>
                   {[1, 2, 3, 4].map((t) => <option key={t} value={t}>Tier {t}</option>)}
                 </select>
@@ -109,7 +109,7 @@ export default async function ArticleIdeaPage({ params, searchParams }: { params
               <label className="text-[11px] text-[var(--mute)]">Seasonal hook<input name="seasonalHook" defaultValue={idea.seasonalHook ?? ""} className={field} /></label>
             </div>
             <label className="text-[11px] text-[var(--mute)]">Target page
-              <select name="targetPage" defaultValue={idea.targetPage ?? ""} className={field}>
+              <select key={`targetPage:${idea.targetPage ?? ""}`} name="targetPage" defaultValue={idea.targetPage ?? ""} className={field}>
                 <option value="">no target page</option>
                 {pageOptions.map((p) => <option key={p.url} value={p.url}>{p.title}</option>)}
               </select>

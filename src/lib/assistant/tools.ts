@@ -1083,7 +1083,7 @@ export const TOOLS: Tool[] = [
       const { claimNextFreeSlot, queueFailureMessage, formatInZone, getPostingTimeZone } = await import("@/lib/social/slots");
       const claim = await claimNextFreeSlot(ctx.workspaceId, post.id, post.category);
       if ("error" in claim) return queueFailureMessage(claim.error);
-      await db.socialPost.update({ where: { id: post.id }, data: { scheduledAt: claim.at, status: "scheduled", timeChosen: false } });
+      await db.socialPost.update({ where: { id: post.id }, data: { scheduledAt: claim.at, status: "scheduled", timeChosen: false, heldAt: null, heldById: null } });
       return `queued for ${formatInZone(claim.at, await getPostingTimeZone(ctx.workspaceId))}`;
     },
   },
@@ -1103,7 +1103,7 @@ export const TOOLS: Tool[] = [
       if (!d || d.getTime() < Date.now() - 60_000) return "that time is invalid or already passed";
       const refusal = await (await import("@/lib/social/validate")).scheduleRefusal(post.id);
       if (refusal) return `refused: ${refusal}`;
-      await db.socialPost.update({ where: { id: post.id }, data: { scheduledAt: d, status: "scheduled", timeChosen: true } });
+      await db.socialPost.update({ where: { id: post.id }, data: { scheduledAt: d, status: "scheduled", timeChosen: true, heldAt: null, heldById: null } });
       return `scheduled for ${await whenLocal(d, ctx.workspaceId)}`;
     },
   },
@@ -1133,8 +1133,10 @@ export const TOOLS: Tool[] = [
     deescalates: () => true,
     confirm: true,
     async run(a, ctx) {
-      const r = await db.socialPost.updateMany({ where: { id: str(a.postId, 40), workspaceId: ctx.workspaceId, status: "scheduled" }, data: { status: "draft", scheduledAt: null } });
-      return r.count ? "back to draft" : "nothing changed (not scheduled)";
+      // Held, so full autonomy doesn't queue it straight back (SOC-04).
+      const { holdBy } = await import("@/lib/social/hold");
+      const r = await db.socialPost.updateMany({ where: { id: str(a.postId, 40), workspaceId: ctx.workspaceId, status: "scheduled" }, data: { status: "draft", scheduledAt: null, ...holdBy(ctx.userId) } });
+      return r.count ? "back to draft, held there — nothing queues it until someone does" : "nothing changed (not scheduled)";
     },
   },
   {

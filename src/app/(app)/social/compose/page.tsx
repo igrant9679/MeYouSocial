@@ -24,7 +24,7 @@ import { DeleteButton } from "@/components/DeleteButton";
 type SP = { ok?: string; err?: string; media?: string | string[]; template?: string };
 
 export default async function SocialComposePage({ searchParams }: { searchParams: Promise<SP> }) {
-  const { workspace, membership } = await requireRole("EDITOR");
+  const { workspace, membership, user } = await requireRole("EDITOR");
   const { ok, err, media, template: templateId } = await searchParams;
   // ?media=<id>&media=<id> — images and videos picked on Distribute → Media.
   const mediaIds = (Array.isArray(media) ? media : media ? [media] : []).slice(0, 4);
@@ -60,6 +60,9 @@ export default async function SocialComposePage({ searchParams }: { searchParams
     provider: a.platform,
     name: a.displayName ?? a.username,
   }));
+  // This person's saved starting selection (tracker #32) — still-connected accounts only.
+  const { myDefaultAccounts } = await import("@/lib/social/default-accounts");
+  const defaultAccountIds = await myDefaultAccounts(workspace.id, user.id, accounts.map((a) => a.id));
   const nextFreeLabel = queue.free[0] ? formatInZone(queue.free[0].at, queue.timeZone) : null;
   const hasSlots = queue.slots.some((s) => s.enabled);
   // The workspace's categories (Socialmonials' defaults until it saves its
@@ -114,6 +117,7 @@ export default async function SocialComposePage({ searchParams }: { searchParams
         seed={template ? { text: template.text, firstComment: template.firstComment, category: template.category } : undefined}
         optimal={optimal.ok ? { label: optimal.label, why: optimal.why } : { reason: optimal.reason }}
         snippets={snippets}
+        defaultAccountIds={defaultAccountIds}
       />
 
       {/* Post templates (E-SOC-23): saved from a post's page; Use starts a new post with its content. */}

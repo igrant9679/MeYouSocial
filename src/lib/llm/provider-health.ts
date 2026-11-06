@@ -54,3 +54,33 @@ export async function providerRefusals(workspaceId: string): Promise<ProviderRef
   const rows = await Promise.all(PROVIDERS.map((p) => getSetting(KEY(p), workspaceId).then(read, () => null)));
   return rows.filter((r): r is ProviderRefusal => r !== null);
 }
+
+const PROVIDER_NAME: Record<string, string> = { anthropic: "Anthropic", google: "Google" };
+const PROVIDER_CONSOLE: Record<string, string> = { anthropic: "console.anthropic.com", google: "ai.studio/projects" };
+
+/** "Google is refusing this workspace's AI calls — its prepaid credits are used up. Fix it at …" — one place for the wording. */
+export function describeRefusal(r: Pick<ProviderRefusal, "provider" | "kind">): string {
+  const name = PROVIDER_NAME[r.provider] ?? r.provider;
+  const why = r.kind === "credits" ? "its prepaid credits are used up" : r.kind === "quota" ? "it's over its rate or quota limit" : "it rejected the key";
+  const fix = r.kind === "key"
+    ? "Check the key under Settings → Keys."
+    : `Fix it at ${PROVIDER_CONSOLE[r.provider] ?? "the provider's console"}, or pick another provider's model under Settings → Workspace.`;
+  return `${name} is refusing this workspace's AI calls — ${why}. ${fix}`;
+}
+
+/**
+ * Why a call came back as the placeholder (tracker #25): "no working AI key"
+ * was said even when a key was there and its provider was REFUSING — LSI's
+ * Google credits ran out, and every question got the same wrong answer. Named
+ * refusal first, then no key at all, then a provider that just didn't answer.
+ */
+export async function whyNoAiReply(workspaceId: string | undefined): Promise<string> {
+  if (workspaceId) {
+    const refusals = await providerRefusals(workspaceId).catch(() => []);
+    if (refusals.length) return refusals.map(describeRefusal).join(" ");
+  }
+  const { getApiKey } = await import("./keys");
+  const keyed = await Promise.all(PROVIDERS.map((p) => getApiKey(p, workspaceId).then(Boolean, () => false)));
+  if (!keyed.some(Boolean)) return "This workspace has no AI key — add one under Settings → Keys.";
+  return "The AI provider didn't answer just now (it timed out or returned an error) — try again in a minute.";
+}

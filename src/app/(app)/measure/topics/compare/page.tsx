@@ -48,7 +48,7 @@ export default async function CompareTopicsPage({ searchParams }: { searchParams
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <label className="inline-flex items-center gap-1.5">Over
-            <select name="range" defaultValue={String(range.preset ?? range.days)} className="border border-[var(--line-2)] rounded-lg px-2 py-1 text-xs">
+            <select key={`range:${String(range.preset ?? range.days)}`} name="range" defaultValue={String(range.preset ?? range.days)} className="border border-[var(--line-2)] rounded-lg px-2 py-1 text-xs">
               {MEASURE_PRESETS.map((d) => <option key={d} value={d}>the last {d} days</option>)}
             </select>
           </label>

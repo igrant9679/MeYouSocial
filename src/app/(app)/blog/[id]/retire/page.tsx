@@ -66,7 +66,7 @@ export default async function RetireArticlePage({ params, searchParams }: { para
             <span className="font-semibold">Where should <span className="break-all">{post.publishedUrl}</span> point?</span>
             <label className="flex flex-col gap-0.5">
               <span className="text-[var(--mute)]">Merge into one of your live articles</span>
-              <select name="to" defaultValue={merging?.publishedUrl ?? ""}>
+              <select key={`to:${merging?.publishedUrl ?? ""}`} name="to" defaultValue={merging?.publishedUrl ?? ""}>
                 <option value="">—</option>
                 {others.map((o) => <option key={o.id} value={o.publishedUrl!}>{o.title}</option>)}
               </select>

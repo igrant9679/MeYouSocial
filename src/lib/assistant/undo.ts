@@ -194,7 +194,7 @@ export const UNDOERS: Record<string, Undoer> = {
     async write(before, _after, ctx) {
       const at = before!.scheduledAt ? new Date(String(before!.scheduledAt)) : null;
       if (!at || at.getTime() <= Date.now()) throw new UndoRefused("its time has passed — schedule it again from the post");
-      await db.socialPost.updateMany({ where: { id: String(before!.id), workspaceId: ctx.workspaceId, status: "draft" }, data: { status: "scheduled", scheduledAt: at } });
+      await db.socialPost.updateMany({ where: { id: String(before!.id), workspaceId: ctx.workspaceId, status: "draft" }, data: { status: "scheduled", scheduledAt: at, heldAt: null, heldById: null } });
       return "scheduled again for the time it had";
     },
   },

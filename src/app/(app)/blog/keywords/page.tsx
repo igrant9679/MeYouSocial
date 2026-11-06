@@ -187,7 +187,7 @@ export default async function KeywordsPage({ searchParams }: { searchParams: Pro
           )}
           {provider && keywords.length > 0 && (
             <form action={refreshKeywordVolumesAction} className="flex items-center gap-1">
-              <select name="country" defaultValue={country} className={FIELD} aria-label="Country for search volume" title="Which country's searches the volumes measure">
+              <select key={`country:${country}`} name="country" defaultValue={country} className={FIELD} aria-label="Country for search volume" title="Which country's searches the volumes measure">
                 {SEARCH_DATA_COUNTRIES.map((c) => <option key={c.code} value={c.code}>{c.name}</option>)}
               </select>
               <SubmitButton className="btn" pendingText="Fetching…" title={`Fetch volume, CPC and competition for every active keyword from ${searchDataVendorLabel(provider.vendor)} (uses the vendor's credits)`}>
@@ -326,10 +326,10 @@ export default async function KeywordsPage({ searchParams }: { searchParams: Pro
                               <form action={updateKeywordAction} className="mt-1 flex flex-wrap items-center gap-1">
                                 <input type="hidden" name="id" value={k.id} />
                                 <input type="hidden" name="status" value={k.status} />
-                                <select name="tier" defaultValue={k.tier} aria-label={`Tier for ${k.phrase}`} className={FIELD}>
+                                <select key={`tier:${k.tier}`} name="tier" defaultValue={k.tier} aria-label={`Tier for ${k.phrase}`} className={FIELD}>
                                   {[1, 2, 3, 4].map((t) => <option key={t} value={t}>T{t}</option>)}
                                 </select>
-                                <select name="intent" defaultValue={k.intent ?? ""} aria-label={`Intent for ${k.phrase}`} className={FIELD}>
+                                <select key={`intent:${k.intent ?? ""}`} name="intent" defaultValue={k.intent ?? ""} aria-label={`Intent for ${k.phrase}`} className={FIELD}>
                                   {!k.intent && <option value="">intent…</option>}
                                   {INTENTS.map((i) => <option key={i} value={i}>{i}</option>)}
                                 </select>
@@ -399,7 +399,7 @@ export default async function KeywordsPage({ searchParams }: { searchParams: Pro
                             <div className="flex items-center gap-1">
                               <form action={ideaFromKeywordAction}>
                                 <input type="hidden" name="id" value={k.id} />
-                                <button className="btn" title="Make an idea from this keyword — a working title from its intent, under the matching Topic"><Lightbulb className="w-3.5 h-3.5" /></button>
+                                <SubmitButton className="btn" pendingText="" title="Make an idea from this keyword — a working title from its intent, under the matching Topic"><Lightbulb className="w-3.5 h-3.5" /></SubmitButton>
                               </form>
                               <form action={updateKeywordAction} className="flex items-center gap-1">
                                 <input type="hidden" name="id" value={k.id} />

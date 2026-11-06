@@ -46,7 +46,7 @@ export default async function ThumbnailDetailPage({ params }: { params: Promise<
               <a href={thumb.renderUrl} target="_blank" rel="noopener noreferrer" className="btn">Open full size</a>
               <form action={scoreThumbnailAction}>
                 <input type="hidden" name="thumbnailId" value={thumb.id} />
-                <button type="submit" className="btn w-full flex items-center justify-center gap-2"><Gauge className="w-4 h-4" /> {thumb.ctrScore ? "Re-score CTR" : "Score CTR"}</button>
+                <SubmitButton className="btn w-full flex items-center justify-center gap-2" pendingText="Scoring…"><Gauge className="w-4 h-4" /> {thumb.ctrScore ? "Re-score CTR" : "Score CTR"}</SubmitButton>
               </form>
               {thumb.ctrScore != null && (
                 <div className="text-center mt-1">

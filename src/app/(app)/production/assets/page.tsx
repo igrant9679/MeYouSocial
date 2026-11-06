@@ -41,7 +41,7 @@ export default async function AssetsPage({ searchParams }: { searchParams: Promi
         </label>
         <label className="flex flex-col gap-1">
           <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">Channel</span>
-          <select name="channelId" defaultValue={channelId ?? ""} className="border border-[var(--line-2)] rounded-lg p-2 text-sm">
+          <select key={`channelId:${channelId ?? ""}`} name="channelId" defaultValue={channelId ?? ""} className="border border-[var(--line-2)] rounded-lg p-2 text-sm">
             <option value="">All</option>
             {channels.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>

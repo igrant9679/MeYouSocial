@@ -1123,7 +1123,7 @@ export default async function BlogPostPage({
           {editor && (
             <form action={assignReviewerAction} className="flex items-center gap-2">
               <input type="hidden" name="id" value={post.id} />
-              <select name="reviewerId" defaultValue={post.reviewerId ?? ""} className="text-xs w-44">
+              <select key={`reviewerId:${post.reviewerId ?? ""}`} name="reviewerId" defaultValue={post.reviewerId ?? ""} className="text-xs w-44">
                 <option value="">no reviewer</option>
                 {members.map((m) => (
                   <option key={m.userId} value={m.userId}>
@@ -1304,14 +1304,14 @@ export default async function BlogPostPage({
           </label>
           <label className="text-sm">
             <span className="block text-xs text-[var(--mute)] mb-1">Template</span>
-            <select name="templateKey" defaultValue={post.templateKey ?? ""} className="w-full text-xs" disabled={!editor}>
+            <select key={`templateKey:${post.templateKey ?? ""}`} name="templateKey" defaultValue={post.templateKey ?? ""} className="w-full text-xs" disabled={!editor}>
               <option value="">none</option>
               {BLOG_TEMPLATES.map((t) => <option key={t.key} value={t.key}>{t.name}</option>)}
             </select>
           </label>
           <label className="text-sm">
             <span className="block text-xs text-[var(--mute)] mb-1">Content tier</span>
-            <select name="contentTier" defaultValue={post.contentTier?.toString() ?? ""} className="w-full text-xs" disabled={!editor}>
+            <select key={`contentTier:${post.contentTier?.toString() ?? ""}`} name="contentTier" defaultValue={post.contentTier?.toString() ?? ""} className="w-full text-xs" disabled={!editor}>
               <option value="">unset</option>
               {[1, 2, 3, 4].map((t) => <option key={t} value={t}>Tier {t}</option>)}
             </select>
@@ -1320,14 +1320,14 @@ export default async function BlogPostPage({
             <span className="block text-xs text-[var(--mute)] mb-1">
               Topic {topics.length === 0 && <Link href="/ideas/topics" className="underline">add topics</Link>}
             </span>
-            <select name="topicId" defaultValue={post.topicId ?? ""} className="w-full text-xs" disabled={!editor}>
+            <select key={`topicId:${post.topicId ?? ""}`} name="topicId" defaultValue={post.topicId ?? ""} className="w-full text-xs" disabled={!editor}>
               <option value="">none</option>
               {topics.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
             </select>
           </label>
           <label className="text-sm">
             <span className="block text-xs text-[var(--mute)] mb-1">Reading level</span>
-            <select name="readingLevel" defaultValue={post.readingLevel ?? ""} className="w-full text-xs" disabled={!editor}>
+            <select key={`readingLevel:${post.readingLevel ?? ""}`} name="readingLevel" defaultValue={post.readingLevel ?? ""} className="w-full text-xs" disabled={!editor}>
               <option value="">default</option>
               {["simple", "standard", "advanced"].map((t) => <option key={t} value={t}>{t}</option>)}
             </select>
@@ -1336,14 +1336,14 @@ export default async function BlogPostPage({
             <span className="block text-xs text-[var(--mute)] mb-1">
               Expert <span className="font-mono">{post.smeProfileId ? "" : matchedSme ? `(auto: ${matchedSme.name})` : "(none matched)"}</span>
             </span>
-            <select name="smeProfileId" defaultValue={post.smeProfileId ?? ""} className="w-full text-xs" disabled={!editor}>
+            <select key={`smeProfileId:${post.smeProfileId ?? ""}`} name="smeProfileId" defaultValue={post.smeProfileId ?? ""} className="w-full text-xs" disabled={!editor}>
               <option value="">the expert on this post&apos;s Topic</option>
               {experts.map((e) => <option key={e.id} value={e.id}>{e.name}{e.role ? ` — ${e.role}` : ""}</option>)}
             </select>
           </label>
           <label className="text-sm">
             <span className="block text-xs text-[var(--mute)] mb-1">Model (this post)</span>
-            <select name="model" defaultValue={post.model ?? ""} className="w-full text-xs font-mono" disabled={!editor}>
+            <select key={`model:${post.model ?? ""}`} name="model" defaultValue={post.model ?? ""} className="w-full text-xs font-mono" disabled={!editor}>
               <option value="">workspace default ({modelLabel(inheritedModel)})</option>
               <ModelOptions choices={modelChoiceList} current={post.model} />
             </select>

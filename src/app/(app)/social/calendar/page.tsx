@@ -72,6 +72,9 @@ export default async function SocialCalendarPage({ searchParams }: { searchParam
     take: 100,
   });
   const hasSlots = queue.slots.some((s) => s.enabled);
+  // Queue all leaves held drafts (SOC-04), so its count does too.
+  const queueable = drafts.filter((d) => !d.heldAt).length;
+  const heldDrafts = drafts.length - queueable;
   type CalendarSource = Pick<(typeof drafts)[number], "id" | "text" | "scheduledAt" | "status" | "approval" | "category" | "campaignId"> & {
     targets: { provider: string }[];
     campaign: { name: string; color: string | null } | null;
@@ -128,10 +131,10 @@ export default async function SocialCalendarPage({ searchParams }: { searchParam
         <Link href="/social/calendar?view=calendar" className={`btn sm ${mode === "calendar" ? "primary" : ""}`}>Calendar</Link>
         <Link href="/social/calendar?view=agenda" className={`btn sm ${mode === "agenda" ? "primary" : ""}`}>Agenda</Link>
         <span className="flex-1" />
-        {drafts.length > 0 && hasSlots && (
+        {queueable > 0 && hasSlots && (
           <form action={queueAllDraftsAction}>
-            <SubmitButton className="btn sm" pendingText="Queueing…" title="Fill the free slots with drafts, oldest first — a draft that already has a date is scheduled at that date instead">
-              <ListPlus className="w-3.5 h-3.5" /> Queue all {drafts.length} draft{drafts.length === 1 ? "" : "s"}
+            <SubmitButton className="btn sm" pendingText="Queueing…" title={`Fill the free slots with drafts, oldest first — a draft that already has a date is scheduled at that date instead${heldDrafts ? `; ${heldDrafts} held draft${heldDrafts === 1 ? " stays" : "s stay"} on Drafts` : ""}`}>
+              <ListPlus className="w-3.5 h-3.5" /> Queue all {queueable} draft{queueable === 1 ? "" : "s"}
             </SubmitButton>
           </form>
         )}

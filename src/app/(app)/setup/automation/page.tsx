@@ -256,7 +256,7 @@ export default async function SetupAutomation({ searchParams }: { searchParams: 
           {admin ? (
             <form action={saveWeeklyArticleTargetAction} className="flex items-center gap-2">
               <input type="number" name="weeklyArticles" min={0} max={50} defaultValue={weeklyArticles || ""} placeholder="∞" className="w-20 border border-[var(--line-2)] rounded-lg p-2 text-sm font-mono" aria-label="Articles per week" />
-              <select name="publishDay" defaultValue={publishDay} className="border border-[var(--line-2)] rounded-lg p-2 text-sm" aria-label="Publish day">
+              <select key={`publishDay:${publishDay}`} name="publishDay" defaultValue={publishDay} className="border border-[var(--line-2)] rounded-lg p-2 text-sm" aria-label="Publish day">
                 <option value="">Any day</option>
                 <option value="1">Monday</option><option value="2">Tuesday</option><option value="3">Wednesday</option><option value="4">Thursday</option><option value="5">Friday</option><option value="6">Saturday</option><option value="0">Sunday</option>
               </select>
@@ -312,7 +312,7 @@ export default async function SetupAutomation({ searchParams }: { searchParams: 
                 per week, each with an auto-image, queued into free slots (or held for approval). Needs the Social mode below at assisted or auto and active Topics under <Link href="/ideas/topics" className="underline">Ideas → Topics</Link>.
                 {campaigns.length > 0 && (
                   <span className="inline-flex items-center gap-1.5 ml-1">Campaign:{" "}
-                    <select name="autogenCampaign" defaultValue={autogenCampaign} className="border border-[var(--line-2)] rounded px-1 py-0.5 text-xs">
+                    <select key={`autogenCampaign:${autogenCampaign}`} name="autogenCampaign" defaultValue={autogenCampaign} className="border border-[var(--line-2)] rounded px-1 py-0.5 text-xs">
                       <option value="">— none —</option>
                       {campaigns.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>

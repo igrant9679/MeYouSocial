@@ -155,7 +155,7 @@ export default async function BrandPage({ searchParams }: { searchParams: Promis
           </p>
           <label className="text-sm block mb-2">
             <span className="block text-xs text-[var(--mute)] mb-1">Profile</span>
-            <select name="renderProfile" defaultValue={brand.renderProfile} className="w-full text-xs" disabled={!admin}>
+            <select key={`renderProfile:${brand.renderProfile}`} name="renderProfile" defaultValue={brand.renderProfile} className="w-full text-xs" disabled={!admin}>
               {RENDER_PROFILES.map((p) => <option key={p} value={p}>{PROFILE_LABELS[p]}</option>)}
             </select>
           </label>
@@ -425,7 +425,7 @@ export default async function BrandPage({ searchParams }: { searchParams: Promis
               <span className="text-xs w-36 shrink-0">{PLATFORM_LABELS[p]}</span>
               <form action={setPlatformMotifAction} className="flex items-center gap-2">
                 <input type="hidden" name="platform" value={p} />
-                <select name="motifKey" defaultValue={platformMap[p] ?? ""} className="text-xs w-40" disabled={!admin}>
+                <select key={`motifKey:${platformMap[p] ?? ""}`} name="motifKey" defaultValue={platformMap[p] ?? ""} className="text-xs w-40" disabled={!admin}>
                   <option value="">inherit from article</option>
                   {directives.map((d) => <option key={d.key} value={d.key}>{d.label}</option>)}
                 </select>

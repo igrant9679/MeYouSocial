@@ -1,10 +1,11 @@
 import Link from "next/link";
-import { Copy, Pencil, Search, Send, Trash2, Undo2, ExternalLink, ListPlus, Eye, RotateCw, ArrowUp, ArrowDown, CalendarDays, ListOrdered, Shuffle, Repeat } from "lucide-react";
+import { Copy, Pencil, Search, Send, Trash2, Undo2, ExternalLink, ListPlus, Eye, RotateCw, ArrowUp, ArrowDown, CalendarDays, ListOrdered, Shuffle, Repeat, Lock, LockOpen } from "lucide-react";
 import { db } from "@/lib/db";
+import { isFullyAutonomous } from "@/lib/autonomy";
 import { networkFor } from "@/lib/social/networks";
 import { formatInZone, getPostingTimeZone } from "@/lib/social/slots";
 import { listCategories } from "@/lib/social/categories";
-import { loadPostList, listCounts, SOURCES, TYPES, DELETABLE_POST_STATUSES, type ListFilter, type ListTab } from "@/lib/social/post-lists";
+import { loadPostList, listCounts, SOURCES, TYPES, DELETABLE_POST_STATUSES, NATURAL_SORT, type ListFilter, type ListTab } from "@/lib/social/post-lists";
 import { bulkPostsAction, swapQueuedPostsAction } from "@/app/actions/social-lists";
 import { duplicateSocialPostAction, publishNowAction, setEvergreenAction, unscheduleSocialPostAction } from "@/app/actions/social";
 import { compact, resultsForPosts, topPerformers, type PostResult } from "@/lib/social/post-results";
@@ -50,6 +51,16 @@ export async function PostList({
     db.socialPost.findMany({ where: { workspaceId, category: { not: null } }, distinct: ["category"], select: { category: true } }),
   ]);
   const categories = await listCategories(workspaceId, used.map((u) => u.category));
+  // Drafts under full autonomy (SOC-04): the sweep gives an undated draft a
+  // slot within about half an hour unless a person held it — say so.
+  const [fullAuto, heldCount] = tab === "drafts"
+    ? await Promise.all([isFullyAutonomous(workspaceId), db.socialPost.count({ where: { workspaceId, status: "draft", heldAt: { not: null } } })])
+    : [false, 0];
+  const sentence = tab === "drafts" && counts.drafts && fullAuto
+    ? `${counts.drafts} draft${counts.drafts === 1 ? "" : "s"} — ⚠ full autonomy is on: the engine gives a draft without a time the next free slot within about half an hour. Held drafts${heldCount ? ` (${heldCount})` : ""} stay here until someone queues them.`
+    : tab === "drafts" && counts.drafts && heldCount
+      ? `${TITLES.drafts.sentence(counts.drafts)} ${heldCount} held — Queue all leaves ${heldCount === 1 ? "it" : "them"}.`
+      : TITLES[tab].sentence(tab === "queue" ? counts.queue : tab === "sent" ? counts.sent : counts.drafts);
   // Sent: each post's results and the 90-day top performers (E-SOC-14).
   const [results, top] = tab === "sent"
     ? await Promise.all([resultsForPosts(rows.map((r) => r.row.id)), topPerformers(workspaceId)])
@@ -58,7 +69,9 @@ export async function PostList({
 
   // The list's own URL with the current filters — where actions come back to.
   const qs = new URLSearchParams();
-  for (const [k, v] of Object.entries({ q: filter.q, category: filter.category, type: filter.type, profile: filter.profile, source: filter.source })) if (v) qs.set(k, String(v));
+  for (const [k, v] of Object.entries({ q: filter.q, category: filter.category, type: filter.type, profile: filter.profile, source: filter.source, sort: filter.sort })) if (v) qs.set(k, String(v));
+  // The other way round from the tab's natural order (tracker #21).
+  const reversed = Boolean(filter.sort && filter.sort !== NATURAL_SORT[tab]);
   if (page > 1) qs.set("page", String(page));
   const here = `/social/${tab}${qs.toString() ? `?${qs.toString()}` : ""}`;
   const pageHref = (p: number) => {
@@ -72,7 +85,7 @@ export async function PostList({
     <div>
       <div className="flex items-baseline gap-3 flex-wrap mb-3">
         <h1 className="font-mono text-[22px] font-bold m-0">{TITLES[tab].title}</h1>
-        <p className="text-[13px] text-[var(--mute)] m-0">{TITLES[tab].sentence(tab === "queue" ? counts.queue : tab === "sent" ? counts.sent : counts.drafts)}</p>
+        <p className="text-[13px] text-[var(--mute)] m-0" data-list-sentence>{sentence}</p>
       </div>
       {flash.ok && <Banner kind="ok" text={flash.ok} />}
       {flash.err && <Banner kind="err" text={flash.err} />}
@@ -83,24 +96,28 @@ export async function PostList({
           <Search className="w-3.5 h-3.5 text-[var(--mute)]" />
           <input name="q" defaultValue={filter.q ?? ""} placeholder="Search posts" className="flex-1 text-xs border-0 outline-none bg-transparent" />
         </label>
-        <select name="category" defaultValue={filter.category ?? ""} className={sel} aria-label="Category">
+        <select key={`category:${filter.category ?? ""}`} name="category" defaultValue={filter.category ?? ""} className={sel} aria-label="Category">
           <option value="">Category: all</option>
           <option value="__none__">No category</option>
           {categories.map((c) => <option key={c} value={c}>{c}</option>)}
         </select>
-        <select name="type" defaultValue={filter.type ?? ""} className={sel} aria-label="Type">
+        <select key={`type:${filter.type ?? ""}`} name="type" defaultValue={filter.type ?? ""} className={sel} aria-label="Type">
           <option value="">Type: all</option>
           {TYPES[tab].map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
         </select>
-        <select name="profile" defaultValue={filter.profile ?? ""} className={sel} aria-label="Social profile">
+        <select key={`profile:${filter.profile ?? ""}`} name="profile" defaultValue={filter.profile ?? ""} className={sel} aria-label="Social profile">
           <option value="">Social profiles: all</option>
           {accounts.map((a) => (
             <option key={a.accountId} value={a.accountId}>{networkFor(a.platform)?.label ?? a.platform} · {a.displayName ?? a.username ?? a.accountId}{a.status !== "connected" ? " (disconnected)" : ""}</option>
           ))}
         </select>
-        <select name="source" defaultValue={filter.source ?? ""} className={sel} aria-label="Source">
+        <select key={`source:${filter.source ?? ""}`} name="source" defaultValue={filter.source ?? ""} className={sel} aria-label="Source">
           <option value="">Source: all</option>
           {SOURCES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
+        </select>
+        <select key={`sort:${filter.sort ?? ""}`} name="sort" defaultValue={filter.sort ?? ""} className={sel} aria-label="Order">
+          <option value="">{tab === "queue" ? "Soonest first" : "Newest first"}</option>
+          <option value={NATURAL_SORT[tab] === "asc" ? "desc" : "asc"}>{tab === "queue" ? "Latest first" : "Oldest first"}</option>
         </select>
         <button className="btn sm primary" type="submit">Apply</button>
         {filtered && <Link href={`/social/${tab}`} className="btn sm">Clear</Link>}
@@ -127,6 +144,8 @@ export async function PostList({
             </>
           )}
           {tab === "drafts" && <SubmitButton className="btn sm" name="op" value="queue" pendingText="…"><ListPlus className="w-3 h-3" /> Add to queue</SubmitButton>}
+          {tab === "drafts" && <SubmitButton className="btn sm" name="op" value="hold" pendingText="…" title={fullAuto ? "Keep the ticked drafts here — the engine won't queue them" : "Keep the ticked drafts here — Queue all leaves them, and full autonomy won't queue them if it's switched on"}><Lock className="w-3 h-3" /> Hold</SubmitButton>}
+          {tab === "drafts" && heldCount > 0 && <SubmitButton className="btn sm" name="op" value="release" pendingText="…" title={fullAuto ? "Let go of the ticked drafts — the engine may queue them" : "Let go of the ticked drafts — Queue all includes them again"}><LockOpen className="w-3 h-3" /> Let go</SubmitButton>}
           <SubmitButton className="btn sm" name="op" value="delete" pendingText="…" title="Deletes drafts, scheduled and failed posts. Sent posts are the record and are never deleted here."><Trash2 className="w-3 h-3" /> Delete</SubmitButton>
         </form>
       )}
@@ -157,7 +176,8 @@ export async function PostList({
                 // Neighbours in this list, for earlier / later (E-SOC-05).
                 const prev = rows[i - 1]?.row;
                 const next = rows[i + 1]?.row;
-                const swappable = (o?: typeof p) => tab === "queue" && p.status === "scheduled" && o?.status === "scheduled";
+                // Earlier/later read the list top to bottom — only in the natural, soonest-first order.
+                const swappable = (o?: typeof p) => tab === "queue" && !reversed && p.status === "scheduled" && o?.status === "scheduled";
                 const st = STATUS_STYLE[p.status] ?? STATUS_STYLE.draft;
                 const typeLabel =
                   tab === "queue" ? (p.status === "publishing" ? "Publishing now" : onSlot ? "Queued" : "Scheduled")
@@ -195,6 +215,11 @@ export async function PostList({
                         <span className="block mt-1 font-mono text-[10px] px-1.5 py-0.5 rounded-full w-fit" style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }} title="Among the best-engaged tenth of posts sent in the last 90 days" data-top-performer>★ Top performer</span>
                       )}
                       {tab === "sent" && p.evergreen && <span className="block mt-1 font-mono text-[10px] text-[var(--mute)]" data-evergreen>evergreen · every {p.recycleEveryDays}d</span>}
+                      {tab === "drafts" && p.heldAt && (
+                        <span className="mt-1 font-mono text-[10px] px-1.5 py-0.5 rounded-full w-fit inline-flex items-center gap-1" style={{ background: "var(--indigo-soft)", color: "var(--indigo-on)" }} title={`Held ${formatInZone(p.heldAt, tz)} — ${fullAuto ? "the engine won't queue it" : "Queue all leaves it"}; queueing or scheduling it lets go`} data-held>
+                          <Lock className="w-2.5 h-2.5" /> Held
+                        </span>
+                      )}
                     </td>
                     <td className="py-2 px-2 md:min-w-40 max-md:p-0 max-md:basis-full">
                       <div className="flex flex-wrap gap-1 mb-1">
@@ -252,6 +277,12 @@ export async function PostList({
                             <form action={unscheduleSocialPostAction}><input type="hidden" name="id" value={p.id} /><input type="hidden" name="back" value={here} />
                               <SubmitButton className="btn sm" pendingText="…" title="Move back to drafts"><Undo2 className="w-3 h-3" /></SubmitButton></form>
                           )}
+                          {tab === "drafts" && p.status === "draft" && (
+                            <form action={bulkPostsAction}><input type="hidden" name="ids" value={p.id} /><input type="hidden" name="back" value={here} />
+                              <SubmitButton className="btn sm" name="op" value={p.heldAt ? "release" : "hold"} pendingText="…" title={p.heldAt ? "Let go — Queue all includes it again, and under full autonomy the engine may queue it" : "Hold — keep it here: the engine won't queue it and Queue all leaves it"} aria-pressed={Boolean(p.heldAt)}>
+                                {p.heldAt ? <LockOpen className="w-3 h-3" /> : <Lock className="w-3 h-3" />}
+                              </SubmitButton></form>
+                          )}
                           {unsent && p.targets.length > 0 && p.approval !== "pending" && p.approval !== "changes" && (
                             <form action={publishNowAction}><input type="hidden" name="id" value={p.id} /><input type="hidden" name="back" value={here} />
                               <SubmitButton className="btn sm" pendingText="…" title="Publish now"><Send className="w-3 h-3" /></SubmitButton></form>
@@ -300,5 +331,6 @@ export function listFilterFrom(sp: Record<string, string | undefined>): ListFilt
     profile: s(sp.profile, 80),
     source: s(sp.source, 20),
     page: Math.max(1, parseInt(sp.page ?? "1", 10) || 1),
+    sort: sp.sort === "asc" || sp.sort === "desc" ? sp.sort : undefined,
   };
 }

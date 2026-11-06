@@ -14,7 +14,8 @@ import { cleanTitle, stripListMarker } from "@/lib/list-marker";
 // providers, which behave like the real thing from the app's POV. With real providers wired
 // up later, the same handlers will run for ~minutes (per spec target).
 
-type Payload = { channelId: string };
+// onDemand: a person pressed Generate — a failure is reported, not swallowed (tracker #27).
+type Payload = { channelId: string; onDemand?: boolean };
 
 let registered = false;
 
@@ -244,7 +245,7 @@ export function registerOnboardingJobs() {
     await ctx.progress(1);
   });
 
-  jobs.register<Payload>("onboarding.ideas", async ({ channelId }, ctx) => {
+  jobs.register<Payload>("onboarding.ideas", async ({ channelId, onDemand }, ctx) => {
     await ctx.progress(0.1);
     const channel = await db.channel.findUnique({
       where: { id: channelId },
@@ -403,6 +404,13 @@ export function registerOnboardingJobs() {
       await db.idea.deleteMany({ where: { channelId, status: "new", strategy: PLACEHOLDER_STRATEGY, title: { in: baselineIdeas } } });
     } catch (e) {
       ctx.log(`ideas: LLM enrichment failed, keeping baseline. ${e instanceof Error ? e.message : e}`);
+      // Pressed by a person: fail the job with the real reason, so the activity
+      // light says it instead of finishing "done" with nothing new (tracker #27).
+      if (onDemand) {
+        const { whyNoAiReply } = await import("@/lib/llm/provider-health");
+        const why = /no AI provider/.test(e instanceof Error ? e.message : "") ? await whyNoAiReply(channel.workspaceId) : (e instanceof Error ? e.message : String(e));
+        throw new Error(`No new video ideas were written. ${why}`);
+      }
     }
     await ctx.progress(1);
   });

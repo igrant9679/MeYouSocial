@@ -467,9 +467,11 @@ export async function collectSocialPerformance(workspaceId: string, range: Metri
     const sent = await db.socialPostTarget.count({
       where: { status: "posted", postedAt: within(range), post: { workspaceId } },
     });
+    // Tracker #7: "no social" read as "no connections". Say what is counted
+    // (posts sent FROM HERE) and where the pull can be run and its reason read.
     const note = sent
-      ? `${sent} post${sent === 1 ? " was" : "s were"} sent in the ${range.label} but no engagement has been pulled back yet — check the Zernio connection under Settings → Connections.`
-      : `Nothing was posted to social in the ${range.label}.`;
+      ? `${sent} post${sent === 1 ? " was" : "s were"} sent in the ${range.label} but no engagement has been pulled back yet — Measure → Social performance can pull it now and says why if it can't.`
+      : `Nothing was posted to social from this app in the ${range.label} — these figures count posts sent from here, not ones made directly on the networks.`;
     return [
       metric("social_impressions", "Social impressions", null, "count", 0, note, "social"),
       metric("social_engagement", "Social engagements", null, "count", 0, note, "social"),
