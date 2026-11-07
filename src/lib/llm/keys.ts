@@ -48,3 +48,13 @@ export function invalidateKeyCache() {
 
 export const KEY_PROVIDERS: Provider[] = ["anthropic", "openai", "google", "deepseek", "xai", "moonshot", "minimax"];
 export type KeyProvider = Provider;
+
+/**
+ * The key providers something in the app actually calls (audit SET-04):
+ * Anthropic and Google write; OpenAI makes images and reads them. DeepSeek, xAI,
+ * Moonshot and MiniMax are in the catalogue for later and nothing calls them, so
+ * the Keys page shows them only to remove a key saved earlier, and a new key for
+ * one is refused — a saved key that does nothing reads as working.
+ */
+export const USED_KEY_PROVIDERS: readonly Provider[] = ["anthropic", "google", "openai"];
+export const isUsedKeyProvider = (p: string): boolean => (USED_KEY_PROVIDERS as readonly string[]).includes(p);

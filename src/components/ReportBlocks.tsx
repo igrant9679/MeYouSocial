@@ -63,6 +63,10 @@ function Empty({ children, to, cta, canAct = true }: { children: React.ReactNode
 }
 
 export async function ReportBlock({ block, workspaceId, weeks, canAct = true }: { block: BlockKey; workspaceId: string; weeks: number; canAct?: boolean }) {
+  // ⚠ The report's range reaches EVERY block that has a window (MEA-11); the
+  // rest say what they show instead ("this month", "today", "right now").
+  const days = weeks * 7;
+  const since = new Date(Date.now() - days * 86_400_000);
   switch (block) {
     case "kpis": {
       const stats = await homeStats(workspaceId);
@@ -117,14 +121,14 @@ export async function ReportBlock({ block, workspaceId, weeks, canAct = true }: 
 
     case "movers": {
       // Published-only in the query — see the note on postPerformance.
-      const perf = await postPerformance(workspaceId, 40, { status: "published" });
+      const perf = await postPerformance(workspaceId, 40, { status: "published", days });
       const withDelta = perf
         .filter((p) => p.position != null && p.prevPosition != null)
         .map((p) => ({ ...p, delta: p.prevPosition! - p.position! }))
         .sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta))
         .slice(0, 6);
       return (
-        <Card title="Biggest movers — last 28 days vs the 28 before">
+        <Card title={`Biggest movers — last ${weeks} weeks vs the ${weeks} before`}>
           {withDelta.length === 0 ? (
             <Empty canAct={canAct} to="/blog/analytics" cta="Add this week's numbers">No post has positions in both windows yet, so there is no movement to compare.</Empty>
           ) : (
@@ -145,9 +149,9 @@ export async function ReportBlock({ block, workspaceId, weeks, canAct = true }: 
     }
 
     case "posts_table": {
-      const perf = await postPerformance(workspaceId, 10, { status: "published" });
+      const perf = await postPerformance(workspaceId, 10, { status: "published", days });
       return (
-        <Card title={`Content — the latest ${perf.length} published, last 28 days`}>
+        <Card title={`Content — the latest ${perf.length} published, last ${weeks} weeks`}>
           {perf.length === 0 ? (
             <Empty canAct={canAct} to="/publish" cta="See what's waiting">Nothing has been published from this workspace yet, so there is no content to rank.</Empty>
           ) : (
@@ -155,7 +159,7 @@ export async function ReportBlock({ block, workspaceId, weeks, canAct = true }: 
               <div className="flex justify-end mb-1"><CsvButton table="report-content" filename="report-content" /></div>
               <table data-csv="report-content" className="w-full text-xs border-collapse">
                 <thead><tr className="text-left text-[var(--mute)]">
-                  {["Post", "Keyword", "Pos", "Δ vs prior 28 d", "Clicks"].map((h, i) => (
+                  {["Post", "Keyword", "Pos", `Δ vs prior ${weeks}w`, "Clicks"].map((h, i) => (
                     <th key={h} className={`py-1.5 px-2 font-mono text-[9px] uppercase tracking-wider border-b-2 border-[var(--line)] ${i >= 2 ? "text-right" : ""}`}>{h}</th>
                   ))}
                 </tr></thead>
@@ -183,7 +187,7 @@ export async function ReportBlock({ block, workspaceId, weeks, canAct = true }: 
     }
 
     case "position_buckets": {
-      const perf = await postPerformance(workspaceId, 60, { status: "published" });
+      const perf = await postPerformance(workspaceId, 60, { status: "published", days });
       const positions = perf.filter((p) => p.status === "published" && p.position != null).map((p) => p.position!);
       const rows = [
         { label: "Top 3", value: positions.filter((x) => x <= 3).length, color: "#1D4ED8" },
@@ -192,7 +196,7 @@ export async function ReportBlock({ block, workspaceId, weeks, canAct = true }: 
         { label: "21 +", value: positions.filter((x) => x > 20).length, color: "#DBEAFE" },
       ];
       return (
-        <Card title="Keyword positions">
+        <Card title={`Keyword positions — last ${weeks} weeks`}>
           {positions.length === 0 ? <Empty canAct={canAct} to="/blog/analytics" cta="Add this week's numbers">No post has a recorded search position yet.</Empty> : <HBars rows={rows} />}
         </Card>
       );
@@ -205,7 +209,7 @@ export async function ReportBlock({ block, workspaceId, weeks, canAct = true }: 
       ]);
       const c = (s: string) => byStatus.find((b) => b.status === s)?._count._all ?? 0;
       return (
-        <Card title="Pipeline">
+        <Card title="Pipeline — right now">
           <HBars rows={[
             { label: "Ideas open", value: ideas, color: "var(--cyan)" },
             { label: "Drafting", value: c("drafting"), color: "var(--amber)" },
@@ -239,7 +243,7 @@ export async function ReportBlock({ block, workspaceId, weeks, canAct = true }: 
       const sorted = [...cycles].sort((a, b) => a - b);
       const avg = sorted.length ? (sorted.length % 2 ? sorted[(sorted.length - 1) / 2] : (sorted[sorted.length / 2 - 1] + sorted[sorted.length / 2]) / 2) : null;
       return (
-        <Card title="Pipeline velocity">
+        <Card title={`Pipeline velocity — last ${weeks} weeks`}>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <div className={`${num} font-bold text-[24px]`}>{avg != null ? avg.toFixed(1) : "—"}</div>
@@ -283,7 +287,7 @@ export async function ReportBlock({ block, workspaceId, weeks, canAct = true }: 
       const feedTz = await getPostingTimeZone(workspaceId).catch(() => "UTC");
       const feed = await autopilotFeed(workspaceId, 10);
       return (
-        <Card title="Autopilot activity">
+        <Card title="Autopilot activity — the latest runs">
           {feed.length === 0 ? (
             <Empty canAct={canAct} to="/setup/automation" cta="Open Automation">No autopilot activity has been recorded. An idle sweep writes nothing on purpose, so this is also what a workspace with nothing to do looks like.</Empty>
           ) : (
@@ -318,7 +322,7 @@ export async function ReportBlock({ block, workspaceId, weeks, canAct = true }: 
       }).length;
       const facts = await complianceFacts(workspaceId);
       return (
-        <Card title="Editorial compliance">
+        <Card title="Editorial compliance — right now">
           <ul className="m-0 p-0 text-xs flex flex-col gap-2">
             <li className="flex items-center gap-2">
               <span className={`${num} font-bold`} style={{ color: facts.overridden ? "var(--amber-on)" : "var(--green-on)" }}>{facts.overridden}/{facts.published}</span>
@@ -338,7 +342,7 @@ export async function ReportBlock({ block, workspaceId, weeks, canAct = true }: 
     }
 
     case "motif_mix": {
-      const posts = await db.blogPost.findMany({ where: { workspaceId, status: "published" }, select: { motifs: true } });
+      const posts = await db.blogPost.findMany({ where: { workspaceId, status: "published", publishedAt: { gte: since } }, select: { motifs: true } });
       const counts = new Map<string, number>();
       let unset = 0;
       for (const p of posts) {
@@ -352,12 +356,12 @@ export async function ReportBlock({ block, workspaceId, weeks, canAct = true }: 
         color: "var(--violet)",
       }));
       return (
-        <Card title="Voice mix — dominant motif of published posts">
+        <Card title={`Voice mix — dominant motif of posts published in the last ${weeks} weeks`}>
           {rows.length === 0 ? (
             <Empty canAct={canAct} to={unset ? "/blog?view=list" : "/publish"} cta={unset ? "Open Articles" : "See what's waiting"}>
               {unset
-                ? `${unset} published post${unset === 1 ? " carries" : "s carry"} no motif blend, so there is no voice mix to show. A blend is stored on the article by its editor — the workspace default steers generation but is never saved onto the post.`
-                : "Nothing has been published yet, so there is no voice mix to show."}
+                ? `${unset} post${unset === 1 ? "" : "s"} published in the last ${weeks} weeks carr${unset === 1 ? "ies" : "y"} no motif blend, so there is no voice mix to show. A blend is stored on the article by its editor — the workspace default steers generation but is never saved onto the post.`
+                : `Nothing was published in the last ${weeks} weeks, so there is no voice mix to show.`}
             </Empty>
           ) : (
             <div className="max-w-lg">
@@ -373,14 +377,14 @@ export async function ReportBlock({ block, workspaceId, weeks, canAct = true }: 
       // MEA-08: social goes out as SocialPost legs (SocialPostTarget) since
       // 21 Sep; the retired SocialVariant table only ever grew stale.
       const legs = await db.socialPostTarget.findMany({
-        where: { post: { workspaceId } },
+        where: { post: { workspaceId, createdAt: { gte: since } } },
         select: { provider: true, status: true },
       });
       const platforms = [...new Set(legs.map((l) => l.provider))].sort();
       return (
-        <Card title="Social posts by network">
+        <Card title={`Social posts by network — made in the last ${weeks} weeks`}>
           {legs.length === 0 ? (
-            <Empty canAct={canAct} to="/social/compose" cta="Compose a post">No social posts yet.</Empty>
+            <Empty canAct={canAct} to="/social/compose" cta="Compose a post">{`No social post was made in the last ${weeks} weeks.`}</Empty>
           ) : (
             <div className="overflow-x-auto">
               <div className="flex justify-end mb-1"><CsvButton table="report-social" filename="report-social-by-network" /></div>
@@ -411,14 +415,14 @@ export async function ReportBlock({ block, workspaceId, weeks, canAct = true }: 
     }
 
     case "video_table": {
-      const renders = await db.videoRender.findMany({ where: { workspaceId }, orderBy: { createdAt: "desc" }, take: 12 });
+      const renders = await db.videoRender.findMany({ where: { workspaceId, createdAt: { gte: since } }, orderBy: { createdAt: "desc" }, take: 12 });
       const doneRenders = renders.filter((r) => r.status === "done");
       const priced = doneRenders.filter((r) => r.costEstimate != null);
       const spend = priced.reduce((a, r) => a + (r.costEstimate ?? 0), 0);
       return (
-        <Card title="Video renders">
+        <Card title={`Video renders — last ${weeks} weeks`}>
           {renders.length === 0 ? (
-            <Empty canAct={canAct} to="/distribute" cta="Open Distribute">No renders yet — a published post is packaged into one from its Distribute tab.</Empty>
+            <Empty canAct={canAct} to="/distribute" cta="Open Distribute">{`No render in the last ${weeks} weeks — a published post is packaged into one from its Distribute tab.`}</Empty>
           ) : (
             <>
               <p className="text-[11px] text-[var(--mute)] mb-2">
@@ -452,7 +456,7 @@ export async function ReportBlock({ block, workspaceId, weeks, canAct = true }: 
       const m = await topicMeasure(workspaceId, Math.max(7, weeks * 7));
       const t = (v: number | null) => (v == null ? <span className="text-[var(--mute)]" title="Not measured">—</span> : <span className={num}>{v.toLocaleString()}</span>);
       return (
-        <Card title="Topics — what each earned, per format">
+        <Card title={`Topics — what each earned, last ${weeks} weeks, per format`}>
           {m.rows.length === 0 ? (
             <Empty to="/ideas/topics" cta="Add a Topic" canAct={canAct}>No Topics yet, so nothing to measure by.</Empty>
           ) : (
@@ -495,7 +499,7 @@ export async function ReportBlock({ block, workspaceId, weeks, canAct = true }: 
       const open = items.filter((i) => i.status === "open");
       const byRec = (r: string) => open.filter((i) => i.recommendation === r).length;
       return (
-        <Card title="Content-audit summary">
+        <Card title="Content-audit summary — the latest audit">
           {items.length === 0 ? (
             <Empty canAct={canAct} to="/blog/audit" cta="Open Content audit">Nothing has been audited yet — a run scores your live posts with the pre-publish checks.</Empty>
           ) : (

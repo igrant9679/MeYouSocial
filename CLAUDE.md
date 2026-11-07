@@ -352,6 +352,7 @@ area, rather than loading all of them into every session.
 - Video costs only at the operator's price, asked before it's spent, metered in seconds — 2026-11-06, audit E-VID-06, growth part cv
 - A project's video can go to YouTube — asked first, in pieces, resumable — 2026-11-06, audit E-VID-03, growth part cw
 - A thumbnail test rotates on the live video and is scored by YouTube's reach reports — 2026-11-06, audit E-VID-05, growth part cx
+- The audit's loose ends: one live job per thing, events once and in order, clips to length, ranges per view — 2026-11-07, audit ENG-22 / SOC-15 / VID-11 / MEA-11 / PRF-02 / SET-04, growth part cy
 
 ## Open items / things the user still owns
 - **Analytics: APIs enabled 2026-08-03** (Search Console + GA Admin + GA Data, on project

@@ -24,7 +24,7 @@ export function registerBlogDraftJobs() {
   jobs.register<{ workspaceId: string; postId: string }>("blog.finishdraft", async ({ workspaceId, postId }, ctx) => {
     await ctx.progress(0.1);
     const { completeFreshDraftCore } = await import("@/lib/blog-autopilot");
-    const out = await completeFreshDraftCore(workspaceId, postId);
+    const out = await completeFreshDraftCore(workspaceId, postId, { once: ctx.once });
     ctx.log(`advanced=${out.advanced} images=${out.imagesGenerated} seo=${out.seoOptimized}`);
     await ctx.progress(1);
   });

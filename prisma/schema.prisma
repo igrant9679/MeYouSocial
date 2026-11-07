@@ -1234,10 +1234,16 @@ model Job {
   // A retry waits until here — exponential backoff with jitter (audit ENG-22);
   // retrying a rate-limited provider seconds later only spent the attempts.
   runAfter    DateTime?
+  // Steps an attempt finished, as JSON {step: result} (ctx.once, audit ENG-22):
+  // a retry gets them back instead of paying for a model call or a render again.
+  steps       String?
   startedAt   DateTime?
   finishedAt  DateTime?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+  // ⚠ Also a PARTIAL unique index "Job_live_once" on (name, refId) while state is
+  // queued or running — one live job per thing. Raw SQL in migration
+  // 20261107090000_job_guards; Prisma's schema can't express a partial index.
 
   workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
@@ -2085,6 +2091,19 @@ model UnipileAccount {
  * conversation. Engage reads the real thing live from Zernio; this exists to
  * answer "what arrived since I last looked", which a live fetch cannot.
  */
+/// A webhook delivery already handled (audit SOC-15): Zernio redelivers after a
+/// timeout or a 5xx, and a post event handled twice moved the leg's posted time
+/// and told people about the same failure again. Kept 30 days.
+model WebhookReceipt {
+  id         String   @id @default(cuid())
+  source     String   // "zernio"
+  eventId    String
+  receivedAt DateTime @default(now())
+
+  @@unique([source, eventId])
+  @@index([receivedAt])
+}
+
 model SocialInboxEvent {
   id          String   @id @default(cuid())
   workspaceId String
@@ -2489,6 +2508,10 @@ model SocialPostTarget {
   // after a day (social/reconnect-retry.ts).
   retryOnReconnectAt DateTime?
   retryOnReconnectBy String?
+  // When Zernio said what it last told us about this leg (the event's own
+  // timestamp, audit SOC-15): an older event arriving late is about an earlier
+  // state and is ignored for this leg.
+  providerEventAt DateTime?
 
   post      SocialPost       @relation(fields: [postId], references: [id], onDelete: Cascade)
   snapshots SocialSnapshot[]

@@ -13,10 +13,12 @@ import { brandingFor } from "@/lib/share-links";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(_req: Request, ctx: { params: Promise<{ key: string }> }) {
+export async function GET(req: Request, ctx: { params: Promise<{ key: string }> }) {
   const { key } = await ctx.params;
   const { workspace } = await requireMembership();
-  const content = await reportContent(workspace.id, workspace.name, key);
+  // The range on screen when Download was pressed (MEA-11).
+  const w = parseInt(new URL(req.url).searchParams.get("w") ?? "", 10);
+  const content = await reportContent(workspace.id, workspace.name, key, { weeks: [4, 8, 12].includes(w) ? w : undefined });
   if (!content) return new Response("Not found", { status: 404 });
   // White-labelled (E-MEA-14): the workspace's own logo and colour, a cover, page numbers.
   const buf = await renderReportPdf(content, await brandingFor(workspace.id, workspace.name));

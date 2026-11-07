@@ -34,14 +34,15 @@ function money(n: number): string {
 }
 
 /** Read a report's blocks into sections of lines. Null when the report doesn't exist in this workspace. */
-export async function reportContent(workspaceId: string, workspaceName: string, key: string): Promise<ReportContent | null> {
+export async function reportContent(workspaceId: string, workspaceName: string, key: string, opts: { weeks?: number } = {}): Promise<ReportContent | null> {
   const report = await getReport(workspaceId, key);
   if (!report) return null;
-  const weeks = Math.max(1, Math.round(report.dateRangeDays / 7));
+  // The range the person was looking at (MEA-11), else the report's default.
+  const weeks = opts.weeks && opts.weeks > 0 ? opts.weeks : Math.max(1, Math.round(report.dateRangeDays / 7));
   const [stats, series, perf] = await Promise.all([
     homeStats(workspaceId),
     weeklySeries(workspaceId, weeks),
-    postPerformance(workspaceId, 40, { status: "published" }),
+    postPerformance(workspaceId, 40, { status: "published", days: weeks * 7 }),
   ]);
   const sections: ReportSection[] = [];
   const section = (title: string) => {
@@ -73,7 +74,7 @@ export async function reportContent(workspaceId: string, workspaceName: string, 
         break;
       }
       case "movers": {
-        const line = section("Biggest movers — last 28 days vs the 28 before");
+        const line = section(`Biggest movers — last ${weeks} weeks vs the ${weeks} before`);
         const movers = perf
           .filter((p) => p.position != null && p.prevPosition != null)
           .map((p) => ({ t: p.title, d: p.prevPosition! - p.position!, pos: p.position! }))
@@ -84,7 +85,7 @@ export async function reportContent(workspaceId: string, workspaceName: string, 
         break;
       }
       case "posts_table": {
-        const line = section("Published content");
+        const line = section(`Published content — clicks and position over the last ${weeks} weeks`);
         if (!perf.length) line("Nothing published yet.", true);
         for (const p of perf.slice(0, 12)) {
           line(`${p.title} — ${p.focusKeyword ?? "no keyword"} — pos ${p.position?.toFixed(1) ?? "—"} — ${p.clicks ?? "—"} clicks`);

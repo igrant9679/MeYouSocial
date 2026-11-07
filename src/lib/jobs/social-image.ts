@@ -61,7 +61,12 @@ export function registerSocialImageJobs() {
     const { socialImagePrompt } = await import("@/lib/social/image-prompt");
     const prompt = socialImagePrompt({ text: post.text, campaign: post.campaign?.name });
 
-    const img = await provider.generate({ prompt, aspectRatio: aspect, workspaceId: post.workspaceId });
+    // Once per job (ENG-22): a retry after the render reuses the stored image
+    // instead of paying for another.
+    const img = await ctx.once("social:render", async () => {
+      const r = await provider.generate({ prompt, aspectRatio: aspect, workspaceId: post.workspaceId });
+      return { key: r.key ?? null, provider: r.provider };
+    });
     if (!img.key) return; // defensive: only real, stored bytes get attached
     await ctx.progress(0.9);
 

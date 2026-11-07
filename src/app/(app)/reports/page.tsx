@@ -74,7 +74,7 @@ export default async function ReportsHubPage() {
               )}
             </div>
             <p className="text-xs text-[var(--mute)]">{r.description}</p>
-            <p className="font-mono text-[10px] text-[var(--mute)] mt-1.5">{r.blocks.length} blocks · {r.dateRangeDays / 7}w range</p>
+            <p className="font-mono text-[10px] text-[var(--mute)] mt-1.5">{r.blocks.length} blocks · opens at {r.dateRangeDays / 7}w</p>
           </Link>
         ))}
 

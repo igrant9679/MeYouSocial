@@ -2,7 +2,7 @@ import { jobs } from "@/lib/jobs";
 import { passStamp } from "@/lib/provenance";
 import { db } from "@/lib/db";
 import { llm, resolveUsableModel } from "@/lib/llm";
-import type { LLMResponse } from "@/lib/llm";
+import { keptReply, type KeptReply } from "@/lib/jobs/kept-reply";
 import { emailFor } from "@/lib/email";
 import { readJson, writeJson } from "@/lib/db/json";
 import { countWords, durationSeconds, MAX_WORDS } from "@/lib/canvas/duration";
@@ -81,7 +81,9 @@ export function registerAgentJobs() {
       if (!script) throw new Error("script not found");
       // The agent rewrites outline and body; keep the hand-edited draft first.
       const { snapshotScript } = await import("@/lib/script-versions");
-      await snapshotScript(script, "before agent run");
+      // Once per job (ENG-22): a retry after a crash must not snapshot the
+      // half-agent-written script as "before agent run".
+      await ctx.once("agent:snapshot", async () => { await snapshotScript(script, "before agent run"); return true; });
 
       const voice = script.channel.voiceProfiles[0]?.data ?? "";
       const audienceKQ = readJson<string[]>(script.channel.audience?.keyQuestions ?? null, []);
@@ -94,7 +96,7 @@ export function registerAgentJobs() {
       const model = await resolveUsableModel(script.model ?? script.channel.defaultModel ?? "", script.channel.workspaceId);
       const call = { model, workspaceId: script.channel.workspaceId, timeoutMs: 240_000, maxTokens: 8000 };
       /** A placeholder stops the run BEFORE it is written anywhere. */
-      const real = (res: LLMResponse, step: string): string => {
+      const real = (res: KeptReply, step: string): string => {
         if (res.provider === "mock" || !res.content.trim()) {
           throw new Error(`The AI provider didn't answer at the ${step} step (no usable key, or it timed out), so the run stopped there. Nothing from that step was written; the script as it was before the run is in its version history.`);
         }
@@ -113,7 +115,7 @@ export function registerAgentJobs() {
 
       // ── 2. Outline ─────────────────────────────────────────────────────
       await mark("outline", { status: "running", startedAt: new Date().toISOString() });
-      const outlineRes = await llm.complete({
+      const outlineRes = await keptReply(ctx, "agent:outline", () => llm.complete({
         purpose: "script.agent",
         ...call,
         system: systemForOutline({
@@ -125,19 +127,22 @@ export function registerAgentJobs() {
           template: templateName,
         }),
         messages: [{ role: "user", content: `Title: ${script.title}\n\nResearch:\n${researchText}` }],
-      });
+      }));
       const outline = real(outlineRes, "outline");
       if (await isCancelled()) return await finish("cancelled", "Cancelled before the outline was written.");
-      await db.scriptVersion.create({ data: { scriptId: script.id, label: "agent: outline", outline } });
-      const outlineJson = readJson<{ markdown?: string; questions?: unknown; publish?: unknown }>(script.outline ?? null, {});
-      outlineJson.markdown = outline;
-      await db.script.update({ where: { id: script.id }, data: { outline: writeJson(outlineJson), outlineBy: passStamp(outlineRes), status: "planning" } });
+      await ctx.once("agent:outline:saved", async () => {
+        await db.scriptVersion.create({ data: { scriptId: script.id, label: "agent: outline", outline } });
+        const outlineJson = readJson<{ markdown?: string; questions?: unknown; publish?: unknown }>(script.outline ?? null, {});
+        outlineJson.markdown = outline;
+        await db.script.update({ where: { id: script.id }, data: { outline: writeJson(outlineJson), outlineBy: passStamp(outlineRes), status: "planning" } });
+        return true;
+      });
       if (await isCancelled()) return await finish("cancelled", "Cancelled after outline.");
       await mark("outline", { status: "done", endedAt: new Date().toISOString() });
 
       // ── 3. Script ──────────────────────────────────────────────────────
       await mark("script", { status: "running", startedAt: new Date().toISOString() });
-      const scriptRes = await llm.complete({
+      const scriptRes = await keptReply(ctx, "agent:script", () => llm.complete({
         purpose: "script.agent",
         ...call,
         system: systemForScript({
@@ -148,23 +153,26 @@ export function registerAgentJobs() {
           lengthGuide: "8-12 minutes (~1500-2400 words)",
         }),
         messages: [{ role: "user", content: `Outline:\n\n${outline}\n\nExpand into a full spoken-style script.` }],
-      });
+      }));
       let body = real(scriptRes, "script");
       if (await isCancelled()) return await finish("cancelled", "Cancelled before the draft was written.");
       let wordCount = countWords(body);
-      await db.scriptVersion.create({ data: { scriptId: script.id, label: "agent: script-draft", body, wordCount } });
-      await db.script.update({ where: { id: script.id }, data: { body, bodyBy: passStamp(scriptRes), wordCount: Math.min(wordCount, MAX_WORDS), durationSeconds: durationSeconds(wordCount), status: "draft" } });
+      await ctx.once("agent:script:saved", async () => {
+        await db.scriptVersion.create({ data: { scriptId: script.id, label: "agent: script-draft", body, wordCount } });
+        await db.script.update({ where: { id: script.id }, data: { body, bodyBy: passStamp(scriptRes), wordCount: Math.min(wordCount, MAX_WORDS), durationSeconds: durationSeconds(wordCount), status: "draft" } });
+        return true;
+      });
       if (await isCancelled()) return await finish("cancelled", "Cancelled after first draft.");
       await mark("script", { status: "done", endedAt: new Date().toISOString(), note: `${wordCount} words` });
 
       // ── 4a. QA: retention optimization ─────────────────────────────────
       await mark("qa_retention", { status: "running", startedAt: new Date().toISOString() });
-      const retention = await llm.complete({
+      const retention = await keptReply(ctx, "agent:retention", () => llm.complete({
         purpose: "script.agent",
         ...call,
         system: "Pass over a YouTube script and improve retention: punch up the hook, add curiosity gaps between sections, ensure every 30s makes a promise or pays one off. PRESERVE voice and structure. Return ONLY the rewritten script.",
         messages: [{ role: "user", content: body }],
-      });
+      }));
       body = real(retention, "retention");
       if (await isCancelled()) return await finish("cancelled", "Cancelled mid-QA.");
       wordCount = countWords(body);
@@ -174,28 +182,31 @@ export function registerAgentJobs() {
 
       // ── 4b. QA: humanize ───────────────────────────────────────────────
       await mark("qa_humanize", { status: "running", startedAt: new Date().toISOString() });
-      const humanized = await llm.complete({
+      const humanized = await keptReply(ctx, "agent:humanize", () => llm.complete({
         purpose: "script.agent",
         ...call,
         system: HUMANIZE_SYSTEM,
         messages: [{ role: "user", content: `Voice: ${voice}\n\nScript:\n${body}` }],
-      });
+      }));
       body = real(humanized, "humanize");
       if (await isCancelled()) return await finish("cancelled", "Cancelled mid-QA.");
       wordCount = countWords(body);
-      await db.scriptVersion.create({ data: { scriptId: script.id, label: "agent: humanized", body, wordCount } });
-      await db.script.update({ where: { id: script.id }, data: { body, bodyBy: passStamp(humanized), wordCount: Math.min(wordCount, MAX_WORDS), durationSeconds: durationSeconds(wordCount) } });
+      await ctx.once("agent:humanize:saved", async () => {
+        await db.scriptVersion.create({ data: { scriptId: script.id, label: "agent: humanized", body, wordCount } });
+        await db.script.update({ where: { id: script.id }, data: { body, bodyBy: passStamp(humanized), wordCount: Math.min(wordCount, MAX_WORDS), durationSeconds: durationSeconds(wordCount) } });
+        return true;
+      });
       if (await isCancelled()) return await finish("cancelled", "Cancelled mid-QA.");
       await mark("qa_humanize", { status: "done", endedAt: new Date().toISOString() });
 
       // ── 4c. QA: repetition cleanup ─────────────────────────────────────
       await mark("qa_repetition", { status: "running", startedAt: new Date().toISOString() });
-      const dedup = await llm.complete({
+      const dedup = await keptReply(ctx, "agent:repetition", () => llm.complete({
         purpose: "script.agent",
         ...call,
         system: "Pass over a YouTube script and remove repeated points, redundant phrasings, and any place where the same idea is restated within two paragraphs. Keep length within 5% of the original. PRESERVE voice. Return ONLY the rewritten script.",
         messages: [{ role: "user", content: body }],
-      });
+      }));
       body = real(dedup, "repetition");
       if (await isCancelled()) return await finish("cancelled", "Cancelled mid-QA.");
       wordCount = countWords(body);
@@ -205,17 +216,20 @@ export function registerAgentJobs() {
 
       // ── 5. Voiceover prep ──────────────────────────────────────────────
       await mark("voiceover", { status: "running", startedAt: new Date().toISOString() });
-      const vo = await llm.complete({
+      const vo = await keptReply(ctx, "agent:voiceover", () => llm.complete({
         purpose: "script.agent",
         ...call,
         system: "Format a script for AI voiceover: 1 sentence per line, no slashes, no parentheticals the narrator would read aloud, no em-dashes (replace with commas), expand 'e.g.'/'i.e.'/etc. Keep section headers as their own lines. Return ONLY the formatted script.",
         messages: [{ role: "user", content: body }],
-      });
+      }));
       body = real(vo, "voiceover");
       if (await isCancelled()) return await finish("cancelled", "Cancelled before the voiceover pass was written.");
       wordCount = countWords(body);
-      await db.scriptVersion.create({ data: { scriptId: script.id, label: "agent: voiceover-ready", body, wordCount } });
-      await db.script.update({ where: { id: script.id }, data: { body, bodyBy: passStamp(vo), wordCount: Math.min(wordCount, MAX_WORDS), durationSeconds: durationSeconds(wordCount), status: "ready" } });
+      await ctx.once("agent:voiceover:saved", async () => {
+        await db.scriptVersion.create({ data: { scriptId: script.id, label: "agent: voiceover-ready", body, wordCount } });
+        await db.script.update({ where: { id: script.id }, data: { body, bodyBy: passStamp(vo), wordCount: Math.min(wordCount, MAX_WORDS), durationSeconds: durationSeconds(wordCount), status: "ready" } });
+        return true;
+      });
       await mark("voiceover", { status: "done", endedAt: new Date().toISOString() });
 
       await finish("succeeded");

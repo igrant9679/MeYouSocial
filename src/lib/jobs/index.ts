@@ -30,7 +30,19 @@ export type JobContext = {
   id: string;
   progress: (n: number) => Promise<void>;
   log: (message: string) => void;
+  /**
+   * Run a step once per job, across retries (audit ENG-22). The first time, `fn`
+   * runs and its result is kept on the job row; a retry of the same job — after
+   * a throw later on, or a container killed mid-run — gets the kept result back
+   * without running `fn` again, so a model call or a render isn't paid twice and
+   * a row isn't written twice. A step that throws keeps nothing and runs again.
+   * ⚠ The result must survive JSON: plain objects, strings, numbers, arrays.
+   */
+  once: <T>(step: string, fn: () => Promise<T>) => Promise<T>;
 };
+
+/** Live = still to run. At most one live job per (name, refId) — ENG-22. */
+const LIVE_STATES = ["queued", "running"];
 
 export type JobState = "queued" | "running" | "done" | "failed";
 
@@ -71,7 +83,7 @@ const handlers = new Map<string, JobHandler<unknown>>();
 
 // ── Memory backend (opt-in) ──────────────────────────────────────────────────
 
-type MemoryRecord = { id: string; name: string; payload: unknown; state: JobState; progress: number; error?: string; refId?: string };
+type MemoryRecord = { id: string; name: string; payload: unknown; state: JobState; progress: number; error?: string; refId?: string; steps: Record<string, unknown> };
 
 class MemoryQueue implements JobQueue {
   private jobs = new Map<string, MemoryRecord>();
@@ -81,8 +93,11 @@ class MemoryQueue implements JobQueue {
   }
 
   async enqueue<TPayload>(name: string, payload: TPayload, opts?: EnqueueOptions): Promise<string> {
+    if (opts?.refId) {
+      for (const r of this.jobs.values()) if (r.name === name && r.refId === opts.refId && LIVE_STATES.includes(r.state)) return r.id;
+    }
     const id = "job_" + Math.random().toString(36).slice(2, 12);
-    const rec: MemoryRecord = { id, name, payload, state: "queued", progress: 0, refId: opts?.refId };
+    const rec: MemoryRecord = { id, name, payload, state: "queued", progress: 0, refId: opts?.refId, steps: {} };
     this.jobs.set(id, rec);
     void this.run(rec); // fire-and-forget; must not block the request path
     return id;
@@ -101,6 +116,12 @@ class MemoryQueue implements JobQueue {
         id: rec.id,
         progress: async (n) => { rec.progress = Math.max(0, Math.min(1, n)); },
         log: (m) => { if (env.LOG_LEVEL === "debug") console.log(`[job ${rec.id}]`, m); },
+        once: async <T,>(step: string, fn: () => Promise<T>): Promise<T> => {
+          if (step in rec.steps) return rec.steps[step] as T;
+          const v = await fn();
+          rec.steps[step] = v === undefined ? null : JSON.parse(JSON.stringify(v));
+          return v;
+        },
       });
       rec.state = "done";
       rec.progress = 1;
@@ -170,16 +191,34 @@ class DbQueue implements JobQueue {
 
   async enqueue<TPayload>(name: string, payload: TPayload, opts?: EnqueueOptions): Promise<string> {
     const { db } = await import("@/lib/db");
-    const job = await db.job.create({
-      data: {
-        name,
-        payload: JSON.stringify(payload ?? {}),
-        refId: opts?.refId ?? null,
-        workspaceId: opts?.workspaceId ?? null,
-        ...(opts?.maxAttempts ? { maxAttempts: opts.maxAttempts } : {}),
-      },
-      select: { id: true },
-    });
+    // ⚠ ONE LIVE JOB PER THING (audit ENG-22). A double click, two tabs, or the
+    // wizard and a button both asking for a channel's ideas used to queue two
+    // jobs that each paid for the same model calls and wrote the same rows
+    // twice. The live one is returned instead. The partial unique index
+    // "Job_live_once" (migration 20261107090000_job_guards) makes it hold under
+    // a race; this read keeps the common case from relying on the error.
+    const live = (): Promise<{ id: string } | null> =>
+      opts?.refId ? db.job.findFirst({ where: { name, refId: opts.refId, state: { in: LIVE_STATES } }, select: { id: true } }) : Promise.resolve(null);
+    const existing = await live();
+    if (existing) return existing.id;
+    let job: { id: string };
+    try {
+      job = await db.job.create({
+        data: {
+          name,
+          payload: JSON.stringify(payload ?? {}),
+          refId: opts?.refId ?? null,
+          workspaceId: opts?.workspaceId ?? null,
+          ...(opts?.maxAttempts ? { maxAttempts: opts.maxAttempts } : {}),
+        },
+        select: { id: true },
+      });
+    } catch (e) {
+      // Lost the race to another enqueue of the same thing: that job is the one.
+      const won = (e as { code?: string }).code === "P2002" ? await live() : null;
+      if (won) return won.id;
+      throw e;
+    }
 
     // Run it now, in this process, exactly as the old queue did — the request
     // path stays non-blocking and the user sees progress immediately. The
@@ -230,6 +269,11 @@ class DbQueue implements JobQueue {
       return false;
     }
 
+    // Steps an earlier attempt of THIS job finished (ctx.once, ENG-22).
+    const steps: Record<string, unknown> = (() => {
+      try { const v = JSON.parse(job.steps ?? "{}"); return v && typeof v === "object" ? v : {}; } catch { return {}; }
+    })();
+
     let payload: unknown = {};
     try {
       payload = JSON.parse(job.payload);
@@ -257,6 +301,18 @@ class DbQueue implements JobQueue {
         log: (m) => {
           if (env.LOG_LEVEL === "debug") console.log(`[job ${id}]`, m);
           void db.job.update({ where: { id }, data: { lastLog: m.slice(0, 500) } }).catch(() => {});
+        },
+        once: async <T,>(step: string, fn: () => Promise<T>): Promise<T> => {
+          if (step in steps) {
+            if (env.LOG_LEVEL === "debug") console.log(`[job ${id}] step ${step}: kept from an earlier attempt`);
+            return steps[step] as T;
+          }
+          const v = await fn();
+          steps[step] = v === undefined ? null : JSON.parse(JSON.stringify(v));
+          // Kept before anything after it can fail. If this write itself fails
+          // the step runs again on a retry — no worse than before.
+          await db.job.update({ where: { id }, data: { steps: JSON.stringify(steps), claimedAt: new Date() } }).catch(() => {});
+          return v;
         },
       });
       await db.job.update({

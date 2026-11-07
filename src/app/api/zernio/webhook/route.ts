@@ -40,6 +40,8 @@ type ZernioEvent = {
    * differ, so the reader accepts both rather than assuming one shape.
    */
   id?: string;
+  /** When Zernio says the event happened (ISO) — orders post events (SOC-15). */
+  timestamp?: string;
   account?: Record<string, unknown>;
   message?: Record<string, unknown>;
   comment?: Record<string, unknown>;
@@ -251,44 +253,86 @@ export async function POST(req: NextRequest) {
     if (!target) return NextResponse.json({ ok: true, ignored: "unknown post" });
     if (!allowed(target.post.workspaceId)) return NextResponse.json({ ok: true, ignored: "signed for another workspace" });
 
-    let count = 0;
-    if (type === "post.partial") {
-      const { settleLegsFromZernio } = await import("@/lib/social/publish");
-      count = await settleLegsFromZernio(postId, target.post.workspaceId);
-    } else {
-      const url = typeof data.platformPostUrl === "string" ? data.platformPostUrl : null;
-      const failed = type === "post.failed";
-      const accountId = typeof data.accountId === "string" ? data.accountId : null;
-      const platform = typeof data.platform === "string" ? data.platform.toLowerCase() : null;
-      const scope = accountId ? { accountId } : platform ? { provider: platform } : {};
-      ({ count } = await db.socialPostTarget.updateMany({
-        where: { providerPostId: postId, ...scope, ...(failed ? { status: { not: "posted" } } : {}) },
-        data: failed
-          ? { status: "failed", error: String(data.errorMessage ?? "Zernio reported the post failed").slice(0, 500) }
-          : { status: "posted", postedAt: new Date(), error: null, ...(url ? { platformPostUrl: url } : {}) },
-      }));
+    // ⚠ ONCE PER EVENT (SOC-15). Zernio redelivers after a timeout or a 5xx; a
+    // second post.published moved the leg's posted time to the redelivery, and a
+    // second post.failed told people about the same failure again. Recorded
+    // before the work, and taken back if the work fails, so a redelivery after
+    // our own error is handled rather than skipped.
+    const eventId = String(event.id ?? data.eventId ?? "").slice(0, 200);
+    if (eventId) {
+      const fresh = await db.webhookReceipt.create({ data: { source: "zernio", eventId } }).then(() => true, (e: { code?: string }) => {
+        if (e?.code === "P2002") return false;
+        throw e;
+      });
+      if (!fresh) return NextResponse.json({ ok: true, ignored: "already handled" });
+      if (Math.random() < 0.02) {
+        void db.webhookReceipt.deleteMany({ where: { receivedAt: { lt: new Date(Date.now() - 30 * 86_400_000) } } }).catch(() => {});
+      }
     }
+    // ⚠ IN ORDER, per leg (SOC-15): an event older than the last one applied to
+    // a leg is about an earlier state of it, and is skipped for that leg. No
+    // timestamp in the payload = arrival order, as before.
+    const atRaw = event.timestamp ?? data.timestamp ?? data.updatedAt;
+    const at = typeof atRaw === "string" && !Number.isNaN(Date.parse(atRaw)) ? new Date(atRaw) : null;
+    const inOrder = at ? { OR: [{ providerEventAt: null }, { providerEventAt: { lte: at } }] } : {};
+    const stamp = at ? { providerEventAt: at } : {};
 
-    // Re-roll the parent post from its targets, so a per-leg event moves the
-    // post between posted / partial / failed instead of leaving whatever the
-    // send-time roll-up wrote.
-    const all = await db.socialPostTarget.findMany({ where: { postId: target.postId } });
-    const posted = all.filter((t) => t.status === "posted").length;
-    const stillPending = all.some((t) => t.status === "pending");
-    await db.socialPost.update({
-      where: { id: target.postId },
-      data: {
-        status:
-          posted === all.length ? "posted" : posted > 0 ? "partial" : stillPending ? "publishing" : "failed",
-        ...(posted > 0 ? {} : { publishedAt: null }),
-      },
-    });
-    // A leg Zernio reports failed is told at once (E-SOC-22; once a day per post).
-    if (posted < all.length && !stillPending) {
-      const { alertSendFailure } = await import("@/lib/social/send-alerts");
-      await alertSendFailure(target.postId);
+    try {
+      let count = 0;
+      if (type === "post.partial") {
+        const { settleLegsFromZernio } = await import("@/lib/social/publish");
+        count = await settleLegsFromZernio(postId, target.post.workspaceId);
+      } else {
+        const url = typeof data.platformPostUrl === "string" ? data.platformPostUrl : null;
+        const failed = type === "post.failed";
+        const accountId = typeof data.accountId === "string" ? data.accountId : null;
+        const platform = typeof data.platform === "string" ? data.platform.toLowerCase() : null;
+        const scope = accountId ? { accountId } : platform ? { provider: platform } : {};
+        if (failed) {
+          ({ count } = await db.socialPostTarget.updateMany({
+            where: { providerPostId: postId, ...scope, status: { not: "posted" }, ...inOrder },
+            data: { status: "failed", error: String(data.errorMessage ?? "Zernio reported the post failed").slice(0, 500), ...stamp },
+          }));
+        } else {
+          // A leg becomes posted once: its posted time is when it first went out,
+          // never moved by a later event. One already posted only learns its URL.
+          ({ count } = await db.socialPostTarget.updateMany({
+            where: { providerPostId: postId, ...scope, status: { not: "posted" }, ...inOrder },
+            data: { status: "posted", postedAt: new Date(), error: null, ...(url ? { platformPostUrl: url } : {}), ...stamp },
+          }));
+          if (url) {
+            await db.socialPostTarget.updateMany({
+              where: { providerPostId: postId, ...scope, status: "posted", platformPostUrl: null },
+              data: { platformPostUrl: url },
+            });
+          }
+        }
+      }
+
+      // Re-roll the parent post from its targets, so a per-leg event moves the
+      // post between posted / partial / failed instead of leaving whatever the
+      // send-time roll-up wrote.
+      const all = await db.socialPostTarget.findMany({ where: { postId: target.postId } });
+      const posted = all.filter((t) => t.status === "posted").length;
+      const stillPending = all.some((t) => t.status === "pending");
+      await db.socialPost.update({
+        where: { id: target.postId },
+        data: {
+          status:
+            posted === all.length ? "posted" : posted > 0 ? "partial" : stillPending ? "publishing" : "failed",
+          ...(posted > 0 ? {} : { publishedAt: null }),
+        },
+      });
+      // A leg Zernio reports failed is told at once (E-SOC-22; once a day per post).
+      if (posted < all.length && !stillPending) {
+        const { alertSendFailure } = await import("@/lib/social/send-alerts");
+        await alertSendFailure(target.postId);
+      }
+      return NextResponse.json({ ok: true, updated: count });
+    } catch (e) {
+      if (eventId) await db.webhookReceipt.deleteMany({ where: { source: "zernio", eventId } }).catch(() => {});
+      throw e;
     }
-    return NextResponse.json({ ok: true, updated: count });
   }
 
   // Everything else (inbox, ads, calls) is acknowledged and ignored.

@@ -82,6 +82,9 @@ export async function setReportRangeAction(formData: FormData) {
   const { workspace } = await requireRole("EDITOR");
   await upsertConfig(workspace.id, key, { dateRangeDays: days });
   revalidatePath(`/reports/${key}`);
+  // The range a viewer picks is in the address (MEA-11); this sets the one the
+  // report opens at for everyone, so it says so.
+  redirect(`/reports/${encodeURIComponent(key)}?flash=${encodeURIComponent(`${days / 7} weeks is now this report's default range for everyone in the workspace (and for its emails and PDF).`)}`);
 }
 
 /** Stock report only: drop the override row and track code defaults again. */

@@ -1,5 +1,7 @@
 import { jobs } from "@/lib/jobs";
+import { keptReply } from "@/lib/jobs/kept-reply";
 import { db } from "@/lib/db";
+import type { Prisma } from "@prisma/client";
 import { youtubeFor } from "@/lib/youtube";
 import { llm, resolveUsableModel } from "@/lib/llm";
 import { writeJson } from "@/lib/db/json";
@@ -113,7 +115,7 @@ export function registerOnboardingJobs() {
         // sent a Gemini-only workspace to Anthropic, and the mock answered.
         const model = await resolveUsableModel(channel.defaultModel ?? llm.defaultModel, channel.workspaceId);
         try {
-          const completion = await llm.complete({
+          const completion = await keptReply(ctx, "onboarding:voice", () => llm.complete({
             purpose: "onboarding",
             // ⚠ NOT a hard-coded model. These three jobs used to pin
             // "claude-sonnet" while every other generation path resolves
@@ -145,7 +147,7 @@ export function registerOnboardingJobs() {
               },
             ],
             workspaceId: channel.workspaceId,
-          });
+          }));
           // ⚠ A mock "profile" was stored and marked trained (ENG-06). Only a
           // real provider's answer trains the voice; the record names who replied.
           voiceData = completion.provider === "mock" || !completion.content.trim()
@@ -199,7 +201,7 @@ export function registerOnboardingJobs() {
       const source = channel.linkedYoutubeId
         ? `Top videos: ${(await youtubeFor(channel.workspaceId).listVideos(channel.linkedYoutubeId, 5)).map((v) => v.title).join("; ")}`
         : `Description: ${channel.nicheDescription}`;
-      const completion = await llm.complete({
+      const completion = await keptReply(ctx, "onboarding:audience", async () => llm.complete({
         purpose: "onboarding",
         // See the note in onboarding.voice — a model this workspace can reach.
         model: await resolveUsableModel(channel.defaultModel ?? llm.defaultModel, channel.workspaceId),
@@ -207,7 +209,7 @@ export function registerOnboardingJobs() {
         messages: [{ role: "user", content: `Niche: ${channel.nicheDescription}\n${source}\n\nDifferentiation: ${channel.differentiation}\n\nProduce a JSON object with fields: demographics, psychographics, onlineBehavior, offlineBehavior (each a short paragraph), keyQuestions (array of 5 strings). Respond with the JSON object only.` }],
         workspaceId: channel.workspaceId,
         timeoutMs: 120_000,
-      });
+      }));
       // ⚠ Mock text never replaces the placeholder (ENG-06), and the answer is
       // read as the JSON it was asked for — the raw JSON string used to land
       // in Demographics while the other four sections kept the baseline.
@@ -332,7 +334,7 @@ export function registerOnboardingJobs() {
     await ctx.progress(0.7);
 
     try {
-      const completion = await llm.complete({
+      const completion = await keptReply(ctx, "onboarding:ideas", async () => llm.complete({
         purpose: "onboarding",
         // See the note in onboarding.voice — a model this workspace can reach.
         model: await resolveUsableModel(channel.defaultModel ?? llm.defaultModel, channel.workspaceId),
@@ -348,7 +350,7 @@ export function registerOnboardingJobs() {
         ],
         workspaceId: channel.workspaceId,
         timeoutMs: 120_000,
-      });
+      }));
       // ⚠ Mock ideas were stored next to real ones, each wearing the i-th
       // seed's outlier figure whichever seed it came from, and a model
       // preamble ("Here are 10 ideas:") became an idea (IDE-04).
@@ -383,8 +385,11 @@ export function registerOnboardingJobs() {
       const preparedTopics = prepareTopics(
         await db.topic.findMany({ where: { workspaceId: channel.workspaceId, status: "active" }, select: { id: true, name: true, keywords: true } }),
       );
+      // All or nothing, once per job (ENG-22): a container killed halfway through
+      // this loop used to leave five ideas, and the retry wrote all ten again.
+      const writes: Prisma.PrismaPromise<unknown>[] = [];
       for (const { title, strategy, seed: from } of lines) {
-        await db.idea.create({
+        writes.push(db.idea.create({
           data: {
             channelId,
             title,
@@ -398,10 +403,11 @@ export function registerOnboardingJobs() {
             suggestedLength: "8–12 min",
             topic: channel.nicheDescription?.slice(0, 80) ?? null,
           },
-        });
+        }));
       }
       // Real ideas are in: the untouched generic placeholders go.
-      await db.idea.deleteMany({ where: { channelId, status: "new", strategy: PLACEHOLDER_STRATEGY, title: { in: baselineIdeas } } });
+      writes.push(db.idea.deleteMany({ where: { channelId, status: "new", strategy: PLACEHOLDER_STRATEGY, title: { in: baselineIdeas } } }));
+      await ctx.once("onboarding:ideas:saved", async () => { await db.$transaction(writes); return lines.length; });
     } catch (e) {
       ctx.log(`ideas: LLM enrichment failed, keeping baseline. ${e instanceof Error ? e.message : e}`);
       // Pressed by a person: fail the job with the real reason, so the activity

@@ -73,13 +73,20 @@ export async function updateKeywordAction(formData: FormData) {
     },
   });
   revalidatePath("/blog/keywords");
+  // Back to the list with the editor closed, saying what happened (PRF-02 made
+  // the editor one row at a time, opened by ?edit=).
+  const paused = String(formData.get("status")) === "paused";
+  const what = paused !== (kw.status === "paused") ? (paused ? "Paused" : "Resumed") : "Saved";
+  redirect(`/blog/keywords?ok=${encodeURIComponent(`${what} “${kw.phrase}”.`)}#kw-${id}`);
 }
 
 export async function deleteKeywordAction(formData: FormData) {
   const id = String(formData.get("id"));
   const { workspace } = await requireRole("EDITOR");
+  const kw = await db.keyword.findFirst({ where: { id, workspaceId: workspace.id }, select: { phrase: true } });
   await db.keyword.deleteMany({ where: { id, workspaceId: workspace.id } });
   revalidatePath("/blog/keywords");
+  redirect(`/blog/keywords?${kw ? `ok=${encodeURIComponent(`Deleted “${kw.phrase}”.`)}` : `err=${encodeURIComponent("That keyword was already gone.")}`}`);
 }
 
 /** AI keyword discovery grounded in the org profile; dedupes against existing. */

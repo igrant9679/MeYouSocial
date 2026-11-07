@@ -195,15 +195,24 @@ export async function assembleScenes(
       const out = path.join(dir, `norm-${i}.mp4`);
       await fs.writeFile(src, buf);
 
+      // ⚠ EXACTLY THE SCENE'S LENGTH (audit VID-11). The captions and the cost
+      // are timed from the board's seconds; a clip the provider returned longer
+      // pushed every later caption late, and a short one pulled them early. A
+      // long clip is cut; a short one holds its last frame (and silence) to the
+      // scene's end. There is no ffprobe here, so both are done blind: `tpad`
+      // pads by up to the scene length and `-t` cuts to it.
+      const secs = clips[i].seconds > 0 ? clips[i].seconds : 0;
       const vf =
         `scale=${canvas.w}:${canvas.h}:force_original_aspect_ratio=decrease,` +
-        `pad=${canvas.w}:${canvas.h}:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30`;
+        `pad=${canvas.w}:${canvas.h}:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30` +
+        (secs ? `,tpad=stop_mode=clone:stop_duration=${secs}` : "");
+      const fit = secs ? ["-t", String(secs)] : [];
       const videoArgs = ["-c:v", "libx264", "-preset", "veryfast", "-crf", "23", "-pix_fmt", "yuv420p"];
       const audioArgs = ["-c:a", "aac", "-b:a", "128k", "-ar", "48000", "-ac", "2"];
 
       try {
         // Assume the clip carries audio (Veo 3 output does).
-        await run(bin, ["-y", "-i", src, "-vf", vf, "-map", "0:v:0", "-map", "0:a:0", ...videoArgs, ...audioArgs, out]);
+        await run(bin, ["-y", "-i", src, "-vf", vf, ...(secs ? ["-af", "apad"] : []), "-map", "0:v:0", "-map", "0:a:0", ...videoArgs, ...audioArgs, ...fit, out]);
       } catch {
         // Silent clip: graft a null track so every segment has the same stream
         // layout — the concat demuxer requires it.
@@ -211,7 +220,7 @@ export async function assembleScenes(
           "-y", "-i", src,
           "-f", "lavfi", "-i", "anullsrc=channel_layout=stereo:sample_rate=48000",
           "-vf", vf, "-map", "0:v:0", "-map", "1:a:0", "-shortest",
-          ...videoArgs, ...audioArgs, out,
+          ...videoArgs, ...audioArgs, ...fit, out,
         ]);
       }
       normalized.push(out);

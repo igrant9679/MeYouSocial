@@ -20,12 +20,14 @@ import {
 // One report: its blocks rendered in order, with the customize panel beside
 // them. Customization is per-workspace; stock reports can always be reset.
 
+const RANGE_WEEKS = [4, 8, 12];
+
 export default async function ReportPage({
   params,
   searchParams,
 }: {
   params: Promise<{ key: string }>;
-  searchParams: Promise<{ customize?: string }>;
+  searchParams: Promise<{ customize?: string; w?: string }>;
 }) {
   const { key } = await params;
   const sp = await searchParams;
@@ -34,7 +36,19 @@ export default async function ReportPage({
   const report = await getReport(workspace.id, key);
   if (!report) notFound();
   const editor = canEdit(membership.role);
-  const weeks = Math.max(1, Math.round(report.dateRangeDays / 7));
+  // ⚠ The range is the VIEWER'S (MEA-11): `?w=` in the address, applied to every
+  // block, so changing it no longer changes the report for the whole workspace.
+  // The saved range is only the default a report opens at; editors set it apart.
+  const savedWeeks = Math.max(1, Math.round(report.dateRangeDays / 7));
+  const asked = parseInt(sp.w ?? "", 10);
+  const weeks = RANGE_WEEKS.includes(asked) ? asked : savedWeeks;
+  const rangeHref = (w: number) => {
+    const q = new URLSearchParams();
+    if (w !== savedWeeks) q.set("w", String(w));
+    if (customizing) q.set("customize", "1");
+    const qs = q.toString();
+    return `/reports/${report.key}${qs ? `?${qs}` : ""}`;
+  };
   const available = BLOCK_KEYS.filter((b) => !report.blocks.includes(b));
 
   return (
@@ -47,27 +61,33 @@ export default async function ReportPage({
           <h1 className="font-mono font-bold text-2xl leading-tight">{report.name}</h1>
           <p className="text-xs text-[var(--mute)]">{report.description}</p>
         </div>
-        {/* Range chips */}
-        <div className="flex gap-1">
-          {[28, 56, 84].map((d) => (
-            <form key={d} action={setReportRangeAction}>
-              <input type="hidden" name="key" value={report.key} />
-              <input type="hidden" name="days" value={d} />
-              <button
-                className="font-mono text-[11px] font-bold px-2.5 py-1 rounded-full border cursor-pointer"
-                style={
-                  report.dateRangeDays === d
-                    ? { background: "var(--accent-soft)", color: "var(--accent-on)", borderColor: "var(--accent)" }
-                    : { background: "var(--bg)", color: "var(--mute)", borderColor: "var(--line-2)" }
-                }
-                disabled={!editor}
-              >
-                {d / 7}w
-              </button>
-            </form>
+        {/* Range chips — this view only (MEA-11). */}
+        <div className="flex gap-1 items-center" data-range-chips>
+          {RANGE_WEEKS.map((w) => (
+            <Link
+              key={w}
+              href={rangeHref(w)}
+              aria-current={weeks === w ? "true" : undefined}
+              className="font-mono text-[11px] font-bold px-2.5 py-1 rounded-full border"
+              style={
+                weeks === w
+                  ? { background: "var(--accent-soft)", color: "var(--accent-on)", borderColor: "var(--accent)" }
+                  : { background: "var(--bg)", color: "var(--mute)", borderColor: "var(--line-2)" }
+              }
+              title={w === savedWeeks ? "This report's default range" : undefined}
+            >
+              {w}w
+            </Link>
           ))}
+          {editor && weeks !== savedWeeks && (
+            <form action={setReportRangeAction}>
+              <input type="hidden" name="key" value={report.key} />
+              <input type="hidden" name="days" value={weeks * 7} />
+              <SubmitButton className="btn sm" pendingText="Saving…">Make {weeks}w the default</SubmitButton>
+            </form>
+          )}
         </div>
-        <a href={`/reports/${report.key}/pdf`} className="btn" title="Download as PDF">
+        <a href={`/reports/${report.key}/pdf${weeks !== savedWeeks ? `?w=${weeks}` : ""}`} className="btn" title="Download as PDF">
           <Download className="w-4 h-4" /> PDF
         </a>
         {editor && (

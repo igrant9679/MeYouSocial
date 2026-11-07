@@ -20,6 +20,17 @@ export function HelpClient({ role, initialQuery = "", initialCat = "__all" }: { 
   const [query, setQuery] = useState(initialQuery);
   const [activeCat, setActiveCat] = useState<string>(HELP_CATEGORIES.some((c) => c.id === initialCat) ? initialCat : "__all");
   const search = useRef<HTMLInputElement>(null);
+  // ⚠ An answer is drawn only once it is OPENED (audit PRF-02): every answer in
+  // the page's HTML made /help about 400 KB. The search still reads the answers
+  // (they're in this bundle); a #faq-… link opens its answer as before.
+  const [opened, setOpened] = useState<ReadonlySet<string>>(() => new Set());
+  const setOpen = (id: string, open: boolean) =>
+    setOpened((s) => {
+      if (s.has(id) === open) return s;
+      const next = new Set(s);
+      if (open) next.add(id); else next.delete(id);
+      return next;
+    });
 
   // "/" focuses the search, unless someone is already typing somewhere.
   useEffect(() => {
@@ -38,7 +49,11 @@ export function HelpClient({ role, initialQuery = "", initialCat = "__all" }: { 
   useEffect(() => {
     const open = () => {
       const el = window.location.hash ? document.getElementById(decodeURIComponent(window.location.hash.slice(1))) : null;
-      if (el instanceof HTMLDetailsElement) { el.open = true; el.scrollIntoView({ block: "start" }); }
+      if (el instanceof HTMLDetailsElement) {
+        setOpen(el.id, true);
+        el.open = true;
+        requestAnimationFrame(() => el.scrollIntoView({ block: "start" }));
+      }
     };
     open();
     window.addEventListener("hashchange", open);
@@ -114,14 +129,18 @@ export function HelpClient({ role, initialQuery = "", initialCat = "__all" }: { 
                 <span className="text-[10px] font-mono text-[var(--mute)] uppercase">({cat.entries.length})</span>
               </h2>
               <ul className="m-0 p-0 flex flex-col gap-2">
-                {cat.entries.map((e, i) => (
+                {cat.entries.map((e, i) => {
+                  const id = faqAnchor(cat.id, e.q);
+                  const isOpen = opened.has(id);
+                  return (
                   <li key={i}>
-                    <details className="group scroll-mt-20" id={faqAnchor(cat.id, e.q)}>
+                    <details className="group scroll-mt-20" id={id} open={isOpen} onToggle={(ev) => setOpen(id, ev.currentTarget.open)}>
                       <summary className="cursor-pointer text-sm font-semibold py-2 px-3 rounded-md hover:bg-[var(--zebra)] flex items-center gap-2">
                         <span className="flex-1">{e.q}</span>
                         <a href={`#${faqAnchor(cat.id, e.q)}`} className="text-[var(--mute)] font-mono text-xs no-underline hover:text-[var(--ink)]" title="Link to this answer" aria-label="Link to this answer">#</a>
                         <span className="text-[var(--mute)] group-open:rotate-90 transition">▸</span>
                       </summary>
+                      {isOpen && (<>
                       <div className="px-3 pb-3 pt-1 text-sm leading-[1.6] whitespace-pre-wrap" style={{ color: "var(--ink)" }}>
                         {formatMarkdownInline(e.a)}
                       </div>
@@ -147,9 +166,11 @@ export function HelpClient({ role, initialQuery = "", initialCat = "__all" }: { 
                           ))}
                         </div>
                       )}
+                      </>)}
                     </details>
                   </li>
-                ))}
+                  );
+                })}
               </ul>
             </section>
           ))

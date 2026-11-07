@@ -106,8 +106,10 @@ export type PostPerf = {
  * posts", and the Inbox's Results was all dashes. Pass `status: "any"` for
  * every status.
  */
-export async function postPerformance(workspaceId: string, take = 24, opts?: { status?: string }): Promise<PostPerf[]> {
+export async function postPerformance(workspaceId: string, take = 24, opts?: { status?: string; days?: number }): Promise<PostPerf[]> {
   const status = opts?.status ?? "published";
+  // The window, in days — a report's range (MEA-11); 28 elsewhere.
+  const win = opts?.days && opts.days > 0 ? opts.days : WINDOW_DAYS;
   const posts = await db.blogPost.findMany({
     where: { workspaceId, ...(status !== "any" ? { status } : {}) },
     orderBy: status === "published" ? [{ publishedAt: { sort: "desc", nulls: "last" } }, { updatedAt: "desc" }] : { updatedAt: "desc" },
@@ -119,7 +121,7 @@ export async function postPerformance(workspaceId: string, take = 24, opts?: { s
       focusKeyword: true,
       publishedUrl: true,
       snapshots: {
-        where: { capturedAt: { gte: new Date(Date.now() - 2 * WINDOW_DAYS * 86_400_000 - 7 * 86_400_000) } },
+        where: { capturedAt: { gte: new Date(Date.now() - 2 * win * 86_400_000 - 7 * 86_400_000) } },
         orderBy: { capturedAt: "desc" },
         select: { capturedAt: true, position: true, clicks: true, impressions: true },
       },
@@ -130,9 +132,9 @@ export async function postPerformance(workspaceId: string, take = 24, opts?: { s
     // so "biggest movers" were the noisiest days. Now: the 28 days ending at the
     // post's latest reading vs the 28 before, position weighted by impressions.
     const anchor = p.snapshots[0]?.capturedAt.getTime() ?? 0;
-    const cut = anchor - WINDOW_DAYS * 86_400_000;
+    const cut = anchor - win * 86_400_000;
     const recent = p.snapshots.filter((s) => s.capturedAt.getTime() > cut);
-    const prior = p.snapshots.filter((s) => s.capturedAt.getTime() <= cut && s.capturedAt.getTime() > cut - WINDOW_DAYS * 86_400_000);
+    const prior = p.snapshots.filter((s) => s.capturedAt.getTime() <= cut && s.capturedAt.getTime() > cut - win * 86_400_000);
     return {
       id: p.id,
       title: p.title,

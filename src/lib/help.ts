@@ -341,7 +341,7 @@ export const HELP_CATEGORIES: FaqCategory[] = [
       },
       {
         q: "How do I customize a report?",
-        a: "Open any report → **Customize**. Add or remove blocks from the block library (KPI row, trend charts, movers, tables, compliance, and more), reorder them with the arrows, rename the report, and set its date range (4/8/12 weeks). Customizations are saved per workspace. Stock reports keep a **Reset to stock default** button; custom reports can be deleted.",
+        a: "Open any report → **Customize**. Add or remove blocks from the block library (KPI row, trend charts, movers, tables, compliance, and more), reorder them with the arrows, and rename the report. Customizations are saved per workspace. Stock reports keep a **Reset to stock default** button; custom reports can be deleted.\n\nThe **4w / 8w / 12w** chips change the range for your view only, and every block that has a window follows it (blocks about now say so — \"right now\", \"today\"). The PDF downloads at the range on screen. An editor can press **Make 8w the default** to change the range the report opens at for everyone, which its emails also use.",
         tags: ["customize", "blocks", "reorder"],
       },
       {

@@ -19,9 +19,14 @@ export async function retryJobAction(formData: FormData) {
   const id = String(formData.get("id") ?? "");
   const job = await db.job.findFirst({ where: { id, workspaceId: workspace.id }, select: { name: true } });
   if (!job) back("flashErr=" + encodeURIComponent("That job isn't in this workspace."));
-  const { count } = await db.job.updateMany({
+  // Steps it already finished are kept (ENG-22): the retry carries on after them.
+  const count = await db.job.updateMany({
     where: { id, workspaceId: workspace.id, state: "failed" },
     data: { state: "queued", attempts: 0, runAfter: null, claimedAt: null, claimedBy: null, finishedAt: null, progress: 0, lastLog: `Retried by ${user.name ?? user.email ?? "an admin"}` },
+  }).then((r) => r.count, (e: { code?: string }) => {
+    // One live job per thing (ENG-22): another copy is already waiting or running.
+    if (e?.code === "P2002") back("flashErr=" + encodeURIComponent(`Another “${jobLabel(job!.name)}” for the same thing is already waiting or running — this one wasn't queued again.`));
+    throw e;
   });
   if (!count) back("flashErr=" + encodeURIComponent("That job isn't failed any more — nothing was changed."));
   await writeAudit({ workspaceId: workspace.id, actorId: user.id, action: "job.retried", entityType: "job", entityId: id, meta: { name: job!.name } });

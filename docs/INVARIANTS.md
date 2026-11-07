@@ -2400,3 +2400,29 @@ before changing code in that area.
   windows aren't randomised — the card says to treat a small gap as a tie.
 - ⚠ Titles aren't tested: `videos.update` needs `youtube.force-ssl`. Verified against a stand-in Reporting API; no real channel
   has run one.
+
+## The audit's loose ends: one live job per thing, events once and in order, clips to length, ranges per view (2026-11-07, audit ENG-22 / SOC-15 / VID-11 / MEA-11 / PRF-02 / SET-04, growth part cy)
+- ⚠ **One live job per (name, refId)** (ENG-22): `jobs.enqueue` returns the job already queued or running for the same
+  thing instead of a second one; the partial unique index `Job_live_once` (migration `20261107090000_job_guards`, raw SQL —
+  Prisma's schema can't express it and `migrate diff` ignores it) makes that hold under a race (P2002 → the live one). The
+  migration closed duplicates already waiting (a running one kept, else the oldest). Settings → Jobs' Retry says so when a
+  copy is already waiting. Every enqueue passes a `refId` — keep it that way.
+- **`ctx.once(step, fn)`**: a step's result is kept on the job row (`Job.steps`, JSON) and a retry of THAT job gets it back
+  without running `fn` — after a throw or a container killed mid-run. Used for every paid or row-writing step: the script
+  agent's six model calls and its version writes, the onboarding replies (`keptReply` — a MOCK reply is never kept), the
+  starter ideas' writes (one transaction), the social image render, an article's images and meta. Results must survive JSON.
+- ⚠ **Zernio post events once and in order** (SOC-15): `WebhookReceipt` (migration `20261107100000_webhook_receipts`)
+  records each event id before the work and is taken back if the work fails; a redelivery is "already handled". Each leg
+  keeps `providerEventAt` (the event's own timestamp); an older event arriving late is skipped for that leg. A leg becomes
+  posted once — `postedAt` never moves; a later published event only fills a missing URL. Receipts are pruned after 30 days.
+- **Clips are cut to the board** (VID-11): assembly trims each clip to its scene's seconds and holds a short one's last frame
+  (`tpad` + `-t`, no ffprobe), so captions and cost match the cut.
+- ⚠ **A report's range is the viewer's** (MEA-11): `?w=4|8|12` on the report, applied to every block with a window (movers,
+  content, positions, social, video, voice mix, velocity, topics, charts); blocks about now say "right now" / "today". The
+  PDF follows the range on screen. The saved `dateRangeDays` is only the default (editors: **Make Nw the default**, which
+  emails use too).
+- **Heavy pages** (PRF-02): Keywords opens ONE row's editor at a time (`?edit=`, with Pause and Delete inside) and shows 30
+  rows a cluster (`?all=` for the rest); Help draws an answer only once it's opened — search still reads every answer.
+  Measured on the dev server: Keywords 830 → 411 KB, Help 558 → 237 KB.
+- **Keys lists only what's called** (SET-04): `USED_KEY_PROVIDERS` (Anthropic, Google, OpenAI), each saying what it's used
+  for. DeepSeek, xAI, Moonshot and MiniMax show only while a stored key needs removing; a new key for one is refused.

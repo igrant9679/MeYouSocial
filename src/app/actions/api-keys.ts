@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireRole, isPlatformOperator } from "@/lib/acl";
 import { db } from "@/lib/db";
-import { KEY_PROVIDERS, type KeyProvider } from "@/lib/llm/keys";
+import { KEY_PROVIDERS, isUsedKeyProvider, type KeyProvider } from "@/lib/llm/keys";
 import { llm } from "@/lib/llm";
 import { checkKeyFormat, keyFormatMessage } from "@/lib/key-format";
 import { writeAudit } from "@/lib/governance";
@@ -243,6 +243,12 @@ export async function saveApiKeyAction(formData: FormData) {
   if (!KEY_PROVIDERS.includes(provider) && provider !== "youtube" && provider !== "elevenlabs" && provider !== "heygen") return;
   const value = String(formData.get("value") ?? "").trim();
   const removing = keyIntent(formData, provider, value) === "remove";
+
+  // Nothing calls these providers yet (SET-04): a key saved for one would read
+  // as working and do nothing. Removing an old one is still allowed.
+  if (!removing && KEY_PROVIDERS.includes(provider) && !isUsedKeyProvider(provider)) {
+    redirect(`/admin/api-keys?err=${encodeURIComponent(`Nothing in the app calls ${provider} yet, so a key for it would do nothing. It wasn't saved.`)}`);
+  }
 
   // Refuse here, not three screens later. A key field that accepts anything is
   // how a URL ended up stored as an ElevenLabs key with tts:provider pointed at

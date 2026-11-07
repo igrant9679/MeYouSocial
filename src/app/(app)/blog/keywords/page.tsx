@@ -62,14 +62,23 @@ function competitionLabel(c: number): { text: string; hue: string } {
   return { text: "high", hue: "rose" };
 }
 
+/** Rows a cluster shows before "Show all" (PRF-02). */
+const CLUSTER_ROWS = 30;
+
 function Dash({ reason }: { reason: string }) {
   return <span className="text-[var(--mute)]" title={reason}>—</span>;
 }
 
-export default async function KeywordsPage({ searchParams }: { searchParams: Promise<{ ok?: string; err?: string }> }) {
+export default async function KeywordsPage({ searchParams }: { searchParams: Promise<{ ok?: string; err?: string; edit?: string; all?: string }> }) {
   const { workspace, membership } = await requireMembership();
   const editor = canEdit(membership.role);
-  const { ok, err } = await searchParams;
+  const { ok, err, edit, all } = await searchParams;
+  // ⚠ ONE ROW'S EDITOR AT A TIME (audit PRF-02). Every row carried its own edit
+  // form, Pause form and Delete form — about 2 KB of markup a keyword, half a
+  // megabyte on a large list. A row now links to ?edit=<id>, which opens that
+  // row's editor (with Pause and Delete in it); the bulk bar does many at once.
+  // A long cluster shows its first CLUSTER_ROWS, and ?all=<cluster> the rest.
+  const editHref = (id: string) => `/blog/keywords?${new URLSearchParams({ edit: id, ...(all ? { all } : {}) })}#kw-${id}`;
   const [keywords, provider, country, topicNames] = await Promise.all([
     db.keyword.findMany({
       where: { workspaceId: workspace.id },
@@ -268,8 +277,11 @@ export default async function KeywordsPage({ searchParams }: { searchParams: Pro
             </span>
           </form>
         )}
-        {[...clusters.entries()].map(([cluster, list]) => (
-          <section key={cluster} className="card mb-3">
+        {[...clusters.entries()].map(([cluster, list]) => {
+          // The row being edited always shows, even past the cut.
+          const shown = all === cluster || list.length <= CLUSTER_ROWS ? list : list.filter((k, i) => i < CLUSTER_ROWS || k.id === edit);
+          return (
+          <section key={cluster} className="card mb-3" data-kw-cluster={cluster}>
             <h2 className="text-xs font-semibold uppercase tracking-wide text-[var(--mute)] mb-2 flex items-center gap-2 flex-wrap">
               {cluster} <span className="font-mono">({list.length})</span>
               {/* A cluster is a Topic that hasn't been named yet (Topics as
@@ -304,12 +316,12 @@ export default async function KeywordsPage({ searchParams }: { searchParams: Pro
                   </tr>
                 </thead>
                 <tbody>
-                  {list.map((k) => {
+                  {shown.map((k) => {
                     const delta = trendDelta(parseTrend(k.trend));
                     const noData = k.volumeAt && k.volume == null;
                     const comp = k.competition != null ? competitionLabel(k.competition) : null;
                     return (
-                      <tr key={k.id} className="border-b border-[var(--line)] last:border-0 align-middle" data-kw-row={k.id}>
+                      <tr key={k.id} id={`kw-${k.id}`} className="border-b border-[var(--line)] last:border-0 align-middle scroll-mt-20" data-kw-row={k.id}>
                         {editor && (
                           <td className="py-1.5 pr-2">
                             <input type="checkbox" name="ids" value={k.id} form="kw-bulk" aria-label={`Select ${k.phrase}`} />
@@ -318,12 +330,15 @@ export default async function KeywordsPage({ searchParams }: { searchParams: Pro
                         <td className="py-1.5 pr-3">
                           <span className="font-semibold">{k.phrase}</span>
                           {k.status === "paused" && <span className="ml-1 text-[var(--mute)]">(paused)</span>}
-                          {/* Edit in place (E-IDE-13): tier, intent and cluster.
-                              A person's intent replaces the AI's. */}
-                          {editor && (
-                            <details className="mt-0.5" data-kw-edit>
-                              <summary className="cursor-pointer select-none text-[11px] text-[var(--mute)]">Edit</summary>
-                              <form action={updateKeywordAction} className="mt-1 flex flex-wrap items-center gap-1">
+                          {/* Edit in place (E-IDE-13): tier, intent and cluster —
+                              a person's intent replaces the AI's — plus Pause and
+                              Delete. One row at a time (PRF-02). */}
+                          {editor && edit !== k.id && (
+                            <Link href={editHref(k.id)} scroll={false} className="block mt-0.5 text-[11px] text-[var(--mute)] hover:text-[var(--ink)]" data-kw-edit-link>Edit</Link>
+                          )}
+                          {editor && edit === k.id && (
+                            <div className="mt-1 flex flex-col gap-1.5" data-kw-edit>
+                              <form action={updateKeywordAction} className="flex flex-wrap items-center gap-1">
                                 <input type="hidden" name="id" value={k.id} />
                                 <input type="hidden" name="status" value={k.status} />
                                 <select key={`tier:${k.tier}`} name="tier" defaultValue={k.tier} aria-label={`Tier for ${k.phrase}`} className={FIELD}>
@@ -336,7 +351,22 @@ export default async function KeywordsPage({ searchParams }: { searchParams: Pro
                                 <input name="cluster" defaultValue={k.cluster ?? ""} list="kw-clusters" placeholder="cluster" aria-label={`Cluster for ${k.phrase}`} className={`${FIELD} w-36`} />
                                 <SubmitButton className="btn sm" pendingText="Saving…">Save</SubmitButton>
                               </form>
-                            </details>
+                              <div className="flex items-center gap-1">
+                                <form action={updateKeywordAction}>
+                                  <input type="hidden" name="id" value={k.id} />
+                                  <input type="hidden" name="cluster" value={k.cluster ?? ""} />
+                                  <input type="hidden" name="intent" value={k.intent ?? ""} />
+                                  <input type="hidden" name="status" value={k.status === "active" ? "paused" : "active"} />
+                                  <input type="hidden" name="tier" value={k.tier} />
+                                  <SubmitButton className="btn sm" pendingText="…">{k.status === "active" ? "Pause" : "Resume"}</SubmitButton>
+                                </form>
+                                <form action={deleteKeywordAction}>
+                                  <input type="hidden" name="id" value={k.id} />
+                                  <SubmitButton className="btn sm" pendingText="Deleting…"><Trash2 className="w-3 h-3" /> Delete</SubmitButton>
+                                </form>
+                                <Link href={all ? `/blog/keywords?all=${encodeURIComponent(all)}#kw-${k.id}` : `/blog/keywords#kw-${k.id}`} scroll={false} className="btn sm">Close</Link>
+                              </div>
+                            </div>
                           )}
                         </td>
                         <td className="py-1.5 pr-3 font-mono">T{k.tier}</td>
@@ -396,26 +426,10 @@ export default async function KeywordsPage({ searchParams }: { searchParams: Pro
                         </td>
                         {editor && (
                           <td className="py-1.5">
-                            <div className="flex items-center gap-1">
-                              <form action={ideaFromKeywordAction}>
-                                <input type="hidden" name="id" value={k.id} />
-                                <SubmitButton className="btn" pendingText="" title="Make an idea from this keyword — a working title from its intent, under the matching Topic"><Lightbulb className="w-3.5 h-3.5" /></SubmitButton>
-                              </form>
-                              <form action={updateKeywordAction} className="flex items-center gap-1">
-                                <input type="hidden" name="id" value={k.id} />
-                                <input type="hidden" name="cluster" value={k.cluster ?? ""} />
-                                <input type="hidden" name="intent" value={k.intent ?? ""} />
-                                <input type="hidden" name="status" value={k.status === "active" ? "paused" : "active"} />
-                                <input type="hidden" name="tier" value={k.tier} />
-                                <button className="btn" title={k.status === "active" ? "Pause" : "Activate"}>
-                                  {k.status === "active" ? "Pause" : "Resume"}
-                                </button>
-                              </form>
-                              <form action={deleteKeywordAction}>
-                                <input type="hidden" name="id" value={k.id} />
-                                <button className="btn" title="Delete"><Trash2 className="w-3.5 h-3.5" /></button>
-                              </form>
-                            </div>
+                            <form action={ideaFromKeywordAction}>
+                              <input type="hidden" name="id" value={k.id} />
+                              <SubmitButton className="btn" pendingText="" title="Make an idea from this keyword — a working title from its intent, under the matching Topic"><Lightbulb className="w-3.5 h-3.5" /></SubmitButton>
+                            </form>
                           </td>
                         )}
                       </tr>
@@ -424,8 +438,16 @@ export default async function KeywordsPage({ searchParams }: { searchParams: Pro
                 </tbody>
               </table>
             </div>
+            {list.length > CLUSTER_ROWS && (
+              <div className="text-[11px] mt-2" data-kw-more>
+                {all === cluster
+                  ? <Link href={`/blog/keywords#kw-${list[0].id}`} className="underline text-[var(--mute)]">Show the first {CLUSTER_ROWS}</Link>
+                  : <Link href={`/blog/keywords?all=${encodeURIComponent(cluster)}#kw-${list[CLUSTER_ROWS].id}`} scroll={false} className="underline" style={{ color: "var(--accent)" }}>Show all {list.length} in “{cluster}”</Link>}
+              </div>
+            )}
           </section>
-        ))}
+          );
+        })}
         </>
       )}
       <datalist id="kw-clusters">

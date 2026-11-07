@@ -34,6 +34,8 @@ type Row = {
   envValue: string;
   helpUrl: string;
   helpText: string;
+  /** What in the app calls it — absent for the providers nothing calls (SET-04). */
+  use?: string;
 };
 
 const MEDIA_ROWS: Array<{ provider: "youtube" | "elevenlabs" | "heygen"; label: string; envVar: string; helpUrl: string; helpText: string; note: string }> = [
@@ -43,9 +45,9 @@ const MEDIA_ROWS: Array<{ provider: "youtube" | "elevenlabs" | "heygen"; label: 
 ];
 
 const ROWS: Row[] = [
-  { provider: "anthropic", label: "Anthropic (Claude)",  envVar: "ANTHROPIC_API_KEY",     envValue: env.ANTHROPIC_API_KEY,     helpUrl: "https://console.anthropic.com/settings/keys", helpText: "console.anthropic.com → API Keys" },
-  { provider: "google",    label: "Google (Gemini)",     envVar: "GOOGLE_GENAI_API_KEY",  envValue: env.GOOGLE_GENAI_API_KEY,  helpUrl: "https://aistudio.google.com/apikey",          helpText: "aistudio.google.com/apikey" },
-  { provider: "openai",    label: "OpenAI (GPT)",        envVar: "OPENAI_API_KEY",        envValue: env.OPENAI_API_KEY,        helpUrl: "https://platform.openai.com/api-keys",        helpText: "platform.openai.com → API keys" },
+  { provider: "anthropic", label: "Anthropic (Claude)",  envVar: "ANTHROPIC_API_KEY",     envValue: env.ANTHROPIC_API_KEY,     helpUrl: "https://console.anthropic.com/settings/keys", helpText: "console.anthropic.com → API Keys", use: "Writing: drafts, scripts, posts, the assistant." },
+  { provider: "google",    label: "Google (Gemini)",     envVar: "GOOGLE_GENAI_API_KEY",  envValue: env.GOOGLE_GENAI_API_KEY,  helpUrl: "https://aistudio.google.com/apikey",          helpText: "aistudio.google.com/apikey", use: "Writing, images, Veo video and reading images." },
+  { provider: "openai",    label: "OpenAI (GPT)",        envVar: "OPENAI_API_KEY",        envValue: env.OPENAI_API_KEY,        helpUrl: "https://platform.openai.com/api-keys",        helpText: "platform.openai.com → API keys", use: "Images (gpt-image-1) and reading images — not writing." },
   { provider: "deepseek",  label: "DeepSeek",            envVar: "DEEPSEEK_API_KEY",      envValue: env.DEEPSEEK_API_KEY,      helpUrl: "https://platform.deepseek.com/api_keys",      helpText: "platform.deepseek.com" },
   { provider: "xai",       label: "xAI (Grok)",          envVar: "XAI_API_KEY",           envValue: env.XAI_API_KEY,           helpUrl: "https://console.x.ai",                        helpText: "console.x.ai" },
   { provider: "moonshot",  label: "Moonshot (Kimi)",     envVar: "MOONSHOT_API_KEY",      envValue: env.MOONSHOT_API_KEY,      helpUrl: "https://platform.moonshot.ai",                helpText: "platform.moonshot.ai" },
@@ -201,7 +203,7 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
         </div>
       )}
 
-      {ROWS.map((row) => {
+      {ROWS.filter((row) => row.use).map((row) => {
         const dbVal = byKey.get(`api_key:${row.provider}`) ?? "";
         const platformHas = Boolean(platformByKey.get(`api_key:${row.provider}`) || row.envValue);
         return (
@@ -222,6 +224,7 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
                   ) : null}
                 </div>
                 <div className="text-[11px] text-[var(--mute)] font-mono mt-0.5">{row.envVar}</div>
+                <div className="text-[11px] text-[var(--mute)] mt-0.5" data-key-use={row.provider}>Used for: {row.use}</div>
                 {dbVal && <div className="text-[11px] font-mono text-[var(--mute)] mt-0.5">Current: {mask(dbVal)}</div>}
                 <StoredKeyWarning provider={row.provider} value={dbVal} />
                 <Link href={row.helpUrl} target="_blank" rel="noopener noreferrer" className="text-[11px] inline-flex items-center gap-1 mt-1" style={{ color: "var(--accent)" }}>
@@ -230,6 +233,30 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
               </div>
             </div>
             <KeyField id={row.provider} label={row.label} stored={Boolean(dbVal)} platformHas={platformHas} confirming={confirmRemove === row.provider} last={history.get(row.provider)} now={now} />
+          </form>
+        );
+      })}
+
+      {/* Providers nothing calls (SET-04): listed only while this workspace still
+          stores a key for one, so it can be removed — never offered for a new key. */}
+      {ROWS.filter((row) => !row.use && byKey.get(`api_key:${row.provider}`)).map((row) => {
+        const dbVal = byKey.get(`api_key:${row.provider}`) ?? "";
+        return (
+          <form key={row.provider} action={saveApiKeyAction} id={`key-${row.provider}`} className="card mb-3 scroll-mt-20" data-unused-key={row.provider}>
+            <input type="hidden" name="provider" value={row.provider} />
+            <div className="font-mono font-bold text-sm">{row.label}</div>
+            <p className="text-[11px] mt-0.5 mb-2" style={{ color: "var(--amber-on)" }}>
+              Nothing in the app calls {row.label} yet, so the key saved here ({mask(dbVal)}) does nothing. Remove it; a new one can&apos;t be saved.
+            </p>
+            {confirmRemove === row.provider ? (
+              <div className="flex gap-2 items-center text-sm">
+                Remove this workspace&apos;s {row.label} key? Nothing uses it.
+                <button name="intent" value="remove-confirmed" className="btn sm" style={{ color: "var(--rose-on)" }}>Yes, remove it</button>
+                <Link href={`/admin/api-keys#key-${row.provider}`} className="btn sm">Cancel</Link>
+              </div>
+            ) : (
+              <button name="intent" value="remove" className="btn sm" style={{ color: "var(--rose-on)" }}>Remove key</button>
+            )}
           </form>
         );
       })}

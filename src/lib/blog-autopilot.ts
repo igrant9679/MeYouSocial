@@ -527,8 +527,14 @@ export async function generateDraftCore(workspaceId: string, postId: string, bri
 export async function completeFreshDraftCore(
   workspaceId: string,
   postId: string,
+  opts: {
+    /** A job's ctx.once (ENG-22): a retry of the job doesn't render the images
+     *  or write the meta a second time. Without it each step simply runs. */
+    once?: <T>(step: string, fn: () => Promise<T>) => Promise<T>;
+  } = {},
 ): Promise<{ advanced: boolean; imagesGenerated: number; seoOptimized: number }> {
   const out = { advanced: false, imagesGenerated: 0, seoOptimized: 0 };
+  const once = opts.once ?? (<T,>(_step: string, fn: () => Promise<T>) => fn());
 
   const moved = await db.blogPost.updateMany({
     where: { id: postId, workspaceId, status: "drafting" },
@@ -541,7 +547,7 @@ export async function completeFreshDraftCore(
   // requireImagesToPublish on (the default) the article can't publish without
   // them anyway. Gated on brand.aiImagesEnabled inside the core.
   try {
-    out.imagesGenerated = await generateBlogImagesCore(workspaceId, postId);
+    out.imagesGenerated = await once("blog:images", () => generateBlogImagesCore(workspaceId, postId));
   } catch (e) {
     console.error(`[blog] image generation failed for ${postId}:`, e instanceof Error ? e.message : e);
   }
@@ -555,7 +561,7 @@ export async function completeFreshDraftCore(
     const autoSeo = await getSetting("blog:auto_seo", workspaceId).catch(() => "");
     if (autoSeo !== "false") {
       const { generateSeoMetaCore } = await import("@/lib/blog-seo");
-      const seo = await generateSeoMetaCore(workspaceId, postId, { onlyFillEmpty: true });
+      const seo = await once("blog:seo", () => generateSeoMetaCore(workspaceId, postId, { onlyFillEmpty: true }));
       if (seo.ok) out.seoOptimized = 1;
       else if (seo.reason === "mock") console.warn(`[blog] SEO meta for ${postId} fell back to mock — skipped`);
     }
