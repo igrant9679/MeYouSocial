@@ -26,8 +26,8 @@ export default async function SetupConnections() {
   return (
     <div>
       <div className="flex items-baseline gap-3 flex-wrap mb-4">
-        <h1 className="font-mono text-[22px] font-bold m-0">Connections</h1>
-        <p className="text-[13px] text-[var(--mute)] m-0">
+        <h1 className="font-mono text-2xl font-bold m-0">Connections</h1>
+        <p className="text-sm text-[var(--mute)] m-0">
           {missing === 0 ? `Everything ${workspace.name}'s loop needs is connected.` : `${missing} thing${missing === 1 ? "" : "s"} the loop needs ${missing === 1 ? "is" : "are"} missing.`}
           {extrasOff > 0 && ` ${extrasOff} optional extra${extrasOff === 1 ? "" : "s"} not set up.`}
         </p>
@@ -45,21 +45,21 @@ export default async function SetupConnections() {
                 <div className="flex-1 min-w-48">
                   <div className="text-sm font-semibold leading-snug">
                     {r.label}
-                    <span className="font-mono text-[10px] ml-2 px-1.5 py-0.5 rounded-full" style={r.required ? { background: "var(--accent-soft)", color: "var(--accent-on)" } : { background: "var(--zebra)", color: "var(--mute)" }} data-conn-kind={r.required ? "required" : "optional"}>{r.required ? "needed" : "optional"}</span>
-                    {r.note && <span className="font-mono text-[10px] text-[var(--mute)] ml-2">{r.note}</span>}
+                    <span className="font-mono text-micro ml-2 px-1.5 py-0.5 rounded-full" style={r.required ? { background: "var(--accent-soft)", color: "var(--accent-on)" } : { background: "var(--zebra)", color: "var(--mute)" }} data-conn-kind={r.required ? "required" : "optional"}>{r.required ? "needed" : "optional"}</span>
+                    {r.note && <span className="font-mono text-micro text-[var(--mute)] ml-2">{r.note}</span>}
                   </div>
-                  <div className="text-[11px] text-[var(--mute)]">{r.detail}{r.source ? ` — ${r.source}` : ""}</div>
+                  <div className="text-2xs text-[var(--mute)]">{r.detail}{r.source ? ` — ${r.source}` : ""}</div>
                 </div>
                 {/* Most fixes live on admin pages: say so rather than bounce (SHL-07). */}
                 {canFollow(r.href, membership.role)
                   ? <Link href={r.href} className="btn sm">{r.state === "ok" ? "Open" : "Fix"}</Link>
-                  : r.state !== "ok" && <span className="text-[11px] text-[var(--mute)] max-w-40 text-right">{whoCanFix(r.href)}</span>}
+                  : r.state !== "ok" && <span className="text-2xs text-[var(--mute)] max-w-40 text-right">{whoCanFix(r.href)}</span>}
               </li>
             );
           })}
         </ul>
       </section>
-      <p className="text-[11px] text-[var(--mute)] mt-3">
+      <p className="text-2xs text-[var(--mute)] mt-3">
         Keys are read from the workspace first, then the platform, then the environment; the API keys page shows which source each resolves to.
       </p>
     </div>

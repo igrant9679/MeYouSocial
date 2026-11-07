@@ -376,7 +376,7 @@ export default async function BlogPostPage({
         {FLOW.map((s, i) => (
           <span
             key={s}
-            className="text-[11px] font-mono font-semibold px-2 py-0.5 rounded-full"
+            className="text-2xs font-mono font-semibold px-2 py-0.5 rounded-full"
             style={
               i === idx
                 ? { background: "var(--accent-soft)", color: "var(--accent-on)" }
@@ -459,13 +459,13 @@ export default async function BlogPostPage({
               aria-current={on ? "page" : undefined}
               // Native title, not a bubble: this strip is overflow-x-auto.
               title={BLOG_EDITOR_TAB_TIPS[t.key]}
-              className="group relative inline-flex items-center gap-1.5 px-3.5 py-2.5 text-[13px] font-semibold whitespace-nowrap"
+              className="group relative inline-flex items-center gap-1.5 px-3.5 py-2.5 text-sm font-semibold whitespace-nowrap"
               style={{ color: on ? "var(--rose)" : "var(--slate)" }}
             >
               {t.label}
               {badge && badge.n > 0 && (
                 <span
-                  className="font-mono text-[9.5px] font-bold rounded-full px-1.5 py-px"
+                  className="font-mono text-micro font-bold rounded-full px-1.5 py-px"
                   style={badge.urgent ? { background: "var(--rose-soft)", color: "var(--rose-on)" } : { background: "var(--panel)", color: "var(--mute)" }}
                 >
                   {badge.n}
@@ -486,25 +486,25 @@ export default async function BlogPostPage({
           stays one glance away instead of vanishing into the Review tab. */}
       <Link
         href={`/blog/${post.id}?tab=review`}
-        className="@4xl:hidden card !p-2.5 mb-4 flex items-center gap-2 text-[12px] font-semibold hover:border-[var(--accent)] transition-colors"
+        className="@4xl:hidden card !p-2.5 mb-4 flex items-center gap-2 text-xs font-semibold hover:border-[var(--accent)] transition-colors"
         title="Open the Review tab for gate details"
       >
         <ShieldCheck className="w-4 h-4 shrink-0" style={{ color: gatesPass ? "var(--green-on)" : "var(--amber-on)" }} />
-        <span className="font-mono uppercase tracking-wider text-[var(--mute)] text-[11px]">Gates</span>
-        <span className="font-mono text-[11px]" style={{ color: gatesPass ? "var(--green-on)" : undefined }}>
+        <span className="font-mono uppercase tracking-wider text-[var(--mute)] text-2xs">Gates</span>
+        <span className="font-mono text-2xs" style={{ color: gatesPass ? "var(--green-on)" : undefined }}>
           {checks.filter((c) => c.required && c.pass).length}/{checks.filter((c) => c.required).length} pass
         </span>
         <span className="flex-1" />
         {overridden ? (
-          <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }}>overridden</span>
+          <span className="font-mono text-micro font-bold px-1.5 py-0.5 rounded-full" style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }}>overridden</span>
         ) : gatesPass ? (
-          <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: "var(--green-soft)", color: "var(--green-on)" }}>ready</span>
+          <span className="font-mono text-micro font-bold px-1.5 py-0.5 rounded-full" style={{ background: "var(--green-soft)", color: "var(--green-on)" }}>ready</span>
         ) : (
-          <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: "var(--rose-soft)", color: "var(--rose-on)" }}>
+          <span className="font-mono text-micro font-bold px-1.5 py-0.5 rounded-full" style={{ background: "var(--rose-soft)", color: "var(--rose-on)" }}>
             {checks.filter((c) => c.required && !c.pass).length} blocking
           </span>
         )}
-        <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "var(--panel)", color: "var(--mute)" }}>score {score.total}</span>
+        <span className="font-mono text-micro px-1.5 py-0.5 rounded-full" style={{ background: "var(--panel)", color: "var(--mute)" }}>score {score.total}</span>
       </Link>
 
       {/* Sidebar breakpoint matches the aside below — previously the grid
@@ -547,7 +547,7 @@ export default async function BlogPostPage({
               defaultValue={post.scheduledAt ? toZonedInput(post.scheduledAt, tz) : ""}
               className="text-xs font-mono"
             />
-            <span className="font-mono text-[11px] text-[var(--mute)]">{tz}</span>
+            <span className="font-mono text-2xs text-[var(--mute)]">{tz}</span>
             <button className="btn">Set</button>
           </form>
           {post.scheduledAt && (
@@ -731,7 +731,7 @@ export default async function BlogPostPage({
           </span>
           {!gatesPass && <span className="text-xs font-normal text-[var(--mute)]">— advancing to approval/publish is blocked</span>}
         </summary>
-        <div className="mt-2 flex flex-wrap gap-1.5 text-[10px] font-mono">
+        <div className="mt-2 flex flex-wrap gap-1.5 text-micro font-mono">
           {score.parts.map((p) => (
             <span key={p.label} className="px-1.5 py-0.5 rounded-full" style={{ background: "var(--panel)", color: "var(--mute)" }} title={p.detail}>
               {p.label} {p.score}/{p.max}
@@ -764,7 +764,7 @@ export default async function BlogPostPage({
         <summary className="cursor-pointer select-none text-sm font-semibold flex items-center gap-2 flex-wrap">
           <MonitorSmartphone className="w-4 h-4" />
           How it will look on the site
-          {previewSite && <span className="font-mono text-[10px] font-normal text-[var(--mute)]">{previewSite.replace(/^https?:\/\//, "")}</span>}
+          {previewSite && <span className="font-mono text-micro font-normal text-[var(--mute)]">{previewSite.replace(/^https?:\/\//, "")}</span>}
         </summary>
         <p className="text-xs text-[var(--mute)] mt-2">
           {previewSite
@@ -821,7 +821,7 @@ export default async function BlogPostPage({
               </SubmitButton>
             </form>
             {!slugOk && post.slug && (
-              <span className="font-mono text-[10px] px-2 py-0.5 rounded-full" style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }}>
+              <span className="font-mono text-micro px-2 py-0.5 rounded-full" style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }}>
                 slug is off-convention
               </span>
             )}
@@ -832,7 +832,7 @@ export default async function BlogPostPage({
               <h3 className="text-xs font-semibold mb-1">
                 External source candidates{" "}
                 {!externalLinks.real && (
-                  <span className="font-mono text-[10px] text-[var(--mute)]">mock results — add a search key</span>
+                  <span className="font-mono text-micro text-[var(--mute)]">mock results — add a search key</span>
                 )}
               </h3>
               <ul className="text-xs flex flex-col gap-1">
@@ -843,7 +843,7 @@ export default async function BlogPostPage({
                   </li>
                 ))}
               </ul>
-              <p className="text-[11px] text-[var(--mute)] mt-1">
+              <p className="text-2xs text-[var(--mute)] mt-1">
                 Suggestions only — a link is an editorial endorsement, so place it yourself.
               </p>
             </div>
@@ -853,15 +853,15 @@ export default async function BlogPostPage({
             <details className="text-xs mb-3">
               <summary className="cursor-pointer font-semibold">
                 Rendered output{" "}
-                <span className="font-mono text-[10px] text-[var(--mute)]">
+                <span className="font-mono text-micro text-[var(--mute)]">
                   {PROFILE_LABELS[renderProfile]} · {reportSummary(renderPreview.report)}
                 </span>
               </summary>
-              <p className="text-[11px] text-[var(--mute)] mt-1">
+              <p className="text-2xs text-[var(--mute)] mt-1">
                 What publishing will actually send, after the design-system mapping and the heading spec. The stored
                 draft stays clean HTML.
               </p>
-              <pre className="mt-1 p-2 rounded-lg overflow-x-auto text-[10px] leading-relaxed" style={{ background: "var(--panel)" }}>
+              <pre className="mt-1 p-2 rounded-lg overflow-x-auto text-micro leading-relaxed" style={{ background: "var(--panel)" }}>
                 {renderPreview.html.slice(0, 4000)}
                 {renderPreview.html.length > 4000 ? "\n…truncated" : ""}
               </pre>
@@ -879,7 +879,7 @@ export default async function BlogPostPage({
             <details className="text-xs">
               <summary className="cursor-pointer font-semibold">
                 Last publish report{" "}
-                <span className="font-mono text-[10px] text-[var(--mute)]">
+                <span className="font-mono text-micro text-[var(--mute)]">
                   {publishReport.status} · {publishReport.seo.filter((s) => s.accepted).length}/{publishReport.seo.length} SEO fields stored
                 </span>
               </summary>
@@ -949,7 +949,7 @@ export default async function BlogPostPage({
             {imageProviderName === "mock" && <HelpTip text={IMAGE_TIPS.notWired} side="bottom" wide />}
           </h2>
           {!brand.requireImagesToPublish && (
-            <span className="font-mono text-[10px] px-2 py-0.5 rounded-full" style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }}>
+            <span className="font-mono text-micro px-2 py-0.5 rounded-full" style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }}>
               gate off — advisory only
             </span>
           )}
@@ -973,7 +973,7 @@ export default async function BlogPostPage({
               <div key={role} className="rounded-xl border border-[var(--line)] p-3 flex flex-col gap-2">
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-semibold flex-1">{ROLE_LABELS[role]}</span>
-                  <span className="font-mono text-[10px] text-[var(--mute)]">{spec.width}×{spec.height}</span>
+                  <span className="font-mono text-micro text-[var(--mute)]">{spec.width}×{spec.height}</span>
                 </div>
 
                 {img ? (
@@ -981,19 +981,19 @@ export default async function BlogPostPage({
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={img.url} alt={img.altText ?? ""} className="w-full rounded-lg border border-[var(--line)] object-cover max-h-40" />
                     <div className="flex flex-wrap items-center gap-1.5">
-                      <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: `var(--${hue}-soft)`, color: `var(--${hue}-on)` }}>
+                      <span className="font-mono text-micro px-1.5 py-0.5 rounded-full" style={{ background: `var(--${hue}-soft)`, color: `var(--${hue}-on)` }}>
                         {verdict?.detail}
                       </span>
-                      <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "var(--panel)", color: "var(--mute)" }}>
+                      <span className="font-mono text-micro px-1.5 py-0.5 rounded-full" style={{ background: "var(--panel)", color: "var(--mute)" }}>
                         {img.source}
                       </span>
                       {img.status === "pending" && (
-                        <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }}>
+                        <span className="font-mono text-micro px-1.5 py-0.5 rounded-full" style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }}>
                           awaiting review
                         </span>
                       )}
                       {img.branded && (
-                        <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "var(--indigo-soft)", color: "var(--indigo-on)" }}>
+                        <span className="font-mono text-micro px-1.5 py-0.5 rounded-full" style={{ background: "var(--indigo-soft)", color: "var(--indigo-on)" }}>
                           branded
                         </span>
                       )}
@@ -1003,11 +1003,11 @@ export default async function BlogPostPage({
                         <form action={saveImageAltAction} className="flex flex-wrap items-end gap-2">
                           <input type="hidden" name="id" value={img.id} />
                           <label className="flex-1 min-w-32 text-sm">
-                            <span className="block text-[11px] text-[var(--mute)] mb-1">Alt text</span>
+                            <span className="block text-2xs text-[var(--mute)] mb-1">Alt text</span>
                             <input name="altText" defaultValue={img.altText ?? ""} placeholder="describe the image" className="w-full text-xs" />
                           </label>
                           {role === "featured" && (
-                            <label className="flex items-center gap-1 text-[11px] pb-1.5">
+                            <label className="flex items-center gap-1 text-2xs pb-1.5">
                               <input type="checkbox" name="branded" defaultChecked={img.branded} /> branded
                             </label>
                           )}
@@ -1058,7 +1058,7 @@ export default async function BlogPostPage({
                     <input name="altText" placeholder="alt text" className="w-full text-xs" />
                     <div className="flex flex-wrap items-center gap-2">
                       {role === "featured" && (
-                        <label className="flex items-center gap-1 text-[11px]">
+                        <label className="flex items-center gap-1 text-2xs">
                           <input type="checkbox" name="branded" defaultChecked={brand.brandInBodyImages} /> branded
                         </label>
                       )}
@@ -1072,7 +1072,7 @@ export default async function BlogPostPage({
                   <form action={placeBlogImageAction} encType="multipart/form-data" className="flex flex-col gap-2 border-t border-[var(--line)] pt-2" data-place-image={role}>
                     <input type="hidden" name="postId" value={post.id} />
                     <input type="hidden" name="role" value={role} />
-                    <span className="text-[11px] text-[var(--mute)]">
+                    <span className="text-2xs text-[var(--mute)]">
                       Or from your device or Media — cropped to {spec.width}×{spec.height} around the subject{role === "og" || brand.brandInBodyImages ? ", with your logo lockup" : ""}.
                     </span>
                     <input type="file" name="file" accept="image/png,image/jpeg,image/gif,image/webp,image/avif,image/tiff" className="text-xs" aria-label={`Upload the ${ROLE_LABELS[role].toLowerCase()}`} />
@@ -1102,7 +1102,7 @@ export default async function BlogPostPage({
             );
           })}
         </div>
-        <p className="text-[11px] text-[var(--mute)] mt-2">
+        <p className="text-2xs text-[var(--mute)] mt-2">
           Dimensions are measured from the file itself, not typed. There is no server-side image processing here — a
           mismatch tells you exactly what to re-export or crop to.
         </p>
@@ -1137,7 +1137,7 @@ export default async function BlogPostPage({
         </div>
 
         {commentPolicy.block && (
-          <p className="text-[11px] mb-2" style={{ color: openComments ? "var(--amber-on)" : "var(--mute)" }} data-comments-hold>
+          <p className="text-2xs mb-2" style={{ color: openComments ? "var(--amber-on)" : "var(--mute)" }} data-comments-hold>
             Open comments hold final approval{openComments ? ` — ${openComments} to resolve first` : ""} ·{" "}
             <Link href="/blog/brand" className="underline">Brand → Review policy</Link>
           </p>
@@ -1162,14 +1162,14 @@ export default async function BlogPostPage({
                 {c.anchor && (
                   <p className="border-l-2 pl-2 mb-1 text-[var(--mute)]" style={{ borderColor: present ? "var(--amber)" : "var(--line)" }}>
                     {present && !c.resolved && post.body ? <a href={`#anchor-${c.id}`} className="hover:underline" title="Show this passage in the article">“{c.anchor}”</a> : <>“{c.anchor}”</>}
-                    {!present && <span className="ml-1 font-mono text-[10px]" style={{ color: "var(--amber-on)" }} data-anchor-gone>· no longer in the article</span>}
+                    {!present && <span className="ml-1 font-mono text-micro" style={{ color: "var(--amber-on)" }} data-anchor-gone>· no longer in the article</span>}
                   </p>
                 )}
                 <p className="whitespace-pre-wrap">
                   {mentionSegments(c.body, handles).map((seg, i) => (seg.mention ? <b key={i} className="font-semibold" style={{ color: "var(--violet-on)" }} data-mention>{seg.text}</b> : <span key={i}>{seg.text}</span>))}
                 </p>
                 <div className="flex flex-wrap items-center gap-2 mt-1">
-                  <span className="font-mono text-[10px] text-[var(--mute)]">
+                  <span className="font-mono text-micro text-[var(--mute)]">
                     {commentAuthor(c.authorId)} · {formatZonedMoment(c.createdAt, readTz)}
                     {c.resolved && c.resolvedById ? <> · resolved by {commentAuthor(c.resolvedById)}{c.resolvedAt ? ` ${formatZonedMoment(c.resolvedAt, readTz)}` : ""}</> : null}
                   </span>
@@ -1177,12 +1177,12 @@ export default async function BlogPostPage({
                     <>
                       <form action={resolveBlogCommentAction}>
                         <input type="hidden" name="id" value={c.id} />
-                        <button className="btn text-[11px]">{c.resolved ? "Reopen" : "Resolve"}</button>
+                        <button className="btn text-2xs">{c.resolved ? "Reopen" : "Resolve"}</button>
                       </form>
                       {(c.authorId === membership.userId || canAdmin(membership.role)) && (
                         <form action={deleteBlogCommentAction}>
                           <input type="hidden" name="id" value={c.id} />
-                          <button className="btn text-[11px]" title="Delete comment" aria-label="Delete comment"><Trash2 className="w-3 h-3" /></button>
+                          <button className="btn text-2xs" title="Delete comment" aria-label="Delete comment"><Trash2 className="w-3 h-3" /></button>
                         </form>
                       )}
                     </>
@@ -1396,12 +1396,12 @@ export default async function BlogPostPage({
         <div>
           <div className="flex flex-wrap items-baseline gap-2 mb-1">
             <span className="text-xs text-[var(--mute)]">Motif voice</span>
-            <span className="text-[11px] text-[var(--mute)]">
+            <span className="text-2xs text-[var(--mute)]">
               {postMotifs.length
                 ? "Highest weight is dominant — it sets structure and voice; the rest colour the intro and CTA."
                 : `Inheriting: ${effectiveMotifs.length ? motifSummaryLabel(effectiveMotifs) : "no workspace default set"}`}
             </span>
-            <Link href="/blog/brand" className="text-[11px] text-[var(--mute)] underline ml-auto">Edit motifs</Link>
+            <Link href="/blog/brand" className="text-2xs text-[var(--mute)] underline ml-auto">Edit motifs</Link>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             {directives.map((d) => {
@@ -1410,7 +1410,7 @@ export default async function BlogPostPage({
               return (
                 <label key={d.key} className="text-sm" title={d.summary}>
                   <span
-                    className="block text-[11px] font-mono font-semibold px-1.5 py-0.5 rounded-full mb-1 w-fit"
+                    className="block text-2xs font-mono font-semibold px-1.5 py-0.5 rounded-full mb-1 w-fit"
                     style={{ background: `var(--${hue}-soft)`, color: `var(--${hue}-on)` }}
                   >
                     {d.label}
@@ -1429,7 +1429,7 @@ export default async function BlogPostPage({
               );
             })}
           </div>
-          <p className="text-[11px] text-[var(--mute)] mt-1">
+          <p className="text-2xs text-[var(--mute)] mt-1">
             Weights are relative and normalised to 100% on save (up to 3 motifs). Leave every field blank to inherit.
           </p>
         </div>
@@ -1487,7 +1487,7 @@ export default async function BlogPostPage({
                 <summary className="text-xs text-[var(--mute)] cursor-pointer">Edit outline as JSON</summary>
                 <form action={saveOutlineAction} className="mt-1 flex flex-col gap-1">
                   <input type="hidden" name="id" value={post.id} />
-                  <textarea name="outline" rows={5} defaultValue={JSON.stringify(outline, null, 1)} className="w-full font-mono text-[10px]" />
+                  <textarea name="outline" rows={5} defaultValue={JSON.stringify(outline, null, 1)} className="w-full font-mono text-micro" />
                   <button className="btn self-start">Save outline</button>
                 </form>
               </details>
@@ -1610,22 +1610,22 @@ export default async function BlogPostPage({
                     </div>
                   )}
                   <div className="p-2 flex items-center gap-2">
-                    <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: `var(--${s.status === "done" ? "green" : s.status === "failed" ? "rose" : "amber"}-soft)`, color: `var(--${s.status === "done" ? "green" : s.status === "failed" ? "rose" : "amber"}-on)` }}>
+                    <span className="font-mono text-micro px-1.5 py-0.5 rounded-full" style={{ background: `var(--${s.status === "done" ? "green" : s.status === "failed" ? "rose" : "amber"}-soft)`, color: `var(--${s.status === "done" ? "green" : s.status === "failed" ? "rose" : "amber"}-on)` }}>
                       {s.status}
                     </span>
-                    <span className="text-[11px] text-[var(--mute)] flex-1 truncate" title={s.error ?? s.eyebrow ?? ""}>
+                    <span className="text-2xs text-[var(--mute)] flex-1 truncate" title={s.error ?? s.eyebrow ?? ""}>
                       {s.error ? s.error : s.eyebrow}
                     </span>
                     {s.status === "done" && (s.storedUrl || s.videoUrl) && (
-                      <a href={s.storedUrl ?? s.videoUrl!} download className="text-[11px] underline">Download</a>
+                      <a href={s.storedUrl ?? s.videoUrl!} download className="text-2xs underline">Download</a>
                     )}
                     <form action={deleteBrandedShortAction}>
                       <input type="hidden" name="id" value={s.id} />
-                      <button className="text-[11px] text-[var(--mute)] hover:text-[var(--rose-on)]" title="Delete">✕</button>
+                      <button className="text-2xs text-[var(--mute)] hover:text-[var(--rose-on)]" title="Delete">✕</button>
                     </form>
                   </div>
                   {s.status === "done" && !s.storedUrl && s.videoUrl && (
-                    <p className="px-2 pb-2 text-[10px] text-[var(--mute)]">⚠ HeyGen link only — expires; couldn&apos;t persist to storage.</p>
+                    <p className="px-2 pb-2 text-micro text-[var(--mute)]">⚠ HeyGen link only — expires; couldn&apos;t persist to storage.</p>
                   )}
                 </div>
               ))}
@@ -1675,7 +1675,7 @@ export default async function BlogPostPage({
                   <div className="flex items-center gap-2 mb-1">
                     <span className="font-mono text-xs font-semibold uppercase">{v.platform}</span>
                     <span
-                      className="font-mono text-[10px] px-1.5 py-0.5 rounded-full"
+                      className="font-mono text-micro px-1.5 py-0.5 rounded-full"
                       style={
                         v.status === "posted"
                           ? { background: "var(--green-soft)", color: "var(--green-on)" }
@@ -1704,7 +1704,7 @@ export default async function BlogPostPage({
                             <SubmitButton className="btn primary" pendingText="Posting…"><Send className="w-3.5 h-3.5" /> Post now</SubmitButton>
                           </form>
                         ) : (
-                          <span className="text-[10px] text-[var(--mute)]">{admin ? "Post now opens once the article is live with its link" : "An admin posts it once the article is live"}</span>
+                          <span className="text-micro text-[var(--mute)]">{admin ? "Post now opens once the article is live with its link" : "An admin posts it once the article is live"}</span>
                         )}
                         <form action={setSocialVariantStatusAction}>
                           <input type="hidden" name="id" value={v.id} />
@@ -1808,15 +1808,15 @@ export default async function BlogPostPage({
         <div className="card !p-3.5">
           <div className="flex items-center gap-2 mb-2">
             <ShieldCheck className="w-4 h-4" style={{ color: gatesPass ? "var(--green-on)" : "var(--amber-on)" }} />
-            <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-[var(--mute)]">Gates</span>
+            <span className="text-2xs font-mono font-bold uppercase tracking-wider text-[var(--mute)]">Gates</span>
             <span className="flex-1" />
-            <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: "var(--panel)", color: "var(--mute)" }}>
+            <span className="font-mono text-micro font-bold px-1.5 py-0.5 rounded-full" style={{ background: "var(--panel)", color: "var(--mute)" }}>
               score {score.total}
             </span>
           </div>
           <ul className="flex flex-col gap-1">
             {checks.filter((c) => c.required).map((c) => (
-              <li key={c.id} className="flex items-start gap-1.5 text-[11px] leading-snug">
+              <li key={c.id} className="flex items-start gap-1.5 text-2xs leading-snug">
                 {c.pass ? (
                   <Check className="w-3 h-3 mt-0.5 shrink-0" style={{ color: "var(--green-on)" }} />
                 ) : (
@@ -1826,7 +1826,7 @@ export default async function BlogPostPage({
               </li>
             ))}
           </ul>
-          <div className="mt-2 pt-2 border-t border-[var(--line)] text-[11px]">
+          <div className="mt-2 pt-2 border-t border-[var(--line)] text-2xs">
             {overridden ? (
               <span style={{ color: "var(--amber-on)" }} className="font-semibold">
                 {failingCount} failing — overridden by an admin for this text, so it advances and publishes anyway.

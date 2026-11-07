@@ -56,7 +56,7 @@ export default async function TwoFactorPage({ searchParams }: { searchParams: Pr
           <div className="rounded-lg p-3 flex flex-col gap-2 text-xs" style={{ background: "var(--green-soft)", color: "var(--green-on)" }}>
             <b>Two-factor is on. Your recovery codes — save them now; they won&apos;t be shown again.</b>
             <span>Each one signs you in once if you lose your phone.</span>
-            <ul className="m-0 p-0 grid grid-cols-2 gap-1 font-mono text-[13px]" data-recovery-codes>
+            <ul className="m-0 p-0 grid grid-cols-2 gap-1 font-mono text-sm" data-recovery-codes>
               {fresh.map((c) => <li key={c} className="list-none">{c}</li>)}
             </ul>
             <div className="flex items-center gap-2">
@@ -83,7 +83,7 @@ export default async function TwoFactorPage({ searchParams }: { searchParams: Pr
           <>
             <ol className="m-0 pl-5 flex flex-col gap-2 text-xs">
               <li>In an authenticator app (Google Authenticator, 1Password, Authy…), add an account with this key:
-                <code className="block mt-1 font-mono text-[14px] select-all tracking-wider" data-totp-secret={pendingSecret}>{pendingSecret.match(/.{1,4}/g)?.join(" ")}</code>
+                <code className="block mt-1 font-mono text-sm select-all tracking-wider" data-totp-secret={pendingSecret}>{pendingSecret.match(/.{1,4}/g)?.join(" ")}</code>
                 <span className="text-[var(--mute)]">On a phone, <a href={otpauthUri(pendingSecret, me.email, PRODUCT)} className="underline">open it in your app</a> instead.</span>
               </li>
               <li>Type the six-digit code it shows:</li>

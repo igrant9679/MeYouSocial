@@ -159,7 +159,7 @@ export default async function BrandPage({ searchParams }: { searchParams: Promis
               {RENDER_PROFILES.map((p) => <option key={p} value={p}>{PROFILE_LABELS[p]}</option>)}
             </select>
           </label>
-          <p className="text-[11px] text-[var(--mute)] mb-2">
+          <p className="text-2xs text-[var(--mute)] mb-2">
             {PROFILE_NOTES[isRenderProfile(brand.renderProfile) ? brand.renderProfile : "html"]}
           </p>
           <div className="flex flex-col gap-1">
@@ -281,15 +281,15 @@ export default async function BrandPage({ searchParams }: { searchParams: Promis
             return (
               <details key={d.id} className="rounded-xl border border-[var(--line)] overflow-hidden">
                 <summary className="cursor-pointer px-3 py-2 flex flex-wrap items-center gap-2">
-                  <span className="font-mono text-[11px] text-[var(--mute)]">{String(i + 1).padStart(2, "0")}</span>
+                  <span className="font-mono text-2xs text-[var(--mute)]">{String(i + 1).padStart(2, "0")}</span>
                   <span
-                    className="text-[11px] font-mono font-semibold px-2 py-0.5 rounded-full"
+                    className="text-2xs font-mono font-semibold px-2 py-0.5 rounded-full"
                     style={{ background: `var(--${hue}-soft)`, color: `var(--${hue}-on)` }}
                   >
                     {d.label}
                   </span>
                   <span className="text-xs text-[var(--mute)] flex-1 min-w-32 truncate">{d.summary}</span>
-                  <span className="font-mono text-[10px] text-[var(--mute)]">v{d.version}</span>
+                  <span className="font-mono text-micro text-[var(--mute)]">v{d.version}</span>
                 </summary>
                 <div className="px-3 pb-3 pt-1 border-t border-[var(--line)]">
                   <form action={saveMotifDirectiveAction} className="flex flex-col gap-2">
@@ -340,9 +340,9 @@ export default async function BrandPage({ searchParams }: { searchParams: Promis
                       <ul className="text-xs flex flex-col gap-1">
                         {versions.map((v) => (
                           <li key={v.id} className="flex items-center gap-2 border-b border-[var(--line)] pb-1 last:border-0">
-                            <span className="font-mono text-[10px] text-[var(--mute)]">v{v.version}</span>
+                            <span className="font-mono text-micro text-[var(--mute)]">v{v.version}</span>
                             <span className="flex-1 truncate">{v.label}</span>
-                            <span className="font-mono text-[10px] text-[var(--mute)]">
+                            <span className="font-mono text-micro text-[var(--mute)]">
                               {formatDay(v.createdAt, tz)}
                             </span>
                             {admin && (
@@ -376,7 +376,7 @@ export default async function BrandPage({ searchParams }: { searchParams: Promis
           <ul className="text-xs flex flex-col gap-1 mb-3">
             {defaults.map((row) => (
               <li key={row.id} className="flex flex-wrap items-center gap-2 border-b border-[var(--line)] pb-1 last:border-0">
-                <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "var(--panel)", color: "var(--mute)" }}>
+                <span className="font-mono text-micro px-1.5 py-0.5 rounded-full" style={{ background: "var(--panel)", color: "var(--mute)" }}>
                   {row.tier ? `Tier ${row.tier}` : "any tier"}
                 </span>
                 <span className="text-[var(--mute)]">{row.audience || "any audience"}</span>
@@ -446,7 +446,7 @@ function MotifWeightFields({ options }: { options: Array<{ key: string; label: s
       {options.map((m) => (
         <label key={m.key} className="text-sm">
           <span
-            className="block text-[11px] font-mono font-semibold px-1.5 py-0.5 rounded-full mb-1 w-fit"
+            className="block text-2xs font-mono font-semibold px-1.5 py-0.5 rounded-full mb-1 w-fit"
             style={{ background: `var(--${motifHue(m.key)}-soft)`, color: `var(--${motifHue(m.key)}-on)` }}
           >
             {m.label}

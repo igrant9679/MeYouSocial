@@ -62,7 +62,7 @@ function Bubble({ children, side, wide }: { children: ReactNode; side: Side; wid
         SIDE_CLASS[side] +
         " " +
         (wide ? "w-72" : "w-56") +
-        " rounded-lg px-3 py-2 text-[12px] leading-[1.5] font-normal normal-case tracking-normal text-left shadow-lg"
+        " rounded-lg px-3 py-2 text-xs leading-[1.5] font-normal normal-case tracking-normal text-left shadow-lg"
       }
       style={{ background: "var(--ink)", color: "var(--bg)" }}
     >
@@ -92,7 +92,7 @@ export function HelpTip({
       <button
         type="button"
         aria-label={text}
-        className="inline-flex items-center justify-center w-[15px] h-[15px] rounded-full border text-[10px] font-bold leading-none cursor-help select-none"
+        className="inline-flex items-center justify-center w-[15px] h-[15px] rounded-full border text-micro font-bold leading-none cursor-help select-none"
         style={{ borderColor: "var(--line-2)", color: "var(--mute)" }}
       >
         ?

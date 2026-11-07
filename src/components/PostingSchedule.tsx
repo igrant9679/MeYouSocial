@@ -101,17 +101,17 @@ export function PostingSchedule({
       <summary className="cursor-pointer flex items-center gap-2 flex-wrap">
         <CalendarRange className="w-4 h-4" style={{ color: "var(--violet-on)" }} />
         <h2 className="font-mono font-bold text-sm">Posting schedule</h2>
-        <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full"
+        <span className="font-mono text-micro px-1.5 py-0.5 rounded-full"
           style={{ background: activeCount ? "var(--violet-soft)" : "var(--zebra)", color: activeCount ? "var(--violet-on)" : "var(--mute)" }}>
           {perWeek} slot{perWeek === 1 ? "" : "s"}/week
         </span>
         <span className="flex-1" />
-        <span className="text-[11px] text-[var(--mute)]">
+        <span className="text-2xs text-[var(--mute)]">
           {nextFree ? <>next free slot <b className="font-mono">{nextFree}</b></> : activeCount ? "no free slots ahead" : "no slots yet"}
         </span>
       </summary>
 
-      <p className="text-[11px] text-[var(--mute)] mt-2 mb-3 leading-relaxed">
+      <p className="text-2xs text-[var(--mute)] mt-2 mb-3 leading-relaxed">
         Recurring times you publish at. “Add to queue” drops a post into the next free one, so the
         usual case never needs a date picker. Slots are wall-clock times in the posting timezone —
         <b> 09:00 stays 09:00 across a daylight-saving change</b>.
@@ -120,7 +120,7 @@ export function PostingSchedule({
       {/* Timezone — the schedule means nothing without it, so it leads. */}
       <div className="rounded-lg border p-2 mb-3" style={{ borderColor: timeZoneConfigured ? "var(--line)" : "var(--amber)" }}>
         <form action={savePostingTimeZoneAction} className="flex flex-wrap items-end gap-2">
-          <label className="text-[11px] text-[var(--mute)]">
+          <label className="text-2xs text-[var(--mute)]">
             <span className="inline-flex items-center gap-1"><Globe className="w-3 h-3" /> Posting timezone</span>
             <input
               name="timezone"
@@ -135,11 +135,11 @@ export function PostingSchedule({
           {/* Queued posts sit on slots, which are wall clock: a new zone moves the
               slots, so the posts move with them unless asked not to (SOC-17). */}
           {canEdit && timeZoneConfigured && (
-            <label className="inline-flex items-center gap-1.5 text-[11px] text-[var(--mute)]" title="Posts the queue placed keep their slot (same weekday and local time) in the new zone. Posts scheduled by hand keep their exact moment.">
+            <label className="inline-flex items-center gap-1.5 text-2xs text-[var(--mute)]" title="Posts the queue placed keep their slot (same weekday and local time) in the new zone. Posts scheduled by hand keep their exact moment.">
               <input type="checkbox" name="reanchor" defaultChecked /> Move queued posts to the same local times
             </label>
           )}
-          <p className="text-[11px] basis-full" style={{ color: timeZoneConfigured ? "var(--mute)" : "var(--amber-on)" }}>
+          <p className="text-2xs basis-full" style={{ color: timeZoneConfigured ? "var(--mute)" : "var(--amber-on)" }}>
             {!timeZoneConfigured ? (
               <>Not set — slot times are being read as <b>UTC</b>, which is almost certainly not what you meant.
                 {detected && <> Your browser says <b className="font-mono">{detected}</b>.</>}</>
@@ -160,7 +160,7 @@ export function PostingSchedule({
           return (
             <div key={n} className="rounded-lg border border-[var(--line)] p-1.5 flex flex-col gap-1">
               <div className="flex items-center gap-1">
-                <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">{label}</span>
+                <span className="text-micro font-mono uppercase tracking-wider text-[var(--mute)]">{label}</span>
                 <span className="flex-1" />
                 {canEdit && list.length > 0 && (
                   <form action={clearWeekdaySlotsAction}>
@@ -171,41 +171,41 @@ export function PostingSchedule({
                   </form>
                 )}
               </div>
-              {list.length === 0 && <span className="text-[10px] text-[var(--mute)] italic py-1">—</span>}
+              {list.length === 0 && <span className="text-micro text-[var(--mute)] italic py-1">—</span>}
               {list.map((s) => (
                 <div key={s.id} className="flex items-center gap-1 rounded px-1 py-0.5"
                   style={{ background: s.enabled ? "var(--violet-soft)" : "var(--zebra)" }}>
                   {canEdit ? (
                     // Edit in place (E-SOC-18): time, day and category; queued posts move with it.
                     <details className="relative" data-slot-edit>
-                      <summary className="font-mono text-[11px] cursor-pointer list-none underline decoration-dotted underline-offset-2" title="Change this slot's time, day or category"
+                      <summary className="font-mono text-2xs cursor-pointer list-none underline decoration-dotted underline-offset-2" title="Change this slot's time, day or category"
                         style={{ color: s.enabled ? "var(--violet-on)" : "var(--mute)", textDecoration: s.enabled ? undefined : "line-through" }}>
                         {fmt(s.minute)}
                       </summary>
                       <form action={updatePostingSlotAction} className="absolute z-20 left-0 top-full mt-1 w-48 card !p-2 flex flex-col gap-1.5 shadow-lg">
                         <input type="hidden" name="id" value={s.id} />
-                        <label className="text-[10px] text-[var(--mute)] flex items-center gap-1">Time
+                        <label className="text-micro text-[var(--mute)] flex items-center gap-1">Time
                           <input type="time" name="time" defaultValue={fmt(s.minute)} required className="text-xs font-mono flex-1 min-w-0" />
                         </label>
-                        <label className="text-[10px] text-[var(--mute)] flex items-center gap-1">Day
+                        <label className="text-micro text-[var(--mute)] flex items-center gap-1">Day
                           <select name="weekday" defaultValue={s.weekday} className="text-xs flex-1 min-w-0">
                             {WEEKDAYS.map((d) => <option key={d.n} value={d.n}>{d.label}</option>)}
                           </select>
                         </label>
-                        <label className="text-[10px] text-[var(--mute)] flex items-center gap-1">Category
+                        <label className="text-micro text-[var(--mute)] flex items-center gap-1">Category
                           <input name="category" list="slot-cats" maxLength={40} defaultValue={s.category ?? ""} placeholder="general" className="text-xs font-mono flex-1 min-w-0" />
                         </label>
-                        <p className="text-[10px] text-[var(--mute)] m-0">Posts the queue put here move with it.</p>
+                        <p className="text-micro text-[var(--mute)] m-0">Posts the queue put here move with it.</p>
                         <SubmitButton className="btn primary sm" pendingText="Saving…">Save</SubmitButton>
                       </form>
                     </details>
                   ) : (
-                    <span className="font-mono text-[11px]" style={{ color: s.enabled ? "var(--violet-on)" : "var(--mute)", textDecoration: s.enabled ? undefined : "line-through" }}>
+                    <span className="font-mono text-2xs" style={{ color: s.enabled ? "var(--violet-on)" : "var(--mute)", textDecoration: s.enabled ? undefined : "line-through" }}>
                       {fmt(s.minute)}
                     </span>
                   )}
                   {s.category && (
-                    <span className="font-mono text-[9px] px-1 rounded-full truncate max-w-[64px]"
+                    <span className="font-mono text-micro px-1 rounded-full truncate max-w-[64px]"
                       title={`Only “${s.category}” posts queue here (general posts fall back to it when nothing else is free)`}
                       style={{ background: "var(--panel)", color: "var(--mute)" }}>
                       {s.category}
@@ -238,18 +238,18 @@ export function PostingSchedule({
       {/* Add a time across several days at once — how people describe a schedule. */}
       {canEdit ? (
         <form action={addPostingSlotsAction} className="flex flex-wrap items-end gap-2 border-t border-[var(--line)] pt-3">
-          <label className="text-[11px] text-[var(--mute)]">
+          <label className="text-2xs text-[var(--mute)]">
             Time
             <input type="time" name="time" value={time} onChange={(e) => setTime(e.target.value)} required
               className="block mt-0.5 text-xs font-mono" />
           </label>
           <div>
-            <div className="text-[11px] text-[var(--mute)] mb-0.5">On</div>
+            <div className="text-2xs text-[var(--mute)] mb-0.5">On</div>
             <div className="flex flex-wrap gap-1">
               {WEEKDAYS.map(({ n, label }) => {
                 const on = days.has(n);
                 return (
-                  <label key={n} className="px-1.5 py-1 rounded-md border cursor-pointer text-[11px] font-mono"
+                  <label key={n} className="px-1.5 py-1 rounded-md border cursor-pointer text-2xs font-mono"
                     style={on
                       ? { borderColor: "var(--violet)", background: "var(--violet-soft)", color: "var(--violet-on)" }
                       : { borderColor: "var(--line-2)", color: "var(--mute)" }}>
@@ -265,8 +265,8 @@ export function PostingSchedule({
             <button type="button" className="btn sm" onClick={() => setDays(new Set(WEEKEND_NUMS))}>Weekend</button>
             <button type="button" className="btn sm" onClick={() => setDays(new Set([...WEEKDAY_NUMS, ...WEEKEND_NUMS]))}>All</button>
           </div>
-          <label className="text-[11px] text-[var(--mute)]">
-            Category <span className="text-[10px]">(optional)</span>
+          <label className="text-2xs text-[var(--mute)]">
+            Category <span className="text-micro">(optional)</span>
             <input name="category" list="slot-cats" maxLength={40} placeholder="e.g. tips"
               className="block mt-0.5 w-28 text-xs font-mono" />
             <datalist id="slot-cats">
@@ -279,7 +279,7 @@ export function PostingSchedule({
           </SubmitButton>
         </form>
       ) : (
-        <p className="text-[11px] text-[var(--mute)] border-t border-[var(--line)] pt-3">
+        <p className="text-2xs text-[var(--mute)] border-t border-[var(--line)] pt-3">
           Only workspace admins can change the posting schedule.
         </p>
       )}

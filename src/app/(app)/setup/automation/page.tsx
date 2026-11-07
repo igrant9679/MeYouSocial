@@ -92,8 +92,8 @@ export default async function SetupAutomation({ searchParams }: { searchParams: 
   return (
     <div>
       <div className="flex items-baseline gap-3 flex-wrap mb-4">
-        <h1 className="font-mono text-[22px] font-bold m-0">Automation</h1>
-        <p className="text-[13px] text-[var(--mute)] m-0">What runs by itself in {workspace.name}{stop(workspace.name)} The global pause overrides everything.</p>
+        <h1 className="font-mono text-2xl font-bold m-0">Automation</h1>
+        <p className="text-sm text-[var(--mute)] m-0">What runs by itself in {workspace.name}{stop(workspace.name)} The global pause overrides everything.</p>
       </div>
       {ok && <Banner kind="ok" text={ok} />}
       {err && <Banner kind="err" text={err} />}
@@ -102,7 +102,7 @@ export default async function SetupAutomation({ searchParams }: { searchParams: 
       <div className="card mb-4" style={autonomy.on ? { borderColor: "var(--green-on)" } : undefined}>
         <h2 className="text-sm font-semibold mb-1 flex items-center gap-2">
           Run completely autonomously
-          <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: autonomy.on ? "var(--green-soft)" : "var(--zebra)", color: autonomy.on ? "var(--green-on)" : "var(--mute)" }}>{autonomy.on ? "ON" : "off"}</span>
+          <span className="font-mono text-micro px-1.5 py-0.5 rounded-full" style={{ background: autonomy.on ? "var(--green-soft)" : "var(--zebra)", color: autonomy.on ? "var(--green-on)" : "var(--mute)" }}>{autonomy.on ? "ON" : "off"}</span>
         </h2>
         <p className="text-xs text-[var(--mute)] mb-2">
           One switch for the whole loop: ideas are discovered, articles are drafted with their images and SEO, social posts are written, both are queued, and articles publish — with nobody clicking.
@@ -114,7 +114,7 @@ export default async function SetupAutomation({ searchParams }: { searchParams: 
         </p>
         {note(AUTONOMY_KEY, (v) => (v === "true" ? "on" : "off"))}
         <div className="rounded-lg bg-[var(--zebra)] px-3 py-2 mb-3">
-          <p className="font-mono text-[10px] text-[var(--mute)] m-0">
+          <p className="font-mono text-micro text-[var(--mute)] m-0">
             {autonomy.modes.map((m) => `${FUNCTION_LABELS[m.fn as keyof typeof FUNCTION_LABELS] ?? m.fn}: ${m.mode}`).join(" · ")} · auto-queue {autonomy.autoqueue ? "on" : "off"} · {autonomy.weeklyArticles === "unset" ? "articles uncapped" : `${autonomy.weeklyArticles} article${Number(autonomy.weeklyArticles) === 1 ? "" : "s"} a week`} · publishes {autonomy.publishDay} · {autonomy.weeklySocial} social post{Number(autonomy.weeklySocial) === 1 ? "" : "s"} a week
           </p>
         </div>
@@ -133,7 +133,7 @@ export default async function SetupAutomation({ searchParams }: { searchParams: 
             <input type="hidden" name="intent" value={autonomy.on ? "off" : "on"} />
             {!autonomy.on && <input name="confirm" placeholder="Type AUTONOMOUS to confirm" className="text-xs" aria-label="Type AUTONOMOUS to confirm" />}
             <SubmitButton className={autonomy.on ? "btn" : "btn primary"}>{autonomy.on ? "Turn full autonomy off" : "Turn full autonomy on"}</SubmitButton>
-            <span className="text-[10px] text-[var(--mute)]">{autonomy.on ? "Switching off restores the exact settings you had before." : "Turning this on sets the four functions to auto and queues on approval."}</span>
+            <span className="text-micro text-[var(--mute)]">{autonomy.on ? "Switching off restores the exact settings you had before." : "Turning this on sets the four functions to auto and queues on approval."}</span>
           </form>
         ) : <p className="text-xs text-[var(--mute)] m-0">An admin can change this.</p>}
       </div>
@@ -286,7 +286,7 @@ export default async function SetupAutomation({ searchParams }: { searchParams: 
       {admin && (
         <div className="card mb-4">
           <h2 className="text-sm font-semibold mb-1 flex items-center gap-2"><Sparkles className="w-4 h-4" style={{ color: "var(--blue-on)" }} /> Social posts</h2>
-          <p className="text-[11px] text-[var(--mute)] mb-2">Whether posts need an admin&apos;s approval is under <Link href="/setup/people" className="underline">People</Link>; the slots they go into are under <Link href="/setup/schedule" className="underline">Schedule</Link>.</p>
+          <p className="text-2xs text-[var(--mute)] mb-2">Whether posts need an admin&apos;s approval is under <Link href="/setup/people" className="underline">People</Link>; the slots they go into are under <Link href="/setup/schedule" className="underline">Schedule</Link>.</p>
           <form action={saveSocialWorkflowSettingsAction} className="flex flex-col gap-2">
             <label className="inline-flex items-start gap-2 text-xs cursor-pointer">
               <input type="checkbox" name="autoQueue" defaultChecked={autoQueue} className="mt-0.5" />

@@ -10,7 +10,7 @@ import { MEASURE_PRESETS, type MeasureRange } from "@/lib/measure-range";
  * follow the range (a fixed window, a source that only reports some lengths).
  */
 export function RangePicker({ range, path, note }: { range: MeasureRange; path: string; note?: string }) {
-  const chip = "font-mono text-[11px] px-2 py-0.5 rounded-full border";
+  const chip = "font-mono text-2xs px-2 py-0.5 rounded-full border";
   return (
     <form action={setMeasureRangeAction} className="card mb-4 !py-2 flex flex-wrap items-center gap-2 text-xs" aria-label="Date range">
       <input type="hidden" name="back" value={path} />

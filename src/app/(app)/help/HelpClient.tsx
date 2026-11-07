@@ -79,7 +79,7 @@ export function HelpClient({ role, initialQuery = "", initialCat = "__all" }: { 
     <div className="grid grid-cols-1 lg:grid-cols-[240px_1fr] gap-4">
       {/* Sidebar */}
       <aside className="card p-3 h-fit lg:sticky lg:top-4">
-        <div className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)] mb-2 px-1">Categories</div>
+        <div className="text-micro font-mono uppercase tracking-wider text-[var(--mute)] mb-2 px-1">Categories</div>
         <ul className="m-0 p-0 flex flex-col gap-1">
           <li>
             <button onClick={() => setActiveCat("__all")} className={"w-full text-left px-2 py-1.5 rounded-md text-xs font-mono uppercase tracking-wider transition " + (activeCat === "__all" ? "bg-[var(--accent-soft)] text-[var(--accent)]" : "text-[var(--mute)] hover:bg-[var(--zebra)]")}>
@@ -91,7 +91,7 @@ export function HelpClient({ role, initialQuery = "", initialCat = "__all" }: { 
               <button onClick={() => setActiveCat(cat.id)} className={"w-full text-left flex items-center gap-2 px-2 py-1.5 rounded-md text-xs font-mono uppercase tracking-wider transition " + (activeCat === cat.id ? "" : "text-[var(--mute)] hover:bg-[var(--zebra)]")} style={activeCat === cat.id ? { background: cat.soft, color: cat.color } : {}}>
                 <span className="w-2 h-2 rounded-full" style={{ background: cat.color }} />
                 {cat.label}
-                <span className="ml-auto text-[10px] opacity-60">{cat.entries.length}</span>
+                <span className="ml-auto text-micro opacity-60">{cat.entries.length}</span>
               </button>
             </li>
           ))}
@@ -111,7 +111,7 @@ export function HelpClient({ role, initialQuery = "", initialCat = "__all" }: { 
             placeholder="Search the help center… press / (e.g. how to switch channels, dark mode, agent)"
             className="flex-1 bg-transparent border-0 focus:outline-none text-sm"
           />
-          {query && <span className="text-[10px] font-mono text-[var(--mute)] uppercase">{totalMatches} match{totalMatches === 1 ? "" : "es"}</span>}
+          {query && <span className="text-micro font-mono text-[var(--mute)] uppercase">{totalMatches} match{totalMatches === 1 ? "" : "es"}</span>}
         </div>
 
         {/* Results */}
@@ -123,10 +123,10 @@ export function HelpClient({ role, initialQuery = "", initialCat = "__all" }: { 
         ) : (
           filtered.map((cat) => (
             <section key={cat.id} className="card mb-4">
-              <h2 className="font-mono font-bold text-[14px] mb-3 flex items-center gap-2">
+              <h2 className="font-mono font-bold text-sm mb-3 flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full" style={{ background: cat.color }} />
                 {cat.label}
-                <span className="text-[10px] font-mono text-[var(--mute)] uppercase">({cat.entries.length})</span>
+                <span className="text-micro font-mono text-[var(--mute)] uppercase">({cat.entries.length})</span>
               </h2>
               <ul className="m-0 p-0 flex flex-col gap-2">
                 {cat.entries.map((e, i) => {
@@ -153,7 +153,7 @@ export function HelpClient({ role, initialQuery = "", initialCat = "__all" }: { 
                               {l.label} <ExternalLink className="w-3 h-3" />
                             </Link>
                           ) : (
-                            <span key={l.href} className="text-[11px] text-[var(--mute)] self-center" title={whoCanFix(l.href)}>
+                            <span key={l.href} className="text-2xs text-[var(--mute)] self-center" title={whoCanFix(l.href)}>
                               {l.label.replace(/\s*→\s*$/, "")} — {whoCanFix(l.href).replace(/\.$/, "").toLowerCase()}
                             </span>
                           ))}
@@ -162,7 +162,7 @@ export function HelpClient({ role, initialQuery = "", initialCat = "__all" }: { 
                       {e.tags && e.tags.length > 0 && (
                         <div className="px-3 pb-3 flex flex-wrap gap-1">
                           {e.tags.map((t) => (
-                            <span key={t} className="text-[10px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded text-[var(--mute)] border border-[var(--line)]">#{t}</span>
+                            <span key={t} className="text-micro font-mono uppercase tracking-wider px-1.5 py-0.5 rounded text-[var(--mute)] border border-[var(--line)]">#{t}</span>
                           ))}
                         </div>
                       )}

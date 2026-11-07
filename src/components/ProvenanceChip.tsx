@@ -13,7 +13,7 @@ export function ProvenanceChip({ stamp, what, timeZone }: { stamp: string | null
   const when = formatDay(p.at, timeZone);
   return (
     <span
-      className="inline-flex items-center gap-1 font-mono text-[10px] px-1.5 py-0.5 rounded-full whitespace-nowrap"
+      className="inline-flex items-center gap-1 font-mono text-micro px-1.5 py-0.5 rounded-full whitespace-nowrap"
       style={p.mock ? { background: "var(--amber-soft)", color: "var(--amber-on)" } : { background: "var(--zebra)", color: "var(--mute)" }}
       title={p.mock ? `This ${what}'s last AI pass (${when}) came from the placeholder model, not a real one — treat it as a stand-in.` : `This ${what}'s last AI pass was ${p.label}, ${when}. Edits since then are people's.`}
       data-provenance={p.mock ? "mock" : p.provider}

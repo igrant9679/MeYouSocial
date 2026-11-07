@@ -84,7 +84,7 @@ export default async function ResearchStage({ searchParams }: { searchParams: Pr
 
       {outliers.length === 0 ? (
         <div className="card">
-          <h2 className="font-mono text-[14px] font-bold mb-2">Outlier videos worth an idea</h2>
+          <h2 className="font-mono text-sm font-bold mb-2">Outlier videos worth an idea</h2>
           {channels === 0
             ? <EmptyState variant="inline" line="No competitor channels are indexed yet, so there is nothing to compare." action={{ label: "Add a competitor", href: "/intel" }} />
             : indexedVideos === 0
@@ -94,24 +94,24 @@ export default async function ResearchStage({ searchParams }: { searchParams: Pr
       ) : (
         <div className="flex flex-col gap-3">
           {topics.length === 0 && (
-            <p className="text-[11px] text-[var(--mute)] m-0">
+            <p className="text-2xs text-[var(--mute)] m-0">
               No Topics yet, so nothing groups these. <Link href="/ideas/topics" className="underline">Add a Topic</Link> and each outlier lands under the one it matches.
             </p>
           )}
           {groups.map((g) => (
             <section key={g.topic?.id ?? "unmatched"} className="card">
-              <h2 className="font-mono text-[13px] font-bold mb-0.5 flex items-center gap-2 flex-wrap">
+              <h2 className="font-mono text-sm font-bold mb-0.5 flex items-center gap-2 flex-wrap">
                 {g.topic ? <Link href={`/ideas/topics/${g.topic.id}`} className="hover:underline">{g.topic.name}</Link> : "Unmatched"}
-                <span className="font-mono text-[11px] font-normal text-[var(--mute)]">{g.total > g.rows.length ? `${g.rows.length} of ${g.total}` : g.total}</span>
-                {g.topic && g.rows.length > 0 && <span className="text-[10px] font-normal text-[var(--mute)]">matched by keyword</span>}
+                <span className="font-mono text-2xs font-normal text-[var(--mute)]">{g.total > g.rows.length ? `${g.rows.length} of ${g.total}` : g.total}</span>
+                {g.topic && g.rows.length > 0 && <span className="text-micro font-normal text-[var(--mute)]">matched by keyword</span>}
                 {!g.topic && themes > 0 && (
-                  <Link href="/ideas/topics#from-research" className="text-[10px] font-normal underline text-[var(--mute)]" data-research-themes={themes}>
+                  <Link href="/ideas/topics#from-research" className="text-micro font-normal underline text-[var(--mute)]" data-research-themes={themes}>
                     {themes} theme{themes === 1 ? "" : "s"} in these, suggested as Topics →
                   </Link>
                 )}
               </h2>
               {g.rows.length === 0 ? (
-                <p className="text-[11px] text-[var(--mute)] py-1 m-0">
+                <p className="text-2xs text-[var(--mute)] py-1 m-0">
                   None of the {outliers.length} indexed outlier{outliers.length === 1 ? "" : "s"} matches this Topic by keyword — <Link href="/intel" className="underline">add a competitor</Link> that covers it, or add its phrases on <Link href="/ideas/topics" className="underline">Topics</Link> so more titles match.
                 </p>
               ) : (
@@ -129,7 +129,7 @@ export default async function ResearchStage({ searchParams }: { searchParams: Pr
                         {v.viewsPerHour != null && <StateChip label={`${formatVph(v.viewsPerHour)}/hr`} hue="zebra" />}
                         <div className="flex-1 min-w-48">
                           <Link href={`/intel/videos/${v.id}`} className="text-sm font-semibold hover:underline line-clamp-1">{v.title}</Link>
-                          <div className="text-[11px] text-[var(--mute)] flex items-center gap-1.5">
+                          <div className="text-2xs text-[var(--mute)] flex items-center gap-1.5">
                             <ChannelAvatar name={v.intelChannel.name} url={v.intelChannel.thumbnailUrl} size={16} />
                             {v.intelChannel.name} · {formatNum(v.views)} views · {v.format}
                           </div>
@@ -154,7 +154,7 @@ function g_unmatchedNote(groups: Array<{ topic: unknown; rows: unknown[] }>) {
   const unmatched = groups.find((g) => g.topic === null);
   if (!unmatched || groups.length < 2) return null;
   return (
-    <p className="text-[11px] text-[var(--mute)] m-0">
+    <p className="text-2xs text-[var(--mute)] m-0">
       Unmatched means no Topic&apos;s name or phrases appear in the title — the chooser on each row still takes any Topic.
     </p>
   );

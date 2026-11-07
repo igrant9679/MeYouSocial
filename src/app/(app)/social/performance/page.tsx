@@ -93,7 +93,7 @@ export default async function SocialPerformancePage({ searchParams }: { searchPa
                   <span className="w-2.5 h-2.5 rounded-full" style={{ background: net?.color ?? "var(--mute)" }} />
                   <span className="text-sm font-semibold">{net?.label ?? n.provider}</span>
                   <span className="flex-1" />
-                  <span className="font-mono text-[10px] text-[var(--mute)]">{n.posts} post{n.posts === 1 ? "" : "s"}</span>
+                  <span className="font-mono text-micro text-[var(--mute)]">{n.posts} post{n.posts === 1 ? "" : "s"}</span>
                 </div>
                 <div className="grid grid-cols-4 gap-2">
                   <Metric label="impressions" value={n.impressions} />
@@ -127,7 +127,7 @@ export default async function SocialPerformancePage({ searchParams }: { searchPa
         </div>
       )}
 
-      <p className="text-[11px] text-[var(--mute)] mt-4">
+      <p className="text-2xs text-[var(--mute)] mt-4">
         Looking for search and traffic instead? That lives on{" "}
         <Link href="/insights" className="underline">Insights</Link>, which joins these numbers to GA4 and Search Console.
       </p>
@@ -144,7 +144,7 @@ function Metric({ label, value, suffix = "" }: { label: string; value: number | 
           ? <span className="text-[var(--mute)]" title="Not reported by this network">—</span>
           : `${value.toLocaleString("en-GB")}${suffix}`}
       </div>
-      <div className="font-mono text-[9px] uppercase tracking-wider text-[var(--mute)]">{label}</div>
+      <div className="font-mono text-micro uppercase tracking-wider text-[var(--mute)]">{label}</div>
     </div>
   );
 }

@@ -56,10 +56,10 @@ export function SearchSocialPreview({ initial, site, excerpt, ogImage }: {
       <div>
         <div className="text-xs text-[var(--mute)] mb-1">Google result <span className="font-mono">(desktop · cut by width, an estimate)</span></div>
         <div className="rounded-lg border border-[var(--line)] p-3 max-w-[652px]" style={{ background: "#fff", fontFamily: "Arial, Helvetica, sans-serif" }} data-serp>
-          <div className="text-[12px] leading-tight" style={{ color: "#202124" }}>{domain}</div>
-          <div className="text-[12px] leading-tight mb-1 truncate" style={{ color: "#4d5156" }} data-serp-crumb>{crumb}</div>
-          <div className="text-[20px] leading-snug" style={{ color: "#1a0dab" }} data-serp-title>{title.text || "Untitled"}</div>
-          <div className={`text-[14px] leading-normal ${ownDesc ? "" : "italic"}`} style={{ color: "#4d5156" }} data-serp-desc>{desc.text}</div>
+          <div className="text-xs leading-tight" style={{ color: "#202124" }}>{domain}</div>
+          <div className="text-xs leading-tight mb-1 truncate" style={{ color: "#4d5156" }} data-serp-crumb>{crumb}</div>
+          <div className="text-xl leading-snug" style={{ color: "#1a0dab" }} data-serp-title>{title.text || "Untitled"}</div>
+          <div className={`text-sm leading-normal ${ownDesc ? "" : "italic"}`} style={{ color: "#4d5156" }} data-serp-desc>{desc.text}</div>
         </div>
       </div>
       <div className="flex flex-wrap gap-3">
@@ -68,9 +68,9 @@ export function SearchSocialPreview({ initial, site, excerpt, ogImage }: {
           <div className="rounded-lg overflow-hidden border border-[var(--line)]" style={{ fontFamily: "Helvetica, Arial, sans-serif" }} data-card="facebook">
             <CardImage image={ogImage} />
             <div className="px-3 py-2" style={{ background: "#f0f2f5" }}>
-              <div className="text-[12px] uppercase truncate" style={{ color: "#606770" }}>{domain}</div>
-              <div className="text-[16px] font-semibold leading-tight line-clamp-2" style={{ color: "#1d2129" }}>{ogTitle || "Untitled"}</div>
-              {ogDesc && <div className="text-[14px] truncate" style={{ color: "#606770" }}>{ogDesc}</div>}
+              <div className="text-xs uppercase truncate" style={{ color: "#606770" }}>{domain}</div>
+              <div className="text-base font-semibold leading-tight line-clamp-2" style={{ color: "#1d2129" }}>{ogTitle || "Untitled"}</div>
+              {ogDesc && <div className="text-sm truncate" style={{ color: "#606770" }}>{ogDesc}</div>}
             </div>
           </div>
         </div>
@@ -79,8 +79,8 @@ export function SearchSocialPreview({ initial, site, excerpt, ogImage }: {
           <div className="rounded-lg overflow-hidden border border-[var(--line)]" style={{ background: "#fff", fontFamily: "Helvetica, Arial, sans-serif" }} data-card="linkedin">
             <CardImage image={ogImage} />
             <div className="px-3 py-2">
-              <div className="text-[14px] font-semibold leading-snug line-clamp-2" style={{ color: "rgba(0,0,0,0.9)" }}>{ogTitle || "Untitled"}</div>
-              <div className="text-[12px] truncate" style={{ color: "rgba(0,0,0,0.6)" }}>{domain}</div>
+              <div className="text-sm font-semibold leading-snug line-clamp-2" style={{ color: "rgba(0,0,0,0.9)" }}>{ogTitle || "Untitled"}</div>
+              <div className="text-xs truncate" style={{ color: "rgba(0,0,0,0.6)" }}>{domain}</div>
             </div>
           </div>
         </div>

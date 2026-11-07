@@ -54,12 +54,12 @@ function parseQuestions(json: string): FindingQuestion[] {
 function Proposal({ html, anchor }: { html: string; anchor: string | null }) {
   return (
     <div className="mt-2">
-      <div className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)] mb-1">
+      <div className="text-micro font-mono uppercase tracking-wider text-[var(--mute)] mb-1">
         Proposed addition{anchor ? <> · after “{anchor}”</> : <> · at the end</>}
       </div>
       {/* Escaped on purpose: this is a preview of what will be inserted, not a
           render of it — the author reads the markup they are approving. */}
-      <pre className="text-[11px] leading-relaxed whitespace-pre-wrap break-words rounded-lg p-2.5 overflow-x-auto" style={{ background: "var(--green-soft)", color: "var(--green-on)" }}>
+      <pre className="text-2xs leading-relaxed whitespace-pre-wrap break-words rounded-lg p-2.5 overflow-x-auto" style={{ background: "var(--green-soft)", color: "var(--green-on)" }}>
         {html.split("\n").map((line) => `+ ${line}`).join("\n")}
       </pre>
     </div>
@@ -70,7 +70,7 @@ function DismissForm({ id }: { id: string }) {
   return (
     <form action={dismissFindingAction} className="flex items-center gap-1.5">
       <input type="hidden" name="id" value={id} />
-      <input name="reason" placeholder="why? (optional)" className="text-[11px] w-36" aria-label="Reason for dismissing" />
+      <input name="reason" placeholder="why? (optional)" className="text-2xs w-36" aria-label="Reason for dismissing" />
       <SubmitButton className="btn sm" pendingText="…">Dismiss</SubmitButton>
     </form>
   );
@@ -123,11 +123,11 @@ export function FindingCards({
             return (
               <li key={f.id} className="rounded-xl border border-[var(--line)] p-3">
                 <div className="flex items-center gap-2 flex-wrap mb-1">
-                  <span className="font-mono text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: style.bg, color: style.fg }}>
+                  <span className="font-mono text-micro font-bold uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: style.bg, color: style.fg }}>
                     {f.kind}
                   </span>
-                  <span className="font-mono text-[10px] text-[var(--mute)]">{SOURCE_LABEL[f.source] ?? f.source}</span>
-                  {f.status === "answered" && <span className="font-mono text-[10px] text-[var(--mute)]">· answered</span>}
+                  <span className="font-mono text-micro text-[var(--mute)]">{SOURCE_LABEL[f.source] ?? f.source}</span>
+                  {f.status === "answered" && <span className="font-mono text-micro text-[var(--mute)]">· answered</span>}
                 </div>
                 <div className="text-sm font-semibold leading-snug">{f.title}</div>
                 {f.detail && <p className="text-xs text-[var(--mute)] mt-0.5 mb-0">{f.detail}</p>}
@@ -144,7 +144,7 @@ export function FindingCards({
                     ))}
                     <div className="flex items-center gap-2 flex-wrap">
                       <SubmitButton className="btn primary sm" pendingText="Saving and writing…">Answer</SubmitButton>
-                      <span className="text-[10px] text-[var(--mute)]">Your answers are saved to the Experts profile, so you&apos;re asked once.</span>
+                      <span className="text-micro text-[var(--mute)]">Your answers are saved to the Experts profile, so you&apos;re asked once.</span>
                       <span className="flex-1" />
                       <DismissForm id={f.id} />
                     </div>
@@ -203,7 +203,7 @@ export function FindingCards({
                       <input type="hidden" name="id" value={f.id} />
                       <SubmitButton className="btn primary sm" pendingText="Adding…">Add to ideas</SubmitButton>
                     </form>
-                    <span className="text-[10px] text-[var(--mute)]">Lands on the Ideas board as discovered.</span>
+                    <span className="text-micro text-[var(--mute)]">Lands on the Ideas board as discovered.</span>
                     <span className="flex-1" />
                     <DismissForm id={f.id} />
                   </div>

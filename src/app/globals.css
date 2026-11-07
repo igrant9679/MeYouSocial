@@ -46,6 +46,9 @@
   --cyan: #0891B2; --cyan-soft: #D8EFF5;
   --purple: #7C3AED; --purple-soft: #EEE7FC;
   --rose: #E11D48; --rose-soft: #FBDFE6;
+  /* The Publish and Distribute stages' own blues (part cz — they were raw hex in nav.ts). */
+  --sea: #21759B; --sea-soft: #E0EDF3;
+  --azure: #0A66C2; --azure-soft: #E5EDFD;
   --ink: #15181D; --slate: #2B3440; --mute: #6B7280;
   --line: #E7E9EE; --line-2: #D6D9DF;
   --bg: #FFFFFF; --panel: #F5F7FA; --zebra: #FAFBFC;
@@ -63,6 +66,7 @@
   --teal-on: var(--teal);    --amber-on: var(--amber);    --pink-on: var(--pink);
   --indigo-on: var(--indigo);--green-on: var(--green);    --cyan-on: var(--cyan);
   --purple-on: var(--purple);--rose-on: var(--rose);
+  --sea-on: var(--sea);      --azure-on: var(--azure);
   --accent-on: var(--brand-on);
 }
 
@@ -90,6 +94,14 @@
   --font-sans: var(--font-jakarta), 'Plus Jakarta Sans', system-ui, sans-serif;
   --font-mono: var(--font-jakarta), 'Plus Jakarta Sans', system-ui, sans-serif;
   --font-code: var(--font-plex-mono), 'IBM Plex Mono', ui-monospace, monospace;
+  /* ⚠ THE TYPE SCALE (part cz, the team tracker's "cluttered fonts"): eighteen
+     sizes had grown up — 8 to 30 px in half-pixel steps. Nine steps now:
+     text-micro 10 · text-2xs 11 · xs 12 · sm 14 · base 16 · lg 18 · xl 20 ·
+     2xl 24 · 3xl 30. These two add the small end; no line-height of their own
+     (they inherit, as the bracket sizes did). scripts/check-type-colors.mts
+     refuses a new text-[Npx]. */
+  --text-micro: 10px;
+  --text-2xs: 11px;
 }
 
 /* Dark mode. Triggered by [data-theme="dark"] OR by prefers-color-scheme
@@ -111,6 +123,8 @@ html[data-theme="dark"] {
   --cyan-soft:   color-mix(in srgb, var(--cyan)   18%, var(--bg));
   --purple-soft: color-mix(in srgb, var(--purple) 18%, var(--bg));
   --rose-soft:   color-mix(in srgb, var(--rose)   18%, var(--bg));
+  --sea-soft:    color-mix(in srgb, var(--sea)    18%, var(--bg));
+  --azure-soft:  color-mix(in srgb, var(--azure)  18%, var(--bg));
   --brand-on:  color-mix(in srgb, var(--brand)  62%, white);
   --violet-on: color-mix(in srgb, var(--violet) 62%, white);
   --blue-on:   color-mix(in srgb, var(--blue)   62%, white);
@@ -122,6 +136,8 @@ html[data-theme="dark"] {
   --cyan-on:   color-mix(in srgb, var(--cyan)   62%, white);
   --purple-on: color-mix(in srgb, var(--purple) 62%, white);
   --rose-on:   color-mix(in srgb, var(--rose)   62%, white);
+  --sea-on:    color-mix(in srgb, var(--sea)    62%, white);
+  --azure-on:  color-mix(in srgb, var(--azure)  62%, white);
 }
 @media (prefers-color-scheme: dark) {
   html[data-theme="auto"] {
@@ -139,6 +155,8 @@ html[data-theme="dark"] {
     --cyan-soft:   color-mix(in srgb, var(--cyan)   18%, var(--bg));
     --purple-soft: color-mix(in srgb, var(--purple) 18%, var(--bg));
     --rose-soft:   color-mix(in srgb, var(--rose)   18%, var(--bg));
+    --sea-soft:    color-mix(in srgb, var(--sea)    18%, var(--bg));
+    --azure-soft:  color-mix(in srgb, var(--azure)  18%, var(--bg));
     --brand-on:  color-mix(in srgb, var(--brand)  62%, white);
     --violet-on: color-mix(in srgb, var(--violet) 62%, white);
     --blue-on:   color-mix(in srgb, var(--blue)   62%, white);
@@ -150,6 +168,8 @@ html[data-theme="dark"] {
     --cyan-on:   color-mix(in srgb, var(--cyan)   62%, white);
     --purple-on: color-mix(in srgb, var(--purple) 62%, white);
     --rose-on:   color-mix(in srgb, var(--rose)   62%, white);
+    --sea-on:    color-mix(in srgb, var(--sea)    62%, white);
+    --azure-on:  color-mix(in srgb, var(--azure)  62%, white);
   }
 }
 
@@ -188,8 +208,8 @@ html[data-theme="dark"] body {
 
 /* Left rail + app header — light defaults, dark overrides below. Defined here so
    theme switching works without Tailwind utility classes baking in hex colors. */
-.left-rail   { background: linear-gradient(to bottom, #ffffff, #fafbfc); }
-.app-header  { background-color: #ffffff; }
+.left-rail   { background: linear-gradient(to bottom, var(--bg), var(--zebra)); }
+.app-header  { background-color: var(--bg); }
 html[data-theme="dark"] .left-rail,
 html[data-theme="dark"] .app-header { background: var(--bg) !important; background-image: none !important; }
 @media (prefers-color-scheme: dark) {
@@ -206,7 +226,7 @@ html[data-theme="dark"] input,
 html[data-theme="dark"] textarea,
 html[data-theme="dark"] select { background-color: var(--zebra) !important; color: var(--ink) !important; border-color: var(--line-2) !important; }
 html[data-theme="dark"] .btn { background-color: var(--zebra) !important; color: var(--ink); border-color: var(--line-2); }
-html[data-theme="dark"] .btn.primary { background-color: var(--accent) !important; color: #fff; }
+html[data-theme="dark"] .btn.primary { background-color: var(--accent) !important; color: white; }
 @media (prefers-color-scheme: dark) {
   html[data-theme="auto"] .card,
   html[data-theme="auto"] header,
@@ -216,7 +236,7 @@ html[data-theme="dark"] .btn.primary { background-color: var(--accent) !importan
   html[data-theme="auto"] textarea,
   html[data-theme="auto"] select { background-color: var(--zebra) !important; color: var(--ink) !important; border-color: var(--line-2) !important; }
   html[data-theme="auto"] .btn { background-color: var(--zebra) !important; color: var(--ink); border-color: var(--line-2); }
-  html[data-theme="auto"] .btn.primary { background-color: var(--accent) !important; color: #fff; }
+  html[data-theme="auto"] .btn.primary { background-color: var(--accent) !important; color: white; }
 }
 
 /* Reusable mockup-derived utility classes */
@@ -224,15 +244,15 @@ html[data-theme="dark"] .btn.primary { background-color: var(--accent) !importan
 /* Code stays monospace: listings, inline code, keys, and the textareas that
    edit JSON or code (they carry font-mono for the old look). */
 pre, code, kbd, samp, textarea.font-mono, .font-code { font-family: var(--font-code); }
-.btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; font-weight: 600; font-size: 13px; border-radius: 9px; padding: 8px 13px; border: 1px solid var(--line-2); background: #fff; cursor: pointer; color: var(--slate); transition: .15s; }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; font-weight: 600; font-size: 14px; border-radius: 9px; padding: 8px 13px; border: 1px solid var(--line-2); background: var(--bg); cursor: pointer; color: var(--slate); transition: .15s; }
 .btn:disabled { opacity: .55; cursor: not-allowed; }
 .btn:hover { border-color: var(--accent); }
-.btn.primary { background: var(--accent-strong); border-color: var(--accent-strong); color: #fff; box-shadow: 0 5px 14px -4px var(--accent-strong); }
+.btn.primary { background: var(--accent-strong); border-color: var(--accent-strong); color: white; box-shadow: 0 5px 14px -4px var(--accent-strong); }
 .btn.primary:hover { filter: brightness(.95); }
 .btn.sm { padding: 5px 10px; font-size: 12px; }
-.card { background: #fff; border: 1px solid var(--line); border-radius: 13px; padding: 16px; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 13px; padding: 16px; }
 .tag { font-size: 11px; font-family: var(--font-sans); padding: 2px 8px; border-radius: 6px; background: var(--accent-soft); color: var(--accent-on); font-weight: 600; }
-.pill { font-family: var(--font-sans); font-size: 10.5px; font-weight: 700; padding: 3px 9px; border-radius: 999px; display: inline-flex; align-items: center; gap: 5px; }
+.pill { font-family: var(--font-sans); font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 999px; display: inline-flex; align-items: center; gap: 5px; }
 
 /* Interactive-card lift: hover raises 2px with shadow, press settles back.
    Apply to link/button cards only — static cards stay still. */

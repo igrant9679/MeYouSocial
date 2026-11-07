@@ -79,7 +79,7 @@ export default async function UserSettingsPage({ searchParams }: { searchParams:
   return (
     <div className="w-full">
       <div className="flex items-center gap-3 mb-5">
-        <span className="w-12 h-12 rounded-2xl text-white grid place-items-center font-mono font-bold text-lg" style={{ background: "linear-gradient(135deg,#E5482F,#6D28D9)" }}>
+        <span className="w-12 h-12 rounded-2xl text-white grid place-items-center font-mono font-bold text-lg" style={{ background: "linear-gradient(135deg,var(--brand),var(--violet))" }}>
           {(user.name ?? user.email).slice(0, 2).toUpperCase()}
         </span>
         <div>
@@ -90,12 +90,12 @@ export default async function UserSettingsPage({ searchParams }: { searchParams:
 
       {/* Profile */}
       <section className="card mb-4" id="profile">
-        <h2 className="font-mono font-bold text-[14px] mb-3 flex items-center gap-2"><User className="w-4 h-4" style={{ color: "var(--accent-on)" }} /> Profile</h2>
+        <h2 className="font-mono font-bold text-sm mb-3 flex items-center gap-2"><User className="w-4 h-4" style={{ color: "var(--accent-on)" }} /> Profile</h2>
         {flash(["name", "profile"])}
         <form action={updateProfileAction} className="flex flex-col gap-3">
           <ValidatedInput
             label="Display name"
-            labelClassName="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]"
+            labelClassName="text-micro font-mono uppercase tracking-wider text-[var(--mute)]"
             name="name" defaultValue={user.name ?? ""} required autoComplete="name"
             className="border border-[var(--line-2)] rounded-lg p-2 text-sm"
           />
@@ -105,7 +105,7 @@ export default async function UserSettingsPage({ searchParams }: { searchParams:
 
       {/* Sign-in email (E-SHL-09): verification, and a change the new address has to confirm. */}
       <section className="card mb-4" id="email">
-        <h2 className="font-mono font-bold text-[14px] mb-3 flex items-center gap-2"><Mail className="w-4 h-4" style={{ color: "var(--blue-on)" }} /> Sign-in email</h2>
+        <h2 className="font-mono font-bold text-sm mb-3 flex items-center gap-2"><Mail className="w-4 h-4" style={{ color: "var(--blue-on)" }} /> Sign-in email</h2>
         {flash(["email-invalid", "email-same", "email-operator", "email-password", "email-slow", "email-taken", "email-sent", "email-cancelled", "email-changed"])}
         {error === "email-domain" && <p className="text-sm mb-2 rounded-md px-3 py-2" style={{ background: "var(--rose-soft)", color: "var(--rose-on)" }} data-settings-error="email-domain">{ws ?? "A workspace you're in"} only takes some email domains, so that address can&apos;t be used there.</p>}
         <p className="text-sm mb-2"><span className="font-mono">{user.email}</span>{" "}
@@ -128,11 +128,11 @@ export default async function UserSettingsPage({ searchParams }: { searchParams:
             <summary className="cursor-pointer select-none text-xs font-semibold">Change your sign-in email</summary>
             <form action={requestEmailChangeAction} className="flex flex-col gap-3 mt-2">
               <label className="flex flex-col gap-1">
-                <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">New email</span>
+                <span className="text-micro font-mono uppercase tracking-wider text-[var(--mute)]">New email</span>
                 <input name="email" type="email" required autoComplete="email" className="border border-[var(--line-2)] rounded-lg p-2 text-sm" />
               </label>
               {user.passwordHash && <PasswordInput label="Your password" name="password" autoComplete="current-password" />}
-              <p className="text-[11px] text-[var(--mute)] m-0">A link goes to the new address; nothing changes until it&apos;s opened. Your current address is told.</p>
+              <p className="text-2xs text-[var(--mute)] m-0">A link goes to the new address; nothing changes until it&apos;s opened. Your current address is told.</p>
               <div className="flex justify-end"><SubmitButton className="btn primary sm" pendingText="Sending…">Send the confirmation link</SubmitButton></div>
             </form>
           </details>
@@ -141,7 +141,7 @@ export default async function UserSettingsPage({ searchParams }: { searchParams:
 
       {/* Change password */}
       <section className="card mb-4" id="password">
-        <h2 className="font-mono font-bold text-[14px] mb-3 flex items-center gap-2"><Lock className="w-4 h-4" style={{ color: "var(--amber-on)" }} /> Change password</h2>
+        <h2 className="font-mono font-bold text-sm mb-3 flex items-center gap-2"><Lock className="w-4 h-4" style={{ color: "var(--amber-on)" }} /> Change password</h2>
         {flash(["wrongpass", "invalid", "mismatch", "password"])}
         {error === "nopass" && <p className="text-sm text-[var(--brand)] mb-2">No password is set on this account. Use <Link href="/forgot" className="text-[var(--accent)] font-semibold">Forgot password</Link> instead.</p>}
         <form action={changePasswordAction} className="flex flex-col gap-3">
@@ -154,7 +154,7 @@ export default async function UserSettingsPage({ searchParams }: { searchParams:
 
       {/* Time zone (E-SHL-09): the zone times are READ in — schedules keep the posting zone. */}
       <section className="card mb-4" id="zone">
-        <h2 className="font-mono font-bold text-[14px] mb-2 flex items-center gap-2"><Clock className="w-4 h-4" style={{ color: "var(--indigo-on)" }} /> Time zone</h2>
+        <h2 className="font-mono font-bold text-sm mb-2 flex items-center gap-2"><Clock className="w-4 h-4" style={{ color: "var(--indigo-on)" }} /> Time zone</h2>
         {flash(["zone"])}
         <p className="text-xs text-[var(--mute)] mb-3">
           Times you read — notifications, comments, the audit log, the assistant&apos;s history, the job queue — show in this zone.
@@ -172,7 +172,7 @@ export default async function UserSettingsPage({ searchParams }: { searchParams:
 
       {/* Two-factor sign-in (E-SEC-07) — set up on its own page, outside the app shell. */}
       <section className="card mb-4">
-        <h2 className="font-mono font-bold text-[14px] mb-2 flex items-center gap-2"><Lock className="w-4 h-4" style={{ color: "var(--green-on)" }} /> Two-factor sign-in</h2>
+        <h2 className="font-mono font-bold text-sm mb-2 flex items-center gap-2"><Lock className="w-4 h-4" style={{ color: "var(--green-on)" }} /> Two-factor sign-in</h2>
         <p className="text-sm m-0">
           {user.totpEnabledAt ? <>On — signing in takes your password and a code from your phone. </> : <>Off — a password alone signs you in. </>}
           <Link href="/account/two-factor" className="underline">{user.totpEnabledAt ? "Manage it" : "Turn it on"}</Link>
@@ -181,7 +181,7 @@ export default async function UserSettingsPage({ searchParams }: { searchParams:
 
       {/* Theme — click to apply instantly (one form per option, auto-submitting). */}
       <section className="card mb-4">
-        <h2 className="font-mono font-bold text-[14px] mb-3 flex items-center gap-2"><Palette className="w-4 h-4" style={{ color: "var(--violet-on)" }} /> Appearance</h2>
+        <h2 className="font-mono font-bold text-sm mb-3 flex items-center gap-2"><Palette className="w-4 h-4" style={{ color: "var(--violet-on)" }} /> Appearance</h2>
         <p className="text-xs text-[var(--mute)] mb-3">Click a mode to apply it instantly.</p>
         <div className="flex gap-2">
           {(["light", "dark", "auto"] as const).map((t) => {
@@ -196,7 +196,7 @@ export default async function UserSettingsPage({ searchParams }: { searchParams:
                   style={active ? { borderColor: "var(--accent)", background: "var(--accent-soft)", color: "var(--accent-on)", fontWeight: 600 } : undefined}
                 >
                   <span className="capitalize">{t}</span>
-                  {active && <span className="ml-2 text-[10px] font-mono uppercase tracking-wider">✓ active</span>}
+                  {active && <span className="ml-2 text-micro font-mono uppercase tracking-wider">✓ active</span>}
                 </button>
               </form>
             );
@@ -206,7 +206,7 @@ export default async function UserSettingsPage({ searchParams }: { searchParams:
 
       {/* Content size — whole-UI scale, three levels, instant apply. */}
       <section className="card mb-4">
-        <h2 className="font-mono font-bold text-[14px] mb-3 flex items-center gap-2"><Palette className="w-4 h-4" style={{ color: "var(--teal-on)" }} /> Content size</h2>
+        <h2 className="font-mono font-bold text-sm mb-3 flex items-center gap-2"><Palette className="w-4 h-4" style={{ color: "var(--teal-on)" }} /> Content size</h2>
         <p className="text-xs text-[var(--mute)] mb-3">Scales everything on screen — text, buttons, charts. Applies instantly.</p>
         <div className="flex gap-2">
           {CONTENT_SIZES.map((s) => {
@@ -221,7 +221,7 @@ export default async function UserSettingsPage({ searchParams }: { searchParams:
                   style={active ? { borderColor: "var(--accent)", background: "var(--accent-soft)", color: "var(--accent-on)", fontWeight: 600 } : undefined}
                 >
                   <span className={s === "standard" ? "text-sm" : s === "large" ? "text-base" : "text-lg"}>{SIZE_LABELS[s]}</span>
-                  {active && <span className="ml-2 text-[10px] font-mono uppercase tracking-wider">✓ active</span>}
+                  {active && <span className="ml-2 text-micro font-mono uppercase tracking-wider">✓ active</span>}
                 </button>
               </form>
             );
@@ -231,14 +231,14 @@ export default async function UserSettingsPage({ searchParams }: { searchParams:
 
       {/* Workspaces — also the only place in the app you can create one. */}
       <section className="card mb-4">
-        <h2 className="font-mono font-bold text-[14px] mb-3 flex items-center gap-2">
+        <h2 className="font-mono font-bold text-sm mb-3 flex items-center gap-2">
           <Building2 className="w-4 h-4" style={{ color: "var(--accent-on)" }} /> Workspaces ({memberships.length})
         </h2>
         <ul className="m-0 p-0">
           {memberships.map((m) => (
             <li key={m.id} className="border-t border-[var(--line)] first:border-t-0 py-2 text-sm flex items-center gap-2 flex-wrap">
               <span className="flex-1">{m.workspace.name}</span>
-              <span className="font-mono text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: "var(--accent-soft)", color: "var(--accent-on)" }}>{m.role}</span>
+              <span className="font-mono text-micro uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: "var(--accent-soft)", color: "var(--accent-on)" }}>{m.role}</span>
               {/* Only an ADMIN of that workspace may delete it, and only ever
                   their own — the action re-resolves membership for the target
                   id rather than trusting the one being viewed. */}
@@ -258,7 +258,7 @@ export default async function UserSettingsPage({ searchParams }: { searchParams:
           ))}
         </ul>
         <div className="flex items-center gap-2 flex-wrap mt-3 pt-3 border-t border-[var(--line)]">
-          <p className="text-[11px] text-[var(--mute)] flex-1 leading-relaxed">
+          <p className="text-2xs text-[var(--mute)] flex-1 leading-relaxed">
             Each workspace is a separate company — its own brand, content, connected accounts and API keys. Switch
             between them from the name at the top of the page.
             {!canCreateWorkspace && " New workspaces are set up by the platform administrator."}
@@ -273,7 +273,7 @@ export default async function UserSettingsPage({ searchParams }: { searchParams:
 
       {/* Delete my account (E-SHL-09): personal data goes; authored work stays as "Deleted user". */}
       <section className="card mb-4" id="delete" style={{ borderColor: "var(--rose)" }}>
-        <h2 className="font-mono font-bold text-[14px] mb-2 flex items-center gap-2"><Trash2 className="w-4 h-4" style={{ color: "var(--rose-on)" }} /> Delete my account</h2>
+        <h2 className="font-mono font-bold text-sm mb-2 flex items-center gap-2"><Trash2 className="w-4 h-4" style={{ color: "var(--rose-on)" }} /> Delete my account</h2>
         {flash(["delete-operator", "delete-confirm", "delete-password"])}
         {error === "delete-sole" && <p className="text-sm mb-2 rounded-md px-3 py-2" style={{ background: "var(--rose-soft)", color: "var(--rose-on)" }} data-settings-error="delete-sole">You&apos;re the only admin of {ws}. Make someone else an admin there first (Settings → People), or delete the workspace.</p>}
         <p className="text-xs text-[var(--mute)] mb-3">
@@ -290,7 +290,7 @@ export default async function UserSettingsPage({ searchParams }: { searchParams:
             <summary className="cursor-pointer select-none text-xs font-semibold" style={{ color: "var(--rose-on)" }}>Delete my account…</summary>
             <form action={deleteMyAccountAction} className="flex flex-col gap-3 mt-2">
               <label className="flex flex-col gap-1">
-                <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">Type your sign-in email to confirm</span>
+                <span className="text-micro font-mono uppercase tracking-wider text-[var(--mute)]">Type your sign-in email to confirm</span>
                 <input name="confirmEmail" required autoComplete="off" placeholder={user.email} className="border border-[var(--line-2)] rounded-lg p-2 text-sm font-mono" />
               </label>
               {user.passwordHash && <PasswordInput label="Your password" name="password" autoComplete="current-password" />}

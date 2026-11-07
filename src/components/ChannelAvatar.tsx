@@ -33,7 +33,7 @@ export function ChannelAvatar({
       style={{
         width: size,
         height: size,
-        background: "linear-gradient(135deg,#6D28D9,#4F46E5)",
+        background: "linear-gradient(135deg,var(--violet),var(--indigo))",
         fontSize: size >= 56 ? 20 : size >= 44 ? 16 : 13,
       }}
     >

@@ -114,7 +114,7 @@ export function IdeaTriage({ formId, back, topics }: { formId: string; back: str
       <span className="flex-1" />
       <button type="button" className="btn sm" onClick={() => setHelp((h) => !h)} aria-expanded={help} title="Keyboard shortcuts (?)"><Keyboard className="w-3.5 h-3.5" /></button>
       {help && (
-        <ul className="w-full grid grid-cols-2 sm:grid-cols-5 gap-1 text-[11px] text-[var(--mute)] border-t border-[var(--line)] pt-2">
+        <ul className="w-full grid grid-cols-2 sm:grid-cols-5 gap-1 text-2xs text-[var(--mute)] border-t border-[var(--line)] pt-2">
           <li><Kbd>j</Kbd> / <Kbd>k</Kbd> next / previous card</li>
           <li><Kbd>x</Kbd> tick or untick it</li>
           <li><Kbd>a</Kbd> approve it</li>
@@ -127,5 +127,5 @@ export function IdeaTriage({ formId, back, topics }: { formId: string; back: str
 }
 
 function Kbd({ children }: { children: React.ReactNode }) {
-  return <kbd className="font-mono text-[10px] px-1 py-px rounded border border-[var(--line-2)] bg-[var(--panel)]">{children}</kbd>;
+  return <kbd className="font-mono text-micro px-1 py-px rounded border border-[var(--line-2)] bg-[var(--panel)]">{children}</kbd>;
 }

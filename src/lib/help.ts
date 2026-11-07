@@ -26,8 +26,8 @@ export const HELP_CATEGORIES: FaqCategory[] = [
   {
     id: "getting-started",
     label: "Getting started",
-    color: "#E5482F",
-    soft: "#FDE7E1",
+    color: "var(--brand)",
+    soft: "var(--brand-soft)",
     entries: [
       {
         q: "I'm brand new — what do I do first?",
@@ -97,8 +97,8 @@ export const HELP_CATEGORIES: FaqCategory[] = [
   {
     id: "channels",
     label: "Channels",
-    color: "#7C3AED",
-    soft: "#EEE7FC",
+    color: "var(--purple)",
+    soft: "var(--purple-soft)",
     entries: [
       {
         q: "How do I add another YouTube channel?",
@@ -126,8 +126,8 @@ export const HELP_CATEGORIES: FaqCategory[] = [
   {
     id: "voice-audience",
     label: "Voice & audience",
-    color: "#E5482F",
-    soft: "#FDE7E1",
+    color: "var(--brand)",
+    soft: "var(--brand-soft)",
     entries: [
       {
         q: "How does the AI learn my voice?",
@@ -154,8 +154,8 @@ export const HELP_CATEGORIES: FaqCategory[] = [
   {
     id: "brand",
     label: "Brand",
-    color: "#DB2777",
-    soft: "#FBE2EF",
+    color: "var(--pink)",
+    soft: "var(--pink-soft)",
     entries: [
       {
         q: "What is the Brand module actually for?",
@@ -251,8 +251,8 @@ export const HELP_CATEGORIES: FaqCategory[] = [
   {
     id: "writing",
     label: "Writing",
-    color: "#15924B",
-    soft: "#E0F2E8",
+    color: "var(--green)",
+    soft: "var(--green-soft)",
     entries: [
       {
         q: "Canvas or Script Builder — which one?",
@@ -279,8 +279,8 @@ export const HELP_CATEGORIES: FaqCategory[] = [
   {
     id: "intel",
     label: "Intel",
-    color: "#2563EB",
-    soft: "#E5EDFD",
+    color: "var(--blue)",
+    soft: "var(--blue-soft)",
     entries: [
       {
         q: "What does outlier score mean?",
@@ -307,8 +307,8 @@ export const HELP_CATEGORIES: FaqCategory[] = [
   {
     id: "publishing",
     label: "Publishing",
-    color: "#15924B",
-    soft: "#E0F2E8",
+    color: "var(--green)",
+    soft: "var(--green-soft)",
     entries: [
       {
         q: "How do I export a finished script?",
@@ -330,8 +330,8 @@ export const HELP_CATEGORIES: FaqCategory[] = [
   {
     id: "reports",
     label: "Reports",
-    color: "#4F46E5",
-    soft: "#E7E6FB",
+    color: "var(--indigo)",
+    soft: "var(--indigo-soft)",
     entries: [
       {
         q: "What's in the Reports section?",
@@ -377,8 +377,8 @@ export const HELP_CATEGORIES: FaqCategory[] = [
   {
     id: "blog",
     label: "Blog workspace",
-    color: "#E11D48",
-    soft: "#FBDFE6",
+    color: "var(--rose)",
+    soft: "var(--rose-soft)",
     entries: [
       {
         q: "Where did the Blog section go?",
@@ -425,8 +425,8 @@ export const HELP_CATEGORIES: FaqCategory[] = [
   {
     id: "videos",
     label: "Videos",
-    color: "#7C3AED",
-    soft: "#EEE7FC",
+    color: "var(--purple)",
+    soft: "var(--purple-soft)",
     entries: [
       {
         q: "How do video storyboards work?",
@@ -616,8 +616,8 @@ export const HELP_CATEGORIES: FaqCategory[] = [
   {
     id: "production",
     label: "Production",
-    color: "#0D9488",
-    soft: "#D7F1ED",
+    color: "var(--teal)",
+    soft: "var(--teal-soft)",
     entries: [
       {
         q: "How do I turn a script into a tracked project?",
@@ -656,8 +656,8 @@ export const HELP_CATEGORIES: FaqCategory[] = [
   {
     id: "team-admin",
     label: "Team & admin",
-    color: "#4F46E5",
-    soft: "#E7E6FB",
+    color: "var(--indigo)",
+    soft: "var(--indigo-soft)",
     entries: [
       {
         q: "How do I invite a teammate?",
@@ -725,8 +725,8 @@ export const HELP_CATEGORIES: FaqCategory[] = [
   {
     id: "social",
     label: "Social & scheduling",
-    color: "#0A66C2",
-    soft: "#E5EDFD",
+    color: "var(--azure)",
+    soft: "var(--blue-soft)",
     entries: [
       {
         q: "Coming from Socialmonials — where is everything?",
@@ -831,8 +831,8 @@ export const HELP_CATEGORIES: FaqCategory[] = [
   {
     id: "insights",
     label: "Insights & measurement",
-    color: "#15924B",
-    soft: "#E0F2E8",
+    color: "var(--green)",
+    soft: "var(--green-soft)",
     entries: [
       {
         q: "What does Insights actually measure?",
@@ -872,8 +872,8 @@ export const HELP_CATEGORIES: FaqCategory[] = [
   {
     id: "storage",
     label: "Storage & files",
-    color: "#0D9488",
-    soft: "#D7F1ED",
+    color: "var(--teal)",
+    soft: "var(--teal-soft)",
     entries: [
       {
         q: "Why did my uploaded images disappear?",
@@ -907,8 +907,8 @@ export const HELP_CATEGORIES: FaqCategory[] = [
   {
     id: "data",
     label: "Deleting & data",
-    color: "#E11D48",
-    soft: "#FBDFE6",
+    color: "var(--rose)",
+    soft: "var(--rose-soft)",
     entries: [
       {
         q: "How do I delete something?",
@@ -941,8 +941,8 @@ export const HELP_CATEGORIES: FaqCategory[] = [
   {
     id: "guide",
     label: "Elsie, the guide",
-    color: "#D97706",
-    soft: "#FBEED5",
+    color: "var(--amber)",
+    soft: "var(--amber-soft)",
     entries: [
       {
         q: "What is Elsie?",
@@ -974,8 +974,8 @@ export const HELP_CATEGORIES: FaqCategory[] = [
   {
     id: "appearance",
     label: "Appearance & shortcuts",
-    color: "#6D28D9",
-    soft: "#EDE7FB",
+    color: "var(--violet)",
+    soft: "var(--violet-soft)",
     entries: [
       {
         q: "How do I switch to dark mode?",
@@ -1002,8 +1002,8 @@ export const HELP_CATEGORIES: FaqCategory[] = [
   {
     id: "operating",
     label: "Running the loop",
-    color: "#15924B",
-    soft: "#E0F2E8",
+    color: "var(--green)",
+    soft: "var(--green-soft)",
     entries: [
       ...APP_GUIDE.map((t) => ({ q: t.title, a: t.body, tags: t.keywords })),
       {

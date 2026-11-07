@@ -49,8 +49,8 @@ export default async function SetupSchedule({ searchParams }: { searchParams: Pr
   return (
     <div>
       <div className="flex items-baseline gap-3 flex-wrap mb-4">
-        <h1 className="font-mono text-[22px] font-bold m-0">Schedule</h1>
-        <p className="text-[13px] text-[var(--mute)] m-0">When things go out of {workspace.name}{stop(workspace.name)}</p>
+        <h1 className="font-mono text-2xl font-bold m-0">Schedule</h1>
+        <p className="text-sm text-[var(--mute)] m-0">When things go out of {workspace.name}{stop(workspace.name)}</p>
       </div>
       {ok && <Banner kind="ok" text={ok} />}
       {err && <Banner kind="err" text={err} />}
@@ -69,13 +69,13 @@ export default async function SetupSchedule({ searchParams }: { searchParams: Pr
       <details className="card mb-6">
         <summary className="cursor-pointer text-sm font-semibold flex items-center gap-2">
           Post categories
-          <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "var(--zebra)", color: "var(--mute)" }}>{categories.length}</span>
+          <span className="font-mono text-micro px-1.5 py-0.5 rounded-full" style={{ background: "var(--zebra)", color: "var(--mute)" }}>{categories.length}</span>
           <HelpTip text={SOCIAL_TIPS.slotCategory} side="bottom" wide />
         </summary>
-        <p className="text-[11px] text-[var(--mute)] mt-2 mb-2">Every post can be filed under one. A posting slot with the same category takes those posts first. Removing one takes it off the list; posts already filed under it keep the label.</p>
+        <p className="text-2xs text-[var(--mute)] mt-2 mb-2">Every post can be filed under one. A posting slot with the same category takes those posts first. Removing one takes it off the list; posts already filed under it keep the label.</p>
         <ul className="flex flex-wrap gap-1.5 m-0 p-0 list-none mb-2">
           {categories.map((c) => (
-            <li key={c} className="inline-flex items-center gap-1 font-mono text-[11px] px-2 py-0.5 rounded-full border border-[var(--line-2)]">
+            <li key={c} className="inline-flex items-center gap-1 font-mono text-2xs px-2 py-0.5 rounded-full border border-[var(--line-2)]">
               {c}
               {isAdmin && (
                 <form action={removeCategoryAction} className="inline">
@@ -97,17 +97,17 @@ export default async function SetupSchedule({ searchParams }: { searchParams: Pr
       <details className="card mb-6" open>
         <summary className="cursor-pointer text-sm font-semibold flex items-center gap-2">
           <LinkIcon className="w-4 h-4" style={{ color: "var(--blue-on)" }} /> Link tagging (UTM)
-          <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: utm.enabled ? "var(--green-soft)" : "var(--zebra)", color: utm.enabled ? "var(--green-on)" : "var(--mute)" }}>{utm.enabled ? "on" : "off"}</span>
+          <span className="font-mono text-micro px-1.5 py-0.5 rounded-full" style={{ background: utm.enabled ? "var(--green-soft)" : "var(--zebra)", color: utm.enabled ? "var(--green-on)" : "var(--mute)" }}>{utm.enabled ? "on" : "off"}</span>
           <HelpTip text={SOCIAL_TIPS.utm} side="bottom" wide />
         </summary>
-        <p className="text-[11px] text-[var(--mute)] mt-2 mb-2 leading-relaxed">
+        <p className="text-2xs text-[var(--mute)] mt-2 mb-2 leading-relaxed">
           Appends UTM parameters to links when a post is sent, using <b>the network as the source</b>, so GA4 and <Link href="/insights" className="underline">Insights</Link> can tell LinkedIn traffic from X traffic. Links you tagged yourself are left untouched; tagging happens at send.
         </p>
         <form action={saveUtmSettingsAction} className="flex flex-wrap items-end gap-2">
           <label className="inline-flex items-center gap-1.5 text-xs"><input type="checkbox" name="enabled" defaultChecked={utm.enabled} /> Enabled</label>
-          <label className="text-[11px] text-[var(--mute)]">Source<input name="source" defaultValue={utm.source} placeholder="(network name)" className="w-32 text-xs block mt-0.5" /></label>
-          <label className="text-[11px] text-[var(--mute)]">Medium<input name="medium" defaultValue={utm.medium} placeholder="social" className="w-28 text-xs block mt-0.5" /></label>
-          <label className="text-[11px] text-[var(--mute)]">Campaign<input name="campaign" defaultValue={utm.campaign} placeholder="(optional)" className="w-36 text-xs block mt-0.5" /></label>
+          <label className="text-2xs text-[var(--mute)]">Source<input name="source" defaultValue={utm.source} placeholder="(network name)" className="w-32 text-xs block mt-0.5" /></label>
+          <label className="text-2xs text-[var(--mute)]">Medium<input name="medium" defaultValue={utm.medium} placeholder="social" className="w-28 text-xs block mt-0.5" /></label>
+          <label className="text-2xs text-[var(--mute)]">Campaign<input name="campaign" defaultValue={utm.campaign} placeholder="(optional)" className="w-36 text-xs block mt-0.5" /></label>
           <SubmitButton className="btn sm" pendingText="Saving…">Save</SubmitButton>
         </form>
       </details>
@@ -116,9 +116,9 @@ export default async function SetupSchedule({ searchParams }: { searchParams: Pr
       <details className="card mb-6" id="link-in-bio" open={bio.enabled} data-link-in-bio-card>
         <summary className="cursor-pointer text-sm font-semibold flex items-center gap-2">
           <LinkIcon className="w-4 h-4" style={{ color: "var(--blue-on)" }} /> Link in bio
-          <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: bio.enabled ? "var(--green-soft)" : "var(--zebra)", color: bio.enabled ? "var(--green-on)" : "var(--mute)" }}>{bio.enabled ? "on" : "off"}</span>
+          <span className="font-mono text-micro px-1.5 py-0.5 rounded-full" style={{ background: bio.enabled ? "var(--green-soft)" : "var(--zebra)", color: bio.enabled ? "var(--green-on)" : "var(--mute)" }}>{bio.enabled ? "on" : "off"}</span>
         </summary>
-        <p className="text-[11px] text-[var(--mute)] mt-2 mb-2 leading-relaxed">
+        <p className="text-2xs text-[var(--mute)] mt-2 mb-2 leading-relaxed">
           One public page for the link a profile allows: the links in your recently sent posts, newest first, one per
           destination, with an article&apos;s own title where the link is yours. Each is tagged <span className="font-mono">utm_source=linkinbio</span> so
           its clicks are told apart. Only what was already posted appears; nothing needs signing in to see it.
@@ -127,18 +127,18 @@ export default async function SetupSchedule({ searchParams }: { searchParams: Pr
         {isAdmin ? (
           <form action={saveLinkInBioAction} className="flex flex-wrap items-end gap-2">
             <label className="inline-flex items-center gap-1.5 text-xs"><input type="checkbox" name="enabled" defaultChecked={bio.enabled} /> On</label>
-            <label className="text-[11px] text-[var(--mute)]">Address<span className="flex items-center gap-1 mt-0.5"><span className="font-mono text-xs">/l/</span><input name="slug" defaultValue={bio.slug} placeholder={bio.suggested} maxLength={40} className="w-44 text-xs font-mono border border-[var(--line-2)] rounded-lg px-2 py-1" /></span></label>
+            <label className="text-2xs text-[var(--mute)]">Address<span className="flex items-center gap-1 mt-0.5"><span className="font-mono text-xs">/l/</span><input name="slug" defaultValue={bio.slug} placeholder={bio.suggested} maxLength={40} className="w-44 text-xs font-mono border border-[var(--line-2)] rounded-lg px-2 py-1" /></span></label>
             <SubmitButton className="btn sm" pendingText="Saving…">Save</SubmitButton>
           </form>
         ) : (
-          <p className="text-[11px] text-[var(--mute)] m-0">An admin turns it on and picks its address.</p>
+          <p className="text-2xs text-[var(--mute)] m-0">An admin turns it on and picks its address.</p>
         )}
       </details>
 
       <details className="card mb-6">
         <summary className="cursor-pointer text-sm font-semibold flex items-center gap-2">
           <Megaphone className="w-4 h-4" style={{ color: "var(--blue-on)" }} /> Campaigns
-          <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: activeCampaigns.length ? "var(--blue-soft)" : "var(--zebra)", color: activeCampaigns.length ? "var(--blue-on)" : "var(--mute)" }}>{activeCampaigns.length} active</span>
+          <span className="font-mono text-micro px-1.5 py-0.5 rounded-full" style={{ background: activeCampaigns.length ? "var(--blue-soft)" : "var(--zebra)", color: activeCampaigns.length ? "var(--blue-on)" : "var(--mute)" }}>{activeCampaigns.length} active</span>
           <HelpTip text={SOCIAL_TIPS.campaign} side="bottom" wide />
         </summary>
         {campaigns.length > 0 && (
@@ -150,9 +150,9 @@ export default async function SetupSchedule({ searchParams }: { searchParams: Pr
                 <div key={c.id} className="flex items-center gap-2 text-xs rounded-lg border border-[var(--line)] px-2 py-1.5">
                   <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: /^#[0-9a-fA-F]{6}$/.test(c.color ?? "") ? c.color! : "var(--blue)" }} />
                   <Link href={`/social/campaigns/${c.id}`} className="font-semibold hover:underline" title="Its calendar, counts and results">{c.name}</Link>
-                  {c.status === "archived" && <span className="font-mono text-[10px] text-[var(--mute)]">archived</span>}
-                  {c.utmCampaign && <span className="font-mono text-[10px] text-[var(--mute)]">utm: {c.utmCampaign}</span>}
-                  <span className="font-mono text-[10px] text-[var(--mute)]">{stats.length} post{stats.length === 1 ? "" : "s"} · {out} sent</span>
+                  {c.status === "archived" && <span className="font-mono text-micro text-[var(--mute)]">archived</span>}
+                  {c.utmCampaign && <span className="font-mono text-micro text-[var(--mute)]">utm: {c.utmCampaign}</span>}
+                  <span className="font-mono text-micro text-[var(--mute)]">{stats.length} post{stats.length === 1 ? "" : "s"} · {out} sent</span>
                   <span className="flex-1" />
                   {isAdmin && (
                     <>
@@ -170,12 +170,13 @@ export default async function SetupSchedule({ searchParams }: { searchParams: Pr
         )}
         {isAdmin ? (
           <form action={createCampaignAction} className="flex flex-wrap items-end gap-2 mt-2">
-            <label className="text-[11px] text-[var(--mute)]">Name<input name="name" required maxLength={60} placeholder="Q3 product launch" className="w-44 text-xs block mt-0.5" /></label>
-            <label className="text-[11px] text-[var(--mute)]">utm_campaign<input name="utmCampaign" maxLength={80} placeholder="(optional — defaults to the workspace tag)" className="w-64 text-xs block mt-0.5" /></label>
-            <label className="text-[11px] text-[var(--mute)]">Color<input name="color" type="color" defaultValue="#2563EB" className="block mt-0.5 h-7 w-10 p-0 border border-[var(--line-2)] rounded" /></label>
+            <label className="text-2xs text-[var(--mute)]">Name<input name="name" required maxLength={60} placeholder="Q3 product launch" className="w-44 text-xs block mt-0.5" /></label>
+            <label className="text-2xs text-[var(--mute)]">utm_campaign<input name="utmCampaign" maxLength={80} placeholder="(optional — defaults to the workspace tag)" className="w-64 text-xs block mt-0.5" /></label>
+            {/* raw-colour: a colour input only takes hex */}
+            <label className="text-2xs text-[var(--mute)]">Color<input name="color" type="color" defaultValue="#2563EB" className="block mt-0.5 h-7 w-10 p-0 border border-[var(--line-2)] rounded" /></label>
             <SubmitButton className="btn sm" pendingText="Creating…">Create campaign</SubmitButton>
           </form>
-        ) : <p className="text-[11px] text-[var(--mute)] mt-2">Only workspace admins manage campaigns; pick one on any post in the composer.</p>}
+        ) : <p className="text-2xs text-[var(--mute)] mt-2">Only workspace admins manage campaigns; pick one on any post in the composer.</p>}
       </details>
     </div>
   );
@@ -200,16 +201,16 @@ function BestTimes({ report, canEdit, slots }: { report: BestTimeReport; canEdit
     <details className="card mb-6" open={!reason}>
       <summary className="cursor-pointer text-sm font-semibold flex items-center gap-2">
         <Clock className="w-4 h-4" style={{ color: "var(--green-on)" }} /> Best time to post
-        <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full" style={reason ? { background: "var(--zebra)", color: "var(--mute)" } : { background: "var(--green-soft)", color: "var(--green-on)" }}>{reason ? "not enough data" : `${measured} posts`}</span>
+        <span className="font-mono text-micro px-1.5 py-0.5 rounded-full" style={reason ? { background: "var(--zebra)", color: "var(--mute)" } : { background: "var(--green-soft)", color: "var(--green-on)" }}>{reason ? "not enough data" : `${measured} posts`}</span>
       </summary>
-      <p className="text-[11px] text-[var(--mute)] mt-2 mb-2 leading-relaxed">
+      <p className="text-2xs text-[var(--mute)] mt-2 mb-2 leading-relaxed">
         Posts are grouped by the hour they went out in <b>{report.timeZone}</b>{!report.timeZoneConfigured && " (no timezone set, so this is UTC)"} and compared on <b>engagement rate</b>. A time is only judged once it has {MIN_PER_BUCKET} posts of its own, and nothing is shown below {MIN_POSTS} measured posts.
       </p>
       {reason ? (
         <div className="flex items-baseline gap-2"><span className="text-2xl font-bold text-[var(--mute)]">—</span><span className="text-xs text-[var(--mute)]">{reason}</span></div>
       ) : (
         <>
-          <div className="text-[11px] text-[var(--mute)] mb-2">
+          <div className="text-2xs text-[var(--mute)] mb-2">
             Baseline engagement rate across {measured} measured post{measured === 1 ? "" : "s"}: <b className="text-[var(--slate)]">{baseline!.toFixed(2)}%</b>
             {unmeasurable > 0 && <> · {unmeasurable} excluded for having no impressions figure</>}
           </div>
@@ -221,14 +222,14 @@ function BestTimes({ report, canEdit, slots }: { report: BestTimeReport; canEdit
                   <span style={{ color: "var(--green-on)" }}>{b.ratio.toFixed(1)}× the baseline</span>
                   <span className="text-[var(--mute)]">{b.rate.toFixed(2)}%</span>
                   <span className="flex-1" />
-                  <span className="font-mono text-[10px] text-[var(--mute)]">n={b.posts}</span>
+                  <span className="font-mono text-micro text-[var(--mute)]">n={b.posts}</span>
                 </div>
               ))}
             </div>
           ) : (
             <p className="text-xs text-[var(--mute)] mb-2">No time beats the baseline by {OUTPERFORM}× yet — on this evidence, when you post matters less than that you post.</p>
           )}
-          {worst.length > 0 && <p className="text-[11px] text-[var(--mute)] mb-2">Underperforming: {worst.map((w) => `${w.label} (${w.ratio.toFixed(1)}×, n=${w.posts})`).join(", ")}.</p>}
+          {worst.length > 0 && <p className="text-2xs text-[var(--mute)] mb-2">Underperforming: {worst.map((w) => `${w.label} (${w.ratio.toFixed(1)}×, n=${w.posts})`).join(", ")}.</p>}
           {moves.length > 0 && (
             <div className="flex flex-col gap-1 mb-2" data-slot-moves>
               {moves.map(({ slot, bucket, to }) => (
@@ -242,14 +243,14 @@ function BestTimes({ report, canEdit, slots }: { report: BestTimeReport; canEdit
                       <input type="hidden" name="time" value={formatMinute(to.minute)} />
                       <SubmitButton className="btn sm" pendingText="Moving…" title="Move the slot; posts the queue put there move with it">Move it to {to.label} ({to.ratio.toFixed(1)}×)</SubmitButton>
                     </form>
-                  ) : <span className="text-[11px] text-[var(--mute)]">{to ? `${to.label} measures ${to.ratio.toFixed(1)}× — an admin can move it.` : "No better time without a slot yet."}</span>}
+                  ) : <span className="text-2xs text-[var(--mute)]">{to ? `${to.label} measures ${to.ratio.toFixed(1)}× — an admin can move it.` : "No better time without a slot yet."}</span>}
                 </div>
               ))}
             </div>
           )}
           {suggestions.length > 0 && canEdit && (
             <div className="mt-2 pt-2 border-t border-[var(--line)]">
-              <div className="text-[11px] text-[var(--mute)] mb-1.5 flex items-center gap-2">
+              <div className="text-2xs text-[var(--mute)] mb-1.5 flex items-center gap-2">
                 Not in your posting schedule yet:
                 {suggestions.length > 1 && (
                   <form action={addBestTimeSlotsAction} className="ml-auto">
@@ -270,15 +271,15 @@ function BestTimes({ report, canEdit, slots }: { report: BestTimeReport; canEdit
           )}
           {buckets.length > best.length && (
             <details className="mt-2">
-              <summary className="cursor-pointer text-[11px] text-[var(--mute)]">All {buckets.length} times measured</summary>
+              <summary className="cursor-pointer text-2xs text-[var(--mute)]">All {buckets.length} times measured</summary>
               <div className="flex flex-col gap-0.5 mt-1.5">
                 {buckets.map((b) => (
-                  <div key={b.label} className="flex items-center gap-2 text-[11px]">
+                  <div key={b.label} className="flex items-center gap-2 text-2xs">
                     <span className="font-mono w-20">{b.label}</span>
                     <span className="text-[var(--mute)] w-16">{b.rate.toFixed(2)}%</span>
                     <span className="text-[var(--mute)]">{b.judged ? `${b.ratio.toFixed(1)}×` : <span title={`Only ${b.posts} post${b.posts === 1 ? "" : "s"} — needs ${MIN_PER_BUCKET} to judge`}>—</span>}</span>
                     <span className="flex-1" />
-                    <span className="font-mono text-[10px] text-[var(--mute)]">n={b.posts}</span>
+                    <span className="font-mono text-micro text-[var(--mute)]">n={b.posts}</span>
                   </div>
                 ))}
               </div>

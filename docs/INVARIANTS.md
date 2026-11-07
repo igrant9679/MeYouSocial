@@ -2426,3 +2426,26 @@ before changing code in that area.
   Measured on the dev server: Keywords 830 → 411 KB, Help 558 → 237 KB.
 - **Keys lists only what's called** (SET-04): `USED_KEY_PROVIDERS` (Anthropic, Google, OpenAI), each saying what it's used
   for. DeepSeek, xAI, Moonshot and MiniMax show only while a stored key needs removing; a new key for one is refused.
+
+## One type scale and the theme's colours, checked at build (2026-11-07, the team tracker's "cluttered colours and fonts", growth part cz)
+- ⚠ **Nine type sizes**: `text-micro` (10) · `text-2xs` (11) · `text-xs` (12) · `text-sm` (14) · `text-base` (16) · `text-lg`
+  (18) · `text-xl` (20) · `text-2xl` (24) · `text-3xl` (30). Eighteen had grown up (8–30 px in half-pixel steps); every
+  `text-[Npx]` was moved to its nearest step (9/9.5/10.5 → micro, 12.5 → xs, 13/15 → sm, 17 → base, 22 → 2xl). The two small
+  steps are `--text-micro` / `--text-2xs` in `globals.css`'s `@theme`, without a line-height of their own (they inherit, as
+  the bracket sizes did).
+- ⚠ **Colours are tokens**: every hard-coded hex that copied a theme colour is that token now (`var(--blue)`,
+  `var(--green-soft)` …), so it follows dark mode — about 250 of them, including the rail's stage colours (`lib/nav.ts`), the
+  Help and Prompt Library categories and the old `var(--brand, #E5482F)` fallbacks. New tokens `--sea` (Publish) and
+  `--azure` (Distribute) keep those stages' blues, with soft/on/dark variants. The report's position bars are one blue
+  stepped with `color-mix()`; white text on a coloured chip is `white`. A token can't take a hex alpha suffix — mix it:
+  `color-mix(in srgb, ${c} 27%, transparent)` (the rail's shadow, model chips, Edit Bay columns).
+- **Left literal on purpose**: the app icons (`next/og` can't read CSS variables), the Google/social preview mock-ups
+  (other products' colours), the brand mark, the accent presets saved as a workspace's hex, a colour input's default, the
+  networks' brand colours (`lib/zernio/platforms.ts`), and PDFs, emails and rendered images (`.ts`, outside the page).
+- **`scripts/check-type-colors.mts`** (prebuild) refuses a `text-[Npx]` and a raw hex in a `.tsx` outside those files,
+  unless the line (or the one above) says why with a `raw-colour:` comment.
+- The stylesheet's own components follow it: `.btn` 14 px (was 13), `.btn.sm` 12, `.tag` and `.pill` 11 (the pill was 10.5);
+  their white backgrounds are `var(--bg)` / `var(--card)`.
+- On phones the header's account avatar is hidden (the drawer has Settings and Sign out): at 375 px it wrapped onto a second
+  header line. Deleting a campaign returns to Schedule and a brand fact or document to Brand (they named no page and
+  landed on the home page).

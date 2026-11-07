@@ -18,7 +18,7 @@ export default async function ChannelMemoryPage({ params }: { params: Promise<{ 
   return (
     <div className="w-full">
       <div className="flex items-center gap-3 mb-4">
-        <span className="w-10 h-10 rounded-xl grid place-items-center" style={{ background: "#EDE7FB", color: "#6D28D9" }}>
+        <span className="w-10 h-10 rounded-xl grid place-items-center" style={{ background: "var(--violet-soft)", color: "var(--violet)" }}>
           <Brain className="w-5 h-5" strokeWidth={2.25} />
         </span>
         <div>
@@ -30,7 +30,7 @@ export default async function ChannelMemoryPage({ params }: { params: Promise<{ 
       <form action={addMemoryEntryAction} className="card flex flex-col gap-2 mb-4">
         <input type="hidden" name="channelId" value={id} />
         <label className="flex flex-col gap-1">
-          <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">Add fact / preference (≤ 600 chars)</span>
+          <span className="text-micro font-mono uppercase tracking-wider text-[var(--mute)]">Add fact / preference (≤ 600 chars)</span>
           <textarea name="body" required maxLength={600} rows={3}
             placeholder="e.g. Always cite original papers, not blog summaries. Avoid the word 'literally'. My audience already knows what compounding is."
             className="border border-[var(--line-2)] rounded-lg p-2 text-sm" />

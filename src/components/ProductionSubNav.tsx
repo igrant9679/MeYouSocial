@@ -15,15 +15,15 @@ import { PRODUCTION_TAB_TIPS } from "@/lib/help-tips";
  */
 
 const NAV = [
-  { href: "/production",              label: "Board",         icon: KanbanSquare, color: "#0D9488" },
-  { href: "/production/writers-room", label: "Writer's Room", icon: PenLine,      color: "#2563EB" },
-  { href: "/production/film-queue",   label: "Film Queue",    icon: Clapperboard, color: "#D97706" },
-  { href: "/production/edit-bay",     label: "Edit Bay",      icon: Scissors,     color: "#6D28D9" },
-  { href: "/production/calendar",     label: "Calendar",      icon: Calendar,     color: "#15924B" },
-  { href: "/production/tasks",        label: "Tasks",         icon: ListChecks,   color: "#E5482F" },
-  { href: "/production/assets",       label: "Assets",        icon: Film,         color: "#0891B2" },
-  { href: "/production/swipes",       label: "Swipes",        icon: ImageIcon,    color: "#DB2777" },
-  { href: "/production/wiki",         label: "Wiki",          icon: BookOpen,     color: "#4F46E5" },
+  { href: "/production",              label: "Board",         icon: KanbanSquare, color: "var(--teal)" },
+  { href: "/production/writers-room", label: "Writer's Room", icon: PenLine,      color: "var(--blue)" },
+  { href: "/production/film-queue",   label: "Film Queue",    icon: Clapperboard, color: "var(--amber)" },
+  { href: "/production/edit-bay",     label: "Edit Bay",      icon: Scissors,     color: "var(--violet)" },
+  { href: "/production/calendar",     label: "Calendar",      icon: Calendar,     color: "var(--green)" },
+  { href: "/production/tasks",        label: "Tasks",         icon: ListChecks,   color: "var(--brand)" },
+  { href: "/production/assets",       label: "Assets",        icon: Film,         color: "var(--cyan)" },
+  { href: "/production/swipes",       label: "Swipes",        icon: ImageIcon,    color: "var(--pink)" },
+  { href: "/production/wiki",         label: "Wiki",          icon: BookOpen,     color: "var(--indigo)" },
 ];
 
 export function ProductionSubNav() {

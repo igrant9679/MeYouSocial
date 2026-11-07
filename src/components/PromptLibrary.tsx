@@ -62,7 +62,7 @@ export function PromptLibrary({ targetId = "composer-textarea" }: { targetId?: s
           <div onClick={(e) => e.stopPropagation()} className="bg-[var(--bg)] rounded-2xl shadow-2xl w-full max-w-3xl max-h-[80vh] flex overflow-hidden">
             {/* Categories */}
             <aside className="w-44 bg-[var(--zebra)] p-3 border-r border-[var(--line)] flex flex-col gap-1">
-              <div className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)] mb-2 px-2 flex items-center justify-between">
+              <div className="text-micro font-mono uppercase tracking-wider text-[var(--mute)] mb-2 px-2 flex items-center justify-between">
                 Library
                 <button onClick={() => setOpen(false)}><X className="w-3.5 h-3.5" /></button>
               </div>
@@ -77,7 +77,7 @@ export function PromptLibrary({ targetId = "composer-textarea" }: { targetId?: s
                   {cat.label}
                 </button>
               ))}
-              <div className="mt-auto text-[10px] font-mono text-[var(--mute)] px-2 pt-2 border-t border-[var(--line)]">
+              <div className="mt-auto text-micro font-mono text-[var(--mute)] px-2 pt-2 border-t border-[var(--line)]">
                 Shortcut: <kbd className="px-1 py-0.5 rounded bg-[var(--zebra)] border border-[var(--line-2)]">{PROMPT_SHORTCUT}</kbd>
               </div>
             </aside>

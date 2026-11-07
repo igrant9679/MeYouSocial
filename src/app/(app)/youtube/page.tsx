@@ -38,16 +38,16 @@ const delta = (now: number, before: number): number | null => (before > 0 ? Math
 function Tile({ label, value, sub, d }: { label: string; value: string; sub?: string; d?: number | null }) {
   return (
     <div className="rounded-xl border border-[var(--line)] p-3 flex flex-col gap-1">
-      <span className="text-[11px] text-[var(--mute)] leading-tight">{label}</span>
+      <span className="text-2xs text-[var(--mute)] leading-tight">{label}</span>
       <div className="flex items-baseline gap-2">
         <span className="font-mono font-bold text-2xl tabular-nums">{value}</span>
         {d != null && (
-          <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: `var(--${d >= 0 ? "green" : "rose"}-soft)`, color: `var(--${d >= 0 ? "green" : "rose"}-on)` }} title="vs the previous window">
+          <span className="font-mono text-micro font-bold px-1.5 py-0.5 rounded-full" style={{ background: `var(--${d >= 0 ? "green" : "rose"}-soft)`, color: `var(--${d >= 0 ? "green" : "rose"}-on)` }} title="vs the previous window">
             {d >= 0 ? "▲" : "▼"} {Math.abs(d)}%
           </span>
         )}
       </div>
-      {sub && <p className="text-[10px] text-[var(--mute)] leading-snug m-0">{sub}</p>}
+      {sub && <p className="text-micro text-[var(--mute)] leading-snug m-0">{sub}</p>}
     </div>
   );
 }
@@ -163,7 +163,7 @@ export default async function YoutubeAuditPage({ searchParams }: { searchParams:
                 <div className="grid gap-3 lg:grid-cols-2 mb-4">
                   {[{ title: "What needs work", list: fixes, empty: "Nothing measured in this window fell below the channel's own bar — findings need enough videos and a previous window to compare against, so a young channel shows none either way." }, { title: "What to keep doing", list: [...wins, ...infos], empty: "Not enough measured videos yet to say what is working." }].map((col) => (
                     <section key={col.title}>
-                      <h2 className="font-mono text-[13px] font-bold mb-2">{col.title}</h2>
+                      <h2 className="font-mono text-sm font-bold mb-2">{col.title}</h2>
                       {col.list.length === 0 ? (
                         <div className="card text-xs text-[var(--mute)]">{col.empty}</div>
                       ) : (
@@ -171,7 +171,7 @@ export default async function YoutubeAuditPage({ searchParams }: { searchParams:
                           <div key={i} className="card mb-2">
                             <div className="flex items-start gap-2">
                               <h3 className="text-sm font-semibold flex-1 m-0">{f.title}</h3>
-                              <span className="font-mono text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0" style={{ background: `var(--${KIND[f.kind].hue}-soft)`, color: `var(--${KIND[f.kind].hue}-on)` }}>{KIND[f.kind].label}</span>
+                              <span className="font-mono text-micro font-bold px-1.5 py-0.5 rounded-full shrink-0" style={{ background: `var(--${KIND[f.kind].hue}-soft)`, color: `var(--${KIND[f.kind].hue}-on)` }}>{KIND[f.kind].label}</span>
                             </div>
                             <p className="text-xs text-[var(--mute)] mt-1 mb-0">{f.detail}</p>
                             {f.videos && f.videos.length > 0 && (
@@ -179,9 +179,9 @@ export default async function YoutubeAuditPage({ searchParams }: { searchParams:
                                 {f.videos.map((v) => (
                                   <li key={v.id} className="text-xs flex items-baseline gap-2">
                                     <a href={v.url} target="_blank" rel="noopener noreferrer" className="font-semibold hover:underline truncate">{v.title}</a>
-                                    <span className="font-mono text-[10px] text-[var(--mute)] shrink-0">{v.note}</span>
+                                    <span className="font-mono text-micro text-[var(--mute)] shrink-0">{v.note}</span>
                                     {f.kind === "fix" && (
-                                      <Link href={askUrl(`My YouTube video "${v.title}" (${v.id}) is under-performing: ${v.note}. Suggest five stronger titles and a thumbnail direction, in my channel's voice.`)} className="text-[10px] shrink-0 hover:underline" style={{ color: "var(--accent)" }} title="Ask the assistant for titles and a thumbnail direction">
+                                      <Link href={askUrl(`My YouTube video "${v.title}" (${v.id}) is under-performing: ${v.note}. Suggest five stronger titles and a thumbnail direction, in my channel's voice.`)} className="text-micro shrink-0 hover:underline" style={{ color: "var(--accent)" }} title="Ask the assistant for titles and a thumbnail direction">
                                         fix it →
                                       </Link>
                                     )}
@@ -196,37 +196,37 @@ export default async function YoutubeAuditPage({ searchParams }: { searchParams:
                   ))}
                 </div>
 
-                <h2 className="font-mono text-[13px] font-bold mb-2">Videos in the window <span className="text-[var(--mute)] font-normal">({a.videos.length}{a.videos.length === 200 ? ", API cap" : ""})</span></h2>
+                <h2 className="font-mono text-sm font-bold mb-2">Videos in the window <span className="text-[var(--mute)] font-normal">({a.videos.length}{a.videos.length === 200 ? ", API cap" : ""})</span></h2>
                 <div className="card overflow-x-auto mb-3">
                   <div className="flex justify-end mb-1"><CsvButton table="youtube-videos" filename="youtube-videos" /></div>
                   <table data-csv="youtube-videos" className="w-full text-xs border-collapse max-md:block" data-narrow-cards>
                     <thead className="max-md:hidden">
                       <tr className="text-left text-[var(--mute)]">
                         {[["Video"], ["Published"], ["Type"], ["Views", "Views inside the window"], ["Views/hr", "Lifetime views divided by hours since publish"], ["Watched", "Average percentage of the video watched"], ["Avg view"], ["Likes"], ["Comments"], ["Subs +"]].map(([h, tip], i) => (
-                          <th key={h} title={tip} className={`py-1.5 px-2 font-mono text-[9px] uppercase tracking-wider border-b-2 border-[var(--line)] ${i >= 3 ? "text-right" : ""}`}>{h}</th>
+                          <th key={h} title={tip} className={`py-1.5 px-2 font-mono text-micro uppercase tracking-wider border-b-2 border-[var(--line)] ${i >= 3 ? "text-right" : ""}`}>{h}</th>
                         ))}
                       </tr>
                     </thead>
                     <tbody className="max-md:block">
                       {shown.map((v) => (
                         <tr key={v.id} className="odd:bg-[var(--zebra)] max-md:block max-md:py-2 max-md:px-2">
-                          <td data-label="Video" className="py-1.5 px-2 border-b border-[var(--line)] max-md:flex max-md:justify-between max-md:gap-3 max-md:py-1 max-md:px-0 max-md:border-0 max-md:text-right max-md:before:content-[attr(data-label)] max-md:before:text-[var(--mute)] max-md:before:text-left max-md:before:font-mono max-md:before:text-[10px] max-md:before:uppercase max-w-[320px]"><a href={v.url} target="_blank" rel="noopener noreferrer" className="font-semibold hover:underline line-clamp-1">{v.title}</a></td>
-                          <td data-label="Published" className="py-1.5 px-2 border-b border-[var(--line)] max-md:flex max-md:justify-between max-md:gap-3 max-md:py-1 max-md:px-0 max-md:border-0 max-md:text-right max-md:before:content-[attr(data-label)] max-md:before:text-[var(--mute)] max-md:before:text-left max-md:before:font-mono max-md:before:text-[10px] max-md:before:uppercase whitespace-nowrap">{day(v.publishedAt)}{v.inWindow && <span className="ml-1 font-mono text-[9px] px-1 rounded" style={{ background: "var(--blue-soft)", color: "var(--blue-on)" }}>new</span>}</td>
-                          <td data-label="Type" className="py-1.5 px-2 border-b border-[var(--line)] max-md:flex max-md:justify-between max-md:gap-3 max-md:py-1 max-md:px-0 max-md:border-0 max-md:text-right max-md:before:content-[attr(data-label)] max-md:before:text-[var(--mute)] max-md:before:text-left max-md:before:font-mono max-md:before:text-[10px] max-md:before:uppercase">{v.isShort == null ? "—" : v.isShort ? "Short" : fmtDur(v.durationSec)}</td>
-                          <td data-label="Views" className="py-1.5 px-2 border-b border-[var(--line)] max-md:flex max-md:justify-between max-md:gap-3 max-md:py-1 max-md:px-0 max-md:border-0 max-md:text-right max-md:before:content-[attr(data-label)] max-md:before:text-[var(--mute)] max-md:before:text-left max-md:before:font-mono max-md:before:text-[10px] max-md:before:uppercase text-right font-mono tabular-nums" title={v.reportPending ? "Uploaded inside YouTube Analytics' ~2-day lag — not reported yet, not zero" : undefined}>{v.reportPending ? "—" : fmt(v.views)}</td>
-                          <td data-label="Views/hr" className="py-1.5 px-2 border-b border-[var(--line)] max-md:flex max-md:justify-between max-md:gap-3 max-md:py-1 max-md:px-0 max-md:border-0 max-md:text-right max-md:before:content-[attr(data-label)] max-md:before:text-[var(--mute)] max-md:before:text-left max-md:before:font-mono max-md:before:text-[10px] max-md:before:uppercase text-right font-mono tabular-nums" title={v.lifetimeViews != null ? `${fmt(v.lifetimeViews)} lifetime views` : "no lifetime count"}>{fmtVph(v.viewsPerHour)}</td>
-                          <td data-label="Watched" className="py-1.5 px-2 border-b border-[var(--line)] max-md:flex max-md:justify-between max-md:gap-3 max-md:py-1 max-md:px-0 max-md:border-0 max-md:text-right max-md:before:content-[attr(data-label)] max-md:before:text-[var(--mute)] max-md:before:text-left max-md:before:font-mono max-md:before:text-[10px] max-md:before:uppercase text-right font-mono tabular-nums">{v.avgViewPct == null ? "—" : `${Math.round(v.avgViewPct)}%`}</td>
-                          <td data-label="Avg view" className="py-1.5 px-2 border-b border-[var(--line)] max-md:flex max-md:justify-between max-md:gap-3 max-md:py-1 max-md:px-0 max-md:border-0 max-md:text-right max-md:before:content-[attr(data-label)] max-md:before:text-[var(--mute)] max-md:before:text-left max-md:before:font-mono max-md:before:text-[10px] max-md:before:uppercase text-right font-mono tabular-nums">{fmtDur(v.avgViewSec)}</td>
-                          <td data-label="Likes" className="py-1.5 px-2 border-b border-[var(--line)] max-md:flex max-md:justify-between max-md:gap-3 max-md:py-1 max-md:px-0 max-md:border-0 max-md:text-right max-md:before:content-[attr(data-label)] max-md:before:text-[var(--mute)] max-md:before:text-left max-md:before:font-mono max-md:before:text-[10px] max-md:before:uppercase text-right font-mono tabular-nums">{fmt(v.likes)}</td>
-                          <td data-label="Comments" className="py-1.5 px-2 border-b border-[var(--line)] max-md:flex max-md:justify-between max-md:gap-3 max-md:py-1 max-md:px-0 max-md:border-0 max-md:text-right max-md:before:content-[attr(data-label)] max-md:before:text-[var(--mute)] max-md:before:text-left max-md:before:font-mono max-md:before:text-[10px] max-md:before:uppercase text-right font-mono tabular-nums">{fmt(v.comments)}</td>
-                          <td data-label="Subs +" className="py-1.5 px-2 border-b border-[var(--line)] max-md:flex max-md:justify-between max-md:gap-3 max-md:py-1 max-md:px-0 max-md:border-0 max-md:text-right max-md:before:content-[attr(data-label)] max-md:before:text-[var(--mute)] max-md:before:text-left max-md:before:font-mono max-md:before:text-[10px] max-md:before:uppercase text-right font-mono tabular-nums">{fmt(v.subsGained)}</td>
+                          <td data-label="Video" className="py-1.5 px-2 border-b border-[var(--line)] max-md:flex max-md:justify-between max-md:gap-3 max-md:py-1 max-md:px-0 max-md:border-0 max-md:text-right max-md:before:content-[attr(data-label)] max-md:before:text-[var(--mute)] max-md:before:text-left max-md:before:font-mono max-md:before:text-micro max-md:before:uppercase max-w-[320px]"><a href={v.url} target="_blank" rel="noopener noreferrer" className="font-semibold hover:underline line-clamp-1">{v.title}</a></td>
+                          <td data-label="Published" className="py-1.5 px-2 border-b border-[var(--line)] max-md:flex max-md:justify-between max-md:gap-3 max-md:py-1 max-md:px-0 max-md:border-0 max-md:text-right max-md:before:content-[attr(data-label)] max-md:before:text-[var(--mute)] max-md:before:text-left max-md:before:font-mono max-md:before:text-micro max-md:before:uppercase whitespace-nowrap">{day(v.publishedAt)}{v.inWindow && <span className="ml-1 font-mono text-micro px-1 rounded" style={{ background: "var(--blue-soft)", color: "var(--blue-on)" }}>new</span>}</td>
+                          <td data-label="Type" className="py-1.5 px-2 border-b border-[var(--line)] max-md:flex max-md:justify-between max-md:gap-3 max-md:py-1 max-md:px-0 max-md:border-0 max-md:text-right max-md:before:content-[attr(data-label)] max-md:before:text-[var(--mute)] max-md:before:text-left max-md:before:font-mono max-md:before:text-micro max-md:before:uppercase">{v.isShort == null ? "—" : v.isShort ? "Short" : fmtDur(v.durationSec)}</td>
+                          <td data-label="Views" className="py-1.5 px-2 border-b border-[var(--line)] max-md:flex max-md:justify-between max-md:gap-3 max-md:py-1 max-md:px-0 max-md:border-0 max-md:text-right max-md:before:content-[attr(data-label)] max-md:before:text-[var(--mute)] max-md:before:text-left max-md:before:font-mono max-md:before:text-micro max-md:before:uppercase text-right font-mono tabular-nums" title={v.reportPending ? "Uploaded inside YouTube Analytics' ~2-day lag — not reported yet, not zero" : undefined}>{v.reportPending ? "—" : fmt(v.views)}</td>
+                          <td data-label="Views/hr" className="py-1.5 px-2 border-b border-[var(--line)] max-md:flex max-md:justify-between max-md:gap-3 max-md:py-1 max-md:px-0 max-md:border-0 max-md:text-right max-md:before:content-[attr(data-label)] max-md:before:text-[var(--mute)] max-md:before:text-left max-md:before:font-mono max-md:before:text-micro max-md:before:uppercase text-right font-mono tabular-nums" title={v.lifetimeViews != null ? `${fmt(v.lifetimeViews)} lifetime views` : "no lifetime count"}>{fmtVph(v.viewsPerHour)}</td>
+                          <td data-label="Watched" className="py-1.5 px-2 border-b border-[var(--line)] max-md:flex max-md:justify-between max-md:gap-3 max-md:py-1 max-md:px-0 max-md:border-0 max-md:text-right max-md:before:content-[attr(data-label)] max-md:before:text-[var(--mute)] max-md:before:text-left max-md:before:font-mono max-md:before:text-micro max-md:before:uppercase text-right font-mono tabular-nums">{v.avgViewPct == null ? "—" : `${Math.round(v.avgViewPct)}%`}</td>
+                          <td data-label="Avg view" className="py-1.5 px-2 border-b border-[var(--line)] max-md:flex max-md:justify-between max-md:gap-3 max-md:py-1 max-md:px-0 max-md:border-0 max-md:text-right max-md:before:content-[attr(data-label)] max-md:before:text-[var(--mute)] max-md:before:text-left max-md:before:font-mono max-md:before:text-micro max-md:before:uppercase text-right font-mono tabular-nums">{fmtDur(v.avgViewSec)}</td>
+                          <td data-label="Likes" className="py-1.5 px-2 border-b border-[var(--line)] max-md:flex max-md:justify-between max-md:gap-3 max-md:py-1 max-md:px-0 max-md:border-0 max-md:text-right max-md:before:content-[attr(data-label)] max-md:before:text-[var(--mute)] max-md:before:text-left max-md:before:font-mono max-md:before:text-micro max-md:before:uppercase text-right font-mono tabular-nums">{fmt(v.likes)}</td>
+                          <td data-label="Comments" className="py-1.5 px-2 border-b border-[var(--line)] max-md:flex max-md:justify-between max-md:gap-3 max-md:py-1 max-md:px-0 max-md:border-0 max-md:text-right max-md:before:content-[attr(data-label)] max-md:before:text-[var(--mute)] max-md:before:text-left max-md:before:font-mono max-md:before:text-micro max-md:before:uppercase text-right font-mono tabular-nums">{fmt(v.comments)}</td>
+                          <td data-label="Subs +" className="py-1.5 px-2 border-b border-[var(--line)] max-md:flex max-md:justify-between max-md:gap-3 max-md:py-1 max-md:px-0 max-md:border-0 max-md:text-right max-md:before:content-[attr(data-label)] max-md:before:text-[var(--mute)] max-md:before:text-left max-md:before:font-mono max-md:before:text-micro max-md:before:uppercase text-right font-mono tabular-nums">{fmt(v.subsGained)}</td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
-                  {a.videos.length > shown.length && <p className="text-[11px] text-[var(--mute)] mt-2 mb-0">Top {shown.length} of {a.videos.length} by views. Ask the assistant for the rest.</p>}
+                  {a.videos.length > shown.length && <p className="text-2xs text-[var(--mute)] mt-2 mb-0">Top {shown.length} of {a.videos.length} by views. Ask the assistant for the rest.</p>}
                 </div>
-                <p className="text-[11px] text-[var(--mute)]">
+                <p className="text-2xs text-[var(--mute)]">
                   Not on this page because YouTube doesn&apos;t expose them: impressions and impressions click-through rate (YouTube Studio only), and estimated revenue (a separate monetary consent the connection doesn&apos;t ask for). Everything above is measured; a dash means YouTube reported no figure, not zero.
                 </p>
               </>

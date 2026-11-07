@@ -13,9 +13,9 @@ import { CsvButton } from "@/components/CsvButton";
 // a column is dashes, so a blank is never read as "nothing happened".
 
 const dash = <span className="text-[var(--mute)]" title="Not measured">—</span>;
-const th = "py-1.5 px-2 font-mono text-[9px] uppercase tracking-wider border-b-2 border-[var(--line)]";
+const th = "py-1.5 px-2 font-mono text-micro uppercase tracking-wider border-b-2 border-[var(--line)]";
 // Below md each Topic is a card of label: value rows (E-MEA-20) — `data-label` on each cell names it.
-const td = "py-1.5 px-2 border-b border-[var(--line)] align-top max-md:flex max-md:justify-between max-md:gap-3 max-md:py-1 max-md:px-0 max-md:border-0 max-md:text-right max-md:before:content-[attr(data-label)] max-md:before:text-[var(--mute)] max-md:before:text-left max-md:before:font-mono max-md:before:text-[10px] max-md:before:uppercase";
+const td = "py-1.5 px-2 border-b border-[var(--line)] align-top max-md:flex max-md:justify-between max-md:gap-3 max-md:py-1 max-md:px-0 max-md:border-0 max-md:text-right max-md:before:content-[attr(data-label)] max-md:before:text-[var(--mute)] max-md:before:text-left max-md:before:font-mono max-md:before:text-micro max-md:before:uppercase";
 const n = (v: number | null, suffix = "") => (v == null ? dash : <span className="font-mono tabular-nums">{v.toLocaleString()}{suffix}</span>);
 
 export default async function MeasureTopicsPage({ searchParams }: { searchParams: Promise<RangeInput> }) {
@@ -93,13 +93,13 @@ export default async function MeasureTopicsPage({ searchParams }: { searchParams
                   <tr key={r.id} className="max-md:block max-md:border-b max-md:border-[var(--line)] max-md:py-2" style={r.status !== "active" ? { opacity: 0.6 } : undefined}>
                     <td data-label="Topic" className={td}>
                       <Link href={`/ideas/topics/${r.id}`} className="font-semibold hover:underline">{r.name}</Link>
-                      {r.status !== "active" && <span className="ml-1 font-mono text-[9px] uppercase text-[var(--mute)]">archived</span>}
+                      {r.status !== "active" && <span className="ml-1 font-mono text-micro uppercase text-[var(--mute)]">archived</span>}
                     </td>
                     <td data-label="Articles out / made" className={`${td} text-right font-mono tabular-nums`}>{r.articles.published} / {r.articles.made}</td>
                     <td data-label="Article position" className={`${td} text-right`}>{r.articles.position == null ? dash : <span className="font-mono tabular-nums" title={`over ${r.articles.positionN} article${r.articles.positionN === 1 ? "" : "s"}`}>{r.articles.position}</span>}</td>
                     <td data-label="Search clicks" className={`${td} text-right`}>{n(r.articles.clicks)}</td>
                     <td data-label="Renders" className={`${td} text-right font-mono tabular-nums`}>{r.video.renders}</td>
-                    <td data-label="YouTube views (90 days)" className={`${td} text-right`}>{r.video.views == null ? dash : <span className="font-mono tabular-nums" data-video-basis={r.video.matched ? "kw" : "linked"} title={[r.video.linked ? `${r.video.linked} linked upload${r.video.linked === 1 ? "" : "s"}` : "", r.video.matched ? `${r.video.matched} matched by keyword` : ""].filter(Boolean).join(" + ")}>{r.video.views.toLocaleString()}{r.video.matched > 0 && <span className="text-[9px] text-[var(--mute)] ml-1">kw</span>}</span>}</td>
+                    <td data-label="YouTube views (90 days)" className={`${td} text-right`}>{r.video.views == null ? dash : <span className="font-mono tabular-nums" data-video-basis={r.video.matched ? "kw" : "linked"} title={[r.video.linked ? `${r.video.linked} linked upload${r.video.linked === 1 ? "" : "s"}` : "", r.video.matched ? `${r.video.matched} matched by keyword` : ""].filter(Boolean).join(" + ")}>{r.video.views.toLocaleString()}{r.video.matched > 0 && <span className="text-micro text-[var(--mute)] ml-1">kw</span>}</span>}</td>
                     <td data-label="Retention" className={`${td} text-right`}>{n(r.video.avgViewPct, "%")}</td>
                     <td data-label="Social out / made" className={`${td} text-right font-mono tabular-nums`}>{r.social.posted} / {r.social.posts}</td>
                     <td data-label="Engagement" className={`${td} text-right`}>{r.social.engagement == null ? dash : <span className="font-mono tabular-nums" title={`${r.social.n} reading${r.social.n === 1 ? "" : "s"}`}>{r.social.engagement.toLocaleString()}</span>}</td>
@@ -110,7 +110,7 @@ export default async function MeasureTopicsPage({ searchParams }: { searchParams
               </tbody>
             </table>
           </div>
-          <div className="text-[10px] text-[var(--mute)] mt-3 flex flex-col gap-1">
+          <div className="text-micro text-[var(--mute)] mt-3 flex flex-col gap-1">
             <p className="m-0">A dash is not measured, never zero. YouTube numbers are a project&apos;s own linked upload (link it on the project&apos;s page); <span className="font-mono">kw</span> marks a figure that also counts videos no project claims whose titles match the Topic&apos;s name or phrases.</p>
             {m.notes.articles && <p className="m-0">Articles: {m.notes.articles}</p>}
             {m.notes.video && <p className="m-0">Video: {m.notes.video}</p>}

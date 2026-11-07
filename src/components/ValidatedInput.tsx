@@ -42,7 +42,7 @@ export function ValidatedInput({ label, errorMessage, className = "", labelClass
         className={className + (showError ? " !border-[var(--rose)]" : "")}
       />
       {showError && (
-        <span id={errId} role="alert" className="text-[11px] text-[var(--rose)]">{msg}</span>
+        <span id={errId} role="alert" className="text-2xs text-[var(--rose)]">{msg}</span>
       )}
     </div>
   );

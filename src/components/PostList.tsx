@@ -84,8 +84,8 @@ export async function PostList({
   return (
     <div>
       <div className="flex items-baseline gap-3 flex-wrap mb-3">
-        <h1 className="font-mono text-[22px] font-bold m-0">{TITLES[tab].title}</h1>
-        <p className="text-[13px] text-[var(--mute)] m-0" data-list-sentence>{sentence}</p>
+        <h1 className="font-mono text-2xl font-bold m-0">{TITLES[tab].title}</h1>
+        <p className="text-sm text-[var(--mute)] m-0" data-list-sentence>{sentence}</p>
       </div>
       {flash.ok && <Banner kind="ok" text={flash.ok} />}
       {flash.err && <Banner kind="err" text={flash.err} />}
@@ -162,13 +162,13 @@ export async function PostList({
             <thead className="max-md:hidden">
               <tr className="text-left text-[var(--mute)]">
                 {editor && tab !== "sent" && <th className="py-2 px-2 w-6 border-b-2 border-[var(--line)]" />}
-                <th className="py-2 px-2 font-mono text-[9px] uppercase tracking-wider border-b-2 border-[var(--line)]">Attachments</th>
-                <th className="py-2 px-2 font-mono text-[9px] uppercase tracking-wider border-b-2 border-[var(--line)]">Message</th>
-                <th className="py-2 px-2 font-mono text-[9px] uppercase tracking-wider border-b-2 border-[var(--line)]">Category</th>
-                <th className="py-2 px-2 font-mono text-[9px] uppercase tracking-wider border-b-2 border-[var(--line)]">{tab === "sent" ? "Result" : "Type"}</th>
-                <th className="py-2 px-2 font-mono text-[9px] uppercase tracking-wider border-b-2 border-[var(--line)]">{tab === "sent" ? "Posted on" : tab === "queue" ? "Post on" : "Networks"}</th>
-                {tab === "sent" && <th className="py-2 px-2 font-mono text-[9px] uppercase tracking-wider border-b-2 border-[var(--line)] text-right" title="Impressions · engagement (likes, comments, shares, saves) · clicks — the latest reading of each network, summed">Results</th>}
-                <th className="py-2 px-2 font-mono text-[9px] uppercase tracking-wider border-b-2 border-[var(--line)] text-right">Actions</th>
+                <th className="py-2 px-2 font-mono text-micro uppercase tracking-wider border-b-2 border-[var(--line)]">Attachments</th>
+                <th className="py-2 px-2 font-mono text-micro uppercase tracking-wider border-b-2 border-[var(--line)]">Message</th>
+                <th className="py-2 px-2 font-mono text-micro uppercase tracking-wider border-b-2 border-[var(--line)]">Category</th>
+                <th className="py-2 px-2 font-mono text-micro uppercase tracking-wider border-b-2 border-[var(--line)]">{tab === "sent" ? "Result" : "Type"}</th>
+                <th className="py-2 px-2 font-mono text-micro uppercase tracking-wider border-b-2 border-[var(--line)]">{tab === "sent" ? "Posted on" : tab === "queue" ? "Post on" : "Networks"}</th>
+                {tab === "sent" && <th className="py-2 px-2 font-mono text-micro uppercase tracking-wider border-b-2 border-[var(--line)] text-right" title="Impressions · engagement (likes, comments, shares, saves) · clicks — the latest reading of each network, summed">Results</th>}
+                <th className="py-2 px-2 font-mono text-micro uppercase tracking-wider border-b-2 border-[var(--line)] text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="max-md:block">
@@ -194,29 +194,29 @@ export async function PostList({
                     {editor && tab !== "sent" && (
                       <td className="py-2 px-2 max-md:p-0"><input type="checkbox" name="ids" value={p.id} form="bulk" aria-label="Select this post" /></td>
                     )}
-                    <td className="py-2 px-2 w-24 max-md:p-0 max-md:w-auto">{listKeys(p.mediaKeys).length ? <MediaThumbs keys={listKeys(p.mediaKeys).slice(0, 1)} size="h-16 w-16" /> : <span className="text-[10px] text-[var(--mute)]">—</span>}</td>
+                    <td className="py-2 px-2 w-24 max-md:p-0 max-md:w-auto">{listKeys(p.mediaKeys).length ? <MediaThumbs keys={listKeys(p.mediaKeys).slice(0, 1)} size="h-16 w-16" /> : <span className="text-micro text-[var(--mute)]">—</span>}</td>
                     <td className="py-2 px-2 md:min-w-72 max-w-xl max-md:p-0 max-md:basis-full max-md:order-first">
                       <p className="m-0 whitespace-pre-wrap line-clamp-4 leading-snug">{p.text || <span className="text-[var(--mute)]">(no text)</span>}</p>
-                      <p className="m-0 mt-1 text-[10px] text-[var(--mute)]">
+                      <p className="m-0 mt-1 text-micro text-[var(--mute)]">
                         Added {formatInZone(p.createdAt, tz)}{addedBy ? ` · by ${addedBy}` : ""} · {SOURCES.find((s) => s.value === source)?.label}
                         {p.campaign && <> · campaign <Link href={`/social/campaigns/${p.campaign.id}`} className="hover:underline">{p.campaign.name}</Link></>}
                         {p.topic && <> · {p.topic.name}</>}
                       </p>
                       {tab === "sent" && p.targets.some((t) => t.status === "failed") && (
-                        <p className="m-0 mt-1 text-[10px]" style={{ color: "var(--rose-on)" }}>
+                        <p className="m-0 mt-1 text-micro" style={{ color: "var(--rose-on)" }}>
                           {p.targets.filter((t) => t.status === "failed").map((t) => `${networkFor(t.provider)?.label ?? t.provider}: ${(t.error ?? "failed").slice(0, 120)}`).join(" · ")}
                         </p>
                       )}
                     </td>
-                    <td className="py-2 px-2 whitespace-nowrap max-md:p-0">{p.category ? <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "var(--green-soft)", color: "var(--green-on)" }}>{p.category}</span> : <span className="text-[var(--mute)]">—</span>}</td>
+                    <td className="py-2 px-2 whitespace-nowrap max-md:p-0">{p.category ? <span className="font-mono text-micro px-1.5 py-0.5 rounded-full" style={{ background: "var(--green-soft)", color: "var(--green-on)" }}>{p.category}</span> : <span className="text-[var(--mute)]">—</span>}</td>
                     <td className="py-2 px-2 whitespace-nowrap max-md:p-0">
-                      <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: st.bg, color: st.fg }}>{typeLabel}</span>
+                      <span className="font-mono text-micro px-1.5 py-0.5 rounded-full" style={{ background: st.bg, color: st.fg }}>{typeLabel}</span>
                       {top.ids.has(p.id) && (
-                        <span className="block mt-1 font-mono text-[10px] px-1.5 py-0.5 rounded-full w-fit" style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }} title="Among the best-engaged tenth of posts sent in the last 90 days" data-top-performer>★ Top performer</span>
+                        <span className="block mt-1 font-mono text-micro px-1.5 py-0.5 rounded-full w-fit" style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }} title="Among the best-engaged tenth of posts sent in the last 90 days" data-top-performer>★ Top performer</span>
                       )}
-                      {tab === "sent" && p.evergreen && <span className="block mt-1 font-mono text-[10px] text-[var(--mute)]" data-evergreen>evergreen · every {p.recycleEveryDays}d</span>}
+                      {tab === "sent" && p.evergreen && <span className="block mt-1 font-mono text-micro text-[var(--mute)]" data-evergreen>evergreen · every {p.recycleEveryDays}d</span>}
                       {tab === "drafts" && p.heldAt && (
-                        <span className="mt-1 font-mono text-[10px] px-1.5 py-0.5 rounded-full w-fit inline-flex items-center gap-1" style={{ background: "var(--indigo-soft)", color: "var(--indigo-on)" }} title={`Held ${formatInZone(p.heldAt, tz)} — ${fullAuto ? "the engine won't queue it" : "Queue all leaves it"}; queueing or scheduling it lets go`} data-held>
+                        <span className="mt-1 font-mono text-micro px-1.5 py-0.5 rounded-full w-fit inline-flex items-center gap-1" style={{ background: "var(--indigo-soft)", color: "var(--indigo-on)" }} title={`Held ${formatInZone(p.heldAt, tz)} — ${fullAuto ? "the engine won't queue it" : "Queue all leaves it"}; queueing or scheduling it lets go`} data-held>
                           <Lock className="w-2.5 h-2.5" /> Held
                         </span>
                       )}
@@ -227,7 +227,7 @@ export async function PostList({
                           const net = networkFor(t.provider);
                           const live = tab === "sent" && t.platformPostUrl;
                           const chip = (
-                            <span className="inline-flex items-center gap-1 font-mono text-[10px] px-1.5 py-0.5 rounded-full border" title={`${net?.label ?? t.provider}${t.accountName ? ` · ${t.accountName}` : ""}${tab === "sent" ? ` · ${t.status}` : ""}`}
+                            <span className="inline-flex items-center gap-1 font-mono text-micro px-1.5 py-0.5 rounded-full border" title={`${net?.label ?? t.provider}${t.accountName ? ` · ${t.accountName}` : ""}${tab === "sent" ? ` · ${t.status}` : ""}`}
                               style={{ borderColor: tab === "sent" && t.status === "failed" ? "var(--rose)" : "var(--line-2)" }}>
                               <span className="w-1.5 h-1.5 rounded-full" style={{ background: net?.color ?? "var(--mute)" }} />
                               {net?.label ?? t.provider}
@@ -236,20 +236,20 @@ export async function PostList({
                           );
                           return live ? <a key={t.id} href={t.platformPostUrl!} target="_blank" rel="noreferrer">{chip}</a> : <span key={t.id}>{chip}</span>;
                         })}
-                        {p.targets.length === 0 && <span className="text-[10px] text-[var(--mute)]">no account yet</span>}
+                        {p.targets.length === 0 && <span className="text-micro text-[var(--mute)]">no account yet</span>}
                       </div>
-                      {when && <span className="font-mono text-[10px] text-[var(--mute)]">{tab === "drafts" ? "proposed " : ""}{formatInZone(when, tz)}</span>}
+                      {when && <span className="font-mono text-micro text-[var(--mute)]">{tab === "drafts" ? "proposed " : ""}{formatInZone(when, tz)}</span>}
                     </td>
                     {tab === "sent" && (() => {
                       const res = results.get(p.id);
                       return (
                         <td className="py-2 px-2 whitespace-nowrap text-right max-md:p-0 max-md:text-left max-md:basis-full" data-results={p.id}>
                           {res ? (
-                            <span className="font-mono text-[11px] tabular-nums" title={`Latest reading ${formatInZone(res.measuredAt, tz)}`}>
+                            <span className="font-mono text-2xs tabular-nums" title={`Latest reading ${formatInZone(res.measuredAt, tz)}`}>
                               <b>{compact(res.impressions)}</b> <span className="text-[var(--mute)]">impr</span> · <b>{compact(res.engagement)}</b> <span className="text-[var(--mute)]">eng</span> · <b>{compact(res.clicks)}</b> <span className="text-[var(--mute)]">clicks</span>
                             </span>
                           ) : (
-                            <span className="text-[10px] text-[var(--mute)]">{p.status === "failed" ? "—" : "not measured yet"}</span>
+                            <span className="text-micro text-[var(--mute)]">{p.status === "failed" ? "—" : "not measured yet"}</span>
                           )}
                         </td>
                       );

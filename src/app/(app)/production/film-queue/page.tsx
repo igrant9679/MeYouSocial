@@ -39,7 +39,7 @@ export default async function FilmQueuePage({ searchParams }: { searchParams: Pr
   return (
     <div>
       <div className="flex items-center gap-2 mb-4">
-        <h2 className="font-mono font-bold text-lg flex items-center gap-2"><Clapperboard className="w-5 h-5" style={{ color: "#D97706" }} /> Film Queue</h2>
+        <h2 className="font-mono font-bold text-lg flex items-center gap-2"><Clapperboard className="w-5 h-5" style={{ color: "var(--amber)" }} /> Film Queue</h2>
         <span className="text-xs text-[var(--mute)]">({projects.length})</span>
         <span className="flex-1" />
         <Link href={mine === "1" ? "/production/film-queue" : "/production/film-queue?mine=1"} className="btn sm">{mine === "1" ? "All" : "My work"}</Link>
@@ -49,19 +49,19 @@ export default async function FilmQueuePage({ searchParams }: { searchParams: Pr
 
       {dayKeys.map((day) => (
         <section key={day} className="card mb-4">
-          <h3 className="font-mono text-[12px] uppercase tracking-wider text-[var(--mute)] mb-3">{day === "Unscheduled" ? day : new Date(day).toLocaleDateString(undefined, { weekday: "long", year: "numeric", month: "short", day: "numeric" })}</h3>
+          <h3 className="font-mono text-xs uppercase tracking-wider text-[var(--mute)] mb-3">{day === "Unscheduled" ? day : new Date(day).toLocaleDateString(undefined, { weekday: "long", year: "numeric", month: "short", day: "numeric" })}</h3>
           <ul className="m-0 p-0 grid grid-cols-1 md:grid-cols-2 gap-3">
             {groups.get(day)!.map((p) => (
               <li key={p.id} className="border border-[var(--line)] rounded-xl p-3">
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="w-8 h-8 rounded-lg text-white grid place-items-center text-[11px] font-mono font-bold" style={{ background: p.channel.accentColor ?? "var(--accent)" }}>{p.channel.name.slice(0, 2).toUpperCase()}</span>
+                  <span className="w-8 h-8 rounded-lg text-white grid place-items-center text-2xs font-mono font-bold" style={{ background: p.channel.accentColor ?? "var(--accent)" }}>{p.channel.name.slice(0, 2).toUpperCase()}</span>
                   <div className="flex-1 min-w-0">
                     {p.script ? (
                       <Link href={`/scripts/${p.script.id}`} className="font-semibold text-sm hover:text-[var(--accent)]">{p.title}</Link>
                     ) : (
                       <div className="font-semibold text-sm">{p.title}</div>
                     )}
-                    <div className="text-[11px] text-[var(--mute)]">{p.channel.name}</div>
+                    <div className="text-2xs text-[var(--mute)]">{p.channel.name}</div>
                   </div>
                 </div>
                 {p.assetLinks.length > 0 && (() => {
@@ -70,10 +70,10 @@ export default async function FilmQueuePage({ searchParams }: { searchParams: Pr
                   const toFilm = p.assetLinks.filter((al) => !filmed(al.asset)).length;
                   return (
                     <details className="mt-2" open={toFilm > 0} data-film-shots={toFilm}>
-                      <summary className="text-[11px] text-[var(--mute)] cursor-pointer flex items-center gap-1.5">
+                      <summary className="text-2xs text-[var(--mute)] cursor-pointer flex items-center gap-1.5">
                         <Film className="w-3 h-3" /> Shot list — {toFilm} to film{p.assetLinks.length > toFilm ? `, ${p.assetLinks.length - toFilm} done` : ""}
                       </summary>
-                      <ul className="m-0 p-0 mt-1.5 text-[11px]">
+                      <ul className="m-0 p-0 mt-1.5 text-2xs">
                         {p.assetLinks.map((al) => {
                           const sec = al.asset.source === SHOT_SOURCE ? shotSection(al.asset.tags) : "";
                           return (

@@ -57,11 +57,11 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
           {rows.map((j) => (
             <li key={j.id} className="card !py-2.5" data-job={j.id} data-job-state={j.state}>
               <div className="flex flex-wrap items-center gap-2">
-                <span className="font-mono text-[10px] uppercase px-1.5 py-0.5 rounded-full" style={{ background: STATE_STYLE[j.state]?.bg, color: STATE_STYLE[j.state]?.fg }}>{j.state === "queued" && j.attempts > 0 ? "retrying" : j.state}</span>
+                <span className="font-mono text-micro uppercase px-1.5 py-0.5 rounded-full" style={{ background: STATE_STYLE[j.state]?.bg, color: STATE_STYLE[j.state]?.fg }}>{j.state === "queued" && j.attempts > 0 ? "retrying" : j.state}</span>
                 <span className="font-semibold text-sm">{j.label}</span>
-                <span className="font-mono text-[10px] text-[var(--mute)]" title="Attempts so far, of the most it gets">try {j.attempts}/{j.maxAttempts}</span>
+                <span className="font-mono text-micro text-[var(--mute)]" title="Attempts so far, of the most it gets">try {j.attempts}/{j.maxAttempts}</span>
                 <span className="flex-1" />
-                <span className="text-[11px] text-[var(--mute)]">
+                <span className="text-2xs text-[var(--mute)]">
                   {j.finishedAt ? `ended ${formatZonedMoment(j.finishedAt, tz)}` : j.waiting && j.runAfter ? `next try ${formatZonedMoment(j.runAfter, tz)}` : `queued ${formatZonedMoment(j.createdAt, tz)}`}
                 </span>
                 {j.state === "failed" && (
@@ -77,8 +77,8 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
                   </form>
                 )}
               </div>
-              {j.error && <p className="text-[11px] m-0 mt-1 break-words" style={{ color: j.state === "failed" ? "var(--rose-on)" : "var(--mute)" }}>{j.state === "queued" ? "Last try: " : ""}{j.error}</p>}
-              {j.state === "running" && <p className="text-[11px] m-0 mt-1 text-[var(--mute)]">{Math.round(j.progress * 100)}%{j.lastLog ? ` — ${j.lastLog}` : ""}</p>}
+              {j.error && <p className="text-2xs m-0 mt-1 break-words" style={{ color: j.state === "failed" ? "var(--rose-on)" : "var(--mute)" }}>{j.state === "queued" ? "Last try: " : ""}{j.error}</p>}
+              {j.state === "running" && <p className="text-2xs m-0 mt-1 text-[var(--mute)]">{Math.round(j.progress * 100)}%{j.lastLog ? ` — ${j.lastLog}` : ""}</p>}
             </li>
           ))}
         </ul>

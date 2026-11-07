@@ -16,9 +16,10 @@
     "check:routes": "tsx scripts/check-routes.mts",
     "check:help": "tsx scripts/check-help-copy.mts",
     "eval:assistant": "tsx scripts/assistant-eval.mts",
-    "prebuild": "tsx scripts/check-routes.mts && tsx scripts/check-guide-anchors.mts && tsx scripts/check-css-vars.mts && tsx scripts/check-help-copy.mts",
+    "prebuild": "tsx scripts/check-routes.mts && tsx scripts/check-guide-anchors.mts && tsx scripts/check-css-vars.mts && tsx scripts/check-type-colors.mts && tsx scripts/check-help-copy.mts",
     "postbuild": "tsx scripts/check-bundle.mts",
     "check:bundle": "tsx scripts/check-bundle.mts",
+    "check:type-colors": "tsx scripts/check-type-colors.mts",
     "postinstall": "prisma generate"
   },
   "prisma": {

@@ -49,7 +49,7 @@ export default async function ChannelAudiencePage({ params, searchParams }: { pa
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
       <aside className="card">
-        <h2 className="font-mono text-[15px] mb-3">Audience photo</h2>
+        <h2 className="font-mono text-sm mb-3">Audience photo</h2>
         {audience.photoUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={audience.photoUrl} alt="Audience" className="w-full aspect-square object-cover rounded-xl mb-3" />
@@ -81,11 +81,11 @@ export default async function ChannelAudiencePage({ params, searchParams }: { pa
           const value = readJson<{ summary?: string; placeholder?: boolean }>(audience[s.key] as string, {});
           return (
             <section key={s.key} className="card">
-              <h2 className="font-mono text-[15px] mb-3">{s.label}</h2>
+              <h2 className="font-mono text-sm mb-3">{s.label}</h2>
               {/* The onboarding baseline is generic text, not research about this
                   audience — say so until a generation or a person replaces it. */}
               {value.placeholder && (
-                <p className="text-[11px] mb-2" style={{ color: "var(--amber-on)" }}>
+                <p className="text-2xs mb-2" style={{ color: "var(--amber-on)" }}>
                   Placeholder — generic text, not drawn from this channel. Refresh the avatar or write your own.
                 </p>
               )}
@@ -108,7 +108,7 @@ export default async function ChannelAudiencePage({ params, searchParams }: { pa
         })}
 
         <section className="card">
-          <h2 className="font-mono text-[15px] mb-3">Key questions they ask</h2>
+          <h2 className="font-mono text-sm mb-3">Key questions they ask</h2>
           <form action={updateAudienceSectionAction} className="flex flex-col gap-2">
             <input type="hidden" name="channelId" value={id} />
             <input type="hidden" name="section" value="keyQuestions" />

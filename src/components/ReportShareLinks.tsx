@@ -26,7 +26,7 @@ export async function ReportShareLinks({ workspaceId, reportKey }: { workspaceId
     <details className="card mb-4" id="share" data-share-links="" open={open.length > 0}>
       <summary className="cursor-pointer select-none text-sm font-semibold flex items-center gap-2 flex-wrap">
         <Link2 className="w-4 h-4" /> Share a read-only link
-        <span className="font-mono text-[10px] font-normal text-[var(--mute)]">{open.length ? `${open.length} open` : "none open"}</span>
+        <span className="font-mono text-micro font-normal text-[var(--mute)]">{open.length ? `${open.length} open` : "none open"}</span>
       </summary>
       <p className="text-xs text-[var(--mute)] mt-2">
         For a client without an account: this report only, read-only, in your brand colour and logo, with its PDF. It closes on its date or when you turn it off.
@@ -52,7 +52,7 @@ export async function ReportShareLinks({ workspaceId, reportKey }: { workspaceId
                     </form>
                   )}
                 </div>
-                {live && <input readOnly value={url} className="mt-1.5 w-full font-code text-[11px]" aria-label="The link to copy" data-share-url="" />}
+                {live && <input readOnly value={url} className="mt-1.5 w-full font-code text-2xs" aria-label="The link to copy" data-share-url="" />}
               </li>
             );
           })}

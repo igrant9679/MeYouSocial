@@ -220,7 +220,7 @@ html[data-theme="dark"] .ws-brand {
           className="flex items-center justify-center @6xl:justify-start gap-2.5 px-0 @6xl:px-2 py-1.5 mb-2 rounded-xl"
           title={isBranded ? `${workspace.name} on ${PRODUCT} · Inbox` : `${PRODUCT} · Inbox`}
         >
-          <span className="flex-shrink-0 shadow-lg shadow-[#15181D]/25 rounded-xl">
+          <span className="flex-shrink-0 shadow-lg shadow-ink/25 rounded-xl">
             {logoUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={logoUrl} alt={`${workspace.name} logo`} width={38} height={38} className="w-[38px] h-[38px] rounded-xl object-cover" />
@@ -229,11 +229,11 @@ html[data-theme="dark"] .ws-brand {
             )}
           </span>
           <span className="hidden @6xl:flex flex-col min-w-0">
-            <span className="font-mono font-bold text-[17px] tracking-tight truncate max-w-[160px] leading-tight">{brandName}</span>
+            <span className="font-mono font-bold text-base tracking-tight truncate max-w-[160px] leading-tight">{brandName}</span>
             {/* The product byline — "Publisher" under the family wordmark, or the
                 full product name under a tenant's own name. Hidden with the
                 wordmark when the rail collapses to icons; there is no room. */}
-            <span className="flex items-center gap-1 text-[10px] font-mono uppercase tracking-wider text-[var(--mute)] leading-tight mt-0.5">
+            <span className="flex items-center gap-1 text-micro font-mono uppercase tracking-wider text-[var(--mute)] leading-tight mt-0.5">
               {isBranded && <BrandLogo size={11} />} {byline}
             </span>
           </span>
@@ -251,7 +251,7 @@ html[data-theme="dark"] .ws-brand {
           >
             <span
               className="w-7 h-7 rounded-lg text-white grid place-items-center flex-shrink-0"
-              style={{ background: "linear-gradient(135deg,#E5482F,#6D28D9)" }}
+              style={{ background: "linear-gradient(135deg,var(--brand),var(--violet))" }}
               aria-hidden
             >
               <User className="w-[16px] h-[16px]" strokeWidth={2.25} />
@@ -307,7 +307,7 @@ html[data-theme="dark"] .ws-brand {
               />
             </form>
           ) : (
-            <Link href="/channels" className="font-mono font-bold text-[15px] tracking-tight hover:text-[var(--accent)] transition truncate max-w-[40vw] md:max-w-[200px] @6xl:max-w-none" title="Manage workspace channels">
+            <Link href="/channels" className="font-mono font-bold text-sm tracking-tight hover:text-[var(--accent)] transition truncate max-w-[40vw] md:max-w-[200px] @6xl:max-w-none" title="Manage workspace channels">
               {workspace.name}
             </Link>
           )}
@@ -347,15 +347,19 @@ html[data-theme="dark"] .ws-brand {
           <ShellPoll initial={{ workspaceId: workspace.id, events: ticker, state: engineState, unread, counts }} />
           {/* A switch in another tab makes this page stale — saving would go to the other company (E-SEC-13). */}
           <WorkspaceGuard name={workspace.name} />
-          {/* Role, email, settings and sign-out behind the avatar (E-SHL-04). */}
-          <AccountMenu
-            initials={initialsOf(user.name ?? user.email)}
-            name={user.name ?? user.email.split("@")[0]}
-            email={user.email}
-            role={membership.role}
-            workspaceName={workspace.name}
-            signOutAction={signOutAction}
-          />
+          {/* Role, email, settings and sign-out behind the avatar (E-SHL-04).
+              Not on phones: the drawer has Settings and Sign out, and at 375 px
+              the avatar wrapped onto a second header line (part cz). */}
+          <div className="hidden md:contents">
+            <AccountMenu
+              initials={initialsOf(user.name ?? user.email)}
+              name={user.name ?? user.email.split("@")[0]}
+              email={user.email}
+              role={membership.role}
+              workspaceName={workspace.name}
+              signOutAction={signOutAction}
+            />
+          </div>
         </header>
 
         {/* The pause, on every page (E-ENG-14): the pill said "Paused" in grey type

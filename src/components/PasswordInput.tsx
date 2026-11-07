@@ -16,7 +16,7 @@ export function PasswordInput({
   const [shown, setShown] = useState(false);
   return (
     <label className="flex flex-col gap-1">
-      <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">{label}</span>
+      <span className="text-micro font-mono uppercase tracking-wider text-[var(--mute)]">{label}</span>
       <span className="flex items-center gap-1.5">
         <input
           name={name}

@@ -36,7 +36,7 @@ export default async function OnboardingStartPage({ searchParams }: { searchPara
       {drafts.length > 0 && (
         <section className="card mt-5" data-draft-channels>
           <div className="flex items-center gap-2 mb-2">
-            <h2 className="font-mono font-bold text-[13px] m-0">Unfinished channels ({drafts.length})</h2>
+            <h2 className="font-mono font-bold text-sm m-0">Unfinished channels ({drafts.length})</h2>
             <span className="flex-1" />
             {admin && stale > 0 && (
               <form action={clearStaleDraftChannelsAction}>
@@ -48,14 +48,14 @@ export default async function OnboardingStartPage({ searchParams }: { searchPara
             {drafts.map((d) => (
               <li key={d.id} className="border-t border-[var(--line)] first:border-t-0 py-1.5 flex flex-wrap items-center gap-2 text-sm" data-draft={d.id}>
                 <span className="font-semibold flex-1 min-w-0 truncate">{d.name}</span>
-                <span className="text-[11px] text-[var(--mute)]">started {formatDay(d.createdAt)}</span>
+                <span className="text-2xs text-[var(--mute)]">started {formatDay(d.createdAt)}</span>
                 <Link href={d.resume} className="btn sm">Resume →</Link>
                 {d.empty ? (
                   <form action={discardDraftChannelAction}>
                     <input type="hidden" name="channelId" value={d.id} />
                     <SubmitButton className="btn sm" pendingText="Discarding…">Discard</SubmitButton>
                   </form>
-                ) : <span className="text-[11px] text-[var(--mute)]" title="It has content on it">an admin deletes it from its settings</span>}
+                ) : <span className="text-2xs text-[var(--mute)]" title="It has content on it">an admin deletes it from its settings</span>}
               </li>
             ))}
           </ul>

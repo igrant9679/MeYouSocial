@@ -42,9 +42,9 @@ export default async function RolesPage() {
         <table className="w-full text-xs border-collapse">
           <thead>
             <tr className="text-left text-[var(--mute)]">
-              <th className="py-2 px-2 font-mono text-[9px] uppercase tracking-wider border-b-2 border-[var(--line)]">What</th>
+              <th className="py-2 px-2 font-mono text-micro uppercase tracking-wider border-b-2 border-[var(--line)]">What</th>
               {ROLES.map((r) => (
-                <th key={r} className="py-2 px-2 font-mono text-[9px] uppercase tracking-wider border-b-2 border-[var(--line)] text-center" style={r === mine ? { color: "var(--ink)" } : undefined}>
+                <th key={r} className="py-2 px-2 font-mono text-micro uppercase tracking-wider border-b-2 border-[var(--line)] text-center" style={r === mine ? { color: "var(--ink)" } : undefined}>
                   {LABEL[r]}{r === mine ? " (you)" : ""}
                 </th>
               ))}
@@ -53,7 +53,7 @@ export default async function RolesPage() {
           <tbody>
             {CAPABILITIES.map((c) => (
               <tr key={c.what} className="border-b border-[var(--line)] last:border-0 align-top">
-                <td className="py-1.5 px-2">{c.what}{c.note && <span className="block text-[10px] text-[var(--mute)]">{c.note}</span>}</td>
+                <td className="py-1.5 px-2">{c.what}{c.note && <span className="block text-micro text-[var(--mute)]">{c.note}</span>}</td>
                 {ROLES.map((r) => (
                   <td key={r} className="py-1.5 px-2 text-center" aria-label={RANK[r] >= RANK[c.needs] ? `${LABEL[r]}: yes` : `${LABEL[r]}: no`}>
                     {RANK[r] >= RANK[c.needs]
@@ -68,18 +68,18 @@ export default async function RolesPage() {
       </div>
 
       <h2 className="font-mono font-bold text-sm mb-1">Pages a role is needed for</h2>
-      <p className="text-[11px] text-[var(--mute)] mb-2">Everything else is open to every member. Links to these pages say who can act instead of sending you to a refusal.</p>
+      <p className="text-2xs text-[var(--mute)] mb-2">Everything else is open to every member. Links to these pages say who can act instead of sending you to a refusal.</p>
       <div className="grid sm:grid-cols-2 gap-3 text-xs">
         {(["ADMIN", "EDITOR"] as const).map((r) => (
           <div key={r} className="card">
             <b>{LABEL[r]}{r === "EDITOR" ? " and admin" : ""}</b>
-            <ul className="m-0 mt-1 pl-4 font-mono text-[11px] text-[var(--mute)]">
+            <ul className="m-0 mt-1 pl-4 font-mono text-2xs text-[var(--mute)]">
               {ROLE_PAGES[r].map((p) => <li key={p}>{p}{p.endsWith("/") ? "" : p.includes("<") ? "" : " and below"}</li>)}
             </ul>
           </div>
         ))}
       </div>
-      <p className="text-[11px] text-[var(--mute)] mt-3">Above every workspace is the platform operator: they make and delete workspaces, give shared mailboxes and Zernio profiles to the right one, and can declare a security incident that signs everyone out. An assigned account or a declared incident is recorded in each affected workspace&apos;s audit log, and its admins are told.</p>
+      <p className="text-2xs text-[var(--mute)] mt-3">Above every workspace is the platform operator: they make and delete workspaces, give shared mailboxes and Zernio profiles to the right one, and can declare a security incident that signs everyone out. An assigned account or a declared incident is recorded in each affected workspace&apos;s audit log, and its admins are told.</p>
     </main>
   );
 }

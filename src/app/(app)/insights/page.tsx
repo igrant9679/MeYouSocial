@@ -47,14 +47,14 @@ function formatValue(m: Metric): string {
 
 /** The previous period beside a figure (E-MEA-01): an arrow and the change, only where both were measured. */
 function CompareLine({ m, prev, label }: { m: Metric; prev: Metric | null; label: string }) {
-  if (NOT_RANGED.has(m.key)) return <p className="text-[10px] text-[var(--mute)] m-0">Not compared — this one reads now, not the range.</p>;
+  if (NOT_RANGED.has(m.key)) return <p className="text-micro text-[var(--mute)] m-0">Not compared — this one reads now, not the range.</p>;
   if (!prev || prev.value === null || m.value === null) {
-    return <p className="text-[10px] text-[var(--mute)] m-0">{label}: {prev && prev.value !== null ? formatValue(prev) : "not measured"}</p>;
+    return <p className="text-micro text-[var(--mute)] m-0">{label}: {prev && prev.value !== null ? formatValue(prev) : "not measured"}</p>;
   }
   const d = Math.round((m.value - prev.value) * 10) / 10;
   const unit = m.unit === "percent" ? " pts" : m.unit === "days" ? "d" : "";
   return (
-    <p className="text-[10px] m-0 font-mono" style={{ color: "var(--slate)" }} title={`${label}: ${formatValue(prev)}`}>
+    <p className="text-micro m-0 font-mono" style={{ color: "var(--slate)" }} title={`${label}: ${formatValue(prev)}`}>
       {d > 0 ? "▲" : d < 0 ? "▼" : "="} {d === 0 ? "no change" : `${Math.abs(d)}${unit}`} vs the {label} ({formatValue(prev)})
     </p>
   );
@@ -77,9 +77,9 @@ function MetricCard({ m, reasonInBanner = false, cmp }: { m: Metric; reasonInBan
   return (
     <div className="rounded-xl border border-[var(--line)] p-3 flex flex-col gap-1">
       <div className="flex items-start gap-2">
-        <span className="text-[11px] text-[var(--mute)] flex-1 leading-tight">{m.label}</span>
+        <span className="text-2xs text-[var(--mute)] flex-1 leading-tight">{m.label}</span>
         {m.source !== "owned" && (
-          <span className="font-mono text-[9px] px-1.5 py-0.5 rounded-full shrink-0" style={{ background: "var(--zebra)", color: "var(--mute)" }}>
+          <span className="font-mono text-micro px-1.5 py-0.5 rounded-full shrink-0" style={{ background: "var(--zebra)", color: "var(--mute)" }}>
             {m.source}
           </span>
         )}
@@ -93,7 +93,7 @@ function MetricCard({ m, reasonInBanner = false, cmp }: { m: Metric; reasonInBan
         </span>
         {showConfidence && (
           <span
-            className="font-mono text-[9px] font-bold px-1.5 py-0.5 rounded-full"
+            className="font-mono text-micro font-bold px-1.5 py-0.5 rounded-full"
             style={{ background: `var(--${CONF_HUE[m.confidence]}-soft)`, color: `var(--${CONF_HUE[m.confidence]}-on)` }}
             title="Confidence reflects how many items this number was computed from."
           >
@@ -101,7 +101,7 @@ function MetricCard({ m, reasonInBanner = false, cmp }: { m: Metric; reasonInBan
           </span>
         )}
       </div>
-      {!echoesBanner && <p className="text-[10px] text-[var(--mute)] leading-snug">{m.evidence}</p>}
+      {!echoesBanner && <p className="text-micro text-[var(--mute)] leading-snug">{m.evidence}</p>}
       {cmp && <CompareLine m={m} prev={cmp.prev} label={cmp.label} />}
     </div>
   );
@@ -199,10 +199,10 @@ export default async function InsightsPage({
 
       {/* ── Recommendations ─────────────────────────────────────────────── */}
       <div className="flex items-center gap-2 mt-4 mb-2">
-        <h2 className="font-mono text-[13px] font-bold flex-1 flex items-center gap-1.5">
+        <h2 className="font-mono text-sm font-bold flex-1 flex items-center gap-1.5">
           <Lightbulb className="w-4 h-4" /> Recommendations
           {recs.length > 0 && (
-            <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }}>
+            <span className="font-mono text-micro px-1.5 py-0.5 rounded-full" style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }}>
               {recs.length}
             </span>
           )}
@@ -233,31 +233,31 @@ export default async function InsightsPage({
             return (
               <div key={r.id} className="card" style={{ borderLeft: `3px solid var(--${hue})` }}>
                 <div className="flex flex-wrap items-center gap-2 mb-1">
-                  <span className="font-mono text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: `var(--${hue}-soft)`, color: `var(--${hue}-on)` }}>
+                  <span className="font-mono text-micro font-bold px-2 py-0.5 rounded-full" style={{ background: `var(--${hue}-soft)`, color: `var(--${hue}-on)` }}>
                     {r.severity}
                   </span>
                   <h3 className="text-sm font-semibold flex-1 min-w-40">{r.title}</h3>
                   {r.status === "accepted" && (
-                    <span className="font-mono text-[10px] px-2 py-0.5 rounded-full" style={{ background: "var(--green-soft)", color: "var(--green-on)" }}>
+                    <span className="font-mono text-micro px-2 py-0.5 rounded-full" style={{ background: "var(--green-soft)", color: "var(--green-on)" }}>
                       accepted
                     </span>
                   )}
-                  <span className="font-mono text-[10px] text-[var(--mute)]" title="Confidence is inherited from the weakest metric behind this.">
+                  <span className="font-mono text-micro text-[var(--mute)]" title="Confidence is inherited from the weakest metric behind this.">
                     {r.confidence} confidence
                   </span>
-                  <span className="font-mono text-[10px] text-[var(--mute)]" data-open-since title={formatDay(r.createdAt, tz)}>
+                  <span className="font-mono text-micro text-[var(--mute)]" data-open-since title={formatDay(r.createdAt, tz)}>
                     open {openDays(r.createdAt)}
                   </span>
                 </div>
                 <p className="text-xs mb-1.5">{r.detail}</p>
-                <p className="text-[11px] text-[var(--mute)] leading-relaxed mb-2">{r.rationale}</p>
+                <p className="text-2xs text-[var(--mute)] leading-relaxed mb-2">{r.rationale}</p>
 
                 {evidence.length > 0 && (
                   <details className="mb-2">
-                    <summary className="cursor-pointer text-[11px] text-[var(--mute)]">Evidence ({evidence.length})</summary>
+                    <summary className="cursor-pointer text-2xs text-[var(--mute)]">Evidence ({evidence.length})</summary>
                     <ul className="mt-1.5 flex flex-col gap-1">
                       {evidence.map((e) => (
-                        <li key={e.key} className="text-[11px] pl-2" style={{ borderLeft: "2px solid var(--line)" }}>
+                        <li key={e.key} className="text-2xs pl-2" style={{ borderLeft: "2px solid var(--line)" }}>
                           <b className="font-mono">{e.value === null ? "—" : e.value}</b> {e.label}
                           <span className="text-[var(--mute)]"> · n={e.sample} · {e.evidence}</span>
                         </li>
@@ -286,7 +286,7 @@ export default async function InsightsPage({
                     </form>
                     <form action={dismissRecommendationAction} className="flex items-center gap-1">
                       <input type="hidden" name="id" value={r.id} />
-                      <input name="reason" placeholder="reason (optional)" className="text-[11px] w-40" />
+                      <input name="reason" placeholder="reason (optional)" className="text-2xs w-40" />
                       <SubmitButton className="btn sm" pendingText="…">Dismiss</SubmitButton>
                     </form>
                   </div>
@@ -302,8 +302,8 @@ export default async function InsightsPage({
           <summary className="cursor-pointer text-xs text-[var(--mute)]">Recently resolved ({resolved.length})</summary>
           <ul className="mt-2 flex flex-col gap-1">
             {resolved.map((r) => (
-              <li key={r.id} className="text-[11px] flex items-start gap-2">
-                <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full shrink-0" style={{ background: "var(--zebra)", color: "var(--mute)" }}>
+              <li key={r.id} className="text-2xs flex items-start gap-2">
+                <span className="font-mono text-micro px-1.5 py-0.5 rounded-full shrink-0" style={{ background: "var(--zebra)", color: "var(--mute)" }}>
                   {r.status === "resolved" ? "cleared on its own" : r.status === "snoozed" ? `snoozed to ${formatDay(new Date(r.updatedAt.getTime() + SNOOZE_DAYS * 86_400_000), tz)}` : r.status}
                 </span>
                 <span className="flex-1">
@@ -319,12 +319,12 @@ export default async function InsightsPage({
       )}
 
       {/* Pipeline */}
-      <h2 className="font-mono text-[13px] font-bold mt-4 mb-2">Pipeline</h2>
+      <h2 className="font-mono text-sm font-bold mt-4 mb-2">Pipeline</h2>
       <div className="card mb-3">
         <div className="flex flex-col gap-2">
           {data.funnel.map((s) => (
             <div key={s.key} className="flex items-center gap-3">
-              <span className="text-[11px] text-[var(--mute)] w-36 shrink-0">{s.label}</span>
+              <span className="text-2xs text-[var(--mute)] w-36 shrink-0">{s.label}</span>
               <div className="flex-1 h-5 rounded-lg bg-[var(--panel)] overflow-hidden">
                 <div
                   className="h-full rounded-lg anim-grow"
@@ -335,7 +335,7 @@ export default async function InsightsPage({
             </div>
           ))}
         </div>
-        <p className="text-[10px] text-[var(--mute)] mt-2">
+        <p className="text-micro text-[var(--mute)] mt-2">
           Counts of items that entered each stage in the window. Stages aren&apos;t a strict cohort — an idea captured
           before this window can still publish inside it.
         </p>
@@ -345,7 +345,7 @@ export default async function InsightsPage({
       </div>
 
       {/* Momentum */}
-      <h2 className="font-mono text-[13px] font-bold mb-2">Momentum</h2>
+      <h2 className="font-mono text-sm font-bold mb-2">Momentum</h2>
       <div className="card mb-3">
         <div className="flex items-end gap-1 h-20">
           {data.cadence.map((p) => (
@@ -361,7 +361,7 @@ export default async function InsightsPage({
             </div>
           ))}
         </div>
-        <p className="text-[10px] text-[var(--mute)] mt-1.5 flex items-center gap-1">
+        <p className="text-micro text-[var(--mute)] mt-1.5 flex items-center gap-1">
           <TrendingUp className="w-3 h-3" /> Posts published per week, last 12 weeks.
         </p>
       </div>
@@ -370,10 +370,10 @@ export default async function InsightsPage({
       </div>
       {data.wip.length > 0 && (
         <div className="card mb-4">
-          <h3 className="font-mono text-[11px] font-bold mb-2">Work in progress by stage</h3>
+          <h3 className="font-mono text-2xs font-bold mb-2">Work in progress by stage</h3>
           <div className="flex flex-wrap gap-2">
             {data.wip.map((b) => (
-              <span key={b.status} className="text-[11px] px-2.5 py-1 rounded-lg" style={{ background: "var(--panel)" }}>
+              <span key={b.status} className="text-2xs px-2.5 py-1 rounded-lg" style={{ background: "var(--panel)" }}>
                 <b className="font-mono">{b.count}</b> {b.status}
                 {b.oldestDays !== null && <span className="text-[var(--mute)]"> · oldest {b.oldestDays}d</span>}
               </span>
@@ -383,7 +383,7 @@ export default async function InsightsPage({
       )}
 
       {/* Topics */}
-      <h2 className="font-mono text-[13px] font-bold mb-2">Topics</h2>
+      <h2 className="font-mono text-sm font-bold mb-2">Topics</h2>
       <div className="card mb-4">
         {data.topics.length === 0 ? (
           <EmptyState
@@ -397,7 +397,7 @@ export default async function InsightsPage({
             <div className="flex justify-end mb-1"><CsvButton table="insights-topics" filename="insights-topics" /></div>
             <table data-csv="insights-topics" className="w-full text-xs">
               <thead>
-                <tr className="text-[10px] uppercase tracking-wider text-[var(--mute)] text-left">
+                <tr className="text-micro uppercase tracking-wider text-[var(--mute)] text-left">
                   <th className="py-1 pr-3">Topic</th>
                   <th className="py-1 pr-3 text-right" title="All three formats">Ideas</th>
                   <th className="py-1 pr-3 text-right" title="Published / made">Articles</th>
@@ -420,7 +420,7 @@ export default async function InsightsPage({
                       ) : (
                         <>
                           {t.publishRate}%
-                          {t.confidence === "low" && <span className="text-[9px] text-[var(--amber-on)] ml-1">low n</span>}
+                          {t.confidence === "low" && <span className="text-micro text-[var(--amber-on)] ml-1">low n</span>}
                         </>
                       )}
                     </td>
@@ -433,13 +433,13 @@ export default async function InsightsPage({
       </div>
 
       {/* Distribution */}
-      <h2 className="font-mono text-[13px] font-bold mb-2">Distribution &amp; AI use</h2>
+      <h2 className="font-mono text-sm font-bold mb-2">Distribution &amp; AI use</h2>
       <div className="grid grid-cols-1 @xl:grid-cols-2 @4xl:grid-cols-4 gap-3 mb-4">
         {distribution.map((m) => <MetricCard key={m.key} m={m} cmp={cmpFor(m)} />)}
       </div>
 
       {/* Performance */}
-      <h2 className="font-mono text-[13px] font-bold mb-2">Search &amp; traffic</h2>
+      <h2 className="font-mono text-sm font-bold mb-2">Search &amp; traffic</h2>
       {!hasPerformance && (
         <EmptyState
           tone="attention"
@@ -454,7 +454,7 @@ export default async function InsightsPage({
       </div>
 
       {/* Social performance — the distribution side of the same question */}
-      <h2 className="font-mono text-[13px] font-bold mb-2">Social performance</h2>
+      <h2 className="font-mono text-sm font-bold mb-2">Social performance</h2>
       {!hasSocial && (
         <EmptyState
           tone="attention"
@@ -473,11 +473,11 @@ export default async function InsightsPage({
       {/* Per-network split — the reason UTM tagging separates the sources. */}
       {networks.length > 0 && (
         <div className="card mb-4 overflow-x-auto">
-          <h3 className="font-mono text-[11px] font-bold mb-2">By network</h3>
+          <h3 className="font-mono text-2xs font-bold mb-2">By network</h3>
           <div className="flex justify-end mb-1"><CsvButton table="insights-networks" filename="insights-by-network" /></div>
           <table data-csv="insights-networks" className="w-full text-xs">
             <thead>
-              <tr className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)] text-left">
+              <tr className="text-micro font-mono uppercase tracking-wider text-[var(--mute)] text-left">
                 <th className="pb-1">Network</th>
                 <th className="pb-1 text-right">Posts</th>
                 <th className="pb-1 text-right">Impressions</th>
@@ -510,7 +510,7 @@ export default async function InsightsPage({
               })}
             </tbody>
           </table>
-          <p className="text-[10px] text-[var(--mute)] mt-2">
+          <p className="text-micro text-[var(--mute)] mt-2">
             Lifetime totals for posts sent in the {range.label}, as last pulled from each network — not
             engagement earned within the window, which a lifetime counter can&apos;t tell us. A dash means the network
             didn&apos;t report that figure.
@@ -518,7 +518,7 @@ export default async function InsightsPage({
         </div>
       )}
 
-      <p className="text-[10px] text-[var(--mute)]">
+      <p className="text-micro text-[var(--mute)]">
         Every figure states where it came from. Rates and medians carry a confidence based on how many items produced
         them; counts are exact. Point-in-time values are snapshotted daily so trends survive.
       </p>

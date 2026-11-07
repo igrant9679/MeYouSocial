@@ -31,13 +31,13 @@ export default async function ThumbnailDetailPage({ params }: { params: Promise<
 
       <div className="flex items-center gap-3 mb-5">
         <h1 className="font-mono font-bold text-2xl leading-tight">{thumb.title ?? "Untitled"}</h1>
-        <span className="text-[10px] font-mono uppercase tracking-wider px-2 py-1 rounded" style={{ background: "#FBE2EF", color: "#DB2777" }}>{thumb.mode}</span>
+        <span className="text-micro font-mono uppercase tracking-wider px-2 py-1 rounded" style={{ background: "var(--pink-soft)", color: "var(--pink)" }}>{thumb.mode}</span>
         <span className="text-xs text-[var(--mute)]">· {thumb.channel.name}</span>
       </div>
 
       {thumb.renderUrl ? (
         <section className="card mb-5">
-          <h2 className="font-mono font-bold text-[14px] mb-3 flex items-center gap-2"><CheckCircle2 className="w-4 h-4" style={{ color: "var(--green)" }} /> Rendered thumbnail</h2>
+          <h2 className="font-mono font-bold text-sm mb-3 flex items-center gap-2"><CheckCircle2 className="w-4 h-4" style={{ color: "var(--green)" }} /> Rendered thumbnail</h2>
           <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-4 items-start">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={thumb.renderUrl} alt={thumb.title ?? ""} className="w-full max-w-2xl rounded-xl border border-[var(--line)]" />
@@ -51,7 +51,7 @@ export default async function ThumbnailDetailPage({ params }: { params: Promise<
               {thumb.ctrScore != null && (
                 <div className="text-center mt-1">
                   <div className="font-mono font-bold text-3xl" style={{ color: thumb.ctrScore >= 75 ? "var(--green)" : thumb.ctrScore >= 50 ? "var(--amber)" : "var(--brand)" }}>{Math.round(thumb.ctrScore)}</div>
-                  <div className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">CTR score</div>
+                  <div className="text-micro font-mono uppercase tracking-wider text-[var(--mute)]">CTR score</div>
                 </div>
               )}
             </div>
@@ -64,7 +64,7 @@ export default async function ThumbnailDetailPage({ params }: { params: Promise<
 
       {concepts.length > 0 && (
         <section className="card">
-          <h2 className="font-mono font-bold text-[14px] mb-3">Concepts {thumb.renderUrl ? "" : "— pick one to render"}</h2>
+          <h2 className="font-mono font-bold text-sm mb-3">Concepts {thumb.renderUrl ? "" : "— pick one to render"}</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {concepts.map((c) => (
               <div key={c.id} className="border border-[var(--line)] rounded-xl overflow-hidden">
@@ -79,7 +79,7 @@ export default async function ThumbnailDetailPage({ params }: { params: Promise<
                         so it gets said, not left to the description text. */}
                     {c.sawReference === false && (
                       <span
-                        className="font-mono text-[9px] font-bold px-1.5 py-0.5 rounded-full"
+                        className="font-mono text-micro font-bold px-1.5 py-0.5 rounded-full"
                         style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }}
                       >
                         reference not read

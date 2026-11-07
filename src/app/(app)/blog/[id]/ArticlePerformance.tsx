@@ -68,9 +68,9 @@ export async function ArticlePerformance({ postId, workspaceId, publishedUrl, ti
     const good = delta == null ? null : lowerIsBetter ? delta < 0 : delta > 0;
     return (
       <div className="rounded-lg border border-[var(--line)] p-2.5" data-perf-metric={label}>
-        <div className="text-[10px] uppercase tracking-wider font-mono text-[var(--mute)]">{label}</div>
+        <div className="text-micro uppercase tracking-wider font-mono text-[var(--mute)]">{label}</div>
         <div className="font-mono text-lg font-bold tabular-nums">{now == null ? "—" : fmt(now)}</div>
-        <div className="text-[10px] font-mono text-[var(--mute)]">
+        <div className="text-micro font-mono text-[var(--mute)]">
           {before == null ? "nothing to compare" : <>was {fmt(before)}{delta != null && <b style={{ color: good ? "var(--green-on)" : "var(--rose-on)" }}> {delta > 0 ? "▲" : "▼"} {Math.abs(Math.round(delta * 100))}%</b>}</>}
         </div>
       </div>
@@ -98,25 +98,25 @@ export async function ArticlePerformance({ postId, workspaceId, publishedUrl, ti
             </div>
             <AreaChart points={chart.map((s) => ({ label: formatDay(s.capturedAt, "UTC"), value: s.clicks ?? 0 }))} color="var(--green)" title={`Clicks a day — last ${Math.min(CHART_DAYS, chart.length)} readings`} marks={marks} />
             <AreaChart points={chart.map((s) => ({ label: formatDay(s.capturedAt, "UTC"), value: s.impressions ?? 0 }))} color="var(--blue)" title="Impressions a day" marks={marks} />
-            {chart.some((s) => s.clicks == null) && <p className="text-[10px] text-[var(--mute)] mt-1 mb-0">Days without a click reading are drawn at zero — not measured, not zero.</p>}
+            {chart.some((s) => s.clicks == null) && <p className="text-micro text-[var(--mute)] mt-1 mb-0">Days without a click reading are drawn at zero — not measured, not zero.</p>}
             <ChartMarkList marks={marks} timeZone={timeZone} canDelete={false} returnTo={`/blog/${postId}?tab=performance`} />
           </>
         )}
         <div className="mt-4" data-perf-queries>
           <h3 className="text-xs font-semibold m-0 mb-1">Searches that found it</h3>
           {queries.length === 0 ? (
-            <p className="text-[11px] text-[var(--mute)] m-0">
+            <p className="text-2xs text-[var(--mute)] m-0">
               {qWindow
                 ? `No searches recorded for this article in ${formatDay(qWindow.start, "UTC")} – ${formatDay(qWindow.end, "UTC")} — it may not show in Google yet, or only for searches too rare for Search Console to report.`
                 : "Not read yet — the searches arrive with the Search Console sync (Settings → Analytics)."}
             </p>
           ) : (
             <>
-              <p className="text-[11px] text-[var(--mute)] m-0 mb-1.5">{formatDay(queries[0].windowStart, "UTC")} – {formatDay(queries[0].windowEnd, "UTC")}, from Search Console. Position is Google&apos;s average for the search, weighted by impressions.</p>
+              <p className="text-2xs text-[var(--mute)] m-0 mb-1.5">{formatDay(queries[0].windowStart, "UTC")} – {formatDay(queries[0].windowEnd, "UTC")}, from Search Console. Position is Google&apos;s average for the search, weighted by impressions.</p>
               <div className="overflow-x-auto">
                 <table className="w-full text-xs border-collapse">
                   <thead>
-                    <tr className="text-left text-[9px] uppercase tracking-wider font-mono text-[var(--mute)]">
+                    <tr className="text-left text-micro uppercase tracking-wider font-mono text-[var(--mute)]">
                       <th className="py-1 pr-3">Search</th>
                       <th className="py-1 pr-3 text-right">Clicks</th>
                       <th className="py-1 pr-3 text-right">Impressions</th>
@@ -127,7 +127,7 @@ export async function ArticlePerformance({ postId, workspaceId, publishedUrl, ti
                   <tbody>
                     {queries.map((q) => (
                       <tr key={q.query} className="border-t border-[var(--line)]" data-query={q.query} data-focus={q.query === focus ? "1" : undefined}>
-                        <td className="py-1 pr-3">{q.query}{q.query === focus && <span className="ml-1.5 font-mono text-[9px] uppercase px-1 py-0.5 rounded" style={{ background: "var(--violet-soft)", color: "var(--violet-on)" }}>focus keyword</span>}</td>
+                        <td className="py-1 pr-3">{q.query}{q.query === focus && <span className="ml-1.5 font-mono text-micro uppercase px-1 py-0.5 rounded" style={{ background: "var(--violet-soft)", color: "var(--violet-on)" }}>focus keyword</span>}</td>
                         <td className="py-1 pr-3 text-right font-mono tabular-nums">{q.clicks.toLocaleString()}</td>
                         <td className="py-1 pr-3 text-right font-mono tabular-nums">{q.impressions.toLocaleString()}</td>
                         <td className="py-1 pr-3 text-right font-mono tabular-nums">{q.impressions ? `${((q.clicks / q.impressions) * 100).toFixed(1)}%` : "—"}</td>
@@ -138,7 +138,7 @@ export async function ArticlePerformance({ postId, workspaceId, publishedUrl, ti
                 </table>
               </div>
               {focus && !queries.some((q) => q.query === focus) && (
-                <p className="text-[11px] m-0 mt-1.5" style={{ color: "var(--amber-on)" }} data-focus-missing>
+                <p className="text-2xs m-0 mt-1.5" style={{ color: "var(--amber-on)" }} data-focus-missing>
                   Its focus keyword “{focus}” isn&apos;t among the searches that found it in this window.
                 </p>
               )}
@@ -163,11 +163,11 @@ export async function ArticlePerformance({ postId, workspaceId, publishedUrl, ti
               return (
                 <li key={p.id} className="flex flex-wrap items-start gap-x-3 gap-y-1 text-xs border-t border-[var(--line)] pt-2" data-perf-post={p.id}>
                   <Link href={`/social/${p.id}`} className="flex-1 min-w-56 line-clamp-2 hover:underline">{p.text || "(no text)"}</Link>
-                  <span className="font-mono text-[10px] text-[var(--mute)]">
+                  <span className="font-mono text-micro text-[var(--mute)]">
                     {[...new Set(p.targets.map((t) => networkFor(t.provider)?.label ?? t.provider))].join(", ")}
                     {when ? ` · ${p.publishedAt ? "" : "scheduled "}${formatZonedMoment(when, timeZone)}` : ` · ${p.status}`}
                   </span>
-                  <span className="font-mono text-[11px] tabular-nums">
+                  <span className="font-mono text-2xs tabular-nums">
                     {r ? <><b>{compact(r.clicks)}</b> clicks · {compact(r.impressions)} impr · {compact(r.engagement)} eng</> : <span className="text-[var(--mute)]">{p.status === "posted" || p.status === "partial" ? "not measured yet" : p.status}</span>}
                   </span>
                 </li>
@@ -179,17 +179,17 @@ export async function ArticlePerformance({ postId, workspaceId, publishedUrl, ti
         <div className="mt-4" data-perf-visits>
           <h3 className="text-xs font-semibold m-0 mb-1">Visits it brought</h3>
           {visits.length === 0 ? (
-            <p className="text-[11px] text-[var(--mute)] m-0">
+            <p className="text-2xs text-[var(--mute)] m-0">
               {vWindow
                 ? `No visits from social landed on this article in ${formatDay(vWindow.start, "UTC")} – ${formatDay(vWindow.end, "UTC")}.`
                 : "Not read yet — visits arrive with the GA4 sync (Settings → Analytics), from the links the app tags per network."}
             </p>
           ) : (
             <>
-              <p className="text-[11px] text-[var(--mute)] m-0 mb-1.5"><b>{visitTotal.toLocaleString()}</b> session{visitTotal === 1 ? "" : "s"} from social, {formatDay(visits[0].windowStart, "UTC")} – {formatDay(visits[0].windowEnd, "UTC")}, from GA4.</p>
+              <p className="text-2xs text-[var(--mute)] m-0 mb-1.5"><b>{visitTotal.toLocaleString()}</b> session{visitTotal === 1 ? "" : "s"} from social, {formatDay(visits[0].windowStart, "UTC")} – {formatDay(visits[0].windowEnd, "UTC")}, from GA4.</p>
               <table className="w-full text-xs border-collapse">
                 <thead>
-                  <tr className="text-left text-[9px] uppercase tracking-wider font-mono text-[var(--mute)]">
+                  <tr className="text-left text-micro uppercase tracking-wider font-mono text-[var(--mute)]">
                     <th className="py-1 pr-3">Network</th>
                     <th className="py-1 pr-3">Campaign</th>
                     <th className="py-1 pr-3 text-right">Sessions</th>

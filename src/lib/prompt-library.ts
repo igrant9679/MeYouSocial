@@ -19,8 +19,8 @@ export const PROMPT_LIBRARY: PromptCategory[] = [
   {
     id: "ideation",
     label: "Ideation",
-    color: "#D97706",
-    soft: "#FBEED5",
+    color: "var(--amber)",
+    soft: "var(--amber-soft)",
     prompts: [
       { id: "i1", label: "10 outlier titles in my niche", body: "Generate 10 video title ideas based on outlier videos in my niche and 2 adjacent niches. Each should include a hook, topic, and the psychological reason it'd perform." },
       { id: "i2", label: "Change topic, keep the hook", body: "Take this idea and rewrite it as 3 different videos that preserve the same hook structure but apply it to different topics in my channel's niche." },
@@ -31,8 +31,8 @@ export const PROMPT_LIBRARY: PromptCategory[] = [
   {
     id: "research",
     label: "Research",
-    color: "#2563EB",
-    soft: "#E5EDFD",
+    color: "var(--blue)",
+    soft: "var(--blue-soft)",
     prompts: [
       { id: "r1", label: "Deep AI research", body: "Do a multi-source research pass on this topic. Synthesize the findings into a structured report: key facts, contested claims, surprising data points, primary sources to cite." },
       { id: "r2", label: "Analyze this YouTube video", body: "Analyze this YouTube video URL: structure breakdown, hook analysis, retention beats, audience reaction signals from comments, and how I could remix the format." },
@@ -42,8 +42,8 @@ export const PROMPT_LIBRARY: PromptCategory[] = [
   {
     id: "writing",
     label: "Writing",
-    color: "#15924B",
-    soft: "#E0F2E8",
+    color: "var(--green)",
+    soft: "var(--green-soft)",
     prompts: [
       { id: "w1", label: "Punchier hook", body: "Rewrite this opening to make it punchier — shorter sentences, stronger nouns, a sharper promise. Keep my voice." },
       { id: "w2", label: "Cut hedging", body: "Strip all hedging and softeners from this passage. No 'just', 'really', 'sort of', 'I think'. Keep the meaning intact." },
@@ -55,8 +55,8 @@ export const PROMPT_LIBRARY: PromptCategory[] = [
   {
     id: "structure",
     label: "Structure",
-    color: "#6D28D9",
-    soft: "#EDE7FB",
+    color: "var(--violet)",
+    soft: "var(--violet-soft)",
     prompts: [
       { id: "s1", label: "Outline this draft", body: "Reverse-engineer an outline from this script. Identify the hook, each section's purpose, the transitions used, and where the retention beats land." },
       { id: "s2", label: "Where does it sag?", body: "Identify the 2-3 places this script loses momentum or repeats itself. Suggest a concrete fix for each (cut, condense, or replace)." },
@@ -66,8 +66,8 @@ export const PROMPT_LIBRARY: PromptCategory[] = [
   {
     id: "packaging",
     label: "Packaging",
-    color: "#DB2777",
-    soft: "#FBE2EF",
+    color: "var(--pink)",
+    soft: "var(--pink-soft)",
     prompts: [
       { id: "p1", label: "6 title variations", body: "Generate 6 title variations for this video. Each <= 70 chars, distinct angle (curiosity, contrarian, specific, listicle, question, big-claim)." },
       { id: "p2", label: "5 thumbnail concepts", body: "Suggest 5 thumbnail concepts that visually deliver on the title's promise. Describe each as a single sentence of visual brief." },

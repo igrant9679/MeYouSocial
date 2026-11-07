@@ -79,11 +79,11 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
     <div>
       <div className="flex items-center gap-3 flex-wrap mb-3">
         <Megaphone className="w-5 h-5" style={{ color: "var(--blue-on)" }} />
-        <h1 className="font-mono text-[22px] font-bold m-0 flex items-center gap-2">
+        <h1 className="font-mono text-2xl font-bold m-0 flex items-center gap-2">
           <span className="w-3 h-3 rounded-full inline-block" style={{ background: color }} /> {campaign.name}
         </h1>
-        {campaign.status === "archived" && <span className="font-mono text-[10px] px-2 py-0.5 rounded-full" style={{ background: "var(--zebra)", color: "var(--mute)" }}>archived</span>}
-        {campaign.utmCampaign && <span className="font-mono text-[11px] text-[var(--mute)]">utm_campaign={campaign.utmCampaign}</span>}
+        {campaign.status === "archived" && <span className="font-mono text-micro px-2 py-0.5 rounded-full" style={{ background: "var(--zebra)", color: "var(--mute)" }}>archived</span>}
+        {campaign.utmCampaign && <span className="font-mono text-2xs text-[var(--mute)]">utm_campaign={campaign.utmCampaign}</span>}
         <span className="flex-1" />
         <Link href="/setup/schedule" className="text-xs underline text-[var(--mute)]">All campaigns</Link>
       </div>
@@ -91,7 +91,7 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mb-4" data-campaign-counts>
         {STATES.map((s) => (
           <div key={s.key} className="card !p-3" data-campaign-count={s.key}>
-            <div className="text-[10px] uppercase tracking-wider font-mono text-[var(--mute)]">{s.label}</div>
+            <div className="text-micro uppercase tracking-wider font-mono text-[var(--mute)]">{s.label}</div>
             <div className="font-mono text-xl font-bold tabular-nums">{count(s.key)}</div>
           </div>
         ))}
@@ -99,7 +99,7 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
 
       <section className="card mb-4" data-campaign-calendar>
         <h2 className="text-sm font-semibold mb-2">Calendar <span className="font-normal text-xs text-[var(--mute)]">— two weeks back, four ahead ({tz})</span></h2>
-        <div className="grid grid-cols-7 gap-1 text-[10px] font-mono text-[var(--mute)] mb-1">
+        <div className="grid grid-cols-7 gap-1 text-micro font-mono text-[var(--mute)] mb-1">
           {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => <div key={d} className="px-1">{d}</div>)}
         </div>
         <div className="grid grid-cols-7 gap-1">
@@ -107,18 +107,18 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
             const items = byDay.get(k) ?? [];
             return (
               <div key={k} className="min-h-16 rounded-md border p-1 flex flex-col gap-0.5 overflow-hidden" style={{ borderColor: k === todayKey ? "var(--accent)" : "var(--line)", background: k < todayKey ? "var(--zebra)" : undefined }} data-campaign-day={k}>
-                <span className="text-[10px] font-mono text-[var(--mute)]">{Number(k.slice(8))}{k.slice(8) === "01" || k === days[0] ? ` ${new Date(`${k}T00:00:00Z`).toLocaleString("en-GB", { month: "short", timeZone: "UTC" })}` : ""}</span>
+                <span className="text-micro font-mono text-[var(--mute)]">{Number(k.slice(8))}{k.slice(8) === "01" || k === days[0] ? ` ${new Date(`${k}T00:00:00Z`).toLocaleString("en-GB", { month: "short", timeZone: "UTC" })}` : ""}</span>
                 {items.slice(0, 3).map((p) => (
-                  <Link key={p.id} href={`/social/${p.id}`} className="block truncate text-[10px] rounded px-1 text-white" style={{ background: CHIP[p.status] ?? "var(--slate)" }} title={`${p.status} · ${p.text.slice(0, 120)}`} data-campaign-post={p.id}>
+                  <Link key={p.id} href={`/social/${p.id}`} className="block truncate text-micro rounded px-1 text-white" style={{ background: CHIP[p.status] ?? "var(--slate)" }} title={`${p.status} · ${p.text.slice(0, 120)}`} data-campaign-post={p.id}>
                     {p.text.slice(0, 40) || "(no text)"}
                   </Link>
                 ))}
-                {items.length > 3 && <span className="text-[10px] text-[var(--mute)]">+{items.length - 3} more</span>}
+                {items.length > 3 && <span className="text-micro text-[var(--mute)]">+{items.length - 3} more</span>}
               </div>
             );
           })}
         </div>
-        {undated.length > 0 && <p className="text-[11px] text-[var(--mute)] mt-2 mb-0">{undated.length} draft{undated.length === 1 ? "" : "s"} with no date yet — on <Link href="/social/drafts" className="underline">Drafts</Link>.</p>}
+        {undated.length > 0 && <p className="text-2xs text-[var(--mute)] mt-2 mb-0">{undated.length} draft{undated.length === 1 ? "" : "s"} with no date yet — on <Link href="/social/drafts" className="underline">Drafts</Link>.</p>}
       </section>
 
       <section className="card mb-4" data-campaign-networks>
@@ -131,7 +131,7 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
             <table className="w-full text-xs border-collapse">
               <thead>
                 <tr className="text-left text-[var(--mute)]">
-                  {["Network", "Posts", "Impressions", "Engagement", "Clicks", "Eng. rate"].map((h) => <th key={h} className="py-1.5 px-2 font-mono text-[9px] uppercase tracking-wider border-b-2 border-[var(--line)]">{h}</th>)}
+                  {["Network", "Posts", "Impressions", "Engagement", "Clicks", "Eng. rate"].map((h) => <th key={h} className="py-1.5 px-2 font-mono text-micro uppercase tracking-wider border-b-2 border-[var(--line)]">{h}</th>)}
                 </tr>
               </thead>
               <tbody>
@@ -172,7 +172,7 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
             <p className="text-xs text-[var(--mute)] mt-0 mb-2"><b>{visitTotal.toLocaleString()}</b> session{visitTotal === 1 ? "" : "s"} tagged “{campaign.utmCampaign}”{visits.window ? `, ${formatDay(visits.window.start, "UTC")} – ${formatDay(visits.window.end, "UTC")}` : ""}, from GA4.</p>
             <table className="w-full text-xs border-collapse">
               <thead>
-                <tr className="text-left text-[9px] uppercase tracking-wider font-mono text-[var(--mute)]">
+                <tr className="text-left text-micro uppercase tracking-wider font-mono text-[var(--mute)]">
                   <th className="py-1 pr-3">Landed on</th>
                   <th className="py-1 pr-3">From</th>
                   <th className="py-1 pr-3 text-right">Sessions</th>
@@ -203,7 +203,7 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
             {best.map(({ p, r }) => (
               <li key={p.id} data-campaign-best-post={p.id}>
                 <Link href={`/social/${p.id}`} className="hover:underline">{p.text.slice(0, 120) || "(no text)"}</Link>
-                <span className="font-mono text-[10px] text-[var(--mute)]"> · {[...new Set(p.targets.map((t) => networkFor(t.provider)?.label ?? t.provider))].join(", ")}{p.publishedAt ? ` · ${formatZonedMoment(p.publishedAt, tz)}` : ""} · <b>{compact(r!.engagement)}</b> eng · {compact(r!.clicks)} clicks</span>
+                <span className="font-mono text-micro text-[var(--mute)]"> · {[...new Set(p.targets.map((t) => networkFor(t.provider)?.label ?? t.provider))].join(", ")}{p.publishedAt ? ` · ${formatZonedMoment(p.publishedAt, tz)}` : ""} · <b>{compact(r!.engagement)}</b> eng · {compact(r!.clicks)} clicks</span>
               </li>
             ))}
           </ol>

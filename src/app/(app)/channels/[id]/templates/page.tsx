@@ -27,7 +27,7 @@ export default async function ChannelTemplatesPage({ params, searchParams }: { p
   return (
     <div>
       <div className="flex items-center gap-3 mb-4">
-        <span className="w-10 h-10 rounded-xl grid place-items-center" style={{ background: "#E7E6FB", color: "#4F46E5" }}>
+        <span className="w-10 h-10 rounded-xl grid place-items-center" style={{ background: "var(--indigo-soft)", color: "var(--indigo)" }}>
           <Layers className="w-5 h-5" strokeWidth={2.25} />
         </span>
         <div>
@@ -38,16 +38,16 @@ export default async function ChannelTemplatesPage({ params, searchParams }: { p
 
       {/* Clone from video(s) */}
       <form action={cloneTemplateAction} className="card mb-5">
-        <h3 className="font-mono font-bold text-[14px] mb-2 flex items-center gap-2"><Sparkles className="w-4 h-4" style={{ color: "#4F46E5" }} /> Clone a template from a video</h3>
+        <h3 className="font-mono font-bold text-sm mb-2 flex items-center gap-2"><Sparkles className="w-4 h-4" style={{ color: "var(--indigo)" }} /> Clone a template from a video</h3>
         <p className="text-xs text-[var(--mute)] mb-3">Paste 1 YouTube URL/handle to clone its structure, or 2-3 to synthesize a hybrid template.</p>
         <input type="hidden" name="channelId" value={id} />
         <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-2">
           <label className="flex flex-col gap-1 md:col-span-2">
-            <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">Template name</span>
+            <span className="text-micro font-mono uppercase tracking-wider text-[var(--mute)]">Template name</span>
             <input name="name" required placeholder="e.g. My listicle template" className="border border-[var(--line-2)] rounded-lg p-2 text-sm" />
           </label>
           <label className="flex flex-col gap-1">
-            <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">Kind</span>
+            <span className="text-micro font-mono uppercase tracking-wider text-[var(--mute)]">Kind</span>
             <select name="kind" className="border border-[var(--line-2)] rounded-lg p-2 text-sm">
               <option value="long">Long-form</option>
               <option value="short">Shorts</option>
@@ -55,7 +55,7 @@ export default async function ChannelTemplatesPage({ params, searchParams }: { p
           </label>
         </div>
         <label className="flex flex-col gap-1">
-          <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">References (1-3 YouTube URLs or @handles, comma or newline-separated)</span>
+          <span className="text-micro font-mono uppercase tracking-wider text-[var(--mute)]">References (1-3 YouTube URLs or @handles, comma or newline-separated)</span>
           <textarea name="references" required rows={3} placeholder="@example-channel, https://youtube.com/watch?v=…" className="border border-[var(--line-2)] rounded-lg p-2 text-sm font-mono" />
         </label>
         <div className="flex justify-end mt-2"><SubmitButton className="btn primary sm flex items-center gap-1.5"><Plus className="w-3.5 h-3.5" /> Clone</SubmitButton></div>
@@ -72,8 +72,8 @@ export default async function ChannelTemplatesPage({ params, searchParams }: { p
         return (
           <section className="card mb-5">
             <div className="flex items-center mb-2">
-              <h3 className="font-mono font-bold text-[14px] flex items-center gap-2">{focused.name}</h3>
-              <span className="text-[10px] font-mono uppercase tracking-wider ml-2 px-1.5 py-0.5 rounded" style={{ background: "var(--accent-soft)", color: "var(--accent)" }}>{focused.source}</span>
+              <h3 className="font-mono font-bold text-sm flex items-center gap-2">{focused.name}</h3>
+              <span className="text-micro font-mono uppercase tracking-wider ml-2 px-1.5 py-0.5 rounded" style={{ background: "var(--accent-soft)", color: "var(--accent)" }}>{focused.source}</span>
               <span className="text-xs text-[var(--mute)] ml-2">· {focused.kind}</span>
               <span className="flex-1" />
               {!isCustom && (
@@ -95,11 +95,11 @@ export default async function ChannelTemplatesPage({ params, searchParams }: { p
                 <input type="hidden" name="channelId" value={id} />
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
                   <label className="flex flex-col gap-1 md:col-span-2">
-                    <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">Name</span>
+                    <span className="text-micro font-mono uppercase tracking-wider text-[var(--mute)]">Name</span>
                     <input name="name" required maxLength={80} defaultValue={focused.name} className="border border-[var(--line-2)] rounded-lg p-2 text-sm" />
                   </label>
                   <label className="flex flex-col gap-1">
-                    <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">Kind</span>
+                    <span className="text-micro font-mono uppercase tracking-wider text-[var(--mute)]">Kind</span>
                     <select key={`kind:${focused.kind}`} name="kind" defaultValue={focused.kind} className="border border-[var(--line-2)] rounded-lg p-2 text-sm">
                       <option value="long">Long-form</option>
                       <option value="short">Shorts</option>
@@ -107,7 +107,7 @@ export default async function ChannelTemplatesPage({ params, searchParams }: { p
                   </label>
                 </div>
                 <label className="flex flex-col gap-1">
-                  <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">
+                  <span className="text-micro font-mono uppercase tracking-wider text-[var(--mute)]">
                     Structure {focusedStructure?.ai ? "(free-form outline the writer follows)" : "(one section per line)"}
                   </span>
                   <textarea name="body" required rows={14} defaultValue={bodyText}
@@ -129,14 +129,14 @@ export default async function ChannelTemplatesPage({ params, searchParams }: { p
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         {/* Custom */}
         <section className="card">
-          <h3 className="font-mono font-bold text-[14px] mb-3">Custom templates ({custom.length})</h3>
+          <h3 className="font-mono font-bold text-sm mb-3">Custom templates ({custom.length})</h3>
           {custom.length === 0 && <p className="text-xs text-[var(--mute)] text-center py-3">No custom templates yet — clone one above.</p>}
           <ul className="m-0 p-0">
             {custom.map((t) => (
               <li key={t.id} className="border-t border-[var(--line)] first:border-t-0 py-2 flex items-center gap-2 text-sm">
-                <Layers className="w-3.5 h-3.5" style={{ color: "#4F46E5" }} />
+                <Layers className="w-3.5 h-3.5" style={{ color: "var(--indigo)" }} />
                 <a href={`/channels/${id}/templates?focus=${t.id}`} className="flex-1 font-semibold hover:text-[var(--accent)]">{t.name}</a>
-                <span className="text-[10px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: "var(--accent-soft)", color: "var(--accent)" }}>{t.kind}</span>
+                <span className="text-micro font-mono uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: "var(--accent-soft)", color: "var(--accent)" }}>{t.kind}</span>
                 <a href={`/channels/${id}/templates?focus=${t.id}`} className="btn sm" title="View and edit"><Pencil className="w-3.5 h-3.5" /></a>
                 <form action={deleteTemplateAction}>
                   <input type="hidden" name="id" value={t.id} />
@@ -150,13 +150,13 @@ export default async function ChannelTemplatesPage({ params, searchParams }: { p
 
         {/* Built-in */}
         <section className="card">
-          <h3 className="font-mono font-bold text-[14px] mb-3">Built-in templates ({builtIn.length})</h3>
+          <h3 className="font-mono font-bold text-sm mb-3">Built-in templates ({builtIn.length})</h3>
           <ul className="m-0 p-0 grid grid-cols-1 gap-1">
             {builtIn.map((t) => (
               <li key={t.id} className="py-1.5 flex items-center gap-2 text-sm border-t border-[var(--line)] first:border-t-0">
                 <Layers className="w-3.5 h-3.5 text-[var(--mute)]" />
                 <a href={`/channels/${id}/templates?focus=${t.id}`} className="flex-1 hover:text-[var(--accent)]" title="View — duplicate to customize">{t.name}</a>
-                <span className="text-[10px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded text-[var(--mute)]" style={{ background: "var(--zebra)" }}>{t.kind}</span>
+                <span className="text-micro font-mono uppercase tracking-wider px-1.5 py-0.5 rounded text-[var(--mute)]" style={{ background: "var(--zebra)" }}>{t.kind}</span>
               </li>
             ))}
           </ul>

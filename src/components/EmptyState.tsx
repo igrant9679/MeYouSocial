@@ -72,7 +72,7 @@ export function EmptyState({
         <p className="text-sm m-0" style={tone === "attention" && framed ? { color: "var(--amber-on)" } : undefined}>
           {line}
         </p>
-        {note && <p className="text-[11px] text-[var(--mute)] mt-1 mb-0">{note}</p>}
+        {note && <p className="text-2xs text-[var(--mute)] mt-1 mb-0">{note}</p>}
       </div>
       {action &&
         ("href" in action ? (

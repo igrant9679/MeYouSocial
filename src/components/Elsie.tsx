@@ -355,15 +355,15 @@ export function Elsie({
           onClick={() => { setDismissed(false); userDriven.current = false; }}
           title={enabled ? "Turn Elsie off" : "Turn Elsie on — she'll walk you through the app"}
           aria-pressed={enabled}
-          className="relative inline-flex items-center gap-1.5 h-11 px-2.5 rounded-xl text-[13px] font-semibold transition-colors hover:bg-[var(--zebra)]"
+          className="relative inline-flex items-center gap-1.5 h-11 px-2.5 rounded-xl text-sm font-semibold transition-colors hover:bg-[var(--zebra)]"
           style={enabled ? { background: "var(--accent-soft)", color: "var(--accent-on)" } : { color: "var(--mute)" }}
         >
           <Compass className="w-[19px] h-[19px]" strokeWidth={2.25} />
           <span className="hidden @md:inline">Elsie</span>
           {outstanding > 0 && (
             <span
-              className="absolute -top-0.5 -right-0.5 min-w-[17px] h-[17px] px-1 rounded-full text-[10px] font-mono font-bold grid place-items-center"
-              style={{ background: "var(--amber-on)", color: "#fff" }}
+              className="absolute -top-0.5 -right-0.5 min-w-[17px] h-[17px] px-1 rounded-full text-micro font-mono font-bold grid place-items-center"
+              style={{ background: "var(--amber-on)", color: "white" }}
               title={`${outstanding} setup step${outstanding === 1 ? "" : "s"} outstanding`}
             >
               {outstanding}
@@ -378,10 +378,10 @@ export function Elsie({
           onClick={resume}
           data-elsie-resume
           title={`Pick the tour up where you left it: “${step.title}”`}
-          className="shrink-0 hidden md:inline-flex items-center gap-1 h-8 px-2 rounded-lg text-[11px] font-semibold hover:bg-[var(--zebra)]"
+          className="shrink-0 hidden md:inline-flex items-center gap-1 h-8 px-2 rounded-lg text-2xs font-semibold hover:bg-[var(--zebra)]"
           style={{ color: "var(--accent-on)" }}
         >
-          <Play className="w-3.5 h-3.5" /> <span className="hidden @md:inline">Resume tour</span> <span className="font-mono text-[10px] text-[var(--mute)]">{index + 1}/{steps.length}</span>
+          <Play className="w-3.5 h-3.5" /> <span className="hidden @md:inline">Resume tour</span> <span className="font-mono text-micro text-[var(--mute)]">{index + 1}/{steps.length}</span>
         </button>
       )}
 
@@ -428,7 +428,7 @@ export function Elsie({
                 aria-hidden
                 className="absolute w-3 h-3 rotate-45"
                 style={{
-                  background: "var(--card, #fff)",
+                  background: "var(--card)",
                   borderLeft: placement === "right" ? "1px solid var(--line)" : undefined,
                   borderTop: placement === "bottom" ? "1px solid var(--line)" : undefined,
                   borderRight: placement === "left" ? "1px solid var(--line)" : undefined,
@@ -467,14 +467,14 @@ export function Elsie({
               </button>
             </div>
 
-            <p className="text-[13px] text-[var(--slate)] leading-relaxed mb-3">{step!.body}</p>
+            <p className="text-sm text-[var(--slate)] leading-relaxed mb-3">{step!.body}</p>
 
             {/* Tour picker — only on the greeting, and only before one is
                 chosen. Offering it on every step would be a menu, not a tour.
                 Welcome is dropped from the chosen list: you just read it. */}
             {step!.id === "welcome" && !chosen && tracks.length > 0 && (
               <div className="flex flex-col gap-1.5 mb-3">
-                <span className="font-mono text-[10px] uppercase tracking-wider text-[var(--mute)]">Pick a tour</span>
+                <span className="font-mono text-micro uppercase tracking-wider text-[var(--mute)]">Pick a tour</span>
                 {tracks.map((t) => (
                   <button
                     key={t.id}
@@ -487,8 +487,8 @@ export function Elsie({
                     }}
                     className="text-left rounded-lg border border-[var(--line-2)] px-2.5 py-1.5 hover:border-[var(--accent)] transition"
                   >
-                    <span className="text-[12px] font-semibold block">{t.label}</span>
-                    <span className="text-[11px] text-[var(--mute)] block leading-snug">{t.blurb}</span>
+                    <span className="text-xs font-semibold block">{t.label}</span>
+                    <span className="text-2xs text-[var(--mute)] block leading-snug">{t.blurb}</span>
                   </button>
                 ))}
               </div>
@@ -505,7 +505,7 @@ export function Elsie({
             )}
 
             <div className="flex items-center gap-2 pt-2 border-t border-[var(--line)]">
-              <span className="font-mono text-[10px] text-[var(--mute)]">
+              <span className="font-mono text-micro text-[var(--mute)]">
                 {index + 1} / {steps.length}
                 {step!.kind === "setup" && (
                   <span className="ml-1.5 px-1 py-0.5 rounded" style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }}>

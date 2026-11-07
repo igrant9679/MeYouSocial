@@ -106,22 +106,22 @@ export default async function IntelVideoPage({ params, searchParams }: { params:
             <Link href={`/intel/channels/${video.intelChannelId}`} className="btn sm">View</Link>
           </div>
 
-          <Stat icon={<Eye className="w-4 h-4" />} label="Views" value={formatNum(video.views)} color="#2563EB" soft="#E5EDFD" />
-          <Stat icon={<ThumbsUp className="w-4 h-4" />} label="Likes" value={formatNum(video.likes)} color="#15924B" soft="#E0F2E8" />
-          <Stat icon={<MessageSquare className="w-4 h-4" />} label="Comments" value={formatNum(video.comments)} color="#D97706" soft="#FBEED5" />
+          <Stat icon={<Eye className="w-4 h-4" />} label="Views" value={formatNum(video.views)} color="var(--blue)" soft="var(--blue-soft)" />
+          <Stat icon={<ThumbsUp className="w-4 h-4" />} label="Likes" value={formatNum(video.likes)} color="var(--green)" soft="var(--green-soft)" />
+          <Stat icon={<MessageSquare className="w-4 h-4" />} label="Comments" value={formatNum(video.comments)} color="var(--amber)" soft="var(--amber-soft)" />
           {/* When these were read — they're re-read on every index (IDE-11). A dash is a figure YouTube didn't report. */}
-          <p className="text-[10px] text-[var(--mute)] m-0 -mt-1">{video.measuredAt ? `Read from YouTube ${video.measuredAt.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}` : `Read when first indexed${video.intelChannel.lastIndexedAt ? `, before ${video.intelChannel.lastIndexedAt.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}` : ""}`}. A dash means YouTube didn&apos;t report it.</p>
+          <p className="text-micro text-[var(--mute)] m-0 -mt-1">{video.measuredAt ? `Read from YouTube ${video.measuredAt.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}` : `Read when first indexed${video.intelChannel.lastIndexedAt ? `, before ${video.intelChannel.lastIndexedAt.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}` : ""}`}. A dash means YouTube didn&apos;t report it.</p>
 
           <div className="card">
-            <div className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)] mb-1">Outlier score</div>
+            <div className="text-micro font-mono uppercase tracking-wider text-[var(--mute)] mb-1">Outlier score</div>
             <div className="font-mono font-bold text-2xl flex items-center gap-2" style={{ color: band.color }}>
               {video.outlierScore == null ? "—" : `${video.outlierScore.toFixed(1)}×`}
-              <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: band.soft, color: band.color }}>{band.label}</span>
+              <span className="text-micro font-bold uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: band.soft, color: band.color }}>{band.label}</span>
             </div>
             <p className="text-xs text-[var(--mute)] mt-2">Views ÷ the channel&apos;s average for this format{video.views != null ? `, measured on ${formatNum(video.views)} views` : ""}. Under 1,000 views it isn&apos;t scored.</p>
           </div>
           <div className="card">
-            <div className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)] mb-1">Views per hour</div>
+            <div className="text-micro font-mono uppercase tracking-wider text-[var(--mute)] mb-1">Views per hour</div>
             <div className="font-mono font-bold text-2xl" title={video.viewsPerHour == null ? "Not measured — needs views and a publish date" : undefined}>
               {video.viewsPerHour == null ? "—" : `${formatVph(video.viewsPerHour)}/hr`}
             </div>
@@ -130,10 +130,10 @@ export default async function IntelVideoPage({ params, searchParams }: { params:
 
           {vsBand && (
             <div className="card">
-              <div className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)] mb-1">Views/Sub ratio</div>
+              <div className="text-micro font-mono uppercase tracking-wider text-[var(--mute)] mb-1">Views/Sub ratio</div>
               <div className="font-mono font-bold text-2xl flex items-center gap-2" style={{ color: vsBand.color }}>
                 {video.viewsPerSub?.toFixed(2)}
-                <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: vsBand.soft, color: vsBand.color }}>{vsBand.label}</span>
+                <span className="text-micro font-bold uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: vsBand.soft, color: vsBand.color }}>{vsBand.label}</span>
               </div>
               <p className="text-xs text-[var(--mute)] mt-2">Reach beyond the channel&apos;s subscriber base.</p>
             </div>
@@ -141,9 +141,9 @@ export default async function IntelVideoPage({ params, searchParams }: { params:
 
           {editor && (
             <div className="card">
-              <div className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)] mb-1.5">Make it an idea</div>
+              <div className="text-micro font-mono uppercase tracking-wider text-[var(--mute)] mb-1.5">Make it an idea</div>
               <ResearchIdeaForm videoId={video.id} videoTitle={video.title} topics={topics.map((t) => ({ id: t.id, name: t.name }))} channels={studio.show ? ownChannels : []} matchedTopicId={matchedTopic?.id ?? null} back={`/intel/videos/${video.id}`} already={alreadyAnIdea(await openWorkIndex(workspace.id), video)} />
-              <p className="text-[11px] text-[var(--mute)] mt-1.5 m-0">{matchedTopic ? `Topic “${matchedTopic.name}” matched by keyword — change it if that is wrong.` : topics.length ? "No Topic matched by keyword — pick one, or none." : "No Topics yet."}</p>
+              <p className="text-2xs text-[var(--mute)] mt-1.5 m-0">{matchedTopic ? `Topic “${matchedTopic.name}” matched by keyword — change it if that is wrong.` : topics.length ? "No Topic matched by keyword — pick one, or none." : "No Topics yet."}</p>
             </div>
           )}
           <form action={toggleBookmarkAction}>
@@ -171,7 +171,7 @@ function Stat({ icon, label, value, color, soft }: { icon: React.ReactNode; labe
     <div className="card flex items-center gap-3">
       <span className="w-9 h-9 rounded-xl grid place-items-center" style={{ background: soft, color }}>{icon}</span>
       <div className="flex-1">
-        <div className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">{label}</div>
+        <div className="text-micro font-mono uppercase tracking-wider text-[var(--mute)]">{label}</div>
         <div className="font-mono font-bold text-lg" style={{ color }}>{value}</div>
       </div>
     </div>

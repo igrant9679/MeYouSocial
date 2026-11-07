@@ -160,13 +160,13 @@ export default async function NotificationsPage({ searchParams }: { searchParams
                 data-read={n.readAt ? "1" : "0"}
               >
                 <span
-                  className="font-mono text-[10px] px-2 py-0.5 rounded-full shrink-0"
+                  className="font-mono text-micro px-2 py-0.5 rounded-full shrink-0"
                   style={{ background: `var(--${hue}-soft)`, color: `var(--${hue}-on)` }}
                 >
                   {n.kind.replace(/_/g, " ")}
                 </span>
                 {q.scope === "all" && (
-                  <span className="font-mono text-[10px] px-2 py-0.5 rounded-full shrink-0 border border-[var(--line-2)]" data-notification-workspace={n.workspaceId}>
+                  <span className="font-mono text-micro px-2 py-0.5 rounded-full shrink-0 border border-[var(--line-2)]" data-notification-workspace={n.workspaceId}>
                     {names.get(n.workspaceId) ?? "Workspace"}
                   </span>
                 )}
@@ -179,7 +179,7 @@ export default async function NotificationsPage({ searchParams }: { searchParams
                     <span className="text-sm font-semibold">{n.title}</span>
                   )}
                   {n.body && <p className="text-xs text-[var(--mute)] mt-0.5">{n.body}</p>}
-                  <p className="font-mono text-[10px] text-[var(--mute)] mt-0.5">
+                  <p className="font-mono text-micro text-[var(--mute)] mt-0.5">
                     {formatZonedMoment(n.createdAt, mine ?? zones.get(n.workspaceId) ?? "UTC")}
                     {n.emailedAt ? " · emailed" : ""}
                   </p>
@@ -187,7 +187,7 @@ export default async function NotificationsPage({ searchParams }: { searchParams
                 {!n.readAt && (
                   <form action={markNotificationReadAction}>
                     <input type="hidden" name="id" value={n.id} />
-                    <button className="btn text-[11px]">Mark read</button>
+                    <button className="btn text-2xs">Mark read</button>
                   </form>
                 )}
               </li>

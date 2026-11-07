@@ -38,21 +38,21 @@ export function ReadabilityCoach({ body, readingLevel }: { body: string | null; 
             <details open={s.ok === false || s.flags.length > 0}>
               <summary className="cursor-pointer text-xs flex flex-wrap items-center gap-2 list-none">
                 <span className="font-semibold flex-1 min-w-40">{s.heading}</span>
-                <span className="font-mono text-[10px] text-[var(--mute)]">{s.words} words</span>
+                <span className="font-mono text-micro text-[var(--mute)]">{s.words} words</span>
                 <span
-                  className="font-mono text-[10px] px-1.5 py-0.5 rounded-full"
+                  className="font-mono text-micro px-1.5 py-0.5 rounded-full"
                   style={s.ok == null ? { background: "var(--zebra)", color: "var(--mute)" } : s.ok ? { background: "var(--green-soft)", color: "var(--green-on)" } : { background: "var(--amber-soft)", color: "var(--amber-on)" }}
                   title="Flesch reading ease — higher is easier"
                 >
                   {s.flesch == null ? "too short to score" : `ease ${s.flesch} / ${s.target}`}
                 </span>
-                {s.flags.length > 0 && <span className="font-mono text-[10px]" style={{ color: "var(--amber-on)" }}>{s.flags.length} flagged</span>}
+                {s.flags.length > 0 && <span className="font-mono text-micro" style={{ color: "var(--amber-on)" }}>{s.flags.length} flagged</span>}
               </summary>
               {s.flags.length > 0 && (
                 <ul className="m-0 mt-1.5 pl-0 list-none flex flex-col gap-1">
                   {s.flags.map((f, j) => (
                     <li key={j} className="text-xs leading-snug" data-readability-flag={f.kind}>
-                      <span className="font-mono text-[10px] uppercase tracking-wide mr-1.5" style={{ color: "var(--amber-on)" }}>
+                      <span className="font-mono text-micro uppercase tracking-wide mr-1.5" style={{ color: "var(--amber-on)" }}>
                         {KIND[f.kind]}{f.kind !== "passive" ? ` · ${f.words} words` : ""}
                       </span>
                       <span className="text-[var(--mute)]"><Highlighted flag={f} /></span>

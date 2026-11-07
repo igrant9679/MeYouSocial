@@ -88,7 +88,7 @@ export default async function ChannelVoicePage({
                 href={`/channels/${id}/voice?profile=${p.id}`}
                 className={"flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition " + (p.id === active.id ? "bg-[var(--accent-soft)] text-[var(--accent)]" : "text-[var(--slate)] hover:bg-[var(--zebra)]")}
               >
-                {p.isDefault && <Star className="w-3.5 h-3.5" fill="currentColor" style={{ color: "#D97706" }} />}
+                {p.isDefault && <Star className="w-3.5 h-3.5" fill="currentColor" style={{ color: "var(--amber)" }} />}
                 <span className="truncate flex-1">{p.label}</span>
               </Link>
             </li>
@@ -102,7 +102,7 @@ export default async function ChannelVoicePage({
         </form>
 
         <form action={borrowVoiceAction} className="border-t border-[var(--line)] pt-3 mt-3 flex flex-col gap-2">
-          <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">Borrow a voice</span>
+          <span className="text-micro font-mono uppercase tracking-wider text-[var(--mute)]">Borrow a voice</span>
           <input type="hidden" name="channelId" value={id} />
           <input name="handle" required placeholder="@another-creator" className="border border-[var(--line-2)] rounded-md p-1.5 text-xs font-mono" />
           <input name="label" placeholder="Label (optional)" className="border border-[var(--line-2)] rounded-md p-1.5 text-xs" />
@@ -117,20 +117,20 @@ export default async function ChannelVoicePage({
           <div className="flex-1">
             <h1 className="font-mono font-bold text-xl leading-tight flex items-center gap-2">
               {active.label}
-              {active.isDefault && <span className="text-[10px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }}>default</span>}
-              {data.borrowedFrom && <span className="text-[10px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: "var(--accent-soft)", color: "var(--accent)" }}>borrowed from {data.borrowedFrom}</span>}
+              {active.isDefault && <span className="text-micro font-mono uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }}>default</span>}
+              {data.borrowedFrom && <span className="text-micro font-mono uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: "var(--accent-soft)", color: "var(--accent)" }}>borrowed from {data.borrowedFrom}</span>}
             </h1>
             {/* A profile the AI wrote from PLACEHOLDER data says so in its own
                 text (tracker #24: LSI's default voice read "INCOMPLETE - MOCK
                 DATA DETECTED"). The page says it louder, and what to do. */}
             {/mock (data|transcripts)|INCOMPLETE\s*-\s*MOCK|INSUFFICIENT DATA/i.test(data.summary ?? "") ? (
-              <p className="text-[11px] mt-0.5" style={{ color: "var(--rose-on)" }} data-voice-placeholder>
+              <p className="text-2xs mt-0.5" style={{ color: "var(--rose-on)" }} data-voice-placeholder>
                 <b>Built from placeholder data</b> — the AI says so in its own summary; it was made before real YouTube data could be read.
                 {active.isDefault ? " Scripts on this channel use it as their default voice. " : " "}
                 {data.borrowedFrom ? `Borrow ${data.borrowedFrom} again, ` : "Retrain it from writing samples, "}or make another profile the default.
               </p>
             ) : !data.source ? (
-              <p className="text-[11px] text-[var(--mute)] mt-0.5" data-voice-unrecorded>
+              <p className="text-2xs text-[var(--mute)] mt-0.5" data-voice-unrecorded>
                 No record of what built this voice — profiles only started recording it on 27 Jul 2026. If it reads generic, retrain it.
               </p>
             ) : null}
@@ -138,12 +138,12 @@ export default async function ChannelVoicePage({
                 as if it were learned from the channel. Say which it is. */}
             {data.source && (
               data.source.trained ? (
-                <p className="text-[11px] text-[var(--mute)] mt-0.5">
+                <p className="text-2xs text-[var(--mute)] mt-0.5">
                   Trained from {data.source.basis}
                   {data.source.videos ? ` across ${data.source.videos} videos` : ""}.
                 </p>
               ) : (
-                <p className="text-[11px] mt-0.5" style={{ color: "var(--amber-on)" }}>
+                <p className="text-2xs mt-0.5" style={{ color: "var(--amber-on)" }}>
                   <b>Not trained on this channel</b> — generic starting point. {data.source.reason}
                 </p>
               )
@@ -170,7 +170,7 @@ export default async function ChannelVoicePage({
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {/* Simple mode */}
           <section className="card">
-            <h2 className="font-mono text-[14px] font-bold mb-3 flex items-center gap-2"><Sparkles className="w-4 h-4" style={{ color: "var(--accent)" }} /> Simple mode</h2>
+            <h2 className="font-mono text-sm font-bold mb-3 flex items-center gap-2"><Sparkles className="w-4 h-4" style={{ color: "var(--accent)" }} /> Simple mode</h2>
             <p className="text-xs text-[var(--mute)] mb-3">Refine your voice with plain-language instructions.</p>
             <form action={refineVoiceSimpleAction} className="flex flex-col gap-2">
               <input type="hidden" name="channelId" value={id} />
@@ -197,7 +197,7 @@ export default async function ChannelVoicePage({
 
           {/* Advanced mode */}
           <section className="card">
-            <h2 className="font-mono text-[14px] font-bold mb-3">Advanced mode</h2>
+            <h2 className="font-mono text-sm font-bold mb-3">Advanced mode</h2>
             <p className="text-xs text-[var(--mute)] mb-3">Edit the structured voice payload directly.</p>
             <form action={updateVoiceAdvancedAction} className="flex flex-col gap-2">
               <input type="hidden" name="channelId" value={id} />
@@ -215,14 +215,14 @@ export default async function ChannelVoicePage({
 
         {/* Writing samples */}
         <section className="card">
-          <h2 className="font-mono text-[14px] font-bold mb-3 flex items-center gap-2"><FileText className="w-4 h-4" style={{ color: "#2563EB" }} /> Writing samples <span className="text-xs text-[var(--mute)] font-normal">— up to 50,000 chars each</span></h2>
+          <h2 className="font-mono text-sm font-bold mb-3 flex items-center gap-2"><FileText className="w-4 h-4" style={{ color: "var(--blue)" }} /> Writing samples <span className="text-xs text-[var(--mute)] font-normal">— up to 50,000 chars each</span></h2>
           <p className="text-xs text-[var(--mute)] mb-3">Paste blog posts, threads, transcripts, or other scripts you&apos;ve written. More samples = better voice match — Simple mode reads them too.</p>
           {samples.length > 0 && (
             <form action={retrainVoiceFromSamplesAction} className="mb-3 flex items-center gap-2 flex-wrap">
               <input type="hidden" name="channelId" value={id} />
               <input type="hidden" name="voiceId" value={active.id} />
               <SubmitButton className="btn sm" pendingText="Retraining…" title="Re-derive this voice from the samples below — what it is now is kept as a version"><Sparkles className="w-3.5 h-3.5" /> Retrain from {samples.length} sample{samples.length === 1 ? "" : "s"}</SubmitButton>
-              <span className="text-[11px] text-[var(--mute)]">Makes a new version; the one before can be restored.</span>
+              <span className="text-2xs text-[var(--mute)]">Makes a new version; the one before can be restored.</span>
             </form>
           )}
 
@@ -239,7 +239,7 @@ export default async function ChannelVoicePage({
               <li key={s.id} className="border-t border-[var(--line)] py-2.5 flex items-center gap-3 text-sm">
                 <FileText className="w-4 h-4 text-[var(--mute)]" />
                 <span className="flex-1 font-semibold">{s.label}</span>
-                <span className="text-[11px] text-[var(--mute)] font-mono">{s.chars.toLocaleString()} chars</span>
+                <span className="text-2xs text-[var(--mute)] font-mono">{s.chars.toLocaleString()} chars</span>
                 <form action={removeVoiceSampleAction}>
                   <input type="hidden" name="voiceId" value={active.id} />
                   <input type="hidden" name="sampleId" value={s.id} />

@@ -156,14 +156,14 @@ export default async function BlogPage({ searchParams }: { searchParams: Promise
           return (
             <section key={col.status} className="min-w-0">
               <h2
-                className="flex items-center justify-between text-[11px] font-mono font-bold uppercase tracking-wider mb-2 px-1"
+                className="flex items-center justify-between text-2xs font-mono font-bold uppercase tracking-wider mb-2 px-1"
                 style={{ color: `var(--${col.hue}-on)` }}
               >
                 {col.title} <span>{items.length}</span>
               </h2>
               <div className="flex flex-col gap-2">
                 {shown.length === 0 && (
-                  <div className="card text-[11px] text-[var(--mute)] py-4 leading-snug">{col.empty}</div>
+                  <div className="card text-2xs text-[var(--mute)] py-4 leading-snug">{col.empty}</div>
                 )}
                 {shown.map((p) => {
                   const missingImages =
@@ -177,40 +177,40 @@ export default async function BlogPage({ searchParams }: { searchParams: Promise
                       href={`/blog/${p.id}`}
                       className="card lift block !p-3"
                     >
-                      <div className="text-[13px] font-semibold leading-snug mb-1.5">{p.title}</div>
+                      <div className="text-sm font-semibold leading-snug mb-1.5">{p.title}</div>
                       <div className="flex flex-wrap gap-1">
                         {p.topic && (
-                          <span className="font-mono text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: "var(--indigo-soft)", color: "var(--indigo-on)" }}>
+                          <span className="font-mono text-micro font-bold px-1.5 py-0.5 rounded-full" style={{ background: "var(--indigo-soft)", color: "var(--indigo-on)" }}>
                             {p.topic.name}
                           </span>
                         )}
                         {motifs.length > 0 && (
-                          <span className="font-mono text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: "var(--violet-soft)", color: "var(--violet-on)" }}>
+                          <span className="font-mono text-micro font-bold px-1.5 py-0.5 rounded-full" style={{ background: "var(--violet-soft)", color: "var(--violet-on)" }}>
                             {motifSummaryLabel(motifs).split(" + ")[0]}
                           </span>
                         )}
                         {p.citations.length > 0 && (
-                          <span className="font-mono text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }}>
+                          <span className="font-mono text-micro font-bold px-1.5 py-0.5 rounded-full" style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }}>
                             {p.citations.length} citation{p.citations.length > 1 ? "s" : ""}
                           </span>
                         )}
                         {p.status !== "published" && p.status !== "drafting" && missingImages && (
-                          <span className="font-mono text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: "var(--rose-soft)", color: "var(--rose-on)" }}>
+                          <span className="font-mono text-micro font-bold px-1.5 py-0.5 rounded-full" style={{ background: "var(--rose-soft)", color: "var(--rose-on)" }}>
                             images
                           </span>
                         )}
                         {p.comments.length > 0 && (
-                          <span className="font-mono text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: "var(--blue-soft)", color: "var(--blue-on)" }}>
+                          <span className="font-mono text-micro font-bold px-1.5 py-0.5 rounded-full" style={{ background: "var(--blue-soft)", color: "var(--blue-on)" }}>
                             {p.comments.length} note{p.comments.length > 1 ? "s" : ""}
                           </span>
                         )}
                         {p.status === "published" && snap?.position != null && (
-                          <span className="font-mono text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: "var(--green-soft)", color: "var(--green-on)" }}>
+                          <span className="font-mono text-micro font-bold px-1.5 py-0.5 rounded-full" style={{ background: "var(--green-soft)", color: "var(--green-on)" }}>
                             pos {snap.position.toFixed(1)}{snap.clicks != null ? ` · ${snap.clicks}c` : ""}
                           </span>
                         )}
                         {p.scheduledAt && p.status === "final_approval" && (
-                          <span className="font-mono text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: "var(--cyan-soft)", color: "var(--cyan-on)" }}>
+                          <span className="font-mono text-micro font-bold px-1.5 py-0.5 rounded-full" style={{ background: "var(--cyan-soft)", color: "var(--cyan-on)" }}>
                             {p.scheduledAt.toLocaleDateString("en-GB", { day: "2-digit", month: "short", timeZone: tz })}
                           </span>
                         )}
@@ -219,7 +219,7 @@ export default async function BlogPage({ searchParams }: { searchParams: Promise
                   );
                 })}
                 {col.status === "published" && items.length > shown.length && (
-                  <Link href="/blog?view=list" className="text-[11px] text-[var(--mute)] underline px-1">
+                  <Link href="/blog?view=list" className="text-2xs text-[var(--mute)] underline px-1">
                     + {items.length - shown.length} more — see the list
                   </Link>
                 )}
@@ -234,7 +234,7 @@ export default async function BlogPage({ searchParams }: { searchParams: Promise
       <section className="card mb-4">
         <div className="flex items-center gap-2 mb-2">
           <CalendarDays className="w-4 h-4" style={{ color: "var(--cyan-on)" }} />
-          <h2 className="font-mono text-[13px] font-bold flex-1">This week</h2>
+          <h2 className="font-mono text-sm font-bold flex-1">This week</h2>
           <Link href="/blog/calendar" className="text-xs font-mono text-[var(--accent)] font-semibold hover:underline">full calendar →</Link>
         </div>
         {/* 7 columns are unreadable on phones — below ~42rem effective width
@@ -242,16 +242,16 @@ export default async function BlogPage({ searchParams }: { searchParams: Promise
         <div className="grid grid-flow-col auto-cols-[minmax(92px,1fr)] overflow-x-auto @2xl:grid-flow-row @2xl:auto-cols-auto @2xl:grid-cols-7 @2xl:overflow-visible gap-1.5 pb-1 @2xl:pb-0">
           {days.map((d, i) => (
             <div key={i} className="rounded-lg border border-[var(--line)] p-1.5 min-h-[54px]" style={i === 0 ? { background: "var(--zebra)" } : undefined}>
-              <div className="font-mono text-[9px] text-[var(--mute)] font-bold mb-1">
+              <div className="font-mono text-micro text-[var(--mute)] font-bold mb-1">
                 {d.date.toLocaleDateString("en-GB", { weekday: "short", day: "2-digit" }).toUpperCase()}
               </div>
               {d.publishes.map((p) => (
-                <Link key={p.id} href={`/blog/${p.id}`} className="block rounded px-1 py-0.5 mb-0.5 text-[9px] font-bold truncate" style={{ background: "var(--green-soft)", color: "var(--green-on)" }}>
+                <Link key={p.id} href={`/blog/${p.id}`} className="block rounded px-1 py-0.5 mb-0.5 text-micro font-bold truncate" style={{ background: "var(--green-soft)", color: "var(--green-on)" }}>
                   {p.title}
                 </Link>
               ))}
               {d.renders.map((r) => (
-                <Link key={r.id} href="/videos" className="block rounded px-1 py-0.5 mb-0.5 text-[9px] font-bold truncate" style={{ background: "var(--purple-soft)", color: "var(--purple-on)" }}>
+                <Link key={r.id} href="/videos" className="block rounded px-1 py-0.5 mb-0.5 text-micro font-bold truncate" style={{ background: "var(--purple-soft)", color: "var(--purple-on)" }}>
                   🎬 {r.title}
                 </Link>
               ))}
@@ -264,7 +264,7 @@ export default async function BlogPage({ searchParams }: { searchParams: Promise
       <section className="card">
         <div className="flex items-center gap-2 mb-2">
           <Sparkles className="w-4 h-4" style={{ color: "var(--amber-on)" }} />
-          <h2 className="font-mono text-[13px] font-bold flex-1">Top ideas</h2>
+          <h2 className="font-mono text-sm font-bold flex-1">Top ideas</h2>
           {editor && (
             <form action={discoverBlogIdeasAction}>
               <SubmitButton className="btn sm" pendingText="Discovering…">Discover more</SubmitButton>
@@ -286,12 +286,12 @@ export default async function BlogPage({ searchParams }: { searchParams: Promise
                 <div className="flex items-start gap-2">
                   <span className="text-xs font-semibold leading-snug flex-1">{i.title}</span>
                   {i.priority != null && (
-                    <span className="font-mono text-[9.5px] font-bold px-1.5 py-0.5 rounded-full shrink-0" style={{ background: "var(--panel)", color: "var(--mute)" }} title={i.priorityReason ?? undefined}>
+                    <span className="font-mono text-micro font-bold px-1.5 py-0.5 rounded-full shrink-0" style={{ background: "var(--panel)", color: "var(--mute)" }} title={i.priorityReason ?? undefined}>
                       {i.priority}
                     </span>
                   )}
                 </div>
-                {i.angle && <p className="text-[10.5px] text-[var(--mute)] mt-1 line-clamp-2">{i.angle}</p>}
+                {i.angle && <p className="text-micro text-[var(--mute)] mt-1 line-clamp-2">{i.angle}</p>}
               </div>
             ))}
           </div>

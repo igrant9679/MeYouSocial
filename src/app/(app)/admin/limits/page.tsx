@@ -12,7 +12,7 @@ export default async function AdminLimitsPage() {
   return (
     <div className="w-full">
       <div className="flex items-center gap-3 mb-4">
-        <span className="w-10 h-10 rounded-xl grid place-items-center" style={{ background: "#FBEED5", color: "#D97706" }}>
+        <span className="w-10 h-10 rounded-xl grid place-items-center" style={{ background: "var(--amber-soft)", color: "var(--amber)" }}>
           <Gauge className="w-5 h-5" strokeWidth={2.25} />
         </span>
         <div>
@@ -39,9 +39,9 @@ export default async function AdminLimitsPage() {
 function LimitField(props: { name: string; label: string; defaultValue: number | null; hint?: string }) {
   return (
     <label className="flex flex-col gap-1">
-      <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">{props.label}</span>
+      <span className="text-micro font-mono uppercase tracking-wider text-[var(--mute)]">{props.label}</span>
       <input type="number" name={props.name} min={0} defaultValue={props.defaultValue ?? ""} placeholder="Unlimited" className="border border-[var(--line-2)] rounded-lg p-2 text-sm w-32 font-mono" />
-      {props.hint && <span className="text-[11px] text-[var(--mute)]">{props.hint}</span>}
+      {props.hint && <span className="text-2xs text-[var(--mute)]">{props.hint}</span>}
     </label>
   );
 }

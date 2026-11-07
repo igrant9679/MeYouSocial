@@ -92,8 +92,8 @@ export default async function TopicPage({ params, searchParams }: { params: Prom
         <div className="flex flex-wrap items-start gap-3">
           <div className="flex-1 min-w-64">
             {topic.description ? <p className="text-sm m-0">{topic.description}</p> : <p className="text-sm text-[var(--mute)] m-0">No description yet.</p>}
-            {phrases.length > 0 && <p className="text-[11px] font-mono text-[var(--mute)] mt-1.5 flex items-center gap-1 flex-wrap"><Tags className="w-3 h-3" /> {phrases.join(" · ")}</p>}
-            {topic.priority > 0 && <p className="text-[11px] mt-1.5" style={{ color: "var(--violet-on)" }}>Priority {topic.priority} — leads discovery and is filled first.</p>}
+            {phrases.length > 0 && <p className="text-2xs font-mono text-[var(--mute)] mt-1.5 flex items-center gap-1 flex-wrap"><Tags className="w-3 h-3" /> {phrases.join(" · ")}</p>}
+            {topic.priority > 0 && <p className="text-2xs mt-1.5" style={{ color: "var(--violet-on)" }}>Priority {topic.priority} — leads discovery and is filled first.</p>}
           </div>
           {editor && (
             <div className="flex flex-wrap items-center gap-2">
@@ -108,7 +108,7 @@ export default async function TopicPage({ params, searchParams }: { params: Prom
               <form action={updateTopicAction} className="flex items-center gap-1.5">
                 <input type="hidden" name="id" value={topic.id} />
                 <input type="hidden" name="back" value={back} />
-                <label className="text-[11px] text-[var(--mute)]">Priority</label>
+                <label className="text-2xs text-[var(--mute)]">Priority</label>
                 <input name="priority" type="number" min={0} max={10} step={1} defaultValue={topic.priority} className="w-14 font-mono text-xs" aria-label="Priority 0–10" />
                 <SubmitButton className="btn sm" pendingText="…">Set</SubmitButton>
               </form>
@@ -122,13 +122,13 @@ export default async function TopicPage({ params, searchParams }: { params: Prom
             </div>
           )}
         </div>
-        <p className="text-[11px] text-[var(--mute)] mt-2 m-0">Edit the description and phrases on <Link href="/ideas/topics" className="underline">Topics</Link>.</p>
+        <p className="text-2xs text-[var(--mute)] mt-2 m-0">Edit the description and phrases on <Link href="/ideas/topics" className="underline">Topics</Link>.</p>
       </div>
 
       {bySource.length > 0 && (
         <section className="card mb-4" data-idea-yield>
-          <h2 className="font-mono text-[12px] font-bold mb-0.5">How its ideas fare</h2>
-          <p className="text-[11px] text-[var(--mute)] mb-2">The last {YIELD_WINDOW_DAYS} days, by where each idea came from. Out = of those approved, published or sent.</p>
+          <h2 className="font-mono text-xs font-bold mb-0.5">How its ideas fare</h2>
+          <p className="text-2xs text-[var(--mute)] mb-2">The last {YIELD_WINDOW_DAYS} days, by where each idea came from. Out = of those approved, published or sent.</p>
           <ul className="m-0 p-0 list-none flex flex-col mb-2">
             {bySource.map(({ format, source, y }) => (
               <li key={`${format}-${source}`} className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 text-xs py-1 border-t border-[var(--line)] first:border-0" data-yield-source={`${format}:${source}`}>
@@ -142,7 +142,7 @@ export default async function TopicPage({ params, searchParams }: { params: Prom
       )}
 
       {/* Ideas about it, the board's three columns */}
-      <h2 className="font-mono text-[13px] font-bold mb-2">Ideas</h2>
+      <h2 className="font-mono text-sm font-bold mb-2">Ideas</h2>
       {mini.length === 0 ? (
         <div className="mb-4">
           <EmptyState
@@ -157,11 +157,11 @@ export default async function TopicPage({ params, searchParams }: { params: Prom
             const items = by(col.state);
             return (
               <section key={col.state} className="card">
-                <h3 className="flex items-center justify-between text-[10px] font-semibold uppercase tracking-wide mb-1" style={{ color: `var(--${col.hue}-on)` }}>
+                <h3 className="flex items-center justify-between text-micro font-semibold uppercase tracking-wide mb-1" style={{ color: `var(--${col.hue}-on)` }}>
                   {col.title} <span className="font-mono">{items.length}</span>
                 </h3>
                 {items.length === 0 ? (
-                  <p className="text-[11px] text-[var(--mute)] py-1">—</p>
+                  <p className="text-2xs text-[var(--mute)] py-1">—</p>
                 ) : (
                   <ul className="flex flex-col gap-1.5">
                     {items.slice(0, 15).map((m) => (
@@ -170,7 +170,7 @@ export default async function TopicPage({ params, searchParams }: { params: Prom
                         {m.href ? <Link href={m.href} className="hover:underline leading-snug">{m.title}</Link> : <span className="leading-snug">{m.title}</span>}
                       </li>
                     ))}
-                    {items.length > 15 && <li className="text-[11px] text-[var(--mute)]"><Link href="/ideas" className="underline">and {items.length - 15} more on the board</Link></li>}
+                    {items.length > 15 && <li className="text-2xs text-[var(--mute)]"><Link href="/ideas" className="underline">and {items.length - 15} more on the board</Link></li>}
                   </ul>
                 )}
               </section>
@@ -180,25 +180,25 @@ export default async function TopicPage({ params, searchParams }: { params: Prom
       )}
 
       {/* Made and out */}
-      <h2 id="made" className="font-mono text-[13px] font-bold mb-2">Made from it</h2>
+      <h2 id="made" className="font-mono text-sm font-bold mb-2">Made from it</h2>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 mb-4">
         <section className="card">
-          <h3 className="text-[10px] font-semibold uppercase tracking-wide mb-1" style={{ color: "var(--rose-on)" }}>Articles <span className="font-mono">{articles.length}</span></h3>
-          {articles.length === 0 ? <p className="text-[11px] text-[var(--mute)] py-1">None yet.</p> : (
+          <h3 className="text-micro font-semibold uppercase tracking-wide mb-1" style={{ color: "var(--rose-on)" }}>Articles <span className="font-mono">{articles.length}</span></h3>
+          {articles.length === 0 ? <p className="text-2xs text-[var(--mute)] py-1">None yet.</p> : (
             <ul className="flex flex-col gap-1.5">
               {articles.map((a) => (
                 <li key={a.id} className="text-xs flex items-start gap-1.5">
                   <StateChip label={a.status.replace("_", " ")} hue={a.status === "published" ? "green" : a.status === "final_approval" ? "blue" : "amber"} />
                   <Link href={`/blog/${a.id}`} className="hover:underline leading-snug flex-1">{a.title}</Link>
-                  {a.publishedAt && <span className="font-mono text-[10px] text-[var(--mute)] shrink-0">{fmtDate(a.publishedAt)}</span>}
+                  {a.publishedAt && <span className="font-mono text-micro text-[var(--mute)] shrink-0">{fmtDate(a.publishedAt)}</span>}
                 </li>
               ))}
             </ul>
           )}
         </section>
         <section className="card">
-          <h3 className="text-[10px] font-semibold uppercase tracking-wide mb-1" style={{ color: "var(--violet-on)" }}>Scripts &amp; renders <span className="font-mono">{scripts.length + renders.length}</span></h3>
-          {scripts.length + renders.length === 0 ? <p className="text-[11px] text-[var(--mute)] py-1">None yet.</p> : (
+          <h3 className="text-micro font-semibold uppercase tracking-wide mb-1" style={{ color: "var(--violet-on)" }}>Scripts &amp; renders <span className="font-mono">{scripts.length + renders.length}</span></h3>
+          {scripts.length + renders.length === 0 ? <p className="text-2xs text-[var(--mute)] py-1">None yet.</p> : (
             <ul className="flex flex-col gap-1.5">
               {scripts.map((s) => (
                 <li key={`s-${s.id}`} className="text-xs flex items-start gap-1.5">
@@ -216,14 +216,14 @@ export default async function TopicPage({ params, searchParams }: { params: Prom
           )}
         </section>
         <section className="card">
-          <h3 className="text-[10px] font-semibold uppercase tracking-wide mb-1" style={{ color: "var(--blue-on)" }}>Social posts <span className="font-mono">{posts.length}</span></h3>
-          {posts.length === 0 ? <p className="text-[11px] text-[var(--mute)] py-1">None yet.</p> : (
+          <h3 className="text-micro font-semibold uppercase tracking-wide mb-1" style={{ color: "var(--blue-on)" }}>Social posts <span className="font-mono">{posts.length}</span></h3>
+          {posts.length === 0 ? <p className="text-2xs text-[var(--mute)] py-1">None yet.</p> : (
             <ul className="flex flex-col gap-1.5">
               {posts.map((p) => (
                 <li key={p.id} className="text-xs flex items-start gap-1.5">
                   <StateChip label={p.status} hue={p.status === "posted" ? "green" : p.status === "scheduled" ? "blue" : p.status === "failed" ? "rose" : "amber"} />
                   <Link href={`/social/${p.id}/edit`} className="hover:underline leading-snug flex-1 line-clamp-1">{p.text}</Link>
-                  {(p.publishedAt ?? p.scheduledAt) && <span className="font-mono text-[10px] text-[var(--mute)] shrink-0">{fmtDate(p.publishedAt ?? p.scheduledAt)}</span>}
+                  {(p.publishedAt ?? p.scheduledAt) && <span className="font-mono text-micro text-[var(--mute)] shrink-0">{fmtDate(p.publishedAt ?? p.scheduledAt)}</span>}
                 </li>
               ))}
             </ul>

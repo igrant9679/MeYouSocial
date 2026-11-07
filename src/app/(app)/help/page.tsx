@@ -34,7 +34,7 @@ export default async function HelpPage({ searchParams }: { searchParams: Promise
   return (
     <div>
       <div className="flex items-center gap-3 mb-5">
-        <span className="w-12 h-12 rounded-2xl grid place-items-center" style={{ background: "#D8EFF5", color: "#0891B2" }}>
+        <span className="w-12 h-12 rounded-2xl grid place-items-center" style={{ background: "var(--cyan-soft)", color: "var(--cyan)" }}>
           <HelpCircle className="w-6 h-6" strokeWidth={2.25} />
         </span>
         <div>
@@ -49,7 +49,7 @@ export default async function HelpPage({ searchParams }: { searchParams: Promise
           work actually happens, with the two facts that most often derail a
           first session (placeholder output, and hover help existing at all). */}
       <section className="card mb-4">
-        <h2 className="font-mono font-bold text-[14px] mb-1 flex items-center gap-2">
+        <h2 className="font-mono font-bold text-sm mb-1 flex items-center gap-2">
           <Compass className="w-4 h-4" style={{ color: "var(--accent)" }} /> Start here
         </h2>
         <p className="text-sm mb-3 leading-[1.6]">
@@ -67,14 +67,14 @@ export default async function HelpPage({ searchParams }: { searchParams: Promise
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
           <div className="border rounded-lg px-3 py-2" style={{ borderColor: "var(--line)" }}>
             <div className="text-sm font-semibold mb-0.5">Hover anything you don&apos;t recognise</div>
-            <div className="text-[12px] text-[var(--mute)] leading-snug">
+            <div className="text-xs text-[var(--mute)] leading-snug">
               Every left-rail module explains itself on hover, and controls with a small <b>?</b> beside them do too.
               Keyboard focus shows the same text.
             </div>
           </div>
           <div className="border rounded-lg px-3 py-2" style={{ borderColor: "var(--line)" }}>
             <div className="text-sm font-semibold mb-0.5">If the output looks fake, it probably is</div>
-            <div className="text-[12px] text-[var(--mute)] leading-snug">
+            <div className="text-xs text-[var(--mute)] leading-snug">
               With no working API key the app falls back to placeholder text rather than erroring. Keys are per
               workspace — check <RoleLink href="/admin/api-keys" role={role} className="underline">Settings → Keys</RoleLink>.
             </div>
@@ -98,7 +98,7 @@ export default async function HelpPage({ searchParams }: { searchParams: Promise
           </span>
           <div className="flex-1 min-w-0">
             <div className="text-sm font-semibold">The owner&apos;s guide</div>
-            <div className="text-[12px] text-[var(--mute)] leading-snug">
+            <div className="text-xs text-[var(--mute)] leading-snug">
               Onboarding as a ten-minute read, then the routine: what tending this app looks like daily
               (~5 min), weekly (~30 min) and monthly (~1 hr).
             </div>
@@ -109,7 +109,7 @@ export default async function HelpPage({ searchParams }: { searchParams: Promise
 
       {/* Quick starts by role */}
       <section className="card mb-4">
-        <h2 className="font-mono font-bold text-[14px] mb-3 flex items-center gap-2"><Sparkles className="w-4 h-4" style={{ color: "var(--accent)" }} /> Quick start by role</h2>
+        <h2 className="font-mono font-bold text-sm mb-3 flex items-center gap-2"><Sparkles className="w-4 h-4" style={{ color: "var(--accent)" }} /> Quick start by role</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
           {QUICK_START.map((qs) => (
             <div key={qs.role} className="border border-[var(--line)] rounded-xl p-3">
@@ -125,14 +125,14 @@ export default async function HelpPage({ searchParams }: { searchParams: Promise
       {/* Appearance + shortcuts row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
         <section className="card">
-          <h2 className="font-mono font-bold text-[14px] mb-3 flex items-center gap-2"><Palette className="w-4 h-4" style={{ color: "#6D28D9" }} /> Appearance</h2>
+          <h2 className="font-mono font-bold text-sm mb-3 flex items-center gap-2"><Palette className="w-4 h-4" style={{ color: "var(--violet)" }} /> Appearance</h2>
           <form action={setThemeAction} className="flex flex-col sm:flex-row gap-2 items-stretch">
             <input type="hidden" name="return" value="/help" />
             {(["light", "dark", "auto"] as const).map((t) => (
               <label key={t} className="flex-1 cursor-pointer border rounded-lg p-2.5 text-center transition has-[input:checked]:border-[var(--accent)] has-[input:checked]:bg-[var(--accent-soft)]" style={{ borderColor: theme === t ? "var(--accent)" : "var(--line-2)" }}>
                 <input type="radio" name="theme" value={t} defaultChecked={theme === t} className="hidden" />
                 <span className="text-sm capitalize font-semibold">{t}</span>
-                <div className="text-[10px] font-mono text-[var(--mute)] uppercase tracking-wider mt-0.5">
+                <div className="text-micro font-mono text-[var(--mute)] uppercase tracking-wider mt-0.5">
                   {t === "auto" ? "Match OS" : t === "dark" ? "Reduce eye strain" : "Default"}
                 </div>
               </label>
@@ -142,7 +142,7 @@ export default async function HelpPage({ searchParams }: { searchParams: Promise
         </section>
 
         <section className="card">
-          <h2 className="font-mono font-bold text-[14px] mb-3 flex items-center gap-2"><Keyboard className="w-4 h-4" style={{ color: "var(--accent)" }} /> Keyboard shortcuts</h2>
+          <h2 className="font-mono font-bold text-sm mb-3 flex items-center gap-2"><Keyboard className="w-4 h-4" style={{ color: "var(--accent)" }} /> Keyboard shortcuts</h2>
           <ul className="m-0 p-0">
             {SHORTCUTS.map((s) => (
               <li key={s.keys} className="border-t border-[var(--line)] first:border-t-0 py-2 flex items-center gap-3 text-sm">
@@ -158,7 +158,7 @@ export default async function HelpPage({ searchParams }: { searchParams: Promise
           someone says so. The tours are listed from the same source of truth
           she uses, so this can't drift out of sync with what she offers. */}
       <section className="card mb-4">
-        <h2 className="font-mono font-bold text-[14px] mb-1 flex items-center gap-2">
+        <h2 className="font-mono font-bold text-sm mb-1 flex items-center gap-2">
           <Compass className="w-4 h-4" style={{ color: "var(--amber-on)" }} /> {ELSIE_NAME}, the in-app guide
         </h2>
         <p className="text-xs text-[var(--mute)] mb-3">
@@ -172,12 +172,12 @@ export default async function HelpPage({ searchParams }: { searchParams: Promise
               <div className="text-sm font-semibold">
                 {t.label}
                 {t.operatorOnly && (
-                  <span className="ml-1.5 text-[10px] font-mono uppercase tracking-wider px-1 py-0.5 rounded" style={{ background: "var(--accent-soft)", color: "var(--accent-on)" }}>
+                  <span className="ml-1.5 text-micro font-mono uppercase tracking-wider px-1 py-0.5 rounded" style={{ background: "var(--accent-soft)", color: "var(--accent-on)" }}>
                     operator
                   </span>
                 )}
               </div>
-              <div className="text-[11px] text-[var(--mute)] leading-snug">{t.blurb}</div>
+              <div className="text-2xs text-[var(--mute)] leading-snug">{t.blurb}</div>
             </div>
           ))}
         </div>
@@ -185,7 +185,7 @@ export default async function HelpPage({ searchParams }: { searchParams: Promise
 
       {/* Useful links */}
       <section className="card mb-5">
-        <h2 className="font-mono font-bold text-[14px] mb-3">Useful links</h2>
+        <h2 className="font-mono font-bold text-sm mb-3">Useful links</h2>
         <div className="flex flex-wrap gap-2">
           <Link href="/channels" className="btn sm flex items-center gap-1.5">Manage channels <ExternalLink className="w-3 h-3" /></Link>
           <RoleLink href="/onboarding/channel/new" role={role} className="btn sm flex items-center gap-1.5" denied="hide">New channel <ExternalLink className="w-3 h-3" /></RoleLink>
@@ -201,7 +201,7 @@ export default async function HelpPage({ searchParams }: { searchParams: Promise
       </section>
 
       {/* Searchable FAQ */}
-      <h2 className="font-mono font-bold text-[15px] mb-3 mt-2">Frequently asked questions</h2>
+      <h2 className="font-mono font-bold text-sm mb-3 mt-2">Frequently asked questions</h2>
       <HelpClient role={role} initialQuery={(sp.q ?? "").slice(0, 100)} initialCat={sp.cat ?? "__all"} />
     </div>
   );

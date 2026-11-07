@@ -58,8 +58,8 @@ export function AgentPanel({ scriptId, runId, initialStatus }: { scriptId: strin
         <span className="w-7 h-7 rounded-lg grid place-items-center" style={{ background: soft, color: accent }}>
           {running ? <Loader2 className="w-4 h-4 animate-spin" /> : <Bot className="w-4 h-4" />}
         </span>
-        <div className="font-mono font-bold text-[14px]">Agent run</div>
-        <span className="font-mono text-[10px] uppercase tracking-wider px-2 py-0.5 rounded" style={{ background: soft, color: accent }}>{status}</span>
+        <div className="font-mono font-bold text-sm">Agent run</div>
+        <span className="font-mono text-micro uppercase tracking-wider px-2 py-0.5 rounded" style={{ background: soft, color: accent }}>{status}</span>
         <span className="flex-1" />
         {running && (
           <form action={cancelAgentAction}>
@@ -100,7 +100,7 @@ function StepBadge({ step }: { step: Step }) {
     <li className="flex items-center gap-1.5 px-2 py-1.5 rounded-md border border-[var(--line)]">
       <Icon className={"w-3.5 h-3.5 flex-shrink-0 " + (step.status === "running" ? "animate-spin" : "")} style={{ color }} />
       <span className="truncate" style={{ color: step.status === "queued" ? "var(--mute)" : "var(--ink)" }}>{label}</span>
-      {step.note && <span className="text-[10px] text-[var(--mute)] ml-auto">{step.note}</span>}
+      {step.note && <span className="text-micro text-[var(--mute)] ml-auto">{step.note}</span>}
     </li>
   );
 }

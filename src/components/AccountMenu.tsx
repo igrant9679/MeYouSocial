@@ -54,7 +54,7 @@ export function AccountMenu({
         aria-haspopup="menu"
         aria-label={`Your account — ${email}, ${roleWord}`}
         title={`${email} · ${roleWord}`}
-        className="w-9 h-9 rounded-full grid place-items-center font-mono font-bold text-[12px] uppercase"
+        className="w-9 h-9 rounded-full grid place-items-center font-mono font-bold text-xs uppercase"
         style={{ background: "var(--accent-soft)", color: "var(--accent-on)" }}
       >
         {initials}
@@ -64,7 +64,7 @@ export function AccountMenu({
           <div className="text-sm font-semibold truncate">{name}</div>
           <div className="text-xs text-[var(--mute)] truncate">{email}</div>
           <div className="text-xs mt-1.5">
-            <span className="font-mono text-[10px] uppercase tracking-wider font-bold px-1.5 py-0.5 rounded" style={{ background: "var(--accent-soft)", color: "var(--accent-on)" }}>{roleWord}</span>
+            <span className="font-mono text-micro uppercase tracking-wider font-bold px-1.5 py-0.5 rounded" style={{ background: "var(--accent-soft)", color: "var(--accent-on)" }}>{roleWord}</span>
             <span className="text-[var(--mute)]"> in {workspaceName}</span>
           </div>
           <div className="border-t border-[var(--line)] mt-2.5 pt-2 flex flex-col gap-0.5">

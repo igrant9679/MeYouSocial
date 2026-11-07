@@ -52,7 +52,7 @@ export function WorkspaceSwitcher({
             e.currentTarget.form?.requestSubmit();
           }}
           aria-label="Switch workspace"
-          className="appearance-none bg-transparent border-0 pl-1 pr-5 cursor-pointer rounded font-mono text-[15px] font-bold tracking-tight focus-visible:outline-2 focus-visible:outline-[var(--accent)] focus-visible:outline-offset-2 max-w-[200px] truncate [field-sizing:content]"
+          className="appearance-none bg-transparent border-0 pl-1 pr-5 cursor-pointer rounded font-mono text-sm font-bold tracking-tight focus-visible:outline-2 focus-visible:outline-[var(--accent)] focus-visible:outline-offset-2 max-w-[200px] truncate [field-sizing:content]"
         >
           {workspaces.map((w) => (
             <option key={w.id} value={w.id}>{w.id === activeId ? w.name : label(w)}</option>
@@ -67,7 +67,7 @@ export function WorkspaceSwitcher({
         <ChevronDown className="w-3.5 h-3.5 text-[var(--mute)] pointer-events-none absolute right-0" aria-hidden />
       </span>
       {elsewhere > 0 && (
-        <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full shrink-0" style={{ background: "var(--rose-soft)", color: "var(--rose-on)" }} title="Waiting for you in your other workspaces — open the list to see where" data-elsewhere>
+        <span className="font-mono text-micro px-1.5 py-0.5 rounded-full shrink-0" style={{ background: "var(--rose-soft)", color: "var(--rose-on)" }} title="Waiting for you in your other workspaces — open the list to see where" data-elsewhere>
           {elsewhere} elsewhere
         </span>
       )}

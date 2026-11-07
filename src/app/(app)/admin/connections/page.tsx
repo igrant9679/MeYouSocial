@@ -117,7 +117,7 @@ export default async function ConnectionsPage({ searchParams }: { searchParams: 
       <div className="flex items-center gap-2 mb-2 mt-6 flex-wrap">
         <Share2 className="w-4 h-4" style={{ color: "var(--purple-on)" }} />
         <h2 className="font-mono font-bold text-sm">Social accounts</h2>
-        <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "var(--panel)", color: "var(--mute)" }}>
+        <span className="font-mono text-micro px-1.5 py-0.5 rounded-full" style={{ background: "var(--panel)", color: "var(--mute)" }}>
           Zernio
         </span>
         <span className="flex-1" />
@@ -168,14 +168,14 @@ export default async function ConnectionsPage({ searchParams }: { searchParams: 
             return (
               <li key={a.id} className="card flex items-center gap-2 flex-wrap" style={{ opacity: live ? 1 : 0.6 }}>
                 <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: p?.color ?? "var(--mute)" }} />
-                <span className="font-mono text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: "var(--panel)", color: "var(--mute)" }}>
+                <span className="font-mono text-micro uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: "var(--panel)", color: "var(--mute)" }}>
                   {p?.label ?? a.platform}
                 </span>
                 <span className="text-sm font-semibold truncate">{a.displayName ?? a.username ?? "(connected account)"}</span>
                 {a.username && a.displayName && <span className="text-xs text-[var(--mute)] truncate">{a.username}</span>}
-                {!live && <span className="text-[10px] font-mono uppercase tracking-wider" style={{ color: "var(--rose-on)" }}>disconnected</span>}
+                {!live && <span className="text-micro font-mono uppercase tracking-wider" style={{ color: "var(--rose-on)" }}>disconnected</span>}
                 {a.isDefault && live && (
-                  <span className="text-[10px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded flex items-center gap-1" style={{ background: "var(--green-soft)", color: "var(--green-on)" }}>
+                  <span className="text-micro font-mono uppercase tracking-wider px-1.5 py-0.5 rounded flex items-center gap-1" style={{ background: "var(--green-soft)", color: "var(--green-on)" }}>
                     <Star className="w-3 h-3" /> default
                   </span>
                 )}
@@ -228,7 +228,7 @@ export default async function ConnectionsPage({ searchParams }: { searchParams: 
       <div className="flex items-center gap-2 mb-2 flex-wrap">
         <Mail className="w-4 h-4" style={{ color: "var(--blue-on)" }} />
         <h2 className="font-mono font-bold text-sm">Email account</h2>
-        <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "var(--panel)", color: "var(--mute)" }}>
+        <span className="font-mono text-micro px-1.5 py-0.5 rounded-full" style={{ background: "var(--panel)", color: "var(--mute)" }}>
           Unipile
         </span>
         <span className="flex-1" />
@@ -244,7 +244,7 @@ export default async function ConnectionsPage({ searchParams }: { searchParams: 
           </form>
         )}
       </div>
-      <p className="text-[11px] text-[var(--mute)] mb-2 leading-relaxed">
+      <p className="text-2xs text-[var(--mute)] mb-2 leading-relaxed">
         Zernio doesn&apos;t send email, and this host blocks outbound SMTP — so notifications, invitations and password
         resets go out through a connected mailbox over HTTPS. Without one they fall back to a mock and are never
         actually delivered.
@@ -264,10 +264,10 @@ export default async function ConnectionsPage({ searchParams }: { searchParams: 
         <ul className="flex flex-col gap-2 mb-3">
           {emailAccounts.map((a) => (
             <li key={a.id} className="card flex items-center gap-2 flex-wrap">
-              <span className="font-mono text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: "var(--panel)", color: "var(--mute)" }}>{a.provider}</span>
+              <span className="font-mono text-micro uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: "var(--panel)", color: "var(--mute)" }}>{a.provider}</span>
               <span className="text-sm font-semibold truncate">{a.name ?? "(connected mailbox)"}</span>
               {a.isDefault && (
-                <span className="text-[10px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded flex items-center gap-1" style={{ background: "var(--green-soft)", color: "var(--green-on)" }}>
+                <span className="text-micro font-mono uppercase tracking-wider px-1.5 py-0.5 rounded flex items-center gap-1" style={{ background: "var(--green-soft)", color: "var(--green-on)" }}>
                   <Star className="w-3 h-3" /> default
                 </span>
               )}
@@ -297,7 +297,7 @@ export default async function ConnectionsPage({ searchParams }: { searchParams: 
         <KeyRound className="w-4 h-4" style={{ color: "var(--purple-on)" }} />
         <h2 className="font-mono font-bold text-sm">Zernio API key (this workspace)</h2>
         <span
-          className="font-mono text-[10px] font-bold px-2 py-0.5 rounded-full"
+          className="font-mono text-micro font-bold px-2 py-0.5 rounded-full"
           style={ownZernioKey
             ? { background: "var(--green-soft)", color: "var(--green-on)" }
             : { background: "var(--zebra)", color: "var(--mute)" }}
@@ -313,7 +313,7 @@ export default async function ConnectionsPage({ searchParams }: { searchParams: 
       </div>
       <form action={saveWorkspaceZernioKeyAction} className="card mb-2 flex flex-col gap-3">
         <label className="flex flex-col gap-1">
-          <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">
+          <span className="text-micro font-mono uppercase tracking-wider text-[var(--mute)]">
             API key {ownZernioKey && <span className="text-[var(--green-on)]">· {mask(ownZernioKey)}</span>}
           </span>
           <input
@@ -328,7 +328,7 @@ export default async function ConnectionsPage({ searchParams }: { searchParams: 
             outcomes arrive too (SOC-15). Deliveries it signs can only change
             this workspace. */}
         <label className="flex flex-col gap-1">
-          <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">
+          <span className="text-micro font-mono uppercase tracking-wider text-[var(--mute)]">
             Webhook secret (optional) {ownWebhookSecret && <span className="text-[var(--green-on)]">· set</span>}
           </span>
           <input
@@ -341,7 +341,7 @@ export default async function ConnectionsPage({ searchParams }: { searchParams: 
         </label>
         <div className="flex flex-wrap items-center gap-2">
           <SubmitButton className="btn primary sm" pendingText="Verifying…">Verify &amp; save for {workspace.name}</SubmitButton>
-          <label className="inline-flex items-center gap-1.5 text-[11px] text-[var(--mute)]">
+          <label className="inline-flex items-center gap-1.5 text-2xs text-[var(--mute)]">
             <input type="checkbox" name="force" /> Save even if the check fails
           </label>
         </div>
@@ -369,7 +369,7 @@ export default async function ConnectionsPage({ searchParams }: { searchParams: 
           </div>
           <form action={saveZernioConfigAction} className="card mb-2 flex flex-col gap-3">
             <label className="flex flex-col gap-1">
-              <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">
+              <span className="text-micro font-mono uppercase tracking-wider text-[var(--mute)]">
                 API key {cfg.get("zernio:api_key") && <span className="text-[var(--green-on)]">· {mask(cfg.get("zernio:api_key")!)}</span>}
               </span>
               <input
@@ -381,7 +381,7 @@ export default async function ConnectionsPage({ searchParams }: { searchParams: 
               />
             </label>
             <label className="flex flex-col gap-1">
-              <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">
+              <span className="text-micro font-mono uppercase tracking-wider text-[var(--mute)]">
                 Webhook secret {cfg.get("zernio:webhook_secret") && <span className="text-[var(--green-on)]">· set</span>}
               </span>
               <input
@@ -392,7 +392,7 @@ export default async function ConnectionsPage({ searchParams }: { searchParams: 
                 autoComplete="off"
               />
             </label>
-            <p className="text-[11px] text-[var(--mute)] leading-relaxed">
+            <p className="text-2xs text-[var(--mute)] leading-relaxed">
               Saving calls Zernio with the key first and only stores it if it works. Point a Zernio webhook at{" "}
               <code className="font-mono px-1 rounded break-all" style={{ background: "var(--zebra)" }}>{origin}/api/zernio/webhook</code>{" "}
               subscribed to <b>account.connected</b>, <b>account.disconnected</b> and the <b>post.*</b> events, then paste
@@ -401,7 +401,7 @@ export default async function ConnectionsPage({ searchParams }: { searchParams: 
             </p>
             <div className="flex flex-wrap items-center gap-2">
               <SubmitButton className="btn primary sm" pendingText="Verifying…">Verify &amp; save</SubmitButton>
-              <label className="inline-flex items-center gap-1.5 text-[11px] text-[var(--mute)]">
+              <label className="inline-flex items-center gap-1.5 text-2xs text-[var(--mute)]">
                 <input type="checkbox" name="force" /> Save even if the check fails
               </label>
             </div>
@@ -429,21 +429,21 @@ export default async function ConnectionsPage({ searchParams }: { searchParams: 
           </div>
           <form action={saveUnipileConfigAction} className="card mb-3 flex flex-col gap-3">
             <label className="flex flex-col gap-1">
-              <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">
+              <span className="text-micro font-mono uppercase tracking-wider text-[var(--mute)]">
                 DSN {cfg.get("unipile:dsn") && <span className="text-[var(--green-on)]">· set</span>}
               </span>
               <input name="dsn" defaultValue={cfg.get("unipile:dsn") ?? ""} placeholder="api8.unipile.com:13443" className="border border-[var(--line-2)] rounded-lg p-2 text-sm font-mono" autoComplete="off" />
             </label>
             <label className="flex flex-col gap-1">
-              <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">
+              <span className="text-micro font-mono uppercase tracking-wider text-[var(--mute)]">
                 API key {cfg.get("unipile:api_key") && <span className="text-[var(--green-on)]">· {mask(cfg.get("unipile:api_key")!)}</span>}
               </span>
               <input name="apiKey" type="password" placeholder={cfg.get("unipile:api_key") ? "Leave blank to keep the stored key" : "Paste your Unipile API key"} className="border border-[var(--line-2)] rounded-lg p-2 text-sm font-mono" autoComplete="off" />
             </label>
-            <p className="text-[11px] text-[var(--mute)]">Verified against Unipile before it&apos;s stored.</p>
+            <p className="text-2xs text-[var(--mute)]">Verified against Unipile before it&apos;s stored.</p>
             <div className="flex flex-wrap items-center gap-2">
               <SubmitButton className="btn primary sm" pendingText="Verifying…">Verify &amp; save</SubmitButton>
-              <label className="inline-flex items-center gap-1.5 text-[11px] text-[var(--mute)]">
+              <label className="inline-flex items-center gap-1.5 text-2xs text-[var(--mute)]">
                 <input type="checkbox" name="force" /> Save even if the check fails
               </label>
             </div>
@@ -472,7 +472,7 @@ export default async function ConnectionsPage({ searchParams }: { searchParams: 
               <b className="font-mono">{lock.backend}</b>
             </div>
             <p className="leading-relaxed" style={{ color: lock.ok ? "var(--green-on)" : "var(--amber-on)" }}>{lock.detail}</p>
-            <p className="text-[11px] mt-1.5 text-[var(--mute)] leading-relaxed">
+            <p className="text-2xs mt-1.5 text-[var(--mute)] leading-relaxed">
               The background sweeps (autopilot, social publishing, metrics, analytics) each run inside a lock held for
               the whole run. The social one publishes to a real audience, so a double-fire across replicas would post
               twice — set <code className="font-mono px-1 rounded" style={{ background: "var(--zebra)" }}>REDIS_URL</code> before scaling past one instance.

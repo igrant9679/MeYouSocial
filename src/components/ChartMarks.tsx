@@ -43,7 +43,7 @@ export function ChartMarkList({ marks, timeZone, canDelete, returnTo }: { marks:
   if (!rows.length) return null;
   const kinds = MARK_KINDS.filter((k) => rows.some((r) => r.kind === k));
   return (
-    <details className="mt-2 text-[11px]" open={rows.length <= 6} data-chart-marks>
+    <details className="mt-2 text-2xs" open={rows.length <= 6} data-chart-marks>
       <summary className="cursor-pointer text-[var(--mute)] select-none">
         <span className="font-semibold">{rows.length} event{rows.length === 1 ? "" : "s"} on this chart</span>
         {kinds.map((k) => (
@@ -75,11 +75,11 @@ export function ChartNoteForm({ timeZone }: { timeZone: string }) {
   const today = `${t.year}-${String(t.month).padStart(2, "0")}-${String(t.day).padStart(2, "0")}`;
   return (
     <form action={addChartNoteAction} className="flex flex-wrap items-end gap-2 mt-3 pt-3 border-t border-[var(--line)]" id="chart-notes" data-chart-note-form>
-      <label className="flex flex-col gap-0.5 text-[11px] text-[var(--mute)]">
+      <label className="flex flex-col gap-0.5 text-2xs text-[var(--mute)]">
         Day
         <input type="date" name="day" defaultValue={today} max={today} required className="border border-[var(--line-2)] rounded-lg px-2 py-1 text-xs bg-[var(--bg)] text-[var(--ink)]" />
       </label>
-      <label className="flex flex-col gap-0.5 text-[11px] text-[var(--mute)] flex-1 min-w-48">
+      <label className="flex flex-col gap-0.5 text-2xs text-[var(--mute)] flex-1 min-w-48">
         Note — what happened that day
         <input type="text" name="text" maxLength={NOTE_MAX} required placeholder="Google core update · site redesign · press mention" className="border border-[var(--line-2)] rounded-lg px-2 py-1 text-xs bg-[var(--bg)] text-[var(--ink)]" />
       </label>

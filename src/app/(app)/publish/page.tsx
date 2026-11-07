@@ -75,7 +75,7 @@ export default async function PublishStage({ searchParams }: { searchParams: Pro
             <StateChip label="final approval" hue="blue" />
             <div className="flex-1 min-w-48">
               <Link href={`/blog/${p.id}`} className="text-sm font-semibold hover:underline line-clamp-1">{p.title}</Link>
-              <div className="text-[11px] text-[var(--mute)]">
+              <div className="text-2xs text-[var(--mute)]">
                 {held.has(p.id)
                   ? <span style={{ color: "var(--amber-on)" }}>held — no longer passes: {held.get(p.id)!.join("; ")}</span>
                   : !wp
@@ -117,7 +117,7 @@ export default async function PublishStage({ searchParams }: { searchParams: Pro
         }) : undefined}
       </StageList>
       {!wp && ready.length > 0 && (
-        <p className="text-[11px] text-[var(--mute)] -mt-2 mb-4">
+        <p className="text-2xs text-[var(--mute)] -mt-2 mb-4">
           Download HTML gives a file that stands on its own: the article, its meta title and description, and its images embedded. Add it to your site, then Mark as published with the live link.
           {" "}Add <code>?fragment=1</code> to the download link for just the article body, for pasting into a CMS block.
         </p>
@@ -130,7 +130,7 @@ export default async function PublishStage({ searchParams }: { searchParams: Pro
               <StateChip label="published" hue="green" />
               <div className="flex-1 min-w-48">
                 <Link href={`/blog/${p.id}`} className="text-sm font-semibold hover:underline line-clamp-1">{p.title}</Link>
-                <div className="text-[11px] text-[var(--mute)]">{p.publishedAt?.toLocaleDateString("en-GB", { day: "2-digit", month: "short" }) ?? "—"}</div>
+                <div className="text-2xs text-[var(--mute)]">{p.publishedAt?.toLocaleDateString("en-GB", { day: "2-digit", month: "short" }) ?? "—"}</div>
               </div>
               {p.publishedUrl && <a href={p.publishedUrl} target="_blank" rel="noopener noreferrer" className="btn sm">View live ↗</a>}
             </StageRow>

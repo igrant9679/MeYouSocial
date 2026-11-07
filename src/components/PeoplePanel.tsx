@@ -62,7 +62,7 @@ export async function PeoplePanel({ workspaceId, workspaceName, returnTo }: { wo
   return (
     <>
       <section className="card mb-5">
-        <h2 className="font-mono text-[15px] mb-3">Invite a member</h2>
+        <h2 className="font-mono text-sm mb-3">Invite a member</h2>
         <form action={inviteAction} className="flex flex-wrap gap-2 items-end">
           <input type="hidden" name="returnTo" value={returnTo} />
           <label className="flex flex-col text-xs font-mono uppercase text-[var(--mute)]">Email — or several, separated by commas
@@ -92,7 +92,7 @@ export async function PeoplePanel({ workspaceId, workspaceName, returnTo }: { wo
 
       {/* Access (E-SEC-08, E-SEC-18): who may join, how they sign in, when idle access ends. */}
       <section id="access" className="card mb-5 scroll-mt-20" data-access-policy>
-        <h2 className="font-mono text-[15px] mb-1">Access</h2>
+        <h2 className="font-mono text-sm mb-1">Access</h2>
         <p className="text-xs text-[var(--mute)] mb-3">Who may join this workspace, how they sign in, and when access ends for someone who stopped coming.</p>
         <form action={saveAccessPolicyAction} className="flex flex-col gap-3 text-xs">
           <input type="hidden" name="returnTo" value={returnTo} />
@@ -131,7 +131,7 @@ export async function PeoplePanel({ workspaceId, workspaceName, returnTo }: { wo
       </section>
 
       <section className="card mb-5">
-        <h2 className="font-mono text-[15px] mb-3">Members</h2>
+        <h2 className="font-mono text-sm mb-3">Members</h2>
         {/* Two-factor for admins (E-SEC-07). */}
         <div className="text-xs mb-3 flex items-center gap-2 flex-wrap">
           <span><b>Two-factor for admins:</b> {required ? "required" : "optional"}{adminsWithout ? ` — ${adminsWithout} admin${adminsWithout === 1 ? " signs" : "s sign"} in with a password alone` : " — every admin has it on"}.</span>
@@ -148,7 +148,7 @@ export async function PeoplePanel({ workspaceId, workspaceName, returnTo }: { wo
         )}
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="font-mono text-[11px] text-[var(--mute)] uppercase">
+            <thead className="font-mono text-2xs text-[var(--mute)] uppercase">
               <tr><th className="text-left py-2">Email</th><th className="text-left">Role</th><th className="text-left">Status</th><th className="text-left">Last activity</th><th></th></tr>
             </thead>
             <tbody>
@@ -177,9 +177,9 @@ export async function PeoplePanel({ workspaceId, workspaceName, returnTo }: { wo
                   <td className="text-xs text-[var(--mute)]">
                     {m.user.lastActivityAt ? formatDay(new Date(m.user.lastActivityAt)) : "—"}
                     {m.user.totpEnabledAt
-                      ? <span className="block text-[10px]" style={{ color: "var(--green-on)" }}>two-factor on</span>
-                      : m.role === "ADMIN" && m.status === "active" && <span className="block text-[10px]" style={{ color: "var(--amber-on)" }}>no two-factor</span>}
-                    {idleDays(m) !== null && <span className="block text-[10px]" style={{ color: "var(--amber-on)" }}>{m.user.lastActivityAt ? `inactive ${idleDays(m)} days` : "never signed in"}</span>}
+                      ? <span className="block text-micro" style={{ color: "var(--green-on)" }}>two-factor on</span>
+                      : m.role === "ADMIN" && m.status === "active" && <span className="block text-micro" style={{ color: "var(--amber-on)" }}>no two-factor</span>}
+                    {idleDays(m) !== null && <span className="block text-micro" style={{ color: "var(--amber-on)" }}>{m.user.lastActivityAt ? `inactive ${idleDays(m)} days` : "never signed in"}</span>}
                   </td>
                   <td className="text-right">
                     {/* Revoke suspends the membership (row and history kept); Remove
@@ -219,7 +219,7 @@ export async function PeoplePanel({ workspaceId, workspaceName, returnTo }: { wo
 
       {invitations.length > 0 && (
         <section className="card mb-5">
-          <h2 className="font-mono text-[15px] mb-3">Pending invitations</h2>
+          <h2 className="font-mono text-sm mb-3">Pending invitations</h2>
           <ul className="m-0 p-0">
             {invitations.map((inv) => (
               <li key={inv.id} className="border-t border-[var(--line)] first:border-t-0 py-2 text-sm flex items-center gap-3 flex-wrap">
@@ -241,7 +241,7 @@ export async function PeoplePanel({ workspaceId, workspaceName, returnTo }: { wo
                 {/* The join link, selectable so it can be passed along by hand when
                     the email can't deliver. Deliberately NOT an <a>: clicking one
                     would walk the ADMIN into the accept flow as the wrong user. */}
-                <code className="basis-full text-[11px] text-[var(--mute)] select-all break-all">
+                <code className="basis-full text-2xs text-[var(--mute)] select-all break-all">
                   {origin}/invitations/{inv.token}
                 </code>
               </li>

@@ -26,7 +26,7 @@ export function SocialCsvImport() {
           {result.rows.length > 0 && (
             <ul className="m-0 mt-1.5 p-0 list-none flex flex-col gap-0.5 max-h-72 overflow-auto">
               {result.rows.map((r) => (
-                <li key={r.row} className="font-mono text-[11px]" data-csv-row={r.row} data-csv-row-ok={r.ok ? "1" : "0"}>
+                <li key={r.row} className="font-mono text-2xs" data-csv-row={r.row} data-csv-row-ok={r.ok ? "1" : "0"}>
                   <span style={{ color: r.ok ? "var(--green-on)" : "var(--rose-on)" }}>{r.ok ? "✓" : "✗"} row {r.row}</span>
                   <span className="text-[var(--mute)]"> — {r.message}</span>
                 </li>

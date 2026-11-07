@@ -84,12 +84,12 @@ export default async function PlatformWorkspacesPage() {
 
       {/* Create */}
       <form action={platformCreateWorkspaceAction} className="card mb-4 flex flex-wrap items-end gap-2">
-        <label className="flex-1 min-w-52 text-[11px] text-[var(--mute)]">
+        <label className="flex-1 min-w-52 text-2xs text-[var(--mute)]">
           New workspace name
           <input name="name" required minLength={2} maxLength={60} placeholder="Acme Inc." className="w-full text-sm mt-0.5 border border-[var(--line-2)] rounded-lg px-2 py-1" />
         </label>
         {/* E-SET-04: start from a workspace — only lib/workspace-template.ts's allowlist travels. */}
-        <label className="flex-1 min-w-52 text-[11px] text-[var(--mute)]">
+        <label className="flex-1 min-w-52 text-2xs text-[var(--mute)]">
           Start from
           <select name="templateId" defaultValue="" className="w-full min-w-0 text-sm mt-0.5 border border-[var(--line-2)] rounded-lg px-2 py-1" data-template-pick>
             <option value="">A blank workspace</option>
@@ -97,7 +97,7 @@ export default async function PlatformWorkspacesPage() {
           </select>
         </label>
         <SubmitButton className="btn primary" pendingText="Creating…">Create workspace</SubmitButton>
-        <div className="w-full flex flex-wrap gap-x-4 gap-y-1 text-[11px]">
+        <div className="w-full flex flex-wrap gap-x-4 gap-y-1 text-2xs">
           {TEMPLATE_PARTS.map((p) => (
             <label key={p} className="inline-flex items-center gap-1.5"><input type="checkbox" name={`part_${p}`} defaultChecked /> {TEMPLATE_PART_LABEL[p]}</label>
           ))}
@@ -111,11 +111,11 @@ export default async function PlatformWorkspacesPage() {
         return (
           <section key={ws.id} className="card mb-4">
             <div className="flex items-center gap-2 flex-wrap mb-2">
-              <h2 className="font-mono font-bold text-[15px] flex-1 min-w-40">
+              <h2 className="font-mono font-bold text-sm flex-1 min-w-40">
                 {ws.name}
-                <span className="font-normal text-[10px] text-[var(--mute)] ml-2">{ws.id}</span>
+                <span className="font-normal text-micro text-[var(--mute)] ml-2">{ws.id}</span>
               </h2>
-              <span className="font-mono text-[10px] text-[var(--mute)]">
+              <span className="font-mono text-micro text-[var(--mute)]">
                 {ws._count.memberships} member{ws._count.memberships === 1 ? "" : "s"} · {ws._count.channels} channel{ws._count.channels === 1 ? "" : "s"} · created {formatDay(ws.createdAt)}
               </span>
               <form action={platformEnterWorkspaceAction}>
@@ -136,7 +136,7 @@ export default async function PlatformWorkspacesPage() {
             {/* Members */}
             {ws.memberships.length > 0 ? (
               <table className="w-full text-sm mb-2">
-                <thead className="font-mono text-[11px] text-[var(--mute)] uppercase">
+                <thead className="font-mono text-2xs text-[var(--mute)] uppercase">
                   <tr><th className="text-left py-1.5">Member</th><th className="text-left">Role</th><th className="text-left">Status</th><th></th></tr>
                 </thead>
                 <tbody>
@@ -189,11 +189,11 @@ export default async function PlatformWorkspacesPage() {
             {/* Add member */}
             <form action={platformAddMemberAction} className="flex flex-wrap items-end gap-2 mb-2">
               <input type="hidden" name="workspaceId" value={ws.id} />
-              <label className="flex-1 min-w-48 text-[11px] text-[var(--mute)]">
+              <label className="flex-1 min-w-48 text-2xs text-[var(--mute)]">
                 Add member by email
                 <input name="email" type="email" required placeholder="person@company.com" className="w-full text-sm mt-0.5" />
               </label>
-              <label className="text-[11px] text-[var(--mute)]">
+              <label className="text-2xs text-[var(--mute)]">
                 Role
                 <select name="role" defaultValue="EDITOR" className="block border border-[var(--line-2)] rounded-md px-2 py-2 text-xs font-mono mt-0.5">
                   {ROLES.map((r) => <option key={r} value={r}>{r[0] + r.slice(1).toLowerCase()}</option>)}
@@ -202,29 +202,29 @@ export default async function PlatformWorkspacesPage() {
               <SubmitButton className="btn sm" pendingText="Adding…">
                 <UserPlus className="w-3.5 h-3.5" /> Add
               </SubmitButton>
-              <span className="text-[10px] text-[var(--mute)] basis-full">
+              <span className="text-micro text-[var(--mute)] basis-full">
                 An existing account is attached immediately; an unknown email gets an invitation via this workspace&apos;s mailbox.
               </span>
             </form>
 
             {pending.length > 0 && (
-              <p className="text-[11px] text-[var(--mute)] mb-2">
+              <p className="text-2xs text-[var(--mute)] mb-2">
                 Pending invitations: {pending.map((i) => `${i.email} (${i.role})`).join(", ")}
               </p>
             )}
 
             {/* Delete — type-to-confirm, with the registry's impact preview. */}
             <details>
-              <summary className="cursor-pointer text-[11px] font-mono select-none" style={{ color: "var(--rose-on)" }}>
+              <summary className="cursor-pointer text-2xs font-mono select-none" style={{ color: "var(--rose-on)" }}>
                 <Trash2 className="w-3 h-3 inline mr-1" /> Delete this workspace…
               </summary>
               <form action={platformDeleteWorkspaceAction} className="mt-2 flex flex-wrap items-end gap-2 rounded-lg p-2" style={{ background: "var(--rose-soft)" }}>
                 <input type="hidden" name="id" value={ws.id} />
-                <div className="basis-full text-[11px]" style={{ color: "var(--rose-on)" }}>
+                <div className="basis-full text-2xs" style={{ color: "var(--rose-on)" }}>
                   Everything in it{impact.length ? ` (${impact.map(([label, n]) => `${n} ${label}`).join(", ")})` : ""} is kept for {RESTORE_DAYS} days — paused and hidden from its members, restorable below — then purged, with its Zernio, Unipile and Google connections revoked.{" "}
                   <a href={`/api/workspaces/${ws.id}/export`} className="underline">Download everything first</a>.
                 </div>
-                <label className="flex-1 min-w-52 text-[11px]" style={{ color: "var(--rose-on)" }}>
+                <label className="flex-1 min-w-52 text-2xs" style={{ color: "var(--rose-on)" }}>
                   Type <b>{ws.name}</b> to confirm
                   <input name="confirm" required placeholder={ws.name} className="w-full text-sm mt-0.5" autoComplete="off" />
                 </label>
@@ -238,7 +238,7 @@ export default async function PlatformWorkspacesPage() {
       })}
 
       <section id="deleted" className="card mb-4 scroll-mt-20" data-deleted-workspaces={deleted.length}>
-        <h2 className="font-mono font-bold text-[14px] mb-1">Deleted — kept for restore</h2>
+        <h2 className="font-mono font-bold text-sm mb-1">Deleted — kept for restore</h2>
         {deleted.length === 0 ? (
           <p className="text-xs text-[var(--mute)] m-0">None. A deleted workspace waits here for {RESTORE_DAYS} days before it&apos;s purged.</p>
         ) : (
@@ -261,15 +261,15 @@ export default async function PlatformWorkspacesPage() {
                   )}
                 </div>
                 <details>
-                  <summary className="cursor-pointer text-[11px] font-mono select-none" style={{ color: "var(--rose-on)" }}>
+                  <summary className="cursor-pointer text-2xs font-mono select-none" style={{ color: "var(--rose-on)" }}>
                     <Trash2 className="w-3 h-3 inline mr-1" /> Purge now…
                   </summary>
                   <form action={platformPurgeWorkspaceAction} className="mt-2 flex flex-wrap items-end gap-2 rounded-lg p-2" style={{ background: "var(--rose-soft)" }}>
                     <input type="hidden" name="id" value={d.id} />
-                    <div className="basis-full text-[11px]" style={{ color: "var(--rose-on)" }}>
+                    <div className="basis-full text-2xs" style={{ color: "var(--rose-on)" }}>
                       Revokes its Google sign-ins, removes its Unipile mailboxes, deletes its Zernio profile (unless it&apos;s in the company&apos;s own Zernio account) and its stored files, then every row. This can&apos;t be undone.
                     </div>
-                    <label className="flex-1 min-w-52 text-[11px]" style={{ color: "var(--rose-on)" }}>
+                    <label className="flex-1 min-w-52 text-2xs" style={{ color: "var(--rose-on)" }}>
                       Type <b>{d.name}</b> to confirm
                       <input name="confirm" required placeholder={d.name} className="w-full text-sm mt-0.5" autoComplete="off" />
                     </label>
@@ -284,7 +284,7 @@ export default async function PlatformWorkspacesPage() {
 
       {purged.length > 0 && (
         <section className="card mb-4 text-xs" data-purged-workspaces={purged.length}>
-          <h2 className="font-mono font-bold text-[14px] mb-1">Purged</h2>
+          <h2 className="font-mono font-bold text-sm mb-1">Purged</h2>
           <ul className="m-0 p-0 flex flex-col gap-2">
             {purged.slice(0, 20).map((r) => (
               <li key={`${r.id}-${r.purgedAt}`} className="border-t border-[var(--line)] first:border-t-0 pt-2">

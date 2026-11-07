@@ -78,7 +78,7 @@ export default async function ChannelSettingsPage({ params }: { params: Promise<
       <form action={relinkYoutubeAction} className="card flex items-end gap-2 mt-4">
         <input type="hidden" name="channelId" value={id} />
         <label className="flex-1 flex flex-col gap-1">
-          <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">
+          <span className="text-micro font-mono uppercase tracking-wider text-[var(--mute)]">
             Relink YouTube channel — adopts its real name and re-trains voice + audience
           </span>
           <input name="handle" required placeholder="@new-handle" className="border border-[var(--line-2)] rounded-lg p-2 text-sm font-mono" />
@@ -86,7 +86,7 @@ export default async function ChannelSettingsPage({ params }: { params: Promise<
         <SubmitButton className="btn" pendingText="Relinking and retraining…">Relink &amp; retrain</SubmitButton>
       </form>
       {channel.linkedYoutubeId && (
-        <p className="text-[11px] text-[var(--mute)] mt-1 px-1">
+        <p className="text-2xs text-[var(--mute)] mt-1 px-1">
           Currently linked to <span className="font-mono">{channel.linkedYoutubeHandle ?? channel.linkedYoutubeId}</span>
           {" "}(<span className="font-mono">{channel.linkedYoutubeId}</span>).
         </p>
@@ -108,7 +108,7 @@ export default async function ChannelSettingsPage({ params }: { params: Promise<
         const cfg = readJson<{ palette?: string; typography?: string; facePosition?: string; styleNotes?: string; logoUrl?: string }>(channel.thumbnailConfig ?? null, {});
         return (
           <form action={updateThumbnailConfigAction} className="card flex flex-col gap-3 mt-4">
-            <h2 className="font-mono font-bold text-[14px]">Thumbnail brand & limits</h2>
+            <h2 className="font-mono font-bold text-sm">Thumbnail brand & limits</h2>
             <input type="hidden" name="channelId" value={id} />
             <Field name="palette" label="Palette (hex / names)" defaultValue={cfg.palette ?? ""} placeholder="e.g. #E5482F, off-white, charcoal" />
             <Field name="typography" label="Typography" defaultValue={cfg.typography ?? ""} placeholder="e.g. Bold sans, max 4 words, all-caps last word" />
@@ -125,7 +125,7 @@ export default async function ChannelSettingsPage({ params }: { params: Promise<
           asset under it, so the control lives at the bottom behind a typed
           confirmation and states the counts it just read. */}
       <div className="card mt-4" style={{ borderColor: "var(--rose)" }}>
-        <h2 className="font-mono font-bold text-[14px] mb-1" style={{ color: "var(--rose-on)" }}>Danger zone</h2>
+        <h2 className="font-mono font-bold text-sm mb-1" style={{ color: "var(--rose-on)" }}>Danger zone</h2>
         <p className="text-xs text-[var(--mute)] mb-3">
           Deleting <b>{channel.name}</b> also removes everything filed under it. There is no undo and no export.
         </p>

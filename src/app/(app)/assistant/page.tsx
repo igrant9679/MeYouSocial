@@ -145,14 +145,14 @@ export default async function AssistantPage({ searchParams }: { searchParams: Pr
       <div className="grid grid-cols-1 @3xl:grid-cols-2 gap-3">
         {examples.map((g) => (
           <section key={g.title} className="card">
-            <h3 className="text-[13px] font-semibold m-0">{g.title}</h3>
-            <p className="text-[11px] text-[var(--mute)] mt-0.5 mb-2">{g.blurb}</p>
+            <h3 className="text-sm font-semibold m-0">{g.title}</h3>
+            <p className="text-2xs text-[var(--mute)] mt-0.5 mb-2">{g.blurb}</p>
             <ul className="flex flex-col gap-1 m-0 p-0">
               {g.examples.map((e) => (
                 <li key={e.q}>
                   <Link
                     href={`/assistant?q=${encodeURIComponent(e.q)}`}
-                    className="text-[12.5px] text-[var(--slate)] hover:text-[var(--ink)] inline-flex items-start gap-1.5 leading-snug"
+                    className="text-xs text-[var(--slate)] hover:text-[var(--ink)] inline-flex items-start gap-1.5 leading-snug"
                     title={`Runs the ${e.backedBy} tool`}
                   >
                     <Sparkles className="w-3 h-3 mt-0.5 flex-shrink-0" style={{ color: "var(--violet-on)" }} aria-hidden />
@@ -165,7 +165,7 @@ export default async function AssistantPage({ searchParams }: { searchParams: Pr
         ))}
       </div>
 
-      <p className="text-[11px] text-[var(--mute)] mt-2">
+      <p className="text-2xs text-[var(--mute)] mt-2">
         Those are examples, not a menu — ask in your own words. It asks back when a question is ambiguous.
       </p>
 
@@ -179,26 +179,26 @@ export default async function AssistantPage({ searchParams }: { searchParams: Pr
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-3">
           <div>
             <h3 className="text-xs font-semibold mb-1">It reads</h3>
-            <p className="text-[10px] text-[var(--mute)] mb-2">The pipeline, the Inbox, ideas, articles and their checks, social, keywords, topics, Intel channels and videos, transcripts, web pages, uploads, connections, dials, results, reports, the guide.</p>
-            <ul className="text-[10px] font-mono text-[var(--mute)] flex flex-wrap gap-x-2 gap-y-0.5">
+            <p className="text-micro text-[var(--mute)] mb-2">The pipeline, the Inbox, ideas, articles and their checks, social, keywords, topics, Intel channels and videos, transcripts, web pages, uploads, connections, dials, results, reports, the guide.</p>
+            <ul className="text-micro font-mono text-[var(--mute)] flex flex-wrap gap-x-2 gap-y-0.5">
               {reads.map((t) => <li key={t.name}>{t.name}</li>)}
             </ul>
           </div>
           <div>
             <h3 className="text-xs font-semibold mb-1">It does</h3>
-            <p className="text-[10px] text-[var(--mute)] mb-2">Everything that lands where you review it: ideas, keywords, topics, drafts, SEO, images, findings, scripts, social drafts, advancing an article.</p>
-            <ul className="text-[10px] font-mono text-[var(--mute)] flex flex-wrap gap-x-2 gap-y-0.5">
+            <p className="text-micro text-[var(--mute)] mb-2">Everything that lands where you review it: ideas, keywords, topics, drafts, SEO, images, findings, scripts, social drafts, advancing an article.</p>
+            <ul className="text-micro font-mono text-[var(--mute)] flex flex-wrap gap-x-2 gap-y-0.5">
               {acts.map((t) => <li key={t.name}>{t.name}</li>)}
             </ul>
           </div>
           <div>
             <h3 className="text-xs font-semibold mb-1">It asks first</h3>
-            <p className="text-[10px] text-[var(--mute)] mb-2">Outward-facing or hard to undo — proposed as &ldquo;I&apos;m about to… Go ahead?&rdquo; and run only on your yes. Admin-only ones refuse for editors.</p>
-            <ul className="text-[10px] font-mono text-[var(--mute)] flex flex-wrap gap-x-2 gap-y-0.5">
+            <p className="text-micro text-[var(--mute)] mb-2">Outward-facing or hard to undo — proposed as &ldquo;I&apos;m about to… Go ahead?&rdquo; and run only on your yes. Admin-only ones refuse for editors.</p>
+            <ul className="text-micro font-mono text-[var(--mute)] flex flex-wrap gap-x-2 gap-y-0.5">
               {asks.map((t) => <li key={t.name}>{t.name}</li>)}
             </ul>
             <h4 className="text-xs font-semibold mt-3 mb-1">It won&apos;t</h4>
-            <ul className="text-[10px] text-[var(--mute)] list-disc pl-4 flex flex-col gap-0.5">
+            <ul className="text-micro text-[var(--mute)] list-disc pl-4 flex flex-col gap-0.5">
               {REFUSED_INTENTS.map((r) => <li key={r}>{r}</li>)}
             </ul>
           </div>
@@ -225,9 +225,9 @@ export default async function AssistantPage({ searchParams }: { searchParams: Pr
             {threads.map((t) => (
               <li key={t.id} className="text-xs flex items-center gap-2 flex-wrap" data-thread={t.id}>
                 <Link href={`/assistant/${t.id}`} className="underline">{t.title ?? "Untitled"}</Link>
-                <span className="font-mono text-[10px] text-[var(--mute)]">· {formatZonedMoment(t.updatedAt, tz)}</span>
+                <span className="font-mono text-micro text-[var(--mute)]">· {formatZonedMoment(t.updatedAt, tz)}</span>
                 <details className="ml-auto">
-                  <summary className="cursor-pointer text-[10px] text-[var(--mute)] select-none">Rename / delete</summary>
+                  <summary className="cursor-pointer text-micro text-[var(--mute)] select-none">Rename / delete</summary>
                   <div className="flex flex-wrap items-center gap-2 mt-1">
                     <form action={renameThreadAction} className="flex items-center gap-1">
                       <input type="hidden" name="id" value={t.id} />
@@ -236,7 +236,7 @@ export default async function AssistantPage({ searchParams }: { searchParams: Pr
                     </form>
                     <form action={deleteThreadAction} className="flex items-center gap-1">
                       <input type="hidden" name="id" value={t.id} />
-                      <label className="flex items-center gap-1 text-[10px]"><input type="checkbox" name="confirm" value="yes" /> sure</label>
+                      <label className="flex items-center gap-1 text-micro"><input type="checkbox" name="confirm" value="yes" /> sure</label>
                       <button className="btn sm" style={{ color: "var(--rose-on)" }}>Delete</button>
                     </form>
                   </div>

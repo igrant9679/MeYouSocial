@@ -11,9 +11,9 @@ import { displayTimeZone } from "@/lib/display-zone";
 // status, so opening it never calls a provider.
 
 const DOT: Record<Health, string> = { ok: "var(--green)", warn: "var(--amber)", bad: "var(--rose)", none: "var(--line-2)" };
-const th = "py-1.5 px-2 font-mono text-[9px] uppercase tracking-wider border-b-2 border-[var(--line)] text-left";
+const th = "py-1.5 px-2 font-mono text-micro uppercase tracking-wider border-b-2 border-[var(--line)] text-left";
 // Below md each workspace is a card of label: value rows — `data-label` names each cell.
-const td = "py-1.5 px-2 border-b border-[var(--line)] align-top max-md:flex max-md:justify-between max-md:gap-3 max-md:py-1 max-md:px-0 max-md:border-0 max-md:text-right max-md:before:content-[attr(data-label)] max-md:before:text-[var(--mute)] max-md:before:text-left max-md:before:font-mono max-md:before:text-[10px] max-md:before:uppercase";
+const td = "py-1.5 px-2 border-b border-[var(--line)] align-top max-md:flex max-md:justify-between max-md:gap-3 max-md:py-1 max-md:px-0 max-md:border-0 max-md:text-right max-md:before:content-[attr(data-label)] max-md:before:text-[var(--mute)] max-md:before:text-left max-md:before:font-mono max-md:before:text-micro max-md:before:uppercase";
 
 function Status({ h, line }: { h: Health; line: string }) {
   return (

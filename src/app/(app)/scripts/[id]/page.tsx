@@ -84,7 +84,7 @@ export default async function CanvasPage({
       {/* LEFT: Chat pane */}
       <aside className="card flex flex-col p-0 overflow-hidden h-full">
         <div className="px-4 py-3 border-b border-[var(--line)] flex items-center gap-2">
-          <span className="w-7 h-7 rounded-lg grid place-items-center" style={{ background: "#EDE7FB", color: "#6D28D9" }}><MessageCircle className="w-4 h-4" /></span>
+          <span className="w-7 h-7 rounded-lg grid place-items-center" style={{ background: "var(--violet-soft)", color: "var(--violet)" }}><MessageCircle className="w-4 h-4" /></span>
           <div className="text-xs font-mono uppercase tracking-wider text-[var(--mute)]">Canvas chat</div>
         </div>
 
@@ -102,7 +102,7 @@ export default async function CanvasPage({
                   </div>
                 </div>
               ))}
-              <Link href={`/chat/${script.chat.id}`} className="text-[11px] font-mono text-[var(--accent)] hover:underline mt-2 text-center">Open in full chat →</Link>
+              <Link href={`/chat/${script.chat.id}`} className="text-2xs font-mono text-[var(--accent)] hover:underline mt-2 text-center">Open in full chat →</Link>
             </>
           ) : (
             <p className="text-xs text-[var(--mute)] text-center mt-8">No chat thread linked to this script yet.</p>
@@ -118,7 +118,7 @@ export default async function CanvasPage({
             <Link href={`/channels/${script.channelId}/scripts`} className="text-xs font-mono text-[var(--mute)] hover:text-[var(--accent)] flex items-center gap-1"><ArrowLeft className="w-3 h-3" /> {script.channel.name}</Link>
             {editor && <Link href={`/scripts/${script.id}/builder`} className="text-xs font-mono text-[var(--mute)] hover:text-[var(--accent)] flex items-center gap-1" title="Switch to the 10-step Script Builder">Builder mode →</Link>}
             <span className="flex-1" />
-            {!editor && <span className="text-[11px] text-[var(--mute)]" data-read-only>Read-only — an editor can change this script.</span>}
+            {!editor && <span className="text-2xs text-[var(--mute)]" data-read-only>Read-only — an editor can change this script.</span>}
             {/* Launch agent. Disabled while a run is in flight. */}
             {editor && (() => {
               const latest = script.agentRuns[0];
@@ -157,7 +157,7 @@ export default async function CanvasPage({
           </div>
 
           {(shorts.length > 0 || cutFrom) && (
-            <p className="text-[11px] text-[var(--mute)] m-0" data-shorts="">
+            <p className="text-2xs text-[var(--mute)] m-0" data-shorts="">
               {cutFrom && <>A Short cut from <Link href={`/scripts/${cutFrom.id}`} className="underline">{cutFrom.title}</Link>. </>}
               {shorts.length > 0 && <>Shorts cut from this: {shorts.map((s, i) => {
                 const board = shortBoards.find((b) => b.scriptId === s.id);
@@ -181,7 +181,7 @@ export default async function CanvasPage({
             <input type="hidden" name="tab" value={activeTab} />
             <Type className="w-4 h-4 text-[var(--mute)]" />
             <input name="title" defaultValue={script.title} className="font-mono font-bold text-lg border-0 border-b border-transparent hover:border-[var(--line-2)] focus:border-[var(--accent)] focus:outline-none flex-1 min-w-[200px] bg-transparent" />
-            <label className="flex items-center gap-1 text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">
+            <label className="flex items-center gap-1 text-micro font-mono uppercase tracking-wider text-[var(--mute)]">
               Model
               {/* Keyed on the saved value: React 19 resets a form after its action, and an
                   unkeyed select snapped back to its first value — "the voice doesn't save" (tracker #9). */}
@@ -190,7 +190,7 @@ export default async function CanvasPage({
                 <ModelOptions choices={choices} current={script.model} />
               </select>
             </label>
-            <label className="flex items-center gap-1 text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">
+            <label className="flex items-center gap-1 text-micro font-mono uppercase tracking-wider text-[var(--mute)]">
               Template
               <select key={`tpl-${script.templateId ?? ""}`} name="templateId" defaultValue={script.templateId ?? ""} className="border border-[var(--line-2)] rounded-md p-1 text-xs font-mono">
                 <option value="">None</option>
@@ -199,7 +199,7 @@ export default async function CanvasPage({
                 ))}
               </select>
             </label>
-            <label className="flex items-center gap-1 text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">
+            <label className="flex items-center gap-1 text-micro font-mono uppercase tracking-wider text-[var(--mute)]">
               Voice
               <select key={`voice-${script.voiceProfileId ?? ""}`} name="voiceProfileId" defaultValue={script.voiceProfileId ?? ""} className="border border-[var(--line-2)] rounded-md p-1 text-xs font-mono">
                 <option value="">Channel default</option>
@@ -210,7 +210,7 @@ export default async function CanvasPage({
             </label>
             <SubmitButton className="btn sm" pendingText="Saving…">Save</SubmitButton>
             {/* Templates are viewed and edited on the channel (tracker #3 — they were hard to find). */}
-            <Link href={`/channels/${script.channelId}/templates`} className="text-[11px] underline text-[var(--mute)]">Edit templates</Link>
+            <Link href={`/channels/${script.channelId}/templates`} className="text-2xs underline text-[var(--mute)]">Edit templates</Link>
           </form>
           )}
 
@@ -221,7 +221,7 @@ export default async function CanvasPage({
             <TabLink href={`/scripts/${script.id}?tab=shots`} active={activeTab === "shots"} icon={<Clapperboard className="w-3.5 h-3.5" />}>Shots</TabLink>
             <span className="flex-1" />
             {script.body && (
-              <span className="text-[11px] font-mono text-[var(--mute)]">
+              <span className="text-2xs font-mono text-[var(--mute)]">
                 {script.wordCount.toLocaleString()} words · {formatDuration(script.durationSeconds)}
               </span>
             )}
@@ -256,7 +256,7 @@ export default async function CanvasPage({
         {script.versions.length > 0 && (
           <details className="border-t border-[var(--line)] px-5 py-2">
             <summary className="text-xs font-mono text-[var(--mute)] cursor-pointer flex items-center gap-1.5"><History className="w-3.5 h-3.5" /> Version snapshots ({script.versions.length})</summary>
-            <p className="text-[11px] m-0 mt-2"><Link href={`/scripts/${script.id}/versions`} className="underline" data-compare-versions>Compare any two versions, or one with the current text →</Link></p>
+            <p className="text-2xs m-0 mt-2"><Link href={`/scripts/${script.id}/versions`} className="underline" data-compare-versions>Compare any two versions, or one with the current text →</Link></p>
             <ul className="m-0 p-0 mt-2 text-xs flex flex-col gap-1 list-none">
               {script.versions.map((v) => (
                 <li key={v.id}>
@@ -267,7 +267,7 @@ export default async function CanvasPage({
                       <span className="font-mono">{formatZonedMoment(new Date(v.createdAt), tz)}</span>
                       <span>·</span>
                       <span className="truncate">{v.label}</span>
-                      <span className="text-[10px]">({v.body ? `${v.wordCount} w` : "outline"})</span>
+                      <span className="text-micro">({v.body ? `${v.wordCount} w` : "outline"})</span>
                     </summary>
                     <div className="mt-1 mb-2 ml-4">
                       <pre className="whitespace-pre-wrap text-xs max-h-64 overflow-auto p-2 rounded-lg bg-[var(--zebra)] m-0">{(v.body ?? v.outline ?? "").slice(0, 6000) || "(empty)"}</pre>
@@ -309,15 +309,15 @@ function PlanTab({ script, hasBody, editor }: { script: { id: string; outline: {
     return (
       <div className="flex flex-col gap-4">
         <div className="card">
-          <h3 className="font-mono font-bold text-[15px] mb-2 flex items-center gap-2"><ListTree className="w-4 h-4" style={{ color: "var(--accent)" }} /> Planning questions</h3>
+          <h3 className="font-mono font-bold text-sm mb-2 flex items-center gap-2"><ListTree className="w-4 h-4" style={{ color: "var(--accent)" }} /> Planning questions</h3>
           {answers.length ? (
             <dl className="m-0 grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-              {answers.map(([k, label]) => <div key={k}><dt className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">{label}</dt><dd className="m-0 whitespace-pre-wrap">{q[k]}</dd></div>)}
+              {answers.map(([k, label]) => <div key={k}><dt className="text-micro font-mono uppercase tracking-wider text-[var(--mute)]">{label}</dt><dd className="m-0 whitespace-pre-wrap">{q[k]}</dd></div>)}
             </dl>
           ) : <p className="text-sm text-[var(--mute)] m-0">Not answered yet.</p>}
         </div>
         <div className="card">
-          <h3 className="font-mono font-bold text-[15px] mb-2 flex items-center gap-2"><PenLine className="w-4 h-4" style={{ color: "var(--accent)" }} /> Outline</h3>
+          <h3 className="font-mono font-bold text-sm mb-2 flex items-center gap-2"><PenLine className="w-4 h-4" style={{ color: "var(--accent)" }} /> Outline</h3>
           {script.outline.markdown ? <pre className="whitespace-pre-wrap text-sm font-mono leading-[1.6] m-0">{script.outline.markdown}</pre> : <p className="text-sm text-[var(--mute)] m-0">No outline yet.</p>}
         </div>
       </div>
@@ -327,7 +327,7 @@ function PlanTab({ script, hasBody, editor }: { script: { id: string; outline: {
     <div className="flex flex-col gap-4">
       {/* Planning questions */}
       <form action={savePlanQuestionsAction} className="card">
-        <h3 className="font-mono font-bold text-[15px] mb-3 flex items-center gap-2"><ListTree className="w-4 h-4" style={{ color: "var(--accent)" }} /> Planning questions</h3>
+        <h3 className="font-mono font-bold text-sm mb-3 flex items-center gap-2"><ListTree className="w-4 h-4" style={{ color: "var(--accent)" }} /> Planning questions</h3>
         <input type="hidden" name="scriptId" value={script.id} />
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <PlanField name="takeaway" label="One main takeaway" max={2000} defaultValue={script.outline.questions?.takeaway} />
@@ -343,7 +343,7 @@ function PlanTab({ script, hasBody, editor }: { script: { id: string; outline: {
       {/* Generate / edit outline */}
       <div className="card">
         <div className="flex items-center mb-3">
-          <h3 className="font-mono font-bold text-[15px] flex items-center gap-2"><PenLine className="w-4 h-4" style={{ color: "var(--accent)" }} /> Outline</h3>
+          <h3 className="font-mono font-bold text-sm flex items-center gap-2"><PenLine className="w-4 h-4" style={{ color: "var(--accent)" }} /> Outline</h3>
           <span className="flex-1" />
           <form action={generateOutlineAction}>
             <input type="hidden" name="scriptId" value={script.id} />
@@ -401,7 +401,7 @@ function PlanTab({ script, hasBody, editor }: { script: { id: string; outline: {
 function PlanField({ name, label, defaultValue, max }: { name: string; label: string; defaultValue?: string; max: number }) {
   return (
     <label className="flex flex-col gap-1">
-      <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">{label}</span>
+      <span className="text-micro font-mono uppercase tracking-wider text-[var(--mute)]">{label}</span>
       <textarea name={name} rows={2} maxLength={max} defaultValue={defaultValue ?? ""} className="border border-[var(--line-2)] rounded-md p-2 text-sm" />
     </label>
   );

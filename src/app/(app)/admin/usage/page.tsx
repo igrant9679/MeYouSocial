@@ -123,7 +123,7 @@ export default async function AdminUsagePage({ searchParams }: { searchParams: P
   return (
     <div>
       <div className="flex items-center gap-3 mb-5">
-        <span className="w-10 h-10 rounded-xl grid place-items-center" style={{ background: "#E0F2E8", color: "#15924B" }}>
+        <span className="w-10 h-10 rounded-xl grid place-items-center" style={{ background: "var(--green-soft)", color: "var(--green)" }}>
           <BarChart3 className="w-5 h-5" strokeWidth={2.25} />
         </span>
         <div className="flex-1">
@@ -135,14 +135,14 @@ export default async function AdminUsagePage({ searchParams }: { searchParams: P
 
       {/* This month, workspace totals */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
-        <Tile label="Active users (week)" value={activeUsers} color="#E5482F" icon={<Users className="w-4 h-4" />} />
-        <Tile label="Channels" value={totalChannels} cap={workspace.limitChannels} color="#6D28D9" icon={<Sparkles className="w-4 h-4" />} />
-        <Tile label="Articles / month" value={articles} color="#2563EB" icon={<FileText className="w-4 h-4" />} />
-        <Tile label="Social posts / month" value={socialPosts} color="#0891B2" icon={<Share2 className="w-4 h-4" />} />
-        <Tile label="AI images / month" value={imagesRendered} color="#D97706" icon={<ImageIcon className="w-4 h-4" />} />
-        <Tile label="Scripts / month" value={scripts} color="#15924B" icon={<PenLine className="w-4 h-4" />} />
-        <Tile label="Thumbnail sets / month" value={thumbnails} color="#DB2777" icon={<ImageIcon className="w-4 h-4" />} />
-        <Tile label="Agent runs / month" value={agentRuns} color="#0D9488" icon={<Bot className="w-4 h-4" />} />
+        <Tile label="Active users (week)" value={activeUsers} color="var(--brand)" icon={<Users className="w-4 h-4" />} />
+        <Tile label="Channels" value={totalChannels} cap={workspace.limitChannels} color="var(--violet)" icon={<Sparkles className="w-4 h-4" />} />
+        <Tile label="Articles / month" value={articles} color="var(--blue)" icon={<FileText className="w-4 h-4" />} />
+        <Tile label="Social posts / month" value={socialPosts} color="var(--cyan)" icon={<Share2 className="w-4 h-4" />} />
+        <Tile label="AI images / month" value={imagesRendered} color="var(--amber)" icon={<ImageIcon className="w-4 h-4" />} />
+        <Tile label="Scripts / month" value={scripts} color="var(--green)" icon={<PenLine className="w-4 h-4" />} />
+        <Tile label="Thumbnail sets / month" value={thumbnails} color="var(--pink)" icon={<ImageIcon className="w-4 h-4" />} />
+        <Tile label="Agent runs / month" value={agentRuns} color="var(--teal)" icon={<Bot className="w-4 h-4" />} />
       </div>
 
       <p className="text-xs text-[var(--mute)] mb-4">
@@ -156,8 +156,8 @@ export default async function AdminUsagePage({ searchParams }: { searchParams: P
 
       {/* E-ENG-07: the month's tokens against a budget that warns */}
       <section className="card mb-4" id="ai-budget" data-ai-budget>
-        <h2 className="font-mono font-bold text-[14px] mb-1">AI tokens this month</h2>
-        <p className="text-[11px] text-[var(--mute)] mb-2">
+        <h2 className="font-mono font-bold text-sm mb-1">AI tokens this month</h2>
+        <p className="text-2xs text-[var(--mute)] mb-2">
           <b className="font-mono text-[var(--ink)]" data-used-tokens={usedTokens}>{usedTokens.toLocaleString("en-GB")}</b> tokens in and out since the 1st (UTC)
           {budget ? <> of a <b className="font-mono text-[var(--ink)]">{budget.toLocaleString("en-GB")}</b> budget — <b data-budget-pct={Math.floor(budgetPct)}>{Math.floor(budgetPct)}%</b></> : <> — no budget set</>}
           {anyPriced ? <> · about <b className="font-mono text-[var(--ink)]" data-total-cost>{formatUsd(totalCost)}</b> at the prices set</> : null}.
@@ -170,7 +170,7 @@ export default async function AdminUsagePage({ searchParams }: { searchParams: P
         ) : null}
         <form action={saveTokenBudgetAction} className="flex flex-wrap items-end gap-2">
           <label className="text-xs">
-            <span className="block text-[10px] text-[var(--mute)] mb-1">Monthly budget, tokens (blank for none)</span>
+            <span className="block text-micro text-[var(--mute)] mb-1">Monthly budget, tokens (blank for none)</span>
             <input name="budget" inputMode="numeric" defaultValue={budget ?? ""} placeholder="e.g. 5000000" className="w-44 font-mono text-xs border border-[var(--line-2)] rounded-lg px-2 py-1" />
           </label>
           <SubmitButton className="btn sm">Save budget</SubmitButton>
@@ -179,8 +179,8 @@ export default async function AdminUsagePage({ searchParams }: { searchParams: P
 
       {/* E-VID-06: video is billed by the second — counted per scene a real provider rendered */}
       <section className="card mb-4" id="video-budget" data-video-budget>
-        <h2 className="font-mono font-bold text-[14px] mb-1">Video this month</h2>
-        <p className="text-[11px] text-[var(--mute)] mb-2">
+        <h2 className="font-mono font-bold text-sm mb-1">Video this month</h2>
+        <p className="text-2xs text-[var(--mute)] mb-2">
           <b className="font-mono text-[var(--ink)]" data-video-seconds={video.seconds}>{video.seconds.toLocaleString("en-GB")}</b> seconds rendered since the 1st (UTC)
           {video.usd != null ? <> · about <b className="font-mono text-[var(--ink)]">{usd(video.usd)}</b> at the prices set</> : null}
           {video.unpricedSeconds ? <> · {video.unpricedSeconds} s by a model with no price</> : null}
@@ -194,7 +194,7 @@ export default async function AdminUsagePage({ searchParams }: { searchParams: P
         ) : null}
         <form action={saveVideoBudgetAction} className="flex flex-wrap items-end gap-2">
           <label className="text-xs">
-            <span className="block text-[10px] text-[var(--mute)] mb-1">Monthly budget, seconds of video (blank for none)</span>
+            <span className="block text-micro text-[var(--mute)] mb-1">Monthly budget, seconds of video (blank for none)</span>
             <input key={`vb:${video.budget ?? ""}`} name="budget" inputMode="numeric" defaultValue={video.budget ?? ""} placeholder="e.g. 600" className="w-44 font-mono text-xs border border-[var(--line-2)] rounded-lg px-2 py-1" />
           </label>
           <SubmitButton className="btn sm">Save video budget</SubmitButton>
@@ -203,8 +203,8 @@ export default async function AdminUsagePage({ searchParams }: { searchParams: P
 
       {/* E-ENG-07: what the tokens went on */}
       <section className="card mb-4" data-ai-purposes>
-        <h2 className="font-mono font-bold text-[14px] mb-1">What the AI was asked for this month</h2>
-        <p className="text-[11px] text-[var(--mute)] mb-3">
+        <h2 className="font-mono font-bold text-sm mb-1">What the AI was asked for this month</h2>
+        <p className="text-2xs text-[var(--mute)] mb-3">
           Every text call names what it was for.{" "}
           {anyPriced
             ? "Cost is an estimate at the prices the platform operator set — not a bill; a dash means no model it used has a price. Input read from a provider's prompt cache is counted at the full input price, so it errs high."
@@ -218,7 +218,7 @@ export default async function AdminUsagePage({ searchParams }: { searchParams: P
             {purposes.map((p) => (
               <li key={p.purpose ?? "none"} className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 text-xs py-1.5 border-t border-[var(--line)] first:border-0" data-purpose={p.purpose ?? "none"}>
                 <span className="font-semibold min-w-[12rem]">{purposeLabel(p.purpose)}</span>
-                <span className="font-mono text-[11px] text-[var(--mute)] flex flex-wrap gap-x-3">
+                <span className="font-mono text-2xs text-[var(--mute)] flex flex-wrap gap-x-3">
                   <span><b className="text-[var(--ink)]">{p.calls.toLocaleString("en-GB")}</b> call{p.calls === 1 ? "" : "s"}</span>
                   <span><b className="text-[var(--ink)]">{p.inTok.toLocaleString("en-GB")}</b> in</span>
                   <span><b className="text-[var(--ink)]">{p.outTok.toLocaleString("en-GB")}</b> out</span>
@@ -234,8 +234,8 @@ export default async function AdminUsagePage({ searchParams }: { searchParams: P
 
       {/* AI by provider */}
       <section className="card mb-4">
-        <h2 className="font-mono font-bold text-[14px] mb-1">AI by provider this month</h2>
-        <p className="text-[11px] text-[var(--mute)] mb-3">
+        <h2 className="font-mono font-bold text-sm mb-1">AI by provider this month</h2>
+        <p className="text-2xs text-[var(--mute)] mb-3">
           {firstAiRow
             ? <>Counted from {firstAiRow.createdAt.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })}; calls before then weren&apos;t recorded. </>
             : <>Nothing recorded yet — every AI call is counted from now on. </>}
@@ -248,7 +248,7 @@ export default async function AdminUsagePage({ searchParams }: { searchParams: P
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
               <thead>
-                <tr className="text-left text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">
+                <tr className="text-left text-micro font-mono uppercase tracking-wider text-[var(--mute)]">
                   <th className="py-1 pr-3">Kind</th><th className="py-1 pr-3">Provider</th><th className="py-1 pr-3">Model</th>
                   <th className="py-1 pr-3 text-right">Calls</th><th className="py-1 pr-3 text-right">Tokens in</th><th className="py-1 pr-3 text-right">Tokens out</th><th className="py-1 text-right">Estimate</th>
                 </tr>
@@ -274,8 +274,8 @@ export default async function AdminUsagePage({ searchParams }: { searchParams: P
       {/* E-ENG-07: the operator's prices — platform-wide, estimates only */}
       {operator && (
         <details className="card mb-4" data-model-prices>
-          <summary className="font-mono font-bold text-[14px] cursor-pointer">Model prices (platform operator)</summary>
-          <p className="text-[11px] text-[var(--mute)] mt-1 mb-3">
+          <summary className="font-mono font-bold text-sm cursor-pointer">Model prices (platform operator)</summary>
+          <p className="text-2xs text-[var(--mute)] mt-1 mb-3">
             Dollars per million tokens, from each provider&apos;s price page — every workspace&apos;s estimates use them. Leave both blank for a model with no price. Nothing is charged.
           </p>
           <form action={saveModelPricesAction} className="flex flex-col gap-1.5">
@@ -295,8 +295,8 @@ export default async function AdminUsagePage({ searchParams }: { searchParams: P
       {/* E-VID-06: the operator's price per second of video — platform-wide, estimates only */}
       {operator && (
         <details className="card mb-4" data-video-prices>
-          <summary className="font-mono font-bold text-[14px] cursor-pointer">Video prices (platform operator)</summary>
-          <p className="text-[11px] text-[var(--mute)] mt-1 mb-3">
+          <summary className="font-mono font-bold text-sm cursor-pointer">Video prices (platform operator)</summary>
+          <p className="text-2xs text-[var(--mute)] mt-1 mb-3">
             Dollars per second of generated video, from the provider&apos;s price page — every board&apos;s estimate and the confirm before Render use them. Blank = no price (seconds only). Nothing is charged.
           </p>
           <form action={saveVideoPricesAction} className="flex flex-col gap-1.5">
@@ -315,8 +315,8 @@ export default async function AdminUsagePage({ searchParams }: { searchParams: P
 
       {/* Soft limits, per person */}
       <section className="card mb-4">
-        <h2 className="font-mono font-bold text-[14px] mb-1">Soft limits this month</h2>
-        <p className="text-[11px] text-[var(--mute)] mb-3">
+        <h2 className="font-mono font-bold text-sm mb-1">Soft limits this month</h2>
+        <p className="text-2xs text-[var(--mute)] mb-3">
           Each limit caps one person; the busiest person is shown against it. Someone at a limit is told so when they try to start another.{" "}
           <Link href="/admin/limits" className="underline">Change the limits</Link>
         </p>
@@ -346,33 +346,33 @@ export default async function AdminUsagePage({ searchParams }: { searchParams: P
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Top users */}
         <section className="card">
-          <h2 className="font-mono font-bold text-[14px] mb-3">Top creators this month</h2>
+          <h2 className="font-mono font-bold text-sm mb-3">Top creators this month</h2>
           {scriptRank.length === 0 ? (
             <p className="text-xs text-[var(--mute)] py-2">No scripts created yet this month.</p>
           ) : (
             <ul className="m-0 p-0">
               {scriptRank.slice(0, 5).map((u, i) => (
                 <li key={u.id} className="border-t border-[var(--line)] first:border-t-0 py-2 flex items-center gap-2 text-sm">
-                  <span className="w-6 h-6 rounded-full grid place-items-center text-[10px] font-mono font-bold" style={{ background: "var(--accent-soft)", color: "var(--accent)" }}>{i + 1}</span>
+                  <span className="w-6 h-6 rounded-full grid place-items-center text-micro font-mono font-bold" style={{ background: "var(--accent-soft)", color: "var(--accent)" }}>{i + 1}</span>
                   <span className="flex-1">{who(u.id)}</span>
                   <span className="text-xs font-mono text-[var(--mute)]">{u.n} scripts</span>
                 </li>
               ))}
             </ul>
           )}
-          <p className="text-[11px] text-[var(--mute)] mt-2 font-mono">{formatNum(totalScripts)} total scripts in this workspace.</p>
+          <p className="text-2xs text-[var(--mute)] mt-2 font-mono">{formatNum(totalScripts)} total scripts in this workspace.</p>
         </section>
 
         {/* Recent activity */}
         <section className="card">
-          <h2 className="font-mono font-bold text-[14px] mb-3">Recent activity</h2>
+          <h2 className="font-mono font-bold text-sm mb-3">Recent activity</h2>
           {recentUsageLogs.length === 0 ? (
             <p className="text-xs text-[var(--mute)] py-2">No tracked activity yet.</p>
           ) : (
             <ul className="m-0 p-0">
               {recentUsageLogs.map((log) => (
                 <li key={log.id} className="border-t border-[var(--line)] first:border-t-0 py-2 text-xs flex items-center gap-2">
-                  <span className="font-mono uppercase tracking-wider text-[10px] px-1.5 py-0.5 rounded" style={{ background: "var(--accent-soft)", color: "var(--accent)" }}>{log.action}</span>
+                  <span className="font-mono uppercase tracking-wider text-micro px-1.5 py-0.5 rounded" style={{ background: "var(--accent-soft)", color: "var(--accent)" }}>{log.action}</span>
                   <span className="flex-1">{log.model ?? "—"}</span>
                   <span className="text-[var(--mute)]">{formatZonedMoment(new Date(log.createdAt), postingTz)}</span>
                 </li>
@@ -396,11 +396,11 @@ function Tile({ label, value, cap, color, icon }: { label: string; value: number
   return (
     <div className="card relative overflow-hidden">
       <div className="absolute left-0 top-0 bottom-0 w-1" style={{ background: color }} />
-      <div className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)] flex items-center gap-1">
+      <div className="text-micro font-mono uppercase tracking-wider text-[var(--mute)] flex items-center gap-1">
         <span style={{ color }}>{icon}</span>
         {label}
       </div>
-      <div className="font-mono font-bold text-2xl mt-1" style={{ color }}>{value.toLocaleString("en-GB")}{cap ? <span className="text-[11px] text-[var(--mute)] font-normal"> / {cap}</span> : null}</div>
+      <div className="font-mono font-bold text-2xl mt-1" style={{ color }}>{value.toLocaleString("en-GB")}{cap ? <span className="text-2xs text-[var(--mute)] font-normal"> / {cap}</span> : null}</div>
       {cap ? (
         <div className="h-1 mt-2 rounded-full bg-[var(--line)] overflow-hidden">
           <div className="h-full rounded-full" style={{ width: pct + "%", background: pct > 80 ? "var(--brand)" : color }} />

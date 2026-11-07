@@ -22,7 +22,7 @@ export default async function WikiPage({ searchParams }: { searchParams: Promise
   return (
     <div>
       <div className="flex items-center gap-2 mb-4">
-        <h2 className="font-mono font-bold text-lg flex items-center gap-2"><BookOpen className="w-5 h-5" style={{ color: "#4F46E5" }} /> Wiki / SOPs</h2>
+        <h2 className="font-mono font-bold text-lg flex items-center gap-2"><BookOpen className="w-5 h-5" style={{ color: "var(--indigo)" }} /> Wiki / SOPs</h2>
         <span className="text-xs text-[var(--mute)]">({docs.length})</span>
         <span className="flex-1" />
         <Link href="/production/wiki/new" className="btn primary sm flex items-center gap-1.5"><Plus className="w-3.5 h-3.5" /> New page</Link>
@@ -45,11 +45,11 @@ export default async function WikiPage({ searchParams }: { searchParams: Promise
             {/* Delete outside the Link — a form inside an anchor navigates. */}
             <Link href={`/production/wiki/${d.id}`} className="block">
               <div className="flex items-center gap-2 mb-1">
-                <BookOpen className="w-4 h-4" style={{ color: d.channel?.accentColor ?? "#4F46E5" }} />
+                <BookOpen className="w-4 h-4" style={{ color: d.channel?.accentColor ?? "var(--indigo)" }} />
                 <h3 className="font-semibold text-sm flex-1">{d.title}</h3>
               </div>
               <div className="text-xs text-[var(--mute)] line-clamp-2">{d.body.slice(0, 200) || "—"}</div>
-              <div className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)] mt-2">{d.channel?.name ?? "Workspace"} · {formatDay(new Date(d.updatedAt))}</div>
+              <div className="text-micro font-mono uppercase tracking-wider text-[var(--mute)] mt-2">{d.channel?.name ?? "Workspace"} · {formatDay(new Date(d.updatedAt))}</div>
             </Link>
             <div className="mt-2">
               <DeleteButton kind="wikiDoc" id={d.id} name={d.title} returnTo="/production/wiki" iconOnly />

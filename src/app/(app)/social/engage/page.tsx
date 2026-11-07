@@ -62,12 +62,12 @@ type SP = { dm?: string; post?: string; acct?: string; net?: string; ok?: string
  */
 function AssignControl({ kind, targetId, accountId, current, members }: { kind: "conversation" | "comment"; targetId: string; accountId: string; current: string | null; members: Array<{ userId: string; name: string }> }) {
   return (
-    <form action={assignInboxThreadAction} className="flex items-center gap-1.5 text-[11px]" data-assign={kind}>
+    <form action={assignInboxThreadAction} className="flex items-center gap-1.5 text-2xs" data-assign={kind}>
       <input type="hidden" name="kind" value={kind} />
       <input type="hidden" name="targetId" value={targetId} />
       <input type="hidden" name="accountId" value={accountId} />
       <label className="text-[var(--mute)]" htmlFor={`assign-${kind}-${targetId}`}>Assigned to</label>
-      <select key={`assigneeId:${current ?? ""}`} id={`assign-${kind}-${targetId}`} name="assigneeId" defaultValue={current ?? ""} className="text-[11px]">
+      <select key={`assigneeId:${current ?? ""}`} id={`assign-${kind}-${targetId}`} name="assigneeId" defaultValue={current ?? ""} className="text-2xs">
         <option value="">Nobody</option>
         {members.map((m) => <option key={m.userId} value={m.userId}>{m.name}</option>)}
       </select>
@@ -78,7 +78,7 @@ function AssignControl({ kind, targetId, accountId, current, members }: { kind: 
 
 function AssignedChip({ name }: { name: string }) {
   return (
-    <span className="font-mono text-[9.5px] px-1.5 rounded-full flex-shrink-0" style={{ background: "var(--blue-soft)", color: "var(--blue-on)" }} data-assigned-to={name} title={`Assigned to ${name}`}>
+    <span className="font-mono text-micro px-1.5 rounded-full flex-shrink-0" style={{ background: "var(--blue-soft)", color: "var(--blue-on)" }} data-assigned-to={name} title={`Assigned to ${name}`}>
       → {name}
     </span>
   );
@@ -267,7 +267,7 @@ export default async function EngagePage({ searchParams }: { searchParams: Promi
             <BellRing className="w-4 h-4" style={{ color: "var(--amber-on)" }} />
             {/* Not marked seen yet — it isn't "new since you last looked" when it is 12 days old (SOC-27). */}
             <h2 className="font-mono font-bold text-sm">Not marked seen yet</h2>
-            <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }}>
+            <span className="font-mono text-micro px-1.5 py-0.5 rounded-full" style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }}>
               {unseenTotal}
             </span>
             <span className="flex-1" />
@@ -290,16 +290,16 @@ export default async function EngagePage({ searchParams }: { searchParams: Promi
                         : " sent a message"}
                     </span>
                   </span>
-                  {e.preview && <span className="block text-[11px] text-[var(--mute)] truncate">{e.preview}</span>}
+                  {e.preview && <span className="block text-2xs text-[var(--mute)] truncate">{e.preview}</span>}
                 </span>
-                <span className="font-mono text-[9.5px] text-[var(--mute)] flex-shrink-0 pt-1">
+                <span className="font-mono text-micro text-[var(--mute)] flex-shrink-0 pt-1">
                   {e.receivedAt.toLocaleDateString("en-GB", { day: "2-digit", month: "short" })}
                 </span>
               </div>
             ))}
           </div>
           {unseenTotal > unseen.length && (
-            <p className="text-[11px] text-[var(--mute)] mt-2">
+            <p className="text-2xs text-[var(--mute)] mt-2">
               …and {unseenTotal - unseen.length} more.
             </p>
           )}
@@ -329,20 +329,20 @@ export default async function EngagePage({ searchParams }: { searchParams: Promi
             <h2 className="font-mono font-bold text-sm">Reviews</h2>
             {/* Set-aside reviews are excluded: the count must mean "waiting on
                 a person", or it nags about a decision already made (A5). */}
-            <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "var(--panel)", color: "var(--mute)" }}>
+            <span className="font-mono text-micro px-1.5 py-0.5 rounded-full" style={{ background: "var(--panel)", color: "var(--mute)" }}>
               {openReviews.filter((r) => !r.hasReply).length} unanswered
             </span>
             {/* Counted separately, never folded into "unanswered": a drafted
                 reply is still an unanswered review until someone sends it. */}
             {reviewDrafts.length > 0 && (
-              <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }}>
+              <span className="font-mono text-micro px-1.5 py-0.5 rounded-full" style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }}>
                 {reviewDrafts.length} drafted
               </span>
             )}
           </div>
           {/* Visible, not just a tooltip: "Set aside" must never be mistaken
               for a delete. */}
-          <p className="text-[11px] text-[var(--mute)] mb-2 mt-0">
+          <p className="text-2xs text-[var(--mute)] mb-2 mt-0">
             <b>Set aside</b> stops a review asking — it stays public on the network either way. A review can&apos;t be
             deleted from here, or by anyone but the person who wrote it; the same goes for a direct message. A comment
             on your own post <i>can</i> be deleted, and shows a delete button where the network allows it.
@@ -356,10 +356,10 @@ export default async function EngagePage({ searchParams }: { searchParams: Promi
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-xs font-semibold">{r.reviewerName ?? "Anonymous"}</span>
                       <Rating rating={r.rating} platform={r.platform} />
-                      <span className="font-mono text-[9.5px] text-[var(--mute)]">{when(r.created)}</span>
-                      {r.locationName && <span className="font-mono text-[9.5px] text-[var(--mute)]">{r.locationName}</span>}
+                      <span className="font-mono text-micro text-[var(--mute)]">{when(r.created)}</span>
+                      {r.locationName && <span className="font-mono text-micro text-[var(--mute)]">{r.locationName}</span>}
                       {r.hasReply && (
-                        <span className="font-mono text-[9.5px] px-1.5 py-0.5 rounded-full" style={{ background: "var(--green-soft)", color: "var(--green-on)" }}>
+                        <span className="font-mono text-micro px-1.5 py-0.5 rounded-full" style={{ background: "var(--green-soft)", color: "var(--green-on)" }}>
                           replied
                         </span>
                       )}
@@ -375,13 +375,13 @@ export default async function EngagePage({ searchParams }: { searchParams: Promi
 
                 {r.hasReply ? (
                   <div className="text-xs border-l-2 pl-2 mt-2" style={{ borderColor: "var(--green)" }}>
-                    <div className="font-mono text-[9.5px] text-[var(--mute)] mb-0.5">Your reply</div>
+                    <div className="font-mono text-micro text-[var(--mute)] mb-0.5">Your reply</div>
                     <p className="whitespace-pre-wrap text-[var(--slate)]">{r.replyText ?? <span className="italic text-[var(--mute)]">(reply posted, text not returned)</span>}</p>
                   </div>
                 ) : (
                   <>
                     {commentsLocked && (
-                      <p className="text-[11px] text-[var(--mute)] mt-2 pt-2 border-t border-[var(--line)]">
+                      <p className="text-2xs text-[var(--mute)] mt-2 pt-2 border-t border-[var(--line)]">
                         This workspace reviews posts before they go out, so <b>sending</b> a review reply is
                         admin-only — you can still write one and save it for an admin to release.
                       </p>
@@ -430,7 +430,7 @@ export default async function EngagePage({ searchParams }: { searchParams: Promi
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className="text-xs font-semibold">{r.reviewerName ?? "Anonymous"}</span>
-                            <span className="font-mono text-[9.5px] text-[var(--mute)]">{when(r.created)}</span>
+                            <span className="font-mono text-micro text-[var(--mute)]">{when(r.created)}</span>
                           </div>
                           <p className="text-xs text-[var(--slate)] whitespace-pre-wrap mt-1 line-clamp-2">{r.text}</p>
                         </div>
@@ -453,7 +453,7 @@ export default async function EngagePage({ searchParams }: { searchParams: Promi
           <div className="flex items-center gap-2 mb-2">
             <MessagesSquare className="w-4 h-4" style={{ color: "var(--blue-on)" }} />
             <h2 className="font-mono font-bold text-sm">Direct messages</h2>
-            <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "var(--panel)", color: "var(--mute)" }}>
+            <span className="font-mono text-micro px-1.5 py-0.5 rounded-full" style={{ background: "var(--panel)", color: "var(--mute)" }}>
               {conversations.length}
             </span>
           </div>
@@ -491,12 +491,12 @@ export default async function EngagePage({ searchParams }: { searchParams: Promi
                             color: mine ? "var(--blue-on)" : "var(--slate)",
                           }}
                         >
-                          <div className="font-mono text-[9.5px] opacity-70 mb-0.5">
+                          <div className="font-mono text-micro opacity-70 mb-0.5">
                             {mine ? "you" : (m.senderName ?? "them")} · {when(m.createdAt)}
                           </div>
                           {m.isDeleted ? <span className="italic opacity-70">(deleted)</span> : m.message}
                           {m.attachmentCount > 0 && (
-                            <div className="font-mono text-[9.5px] opacity-70 mt-1">
+                            <div className="font-mono text-micro opacity-70 mt-1">
                               {m.attachmentCount} attachment{m.attachmentCount === 1 ? "" : "s"}
                             </div>
                           )}
@@ -512,7 +512,7 @@ export default async function EngagePage({ searchParams }: { searchParams: Promi
               {(() => {
                 const w = messagingWindow(openConvo.platform, thread);
                 return w.applies && !w.open ? (
-                  <div className="mt-3 pt-3 border-t border-[var(--line)] text-[11px] flex items-start gap-2">
+                  <div className="mt-3 pt-3 border-t border-[var(--line)] text-2xs flex items-start gap-2">
                     <AlertTriangle className="w-4 h-4 flex-shrink-0" style={{ color: "var(--amber-on)" }} />
                     <span className="text-[var(--mute)]">
                       <b className="text-[var(--slate)]">Outside the 24-hour reply window.</b>{" "}
@@ -563,15 +563,15 @@ export default async function EngagePage({ searchParams }: { searchParams: Promi
                           <span className="flex items-center gap-1.5">
                             <span className={`text-xs truncate group-hover:underline ${st === "read" ? "font-normal" : "font-semibold"}`}>{c.participantName ?? "Unknown sender"}</span>
                             {c.unreadCount > 0 && (
-                              <span className="font-mono text-[9px] px-1.5 rounded-full" style={{ background: "var(--rose-soft)", color: "var(--rose-on)" }}>
+                              <span className="font-mono text-micro px-1.5 rounded-full" style={{ background: "var(--rose-soft)", color: "var(--rose-on)" }}>
                                 {c.unreadCount}
                               </span>
                             )}
                           </span>
-                          <span className="block text-[11px] text-[var(--mute)] truncate">{c.lastMessage ?? "—"}</span>
+                          <span className="block text-2xs text-[var(--mute)] truncate">{c.lastMessage ?? "—"}</span>
                         </span>
                         {assigneeName("conversation", c.id) && <span className="pt-0.5"><AssignedChip name={assigneeName("conversation", c.id)!} /></span>}
-                        <span className="font-mono text-[9.5px] text-[var(--mute)] flex-shrink-0 pt-1">{when(c.updatedTime)}</span>
+                        <span className="font-mono text-micro text-[var(--mute)] flex-shrink-0 pt-1">{when(c.updatedTime)}</span>
                       </Link>
                       <span className="flex-shrink-0 pt-0.5">
                         <InboxItemState kind="conversation" targetId={c.id} back={backHere} state={st} compact />
@@ -597,7 +597,7 @@ export default async function EngagePage({ searchParams }: { searchParams: Promi
                           <span className="pt-1"><NetDot platform={c.platform} /></span>
                           <span className="flex-1 min-w-0">
                             <span className="text-xs font-semibold truncate">{c.participantName ?? "Unknown sender"}</span>
-                            <span className="block text-[11px] text-[var(--mute)] truncate">{c.lastMessage ?? "—"}</span>
+                            <span className="block text-2xs text-[var(--mute)] truncate">{c.lastMessage ?? "—"}</span>
                           </span>
                           <span className="flex-shrink-0">
                             <InboxItemState kind="conversation" targetId={c.id} back={backHere} state="aside" actorName={d?.actorName} reason={d?.reason} />
@@ -617,7 +617,7 @@ export default async function EngagePage({ searchParams }: { searchParams: Promi
           <div className="flex items-center gap-2 mb-2">
             <MessageCircle className="w-4 h-4" style={{ color: "var(--violet-on)" }} />
             <h2 className="font-mono font-bold text-sm">Comments on your posts</h2>
-            <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "var(--panel)", color: "var(--mute)" }}>
+            <span className="font-mono text-micro px-1.5 py-0.5 rounded-full" style={{ background: "var(--panel)", color: "var(--mute)" }}>
               {withComments.length}
             </span>
           </div>
@@ -649,7 +649,7 @@ export default async function EngagePage({ searchParams }: { searchParams: Promi
                   <div key={c.id} className="text-xs border-l-2 pl-2" style={{ borderColor: c.authorIsOwner ? "var(--blue)" : "var(--line-2)" }}>
                     <div className="flex items-start gap-2">
                       <div className="flex-1 min-w-0">
-                        <div className="font-mono text-[9.5px] text-[var(--mute)] mb-0.5">
+                        <div className="font-mono text-micro text-[var(--mute)] mb-0.5">
                           {c.authorName ?? "Unknown"}{c.authorIsOwner ? " (you)" : ""} · {when(c.createdTime)}
                           {c.likeCount > 0 && <> · {c.likeCount} like{c.likeCount === 1 ? "" : "s"}</>}
                         </div>
@@ -680,7 +680,7 @@ export default async function EngagePage({ searchParams }: { searchParams: Promi
                         />
                       )}
                       {c.canDelete && !isAdmin && (
-                        <span className="font-mono text-[9.5px] text-[var(--mute)] flex-shrink-0 pt-0.5" title="deleteEntityAction requires ADMIN">
+                        <span className="font-mono text-micro text-[var(--mute)] flex-shrink-0 pt-0.5" title="deleteEntityAction requires ADMIN">
                           admin removes
                         </span>
                       )}
@@ -720,7 +720,7 @@ export default async function EngagePage({ searchParams }: { searchParams: Promi
                         <input type="hidden" name="draftId" value={pending.id} />
                         <textarea name="message" defaultValue={pending.message} rows={3} className="w-full text-xs border border-[var(--line-2)] rounded-lg px-2 py-1.5 resize-y" aria-label="The reply, as it will be posted" />
                         <div className="flex items-center gap-2">
-                          <span className="text-[10px] text-[var(--mute)]">Posts publicly as <b>{openPost.accountUsername ?? networkFor(openPost.platform)?.label ?? openPost.platform}</b> — edit it first if you like.</span>
+                          <span className="text-micro text-[var(--mute)]">Posts publicly as <b>{openPost.accountUsername ?? networkFor(openPost.platform)?.label ?? openPost.platform}</b> — edit it first if you like.</span>
                           <span className="flex-1" />
                           <SubmitButton className="btn sm primary" pendingText="Posting…">Approve &amp; send</SubmitButton>
                         </div>
@@ -737,11 +737,11 @@ export default async function EngagePage({ searchParams }: { searchParams: Promi
                   return (
                     <>
                       {pending && (
-                        <p className="text-[11px] mt-3 pt-3 border-t border-[var(--line)] font-mono" style={{ color: "var(--amber-on)" }} data-pending-reply="">
+                        <p className="text-2xs mt-3 pt-3 border-t border-[var(--line)] font-mono" style={{ color: "var(--amber-on)" }} data-pending-reply="">
                           Waiting for an admin&apos;s approval — {pending.authorName ?? "an editor"}&apos;s reply below. Change it and submit again to replace it.
                         </p>
                       )}
-                      <p className="text-[11px] mt-3 text-[var(--mute)]">
+                      <p className="text-2xs mt-3 text-[var(--mute)]">
                         This workspace reviews posts before they go out, so a public comment from you waits for an admin to approve it.
                         Direct-message replies are still yours to send.
                       </p>
@@ -777,7 +777,7 @@ export default async function EngagePage({ searchParams }: { searchParams: Promi
             <>
               <EmptyOrUnsupported connected={connected} filtered={net} kind="comments" />
               {quiet > 0 && (
-                <p className="text-[11px] text-[var(--mute)] mt-2">
+                <p className="text-2xs text-[var(--mute)] mt-2">
                   {quiet} published post{quiet === 1 ? "" : "s"} checked — none has a comment on it yet.
                 </p>
               )}
@@ -801,10 +801,10 @@ export default async function EngagePage({ searchParams }: { searchParams: Promi
                         <span className="pt-1"><NetDot platform={p.platform} /></span>
                         <span className="flex-1 min-w-0 text-xs text-[var(--slate)] truncate group-hover:underline">{p.content}</span>
                         {pendingOn(p.id) && (
-                          <span className="font-mono text-[9.5px] px-1.5 rounded-full flex-shrink-0" style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }}>reply awaiting approval</span>
+                          <span className="font-mono text-micro px-1.5 rounded-full flex-shrink-0" style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }}>reply awaiting approval</span>
                         )}
                         {assigneeName("comment", p.id) && <AssignedChip name={assigneeName("comment", p.id)!} />}
-                        <span className="flex items-center gap-2 flex-shrink-0 font-mono text-[9.5px] text-[var(--mute)] pt-0.5">
+                        <span className="flex items-center gap-2 flex-shrink-0 font-mono text-micro text-[var(--mute)] pt-0.5">
                           <span className="inline-flex items-center gap-0.5"><MessageCircle className="w-3 h-3" />{p.commentCount}</span>
                           {p.likeCount > 0 && <span className="inline-flex items-center gap-0.5"><Heart className="w-3 h-3" />{p.likeCount}</span>}
                         </span>
@@ -820,7 +820,7 @@ export default async function EngagePage({ searchParams }: { searchParams: Promi
                 )}
               </div>
               {quiet > 0 && (
-                <p className="text-[11px] text-[var(--mute)] mt-2">
+                <p className="text-2xs text-[var(--mute)] mt-2">
                   {quiet} more published post{quiet === 1 ? "" : "s"} have no comments yet.
                 </p>
               )}
@@ -861,7 +861,7 @@ function ListsRead({ lists, refreshHref }: { lists: [string, CachedList<unknown>
   const refreshing = lists.some(([, l]) => l.refreshing);
   const failed = lists.filter(([, l]) => l.error);
   return (
-    <div className="text-[11px] text-[var(--mute)] mb-3 flex flex-wrap items-center gap-x-2 gap-y-1">
+    <div className="text-2xs text-[var(--mute)] mb-3 flex flex-wrap items-center gap-x-2 gap-y-1">
       <span>
         {oldest != null ? `Lists read from Zernio ${readAgo(oldest)}` : "Lists not read from Zernio yet"}
         {refreshing ? " — reading them again now; reload in a moment for the newest." : "."}
@@ -891,7 +891,7 @@ function CoverageNote({ connected, filtered }: { connected: string[]; filtered?:
   return (
     <div className="card mb-4 flex items-start gap-2.5" style={{ borderColor: "var(--line)" }}>
       <Info className="w-4 h-4 mt-0.5 flex-shrink-0" style={{ color: "var(--blue-on)" }} />
-      <div className="text-[11px] text-[var(--mute)] leading-relaxed">
+      <div className="text-2xs text-[var(--mute)] leading-relaxed">
         <b className="text-[var(--slate)]">What each network exposes.</b>
         <ul className="mt-1 mb-1.5 flex flex-col gap-0.5">
           {limited.map(({ p, label, sup }) => (
@@ -951,7 +951,7 @@ function EmptyOrUnsupported({
 function Rating({ rating, platform }: { rating: number | null; platform: string }) {
   if (rating === null) {
     return (
-      <span className="font-mono text-[9.5px] text-[var(--mute)]" title={`${networkFor(platform)?.label ?? platform} uses recommendations rather than star ratings`}>
+      <span className="font-mono text-micro text-[var(--mute)]" title={`${networkFor(platform)?.label ?? platform} uses recommendations rather than star ratings`}>
         no rating
       </span>
     );
@@ -959,7 +959,7 @@ function Rating({ rating, platform }: { rating: number | null; platform: string 
   const full = Math.max(0, Math.min(5, Math.round(rating)));
   return (
     <span
-      className="font-mono text-[11px]"
+      className="font-mono text-2xs"
       style={{ color: full <= 2 ? "var(--rose-on)" : full >= 4 ? "var(--green-on)" : "var(--amber-on)" }}
       title={`${rating} out of 5`}
     >

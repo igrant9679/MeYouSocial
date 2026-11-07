@@ -131,7 +131,7 @@ export default async function IdeasBoard({ searchParams }: { searchParams: Promi
       {sp.err && <p className="text-xs mb-3 px-3 py-2 rounded-lg" style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }}>{sp.err}</p>}
       {stalled.length > 0 && (
         <div className="card mb-3 text-xs flex flex-col gap-1" style={{ borderColor: "var(--amber)" }}>
-          <b className="text-[11px] uppercase tracking-wide font-mono" style={{ color: "var(--amber-on)" }}>Approved, but not being made</b>
+          <b className="text-2xs uppercase tracking-wide font-mono" style={{ color: "var(--amber-on)" }}>Approved, but not being made</b>
           {stalled.map((s) => (
             <span key={s.f}>
               <b>{s.n} {s.label}:</b> {s.why!.text}
@@ -264,7 +264,7 @@ export default async function IdeasBoard({ searchParams }: { searchParams: Promi
               <SubmitButton className="btn" pendingText="Scoring…">Recompute priorities</SubmitButton>
             </form>
             <Link href="/ideas/topics" className="btn"><Tags className="w-3.5 h-3.5" /> Topics</Link>
-            <span className="text-[11px] text-[var(--mute)]">
+            <span className="text-2xs text-[var(--mute)]">
               {topics.length === 0
                 ? "Without a Topic, discovery runs once workspace-wide and its ideas arrive untagged."
                 : "Article priority shows its working on the card; a video's number is the measured outlier of the competitor video that inspired it."}
@@ -321,7 +321,7 @@ export default async function IdeasBoard({ searchParams }: { searchParams: Promi
                   ))}
                 </div>
               ))}
-              <p className="m-0 text-[10px] text-[var(--mute)]">A reason tells discovery what to steer away from. This bar shows your rejections from the last two minutes.</p>
+              <p className="m-0 text-micro text-[var(--mute)]">A reason tells discovery what to steer away from. This bar shows your rejections from the last two minutes.</p>
             </div>
           )}
           {editor && <IdeaTriage formId={BULK} back={back} topics={topics} />}
@@ -360,9 +360,9 @@ export default async function IdeasBoard({ searchParams }: { searchParams: Promi
               <li key={i.id} className="border-b border-[var(--line)] pb-2 last:border-0">
                 <span className="font-semibold">{i.title}</span>{" "}
                 <span className="font-mono text-[var(--mute)]">{i.priority}</span>
-                <pre className="whitespace-pre-wrap font-sans text-[11px] text-[var(--mute)] mt-0.5">{i.priorityReason}</pre>
+                <pre className="whitespace-pre-wrap font-sans text-2xs text-[var(--mute)] mt-0.5">{i.priorityReason}</pre>
                 {parseMotifs(i.motifs).length > 0 && (
-                  <p className="text-[11px] text-[var(--mute)]">Suggested voice: {motifSummaryLabel(parseMotifs(i.motifs))}</p>
+                  <p className="text-2xs text-[var(--mute)]">Suggested voice: {motifSummaryLabel(parseMotifs(i.motifs))}</p>
                 )}
               </li>
             ))}
@@ -408,15 +408,15 @@ function LaneSection({ lane, open, editor, topics, health, draftRank, now, dups,
         ) : (
           <span className="font-mono font-bold text-sm">No topic yet</span>
         )}
-        <span className="text-[11px] text-[var(--mute)]">{live === 0 ? "nothing open" : breakdown}{rejected.length ? ` · ${rejected.length} rejected` : ""}</span>
+        <span className="text-2xs text-[var(--mute)]">{live === 0 ? "nothing open" : breakdown}{rejected.length ? ` · ${rejected.length} rejected` : ""}</span>
         {health && <LaneHealthLine h={health} now={now} />}
         <span className="flex-1" />
-        {t && t.description && <span className="text-[11px] text-[var(--mute)] hidden md:inline truncate max-w-md">{t.description}</span>}
-        {!t && <span className="text-[11px] text-[var(--mute)]">no Topic on these yet — tag each one and it moves to its lane</span>}
+        {t && t.description && <span className="text-2xs text-[var(--mute)] hidden md:inline truncate max-w-md">{t.description}</span>}
+        {!t && <span className="text-2xs text-[var(--mute)]">no Topic on these yet — tag each one and it moves to its lane</span>}
       </summary>
 
       {selectable > 0 && (
-        <label className="text-[11px] text-[var(--mute)] inline-flex items-center gap-1.5 mt-3 cursor-pointer">
+        <label className="text-2xs text-[var(--mute)] inline-flex items-center gap-1.5 mt-3 cursor-pointer">
           <input type="checkbox" data-lane-toggle={laneId} />
           Select all {selectable} shown in this lane
         </label>
@@ -427,11 +427,11 @@ function LaneSection({ lane, open, editor, topics, health, draftRank, now, dups,
           const items = all.slice(0, shown(col.state));
           return (
             <section key={col.state}>
-              <h3 className="flex items-center justify-between text-[10px] font-semibold uppercase tracking-wide mb-1" style={{ color: `var(--${col.hue}-on)` }}>
+              <h3 className="flex items-center justify-between text-micro font-semibold uppercase tracking-wide mb-1" style={{ color: `var(--${col.hue}-on)` }}>
                 {col.title} <span className="font-mono">{all.length}</span>
               </h3>
               {items.length === 0 ? (
-                <p className="text-[11px] text-[var(--mute)] py-1 leading-snug">
+                <p className="text-2xs text-[var(--mute)] py-1 leading-snug">
                   {t === null ? "—" : col.state === "discovered" && live === 0 ? "Nothing about this yet — Discover fills it." : col.empty}
                 </p>
               ) : (
@@ -440,7 +440,7 @@ function LaneSection({ lane, open, editor, topics, health, draftRank, now, dups,
                 </ul>
               )}
               {all.length > items.length && (
-                <Link href={moreHref(col.state)} scroll={false} className="block text-[11px] text-center mt-2 py-1 rounded-md border border-dashed border-[var(--line-2)] text-[var(--mute)] hover:text-[var(--ink)]" data-show-more={`${laneId}:${col.state}`}>
+                <Link href={moreHref(col.state)} scroll={false} className="block text-2xs text-center mt-2 py-1 rounded-md border border-dashed border-[var(--line-2)] text-[var(--mute)] hover:text-[var(--ink)]" data-show-more={`${laneId}:${col.state}`}>
                   Show {Math.min(20, all.length - items.length)} more · {all.length - items.length} not shown
                 </Link>
               )}
@@ -450,12 +450,12 @@ function LaneSection({ lane, open, editor, topics, health, draftRank, now, dups,
       </div>
       {rejected.length > 0 && (
         <details className="mt-3" open={rejectedShown.length > 20}>
-          <summary className="text-[11px] cursor-pointer text-[var(--mute)]">Rejected · {rejected.length} — won&apos;t come back unless restored</summary>
+          <summary className="text-2xs cursor-pointer text-[var(--mute)]">Rejected · {rejected.length} — won&apos;t come back unless restored</summary>
           <ul className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-2">
             {rejectedShown.map((c) => <Card key={`${c.format}-${c.row.id}`} c={c} editor={editor} topics={topics} lane={`${laneId}:rejected`} draftRank={draftRank} dups={dups} back={back} />)}
           </ul>
           {rejected.length > rejectedShown.length && (
-            <Link href={moreHref("rejected")} scroll={false} className="block text-[11px] text-center mt-2 text-[var(--mute)] underline" data-show-more={`${laneId}:rejected`}>
+            <Link href={moreHref("rejected")} scroll={false} className="block text-2xs text-center mt-2 text-[var(--mute)] underline" data-show-more={`${laneId}:rejected`}>
               Show {Math.min(20, rejected.length - rejectedShown.length)} more rejected · {rejected.length - rejectedShown.length} not shown
             </Link>
           )}
@@ -474,7 +474,7 @@ function LaneHealthLine({ h, now }: { h: LaneHealth; now: number }) {
     `${h.published} published`,
   ].filter(Boolean);
   return (
-    <span className="text-[11px] text-[var(--mute)]" data-lane-health>
+    <span className="text-2xs text-[var(--mute)]" data-lane-health>
       · {bits.join(" · ")}
       {h.waiting > 0 && <span style={{ color: "var(--amber-on)" }}> · {h.waiting} waiting {STALE_DAYS}+ days</span>}
     </span>
@@ -496,7 +496,7 @@ function Card({ c, editor, topics, lane, draftRank, dups, back }: { c: BoardCard
  */
 function DupLine({ format, id, dup, canMerge, back }: { format: IdeaFormat; id: string; dup: Match; canMerge: boolean; back: string }) {
   return (
-    <div className="mt-1 text-[10px] flex flex-wrap items-center gap-1.5" style={{ color: "var(--amber-on)" }} data-dup={`${dup.kind}:${dup.id}`}>
+    <div className="mt-1 text-micro flex flex-wrap items-center gap-1.5" style={{ color: "var(--amber-on)" }} data-dup={`${dup.kind}:${dup.id}`}>
       <span>
         Looks like the {KIND_LABEL[dup.kind]} <Link href={dup.href} className="underline">“{dup.title.length > 70 ? `${dup.title.slice(0, 70)}…` : dup.title}”</Link>
         <span className="text-[var(--mute)]"> · {Math.round(dup.sim * 100)}% the same words</span>
@@ -505,7 +505,7 @@ function DupLine({ format, id, dup, canMerge, back }: { format: IdeaFormat; id: 
         <form action={mergeBlogIdeasAction}>
           <input type="hidden" name="sourceId" value={id} />
           <input type="hidden" name="targetId" value={dup.id} />
-          <SubmitButton className="btn !text-[10px] !py-0 !px-1.5" pendingText="Merging…">Merge into it</SubmitButton>
+          <SubmitButton className="btn !text-micro !py-0 !px-1.5" pendingText="Merging…">Merge into it</SubmitButton>
         </form>
       ) : (
         <form action={mergeDuplicateIdeaAction}>
@@ -513,7 +513,7 @@ function DupLine({ format, id, dup, canMerge, back }: { format: IdeaFormat; id: 
           <input type="hidden" name="sourceId" value={id} />
           <input type="hidden" name="targetId" value={dup.id} />
           <input type="hidden" name="back" value={back} />
-          <SubmitButton className="btn !text-[10px] !py-0 !px-1.5" pendingText="Merging…">Merge into it</SubmitButton>
+          <SubmitButton className="btn !text-micro !py-0 !px-1.5" pendingText="Merging…">Merge into it</SubmitButton>
         </form>
       ))}
     </div>
@@ -536,12 +536,12 @@ function IdeasTable({ cards, page, editor, pageHref }: { cards: BoardCard[]; pag
   const pages = Math.max(1, Math.ceil(rows.length / TABLE_PAGE));
   const at = Math.min(page, pages);
   const slice = rows.slice((at - 1) * TABLE_PAGE, at * TABLE_PAGE);
-  const th = "py-1.5 px-2 font-mono text-[9px] uppercase tracking-wider text-left text-[var(--mute)] border-b-2 border-[var(--line)]";
+  const th = "py-1.5 px-2 font-mono text-micro uppercase tracking-wider text-left text-[var(--mute)] border-b-2 border-[var(--line)]";
   const td = "py-1.5 px-2 border-b border-[var(--line)] align-top";
   const pick = editor ? slice.filter((c) => c.state !== "rejected" && canSelect(c)).length : 0;
   return (
     <div className="card" data-ideas-table>
-      <div className="flex items-center gap-2 flex-wrap text-[11px] text-[var(--mute)] mb-2">
+      <div className="flex items-center gap-2 flex-wrap text-2xs text-[var(--mute)] mb-2">
         {pick > 0 && (
           <label className="inline-flex items-center gap-1.5 cursor-pointer">
             <input type="checkbox" data-lane-toggle="table" /> Select all {pick} on this page
@@ -608,7 +608,7 @@ function FilterChip({ href, label, on }: { href: string; label: string; on: bool
     <Link
       href={href}
       aria-current={on ? "page" : undefined}
-      className="font-mono text-[11px] px-2 py-0.5 rounded-full border"
+      className="font-mono text-2xs px-2 py-0.5 rounded-full border"
       style={on
         ? { background: "var(--ink)", color: "var(--panel)", borderColor: "var(--ink)" }
         : { background: "var(--panel)", color: "var(--mute)", borderColor: "var(--line)" }}
@@ -622,7 +622,7 @@ function FormatChip({ format, channel }: { format: IdeaFormat; channel?: string 
   const hue = format === "article" ? "rose" : format === "video" ? "violet" : "blue";
   const label = format === "article" ? "Article" : format === "video" ? `Video${channel ? ` · ${channel}` : ""}` : "Post";
   return (
-    <span className="font-mono text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0" style={{ background: `var(--${hue}-soft)`, color: `var(--${hue}-on)` }} title={format === "video" ? `Video idea${channel ? ` on ${channel}` : ""}` : format === "article" ? "Article idea" : "Social post idea"}>
+    <span className="font-mono text-micro font-bold uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0" style={{ background: `var(--${hue}-soft)`, color: `var(--${hue}-on)` }} title={format === "video" ? `Video idea${channel ? ` on ${channel}` : ""}` : format === "article" ? "Article idea" : "Social post idea"}>
       {label}
     </span>
   );
@@ -631,7 +631,7 @@ function FormatChip({ format, channel }: { format: IdeaFormat; channel?: string 
 function Tag({ children, hue, title }: { children: React.ReactNode; hue?: string; title?: string }) {
   return (
     <span
-      className="font-mono text-[10px] px-1.5 py-0.5 rounded-full"
+      className="font-mono text-micro px-1.5 py-0.5 rounded-full"
       style={hue ? { background: `var(--${hue}-soft)`, color: `var(--${hue}-on)` } : { background: "var(--panel)", color: "var(--mute)" }}
       title={title}
     >
@@ -656,7 +656,7 @@ function TopicPicker({ format, id, topicId, topics, prominent, title }: { format
       data-id={id}
       data-topic={topicId ?? ""}
       data-title={title.slice(0, 160)}
-      className={prominent ? "btn sm mt-1.5" : "mt-2 text-[11px] text-[var(--mute)] underline decoration-dotted"}
+      className={prominent ? "btn sm mt-1.5" : "mt-2 text-2xs text-[var(--mute)] underline decoration-dotted"}
     >
       {prominent ? <><Tags className="w-3.5 h-3.5" style={{ color: "var(--indigo-on)" }} /> Tag it with a Topic</> : "Topic"}
     </button>
@@ -677,11 +677,11 @@ function ArticleCard({ idea, editor, topics, select, rank, dup, back }: { idea: 
       </div>
       {dup && <DupLine format="article" id={idea.id} dup={dup} canMerge={editor && (idea.status === "discovered" || idea.status === "approved")} back={back} />}
       {rank != null && (
-        <p className="text-[10px] mt-1 font-mono" style={{ color: "var(--violet-on)" }} data-draft-rank={rank} title="Approved articles are drafted highest priority first, then the longest-waiting">
+        <p className="text-micro mt-1 font-mono" style={{ color: "var(--violet-on)" }} data-draft-rank={rank} title="Approved articles are drafted highest priority first, then the longest-waiting">
           {rank === 1 ? "next to draft" : `#${rank} to draft`}
         </p>
       )}
-      {idea.angle && <p className="text-[11px] text-[var(--mute)] mt-1">{idea.angle}</p>}
+      {idea.angle && <p className="text-2xs text-[var(--mute)] mt-1">{idea.angle}</p>}
 
       <div className="flex flex-wrap items-center gap-1 mt-1.5">
         {idea.keyword && <Tag>{idea.keyword}</Tag>}
@@ -691,14 +691,14 @@ function ArticleCard({ idea, editor, topics, select, rank, dup, back }: { idea: 
         {idea.seasonalHook && <Tag hue="cyan">{idea.seasonalHook}</Tag>}
         {idea.status === "rejected" && isRejectReason(idea.rejectReason) && <Tag hue="rose" title="Why it was rejected — discovery steers away from this">{REJECT_REASONS[idea.rejectReason]}</Tag>}
       </div>
-      {idea.audience && <p className="text-[10px] text-[var(--mute)] mt-1">for {idea.audience}</p>}
-      {idea.targetPage && <p className="text-[10px] text-[var(--mute)] mt-0.5 truncate">supports {idea.targetPage}</p>}
+      {idea.audience && <p className="text-micro text-[var(--mute)] mt-1">for {idea.audience}</p>}
+      {idea.targetPage && <p className="text-micro text-[var(--mute)] mt-0.5 truncate">supports {idea.targetPage}</p>}
       {idea.dedupeNote && (
-        <p className="text-[10px] mt-1" style={{ color: "var(--amber-on)" }}>
+        <p className="text-micro mt-1" style={{ color: "var(--amber-on)" }}>
           {idea.dedupeNote}{idea.refreshPostId ? " — refresh it rather than writing a new one." : ""}
         </p>
       )}
-      {idea.mergedIntoId && <p className="text-[10px] text-[var(--mute)] mt-1">merged into another idea</p>}
+      {idea.mergedIntoId && <p className="text-micro text-[var(--mute)] mt-1">merged into another idea</p>}
 
       {editor && live && (
         <div className="flex flex-wrap items-center gap-1 mt-2">
@@ -706,14 +706,14 @@ function ArticleCard({ idea, editor, topics, select, rank, dup, back }: { idea: 
             <form action={setBlogIdeaStatusAction}>
               <input type="hidden" name="id" value={idea.id} />
               <input type="hidden" name="status" value="approved" />
-              <button className="btn text-[11px]" data-key="a">{idea.status === "rejected" ? "Restore" : "Approve"}</button>
+              <button className="btn text-2xs" data-key="a">{idea.status === "rejected" ? "Restore" : "Approve"}</button>
             </form>
           )}
           {idea.status !== "rejected" && (
             <form action={setBlogIdeaStatusAction}>
               <input type="hidden" name="id" value={idea.id} />
               <input type="hidden" name="status" value="rejected" />
-              <button className="btn text-[11px]" data-key="r">Reject</button>
+              <button className="btn text-2xs" data-key="r">Reject</button>
             </form>
           )}
           {/* E-IDE-25: back to Discovered without rejecting it. */}
@@ -721,23 +721,23 @@ function ArticleCard({ idea, editor, topics, select, rank, dup, back }: { idea: 
             <form action={setBlogIdeaStatusAction}>
               <input type="hidden" name="id" value={idea.id} />
               <input type="hidden" name="status" value="discovered" />
-              <button className="btn text-[11px]" title="Back to Discovered — not rejected, and it won't be drafted until approved again">Not yet</button>
+              <button className="btn text-2xs" title="Back to Discovered — not rejected, and it won't be drafted until approved again">Not yet</button>
             </form>
           )}
           {idea.status !== "rejected" && (
             <form action={draftFromIdeaAction}>
               <input type="hidden" name="id" value={idea.id} />
-              <SubmitButton className="btn text-[11px]" pendingText="Drafting…" title="Draft it now instead of waiting for the autopilot's allowance">Draft now</SubmitButton>
+              <SubmitButton className="btn text-2xs" pendingText="Drafting…" title="Draft it now instead of waiting for the autopilot's allowance">Draft now</SubmitButton>
             </form>
           )}
           <form action={deleteBlogIdeaAction}>
             <input type="hidden" name="id" value={idea.id} />
-            <button className="btn text-[11px]" title="Delete idea"><Trash2 className="w-3 h-3" /></button>
+            <button className="btn text-2xs" title="Delete idea"><Trash2 className="w-3 h-3" /></button>
           </form>
         </div>
       )}
       {idea.status === "drafted" && idea.postId && (
-        <Link href={`/blog/${idea.postId}`} className="text-[11px] underline mt-2 inline-block">Open the draft</Link>
+        <Link href={`/blog/${idea.postId}`} className="text-2xs underline mt-2 inline-block">Open the draft</Link>
       )}
 
       {editor && live && <TopicPicker format="article" id={idea.id} topicId={idea.topicId} topics={topics} prominent={!idea.topicId} title={idea.title} />}
@@ -746,7 +746,7 @@ function ArticleCard({ idea, editor, topics, select, rank, dup, back }: { idea: 
           list of every other open idea, made the board's HTML grow with the
           square of open ideas. */}
       {editor && live && (
-        <Link href={`/ideas/article/${idea.id}`} className="text-[11px] text-[var(--mute)] underline mt-2 inline-block">Edit tags or merge</Link>
+        <Link href={`/ideas/article/${idea.id}`} className="text-2xs text-[var(--mute)] underline mt-2 inline-block">Edit tags or merge</Link>
       )}
     </li>
   );
@@ -765,7 +765,7 @@ function VideoCard({ idea, editor, topics, select, dup, back }: { idea: VideoRow
         {idea.outlierScore != null && <OutlierChip score={idea.outlierScore} views={idea.sourceVideo?.views} size="xs" title={IDEA_TIPS.outlier} />}
       </div>
       {dup && <DupLine format="video" id={idea.id} dup={dup} canMerge={editor && (idea.status === "new" || idea.status === "approved")} back={back} />}
-      {idea.strategy && <p className="text-[11px] text-[var(--mute)] mt-1 line-clamp-2">{idea.strategy}</p>}
+      {idea.strategy && <p className="text-2xs text-[var(--mute)] mt-1 line-clamp-2">{idea.strategy}</p>}
       <div className="flex flex-wrap items-center gap-1 mt-1.5">
         {idea.suggestedLength && <Tag>{idea.suggestedLength}</Tag>}
         {idea.merit && <Tag>{idea.merit}</Tag>}
@@ -780,14 +780,14 @@ function VideoCard({ idea, editor, topics, select, dup, back }: { idea: VideoRow
             <form action={updateIdeaStatusAction}>
               <input type="hidden" name="ideaId" value={idea.id} />
               <input type="hidden" name="status" value="approved" />
-              <button className="btn text-[11px]" data-key="a">Approve</button>
+              <button className="btn text-2xs" data-key="a">Approve</button>
             </form>
           )}
           {idea.status === "archived" && (
             <form action={updateIdeaStatusAction}>
               <input type="hidden" name="ideaId" value={idea.id} />
               <input type="hidden" name="status" value="new" />
-              <button className="btn text-[11px]">Restore</button>
+              <button className="btn text-2xs">Restore</button>
             </form>
           )}
           {(idea.status === "new" || idea.status === "approved") && (
@@ -795,22 +795,22 @@ function VideoCard({ idea, editor, topics, select, dup, back }: { idea: VideoRow
               <form action={updateIdeaStatusAction}>
                 <input type="hidden" name="ideaId" value={idea.id} />
                 <input type="hidden" name="status" value="archived" />
-                <button className="btn text-[11px]" data-key="r">Reject</button>
+                <button className="btn text-2xs" data-key="r">Reject</button>
               </form>
               <form action={writeIdeaToCanvasAction}>
                 <input type="hidden" name="ideaId" value={idea.id} />
-                <SubmitButton className="btn primary text-[11px]" pendingText="Opening…" title="Open the script canvas with this idea loaded"><PenLine className="w-3 h-3" /> Write</SubmitButton>
+                <SubmitButton className="btn primary text-2xs" pendingText="Opening…" title="Open the script canvas with this idea loaded"><PenLine className="w-3 h-3" /> Write</SubmitButton>
               </form>
             </>
           )}
           {script && (
-            <Link href={script.workflow === "builder" ? `/scripts/${script.id}/builder` : `/scripts/${script.id}`} className="btn text-[11px]">Open the script</Link>
+            <Link href={script.workflow === "builder" ? `/scripts/${script.id}/builder` : `/scripts/${script.id}`} className="btn text-2xs">Open the script</Link>
           )}
           <DeleteButton kind="idea" id={idea.id} name={idea.title} returnTo="/ideas" />
         </div>
       )}
       {!editor && script && (
-        <Link href={script.workflow === "builder" ? `/scripts/${script.id}/builder` : `/scripts/${script.id}`} className="text-[11px] underline mt-2 inline-block">Open the script</Link>
+        <Link href={script.workflow === "builder" ? `/scripts/${script.id}/builder` : `/scripts/${script.id}`} className="text-2xs underline mt-2 inline-block">Open the script</Link>
       )}
 
       {editor && idea.status !== "archived" && <TopicPicker format="video" id={idea.id} topicId={idea.topicId} topics={topics} prominent={!idea.topicId} title={idea.title} />}
@@ -837,14 +837,14 @@ function SocialCard({ idea, editor, topics, select, dup, back }: { idea: SocialR
         {idea.status === "rejected" && isRejectReason(idea.rejectReason) && <Tag hue="rose" title="Why it was rejected — discovery steers away from this">{REJECT_REASONS[idea.rejectReason]}</Tag>}
       </div>
       {dup && <DupLine format="social" id={idea.id} dup={dup} canMerge={editor && (idea.status === "discovered" || idea.status === "approved")} back={back} />}
-      {idea.angle && <p className="text-[11px] text-[var(--mute)] mt-1">{idea.angle}</p>}
+      {idea.angle && <p className="text-2xs text-[var(--mute)] mt-1">{idea.angle}</p>}
       {source && (
-        <p className="text-[10px] text-[var(--mute)] mt-1 truncate">
+        <p className="text-micro text-[var(--mute)] mt-1 truncate">
           {source.href ? <Link href={source.href} className="hover:underline">{source.label}</Link> : source.label}
         </p>
       )}
       {idea.status === "drafted" && idea.socialPost && (
-        <p className="text-[11px] mt-1">
+        <p className="text-2xs mt-1">
           <Link href={`/social/${idea.socialPost.id}/edit`} className="underline">
             {idea.socialPost.status === "scheduled" && idea.socialPost.scheduledAt
               ? `Queued for ${idea.socialPost.scheduledAt.toLocaleDateString("en-GB", { day: "numeric", month: "short" })}`
@@ -860,14 +860,14 @@ function SocialCard({ idea, editor, topics, select, dup, back }: { idea: SocialR
             <form action={setSocialIdeaStatusAction}>
               <input type="hidden" name="id" value={idea.id} />
               <input type="hidden" name="status" value="approved" />
-              <button className="btn text-[11px]" data-key="a">{idea.status === "rejected" ? "Restore" : "Approve"}</button>
+              <button className="btn text-2xs" data-key="a">{idea.status === "rejected" ? "Restore" : "Approve"}</button>
             </form>
           )}
           {idea.status !== "rejected" && (
             <form action={setSocialIdeaStatusAction}>
               <input type="hidden" name="id" value={idea.id} />
               <input type="hidden" name="status" value="rejected" />
-              <button className="btn text-[11px]" data-key="r">Reject</button>
+              <button className="btn text-2xs" data-key="r">Reject</button>
             </form>
           )}
           {/* E-IDE-25: back to Discovered without rejecting it. */}
@@ -875,7 +875,7 @@ function SocialCard({ idea, editor, topics, select, dup, back }: { idea: SocialR
             <form action={setSocialIdeaStatusAction}>
               <input type="hidden" name="id" value={idea.id} />
               <input type="hidden" name="status" value="discovered" />
-              <button className="btn text-[11px]" title="Back to Discovered — not rejected, and it won't be drafted until approved again">Not yet</button>
+              <button className="btn text-2xs" title="Back to Discovered — not rejected, and it won't be drafted until approved again">Not yet</button>
             </form>
           )}
           {/* The engine's writer, now (IDE-05) — approved social ideas had no
@@ -883,7 +883,7 @@ function SocialCard({ idea, editor, topics, select, dup, back }: { idea: SocialR
           {(idea.status === "discovered" || idea.status === "approved") && (
             <form action={draftSocialIdeaNowAction}>
               <input type="hidden" name="id" value={idea.id} />
-              <SubmitButton className="btn text-[11px]" pendingText="Drafting…" title="Write the post now instead of waiting for the engine">Draft now</SubmitButton>
+              <SubmitButton className="btn text-2xs" pendingText="Drafting…" title="Write the post now instead of waiting for the engine">Draft now</SubmitButton>
             </form>
           )}
           <DeleteButton kind="socialIdea" id={idea.id} name={idea.hook.slice(0, 60)} returnTo="/ideas" />
@@ -893,7 +893,7 @@ function SocialCard({ idea, editor, topics, select, dup, back }: { idea: SocialR
       {editor && live && <TopicPicker format="social" id={idea.id} topicId={idea.topicId} topics={topics} prominent={!idea.topicId} title={idea.hook} />}
 
       {/* Editing lives on the idea's own page (E-IDE-17) — not a form in every card. */}
-      {editor && live && <Link href={`/ideas/social/${idea.id}`} className="ml-3 text-[11px] text-[var(--mute)] underline decoration-dotted">Edit</Link>}
+      {editor && live && <Link href={`/ideas/social/${idea.id}`} className="ml-3 text-2xs text-[var(--mute)] underline decoration-dotted">Edit</Link>}
     </li>
   );
 }

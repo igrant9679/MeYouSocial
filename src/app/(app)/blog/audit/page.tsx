@@ -75,7 +75,7 @@ export default async function ContentAuditPage() {
             </form>
           )}
           {lastRun && (
-            <span className="font-mono text-[11px] text-[var(--mute)]">
+            <span className="font-mono text-2xs text-[var(--mute)]">
               last run {formatZonedMoment(lastRun, tz)}
             </span>
           )}
@@ -91,7 +91,7 @@ export default async function ContentAuditPage() {
             {counts.map(({ r, n }) => (
               <span
                 key={r}
-                className="font-mono text-[11px] px-2 py-0.5 rounded-full"
+                className="font-mono text-2xs px-2 py-0.5 rounded-full"
                 style={{ background: `var(--${RECOMMENDATION_HUE[r]}-soft)`, color: `var(--${RECOMMENDATION_HUE[r]}-on)` }}
               >
                 {n} {r}
@@ -99,7 +99,7 @@ export default async function ContentAuditPage() {
             ))}
           </div>
         )}
-        <p className="text-[11px] text-[var(--mute)]">
+        <p className="text-2xs text-[var(--mute)]">
           Search Console isn&apos;t connected, so ranking data only exists for posts published through this app.
           Everything else is scored on content quality alone — weigh that before retiring anything.
         </p>
@@ -136,7 +136,7 @@ export default async function ContentAuditPage() {
               <li key={item.id} className="card" style={item.status !== "open" ? { opacity: 0.6 } : undefined}>
                 <div className="flex flex-wrap items-center gap-2">
                   <span
-                    className="font-mono text-[10px] px-2 py-0.5 rounded-full shrink-0"
+                    className="font-mono text-micro px-2 py-0.5 rounded-full shrink-0"
                     style={{ background: `var(--${hue}-soft)`, color: `var(--${hue}-on)` }}
                   >
                     {item.recommendation}
@@ -145,16 +145,16 @@ export default async function ContentAuditPage() {
                     {item.title}
                   </a>
                   {item.slopScore != null && (
-                    <span className="font-mono text-[10px] text-[var(--mute)]">score {item.slopScore}</span>
+                    <span className="font-mono text-micro text-[var(--mute)]">score {item.slopScore}</span>
                   )}
                   {item.wordCount != null && (
-                    <span className="font-mono text-[10px] text-[var(--mute)]">{item.wordCount}w</span>
+                    <span className="font-mono text-micro text-[var(--mute)]">{item.wordCount}w</span>
                   )}
                   {item.position != null && (
-                    <span className="font-mono text-[10px] text-[var(--mute)]">pos {item.position.toFixed(1)}</span>
+                    <span className="font-mono text-micro text-[var(--mute)]">pos {item.position.toFixed(1)}</span>
                   )}
                   {item.status !== "open" && (
-                    <span className="font-mono text-[10px] px-2 py-0.5 rounded-full" style={{ background: "var(--panel)", color: "var(--mute)" }}>
+                    <span className="font-mono text-micro px-2 py-0.5 rounded-full" style={{ background: "var(--panel)", color: "var(--mute)" }}>
                       {item.status}
                     </span>
                   )}
@@ -167,7 +167,7 @@ export default async function ContentAuditPage() {
                     {findings.map((f) => (
                       <li
                         key={f.label}
-                        className="font-mono text-[10px] px-1.5 py-0.5 rounded-full"
+                        className="font-mono text-micro px-1.5 py-0.5 rounded-full"
                         style={{ background: "var(--panel)", color: "var(--mute)" }}
                         title={`+${f.weight} to the score`}
                       >
@@ -182,13 +182,13 @@ export default async function ContentAuditPage() {
                     {item.recommendation !== "keep" && (
                       <form action={auditItemToIdeaAction}>
                         <input type="hidden" name="id" value={item.id} />
-                        <SubmitButton className="btn text-[11px]">Send to idea board</SubmitButton>
+                        <SubmitButton className="btn text-2xs">Send to idea board</SubmitButton>
                       </form>
                     )}
                     <form action={setAuditItemStatusAction}>
                       <input type="hidden" name="id" value={item.id} />
                       <input type="hidden" name="status" value="dismissed" />
-                      <button className="btn text-[11px]">Dismiss</button>
+                      <button className="btn text-2xs">Dismiss</button>
                     </form>
                   </div>
                 )}
@@ -196,7 +196,7 @@ export default async function ContentAuditPage() {
                   <form action={setAuditItemStatusAction} className="mt-2">
                     <input type="hidden" name="id" value={item.id} />
                     <input type="hidden" name="status" value="open" />
-                    <button className="btn text-[11px]">Reopen</button>
+                    <button className="btn text-2xs">Reopen</button>
                   </form>
                 )}
               </li>

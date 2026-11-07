@@ -82,12 +82,12 @@ export default async function ChannelCompetitorsPage({
                     <ChannelAvatar name={r.name} url={r.thumbnailUrl} size={40} />
                     <div className="flex-1 min-w-0">
                       <div className="font-semibold text-sm truncate">{r.name}</div>
-                      <div className="text-[11px] text-[var(--mute)] font-mono truncate">
+                      <div className="text-2xs text-[var(--mute)] font-mono truncate">
                         {r.handle ?? r.id} · {r.subscribers.toLocaleString()} subs · {r.videoCount.toLocaleString()} videos
                       </div>
                     </div>
                     {tracked ? (
-                      <span className="text-[10px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded flex items-center gap-1" style={{ background: "var(--green-soft)", color: "var(--green-on)" }}>
+                      <span className="text-micro font-mono uppercase tracking-wider px-1.5 py-0.5 rounded flex items-center gap-1" style={{ background: "var(--green-soft)", color: "var(--green-on)" }}>
                         <Check className="w-3 h-3" /> tracked
                       </span>
                     ) : (

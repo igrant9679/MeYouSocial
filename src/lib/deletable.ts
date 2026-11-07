@@ -241,7 +241,9 @@ export const DELETABLE: Record<DeletableKind, Deletable> = {
       return nonZero([["posts (kept, unlinked)", posts]]);
     },
     async remove(id, workspaceId) { await db.campaign.deleteMany({ where: { id, workspaceId } }); },
-    revalidate: ["/social"],
+    revalidate: ["/social", "/setup/schedule"],
+    // Back where campaigns are managed — with no page named, a delete landed on the home page (part cz).
+    redirectTo: () => "/setup/schedule",
   },
 
   brandFact: {
@@ -251,6 +253,7 @@ export const DELETABLE: Record<DeletableKind, Deletable> = {
       .then((r) => (r ? { id: r.id, name: r.title } : null)),
     async remove(id, workspaceId) { await db.brandFact.deleteMany({ where: { id, workspaceId } }); },
     revalidate: ["/brand", "/blog/brand"],
+    redirectTo: () => "/brand",
   },
 
   brandDocument: {
@@ -264,6 +267,7 @@ export const DELETABLE: Record<DeletableKind, Deletable> = {
     // for; reclaiming the file is a storage-wide job, not this kind's business.
     async remove(id, workspaceId) { await db.brandDocument.deleteMany({ where: { id, workspaceId } }); },
     revalidate: ["/brand", "/blog/brand"],
+    redirectTo: () => "/brand",
   },
 
   idea: {

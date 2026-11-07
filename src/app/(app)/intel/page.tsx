@@ -91,13 +91,13 @@ export default async function IntelPage({ searchParams }: { searchParams: Promis
       {/* Search + filters */}
       <form className="card mb-5 flex flex-wrap items-end gap-3">
         <label className="flex flex-col gap-1 flex-1 min-w-[220px]">
-          <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">Search</span>
+          <span className="text-micro font-mono uppercase tracking-wider text-[var(--mute)]">Search</span>
           <input name="q" defaultValue={params.q ?? ""} placeholder="e.g. productivity channels, AI experiments, faceless niches" className="border border-[var(--line-2)] rounded-lg p-2.5 text-sm" />
         </label>
         <NumField name="subsMin" label="Subs min" defaultValue={params.subsMin} />
         <NumField name="subsMax" label="Subs max" defaultValue={params.subsMax} />
         <label className="flex flex-col gap-1">
-          <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">Format</span>
+          <span className="text-micro font-mono uppercase tracking-wider text-[var(--mute)]">Format</span>
           <select key={`format:${params.format ?? ""}`} name="format" defaultValue={params.format ?? ""} className="border border-[var(--line-2)] rounded-lg p-2.5 text-sm">
             <option value="">Both</option>
             <option value="long">Long-form</option>
@@ -105,7 +105,7 @@ export default async function IntelPage({ searchParams }: { searchParams: Promis
           </select>
         </label>
         <label className="flex flex-col gap-1">
-          <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">Language</span>
+          <span className="text-micro font-mono uppercase tracking-wider text-[var(--mute)]">Language</span>
           <input name="language" defaultValue={params.language ?? ""} placeholder="en" className="border border-[var(--line-2)] rounded-lg p-2.5 text-sm w-16" />
         </label>
         <SubmitButton className="btn primary" pendingText="Searching…">Search</SubmitButton>
@@ -116,7 +116,7 @@ export default async function IntelPage({ searchParams }: { searchParams: Promis
         <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-4 mb-5">
           {trending.length > 0 && (
             <section className="card">
-              <h2 className="font-mono text-[14px] font-bold mb-3 flex items-center gap-2">
+              <h2 className="font-mono text-sm font-bold mb-3 flex items-center gap-2">
                 <TrendingUp className="w-4 h-4" style={{ color: "var(--brand-on)" }} /> Outlier videos, published in the last 30 days
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -141,14 +141,14 @@ export default async function IntelPage({ searchParams }: { searchParams: Promis
           <div className="flex flex-col gap-3">
             {hotChannels.length > 0 && (
               <section className="card">
-                <h2 className="font-mono text-[13px] font-bold mb-2 flex items-center gap-2">
+                <h2 className="font-mono text-sm font-bold mb-2 flex items-center gap-2">
                   <TrendingUp className="w-3.5 h-3.5" style={{ color: "var(--brand-on)" }} /> Most frequent uploaders
                 </h2>
                 <ul className="m-0 p-0">
                   {hotChannels.map((c) => (
                     <li key={c.id} className="border-t border-[var(--line)] first:border-t-0 py-2 flex items-center gap-2 text-xs">
                       <ChannelAvatar name={c.name} url={c.thumbnailUrl} size={24} />
-                      <span className="font-mono font-bold text-[10px] px-1.5 py-0.5 rounded" style={{ background: "var(--brand-soft)", color: "var(--brand-on)" }} title="Uploads per week, measured from upload dates">{c.uploadFrequency?.toFixed(1)}/wk</span>
+                      <span className="font-mono font-bold text-micro px-1.5 py-0.5 rounded" style={{ background: "var(--brand-soft)", color: "var(--brand-on)" }} title="Uploads per week, measured from upload dates">{c.uploadFrequency?.toFixed(1)}/wk</span>
                       <Link href={`/intel/channels/${c.id}`} className="flex-1 truncate hover:text-[var(--accent)]">{c.name}</Link>
                       <span className="text-[var(--mute)]">{formatNum(c.subscribers)}</span>
                     </li>
@@ -159,7 +159,7 @@ export default async function IntelPage({ searchParams }: { searchParams: Promis
 
             {byCategory.length > 0 && (
               <section className="card">
-                <h2 className="font-mono text-[13px] font-bold mb-2 flex items-center gap-2">
+                <h2 className="font-mono text-sm font-bold mb-2 flex items-center gap-2">
                   <Sparkles className="w-3.5 h-3.5" style={{ color: "var(--violet-on)" }} /> Trending niches
                 </h2>
                 <ul className="m-0 p-0">
@@ -179,7 +179,7 @@ export default async function IntelPage({ searchParams }: { searchParams: Promis
       {/* Results — Channels */}
       {(biasChannels || channels.length > 0) && (
         <section className="card mb-5">
-          <h2 className="font-mono text-[14px] font-bold mb-3 flex items-center gap-2">
+          <h2 className="font-mono text-sm font-bold mb-3 flex items-center gap-2">
             <Sparkles className="w-4 h-4" style={{ color: "var(--violet-on)" }} /> Channels <span className="text-[var(--mute)] text-xs font-normal">({channels.length})</span>
           </h2>
           <ul className="m-0 p-0 grid grid-cols-1 md:grid-cols-2 gap-2">
@@ -190,7 +190,7 @@ export default async function IntelPage({ searchParams }: { searchParams: Promis
                   <div className="font-semibold text-sm truncate flex items-center gap-1.5">
                     {c.name}
                     {isFastGrowing(c.velocityScore) && (
-                      <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-md" style={{ background: "var(--brand-soft)", color: "var(--brand-on)" }}>▲ FAST</span>
+                      <span className="text-micro font-mono font-bold px-1.5 py-0.5 rounded-md" style={{ background: "var(--brand-soft)", color: "var(--brand-on)" }}>▲ FAST</span>
                     )}
                   </div>
                   <div className="text-xs text-[var(--mute)]">{c.handle} · {formatNum(c.subscribers)} subs{c.uploadFrequency != null ? ` · ${c.uploadFrequency.toFixed(1)} uploads/wk` : ""}</div>
@@ -211,8 +211,8 @@ export default async function IntelPage({ searchParams }: { searchParams: Promis
       {/* Results — Videos */}
       {videos.length > 0 && (
         <section className="card">
-          <h2 className="font-mono text-[14px] font-bold mb-3 flex items-center gap-2">
-            <Eye className="w-4 h-4" style={{ color: "var(--amber-on)" }} /> Videos <span className="text-[var(--mute)] text-xs font-normal">({videos.length})</span> <span className="text-[10px] text-[var(--mute)] font-mono">sorted by outlier</span>
+          <h2 className="font-mono text-sm font-bold mb-3 flex items-center gap-2">
+            <Eye className="w-4 h-4" style={{ color: "var(--amber-on)" }} /> Videos <span className="text-[var(--mute)] text-xs font-normal">({videos.length})</span> <span className="text-micro text-[var(--mute)] font-mono">sorted by outlier</span>
           </h2>
           <ul className="m-0 p-0">
             {videos.map((v) => (
@@ -253,7 +253,7 @@ export default async function IntelPage({ searchParams }: { searchParams: Promis
           </p>
           {params.q?.trim() ? (
             <>
-              <p className="text-[11px] text-[var(--mute)] mb-3">
+              <p className="text-2xs text-[var(--mute)] mb-3">
                 Intel searches channels you&apos;ve indexed, not YouTube directly. Pull some in and they become
                 searchable here.
               </p>
@@ -274,7 +274,7 @@ export default async function IntelPage({ searchParams }: { searchParams: Promis
               )}
             </>
           ) : (
-            <p className="text-[11px] text-[var(--mute)]">Search a keyword or an @handle to index channels.</p>
+            <p className="text-2xs text-[var(--mute)]">Search a keyword or an @handle to index channels.</p>
           )}
         </div>
       )}
@@ -285,7 +285,7 @@ export default async function IntelPage({ searchParams }: { searchParams: Promis
 function NumField({ name, label, defaultValue, step }: { name: string; label: string; defaultValue?: number; step?: number }) {
   return (
     <label className="flex flex-col gap-1">
-      <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">{label}</span>
+      <span className="text-micro font-mono uppercase tracking-wider text-[var(--mute)]">{label}</span>
       <input type="number" name={name} step={step ?? 1} defaultValue={defaultValue ?? ""} className="border border-[var(--line-2)] rounded-lg p-2.5 text-sm w-24" />
     </label>
   );

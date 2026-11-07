@@ -100,7 +100,7 @@ export default async function SocialApprovalsPage({ searchParams }: { searchPara
           {changes.length > 0 && (
             <>
               <Section icon={<ShieldCheck className="w-4 h-4" style={{ color: "var(--rose-on)" }} />} title="Changes requested" count={changes.length} />
-              <p className="text-[11px] text-[var(--mute)] mb-2">
+              <p className="text-2xs text-[var(--mute)] mb-2">
                 Editing one of these answers the note and resubmits it for approval automatically.
               </p>
               <div className="flex flex-col gap-2 mb-6">

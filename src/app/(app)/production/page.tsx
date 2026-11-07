@@ -49,18 +49,18 @@ export default async function ProductionBoardPage() {
       {editor && channels.length > 0 && (
         <form action={createProjectAction} className="card flex items-end gap-2 mb-4 max-w-2xl">
           <label className="flex-1 flex flex-col gap-1">
-            <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">New project</span>
+            <span className="text-micro font-mono uppercase tracking-wider text-[var(--mute)]">New project</span>
             <input name="title" required placeholder="Working title" className="border border-[var(--line-2)] rounded-lg p-2 text-sm" />
           </label>
           <label className="flex flex-col gap-1">
-            <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">Channel</span>
+            <span className="text-micro font-mono uppercase tracking-wider text-[var(--mute)]">Channel</span>
             <select name="channelId" className="border border-[var(--line-2)] rounded-lg p-2 text-sm">
               {channels.map((c) => (<option key={c.id} value={c.id}>{c.name}</option>))}
             </select>
           </label>
           {topics.length > 0 && (
             <label className="flex flex-col gap-1">
-              <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">Topic</span>
+              <span className="text-micro font-mono uppercase tracking-wider text-[var(--mute)]">Topic</span>
               <select name="topicId" defaultValue="" className="border border-[var(--line-2)] rounded-lg p-2 text-sm">
                 <option value="">none</option>
                 {topics.map((t) => (<option key={t.id} value={t.id}>{t.name}</option>))}
@@ -93,11 +93,11 @@ export default async function ProductionBoardPage() {
                 <span className="text-xs text-[var(--mute)]">({items.length})</span>
               </div>
               <ul className="m-0 p-0 flex flex-col gap-2">
-                {items.length === 0 && <li className="text-[11px] text-[var(--mute)] py-3 text-center" title="No project is in this stage">—</li>}
+                {items.length === 0 && <li className="text-2xs text-[var(--mute)] py-3 text-center" title="No project is in this stage">—</li>}
                 {items.map((p) => (
                   <li key={p.id} className="bg-[var(--bg)] border border-[var(--line)] rounded-lg p-2.5">
                     <div className="flex items-center gap-1.5 mb-1">
-                      <span className="w-6 h-6 rounded-md text-white grid place-items-center text-[10px] font-mono font-bold" style={{ background: p.channel.accentColor ?? "var(--accent)" }}>{p.channel.name.slice(0, 2).toUpperCase()}</span>
+                      <span className="w-6 h-6 rounded-md text-white grid place-items-center text-micro font-mono font-bold" style={{ background: p.channel.accentColor ?? "var(--accent)" }}>{p.channel.name.slice(0, 2).toUpperCase()}</span>
                       <span className="flex-1" />
                       {/* Advance */}
                       {(() => {
@@ -118,9 +118,9 @@ export default async function ProductionBoardPage() {
                     ) : (
                       <div className="font-semibold text-sm leading-tight">{p.title}</div>
                     )}
-                    <div className="text-[11px] text-[var(--mute)] mt-1">{p.channel.name}{p.script ? ` · ${p.script.wordCount}w` : ""}</div>
+                    <div className="text-2xs text-[var(--mute)] mt-1">{p.channel.name}{p.script ? ` · ${p.script.wordCount}w` : ""}</div>
                     {/* The project page, and how far its upload checklist is (E-VID-04). */}
-                    <Link href={`/production/projects/${p.id}`} className="font-mono text-[10px] text-[var(--mute)] hover:text-[var(--accent)] mt-1 inline-flex items-center gap-1" data-upload-count>
+                    <Link href={`/production/projects/${p.id}`} className="font-mono text-micro text-[var(--mute)] hover:text-[var(--accent)] mt-1 inline-flex items-center gap-1" data-upload-count>
                       <ListChecks className="w-3 h-3" /> Upload {checklistDone(readChecklist(p.uploadChecklist))}/{UPLOAD_STEPS.length} →
                     </Link>
                     {editor && topics.length > 0 ? (
@@ -128,14 +128,14 @@ export default async function ProductionBoardPage() {
                         <input type="hidden" name="id" value={p.id} />
                         <Tags className="w-3 h-3 shrink-0" style={{ color: "var(--indigo-on)" }} />
                         <select key={`topicId:${p.topicId ?? ""}`} name="topicId" defaultValue={p.topicId ?? ""} aria-label="Topic"
-                          className="text-[10px] border border-[var(--line-2)] rounded px-1 py-0.5 flex-1 min-w-0">
+                          className="text-micro border border-[var(--line-2)] rounded px-1 py-0.5 flex-1 min-w-0">
                           <option value="">no topic</option>
                           {topics.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
                         </select>
-                        <SubmitButton className="btn sm !px-1.5 !py-0.5 !text-[10px]" pendingText="…">Set</SubmitButton>
+                        <SubmitButton className="btn sm !px-1.5 !py-0.5 !text-micro" pendingText="…">Set</SubmitButton>
                       </form>
                     ) : p.topic ? (
-                      <div className="font-mono text-[10px] mt-1 inline-flex items-center gap-1" style={{ color: "var(--indigo-on)" }}>
+                      <div className="font-mono text-micro mt-1 inline-flex items-center gap-1" style={{ color: "var(--indigo-on)" }}>
                         <Tags className="w-3 h-3" /> {p.topic.name}
                       </div>
                     ) : null}

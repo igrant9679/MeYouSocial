@@ -34,13 +34,13 @@ export function MobileTabBar({ counts: initial }: { counts: StripCounts }) {
         const urgent = badge.some((k) => counts[k]?.urgent && (counts[k]?.n ?? 0) > 0);
         return (
           <Link key={href} href={href} aria-current={active ? "page" : undefined} data-tab={label}
-            className="relative flex flex-col items-center justify-center gap-0.5 h-14 text-[10px] font-semibold"
+            className="relative flex flex-col items-center justify-center gap-0.5 h-14 text-micro font-semibold"
             style={{ color: active ? "var(--accent-on)" : "var(--mute)" }}>
             <Icon className="w-5 h-5" strokeWidth={active ? 2.5 : 2} />
             {label}
             {n > 0 && (
-              <span className="absolute top-1.5 left-1/2 ml-2 min-w-[16px] h-4 px-1 rounded-full text-[9px] font-mono font-bold grid place-items-center"
-                style={urgent ? { background: "var(--rose)", color: "#fff" } : { background: "var(--line-2)", color: "var(--ink)" }} data-tab-badge={n}>
+              <span className="absolute top-1.5 left-1/2 ml-2 min-w-[16px] h-4 px-1 rounded-full text-micro font-mono font-bold grid place-items-center"
+                style={urgent ? { background: "var(--rose)", color: "white" } : { background: "var(--line-2)", color: "var(--ink)" }} data-tab-badge={n}>
                 {n > 99 ? "99+" : n}
               </span>
             )}
@@ -48,7 +48,7 @@ export function MobileTabBar({ counts: initial }: { counts: StripCounts }) {
         );
       })}
       <button type="button" onClick={() => window.dispatchEvent(new Event("mobilenav:open"))}
-        className="flex flex-col items-center justify-center gap-0.5 h-14 text-[10px] font-semibold text-[var(--mute)]" data-tab="More">
+        className="flex flex-col items-center justify-center gap-0.5 h-14 text-micro font-semibold text-[var(--mute)]" data-tab="More">
         <Menu className="w-5 h-5" strokeWidth={2} />
         More
       </button>

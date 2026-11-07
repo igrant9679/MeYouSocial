@@ -67,12 +67,12 @@ export default async function ArticleVersionsPage({ params, searchParams }: { pa
       ) : (
         <>
           <form method="get" className="card mb-3 flex flex-wrap items-end gap-2 text-xs" data-version-pick>
-            <label className="min-w-0"><span className="block text-[10px] text-[var(--mute)] mb-1">From (older)</span>
+            <label className="min-w-0"><span className="block text-micro text-[var(--mute)] mb-1">From (older)</span>
               <select key={`a:${aKey}`} name="a" defaultValue={aKey} className={field} aria-label="Compare from">
                 <option value={CURRENT}>The current text</option>
                 {versions.map((v) => <option key={v.id} value={v.id}>{describe(v)}</option>)}
               </select></label>
-            <label className="min-w-0"><span className="block text-[10px] text-[var(--mute)] mb-1">To (newer)</span>
+            <label className="min-w-0"><span className="block text-micro text-[var(--mute)] mb-1">To (newer)</span>
               <select key={`b:${bKey}`} name="b" defaultValue={bKey} className={field} aria-label="Compare to">
                 <option value={CURRENT}>The current text</option>
                 {versions.map((v) => <option key={v.id} value={v.id}>{describe(v)}</option>)}
@@ -98,7 +98,7 @@ export default async function ArticleVersionsPage({ params, searchParams }: { pa
           </div>
 
           <div className="card p-0 overflow-hidden" data-diff>
-            <div className="grid grid-cols-1 md:grid-cols-2 text-[11px] font-semibold border-b border-[var(--line)]">
+            <div className="grid grid-cols-1 md:grid-cols-2 text-2xs font-semibold border-b border-[var(--line)]">
               <div className="px-3 py-2 md:border-r border-[var(--line)]">From: {A.title} <span className="font-normal text-[var(--mute)]">· {A.sub}</span></div>
               <div className="px-3 py-2 hidden md:block">To: {B.title} <span className="font-normal text-[var(--mute)]">· {B.sub}</span></div>
             </div>

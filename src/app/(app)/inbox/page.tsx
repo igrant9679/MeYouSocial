@@ -78,10 +78,10 @@ export default async function InboxPage() {
     <div>
       {/* ── Header — a sentence, not a hero ─────────────────────────────── */}
       <div className="flex items-baseline gap-3 mb-4 flex-wrap">
-        <h1 className="font-mono text-[22px] font-bold m-0 flex items-center gap-2">
+        <h1 className="font-mono text-2xl font-bold m-0 flex items-center gap-2">
           <InboxIcon className="w-5 h-5" style={{ color: nothing ? "var(--green-on)" : "var(--amber-on)" }} /> Inbox
         </h1>
-        <p className="text-[13px] text-[var(--mute)] m-0">
+        <p className="text-sm text-[var(--mute)] m-0">
           {nothing
             ? `Nothing needs you in ${workspace.name}${stop(workspace.name)}${engineLine}${warn.length ? ` ${warn.length === 1 ? "One thing below is" : `${warn.length} things below are`} for an admin.` : ""}`
             : inbox.total === 0
@@ -130,7 +130,7 @@ export default async function InboxPage() {
             {inbox.snoozed.map((z) => (
               <li key={z.key} className="card !py-2 flex items-center gap-2 flex-wrap text-xs">
                 <span className="flex-1 min-w-48">{z.label}</span>
-                <span className="text-[10px] text-[var(--mute)]">back {formatZonedMoment(z.until, timeZone)}</span>
+                <span className="text-micro text-[var(--mute)]">back {formatZonedMoment(z.until, timeZone)}</span>
                 <form action={snoozeInboxItemAction}>
                   <input type="hidden" name="key" value={z.key} />
                   <input type="hidden" name="for" value="wake" />
@@ -178,7 +178,7 @@ export default async function InboxPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-6">
         <section className="card">
-          <h2 className="font-mono text-[13px] font-bold mb-2 flex items-center gap-1.5">
+          <h2 className="font-mono text-sm font-bold mb-2 flex items-center gap-1.5">
             <CalendarClock className="w-4 h-4" style={{ color: "var(--blue-on)" }} /> Coming up
           </h2>
           {nextSend ? (
@@ -195,7 +195,7 @@ export default async function InboxPage() {
               or <Link href="/social/calendar" className="underline">queue a draft</Link>.</>}
             </p>
           )}
-          <p className="text-[11px] text-[var(--mute)] mt-2 mb-0">
+          <p className="text-2xs text-[var(--mute)] mt-2 mb-0">
             {home.social.slotsConfigured
               ? `${home.social.freeSlotsAhead} free slot${home.social.freeSlotsAhead === 1 ? "" : "s"} in the next 7 days`
               : "No posting slots configured yet"}
@@ -204,7 +204,7 @@ export default async function InboxPage() {
         </section>
 
         <section className="card">
-          <h2 className="font-mono text-[13px] font-bold mb-2 flex items-center gap-1.5">
+          <h2 className="font-mono text-sm font-bold mb-2 flex items-center gap-1.5">
             <Bot className="w-4 h-4" style={{ color: "var(--violet-on)" }} /> What the engine did
           </h2>
           {feed.length === 0 ? (
@@ -219,12 +219,12 @@ export default async function InboxPage() {
             <ul className="m-0 p-0 text-xs">
               {feed.map((e, i) => (
                 <li key={i} className="border-t border-[var(--line)] first:border-t-0 py-1.5 flex items-baseline gap-2">
-                  <span className="font-mono text-[9.5px] text-[var(--mute)] w-20 shrink-0">
+                  <span className="font-mono text-micro text-[var(--mute)] w-20 shrink-0">
                     {e.at.toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit", timeZone })}
                   </span>
                   {e.href ? <Link href={e.href} className="flex-1 hover:underline">{e.label}</Link> : <span className="flex-1">{e.label}</span>}
                   {e.tone === "warn" && (
-                    <span className="font-mono text-[9px] font-bold px-1.5 rounded-full" style={{ background: "var(--rose-soft)", color: "var(--rose-on)" }}>!</span>
+                    <span className="font-mono text-micro font-bold px-1.5 rounded-full" style={{ background: "var(--rose-soft)", color: "var(--rose-on)" }}>!</span>
                   )}
                 </li>
               ))}
@@ -243,7 +243,7 @@ export default async function InboxPage() {
         <h2 className="font-mono font-bold text-sm m-0">Start something</h2>
         <span className="flex-1" />
         {stats.aiBudgetUsedToday > 0 && (
-          <span className="text-[10px] font-mono text-[var(--mute)]">{stats.aiBudgetUsedToday} AI runs today</span>
+          <span className="text-micro font-mono text-[var(--mute)]">{stats.aiBudgetUsedToday} AI runs today</span>
         )}
       </div>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
@@ -256,7 +256,7 @@ export default async function InboxPage() {
       {channels.length > 0 && (
         <section className="card">
           <div className="flex items-center mb-3">
-            <h2 className="font-mono text-[15px] font-bold">Your channels</h2>
+            <h2 className="font-mono text-sm font-bold">Your channels</h2>
             <span className="flex-1" />
             {editor && <Link href="/onboarding/channel/new" className="text-xs font-mono text-[var(--accent)] font-semibold hover:underline">+ new channel</Link>}
           </div>
@@ -268,7 +268,7 @@ export default async function InboxPage() {
                 </span>
                 <div className="flex flex-col">
                   <span className="text-sm font-semibold">{c.name}</span>
-                  <span className="text-[11px] text-[var(--mute)]">{c.presentationStyle ?? "—"} · {c.defaultLanguage}</span>
+                  <span className="text-2xs text-[var(--mute)]">{c.presentationStyle ?? "—"} · {c.defaultLanguage}</span>
                 </div>
                 <ArrowRight className="w-4 h-4 text-[var(--mute)] group-hover:text-[var(--accent)] ml-1" />
               </Link>
@@ -286,21 +286,21 @@ function PipelineCell({ stage, first, role }: { stage: PipelineStage; first: boo
     <div className={"flex-1 min-w-[120px] px-3 py-2.5 relative " + (first ? "" : "border-l border-[var(--line)]")}>
       <div className="flex items-center gap-1">
         {!first && <ChevronRight className="w-3 h-3 text-[var(--mute)] -ml-1.5 flex-shrink-0" aria-hidden />}
-        <FollowLink role={role} href={stage.href} className="font-mono text-[9.5px] uppercase tracking-wider text-[var(--mute)] font-bold hover:text-[var(--accent)] hover:underline truncate">
+        <FollowLink role={role} href={stage.href} className="font-mono text-micro uppercase tracking-wider text-[var(--mute)] font-bold hover:text-[var(--accent)] hover:underline truncate">
           {stage.label}
         </FollowLink>
       </div>
       {stage.total === null ? (
-        <div className="font-mono font-bold text-[22px] leading-tight text-[var(--mute)]" title={stage.reason}>—</div>
+        <div className="font-mono font-bold text-2xl leading-tight text-[var(--mute)]" title={stage.reason}>—</div>
       ) : (
-        <FollowLink role={role} href={stage.href} className="font-mono font-bold text-[22px] leading-tight tabular-nums block hover:text-[var(--accent)]">
+        <FollowLink role={role} href={stage.href} className="font-mono font-bold text-2xl leading-tight tabular-nums block hover:text-[var(--accent)]">
           {stage.total.toLocaleString("en-GB")}
         </FollowLink>
       )}
       <div className="flex gap-2 flex-wrap min-h-[14px]">
         {parts.length > 1
           ? parts.map((p) => (
-              <FollowLink key={p.label} role={role} href={p.href} className="text-[10px] text-[var(--mute)] hover:underline">
+              <FollowLink key={p.label} role={role} href={p.href} className="text-micro text-[var(--mute)] hover:underline">
                 {p.n} {p.label}
               </FollowLink>
             ))
@@ -324,7 +324,7 @@ function DecisionCard({ item, role }: { item: HomeDecision; role: Role }) {
       <div className="flex-1 min-w-0">
         <div className="text-sm font-semibold flex items-center gap-2 flex-wrap">
           {item.title}
-          <span className="font-mono text-[9px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider" style={{ background: `var(--${hue}-soft)`, color: `var(--${hue}-on)` }}>
+          <span className="font-mono text-micro font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider" style={{ background: `var(--${hue}-soft)`, color: `var(--${hue}-on)` }}>
             {item.module}
           </span>
         </div>
@@ -332,7 +332,7 @@ function DecisionCard({ item, role }: { item: HomeDecision; role: Role }) {
       </div>
       {canFollow(item.href, role)
         ? <Link href={item.href} className="btn sm flex-shrink-0">{item.cta}</Link>
-        : <span className="text-[11px] text-[var(--mute)] flex-shrink-0 max-w-40 text-right">{whoCanFix(item.href)}</span>}
+        : <span className="text-2xs text-[var(--mute)] flex-shrink-0 max-w-40 text-right">{whoCanFix(item.href)}</span>}
     </div>
   );
 }
@@ -345,7 +345,7 @@ function QuickTile({ href, label, icon: Icon, color, soft }: { href: string; lab
       </span>
       <div className="flex-1">
         <div className="font-semibold text-sm leading-tight">{label}</div>
-        <div className="text-[11px] text-[var(--mute)] flex items-center gap-1">go <ArrowRight className="w-3 h-3" /></div>
+        <div className="text-2xs text-[var(--mute)] flex items-center gap-1">go <ArrowRight className="w-3 h-3" /></div>
       </div>
     </Link>
   );
@@ -365,7 +365,7 @@ async function InboxResults({ workspaceId, editor }: { workspaceId: string; edit
   return (
     <section className="card mb-6">
       <div className="flex items-center mb-2">
-        <h2 className="font-mono text-[15px] font-bold flex items-center gap-2">
+        <h2 className="font-mono text-sm font-bold flex items-center gap-2">
           <span className="w-7 h-7 rounded-lg grid place-items-center" style={{ background: "var(--blue-soft)", color: "var(--blue-on)" }}>
             <TrendingUp className="w-4 h-4" strokeWidth={2.5} />
           </span>
@@ -388,10 +388,10 @@ async function InboxResults({ workspaceId, editor }: { workspaceId: string; edit
           <table className="w-full text-xs border-collapse">
             <thead>
               <tr className="text-left text-[var(--mute)]">
-                <th className="py-1.5 px-2 font-mono text-[9px] uppercase tracking-wider border-b-2 border-[var(--line)]">Post</th>
-                <th className="py-1.5 px-2 font-mono text-[9px] uppercase tracking-wider border-b-2 border-[var(--line)] text-right">Pos</th>
-                <th className="py-1.5 px-2 font-mono text-[9px] uppercase tracking-wider border-b-2 border-[var(--line)] text-right">Δ</th>
-                <th className="py-1.5 px-2 font-mono text-[9px] uppercase tracking-wider border-b-2 border-[var(--line)] text-right">Clicks</th>
+                <th className="py-1.5 px-2 font-mono text-micro uppercase tracking-wider border-b-2 border-[var(--line)]">Post</th>
+                <th className="py-1.5 px-2 font-mono text-micro uppercase tracking-wider border-b-2 border-[var(--line)] text-right">Pos</th>
+                <th className="py-1.5 px-2 font-mono text-micro uppercase tracking-wider border-b-2 border-[var(--line)] text-right">Δ</th>
+                <th className="py-1.5 px-2 font-mono text-micro uppercase tracking-wider border-b-2 border-[var(--line)] text-right">Clicks</th>
               </tr>
             </thead>
             <tbody>

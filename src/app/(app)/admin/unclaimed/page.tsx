@@ -43,7 +43,7 @@ export default async function UnclaimedAccountsPage() {
       </div>
 
       <section className="card mb-4 text-xs">
-        <h2 className="font-mono text-[15px] mb-2">Mailboxes (Unipile)</h2>
+        <h2 className="font-mono text-sm mb-2">Mailboxes (Unipile)</h2>
         {view.mailNote && <p className="m-0 mb-2 text-[var(--mute)]">{view.mailNote}</p>}
         {view.mailboxes.length === 0 ? (
           !view.mailNote && <EmptyState line="Every shared mailbox belongs to a workspace." action={null} />
@@ -51,7 +51,7 @@ export default async function UnclaimedAccountsPage() {
           <ul className="m-0 p-0 flex flex-col">
             {view.mailboxes.map((m) => (
               <li key={m.accountId} className="list-none border-t border-[var(--line)] first:border-t-0 py-2 flex items-center gap-2 flex-wrap" data-mailbox={m.accountId}>
-                <span className="font-semibold flex-1 min-w-48">{m.address ?? "(no address)"} <span className="font-mono text-[10px] text-[var(--mute)]">{m.provider} · {m.accountId}</span></span>
+                <span className="font-semibold flex-1 min-w-48">{m.address ?? "(no address)"} <span className="font-mono text-micro text-[var(--mute)]">{m.provider} · {m.accountId}</span></span>
                 <form action={assignMailboxAction} className="flex items-center gap-1">
                   <input type="hidden" name="accountId" value={m.accountId} />
                   <select name="workspaceId" required defaultValue="" className={selectCls}>
@@ -67,7 +67,7 @@ export default async function UnclaimedAccountsPage() {
       </section>
 
       <section className="card mb-4 text-xs">
-        <h2 className="font-mono text-[15px] mb-2">Zernio profiles on the platform key</h2>
+        <h2 className="font-mono text-sm mb-2">Zernio profiles on the platform key</h2>
         {view.zernioNote && <p className="m-0 mb-2 text-[var(--mute)]">{view.zernioNote}</p>}
         {!view.zernioNote && open.length === 0 && <EmptyState line="Every profile on the platform key belongs to a workspace." action={null} />}
         {open.length > 0 && (
@@ -77,7 +77,7 @@ export default async function UnclaimedAccountsPage() {
               return (
                 <li key={p.id} className="list-none border-t border-[var(--line)] first:border-t-0 py-2 flex items-center gap-2 flex-wrap" data-profile={p.id}>
                   <span className="flex-1 min-w-48">
-                    <b>{p.name || "(unnamed)"}</b> <span className="font-mono text-[10px] text-[var(--mute)]">{p.id}</span>
+                    <b>{p.name || "(unnamed)"}</b> <span className="font-mono text-micro text-[var(--mute)]">{p.id}</span>
                     {p.deletedWorkspace && <span className="block" style={{ color: "var(--rose-on)" }}>Made for a workspace that&apos;s been deleted — its pages may still be connected. Remove it in Zernio; it can&apos;t be assigned.</span>}
                     {p.madeFor && !p.deletedWorkspace && <span className="block text-[var(--mute)]">Made for {nameOf.get(p.madeFor)} — it can only go back there.</span>}
                   </span>

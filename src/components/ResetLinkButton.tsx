@@ -14,11 +14,11 @@ export function ResetLinkButton({ userId }: { userId: string }) {
       </button>
       {state?.link && (
         <span className="max-w-72 text-left">
-          <code className="block text-[11px] select-all break-all">{state.link}</code>
-          <span className="text-[10px] text-[var(--mute)]">Works once, for an hour. Give it to them directly — anyone with it can set the password.</span>
+          <code className="block text-2xs select-all break-all">{state.link}</code>
+          <span className="text-micro text-[var(--mute)]">Works once, for an hour. Give it to them directly — anyone with it can set the password.</span>
         </span>
       )}
-      {state?.error && <span className="max-w-72 text-[11px] text-left" style={{ color: "var(--rose-on)" }}>{state.error}</span>}
+      {state?.error && <span className="max-w-72 text-2xs text-left" style={{ color: "var(--rose-on)" }}>{state.error}</span>}
     </form>
   );
 }

@@ -41,7 +41,7 @@ export default async function ChatThreadPage({ params }: { params: Promise<{ id:
         <div className="flex-1 px-5 py-4 overflow-auto flex flex-col gap-3 min-h-[400px]">
           {chat.messages.length === 0 && (
             <div className="text-center py-12">
-              <span className="w-12 h-12 rounded-2xl grid place-items-center mx-auto mb-3" style={{ background: "#EDE7FB", color: "#6D28D9" }}>
+              <span className="w-12 h-12 rounded-2xl grid place-items-center mx-auto mb-3" style={{ background: "var(--violet-soft)", color: "var(--violet)" }}>
                 <MessageCircle className="w-6 h-6" />
               </span>
               <p className="text-sm text-[var(--mute)]">Ask anything about your niche, paste a YouTube URL to analyze, or say <i className="font-mono">turn this into a script</i> to spin up a Canvas.</p>
@@ -50,7 +50,7 @@ export default async function ChatThreadPage({ params }: { params: Promise<{ id:
           {chat.messages.map((m) => (
             <div key={m.id} className={"flex gap-3 " + (m.role === "user" ? "justify-end" : "")}>
               {m.role === "assistant" && (
-                <span className="w-8 h-8 rounded-xl grid place-items-center flex-shrink-0 text-white" style={{ background: "linear-gradient(135deg,#6D28D9,#4F46E5)" }}>
+                <span className="w-8 h-8 rounded-xl grid place-items-center flex-shrink-0 text-white" style={{ background: "linear-gradient(135deg,var(--violet),var(--indigo))" }}>
                   <MessageCircle className="w-4 h-4" />
                 </span>
               )}
@@ -66,7 +66,7 @@ export default async function ChatThreadPage({ params }: { params: Promise<{ id:
               >
                 {m.role === "user" ? m.content : <MarkdownMessage content={m.content} />}
                 {m.model && m.role === "assistant" && (
-                  <div className="mt-1 text-[10px] font-mono uppercase tracking-wider opacity-60">{m.model}</div>
+                  <div className="mt-1 text-micro font-mono uppercase tracking-wider opacity-60">{m.model}</div>
                 )}
               </div>
             </div>
@@ -97,19 +97,19 @@ export default async function ChatThreadPage({ params }: { params: Promise<{ id:
       <aside className="flex flex-col gap-3">
         {chat.scriptId && (
           <Link href={`/scripts/${chat.scriptId}`} className="card flex items-center gap-3 hover:border-[var(--accent)] transition">
-            <span className="w-10 h-10 rounded-xl grid place-items-center" style={{ background: "#E0F2E8", color: "#15924B" }}>
+            <span className="w-10 h-10 rounded-xl grid place-items-center" style={{ background: "var(--green-soft)", color: "var(--green)" }}>
               <PenLine className="w-5 h-5" />
             </span>
             <div className="flex-1">
-              <div className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">Linked script</div>
+              <div className="text-micro font-mono uppercase tracking-wider text-[var(--mute)]">Linked script</div>
               <div className="text-sm font-semibold">Open in Canvas →</div>
             </div>
           </Link>
         )}
 
         <section className="card">
-          <h2 className="font-mono text-[14px] font-bold mb-3 flex items-center gap-2">
-            <Link2 className="w-4 h-4" style={{ color: "#2563EB" }} /> Context
+          <h2 className="font-mono text-sm font-bold mb-3 flex items-center gap-2">
+            <Link2 className="w-4 h-4" style={{ color: "var(--blue)" }} /> Context
           </h2>
 
           {chat.contextItems.length === 0 && (
@@ -119,7 +119,7 @@ export default async function ChatThreadPage({ params }: { params: Promise<{ id:
           <ul className="m-0 p-0 mb-3">
             {chat.contextItems.map((c) => (
               <li key={c.id} className="border-t border-[var(--line)] first:border-t-0 py-2 text-xs flex items-center gap-2">
-                <span className="font-mono uppercase text-[10px] tracking-wider px-1.5 py-0.5 rounded" style={{ background: "var(--accent-soft)", color: "var(--accent)" }}>{c.kind.replace("_", " ")}</span>
+                <span className="font-mono uppercase text-micro tracking-wider px-1.5 py-0.5 rounded" style={{ background: "var(--accent-soft)", color: "var(--accent)" }}>{c.kind.replace("_", " ")}</span>
                 <span className="flex-1 truncate font-mono" title={c.ref}>{c.ref}</span>
               </li>
             ))}
@@ -142,7 +142,7 @@ export default async function ChatThreadPage({ params }: { params: Promise<{ id:
         </section>
 
         <section className="card">
-          <h2 className="font-mono text-[14px] font-bold mb-2">Tip</h2>
+          <h2 className="font-mono text-sm font-bold mb-2">Tip</h2>
           <p className="text-xs text-[var(--mute)]">Type <span className="font-mono bg-[var(--zebra)] px-1 rounded">turn this into a script</span> to spin up a Canvas with the conversation as context.</p>
         </section>
       </aside>

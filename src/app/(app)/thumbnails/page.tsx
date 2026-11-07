@@ -23,7 +23,7 @@ export default async function ThumbnailsPage({ searchParams }: { searchParams: P
   if (!active) {
     return (
       <div className="card max-w-md mx-auto text-center py-10">
-        <span className="w-12 h-12 rounded-2xl grid place-items-center mx-auto mb-3" style={{ background: "#FBE2EF", color: "#DB2777" }}>
+        <span className="w-12 h-12 rounded-2xl grid place-items-center mx-auto mb-3" style={{ background: "var(--pink-soft)", color: "var(--pink)" }}>
           <ImageIcon className="w-6 h-6" />
         </span>
         <h1 className="font-mono font-bold text-lg mb-2">Pick a channel first</h1>
@@ -43,7 +43,7 @@ export default async function ThumbnailsPage({ searchParams }: { searchParams: P
   return (
     <div>
       <div className="flex items-center gap-3 mb-5">
-        <span className="w-12 h-12 rounded-2xl grid place-items-center" style={{ background: "#FBE2EF", color: "#DB2777" }}>
+        <span className="w-12 h-12 rounded-2xl grid place-items-center" style={{ background: "var(--pink-soft)", color: "var(--pink)" }}>
           <ImageIcon className="w-6 h-6" strokeWidth={2.25} />
         </span>
         <div>
@@ -80,8 +80,8 @@ export default async function ThumbnailsPage({ searchParams }: { searchParams: P
       ) : mode === "clone" ? (
         <form action={cloneThumbnailAction} className="card flex flex-col gap-3 max-w-2xl mb-6">
           <input type="hidden" name="channelId" value={active.id} />
-          <h2 className="font-mono font-bold text-[14px] flex items-center gap-2">
-            <Copy className="w-4 h-4" style={{ color: "#DB2777" }} /> Clone a thumbnail&apos;s style
+          <h2 className="font-mono font-bold text-sm flex items-center gap-2">
+            <Copy className="w-4 h-4" style={{ color: "var(--pink)" }} /> Clone a thumbnail&apos;s style
             <HelpTip text={IMAGE_TIPS.clone} side="bottom" wide />
           </h2>
           {/* Was: "We'll analyze palette, typography, composition, and render a
@@ -94,11 +94,11 @@ export default async function ThumbnailsPage({ searchParams }: { searchParams: P
             {imageProviderName === "mock" && " The rendered image is a placeholder until a provider is turned on."}
           </p>
           <label className="flex flex-col gap-1">
-            <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">Reference URL</span>
+            <span className="text-micro font-mono uppercase tracking-wider text-[var(--mute)]">Reference URL</span>
             <input name="referenceUrl" required placeholder="https://… or @handle" className="border border-[var(--line-2)] rounded-lg p-2.5 text-sm font-mono" />
           </label>
           <label className="flex flex-col gap-1">
-            <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">New video title</span>
+            <span className="text-micro font-mono uppercase tracking-wider text-[var(--mute)]">New video title</span>
             <input name="title" required className="border border-[var(--line-2)] rounded-lg p-2.5 text-sm" />
           </label>
           <div className="flex justify-end">
@@ -108,8 +108,8 @@ export default async function ThumbnailsPage({ searchParams }: { searchParams: P
       ) : (
         <form action={brainstormThumbnailsAction} className="card flex flex-col gap-3 max-w-2xl mb-6">
           <input type="hidden" name="channelId" value={active.id} />
-          <h2 className="font-mono font-bold text-[14px] flex items-center gap-2">
-            <Wand2 className="w-4 h-4" style={{ color: "#DB2777" }} /> Brainstorm 4 concepts
+          <h2 className="font-mono font-bold text-sm flex items-center gap-2">
+            <Wand2 className="w-4 h-4" style={{ color: "var(--pink)" }} /> Brainstorm 4 concepts
             <HelpTip text={IMAGE_TIPS.brainstorm} side="bottom" wide />
           </h2>
           <p className="text-xs text-[var(--mute)]">
@@ -118,11 +118,11 @@ export default async function ThumbnailsPage({ searchParams }: { searchParams: P
             {imageProviderName === "mock" && " The written directions are the useful part until a provider is turned on — the images beside them are placeholders."}
           </p>
           <label className="flex flex-col gap-1">
-            <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">Video title</span>
+            <span className="text-micro font-mono uppercase tracking-wider text-[var(--mute)]">Video title</span>
             <input name="title" required placeholder="e.g. Why your morning routine is broken" className="border border-[var(--line-2)] rounded-lg p-2.5 text-sm" />
           </label>
           <label className="flex flex-col gap-1">
-            <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">Topic (optional)</span>
+            <span className="text-micro font-mono uppercase tracking-wider text-[var(--mute)]">Topic (optional)</span>
             <input name="topic" className="border border-[var(--line-2)] rounded-lg p-2.5 text-sm" />
           </label>
           <div className="flex justify-end">
@@ -133,7 +133,7 @@ export default async function ThumbnailsPage({ searchParams }: { searchParams: P
 
       {/* History */}
       <section className="card">
-        <h2 className="font-mono font-bold text-[14px] mb-3 flex items-center gap-2"><History className="w-4 h-4" style={{ color: "#DB2777" }} /> History <span className="text-xs text-[var(--mute)] font-normal">({history.length})</span></h2>
+        <h2 className="font-mono font-bold text-sm mb-3 flex items-center gap-2"><History className="w-4 h-4" style={{ color: "var(--pink)" }} /> History <span className="text-xs text-[var(--mute)] font-normal">({history.length})</span></h2>
         {history.length === 0 ? (
           <EmptyState variant="inline" line="No thumbnails yet — the generator above makes the first set." />
         ) : (
@@ -154,7 +154,7 @@ export default async function ThumbnailsPage({ searchParams }: { searchParams: P
                     )}
                     <div className="px-2 pt-2">
                       <div className="text-xs font-semibold truncate">{t.title ?? "Untitled"}</div>
-                      <div className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">{t.mode}{t.renderUrl ? " · rendered" : ""}</div>
+                      <div className="text-micro font-mono uppercase tracking-wider text-[var(--mute)]">{t.mode}{t.renderUrl ? " · rendered" : ""}</div>
                     </div>
                   </Link>
                   {editor && (
@@ -176,7 +176,7 @@ function TabLink({ href, active, icon, children }: { href: string; active: boole
   return (
     <Link
       href={href}
-      className={"flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-mono uppercase tracking-wider transition " + (active ? "bg-[#FBE2EF] text-[#DB2777]" : "text-[var(--mute)] hover:bg-[var(--zebra)]")}
+      className={"flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-mono uppercase tracking-wider transition " + (active ? "bg-[var(--pink-soft)] text-[var(--pink)]" : "text-[var(--mute)] hover:bg-[var(--zebra)]")}
     >
       {icon} {children}
     </Link>

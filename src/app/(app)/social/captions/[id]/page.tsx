@@ -49,8 +49,8 @@ export default async function CaptionBatchPage({ params, searchParams }: { param
         <ArrowLeft className="w-3.5 h-3.5" /> Caption Studio
       </Link>
       <div className="flex items-baseline gap-3 flex-wrap mb-1">
-        <h1 className="font-mono text-[20px] font-bold m-0">{batch.title}</h1>
-        <span className="text-[12px] text-[var(--mute)]">{SCENARIOS[scenario]?.label} · {items.length} caption{items.length === 1 ? "" : "s"}{batch.campaign ? ` · campaign ${batch.campaign.name}` : ""}{batch.provider ? ` · written by ${batch.provider}` : ""}</span>
+        <h1 className="font-mono text-xl font-bold m-0">{batch.title}</h1>
+        <span className="text-xs text-[var(--mute)]">{SCENARIOS[scenario]?.label} · {items.length} caption{items.length === 1 ? "" : "s"}{batch.campaign ? ` · campaign ${batch.campaign.name}` : ""}{batch.provider ? ` · written by ${batch.provider}` : ""}</span>
       </div>
       <p className="text-xs text-[var(--mute)] mb-3">
         {open.length === 0
@@ -73,13 +73,13 @@ export default async function CaptionBatchPage({ params, searchParams }: { param
                       <input type="checkbox" name={`inc_${i}`} defaultChecked={it.include} /> Include
                     </label>
                   )}
-                  <span className="font-mono text-[11px] font-bold">{it.item.replace(/\s*\(\d{4}-\d{2}-\d{2}\)$/, "")}</span>
-                  {it.day && <span className="font-mono text-[10px] text-[var(--mute)]">{dayLabel(it.day)} · {formatMinute(it.minute)} {tz}</span>}
-                  {it.past && <span className="text-[10px]" style={{ color: "var(--amber-on)" }}>this date has already passed</span>}
+                  <span className="font-mono text-2xs font-bold">{it.item.replace(/\s*\(\d{4}-\d{2}-\d{2}\)$/, "")}</span>
+                  {it.day && <span className="font-mono text-micro text-[var(--mute)]">{dayLabel(it.day)} · {formatMinute(it.minute)} {tz}</span>}
+                  {it.past && <span className="text-micro" style={{ color: "var(--amber-on)" }}>this date has already passed</span>}
                   <span className="flex-1" />
                   {it.postId
-                    ? <Link href={`/social/${it.postId}/edit`} className="text-[11px] underline">Saved as a post — open it</Link>
-                    : <span className="font-mono text-[10px] text-[var(--mute)]">{text.length} characters · X version {it.x.length}/280</span>}
+                    ? <Link href={`/social/${it.postId}/edit`} className="text-2xs underline">Saved as a post — open it</Link>
+                    : <span className="font-mono text-micro text-[var(--mute)]">{text.length} characters · X version {it.x.length}/280</span>}
                   {/* E-SOC-19: one caption again — the batch's edits are saved first, the others kept. */}
                   {!it.postId && editor && (
                     <SubmitButton className="btn sm" name="mode" value={`rewrite:${i}`} pendingText="Rewriting…" title="Write just this caption again, different from the others — your edits to the rest are saved first">
@@ -88,7 +88,7 @@ export default async function CaptionBatchPage({ params, searchParams }: { param
                   )}
                 </div>
                 {it.flags?.length > 0 && !it.postId && (
-                  <ul className="m-0 mb-2 p-2 rounded-lg text-[11px] flex flex-col gap-0.5 list-none" style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }}>
+                  <ul className="m-0 mb-2 p-2 rounded-lg text-2xs flex flex-col gap-0.5 list-none" style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }}>
                     {it.flags.map((f, j) => <li key={j} className="flex items-start gap-1"><AlertTriangle className="w-3 h-3 mt-0.5 shrink-0" /> {f.text}</li>)}
                   </ul>
                 )}
@@ -100,27 +100,27 @@ export default async function CaptionBatchPage({ params, searchParams }: { param
                       <input name={`h_${i}`} defaultValue={it.header} maxLength={200} placeholder="Header / tagline" className={`${inputCls} font-semibold`} />
                       <textarea name={`b_${i}`} defaultValue={it.body} rows={4} maxLength={2000} className={inputCls} />
                       <input name={`t_${i}`} defaultValue={it.hashtags.join(" ")} maxLength={200} placeholder="#Two #Hashtags" className={`${inputCls} font-mono`} />
-                      <label className="text-[10px] text-[var(--mute)]">X (Twitter) version — sent to X instead of the full caption
+                      <label className="text-micro text-[var(--mute)]">X (Twitter) version — sent to X instead of the full caption
                         <textarea name={`x_${i}`} defaultValue={it.x} rows={2} maxLength={400} className={`${inputCls} w-full mt-0.5`} />
                       </label>
                     </div>
                     <div className="flex flex-col gap-2">
                       {dated || scenario === "campaign" || scenario === "images" ? (
                         <div className="flex flex-wrap items-end gap-1.5">
-                          <label className="text-[10px] text-[var(--mute)]">Day<input type="date" name={`d_${i}`} defaultValue={it.day ?? ""} className={`${inputCls} block mt-0.5`} /></label>
-                          <label className="text-[10px] text-[var(--mute)]">Time<input type="time" name={`tm_${i}`} defaultValue={formatMinute(it.minute)} className={`${inputCls} block mt-0.5`} /></label>
+                          <label className="text-micro text-[var(--mute)]">Day<input type="date" name={`d_${i}`} defaultValue={it.day ?? ""} className={`${inputCls} block mt-0.5`} /></label>
+                          <label className="text-micro text-[var(--mute)]">Time<input type="time" name={`tm_${i}`} defaultValue={formatMinute(it.minute)} className={`${inputCls} block mt-0.5`} /></label>
                         </div>
                       ) : null}
                       {it.mediaKey ? (
                         <div className="flex items-start gap-2">
                           <MediaThumbs keys={[it.mediaKey]} size="h-16 w-16" />
-                          <label className="text-[10px] inline-flex items-center gap-1"><input type="checkbox" name={`rm_${i}`} /> remove</label>
+                          <label className="text-micro inline-flex items-center gap-1"><input type="checkbox" name={`rm_${i}`} /> remove</label>
                         </div>
                       ) : (
-                        <span className="text-[10px] text-[var(--mute)]">No image — Instagram and other image-only networks are left off this one{scenario !== "images" ? ", and the workspace's auto-image may add one" : ""}.</span>
+                        <span className="text-micro text-[var(--mute)]">No image — Instagram and other image-only networks are left off this one{scenario !== "images" ? ", and the workspace's auto-image may add one" : ""}.</span>
                       )}
-                      <label className="text-[10px] text-[var(--mute)]">{it.mediaKey ? "Replace the image" : "Attach an image"}
-                        <input type="file" name={`m_${i}`} accept="image/png,image/jpeg,image/gif,image/webp" className="block text-[11px] mt-0.5" />
+                      <label className="text-micro text-[var(--mute)]">{it.mediaKey ? "Replace the image" : "Attach an image"}
+                        <input type="file" name={`m_${i}`} accept="image/png,image/jpeg,image/gif,image/webp" className="block text-2xs mt-0.5" />
                       </label>
                     </div>
                   </div>
@@ -133,7 +133,7 @@ export default async function CaptionBatchPage({ params, searchParams }: { param
         {editor && open.length > 0 && (
           <div className="card mt-4 flex flex-col gap-3 sticky bottom-2" style={{ background: "var(--panel)" }}>
             <div className="flex flex-wrap items-center gap-2 text-xs">
-              <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">Post to</span>
+              <span className="text-micro font-mono uppercase tracking-wider text-[var(--mute)]">Post to</span>
               {accounts.length === 0 && <span className="text-[var(--mute)]">No connected accounts — you can still save these as drafts.</span>}
               {accounts.map((a) => (
                 <label key={a.id} className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-[var(--line-2)] cursor-pointer">
@@ -145,7 +145,7 @@ export default async function CaptionBatchPage({ params, searchParams }: { param
               ))}
               <span className="flex-1" />
               <label className="inline-flex items-center gap-1">
-                <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">Category</span>
+                <span className="text-micro font-mono uppercase tracking-wider text-[var(--mute)]">Category</span>
                 <select key={`category:${defaultCategory}`} name="category" defaultValue={defaultCategory} className={inputCls}>
                   <option value="">— none —</option>
                   {categories.map((c) => <option key={c} value={c}>{c}</option>)}
@@ -159,7 +159,7 @@ export default async function CaptionBatchPage({ params, searchParams }: { param
               {!dated && <SubmitButton className="btn" name="mode" value="schedule" pendingText="Scheduling…" title="Each at the day and time set on it (captions without a day are skipped)"><CalendarClock className="w-4 h-4" /> Schedule at the days set</SubmitButton>}
               <SubmitButton className="btn" name="mode" value="drafts" pendingText="Saving…" title="Drafts that keep their proposed time — never auto-queued; schedule each when ready">Save as drafts</SubmitButton>
               <span className="flex-1" />
-              <span className="text-[10px] text-[var(--mute)] max-w-sm">X gets each caption&apos;s short version. A draft keeps its proposed time, so full autonomy won&apos;t queue it into a random slot.</span>
+              <span className="text-micro text-[var(--mute)] max-w-sm">X gets each caption&apos;s short version. A draft keeps its proposed time, so full autonomy won&apos;t queue it into a random slot.</span>
             </div>
           </div>
         )}

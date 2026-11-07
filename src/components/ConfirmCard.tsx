@@ -15,8 +15,8 @@ export function ConfirmCard({ tool, summary, preview, expires }: { tool: string;
       <div className="flex items-center gap-1.5 flex-wrap">
         <ShieldQuestion className="w-3.5 h-3.5 shrink-0" style={{ color: "var(--amber-on)" }} />
         <b>Waiting for your yes</b>
-        <span className="font-mono text-[10px] text-[var(--mute)]">{tool}</span>
-        {expires && <span className="text-[10px] text-[var(--mute)] ml-auto">until {expires}</span>}
+        <span className="font-mono text-micro text-[var(--mute)]">{tool}</span>
+        {expires && <span className="text-micro text-[var(--mute)] ml-auto">until {expires}</span>}
       </div>
       <p className="m-0">{summary}</p>
       {preview && (
@@ -38,11 +38,11 @@ export function ConfirmCard({ tool, summary, preview, expires }: { tool: string;
                 ))}
               </dl>
             )}
-            {preview.href && <Link href={preview.href} className="underline text-[11px] self-start">Open it</Link>}
+            {preview.href && <Link href={preview.href} className="underline text-2xs self-start">Open it</Link>}
           </div>
         </div>
       )}
-      <p className="m-0 text-[10px] text-[var(--mute)]">Nothing runs until you say yes — and it&apos;s checked again just before it does.</p>
+      <p className="m-0 text-micro text-[var(--mute)]">Nothing runs until you say yes — and it&apos;s checked again just before it does.</p>
     </div>
   );
 }

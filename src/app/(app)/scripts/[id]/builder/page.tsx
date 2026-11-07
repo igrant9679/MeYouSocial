@@ -154,7 +154,7 @@ function StepResearch({ scriptId, state }: { scriptId: string; state: BuilderSta
             <label key={k} className={"border rounded-lg p-2.5 cursor-pointer text-center " + (state.research.depth === k ? "border-[var(--accent)] bg-[var(--accent-soft)]" : "border-[var(--line)]")}>
               <input type="radio" name="depth" value={k} defaultChecked={state.research.depth === k} className="hidden" />
               <div className="text-sm font-semibold">{v.label}</div>
-              <div className="text-[10px] font-mono text-[var(--mute)]">{v.words.toLocaleString()} word budget</div>
+              <div className="text-micro font-mono text-[var(--mute)]">{v.words.toLocaleString()} word budget</div>
             </label>
           ))}
         </div>
@@ -182,9 +182,9 @@ function StepResearch({ scriptId, state }: { scriptId: string; state: BuilderSta
       <ul className="m-0 p-0">
         {state.research.items.map((r, i) => (
           <li key={i} className="border-t border-[var(--line)] py-2 text-sm flex items-center gap-2">
-            <span className="font-mono text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: "var(--accent-soft)", color: "var(--accent)" }}>{r.kind}</span>
+            <span className="font-mono text-micro uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: "var(--accent-soft)", color: "var(--accent)" }}>{r.kind}</span>
             <span className="flex-1 truncate">{r.title ?? r.ref}</span>
-            <span className="text-[11px] text-[var(--mute)]">{r.words}w</span>
+            <span className="text-2xs text-[var(--mute)]">{r.words}w</span>
           </li>
         ))}
       </ul>
@@ -209,7 +209,7 @@ function StepFrame({ scriptId, state }: { scriptId: string; state: BuilderState 
 function FormField({ name, label, defaultValue, placeholder }: { name: string; label: string; defaultValue?: string; placeholder?: string }) {
   return (
     <label className="flex flex-col gap-1">
-      <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">{label}</span>
+      <span className="text-micro font-mono uppercase tracking-wider text-[var(--mute)]">{label}</span>
       <input name={name} defaultValue={defaultValue ?? ""} placeholder={placeholder} className="border border-[var(--line-2)] rounded-lg p-2 text-sm" />
     </label>
   );
@@ -224,7 +224,7 @@ function StepTitle({ scriptId, state, fallback }: { scriptId: string; state: Bui
       <form action={pickBuilderTitleAction} className="card flex flex-col gap-2">
         <input type="hidden" name="scriptId" value={scriptId} />
         <label className="flex flex-col gap-1">
-          <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">Working title</span>
+          <span className="text-micro font-mono uppercase tracking-wider text-[var(--mute)]">Working title</span>
           <input name="title" defaultValue={state.title || fallback} className="border border-[var(--line-2)] rounded-lg p-2 text-sm font-semibold" required />
         </label>
         <div className="flex justify-end"><SubmitButton className="btn primary sm">Save title</SubmitButton></div>
@@ -287,7 +287,7 @@ function StepHook({ scriptId, state }: { scriptId: string; state: BuilderState }
       <form action={pickBuilderHookAction} className="card flex flex-col gap-2">
         <input type="hidden" name="scriptId" value={scriptId} />
         <label className="flex flex-col gap-1">
-          <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">Selected hook</span>
+          <span className="text-micro font-mono uppercase tracking-wider text-[var(--mute)]">Selected hook</span>
           <textarea name="hook" defaultValue={state.hook} rows={3} className="border border-[var(--line-2)] rounded-lg p-2 text-sm" required />
         </label>
         <div className="flex justify-end"><SubmitButton className="btn primary sm">Save hook</SubmitButton></div>

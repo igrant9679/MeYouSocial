@@ -34,7 +34,7 @@ export function ChannelSwitcher({
           form.requestSubmit();
         }}
         aria-label="Switch active channel"
-        className="appearance-none bg-transparent border-0 pl-1 pr-5 cursor-pointer rounded font-mono text-[13px] font-semibold focus-visible:outline-2 focus-visible:outline-[var(--accent)] focus-visible:outline-offset-2"
+        className="appearance-none bg-transparent border-0 pl-1 pr-5 cursor-pointer rounded font-mono text-sm font-semibold focus-visible:outline-2 focus-visible:outline-[var(--accent)] focus-visible:outline-offset-2"
       >
         {channels.map((c) => (
           <option key={c.id} value={c.id}>{c.name}</option>

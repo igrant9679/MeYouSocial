@@ -25,8 +25,8 @@ export default async function SetupOverview({ searchParams }: { searchParams: Pr
   return (
     <div>
       <div className="flex items-baseline gap-3 flex-wrap mb-1">
-        <h1 className="font-mono text-[22px] font-bold m-0">Settings</h1>
-        <p className="text-[13px] text-[var(--mute)] m-0">Every dial for {workspace.name}, under the question it answers.</p>
+        <h1 className="font-mono text-2xl font-bold m-0">Settings</h1>
+        <p className="text-sm text-[var(--mute)] m-0">Every dial for {workspace.name}, under the question it answers.</p>
       </div>
       {!admin && <p className="text-xs text-[var(--mute)] mb-4">You can read these; an admin changes them.</p>}
       {ok && <Banner kind="ok" text={ok} />}
@@ -74,8 +74,8 @@ export default async function SetupOverview({ searchParams }: { searchParams: Pr
         <section className="card flex flex-col gap-2" style={studio.show ? { borderColor: "var(--green-on)" } : undefined}>
           <div className="flex items-center gap-2">
             <span className="w-8 h-8 rounded-lg grid place-items-center shrink-0" style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }}><Clapperboard className="w-5 h-5" /></span>
-            <h2 className="font-mono text-[14px] font-bold m-0">Video studio</h2>
-            <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: studio.show ? "var(--green-soft)" : "var(--zebra)", color: studio.show ? "var(--green-on)" : "var(--mute)" }}>{studio.show ? "shown" : "hidden"}</span>
+            <h2 className="font-mono text-sm font-bold m-0">Video studio</h2>
+            <span className="font-mono text-micro px-1.5 py-0.5 rounded-full" style={{ background: studio.show ? "var(--green-soft)" : "var(--zebra)", color: studio.show ? "var(--green-on)" : "var(--mute)" }}>{studio.show ? "shown" : "hidden"}</span>
           </div>
           <p className="text-sm m-0 leading-relaxed">
             Scripts, thumbnails, video renders and the production board.{" "}
@@ -102,14 +102,14 @@ function Q({ icon, hue, title, href, cta, children, open = true }: { icon: React
     <section className="card flex flex-col gap-2">
       <div className="flex items-center gap-2">
         <span className="w-8 h-8 rounded-lg grid place-items-center shrink-0" style={{ background: `var(--${hue}-soft)`, color: `var(--${hue}-on)` }}>{icon}</span>
-        <h2 className="font-mono text-[14px] font-bold m-0">{title}</h2>
+        <h2 className="font-mono text-sm font-bold m-0">{title}</h2>
       </div>
       <p className="text-sm m-0 leading-relaxed">{children}</p>
       <div>
         {/* People is admin-only; a non-admin's button bounced to /forbidden (SHL-07). */}
         {open
           ? <Link href={href} className="btn sm inline-flex items-center gap-1">{cta} <ArrowRight className="w-3.5 h-3.5" /></Link>
-          : <span className="text-[11px] text-[var(--mute)]">{whoCanFix(href)}</span>}
+          : <span className="text-2xs text-[var(--mute)]">{whoCanFix(href)}</span>}
       </div>
     </section>
   );

@@ -35,7 +35,7 @@ export function UndoButtons({ messageId, steps, onUndone }: { messageId: string;
           <Undo2 className="w-3 h-3" /> {label}
         </button>
       ))}
-      {note && <span className="text-[10px]" style={{ color: "var(--rose-on)" }}>{note}</span>}
+      {note && <span className="text-micro" style={{ color: "var(--rose-on)" }}>{note}</span>}
     </div>
   );
 }

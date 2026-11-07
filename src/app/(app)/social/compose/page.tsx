@@ -147,7 +147,7 @@ export default async function SocialComposePage({ searchParams }: { searchParams
             {snippets.map((sn) => (
               <li key={sn.id} className="text-xs flex items-start gap-2 border-t border-[var(--line)] first:border-t-0 pt-1.5">
                 <b className="shrink-0">{sn.name}</b>
-                {sn.category && <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full shrink-0" style={{ background: "var(--green-soft)", color: "var(--green-on)" }}>{sn.category}</span>}
+                {sn.category && <span className="font-mono text-micro px-1.5 py-0.5 rounded-full shrink-0" style={{ background: "var(--green-soft)", color: "var(--green-on)" }}>{sn.category}</span>}
                 <span className="flex-1 text-[var(--mute)] whitespace-pre-wrap line-clamp-2">{sn.body}</span>
                 <form action={deleteSnippetAction}>
                   <input type="hidden" name="id" value={sn.id} />
@@ -179,7 +179,7 @@ export default async function SocialComposePage({ searchParams }: { searchParams
           Import from CSV
           <HelpTip text={SOCIAL_TIPS.csvImport} side="bottom" wide />
         </summary>
-        <p className="text-[11px] text-[var(--mute)] mt-2 mb-2 leading-relaxed">
+        <p className="text-2xs text-[var(--mute)] mt-2 mb-2 leading-relaxed">
           One post per row, up to 200 rows. Header row required; columns:{" "}
           <code className="font-mono">text</code> (required),{" "}
           <code className="font-mono">scheduledAt</code> (as 2026-08-10 09:00, read in {queue.timeZone}; other date shapes are refused),{" "}

@@ -79,7 +79,7 @@ export default async function SocialPostPage({ params, searchParams }: { params:
         <div className="flex-1 min-w-0">
           <h1 className="font-mono font-bold text-xl leading-tight flex items-center gap-2">
             Post
-            <span className="font-mono text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded-full" style={{ background: st.bg, color: st.fg }}>{st.label}</span>
+            <span className="font-mono text-micro uppercase tracking-wider px-1.5 py-0.5 rounded-full" style={{ background: st.bg, color: st.fg }}>{st.label}</span>
           </h1>
           <p className="text-xs text-[var(--mute)]">
             {post.publishedAt ? `Sent ${formatInZone(post.publishedAt, tz)}` : post.scheduledAt ? `Scheduled for ${formatInZone(post.scheduledAt, tz)}` : "Not sent"}
@@ -114,14 +114,14 @@ export default async function SocialPostPage({ params, searchParams }: { params:
         <div className="card mb-3 flex flex-wrap items-end gap-x-4 gap-y-2 text-xs" data-reuse>
           <form action={saveTemplateFromPostAction} className="flex items-end gap-1.5" data-save-template>
             <input type="hidden" name="id" value={post.id} />
-            <label><span className="block text-[10px] text-[var(--mute)] mb-1">Template name</span>
+            <label><span className="block text-micro text-[var(--mute)] mb-1">Template name</span>
               <input name="name" maxLength={60} placeholder={name.slice(0, 40)} className="border border-[var(--line-2)] rounded-lg px-2 py-1 text-xs w-48" /></label>
             <SubmitButton className="btn sm" pendingText="Saving…" title="Keep this post's words, first comment, images and category as a starting point in Compose"><LayoutTemplate className="w-3.5 h-3.5" /> Save as template</SubmitButton>
           </form>
           {copyTargets.length > 0 && (
             <form action={copyPostToWorkspaceAction} className="flex items-end gap-1.5" data-copy-to>
               <input type="hidden" name="id" value={post.id} />
-              <label><span className="block text-[10px] text-[var(--mute)] mb-1">Copy to another workspace</span>
+              <label><span className="block text-micro text-[var(--mute)] mb-1">Copy to another workspace</span>
                 <select name="workspaceId" required defaultValue="" className="border border-[var(--line-2)] rounded-lg px-2 py-1 text-xs">
                   <option value="" disabled>Choose…</option>
                   {copyTargets.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
@@ -170,8 +170,8 @@ export default async function SocialPostPage({ params, searchParams }: { params:
                   <b>{net?.label ?? t.provider}</b>
                   {sub && <span className="text-[var(--mute)]">· {sub}</span>}
                   {t.accountName && <span className="text-[var(--mute)]">· {t.accountName}</span>}
-                  <span className="font-mono text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded-full" style={{ background: ts.bg, color: ts.fg }}>{t.status === "pending" ? "not sent" : ts.label}</span>
-                  {t.postedAt && <span className="font-mono text-[10px] text-[var(--mute)]">{formatInZone(t.postedAt, tz)}</span>}
+                  <span className="font-mono text-micro uppercase tracking-wider px-1.5 py-0.5 rounded-full" style={{ background: ts.bg, color: ts.fg }}>{t.status === "pending" ? "not sent" : ts.label}</span>
+                  {t.postedAt && <span className="font-mono text-micro text-[var(--mute)]">{formatInZone(t.postedAt, tz)}</span>}
                   <span className="flex-1" />
                   {t.platformPostUrl && (
                     <a href={t.platformPostUrl} target="_blank" rel="noreferrer" className="btn sm"><ExternalLink className="w-3 h-3" /> View on {net?.label ?? t.provider}</a>

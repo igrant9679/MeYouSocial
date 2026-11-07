@@ -207,7 +207,7 @@ async function StepFivePreview({ channelId }: { channelId: string }) {
       )}
 
       <section className="card mt-5">
-        <h2 className="font-mono text-[15px] mb-3">Audience snapshot</h2>
+        <h2 className="font-mono text-sm mb-3">Audience snapshot</h2>
         {ready.audience ? (
           <ul className="text-sm space-y-1">
             {keyQuestions.slice(0, 5).map((q, i) => (
@@ -220,7 +220,7 @@ async function StepFivePreview({ channelId }: { channelId: string }) {
       </section>
 
       <section className="card mt-3">
-        <h2 className="font-mono text-[15px] mb-3">Starter ideas</h2>
+        <h2 className="font-mono text-sm mb-3">Starter ideas</h2>
         {channel.ideas.length === 0 && <p className="text-sm text-[var(--mute)]">Generating…</p>}
         <ul className="m-0 p-0">
           {channel.ideas.map((i) => (
@@ -234,7 +234,7 @@ async function StepFivePreview({ channelId }: { channelId: string }) {
 
       {Object.values(voiceData).length > 0 && (
         <section className="card mt-3">
-          <h2 className="font-mono text-[15px] mb-2">Voice profile (preview)</h2>
+          <h2 className="font-mono text-sm mb-2">Voice profile (preview)</h2>
           <p className="text-xs text-[var(--mute)]">Refine in Channel → Voice. <Link className="text-[var(--accent)] font-semibold" href={`/channels/${channelId}/voice`}>Open voice editor →</Link></p>
         </section>
       )}
@@ -269,7 +269,7 @@ function StatusCard({ label, ready, error }: { label: string; ready: boolean; er
       <div className="min-w-0">
         <div className="text-sm font-semibold">{label}</div>
         <div className="text-xs text-[var(--mute)] font-mono">{ready ? "ready" : error ? "failed" : "generating…"}</div>
-        {error && <div className="text-[11px] mt-0.5 leading-snug" style={{ color: "var(--rose-on)" }}>{error}</div>}
+        {error && <div className="text-2xs mt-0.5 leading-snug" style={{ color: "var(--rose-on)" }}>{error}</div>}
       </div>
     </div>
   );

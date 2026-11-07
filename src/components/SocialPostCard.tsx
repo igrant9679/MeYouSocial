@@ -131,44 +131,44 @@ export function PostCard({
         {selectForm && isAdmin && post.approval === "pending" && (
           <input type="checkbox" name="sel" value={post.id} form={selectForm} aria-label="Select this post" />
         )}
-        <span className="font-mono text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded-full" style={{ background: s.bg, color: s.fg }}>{s.label}</span>
+        <span className="font-mono text-micro uppercase tracking-wider px-1.5 py-0.5 rounded-full" style={{ background: s.bg, color: s.fg }}>{s.label}</span>
         {post.approval === "pending" && (
-          <span className="inline-flex items-center gap-1 font-mono text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }}>
+          <span className="inline-flex items-center gap-1 font-mono text-micro px-1.5 py-0.5 rounded-full" style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }}>
             <ShieldCheck className="w-2.5 h-2.5" /> awaiting approval
           </span>
         )}
         {post.approval === "changes" && (
-          <span className="inline-flex items-center gap-1 font-mono text-[10px] px-1.5 py-0.5 rounded-full" title={post.reviewNote ?? undefined} style={{ background: "var(--rose-soft)", color: "var(--rose-on)" }}>
+          <span className="inline-flex items-center gap-1 font-mono text-micro px-1.5 py-0.5 rounded-full" title={post.reviewNote ?? undefined} style={{ background: "var(--rose-soft)", color: "var(--rose-on)" }}>
             <ShieldCheck className="w-2.5 h-2.5" /> changes requested
           </span>
         )}
         {post.topic && (
-          <span className="inline-flex items-center gap-1 font-mono text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "var(--violet-soft)", color: "var(--violet-on)" }}>
+          <span className="inline-flex items-center gap-1 font-mono text-micro px-1.5 py-0.5 rounded-full" style={{ background: "var(--violet-soft)", color: "var(--violet-on)" }}>
             <Tags className="w-2.5 h-2.5" /> {post.topic.name}
           </span>
         )}
         {post.campaign && (
-          <span className="inline-flex items-center gap-1 font-mono text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "var(--blue-soft)", color: "var(--blue-on)" }}>
+          <span className="inline-flex items-center gap-1 font-mono text-micro px-1.5 py-0.5 rounded-full" style={{ background: "var(--blue-soft)", color: "var(--blue-on)" }}>
             <Megaphone className="w-2.5 h-2.5" /> {post.campaign.name}
           </span>
         )}
         {post.category && (
-          <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "var(--panel)", color: "var(--mute)" }}>
+          <span className="font-mono text-micro px-1.5 py-0.5 rounded-full" style={{ background: "var(--panel)", color: "var(--mute)" }}>
             {post.category}
           </span>
         )}
         {post.evergreen && (
-          <span className="inline-flex items-center gap-1 font-mono text-[10px] px-1.5 py-0.5 rounded-full" title={`Recycles every ${post.recycleEveryDays} days${post.timesRecycled ? ` · recycled ${post.timesRecycled}×` : ""}`} style={{ background: "var(--green-soft)", color: "var(--green-on)" }}>
+          <span className="inline-flex items-center gap-1 font-mono text-micro px-1.5 py-0.5 rounded-full" title={`Recycles every ${post.recycleEveryDays} days${post.timesRecycled ? ` · recycled ${post.timesRecycled}×` : ""}`} style={{ background: "var(--green-soft)", color: "var(--green-on)" }}>
             <Recycle className="w-2.5 h-2.5" /> evergreen
           </span>
         )}
         {post.recycledFrom && (
-          <span className="inline-flex items-center gap-1 font-mono text-[10px] px-1.5 py-0.5 rounded-full" title="Automatically recycled from an evergreen post" style={{ background: "var(--panel)", color: "var(--mute)" }}>
+          <span className="inline-flex items-center gap-1 font-mono text-micro px-1.5 py-0.5 rounded-full" title="Automatically recycled from an evergreen post" style={{ background: "var(--panel)", color: "var(--mute)" }}>
             <Recycle className="w-2.5 h-2.5" /> recycled
           </span>
         )}
         {when && (
-          <span className="font-mono text-[11px] text-[var(--mute)]">
+          <span className="font-mono text-2xs text-[var(--mute)]">
             {post.scheduledAt ? "for " : "at "}
             {when.toLocaleString("en-GB", { timeZone, day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
           </span>
@@ -193,7 +193,7 @@ export function PostCard({
               <form action={approveSocialPostAction} className="absolute z-10 mt-1 card !p-2 flex items-center gap-1.5 text-xs whitespace-nowrap">
                 <input type="hidden" name="id" value={post.id} />
                 <input type="datetime-local" name="at" required defaultValue={post.scheduledAt ? toZonedInput(post.scheduledAt, timeZone) : undefined} aria-label={`Approve for this time, ${timeZone}`} className="text-xs" />
-                <span className="text-[10px] text-[var(--mute)]">{zoneLabel(timeZone)}</span>
+                <span className="text-micro text-[var(--mute)]">{zoneLabel(timeZone)}</span>
                 <SubmitButton className="btn sm primary" pendingText="Approving…">Approve for then</SubmitButton>
               </form>
             </details>
@@ -234,7 +234,7 @@ export function PostCard({
           </form>
         )}
         {unsure.length > 0 && (
-          <span className="basis-full text-[11px]" style={{ color: "var(--amber-on)" }}>
+          <span className="basis-full text-2xs" style={{ color: "var(--amber-on)" }}>
             We never heard back from {unsure.join(", ")} — {unsure.length === 1 ? "it" : "they"} may have posted. Check {unsure.length === 1 ? "that network" : "those networks"} before you retry, or it may go out twice.
           </span>
         )}
@@ -286,7 +286,7 @@ export function PostCard({
             const imgs = listKeys(t.mediaKeys);
             return (
               <div key={t.id} className="text-xs text-[var(--slate)] border-l-2 pl-2" style={{ borderColor: net?.color ?? "var(--line-2)" }}>
-                <span className="font-mono text-[10px] uppercase tracking-wider mr-1" style={{ color: net?.color ?? "var(--mute)" }}>{net?.label ?? t.provider}</span>
+                <span className="font-mono text-micro uppercase tracking-wider mr-1" style={{ color: net?.color ?? "var(--mute)" }}>{net?.label ?? t.provider}</span>
                 {t.text ? <span className="whitespace-pre-wrap">{t.text}</span> : <span className="text-[var(--mute)] italic">base text</span>}
                 {imgs.length > 0 && (
                   <div className="mt-1">
@@ -304,7 +304,7 @@ export function PostCard({
           const posted = t.status === "posted";
           const failed = t.status === "failed";
           return (
-            <span key={t.id} className="inline-flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 rounded-full border"
+            <span key={t.id} className="inline-flex items-center gap-1 text-micro font-mono px-1.5 py-0.5 rounded-full border"
               style={{ borderColor: net?.color ?? "var(--line-2)" }}
               title={t.error ?? undefined}>
               <span className="w-1.5 h-1.5 rounded-full" style={{ background: net?.color ?? "var(--mute)" }} />
@@ -327,7 +327,7 @@ export function PostCard({
 export function PostThread({ postId, thread, timeZone, back, open }: { postId: string; thread: ThreadNote[]; timeZone: string; back: string; open?: boolean }) {
   return (
     <details className="mb-2" open={open ?? (thread.length > 0 && thread.length <= 3)}>
-      <summary className="text-[11px] cursor-pointer text-[var(--mute)] inline-flex items-center gap-1">
+      <summary className="text-2xs cursor-pointer text-[var(--mute)] inline-flex items-center gap-1">
         <MessageSquare className="w-3 h-3" /> {thread.length === 0 ? "Comment" : `Comments · ${thread.length}`}
       </summary>
       {thread.length > 0 && (
@@ -335,7 +335,7 @@ export function PostThread({ postId, thread, timeZone, back, open }: { postId: s
           {thread.map((c) => (
             <li key={c.id} className="text-xs border-l-2 pl-2" style={{ borderColor: c.kind === "changes" ? "var(--rose)" : "var(--line-2)" }}>
               <b>{c.author}</b>{" "}
-              <span className="text-[10px] text-[var(--mute)]">{formatZonedMoment(c.createdAt, timeZone)}{c.kind === "changes" ? " · asked for changes" : ""}</span>
+              <span className="text-micro text-[var(--mute)]">{formatZonedMoment(c.createdAt, timeZone)}{c.kind === "changes" ? " · asked for changes" : ""}</span>
               <p className="whitespace-pre-wrap m-0">{c.body}</p>
             </li>
           ))}
@@ -356,7 +356,7 @@ export function Section({ icon, title, count }: { icon: React.ReactNode; title: 
     <div className="flex items-center gap-2 mb-2 mt-6">
       {icon}
       <h2 className="font-mono font-bold text-sm">{title}</h2>
-      <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "var(--panel)", color: "var(--mute)" }}>{count}</span>
+      <span className="font-mono text-micro px-1.5 py-0.5 rounded-full" style={{ background: "var(--panel)", color: "var(--mute)" }}>{count}</span>
     </div>
   );
 }

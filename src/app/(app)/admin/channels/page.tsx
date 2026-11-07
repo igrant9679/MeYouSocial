@@ -10,6 +10,7 @@ import { deletionImpact } from "@/lib/deletable";
 // linkage to scripts / projects / submissions. Full ownership transfer (between workspaces)
 // is out of scope since channels are workspace-scoped by design.
 
+// raw-colour: a channel's accent is saved as this hex and shown on pages that have no theme.
 const PALETTE = ["#E5482F", "#6D28D9", "#2563EB", "#0D9488", "#D97706", "#DB2777", "#4F46E5", "#15924B", "#0891B2", "#7C3AED", "#E11D48"];
 
 export default async function AdminChannelsPage() {
@@ -32,7 +33,7 @@ export default async function AdminChannelsPage() {
   return (
     <div>
       <div className="flex items-center gap-3 mb-4">
-        <span className="w-10 h-10 rounded-xl grid place-items-center" style={{ background: "#EDE7FB", color: "#6D28D9" }}>
+        <span className="w-10 h-10 rounded-xl grid place-items-center" style={{ background: "var(--violet-soft)", color: "var(--violet)" }}>
           <Layers className="w-5 h-5" strokeWidth={2.25} />
         </span>
         <div>
@@ -56,7 +57,7 @@ export default async function AdminChannelsPage() {
             </div>
             <form action={transferChannelOwnershipAction} className="flex items-center gap-2">
               <input type="hidden" name="channelId" value={c.id} />
-              <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">Accent</span>
+              <span className="text-micro font-mono uppercase tracking-wider text-[var(--mute)]">Accent</span>
               <div className="flex items-center gap-1 flex-wrap">
                 {PALETTE.map((p) => (
                   <label key={p} className="relative">

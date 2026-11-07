@@ -74,7 +74,7 @@ export default async function DistributeStage({ searchParams }: { searchParams: 
           status: an account can be "connected" and still refusing to publish. */}
       <section className="card mb-4">
         <div className="flex items-center gap-2 mb-2">
-          <h2 className="font-mono text-[13px] font-bold m-0">Accounts</h2>
+          <h2 className="font-mono text-sm font-bold m-0">Accounts</h2>
           <span className="flex-1" />
           {admin && <Link href="/admin/connections" className="btn sm">Manage</Link>}
         </div>
@@ -92,21 +92,21 @@ export default async function DistributeStage({ searchParams }: { searchParams: 
               return (
                 <span
                   key={a.id}
-                  className="inline-flex items-center gap-1.5 text-[11px] font-mono px-2 py-1 rounded-full border"
+                  className="inline-flex items-center gap-1.5 text-2xs font-mono px-2 py-1 rounded-full border"
                   style={{ borderColor: hue, background: bad ? "var(--rose-soft)" : "transparent", color: bad ? "var(--rose-on)" : "var(--slate)" }}
                   title={a.trouble ? `${a.name} — ${a.trouble.reason}.` : `${a.name} · ${a.scheduledAhead} scheduled leg${a.scheduledAhead === 1 ? "" : "s"} in the next 7 days`}
                 >
                   <span className="w-1.5 h-1.5 rounded-full" style={{ background: hue }} />
                   {a.label}
                   {bad && <AlertTriangle className="w-3 h-3" />}
-                  {!a.trouble && a.scheduledAhead > 0 && <span className="text-[9.5px] text-[var(--mute)]">{a.scheduledAhead}</span>}
+                  {!a.trouble && a.scheduledAhead > 0 && <span className="text-micro text-[var(--mute)]">{a.scheduledAhead}</span>}
                 </span>
               );
             })}
           </div>
         )}
         {!overview.zernioReady && (
-          <p className="text-[11px] mt-3 px-2 py-1.5 rounded-lg m-0" style={{ background: "var(--rose-soft)", color: "var(--rose-on)" }}>
+          <p className="text-2xs mt-3 px-2 py-1.5 rounded-lg m-0" style={{ background: "var(--rose-soft)", color: "var(--rose-on)" }}>
             This workspace has no Zernio API key of its own, so nothing can publish. <Link href="/setup/connections" className="underline">Connections</Link>.
           </p>
         )}
@@ -121,13 +121,13 @@ export default async function DistributeStage({ searchParams }: { searchParams: 
         <section className="mb-4">
           {warn.length > 0 && (
             <>
-              <h2 className="font-mono text-[13px] font-bold mb-2 flex items-center gap-1.5"><AlertTriangle className="w-4 h-4" style={{ color: "var(--amber-on)" }} /> Needs you</h2>
+              <h2 className="font-mono text-sm font-bold mb-2 flex items-center gap-1.5"><AlertTriangle className="w-4 h-4" style={{ color: "var(--amber-on)" }} /> Needs you</h2>
               <div className="flex flex-col gap-2 mb-3">{warn.map((a) => <Attention key={a.kind} item={a} role={membership.role} />)}</div>
             </>
           )}
           {info.length > 0 && (
             <>
-              <h2 className="font-mono text-[13px] font-bold mb-2 flex items-center gap-1.5"><Info className="w-4 h-4" style={{ color: "var(--blue-on)" }} /> Worth knowing</h2>
+              <h2 className="font-mono text-sm font-bold mb-2 flex items-center gap-1.5"><Info className="w-4 h-4" style={{ color: "var(--blue-on)" }} /> Worth knowing</h2>
               <div className="flex flex-col gap-2">{info.map((a) => <Attention key={a.kind} item={a} role={membership.role} />)}</div>
             </>
           )}
@@ -149,7 +149,7 @@ export default async function DistributeStage({ searchParams }: { searchParams: 
             <StateChip label={formatInZone(p.scheduledAt!, tz)} hue="blue" />
             <div className="flex-1 min-w-48">
               <div className="text-sm leading-snug line-clamp-2">{p.text}</div>
-              <div className="text-[11px] text-[var(--mute)]">
+              <div className="text-2xs text-[var(--mute)]">
                 {[...new Set(p.targets.map((t) => t.provider))].map((x) => networkFor(x)?.label ?? x).join(" · ") || "no network chosen"}
                 {p.recycledFromId ? " · evergreen recycle" : ""}
               </div>
@@ -168,7 +168,7 @@ export default async function DistributeStage({ searchParams }: { searchParams: 
                 <StateChip label={failed ? `${failed} leg${failed === 1 ? "" : "s"} failed` : "sent"} hue={failed ? "rose" : "green"} />
                 <div className="flex-1 min-w-48">
                   <div className="text-sm leading-snug line-clamp-1">{p.text}</div>
-                  <div className="text-[11px] text-[var(--mute)]">
+                  <div className="text-2xs text-[var(--mute)]">
                     {[...new Set(p.targets.map((t) => t.provider))].map((x) => networkFor(x)?.label ?? x).join(" · ")} · {p.updatedAt.toLocaleDateString("en-GB", { day: "2-digit", month: "short", timeZone: tz })}
                   </div>
                 </div>
@@ -200,7 +200,7 @@ function Attention({ item, role }: { item: AttentionItem; role: Role }) {
       {/* Reconnecting an account is an admin page — say so to everyone else (SHL-07). */}
       {canFollow(item.href, role)
         ? <Link href={item.href} className={warn ? "btn sm primary" : "btn sm"}>{item.cta}</Link>
-        : <span className="text-[11px] text-[var(--mute)] max-w-40">{whoCanFix(item.href)}</span>}
+        : <span className="text-2xs text-[var(--mute)] max-w-40">{whoCanFix(item.href)}</span>}
     </div>
   );
 }

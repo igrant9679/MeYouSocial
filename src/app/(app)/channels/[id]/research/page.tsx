@@ -47,7 +47,7 @@ export default async function ChannelResearchPage({ params, searchParams }: { pa
   return (
     <div>
       <div className="flex items-center gap-3 mb-4">
-        <span className="w-10 h-10 rounded-xl grid place-items-center" style={{ background: "#E5EDFD", color: "#2563EB" }}>
+        <span className="w-10 h-10 rounded-xl grid place-items-center" style={{ background: "var(--blue-soft)", color: "var(--blue)" }}>
           <FileSearch className="w-5 h-5" strokeWidth={2.25} />
         </span>
         <div>
@@ -61,16 +61,16 @@ export default async function ChannelResearchPage({ params, searchParams }: { pa
         <p className="text-xs text-[var(--mute)] mb-5" data-read-only>Running research is for editors — the saved reports are below.</p>
       ) : (
       <form action={deepResearchAction} className="card mb-5">
-        <h3 className="font-mono font-bold text-[14px] mb-3 flex items-center gap-2"><FileSearch className="w-4 h-4" style={{ color: "#2563EB" }} /> New deep research</h3>
+        <h3 className="font-mono font-bold text-sm mb-3 flex items-center gap-2"><FileSearch className="w-4 h-4" style={{ color: "var(--blue)" }} /> New deep research</h3>
         <input type="hidden" name="channelId" value={id} />
         <label className="flex flex-col gap-1 mb-2">
-          <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">Question / topic</span>
+          <span className="text-micro font-mono uppercase tracking-wider text-[var(--mute)]">Question / topic</span>
           <textarea name="question" required rows={2} placeholder="What's the latest evidence on cold exposure and recovery?" className="border border-[var(--line-2)] rounded-lg p-2 text-sm" />
         </label>
         <AiAssist field="research.notes" target="question" channelId={id} label="Suggest a question" />
         <div className="flex flex-wrap items-end gap-2">
           <label className="flex flex-col gap-1">
-            <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">Depth (word budget)</span>
+            <span className="text-micro font-mono uppercase tracking-wider text-[var(--mute)]">Depth (word budget)</span>
             <select name="depth" defaultValue="intermediate" className="border border-[var(--line-2)] rounded-lg p-2 text-sm">
               <option value="basic">Basic — 5k</option>
               <option value="intermediate">Intermediate — 15k</option>
@@ -97,7 +97,7 @@ export default async function ChannelResearchPage({ params, searchParams }: { pa
             {sources.map((s) => (
               <li key={s.id}>
                 <a href={`/channels/${id}/research?focus=${s.id}`} className={"flex items-start gap-2 px-2 py-1.5 rounded-md text-xs transition " + (focused?.id === s.id ? "bg-[var(--accent-soft)] text-[var(--accent)]" : "text-[var(--slate)] hover:bg-[var(--zebra)]")}>
-                  {s.starred && <Star className="w-3 h-3 flex-shrink-0 mt-0.5" fill="currentColor" style={{ color: "#D97706" }} />}
+                  {s.starred && <Star className="w-3 h-3 flex-shrink-0 mt-0.5" fill="currentColor" style={{ color: "var(--amber)" }} />}
                   <span className="flex-1 truncate font-semibold">{s.title ?? s.ref}</span>
                 </a>
               </li>
@@ -110,12 +110,12 @@ export default async function ChannelResearchPage({ params, searchParams }: { pa
           {focused ? (
             <article className="card">
               <div className="flex items-center gap-2 mb-3">
-                <span className="font-mono text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: "var(--accent-soft)", color: "var(--accent)" }}>{focused.kind}</span>
+                <span className="font-mono text-micro uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: "var(--accent-soft)", color: "var(--accent)" }}>{focused.kind}</span>
                 <h2 className="font-mono font-bold text-lg flex-1">{focused.title ?? focused.ref}</h2>
                 {editor && (<>
                 <form action={starResearchAction}>
                   <input type="hidden" name="id" value={focused.id} />
-                  <button type="submit" title="Toggle starred"><Star className="w-4 h-4" fill={focused.starred ? "currentColor" : "none"} style={{ color: focused.starred ? "#D97706" : "var(--mute)" }} /></button>
+                  <button type="submit" title="Toggle starred"><Star className="w-4 h-4" fill={focused.starred ? "currentColor" : "none"} style={{ color: focused.starred ? "var(--amber)" : "var(--mute)" }} /></button>
                 </form>
                 <form action={deleteResearchAction}>
                   <input type="hidden" name="id" value={focused.id} />

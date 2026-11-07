@@ -135,7 +135,7 @@ export function ArticleList({ q, list, topics, members, editor, admin, timeZone,
                 <tr className="text-left text-[var(--mute)]">
                   {editor && <th className="py-1.5 px-2 w-6 border-b-2 border-[var(--line)]" data-csv-skip><span className="sr-only">Select</span></th>}
                   {["Status", "Article", "Topic", "Reviewer", "Keyword", "Updated", "Scheduled"].map((h) => (
-                    <th key={h} className="py-1.5 px-2 font-mono text-[9px] uppercase tracking-wider border-b-2 border-[var(--line)]">{h}</th>
+                    <th key={h} className="py-1.5 px-2 font-mono text-micro uppercase tracking-wider border-b-2 border-[var(--line)]">{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -150,12 +150,12 @@ export function ArticleList({ q, list, topics, members, editor, admin, timeZone,
                         </td>
                       )}
                       <td className="py-1.5 px-2 border-b border-[var(--line)] whitespace-nowrap">
-                        <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: `var(--${st.hue}-soft)`, color: `var(--${st.hue}-on)` }}>{st.title}</span>
+                        <span className="font-mono text-micro px-1.5 py-0.5 rounded-full" style={{ background: `var(--${st.hue}-soft)`, color: `var(--${st.hue}-on)` }}>{st.title}</span>
                       </td>
                       <td className="py-1.5 px-2 border-b border-[var(--line)] min-w-56">
                         <Link href={`/blog/${p.id}`} className="font-semibold hover:underline">{p.title}</Link>
                         {p.citations.length > 0 && (
-                          <span className="ml-1.5 font-mono text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }}>{p.citations.length} unverified</span>
+                          <span className="ml-1.5 font-mono text-micro px-1.5 py-0.5 rounded-full" style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }}>{p.citations.length} unverified</span>
                         )}
                       </td>
                       <td className="py-1.5 px-2 border-b border-[var(--line)]">{p.topic?.name ?? "—"}</td>

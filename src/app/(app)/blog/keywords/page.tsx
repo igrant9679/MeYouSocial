@@ -296,7 +296,7 @@ export default async function KeywordsPage({ searchParams }: { searchParams: Pro
                 </form>
               )}
               {cluster !== "unclustered" && topicNames.has(cluster.toLowerCase()) && (
-                <Link href="/ideas/topics" className="font-normal normal-case tracking-normal text-[11px] underline">a Topic</Link>
+                <Link href="/ideas/topics" className="font-normal normal-case tracking-normal text-2xs underline">a Topic</Link>
               )}
             </h2>
             <div className="overflow-x-auto">
@@ -334,7 +334,7 @@ export default async function KeywordsPage({ searchParams }: { searchParams: Pro
                               a person's intent replaces the AI's — plus Pause and
                               Delete. One row at a time (PRF-02). */}
                           {editor && edit !== k.id && (
-                            <Link href={editHref(k.id)} scroll={false} className="block mt-0.5 text-[11px] text-[var(--mute)] hover:text-[var(--ink)]" data-kw-edit-link>Edit</Link>
+                            <Link href={editHref(k.id)} scroll={false} className="block mt-0.5 text-2xs text-[var(--mute)] hover:text-[var(--ink)]" data-kw-edit-link>Edit</Link>
                           )}
                           {editor && edit === k.id && (
                             <div className="mt-1 flex flex-col gap-1.5" data-kw-edit>
@@ -372,7 +372,7 @@ export default async function KeywordsPage({ searchParams }: { searchParams: Pro
                         <td className="py-1.5 pr-3 font-mono">T{k.tier}</td>
                         <td className="py-1.5 pr-3">
                           {k.intent ? (
-                            <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: `var(--${INTENT_HUE[k.intent] ?? "cyan"}-soft)`, color: `var(--${INTENT_HUE[k.intent] ?? "cyan"}-on)` }}>
+                            <span className="font-mono text-micro px-1.5 py-0.5 rounded-full" style={{ background: `var(--${INTENT_HUE[k.intent] ?? "cyan"}-soft)`, color: `var(--${INTENT_HUE[k.intent] ?? "cyan"}-on)` }}>
                               {k.intent}
                             </span>
                           ) : (
@@ -400,7 +400,7 @@ export default async function KeywordsPage({ searchParams }: { searchParams: Pro
                         </td>
                         <td className="py-1.5 pr-3">
                           {comp && k.competition != null ? (
-                            <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: `var(--${comp.hue}-soft)`, color: `var(--${comp.hue}-on)` }} title={`Index ${Math.round(k.competition * 100)} / 100`}>
+                            <span className="font-mono text-micro px-1.5 py-0.5 rounded-full" style={{ background: `var(--${comp.hue}-soft)`, color: `var(--${comp.hue}-on)` }} title={`Index ${Math.round(k.competition * 100)} / 100`}>
                               {comp.text} · {Math.round(k.competition * 100)}
                             </span>
                           ) : (
@@ -418,8 +418,8 @@ export default async function KeywordsPage({ searchParams }: { searchParams: Pro
                               <span className="font-mono tabular-nums" title={`${r.clicks.toLocaleString()} clicks · ${r.impressions.toLocaleString()} impressions · best page ${r.page}`}>
                                 #{r.position.toFixed(1)}
                                 {r.postId
-                                  ? <Link href={`/blog/${r.postId}?tab=performance`} className="block text-[10px] text-[var(--mute)] underline truncate max-w-40 ml-auto">{r.postTitle ?? r.page}</Link>
-                                  : <span className="block text-[10px] text-[var(--mute)] truncate max-w-40 ml-auto">{r.page}</span>}
+                                  ? <Link href={`/blog/${r.postId}?tab=performance`} className="block text-micro text-[var(--mute)] underline truncate max-w-40 ml-auto">{r.postTitle ?? r.page}</Link>
+                                  : <span className="block text-micro text-[var(--mute)] truncate max-w-40 ml-auto">{r.page}</span>}
                               </span>
                             );
                           })()}
@@ -439,7 +439,7 @@ export default async function KeywordsPage({ searchParams }: { searchParams: Pro
               </table>
             </div>
             {list.length > CLUSTER_ROWS && (
-              <div className="text-[11px] mt-2" data-kw-more>
+              <div className="text-2xs mt-2" data-kw-more>
                 {all === cluster
                   ? <Link href={`/blog/keywords#kw-${list[0].id}`} className="underline text-[var(--mute)]">Show the first {CLUSTER_ROWS}</Link>
                   : <Link href={`/blog/keywords?all=${encodeURIComponent(cluster)}#kw-${list[CLUSTER_ROWS].id}`} scroll={false} className="underline" style={{ color: "var(--accent)" }}>Show all {list.length} in “{cluster}”</Link>}

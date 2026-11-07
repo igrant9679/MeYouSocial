@@ -52,8 +52,8 @@ export default async function EvergreenLibrary({ searchParams }: { searchParams:
   return (
     <div>
       <div className="flex items-baseline gap-3 flex-wrap mb-3">
-        <h1 className="font-mono text-[22px] font-bold m-0 flex items-center gap-2"><Recycle className="w-5 h-5" style={{ color: "var(--green-on)" }} /> Evergreen</h1>
-        <p className="text-[13px] text-[var(--mute)] m-0">
+        <h1 className="font-mono text-2xl font-bold m-0 flex items-center gap-2"><Recycle className="w-5 h-5" style={{ color: "var(--green-on)" }} /> Evergreen</h1>
+        <p className="text-sm text-[var(--mute)] m-0">
           {sources.length ? `${sources.length} post${sources.length === 1 ? "" : "s"} set to recycle into free queue slots.` : "No post is set to recycle."}
         </p>
       </div>
@@ -84,14 +84,14 @@ export default async function EvergreenLibrary({ searchParams }: { searchParams:
                   <p className="m-0 flex-1 min-w-60 whitespace-pre-wrap line-clamp-3 text-sm">{s.text || <span className="text-[var(--mute)]">(no text)</span>}</p>
                   <StateChip state={state} tz={tz} />
                 </div>
-                <p className="m-0 mt-1.5 text-[var(--mute)] font-mono text-[11px]">
+                <p className="m-0 mt-1.5 text-[var(--mute)] font-mono text-2xs">
                   every {s.recycleEveryDays}d · recycled {s.timesRecycled}{s.maxRecycles != null ? ` of ${s.maxRecycles}` : ""}×
                   {s.recycleUntil ? ` · until ${formatInZone(s.recycleUntil, tz)}` : ""}
                   {s.lastRecycledAt ? ` · last copy ${formatInZone(s.lastRecycledAt, tz)}` : ""}
                   {variants.length ? ` · ${variants.length} variant${variants.length === 1 ? "" : "s"}` : ""}
                   {s.category ? ` · ${s.category}` : ""}
                 </p>
-                <p className="m-0 mt-1 font-mono text-[11px]" data-evergreen-earned>
+                <p className="m-0 mt-1 font-mono text-2xs" data-evergreen-earned>
                   {e ? <>Across {e.sends} send{e.sends === 1 ? "" : "s"}: <b>{compact(e.impressions)}</b> impr · <b>{compact(e.engagement)}</b> eng</> : <span className="text-[var(--mute)]">No results measured yet.</span>}
                 </p>
                 {editor && (
@@ -141,7 +141,7 @@ function StateChip({ state, tz }: { state: EvergreenState; tz: string }) {
     : state.kind === "not_sent" ? ["Recycles once it has gone out", "amber"]
     : ["Off", "slate"];
   return (
-    <span className="font-mono text-[10px] px-2 py-0.5 rounded-full shrink-0" style={{ background: `var(--${hue}-soft, var(--zebra))`, color: `var(--${hue}-on, var(--mute))` }} data-state-chip>
+    <span className="font-mono text-micro px-2 py-0.5 rounded-full shrink-0" style={{ background: `var(--${hue}-soft, var(--zebra))`, color: `var(--${hue}-on, var(--mute))` }} data-state-chip>
       {label}
     </span>
   );

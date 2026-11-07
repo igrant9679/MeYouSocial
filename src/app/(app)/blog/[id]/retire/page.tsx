@@ -87,9 +87,9 @@ export default async function RetireArticlePage({ params, searchParams }: { para
                 <b>1. Add a permanent (301) redirect</b> from the old address to{" "}
                 {merging ? <>“{merging.title}”</> : <span className="break-all">{target}</span>}. It lives on your host or in a WordPress redirect plugin — paste one of these:
                 <div className="flex flex-col gap-1 mt-2">
-                  <label className="flex flex-col gap-0.5"><span className="text-[var(--mute)]">Apache (.htaccess)</span><input readOnly value={lines.htaccess} className="font-code text-[11px]" data-line="htaccess" /></label>
-                  <label className="flex flex-col gap-0.5"><span className="text-[var(--mute)]">Nginx</span><input readOnly value={lines.nginx} className="font-code text-[11px]" data-line="nginx" /></label>
-                  <label className="flex flex-col gap-0.5"><span className="text-[var(--mute)]">Redirection plugin (CSV import)</span><input readOnly value={lines.csv} className="font-code text-[11px]" data-line="csv" /></label>
+                  <label className="flex flex-col gap-0.5"><span className="text-[var(--mute)]">Apache (.htaccess)</span><input readOnly value={lines.htaccess} className="font-code text-2xs" data-line="htaccess" /></label>
+                  <label className="flex flex-col gap-0.5"><span className="text-[var(--mute)]">Nginx</span><input readOnly value={lines.nginx} className="font-code text-2xs" data-line="nginx" /></label>
+                  <label className="flex flex-col gap-0.5"><span className="text-[var(--mute)]">Redirection plugin (CSV import)</span><input readOnly value={lines.csv} className="font-code text-2xs" data-line="csv" /></label>
                 </div>
               </li>
               <li className="card text-xs" data-step="links">
@@ -112,7 +112,7 @@ export default async function RetireArticlePage({ params, searchParams }: { para
                         <input type="hidden" name="postId" value={post.id} />
                         <input type="hidden" name="to" value={target} />
                         <SubmitButton className="btn sm primary" pendingText="Repointing…">Point them at the new address</SubmitButton>
-                        <span className="text-[11px] text-[var(--mute)] ml-2">Each article is saved as a version first. Live ones then need Update on WordPress.</span>
+                        <span className="text-2xs text-[var(--mute)] ml-2">Each article is saved as a version first. Live ones then need Update on WordPress.</span>
                       </form>
                     )}
                   </>

@@ -57,22 +57,22 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
       {/* New-task form */}
       <form action={createTaskAction} className="card flex flex-wrap items-end gap-2 mb-5">
         <label className="flex-1 min-w-[220px] flex flex-col gap-1">
-          <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">New task</span>
+          <span className="text-micro font-mono uppercase tracking-wider text-[var(--mute)]">New task</span>
           <input name="title" required placeholder="Title" className="border border-[var(--line-2)] rounded-lg p-2 text-sm" />
         </label>
         <label className="flex flex-col gap-1">
-          <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">Assignee</span>
+          <span className="text-micro font-mono uppercase tracking-wider text-[var(--mute)]">Assignee</span>
           <select name="assigneeId" className="border border-[var(--line-2)] rounded-lg p-2 text-sm">
             <option value="">Unassigned</option>
             {members.map((m) => (<option key={m.user.id} value={m.user.id}>{m.user.name ?? m.user.email}</option>))}
           </select>
         </label>
         <label className="flex flex-col gap-1">
-          <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">Due</span>
+          <span className="text-micro font-mono uppercase tracking-wider text-[var(--mute)]">Due</span>
           <input type="date" name="dueDate" className="border border-[var(--line-2)] rounded-lg p-2 text-sm" />
         </label>
         <label className="flex flex-col gap-1">
-          <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">Project (optional)</span>
+          <span className="text-micro font-mono uppercase tracking-wider text-[var(--mute)]">Project (optional)</span>
           <select name="contentProjectId" className="border border-[var(--line-2)] rounded-lg p-2 text-sm">
             <option value="">—</option>
             {projects.map((p) => (<option key={p.id} value={p.id}>{p.title}</option>))}
@@ -100,7 +100,7 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
       {/* Capacity + auto-task rules */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mt-4">
         <section className="card">
-          <h3 className="font-mono text-[13px] font-bold mb-2">Capacity — open tasks per person</h3>
+          <h3 className="font-mono text-sm font-bold mb-2">Capacity — open tasks per person</h3>
           {capacity.length === 0 ? (
             <p className="text-xs text-[var(--mute)]">No open tasks assigned.</p>
           ) : (
@@ -125,8 +125,8 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
         </section>
 
         <section className="card">
-          <h3 className="font-mono text-[13px] font-bold mb-1">Auto-created tasks</h3>
-          <p className="text-[11px] text-[var(--mute)] mb-2">
+          <h3 className="font-mono text-sm font-bold mb-1">Auto-created tasks</h3>
+          <p className="text-2xs text-[var(--mute)] mb-2">
             Pipeline events become work items automatically, deduped against open tasks. Assignment: the post&apos;s
             reviewer or author when set, else the first admin.
           </p>

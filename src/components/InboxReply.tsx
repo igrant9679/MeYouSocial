@@ -107,7 +107,7 @@ export function InboxReply({
         // Stated above the text, not below the buttons: someone opening this
         // page is looking at words they may not have written, and needs to know
         // that before they read them — and that they are still unpublished.
-        <p className="text-[10px] font-mono mb-1" style={{ color: "var(--amber-on)" }}>
+        <p className="text-micro font-mono mb-1" style={{ color: "var(--amber-on)" }}>
           <FileText className="w-3 h-3 inline-block mr-1 -mt-0.5" aria-hidden />
           {draftNote} · not sent
         </p>
@@ -116,7 +116,7 @@ export function InboxReply({
         <div className="flex flex-wrap items-center gap-2 mb-1.5">
           {closes && (
             <span
-              className="inline-flex items-center gap-1 font-mono text-[10px] px-1.5 py-0.5 rounded-full"
+              className="inline-flex items-center gap-1 font-mono text-micro px-1.5 py-0.5 rounded-full"
               data-reply-window={leftMs > 0 ? "open" : "closed"}
               title="Meta only accepts a reply within 24 hours of their last message"
               style={
@@ -133,7 +133,7 @@ export function InboxReply({
           {savedReplies && savedReplies.length > 0 && (
             <select
               aria-label="Insert a saved reply"
-              className="text-[11px] max-w-[16rem]"
+              className="text-2xs max-w-[16rem]"
               value=""
               data-saved-replies=""
               onChange={(e) => {
@@ -159,13 +159,13 @@ export function InboxReply({
         className="w-full text-xs border border-[var(--line-2)] rounded-lg px-2 py-1.5 resize-y"
       />
       <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-        <span className="text-[10px] text-[var(--mute)]">
+        <span className="text-micro text-[var(--mute)]">
           {action ? "Sends as" : "Would send as"} <b>{asLabel}</b>
           {publicNote && <> · <span style={{ color: "var(--amber-on)" }}>{publicNote}</span></>}
         </span>
         <span className="flex-1" />
         <span
-          className="font-mono text-[10px]"
+          className="font-mono text-micro"
           style={{ color: over ? "var(--rose-on)" : "var(--mute)" }}
         >
           {trimmed.length}/{maxLength}

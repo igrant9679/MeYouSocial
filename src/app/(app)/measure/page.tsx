@@ -81,7 +81,7 @@ export default async function MeasureStage({ searchParams }: { searchParams: Pro
           <>
             <AreaChart points={series.map((p) => ({ label: p.label, value: p.impressions }))} color="var(--blue)" title={`Blog impressions — last ${weeks} weeks`} marks={marks} />
             {gaps > 0 && (
-              <p className="text-[10px] text-[var(--mute)] mt-1 mb-0">
+              <p className="text-micro text-[var(--mute)] mt-1 mb-0">
                 {gaps} of the {series.length} weeks recorded nothing — those points sit at zero because there is no measurement, not because the number was zero.
               </p>
             )}
@@ -107,7 +107,7 @@ export default async function MeasureStage({ searchParams }: { searchParams: Pro
         {/* A table where every position is a dash reads as "nothing happened".
             Say which it is before the reader guesses (audit B6). */}
         {perf.length > 0 && perf.every((p) => p.position == null) && (
-          <p className="text-[11px] text-[var(--mute)] mt-3 mb-0">
+          <p className="text-2xs text-[var(--mute)] mt-3 mb-0">
             None of these posts has a recorded position yet — the dashes below are unmeasured, not zero.
           </p>
         )}
@@ -117,10 +117,10 @@ export default async function MeasureStage({ searchParams }: { searchParams: Pro
             <table data-csv="measure-articles" className="w-full text-xs border-collapse">
               <thead>
                 <tr className="text-left text-[var(--mute)]">
-                  <th className="py-1.5 px-2 font-mono text-[9px] uppercase tracking-wider border-b-2 border-[var(--line)]">Post</th>
-                  <th className="py-1.5 px-2 font-mono text-[9px] uppercase tracking-wider border-b-2 border-[var(--line)] text-right">Pos</th>
-                  <th className="py-1.5 px-2 font-mono text-[9px] uppercase tracking-wider border-b-2 border-[var(--line)] text-right">Δ</th>
-                  <th className="py-1.5 px-2 font-mono text-[9px] uppercase tracking-wider border-b-2 border-[var(--line)] text-right">Clicks</th>
+                  <th className="py-1.5 px-2 font-mono text-micro uppercase tracking-wider border-b-2 border-[var(--line)]">Post</th>
+                  <th className="py-1.5 px-2 font-mono text-micro uppercase tracking-wider border-b-2 border-[var(--line)] text-right">Pos</th>
+                  <th className="py-1.5 px-2 font-mono text-micro uppercase tracking-wider border-b-2 border-[var(--line)] text-right">Δ</th>
+                  <th className="py-1.5 px-2 font-mono text-micro uppercase tracking-wider border-b-2 border-[var(--line)] text-right">Clicks</th>
                 </tr>
               </thead>
               <tbody>
@@ -170,7 +170,7 @@ export default async function MeasureStage({ searchParams }: { searchParams: Pro
                 ) : editor ? (
                   <form action={makeDecayRefreshIdeaAction}>
                     <input type="hidden" name="postId" value={d.postId} />
-                    <SubmitButton className="btn text-[11px]" pendingText="Making…">Make a refresh idea</SubmitButton>
+                    <SubmitButton className="btn text-2xs" pendingText="Making…">Make a refresh idea</SubmitButton>
                   </form>
                 ) : null}
               </li>

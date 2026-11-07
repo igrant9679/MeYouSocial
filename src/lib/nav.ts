@@ -22,25 +22,25 @@ import type { LeftRailItem } from "@/components/LeftRailNav";
 // pages did not go anywhere — each is a tab inside the stage that owns it
 // (see StageHeader), at its unchanged URL. Setup is Admin-only (decision 4).
 export const RAIL: (LeftRailItem & { adminOnly?: boolean; editorOnly?: boolean })[] = [
-  { href: "/inbox",       label: "Inbox",       icon: "Inbox",         color: "#E5482F", soft: "#FDE7E1" },
+  { href: "/inbox",       label: "Inbox",       icon: "Inbox",         color: "var(--brand)", soft: "var(--brand-soft)" },
   // Editors and admins only: its API is EDITOR-gated, and a viewer's every
   // message failed with "Unexpected token '<'" (ENG-17).
-  { href: "/assistant",   label: "Assistant",   icon: "Bot",           color: "#6D28D9", soft: "#EDE7FB", editorOnly: true },
-  { href: "/research",    label: "Research",    icon: "Telescope",     color: "#2563EB", soft: "#E5EDFD" },
-  { href: "/ideas",       label: "Ideas",       icon: "Sparkles",      color: "#D97706", soft: "#FBEED5" },
-  { href: "/drafts",      label: "Drafts",      icon: "PenLine",       color: "#15924B", soft: "#E0F2E8" },
+  { href: "/assistant",   label: "Assistant",   icon: "Bot",           color: "var(--violet)", soft: "var(--violet-soft)", editorOnly: true },
+  { href: "/research",    label: "Research",    icon: "Telescope",     color: "var(--blue)", soft: "var(--blue-soft)" },
+  { href: "/ideas",       label: "Ideas",       icon: "Sparkles",      color: "var(--amber)", soft: "var(--amber-soft)" },
+  { href: "/drafts",      label: "Drafts",      icon: "PenLine",       color: "var(--green)", soft: "var(--green-soft)" },
   // ⚠ "Review" left the rail on 2026-09-20 (audit B1.1). It was the Inbox card
   // for card — the same <NeedsYouGroups> over the same data — so the rail held
   // two entries to one screen. Its tabs (Approvals, Audit) are Publish's now.
-  { href: "/publish",     label: "Publish",     icon: "Globe",         color: "#21759B", soft: "#E0EDF3" },
-  { href: "/distribute",  label: "Distribute",  icon: "Share2",        color: "#0A66C2", soft: "#E5EDFD" },
-  { href: "/measure",     label: "Measure",     icon: "LineChart",     color: "#4F46E5", soft: "#E7E6FB" },
-  { href: "/setup",       label: "Settings",    icon: "SlidersHorizontal", color: "#6D28D9", soft: "#EDE7FB", group: "Setup", adminOnly: true },
-  { href: "/channels",    label: "Channels",    icon: "Layers",        color: "#7C3AED", soft: "#EEE7FC", group: "Setup", adminOnly: true },
-  { href: "/brand",       label: "Brand",       icon: "Palette",       color: "#DB2777", soft: "#FBE2EF", group: "Setup", adminOnly: true },
+  { href: "/publish",     label: "Publish",     icon: "Globe",         color: "var(--sea)", soft: "var(--sea-soft)" },
+  { href: "/distribute",  label: "Distribute",  icon: "Share2",        color: "var(--azure)", soft: "var(--blue-soft)" },
+  { href: "/measure",     label: "Measure",     icon: "LineChart",     color: "var(--indigo)", soft: "var(--indigo-soft)" },
+  { href: "/setup",       label: "Settings",    icon: "SlidersHorizontal", color: "var(--violet)", soft: "var(--violet-soft)", group: "Setup", adminOnly: true },
+  { href: "/channels",    label: "Channels",    icon: "Layers",        color: "var(--purple)", soft: "var(--purple-soft)", group: "Setup", adminOnly: true },
+  { href: "/brand",       label: "Brand",       icon: "Palette",       color: "var(--pink)", soft: "var(--pink-soft)", group: "Setup", adminOnly: true },
   // ⚠ "Publish Admin" left the rail on 2026-09-20 (audit B1.4). It was the
   // second settings surface — ten tabs beside Settings' four, with People in
   // both and "Connections" naming a different page in each. Its pages are
   // Settings tabs now, at the same /admin/* URLs.
-  { href: "/help",        label: "Help",        icon: "HelpCircle",    color: "#0891B2", soft: "#D8EFF5" },
+  { href: "/help",        label: "Help",        icon: "HelpCircle",    color: "var(--cyan)", soft: "var(--cyan-soft)" },
 ];

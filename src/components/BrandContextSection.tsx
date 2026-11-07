@@ -44,7 +44,7 @@ function FactRow({
     <details className="rounded-lg border border-[var(--line)] px-3 py-2">
       <summary className="cursor-pointer text-xs flex items-start gap-2">
         <span className="flex-1">
-          {fact.subject && <b className="font-mono text-[10px] mr-1">{fact.subject}</b>}
+          {fact.subject && <b className="font-mono text-micro mr-1">{fact.subject}</b>}
           <b>{fact.title}</b>
           {fact.detail && <span className="text-[var(--mute)]"> — {fact.detail.slice(0, 120)}{fact.detail.length > 120 ? "…" : ""}</span>}
         </span>
@@ -75,16 +75,16 @@ function FactRow({
           <input type="hidden" name="kind" value={fact.kind} />
           {fact.kind === "feature" && (
             <label className="text-xs">
-              <span className="block text-[10px] text-[var(--mute)] mb-1">Product or service</span>
+              <span className="block text-micro text-[var(--mute)] mb-1">Product or service</span>
               <input name="subject" defaultValue={fact.subject ?? ""} className="w-full text-xs" />
             </label>
           )}
           <label className="text-xs">
-            <span className="block text-[10px] text-[var(--mute)] mb-1">{fact.kind === "feature" ? "Feature" : "Differentiator"}</span>
+            <span className="block text-micro text-[var(--mute)] mb-1">{fact.kind === "feature" ? "Feature" : "Differentiator"}</span>
             <input name="title" defaultValue={fact.title} required className="w-full text-xs" />
           </label>
           <label className="text-xs">
-            <span className="block text-[10px] text-[var(--mute)] mb-1">Detail (optional)</span>
+            <span className="block text-micro text-[var(--mute)] mb-1">Detail (optional)</span>
             <textarea name="detail" defaultValue={fact.detail ?? ""} rows={2} className="w-full text-xs" />
           </label>
           <div className="flex items-center gap-2">
@@ -151,7 +151,7 @@ export function BrandContextSection({
           <Sparkles className="w-4 h-4" style={{ color: "var(--violet-on)" }} />
           Brand context for the AI
           <span
-            className="font-mono text-[10px] px-1.5 py-0.5 rounded-full"
+            className="font-mono text-micro px-1.5 py-0.5 rounded-full"
             style={{
               background: contextChars > 0 ? "var(--green-soft)" : "var(--zebra)",
               color: contextChars > 0 ? "var(--green-on)" : "var(--mute)",
@@ -173,7 +173,7 @@ export function BrandContextSection({
         <div className="flex flex-col gap-2">
           <div>
             <h3 className="text-xs font-semibold">What makes us different</h3>
-            <p className="text-[10px] text-[var(--mute)]">
+            <p className="text-micro text-[var(--mute)]">
               Used as the substance of any claim about the company. {differentiators.length > 1 ? ORDER_HINT : ""}
             </p>
           </div>
@@ -192,7 +192,7 @@ export function BrandContextSection({
         <div className="flex flex-col gap-2">
           <div>
             <h3 className="text-xs font-semibold">Products &amp; services — what each does</h3>
-            <p className="text-[10px] text-[var(--mute)]">
+            <p className="text-micro text-[var(--mute)]">
               Copy may describe only these capabilities, and never promise one that isn&apos;t listed.
             </p>
           </div>
@@ -211,13 +211,13 @@ export function BrandContextSection({
         <div>
           <h3 className="text-xs font-semibold">
             Brand documents{" "}
-            <span className="font-mono text-[10px] text-[var(--mute)]">
+            <span className="font-mono text-micro text-[var(--mute)]">
               {documents.length === 0
                 ? "none"
                 : `${usable} in context${working ? ` · ${working} being read` : ""}${broken ? ` · ${broken} unreadable` : ""}`}
             </span>
           </h3>
-          <p className="text-[10px] text-[var(--mute)]">
+          <p className="text-micro text-[var(--mute)]">
             A positioning deck, style guide or product one-pager. Only the TEXT reaches a prompt, as background —
             never as copy to reuse verbatim. Big documents are excerpted so one can&apos;t crowd out the rest.
           </p>
@@ -228,7 +228,7 @@ export function BrandContextSection({
             <FileText className="w-4 h-4 mt-0.5 shrink-0" style={{ color: "var(--mute)" }} />
             <div className="flex-1 min-w-0">
               <p className="text-xs font-semibold truncate">{d.name}</p>
-              <p className="text-[10px] text-[var(--mute)]">
+              <p className="text-micro text-[var(--mute)]">
                 {d.state === "extracting" && <>Being read now — refresh in a moment.</>}
                 {d.state === "ready" && (
                   <>
@@ -249,7 +249,7 @@ export function BrandContextSection({
                 {d.state === "ready" && (
                   <form action={toggleBrandDocumentAction}>
                     <input type="hidden" name="id" value={d.id} />
-                    <SubmitButton className="btn ghost !text-[10px]">
+                    <SubmitButton className="btn ghost !text-micro">
                       {d.includeInContext ? "Exclude" : "Include"}
                     </SubmitButton>
                   </form>
@@ -257,7 +257,7 @@ export function BrandContextSection({
                 {d.state === "failed" && d.storageKey && (
                   <form action={retryBrandDocumentAction}>
                     <input type="hidden" name="id" value={d.id} />
-                    <SubmitButton className="btn ghost !text-[10px]">Try again</SubmitButton>
+                    <SubmitButton className="btn ghost !text-micro">Try again</SubmitButton>
                   </form>
                 )}
                 <DeleteButton kind="brandDocument" id={d.id} name={d.name} iconOnly className="btn ghost !px-1 !py-0.5" />
@@ -270,13 +270,13 @@ export function BrandContextSection({
           <form action={uploadBrandDocumentAction} className="flex flex-col gap-2 rounded-lg bg-[var(--zebra)] px-3 py-2">
             <input name="name" placeholder="Name it (optional — the filename is used otherwise)" className="w-full text-xs" />
             <label className="text-xs">
-              <span className="block text-[10px] text-[var(--mute)] mb-1">
+              <span className="block text-micro text-[var(--mute)] mb-1">
                 Upload a file <span className="font-mono">({BRAND_DOC_ACCEPT}, up to {BRAND_DOC_MAX_BYTES / 1024 / 1024}MB)</span>
               </span>
               <input type="file" name="file" accept={BRAND_DOC_ACCEPT} className="w-full text-xs" />
             </label>
             <label className="text-xs">
-              <span className="block text-[10px] text-[var(--mute)] mb-1">
+              <span className="block text-micro text-[var(--mute)] mb-1">
                 …or paste the text — the reliable route for any format, and the only one for slides
               </span>
               <textarea name="pastedText" rows={3} placeholder="Paste your positioning, boilerplate, style notes…" className="w-full text-xs" />

@@ -170,7 +170,7 @@ function GhostSlot({ iso, onTake }: { iso: string; onTake: (at: Date) => void })
         setOver(false);
         onTake(at);
       }}
-      className="rounded-md px-1.5 py-0.5 text-[9px] font-mono border border-dashed flex items-center gap-1"
+      className="rounded-md px-1.5 py-0.5 text-micro font-mono border border-dashed flex items-center gap-1"
       style={{
         borderColor: over ? "var(--accent)" : "var(--line-2)",
         background: over ? "var(--accent-soft)" : "transparent",
@@ -412,7 +412,7 @@ export function SocialCalendar({ posts, freeSlots = [], initialFilter }: { posts
         draggable={!held}
         onDragStart={held ? undefined : () => setDragId(p.id)}
         onDragEnd={() => setDragId(null)}
-        className={`rounded-md px-1.5 py-1 text-[10px] leading-tight border ${held ? "cursor-default" : "cursor-grab active:cursor-grabbing"}`}
+        className={`rounded-md px-1.5 py-1 text-micro leading-tight border ${held ? "cursor-default" : "cursor-grab active:cursor-grabbing"}`}
         style={{
           background: ghost ? "transparent" : "var(--panel)",
           borderStyle: ghost ? "dashed" : "solid",
@@ -429,28 +429,28 @@ export function SocialCalendar({ posts, freeSlots = [], initialFilter }: { posts
           {p.providers.map((prov) => (
             <span key={prov} className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: networkFor(prov)?.color ?? "var(--mute)" }} />
           ))}
-          {time && <span className="font-mono text-[9px] text-[var(--mute)]">{time}</span>}
+          {time && <span className="font-mono text-micro text-[var(--mute)]">{time}</span>}
           <Link href={`/social/${p.id}/edit`} className="ml-auto text-[var(--mute)] hover:text-[var(--accent)]" title="Edit">
             <Pencil className="w-2.5 h-2.5" />
           </Link>
         </div>
         <div className="truncate">{p.text || <span className="italic text-[var(--mute)]">image only</span>}</div>
         {ghost && (
-          <div className="font-mono text-[9px]" style={{ color: held ? "var(--amber-on)" : "var(--mute)" }}>
+          <div className="font-mono text-micro" style={{ color: held ? "var(--amber-on)" : "var(--mute)" }}>
             {held ? (p.held === "changes" ? "changes requested" : "awaiting approval") : "proposed — not scheduled yet"}
           </div>
         )}
         {/* Accessible path: DnD is an enhancement, this always works. A held
             post's path is its review, not a date. */}
         {held ? (
-          <Link href="/social/approvals" className="text-[9px] underline text-[var(--mute)]">On Approvals</Link>
+          <Link href="/social/approvals" className="text-micro underline text-[var(--mute)]">On Approvals</Link>
         ) : control === "datetime" ? (
           <input
             type="datetime-local"
             aria-label={`Reschedule "${(p.text || "post").slice(0, 40)}"`}
             value={p.scheduledAt ? localInput(new Date(p.scheduledAt)) : ""}
             onChange={(e) => e.target.value && moveToDateTime(p.id, e.target.value)}
-            className="w-full mt-1 text-[9px] font-mono border border-[var(--line-2)] rounded px-1 py-0.5"
+            className="w-full mt-1 text-micro font-mono border border-[var(--line-2)] rounded px-1 py-0.5"
           />
         ) : (
           <input
@@ -458,7 +458,7 @@ export function SocialCalendar({ posts, freeSlots = [], initialFilter }: { posts
             aria-label={`Reschedule "${(p.text || "post").slice(0, 40)}"`}
             value={p.scheduledAt ? dayKey(new Date(p.scheduledAt)) : ""}
             onChange={(e) => e.target.value && moveTo(p.id, e.target.value)}
-            className="w-full mt-1 text-[9px] font-mono border border-[var(--line-2)] rounded px-1 py-0.5"
+            className="w-full mt-1 text-micro font-mono border border-[var(--line-2)] rounded px-1 py-0.5"
           />
         )}
       </div>
@@ -557,7 +557,7 @@ export function SocialCalendar({ posts, freeSlots = [], initialFilter }: { posts
       <div className="card !p-2">
         <div className="grid grid-cols-7 gap-1 mb-1">
           {WEEKDAYS.map((d) => (
-            <div key={d} className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)] text-center py-1">{d}</div>
+            <div key={d} className="text-micro font-mono uppercase tracking-wider text-[var(--mute)] text-center py-1">{d}</div>
           ))}
         </div>
         <div className="grid grid-cols-7 gap-1">
@@ -581,7 +581,7 @@ export function SocialCalendar({ posts, freeSlots = [], initialFilter }: { posts
                   background: isOver ? "var(--accent-soft)" : isPast ? "var(--zebra)" : "transparent",
                 }}
               >
-                <span className={`font-mono text-[10px] ${isToday ? "font-bold" : "text-[var(--mute)]"}`}>{day}</span>
+                <span className={`font-mono text-micro ${isToday ? "font-bold" : "text-[var(--mute)]"}`}>{day}</span>
                 {dayPosts.map((p) => <Chip key={p.id} p={p} />)}
                 {(freeByDay.get(key) ?? []).map((iso) => (
                   <GhostSlot
@@ -615,10 +615,10 @@ export function SocialCalendar({ posts, freeSlots = [], initialFilter }: { posts
                 return (
                   <div key={dayKey(d)} className="text-center py-1 rounded-md"
                     style={{ background: isToday ? "var(--blue-soft)" : "transparent" }}>
-                    <div className="text-[10px] font-mono uppercase tracking-wider" style={{ color: isToday ? "var(--blue-on)" : "var(--mute)" }}>
+                    <div className="text-micro font-mono uppercase tracking-wider" style={{ color: isToday ? "var(--blue-on)" : "var(--mute)" }}>
                       {WEEKDAYS[(d.getDay() + 6) % 7]}
                     </div>
-                    <div className={`font-mono text-[11px] ${isToday ? "font-bold" : "text-[var(--mute)]"}`}>
+                    <div className={`font-mono text-2xs ${isToday ? "font-bold" : "text-[var(--mute)]"}`}>
                       {d.getDate()}
                     </div>
                   </div>
@@ -629,7 +629,7 @@ export function SocialCalendar({ posts, freeSlots = [], initialFilter }: { posts
             {/* Hour rows */}
             <div className="grid gap-1" style={{ gridTemplateColumns: WEEK_COLUMNS }}>
               {Array.from({ length: lastHour - firstHour + 1 }, (_, i) => firstHour + i).flatMap((hour) => [
-                <div key={`h${hour}`} className="font-mono text-[10px] text-[var(--mute)] text-right pr-1 pt-0.5">
+                <div key={`h${hour}`} className="font-mono text-micro text-[var(--mute)] text-right pr-1 pt-0.5">
                   {hourLabel(hour)}
                 </div>,
                 ...weekDays.map((d) => {
@@ -659,7 +659,7 @@ export function SocialCalendar({ posts, freeSlots = [], initialFilter }: { posts
                     >
                       {/* Say where the drop will actually land, since it snaps. */}
                       {over && (
-                        <span className="font-mono text-[9px] self-end" style={{ color: "var(--accent-on)" }}>
+                        <span className="font-mono text-micro self-end" style={{ color: "var(--accent-on)" }}>
                           {hourLabel(hour, over.half)}
                         </span>
                       )}
@@ -674,7 +674,7 @@ export function SocialCalendar({ posts, freeSlots = [], initialFilter }: { posts
             </div>
           </div>
           {!allHours && (firstHour > 0 || lastHour < 23) && (
-            <p className="text-[10px] text-[var(--mute)] mt-1.5">
+            <p className="text-micro text-[var(--mute)] mt-1.5">
               Showing {hourLabel(firstHour)}–{hourLabel(lastHour)}. Nothing is hidden — the window widens to fit
               whatever is scheduled. Use <b>All 24h</b> to schedule outside it.
             </p>
@@ -685,7 +685,7 @@ export function SocialCalendar({ posts, freeSlots = [], initialFilter }: { posts
       {/* Drafts tray — drag one onto a day to schedule it. */}
       {drafts.length > 0 && (
         <div className="card mt-3">
-          <h3 className="font-mono text-[11px] font-bold mb-1.5">
+          <h3 className="font-mono text-2xs font-bold mb-1.5">
             Unscheduled drafts{" "}
             <span className="text-[var(--mute)] font-normal">
               {mode === "week"

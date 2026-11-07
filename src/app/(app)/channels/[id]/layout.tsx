@@ -49,8 +49,8 @@ export default async function ChannelLayout({
         {channels.length > 1 && (
           <form action={switchChannelAction} className="ml-auto">
             <input type="hidden" name="to" value="" />
-            <label className="flex items-center gap-2 font-mono text-[12px] font-semibold px-2 py-1 rounded-full border border-[var(--line-2)]" title="Switch channel — lands on this same page for the other channel">
-              <span className="text-[10px] uppercase tracking-wider text-[var(--mute)]">Channel</span>
+            <label className="flex items-center gap-2 font-mono text-xs font-semibold px-2 py-1 rounded-full border border-[var(--line-2)]" title="Switch channel — lands on this same page for the other channel">
+              <span className="text-micro uppercase tracking-wider text-[var(--mute)]">Channel</span>
               <ChannelSwitcher channels={channels} activeId={channel.id} keepSubpath />
             </label>
           </form>

@@ -37,7 +37,7 @@ export default async function ApiTokensPage() {
           <table className="w-full text-xs border-collapse">
             <thead>
               <tr className="text-left text-[var(--mute)]">
-                {["Name", "Token", "Can", "Made", "Last used", ""].map((h, i) => <th key={i} className="py-2 px-2 font-mono text-[9px] uppercase tracking-wider border-b-2 border-[var(--line)]">{h}</th>)}
+                {["Name", "Token", "Can", "Made", "Last used", ""].map((h, i) => <th key={i} className="py-2 px-2 font-mono text-micro uppercase tracking-wider border-b-2 border-[var(--line)]">{h}</th>)}
               </tr>
             </thead>
             <tbody>
@@ -46,11 +46,11 @@ export default async function ApiTokensPage() {
                   <td className="py-1.5 px-2 font-semibold">{t.name}</td>
                   <td className="py-1.5 px-2 font-mono">{t.prefix}…</td>
                   <td className="py-1.5 px-2">{t.scope === "write" ? "read and write" : "read"}</td>
-                  <td className="py-1.5 px-2">{formatZonedMoment(t.createdAt, tz)}<span className="block text-[10px] text-[var(--mute)]">by {t.createdById ? nameOf.get(t.createdById) ?? "someone who left" : "—"}</span></td>
+                  <td className="py-1.5 px-2">{formatZonedMoment(t.createdAt, tz)}<span className="block text-micro text-[var(--mute)]">by {t.createdById ? nameOf.get(t.createdById) ?? "someone who left" : "—"}</span></td>
                   <td className="py-1.5 px-2">{t.lastUsedAt ? formatZonedMoment(t.lastUsedAt, tz) : <span className="text-[var(--mute)]">never</span>}</td>
                   <td className="py-1.5 px-2 text-right">
                     {t.revokedAt ? (
-                      <span className="text-[10px] text-[var(--mute)]">revoked {formatZonedMoment(t.revokedAt, tz)}</span>
+                      <span className="text-micro text-[var(--mute)]">revoked {formatZonedMoment(t.revokedAt, tz)}</span>
                     ) : (
                       <form action={revokeApiTokenAction}>
                         <input type="hidden" name="id" value={t.id} />

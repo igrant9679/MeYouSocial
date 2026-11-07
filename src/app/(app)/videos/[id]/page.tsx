@@ -42,12 +42,12 @@ const STATUS_HUE: Record<string, string> = {
 };
 
 const SCENE_GRADIENTS = [
-  "linear-gradient(135deg,#2563EB,#0D9488)",
-  "linear-gradient(135deg,#6D28D9,#DB2777)",
-  "linear-gradient(135deg,#D97706,#E5482F)",
-  "linear-gradient(135deg,#15924B,#0891B2)",
-  "linear-gradient(135deg,#4F46E5,#7C3AED)",
-  "linear-gradient(135deg,#DB2777,#D97706)",
+  "linear-gradient(135deg,var(--blue),var(--teal))",
+  "linear-gradient(135deg,var(--violet),var(--pink))",
+  "linear-gradient(135deg,var(--amber),var(--brand))",
+  "linear-gradient(135deg,var(--green),var(--cyan))",
+  "linear-gradient(135deg,var(--indigo),var(--purple))",
+  "linear-gradient(135deg,var(--pink),var(--amber))",
 ];
 
 export default async function StoryboardPage({
@@ -98,14 +98,14 @@ export default async function StoryboardPage({
             {post && <> · from <Link href={`/blog/${post.id}`} className="underline">{post.title}</Link></>}
           </p>
         </div>
-        <span className="font-mono text-[11px] font-bold px-2.5 py-1 rounded-full" style={{ background: `var(--${hue}-soft)`, color: `var(--${hue}-on)` }}>
+        <span className="font-mono text-2xs font-bold px-2.5 py-1 rounded-full" style={{ background: `var(--${hue}-soft)`, color: `var(--${hue}-on)` }}>
           {render.status}
         </span>
       </div>
       {sp.flash && <Banner kind="ok" text={sp.flash} />}
       {sp.flashErr && <Banner kind="err" text={sp.flashErr} />}
       {(progress.line || jobActive) && (
-        <p className="font-mono text-[11px] mb-2" style={{ color: `var(--${hue}-on)` }} data-render-progress>
+        <p className="font-mono text-2xs mb-2" style={{ color: `var(--${hue}-on)` }} data-render-progress>
           {progress.line || "Starting…"}
           {jobActive && render.status === "queued" ? " · Render now is starting it" : ""}
           {progress.total > 1 && (render.status === "rendering" || render.status === "queued") && (
@@ -135,7 +135,7 @@ export default async function StoryboardPage({
               ? <>About <b className="font-mono" data-render-total>{usd(owed.usd)}</b> at {perSecondUsd(owed.perSecond!)} a second — the platform operator&apos;s price, an estimate, not a bill.</>
               : <>No price per second is set for this model, so this can&apos;t say what it costs — the platform operator sets one on Usage.</>}
           </p>
-          <p className="text-[11px] text-[var(--mute)] m-0 mb-2" data-render-month>
+          <p className="text-2xs text-[var(--mute)] m-0 mb-2" data-render-month>
             This month so far: {spend.seconds} seconds{spend.usd != null ? ` (about ${usd(spend.usd)})` : ""}
             {spend.budget != null ? <> of a {spend.budget}-second budget{spend.seconds + owed.seconds > spend.budget ? <b style={{ color: "var(--rose-on)" }}> — this render goes past it</b> : null}</> : " — no monthly budget set (Usage)"}.
           </p>
@@ -207,7 +207,7 @@ export default async function StoryboardPage({
               {editable ? (
                 <>
                 {/* A stopped or queued board is still editable — show where each scene is, and its clip. */}
-                <p className="font-mono text-[10px] text-[var(--mute)]" data-scene-state={sceneState(render.status, scene, i, scenes)}>
+                <p className="font-mono text-micro text-[var(--mute)]" data-scene-state={sceneState(render.status, scene, i, scenes)}>
                   <span style={{ color: SCENE_STATE_COLOR[sceneState(render.status, scene, i, scenes)] }}>{SCENE_STATE_LABEL[sceneState(render.status, scene, i, scenes)]}</span>
                   {scene.status === "done" && scene.outputUrl ? " · a new prompt or length renders it again" : ""}
                   {/* E-VID-06: each clip's cost at Veo's own granularity (4, 6 or 8 seconds). */}
@@ -219,15 +219,15 @@ export default async function StoryboardPage({
                 <form action={updateSceneAction} className="flex flex-col gap-2 flex-1">
                   <input type="hidden" name="id" value={render.id} />
                   <input type="hidden" name="index" value={i} />
-                  <textarea name="prompt" defaultValue={scene.prompt} rows={4} className="w-full text-[11px]" aria-label={`Scene ${i + 1} prompt`} />
+                  <textarea name="prompt" defaultValue={scene.prompt} rows={4} className="w-full text-2xs" aria-label={`Scene ${i + 1} prompt`} />
                   <AiAssist field="scene.prompt" target="prompt" label="Draft" className="!mt-0" />
-                  <input name="text" defaultValue={scene.text ?? ""} placeholder="on-screen text (≤8 words)" className="w-full text-[11px]" />
+                  <input name="text" defaultValue={scene.text ?? ""} placeholder="on-screen text (≤8 words)" className="w-full text-2xs" />
                   <div className="flex items-center gap-2">
                     {/* Veo renders 4, 6 or 8 seconds (VID-11). */}
-                    <select key={`seconds:${scene.seconds}`} name="seconds" defaultValue={scene.seconds} className="w-16 font-mono text-[11px]" aria-label="Seconds">
+                    <select key={`seconds:${scene.seconds}`} name="seconds" defaultValue={scene.seconds} className="w-16 font-mono text-2xs" aria-label="Seconds">
                       {SCENE_SECONDS.filter((s) => s <= Math.max(4, env.VIDEO_MAX_SECONDS)).map((s) => <option key={s} value={s}>{s}</option>)}
                     </select>
-                    <span className="text-[10px] text-[var(--mute)]">sec</span>
+                    <span className="text-micro text-[var(--mute)]">sec</span>
                     <span className="flex-1" />
                     <SubmitButton className="btn sm">Save</SubmitButton>
                   </div>
@@ -244,12 +244,12 @@ export default async function StoryboardPage({
                 </>
               ) : (
                 <>
-                  <p className="text-[11px] leading-snug flex-1">{scene.prompt}</p>
-                  {scene.text && <p className="text-[11px] font-semibold">“{scene.text}”</p>}
+                  <p className="text-2xs leading-snug flex-1">{scene.prompt}</p>
+                  {scene.text && <p className="text-2xs font-semibold">“{scene.text}”</p>}
                   {(() => {
                     const st = sceneState(render.status, scene, i, scenes);
                     return (
-                      <p className="font-mono text-[10px] text-[var(--mute)]" data-scene-state={st}>
+                      <p className="font-mono text-micro text-[var(--mute)]" data-scene-state={st}>
                         {scene.seconds}s{perSecond != null ? ` (${usd(scene.seconds * perSecond)})` : ""} ·{" "}
                         <span style={{ color: SCENE_STATE_COLOR[st] }}>{SCENE_STATE_LABEL[st]}</span>
                       </p>
@@ -284,9 +284,9 @@ export default async function StoryboardPage({
           <form action={addSceneAction} className="card border-dashed flex flex-col gap-2 justify-center" style={{ borderStyle: "dashed" }}>
             <input type="hidden" name="id" value={render.id} />
             <div className="flex items-center gap-2 text-sm font-semibold text-[var(--mute)]"><Plus className="w-4 h-4" /> Add scene</div>
-            <textarea name="prompt" rows={3} placeholder="Visual prompt…" className="w-full text-[11px]" />
+            <textarea name="prompt" rows={3} placeholder="Visual prompt…" className="w-full text-2xs" />
             <AiAssist field="scene.prompt" target="prompt" label="Draft" className="!mt-0" />
-            <input name="text" placeholder="on-screen text" className="w-full text-[11px]" />
+            <input name="text" placeholder="on-screen text" className="w-full text-2xs" />
             <div><SubmitButton className="btn sm">Add</SubmitButton></div>
           </form>
         )}
@@ -295,20 +295,20 @@ export default async function StoryboardPage({
       {/* Full video — the deliverable for a multi-scene board */}
       {render.status === "done" && scenes.length > 1 && (
         <div className="card mb-4">
-          <h2 className="font-mono text-[13px] font-bold mb-2 flex items-center gap-1.5">
+          <h2 className="font-mono text-sm font-bold mb-2 flex items-center gap-1.5">
             <Film className="w-4 h-4" /> Full video
           </h2>
           {render.assembledUrl ? (
             <>
               <video src={render.assembledUrl} controls className="w-full max-w-sm rounded-xl border border-[var(--line)]" />
-              <p className="text-[11px] text-[var(--mute)] mt-1.5">
+              <p className="text-2xs text-[var(--mute)] mt-1.5">
                 All {renderedClips} clips stitched into one file
                 {render.voiceoverUrl ? ", narration muxed over the cut where available" : ""}.{" "}
                 {render.captionsBurned ? "Captions are burned into the picture." : "Captions stay separate SRT/VTT files — tick Burn captions in and re-assemble to draw them into the picture."}
               </p>
               {/* A burn that failed leaves the cut without captions and says why (E-VID-08). */}
               {render.assemblyError && (
-                <p className="text-[11px] mt-1.5 px-2.5 py-1.5 rounded-lg" style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }} data-burn-note="">
+                <p className="text-2xs mt-1.5 px-2.5 py-1.5 rounded-lg" style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }} data-burn-note="">
                   {render.assemblyError}
                 </p>
               )}
@@ -318,7 +318,7 @@ export default async function StoryboardPage({
                   <form action={assembleRenderAction} className="flex items-center gap-1.5" data-assemble-form="">
                     <input type="hidden" name="id" value={render.id} />
                     <input type="hidden" name="burnChoice" value="1" />
-                    <label className="inline-flex items-center gap-1 text-[11px]" title={render.srt ? "Draw the captions into the picture" : "Generate captions first"}>
+                    <label className="inline-flex items-center gap-1 text-2xs" title={render.srt ? "Draw the captions into the picture" : "Generate captions first"}>
                       <input type="checkbox" name="burn" defaultChecked={render.burnCaptions} disabled={!render.srt} /> Burn captions in
                     </label>
                     <SubmitButton className="btn sm" pendingText="Assembling…">Re-assemble</SubmitButton>
@@ -340,7 +340,7 @@ export default async function StoryboardPage({
                       : "Assembly needs at least two rendered scenes."}
               </p>
               {render.assemblyError && (
-                <p className="text-[11px] mt-1.5 px-2.5 py-1.5 rounded-lg" style={{ background: "var(--rose-soft)", color: "var(--rose-on)" }}>
+                <p className="text-2xs mt-1.5 px-2.5 py-1.5 rounded-lg" style={{ background: "var(--rose-soft)", color: "var(--rose-on)" }}>
                   {render.assemblyError}
                 </p>
               )}
@@ -351,7 +351,7 @@ export default async function StoryboardPage({
                   <form action={assembleRenderAction} className="flex flex-wrap items-center gap-2" data-assemble-form="">
                     <input type="hidden" name="id" value={render.id} />
                     <input type="hidden" name="burnChoice" value="1" />
-                    <label className="inline-flex items-center gap-1 text-[11px]" title={render.srt ? "Draw the captions into the picture" : "Generate captions first"}>
+                    <label className="inline-flex items-center gap-1 text-2xs" title={render.srt ? "Draw the captions into the picture" : "Generate captions first"}>
                       <input type="checkbox" name="burn" defaultChecked={render.burnCaptions} disabled={!render.srt} /> Burn captions in
                     </label>
                     <SubmitButton className="btn primary" pendingText="Assembling… (encodes every clip)">
@@ -368,9 +368,9 @@ export default async function StoryboardPage({
       {/* Output — single-clip boards; multi-scene clips already play per scene */}
       {render.status === "done" && scenes.length <= 1 && (render.storedUrl || render.outputUrl) && (
         <div className="card mb-4">
-          <h2 className="font-mono text-[13px] font-bold mb-2">Output</h2>
+          <h2 className="font-mono text-sm font-bold mb-2">Output</h2>
           <video src={render.storedUrl ?? render.outputUrl!} controls className="w-full max-w-sm rounded-xl border border-[var(--line)]" />
-          <p className="text-[11px] text-[var(--mute)] mt-1.5">
+          <p className="text-2xs text-[var(--mute)] mt-1.5">
             {render.storedUrl
               ? "Persisted to storage — safe from provider URL expiry."
               : render.provider === "veo"
@@ -389,7 +389,7 @@ export default async function StoryboardPage({
 
       {render.voiceoverUrl && (
         <div className="card mb-4">
-          <h2 className="font-mono text-[13px] font-bold mb-1">Voiceover</h2>
+          <h2 className="font-mono text-sm font-bold mb-1">Voiceover</h2>
           {render.voiceoverUrl.endsWith(".txt") || render.voiceoverUrl.includes("voiceover-script") ? (
             <p className="text-xs text-[var(--mute)]">
               Mock TTS — the narration script is stored as text (<a href={render.voiceoverUrl} className="underline">view</a>).
@@ -398,7 +398,7 @@ export default async function StoryboardPage({
           ) : (
             <>
               <audio src={render.voiceoverUrl} controls className="w-full max-w-sm" />
-              <p className="text-[11px] text-[var(--mute)] mt-1" data-voice-note="">
+              <p className="text-2xs text-[var(--mute)] mt-1" data-voice-note="">
                 Read from {render.narrationSource === "script" ? "the script" : "the scene lines"}
                 {render.voiceId ? <> · voice <span className="font-mono">{render.voiceId}</span></> : null}
                 {render.voiceWords ? " · timed word by word, so captions can follow it" : ""}.
@@ -414,13 +414,13 @@ export default async function StoryboardPage({
           <div className="flex flex-wrap items-center gap-2 mt-2">
             <a href={`/videos/${render.id}/captions?format=srt`} className="btn sm" data-captions-download="srt"><Download className="w-3.5 h-3.5" /> .srt</a>
             <a href={`/videos/${render.id}/captions?format=vtt`} className="btn sm" data-captions-download="vtt"><Download className="w-3.5 h-3.5" /> .vtt</a>
-            <span className="text-[11px] text-[var(--mute)]" data-captions-timing={render.captionsTimedBy ?? "scenes"}>
+            <span className="text-2xs text-[var(--mute)]" data-captions-timing={render.captionsTimedBy ?? "scenes"}>
               {render.captionsTimedBy === "voice" ? "Timed to the narration, word by word." : "Timed from scene durations."}
               {render.captionsTimedBy !== "voice" && render.voiceWords ? " Regenerate captions to time them to the narration." : ""}
             </span>
           </div>
-          <pre className="mt-2 text-[11px] font-code whitespace-pre-wrap p-2 rounded-lg" style={{ background: "var(--panel)" }}>{render.srt}</pre>
-          <p className="text-[11px] text-[var(--mute)] mt-1">Upload either file to YouTube, or burn them into the picture when you assemble.</p>
+          <pre className="mt-2 text-2xs font-code whitespace-pre-wrap p-2 rounded-lg" style={{ background: "var(--panel)" }}>{render.srt}</pre>
+          <p className="text-2xs text-[var(--mute)] mt-1">Upload either file to YouTube, or burn them into the picture when you assemble.</p>
         </details>
       )}
     </main>

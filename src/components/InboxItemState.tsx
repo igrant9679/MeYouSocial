@@ -55,7 +55,7 @@ export function InboxItemState({
   if (state === "aside") {
     return (
       <div className="flex flex-wrap items-center gap-2">
-        <span className="font-mono text-[9.5px] text-[var(--mute)]">
+        <span className="font-mono text-micro text-[var(--mute)]">
           Set aside{actorName ? ` by ${actorName}` : ""}
           {reason ? ` — “${reason}”` : ""}
         </span>
@@ -72,7 +72,7 @@ export function InboxItemState({
   return (
     <div className="flex flex-wrap items-center gap-2">
       {state === "read" ? (
-        <span className="font-mono text-[9.5px] text-[var(--mute)] inline-flex items-center gap-1">
+        <span className="font-mono text-micro text-[var(--mute)] inline-flex items-center gap-1">
           <Check className="w-3 h-3" style={{ color: "var(--green-on)" }} /> Read
         </span>
       ) : (
@@ -90,7 +90,7 @@ export function InboxItemState({
           <input
             name="reason"
             placeholder="why not (optional)"
-            className="text-[11px] w-40"
+            className="text-2xs w-40"
             aria-label="Why this is being set aside"
           />
         )}

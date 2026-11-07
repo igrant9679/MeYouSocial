@@ -111,16 +111,16 @@ export function LeftRailNav({ items }: { items: LeftRailItem[] }) {
           // container is narrow (rail collapse; see (app)/layout.tsx).
           // `hiddenWide` = this item's group is folded: gone from the wide
           // rail, still present as an icon in the narrow one.
-          "group flex items-center justify-center @6xl:justify-start gap-3 px-2 @6xl:px-3.5 py-2.5 rounded-xl text-[15px] font-semibold min-h-[48px] transition-colors " +
+          "group flex items-center justify-center @6xl:justify-start gap-3 px-2 @6xl:px-3.5 py-2.5 rounded-xl text-sm font-semibold min-h-[48px] transition-colors " +
           (hiddenWide ? "@6xl:hidden " : "") +
           (isActive ? "text-white" : "text-[var(--slate)] hover:bg-[var(--zebra)]")
         }
-        style={isActive ? { background: n.color, boxShadow: `0 4px 12px ${n.color}44` } : undefined}
+        style={isActive ? { background: n.color, boxShadow: `0 4px 12px color-mix(in srgb, ${n.color} 27%, transparent)` } : undefined}
       >
         <Icon
           className="w-[22px] h-[22px] flex-shrink-0 transition-transform duration-150 ease-out group-hover:-translate-y-0.5 group-hover:scale-110 motion-reduce:transform-none"
           strokeWidth={2.25}
-          style={{ color: isActive ? "#ffffff" : n.color }}
+          style={{ color: isActive ? "white" : n.color }}
         />
         <span className="hidden @6xl:inline">{n.label}</span>
       </Link>
@@ -152,7 +152,7 @@ export function LeftRailNav({ items }: { items: LeftRailItem[] }) {
               type="button"
               onClick={() => setManual((m) => ({ ...m, [entry.group]: !isOpen(entry.group) }))}
               aria-expanded={isOpen(entry.group)}
-              className="hidden @6xl:flex items-center gap-1.5 px-3 py-1.5 mt-2 rounded-lg font-mono text-[12px] font-bold uppercase tracking-[0.14em] transition-transform hover:translate-x-0.5 motion-reduce:transform-none select-none"
+              className="hidden @6xl:flex items-center gap-1.5 px-3 py-1.5 mt-2 rounded-lg font-mono text-xs font-bold uppercase tracking-[0.14em] transition-transform hover:translate-x-0.5 motion-reduce:transform-none select-none"
               style={{ color: entry.items[0].color, background: entry.items[0].soft }}
             >
               <ChevronRight
@@ -165,7 +165,7 @@ export function LeftRailNav({ items }: { items: LeftRailItem[] }) {
                   header honest about not being empty. */}
               {!isOpen(entry.group) && (
                 <span
-                  className="ml-auto text-[10px] font-bold px-1.5 py-0.5 rounded-full text-white"
+                  className="ml-auto text-micro font-bold px-1.5 py-0.5 rounded-full text-white"
                   style={{ background: entry.items[0].color }}
                 >
                   {entry.items.length}

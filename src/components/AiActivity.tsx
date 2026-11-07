@@ -138,7 +138,7 @@ export function AiActivity() {
 
       {open && (
         <div className="absolute right-0 top-full mt-2 w-80 rounded-xl border border-[var(--line)] shadow-lg p-3 z-50 flex flex-col gap-2.5" style={{ background: "var(--bg)" }}>
-          <div className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">AI activity</div>
+          <div className="text-micro font-mono uppercase tracking-wider text-[var(--mute)]">AI activity</div>
           {items.map((i) => (
             <div key={i.id} className="flex flex-col gap-1">
               <div className="flex items-center gap-2 text-xs">
@@ -146,7 +146,7 @@ export function AiActivity() {
                 {i.state === "failed" && <X className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "var(--rose-on)" }} />}
                 <span className="font-semibold truncate">{i.label}</span>
                 <span className="flex-1" />
-                <span className="font-mono text-[10px] text-[var(--mute)]">
+                <span className="font-mono text-micro text-[var(--mute)]">
                   {i.state === "queued" ? "queued"
                     : i.state === "running" ? (i.progress != null ? `${Math.round(i.progress * 100)}%` : "working…")
                     : i.state}
@@ -160,10 +160,10 @@ export function AiActivity() {
                   />
                 </div>
               )}
-              {i.detail && <div className="text-[10px] text-[var(--mute)] truncate" title={i.detail}>{i.detail}</div>}
+              {i.detail && <div className="text-micro text-[var(--mute)] truncate" title={i.detail}>{i.detail}</div>}
             </div>
           ))}
-          <div className="text-[10px] text-[var(--mute)]">
+          <div className="text-micro text-[var(--mute)]">
             The page refreshes itself when something finishes.
           </div>
         </div>

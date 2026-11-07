@@ -66,13 +66,13 @@ export default async function AssistantThreadPage({ params, searchParams }: { pa
                 {m.role === "user"
                   ? <UserIcon className="w-3.5 h-3.5" style={{ color: "var(--mute)" }} />
                   : <Bot className="w-3.5 h-3.5" style={{ color: "var(--violet-on)" }} />}
-                <span className="font-mono text-[10px] uppercase tracking-wider text-[var(--mute)]">{m.role}</span>
+                <span className="font-mono text-micro uppercase tracking-wider text-[var(--mute)]">{m.role}</span>
                 {m.role === "assistant" && (m.inputTokens != null || m.outputTokens != null) && (
-                  <span className="font-mono text-[10px] text-[var(--mute)]" data-reply-tokens title="What this reply's model calls took — Settings → Usage has the month">
+                  <span className="font-mono text-micro text-[var(--mute)]" data-reply-tokens title="What this reply's model calls took — Settings → Usage has the month">
                     {(m.inputTokens ?? 0).toLocaleString("en-GB")} in · {(m.outputTokens ?? 0).toLocaleString("en-GB")} out
                   </span>
                 )}
-                {confirm && <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full inline-flex items-center gap-1" style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }}><ShieldQuestion className="w-3 h-3" /> waiting for your yes</span>}
+                {confirm && <span className="font-mono text-micro px-1.5 py-0.5 rounded-full inline-flex items-center gap-1" style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }}><ShieldQuestion className="w-3 h-3" /> waiting for your yes</span>}
               </div>
               {m.role === "user"
                 ? <p className="text-sm whitespace-pre-wrap leading-relaxed">{m.content}</p>
@@ -83,15 +83,15 @@ export default async function AssistantThreadPage({ params, searchParams }: { pa
               )}
               {tools.length > 0 && (
                 <details className="mt-2">
-                  <summary className="cursor-pointer text-[10px] font-mono text-[var(--mute)] inline-flex items-center gap-1">
+                  <summary className="cursor-pointer text-micro font-mono text-[var(--mute)] inline-flex items-center gap-1">
                     <Wrench className="w-3 h-3" /> {tools.length} tool call{tools.length === 1 ? "" : "s"}
                   </summary>
                   <ul className="mt-1 flex flex-col gap-1">
                     {tools.map((s, i) => (
                       <li key={i} className="rounded bg-[var(--zebra)] px-2 py-1">
-                        <span className="font-mono text-[10px]" style={{ color: s.ok ? "var(--green-on)" : "var(--rose-on)" }}>{s.tool}</span>
-                        <span className="font-mono text-[10px] text-[var(--mute)]"> {JSON.stringify(s.args)}</span>
-                        <pre className="text-[10px] whitespace-pre-wrap text-[var(--mute)] mt-0.5">{s.output}</pre>
+                        <span className="font-mono text-micro" style={{ color: s.ok ? "var(--green-on)" : "var(--rose-on)" }}>{s.tool}</span>
+                        <span className="font-mono text-micro text-[var(--mute)]"> {JSON.stringify(s.args)}</span>
+                        <pre className="text-micro whitespace-pre-wrap text-[var(--mute)] mt-0.5">{s.output}</pre>
                       </li>
                     ))}
                   </ul>
@@ -109,7 +109,7 @@ export default async function AssistantThreadPage({ params, searchParams }: { pa
                     </form>
                   ))}
                   {undone.map((s, i) => (
-                    <span key={i} className="text-[10px] font-mono text-[var(--mute)]" data-undone>↩ undone {s.undo?.done ? formatZonedMoment(new Date(s.undo.done), tz) : ""}</span>
+                    <span key={i} className="text-micro font-mono text-[var(--mute)]" data-undone>↩ undone {s.undo?.done ? formatZonedMoment(new Date(s.undo.done), tz) : ""}</span>
                   ))}
                 </div>
               )}
@@ -135,7 +135,7 @@ export default async function AssistantThreadPage({ params, searchParams }: { pa
       )}
 
       <AssistantComposer threadId={thread.id} channelId={active?.id ?? null} />
-      <p className="text-[10px] text-[var(--mute)] mt-2 inline-flex items-center gap-1"><HelpCircle className="w-3 h-3" /> Anything outward-facing or hard to undo is proposed first and runs only when you say yes. The same conversation is in the Ask dock on every page.</p>
+      <p className="text-micro text-[var(--mute)] mt-2 inline-flex items-center gap-1"><HelpCircle className="w-3 h-3" /> Anything outward-facing or hard to undo is proposed first and runs only when you say yes. The same conversation is in the Ask dock on every page.</p>
     </main>
   );
 }

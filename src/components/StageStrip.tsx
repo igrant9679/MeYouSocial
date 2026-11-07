@@ -81,7 +81,7 @@ export function StageStrip({
     if (!c || c.n <= 0) return null;
     return (
       <span
-        className="font-mono text-[9.5px] font-bold px-1.5 py-px rounded-full leading-4 tabular-nums"
+        className="font-mono text-micro font-bold px-1.5 py-px rounded-full leading-4 tabular-nums"
         style={c.urgent ? { background: "var(--rose-soft)", color: "var(--rose-on)" } : { background: "var(--zebra)", color: "var(--mute)" }}
         title={c.urgent ? `${c.n} waiting on a person` : `${c.n}`}
       >
@@ -96,7 +96,7 @@ export function StageStrip({
   const moreBadge = folded.reduce((n, t) => n + (counts[t.href.split("?")[0]]?.n ?? 0), 0);
   const moreUrgent = folded.some((t) => counts[t.href.split("?")[0]]?.urgent);
 
-  const linkClass = "text-[11px] font-semibold px-2.5 py-2 border-b-2 -mb-px transition-colors inline-flex items-center gap-1.5";
+  const linkClass = "text-2xs font-semibold px-2.5 py-2 border-b-2 -mb-px transition-colors inline-flex items-center gap-1.5";
   const lit = { borderColor: "var(--accent)", color: "var(--accent-on)" };
   const dim = { borderColor: "transparent", color: "var(--mute)" };
 
@@ -105,7 +105,7 @@ export function StageStrip({
       aria-label={`${stage.label} pages`}
       className="sticky top-0 z-30 -mx-6 -mt-6 mb-5 px-6 flex items-center gap-1 flex-wrap max-sm:flex-nowrap max-sm:overflow-x-auto max-sm:whitespace-nowrap border-b border-[var(--line)] bg-[var(--panel)]"
     >
-      <span className="font-mono text-[10.5px] font-bold uppercase tracking-wider text-[var(--mute)] pr-2 py-2">{stage.label}</span>
+      <span className="font-mono text-micro font-bold uppercase tracking-wider text-[var(--mute)] pr-2 py-2">{stage.label}</span>
       <Link href={stage.href} aria-current={pathname === stage.href && !pendingHref ? "page" : undefined} className={linkClass} style={onOverview ? lit : dim} onClick={press(stage.href)} data-pending={onOverview && pendingHref ? "" : undefined}>
         Overview{badge(stage.href)}
       </Link>
@@ -124,11 +124,11 @@ export function StageStrip({
         // Keyed on the clicked tab too, so picking one from More closes the menu at once.
         <details key={`${pathname}|${pendingHref ?? ""}`} className="relative hidden sm:block xl:hidden" data-strip-more>
           <summary className={`${linkClass} cursor-pointer list-none`} style={dim}>
-            More ▾{moreBadge > 0 && <span className="font-mono text-[9.5px] font-bold px-1.5 py-px rounded-full leading-4" style={{ background: moreUrgent ? "var(--rose-soft)" : "var(--zebra)", color: moreUrgent ? "var(--rose-on)" : "var(--mute)" }}>{moreBadge}</span>}
+            More ▾{moreBadge > 0 && <span className="font-mono text-micro font-bold px-1.5 py-px rounded-full leading-4" style={{ background: moreUrgent ? "var(--rose-soft)" : "var(--zebra)", color: moreUrgent ? "var(--rose-on)" : "var(--mute)" }}>{moreBadge}</span>}
           </summary>
           <div className="absolute right-0 top-full mt-1 z-40 min-w-44 rounded-lg border border-[var(--line)] bg-[var(--panel)] shadow-lg py-1 flex flex-col">
             {folded.map((t) => (
-              <Link key={t.href} href={t.href} onClick={press(t.href)} className="text-[12px] px-3 py-1.5 hover:bg-[var(--zebra)] flex items-center justify-between gap-2">
+              <Link key={t.href} href={t.href} onClick={press(t.href)} className="text-xs px-3 py-1.5 hover:bg-[var(--zebra)] flex items-center justify-between gap-2">
                 {t.label}{badge(t.href)}
               </Link>
             ))}
@@ -136,7 +136,7 @@ export function StageStrip({
         </details>
       )}
       {HELP_FOR[key] && (
-        <Link href={`/help?cat=${HELP_FOR[key]}`} className="ml-auto text-[11px] font-mono font-bold w-6 h-6 grid place-items-center rounded-full border border-[var(--line)] text-[var(--mute)] hover:text-[var(--ink)]" title={`Help with ${stage.label}`} aria-label={`Help with ${stage.label}`} data-strip-help>
+        <Link href={`/help?cat=${HELP_FOR[key]}`} className="ml-auto text-2xs font-mono font-bold w-6 h-6 grid place-items-center rounded-full border border-[var(--line)] text-[var(--mute)] hover:text-[var(--ink)]" title={`Help with ${stage.label}`} aria-label={`Help with ${stage.label}`} data-strip-help>
           ?
         </Link>
       )}

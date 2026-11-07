@@ -29,7 +29,7 @@ export default function AppError({ error, unstable_retry }: { error: Error & { d
           <Link href="/inbox" className="btn">Go to the Inbox</Link>
         </div>
         {error.digest && (
-          <p className="text-[11px] text-[var(--mute)] m-0">
+          <p className="text-2xs text-[var(--mute)] m-0">
             If it keeps happening, tell the platform operator this reference: <span className="font-code">{error.digest}</span>
           </p>
         )}

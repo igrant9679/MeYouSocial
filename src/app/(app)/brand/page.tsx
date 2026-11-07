@@ -93,12 +93,12 @@ export default async function BrandPage({ searchParams }: { searchParams: Promis
         {admin ? (
           <div className="flex items-center gap-3">
             <SubmitButton className="btn primary self-start">Save brand identity</SubmitButton>
-            <span className="text-[11px] text-[var(--mute)]">
+            <span className="text-2xs text-[var(--mute)]">
               Image sizes, tone guardrails and asset policy live in <Link href="/blog/brand" className="underline">Tone &amp; motifs</Link>.
             </span>
           </div>
         ) : (
-          <p className="text-[11px] text-[var(--mute)]">Admins can edit brand identity.</p>
+          <p className="text-2xs text-[var(--mute)]">Admins can edit brand identity.</p>
         )}
       </form>
 
@@ -110,11 +110,11 @@ export default async function BrandPage({ searchParams }: { searchParams: Promis
           // eslint-disable-next-line @next/next/no-img-element
           <img src={logoUrl} alt="" className="w-9 h-9 rounded-xl object-cover border border-[var(--line)]" />
         ) : (
-          <span className="text-[11px] font-mono text-[var(--mute)]">default logo</span>
+          <span className="text-2xs font-mono text-[var(--mute)]">default logo</span>
         )}
         <span className="inline-flex items-center gap-1.5 text-xs font-mono">
-          <span className="w-5 h-5 rounded-md border border-[var(--line)]" style={{ background: workspace.accentColor ?? "#E5482F" }} />
-          {workspace.accentColor ?? "#E5482F (default)"}
+          <span className="w-5 h-5 rounded-md border border-[var(--line)]" style={{ background: workspace.accentColor ?? "var(--brand)" }} />
+          {workspace.accentColor ?? "var(--brand) (default)"}
         </span>
         <span className="flex-1" />
         {admin && <Link href="/admin/settings" className="btn sm">Change <ExternalLink className="w-3 h-3" /></Link>}
@@ -191,7 +191,7 @@ export default async function BrandPage({ searchParams }: { searchParams: Promis
             if (!group.length) return null;
             return (
               <div key={kind} className="mb-2" data-brand-group={kind}>
-                <span className="block text-[10px] font-mono uppercase tracking-wider text-[var(--mute)] mb-1">{kind === "expert" ? "Experts — speak in drafts" : "Audience personas — content is for them"}</span>
+                <span className="block text-micro font-mono uppercase tracking-wider text-[var(--mute)] mb-1">{kind === "expert" ? "Experts — speak in drafts" : "Audience personas — content is for them"}</span>
                 <ul className="flex flex-wrap gap-2 m-0 p-0 list-none">
                   {group.map((p) => (
                     <li key={p.id} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-[var(--line-2)] text-xs">
@@ -214,7 +214,7 @@ export default async function BrandPage({ searchParams }: { searchParams: Promis
           <div className="card">
             <p className="text-sm mb-1"><b>{keywordCount}</b> keyword{keywordCount === 1 ? "" : "s"}</p>
             {clusterNames.length > 0 && (
-              <p className="text-[11px] font-mono text-[var(--mute)] mb-2">clusters: {clusterNames.join(" · ")}</p>
+              <p className="text-2xs font-mono text-[var(--mute)] mb-2">clusters: {clusterNames.join(" · ")}</p>
             )}
             <Link href="/blog/keywords" className="btn sm">Manage keywords <ExternalLink className="w-3 h-3" /></Link>
           </div>
@@ -243,7 +243,7 @@ export default async function BrandPage({ searchParams }: { searchParams: Promis
         </div>
       </div>
 
-      <p className="text-[11px] text-[var(--mute)]">
+      <p className="text-2xs text-[var(--mute)]">
         Tone of voice (the 7 Motifs) and asset policy live in <Link href="/blog/brand" className="underline">Tone &amp; motifs</Link>.
       </p>
     </div>
@@ -258,7 +258,7 @@ function SectionHead({ icon, title, note, tip }: { icon: React.ReactNode; title:
         {title}
         {tip && <HelpTip text={tip} side="bottom" wide />}
       </h2>
-      <span className="text-[11px] text-[var(--mute)]">{note}</span>
+      <span className="text-2xs text-[var(--mute)]">{note}</span>
     </div>
   );
 }

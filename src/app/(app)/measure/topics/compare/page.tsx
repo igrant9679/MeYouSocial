@@ -12,7 +12,7 @@ import { CsvButton } from "@/components/CsvButton";
 // weeks — clicks, posts sent and their engagement — with each Topic's own
 // articles and posts and what they earned. A dash is unmeasured, never zero.
 
-const th = "py-1.5 px-2 font-mono text-[9px] uppercase tracking-wider border-b-2 border-[var(--line)] text-left";
+const th = "py-1.5 px-2 font-mono text-micro uppercase tracking-wider border-b-2 border-[var(--line)] text-left";
 const td = "py-1.5 px-2 border-b border-[var(--line)] align-top";
 const dash = <span className="text-[var(--mute)]" title="Not measured">—</span>;
 const n = (v: number | null) => (v === null ? dash : <span className="font-mono tabular-nums">{v.toLocaleString("en-GB")}</span>);
@@ -79,7 +79,7 @@ export default async function CompareTopicsPage({ searchParams }: { searchParams
                 </tbody>
               </table>
             </div>
-            <p className="text-[10px] text-[var(--mute)] mt-2 mb-0">Clicks from Search Console readings of each Topic&apos;s published articles; engagement is what the posts sent in the range have earned so far (the networks report lifetime totals).</p>
+            <p className="text-micro text-[var(--mute)] mt-2 mb-0">Clicks from Search Console readings of each Topic&apos;s published articles; engagement is what the posts sent in the range have earned so far (the networks report lifetime totals).</p>
           </section>
 
           <section className="card mb-4" data-compare-weeks>
@@ -127,13 +127,13 @@ export default async function CompareTopicsPage({ searchParams }: { searchParams
 function Items({ title, items, empty }: { title: string; items: CompareItem[]; empty: string }) {
   return (
     <div className="mb-3">
-      <p className="text-[11px] font-semibold mb-1">{title}</p>
+      <p className="text-2xs font-semibold mb-1">{title}</p>
       {items.length === 0 ? <p className="text-xs text-[var(--mute)] m-0">{empty}</p> : (
         <ul className="m-0 p-0 list-none flex flex-col gap-1 text-xs">
           {items.map((it) => (
             <li key={it.id} className="flex items-center gap-2 min-w-0" data-item={it.id}>
               <Link href={it.href} className="flex-1 min-w-0 truncate hover:underline">{it.title}</Link>
-              {it.extra && <span className="font-mono text-[10px] text-[var(--mute)] shrink-0">{it.extra}</span>}
+              {it.extra && <span className="font-mono text-micro text-[var(--mute)] shrink-0">{it.extra}</span>}
               <span className="shrink-0">{n(it.value)}</span>
             </li>
           ))}

@@ -44,9 +44,9 @@ export function ScriptOutline({ body, onJump, onReplace }: {
         {sections.map((s, i) => (
           <li key={`${s.offset}-${i}`}>
             <button type="button" onClick={() => onJump(s.offset, 0)} className="w-full text-left flex items-baseline gap-2 py-1 px-1 rounded hover:bg-[var(--zebra)]" data-outline-section={s.offset}>
-              <span className="font-mono text-[10px] text-[var(--mute)] w-9 shrink-0">{mmss(s.startsAt)}</span>
+              <span className="font-mono text-micro text-[var(--mute)] w-9 shrink-0">{mmss(s.startsAt)}</span>
               <span className="flex-1 truncate">{s.title}</span>
-              <span className="font-mono text-[10px] text-[var(--mute)]" title={`${s.words} spoken words`}>{mmss(s.seconds)}</span>
+              <span className="font-mono text-micro text-[var(--mute)]" title={`${s.words} spoken words`}>{mmss(s.seconds)}</span>
             </button>
           </li>
         ))}
@@ -55,11 +55,11 @@ export function ScriptOutline({ body, onJump, onReplace }: {
       <div className="mt-3 border-t border-[var(--line)] pt-2">
         <div className="flex items-center gap-2 mb-1">
           <span className="font-semibold">Retention markers</span>
-          <select value={every} onChange={(e) => setEvery(Number(e.target.value) as (typeof EVERY)[number])} className="border border-[var(--line-2)] rounded-md px-1 py-0.5 text-[11px]" aria-label="Marker interval" data-marker-every>
+          <select value={every} onChange={(e) => setEvery(Number(e.target.value) as (typeof EVERY)[number])} className="border border-[var(--line-2)] rounded-md px-1 py-0.5 text-2xs" aria-label="Marker interval" data-marker-every>
             {EVERY.map((n) => <option key={n} value={n}>every {n}s</option>)}
           </select>
         </div>
-        <p className="m-0 mb-1 text-[10px] text-[var(--mute)]">Where a viewer is likely to drift — a place to re-hook them.</p>
+        <p className="m-0 mb-1 text-micro text-[var(--mute)]">Where a viewer is likely to drift — a place to re-hook them.</p>
         {markers.length === 0 ? (
           <p className="m-0 text-[var(--mute)]">The read is shorter than {every} seconds.</p>
         ) : (
@@ -67,7 +67,7 @@ export function ScriptOutline({ body, onJump, onReplace }: {
             {markers.map((m) => (
               <li key={m.at}>
                 <button type="button" onClick={() => onJump(m.offset, 0)} className="w-full text-left flex items-baseline gap-2 py-0.5 px-1 rounded hover:bg-[var(--zebra)]" data-outline-marker={m.at}>
-                  <span className="font-mono text-[10px] w-9 shrink-0" style={{ color: "var(--amber-on)" }}>{mmss(m.at)}</span>
+                  <span className="font-mono text-micro w-9 shrink-0" style={{ color: "var(--amber-on)" }}>{mmss(m.at)}</span>
                   <span className="flex-1 truncate text-[var(--mute)]">{m.snippet}</span>
                 </button>
               </li>

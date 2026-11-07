@@ -116,20 +116,20 @@ export default async function AnalyticsConnectionsPage({
           <h2 className="font-mono font-bold text-sm flex-1">Google OAuth client</h2>
           <Status on={Boolean(ytCfg)} label="not saved" />
         </div>
-        <div className="text-[11px] text-[var(--mute)] mb-2 leading-relaxed">
+        <div className="text-2xs text-[var(--mute)] mb-2 leading-relaxed">
           One OAuth client per workspace powers every &ldquo;Connect&rdquo; below. In Google Cloud Console →{" "}
           <i>APIs &amp; Services → Credentials</i>, create an <b>OAuth client ID</b> (type: Web application) and register{" "}
           <b>both</b> redirect URIs:
-          <code className="font-mono text-[10px] px-1.5 py-0.5 rounded ml-1 inline-block" style={{ background: "var(--zebra)" }}>
+          <code className="font-mono text-micro px-1.5 py-0.5 rounded ml-1 inline-block" style={{ background: "var(--zebra)" }}>
             {analyticsRedirectUri(origin)}
           </code>
-          <code className="font-mono text-[10px] px-1.5 py-0.5 rounded ml-1 inline-block" style={{ background: "var(--zebra)" }}>
+          <code className="font-mono text-micro px-1.5 py-0.5 rounded ml-1 inline-block" style={{ background: "var(--zebra)" }}>
             {youtubeRedirectUri(origin)}
           </code>
         </div>
         {/* Step-by-step, embedded so nobody has to leave the page to learn the
             dance. <details> keeps the card compact and needs no client JS. */}
-        <details className="mb-2 text-[11px] text-[var(--mute)] leading-relaxed">
+        <details className="mb-2 text-2xs text-[var(--mute)] leading-relaxed">
           <summary className="cursor-pointer font-bold select-none">Step-by-step: create the OAuth client in Google Cloud Console</summary>
           <ol className="list-decimal ml-4 mt-1.5 space-y-1">
             <li>
@@ -163,11 +163,11 @@ export default async function AnalyticsConnectionsPage({
           </ol>
         </details>
         <div className="flex flex-wrap items-end gap-2">
-          <label className="flex-1 min-w-52 text-[11px] text-[var(--mute)]">
+          <label className="flex-1 min-w-52 text-2xs text-[var(--mute)]">
             OAuth client ID
             <input name="client_id" defaultValue={val.get("youtube_oauth:client_id") ?? ""} placeholder="…apps.googleusercontent.com" className="w-full text-sm font-mono mt-0.5" />
           </label>
-          <label className="flex-1 min-w-40 text-[11px] text-[var(--mute)]">
+          <label className="flex-1 min-w-40 text-2xs text-[var(--mute)]">
             Client secret {ytCfg?.clientSecret ? <span style={{ color: "var(--green-on)" }}>· stored</span> : ""}
             <input name="client_secret" type="password" placeholder={ytCfg?.clientSecret ? "•••••• (leave blank to keep)" : "GOCSPX-…"} className="w-full text-sm font-mono mt-0.5" autoComplete="off" />
           </label>
@@ -182,7 +182,7 @@ export default async function AnalyticsConnectionsPage({
           <h2 className="font-mono font-bold text-sm flex-1">Google account (Search Console + GA4)</h2>
           <Status on={gaOauth.connected} label="not connected" />
         </div>
-        <p className="text-[11px] text-[var(--mute)] mb-2 leading-relaxed">
+        <p className="text-2xs text-[var(--mute)] mb-2 leading-relaxed">
           Sign in with <b>this company&apos;s own Google account</b> — one consent grants read access for both connectors
           below, no service account to create. The account must be able to see the Search Console property and GA4 property.
         </p>
@@ -198,14 +198,14 @@ export default async function AnalyticsConnectionsPage({
             <SubmitButton className="btn primary" pendingText="Redirecting…" disabled={!ytCfg}>
               <LogIn className="w-4 h-4" /> Connect with Google
             </SubmitButton>
-            {!ytCfg && <span className="text-[11px] text-[var(--mute)] ml-2">Save the OAuth client above first.</span>}
+            {!ytCfg && <span className="text-2xs text-[var(--mute)] ml-2">Save the OAuth client above first.</span>}
           </form>
         )}
         {/* The shared platform service account is no longer a fallback for
             tenants (it was granted on several companies' properties); only
             the operator can enable it per workspace, so only they see it. */}
         {!gaOauth.connected && (
-          <p className="text-[10px] text-[var(--mute)] mt-2 leading-relaxed">
+          <p className="text-micro text-[var(--mute)] mt-2 leading-relaxed">
             Fallback while no account is connected: a service-account JSON of this workspace&apos;s own, pasted below.
             {isOperator && sharedSaEmail && (
               <> The shared platform service account (<code className="font-mono px-1 rounded" style={{ background: "var(--zebra)" }}>{sharedSaEmail}</code>) is used only for workspaces listed in the platform setting <code className="font-mono">analytics:platform_sa_workspaces</code>.</>
@@ -221,13 +221,13 @@ export default async function AnalyticsConnectionsPage({
           <h2 className="font-mono font-bold text-sm flex-1">Google Search Console</h2>
           <Status on={Boolean(gsc)} label="not connected" />
         </div>
-        <p className="text-[11px] text-[var(--mute)] mb-2 leading-relaxed">
+        <p className="text-2xs text-[var(--mute)] mb-2 leading-relaxed">
           Queries, clicks, impressions and average position for your site. Runs on the connected Google account above when
           there is one; otherwise paste a <b>service-account</b> JSON and add its email as a user in Search Console →{" "}
           <i>Settings → Users and permissions</i>.
         </p>
         {gsc && <CredLine cred={gsc.cred} />}
-        <label className="block text-[11px] text-[var(--mute)] mb-2">
+        <label className="block text-2xs text-[var(--mute)] mb-2">
           Site / property
           <input
             name="site_url"
@@ -235,11 +235,11 @@ export default async function AnalyticsConnectionsPage({
             placeholder="sc-domain:example.com  or  https://example.com/"
             className="w-full text-sm font-mono mt-0.5"
           />
-          <span className="text-[10px]">Domain property → <code>sc-domain:example.com</code>. URL-prefix → the exact origin.</span>
+          <span className="text-micro">Domain property → <code>sc-domain:example.com</code>. URL-prefix → the exact origin.</span>
         </label>
-        <label className="block text-[11px] text-[var(--mute)] mb-2">
+        <label className="block text-2xs text-[var(--mute)] mb-2">
           Service account JSON {val.get("gsc:service_account") ? <span style={{ color: "var(--green-on)" }}>· stored</span> : sharedSaEmail ? "(optional — falls back to the shared one)" : ""}
-          <textarea name="service_account" rows={3} placeholder='{"client_email":"…","private_key":"…"}' className="w-full text-[11px] font-mono mt-0.5" />
+          <textarea name="service_account" rows={3} placeholder='{"client_email":"…","private_key":"…"}' className="w-full text-2xs font-mono mt-0.5" />
         </label>
         <div className="flex items-center gap-2">
           <SubmitButton className="btn primary" pendingText="Verifying…">Save &amp; verify</SubmitButton>
@@ -256,13 +256,13 @@ export default async function AnalyticsConnectionsPage({
           <h2 className="font-mono font-bold text-sm flex-1">Google Analytics 4</h2>
           <Status on={Boolean(ga4)} label="not connected" />
         </div>
-        <p className="text-[11px] text-[var(--mute)] mb-2 leading-relaxed">
+        <p className="text-2xs text-[var(--mute)] mb-2 leading-relaxed">
           Sessions, users and conversions per page. Runs on the connected Google account above when there is one; a pasted
           service account needs <b>Viewer</b> under GA4 → <i>Admin → Property access management</i>. Saving runs a real
           report as the test.
         </p>
         {ga4 && <CredLine cred={ga4.cred} />}
-        <label className="block text-[11px] text-[var(--mute)] mb-2">
+        <label className="block text-2xs text-[var(--mute)] mb-2">
           Property ID
           <input
             name="property_id"
@@ -270,11 +270,11 @@ export default async function AnalyticsConnectionsPage({
             placeholder="123456789"
             className="w-full text-sm font-mono mt-0.5"
           />
-          <span className="text-[10px]">The numeric property id (GA4 → Admin → Property details) — <b>not</b> the G-XXXX measurement ID.</span>
+          <span className="text-micro">The numeric property id (GA4 → Admin → Property details) — <b>not</b> the G-XXXX measurement ID.</span>
         </label>
-        <label className="block text-[11px] text-[var(--mute)] mb-2">
+        <label className="block text-2xs text-[var(--mute)] mb-2">
           Service account JSON {val.get("ga4:service_account") ? <span style={{ color: "var(--green-on)" }}>· stored</span> : sharedSaEmail ? "(optional — falls back to the shared one)" : ""}
-          <textarea name="service_account" rows={3} placeholder='{"client_email":"…","private_key":"…"}' className="w-full text-[11px] font-mono mt-0.5" />
+          <textarea name="service_account" rows={3} placeholder='{"client_email":"…","private_key":"…"}' className="w-full text-2xs font-mono mt-0.5" />
         </label>
         <div className="flex items-center gap-2">
           <SubmitButton className="btn primary" pendingText="Verifying…">Save &amp; verify</SubmitButton>
@@ -291,7 +291,7 @@ export default async function AnalyticsConnectionsPage({
           <h2 className="font-mono font-bold text-sm flex-1">YouTube (your channel)</h2>
           <Status on={yt.connected} label="not connected" />
         </div>
-        <p className="text-[11px] text-[var(--mute)] mb-2 leading-relaxed">
+        <p className="text-2xs text-[var(--mute)] mb-2 leading-relaxed">
           Uploading and your own channel&apos;s view/watch-time data. This needs <b>OAuth</b>, not a key — YouTube won&apos;t let a
           service account touch a channel. (The Data API key under <Link href="/admin/api-keys" className="underline">API keys</Link> only
           reads public data.) Uses the Google OAuth client at the top of this page.
@@ -309,7 +309,7 @@ export default async function AnalyticsConnectionsPage({
             <SubmitButton className="btn primary" pendingText="Redirecting…" disabled={!ytCfg}>
               <CirclePlay className="w-4 h-4" /> Connect YouTube
             </SubmitButton>
-            {!ytCfg && <span className="text-[11px] text-[var(--mute)] ml-2">Save the OAuth client at the top of the page first.</span>}
+            {!ytCfg && <span className="text-2xs text-[var(--mute)] ml-2">Save the OAuth client at the top of the page first.</span>}
           </form>
         )}
       </div>
@@ -319,7 +319,7 @@ export default async function AnalyticsConnectionsPage({
         <div className="card mb-3 flex flex-wrap items-center gap-2">
           <div className="flex-1 min-w-52">
             <h2 className="font-mono font-bold text-sm mb-0.5">Sync to Insights</h2>
-            <p className="text-[11px] text-[var(--mute)] leading-relaxed">
+            <p className="text-2xs text-[var(--mute)] leading-relaxed">
               Pulls per-day clicks, impressions, position and sessions into each published post, which is what fills the
               search &amp; traffic panels on <Link href="/insights" className="underline">Insights</Link>. Runs automatically
               every few hours — Search Console data lags about two days, so more often wouldn&apos;t show more.
@@ -335,7 +335,7 @@ export default async function AnalyticsConnectionsPage({
               {backfillRunning > 0 ? "Pulling history…" : "Pull 16 months of history"}
             </SubmitButton>
           </form>
-          <p className="basis-full m-0 text-[11px] text-[var(--mute)]" data-backfill-status>
+          <p className="basis-full m-0 text-2xs text-[var(--mute)]" data-backfill-status>
             {backfillRunning > 0
               ? <>The history is being pulled now — <Link href="/admin/jobs" className="underline">Jobs</Link> shows how far it is.</>
               : backfilledAt
@@ -344,7 +344,7 @@ export default async function AnalyticsConnectionsPage({
           </p>
           {/* The last run per source (MEA-06) — a failure used to reach only the server log. */}
           {(syncStatus.gsc || syncStatus.ga4) && (
-            <ul className="basis-full m-0 p-0 list-none text-[11px] flex flex-col gap-0.5">
+            <ul className="basis-full m-0 p-0 list-none text-2xs flex flex-col gap-0.5">
               {(["gsc", "ga4"] as const).map((src) => {
                 const st = syncStatus[src];
                 if (!st) return null;
@@ -359,7 +359,7 @@ export default async function AnalyticsConnectionsPage({
           )}
           {/* E-MEA-10: which pages had traffic but match no post. */}
           {unmatched && unmatched.pages.length > 0 && (
-            <div className="basis-full text-[11px] mt-1 pt-2 border-t border-[var(--line)]">
+            <div className="basis-full text-2xs mt-1 pt-2 border-t border-[var(--line)]">
               <p className="font-semibold m-0">
                 {unmatched.total} page{unmatched.total === 1 ? "" : "s"} had traffic but match no post
                 {unmatched.total > unmatched.pages.length ? ` — the ${unmatched.pages.length} busiest below` : ""}
@@ -378,7 +378,7 @@ export default async function AnalyticsConnectionsPage({
                     {pg.url && linkable.length > 0 && (
                       <form action={linkUnmatchedPageAction} className="flex items-center gap-1">
                         <input type="hidden" name="url" value={pg.url} />
-                        <select name="postId" defaultValue="" className="text-[11px] max-w-56" aria-label="The article this page is">
+                        <select name="postId" defaultValue="" className="text-2xs max-w-56" aria-label="The article this page is">
                           <option value="">link to an article…</option>
                           {linkable.map((b) => <option key={b.id} value={b.id}>{b.title.slice(0, 70)}</option>)}
                         </select>
@@ -412,7 +412,7 @@ export default async function AnalyticsConnectionsPage({
 // Module-level, not created during render (PRF-04).
 const Status = ({ on, label }: { on: boolean; label: string }) => (
   <span
-    className="font-mono text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0"
+    className="font-mono text-micro font-bold px-2 py-0.5 rounded-full shrink-0"
     style={{ background: on ? "var(--green-soft)" : "var(--zebra)", color: on ? "var(--green-on)" : "var(--mute)" }}
   >
     {on ? "connected" : label}
@@ -428,7 +428,7 @@ const credLabel = (cred: AnalyticsCredential) =>
       ? `this workspace's own service account (${cred.identity})`
       : `the shared platform service account (${cred.identity})`;
 const CredLine = ({ cred }: { cred: AnalyticsCredential }) => (
-  <p className="text-[10px] font-mono mb-2" style={{ color: cred.kind === "platform_sa" ? "var(--amber-on)" : "var(--green-on)" }}>
+  <p className="text-micro font-mono mb-2" style={{ color: cred.kind === "platform_sa" ? "var(--amber-on)" : "var(--green-on)" }}>
     Running on {credLabel(cred)}.
   </p>
 );

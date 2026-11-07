@@ -28,7 +28,7 @@ export async function ApprovalLinks({ workspaceId }: { workspaceId: string }) {
     <details className="card mb-4" id="client-approval" data-approval-links="" open={open.length > 0}>
       <summary className="cursor-pointer select-none text-sm font-semibold flex items-center gap-2 flex-wrap">
         <UserCheck className="w-4 h-4" /> Ask a client to approve
-        <span className="font-mono text-[10px] font-normal text-[var(--mute)]">{open.length ? `${open.length} waiting on a client` : "none out"}</span>
+        <span className="font-mono text-micro font-normal text-[var(--mute)]">{open.length ? `${open.length} waiting on a client` : "none out"}</span>
       </summary>
       <p className="text-xs text-[var(--mute)] mt-2">
         A link for someone without an account: one post, in your colours and logo, with Approve and Ask for changes. Their answer is
@@ -52,7 +52,7 @@ export async function ApprovalLinks({ workspaceId }: { workspaceId: string }) {
                     </form>
                   )}
                 </div>
-                {live && <input readOnly value={`${base}/a/${shareToken(l.id)}`} className="mt-1.5 w-full font-code text-[11px]" aria-label="The link to send" data-approval-url="" />}
+                {live && <input readOnly value={`${base}/a/${shareToken(l.id)}`} className="mt-1.5 w-full font-code text-2xs" aria-label="The link to send" data-approval-url="" />}
               </li>
             );
           })}

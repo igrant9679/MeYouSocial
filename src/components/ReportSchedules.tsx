@@ -55,11 +55,11 @@ function ScheduleForm({ reportKey, members, d, submit }: { reportKey: string; me
             <input type="checkbox" name="recipient" value={m.userId} defaultChecked={d.recipients.includes(m.userId)} />
             <span>{m.name ?? m.email ?? m.userId}</span>
             {m.email && m.name && <span className="text-[var(--mute)]">· {m.email}</span>}
-            <span className="font-mono text-[10px] px-1.5 rounded-full" style={{ background: "var(--panel)", color: "var(--mute)" }}>{ROLE_WORD[m.role] ?? m.role}</span>
+            <span className="font-mono text-micro px-1.5 rounded-full" style={{ background: "var(--panel)", color: "var(--mute)" }}>{ROLE_WORD[m.role] ?? m.role}</span>
           </label>
         ))}
       </fieldset>
-      <p className="text-[11px] text-[var(--mute)]">
+      <p className="text-2xs text-[var(--mute)]">
         Only members of this workspace can receive it — to send it to a client, invite them as a Viewer (Settings → People).
       </p>
       <div><SubmitButton className="btn primary sm">{submit}</SubmitButton></div>
@@ -83,7 +83,7 @@ export async function ReportSchedules({ workspaceId, reportKey, admin }: { works
     <details className="card mb-4" id="schedule" data-report-schedules="" open={schedules.length > 0}>
       <summary className="cursor-pointer select-none text-sm font-semibold flex items-center gap-2 flex-wrap">
         <Mail className="w-4 h-4" /> Email this report on a schedule
-        <span className="font-mono text-[10px] font-normal text-[var(--mute)]">
+        <span className="font-mono text-micro font-normal text-[var(--mute)]">
           {schedules.length === 0 ? "none yet" : `${schedules.length} schedule${schedules.length === 1 ? "" : "s"}${soonest ? ` · next ${formatInZone(soonest, tz)}` : " · all paused"}`}
         </span>
       </summary>
@@ -101,7 +101,7 @@ export async function ReportSchedules({ workspaceId, reportKey, admin }: { works
               <li key={s.id} className="border border-[var(--line)] rounded-lg p-2.5 text-xs" data-schedule={s.id}>
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="font-semibold">{describeScheduleTime(time)}</span>
-                  <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full" style={s.enabled ? { background: "var(--green-soft)", color: "var(--green-on)" } : { background: "var(--panel)", color: "var(--mute)" }}>
+                  <span className="font-mono text-micro px-1.5 py-0.5 rounded-full" style={s.enabled ? { background: "var(--green-soft)", color: "var(--green-on)" } : { background: "var(--panel)", color: "var(--mute)" }}>
                     {s.enabled ? `next ${formatInZone(s.nextAt, tz)}` : "paused"}
                   </span>
                 </div>

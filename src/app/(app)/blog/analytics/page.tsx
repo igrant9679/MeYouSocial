@@ -144,7 +144,7 @@ export default async function BlogAnalyticsPage() {
                   <td className="py-2 pr-3 max-w-56">
                     <Link href={`/blog/${post.id}`} className="underline">{post.title}</Link>
                     {post.protectedFromRewrite && (
-                      <span className="ml-1 font-mono text-[10px] px-1.5 rounded-full" style={{ background: "var(--violet-soft)", color: "var(--violet-on)" }}>
+                      <span className="ml-1 font-mono text-micro px-1.5 rounded-full" style={{ background: "var(--violet-soft)", color: "var(--violet-on)" }}>
                         protected
                       </span>
                     )}

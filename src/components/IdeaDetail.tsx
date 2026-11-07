@@ -44,10 +44,10 @@ export function IdeaHistory({ rows, createdAt, created, timeZone }: { rows: Hist
     <div className="card mb-4" data-idea-history>
       <h2 className="font-mono font-bold text-sm m-0 mb-2">History</h2>
       <ol className="m-0 pl-0 list-none flex flex-col gap-1 text-xs">
-        <li data-history-row><span className="font-mono text-[10px] text-[var(--mute)] mr-2">{formatZonedMoment(createdAt, timeZone)}</span>Created — {created}</li>
+        <li data-history-row><span className="font-mono text-micro text-[var(--mute)] mr-2">{formatZonedMoment(createdAt, timeZone)}</span>Created — {created}</li>
         {rows.map((r, i) => (
           <li key={i} data-history-row>
-            <span className="font-mono text-[10px] text-[var(--mute)] mr-2">{formatZonedMoment(r.at, timeZone)}</span>
+            <span className="font-mono text-micro text-[var(--mute)] mr-2">{formatZonedMoment(r.at, timeZone)}</span>
             {r.label} <span className="text-[var(--mute)]">· {r.who}</span>
           </li>
         ))}

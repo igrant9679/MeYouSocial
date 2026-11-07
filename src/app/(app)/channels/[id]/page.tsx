@@ -22,7 +22,7 @@ export default async function ChannelHomePage({ params }: { params: Promise<{ id
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
       <section className="card lg:col-span-2">
-        <h2 className="font-mono text-[15px] mb-3">About this channel</h2>
+        <h2 className="font-mono text-sm mb-3">About this channel</h2>
         <p className="text-sm text-[var(--ink)] whitespace-pre-wrap">{channel.nicheDescription ?? "—"}</p>
         {channel.differentiation && (
           <>
@@ -38,7 +38,7 @@ export default async function ChannelHomePage({ params }: { params: Promise<{ id
       </section>
 
       <section className="card">
-        <h2 className="font-mono text-[15px] mb-3">Quick actions</h2>
+        <h2 className="font-mono text-sm mb-3">Quick actions</h2>
         <div className="flex flex-col gap-2">
           <Link href={`/channels/${id}/voice`} className="btn">Edit voice profile</Link>
           <Link href={`/channels/${id}/audience`} className="btn">Edit audience avatar</Link>
@@ -47,7 +47,7 @@ export default async function ChannelHomePage({ params }: { params: Promise<{ id
       </section>
 
       <section className="card lg:col-span-3">
-        <h2 className="font-mono text-[15px] mb-3">Recent ideas</h2>
+        <h2 className="font-mono text-sm mb-3">Recent ideas</h2>
         {recentIdeas.length === 0 && <p className="text-sm text-[var(--mute)]">No ideas yet. <Link href={`/ideas?channel=${id}`} className="text-[var(--accent)] font-semibold">Generate some →</Link></p>}
         <ul className="m-0 p-0 grid grid-cols-1 md:grid-cols-2 gap-x-6">
           {recentIdeas.map((i) => (

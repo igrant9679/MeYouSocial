@@ -162,7 +162,7 @@ export function AiAssist({
           as something broken rather than as the next thing to do. */}
       {error && (
         <div
-          className="text-[11px] mt-2 px-2.5 py-2 rounded-lg leading-relaxed"
+          className="text-2xs mt-2 px-2.5 py-2 rounded-lg leading-relaxed"
           style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }}
         >
           {error}
@@ -176,7 +176,7 @@ export function AiAssist({
             // silently answers from the mock, and mock prose is fluent — it
             // would be pasted into a real brand config as though generated.
             <div
-              className="text-[11px] mb-2 px-2 py-1.5 rounded-lg leading-snug"
+              className="text-2xs mb-2 px-2 py-1.5 rounded-lg leading-snug"
               style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }}
             >
               ⚠ Placeholder text — no working AI key resolved for this workspace, so this is a stand-in, not a real
@@ -185,7 +185,7 @@ export function AiAssist({
           )}
           {!isMock && isThin && (
             <div
-              className="text-[11px] mb-2 px-2 py-1.5 rounded-lg leading-snug"
+              className="text-2xs mb-2 px-2 py-1.5 rounded-lg leading-snug"
               style={{ background: "var(--panel)", color: "var(--mute)" }}
             >
               Drafted from very little — this workspace has almost nothing filled in yet, so read it

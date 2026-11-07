@@ -24,7 +24,7 @@ const num = "font-mono tabular-nums";
 function Card({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="card anim-rise">
-      <h2 className="font-mono text-[13px] font-bold mb-2">{title}</h2>
+      <h2 className="font-mono text-sm font-bold mb-2">{title}</h2>
       {children}
     </section>
   );
@@ -39,7 +39,7 @@ function Card({ title, children }: { title: string; children: React.ReactNode })
 function Gaps({ n, of }: { n: number; of: number }) {
   if (n === 0) return null;
   return (
-    <p className="text-[10px] text-[var(--mute)] mt-1 mb-0">
+    <p className="text-micro text-[var(--mute)] mt-1 mb-0">
       {n} of the {of} weeks recorded nothing — those points sit at zero for want of a measurement, not because the number was zero.
     </p>
   );
@@ -80,9 +80,9 @@ export async function ReportBlock({ block, workspaceId, weeks, canAct = true }: 
             { label: "Blockers", value: String(stats.unverifiedCitations + stats.postsMissingAssets), note: `${stats.unverifiedCitations} citations · ${stats.postsMissingAssets} assets`, tone: "var(--amber-on)" },
           ].map((k) => (
             <div key={k.label} className="card anim-rise">
-              <div className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)] font-bold">{k.label}</div>
-              <div className={`${num} font-bold text-[24px] leading-tight`}>{k.value}</div>
-              <div className="text-[11px] font-semibold" style={{ color: k.tone }}>{k.note}</div>
+              <div className="text-micro font-mono uppercase tracking-wider text-[var(--mute)] font-bold">{k.label}</div>
+              <div className={`${num} font-bold text-2xl leading-tight`}>{k.value}</div>
+              <div className="text-2xs font-semibold" style={{ color: k.tone }}>{k.note}</div>
             </div>
           ))}
         </div>
@@ -160,7 +160,7 @@ export async function ReportBlock({ block, workspaceId, weeks, canAct = true }: 
               <table data-csv="report-content" className="w-full text-xs border-collapse">
                 <thead><tr className="text-left text-[var(--mute)]">
                   {["Post", "Keyword", "Pos", `Δ vs prior ${weeks}w`, "Clicks"].map((h, i) => (
-                    <th key={h} className={`py-1.5 px-2 font-mono text-[9px] uppercase tracking-wider border-b-2 border-[var(--line)] ${i >= 2 ? "text-right" : ""}`}>{h}</th>
+                    <th key={h} className={`py-1.5 px-2 font-mono text-micro uppercase tracking-wider border-b-2 border-[var(--line)] ${i >= 2 ? "text-right" : ""}`}>{h}</th>
                   ))}
                 </tr></thead>
                 <tbody>
@@ -190,10 +190,10 @@ export async function ReportBlock({ block, workspaceId, weeks, canAct = true }: 
       const perf = await postPerformance(workspaceId, 60, { status: "published", days });
       const positions = perf.filter((p) => p.status === "published" && p.position != null).map((p) => p.position!);
       const rows = [
-        { label: "Top 3", value: positions.filter((x) => x <= 3).length, color: "#1D4ED8" },
-        { label: "4 – 10", value: positions.filter((x) => x > 3 && x <= 10).length, color: "#3B82F6" },
-        { label: "11 – 20", value: positions.filter((x) => x > 10 && x <= 20).length, color: "#93C5FD" },
-        { label: "21 +", value: positions.filter((x) => x > 20).length, color: "#DBEAFE" },
+        { label: "Top 3", value: positions.filter((x) => x <= 3).length, color: "var(--blue)" },
+        { label: "4 – 10", value: positions.filter((x) => x > 3 && x <= 10).length, color: "color-mix(in srgb, var(--blue) 70%, var(--bg))" },
+        { label: "11 – 20", value: positions.filter((x) => x > 10 && x <= 20).length, color: "color-mix(in srgb, var(--blue) 42%, var(--bg))" },
+        { label: "21 +", value: positions.filter((x) => x > 20).length, color: "color-mix(in srgb, var(--blue) 18%, var(--bg))" },
       ];
       return (
         <Card title={`Keyword positions — last ${weeks} weeks`}>
@@ -246,13 +246,13 @@ export async function ReportBlock({ block, workspaceId, weeks, canAct = true }: 
         <Card title={`Pipeline velocity — last ${weeks} weeks`}>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <div className={`${num} font-bold text-[24px]`}>{avg != null ? avg.toFixed(1) : "—"}</div>
-              <div className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)] font-bold">median days idea → published</div>
-              <div className="text-[11px] text-[var(--mute)] mt-1">{avg == null ? `no idea published in the last ${weeks}w` : `n = ${sorted.length}, published in the last ${weeks}w`}</div>
+              <div className={`${num} font-bold text-2xl`}>{avg != null ? avg.toFixed(1) : "—"}</div>
+              <div className="text-micro font-mono uppercase tracking-wider text-[var(--mute)] font-bold">median days idea → published</div>
+              <div className="text-2xs text-[var(--mute)] mt-1">{avg == null ? `no idea published in the last ${weeks}w` : `n = ${sorted.length}, published in the last ${weeks}w`}</div>
             </div>
             <div>
-              <div className={`${num} font-bold text-[24px]`}>{(published / Math.max(1, weeks)).toFixed(1)}</div>
-              <div className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)] font-bold">published / week (last {weeks}w)</div>
+              <div className={`${num} font-bold text-2xl`}>{(published / Math.max(1, weeks)).toFixed(1)}</div>
+              <div className="text-micro font-mono uppercase tracking-wider text-[var(--mute)] font-bold">published / week (last {weeks}w)</div>
             </div>
           </div>
         </Card>
@@ -276,7 +276,7 @@ export async function ReportBlock({ block, workspaceId, weeks, canAct = true }: 
             </div>
             <span className={`${num} text-sm font-bold`}>{today}/{DAILY_AI_BUDGET}</span>
           </div>
-          <p className="text-[11px] text-[var(--mute)]">
+          <p className="text-2xs text-[var(--mute)]">
             Unattended generations today (posting timezone) against the daily budget · {failures} render failure{failures === 1 ? "" : "s"} in 7 days
           </p>
         </Card>
@@ -294,11 +294,11 @@ export async function ReportBlock({ block, workspaceId, weeks, canAct = true }: 
             <ul className="m-0 p-0 text-xs">
               {feed.map((e, i) => (
                 <li key={i} className="border-t border-[var(--line)] first:border-0 py-1.5 flex items-baseline gap-2">
-                  <span className="font-mono text-[9.5px] text-[var(--mute)] w-24 shrink-0">
+                  <span className="font-mono text-micro text-[var(--mute)] w-24 shrink-0">
                     {formatZonedMoment(e.at, feedTz)}
                   </span>
                   <span className="flex-1">{e.label}</span>
-                  {e.tone === "warn" && <span className="chip font-mono text-[9px] font-bold px-1.5 rounded-full" style={{ background: "var(--rose-soft)", color: "var(--rose-on)" }}>!</span>}
+                  {e.tone === "warn" && <span className="chip font-mono text-micro font-bold px-1.5 rounded-full" style={{ background: "var(--rose-soft)", color: "var(--rose-on)" }}>!</span>}
                 </li>
               ))}
             </ul>
@@ -366,7 +366,7 @@ export async function ReportBlock({ block, workspaceId, weeks, canAct = true }: 
           ) : (
             <div className="max-w-lg">
               <HBars rows={rows} />
-              {unset > 0 && <p className="text-[11px] text-[var(--mute)] mt-2">{unset} published without an explicit blend.</p>}
+              {unset > 0 && <p className="text-2xs text-[var(--mute)] mt-2">{unset} published without an explicit blend.</p>}
             </div>
           )}
         </Card>
@@ -391,7 +391,7 @@ export async function ReportBlock({ block, workspaceId, weeks, canAct = true }: 
               <table data-csv="report-social" className="w-full text-xs border-collapse">
                 <thead><tr className="text-left text-[var(--mute)]">
                   {["Network", "Waiting", "Posted", "Failed"].map((h, i) => (
-                    <th key={h} className={`py-1.5 px-2 font-mono text-[9px] uppercase tracking-wider border-b-2 border-[var(--line)] ${i > 0 ? "text-right" : ""}`}>{h}</th>
+                    <th key={h} className={`py-1.5 px-2 font-mono text-micro uppercase tracking-wider border-b-2 border-[var(--line)] ${i > 0 ? "text-right" : ""}`}>{h}</th>
                   ))}
                 </tr></thead>
                 <tbody>
@@ -425,7 +425,7 @@ export async function ReportBlock({ block, workspaceId, weeks, canAct = true }: 
             <Empty canAct={canAct} to="/distribute" cta="Open Distribute">{`No render in the last ${weeks} weeks — a published post is packaged into one from its Distribute tab.`}</Empty>
           ) : (
             <>
-              <p className="text-[11px] text-[var(--mute)] mb-2">
+              <p className="text-2xs text-[var(--mute)] mb-2">
                 {priced.length
                   ? <>Estimated spend on completed renders: <b className={num}>${spend.toFixed(2)}</b> at the operator&apos;s prices — estimates, not invoices{priced.length < doneRenders.length ? `; ${doneRenders.length - priced.length} unpriced` : ""}</>
                   : <>{doneRenders.reduce((a, r) => a + r.seconds, 0)} seconds rendered — no price set, so no cost is shown</>}
@@ -433,7 +433,7 @@ export async function ReportBlock({ block, workspaceId, weeks, canAct = true }: 
               <ul className="m-0 p-0 text-xs">
                 {renders.map((r) => (
                   <li key={r.id} className="border-t border-[var(--line)] first:border-0 py-1.5 flex items-baseline gap-2">
-                    <span className="chip font-mono text-[9px] font-bold px-1.5 rounded-full" style={{
+                    <span className="chip font-mono text-micro font-bold px-1.5 rounded-full" style={{
                       background: r.status === "done" ? "var(--green-soft)" : r.status === "failed" ? "var(--rose-soft)" : "var(--panel)",
                       color: r.status === "done" ? "var(--green-on)" : r.status === "failed" ? "var(--rose-on)" : "var(--mute)",
                     }}>{r.status}</span>
@@ -466,11 +466,11 @@ export async function ReportBlock({ block, workspaceId, weeks, canAct = true }: 
                 <table data-csv="report-topics" className="w-full text-xs border-collapse">
                   <thead>
                     <tr className="text-left text-[var(--mute)]">
-                      <th className="py-1.5 px-2 font-mono text-[9px] uppercase tracking-wider border-b-2 border-[var(--line)]">Topic</th>
-                      <th className="py-1.5 px-2 font-mono text-[9px] uppercase tracking-wider border-b-2 border-[var(--line)] text-right" title="Published / made · clicks">Articles</th>
-                      <th className="py-1.5 px-2 font-mono text-[9px] uppercase tracking-wider border-b-2 border-[var(--line)] text-right" title="Renders · views of the Topic's linked uploads, plus videos matched by keyword (kw)">Video</th>
-                      <th className="py-1.5 px-2 font-mono text-[9px] uppercase tracking-wider border-b-2 border-[var(--line)] text-right" title="Posted / made · engagement">Social</th>
-                      <th className="py-1.5 px-2 font-mono text-[9px] uppercase tracking-wider border-b-2 border-[var(--line)] text-right">Ideas waiting</th>
+                      <th className="py-1.5 px-2 font-mono text-micro uppercase tracking-wider border-b-2 border-[var(--line)]">Topic</th>
+                      <th className="py-1.5 px-2 font-mono text-micro uppercase tracking-wider border-b-2 border-[var(--line)] text-right" title="Published / made · clicks">Articles</th>
+                      <th className="py-1.5 px-2 font-mono text-micro uppercase tracking-wider border-b-2 border-[var(--line)] text-right" title="Renders · views of the Topic's linked uploads, plus videos matched by keyword (kw)">Video</th>
+                      <th className="py-1.5 px-2 font-mono text-micro uppercase tracking-wider border-b-2 border-[var(--line)] text-right" title="Posted / made · engagement">Social</th>
+                      <th className="py-1.5 px-2 font-mono text-micro uppercase tracking-wider border-b-2 border-[var(--line)] text-right">Ideas waiting</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -478,7 +478,7 @@ export async function ReportBlock({ block, workspaceId, weeks, canAct = true }: 
                       <tr key={r.id}>
                         <td className="py-1.5 px-2 border-b border-[var(--line)]"><Link href={`/ideas/topics/${r.id}`} className="hover:underline">{r.name}</Link></td>
                         <td className="py-1.5 px-2 border-b border-[var(--line)] text-right"><span className={num}>{r.articles.published}/{r.articles.made}</span> · {t(r.articles.clicks)}</td>
-                        <td className="py-1.5 px-2 border-b border-[var(--line)] text-right"><span className={num}>{r.video.renders}</span> · {t(r.video.views)}{r.video.views != null && r.video.matched > 0 && <span className="text-[9px] text-[var(--mute)] ml-0.5">kw</span>}</td>
+                        <td className="py-1.5 px-2 border-b border-[var(--line)] text-right"><span className={num}>{r.video.renders}</span> · {t(r.video.views)}{r.video.views != null && r.video.matched > 0 && <span className="text-micro text-[var(--mute)] ml-0.5">kw</span>}</td>
                         <td className="py-1.5 px-2 border-b border-[var(--line)] text-right"><span className={num}>{r.social.posted}/{r.social.posts}</span> · {t(r.social.engagement)}</td>
                         <td className="py-1.5 px-2 border-b border-[var(--line)] text-right"><span className={num}>{r.ideasWaiting}</span></td>
                       </tr>
@@ -486,7 +486,7 @@ export async function ReportBlock({ block, workspaceId, weeks, canAct = true }: 
                   </tbody>
                 </table>
               </div>
-              <p className="text-[10px] text-[var(--mute)] mt-2 mb-0">
+              <p className="text-micro text-[var(--mute)] mt-2 mb-0">
                 A dash is not measured, never zero; <span className="font-mono">kw</span> = includes videos matched by keyword rather than linked to a project. Reasons and the full columns: <Link href="/measure/topics" className="underline">Measure → Topics</Link>.
               </p>
             </>
@@ -511,7 +511,7 @@ export async function ReportBlock({ block, workspaceId, weeks, canAct = true }: 
                 { label: "Keep", value: byRec("keep"), color: "var(--green)" },
               ]} />
               {open.length > 0 && open[0].slopScore != null && (
-                <p className="text-[11px] text-[var(--mute)] mt-2">
+                <p className="text-2xs text-[var(--mute)] mt-2">
                   Worst offender: <b>{open[0].title}</b> (score {open[0].slopScore})
                 </p>
               )}

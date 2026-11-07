@@ -132,7 +132,7 @@ export function EngineStatus({
         title="What the engine has been doing"
       >
         <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: dot }} aria-hidden />
-        <span className="text-[12px] text-[var(--slate)] truncate min-w-0">
+        <span className="text-xs text-[var(--slate)] truncate min-w-0">
           {headline}
           {latest && !state.paused && !silent && (
             <span className="text-[var(--mute)]"> · {timeIn(latest.at, timeZone)}</span>
@@ -168,13 +168,13 @@ export function EngineStatus({
               {events.map((e, i) => {
                 const line = (
                   <>
-                    <span className="font-mono text-[10px] text-[var(--mute)] tabular-nums flex-shrink-0 pt-0.5">
+                    <span className="font-mono text-micro text-[var(--mute)] tabular-nums flex-shrink-0 pt-0.5">
                       {timeIn(e.at, timeZone)}
                     </span>
                     <span className="min-w-0">
-                      <span className="text-[12px]" style={{ color: DOT[e.tone] }}>{e.what}</span>
-                      {e.title && <span className="text-[12px] text-[var(--slate)]"> — “{e.title}”</span>}
-                      <span className="block font-mono text-[10px] text-[var(--mute)]">{dayIn(e.at, timeZone)}</span>
+                      <span className="text-xs" style={{ color: DOT[e.tone] }}>{e.what}</span>
+                      {e.title && <span className="text-xs text-[var(--slate)]"> — “{e.title}”</span>}
+                      <span className="block font-mono text-micro text-[var(--mute)]">{dayIn(e.at, timeZone)}</span>
                     </span>
                   </>
                 );

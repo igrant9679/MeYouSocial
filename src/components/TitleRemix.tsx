@@ -35,12 +35,12 @@ export function TitleRemix({ videoId, original }: { videoId: string; original?: 
   return (
     <div className="flex flex-col gap-1" data-title-remix>
       <input type="hidden" name="title" value={picked} />
-      <button type="button" onClick={remix} disabled={pending} className="btn sm !text-[11px] inline-flex items-center justify-center gap-1" title="Keep the hook, change the subject to the Topic">
+      <button type="button" onClick={remix} disabled={pending} className="btn sm !text-2xs inline-flex items-center justify-center gap-1" title="Keep the hook, change the subject to the Topic">
         <Shuffle className="w-3 h-3" /> {pending ? "Remixing…" : "Remix the title for the Topic"}
       </button>
-      {error && <p className="text-[11px] m-0" style={{ color: "var(--rose-on)" }} role="alert" data-remix-error>{error}</p>}
+      {error && <p className="text-2xs m-0" style={{ color: "var(--rose-on)" }} role="alert" data-remix-error>{error}</p>}
       {titles.length > 0 && (
-        <fieldset className="flex flex-col gap-0.5 text-[11px] m-0 p-0 border-0" data-remix-choices>
+        <fieldset className="flex flex-col gap-0.5 text-2xs m-0 p-0 border-0" data-remix-choices>
           {titles.map((t) => (
             <label key={t} className="flex items-start gap-1.5"><input type="radio" name="_remix" checked={picked === t} onChange={() => setPicked(t)} /> {t}</label>
           ))}

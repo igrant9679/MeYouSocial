@@ -36,7 +36,7 @@ export default async function GuidePage() {
           <p className="text-xs text-[var(--mute)]">How the machine works, and what tending it looks like — daily, weekly, monthly.</p>
         </div>
       </div>
-      <p className="text-[11px] text-[var(--mute)] mb-5">
+      <p className="text-2xs text-[var(--mute)] mb-5">
         Fifteen-minute read. For step-by-step setup with the app pointing at things, use the compass button in the
         top bar — this page is the map, not the tour. The <RoleLink href="/assistant" role={role} className="underline">Assistant</RoleLink> knows
         everything on this page too: ask it &ldquo;how do I…&rdquo; or &ldquo;why is … held&rdquo;.
@@ -44,7 +44,7 @@ export default async function GuidePage() {
 
       {/* ── 1 · The machine ─────────────────────────────────────────────── */}
       <section className="card mb-4">
-        <h2 className="font-mono font-bold text-[15px] mb-2 flex items-center gap-2">
+        <h2 className="font-mono font-bold text-sm mb-2 flex items-center gap-2">
           <Compass className="w-4 h-4" style={{ color: "var(--blue-on)" }} /> What this app is, in one paragraph
         </h2>
         <p className="text-sm leading-[1.65] mb-3">
@@ -57,7 +57,7 @@ export default async function GuidePage() {
           reviewing happens there, not in a stage of its own) and Setup below it (Settings, Channels, Brand —
           admins only).
         </p>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-[12.5px]">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
           <div className="border rounded-lg px-3 py-2" style={{ borderColor: "var(--line)" }}>
             <div className="font-semibold mb-0.5">The engine works while you don&apos;t</div>
             <div className="text-[var(--mute)] leading-snug">
@@ -82,7 +82,7 @@ export default async function GuidePage() {
 
       {/* ── 2 · The seven stages ────────────────────────────────────────── */}
       <section className="card mb-4">
-        <h2 className="font-mono font-bold text-[15px] mb-1 flex items-center gap-2">
+        <h2 className="font-mono font-bold text-sm mb-1 flex items-center gap-2">
           <Layers className="w-4 h-4" style={{ color: "var(--violet-on)" }} /> The Inbox and six stages, one screen each
         </h2>
         <p className="text-xs text-[var(--mute)] mb-3">
@@ -129,7 +129,7 @@ export default async function GuidePage() {
 
       {/* ── 3 · The assistant ───────────────────────────────────────────── */}
       <section className="card mb-4">
-        <h2 className="font-mono font-bold text-[15px] mb-2 flex items-center gap-2">
+        <h2 className="font-mono font-bold text-sm mb-2 flex items-center gap-2">
           <Bot className="w-4 h-4" style={{ color: "var(--violet-on)" }} /> Asking instead of hunting
         </h2>
         <p className="text-sm leading-[1.65] mb-3">
@@ -163,7 +163,7 @@ export default async function GuidePage() {
 
       {/* ── 4 · Onboarding ──────────────────────────────────────────────── */}
       <section className="card mb-4">
-        <h2 className="font-mono font-bold text-[15px] mb-1 flex items-center gap-2">
+        <h2 className="font-mono font-bold text-sm mb-1 flex items-center gap-2">
           <Wrench className="w-4 h-4" style={{ color: "var(--teal-on)" }} /> Setting a workspace up, once
         </h2>
         <p className="text-xs text-[var(--mute)] mb-3">
@@ -228,7 +228,7 @@ export default async function GuidePage() {
 
       {/* ── 5 · Daily ───────────────────────────────────────────────────── */}
       <section className="card mb-4">
-        <h2 className="font-mono font-bold text-[15px] mb-1 flex items-center gap-2">
+        <h2 className="font-mono font-bold text-sm mb-1 flex items-center gap-2">
           <Sun className="w-4 h-4" style={{ color: "var(--amber-on)" }} /> Daily — about five minutes
         </h2>
         <p className="text-xs text-[var(--mute)] mb-3">
@@ -260,7 +260,7 @@ export default async function GuidePage() {
 
       {/* ── 6 · Weekly ──────────────────────────────────────────────────── */}
       <section className="card mb-4">
-        <h2 className="font-mono font-bold text-[15px] mb-1 flex items-center gap-2">
+        <h2 className="font-mono font-bold text-sm mb-1 flex items-center gap-2">
           <CalendarDays className="w-4 h-4" style={{ color: "var(--green-on)" }} /> Weekly — about half an hour, the day before the publish day
         </h2>
         <p className="text-xs text-[var(--mute)] mb-3">
@@ -304,7 +304,7 @@ export default async function GuidePage() {
 
       {/* ── 7 · Monthly ─────────────────────────────────────────────────── */}
       <section className="card mb-4">
-        <h2 className="font-mono font-bold text-[15px] mb-1 flex items-center gap-2">
+        <h2 className="font-mono font-bold text-sm mb-1 flex items-center gap-2">
           <CalendarRange className="w-4 h-4" style={{ color: "var(--violet-on)" }} /> Monthly — about an hour
         </h2>
         <p className="text-xs text-[var(--mute)] mb-3">
@@ -342,7 +342,7 @@ export default async function GuidePage() {
 
       {/* ── 8 · Repeatable processes ────────────────────────────────────── */}
       <section className="card mb-4">
-        <h2 className="font-mono font-bold text-[15px] mb-1 flex items-center gap-2">
+        <h2 className="font-mono font-bold text-sm mb-1 flex items-center gap-2">
           <Repeat className="w-4 h-4" style={{ color: "var(--cyan-on)" }} /> Repeatable processes
         </h2>
         <p className="text-xs text-[var(--mute)] mb-3">The same few sequences, every time. Each one ends at a gate you can see.</p>
@@ -395,7 +395,7 @@ export default async function GuidePage() {
 
       {/* ── 9 · Troubleshooting ─────────────────────────────────────────── */}
       <section className="card mb-4">
-        <h2 className="font-mono font-bold text-[15px] mb-2 flex items-center gap-2">
+        <h2 className="font-mono font-bold text-sm mb-2 flex items-center gap-2">
           <LifeBuoy className="w-4 h-4" style={{ color: "var(--rose-on)" }} /> When something looks wrong
         </h2>
         <ul className="m-0 pl-5 list-disc text-sm space-y-2 leading-[1.55]">
@@ -420,10 +420,10 @@ export default async function GuidePage() {
 function Stage({ href, name, tabs, children }: { href: string; name: string; tabs: string; children: React.ReactNode }) {
   return (
     <li className="flex items-start gap-2.5">
-      <Link href={href} className="font-mono text-[12px] font-bold px-2 py-0.5 rounded-md shrink-0 mt-0.5 hover:underline" style={{ background: "var(--zebra)" }}>{name}</Link>
+      <Link href={href} className="font-mono text-xs font-bold px-2 py-0.5 rounded-md shrink-0 mt-0.5 hover:underline" style={{ background: "var(--zebra)" }}>{name}</Link>
       <div className="flex-1 min-w-0">
         <span className="text-[var(--mute)]">{children}</span>
-        <div className="text-[10.5px] font-mono text-[var(--mute)] mt-0.5">{tabs}</div>
+        <div className="text-micro font-mono text-[var(--mute)] mt-0.5">{tabs}</div>
       </div>
     </li>
   );

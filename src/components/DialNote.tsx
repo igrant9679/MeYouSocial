@@ -9,7 +9,7 @@ import { formatZonedMoment } from "@/lib/zoned-dates";
 export function DialNote({ change, timeZone, fmt = settingValueLabel }: { change?: DialChange; timeZone: string; fmt?: (v: string | null) => string }) {
   if (!change) return null;
   return (
-    <span className="block text-[10px] text-[var(--mute)] mt-0.5" data-dial-note>
+    <span className="block text-micro text-[var(--mute)] mt-0.5" data-dial-note>
       Changed by {change.by} · {formatZonedMoment(change.at, timeZone)}
       {change.hidden ? " (a secret — the value isn't kept)" : ` — was ${fmt(change.from)}`}
     </span>

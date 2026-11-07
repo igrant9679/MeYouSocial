@@ -200,12 +200,12 @@ export function UploadButton({ chatId, scriptId, channelId, onDone, reload = tru
           <div className="h-1 rounded-full overflow-hidden" style={{ background: "var(--line)" }}>
             <div className="h-full" style={{ width: `${percent}%`, background: "var(--accent)" }} />
           </div>
-          <span className="text-[10px] text-[var(--mute)]">{formatBytes(progress.sent)} of {formatBytes(progress.total)}{timeLeft(progress)} — keep this page open</span>
+          <span className="text-micro text-[var(--mute)]">{formatBytes(progress.sent)} of {formatBytes(progress.total)}{timeLeft(progress)} — keep this page open</span>
         </div>
       )}
-      {err && <span className="text-[10px] text-[var(--brand)]" data-upload-error="">{err}</span>}
-      {note && <span className="text-[10px]" style={{ color: "var(--amber-on)" }} data-upload-note="">{note}</span>}
-      {!compact && !busy && <span className="text-[10px] text-[var(--mute)]">Up to {formatBytes(UPLOAD_MAX_BYTES)} · PDF / Word / text / image</span>}
+      {err && <span className="text-micro text-[var(--brand)]" data-upload-error="">{err}</span>}
+      {note && <span className="text-micro" style={{ color: "var(--amber-on)" }} data-upload-note="">{note}</span>}
+      {!compact && !busy && <span className="text-micro text-[var(--mute)]">Up to {formatBytes(UPLOAD_MAX_BYTES)} · PDF / Word / text / image</span>}
     </div>
   );
 }

@@ -6,12 +6,12 @@ import { db } from "@/lib/db";
 // Content Calendar: month view of content by publish date, colored by status.
 
 const STATUS_COLOR: Record<string, string> = {
-  idea: "#D97706",
-  research_writing: "#2563EB",
-  recording: "#6D28D9",
-  editing: "#4F46E5",
-  scheduled: "#0D9488",
-  published: "#15924B",
+  idea: "var(--amber)",
+  research_writing: "var(--blue)",
+  recording: "var(--violet)",
+  editing: "var(--indigo)",
+  scheduled: "var(--teal)",
+  published: "var(--green)",
 };
 
 export default async function CalendarPage({ searchParams }: { searchParams: Promise<{ y?: string; m?: string }> }) {
@@ -60,7 +60,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
   return (
     <div>
       <div className="flex items-center gap-2 mb-4">
-        <h2 className="font-mono font-bold text-lg flex items-center gap-2"><Calendar className="w-5 h-5" style={{ color: "#15924B" }} /> {first.toLocaleString(undefined, { month: "long", year: "numeric" })}</h2>
+        <h2 className="font-mono font-bold text-lg flex items-center gap-2"><Calendar className="w-5 h-5" style={{ color: "var(--green)" }} /> {first.toLocaleString(undefined, { month: "long", year: "numeric" })}</h2>
         <span className="flex-1" />
         <Link href={`/production/calendar?y=${prevY}&m=${prevM}`} className="btn sm"><ChevronLeft className="w-4 h-4" /></Link>
         <Link href="/production/calendar" className="btn sm">Today</Link>
@@ -68,7 +68,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
       </div>
 
       <div className="card">
-        <div className="grid grid-cols-7 gap-1 mb-1 text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">
+        <div className="grid grid-cols-7 gap-1 mb-1 text-micro font-mono uppercase tracking-wider text-[var(--mute)]">
           {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => <div key={d} className="text-center">{d}</div>)}
         </div>
         <div className="grid grid-cols-7 gap-1">
@@ -81,14 +81,14 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
                 className="aspect-[5/4] border border-[var(--line)] rounded-lg p-1.5 flex flex-col gap-1 overflow-hidden"
                 style={{ background: cell.date ? (isToday ? "var(--accent-soft)" : "white") : "var(--zebra)" }}
               >
-                {cell.date && <div className={"text-[11px] font-mono " + (isToday ? "font-bold text-[var(--accent)]" : "text-[var(--mute)]")}>{cell.date.getDate()}</div>}
+                {cell.date && <div className={"text-2xs font-mono " + (isToday ? "font-bold text-[var(--accent)]" : "text-[var(--mute)]")}>{cell.date.getDate()}</div>}
                 {items.map((p) => (
-                  <Link key={p.id} href={`/production?focus=${p.id}`} className="block text-[10px] font-mono px-1.5 py-0.5 rounded truncate hover:opacity-80" style={{ background: (STATUS_COLOR[p.status] ?? "var(--accent)") + "20", color: STATUS_COLOR[p.status] ?? "var(--accent)" }}>
+                  <Link key={p.id} href={`/production?focus=${p.id}`} className="block text-micro font-mono px-1.5 py-0.5 rounded truncate hover:opacity-80" style={{ background: (STATUS_COLOR[p.status] ?? "var(--accent)") + "20", color: STATUS_COLOR[p.status] ?? "var(--accent)" }}>
                     {p.title}
                   </Link>
                 ))}
                 {cell.date && postsForDay(cell.date).map((p) => (
-                  <Link key={p.id} href={`/blog/${p.id}`} className="block text-[10px] font-mono px-1.5 py-0.5 rounded truncate hover:opacity-80" style={{ background: "var(--rose-soft)", color: "var(--rose-on)" }}>
+                  <Link key={p.id} href={`/blog/${p.id}`} className="block text-micro font-mono px-1.5 py-0.5 rounded truncate hover:opacity-80" style={{ background: "var(--rose-soft)", color: "var(--rose-on)" }}>
                     ✍ {p.title}
                   </Link>
                 ))}
@@ -99,7 +99,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
       </div>
 
       {/* Legend */}
-      <div className="flex flex-wrap gap-3 mt-3 text-[11px] font-mono text-[var(--mute)]">
+      <div className="flex flex-wrap gap-3 mt-3 text-2xs font-mono text-[var(--mute)]">
         {Object.entries(STATUS_COLOR).map(([s, c]) => (
           <span key={s} className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full" style={{ background: c }} />{s.replace("_", " ")}</span>
         ))}

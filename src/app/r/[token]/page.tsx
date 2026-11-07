@@ -57,8 +57,8 @@ export default async function SharedReportPage({ params }: { params: Promise<{ t
             </section>
           ))}
         </div>
-        <p className="text-[11px] text-[var(--mute)] mt-4">{content.dataNote}</p>
-        <p className="text-[11px] text-[var(--mute)] mt-1">A read-only link{share.label ? ` for ${share.label}` : ""}, open until {share.expiresAt.toISOString().slice(0, 10)}.</p>
+        <p className="text-2xs text-[var(--mute)] mt-4">{content.dataNote}</p>
+        <p className="text-2xs text-[var(--mute)] mt-1">A read-only link{share.label ? ` for ${share.label}` : ""}, open until {share.expiresAt.toISOString().slice(0, 10)}.</p>
       </div>
     </main>
   );

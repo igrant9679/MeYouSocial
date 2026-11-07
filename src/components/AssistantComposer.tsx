@@ -29,7 +29,7 @@ function Send() {
         {pending ? "Working…" : "Send"}
       </button>
       {pending && (
-        <span className="text-[10px] text-[var(--mute)]">
+        <span className="text-micro text-[var(--mute)]">
           It may run several steps — writing an article takes a minute or two. Don&apos;t reload.
         </span>
       )}

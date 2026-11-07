@@ -156,7 +156,7 @@ export default async function SocialCalendarPage({ searchParams }: { searchParam
           ) : (
             [...byDay.entries()].map(([day, items]) => (
               <div key={day} className="mb-4">
-                <div className="text-[11px] font-mono uppercase tracking-wider text-[var(--mute)] mb-2">{day}</div>
+                <div className="text-2xs font-mono uppercase tracking-wider text-[var(--mute)] mb-2">{day}</div>
                 <div className="flex flex-col gap-2">
                   {items.map((p) => <PostCard key={p.id} post={p} returnTo="/social/calendar" canQueue={hasSlots} timeZone={queue.timeZone} isAdmin={isAdmin} approvalOn={requireApproval} />)}
                 </div>

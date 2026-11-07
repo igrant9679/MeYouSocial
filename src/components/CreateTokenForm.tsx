@@ -29,7 +29,7 @@ export function CreateTokenForm() {
         <div className="rounded-lg p-2.5 flex flex-col gap-1.5" style={{ background: "var(--green-soft)", color: "var(--green-on)" }}>
           <b>“{state.name}” — copy it now. It won&apos;t be shown again.</b>
           <div className="flex items-center gap-2">
-            <code className="select-all break-all text-[11px] flex-1" data-token>{state.token}</code>
+            <code className="select-all break-all text-2xs flex-1" data-token>{state.token}</code>
             <CopyButton text={state.token} />
           </div>
           <span>Send it as <code>Authorization: Bearer …</code> to /api/v1.</span>

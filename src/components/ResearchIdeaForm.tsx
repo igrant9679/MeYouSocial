@@ -48,13 +48,13 @@ export function ResearchIdeaForm({
     <>
       <input type="hidden" name="videoId" value={videoId} />
       <input type="hidden" name="back" value={back} />
-      <select name="format" className="text-[11px] border border-[var(--line-2)] rounded-md px-1.5 py-1" aria-label="Which kind of idea to make" defaultValue="article">
+      <select name="format" className="text-2xs border border-[var(--line-2)] rounded-md px-1.5 py-1" aria-label="Which kind of idea to make" defaultValue="article">
         <option value="article">Article</option>
         {channels.map((c) => <option key={c.id} value={`video:${c.id}`}>Video{channels.length > 1 ? ` · ${c.name}` : ""}</option>)}
         <option value="social">Social post</option>
       </select>
       {topics.length > 0 && (
-        <select key={`topicId:${matchedTopicId ?? ""}`} name="topicId" className="text-[11px] border border-[var(--line-2)] rounded-md px-1.5 py-1" aria-label="Topic" defaultValue={matchedTopicId ?? ""} title={matchedTopicId ? "Matched by keyword — change it if the match is wrong" : "No Topic matched by keyword"}>
+        <select key={`topicId:${matchedTopicId ?? ""}`} name="topicId" className="text-2xs border border-[var(--line-2)] rounded-md px-1.5 py-1" aria-label="Topic" defaultValue={matchedTopicId ?? ""} title={matchedTopicId ? "Matched by keyword — change it if the match is wrong" : "No Topic matched by keyword"}>
           <option value="">no topic</option>
           {topics.map((t) => <option key={t.id} value={t.id}>{t.name}{t.id === matchedTopicId ? " (matched)" : ""}</option>)}
         </select>
@@ -64,7 +64,7 @@ export function ResearchIdeaForm({
   );
 
   const note = already && (
-    <p className="m-0 text-[10px]" style={{ color: "var(--amber-on)" }} data-already-idea={`${already.kind}:${already.id}`}>
+    <p className="m-0 text-micro" style={{ color: "var(--amber-on)" }} data-already-idea={`${already.kind}:${already.id}`}>
       Already {already.sim === 1 ? "made into" : "close to"} the {KIND_LABEL[already.kind]}{" "}
       <Link href={already.href} className="underline">“{already.title.length > 60 ? `${already.title.slice(0, 60)}…` : already.title}”</Link>
     </p>

@@ -63,10 +63,10 @@ export default async function BlogReportPage() {
   // Keyword position buckets from each published post's latest snapshot.
   const positions = perf.filter((p) => p.status === "published" && p.position != null).map((p) => p.position!);
   const buckets = [
-    { label: "Top 3", value: positions.filter((x) => x <= 3).length, color: "#1D4ED8" },
-    { label: "4 – 10", value: positions.filter((x) => x > 3 && x <= 10).length, color: "#3B82F6" },
-    { label: "11 – 20", value: positions.filter((x) => x > 10 && x <= 20).length, color: "#93C5FD" },
-    { label: "21 +", value: positions.filter((x) => x > 20).length, color: "#DBEAFE" },
+    { label: "Top 3", value: positions.filter((x) => x <= 3).length, color: "var(--blue)" },
+    { label: "4 – 10", value: positions.filter((x) => x > 3 && x <= 10).length, color: "color-mix(in srgb, var(--blue) 70%, var(--bg))" },
+    { label: "11 – 20", value: positions.filter((x) => x > 10 && x <= 20).length, color: "color-mix(in srgb, var(--blue) 42%, var(--bg))" },
+    { label: "21 +", value: positions.filter((x) => x > 20).length, color: "color-mix(in srgb, var(--blue) 18%, var(--bg))" },
   ];
 
   // Voice mix: dominant motif per published post (workspace default not re-resolved
@@ -116,7 +116,7 @@ export default async function BlogReportPage() {
       {/* Traffic — small multiples, one measure per panel */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
         <section className="card anim-rise ad-1">
-          <h2 className="font-mono text-[13px] font-bold mb-2">Impressions / week</h2>
+          <h2 className="font-mono text-sm font-bold mb-2">Impressions / week</h2>
           {hasAnalytics ? (
             <><AreaChart points={series.map((p) => ({ label: p.label, value: p.impressions }))} color="var(--blue)" title="Impressions per week" height={130} marks={marks} /><Gaps n={imprGaps} of={series.length} /></>
           ) : (
@@ -124,7 +124,7 @@ export default async function BlogReportPage() {
           )}
         </section>
         <section className="card anim-rise ad-2">
-          <h2 className="font-mono text-[13px] font-bold mb-2">Clicks / week</h2>
+          <h2 className="font-mono text-sm font-bold mb-2">Clicks / week</h2>
           {hasAnalytics ? (
             <><AreaChart points={series.map((p) => ({ label: p.label, value: p.clicks }))} color="var(--teal)" title="Clicks per week" height={130} marks={marks} /><Gaps n={clickGaps} of={series.length} /></>
           ) : (
@@ -141,7 +141,7 @@ export default async function BlogReportPage() {
       <div className="grid grid-cols-1 lg:grid-cols-[1.5fr_1fr] gap-3 mb-3">
         {/* Top content */}
         <section className="card anim-rise ad-3">
-          <h2 className="font-mono text-[13px] font-bold mb-2">Top content</h2>
+          <h2 className="font-mono text-sm font-bold mb-2">Top content</h2>
           {topContent.length === 0 ? (
             <EmptyState variant="inline" line="Nothing has been published yet, so there is no content to rank." action={{ label: "See what's waiting", href: "/publish" }} />
           ) : (
@@ -150,11 +150,11 @@ export default async function BlogReportPage() {
               <table data-csv="blog-top-content" className="w-full text-xs border-collapse">
                 <thead>
                   <tr className="text-left text-[var(--mute)]">
-                    <th className="py-1.5 px-2 font-mono text-[9px] uppercase tracking-wider border-b-2 border-[var(--line)]">Post</th>
-                    <th className="py-1.5 px-2 font-mono text-[9px] uppercase tracking-wider border-b-2 border-[var(--line)]">Keyword</th>
-                    <th className="py-1.5 px-2 font-mono text-[9px] uppercase tracking-wider border-b-2 border-[var(--line)] text-right">Pos</th>
-                    <th className="py-1.5 px-2 font-mono text-[9px] uppercase tracking-wider border-b-2 border-[var(--line)] text-right">Δ</th>
-                    <th className="py-1.5 px-2 font-mono text-[9px] uppercase tracking-wider border-b-2 border-[var(--line)] text-right">Clicks</th>
+                    <th className="py-1.5 px-2 font-mono text-micro uppercase tracking-wider border-b-2 border-[var(--line)]">Post</th>
+                    <th className="py-1.5 px-2 font-mono text-micro uppercase tracking-wider border-b-2 border-[var(--line)]">Keyword</th>
+                    <th className="py-1.5 px-2 font-mono text-micro uppercase tracking-wider border-b-2 border-[var(--line)] text-right">Pos</th>
+                    <th className="py-1.5 px-2 font-mono text-micro uppercase tracking-wider border-b-2 border-[var(--line)] text-right">Δ</th>
+                    <th className="py-1.5 px-2 font-mono text-micro uppercase tracking-wider border-b-2 border-[var(--line)] text-right">Clicks</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -183,7 +183,7 @@ export default async function BlogReportPage() {
         <div className="flex flex-col gap-3">
           {/* Position buckets — ordered magnitude, one blue light→dark */}
           <section className="card anim-rise ad-4">
-            <h2 className="font-mono text-[13px] font-bold mb-2">Keyword positions</h2>
+            <h2 className="font-mono text-sm font-bold mb-2">Keyword positions</h2>
             {positions.length === 0 ? (
               <EmptyState variant="inline" line="No post has a recorded search position yet." action={{ label: "Add this week's numbers", href: "/blog/analytics" }} />
             ) : (
@@ -193,7 +193,7 @@ export default async function BlogReportPage() {
 
           {/* Compliance — icon + words, never color alone */}
           <section className="card anim-rise ad-5">
-            <h2 className="font-mono text-[13px] font-bold mb-2">Editorial compliance</h2>
+            <h2 className="font-mono text-sm font-bold mb-2">Editorial compliance</h2>
             <ul className="m-0 p-0 text-xs flex flex-col gap-2">
               <li className="flex items-center gap-2">
                 <ShieldCheck className="w-4 h-4 shrink-0" style={{ color: facts.overridden ? "var(--amber-on)" : "var(--green-on)" }} />
@@ -217,7 +217,7 @@ export default async function BlogReportPage() {
 
       {/* Voice mix */}
       <section className="card anim-rise ad-6 mb-4">
-        <h2 className="font-mono text-[13px] font-bold mb-2">Voice mix — published posts by dominant motif</h2>
+        <h2 className="font-mono text-sm font-bold mb-2">Voice mix — published posts by dominant motif</h2>
         {motifRows.length === 0 ? (
           <EmptyState
             variant="inline"
@@ -239,12 +239,12 @@ export default async function BlogReportPage() {
         ) : (
           <div className="max-w-lg">
             <HBars rows={motifRows} />
-            {motifUnset > 0 && <p className="text-[11px] text-[var(--mute)] mt-2">{motifUnset} post{motifUnset === 1 ? "" : "s"} published without an explicit blend.</p>}
+            {motifUnset > 0 && <p className="text-2xs text-[var(--mute)] mt-2">{motifUnset} post{motifUnset === 1 ? "" : "s"} published without an explicit blend.</p>}
           </div>
         )}
       </section>
 
-      <p className="text-[11px] text-[var(--mute)]">
+      <p className="text-2xs text-[var(--mute)]">
         Honest-data note: position and click figures come from snapshots recorded in this app and only cover posts
         published through it ({gscLine}). This report never estimates what it can&apos;t measure.
       </p>
@@ -256,7 +256,7 @@ export default async function BlogReportPage() {
 function Gaps({ n, of }: { n: number; of: number }) {
   if (n === 0) return null;
   return (
-    <p className="text-[10px] text-[var(--mute)] mt-1 mb-0">
+    <p className="text-micro text-[var(--mute)] mt-1 mb-0">
       {n} of the {of} weeks recorded nothing — those points sit at zero for want of a measurement, not because the number was zero.
     </p>
   );

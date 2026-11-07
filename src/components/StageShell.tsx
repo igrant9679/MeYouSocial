@@ -27,8 +27,8 @@ export function StageHeader({
   return (
     <div className="mb-4">
       <div className="flex items-baseline gap-3 flex-wrap">
-        <h1 className="font-mono text-[22px] font-bold m-0">{title}</h1>
-        <p className="text-[13px] text-[var(--mute)] m-0">{sentence}</p>
+        <h1 className="font-mono text-2xl font-bold m-0">{title}</h1>
+        <p className="text-sm text-[var(--mute)] m-0">{sentence}</p>
       </div>
       {counts.length > 0 && (
         <div className="flex items-center gap-2 flex-wrap mt-2">
@@ -36,7 +36,7 @@ export function StageHeader({
             const hue = c.hue ?? "zebra";
             const chip = (
               <span
-                className="font-mono text-[11px] px-2 py-0.5 rounded-full"
+                className="font-mono text-2xs px-2 py-0.5 rounded-full"
                 style={hue === "zebra" ? { background: "var(--zebra)", color: "var(--mute)" } : { background: `var(--${hue}-soft)`, color: `var(--${hue}-on)` }}
                 title={c.n === null ? "not measured" : undefined}
               >
@@ -62,7 +62,7 @@ export function StageHeader({
 export function StageList({ title, children, empty }: { title: string; children?: React.ReactNode; empty?: React.ReactNode }) {
   return (
     <section className="card mb-4">
-      <h2 className="font-mono text-[13px] font-bold mb-2">{title}</h2>
+      <h2 className="font-mono text-sm font-bold mb-2">{title}</h2>
       {children ? (
         <ul className="m-0 p-0 flex flex-col">{children}</ul>
       ) : typeof empty === "string" ? (
@@ -80,7 +80,7 @@ export function StageRow({ children }: { children: React.ReactNode }) {
 
 export function StateChip({ label, hue }: { label: string; hue: string }) {
   return (
-    <span className="font-mono text-[9.5px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded whitespace-nowrap" style={{ background: `var(--${hue}-soft)`, color: `var(--${hue}-on)` }}>
+    <span className="font-mono text-micro font-bold uppercase tracking-wider px-1.5 py-0.5 rounded whitespace-nowrap" style={{ background: `var(--${hue}-soft)`, color: `var(--${hue}-on)` }}>
       {label}
     </span>
   );

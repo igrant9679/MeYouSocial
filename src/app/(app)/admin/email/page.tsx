@@ -35,7 +35,7 @@ export default async function EmailSettingsPage({ searchParams }: { searchParams
   return (
     <div className="w-full">
       <div className="flex items-center gap-3 mb-2">
-        <span className="w-10 h-10 rounded-xl grid place-items-center" style={{ background: "#E5EDFD", color: "#2563EB" }}>
+        <span className="w-10 h-10 rounded-xl grid place-items-center" style={{ background: "var(--blue-soft)", color: "var(--blue)" }}>
           <Mail className="w-5 h-5" strokeWidth={2.25} />
         </span>
         <div>
@@ -65,7 +65,7 @@ export default async function EmailSettingsPage({ searchParams }: { searchParams
       <details className="card mb-4">
         <summary className="text-sm font-mono font-bold cursor-pointer">Quick presets (click to expand)</summary>
         <table className="w-full text-xs mt-3">
-          <thead className="text-[10px] uppercase tracking-wider text-[var(--mute)]">
+          <thead className="text-micro uppercase tracking-wider text-[var(--mute)]">
             <tr><th className="text-left py-1">Provider</th><th className="text-left">Host</th><th>Port</th><th>TLS</th><th className="text-left">Note</th></tr>
           </thead>
           <tbody className="font-mono">
@@ -75,7 +75,7 @@ export default async function EmailSettingsPage({ searchParams }: { searchParams
                 <td>{p.host}</td>
                 <td className="text-center">{p.port}</td>
                 <td className="text-center">{p.secure ? "yes" : "STARTTLS"}</td>
-                <td className="text-[11px] text-[var(--mute)]">{p.note}</td>
+                <td className="text-2xs text-[var(--mute)]">{p.note}</td>
               </tr>
             ))}
           </tbody>
@@ -136,7 +136,7 @@ export default async function EmailSettingsPage({ searchParams }: { searchParams
 function Field(props: { name: string; label: string; type?: string; required?: boolean; defaultValue?: string; placeholder?: string }) {
   return (
     <label className="flex flex-col gap-1">
-      <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">{props.label}{props.required && " *"}</span>
+      <span className="text-micro font-mono uppercase tracking-wider text-[var(--mute)]">{props.label}{props.required && " *"}</span>
       <input
         name={props.name}
         type={props.type ?? "text"}

@@ -67,14 +67,14 @@ export default async function ReportsHubPage() {
                   the card's <Link>, and a button there would nest interactive
                   elements and let the anchor swallow the click. */}
               {r.isCustom && (
-                <span title={REPORT_TIPS.custom} className="font-mono text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: "var(--indigo-soft)", color: "var(--indigo-on)" }}>custom</span>
+                <span title={REPORT_TIPS.custom} className="font-mono text-micro font-bold px-1.5 py-0.5 rounded-full" style={{ background: "var(--indigo-soft)", color: "var(--indigo-on)" }}>custom</span>
               )}
               {!r.isCustom && r.customized && (
-                <span title={REPORT_TIPS.customized} className="font-mono text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: "var(--panel)", color: "var(--mute)" }}>customized</span>
+                <span title={REPORT_TIPS.customized} className="font-mono text-micro font-bold px-1.5 py-0.5 rounded-full" style={{ background: "var(--panel)", color: "var(--mute)" }}>customized</span>
               )}
             </div>
             <p className="text-xs text-[var(--mute)]">{r.description}</p>
-            <p className="font-mono text-[10px] text-[var(--mute)] mt-1.5">{r.blocks.length} blocks · opens at {r.dateRangeDays / 7}w</p>
+            <p className="font-mono text-micro text-[var(--mute)] mt-1.5">{r.blocks.length} blocks · opens at {r.dateRangeDays / 7}w</p>
           </Link>
         ))}
 

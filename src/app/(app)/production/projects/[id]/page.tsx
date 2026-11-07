@@ -30,9 +30,9 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 const MERIT_COLOR: Record<string, { color: string; soft: string }> = {
-  pillar:     { color: "#15924B", soft: "#E0F2E8" },
-  trending:   { color: "#E5482F", soft: "#FDE7E1" },
-  experiment: { color: "#6D28D9", soft: "#EDE7FB" },
+  pillar:     { color: "var(--green)", soft: "var(--green-soft)" },
+  trending:   { color: "var(--brand)", soft: "var(--brand-soft)" },
+  experiment: { color: "var(--violet)", soft: "var(--violet-soft)" },
 };
 
 export default async function ProjectDetailPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ ok?: string; err?: string }> }) {
@@ -148,17 +148,17 @@ export default async function ProjectDetailPage({ params, searchParams }: { para
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Status + publish date */}
         <section className="card">
-          <h2 className="font-mono font-bold text-[14px] mb-3">Status & schedule</h2>
+          <h2 className="font-mono font-bold text-sm mb-3">Status & schedule</h2>
           {!editor ? (
             <dl className="m-0 grid grid-cols-2 gap-2 text-sm" data-read-only>
-              <div><dt className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">Status</dt><dd className="m-0">{STATUS_LABEL[project.status] ?? project.status}</dd></div>
-              <div><dt className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">Target publish</dt><dd className="m-0">{project.publishDate ? formatDay(new Date(project.publishDate)) : "—"}</dd></div>
+              <div><dt className="text-micro font-mono uppercase tracking-wider text-[var(--mute)]">Status</dt><dd className="m-0">{STATUS_LABEL[project.status] ?? project.status}</dd></div>
+              <div><dt className="text-micro font-mono uppercase tracking-wider text-[var(--mute)]">Target publish</dt><dd className="m-0">{project.publishDate ? formatDay(new Date(project.publishDate)) : "—"}</dd></div>
             </dl>
           ) : (<>
           <form action={setProjectStatusAction} className="flex items-end gap-2 mb-3">
             <input type="hidden" name="id" value={project.id} />
             <label className="flex flex-col gap-1 flex-1">
-              <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">Status</span>
+              <span className="text-micro font-mono uppercase tracking-wider text-[var(--mute)]">Status</span>
               <select key={`status:${project.status}`} name="status" defaultValue={project.status} className="border border-[var(--line-2)] rounded-lg p-2 text-sm">
                 {Object.entries(STATUS_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
               </select>
@@ -168,7 +168,7 @@ export default async function ProjectDetailPage({ params, searchParams }: { para
           <form action={setProjectPublishDateAction} className="flex items-end gap-2">
             <input type="hidden" name="id" value={project.id} />
             <label className="flex flex-col gap-1 flex-1">
-              <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">Target publish</span>
+              <span className="text-micro font-mono uppercase tracking-wider text-[var(--mute)]">Target publish</span>
               <input type="date" name="publishDate" defaultValue={project.publishDate ? new Date(project.publishDate).toISOString().slice(0, 10) : ""} className="border border-[var(--line-2)] rounded-lg p-2 text-sm" />
             </label>
             <button type="submit" className="btn sm">Save</button>
@@ -178,7 +178,7 @@ export default async function ProjectDetailPage({ params, searchParams }: { para
 
         {/* Upload checklist (E-VID-04) */}
         <section className="card" data-upload-checklist>
-          <h2 className="font-mono font-bold text-[14px] mb-3 flex items-center gap-2">
+          <h2 className="font-mono font-bold text-sm mb-3 flex items-center gap-2">
             <ListChecks className="w-4 h-4" style={{ color: "var(--green)" }} /> Upload checklist
             <span className="text-xs text-[var(--mute)] font-normal" data-upload-done>{done}/{UPLOAD_STEPS.length}</span>
           </h2>
@@ -187,7 +187,7 @@ export default async function ProjectDetailPage({ params, searchParams }: { para
               const tick = checklist[s.key];
               const box = (
                 <span className="w-5 h-5 rounded-md border grid place-items-center shrink-0"
-                  style={tick ? { background: "var(--green)", borderColor: "var(--green)", color: "#fff" } : { borderColor: "var(--line-2)" }}>
+                  style={tick ? { background: "var(--green)", borderColor: "var(--green)", color: "white" } : { borderColor: "var(--line-2)" }}>
                   {tick && <Check className="w-3.5 h-3.5" strokeWidth={3} />}
                 </span>
               );
@@ -203,22 +203,22 @@ export default async function ProjectDetailPage({ params, searchParams }: { para
                   ) : box}
                   <span className={"flex-1 " + (tick ? "text-[var(--mute)]" : "")}>{s.label}</span>
                   {tick ? (
-                    <span className="text-[10px] text-[var(--mute)] text-right">{nameOf.get(tick.by) ?? "someone"} · {formatDay(new Date(tick.at))}</span>
+                    <span className="text-micro text-[var(--mute)] text-right">{nameOf.get(tick.by) ?? "someone"} · {formatDay(new Date(tick.at))}</span>
                   ) : s.key === "thumbnail" && studioThumbs > 0 ? (
-                    <Link href="/thumbnails" className="text-[10px] text-[var(--accent)]" data-thumb-hint>{studioThumbs} made in the studio →</Link>
+                    <Link href="/thumbnails" className="text-micro text-[var(--accent)]" data-thumb-hint>{studioThumbs} made in the studio →</Link>
                   ) : null}
                 </li>
               );
             })}
           </ol>
           {done === UPLOAD_STEPS.length && project.status !== "published" && (
-            <p className="text-[11px] text-[var(--mute)] mt-2 mb-0" data-upload-nudge>Every step is ticked — {editor ? "set the status to Published when it's live." : "an editor can mark it Published."}</p>
+            <p className="text-2xs text-[var(--mute)] mt-2 mb-0" data-upload-nudge>Every step is ticked — {editor ? "set the status to Published when it's live." : "an editor can mark it Published."}</p>
           )}
         </section>
 
         {/* Its YouTube upload (E-MEA-17) */}
         <section className="card" id="youtube" data-youtube-link>
-          <h2 className="font-mono font-bold text-[14px] mb-3 flex items-center gap-2">
+          <h2 className="font-mono font-bold text-sm mb-3 flex items-center gap-2">
             <SquarePlay className="w-4 h-4" style={{ color: "var(--rose)" }} /> YouTube video
           </h2>
           {(ok || err) && (
@@ -263,7 +263,7 @@ export default async function ProjectDetailPage({ params, searchParams }: { para
                     {suggestions.map((v) => (
                       <li key={v.id} className="flex items-center gap-2">
                         <a href={v.url} target="_blank" rel="noreferrer" className="flex-1 min-w-0 truncate underline">{v.title}</a>
-                        <span className="text-[var(--mute)] font-mono text-[10px]">{v.views.toLocaleString()} views</span>
+                        <span className="text-[var(--mute)] font-mono text-micro">{v.views.toLocaleString()} views</span>
                         <form action={linkYoutubeVideoAction}>
                           <input type="hidden" name="id" value={project.id} />
                           <input type="hidden" name="video" value={v.id} />
@@ -283,7 +283,7 @@ export default async function ProjectDetailPage({ params, searchParams }: { para
         {/* E-VID-03: upload this project's video to the connected channel — admins, Private by default, asked first */}
         {admin && (
           <section className="card scroll-mt-20" id="youtube-upload" data-youtube-upload>
-            <h2 className="font-mono font-bold text-[14px] mb-2 flex items-center gap-2">
+            <h2 className="font-mono font-bold text-sm mb-2 flex items-center gap-2">
               <SquarePlay className="w-4 h-4" style={{ color: "var(--rose)" }} /> Upload to YouTube
             </h2>
             {uploads.map((u) => (
@@ -332,7 +332,7 @@ export default async function ProjectDetailPage({ params, searchParams }: { para
                   <input name="title" required maxLength={100} defaultValue={uploadDefaults.title} className="border border-[var(--line-2)] rounded-lg px-2 py-1" />
                 </label>
                 <label className="flex flex-col gap-1">Description
-                  <textarea name="description" rows={6} maxLength={5000} defaultValue={uploadDefaults.description} className="border border-[var(--line-2)] rounded-lg px-2 py-1 font-code text-[11px]" />
+                  <textarea name="description" rows={6} maxLength={5000} defaultValue={uploadDefaults.description} className="border border-[var(--line-2)] rounded-lg px-2 py-1 font-code text-2xs" />
                   {uploadDefaults.chaptersNote && <span className="text-[var(--mute)]">{uploadDefaults.chaptersNote}</span>}
                 </label>
                 <label className="flex flex-col gap-1">Tags <span className="text-[var(--mute)]">(comma-separated)</span>
@@ -363,7 +363,7 @@ export default async function ProjectDetailPage({ params, searchParams }: { para
                   <label className="inline-flex items-center gap-1"><input type="radio" name="madeForKids" value="no" required /> No</label>
                   <label className="inline-flex items-center gap-1"><input type="radio" name="madeForKids" value="yes" /> Yes</label>
                 </fieldset>
-                <p className="text-[11px] text-[var(--mute)] m-0">
+                <p className="text-2xs text-[var(--mute)] m-0">
                   ⚠ YouTube keeps every upload from a Google Cloud project it hasn&apos;t audited <b>private</b>, whatever is chosen here, until the project passes YouTube&apos;s API audit. Captions aren&apos;t sent (that needs a wider YouTube permission) — add the SRT in Studio.
                 </p>
                 <div><SubmitButton className="btn sm" pendingText="Checking…">Review the upload…</SubmitButton></div>
@@ -375,7 +375,7 @@ export default async function ProjectDetailPage({ params, searchParams }: { para
         {/* E-VID-05: a thumbnail A/B on the published video, scored by YouTube's reach reports — admins */}
         {admin && project.youtubeVideoId && (
           <section className="card scroll-mt-20" id="thumbnail-test" data-thumbnail-test>
-            <h2 className="font-mono font-bold text-[14px] mb-2 flex items-center gap-2">
+            <h2 className="font-mono font-bold text-sm mb-2 flex items-center gap-2">
               <SquarePlay className="w-4 h-4" style={{ color: "var(--amber-on)" }} /> Thumbnail test
             </h2>
             {thumbTests.map((t) => {
@@ -425,7 +425,7 @@ export default async function ProjectDetailPage({ params, searchParams }: { para
                     {[3, 5, 7, 14].map((d) => <option key={d} value={d}>{d} days</option>)}
                   </select>
                 </label>
-                <p className="text-[11px] text-[var(--mute)] m-0">
+                <p className="text-2xs text-[var(--mute)] m-0">
                   Each thumbnail is the video&apos;s thumbnail for its days in turn, then each is scored by the impressions and click-through YouTube reports for it. A winner is named only when the difference is clear on at least 1,000 impressions each; it&apos;s put back on the video. Titles can&apos;t be tested — that needs a wider YouTube permission than the channel granted.
                 </p>
                 <div><SubmitButton className="btn sm" pendingText="…">Review the test…</SubmitButton></div>
@@ -436,13 +436,13 @@ export default async function ProjectDetailPage({ params, searchParams }: { para
 
         {/* Merit + Keywords */}
         <section className="card">
-          <h2 className="font-mono font-bold text-[14px] mb-3 flex items-center gap-2"><Tag className="w-4 h-4" style={{ color: "#6D28D9" }} /> Strategy tags</h2>
+          <h2 className="font-mono font-bold text-sm mb-3 flex items-center gap-2"><Tag className="w-4 h-4" style={{ color: "var(--violet)" }} /> Strategy tags</h2>
 
           {editor && (
           <form action={setProjectMeritAction} className="flex items-end gap-2 mb-3">
             <input type="hidden" name="id" value={project.id} />
             <label className="flex flex-col gap-1 flex-1">
-              <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">Idea merit</span>
+              <span className="text-micro font-mono uppercase tracking-wider text-[var(--mute)]">Idea merit</span>
               <select key={`merit:${project.ideaMerit ?? ""}`} name="merit" defaultValue={project.ideaMerit ?? ""} className="border border-[var(--line-2)] rounded-lg p-2 text-sm">
                 <option value="">—</option>
                 <option value="pillar">Content pillar</option>
@@ -454,18 +454,18 @@ export default async function ProjectDetailPage({ params, searchParams }: { para
           </form>
           )}
           {project.ideaMerit && (
-            <span className="font-mono text-[11px] font-bold px-2 py-1 rounded-md inline-block mb-3" style={{ background: MERIT_COLOR[project.ideaMerit]?.soft, color: MERIT_COLOR[project.ideaMerit]?.color }}>
+            <span className="font-mono text-2xs font-bold px-2 py-1 rounded-md inline-block mb-3" style={{ background: MERIT_COLOR[project.ideaMerit]?.soft, color: MERIT_COLOR[project.ideaMerit]?.color }}>
               {project.ideaMerit}
             </span>
           )}
 
           {!editor ? (
-            <p className="text-sm m-0"><span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)] flex items-center gap-1"><Hash className="w-3 h-3" /> Target keywords</span>{keywords.length ? keywords.join(", ") : "—"}</p>
+            <p className="text-sm m-0"><span className="text-micro font-mono uppercase tracking-wider text-[var(--mute)] flex items-center gap-1"><Hash className="w-3 h-3" /> Target keywords</span>{keywords.length ? keywords.join(", ") : "—"}</p>
           ) : (
           <form action={setProjectKeywordsAction} className="flex flex-col gap-2">
             <input type="hidden" name="id" value={project.id} />
             <label className="flex flex-col gap-1">
-              <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)] flex items-center gap-1"><Hash className="w-3 h-3" /> Target keywords (comma-separated)</span>
+              <span className="text-micro font-mono uppercase tracking-wider text-[var(--mute)] flex items-center gap-1"><Hash className="w-3 h-3" /> Target keywords (comma-separated)</span>
               <textarea name="keywords" defaultValue={keywords.join(", ")} rows={2} className="border border-[var(--line-2)] rounded-lg p-2 text-sm font-mono" />
             </label>
             <button type="submit" className="btn sm self-end">Save</button>
@@ -476,7 +476,7 @@ export default async function ProjectDetailPage({ params, searchParams }: { para
         {/* Task progress rollup */}
         {project.tasks.length > 0 && (
           <section className="card">
-            <h2 className="font-mono font-bold text-[14px] mb-3">Tasks ({tasksDone}/{project.tasks.length} done)</h2>
+            <h2 className="font-mono font-bold text-sm mb-3">Tasks ({tasksDone}/{project.tasks.length} done)</h2>
             <div className="h-2 rounded-full bg-[var(--line)] overflow-hidden mb-3">
               <div className="h-full rounded-full transition-all" style={{ width: tasksProgress + "%", background: tasksProgress === 100 ? "var(--green)" : "var(--accent)" }} />
             </div>
@@ -485,7 +485,7 @@ export default async function ProjectDetailPage({ params, searchParams }: { para
                 <li key={t.id} className="border-t border-[var(--line)] first:border-t-0 py-1.5 text-xs flex items-center gap-2">
                   <span className={"w-2 h-2 rounded-full"} style={{ background: t.status === "done" ? "var(--green)" : t.status === "in_progress" ? "var(--amber)" : "var(--mute)" }} />
                   <span className={"flex-1 " + (t.status === "done" ? "line-through text-[var(--mute)]" : "")}>{t.title}</span>
-                  {t.dueDate && <span className="text-[10px] text-[var(--mute)]">{formatDay(new Date(t.dueDate))}</span>}
+                  {t.dueDate && <span className="text-micro text-[var(--mute)]">{formatDay(new Date(t.dueDate))}</span>}
                 </li>
               ))}
             </ul>
@@ -495,33 +495,33 @@ export default async function ProjectDetailPage({ params, searchParams }: { para
         {/* Attach an SOP checklist as project tasks */}
         {wikiDocs.length > 0 && (
           <section className="card">
-            <h2 className="font-mono font-bold text-[14px] mb-3 flex items-center gap-2"><BookOpen className="w-4 h-4" style={{ color: "#4F46E5" }} /> Attach SOP checklist</h2>
+            <h2 className="font-mono font-bold text-sm mb-3 flex items-center gap-2"><BookOpen className="w-4 h-4" style={{ color: "var(--indigo)" }} /> Attach SOP checklist</h2>
             <form action={attachChecklistAction} className="flex items-end gap-2">
               <input type="hidden" name="contentProjectId" value={project.id} />
               <label className="flex flex-col gap-1 flex-1">
-                <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">Wiki page</span>
+                <span className="text-micro font-mono uppercase tracking-wider text-[var(--mute)]">Wiki page</span>
                 <select name="wikiDocId" className="border border-[var(--line-2)] rounded-lg p-2 text-sm">
                   {wikiDocs.map((d) => <option key={d.id} value={d.id}>{d.title}</option>)}
                 </select>
               </label>
               <SubmitButton className="btn primary sm">Attach as tasks</SubmitButton>
             </form>
-            <p className="text-[11px] text-[var(--mute)] mt-2">Converts the wiki page&apos;s checklist (or `- ` bullets in the body) into assigned tasks on this project.</p>
+            <p className="text-2xs text-[var(--mute)] mt-2">Converts the wiki page&apos;s checklist (or `- ` bullets in the body) into assigned tasks on this project.</p>
           </section>
         )}
 
         {/* Repurposing */}
         <section className="card">
-          <h2 className="font-mono font-bold text-[14px] mb-3 flex items-center gap-2"><GitBranch className="w-4 h-4" style={{ color: "#0D9488" }} /> Repurpose</h2>
+          <h2 className="font-mono font-bold text-sm mb-3 flex items-center gap-2"><GitBranch className="w-4 h-4" style={{ color: "var(--teal)" }} /> Repurpose</h2>
           {editor ? (
           <form action={repurposeProjectAction} className="flex flex-wrap items-end gap-2 mb-3">
             <input type="hidden" name="parentId" value={project.id} />
             <label className="flex flex-col gap-1 flex-1">
-              <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">New title (optional)</span>
+              <span className="text-micro font-mono uppercase tracking-wider text-[var(--mute)]">New title (optional)</span>
               <input name="title" placeholder={`${project.title} (short)`} className="border border-[var(--line-2)] rounded-lg p-2 text-sm" />
             </label>
             <label className="flex flex-col gap-1">
-              <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">Format</span>
+              <span className="text-micro font-mono uppercase tracking-wider text-[var(--mute)]">Format</span>
               <select name="format" className="border border-[var(--line-2)] rounded-lg p-2 text-sm">
                 <option value="short">Short</option>
                 <option value="long">Long</option>
@@ -536,9 +536,9 @@ export default async function ProjectDetailPage({ params, searchParams }: { para
             <ul className="m-0 p-0">
               {project.derivatives.map((d) => (
                 <li key={d.id} className="border-t border-[var(--line)] py-2 text-sm flex items-center gap-2">
-                  <span className="font-mono text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: "var(--accent-soft)", color: "var(--accent)" }}>{d.format ?? "—"}</span>
+                  <span className="font-mono text-micro uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: "var(--accent-soft)", color: "var(--accent)" }}>{d.format ?? "—"}</span>
                   <Link href={`/production/projects/${d.id}`} className="flex-1 hover:text-[var(--accent)] truncate">{d.title}</Link>
-                  <span className="text-[10px] font-mono text-[var(--mute)]">{d.status}</span>
+                  <span className="text-micro font-mono text-[var(--mute)]">{d.status}</span>
                 </li>
               ))}
             </ul>

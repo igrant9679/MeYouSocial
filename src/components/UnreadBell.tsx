@@ -19,8 +19,8 @@ export function UnreadBell({ initial }: { initial: number }) {
       <Bell className="w-[21px] h-[21px]" strokeWidth={2.25} />
       {unread > 0 && (
         <span
-          className="badge-pop absolute -top-0.5 -right-0.5 min-w-[17px] h-[17px] px-1 rounded-full text-[10px] font-mono font-bold grid place-items-center"
-          style={{ background: "var(--brand, #E5482F)", color: "#fff" }}
+          className="badge-pop absolute -top-0.5 -right-0.5 min-w-[17px] h-[17px] px-1 rounded-full text-micro font-mono font-bold grid place-items-center"
+          style={{ background: "var(--brand)", color: "white" }}
         >
           {unread > 9 ? "9+" : unread}
         </span>

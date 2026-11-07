@@ -12,7 +12,7 @@ import type { VersionRow } from "@/lib/profile-versions";
 export function ProfileVersions({ versions, editor, timeZone, noun }: { versions: VersionRow[]; editor: boolean; timeZone: string; noun: string }) {
   return (
     <section className="card" data-profile-versions>
-      <h2 className="font-mono text-[14px] font-bold mb-1 flex items-center gap-2">
+      <h2 className="font-mono text-sm font-bold mb-1 flex items-center gap-2">
         <History className="w-4 h-4" style={{ color: "var(--violet)" }} /> Versions
         <span className="text-xs text-[var(--mute)] font-normal">{versions.length}</span>
       </h2>
@@ -27,9 +27,9 @@ export function ProfileVersions({ versions, editor, timeZone, noun }: { versions
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="font-mono font-bold">v{v.n}</span>
                   <span className="flex-1 min-w-0 break-words">{v.label}</span>
-                  <span className="text-[10px] text-[var(--mute)]">{v.by ? `${v.by} · ` : ""}{formatZonedMoment(v.createdAt, timeZone)}</span>
+                  <span className="text-micro text-[var(--mute)]">{v.by ? `${v.by} · ` : ""}{formatZonedMoment(v.createdAt, timeZone)}</span>
                   {current ? (
-                    <span className="font-mono text-[9px] uppercase px-1.5 py-0.5 rounded-full" style={{ background: "var(--green-soft)", color: "var(--green-on)" }}>current</span>
+                    <span className="font-mono text-micro uppercase px-1.5 py-0.5 rounded-full" style={{ background: "var(--green-soft)", color: "var(--green-on)" }}>current</span>
                   ) : editor ? (
                     <form action={restoreProfileVersionAction}>
                       <input type="hidden" name="versionId" value={v.id} />
@@ -39,10 +39,10 @@ export function ProfileVersions({ versions, editor, timeZone, noun }: { versions
                 </div>
                 {!current && (
                   <details className="mt-1" data-compare={v.n}>
-                    <summary className="cursor-pointer text-[11px] text-[var(--mute)]">Compare with now · {v.changes.length} field{v.changes.length === 1 ? "" : "s"} differ</summary>
-                    <table className="w-full mt-1 text-[11px] border-collapse">
+                    <summary className="cursor-pointer text-2xs text-[var(--mute)]">Compare with now · {v.changes.length} field{v.changes.length === 1 ? "" : "s"} differ</summary>
+                    <table className="w-full mt-1 text-2xs border-collapse">
                       <thead>
-                        <tr className="text-left text-[9px] uppercase tracking-wider font-mono text-[var(--mute)]">
+                        <tr className="text-left text-micro uppercase tracking-wider font-mono text-[var(--mute)]">
                           <th className="py-1 pr-2 w-1/5">Field</th>
                           <th className="py-1 pr-2">Now</th>
                           <th className="py-1">v{v.n}</th>

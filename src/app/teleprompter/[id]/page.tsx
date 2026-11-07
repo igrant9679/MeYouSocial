@@ -25,7 +25,7 @@ export default async function TeleprompterPage({ params }: { params: Promise<{ i
       <header className="px-5 py-3 flex items-center gap-3 border-b border-white/10">
         <Link href={`/scripts/${id}/publish`} className="text-xs font-mono text-white/60 hover:text-white">← Back</Link>
         <div className="flex-1" />
-        <div className="hidden md:block text-[11px] font-mono text-white/40" data-prompter-keys>
+        <div className="hidden md:block text-2xs font-mono text-white/40" data-prompter-keys>
           Space play · ↑↓ speed · ←→ nudge · −+ size · M mirror · C countdown · F fullscreen · R top
         </div>
         <div className="text-xs font-mono text-white/60 truncate max-w-[40vw]">{script.title}</div>

@@ -96,7 +96,7 @@ export function CommandPalette() {
             aria-label="Search"
             data-palette-input
           />
-          <kbd className="hidden sm:inline font-mono text-[10px] text-[var(--mute)] border border-[var(--line)] rounded px-1">Esc</kbd>
+          <kbd className="hidden sm:inline font-mono text-micro text-[var(--mute)] border border-[var(--line)] rounded px-1">Esc</kbd>
         </div>
         <ul className="m-0 p-1 list-none max-h-[60vh] overflow-y-auto" role="listbox" data-palette-results>
           {q.trim().length < 2 && <li className="px-3 py-2 text-xs text-[var(--mute)]">Type two letters or more. ↑ ↓ to move, Enter to open.</li>}
@@ -108,13 +108,13 @@ export function CommandPalette() {
             const head = i === 0 || shown[i - 1].kind !== h.kind ? GROUP[h.kind] : null;
             return (
               <li key={`${h.kind}-${h.href}-${i}`}>
-                {head && <div className="px-3 pt-2 pb-1 text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">{head}</div>}
+                {head && <div className="px-3 pt-2 pb-1 text-micro font-mono uppercase tracking-wider text-[var(--mute)]">{head}</div>}
                 <button type="button" role="option" aria-selected={i === active} onMouseEnter={() => setActive(i)} onClick={() => go(i)}
                   className="w-full text-left flex items-center gap-2.5 px-3 py-2 rounded-lg" style={i === active ? { background: "var(--accent-soft)" } : undefined} data-hit={h.kind}>
                   <Icon className="w-4 h-4 shrink-0 text-[var(--mute)]" />
                   <span className="min-w-0 flex-1">
                     <span className="block text-sm truncate">{h.title}</span>
-                    {h.detail && <span className="block text-[11px] text-[var(--mute)] truncate">{h.detail}</span>}
+                    {h.detail && <span className="block text-2xs text-[var(--mute)] truncate">{h.detail}</span>}
                   </span>
                   {i === active && <CornerDownLeft className="w-3.5 h-3.5 text-[var(--mute)] shrink-0" />}
                 </button>
@@ -123,7 +123,7 @@ export function CommandPalette() {
           })}
           {askRow && (
             <li>
-              <div className="px-3 pt-2 pb-1 text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">Or</div>
+              <div className="px-3 pt-2 pb-1 text-micro font-mono uppercase tracking-wider text-[var(--mute)]">Or</div>
               <button type="button" role="option" aria-selected={active === shown.length} onMouseEnter={() => setActive(shown.length)} onClick={() => go(shown.length)}
                 className="w-full text-left flex items-center gap-2.5 px-3 py-2 rounded-lg" style={active === shown.length ? { background: "var(--accent-soft)" } : undefined} data-hit="ask">
                 <Bot className="w-4 h-4 shrink-0" style={{ color: "var(--violet-on)" }} />
@@ -141,7 +141,7 @@ export function CommandPalette() {
 export function PaletteButton() {
   return (
     <button type="button" onClick={() => window.dispatchEvent(new Event("palette:open"))} className="btn sm items-center gap-1.5 !inline-flex" title="Search everything (Ctrl+K)" aria-label="Search" data-palette-button>
-      <Search className="w-3.5 h-3.5" /> <span className="hidden @4xl:inline">Search</span> <kbd className="hidden @4xl:inline font-mono text-[10px] text-[var(--mute)]">Ctrl K</kbd>
+      <Search className="w-3.5 h-3.5" /> <span className="hidden @4xl:inline">Search</span> <kbd className="hidden @4xl:inline font-mono text-micro text-[var(--mute)]">Ctrl K</kbd>
     </button>
   );
 }

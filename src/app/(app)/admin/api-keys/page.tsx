@@ -65,7 +65,7 @@ function StoredKeyWarning({ provider, value }: { provider: string; value: string
   const problem = value ? checkKeyFormat(provider, value) : null;
   if (!problem) return null;
   return (
-    <div className="text-[11px] mt-1 px-2 py-1.5 rounded-lg leading-snug" style={{ background: "var(--rose-soft)", color: "var(--rose-on)" }}>
+    <div className="text-2xs mt-1 px-2 py-1.5 rounded-lg leading-snug" style={{ background: "var(--rose-soft)", color: "var(--rose-on)" }}>
       ⚠ The saved value doesn&apos;t look like a key. {problem.reason} Paste the real one below to replace it.
     </div>
   );
@@ -214,20 +214,20 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
                 <div className="font-mono font-bold text-sm flex items-center gap-2">
                   {row.label}
                   {dbVal ? (
-                    <span className="text-[10px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded flex items-center gap-1" style={{ background: "var(--green-soft)", color: "var(--green-on)" }}>
+                    <span className="text-micro font-mono uppercase tracking-wider px-1.5 py-0.5 rounded flex items-center gap-1" style={{ background: "var(--green-soft)", color: "var(--green-on)" }}>
                       <CheckCircle2 className="w-3 h-3" /> your key
                     </span>
                   ) : platformHas ? (
-                    <span className="text-[10px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: "var(--blue-soft)", color: "var(--blue-on)" }}>
+                    <span className="text-micro font-mono uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: "var(--blue-soft)", color: "var(--blue-on)" }}>
                       platform key in use
                     </span>
                   ) : null}
                 </div>
-                <div className="text-[11px] text-[var(--mute)] font-mono mt-0.5">{row.envVar}</div>
-                <div className="text-[11px] text-[var(--mute)] mt-0.5" data-key-use={row.provider}>Used for: {row.use}</div>
-                {dbVal && <div className="text-[11px] font-mono text-[var(--mute)] mt-0.5">Current: {mask(dbVal)}</div>}
+                <div className="text-2xs text-[var(--mute)] font-mono mt-0.5">{row.envVar}</div>
+                <div className="text-2xs text-[var(--mute)] mt-0.5" data-key-use={row.provider}>Used for: {row.use}</div>
+                {dbVal && <div className="text-2xs font-mono text-[var(--mute)] mt-0.5">Current: {mask(dbVal)}</div>}
                 <StoredKeyWarning provider={row.provider} value={dbVal} />
-                <Link href={row.helpUrl} target="_blank" rel="noopener noreferrer" className="text-[11px] inline-flex items-center gap-1 mt-1" style={{ color: "var(--accent)" }}>
+                <Link href={row.helpUrl} target="_blank" rel="noopener noreferrer" className="text-2xs inline-flex items-center gap-1 mt-1" style={{ color: "var(--accent)" }}>
                   Get a key from {row.helpText} <ExternalLink className="w-3 h-3" />
                 </Link>
               </div>
@@ -245,7 +245,7 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
           <form key={row.provider} action={saveApiKeyAction} id={`key-${row.provider}`} className="card mb-3 scroll-mt-20" data-unused-key={row.provider}>
             <input type="hidden" name="provider" value={row.provider} />
             <div className="font-mono font-bold text-sm">{row.label}</div>
-            <p className="text-[11px] mt-0.5 mb-2" style={{ color: "var(--amber-on)" }}>
+            <p className="text-2xs mt-0.5 mb-2" style={{ color: "var(--amber-on)" }}>
               Nothing in the app calls {row.label} yet, so the key saved here ({mask(dbVal)}) does nothing. Remove it; a new one can&apos;t be saved.
             </p>
             {confirmRemove === row.provider ? (
@@ -293,20 +293,20 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
                 <div className="font-mono font-bold text-sm flex items-center gap-2">
                   {row.label}
                   {dbVal ? (
-                    <span className="text-[10px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded flex items-center gap-1" style={{ background: "var(--green-soft)", color: "var(--green-on)" }}>
+                    <span className="text-micro font-mono uppercase tracking-wider px-1.5 py-0.5 rounded flex items-center gap-1" style={{ background: "var(--green-soft)", color: "var(--green-on)" }}>
                       <CheckCircle2 className="w-3 h-3" /> your key
                     </span>
                   ) : platformHas ? (
-                    <span className="text-[10px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: "var(--blue-soft)", color: "var(--blue-on)" }}>
+                    <span className="text-micro font-mono uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: "var(--blue-soft)", color: "var(--blue-on)" }}>
                       platform key in use
                     </span>
                   ) : null}
                 </div>
-                <div className="text-[11px] text-[var(--mute)] font-mono mt-0.5">{row.envVar}</div>
-                <div className="text-[11px] text-[var(--mute)] mt-0.5">{row.note}</div>
-                {dbVal && <div className="text-[11px] font-mono text-[var(--mute)] mt-0.5">Current: {mask(dbVal)}</div>}
+                <div className="text-2xs text-[var(--mute)] font-mono mt-0.5">{row.envVar}</div>
+                <div className="text-2xs text-[var(--mute)] mt-0.5">{row.note}</div>
+                {dbVal && <div className="text-2xs font-mono text-[var(--mute)] mt-0.5">Current: {mask(dbVal)}</div>}
                 <StoredKeyWarning provider={row.vendor} value={dbVal} />
-                <Link href={row.helpUrl} target="_blank" rel="noopener noreferrer" className="text-[11px] inline-flex items-center gap-1 mt-1" style={{ color: "var(--accent)" }}>
+                <Link href={row.helpUrl} target="_blank" rel="noopener noreferrer" className="text-2xs inline-flex items-center gap-1 mt-1" style={{ color: "var(--accent)" }}>
                   Get a key from {row.helpText} <ExternalLink className="w-3 h-3" />
                 </Link>
               </div>
@@ -331,7 +331,7 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
 
       <div className="card mb-3">
         <div className="font-mono font-bold text-sm mb-1">Image generation</div>
-        <p className="text-[11px] text-[var(--mute)] mb-2">
+        <p className="text-2xs text-[var(--mute)] mb-2">
           <b>Auto</b> uses OpenAI when its key is set, else Google, else the mock — it prefers OpenAI only because
           <b> gpt-image-1</b> renders legible text far more reliably, and thumbnails usually need words on them.
           <b> Mock</b> returns an unrelated stock photo and is <b>not</b> a working image generator; it exists so the
@@ -356,7 +356,7 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
 
       <div className="card mb-3">
         <div className="font-mono font-bold text-sm mb-1">Video renderer</div>
-        <p className="text-[11px] text-[var(--mute)] mb-2">
+        <p className="text-2xs text-[var(--mute)] mb-2">
           <b>Auto</b> uses Veo when a Google key is set (renders cost money), otherwise the free mock.
           <b> Mock</b> never spends. <b>Veo</b> forces the real provider and errors loudly without a key.
         </p>
@@ -378,7 +378,7 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
 
       <div className="card mb-3">
         <div className="font-mono font-bold text-sm mb-1">Voiceover (TTS)</div>
-        <p className="text-[11px] text-[var(--mute)] mb-2">
+        <p className="text-2xs text-[var(--mute)] mb-2">
           Mock stores the narration script as text (clearly labeled, no fake audio). ElevenLabs produces real audio
           once its key below is saved.
         </p>
@@ -419,32 +419,32 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
                 <div className="font-mono font-bold text-sm flex items-center gap-2">
                   {row.label}
                   {managed ? (
-                    <span className="text-[10px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: platformHas ? "var(--blue-soft)" : "var(--amber-soft)", color: platformHas ? "var(--blue-on)" : "var(--amber-on)" }}>
+                    <span className="text-micro font-mono uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: platformHas ? "var(--blue-soft)" : "var(--amber-soft)", color: platformHas ? "var(--blue-on)" : "var(--amber-on)" }}>
                       {platformHas ? "shared · all workspaces" : "shared · not set"}
                     </span>
                   ) : dbVal ? (
-                    <span className="text-[10px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded flex items-center gap-1" style={{ background: "var(--green-soft)", color: "var(--green-on)" }}>
+                    <span className="text-micro font-mono uppercase tracking-wider px-1.5 py-0.5 rounded flex items-center gap-1" style={{ background: "var(--green-soft)", color: "var(--green-on)" }}>
                       <CheckCircle2 className="w-3 h-3" /> your key
                     </span>
                   ) : platformHas ? (
-                    <span className="text-[10px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: "var(--blue-soft)", color: "var(--blue-on)" }}>
+                    <span className="text-micro font-mono uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: "var(--blue-soft)", color: "var(--blue-on)" }}>
                       platform key in use
                     </span>
                   ) : null}
                 </div>
-                <div className="text-[11px] text-[var(--mute)] font-mono mt-0.5">{row.envVar}</div>
-                <div className="text-[11px] text-[var(--mute)] mt-0.5">{row.note}</div>
+                <div className="text-2xs text-[var(--mute)] font-mono mt-0.5">{row.envVar}</div>
+                <div className="text-2xs text-[var(--mute)] mt-0.5">{row.note}</div>
                 {managed && (
-                  <div className="text-[11px] mt-1 px-2.5 py-1.5 rounded-lg" style={{ background: "var(--panel)", color: "var(--mute)" }}>
+                  <div className="text-2xs mt-1 px-2.5 py-1.5 rounded-lg" style={{ background: "var(--panel)", color: "var(--mute)" }}>
                     {isPlatformOperator
                       ? "One key serves every workspace — it reads public channel data by id, so it isn't tied to any one channel. Changing it here changes it for all tenants, and the daily quota is shared between them."
                       : "Provided by the platform and shared with every workspace — there's nothing to set up here. Your own channel's analytics and uploads are a separate connection under Settings → Analytics."}
                   </div>
                 )}
-                {dbVal && editable && <div className="text-[11px] font-mono text-[var(--mute)] mt-0.5">Current: {mask(dbVal)}</div>}
+                {dbVal && editable && <div className="text-2xs font-mono text-[var(--mute)] mt-0.5">Current: {mask(dbVal)}</div>}
                 {editable && <StoredKeyWarning provider={row.provider} value={dbVal} />}
                 {editable && (
-                  <Link href={row.helpUrl} target="_blank" rel="noopener noreferrer" className="text-[11px] inline-flex items-center gap-1 mt-1" style={{ color: "var(--accent)" }}>
+                  <Link href={row.helpUrl} target="_blank" rel="noopener noreferrer" className="text-2xs inline-flex items-center gap-1 mt-1" style={{ color: "var(--accent)" }}>
                     Get a key from {row.helpText} <ExternalLink className="w-3 h-3" />
                   </Link>
                 )}
@@ -475,7 +475,7 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
 
       <div className="card mb-3">
         <div className="font-mono font-bold text-sm mb-1">Backend</div>
-        <p className="text-[11px] text-[var(--mute)] mb-2">
+        <p className="text-2xs text-[var(--mute)] mb-2">
           <b>Local</b> writes to the server disk (fine in dev; <b>ephemeral on Railway</b> — files vanish on redeploy).
           <b> Google Drive</b> stores files durably in the folder below. Switching only affects <em>new</em> files;
           existing files keep working from wherever they were stored.
@@ -495,7 +495,7 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
           ))}
         </div>
         {storageBackend === "gdrive" && !gdriveConfigured && (
-          <div className="text-[11px] rounded-lg p-2 flex items-center gap-2" style={{ background: "var(--rose-soft)", color: "var(--rose-on)" }}>
+          <div className="text-2xs rounded-lg p-2 flex items-center gap-2" style={{ background: "var(--rose-soft)", color: "var(--rose-on)" }}>
             <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
             {driveMode === "oauth"
               ? "Drive is selected but no Google account is connected — uploads will fail until you connect one below."
@@ -503,7 +503,7 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
           </div>
         )}
         {drive && (
-          <div className="text-[11px] font-mono rounded-lg p-2" style={{ background: drive.ok ? "var(--green-soft)" : "var(--rose-soft)", color: drive.ok ? "var(--green-on)" : "var(--rose-on)" }}>
+          <div className="text-2xs font-mono rounded-lg p-2" style={{ background: drive.ok ? "var(--green-soft)" : "var(--rose-soft)", color: drive.ok ? "var(--green-on)" : "var(--rose-on)" }}>
             {drive.ok ? (
               <>
                 Connected as {drive.email}
@@ -524,7 +524,7 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
           suits which kind of Google account. */}
       <div className="card mb-3">
         <div className="font-mono font-bold text-sm mb-1">How to reach Drive</div>
-        <p className="text-[11px] text-[var(--mute)] mb-2">
+        <p className="text-2xs text-[var(--mute)] mb-2">
           <b>Connect a Google account</b> — files are owned by that account and use its storage. This is the only option
           that works on a personal <span className="font-mono">@gmail.com</span> account.
           <br />
@@ -556,23 +556,23 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
           <div className="font-mono font-bold text-sm flex items-center gap-2 mb-1">
             Google account
             {driveOauth.connected && (
-              <span className="text-[10px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded flex items-center gap-1" style={{ background: "var(--green-soft)", color: "var(--green-on)" }}>
+              <span className="text-micro font-mono uppercase tracking-wider px-1.5 py-0.5 rounded flex items-center gap-1" style={{ background: "var(--green-soft)", color: "var(--green-on)" }}>
                 <CheckCircle2 className="w-3 h-3" /> connected
               </span>
             )}
           </div>
-          <p className="text-[11px] text-[var(--mute)] mb-2 leading-relaxed">
+          <p className="text-2xs text-[var(--mute)] mb-2 leading-relaxed">
             In Google Cloud Console → <i>APIs &amp; Services → Credentials</i>, create an <b>OAuth client ID</b> (type: Web
             application) and add this exact redirect URI:
-            <code className="font-mono text-[10px] px-1.5 py-0.5 rounded ml-1 inline-block break-all" style={{ background: "var(--zebra)" }}>
+            <code className="font-mono text-micro px-1.5 py-0.5 rounded ml-1 inline-block break-all" style={{ background: "var(--zebra)" }}>
               {gdriveRedirectUri(origin)}
             </code>
             <br />
             Enable the <b>Google Drive API</b> on the project. The app asks only for the{" "}
-            <code className="font-mono text-[10px] px-1 rounded" style={{ background: "var(--zebra)" }}>drive.file</code> scope,
+            <code className="font-mono text-micro px-1 rounded" style={{ background: "var(--zebra)" }}>drive.file</code> scope,
             which needs no Google verification review.
           </p>
-          <p className="text-[11px] mb-2 leading-relaxed rounded-lg p-2" style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }}>
+          <p className="text-2xs mb-2 leading-relaxed rounded-lg p-2" style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }}>
             <b>Then publish the consent screen.</b> In <i>OAuth consent screen → Audience</i>, hit <b>Publish app</b>. A consent
             screen left in <b>Testing</b> rejects everyone except listed testers — Google shows <i>“has not completed the Google
             verification process”</i>, error 403 <span className="font-mono">access_denied</span> — and, worse, it{" "}
@@ -598,11 +598,11 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
           ) : (
             <>
               <form action={saveGdriveOauthClientAction} className="flex flex-wrap items-end gap-2 mb-2">
-                <label className="flex-1 min-w-52 text-[11px] text-[var(--mute)]">
+                <label className="flex-1 min-w-52 text-2xs text-[var(--mute)]">
                   OAuth client ID
                   <input name="client_id" defaultValue={platformByKey.get("gdrive_oauth:client_id") ?? ""} placeholder="…apps.googleusercontent.com" className="w-full text-sm font-mono mt-0.5 border border-[var(--line-2)] rounded-lg p-2" autoComplete="off" />
                 </label>
-                <label className="flex-1 min-w-40 text-[11px] text-[var(--mute)]">
+                <label className="flex-1 min-w-40 text-2xs text-[var(--mute)]">
                   Client secret {driveOauthClient?.clientSecret ? <span style={{ color: "var(--green-on)" }}>· stored</span> : ""}
                   <input name="client_secret" type="password" placeholder={driveOauthClient?.clientSecret ? "•••••• (leave blank to keep)" : "GOCSPX-…"} className="w-full text-sm font-mono mt-0.5 border border-[var(--line-2)] rounded-lg p-2" autoComplete="off" />
                 </label>
@@ -612,7 +612,7 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
                 <SubmitButton className="btn primary sm" pendingText="Redirecting…" disabled={!driveOauthClient}>
                   <HardDrive className="w-4 h-4" /> Connect Google Drive
                 </SubmitButton>
-                {!driveOauthClient && <span className="text-[11px] text-[var(--mute)] ml-2">Save a client ID and secret first.</span>}
+                {!driveOauthClient && <span className="text-2xs text-[var(--mute)] ml-2">Save a client ID and secret first.</span>}
               </form>
             </>
           )}
@@ -624,13 +624,13 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
         <div className="font-mono font-bold text-sm flex items-center gap-2 mb-1">
           Service account key (JSON)
           {gdriveSa && (
-            <span className="text-[10px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded flex items-center gap-1" style={{ background: "var(--green-soft)", color: "var(--green-on)" }}>
+            <span className="text-micro font-mono uppercase tracking-wider px-1.5 py-0.5 rounded flex items-center gap-1" style={{ background: "var(--green-soft)", color: "var(--green-on)" }}>
               <CheckCircle2 className="w-3 h-3" /> configured
             </span>
           )}
         </div>
-        {gdriveSa && <div className="text-[11px] font-mono text-[var(--mute)] mb-1 break-all">{gdriveSa.client_email}</div>}
-        <p className="text-[11px] text-[var(--mute)] mb-2">
+        {gdriveSa && <div className="text-2xs font-mono text-[var(--mute)] mb-1 break-all">{gdriveSa.client_email}</div>}
+        <p className="text-2xs text-[var(--mute)] mb-2">
           Google Cloud Console → IAM &amp; Admin → Service Accounts → create one (no roles needed) → Keys →
           Add key → JSON. Enable the <b>Google Drive API</b> on the project. Paste the whole file here — it&apos;s
           stored in the database, never in git.
@@ -653,13 +653,13 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
         <div className="font-mono font-bold text-sm flex items-center gap-2 mb-1">
           Drive folder
           {gdriveFolder && (
-            <span className="text-[10px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded flex items-center gap-1" style={{ background: "var(--green-soft)", color: "var(--green-on)" }}>
+            <span className="text-micro font-mono uppercase tracking-wider px-1.5 py-0.5 rounded flex items-center gap-1" style={{ background: "var(--green-soft)", color: "var(--green-on)" }}>
               <CheckCircle2 className="w-3 h-3" /> configured
             </span>
           )}
         </div>
-        {gdriveFolder && <div className="text-[11px] font-mono text-[var(--mute)] mb-1 break-all">{gdriveFolder}</div>}
-        <p className="text-[11px] text-[var(--mute)] mb-2">
+        {gdriveFolder && <div className="text-2xs font-mono text-[var(--mute)] mb-1 break-all">{gdriveFolder}</div>}
+        <p className="text-2xs text-[var(--mute)] mb-2">
           Create a folder in Drive and share it with the service account&apos;s email as <b>Editor</b>, then paste the
           folder&apos;s URL (or id) here. Saving runs a real write test into the folder and reports any problem.
         </p>
@@ -738,10 +738,10 @@ function KeyField({ id, label, stored, platformHas, confirming, last, now }: { i
 }
 
 function KeyAge({ last, now }: { last?: KeyChange; now: number }) {
-  if (!last || last.action !== "saved") return <p className="text-[10px] text-[var(--mute)] m-0 mt-1">Saved before key changes were recorded — replace it to start its history.</p>;
+  if (!last || last.action !== "saved") return <p className="text-micro text-[var(--mute)] m-0 mt-1">Saved before key changes were recorded — replace it to start its history.</p>;
   const days = Math.floor((now - last.at.getTime()) / 86_400_000);
   return (
-    <p className="text-[10px] m-0 mt-1" style={{ color: days > 180 ? "var(--amber-on)" : "var(--mute)" }}>
+    <p className="text-micro m-0 mt-1" style={{ color: days > 180 ? "var(--amber-on)" : "var(--mute)" }}>
       Saved by {last.by}, {formatDay(last.at)} ({days === 0 ? "today" : `${days} day${days === 1 ? "" : "s"} ago`}){last.fingerprint ? <> · fingerprint <span className="font-mono">{last.fingerprint}</span></> : null}
       {days > 180 ? " — over six months old; consider replacing it." : ""}
     </p>

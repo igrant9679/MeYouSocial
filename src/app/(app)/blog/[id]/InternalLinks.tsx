@@ -49,7 +49,7 @@ export async function InternalLinks({
 
       {linkedFrom.length > 0 && (
         <div className="mb-3">
-          <p className="text-[11px] font-semibold mb-1">Linked from</p>
+          <p className="text-2xs font-semibold mb-1">Linked from</p>
           <ul className="m-0 p-0 list-none flex flex-col gap-0.5 text-xs">
             {linkedFrom.slice(0, 8).map((n) => (
               <li key={n.url} className="truncate">{n.articleId ? <Link href={`/blog/${n.articleId}`} className="hover:underline">{n.title}</Link> : <a href={n.href} className="hover:underline" target="_blank" rel="noreferrer">{n.title}</a>}</li>
@@ -64,7 +64,7 @@ export async function InternalLinks({
       )}
       {offersIn.length > 0 && (
         <div className="mb-3" data-offers-in>
-          <p className="text-[11px] font-semibold mb-1">Could link here — they mention &ldquo;{post.focusKeyword}&rdquo;</p>
+          <p className="text-2xs font-semibold mb-1">Could link here — they mention &ldquo;{post.focusKeyword}&rdquo;</p>
           <ul className="m-0 p-0 list-none flex flex-col gap-1 text-xs">
             {offersIn.map((o) => (
               <li key={o.articleId} className="flex items-center gap-2 flex-wrap" data-offer-in={o.articleId}>
@@ -86,7 +86,7 @@ export async function InternalLinks({
 
       {offersOut.length > 0 && (
         <div className="mb-3" data-offers-out>
-          <p className="text-[11px] font-semibold mb-1">Could link to — this mentions their keyword</p>
+          <p className="text-2xs font-semibold mb-1">Could link to — this mentions their keyword</p>
           <ul className="m-0 p-0 list-none flex flex-col gap-1 text-xs">
             {offersOut.map((o) => (
               <li key={o.href} className="flex items-center gap-2 flex-wrap" data-offer-out={o.articleId ?? o.href}>
@@ -109,11 +109,11 @@ export async function InternalLinks({
 
       {aiSuggestions.length > 0 && (
         <div className="mb-3">
-          <p className="text-[11px] font-semibold mb-1">The AI&apos;s suggestions</p>
+          <p className="text-2xs font-semibold mb-1">The AI&apos;s suggestions</p>
           <ul className="m-0 p-0 list-none flex flex-col gap-1 text-xs">
             {aiSuggestions.map((l) => (
               <li key={l.url} className="flex items-center gap-2 flex-wrap">
-                <span>&ldquo;{l.anchorText}&rdquo; → <span className="font-mono text-[10px] break-all">{l.url}</span></span>
+                <span>&ldquo;{l.anchorText}&rdquo; → <span className="font-mono text-micro break-all">{l.url}</span></span>
                 <span className="flex-1" />
                 {editor && (
                   <form action={applyInternalLinkAction}>
@@ -132,7 +132,7 @@ export async function InternalLinks({
       {offersIn.length === 0 && offersOut.length === 0 && aiSuggestions.length === 0 && (
         <p className="text-xs text-[var(--mute)] mb-2" data-no-offers>No mention of another page&apos;s keyword{live && post.focusKeyword ? `, and no other article mentions “${post.focusKeyword}”` : ""} outside an existing link.</p>
       )}
-      <p className="text-[10px] text-[var(--mute)] m-0">
+      <p className="text-micro text-[var(--mute)] m-0">
         Mentions are matched on focus keywords (and recorded pages&apos; topics) as whole words outside existing links.{" "}
         <Link href="/website#internal-links" className="underline">{orphans} page{orphans === 1 ? "" : "s"} on the site nobody links to →</Link>
       </p>

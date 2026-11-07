@@ -25,12 +25,12 @@ export function Group({ title, hue, count, shown, moreHref, children }: { title:
     <section className="mb-5">
       <div className="flex items-center gap-2 mb-2">
         <h2 className="font-mono font-bold text-sm m-0">{title}</h2>
-        <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: `var(--${hue}-soft)`, color: `var(--${hue}-on)` }}>{count}</span>
+        <span className="font-mono text-micro font-bold px-1.5 py-0.5 rounded-full" style={{ background: `var(--${hue}-soft)`, color: `var(--${hue}-on)` }}>{count}</span>
       </div>
       <ul className="m-0 p-0 flex flex-col gap-2">{children}</ul>
       {/* The count is the true total; the list is the first few (SHL-05). */}
       {shown != null && count > shown && (
-        <p className="text-[11px] text-[var(--mute)] mt-1.5 mb-0">
+        <p className="text-2xs text-[var(--mute)] mt-1.5 mb-0">
           Showing {shown} of {count} —{" "}
           {moreHref ? <Link href={moreHref} className="underline">see all {count}</Link> : "the rest appear here as these are dealt with."}
         </p>
@@ -80,7 +80,7 @@ export function NeedsYouGroups({
           {inbox.socialPosts.map((p) => (
             <li key={p.id} className="card flex flex-col gap-2">
               <p className="text-sm m-0 whitespace-pre-wrap leading-relaxed">{p.text.length > 320 ? `${p.text.slice(0, 320)}…` : p.text}</p>
-              <div className="text-[11px] text-[var(--mute)] flex items-center gap-2 flex-wrap">
+              <div className="text-2xs text-[var(--mute)] flex items-center gap-2 flex-wrap">
                 <span>{p.providers.length ? p.providers.map((x) => networkFor(x)?.label ?? x).join(" · ") : "no network chosen yet"}</span>
                 {p.submittedBy && <span>· by {p.submittedBy}</span>}
                 {p.scheduledAt
@@ -96,12 +96,12 @@ export function NeedsYouGroups({
                     </form>
                     <form action={requestChangesSocialPostAction} className="flex items-center gap-1.5">
                       <input type="hidden" name="id" value={p.id} />
-                      <input name="note" placeholder="what to change (optional)" className="text-[11px] w-44" aria-label="Note for the author" />
+                      <input name="note" placeholder="what to change (optional)" className="text-2xs w-44" aria-label="Note for the author" />
                       <SubmitButton className="btn sm" pendingText="…">Request changes</SubmitButton>
                     </form>
                   </>
                 ) : (
-                  <span className="text-[11px] text-[var(--mute)]">An admin approves this.</span>
+                  <span className="text-2xs text-[var(--mute)]">An admin approves this.</span>
                 )}
                 <span className="flex-1" />
                 {/* The editor is an editor's; anyone else gets the read-only post page (SHL-07). */}
@@ -131,7 +131,7 @@ export function NeedsYouGroups({
         <Group title="Questions only you can answer" hue="amber" count={inbox.counts.questions - merged} shown={inbox.questions.length - merged}>
           {questionsOnly.map(({ postId, postTitle, findings }) => (
             <li key={postId} className="card">
-              <div className="text-[11px] text-[var(--mute)] mb-2">
+              <div className="text-2xs text-[var(--mute)] mb-2">
                 For <Link href={`/blog/${postId}?tab=optimize`} className="underline">{postTitle}</Link>
                 {findings.length > 1 && <> · {findings.length} questions</>}
               </div>
@@ -147,7 +147,7 @@ export function NeedsYouGroups({
         <Group title="Claims with no source" hue="rose" count={inbox.counts.citations} shown={inbox.citations.length}>
           {inbox.citations.map((c) => (
             <li key={c.id} className="card">
-              <div className="text-[11px] text-[var(--mute)] mb-1">
+              <div className="text-2xs text-[var(--mute)] mb-1">
                 In <Link href={`/blog/${c.postId}`} className="underline">{c.postTitle}</Link>
                 {c.unsourceable && <span> · live search found nothing that supports it</span>}
               </div>
@@ -179,7 +179,7 @@ export function NeedsYouGroups({
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={img.url} alt={img.altText ?? ""} className="w-40 h-24 rounded-lg object-cover border border-[var(--line)] shrink-0" />
               <div className="flex-1 min-w-48">
-                <div className="text-[11px] text-[var(--mute)]">
+                <div className="text-2xs text-[var(--mute)]">
                   {img.role === "og" ? "Open Graph image" : "Featured image"} for <Link href={`/blog/${img.postId}`} className="underline">{img.postTitle}</Link>
                 </div>
                 <div className="text-xs mt-0.5">
@@ -236,7 +236,7 @@ export function NeedsYouGroups({
               {admin && a.failing.length > 0 && (
                 <form action={overrideGateAction} className="basis-full flex items-center gap-1.5 flex-wrap pt-1">
                   <input type="hidden" name="id" value={a.id} />
-                  <input name="reason" placeholder="why you're overriding (optional)" className="text-[11px] min-w-56 flex-1" aria-label="Reason for overriding the checks" />
+                  <input name="reason" placeholder="why you're overriding (optional)" className="text-2xs min-w-56 flex-1" aria-label="Reason for overriding the checks" />
                   <SubmitButton className="btn sm primary" pendingText="Advancing…" title="Override the checks named above and move the article to final approval now — recorded with your name and reason">Advance anyway</SubmitButton>
                 </form>
               )}
@@ -258,9 +258,9 @@ export function NeedsYouGroups({
         <Group title="Invitations not yet accepted" hue="teal" count={inbox.invitations.length}>
           {inbox.invitations.map((i) => (
             <li key={i.id} className="card">
-              <div className="text-sm"><b>{i.email}</b> <span className="font-mono text-[10px] text-[var(--mute)]">{i.role}</span> <span className="text-[11px] text-[var(--mute)]">· expires {formatDay(i.expiresAt)}</span></div>
-              <div className="text-[11px] text-[var(--mute)] mt-1">If the email didn&apos;t arrive, send this link yourself (click to select):</div>
-              <code className="block text-[11px] select-all break-all mt-0.5">{origin}/invitations/{i.token}</code>
+              <div className="text-sm"><b>{i.email}</b> <span className="font-mono text-micro text-[var(--mute)]">{i.role}</span> <span className="text-2xs text-[var(--mute)]">· expires {formatDay(i.expiresAt)}</span></div>
+              <div className="text-2xs text-[var(--mute)] mt-1">If the email didn&apos;t arrive, send this link yourself (click to select):</div>
+              <code className="block text-2xs select-all break-all mt-0.5">{origin}/invitations/{i.token}</code>
               {me && editor && <ItemControls itemKey={inboxKey.invite(i.id)} me={me} assignee={inbox.assignees[inboxKey.invite(i.id)]} />}
             </li>
           ))}
@@ -269,7 +269,7 @@ export function NeedsYouGroups({
       {!admin && postsGroup && (
         <div className="mt-6 pt-3 border-t border-[var(--line)]">
           <h2 className="font-mono font-bold text-xs uppercase tracking-wide text-[var(--mute)] mt-0 mb-1">Waiting on an admin</h2>
-          <p className="text-[11px] text-[var(--mute)] mt-0 mb-2">You can see these; an admin decides them.</p>
+          <p className="text-2xs text-[var(--mute)] mt-0 mb-2">You can see these; an admin decides them.</p>
           {postsGroup}
         </div>
       )}
@@ -280,9 +280,9 @@ export function NeedsYouGroups({
 /** Snooze and Assign to me on a card (E-SHL-03). Snooze is this person's own; who has an item, everyone sees. */
 function ItemControls({ itemKey, me, assignee }: { itemKey: string; me: string; assignee?: { userId: string; name: string } }) {
   const mine = assignee?.userId === me;
-  const link = "underline hover:text-[var(--ink)] bg-transparent border-0 p-0 cursor-pointer text-[10px] text-[var(--mute)]";
+  const link = "underline hover:text-[var(--ink)] bg-transparent border-0 p-0 cursor-pointer text-micro text-[var(--mute)]";
   return (
-    <div className="basis-full flex items-center gap-1.5 flex-wrap text-[10px] text-[var(--mute)] mt-1 pt-1.5 border-t border-[var(--line)]">
+    <div className="basis-full flex items-center gap-1.5 flex-wrap text-micro text-[var(--mute)] mt-1 pt-1.5 border-t border-[var(--line)]">
       {assignee && !mine && <span><b className="text-[var(--ink)]">{assignee.name}</b> has this ·</span>}
       {mine && <span><b className="text-[var(--ink)]">Yours</b> ·</span>}
       <form action={assignInboxItemAction}>
@@ -336,7 +336,7 @@ function QuestionBlock({ findings, editor }: { findings: InboxData["questions"];
                       <SubmitButton className="btn primary sm" pendingText="Saving and writing…">
                         {findings.length > 1 ? "Answer all" : "Answer"}
                       </SubmitButton>
-                      <span className="text-[10px] text-[var(--mute)]">
+                      <span className="text-micro text-[var(--mute)]">
                         Saved to the Experts profile — asked once. Anything left blank is skipped.
                       </span>
                     </div>
@@ -347,7 +347,7 @@ function QuestionBlock({ findings, editor }: { findings: InboxData["questions"];
                     {findings.map((f) => (
                       <form key={f.findingId} action={dismissFindingAction} className="flex items-center gap-1.5">
                         <input type="hidden" name="id" value={f.findingId} />
-                        <input name="reason" placeholder="why? (optional)" className="text-[11px] w-32" aria-label={`Reason for dismissing: ${f.title}`} />
+                        <input name="reason" placeholder="why? (optional)" className="text-2xs w-32" aria-label={`Reason for dismissing: ${f.title}`} />
                         <SubmitButton className="btn sm" pendingText="…" title={`Dismiss: ${f.title}`}>
                           {findings.length > 1 ? `Dismiss “${f.title.slice(0, 28)}${f.title.length > 28 ? "…" : ""}”` : "Dismiss"}
                         </SubmitButton>
@@ -363,7 +363,7 @@ function QuestionBlock({ findings, editor }: { findings: InboxData["questions"];
                       {f.detail && <p className="text-xs text-[var(--mute)] mt-0.5 mb-0">{f.detail}</p>}
                     </div>
                   ))}
-                  <p className="text-[11px] text-[var(--mute)] mt-1 mb-0">An editor answers {findings.length > 1 ? "these" : "this"}.</p>
+                  <p className="text-2xs text-[var(--mute)] mt-1 mb-0">An editor answers {findings.length > 1 ? "these" : "this"}.</p>
                 </>
               )}
     </>

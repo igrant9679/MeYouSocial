@@ -43,7 +43,7 @@ export default async function BookmarksPage({ searchParams }: { searchParams: Pr
     <div>
       <Link href="/intel" className="text-xs font-mono text-[var(--mute)] hover:text-[var(--accent)] flex items-center gap-1 mb-3"><ArrowLeft className="w-3 h-3" /> Back to Intel</Link>
       <div className="flex items-center gap-3 mb-5">
-        <span className="w-12 h-12 rounded-2xl grid place-items-center" style={{ background: "#FDE7E1", color: "#E5482F" }}>
+        <span className="w-12 h-12 rounded-2xl grid place-items-center" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
           <Bookmark className="w-6 h-6" strokeWidth={2.25} />
         </span>
         <div>
@@ -66,7 +66,7 @@ export default async function BookmarksPage({ searchParams }: { searchParams: Pr
 
       {channels.length > 0 && (
         <section className="card mb-5">
-          <h2 className="font-mono text-[14px] font-bold mb-3">Channels</h2>
+          <h2 className="font-mono text-sm font-bold mb-3">Channels</h2>
           <ul className="m-0 p-0 grid grid-cols-1 md:grid-cols-2 gap-2">
             {channels.map((b) => (
               <BookmarkRow key={b.id} bookmark={b} kind="channel" />
@@ -77,7 +77,7 @@ export default async function BookmarksPage({ searchParams }: { searchParams: Pr
 
       {videos.length > 0 && (
         <section className="card">
-          <h2 className="font-mono text-[14px] font-bold mb-3">Videos</h2>
+          <h2 className="font-mono text-sm font-bold mb-3">Videos</h2>
           <ul className="m-0 p-0">
             {videos.map((b) => (
               <BookmarkRow key={b.id} bookmark={b} kind="video" ramp={ramp} />

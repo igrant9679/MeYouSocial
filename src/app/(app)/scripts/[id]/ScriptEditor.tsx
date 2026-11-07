@@ -188,7 +188,7 @@ export function ScriptEditor({ scriptId, initialBody, serverHash }: { scriptId: 
           onMouseUp={captureSelection}
           onKeyUp={captureSelection}
           placeholder="Your script appears here once you generate from the outline. You can also paste a draft directly and use Humanize to clean it up."
-          className="min-h-[420px] h-full w-full border border-[var(--line-2)] rounded-xl p-4 text-[15px] leading-[1.7] font-mono resize-none focus:outline-none focus:border-[var(--accent)]"
+          className="min-h-[420px] h-full w-full border border-[var(--line-2)] rounded-xl p-4 text-sm leading-[1.7] font-mono resize-none focus:outline-none focus:border-[var(--accent)]"
           spellCheck
         />
         <ScriptOutline body={body} onJump={jumpTo} onReplace={setBody} />
@@ -223,7 +223,7 @@ export function ScriptEditor({ scriptId, initialBody, serverHash }: { scriptId: 
             >
               <div className="flex flex-wrap gap-1.5">
                 {QUICK_INSTRUCTIONS.map((q) => (
-                  <button key={q} type="button" onClick={() => setInstruction(q)} className="text-[11px] font-mono px-2 py-1 rounded-md border border-[var(--line-2)] hover:border-[var(--accent)] hover:text-[var(--accent)]">{q}</button>
+                  <button key={q} type="button" onClick={() => setInstruction(q)} className="text-2xs font-mono px-2 py-1 rounded-md border border-[var(--line-2)] hover:border-[var(--accent)] hover:text-[var(--accent)]">{q}</button>
                 ))}
               </div>
               <input
@@ -248,7 +248,7 @@ function SaveBadge({ state }: { state: SaveState }) {
   if (state === "idle" || state === "conflict" || state === "busy") return null;
   if (state === "error") {
     return (
-      <span role="alert" className="flex items-center gap-1 text-[10px] font-mono uppercase tracking-wider px-2 py-1 rounded-md" style={{ background: "var(--rose-soft)", color: "var(--rose-on)" }}>
+      <span role="alert" className="flex items-center gap-1 text-micro font-mono uppercase tracking-wider px-2 py-1 rounded-md" style={{ background: "var(--rose-soft)", color: "var(--rose-on)" }}>
         <Save className="w-3 h-3" /> not saved — keep this tab open and type to retry
       </span>
     );
@@ -256,7 +256,7 @@ function SaveBadge({ state }: { state: SaveState }) {
   const color = state === "saving" ? "var(--amber)" : "var(--green)";
   const soft = state === "saving" ? "var(--amber-soft)" : "var(--green-soft)";
   return (
-    <span className="flex items-center gap-1 text-[10px] font-mono uppercase tracking-wider px-2 py-1 rounded-md" style={{ background: soft, color }}>
+    <span className="flex items-center gap-1 text-micro font-mono uppercase tracking-wider px-2 py-1 rounded-md" style={{ background: soft, color }}>
       <Save className="w-3 h-3" /> {state}
     </span>
   );

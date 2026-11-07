@@ -82,7 +82,7 @@ export default async function UpdateOnWordPressPage({ params }: { params: Promis
                 <form action={updateOnWordPressAction} className="flex items-center gap-2" data-update-form="">
                   <input type="hidden" name="postId" value={post.id} />
                   <SubmitButton className="btn primary" pendingText="Updating…">Update on WordPress</SubmitButton>
-                  <span className="text-[11px] text-[var(--mute)]">Replaces the live post in place, at the same address. It&apos;s recorded with what changed.</span>
+                  <span className="text-2xs text-[var(--mute)]">Replaces the live post in place, at the same address. It&apos;s recorded with what changed.</span>
                 </form>
               )}
             </div>

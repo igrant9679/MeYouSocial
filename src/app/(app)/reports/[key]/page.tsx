@@ -68,7 +68,7 @@ export default async function ReportPage({
               key={w}
               href={rangeHref(w)}
               aria-current={weeks === w ? "true" : undefined}
-              className="font-mono text-[11px] font-bold px-2.5 py-1 rounded-full border"
+              className="font-mono text-2xs font-bold px-2.5 py-1 rounded-full border"
               style={
                 weeks === w
                   ? { background: "var(--accent-soft)", color: "var(--accent-on)", borderColor: "var(--accent)" }
@@ -115,7 +115,7 @@ export default async function ReportPage({
 
         {customizing && editor && (
           <aside className="card !p-3.5 sticky top-4">
-            <h2 className="text-[11px] font-mono font-bold uppercase tracking-wider text-[var(--mute)] mb-2">Blocks</h2>
+            <h2 className="text-2xs font-mono font-bold uppercase tracking-wider text-[var(--mute)] mb-2">Blocks</h2>
             <ul className="flex flex-col gap-1.5 mb-3">
               {report.blocks.map((b, i) => (
                 <li key={b} className="flex items-center gap-1 text-xs border border-[var(--line)] rounded-lg px-2 py-1.5">
@@ -173,7 +173,7 @@ export default async function ReportPage({
         )}
       </div>
 
-      <p className="text-[11px] text-[var(--mute)] mt-4">
+      <p className="text-2xs text-[var(--mute)] mt-4">
         Position and click data comes from snapshots recorded in this app and covers posts published through it.
         Connect Google Search Console (when available) for site-wide coverage.
       </p>

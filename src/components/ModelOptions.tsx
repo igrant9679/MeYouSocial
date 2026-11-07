@@ -24,11 +24,11 @@ export function ModelOptions({ choices, current, detail = false }: { choices: Mo
 export function ModelChoiceNote({ choices, current, runs }: { choices: ModelChoice[]; current?: string | null; runs: string }) {
   const style = { color: "var(--rose-on)" };
   if (!choices.some((m) => m.keyed)) {
-    return <p className="text-[11px] mt-1" style={style}>No Claude or Gemini key resolves here, so AI text is a placeholder until one is added under Settings → Keys.</p>;
+    return <p className="text-2xs mt-1" style={style}>No Claude or Gemini key resolves here, so AI text is a placeholder until one is added under Settings → Keys.</p>;
   }
   if (!current) return null;
   const m = choices.find((x) => x.id === current);
   if (m?.keyed) return null;
   const why = m ? `there's no ${PROVIDER_LABEL[m.provider] ?? m.provider} API key here` : "this app can't write with it";
-  return <p className="text-[11px] mt-1" style={style}>Saved choice {modelLabel(current)}: {why}, so {modelLabel(runs)} writes instead.</p>;
+  return <p className="text-2xs mt-1" style={style}>Saved choice {modelLabel(current)}: {why}, so {modelLabel(runs)} writes instead.</p>;
 }

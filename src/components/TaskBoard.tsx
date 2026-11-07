@@ -86,14 +86,14 @@ export function TaskBoard({ tasks: initial, wipLimit }: { tasks: BoardTask[]; wi
             aria-label={`${col.label} column`}
           >
             <h3
-              className="flex items-center justify-between text-[11px] font-mono font-bold uppercase tracking-wider mb-2 px-1"
+              className="flex items-center justify-between text-2xs font-mono font-bold uppercase tracking-wider mb-2 px-1"
               style={{ color: `var(--${col.hue}-on)` }}
             >
               <span>
                 {col.label} · {items.length}
                 {col.key === "in_progress" && (
                   <span
-                    className="ml-2 font-mono text-[9px] px-1.5 py-0.5 rounded-full normal-case"
+                    className="ml-2 font-mono text-micro px-1.5 py-0.5 rounded-full normal-case"
                     style={overWip ? { background: "var(--rose-soft)", color: "var(--rose-on)" } : { background: "var(--panel)", color: "var(--mute)" }}
                   >
                     WIP {items.length}/{wipLimit}{overWip ? " over!" : ""}
@@ -118,34 +118,34 @@ export function TaskBoard({ tasks: initial, wipLimit }: { tasks: BoardTask[]; wi
                     borderLeft: t.aging && t.status !== "done" ? "3px solid var(--amber)" : undefined,
                   }}
                 >
-                  <div className="text-[12.5px] font-semibold leading-snug mb-1">{t.title}</div>
+                  <div className="text-xs font-semibold leading-snug mb-1">{t.title}</div>
                   <div className="flex flex-wrap items-center gap-1.5">
                     {t.assignee && (
-                      <span className="font-mono text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: "var(--blue-soft)", color: "var(--blue-on)" }}>
+                      <span className="font-mono text-micro font-bold px-1.5 py-0.5 rounded-full" style={{ background: "var(--blue-soft)", color: "var(--blue-on)" }}>
                         @{t.assignee}
                       </span>
                     )}
                     {t.due && (
                       <span
-                        className="font-mono text-[9px] font-bold px-1.5 py-0.5 rounded-full"
+                        className="font-mono text-micro font-bold px-1.5 py-0.5 rounded-full"
                         style={t.overdue ? { background: "var(--rose-soft)", color: "var(--rose-on)" } : { background: "var(--panel)", color: "var(--mute)" }}
                       >
                         {t.due}{t.overdue ? " ⚠" : ""}
                       </span>
                     )}
                     {t.aging && t.status !== "done" && (
-                      <span className="font-mono text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }}>
+                      <span className="font-mono text-micro font-bold px-1.5 py-0.5 rounded-full" style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }}>
                         stale
                       </span>
                     )}
-                    {t.project && <span className="text-[9.5px] text-[var(--mute)] truncate">{t.project}</span>}
+                    {t.project && <span className="text-micro text-[var(--mute)] truncate">{t.project}</span>}
                     <span className="flex-1" />
                     <label className="sr-only" htmlFor={`mv-${t.id}`}>Move task</label>
                     <select
                       id={`mv-${t.id}`}
                       value={t.status}
                       onChange={(e) => move(t.id, e.target.value)}
-                      className="text-[9.5px] !p-0.5 rounded border border-[var(--line)] bg-transparent"
+                      className="text-micro !p-0.5 rounded border border-[var(--line)] bg-transparent"
                     >
                       {COLUMNS.map((c) => (
                         <option key={c.key} value={c.key}>{c.label}</option>
@@ -160,7 +160,7 @@ export function TaskBoard({ tasks: initial, wipLimit }: { tasks: BoardTask[]; wi
                 </div>
               ))}
               {items.length === 0 && (
-                <div className="text-center text-[11px] text-[var(--mute)] py-6 rounded-lg border border-dashed border-[var(--line)]">
+                <div className="text-center text-2xs text-[var(--mute)] py-6 rounded-lg border border-dashed border-[var(--line)]">
                   Drop tasks here
                 </div>
               )}

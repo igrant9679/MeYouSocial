@@ -119,7 +119,7 @@ export default async function DraftsStage() {
             <StateChip label={p.status === "draft_review" ? "in review" : "drafting"} hue={BLOG_HUE[p.status] ?? "zebra"} />
             <div className="flex-1 min-w-48">
               <Link href={`/blog/${p.id}`} className="text-sm font-semibold hover:underline line-clamp-1">{p.title}</Link>
-              <div className="text-[11px] text-[var(--mute)]">
+              <div className="text-2xs text-[var(--mute)]">
                 {p.body ? `${Math.round(p.body.replace(/<[^>]+>/g, " ").split(/\s+/).filter(Boolean).length)} words` : "no body yet"} · updated {p.updatedAt.toLocaleDateString("en-GB", { day: "2-digit", month: "short" })}
               </div>
             </div>
@@ -135,7 +135,7 @@ export default async function DraftsStage() {
               <StateChip label={p.approval === "changes" ? "changes asked" : "draft"} hue={p.approval === "changes" ? "amber" : "blue"} />
               <div className="flex-1 min-w-48">
                 <Link href={`/social/${p.id}/edit`} className="text-sm font-semibold hover:underline line-clamp-1">{p.text}</Link>
-                <div className="text-[11px] text-[var(--mute)]">
+                <div className="text-2xs text-[var(--mute)]">
                   {p.topic ? <Link href={`/ideas/topics/${p.topic.id}`} className="hover:underline">{p.topic.name}</Link> : "no topic"}
                   {p.idea ? ` · from ${p.idea.source === "article" && p.idea.sourceBlogPost ? `article: ${p.idea.sourceBlogPost.title}` : p.idea.source === "research" ? "research" : "an idea"}` : " · composed by hand"}
                   {` · updated ${p.updatedAt.toLocaleDateString("en-GB", { day: "2-digit", month: "short" })}`}
@@ -160,7 +160,7 @@ export default async function DraftsStage() {
               <StateChip label={s.workflow} hue="green" />
               <div className="flex-1 min-w-48">
                 <Link href={s.workflow === "builder" ? `/scripts/${s.id}/builder` : `/scripts/${s.id}`} className="text-sm font-semibold hover:underline line-clamp-1">{s.title}</Link>
-                <div className="text-[11px] text-[var(--mute)]">{s.channel.name} · {s.wordCount} words</div>
+                <div className="text-2xs text-[var(--mute)]">{s.channel.name} · {s.wordCount} words</div>
               </div>
               <Link href={s.workflow === "builder" ? `/scripts/${s.id}/builder` : `/scripts/${s.id}`} className="btn sm">Open</Link>
             </StageRow>
@@ -181,7 +181,7 @@ export default async function DraftsStage() {
       )}
 
       {!studio.show && (
-        <p className="text-[11px] text-[var(--mute)] mb-4 flex items-center gap-1.5">
+        <p className="text-2xs text-[var(--mute)] mb-4 flex items-center gap-1.5">
           <Clapperboard className="w-3.5 h-3.5" />
           {studio.channels === 0
             ? <>Scripts, thumbnails, video renders and the production board appear here once a YouTube channel exists{admin ? <> — <Link href="/channels" className="underline">add one under Channels</Link></> : " (an admin adds one under Channels)"}.</>

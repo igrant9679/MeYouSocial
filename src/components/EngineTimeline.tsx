@@ -37,7 +37,7 @@ export function EngineTimeline({ items, cycles, timeZone, intervalMin }: { items
           {shown.map(({ it, header }, i) => {
             return (
               <li key={i} data-timeline-item={it.kind}>
-                {header && <div className="font-mono text-[10px] uppercase text-[var(--mute)] mt-2 mb-0.5">{header}</div>}
+                {header && <div className="font-mono text-micro uppercase text-[var(--mute)] mt-2 mb-0.5">{header}</div>}
                 <div className="flex gap-2 py-0.5 border-b border-[var(--line)]">
                   <span className="font-mono text-[var(--mute)] shrink-0 w-24">{it.kind === "cycle" ? t(it.at) : it.kind === "gap" ? `${t(it.from)}–${t(it.to)}` : it.count > 1 ? `${t(it.from)}–${t(it.to)}` : t(it.to)}</span>
                   {it.kind === "cycle" && (

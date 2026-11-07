@@ -235,7 +235,7 @@ export default async function WebsitePage({ searchParams }: { searchParams: Prom
                 className="w-full font-mono text-xs"
                 disabled={!admin}
               />
-              <span className="block text-[11px] text-[var(--mute)] mt-1">
+              <span className="block text-2xs text-[var(--mute)] mt-1">
                 Applies your theme&apos;s own post template to every article this app publishes. Find the file name in
                 the WordPress editor&apos;s Template dropdown, or in the theme&apos;s folder. ⚠ WordPress silently falls
                 back to the default template if the file doesn&apos;t exist in the active theme — check the first
@@ -267,7 +267,7 @@ export default async function WebsitePage({ searchParams }: { searchParams: Prom
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {SEO_FIELDS.map((f) => (
                 <label key={f} className="text-sm">
-                  <span className="block text-[11px] text-[var(--mute)] mb-1">{SEO_FIELD_LABELS[f]}</span>
+                  <span className="block text-2xs text-[var(--mute)] mb-1">{SEO_FIELD_LABELS[f]}</span>
                   <input
                     name={`seo_${f}`}
                     defaultValue={activeMap[f] ?? ""}
@@ -284,11 +284,11 @@ export default async function WebsitePage({ searchParams }: { searchParams: Prom
             <h3 className="text-xs font-semibold mb-1">Slug convention</h3>
             <div className="flex flex-wrap items-end gap-3">
               <label className="text-sm">
-                <span className="block text-[11px] text-[var(--mute)] mb-1">Max words</span>
+                <span className="block text-2xs text-[var(--mute)] mb-1">Max words</span>
                 <input name="slugMaxWords" type="number" min={1} max={15} defaultValue={slugRules.maxWords} className="w-20 font-mono text-xs" disabled={!admin} />
               </label>
               <label className="text-sm">
-                <span className="block text-[11px] text-[var(--mute)] mb-1">Prefix</span>
+                <span className="block text-2xs text-[var(--mute)] mb-1">Prefix</span>
                 <input name="slugPrefix" defaultValue={slugRules.prefix ?? ""} placeholder="none" className="w-32 font-mono text-xs" disabled={!admin} />
               </label>
               <label className="flex items-center gap-1 text-xs pb-1.5">
@@ -327,7 +327,7 @@ export default async function WebsitePage({ searchParams }: { searchParams: Prom
               <li key={p.id} className="flex items-center gap-2 border-b border-[var(--line)] pb-1.5 pt-0.5 last:border-0">
                 <span className="font-semibold flex-1 min-w-0 truncate">{p.title}</span>
                 <span
-                  className="font-mono text-[9.5px] px-1.5 py-0.5 rounded-full shrink-0"
+                  className="font-mono text-micro px-1.5 py-0.5 rounded-full shrink-0"
                   style={
                     p.status === "published"
                       ? { background: "var(--green-soft)", color: "var(--green-on)" }
@@ -363,19 +363,19 @@ export default async function WebsitePage({ searchParams }: { searchParams: Prom
         </p>
         {inv.orphans.length > 0 ? (
           <>
-            <p className="text-[11px] font-semibold mb-1">{inv.orphans.length} page{inv.orphans.length === 1 ? "" : "s"} nobody links to</p>
+            <p className="text-2xs font-semibold mb-1">{inv.orphans.length} page{inv.orphans.length === 1 ? "" : "s"} nobody links to</p>
             <ul className="m-0 p-0 list-none flex flex-col gap-1 text-xs" data-orphans>
               {inv.orphans.slice(0, 15).map((n) => (
                 <li key={n.url} className="flex items-center gap-2 min-w-0" data-orphan={n.kind}>
                   {n.articleId
                     ? <Link href={`/blog/${n.articleId}?tab=optimize#internal-links`} className="font-semibold hover:underline truncate">{n.title}</Link>
                     : <a href={n.href} target="_blank" rel="noreferrer" className="font-semibold hover:underline truncate">{n.title}</a>}
-                  <span className="text-[10px] text-[var(--mute)] shrink-0">{n.kind === "article" ? "article" : n.kind === "wordpress" ? "on WordPress" : "added by hand"}</span>
+                  <span className="text-micro text-[var(--mute)] shrink-0">{n.kind === "article" ? "article" : n.kind === "wordpress" ? "on WordPress" : "added by hand"}</span>
                 </li>
               ))}
               {inv.orphans.length > 15 && <li className="text-[var(--mute)]">and {inv.orphans.length - 15} more</li>}
             </ul>
-            <p className="text-[10px] text-[var(--mute)] mt-2 mb-0">An article&apos;s Optimize tab lists the other articles that mention its focus keyword, each a click from linking to it.</p>
+            <p className="text-micro text-[var(--mute)] mt-2 mb-0">An article&apos;s Optimize tab lists the other articles that mention its focus keyword, each a click from linking to it.</p>
           </>
         ) : inv.nodes.size > 0 ? (
           <p className="text-xs m-0">Every known page has at least one link to it.</p>
@@ -417,7 +417,7 @@ export default async function WebsitePage({ searchParams }: { searchParams: Prom
             {pages.map((p) => (
               <li key={p.id} className="flex items-center gap-2 border-b border-[var(--line)] pb-1 last:border-0">
                 <span className="font-semibold shrink-0">{p.title}</span>
-                <span className="font-mono text-[10px] text-[var(--mute)] truncate flex-1">{p.url}</span>
+                <span className="font-mono text-micro text-[var(--mute)] truncate flex-1">{p.url}</span>
                 {p.topic && <span className="text-[var(--mute)] shrink-0">{p.topic}</span>}
                 {canEdit(membership.role) && (
                   <form action={deleteSitePageAction} className="shrink-0">

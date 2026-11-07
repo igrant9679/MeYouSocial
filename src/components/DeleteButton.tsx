@@ -68,7 +68,7 @@ export function DeleteButton({
       <input type="hidden" name="id" value={id} />
       {returnTo && <input type="hidden" name="returnTo" value={returnTo} />}
 
-      <div className="flex items-start gap-2 text-[11px] leading-relaxed">
+      <div className="flex items-start gap-2 text-2xs leading-relaxed">
         <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
         <div>
           <div>
@@ -84,7 +84,7 @@ export function DeleteButton({
       </div>
 
       {confirmName && (
-        <label className="text-[11px] flex flex-col gap-1">
+        <label className="text-2xs flex flex-col gap-1">
           Type <b>{name}</b> to confirm
           <input
             ref={inputRef}

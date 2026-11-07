@@ -210,7 +210,7 @@ export function AssistantDock({ activeChannelId = null, workspaceId, userId, rea
           // third). Below md the header collapses to MobileNav and this pill
           // is the ONLY way in, so it must not simply be deleted.
           className="md:hidden fixed bottom-5 right-5 z-40 rounded-full shadow-lg px-4 py-2.5 flex items-center gap-2 text-sm font-semibold text-white"
-          style={{ background: "#6D28D9" }}
+          style={{ background: "var(--violet)" }}
           title="Ask the assistant (Ctrl+/)"
           aria-label="Open the assistant"
         >
@@ -225,23 +225,23 @@ export function AssistantDock({ activeChannelId = null, workspaceId, userId, rea
         >
           <header className="flex items-center gap-2 px-3 py-2 border-b border-[var(--line)]">
             <Bot className="w-4 h-4" style={{ color: "var(--violet-on)" }} />
-            <span className="font-mono text-[12px] font-bold">Assistant</span>
-            <span className="text-[10px] text-[var(--mute)] truncate">· on {pathname}</span>
+            <span className="font-mono text-xs font-bold">Assistant</span>
+            <span className="text-micro text-[var(--mute)] truncate">· on {pathname}</span>
             <span className="flex-1" />
             {recent.length > 0 && (
-              <select value={threadId ?? ""} onChange={(e) => pick(e.target.value)} className="text-[10px] max-w-28 bg-transparent border border-[var(--line)] rounded px-1 py-0.5" aria-label="Earlier conversations" data-dock-threads>
+              <select value={threadId ?? ""} onChange={(e) => pick(e.target.value)} className="text-micro max-w-28 bg-transparent border border-[var(--line)] rounded px-1 py-0.5" aria-label="Earlier conversations" data-dock-threads>
                 <option value="">{threadId ? "Switch…" : "Earlier…"}</option>
                 {recent.map((t) => <option key={t.id} value={t.id}>{(t.title ?? "Untitled").slice(0, 40)}</option>)}
               </select>
             )}
-            <button type="button" onClick={newThread} className="text-[10px] text-[var(--mute)] hover:text-[var(--ink)]" title="Start a new conversation">new</button>
-            {!readOnly && <Link href={threadId ? `/assistant/${threadId}` : "/assistant"} className="text-[10px] text-[var(--mute)] hover:text-[var(--ink)] inline-flex items-center gap-0.5" title="Open the full page"><ExternalLink className="w-3 h-3" /> full</Link>}
+            <button type="button" onClick={newThread} className="text-micro text-[var(--mute)] hover:text-[var(--ink)]" title="Start a new conversation">new</button>
+            {!readOnly && <Link href={threadId ? `/assistant/${threadId}` : "/assistant"} className="text-micro text-[var(--mute)] hover:text-[var(--ink)] inline-flex items-center gap-0.5" title="Open the full page"><ExternalLink className="w-3 h-3" /> full</Link>}
             <button type="button" onClick={() => setOpen(false)} className="ml-1 text-[var(--mute)] hover:text-[var(--ink)]" aria-label="Close"><X className="w-4 h-4" /></button>
           </header>
 
           <div ref={listRef} className="flex-1 overflow-y-auto px-3 py-2 flex flex-col gap-2">
             {messages.length === 0 && fresh && (
-              <p className="text-[11px] text-[var(--mute)] m-0" data-dock-fresh>It&apos;s been a while, so this is a new conversation — {readOnly ? "pick the last one above" : <>the last one is under <Link href="/assistant#threads" className="underline">Assistant</Link> (or pick it above)</>}.</p>
+              <p className="text-2xs text-[var(--mute)] m-0" data-dock-fresh>It&apos;s been a while, so this is a new conversation — {readOnly ? "pick the last one above" : <>the last one is under <Link href="/assistant#threads" className="underline">Assistant</Link> (or pick it above)</>}.</p>
             )}
             {messages.length === 0 && (
               <div className="text-xs text-[var(--mute)] leading-relaxed">
@@ -274,16 +274,16 @@ export function AssistantDock({ activeChannelId = null, workspaceId, userId, rea
                     ])} />
                   )}
                   {m.role === "assistant" && m.tokens != null && (
-                    <p className="m-0 mt-1 text-[10px] font-mono text-[var(--mute)]" data-reply-tokens={m.tokens} title="Tokens this reply's model calls took, in and out — Settings → Usage has the month">{m.tokens.toLocaleString("en-GB")} tokens</p>
+                    <p className="m-0 mt-1 text-micro font-mono text-[var(--mute)]" data-reply-tokens={m.tokens} title="Tokens this reply's model calls took, in and out — Settings → Usage has the month">{m.tokens.toLocaleString("en-GB")} tokens</p>
                   )}
                   {tools.length > 0 && (
                     <details className="mt-1">
-                      <summary className="cursor-pointer text-[10px] font-mono text-[var(--mute)] inline-flex items-center gap-1"><Wrench className="w-3 h-3" /> {tools.length} step{tools.length === 1 ? "" : "s"}</summary>
+                      <summary className="cursor-pointer text-micro font-mono text-[var(--mute)] inline-flex items-center gap-1"><Wrench className="w-3 h-3" /> {tools.length} step{tools.length === 1 ? "" : "s"}</summary>
                       <ul className="mt-1 flex flex-col gap-1">
                         {tools.map((s, i) => (
                           <li key={i} className="rounded bg-[var(--panel)] px-2 py-1">
-                            <span className="font-mono text-[10px]" style={{ color: s.ok ? "var(--green-on)" : "var(--rose-on)" }}>{s.tool}</span>
-                            <pre className="text-[10px] whitespace-pre-wrap text-[var(--mute)] mt-0.5 max-h-32 overflow-auto">{s.output}</pre>
+                            <span className="font-mono text-micro" style={{ color: s.ok ? "var(--green-on)" : "var(--rose-on)" }}>{s.tool}</span>
+                            <pre className="text-micro whitespace-pre-wrap text-[var(--mute)] mt-0.5 max-h-32 overflow-auto">{s.output}</pre>
                           </li>
                         ))}
                       </ul>
@@ -293,7 +293,7 @@ export function AssistantDock({ activeChannelId = null, workspaceId, userId, rea
               );
             })}
             {busy && (
-              <div className="self-start text-[11px] text-[var(--mute)] inline-flex items-center gap-1.5 flex-wrap" data-assistant-live>
+              <div className="self-start text-2xs text-[var(--mute)] inline-flex items-center gap-1.5 flex-wrap" data-assistant-live>
                 <Loader2 className="w-3 h-3 animate-spin" />
                 <span data-live-step>{stopping ? "Stopping after this step…" : `${live ?? "Working"}…`}</span>
                 {!stopping && (

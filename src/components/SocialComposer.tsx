@@ -43,9 +43,9 @@ function FileThumb({ file, url, onRemove }: { file: File; url: string | undefine
         // eslint-disable-next-line @next/next/no-img-element
         <img src={url} alt={file.name} className="h-20 w-20 rounded-lg object-cover border border-[var(--line)]" />
       ) : (
-        <span className="h-20 w-20 rounded-lg border border-[var(--line)] grid place-items-center text-[10px] text-[var(--mute)]">file</span>
+        <span className="h-20 w-20 rounded-lg border border-[var(--line)] grid place-items-center text-micro text-[var(--mute)]">file</span>
       )}
-      <span className="font-mono text-[9px] text-[var(--mute)] truncate w-full text-center">{file.name}</span>
+      <span className="font-mono text-micro text-[var(--mute)] truncate w-full text-center">{file.name}</span>
       <button type="button" aria-label={`Remove ${file.name}`} onClick={onRemove}
         className="absolute -top-1.5 -right-1.5 rounded-full p-0.5 border border-[var(--line-2)]" style={{ background: "var(--panel)" }}>
         <X className="w-3 h-3" />
@@ -429,7 +429,7 @@ export function SocialComposer({
       {editing && <input type="hidden" name="perNetworkMarks" value="1" />}
       {/* Account picker */}
       <div>
-        <div className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)] mb-1.5 flex items-center gap-1.5">
+        <div className="text-micro font-mono uppercase tracking-wider text-[var(--mute)] mb-1.5 flex items-center gap-1.5">
           Post to <HelpTip text={SOCIAL_TIPS.postTo} side="bottom" wide />
           {accounts.length > 1 && (
             <span className="normal-case tracking-normal inline-flex items-center gap-2 ml-2">
@@ -467,7 +467,7 @@ export function SocialComposer({
         <div className="flex flex-wrap items-center gap-2">
           <label className="inline-flex items-center gap-1.5 text-xs">
             <Tags className="w-3.5 h-3.5" style={{ color: "var(--violet-on)" }} />
-            <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">Topic</span>
+            <span className="text-micro font-mono uppercase tracking-wider text-[var(--mute)]">Topic</span>
             <select name="topicId" value={topicId} onChange={(e) => setTopicId(e.target.value)}
               className="border border-[var(--line-2)] rounded-lg px-2 py-1 text-xs">
               <option value="">— none —</option>
@@ -481,7 +481,7 @@ export function SocialComposer({
           {topic?.keywords.map((k) => (
             <button key={k} type="button" title="Insert into the post"
               onClick={() => setText((prev) => (prev ? `${prev.replace(/\s+$/, "")} ${k}` : k))}
-              className="inline-flex items-center gap-1 text-[11px] font-mono px-1.5 py-0.5 rounded-full border border-[var(--line-2)] hover:border-[var(--accent)]">
+              className="inline-flex items-center gap-1 text-2xs font-mono px-1.5 py-0.5 rounded-full border border-[var(--line-2)] hover:border-[var(--accent)]">
               <Plus className="w-2.5 h-2.5" /> {k}
             </button>
           ))}
@@ -495,7 +495,7 @@ export function SocialComposer({
             <>
               <label className="inline-flex items-center gap-1.5 text-xs">
                 <Megaphone className="w-3.5 h-3.5" style={{ color: "var(--blue-on)" }} />
-                <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">Campaign</span>
+                <span className="text-micro font-mono uppercase tracking-wider text-[var(--mute)]">Campaign</span>
                 <select name="campaignId" value={campaignId} onChange={(e) => setCampaignId(e.target.value)}
                   className="border border-[var(--line-2)] rounded-lg px-2 py-1 text-xs">
                   <option value="">— none —</option>
@@ -509,7 +509,7 @@ export function SocialComposer({
           {/* Category — Socialmonials' label for filing and filtering posts;
               it still steers the queue (a slot of the same category first). */}
           <label className="inline-flex items-center gap-1.5 text-xs">
-            <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">Category</span>
+            <span className="text-micro font-mono uppercase tracking-wider text-[var(--mute)]">Category</span>
             <select name="category" value={category} onChange={(e) => setCategory(e.target.value)}
               className="border border-[var(--line-2)] rounded-lg px-2 py-1 text-xs">
               <option value="">— none —</option>
@@ -524,14 +524,14 @@ export function SocialComposer({
           <HelpTip text={SOCIAL_TIPS.slotCategory} side="bottom" wide />
           {/* Watermark — the workspace logo on images, at send. */}
           <label className="inline-flex items-center gap-1.5 text-xs" title={watermarkAvailable ? "Composited onto images when the post goes out; the stored original stays clean" : "Add a logo (Settings → Workspace) to watermark images"}>
-            <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">Watermark</span>
+            <span className="text-micro font-mono uppercase tracking-wider text-[var(--mute)]">Watermark</span>
             <select name="watermark" defaultValue={watermarkAvailable ? (initial?.watermark ?? "") : ""} disabled={!watermarkAvailable}
               className="border border-[var(--line-2)] rounded-lg px-2 py-1 text-xs">
               <option value="">None</option>
               {WATERMARK_POSITIONS.map((w) => <option key={w.value} value={w.value}>{w.label}</option>)}
             </select>
           </label>
-          {!watermarkAvailable && <span className="text-[10px] text-[var(--mute)]">no logo on file</span>}
+          {!watermarkAvailable && <span className="text-micro text-[var(--mute)]">no logo on file</span>}
         </div>
       )}
 
@@ -544,7 +544,7 @@ export function SocialComposer({
         </label>
         <HelpTip text={SOCIAL_TIPS.evergreen} side="bottom" wide />
         {evergreen && (
-          <label className="inline-flex items-center gap-1.5 text-[11px] text-[var(--mute)]">
+          <label className="inline-flex items-center gap-1.5 text-2xs text-[var(--mute)]">
             every
             <input type="number" name="recycleEveryDays" min={1} max={365}
               defaultValue={initial?.recycleEveryDays ?? 30}
@@ -556,7 +556,7 @@ export function SocialComposer({
 
       {/* Base composer */}
       <div>
-        <div className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)] mb-1 flex items-center gap-2">
+        <div className="text-micro font-mono uppercase tracking-wider text-[var(--mute)] mb-1 flex items-center gap-2">
           {selectedProviders.length > 1 ? "Base post (used by any network you don’t customize)" : "Text"}
           <span className="flex-1" />
           {/* type="button" is load-bearing — these sit inside the form. */}
@@ -576,7 +576,7 @@ export function SocialComposer({
             (or at the end). Those for another category are left out. */}
         {snippets.some((s) => !s.category || s.category === category) && (
           <div className="flex flex-wrap items-center gap-1" data-snippets>
-            <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">Insert</span>
+            <span className="text-micro font-mono uppercase tracking-wider text-[var(--mute)]">Insert</span>
             {snippets.filter((s) => !s.category || s.category === category).map((s) => (
               <button key={s.id} type="button" title={s.body.slice(0, 200)}
                 onClick={() => {
@@ -584,7 +584,7 @@ export function SocialComposer({
                   const at = el && document.activeElement === el ? el.selectionStart : null;
                   setText((prev) => (at == null ? (prev ? `${prev.replace(/\s+$/, "")}${/\n/.test(s.body) ? "\n\n" : " "}${s.body}` : s.body) : prev.slice(0, at) + s.body + prev.slice(at)));
                 }}
-                className="inline-flex items-center gap-1 text-[11px] font-mono px-1.5 py-0.5 rounded-full border border-[var(--line-2)] hover:border-[var(--accent)]">
+                className="inline-flex items-center gap-1 text-2xs font-mono px-1.5 py-0.5 rounded-full border border-[var(--line-2)] hover:border-[var(--accent)]">
                 <Plus className="w-2.5 h-2.5" /> {s.name}
               </button>
             ))}
@@ -632,7 +632,7 @@ export function SocialComposer({
           </div>
         )}
         {genError && (
-          <p className="text-[11px] mt-1" style={{ color: "var(--amber-on)" }}>{genError}</p>
+          <p className="text-2xs mt-1" style={{ color: "var(--amber-on)" }}>{genError}</p>
         )}
         {genImages.length > 0 && (
           <div className="flex items-center gap-2 flex-wrap mt-2">
@@ -645,7 +645,7 @@ export function SocialComposer({
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={g.url} alt={`AI image ${i + 1}`} className="h-20 w-20 rounded-lg object-cover border border-[var(--line)]" />
                 )}
-                <span className="absolute bottom-0.5 left-0.5 font-mono text-[9px] px-1 rounded" style={{ background: "var(--panel)", color: "var(--mute)" }}>
+                <span className="absolute bottom-0.5 left-0.5 font-mono text-micro px-1 rounded" style={{ background: "var(--panel)", color: "var(--mute)" }}>
                   {g.provider}
                 </span>
                 <button
@@ -668,7 +668,7 @@ export function SocialComposer({
           its own row below. */}
       {firstCommentProviders.length > 0 && (
         <div>
-          <div className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)] mb-1">
+          <div className="text-micro font-mono uppercase tracking-wider text-[var(--mute)] mb-1">
             First comment <span className="normal-case tracking-normal">— posted on {firstCommentProviders.map((p) => networkFor(p)?.label ?? p).join(", ")}{selectedProviders.length > firstCommentProviders.length ? "; the others have no first comment" : ""}</span>
           </div>
           <textarea name="firstComment" value={firstComment} onChange={(e) => setFirstComment(e.target.value)} rows={2} maxLength={2000}
@@ -678,7 +678,7 @@ export function SocialComposer({
             <input type="checkbox" name="linkToFirstComment" checked={linkToComment} onChange={(e) => setLinkToComment(e.target.checked)} />
             Move links from the caption to the first comment
           </label>
-          <span className="text-[10px] text-[var(--mute)] ml-2">LinkedIn and Instagram both hold back posts with a link in the caption. X and TikTok keep the link where it is.</span>
+          <span className="text-micro text-[var(--mute)] ml-2">LinkedIn and Instagram both hold back posts with a link in the caption. X and TikTok keep the link where it is.</span>
         </div>
       )}
 
@@ -686,10 +686,10 @@ export function SocialComposer({
           disclosures, and a declaration shown before sending (TikTok's
           content-posting guidelines; the fields are Zernio's tiktokSettings). */}
       {tiktokSelected && (
-        <div className="rounded-lg border p-2.5" style={{ borderColor: "#010101" }}>
+        <div className="rounded-lg border p-2.5" style={{ borderColor: "var(--ink)" }}>
           <input type="hidden" name="tiktok_present_TIKTOK" value="1" />
           <div className="text-xs font-semibold mb-2 flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full" style={{ background: "#010101" }} /> TikTok
+            <span className="w-2 h-2 rounded-full" style={{ background: "var(--ink)" }} /> TikTok
           </div>
           <div className="flex flex-wrap items-center gap-3 text-xs">
             <label className="inline-flex items-center gap-1.5">
@@ -728,8 +728,8 @@ export function SocialComposer({
               Hold as draft in TikTok (finish it in the app)
             </label>
           </div>
-          {brandedSelfOnly && <p className="text-[11px] mt-1.5 mb-0" style={{ color: "var(--rose-on)" }}>Branded content can&apos;t be “Only me” — widen the audience or change the disclosure.</p>}
-          <p className="text-[10px] text-[var(--mute)] mt-2 mb-0">
+          {brandedSelfOnly && <p className="text-2xs mt-1.5 mb-0" style={{ color: "var(--rose-on)" }}>Branded content can&apos;t be “Only me” — widen the audience or change the disclosure.</p>}
+          <p className="text-micro text-[var(--mute)] mt-2 mb-0">
             By posting, you agree to TikTok&apos;s{" "}
             <a href="https://www.tiktok.com/legal/page/global/music-usage-confirmation/en" target="_blank" rel="noreferrer" className="underline">Music Usage Confirmation</a>
             {tiktok.commercial === "brand_content" && <> and <a href="https://www.tiktok.com/legal/page/global/bc-policy/en" target="_blank" rel="noreferrer" className="underline">Branded Content Policy</a></>}.
@@ -769,11 +769,11 @@ export function SocialComposer({
               </>
             )}
             {text.trim().length < 20 && (
-              <span className="text-[11px] text-[var(--mute)]">Write the base post first.</span>
+              <span className="text-2xs text-[var(--mute)]">Write the base post first.</span>
             )}
           </div>
-          {tailorError && <p className="text-[11px]" style={{ color: "var(--amber-on)" }}>{tailorError}</p>}
-          {tailorNote && <p className="text-[11px] text-[var(--mute)]">{tailorNote}</p>}
+          {tailorError && <p className="text-2xs" style={{ color: "var(--amber-on)" }}>{tailorError}</p>}
+          {tailorNote && <p className="text-2xs text-[var(--mute)]">{tailorNote}</p>}
           {selectedProviders.map((p) => {
             const net = networkFor(p);
             const limit = net?.charLimit ?? 3000;
@@ -791,40 +791,40 @@ export function SocialComposer({
                   <span className="w-2 h-2 rounded-full" style={{ background: net?.color ?? "var(--mute)" }} />
                   <span className="text-xs font-semibold">{net?.label ?? p}</span>
                   <WithTip text={SOCIAL_TIPS.charCount} side="bottom" wide>
-                    <span className="font-mono text-[11px]" style={{ color: over ? "var(--rose-on)" : "var(--mute)" }} title={how ?? "As sent, links tagged"} data-char-count={p}>
+                    <span className="font-mono text-2xs" style={{ color: over ? "var(--rose-on)" : "var(--mute)" }} title={how ?? "As sent, links tagged"} data-char-count={p}>
                       {sentLen}/{limit}{how ? " weighted" : ""}{over ? " — over limit" : ""}
                     </span>
                   </WithTip>
                   {mediaCount > 0 && (
-                    <span className="font-mono text-[10px] text-[var(--mute)]">
+                    <span className="font-mono text-micro text-[var(--mute)]">
                       {mediaWords(media)}{isCustom && vFiles.length > 0 ? " (own)" : ""}
                     </span>
                   )}
                   {/* YouTube takes a video only — said here rather than let the
                       leg fail at send (SOC-13); the save refuses it too. */}
                   {net?.requiresVideo ? (
-                    !hasVideo && <span className="text-[11px] text-[var(--amber-on)]" title={`${net.label} takes a video — attach an MP4, MOV or WebM.`} data-needs-video={p}>needs a video</span>
+                    !hasVideo && <span className="text-2xs text-[var(--amber-on)]" title={`${net.label} takes a video — attach an MP4, MOV or WebM.`} data-needs-video={p}>needs a video</span>
                   ) : net?.requiresMedia && mediaCount === 0 && (
                     <WithTip text={SOCIAL_TIPS.needsImage} side="bottom" wide>
-                      <span className="text-[11px] text-[var(--amber-on)]">needs an image</span>
+                      <span className="text-2xs text-[var(--amber-on)]">needs an image</span>
                     </WithTip>
                   )}
                   {/* X sends a video on its own (E-SOC-08); its length is checked on save. */}
                   {net?.provider === "twitter" && hasVideo && media.length > 1 && (
-                    <span className="text-[11px] text-[var(--rose-on)]" data-x-video-alone="">takes one video on its own</span>
+                    <span className="text-2xs text-[var(--rose-on)]" data-x-video-alone="">takes one video on its own</span>
                   )}
                   {/* Story / Reel, but only where the network takes a choice.
                       Most don't: YouTube detects Shorts from duration and
                       aspect ratio, TikTok follows the media. Offering a picker
                       there would be inventing a control. */}
                   {subFormatsFor(p).length > 0 && (
-                    <label className="inline-flex items-center gap-1 text-[11px] text-[var(--mute)]">
+                    <label className="inline-flex items-center gap-1 text-2xs text-[var(--mute)]">
                       Publish as
                       <select
                         name={`subformat_${p}`}
                         value={subFormats[p] ?? ""}
                         onChange={(e) => setSubFormats((v) => ({ ...v, [p]: e.target.value }))}
-                        className="border border-[var(--line-2)] rounded px-1 py-0.5 text-[11px]"
+                        className="border border-[var(--line-2)] rounded px-1 py-0.5 text-2xs"
                       >
                         {/* A Reel needs a video — the save refuses one without. */}
                         {subFormatsFor(p).map((o) => (
@@ -837,12 +837,12 @@ export function SocialComposer({
                   )}
                   {AUTOMATIC_SUB_FORMAT[p.toLowerCase()] && (
                     <WithTip text={AUTOMATIC_SUB_FORMAT[p.toLowerCase()]} side="bottom" wide>
-                      <span className="text-[11px] text-[var(--mute)]">format: automatic</span>
+                      <span className="text-2xs text-[var(--mute)]">format: automatic</span>
                     </WithTip>
                   )}
                   <span className="flex-1" />
                   <WithTip text={SOCIAL_TIPS.customize} side="left" wide>
-                    <button type="button" onClick={() => toggleCustom(p)} className="text-[11px] font-semibold inline-flex items-center gap-1" style={{ color: "var(--accent)" }}>
+                    <button type="button" onClick={() => toggleCustom(p)} className="text-2xs font-semibold inline-flex items-center gap-1" style={{ color: "var(--accent)" }}>
                       {isCustom ? <><RotateCcw className="w-3 h-3" /> Use base</> : <><Pencil className="w-3 h-3" /> Customize</>}
                     </button>
                   </WithTip>
@@ -853,7 +853,7 @@ export function SocialComposer({
                   <div className="mt-2 rounded-lg p-2" style={{ background: "var(--accent-soft)" }}>
                     <div className="flex items-center gap-2 mb-1">
                       <Wand2 className="w-3 h-3" style={{ color: "var(--accent-on)" }} />
-                      <span className="text-[10px] font-mono uppercase tracking-wider" style={{ color: "var(--accent-on)" }}>
+                      <span className="text-micro font-mono uppercase tracking-wider" style={{ color: "var(--accent-on)" }}>
                         Suggested for {net?.label ?? p} · {proposed[p.toLowerCase()].length}/{limit}
                       </span>
                       <span className="flex-1" />
@@ -891,7 +891,7 @@ export function SocialComposer({
                           onChange={(e) => setVariantFiles((v) => ({ ...v, [p]: Array.from(e.target.files ?? []).slice(0, 4) }))}
                         />
                       </label>
-                      {vFiles.length === 0 && <span className="text-[11px] text-[var(--mute)]">using the base image{files.length === 1 ? "" : "s"}</span>}
+                      {vFiles.length === 0 && <span className="text-2xs text-[var(--mute)]">using the base image{files.length === 1 ? "" : "s"}</span>}
                       {FIRST_COMMENT_NETWORKS.has(p.toLowerCase()) && (
                         <textarea
                           name={`firstcomment_${p}`}
@@ -928,7 +928,7 @@ export function SocialComposer({
           <button
             type="button"
             onClick={() => setShowPreview((v) => !v)}
-            className="text-[11px] font-semibold inline-flex items-center gap-1"
+            className="text-2xs font-semibold inline-flex items-center gap-1"
             style={{ color: "var(--accent)" }}
           >
             {showPreview ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
@@ -952,7 +952,7 @@ export function SocialComposer({
             </div>
           )}
           {showPreview && (
-            <p className="text-[10px] text-[var(--mute)] mt-1.5">
+            <p className="text-micro text-[var(--mute)] mt-1.5">
               Approximate rendering — networks apply their own fonts and cropping. The text is what will be sent:
               {utmCfg?.enabled ? " links carry the tags added at send," : " link tagging is off (Settings → Schedule),"} and a first comment shows where the
               network takes one.
@@ -966,7 +966,7 @@ export function SocialComposer({
         <label className="inline-flex items-center gap-2 text-xs text-[var(--mute)]">
           <input type="checkbox" name="clearMedia" checked={clearMedia} onChange={(e) => setClearMedia(e.target.checked)} />
           Remove the {initial!.existingMedia} file{initial!.existingMedia === 1 ? "" : "s"} already on this post
-          <span className="text-[10px]">(attaching new ones replaces them anyway)</span>
+          <span className="text-micro">(attaching new ones replaces them anyway)</span>
         </label>
       )}
 
@@ -1017,14 +1017,14 @@ export function SocialComposer({
             <label className="inline-flex items-center gap-1.5 text-sm cursor-pointer">
               <input type="radio" name="when" value="queue" checked={when === "queue"} onChange={() => setWhen("queue")} />
               Add to queue
-              <span className="font-mono text-[11px] text-[var(--mute)]">{queue.nextFree}</span>
+              <span className="font-mono text-2xs text-[var(--mute)]">{queue.nextFree}</span>
             </label>
             {/* Sibling, not a child of the label — see the Topic tip above. */}
             <HelpTip text={SOCIAL_TIPS.queue} wide />
           </>
         )}
         {queue && !queue.nextFree && queue.hasSlots && (
-          <span className="text-[11px]" style={{ color: "var(--amber-on)" }}>
+          <span className="text-2xs" style={{ color: "var(--amber-on)" }}>
             Queue full — every slot ahead is taken.
           </span>
         )}
@@ -1035,13 +1035,13 @@ export function SocialComposer({
             <label className="inline-flex items-center gap-1.5 text-sm cursor-pointer" title={optimalPick.why}>
               <input type="radio" name="when" value="optimal" checked={when === "optimal"} onChange={() => setWhen("optimal")} />
               Optimal
-              <span className="font-mono text-[11px] text-[var(--mute)]">{optimalPick.label}</span>
+              <span className="font-mono text-2xs text-[var(--mute)]">{optimalPick.label}</span>
             </label>
           </>
         )}
         {!noAccounts && optimal && "reason" in optimal && (
           <WithTip text={optimal.reason} side="top" wide>
-            <span className="text-[11px] text-[var(--mute)] underline decoration-dotted">Optimal: not measured yet</span>
+            <span className="text-2xs text-[var(--mute)] underline decoration-dotted">Optimal: not measured yet</span>
           </WithTip>
         )}
         {when === "schedule" && (
@@ -1052,22 +1052,22 @@ export function SocialComposer({
               defaultValue={initial?.scheduledAtLocal ?? undefined}
               className="border border-[var(--line-2)] rounded-lg p-1.5 text-sm font-mono"
             />
-            {queue?.timeZone && <span className="font-mono text-[11px] text-[var(--mute)]">{queue.timeZone}</span>}
+            {queue?.timeZone && <span className="font-mono text-2xs text-[var(--mute)]">{queue.timeZone}</span>}
           </label>
         )}
         <span className="flex-1" />
         {approvalNotice && (
-          <span className="text-[11px]" style={{ color: "var(--amber-on)" }}>
+          <span className="text-2xs" style={{ color: "var(--amber-on)" }}>
             Held for approval before it goes out
           </span>
         )}
         {overBlocks && (
-          <span className="text-[11px]" style={{ color: "var(--rose-on)" }}>
+          <span className="text-2xs" style={{ color: "var(--rose-on)" }}>
             Over a network&apos;s limit — shorten it, customize that network, or save as draft.
           </span>
         )}
         {tiktokBlocks && (
-          <span className="text-[11px]" style={{ color: "var(--rose-on)" }}>
+          <span className="text-2xs" style={{ color: "var(--rose-on)" }}>
             Choose who can view the TikTok video — or save as draft.
           </span>
         )}
@@ -1149,7 +1149,7 @@ function PlatformPreview({
         )}
       </div>
     ) : imageFirst ? (
-      <div className="aspect-square grid place-items-center text-[11px]" style={{ background: "var(--zebra)", color: "var(--amber-on)" }}>
+      <div className="aspect-square grid place-items-center text-2xs" style={{ background: "var(--zebra)", color: "var(--amber-on)" }}>
         {net?.label} needs an image
       </div>
     ) : null;
@@ -1159,36 +1159,36 @@ function PlatformPreview({
       {/* Network strip */}
       <div className="px-3 py-1.5 flex items-center gap-1.5 border-b border-[var(--line)]">
         <span className="w-2 h-2 rounded-full" style={{ background: net?.color ?? "var(--mute)" }} />
-        <span className="font-mono text-[10px] uppercase tracking-wider text-[var(--mute)]">{net?.label ?? provider}</span>
+        <span className="font-mono text-micro uppercase tracking-wider text-[var(--mute)]">{net?.label ?? provider}</span>
       </div>
       {/* Author row */}
       <div className="px-3 pt-2.5 pb-1.5 flex items-center gap-2">
         <span
           className="w-8 h-8 rounded-full grid place-items-center text-xs font-bold shrink-0"
-          style={{ background: net?.color ?? "var(--mute)", color: "#fff" }}
+          style={{ background: net?.color ?? "var(--mute)", color: "white" }}
         >
           {name.slice(0, 1).toUpperCase()}
         </span>
         <div className="min-w-0">
           <div className="text-xs font-semibold truncate">{name}</div>
-          <div className="text-[10px] text-[var(--mute)]">Just now</div>
+          <div className="text-micro text-[var(--mute)]">Just now</div>
         </div>
       </div>
       {imageFirst && imageBlock}
       {shown && (
-        <p className="px-3 py-2 text-[13px] whitespace-pre-wrap break-words leading-snug">
+        <p className="px-3 py-2 text-sm whitespace-pre-wrap break-words leading-snug">
           {shown}
           {truncated && <span style={{ color: "var(--rose-on)" }}>{weighted ? ` — ${length - limit} over ${net?.label ?? provider}'s ${limit}` : `… ✂ cut at ${limit} characters`}</span>}
         </p>
       )}
       {!imageFirst && imageBlock}
-      <div className="px-3 py-1.5 border-t border-[var(--line)] flex gap-4 text-[10px] font-mono text-[var(--mute)]">
+      <div className="px-3 py-1.5 border-t border-[var(--line)] flex gap-4 text-micro font-mono text-[var(--mute)]">
         <span>Like</span><span>Comment</span><span>Share</span>
       </div>
       {comment && (
         <div className="px-3 py-2 border-t border-[var(--line)] flex gap-2 items-start" data-preview-comment={provider}>
-          <span className="w-5 h-5 rounded-full shrink-0 grid place-items-center text-[9px] font-bold" style={{ background: net?.color ?? "var(--mute)", color: "#fff" }}>{name.slice(0, 1).toUpperCase()}</span>
-          <p className="m-0 text-[12px] whitespace-pre-wrap break-words leading-snug min-w-0"><span className="font-semibold">First comment · </span>{comment}</p>
+          <span className="w-5 h-5 rounded-full shrink-0 grid place-items-center text-micro font-bold" style={{ background: net?.color ?? "var(--mute)", color: "white" }}>{name.slice(0, 1).toUpperCase()}</span>
+          <p className="m-0 text-xs whitespace-pre-wrap break-words leading-snug min-w-0"><span className="font-semibold">First comment · </span>{comment}</p>
         </div>
       )}
     </div>

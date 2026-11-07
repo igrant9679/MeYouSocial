@@ -98,7 +98,7 @@ export default async function BlogCalendarPage({ searchParams }: { searchParams:
           {" "}Or publish by hand from each article.
         </div>
       )}
-      {publishDay === null && <p className="text-[11px] text-[var(--mute)] mb-2">No publish day is set, so the autopilot publishes on any day; set one under Settings → Automation.</p>}
+      {publishDay === null && <p className="text-2xs text-[var(--mute)] mb-2">No publish day is set, so the autopilot publishes on any day; set one under Settings → Automation.</p>}
 
       <ArticleCalendar key={`${y}-${mo}`} cells={cells} blanks={blanks} articles={articles} canSchedule={admin} />
     </main>

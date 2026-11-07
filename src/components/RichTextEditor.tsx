@@ -341,7 +341,7 @@ export function RichTextEditor({
           {/* suppressHydrationWarning: viewer-locale number grouping differs
               from the server's — intended, and a React #418 without this
               (audit A2; the rule is documented in BlogBodyEditor.tsx). */}
-          <span className="font-mono text-[10px] text-[var(--mute)] px-1" suppressHydrationWarning>{words.toLocaleString()} words</span>
+          <span className="font-mono text-micro text-[var(--mute)] px-1" suppressHydrationWarning>{words.toLocaleString()} words</span>
         </div>
       )}
 
@@ -355,7 +355,7 @@ export function RichTextEditor({
                 <button key={m.url} type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => insertImage(m)} className="w-24 text-left" title={m.alt ?? m.label} data-insert-image={m.url}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={m.url} alt={m.alt ?? ""} className="w-24 h-16 object-cover rounded border border-[var(--line)]" />
-                  <span className="block text-[10px] text-[var(--mute)] truncate">{m.label}</span>
+                  <span className="block text-micro text-[var(--mute)] truncate">{m.label}</span>
                 </button>
               ))}
             </div>

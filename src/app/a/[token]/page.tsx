@@ -76,7 +76,7 @@ export default async function ClientApprovalPage({ params, searchParams }: { par
               {pictures.map((src, i) => <img key={i} src={src} alt="" className="w-full rounded-lg" data-approval-picture="" />)}
             </div>
           )}
-          <p className="text-[11px] text-[var(--mute)] mt-3 mb-0">
+          <p className="text-2xs text-[var(--mute)] mt-3 mb-0">
             {networks.length ? `Goes to ${networks.join(", ")}` : "No account chosen yet"}
             {post.scheduledAt ? ` · planned for ${formatInZone(post.scheduledAt, tz)}` : ""}
           </p>
@@ -91,7 +91,7 @@ export default async function ClientApprovalPage({ params, searchParams }: { par
             <textarea name="note" rows={3} maxLength={500} placeholder="What should change?" className="w-full text-sm border border-[var(--line-2)] rounded-lg p-2" aria-label="What should change" />
             <SubmitButton className="btn w-full" pendingText="Sending…">Ask for changes</SubmitButton>
           </form>
-          <p className="text-[11px] text-[var(--mute)] m-0">One answer per link. Open until {share.expiresAt.toISOString().slice(0, 10)}.</p>
+          <p className="text-2xs text-[var(--mute)] m-0">One answer per link. Open until {share.expiresAt.toISOString().slice(0, 10)}.</p>
         </div>
       </div>
     </main>

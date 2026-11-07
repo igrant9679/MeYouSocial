@@ -28,8 +28,8 @@ export async function ShotList({ workspaceId, scriptId, body, editor }: { worksp
     <div className="flex flex-col gap-4" data-shot-list="">
       <div className="card">
         <div className="flex items-center gap-2 flex-wrap mb-2">
-          <h3 className="font-mono font-bold text-[15px] flex items-center gap-2 m-0"><Clapperboard className="w-4 h-4" style={{ color: "var(--accent)" }} /> Shot list</h3>
-          <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "var(--panel)", color: "var(--mute)" }}>{shots.length} marked</span>
+          <h3 className="font-mono font-bold text-sm flex items-center gap-2 m-0"><Clapperboard className="w-4 h-4" style={{ color: "var(--accent)" }} /> Shot list</h3>
+          <span className="font-mono text-micro px-1.5 py-0.5 rounded-full" style={{ background: "var(--panel)", color: "var(--mute)" }}>{shots.length} marked</span>
           <span className="flex-1" />
           {editor && shots.length > 0 && (
             <form action={syncShotListAction}>
@@ -56,16 +56,16 @@ export async function ShotList({ workspaceId, scriptId, body, editor }: { worksp
           <div className="flex flex-col gap-3 mt-3">
             {sections.map((sec) => (
               <section key={sec}>
-                <h4 className="text-[11px] font-mono uppercase tracking-wider text-[var(--mute)] m-0 mb-1">{sec}</h4>
+                <h4 className="text-2xs font-mono uppercase tracking-wider text-[var(--mute)] m-0 mb-1">{sec}</h4>
                 <ul className="m-0 p-0 list-none flex flex-col gap-1">
                   {shots.filter((s) => s.section === sec).map((s) => {
                     const a = inAssets.get(key(s.section, s.description));
                     const filmed = !!(a?.url || a?.uploadKey);
                     return (
                       <li key={`${sec}-${s.description}`} className="flex items-center gap-2 text-sm" data-shot={s.kind}>
-                        <span className="font-mono text-[10px] px-1.5 rounded-full flex-shrink-0" style={{ background: "var(--panel)", color: "var(--mute)" }}>{KIND_WORD[s.kind]}</span>
+                        <span className="font-mono text-micro px-1.5 rounded-full flex-shrink-0" style={{ background: "var(--panel)", color: "var(--mute)" }}>{KIND_WORD[s.kind]}</span>
                         <span className="flex-1 min-w-0">{s.description}</span>
-                        <span className="font-mono text-[10px] flex-shrink-0" style={{ color: filmed ? "var(--green-on)" : a ? "var(--blue-on)" : "var(--mute)" }} data-shot-state={filmed ? "filmed" : a ? "in-assets" : "new"}>
+                        <span className="font-mono text-micro flex-shrink-0" style={{ color: filmed ? "var(--green-on)" : a ? "var(--blue-on)" : "var(--mute)" }} data-shot-state={filmed ? "filmed" : a ? "in-assets" : "new"}>
                           {filmed ? "filmed" : a ? "in Assets" : "not in Assets yet"}
                         </span>
                       </li>

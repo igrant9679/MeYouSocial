@@ -17,7 +17,7 @@ export function DiffRows({ rows }: { rows: Row[] }) {
       out.push(<DiffRow key={i} row={run[0]} />);
       out.push(
         <details key={`${i}-fold`} className="border-y border-[var(--line)] bg-[var(--zebra)]">
-          <summary className="cursor-pointer select-none px-3 py-1 text-[11px] text-[var(--mute)]">{run.length - 2} unchanged blocks</summary>
+          <summary className="cursor-pointer select-none px-3 py-1 text-2xs text-[var(--mute)]">{run.length - 2} unchanged blocks</summary>
           {run.slice(1, -1).map((r, k) => <DiffRow key={k} row={r} />)}
         </details>,
       );
@@ -25,7 +25,7 @@ export function DiffRows({ rows }: { rows: Row[] }) {
     }
     i = j;
   }
-  return <div className="text-[13px] leading-relaxed">{out}</div>;
+  return <div className="text-sm leading-relaxed">{out}</div>;
 }
 
 const ADD = { background: "var(--green-soft)", color: "var(--green-on)" };
@@ -35,7 +35,7 @@ function Cell({ tag, children, tone, label }: { tag: string; children: React.Rea
   const heading = /^h[1-6]$/.test(tag);
   return (
     <div className={`px-3 py-1.5 ${heading ? "font-semibold" : ""}`} style={tone === "add" ? { background: "var(--green-soft)" } : tone === "del" ? { background: "var(--rose-soft)" } : undefined}>
-      {label && <span className="md:hidden block text-[10px] font-mono uppercase text-[var(--mute)]">{label}</span>}
+      {label && <span className="md:hidden block text-micro font-mono uppercase text-[var(--mute)]">{label}</span>}
       {tag === "li" && "• "}{children}
     </div>
   );

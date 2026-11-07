@@ -38,13 +38,13 @@ function Chip({ a, movable, onDragStart, onDragEnd, onMove }: {
       draggable={movable}
       onDragStart={movable ? onDragStart : undefined}
       onDragEnd={onDragEnd}
-      className={`rounded-md px-1.5 py-1 text-[10px] leading-tight border ${movable ? "cursor-grab active:cursor-grabbing" : ""}`}
+      className={`rounded-md px-1.5 py-1 text-micro leading-tight border ${movable ? "cursor-grab active:cursor-grabbing" : ""}`}
       style={{ background: "var(--panel)", borderColor: a.problems.length ? "var(--rose)" : `var(--${hue})` }}
       title={a.title}
     >
       <div className="flex items-center gap-1">
-        {a.time && <span className="font-mono text-[9px] text-[var(--mute)]">{a.time}</span>}
-        <span className="font-mono text-[9px] uppercase" style={{ color: `var(--${hue}-on)` }}>{a.kind === "ready" ? "no time yet" : a.kind}</span>
+        {a.time && <span className="font-mono text-micro text-[var(--mute)]">{a.time}</span>}
+        <span className="font-mono text-micro uppercase" style={{ color: `var(--${hue}-on)` }}>{a.kind === "ready" ? "no time yet" : a.kind}</span>
         {movable && a.kind === "scheduled" && (
           <button type="button" onClick={() => onMove(null)} className="ml-auto text-[var(--mute)] hover:text-[var(--rose-on)]" title="Take it off the calendar — it waits at final approval" aria-label={`Unschedule “${a.title}”`}>
             <X className="w-2.5 h-2.5" />
@@ -52,10 +52,10 @@ function Chip({ a, movable, onDragStart, onDragEnd, onMove }: {
         )}
       </div>
       <Link href={`/blog/${a.id}`} className="block truncate hover:underline">{a.title}</Link>
-      {a.problems.map((p) => <div key={p} className="text-[9px] leading-snug" style={{ color: "var(--rose-on)" }}>can&apos;t publish: {p}</div>)}
+      {a.problems.map((p) => <div key={p} className="text-micro leading-snug" style={{ color: "var(--rose-on)" }}>can&apos;t publish: {p}</div>)}
       {movable && (
         <input type="date" value={a.day ?? ""} onChange={(e) => e.target.value && onMove(e.target.value)}
-          aria-label={`Schedule “${a.title.slice(0, 40)}” for a day`} className="w-full mt-1 text-[9px] font-mono border border-[var(--line-2)] rounded px-1 py-0.5" />
+          aria-label={`Schedule “${a.title.slice(0, 40)}” for a day`} className="w-full mt-1 text-micro font-mono border border-[var(--line-2)] rounded px-1 py-0.5" />
       )}
     </div>
   );
@@ -98,7 +98,7 @@ export function ArticleCalendar({ cells, blanks, articles: initial, canSchedule 
       <div className="card !p-2 overflow-x-auto">
         <div style={{ minWidth: "44rem" }}>
           <div className="grid grid-cols-7 gap-1 mb-1">
-            {WEEKDAYS.map((d) => <div key={d} className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)] text-center py-1">{d}</div>)}
+            {WEEKDAYS.map((d) => <div key={d} className="text-micro font-mono uppercase tracking-wider text-[var(--mute)] text-center py-1">{d}</div>)}
           </div>
           <div className="grid grid-cols-7 gap-1">
             {Array.from({ length: blanks }).map((_, i) => <div key={`b${i}`} />)}
@@ -119,8 +119,8 @@ export function ArticleCalendar({ cells, blanks, articles: initial, canSchedule 
                   }}
                 >
                   <div className="flex items-center gap-1">
-                    <span className={`font-mono text-[10px] ${c.today ? "font-bold" : "text-[var(--mute)]"}`}>{c.day}</span>
-                    {c.publishDay && <span className="font-mono text-[8px] uppercase tracking-wider px-1 rounded" style={{ background: "var(--cyan-soft)", color: "var(--cyan-on)" }} title="The workspace's publish day — the autopilot publishes gate-passing articles on it">publish day</span>}
+                    <span className={`font-mono text-micro ${c.today ? "font-bold" : "text-[var(--mute)]"}`}>{c.day}</span>
+                    {c.publishDay && <span className="font-mono text-micro uppercase tracking-wider px-1 rounded" style={{ background: "var(--cyan-soft)", color: "var(--cyan-on)" }} title="The workspace's publish day — the autopilot publishes gate-passing articles on it">publish day</span>}
                   </div>
                   {here.map(chip)}
                 </div>
@@ -135,14 +135,14 @@ export function ArticleCalendar({ cells, blanks, articles: initial, canSchedule 
         onDragOver={(e) => { if (dragId && articles.find((a) => a.id === dragId)?.kind === "scheduled") e.preventDefault(); }}
         onDrop={(e) => { e.preventDefault(); if (dragId) move(dragId, null); setDragId(null); }}
       >
-        <h3 className="font-mono text-[11px] font-bold mb-1.5">
+        <h3 className="font-mono text-2xs font-bold mb-1.5">
           At final approval, no time yet{" "}
           <span className="text-[var(--mute)] font-normal">
             {canSchedule ? "— drag one onto a day to schedule it (09:00 unless it had a time), or drop a scheduled one here to take it off" : "— an admin schedules these"}
           </span>
         </h3>
         {tray.length === 0
-          ? <p className="text-[11px] text-[var(--mute)] m-0">Nothing waiting without a time.</p>
+          ? <p className="text-2xs text-[var(--mute)] m-0">Nothing waiting without a time.</p>
           : <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">{tray.map(chip)}</div>}
       </div>
     </div>

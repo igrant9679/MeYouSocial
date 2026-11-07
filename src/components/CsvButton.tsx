@@ -43,7 +43,7 @@ export function CsvButton({ table, filename }: { table: string; filename: string
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
   return (
-    <button type="button" onClick={download} className="btn sm !py-0.5 !px-2 !text-[10px] inline-flex items-center gap-1 print:hidden" title="Download this table as CSV" data-csv-button={table}>
+    <button type="button" onClick={download} className="btn sm !py-0.5 !px-2 !text-micro inline-flex items-center gap-1 print:hidden" title="Download this table as CSV" data-csv-button={table}>
       <Download className="w-3 h-3" /> CSV
     </button>
   );

@@ -39,7 +39,7 @@ export default async function LinkInBioPage({ params }: { params: Promise<{ slug
               <li key={l.href}>
                 <a href={l.href} rel="noopener" className="card !mb-0 block hover:border-[var(--accent)] transition-colors" data-bio-link>
                   <span className="block text-sm font-semibold leading-snug">{l.title}</span>
-                  <span className="block font-mono text-[10px] text-[var(--mute)] mt-0.5">{l.host} · {formatShortDay(l.at, tz)}</span>
+                  <span className="block font-mono text-micro text-[var(--mute)] mt-0.5">{l.host} · {formatShortDay(l.at, tz)}</span>
                 </a>
               </li>
             ))}

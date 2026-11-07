@@ -47,22 +47,22 @@ export default async function WritersRoomPage({ searchParams }: { searchParams: 
         {projects.map((p) => (
           <li key={p.id} className="card">
             <div className="flex items-center gap-2 mb-2">
-              <span className="w-8 h-8 rounded-lg text-white grid place-items-center text-[11px] font-mono font-bold" style={{ background: p.channel.accentColor ?? "var(--accent)" }}>{p.channel.name.slice(0, 2).toUpperCase()}</span>
+              <span className="w-8 h-8 rounded-lg text-white grid place-items-center text-2xs font-mono font-bold" style={{ background: p.channel.accentColor ?? "var(--accent)" }}>{p.channel.name.slice(0, 2).toUpperCase()}</span>
               <span className="flex-1 min-w-0">
                 {p.script ? (
                   <Link href={`/scripts/${p.script.id}`} className="font-semibold text-sm leading-tight hover:text-[var(--accent)]">{p.title}</Link>
                 ) : (
                   <span className="font-semibold text-sm leading-tight">{p.title}</span>
                 )}
-                <div className="text-[11px] text-[var(--mute)]">{p.channel.name}{p.script ? ` · ${p.script.wordCount}w` : ""}</div>
+                <div className="text-2xs text-[var(--mute)]">{p.channel.name}{p.script ? ` · ${p.script.wordCount}w` : ""}</div>
               </span>
               {soon(p.publishDate) && (
-                <span className="text-[10px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><Clock className="inline w-3 h-3 mr-0.5" />Due soon</span>
+                <span className="text-micro font-mono uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}><Clock className="inline w-3 h-3 mr-0.5" />Due soon</span>
               )}
             </div>
-            {p.publishDate && <div className="text-[11px] text-[var(--mute)] mb-1">Target: {formatDay(new Date(p.publishDate))}</div>}
+            {p.publishDate && <div className="text-2xs text-[var(--mute)] mb-1">Target: {formatDay(new Date(p.publishDate))}</div>}
             {p.assignees.length > 0 && (
-              <div className="text-[11px] text-[var(--mute)] mb-2 flex items-center gap-1 flex-wrap">
+              <div className="text-2xs text-[var(--mute)] mb-2 flex items-center gap-1 flex-wrap">
                 Assigned:
                 {p.assignees.map((a) => <span key={a.id} className="font-mono">{a.user.name ?? a.user.email}{a.role ? ` (${a.role})` : ""}</span>)}
               </div>

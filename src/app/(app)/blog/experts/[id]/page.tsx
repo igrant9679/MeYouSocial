@@ -54,7 +54,7 @@ export default async function SmeProfilePage({ params }: { params: Promise<{ id:
         <div className="min-w-40 flex-1">
           <h1 className="font-mono font-bold text-2xl leading-tight flex items-center gap-2 flex-wrap">
             {profile.name}
-            <span className="font-mono text-[10px] uppercase px-2 py-0.5 rounded-full" data-kind={profile.kind} style={persona ? { background: "var(--indigo-soft)", color: "var(--indigo-on)" } : { background: "var(--cyan-soft)", color: "var(--cyan-on)" }}>
+            <span className="font-mono text-micro uppercase px-2 py-0.5 rounded-full" data-kind={profile.kind} style={persona ? { background: "var(--indigo-soft)", color: "var(--indigo-on)" } : { background: "var(--cyan-soft)", color: "var(--cyan-on)" }}>
               {persona ? "audience persona" : "expert"}
             </span>
           </h1>
@@ -119,7 +119,7 @@ export default async function SmeProfilePage({ params }: { params: Promise<{ id:
               </div>
             )}
             {topics.length > 0 && (
-              <p className="text-[11px] text-[var(--mute)] mt-1 mb-0" data-old-topic-words>
+              <p className="text-2xs text-[var(--mute)] mt-1 mb-0" data-old-topic-words>
                 The words this profile used to be matched by — no longer used: {topics.join(", ")}.
               </p>
             )}
@@ -148,7 +148,7 @@ export default async function SmeProfilePage({ params }: { params: Promise<{ id:
                 <span className="font-mono text-[var(--mute)] mr-1">{String(i + 1).padStart(2, "0")}</span>
                 {q.question}
               </span>
-              <span className="block text-[11px] text-[var(--mute)] mb-1">{q.hint}</span>
+              <span className="block text-2xs text-[var(--mute)] mb-1">{q.hint}</span>
               <textarea
                 name={`answer_${q.id}`}
                 defaultValue={answers[q.id] ?? ""}
@@ -226,7 +226,7 @@ export default async function SmeProfilePage({ params }: { params: Promise<{ id:
               {spoke.map((b) => (
                 <li key={b.id} className="flex items-center gap-2 border-b border-[var(--line)] pb-1 last:border-0" data-expert-draft={b.id}>
                   <Link href={`/blog/${b.id}`} className="flex-1 min-w-0 truncate underline">{b.title}</Link>
-                  <span className="font-mono text-[10px] text-[var(--mute)]">{b.status.replace(/_/g, " ")} · {formatZonedMoment(b.updatedAt, tz)}</span>
+                  <span className="font-mono text-micro text-[var(--mute)]">{b.status.replace(/_/g, " ")} · {formatZonedMoment(b.updatedAt, tz)}</span>
                 </li>
               ))}
             </ul>
@@ -260,8 +260,8 @@ export default async function SmeProfilePage({ params }: { params: Promise<{ id:
           <ul className="text-xs flex flex-col gap-1">
             {profile.versions.map((v) => (
               <li key={v.id} className="flex items-center gap-2 border-b border-[var(--line)] pb-1 last:border-0">
-                <span className="font-mono text-[10px] text-[var(--mute)]">v{v.version}</span>
-                <span className="flex-1 font-mono text-[10px] text-[var(--mute)]">
+                <span className="font-mono text-micro text-[var(--mute)]">v{v.version}</span>
+                <span className="flex-1 font-mono text-micro text-[var(--mute)]">
                   {formatZonedMoment(v.createdAt, tz)}
                 </span>
                 {editor && (

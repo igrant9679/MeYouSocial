@@ -73,9 +73,9 @@ export function MobileNav({
                 )}
               </span>
               <span className="flex flex-col min-w-0">
-                <span className="font-mono font-bold text-[15px] truncate leading-tight">{brandName}</span>
+                <span className="font-mono font-bold text-sm truncate leading-tight">{brandName}</span>
                 {/* Matches the rail: the tenant leads, the product stays visible. */}
-                <span className="flex items-center gap-1 text-[9px] font-mono uppercase tracking-wider text-[var(--mute)] leading-tight mt-0.5">
+                <span className="flex items-center gap-1 text-micro font-mono uppercase tracking-wider text-[var(--mute)] leading-tight mt-0.5">
                   {coBranded && <BrandLogo size={10} />} {coBranded ? PRODUCT : PRODUCT_SHORT}
                 </span>
               </span>
@@ -114,7 +114,7 @@ export function MobileNav({
                       // Same colour scheme as the desktop rail's headers: the
                       // group wears its first item's hue on that item's tint.
                       <div
-                        className="px-2.5 py-1.5 mt-2 rounded-lg font-mono text-[12px] font-bold uppercase tracking-[0.14em]"
+                        className="px-2.5 py-1.5 mt-2 rounded-lg font-mono text-xs font-bold uppercase tracking-[0.14em]"
                         style={{ color: n.color, background: n.soft }}
                       >
                         {header}
@@ -127,7 +127,7 @@ export function MobileNav({
                       className="flex items-center gap-3 px-2.5 py-2.5 rounded-xl text-sm font-semibold min-h-[44px]"
                       style={{
                         background: isActive ? n.color : n.soft,
-                        color: isActive ? "#ffffff" : n.color,
+                        color: isActive ? "white" : n.color,
                       }}
                     >
                       <Icon className="w-5 h-5" strokeWidth={2.25} />

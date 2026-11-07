@@ -48,7 +48,7 @@ export default async function SocialIdeaPage({ params }: { params: Promise<{ id:
   return (
     <div className="max-w-2xl">
       <Link href="/ideas?format=social" className="text-xs font-mono text-[var(--mute)] hover:text-[var(--accent)] flex items-center gap-1 mb-3"><ArrowLeft className="w-3 h-3" /> Ideas board</Link>
-      <h1 className="font-mono text-[20px] font-bold m-0 mb-1">{idea.hook}</h1>
+      <h1 className="font-mono text-xl font-bold m-0 mb-1">{idea.hook}</h1>
       <p className="text-xs text-[var(--mute)] mb-4">Social idea · {idea.status}</p>
 
       <IdeaFacts facts={[
@@ -75,8 +75,8 @@ export default async function SocialIdeaPage({ params }: { params: Promise<{ id:
           <form action={updateSocialIdeaAction} className="card flex flex-col gap-2" data-social-idea-edit>
             <h2 className="font-mono font-bold text-sm m-0">Edit</h2>
             <input type="hidden" name="id" value={idea.id} />
-            <label className="text-[11px] text-[var(--mute)]">The post in one line<textarea name="hook" defaultValue={idea.hook} rows={2} maxLength={240} className={field} /></label>
-            <label className="text-[11px] text-[var(--mute)]">Why it works<input name="angle" defaultValue={idea.angle ?? ""} className={field} /></label>
+            <label className="text-2xs text-[var(--mute)]">The post in one line<textarea name="hook" defaultValue={idea.hook} rows={2} maxLength={240} className={field} /></label>
+            <label className="text-2xs text-[var(--mute)]">Why it works<input name="angle" defaultValue={idea.angle ?? ""} className={field} /></label>
             <div><SubmitButton className="btn sm">Save</SubmitButton></div>
           </form>
         </>

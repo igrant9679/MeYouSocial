@@ -90,7 +90,7 @@ export default async function VideosPage({ searchParams }: { searchParams: Promi
       {/* Budget bar — renders + estimated spend against today's cap */}
       <div className="card mb-4">
         <div className="flex items-center gap-3">
-          <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-[var(--mute)] shrink-0 inline-flex items-center gap-1.5">
+          <span className="font-mono text-micro font-bold uppercase tracking-wider text-[var(--mute)] shrink-0 inline-flex items-center gap-1.5">
             Today <HelpTip text={VIDEO_TIPS.budget} side="bottom" wide />
           </span>
           <div className="flex-1 h-2.5 rounded-full bg-[var(--panel)] overflow-hidden">
@@ -106,7 +106,7 @@ export default async function VideosPage({ searchParams }: { searchParams: Promi
             {todayCount}/{env.VIDEO_DAILY_RENDER_CAP} renders{todayPriced.length ? ` · about $${todaySpend.toFixed(2)}` : ""}
           </span>
         </div>
-        <p className="text-[11px] text-[var(--mute)] mt-1.5">
+        <p className="text-2xs text-[var(--mute)] mt-1.5">
           The cap counts every scene render. Package videos from a published post&apos;s Distribute tab, or let
           autopilot do it — <Link href="/setup/automation" className="underline">Automation</Link>.
         </p>
@@ -119,7 +119,7 @@ export default async function VideosPage({ searchParams }: { searchParams: Promi
           <h2 className="font-mono text-sm font-bold flex-1 min-w-40 flex items-center gap-1.5">
             Branded short <HelpTip text={VIDEO_TIPS.brandedShort} side="bottom" wide />
           </h2>
-          <span className="text-[11px] text-[var(--mute)]">
+          <span className="text-2xs text-[var(--mute)]">
             {brandedReadiness.mode === "local"
               ? "Renders free on this server."
               : brandedReadiness.mode === "cloud"
@@ -127,16 +127,16 @@ export default async function VideosPage({ searchParams }: { searchParams: Promi
                 : "Not set up yet."}
           </span>
         </div>
-        <p className="text-[11px] text-[var(--mute)] mb-2">
+        <p className="text-2xs text-[var(--mute)] mb-2">
           A 6-second vertical title card in this workspace&apos;s brand colours — straight from a headline, no blog post required.
         </p>
         {editor && brandedReadiness.ready ? (
           <form action={renderStandaloneBrandedShortAction} className="flex flex-wrap items-end gap-2">
-            <label className="flex-1 min-w-52 text-[11px] text-[var(--mute)]">
+            <label className="flex-1 min-w-52 text-2xs text-[var(--mute)]">
               Headline
               <input name="title" required maxLength={160} placeholder="Turn every post into a branded short" className="w-full text-sm mt-0.5" />
             </label>
-            <label className="w-40 text-[11px] text-[var(--mute)]">
+            <label className="w-40 text-2xs text-[var(--mute)]">
               Eyebrow
               <input name="eyebrow" maxLength={40} placeholder="NEW POST" className="w-full text-sm mt-0.5" />
             </label>
@@ -155,19 +155,19 @@ export default async function VideosPage({ searchParams }: { searchParams: Promi
                 {s.status === "done" && (s.storedUrl || s.videoUrl) ? (
                   <video src={s.storedUrl ?? s.videoUrl!} controls preload="none" className="w-full bg-black" />
                 ) : (
-                  <div className="aspect-[9/16] grid place-items-center text-[10px] text-center px-1" style={{ background: "var(--panel)", color: "var(--mute)" }}>
+                  <div className="aspect-[9/16] grid place-items-center text-micro text-center px-1" style={{ background: "var(--panel)", color: "var(--mute)" }}>
                     {s.status === "rendering" ? "Rendering…" : s.error ? "Failed" : s.status}
                   </div>
                 )}
                 <div className="p-1.5 flex items-center gap-1">
-                  <span className="font-mono text-[9px] px-1 py-0.5 rounded-full shrink-0" style={{ background: `var(--${s.status === "done" ? "green" : s.status === "failed" ? "rose" : "amber"}-soft)`, color: `var(--${s.status === "done" ? "green" : s.status === "failed" ? "rose" : "amber"}-on)` }}>
+                  <span className="font-mono text-micro px-1 py-0.5 rounded-full shrink-0" style={{ background: `var(--${s.status === "done" ? "green" : s.status === "failed" ? "rose" : "amber"}-soft)`, color: `var(--${s.status === "done" ? "green" : s.status === "failed" ? "rose" : "amber"}-on)` }}>
                     {s.status}
                   </span>
-                  <span className="text-[10px] text-[var(--mute)] flex-1 truncate" title={s.error ?? s.title}>{s.title}</span>
+                  <span className="text-micro text-[var(--mute)] flex-1 truncate" title={s.error ?? s.title}>{s.title}</span>
                   {editor && (
                     <form action={deleteBrandedShortAction}>
                       <input type="hidden" name="id" value={s.id} />
-                      <button className="text-[10px] text-[var(--mute)] hover:text-[var(--rose-on)]" title="Delete">✕</button>
+                      <button className="text-micro text-[var(--mute)] hover:text-[var(--rose-on)]" title="Delete">✕</button>
                     </form>
                   )}
                 </div>
@@ -192,13 +192,13 @@ export default async function VideosPage({ searchParams }: { searchParams: Promi
             <li key={r.id} className="card">
               <div className="flex flex-wrap items-center gap-2 mb-1">
                 <span
-                  className="font-mono text-[10px] px-1.5 py-0.5 rounded-full"
+                  className="font-mono text-micro px-1.5 py-0.5 rounded-full"
                   style={{ background: `var(--${STATUS_HUE[r.status] ?? "cyan"}-soft)`, color: `var(--${STATUS_HUE[r.status] ?? "cyan"}-on)` }}
                 >
                   {r.status}
                 </span>
                 <Link href={`/videos/${r.id}`} className="text-sm font-bold flex-1 min-w-0 truncate hover:underline">{r.title}</Link>
-                <span className="font-mono text-[10px] text-[var(--mute)]">
+                <span className="font-mono text-micro text-[var(--mute)]">
                   {r.provider} · {r.seconds}s · {r.aspect}{r.costEstimate != null ? ` · about $${r.costEstimate.toFixed(2)}` : ""}
                 </span>
                 <Link href={`/videos/${r.id}`} className="btn sm">Storyboard</Link>
@@ -230,7 +230,7 @@ export default async function VideosPage({ searchParams }: { searchParams: Promi
               </div>
               {(() => {
                 const line = boardProgress(r.status, parseScenes(r.scenes)).line;
-                return line ? <p className="font-mono text-[10px] mb-1" style={{ color: `var(--${STATUS_HUE[r.status] ?? "cyan"}-on)` }} data-render-progress>{line}</p> : null;
+                return line ? <p className="font-mono text-micro mb-1" style={{ color: `var(--${STATUS_HUE[r.status] ?? "cyan"}-on)` }} data-render-progress>{line}</p> : null;
               })()}
               {r.blogPostId && posts.get(r.blogPostId) && (
                 <p className="text-xs text-[var(--mute)] mb-1">
@@ -242,7 +242,7 @@ export default async function VideosPage({ searchParams }: { searchParams: Promi
                   <input type="hidden" name="id" value={r.id} />
                   <Tags className="w-3.5 h-3.5 shrink-0" style={{ color: "var(--indigo-on)" }} />
                   <select key={`topicId:${r.topicId ?? ""}`} name="topicId" defaultValue={r.topicId ?? ""} aria-label="Topic"
-                    className="text-[11px] border border-[var(--line-2)] rounded-md px-1.5 py-1 max-w-[220px]">
+                    className="text-2xs border border-[var(--line-2)] rounded-md px-1.5 py-1 max-w-[220px]">
                     <option value="">no topic</option>
                     {topics.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
                   </select>
@@ -250,7 +250,7 @@ export default async function VideosPage({ searchParams }: { searchParams: Promi
                 </form>
               )}
               {topics.length === 0 && r.topic && (
-                <p className="font-mono text-[10px] mb-2 inline-flex items-center gap-1" style={{ color: "var(--indigo-on)" }}>
+                <p className="font-mono text-micro mb-2 inline-flex items-center gap-1" style={{ color: "var(--indigo-on)" }}>
                   <Tags className="w-3 h-3" /> {r.topic.name}
                 </p>
               )}
@@ -262,10 +262,10 @@ export default async function VideosPage({ searchParams }: { searchParams: Promi
                 <video src={r.assembledUrl ?? r.storedUrl ?? r.outputUrl!} controls preload="metadata" className="rounded-lg max-h-72 border border-[var(--line)]" />
               )}
               {r.status === "done" && r.assembledUrl && (
-                <p className="font-mono text-[10px] text-[var(--mute)] mt-1">full cut · all scenes assembled</p>
+                <p className="font-mono text-micro text-[var(--mute)] mt-1">full cut · all scenes assembled</p>
               )}
               {r.status === "done" && r.provider === "veo" && !r.storedUrl && !r.assembledUrl && (
-                <p className="text-[10px] text-[var(--mute)] mt-1">
+                <p className="text-micro text-[var(--mute)] mt-1">
                   Veo output links expire after ~2 days and need the Google key for retrieval — download promptly.
                 </p>
               )}

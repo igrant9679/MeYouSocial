@@ -20,7 +20,7 @@ export default async function SwipesPage({ searchParams }: { searchParams: Promi
   return (
     <div>
       <div className="flex items-center gap-2 mb-4">
-        <h2 className="font-mono font-bold text-lg flex items-center gap-2"><ImageIcon className="w-5 h-5" style={{ color: "#DB2777" }} /> Swipes</h2>
+        <h2 className="font-mono font-bold text-lg flex items-center gap-2"><ImageIcon className="w-5 h-5" style={{ color: "var(--pink)" }} /> Swipes</h2>
         <span className="text-xs text-[var(--mute)]">({swipes.length})</span>
       </div>
 
@@ -36,9 +36,9 @@ export default async function SwipesPage({ searchParams }: { searchParams: Promi
 
       {/* Clipper: paste any URL, we extract the image. — YouTube thumbnails auto-captured. */}
       <form action={clipSwipeAction} className="card flex items-end gap-2 mb-3">
-        <LinkIcon className="w-4 h-4" style={{ color: "#DB2777" }} />
+        <LinkIcon className="w-4 h-4" style={{ color: "var(--pink)" }} />
         <label className="flex-1 flex flex-col gap-1">
-          <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">Clip a URL</span>
+          <span className="text-micro font-mono uppercase tracking-wider text-[var(--mute)]">Clip a URL</span>
           <input name="url" required placeholder="https://youtube.com/watch?v=… or any image/page URL" className="border border-[var(--line-2)] rounded-lg p-2 text-sm font-mono" />
         </label>
         <select name="channelId" className="border border-[var(--line-2)] rounded-lg p-2 text-sm">
@@ -50,15 +50,15 @@ export default async function SwipesPage({ searchParams }: { searchParams: Promi
 
       <form action={createSwipeAction} className="card grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2 items-end mb-5">
         <label className="flex flex-col gap-1">
-          <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">Image URL</span>
+          <span className="text-micro font-mono uppercase tracking-wider text-[var(--mute)]">Image URL</span>
           <input name="imageUrl" required className="border border-[var(--line-2)] rounded-lg p-2 text-sm font-mono" />
         </label>
         <label className="flex flex-col gap-1">
-          <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">Title</span>
+          <span className="text-micro font-mono uppercase tracking-wider text-[var(--mute)]">Title</span>
           <input name="title" className="border border-[var(--line-2)] rounded-lg p-2 text-sm" />
         </label>
         <label className="flex flex-col gap-1">
-          <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">Source URL</span>
+          <span className="text-micro font-mono uppercase tracking-wider text-[var(--mute)]">Source URL</span>
           <input name="sourceUrl" className="border border-[var(--line-2)] rounded-lg p-2 text-sm font-mono" />
         </label>
         <div className="flex items-end gap-2">
@@ -83,8 +83,8 @@ export default async function SwipesPage({ searchParams }: { searchParams: Promi
             <img src={s.imageUrl} alt={s.title ?? ""} className="w-full aspect-video object-cover" />
             <div className="p-2">
               <div className="text-xs font-semibold truncate">{s.title ?? "Untitled"}</div>
-              <div className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">{s.kind}</div>
-              {s.sourceUrl && <a href={s.sourceUrl} target="_blank" rel="noopener" className="text-[10px] text-[var(--accent)] truncate block">source ↗</a>}
+              <div className="text-micro font-mono uppercase tracking-wider text-[var(--mute)]">{s.kind}</div>
+              {s.sourceUrl && <a href={s.sourceUrl} target="_blank" rel="noopener" className="text-micro text-[var(--accent)] truncate block">source ↗</a>}
             </div>
             <form action={removeSwipeAction} className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition">
               <input type="hidden" name="id" value={s.id} />

@@ -36,7 +36,7 @@ export default async function SubmissionsPage({ params, searchParams }: { params
   return (
     <div>
       <div className="flex items-center gap-3 mb-4">
-        <span className="w-10 h-10 rounded-xl grid place-items-center" style={{ background: "#FBE2EF", color: "#DB2777" }}>
+        <span className="w-10 h-10 rounded-xl grid place-items-center" style={{ background: "var(--pink-soft)", color: "var(--pink)" }}>
           <Inbox className="w-5 h-5" strokeWidth={2.25} />
         </span>
         <div>
@@ -47,8 +47,8 @@ export default async function SubmissionsPage({ params, searchParams }: { params
 
       {/* Share link */}
       <div className="card mb-4 flex flex-wrap items-center gap-2">
-        <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">Public link</span>
-        <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full" style={channel.submissionsOpen ? { background: "var(--green-soft)", color: "var(--green-on)" } : { background: "var(--zebra)", color: "var(--mute)" }} data-form-state={channel.submissionsOpen ? "open" : "closed"}>{channel.submissionsOpen ? "open" : "closed"}</span>
+        <span className="text-micro font-mono uppercase tracking-wider text-[var(--mute)]">Public link</span>
+        <span className="font-mono text-micro px-1.5 py-0.5 rounded-full" style={channel.submissionsOpen ? { background: "var(--green-soft)", color: "var(--green-on)" } : { background: "var(--zebra)", color: "var(--mute)" }} data-form-state={channel.submissionsOpen ? "open" : "closed"}>{channel.submissionsOpen ? "open" : "closed"}</span>
         <code className="bg-[var(--zebra)] rounded px-2 py-1 text-xs font-mono flex-1 min-w-0 truncate">{publicUrl}</code>
         <CopyButton text={publicUrl} label="Copy URL" />
       </div>
@@ -61,11 +61,11 @@ export default async function SubmissionsPage({ params, searchParams }: { params
             <input type="checkbox" name="open" value="1" defaultChecked={channel.submissionsOpen} /> Taking suggestions
           </label>
           <label className="flex flex-col gap-1 flex-1 min-w-[12rem]">
-            <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">Address (optional)</span>
+            <span className="text-micro font-mono uppercase tracking-wider text-[var(--mute)]">Address (optional)</span>
             <span className="flex items-center gap-1 text-xs font-mono">/submit/<input name="slug" defaultValue={channel.submitSlug ?? ""} placeholder={id} maxLength={40} pattern="[a-z0-9][a-z0-9-]{1,38}[a-z0-9]" className="flex-1 min-w-0 border border-[var(--line-2)] rounded px-1.5 py-0.5" /></span>
           </label>
           <SubmitButton className="btn sm">Save</SubmitButton>
-          <p className="basis-full text-[11px] text-[var(--mute)] m-0">Each address can send five suggestions every ten minutes; a hidden field turns away bots. New suggestions show in the bell, one notice per channel a day.</p>
+          <p className="basis-full text-2xs text-[var(--mute)] m-0">Each address can send five suggestions every ten minutes; a hidden field turns away bots. New suggestions show in the bell, one notice per channel a day.</p>
         </form>
       )}
 
@@ -86,9 +86,9 @@ export default async function SubmissionsPage({ params, searchParams }: { params
           {submissions.map((s) => (
             <li key={s.id} className="card">
               <div className="flex items-center gap-2 mb-2">
-                <span className="font-mono text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: "var(--accent-soft)", color: "var(--accent)" }}>{s.status}</span>
-                <span className="text-[11px] text-[var(--mute)]">{formatDay(new Date(s.createdAt))}</span>
-                {s.submitter && <span className="text-[11px] font-mono text-[var(--mute)]">· {s.submitter}</span>}
+                <span className="font-mono text-micro uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: "var(--accent-soft)", color: "var(--accent)" }}>{s.status}</span>
+                <span className="text-2xs text-[var(--mute)]">{formatDay(new Date(s.createdAt))}</span>
+                {s.submitter && <span className="text-2xs font-mono text-[var(--mute)]">· {s.submitter}</span>}
               </div>
               <h3 className="font-semibold text-sm mb-1">{s.topic}</h3>
               {s.notes && <p className="text-xs text-[var(--mute)] mb-3">{s.notes}</p>}

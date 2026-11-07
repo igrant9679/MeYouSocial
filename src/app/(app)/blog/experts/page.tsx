@@ -82,20 +82,20 @@ export default async function SmeListPage() {
                 <Link href={`/blog/experts/${p.id}`} className="font-semibold text-sm underline">{p.name}</Link>
                 {p.role && <span className="text-xs text-[var(--mute)]">{p.role}</span>}
                 {p.status === "archived" && (
-                  <span className="font-mono text-[10px] px-2 py-0.5 rounded-full" style={{ background: "var(--panel)", color: "var(--mute)" }}>archived</span>
+                  <span className="font-mono text-micro px-2 py-0.5 rounded-full" style={{ background: "var(--panel)", color: "var(--mute)" }}>archived</span>
                 )}
                 <span className="flex-1" />
-                <span className="text-[11px] text-[var(--mute)] truncate max-w-72" data-expert-topics>
+                <span className="text-2xs text-[var(--mute)] truncate max-w-72" data-expert-topics>
                   {p.topicLinks.length ? p.topicLinks.map((t) => t.name).join(" · ") : "every Topic (when the only expert)"}
                 </span>
-                {n > 0 && <span className="font-mono text-[10px] text-[var(--mute)]">{n} draft{n === 1 ? "" : "s"}</span>}
+                {n > 0 && <span className="font-mono text-micro text-[var(--mute)]">{n} draft{n === 1 ? "" : "s"}</span>}
                 {waiting > 0 && (
-                  <span className="font-mono text-[10px] px-2 py-0.5 rounded-full" style={{ background: "var(--violet-soft)", color: "var(--violet-on)" }} title="Drafted from a source — waiting for the expert to accept">{waiting} waiting</span>
+                  <span className="font-mono text-micro px-2 py-0.5 rounded-full" style={{ background: "var(--violet-soft)", color: "var(--violet-on)" }} title="Drafted from a source — waiting for the expert to accept">{waiting} waiting</span>
                 )}
-                <span className="font-mono text-[10px] px-2 py-0.5 rounded-full" style={{ background: `var(--${hue}-soft)`, color: `var(--${hue}-on)` }}>
+                <span className="font-mono text-micro px-2 py-0.5 rounded-full" style={{ background: `var(--${hue}-soft)`, color: `var(--${hue}-on)` }}>
                   {done.answered}/{done.total} answered
                 </span>
-                <span className="font-mono text-[10px] text-[var(--mute)]">v{p.version}</span>
+                <span className="font-mono text-micro text-[var(--mute)]">v{p.version}</span>
               </li>
             );
           })}
@@ -111,7 +111,7 @@ export default async function SmeListPage() {
             <li key={p.id} className="card flex flex-wrap items-center gap-2" data-persona={p.id}>
               <Link href={`/blog/experts/${p.id}`} className="font-semibold text-sm underline">{p.name}</Link>
               {p.role && <span className="text-xs text-[var(--mute)]">{p.role}</span>}
-              {p.status === "archived" && <span className="font-mono text-[10px] text-[var(--mute)]">archived</span>}
+              {p.status === "archived" && <span className="font-mono text-micro text-[var(--mute)]">archived</span>}
             </li>
           ))}
         </ul>

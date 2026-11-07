@@ -17,7 +17,7 @@ const PACE_COLOR: Record<PaceStatus, { bg: string; fg: string }> = {
 
 function PaceChip({ status }: { status: PaceStatus }) {
   const c = PACE_COLOR[status];
-  return <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full whitespace-nowrap" style={{ background: c.bg, color: c.fg }} data-pace={status}>{PACE_LABEL[status]}</span>;
+  return <span className="font-mono text-micro px-1.5 py-0.5 rounded-full whitespace-nowrap" style={{ background: c.bg, color: c.fg }} data-pace={status}>{PACE_LABEL[status]}</span>;
 }
 
 /** Measure's first screen (E-MEA-18): one card per channel over the range, each with its goal's pace. */
@@ -33,15 +33,15 @@ export function ChannelCards({ cards, goals, rangeLabel }: { cards: ChannelCard[
             <div key={c.key} className="card !mb-0 flex flex-col gap-1.5 min-w-0" data-channel={c.key}>
               <div className="flex items-center gap-2">
                 <h3 className="text-xs font-semibold flex-1 m-0">{c.title}</h3>
-                <Link href={c.href} className="text-[11px] text-[var(--mute)] hover:underline">Open →</Link>
+                <Link href={c.href} className="text-2xs text-[var(--mute)] hover:underline">Open →</Link>
               </div>
               <p className="m-0 flex items-baseline gap-2 flex-wrap">
                 <span className="font-mono text-2xl font-bold tabular-nums" data-headline>{fmt(c.headline.value)}</span>
                 <span className="text-xs text-[var(--mute)]">{c.headline.label}</span>
-                {ch && <span className="font-mono text-[11px] font-bold" style={{ color: ch.up ? "var(--green-on)" : "var(--rose-on)" }} data-change>{ch.text}</span>}
+                {ch && <span className="font-mono text-2xs font-bold" style={{ color: ch.up ? "var(--green-on)" : "var(--rose-on)" }} data-change>{ch.text}</span>}
               </p>
               {c.more.length > 0 && (
-                <ul className="m-0 p-0 list-none text-[11px] text-[var(--mute)] flex flex-col gap-0.5">
+                <ul className="m-0 p-0 list-none text-2xs text-[var(--mute)] flex flex-col gap-0.5">
                   {c.more.map((m) => {
                     const mc = change(m.value, m.previous, m.unit);
                     return (
@@ -54,12 +54,12 @@ export function ChannelCards({ cards, goals, rangeLabel }: { cards: ChannelCard[
                 </ul>
               )}
               {own.map((g) => (
-                <p key={g.metric} className="m-0 text-[11px] flex items-center gap-1.5 flex-wrap" data-card-goal={g.metric}>
+                <p key={g.metric} className="m-0 text-2xs flex items-center gap-1.5 flex-wrap" data-card-goal={g.metric}>
                   <span className="text-[var(--mute)]">Goal: {goalAmount(g.metric, g.target)} a {g.period}</span>
                   <PaceChip status={g.status} />
                 </p>
               ))}
-              {c.note && <p className="m-0 mt-auto text-[10px] text-[var(--mute)]">{c.note}</p>}
+              {c.note && <p className="m-0 mt-auto text-micro text-[var(--mute)]">{c.note}</p>}
             </div>
           );
         })}
@@ -99,7 +99,7 @@ export function GoalsCard({ goals, admin, timeZone, names }: { goals: GoalProgre
                   <div className="h-full rounded-full" style={{ width: `${Math.round(share * 100)}%`, background: PACE_COLOR[g.status].fg }} />
                   <div className="absolute top-0 h-full w-0.5" style={{ left: `${Math.round(mark * 100)}%`, background: "var(--ink)" }} title="Where a straight line to the target is now" />
                 </div>
-                <p className="text-[10px] text-[var(--mute)] mt-1 mb-0">
+                <p className="text-micro text-[var(--mute)] mt-1 mb-0">
                   {g.status === "not_measured"
                     ? `Nothing measured since ${formatDay(g.start, timeZone)} yet.`
                     : <>
@@ -137,7 +137,7 @@ export function GoalsCard({ goals, admin, timeZone, names }: { goals: GoalProgre
                 </label>
               );
             })}
-            <p className="text-[10px] text-[var(--mute)] m-0">Leave a field blank to remove that goal.</p>
+            <p className="text-micro text-[var(--mute)] m-0">Leave a field blank to remove that goal.</p>
             <div><SubmitButton className="btn" pendingText="Saving…">Save goals</SubmitButton></div>
           </form>
         </details>

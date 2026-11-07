@@ -92,7 +92,7 @@ export default async function TopicsPage({ searchParams }: { searchParams: Promi
       )}
 
       {untagged > 0 && (
-        <p className="text-[11px] text-[var(--mute)] mb-3">
+        <p className="text-2xs text-[var(--mute)] mb-3">
           {untagged === 1
             ? <>1 idea has no Topic and sits in the board&apos;s <Link href="/ideas" className="underline">No topic yet</Link> lane — tag it and it moves to its Topic.</>
             : <>{untagged} ideas have no Topic and sit in the board&apos;s <Link href="/ideas" className="underline">No topic yet</Link> lane — tag each one and it moves to its Topic.</>}
@@ -105,14 +105,14 @@ export default async function TopicsPage({ searchParams }: { searchParams: Promi
           created on its own. */}
       {editor && suggestions.length > 0 && (
         <section className="card mb-4" style={{ background: "var(--zebra)" }}>
-          <h2 className="font-mono text-[12px] font-bold mb-0.5">Suggested from your keywords</h2>
-          <p className="text-[11px] text-[var(--mute)] mb-2">Each is a keyword cluster that is not a Topic yet. Videos = indexed competitor titles its phrases match, by keyword.</p>
+          <h2 className="font-mono text-xs font-bold mb-0.5">Suggested from your keywords</h2>
+          <p className="text-2xs text-[var(--mute)] mb-2">Each is a keyword cluster that is not a Topic yet. Videos = indexed competitor titles its phrases match, by keyword.</p>
           <ul className="flex flex-col gap-1.5">
             {suggestions.map((sg) => (
               <li key={sg.name} className="flex items-center gap-2 flex-wrap text-xs">
                 <span className="font-semibold">{sg.name}</span>
-                <span className="font-mono text-[10px] text-[var(--mute)]">{sg.keywords} keyword{sg.keywords === 1 ? "" : "s"} · {sg.videos} video{sg.videos === 1 ? "" : "s"} matched</span>
-                <span className="text-[10px] text-[var(--mute)] truncate max-w-md">{sg.phrases.slice(0, 6).join(" · ")}</span>
+                <span className="font-mono text-micro text-[var(--mute)]">{sg.keywords} keyword{sg.keywords === 1 ? "" : "s"} · {sg.videos} video{sg.videos === 1 ? "" : "s"} matched</span>
+                <span className="text-micro text-[var(--mute)] truncate max-w-md">{sg.phrases.slice(0, 6).join(" · ")}</span>
                 <span className="flex-1" />
                 <form action={createTopicAction}>
                   <input type="hidden" name="name" value={sg.name} />
@@ -136,8 +136,8 @@ export default async function TopicsPage({ searchParams }: { searchParams: Promi
           Grouped by plain word overlap — no model — and said so. */}
       {editor && research && research.suggestions.length > 0 && (
         <section className="card mb-4" style={{ background: "var(--zebra)" }} id="from-research" data-research-suggestions>
-          <h2 className="font-mono text-[12px] font-bold mb-0.5">Suggested from Research</h2>
-          <p className="text-[11px] text-[var(--mute)] mb-2">
+          <h2 className="font-mono text-xs font-bold mb-0.5">Suggested from Research</h2>
+          <p className="text-2xs text-[var(--mute)] mb-2">
             {research.unmatched} of Research&apos;s strong outliers match no Topic. These are words at least {MIN_VIDEOS} of them share, from {MIN_CHANNELS}+ channels — grouped by the words in their titles, nothing more.
           </p>
           <ul className="flex flex-col gap-2.5">
@@ -145,8 +145,8 @@ export default async function TopicsPage({ searchParams }: { searchParams: Promi
               <li key={sg.term} className="text-xs border-t border-[var(--line)] first:border-0 pt-2 first:pt-0" data-research-suggestion={sg.term}>
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="font-semibold">{sg.name}</span>
-                  <span className="font-mono text-[10px] text-[var(--mute)]">{sg.videos} outlier{sg.videos === 1 ? "" : "s"} · {sg.channels} channels · median {sg.medianScore.toFixed(1)}×</span>
-                  {sg.phrases.length > 1 && <span className="text-[10px] text-[var(--mute)] truncate max-w-md">also {sg.phrases.slice(1).join(" · ")}</span>}
+                  <span className="font-mono text-micro text-[var(--mute)]">{sg.videos} outlier{sg.videos === 1 ? "" : "s"} · {sg.channels} channels · median {sg.medianScore.toFixed(1)}×</span>
+                  {sg.phrases.length > 1 && <span className="text-micro text-[var(--mute)] truncate max-w-md">also {sg.phrases.slice(1).join(" · ")}</span>}
                   <span className="flex-1" />
                   <form action={createTopicAction}>
                     <input type="hidden" name="name" value={sg.name} />
@@ -160,10 +160,10 @@ export default async function TopicsPage({ searchParams }: { searchParams: Promi
                     <SubmitButton className="btn sm" pendingText="…" title="Stop suggesting this theme, or any other using its words">Discard</SubmitButton>
                   </form>
                 </div>
-                <ul className="m-0 mt-1 pl-3 list-none flex flex-col gap-0.5 text-[11px]">
+                <ul className="m-0 mt-1 pl-3 list-none flex flex-col gap-0.5 text-2xs">
                   {sg.examples.map((e) => (
                     <li key={e.id} className="truncate">
-                      <span className="font-mono text-[10px] text-[var(--mute)] mr-1.5">{e.score.toFixed(1)}×</span>
+                      <span className="font-mono text-micro text-[var(--mute)] mr-1.5">{e.score.toFixed(1)}×</span>
                       <Link href={`/intel/videos/${e.id}`} className="hover:underline">{e.title}</Link>
                       <span className="text-[var(--mute)]"> · {e.channelName}</span>
                     </li>
@@ -177,8 +177,8 @@ export default async function TopicsPage({ searchParams }: { searchParams: Promi
 
       {bySource.length > 0 && (
         <section className="card mb-4" data-idea-yield>
-          <h2 className="font-mono text-[12px] font-bold mb-0.5">How ideas fare, by where they came from</h2>
-          <p className="text-[11px] text-[var(--mute)] mb-2">
+          <h2 className="font-mono text-xs font-bold mb-0.5">How ideas fare, by where they came from</h2>
+          <p className="text-2xs text-[var(--mute)] mb-2">
             Article and social ideas from the last {YIELD_WINDOW_DAYS} days. Approved counts drafted ones; a merged duplicate counts as neither. Out = of those approved, published or sent.
           </p>
           <ul className="m-0 p-0 list-none flex flex-col">
@@ -227,12 +227,12 @@ function TopicRow({ t, editor, admin, others, tuning }: { t: Awaited<ReturnType<
     <li className="card" style={archived ? { opacity: 0.7 } : undefined}>
       <div className="flex items-center gap-2 flex-wrap mb-1">
         <Link href={`/ideas/topics/${t.id}`} className="font-semibold text-sm hover:underline flex items-center gap-1">{t.name} <ChevronRight className="w-3.5 h-3.5 text-[var(--mute)]" /></Link>
-        {archived && <span className="font-mono text-[10px] uppercase px-1.5 py-0.5 rounded-full" style={{ background: "var(--panel)", color: "var(--mute)" }}>archived</span>}
+        {archived && <span className="font-mono text-micro uppercase px-1.5 py-0.5 rounded-full" style={{ background: "var(--panel)", color: "var(--mute)" }}>archived</span>}
         {/* A raised priority used to be invisible everywhere: only the
             recommendation engine set it, and nothing displayed it. */}
         {t.priority > 0 && (
           <span
-            className="font-mono text-[10px] px-1.5 py-0.5 rounded-full"
+            className="font-mono text-micro px-1.5 py-0.5 rounded-full"
             style={{ background: "var(--violet-soft)", color: "var(--violet-on)" }}
             title={`Priority ${t.priority} — this topic leads discovery. Set it back to 0 below to undo.`}
           >
@@ -267,7 +267,7 @@ function TopicRow({ t, editor, admin, others, tuning }: { t: Awaited<ReturnType<
 
       {/* The ledger: counts only, every one a fact. What the Topic EARNED is
           on Measure → Topics, where a dash can mean "not measured". */}
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-[var(--mute)] mb-2 font-mono">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-2xs text-[var(--mute)] mb-2 font-mono">
         <span title="Ideas in any state, by format">
           <b className="text-[var(--ink)] tabular-nums">{ideas}</b> ideas{ideas > 0 ? ` · ${[t.ideas.article ? `${t.ideas.article} article` : "", t.ideas.video ? `${t.ideas.video} video` : "", t.ideas.social ? `${t.ideas.social} social` : ""].filter(Boolean).join(", ")}` : ""}
         </span>
@@ -282,20 +282,20 @@ function TopicRow({ t, editor, admin, others, tuning }: { t: Awaited<ReturnType<
           <input type="hidden" name="id" value={t.id} />
           <input type="hidden" name="back" value={BACK} />
           <label className="text-xs min-w-[140px]">
-            <span className="block text-[10px] text-[var(--mute)] mb-1">Name</span>
+            <span className="block text-micro text-[var(--mute)] mb-1">Name</span>
             <input name="name" defaultValue={t.name} required maxLength={120} className="w-full text-xs" data-topic-rename />
           </label>
           <label className="text-xs flex-1 min-w-[180px]">
-            <span className="block text-[10px] text-[var(--mute)] mb-1">Description</span>
+            <span className="block text-micro text-[var(--mute)] mb-1">Description</span>
             <input name="description" defaultValue={t.description ?? ""} className="w-full text-xs" placeholder="What this topic covers" />
           </label>
           <AiAssist field="topic.description" target="description" extra={{ "Topic name": t.name }} label="Draft" className="!mt-0" />
           <label className="text-xs flex-1 min-w-[180px]">
-            <span className="block text-[10px] text-[var(--mute)] mb-1">Related phrases</span>
+            <span className="block text-micro text-[var(--mute)] mb-1">Related phrases</span>
             <input name="keywords" defaultValue={t.phrases.join(", ")} className="w-full text-xs" />
           </label>
           <label className="text-xs">
-            <span className="block text-[10px] text-[var(--mute)] mb-1">Priority</span>
+            <span className="block text-micro text-[var(--mute)] mb-1">Priority</span>
             <input
               name="priority"
               type="number"
@@ -312,12 +312,12 @@ function TopicRow({ t, editor, admin, others, tuning }: { t: Awaited<ReturnType<
       ) : (
         <>
           {t.description && <p className="text-xs text-[var(--slate)]">{t.description}</p>}
-          {t.phrases.length > 0 && <p className="text-[11px] font-mono text-[var(--mute)] mt-1 flex items-center gap-1"><Tags className="w-3 h-3" /> {t.phrases.join(" · ")}</p>}
+          {t.phrases.length > 0 && <p className="text-2xs font-mono text-[var(--mute)] mt-1 flex items-center gap-1"><Tags className="w-3 h-3" /> {t.phrases.join(" · ")}</p>}
         </>
       )}
       {admin && others.length > 0 && (
         <details className="mt-2" data-topic-merge>
-          <summary className="text-[11px] text-[var(--mute)] cursor-pointer">Merge into another Topic…</summary>
+          <summary className="text-2xs text-[var(--mute)] cursor-pointer">Merge into another Topic…</summary>
           <form action={mergeTopicAction} className="flex flex-wrap items-center gap-2 mt-1.5">
             <input type="hidden" name="id" value={t.id} />
             <input type="hidden" name="back" value={BACK} />
@@ -326,7 +326,7 @@ function TopicRow({ t, editor, admin, others, tuning }: { t: Awaited<ReturnType<
               {others.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
             </select>
             <SubmitButton className="btn sm" pendingText="Merging…">Merge</SubmitButton>
-            <span className="text-[11px] text-[var(--mute)]">Everything tagged “{t.name}” moves there, its phrases join, and “{t.name}” goes.</span>
+            <span className="text-2xs text-[var(--mute)]">Everything tagged “{t.name}” moves there, its phrases join, and “{t.name}” goes.</span>
           </form>
         </details>
       )}

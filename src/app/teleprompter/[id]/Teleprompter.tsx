@@ -229,7 +229,7 @@ export function Teleprompter({ blocks, words }: { blocks: PrompterBlock[]; words
         <Toggle on={prefs.countdown} onClick={() => update({ countdown: !prefs.countdown })} label={`${COUNTDOWN_FROM}-second countdown (C)`}><Timer className="w-4 h-4" /></Toggle>
         <Toggle on={fullscreen} onClick={toggleFullscreen} label="Fullscreen (F)">{fullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}</Toggle>
         <Toggle onClick={restart} label="Back to the top (R)"><RotateCcw className="w-4 h-4" /></Toggle>
-        <div className="text-[11px] font-mono text-white/80 text-center leading-tight min-w-20" data-prompter-left>
+        <div className="text-2xs font-mono text-white/80 text-center leading-tight min-w-20" data-prompter-left>
           <b>{clock(secondsLeft)}</b> left<br /><span className="opacity-70">{left.toLocaleString()} / {words.toLocaleString()} words</span>
         </div>
       </div>
@@ -241,7 +241,7 @@ function Stepper({ label, shown, keysHint, onLess, onMore }: { label: string; sh
   return (
     <div className="flex items-center gap-1" role="group" aria-label={label}>
       <button type="button" onClick={onLess} aria-label={`Less ${label.toLowerCase()}`} className="w-7 h-7 rounded-full grid place-items-center bg-white/10 hover:bg-white/20"><Minus className="w-3.5 h-3.5" /></button>
-      <div className="text-[11px] font-mono text-white/80 w-16 text-center leading-tight" title={`${label}: ${keysHint}`}><b>{label}</b><br /><span className="opacity-70" data-stepper={label.toLowerCase()}>{shown}</span></div>
+      <div className="text-2xs font-mono text-white/80 w-16 text-center leading-tight" title={`${label}: ${keysHint}`}><b>{label}</b><br /><span className="opacity-70" data-stepper={label.toLowerCase()}>{shown}</span></div>
       <button type="button" onClick={onMore} aria-label={`More ${label.toLowerCase()}`} className="w-7 h-7 rounded-full grid place-items-center bg-white/10 hover:bg-white/20"><Plus className="w-3.5 h-3.5" /></button>
     </div>
   );

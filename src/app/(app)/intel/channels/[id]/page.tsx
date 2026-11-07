@@ -51,7 +51,7 @@ export default async function IntelChannelPage({ params, searchParams }: { param
           <h1 className="font-mono font-bold text-2xl leading-tight flex items-center gap-2">
             {channel.name}
             {isFastGrowing(channel.velocityScore) && (
-              <span className="text-[10px] font-mono font-bold px-2 py-1 rounded-md" style={{ background: "#FDE7E1", color: "#E5482F" }}>▲ FAST GROWING</span>
+              <span className="text-micro font-mono font-bold px-2 py-1 rounded-md" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>▲ FAST GROWING</span>
             )}
           </h1>
           <div className="text-sm text-[var(--mute)]">{channel.handle} · {channel.category}{channel.language ? " · " + channel.language : ""}</div>
@@ -92,20 +92,20 @@ export default async function IntelChannelPage({ params, searchParams }: { param
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-5">
-        <StatBox label="Subscribers" value={formatNum(channel.subscribers)} color="#2563EB" soft="#E5EDFD" />
-        <StatBox label="Total views"  value={formatNum(channel.totalViews)}  color="#15924B" soft="#E0F2E8" />
-        <StatBox label="Videos"       value={channel.videoCount == null ? "—" : String(channel.videoCount)} color="#6D28D9" soft="#EDE7FB" />
+        <StatBox label="Subscribers" value={formatNum(channel.subscribers)} color="var(--blue)" soft="var(--blue-soft)" />
+        <StatBox label="Total views"  value={formatNum(channel.totalViews)}  color="var(--green)" soft="var(--green-soft)" />
+        <StatBox label="Videos"       value={channel.videoCount == null ? "—" : String(channel.videoCount)} color="var(--violet)" soft="var(--violet-soft)" />
         {/* Measured from upload dates at index, or a dash — never a computed-looking 0.0 (IDE-12). */}
-        <StatBox label="Upload/wk"    value={channel.uploadFrequency == null ? "—" : channel.uploadFrequency.toFixed(1)} color="#D97706" soft="#FBEED5" />
+        <StatBox label="Upload/wk"    value={channel.uploadFrequency == null ? "—" : channel.uploadFrequency.toFixed(1)} color="var(--amber)" soft="var(--amber-soft)" />
         {/* Velocity was never computed; when these counts were read is (IDE-11). */}
-        <StatBox label="Read on"      value={channel.lastIndexedAt ? channel.lastIndexedAt.toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : "—"} color="#E5482F" soft="#FDE7E1" icon={<TrendingUp className="w-3.5 h-3.5" />} />
+        <StatBox label="Read on"      value={channel.lastIndexedAt ? channel.lastIndexedAt.toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : "—"} color="var(--brand)" soft="var(--brand-soft)" icon={<TrendingUp className="w-3.5 h-3.5" />} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Top videos */}
         <section className="card lg:col-span-2">
           <div className="flex items-center mb-3">
-            <h2 className="font-mono text-[14px] font-bold flex items-center gap-2"><Eye className="w-4 h-4" style={{ color: "#D97706" }} /> Top videos</h2>
+            <h2 className="font-mono text-sm font-bold flex items-center gap-2"><Eye className="w-4 h-4" style={{ color: "var(--amber)" }} /> Top videos</h2>
             <span className="flex-1" />
             <form>
               <select key={`sort:${sort}`} name="sort" defaultValue={sort} className="border border-[var(--line-2)] rounded-md px-2 py-1 text-xs font-mono">
@@ -142,7 +142,7 @@ export default async function IntelChannelPage({ params, searchParams }: { param
         {/* Outliers + avg */}
         <aside className="flex flex-col gap-3">
           <section className="card">
-            <h2 className="font-mono text-[14px] font-bold mb-2 flex items-center gap-2"><TrendingUp className="w-4 h-4" style={{ color: "#E5482F" }} /> Outliers (≥ 2x)</h2>
+            <h2 className="font-mono text-sm font-bold mb-2 flex items-center gap-2"><TrendingUp className="w-4 h-4" style={{ color: "var(--brand)" }} /> Outliers (≥ 2x)</h2>
             {outlierVideos.length === 0 && <p className="text-xs text-[var(--mute)]">No outliers in the indexed slice.</p>}
             <ul className="m-0 p-0">
               {outlierVideos.map((v) => (
@@ -154,7 +154,7 @@ export default async function IntelChannelPage({ params, searchParams }: { param
             </ul>
           </section>
           <section className="card">
-            <h2 className="font-mono text-[14px] font-bold mb-2">Average per video</h2>
+            <h2 className="font-mono text-sm font-bold mb-2">Average per video</h2>
             <div className="text-2xl font-mono font-bold">{formatNum(avgViews)} <span className="text-xs text-[var(--mute)] font-normal">views</span></div>
           </section>
         </aside>
@@ -167,7 +167,7 @@ function StatBox({ label, value, color, icon }: { label: string; value: string; 
   return (
     <div className="card relative overflow-hidden">
       <div className="absolute left-0 top-0 bottom-0 w-1" style={{ background: color }} />
-      <div className="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)] flex items-center gap-1">{icon}{label}</div>
+      <div className="text-micro font-mono uppercase tracking-wider text-[var(--mute)] flex items-center gap-1">{icon}{label}</div>
       <div className="font-mono font-bold text-2xl mt-1" style={{ color }}>{value}</div>
     </div>
   );

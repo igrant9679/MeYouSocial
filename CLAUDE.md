@@ -179,7 +179,8 @@ but it means **bad output can look like real output**. Rules learned the hard wa
 - **Left nav** `src/components/LeftRailNav.tsx` — active route via shared `isNavActive()`.
 - **Theming** `src/app/globals.css` — light/dark via `data-theme`. Per-hue tokens `--<hue>`,
   `--<hue>-soft`, `--<hue>-on`; dark mode derives soft/on via `color-mix`, so **use the tokens, not
-  raw hex**. ⚠ `.btn` / `.card` are **unlayered** and beat Tailwind utilities — a bare `hidden` on a
+  raw hex** (`scripts/check-type-colors.mts` refuses raw hex and `text-[Npx]` in `.tsx`; the type scale is
+  text-micro 10 · 2xs 11 · xs 12 · sm 14 · base 16 · lg 18 · xl 20 · 2xl 24). ⚠ `.btn` / `.card` are **unlayered** and beat Tailwind utilities — a bare `hidden` on a
   `.btn` does nothing; use `!`-marked utilities.
 - **Type** (2026-11-03, the owner's call) — one face, **Plus Jakarta Sans** (`layout.tsx`, `--font-sans`).
   ⚠ `font-mono` is the app's **display style** for headings, labels, chips and numbers, and is NOT a
@@ -353,6 +354,7 @@ area, rather than loading all of them into every session.
 - A project's video can go to YouTube — asked first, in pieces, resumable — 2026-11-06, audit E-VID-03, growth part cw
 - A thumbnail test rotates on the live video and is scored by YouTube's reach reports — 2026-11-06, audit E-VID-05, growth part cx
 - The audit's loose ends: one live job per thing, events once and in order, clips to length, ranges per view — 2026-11-07, audit ENG-22 / SOC-15 / VID-11 / MEA-11 / PRF-02 / SET-04, growth part cy
+- One type scale and the theme's colours, checked at build — 2026-11-07, the team tracker's "cluttered colours and fonts", growth part cz
 
 ## Open items / things the user still owns
 - **Analytics: APIs enabled 2026-08-03** (Search Console + GA Admin + GA Data, on project

@@ -93,7 +93,7 @@ export default async function AuditLogPage({ searchParams }: { searchParams: Pro
           <table className="w-full text-xs border-collapse">
             <thead>
               <tr className="text-left text-[var(--mute)]">
-                {["When", "Who", "Action", "On", "Details"].map((h) => <th key={h} className="py-2 px-2 font-mono text-[9px] uppercase tracking-wider border-b-2 border-[var(--line)]">{h}</th>)}
+                {["When", "Who", "Action", "On", "Details"].map((h) => <th key={h} className="py-2 px-2 font-mono text-micro uppercase tracking-wider border-b-2 border-[var(--line)]">{h}</th>)}
               </tr>
             </thead>
             <tbody>
@@ -101,11 +101,11 @@ export default async function AuditLogPage({ searchParams }: { searchParams: Pro
                 const meta = r.meta && r.meta !== "{}" ? r.meta : "";
                 return (
                   <tr key={r.id} className="align-top border-b border-[var(--line)] last:border-0">
-                    <td className="py-1.5 px-2 whitespace-nowrap font-mono text-[10px]">{formatZonedMoment(r.createdAt, tz)}</td>
+                    <td className="py-1.5 px-2 whitespace-nowrap font-mono text-micro">{formatZonedMoment(r.createdAt, tz)}</td>
                     <td className="py-1.5 px-2">{r.actorId ? names.get(r.actorId) ?? <span className="text-[var(--mute)]">someone who left ({r.actorId.slice(0, 8)}…)</span> : <span className="text-[var(--mute)]">the engine</span>}</td>
                     <td className="py-1.5 px-2 font-mono whitespace-nowrap">{r.action}</td>
                     <td className="py-1.5 px-2 whitespace-nowrap">{r.entityType}{r.entityId ? <span className="text-[var(--mute)] font-mono"> {r.entityId.slice(0, 14)}</span> : null}</td>
-                    <td className="py-1.5 px-2 max-w-md"><span className="font-mono text-[10px] text-[var(--mute)] break-all" title={meta}>{meta.length > 160 ? `${meta.slice(0, 160)}…` : meta}</span></td>
+                    <td className="py-1.5 px-2 max-w-md"><span className="font-mono text-micro text-[var(--mute)] break-all" title={meta}>{meta.length > 160 ? `${meta.slice(0, 160)}…` : meta}</span></td>
                   </tr>
                 );
               })}

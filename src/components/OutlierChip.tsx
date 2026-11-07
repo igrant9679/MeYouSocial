@@ -26,7 +26,7 @@ export function OutlierChip({
     : `${score.toFixed(1)}×${label ? ` ${band.label}` : ""}${views != null ? ` · ${formatNum(views)} views` : ""}`;
   return (
     <span
-      className={`font-mono font-bold whitespace-nowrap shrink-0 ${size === "xs" ? "text-[10px] px-1.5 py-0.5 rounded-full" : "text-[11px] px-2 py-1 rounded-md"}`}
+      className={`font-mono font-bold whitespace-nowrap shrink-0 ${size === "xs" ? "text-micro px-1.5 py-0.5 rounded-full" : "text-2xs px-2 py-1 rounded-md"}`}
       style={{ background: band.soft, color: band.color }}
       title={title ?? (score == null ? "Not scored — under 1,000 views, or too few videos of this format on the channel to compare" : `${band.label}: views ÷ the channel's average for this format`)}
     >

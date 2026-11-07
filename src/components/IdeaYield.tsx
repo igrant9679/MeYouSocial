@@ -7,7 +7,7 @@ import { PER_CELL } from "@/lib/ideation";
 export function YieldFigures({ y }: { y: Yield }) {
   const pct = (r: number | null) => `${Math.round((r ?? 0) * 100)}%`;
   return (
-    <span className="font-mono text-[11px] text-[var(--mute)] flex flex-wrap gap-x-3">
+    <span className="font-mono text-2xs text-[var(--mute)] flex flex-wrap gap-x-3">
       <span><b className="text-[var(--ink)] tabular-nums">{y.ideas}</b> idea{y.ideas === 1 ? "" : "s"}</span>
       {y.decided ? (
         <span title={`${y.approved} approved, ${y.rejected} rejected`}><b className="text-[var(--ink)] tabular-nums">{pct(y.approvalRate)}</b> approved of {y.decided} decided</span>
@@ -24,7 +24,7 @@ export function TuningLines({ tuning, id }: { tuning: { article: CellTuning; soc
   const lines = (["article", "social"] as const).filter((f) => tuning[f].baseline.ideas > 0);
   if (lines.length === 0) return null;
   return (
-    <div className="text-[11px] text-[var(--mute)] mb-2 flex flex-col gap-0.5" data-topic-tuning={id}>
+    <div className="text-2xs text-[var(--mute)] mb-2 flex flex-col gap-0.5" data-topic-tuning={id}>
       {lines.map((f) => {
         const tu = tuning[f];
         return (

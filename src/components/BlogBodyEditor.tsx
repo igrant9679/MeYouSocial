@@ -210,7 +210,7 @@ export function BlogBodyEditor({
       <input ref={formAnchor} type="hidden" name="baseHash" value={baseHash} />
       <div className="flex items-center gap-2 mb-1 flex-wrap">
         <span className="block text-xs text-[var(--mute)]">Body</span>
-        <span className="font-mono text-[10px] text-[var(--mute)]">
+        <span className="font-mono text-micro text-[var(--mute)]">
           {/* ⚠ suppressHydrationWarning is load-bearing, not decoration.
               `toLocaleString()` with no locale resolves to the CONTAINER's ICU
               default on the server (en-US on Railway) and to navigator.language
@@ -225,7 +225,7 @@ export function BlogBodyEditor({
           {saveState === "saved" && " · autosaved"}
         </span>
         {saveState === "failed" && (
-          <span className="font-mono text-[10px]" style={{ color: "var(--rose-on)" }}>
+          <span className="font-mono text-micro" style={{ color: "var(--rose-on)" }}>
             · autosave failed — press Save
           </span>
         )}

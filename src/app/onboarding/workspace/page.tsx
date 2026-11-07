@@ -144,7 +144,7 @@ export default async function NewWorkspacePage({
           <input type="hidden" name="returnTo" value="/onboarding/workspace" />
           <ValidatedInput
             label="Workspace name"
-            labelClassName="text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]"
+            labelClassName="text-micro font-mono uppercase tracking-wider text-[var(--mute)]"
             name="name"
             placeholder="Acme Ltd"
             required
@@ -156,7 +156,7 @@ export default async function NewWorkspacePage({
           {templates.length > 0 && (
             <fieldset className="border border-[var(--line-2)] rounded-lg p-3 flex flex-col gap-2 text-xs min-w-0" data-template-pick>
               {/* min-w-0: a fieldset's minimum width is its content's, and an option's long label would widen the page on a phone. */}
-              <legend className="px-1 text-[10px] font-mono uppercase tracking-wider text-[var(--mute)]">Start from</legend>
+              <legend className="px-1 text-micro font-mono uppercase tracking-wider text-[var(--mute)]">Start from</legend>
               <select name="templateId" defaultValue="" className="border border-[var(--line-2)] rounded-lg p-2 text-sm w-full min-w-0" aria-label="Start from">
                 <option value="">A blank workspace</option>
                 {templates.map((t) => (
@@ -168,13 +168,13 @@ export default async function NewWorkspacePage({
                   <input type="checkbox" name={`part_${p}`} defaultChecked /> {TEMPLATE_PART_LABEL[p]}
                 </label>
               ))}
-              <p className="text-[11px] text-[var(--mute)] m-0">
+              <p className="text-2xs text-[var(--mute)] m-0">
                 Copied only when a workspace is chosen. Never copied: keys, connected accounts and sites, the brand kit,
                 people, content, or autonomy — a new workspace starts manual.
               </p>
             </fieldset>
           )}
-          <p className="text-[11px] text-[var(--mute)] leading-relaxed">
+          <p className="text-2xs text-[var(--mute)] leading-relaxed">
             You&apos;ll be its admin. Everything is scoped per workspace — brand, topics, posts, connected accounts and
             API keys — so nothing is shared with any other company on this install. You can rename it later under
             Admin&nbsp;→&nbsp;Workspace.
