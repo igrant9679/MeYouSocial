@@ -27,6 +27,7 @@ const EXPECTED_PREFIX: Record<string, { prefix: string; label: string }> = {
   xai:        { prefix: "xai-",    label: "xAI keys start with \"xai-\"" },
   elevenlabs: { prefix: "sk_",     label: "ElevenLabs keys start with \"sk_\"" },
   tavily:     { prefix: "tvly-",   label: "Tavily keys start with \"tvly-\"" },
+  jina:       { prefix: "jina_",   label: "Jina keys start with \"jina_\"" },
   // Not listed, on purpose: google / youtube (AIza and AQ. both occur),
   // moonshot, minimax, heygen, serper — no format stable enough to refuse on.
 };

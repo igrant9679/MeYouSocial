@@ -30,6 +30,10 @@ export async function deepResearchAction(formData: FormData) {
   const question = String(formData.get("question") ?? "").trim();
   const depth = String(formData.get("depth") ?? "intermediate") as keyof typeof DEPTH_BUDGETS;
   const includeCompetitors = String(formData.get("includeCompetitors") ?? "") === "1";
+  // Reach (2026-11-09): read the top results in full instead of their snippets,
+  // and add what people are saying on Reddit.
+  const readSources = String(formData.get("readSources") ?? "") === "1";
+  const includeDiscussions = String(formData.get("includeDiscussions") ?? "") === "1";
   if (!question) return;
 
   const { workspace } = await requireRole("EDITOR");
@@ -57,8 +61,39 @@ export async function deepResearchAction(formData: FormData) {
     competitorContext = titles.join("\n").slice(0, 4_000);
   }
 
-  // 3) LLM synthesis pass.
-  const sourceBlock = webResults.map((r, i) => `[${i + 1}] ${r.title}\n${r.url}\n${r.snippet}`).join("\n\n");
+  // 3) Reach: the top results read in full, and Reddit threads — each numbered
+  // after the web results so the report can cite them as [n]. A channel that
+  // fails is named at the foot of the report, never silently dropped.
+  const { webRead, searchReddit, readReddit, reasonOf, quoteForPrompt, QUOTED_MATERIAL_RULE } = await import("@/lib/reach");
+  const notReached: string[] = [];
+  const fullReads = readSources ? ({ basic: 1, intermediate: 2, comprehensive: 4, exhaustive: 6 } as const)[depth] ?? 2 : 0;
+  const fullText = new Map<string, string>();
+  await Promise.all(webResults.filter((r) => /^https?:\/\//i.test(r.url)).slice(0, fullReads).map(async (r) => {
+    const read = await webRead(workspace.id, r.url, { maxChars: 4000 }).catch((e) => { notReached.push(`${r.url} — ${reasonOf(e)}`); return null; });
+    if (read) fullText.set(r.url, read.item.text);
+  }));
+  type Thread = { title: string; url: string; text: string };
+  const threads: Thread[] = [];
+  if (includeDiscussions) {
+    const found = await searchReddit(workspace.id, question, depth === "basic" ? 3 : 5).catch((e) => { notReached.push(`Reddit — ${reasonOf(e)}`); return null; });
+    const readThreads = depth === "comprehensive" || depth === "exhaustive" ? 3 : 1;
+    for (const [i, t] of (found?.items ?? []).entries()) {
+      let text = t.text;
+      if (i < readThreads && t.url) {
+        const full = await readReddit(workspace.id, t.url, 3500).catch((e) => { notReached.push(`${t.url} — ${reasonOf(e)}`); return null; });
+        if (full) text = full.item.text;
+      }
+      if (t.url) threads.push({ title: t.title ?? t.url, url: t.url, text });
+    }
+  }
+
+  // 4) LLM synthesis pass.
+  const webBlock = webResults.map((r, i) => {
+    const body = fullText.get(r.url);
+    return body ? `[${i + 1}] ${r.title}\n${r.url}\n${quoteForPrompt(`page ${i + 1}`, body, 4000)}` : `[${i + 1}] ${r.title}\n${r.url}\n${r.snippet}`;
+  });
+  const threadBlock = threads.map((t, i) => `[${webResults.length + i + 1}] (Reddit) ${t.title}\n${t.url}\n${quoteForPrompt(`thread ${webResults.length + i + 1}`, t.text, 3500)}`);
+  const sourceBlock = [...webBlock, ...threadBlock].join("\n\n");
   const completion = await llm.complete({
     purpose: "research",
     model: channel.defaultModel ?? "",
@@ -69,7 +104,8 @@ export async function deepResearchAction(formData: FormData) {
 4. **Surprising data points**
 5. **Suggested angles** (3-5 video ideas grounded in the research)
 6. **Sources** (numbered list from input)
-Stay within ~${Math.round(budget / 6)} words.`,
+${threads.length ? "Add a section **What people are saying** between 4 and 5: the questions, complaints and disagreements in the Reddit threads, each with its [n].\n" : ""}Stay within ~${Math.round(budget / 6)} words.
+${QUOTED_MATERIAL_RULE}`,
     messages: [{
       role: "user",
       content: [
@@ -77,13 +113,15 @@ Stay within ~${Math.round(budget / 6)} words.`,
         `Niche: ${channel.nicheDescription ?? "—"}`,
         `Differentiation: ${channel.differentiation ?? "—"}`,
         competitorContext ? `Recent competitor titles:\n${competitorContext}` : "",
-        `Web sources:\n${sourceBlock}`,
+        `Sources:\n${sourceBlock}`,
       ].filter(Boolean).join("\n\n"),
     }],
     workspaceId: workspace.id,
   });
 
   const problem = placeholderProblem(completion, "no report was saved");
+  // What couldn't be reached is part of the report: a reader must know a source was missing.
+  const foot = notReached.length ? `\n\n---\n_Not reached while researching: ${notReached.slice(0, 8).join("; ")}._` : "";
   if (problem) (await import("next/navigation")).redirect(`/channels/${channelId}/research?flashErr=${encodeURIComponent(problem)}`);
   const research = await db.researchSource.create({
     data: {
@@ -91,10 +129,13 @@ Stay within ~${Math.round(budget / 6)} words.`,
       kind: "ai_research",
       ref: "deep-research:" + Date.now(),
       title: question.slice(0, 200),
-      content: completion.content,
+      content: completion.content + foot,
       // Who wrote it and what it was given (E-IDE-15) — only links a page can open.
       writtenBy: passStamp(completion),
-      webSources: JSON.stringify(webResults.filter((r) => /^https?:\/\//i.test(r.url)).map((r) => ({ title: r.title.slice(0, 200), url: r.url.slice(0, 1000) }))),
+      webSources: JSON.stringify([
+        ...webResults.filter((r) => /^https?:\/\//i.test(r.url)).map((r) => ({ title: r.title.slice(0, 200), url: r.url.slice(0, 1000), ...(fullText.has(r.url) ? { read: true } : {}) })),
+        ...threads.map((t) => ({ title: t.title.slice(0, 200), url: t.url.slice(0, 1000), source: "reddit" })),
+      ]),
       wordCount: (completion.content.match(/[\p{L}\p{N}]+/gu) ?? []).length,
       starred: false,
     },
@@ -102,6 +143,41 @@ Stay within ~${Math.round(budget / 6)} words.`,
   revalidatePath(`/channels/${channelId}/research`);
   const { redirect } = await import("next/navigation");
   redirect(`/channels/${channelId}/research?focus=${research.id}`);
+}
+
+/**
+ * Add a link to the research library (Reach, 2026-11-09): a web page as clean
+ * text, a YouTube video's captions, a Reddit thread with its comments, a GitHub
+ * repository's README or an issue with its comments. Stored as read; a link
+ * that can't be read is refused with the reason, never saved empty.
+ */
+export async function addResearchLinkAction(formData: FormData) {
+  const channelId = String(formData.get("channelId") ?? "");
+  const url = String(formData.get("url") ?? "").trim().slice(0, 2000);
+  const { workspace } = await requireRole("EDITOR");
+  const channel = await db.channel.findFirst({ where: { id: channelId, workspaceId: workspace.id }, select: { id: true } });
+  const { redirect } = await import("next/navigation");
+  const back = (q: string): never => redirect(`/channels/${channelId}/research?${q}`);
+  if (!channel) back(`flashErr=${encodeURIComponent("That channel isn't in this workspace.")}`);
+  if (!/^https?:\/\//i.test(url)) back(`flashErr=${encodeURIComponent("Paste a full link, starting with https://.")}`);
+  const { readLink, reasonOf, linkKind, SOURCE_LABEL } = await import("@/lib/reach");
+  const read = await readLink(workspace.id, url, 60_000).catch((e: unknown) => back(`flashErr=${encodeURIComponent(`That link couldn't be read: ${reasonOf(e)}`)}`));
+  const { item, via } = read;
+  const kind = linkKind(url);
+  const created = await db.researchSource.create({
+    data: {
+      channelId,
+      kind,
+      ref: url,
+      title: (item.title ?? url).slice(0, 200),
+      content: item.text,
+      readNote: `${SOURCE_LABEL[kind]}${item.source === "youtube" ? ` captions${item.meta?.auto ? " (auto-generated)" : ""}` : ""}, read via ${via}${item.author ? ` · by ${item.author}` : ""}${item.publishedAt ? ` · ${String(item.publishedAt).slice(0, 10)}` : ""}`.slice(0, 300),
+      wordCount: (item.text.match(/[\p{L}\p{N}]+/gu) ?? []).length,
+      starred: false,
+    },
+  });
+  revalidatePath(`/channels/${channelId}/research`);
+  back(`focus=${created.id}&flash=${encodeURIComponent(`Added “${(item.title ?? url).slice(0, 80)}” — ${SOURCE_LABEL[kind]}, read via ${via}.`)}`);
 }
 
 export async function starResearchAction(formData: FormData) {

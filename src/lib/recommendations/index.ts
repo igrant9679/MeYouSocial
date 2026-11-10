@@ -42,7 +42,8 @@ async function buildContext(workspaceId: string): Promise<RuleContext> {
     metrics,
     byKey: new Map(metrics.metrics.map((m) => [m.key, m])),
     topics: metrics.topics,
-    hasSearchKey: Boolean(tavily || serper),
+    // Exa through Reach counts: its key, or the free hosted search unless switched off (2026-11-09).
+    hasSearchKey: Boolean(tavily || serper) || (await import("@/lib/reach/core").then(async (m) => Boolean(await m.keyFor("exa", workspaceId)) || (await m.freeServicesOn(workspaceId)))),
     hasAnalytics,
     analyticsConfigured: gscOn || ga4On,
     analyticsFailing: failing.length ? failing.map((s) => `${SOURCE_LABEL[s]}: ${status[s]!.message}`).join(" · ") : null,

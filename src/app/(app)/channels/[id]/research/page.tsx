@@ -2,7 +2,7 @@ import { FileSearch, Star, Trash2, Lightbulb } from "lucide-react";
 import { SubmitButton } from "@/components/SubmitButton";
 import { requireChannel } from "@/lib/channel";
 import { db } from "@/lib/db";
-import { deepResearchAction, starResearchAction, deleteResearchAction, ideasFromReportAction, rereadResearchAction } from "@/app/actions/research";
+import { deepResearchAction, starResearchAction, deleteResearchAction, ideasFromReportAction, rereadResearchAction, addResearchLinkAction } from "@/app/actions/research";
 import { AiAssist } from "@/components/AiAssist";
 import { canEdit } from "@/lib/acl";
 import { MarkdownMessage } from "@/components/MarkdownMessage";
@@ -41,8 +41,8 @@ export default async function ChannelResearchPage({ params, searchParams }: { pa
   const text = focused?.content ?? null;
   // The web results a report was given (E-IDE-15) — http(s) links only, as stored.
   const storedSources = readJson<unknown>(focused?.webSources ?? null, []);
-  const webSources = (Array.isArray(storedSources) ? storedSources as { title?: unknown; url?: unknown }[] : [])
-    .filter((w): w is { title?: string; url: string } => typeof w?.url === "string" && /^https?:\/\//i.test(w.url));
+  const webSources = (Array.isArray(storedSources) ? storedSources as { title?: unknown; url?: unknown; source?: unknown; read?: unknown }[] : [])
+    .filter((w): w is { title?: string; url: string; source?: string; read?: boolean } => typeof w?.url === "string" && /^https?:\/\//i.test(w.url));
 
   return (
     <div>
@@ -82,10 +82,34 @@ export default async function ChannelResearchPage({ params, searchParams }: { pa
             <input type="checkbox" name="includeCompetitors" value="1" defaultChecked />
             Include competitor video titles for niche context
           </label>
+          <label className="flex items-center gap-1.5 text-xs ml-2" title="The top results are read as whole pages (Jina Reader, then Exa), not just their snippets">
+            <input type="checkbox" name="readSources" value="1" defaultChecked />
+            Read the top sources in full
+          </label>
+          <label className="flex items-center gap-1.5 text-xs ml-2" title="Reddit threads on the question, found through a site search and read with their comments">
+            <input type="checkbox" name="includeDiscussions" value="1" defaultChecked />
+            Include what people are saying (Reddit)
+          </label>
           <span className="flex-1" />
           <SubmitButton className="btn primary">Run deep research</SubmitButton>
         </div>
       </form>
+      )}
+
+      {/* Add a link (Reach): read with the channel made for it, then kept here. */}
+      {editor && (
+        <form action={addResearchLinkAction} className="card mb-5 flex flex-wrap items-end gap-2" data-add-link>
+          <input type="hidden" name="channelId" value={id} />
+          <label className="flex flex-col gap-1 flex-1 min-w-64">
+            <span className="text-micro font-mono uppercase tracking-wider text-[var(--mute)]">Add a link</span>
+            <input name="url" type="url" required placeholder="https://… a page, a YouTube video, a Reddit thread or a GitHub repo" className="border border-[var(--line-2)] rounded-lg p-2 text-sm" />
+          </label>
+          <SubmitButton className="btn" pendingText="Reading…">Read and add</SubmitButton>
+          <p className="basis-full text-2xs text-[var(--mute)] m-0">
+            A page is read as clean text, a video by its captions, a Reddit thread with its comments, a GitHub repository by its README.
+            Public links only; the link is fetched through Jina Reader or Exa unless free public sources are off.
+          </p>
+        </form>
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-4">
@@ -136,7 +160,7 @@ export default async function ChannelResearchPage({ params, searchParams }: { pa
               )}
               {(focused.readState === "reading" || focused.readState === "unread") && <AutoRefresh seconds={5} />}
               {focused.readNote && (
-                <p className="text-xs mb-3" style={{ color: "var(--amber-on)" }} data-research-note="">{focused.readNote}</p>
+                <p className="text-xs mb-3" style={{ color: isFile ? "var(--amber-on)" : "var(--mute)" }} data-research-note="">{focused.readNote}</p>
               )}
               {editor && isFile && focused.readState !== "reading" && focused.readState !== "unread" && (
                 <form action={rereadResearchAction} className="mb-3">
@@ -162,10 +186,14 @@ export default async function ChannelResearchPage({ params, searchParams }: { pa
               )}
               {webSources.length > 0 && (
                 <details className="mt-4 border-t border-[var(--line)] pt-3" data-web-sources>
-                  <summary className="text-xs font-mono uppercase tracking-wider text-[var(--mute)] cursor-pointer">Web results it was given ({webSources.length})</summary>
+                  <summary className="text-xs font-mono uppercase tracking-wider text-[var(--mute)] cursor-pointer">Sources it was given ({webSources.length})</summary>
                   <ol className="mt-2 mb-0 pl-5 text-xs flex flex-col gap-1">
                     {webSources.map((w, i) => (
-                      <li key={i}><a href={w.url} target="_blank" rel="noopener noreferrer" className="text-[var(--accent)] underline break-all">{w.title || w.url}</a></li>
+                      <li key={i}>
+                        <a href={w.url} target="_blank" rel="noopener noreferrer" className="text-[var(--accent)] underline break-all">{w.title || w.url}</a>
+                        {w.source === "reddit" && <span className="ml-1 text-micro font-mono uppercase tracking-wider text-[var(--mute)]">Reddit</span>}
+                        {w.read && <span className="ml-1 text-micro font-mono uppercase tracking-wider text-[var(--mute)]">read in full</span>}
+                      </li>
                     ))}
                   </ol>
                 </details>

@@ -106,7 +106,7 @@ export function FindingCards({
         <span className="text-xs text-[var(--mute)]">
           E-E-A-T, entity coverage and content gaps, as cards you can act on.
           {!searchReal && (
-            <> Content gaps need real search data — add a Tavily or Serper key under <Link href="/admin/api-keys" className="underline">Settings → Keys</Link>.</>
+            <> Content gaps need real search data — turn free public sources on, or add a Tavily, Serper or Exa key, under <Link href="/admin/api-keys" className="underline">Settings → Keys</Link>.</>
           )}
         </span>
       </div>

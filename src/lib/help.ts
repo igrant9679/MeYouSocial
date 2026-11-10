@@ -283,6 +283,23 @@ export const HELP_CATEGORIES: FaqCategory[] = [
     soft: "var(--blue-soft)",
     entries: [
       {
+        q: "Where does research get its live material — and what leaves the app?",
+        a: "From **live sources**, built on the open-source Agent-Reach toolkit: any page read as clean text (Jina Reader, then Exa, then this server's own fetch), **Reddit threads** with their comments (found with a site search and read through Exa — Reddit refuses anonymous reads), **GitHub** repositories and issues, and **YouTube captions** (read without a key). Without a Tavily or Serper key, web search uses Exa as well, at its free limit.\n\nOnly the link or the search words go to those services — never anything private. A workspace admin can turn the free ones off, or add Exa, Jina and GitHub keys for higher limits, under **Settings → Keys → Live sources**; the same card shows which source last worked and which last failed (and why). Sources that would need someone's own sign-in — X, LinkedIn, Instagram — are not offered: a shared server must never hold a person's login.",
+        tags: ["reach", "agent-reach", "sources", "jina", "exa", "reddit", "github", "captions", "transcript"],
+        links: [{ label: "Live sources →", href: "/admin/api-keys#reach" }],
+      },
+      {
+        q: "How do I add a page, video, Reddit thread or GitHub repo to research?",
+        a: "Open a channel's **Research** tab and paste the link into **Add a link**. It's read with the source made for it — a page as clean text, a **YouTube video by its captions**, a Reddit thread with its comments, a GitHub repository by its README or an issue with its comments — and kept in the library, where the assistant and the script tools can use it. A link that can't be read is refused with the reason (a site that blocks servers, a video without captions), never saved empty.\n\n**Deep research** now reads its top results in full rather than their snippets, and — with **Include what people are saying** ticked — adds Reddit threads as numbered sources and a *What people are saying* section. Any source it couldn't reach is named at the foot of the report.",
+        tags: ["research", "add link", "youtube", "transcript", "reddit", "github", "deep research"],
+      },
+      {
+        q: "Why do some ideas say \"3 sources\"?",
+        a: "Article discovery **listens before it writes**: it looks at what people are discussing about the Topic (Reddit threads and the web), gives those to the model as numbered, quoted material, and each idea names the discussions it answers. Those links stay on the idea — **Drawn from** on its page, and the *N sources* chip on the board — so you can check the real question behind it before approving. An idea with no chip wasn't drawn from anything live. Turn it off under **Settings → Keys → Live sources** (ideas then come from the company profile, Topics and keywords only).",
+        tags: ["ideas", "discovery", "sources", "evidence", "reddit", "grounded"],
+        links: [{ label: "Ideas board →", href: "/ideas?format=article" }],
+      },
+      {
         q: "What does outlier score mean?",
         a: "A video's views ÷ the average views of up to 10 surrounding videos on the same channel. Severity bands: **≥5x exceptional** (red), **2-5x strong** (amber), **1-2x average** (blue), **<1x under** (grey).\n\nNext to it, **views per hour** (`/hr`) is the video's views ÷ the hours since it was published, measured when Intel read its views — the pace it moves at, so a week-old video at 40/hr and a three-year-old one at 40/hr are equally fast even though their totals differ enormously. It is one lifetime average, not a 48-hour pulse; the figure is fixed at index time, the same as the view count. Search rows, trending cards, channel pages (sortable by it), video pages and the Research overview show it; `vph:>100` filters the Intel search; a dash means it couldn't be measured.",
         tags: ["outlier", "score", "views per hour", "vph"],

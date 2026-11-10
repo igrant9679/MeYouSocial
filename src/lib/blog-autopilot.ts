@@ -135,15 +135,35 @@ export async function discoverIdeasCore(workspaceId: string, topicId?: string | 
     ensureMotifDirectives(workspaceId),
   ]);
 
+  // ⚠ GROUNDED IN WHAT PEOPLE ARE SAYING (Reach, 2026-11-09). Ideas used to come
+  // from the organization profile alone. Now, unless `ideas:listen` is "off",
+  // one listening pass (Reddit threads + the web) on the Topic — or the top
+  // Topics — goes in as numbered, quoted material, and each idea names the
+  // items it answers; those links are kept on the idea as its evidence. A
+  // source that can't be reached just isn't there: discovery never waits on it.
+  const { getSetting } = await import("@/lib/settings");
+  const listenOn = (await getSetting("ideas:listen", workspaceId).catch(() => "")) !== "off";
+  const subject = focusTopic
+    ? [focusTopic.name, ...readJson<string[]>(focusTopic.keywords, []).slice(0, 3)].join(" ")
+    : allTopics.length ? allTopics.slice(0, 2).map((t) => t.name).join(" OR ") : (org?.industry ?? "");
+  const { listen, quoteForPrompt, QUOTED_MATERIAL_RULE } = await import("@/lib/reach");
+  const heard = listenOn && subject.trim()
+    ? await listen(workspaceId, subject.slice(0, 200), { perSource: 4, freshDays: 120 }).catch(() => ({ signals: [], notes: [] }))
+    : { signals: [], notes: [] };
+  const signals = heard.signals.slice(0, 8);
+
   const system =
     "You generate blog topic ideas and tag them. Respond ONLY with a JSON array of objects: " +
     '[{"title": string, "angle": string, "keyword": string, "tier": 1|2|3|4, "audience": string, ' +
-    '"targetPage": string, "motifs": [{"key": string, "weight": number}], "seasonalHook": string}] — ' +
+    '"targetPage": string, "motifs": [{"key": string, "weight": number}], "seasonalHook": string, "sources": number[]}] — ' +
     "no prose, no markdown fences. Titles must be specific and non-generic. The angle explains why this topic " +
     "serves the audience. tier 1 = broad head topic … 4 = long-tail. targetPage must be one of the supplied page " +
     "URLs or omitted. motifs must use the supplied motif keys and sum to 100. seasonalHook only when the topic " +
     "genuinely rides a calendar moment — omit it otherwise. " +
-    "Never invent statistics or cite studies in the angle.";
+    "Never invent statistics or cite studies in the angle. " +
+    (signals.length
+      ? "When the numbered discussions supplied show a real question, complaint or disagreement an idea answers, say so in the angle and list those numbers in sources; an idea none of them supports gets sources []. Never cite a number that isn't listed. " + QUOTED_MATERIAL_RULE
+      : 'Return "sources": [] for every idea.');
   const prompt = [
     org?.description
       ? `The organization: ${org.description}${org.industry ? ` Industry: ${org.industry}.` : ""}${org.audience ? ` Audience: ${org.audience}.` : ""}`
@@ -162,6 +182,9 @@ export async function discoverIdeasCore(workspaceId: string, topicId?: string | 
     pages.length ? `Service pages that ideas can support:\n${pages.map((p) => `${p.url} — ${p.title}`).join("\n")}` : null,
     existing.length ? `Avoid duplicating these existing ideas: ${existing.map((i) => i.title).join(" | ")}` : null,
     rejectedLine(rejected),
+    signals.length
+      ? `What people are discussing now (numbered — cite them in sources):\n${signals.map((s) => `[${s.n}] (${s.source}) ${s.title}\n${s.url}\n${quoteForPrompt(`discussion ${s.n}`, s.snippet, 500)}`).join("\n")}`
+      : null,
     `Generate ${want} blog post ideas.`,
   ]
     .filter(Boolean)
@@ -201,6 +224,7 @@ export async function discoverIdeasCore(workspaceId: string, topicId?: string | 
     targetPage?: string;
     motifs?: unknown;
     seasonalHook?: string;
+    sources?: unknown;
   };
   let ideas: RawIdea[] = [];
   try {
@@ -236,6 +260,12 @@ export async function discoverIdeasCore(workspaceId: string, topicId?: string | 
         targetPage: targetPage && pageUrls.has(targetPage) ? targetPage : null,
         motifs: serializeMotifs(normalizeMotifs(parseMotifs(JSON.stringify(i.motifs ?? [])))),
         seasonalHook: text(i.seasonalHook, 120),
+        // The discussions it answers — only numbers that were listed, as links (Reach).
+        evidence: (() => {
+          const nums = Array.isArray(i.sources) ? [...new Set(i.sources.map(Number).filter((n) => Number.isInteger(n)))] : [];
+          const picked = nums.map((n) => signals.find((s) => s.n === n)).filter((s): s is (typeof signals)[number] => !!s).slice(0, 5);
+          return picked.length ? JSON.stringify(picked.map((s) => ({ title: s.title.slice(0, 200), url: s.url.slice(0, 1000), source: s.source }))) : null;
+        })(),
         // Only stamp the topic when the run was focused on one.
         topicId: focusTopic?.id ?? null,
         source: "ai",
@@ -252,7 +282,7 @@ export async function discoverIdeasCore(workspaceId: string, topicId?: string | 
     actorId: actorId ?? null,
     action: "ideas.ai_discovery",
     entityType: "blog_idea",
-    meta: { created: rows.length, topicId: focusTopic?.id ?? null, by: actorId ? "person" : "sweep" },
+    meta: { created: rows.length, topicId: focusTopic?.id ?? null, by: actorId ? "person" : "sweep", listened: signals.length, grounded: rows.filter((r) => r.evidence).length, ...(heard.notes.length ? { notReached: heard.notes.slice(0, 3) } : {}) },
   });
   return rows.length;
 }

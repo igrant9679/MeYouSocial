@@ -52,7 +52,8 @@ export async function saveMediaSettingAction(formData: FormData) {
 
 // Web search (tavily, serper — lib/search) and search data / keyword volume
 // (dataforseo, keywordseverywhere — lib/search-data) share this one save path.
-const SEARCH_VENDORS = ["tavily", "serper", "dataforseo", "keywordseverywhere"] as const;
+// exa, jina and github feed Reach — live sources for search, reading, research and ideas (2026-11-09).
+const SEARCH_VENDORS = ["tavily", "serper", "dataforseo", "keywordseverywhere", "exa", "jina", "github"] as const;
 
 /** Admin-only: save / clear a search provider key (same DB-first pattern). */
 /**
@@ -100,6 +101,27 @@ export async function saveSearchKeyAction(formData: FormData) {
   revalidatePath("/admin/api-keys");
   if (removing) redirect(removedRedirect(vendor));
   redirect(`/admin/api-keys?ok=${vendor}`);
+}
+
+/**
+ * Reach's two dials (2026-11-09): `reach:free` — free public services (Jina
+ * Reader and Exa's hosted endpoint, both keyless) on or off; `ideas:listen` —
+ * article discovery listens to live discussions first, on or off. Both default
+ * on; an admin's choice, written through setWorkspaceSetting so it's audited.
+ */
+export async function saveReachDialAction(formData: FormData) {
+  const { workspace } = await requireRole("ADMIN");
+  const dial = String(formData.get("dial") ?? "");
+  const on = String(formData.get("value") ?? "") === "on";
+  if (dial !== "reach:free" && dial !== "ideas:listen") return;
+  const { setWorkspaceSetting } = await import("@/lib/settings");
+  // "" (the default, on) or "off" — absent means on, as both readers treat it.
+  await setWorkspaceSetting(workspace.id, dial, on ? "" : "off");
+  revalidatePath("/admin/api-keys");
+  const what = dial === "reach:free"
+    ? (on ? "Free public sources are on: pages are read through Jina Reader and Exa, and search falls back to Exa without a key." : "Free public sources are off: nothing goes to Jina or Exa without a key, pages are read by this server only, and Reddit needs an Exa key.")
+    : (on ? "Article discovery listens to live discussions first and keeps the links on each idea." : "Article discovery no longer listens to live discussions — ideas come from the company profile, Topics and keywords only.");
+  redirect(`/admin/api-keys?flash=${encodeURIComponent(what)}#reach`);
 }
 
 /**

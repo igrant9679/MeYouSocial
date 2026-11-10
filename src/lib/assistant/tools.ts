@@ -519,7 +519,7 @@ export const TOOLS: Tool[] = [
   },
   {
     name: "search_web",
-    description: "Search the live web and return titles, urls and snippets. Use for facts you would otherwise guess. Returns nothing useful if the workspace has no search key.",
+    description: "Search the live web and return titles, urls and snippets. Use for facts you would otherwise guess. Uses the workspace's search key, else the free public search (Exa); returns placeholders only when both are off.",
     args: { query: "the search query", limit: "optional, default 5" },
     readOnly: true,
     outside: "web search results",
@@ -529,7 +529,8 @@ export const TOOLS: Tool[] = [
       const { getSearchProvider } = await import("@/lib/search");
       const { provider, real, vendor } = await getSearchProvider(ctx.workspaceId);
       const results = await provider.search(query, num(a.limit, 5, 10));
-      if (!real) return `NO REAL SEARCH KEY — these results are placeholders from the ${vendor} mock and must not be treated as facts.`;
+      if (!real) return `NO REAL SEARCH — free public search is off and no key is set; these results are placeholders from the ${vendor} mock and must not be treated as facts.`;
+      if (!results.length) return `no results (${vendor}) — the search service may be at its free limit; say so rather than guessing`;
       return results.map((r, i) => `${i + 1}. ${r.title} — ${r.url}\n   ${r.snippet}`).join("\n") || "no results";
     },
   },
@@ -1363,7 +1364,14 @@ export const TOOLS: Tool[] = [
         `"${v.title}" — ${v.intelChannel.name ?? v.intelChannel.handle} · https://www.youtube.com/watch?v=${v.youtubeId}`,
         `${v.views != null ? Number(v.views).toLocaleString() : "—"} views · ${v.likes ?? "—"} likes · ${v.comments ?? "—"} comments · ${v.durationSeconds ? `${Math.round(v.durationSeconds / 60)} min` : "—"} · ${v.format ?? ""} · outlier ${v.outlierScore != null ? `${v.outlierScore.toFixed(1)}×` : "not measured"} · ${v.viewsPerHour != null ? `${v.viewsPerHour >= 10 ? Math.round(v.viewsPerHour) : v.viewsPerHour.toFixed(1)} views/hr since publish (lifetime average at index time)` : "views/hr not measured"} · published ${v.publishedAt ? v.publishedAt.toISOString().slice(0, 10) : "—"}`,
         v.description ? `Description: ${v.description.slice(0, 600)}` : "",
-        t ? `Transcript (${t.length.toLocaleString()} chars, first ${Math.min(t.length, 7000).toLocaleString()}):\n${t.slice(0, 7000)}` : "Transcript: not fetched (analyze_youtube_video can try YouTube directly)",
+        t ? `Transcript (${t.length.toLocaleString()} chars, first ${Math.min(t.length, 7000).toLocaleString()}):\n${t.slice(0, 7000)}` : await (async () => {
+          // Not stored at index time: read the captions now (Reach), without saving them.
+          const { readYoutube, reasonOf } = await import("@/lib/reach");
+          return readYoutube(ctx.workspaceId, v.youtubeId).then(
+            ({ item }) => `Transcript (captions${item.meta?.auto ? ", auto-generated" : ""}, read just now, ${item.text.length.toLocaleString()} chars, first 7000):\n${item.text.slice(0, 7000)}`,
+            (e) => `Transcript: not available (${reasonOf(e)})`,
+          );
+        })(),
         `Make it an idea: add_idea with format article | video (channelId) | social and a topicId from list_topics — the page /intel/videos/${v.id} has the same chooser with the Topic matched by keyword.`,
       ].filter(Boolean).join("\n");
     },
@@ -1382,22 +1390,41 @@ export const TOOLS: Tool[] = [
       if (indexed) return TOOLS_BY_NAME.get("intel_video")!.run({ intelVideoId: indexed.id }, ctx);
       const { youtubeFor } = await import("@/lib/youtube");
       const t = (await youtubeFor(ctx.workspaceId).getTranscript(id).catch(() => null))?.trim();
-      if (!t) return `video ${id} is not indexed in Intel and YouTube returned no transcript (captions off, or no YouTube key). Index its channel under /intel to get stats; or ask the person what it is about.`;
+      if (!t) return `video ${id} is not indexed in Intel and no captions could be read (the video has none, or YouTube refused this server). Index its channel under /intel to get stats; or ask the person what it is about.`;
       return `https://www.youtube.com/watch?v=${id} — not indexed in Intel (no stats). Transcript (${t.length.toLocaleString()} chars, first 7000):\n${t.slice(0, 7000)}`;
     },
   },
   {
     name: "read_web_page",
-    description: "Fetch a public web page the person pointed at and return its title and text (first ~6000 characters) so you can summarise, critique or draw on it. Not for private/internal addresses.",
-    args: { url: "https://… the page" },
+    description: "Read a public link the person pointed at and return its title and text (first ~6000 characters): any web page as clean text, a YouTube video's captions, a Reddit thread with its comments, a GitHub repository's README or an issue with its comments. Not for private/internal addresses.",
+    args: { url: "https://… the link" },
     readOnly: true,
     outside: "a web page",
     opensUrl: (a) => str(a.url, 500) || null,
-    async run(a) {
-      const { fetchPageText } = await import("@/lib/assistant/context");
-      const r = await fetchPageText(str(a.url, 500));
-      if (!r.ok) return `could not read it: ${r.reason}`;
-      return `${r.title || "(no title)"} — ${r.chars.toLocaleString()} chars${r.chars > r.text.length ? " (truncated)" : ""}\n\n${r.text}`;
+    async run(a, ctx) {
+      const { readLink, reasonOf } = await import("@/lib/reach");
+      try {
+        const { item, via } = await readLink(ctx.workspaceId, str(a.url, 500), 6000);
+        const kind = item.source === "youtube" ? `YouTube captions${item.meta?.auto ? " (auto-generated)" : ""}` : item.source === "reddit" ? "Reddit thread" : item.source === "github" ? "GitHub" : "page";
+        return `${item.title || "(no title)"} — ${kind}, read via ${via}${item.author ? `, by ${item.author}` : ""}${item.publishedAt ? `, ${item.publishedAt}` : ""}\n\n${item.text}`;
+      } catch (e) {
+        return `could not read it: ${reasonOf(e)}`;
+      }
+    },
+  },
+  {
+    name: "search_discussions",
+    description: "What people are saying about a subject right now: Reddit threads (found through a site-restricted search — Reddit refuses anonymous reads), the web, and — for technical subjects — GitHub repositories. Numbered items with links and a snippet; read one in full with read_web_page.",
+    args: { subject: "what to listen for", github: "optional: yes to include GitHub repositories", perSource: "optional, default 4" },
+    readOnly: true,
+    outside: "web search results",
+    async run(a, ctx) {
+      const subject = str(a.subject, 300);
+      if (!subject) return "no subject given";
+      const { listen } = await import("@/lib/reach");
+      const r = await listen(ctx.workspaceId, subject, { perSource: num(a.perSource, 4, 8), github: /^(y|yes|true|1)$/i.test(str(a.github, 5)) });
+      const lines = r.signals.map((s) => `${s.n}. [${s.source}] ${s.title} — ${s.url}${s.publishedAt ? ` (${s.publishedAt.slice(0, 10)})` : ""}\n   ${s.snippet.slice(0, 300)}`);
+      return [lines.join("\n") || "nothing found", r.notes.length ? `Not reached: ${r.notes.join("; ")}` : ""].filter(Boolean).join("\n\n");
     },
   },
   {

@@ -175,8 +175,9 @@ export default async function GuidePage() {
           <li>
             <b>Give it a brain.</b> <RoleLink href="/admin/api-keys" role={role} className="underline">Settings → Keys</RoleLink>:
             paste an AI provider key and set the default model to match it. Without one the app produces clearly
-            fake placeholder text rather than erroring — if output ever reads generic, check here first. A live
-            web search key (Tavily or Serper) is what lets it source claims.
+            fake placeholder text rather than erroring — if output ever reads generic, check here first. Live
+            web search is what lets it source claims: free public search (Exa) works without a key, and a Tavily,
+            Serper or Exa key raises its limits.
           </li>
           <li>
             <b>Connect where it publishes.</b> <Link href="/setup/connections" className="underline">Settings → Connections</Link>{" "}

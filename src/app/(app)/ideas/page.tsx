@@ -689,6 +689,8 @@ function ArticleCard({ idea, editor, topics, select, rank, dup, back }: { idea: 
         {idea.source !== "manual" && <Tag>{idea.source === "ai" ? "discovered" : idea.source}</Tag>}
         {motifs.map((m) => <Tag key={m.key} hue={motifHue(m.key)}>{m.key} {m.weight}%</Tag>)}
         {idea.seasonalHook && <Tag hue="cyan">{idea.seasonalHook}</Tag>}
+        {/* Grounded in live discussions (Reach) — the links are on the idea's page. */}
+        {(() => { const n = (idea.evidence?.match(/"url":/g) ?? []).length; return n ? <Tag hue="blue" title="Discovery drew it from what people are discussing — the links are on its page">{n} source{n === 1 ? "" : "s"}</Tag> : null; })()}
         {idea.status === "rejected" && isRejectReason(idea.rejectReason) && <Tag hue="rose" title="Why it was rejected — discovery steers away from this">{REJECT_REASONS[idea.rejectReason]}</Tag>}
       </div>
       {idea.audience && <p className="text-micro text-[var(--mute)] mt-1">for {idea.audience}</p>}

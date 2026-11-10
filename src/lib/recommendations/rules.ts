@@ -252,9 +252,9 @@ const connectSearchKey: Rule = {
     if (hasSearchKey) return null;
     return {
       title: "No search provider configured",
-      detail: "Add a Tavily or Serper key under Settings → Keys → Search.",
+      detail: "Turn free public sources back on, or add a Tavily, Serper or Exa key, under Settings → Keys → Search.",
       rationale:
-        "Keyword research, content-gap analysis and external-link suggestions all fall back to mock output without a search key. It is the cheapest unlock for real research input.",
+        "Keyword research, content-gap analysis and external-link suggestions all fall back to mock output with no search at all. Free public search (Exa) costs nothing; a key raises its limits.",
       severity: "info",
       confidence: "high",
       evidence: [],

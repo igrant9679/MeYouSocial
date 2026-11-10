@@ -2449,3 +2449,39 @@ before changing code in that area.
 - On phones the header's account avatar is hidden (the drawer has Settings and Sign out): at 375 px it wrapped onto a second
   header line. Deleting a campaign returns to Schedule and a brand fact or document to Brand (they named no page and
   landed on the home page).
+
+## Live sources (Reach): pages, Reddit, GitHub and YouTube captions feed search, research and ideas (2026-11-09, the owner's order to integrate Agent-Reach, growth part da)
+- **`src/lib/reach/`** is the hosted port of the Agent-Reach toolkit (github.com/Panniantong/Agent-Reach, MIT; ideas
+  reimplemented in TypeScript, no Python, no binary). ⚠ Its logged-in channels (X, Reddit-by-browser, LinkedIn,
+  Instagram, Facebook, Xiaohongshu …) copy cookies out of a person's Chrome — a shared server must NEVER do that; they are
+  not offered and must not be added. What carries over: server-safe channels and the design — each action an ORDERED
+  list of backends (`firstThatWorks`: the first that answers wins), one result shape (`ReachItem`), a few failure codes
+  (`ReachError`: BAD_INPUT, NOT_FOUND, RATE_LIMITED, BLOCKED, OFF, UPSTREAM), and a doctor (`ReachHealth`, one row per
+  workspace × channel: last ok, last failure and why, which backend answered) shown on Keys and Connections.
+- **Channels**: web read = Jina Reader → Exa (key, then free hosted MCP) → our own `fetchPageText`; ⚠ Jina answers 200
+  with "Warning: Target URL returned error 403" over a site's block page (Reddit) — `jinaRefusal` treats that and
+  Cloudflare challenges as failures, never as text. Web search = Exa (`api_key:exa`, else `https://mcp.exa.ai/mcp`
+  keyless). Reddit = FOUND by a site-restricted Exa search and READ through Exa's fetch (Reddit 403s anonymous JSON and
+  blocks Jina) — threads only (`/comments/`); with free sources off and no Exa key, an OFF saying so. GitHub = REST API,
+  `api_key:github` optional (60 → 5,000 an hour). YouTube captions = the innertube player API as the ANDROID client, then
+  the track's `fmt=json3` (no key, no yt-dlp); ⚠ YouTube may refuse datacenter addresses — that is BLOCKED, never an
+  empty transcript. `readLink(url)` picks the channel from the host (Agent-Reach's `read <url>`); `listen(subject)` asks
+  Reddit + the web (+ GitHub) once each and numbers what came back; a channel that fails is a note, the rest still count.
+- **Dials** (Settings → Keys → Live sources, admins, audited): `reach:free` — free public services (Jina keyless, Exa
+  hosted) on unless "off"; `ideas:listen` — discovery listens first unless "off". Keys `api_key:exa|jina|github` ride
+  the Search section and the keyring (`api_key:*`). Only the link or the search words leave the app.
+- **Search** (`lib/search`): Tavily → Serper → Exa key → Exa free → mock only when both are off. An Exa failure is NO
+  results (logged), never placeholders — a citation search can't mistake an outage for evidence.
+- **Transcripts**: `youtubeFor(ws).getTranscript` now reads captions through Reach for every non-mock provider (it was
+  always null with a real key) — template cloning, voice training/borrowing and the assistant get real words.
+- **Research**: Add a link stores any link read by its channel (kind youtube | reddit | github | web, `readNote` says
+  how); a link that can't be read is refused with the reason, never saved empty. Deep research reads its top results in
+  full (1/2/4/6 by depth) and, ticked, adds Reddit threads as numbered sources + a "What people are saying" section; what
+  couldn't be reached is named at the report's foot; `webSources` carry `read` / `source: "reddit"`.
+- **Ideas**: `discoverIdeasCore` listens on the Topic (or the top two) first; the signals go in as `<source>`-fenced
+  quotes with `QUOTED_MATERIAL_RULE`, ideas return `sources: [n]`, and only LISTED numbers become `BlogIdea.evidence`
+  (JSON [{title,url,source}], migration `20261109090000_reach`) — "Drawn from" on the idea page, "N sources" on the board.
+  The audit row records `listened` / `grounded` / `notReached`.
+- ⚠ Everything a channel returns is other people's text: prompts get it only through `quoteForPrompt` +
+  `QUOTED_MATERIAL_RULE`; the assistant through tools marked `outside` (`read_web_page` now reads any link via Reach,
+  `search_discussions` is new). `scripts/assistant-eval.mts` must stay green.

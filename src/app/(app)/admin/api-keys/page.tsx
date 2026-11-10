@@ -5,7 +5,7 @@ import { db } from "@/lib/db";
 import { env } from "@/lib/env";
 import {
   saveApiKeyAction, saveSearchKeyAction, saveMediaSettingAction, saveStorageSettingAction,
-  saveGdriveOauthClientAction, connectGdriveAction, disconnectGdriveAction,
+  saveGdriveOauthClientAction, connectGdriveAction, disconnectGdriveAction, saveReachDialAction,
 } from "@/app/actions/api-keys";
 import { getVideoProviderSetting } from "@/lib/video";
 import { getImageProviderSetting, resolveImageProviderName } from "@/lib/images";
@@ -102,6 +102,10 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
     getImageProviderSetting(workspace.id),
     resolveImageProviderName(workspace.id),
   ]);
+  // Reach (2026-11-09): the two dials and what each live source last did.
+  const { freeServicesOn, reachHealth } = await import("@/lib/reach/core");
+  const [reachFree, reachRows] = await Promise.all([freeServicesOn(workspace.id), reachHealth(workspace.id)]);
+  const ideasListen = byKey.get("ideas:listen") !== "off";
   const ttsSetting = byKey.get("tts:provider") ?? platformByKey.get("tts:provider");
   const ttsProvider = ttsSetting === "elevenlabs" ? "elevenlabs" : "mock";
 
@@ -281,6 +285,9 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
           { vendor: "serper", label: "Serper (Google results)", envVar: "SERPER_API_KEY", envValue: env.SERPER_API_KEY, helpUrl: "https://serper.dev", helpText: "serper.dev (free tier available)", note: "Web search." },
           { vendor: "dataforseo", label: "DataForSEO (keyword volume)", envVar: "DATAFORSEO_AUTH", envValue: env.DATAFORSEO_AUTH, helpUrl: "https://app.dataforseo.com/api-access", helpText: "app.dataforseo.com → API Access", note: "Search data: Google Ads monthly volume, CPC and competition for the keyword strategy, up to 1,000 phrases per refresh. Paste login and API password as one value: login:password." },
           { vendor: "keywordseverywhere", label: "Keywords Everywhere (keyword volume)", envVar: "KEYWORDS_EVERYWHERE_API_KEY", envValue: env.KEYWORDS_EVERYWHERE_API_KEY, helpUrl: "https://keywordseverywhere.com/api-documentation.html", helpText: "keywordseverywhere.com → API", note: "Search data: Google Keyword Planner volume, CPC and competition, 100 phrases per call, one credit per phrase. Used when no DataForSEO login is set." },
+          { vendor: "exa", label: "Exa (search and reading — optional)", envVar: "EXA_API_KEY", envValue: process.env.EXA_API_KEY ?? "", helpUrl: "https://dashboard.exa.ai/api-keys", helpText: "dashboard.exa.ai → API keys", note: "Live sources: web search when no Tavily or Serper key is set, Reddit threads (found and read through Exa), and a fallback for reading pages. Without a key the free hosted Exa is used, at its rate limit." },
+          { vendor: "jina", label: "Jina Reader (reading pages — optional)", envVar: "JINA_API_KEY", envValue: process.env.JINA_API_KEY ?? "", helpUrl: "https://jina.ai/reader", helpText: "jina.ai → Reader → API key", note: "Live sources: reads any page as clean text, including pages built by scripts. Works without a key at a lower rate limit." },
+          { vendor: "github", label: "GitHub token (optional)", envVar: "GITHUB_API_KEY", envValue: process.env.GITHUB_API_KEY ?? "", helpUrl: "https://github.com/settings/personal-access-tokens/new", helpText: "github.com → fine-grained token, no permissions needed", note: "Live sources: repository search and reading READMEs and issues for research. Public data only; raises GitHub's limit from 60 to 5,000 requests an hour." },
         ] as const
       ).map((row) => {
         const dbVal = byKey.get(`api_key:${row.vendor}`) ?? "";
@@ -315,6 +322,50 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
           </form>
         );
       })}
+
+      {/* Live sources (Reach — the hosted port of Agent-Reach): what reads pages,
+          finds discussions and fills ideas, its two dials, and how each source last did. */}
+      <section id="reach" className="card mb-3 mt-8 scroll-mt-20 text-xs flex flex-col gap-2" data-reach-card>
+        <div className="font-mono font-bold text-sm">Live sources</div>
+        <p className="m-0 text-[var(--mute)] leading-relaxed">
+          Research, ideas and the assistant read the live web through these: any page as clean text (Jina Reader, then Exa,
+          then this server), Reddit threads with their comments (found and read through Exa — Reddit refuses anonymous reads),
+          GitHub repositories and issues, and YouTube captions (no key needed). Without a Tavily or Serper key, web search uses Exa too.
+          Only the link or the search words leave the app — never anything private. Logged-in sources (X, LinkedIn, Instagram)
+          aren&apos;t offered: they would need someone&apos;s own sign-in, which a shared server must never hold.
+        </p>
+        <ul className="m-0 p-0 grid sm:grid-cols-2 gap-1">
+          {reachRows.map((h) => {
+            const failing = !!h.failAt && (!h.okAt || h.failAt > h.okAt);
+            return (
+              <li key={h.channel} className="list-none" data-reach-channel={h.channel}>
+                <span style={{ color: !h.okAt && !h.failAt ? "var(--mute)" : failing ? "var(--rose-on)" : "var(--green-on)" }}>{!h.okAt && !h.failAt ? "○" : failing ? "✗" : "✓"}</span>{" "}
+                <b>{h.label}</b>{" "}
+                <span className="text-[var(--mute)]">
+                  {!h.okAt && !h.failAt ? "not used yet" : failing ? `failed ${formatDay(h.failAt!)} — ${(h.error ?? "").slice(0, 120)}` : `worked ${formatDay(h.okAt!)}${h.via ? ` via ${h.via}` : ""}`}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+        <div className="flex flex-wrap gap-2 items-center">
+          <form action={saveReachDialAction}>
+            <input type="hidden" name="dial" value="reach:free" />
+            <input type="hidden" name="value" value={reachFree ? "off" : "on"} />
+            <SubmitButton className="btn sm" pendingText="Saving…">{reachFree ? "Turn free public sources off" : "Turn free public sources on"}</SubmitButton>
+          </form>
+          <span className="text-[var(--mute)]">{reachFree ? "On — Jina Reader and Exa are used without a key, at their free limits." : "Off — nothing goes to Jina or Exa without a key."}</span>
+        </div>
+        <div className="flex flex-wrap gap-2 items-center">
+          <form action={saveReachDialAction}>
+            <input type="hidden" name="dial" value="ideas:listen" />
+            <input type="hidden" name="value" value={ideasListen ? "off" : "on"} />
+            <SubmitButton className="btn sm" pendingText="Saving…">{ideasListen ? "Stop grounding ideas in discussions" : "Ground ideas in live discussions"}</SubmitButton>
+          </form>
+          <span className="text-[var(--mute)]">{ideasListen ? "On — article discovery reads what people are discussing about the Topic first, and keeps the links on each idea." : "Off — ideas come from the company profile, Topics and keywords only."}</span>
+        </div>
+        <p className="m-0 text-micro text-[var(--mute)]">Keys that raise the limits — Exa, Jina, GitHub — are in Search API keys above. Built on the ideas of the open-source Agent-Reach toolkit (MIT).</p>
+      </section>
 
       {/* Media & video — provider keys + the in-app switches that select them. */}
       <div className="flex items-center gap-3 mb-2 mt-8">

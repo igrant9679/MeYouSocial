@@ -69,6 +69,30 @@ export async function connectionRows(workspaceId: string): Promise<ConnRow[]> {
     db.channel.count({ where: { workspaceId, linkedYoutubeHandle: { not: null } } }),
   ]);
 
+  // Reach (the Agent-Reach port): Exa's key, the free public services dial,
+  // and what each live source last did — the "doctor" (2026-11-09).
+  const reach = await import("@/lib/reach/core");
+  const [exaKey, freeReach, reachHealthRows] = await Promise.all([
+    reach.keyFor("exa", workspaceId).then(Boolean, () => false),
+    reach.freeServicesOn(workspaceId).catch(() => true),
+    reach.reachHealth(workspaceId).catch(() => []),
+  ]);
+  const reachRow = (() => {
+    const tried = reachHealthRows.filter((h) => h.okAt || h.failAt);
+    const failing = tried.filter((h) => h.failAt && (!h.okAt || h.failAt > h.okAt));
+    const day = (d: Date) => d.toISOString().slice(0, 10);
+    return {
+      state: (!freeReach && !exaKey ? "missing" : failing.length ? "partial" : "ok") as ConnState,
+      detail: !freeReach && !exaKey
+        ? "free public sources are off — pages are read by this server only, and Reddit, GitHub and captions only with keys"
+        : tried.length === 0
+          ? "reading pages (Jina Reader, Exa), Reddit threads, GitHub and YouTube captions — nothing used yet"
+          : tried.map((h) => failing.includes(h)
+              ? `${h.label}: failed ${day(h.failAt!)} (${(h.error ?? "").slice(0, 90)})`
+              : `${h.label}: worked ${day(h.okAt!)}${h.via ? ` via ${h.via}` : ""}`).join(" · "),
+    };
+  })();
+
   // Only the providers the router can write with (SET-04: a stored GPT or
   // DeepSeek key read as "Writing ok" while every call went to the mock).
   const llmOn = llmKeys.filter((k) => k.ok && TEXT_PROVIDERS.includes(k.p)).map((k) => k.p);
@@ -87,8 +111,14 @@ export async function connectionRows(workspaceId: string): Promise<ConnRow[]> {
     },
     {
       key: "search", label: "Live web search (citations)", href: "/admin/api-keys",
-      state: hasValue(tavily) || hasValue(serper) ? "ok" : "missing",
-      detail: [hasValue(tavily) && "Tavily", hasValue(serper) && "Serper"].filter(Boolean).join(" · ") || "no search key — [NEEDS SOURCE] claims cannot be auto-sourced",
+      state: hasValue(tavily) || hasValue(serper) || exaKey || freeReach ? "ok" : "missing",
+      detail: [hasValue(tavily) && "Tavily", hasValue(serper) && "Serper", exaKey && "Exa"].filter(Boolean).join(" · ")
+        || (freeReach ? "free public search (Exa, rate-limited) — a Tavily, Serper or Exa key raises the limits" : "no search — free public sources are off and no key is set, so [NEEDS SOURCE] claims cannot be auto-sourced"),
+    },
+    {
+      key: "reach", label: "Live sources (pages, Reddit, GitHub, captions)", href: "/admin/api-keys#reach",
+      state: reachRow.state,
+      detail: reachRow.detail,
     },
     {
       key: "search-data", label: "Keyword volume (search data)", href: "/admin/api-keys",
@@ -159,7 +189,9 @@ export async function connectionRows(workspaceId: string): Promise<ConnRow[]> {
   // Where each key-backed row reads from (E-SET-03), so "ok" says whose key it is.
   const sources: Record<string, Promise<string | undefined>> = {
     llm: Promise.all(llmOn.map((p) => keySource(workspaceId, `api_key:${p}`))).then((s) => [...new Set(s.filter(Boolean))].join(" and ") || undefined),
-    search: keySource(workspaceId, hasValue(tavily) ? "api_key:tavily" : "api_key:serper", hasValue(tavily) ? "TAVILY_API_KEY" : "SERPER_API_KEY"),
+    search: hasValue(tavily) || hasValue(serper)
+      ? keySource(workspaceId, hasValue(tavily) ? "api_key:tavily" : "api_key:serper", hasValue(tavily) ? "TAVILY_API_KEY" : "SERPER_API_KEY")
+      : exaKey ? keySource(workspaceId, "api_key:exa", "EXA_API_KEY") : Promise.resolve(freeReach ? "free public search" : undefined),
     "search-data": keySource(workspaceId, hasValue(dataforseo) ? "api_key:dataforseo" : "api_key:keywordseverywhere", hasValue(dataforseo) ? "DATAFORSEO_AUTH" : "KEYWORDS_EVERYWHERE_API_KEY"),
     voice: keySource(workspaceId, "api_key:elevenlabs", "ELEVENLABS_API_KEY"),
     shorts: keySource(workspaceId, "api_key:heygen", "HEYGEN_API_KEY"),

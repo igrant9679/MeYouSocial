@@ -400,7 +400,7 @@ export default async function AnalyticsConnectionsPage({
           rest of the app follows.
         </p>
         <p>
-          Still missing and worth adding: a <b>search key</b> (Tavily or Serper) for keyword and competitor research —
+          Worth adding: a <b>search key</b> (Tavily, Serper or Exa) for keyword and competitor research — without one the free public search (Exa) is used, at its rate limit —
           that one lives under <Link href="/admin/api-keys" className="underline">API keys → Search</Link>. Social activity comes from
           <Link href="/admin/connections" className="underline"> Connections</Link> (Unipile).
         </p>

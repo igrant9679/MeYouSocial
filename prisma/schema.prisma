@@ -97,6 +97,7 @@ model Workspace {
   uploadSessions  UploadSession[]
   youtubeUploads  YoutubeUpload[]
   thumbnailTests  ThumbnailTest[]
+  reachHealth     ReachHealth[]
   captionBatches  CaptionBatch[]
   wordPressConnection WordPressConnection?
   functionModes   FunctionMode[]
@@ -664,6 +665,9 @@ model BlogIdea {
   // Why it was rejected (E-IDE-18): lib/reject-reasons.ts keys; fed back into discovery.
   rejectReason   String?
   refreshPostId  String?  // set when this should update a post instead of being new
+  // What the idea was drawn from: live discussions and pages found when it was
+  // discovered (Reach), as JSON [{title, url, source}]. Null = nothing live behind it.
+  evidence       String?
   mergedIntoId   String?  // set when merged into another idea
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2102,6 +2106,25 @@ model WebhookReceipt {
 
   @@unique([source, eventId])
   @@index([receivedAt])
+}
+
+/// What each live source last did for a workspace (Reach — the hosted port of the
+/// Agent-Reach toolkit): the last success, the last failure and why, and which
+/// backend answered. Connections reads it to say which sources work right now.
+/// Its own table so a search never writes an audited setting.
+model ReachHealth {
+  id          String    @id @default(cuid())
+  workspaceId String
+  channel     String    // web.read | web.search | reddit | github | youtube
+  okAt        DateTime?
+  failAt      DateTime?
+  error       String?
+  via         String?   // the backend that last answered: jina, exa, exa-api, local, github-api, innertube
+  updatedAt   DateTime  @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, channel])
 }
 
 model SocialInboxEvent {

@@ -176,6 +176,11 @@ but it means **bad output can look like real output**. Rules learned the hard wa
 - **Content-size zoom** `src/lib/ui-size.ts` — `zoom` on `<body>` (1 / 1.1 / 1.22). ⚠ Always set
   `--ui-zoom` alongside it: `.min-h-screen` is overridden (unlayered) to `calc(100vh / var(--ui-zoom))`
   so viewport-sized boxes stay one viewport after scaling. Standard size is a genuine no-op.
+- **Live sources (Reach)** `src/lib/reach/` — the hosted port of Agent-Reach: `readLink()` (page via Jina → Exa →
+  own fetch, Reddit via Exa, GitHub API, YouTube captions via the player API), `webSearch()` (Exa, keyless fallback for
+  `lib/search`), `listen()` (what people are discussing, numbered). Ordered backends, one result shape, a health row
+  per channel (`ReachHealth`). ⚠ Never add a channel that needs someone's own login/cookies. Its text is outside text:
+  `quoteForPrompt` + `QUOTED_MATERIAL_RULE` in prompts, `outside` on assistant tools.
 - **Left nav** `src/components/LeftRailNav.tsx` — active route via shared `isNavActive()`.
 - **Theming** `src/app/globals.css` — light/dark via `data-theme`. Per-hue tokens `--<hue>`,
   `--<hue>-soft`, `--<hue>-on`; dark mode derives soft/on via `color-mix`, so **use the tokens, not
@@ -355,6 +360,7 @@ area, rather than loading all of them into every session.
 - A thumbnail test rotates on the live video and is scored by YouTube's reach reports — 2026-11-06, audit E-VID-05, growth part cx
 - The audit's loose ends: one live job per thing, events once and in order, clips to length, ranges per view — 2026-11-07, audit ENG-22 / SOC-15 / VID-11 / MEA-11 / PRF-02 / SET-04, growth part cy
 - One type scale and the theme's colours, checked at build — 2026-11-07, the team tracker's "cluttered colours and fonts", growth part cz
+- Live sources (Reach): pages, Reddit, GitHub and YouTube captions feed search, research and ideas — 2026-11-09, the owner's order to integrate Agent-Reach, growth part da
 
 ## Open items / things the user still owns
 - **Analytics: APIs enabled 2026-08-03** (Search Console + GA Admin + GA Data, on project

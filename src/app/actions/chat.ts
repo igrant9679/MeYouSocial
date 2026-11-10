@@ -72,9 +72,10 @@ export async function postMessageAction(formData: FormData) {
     const { provider: webSearch, real } = await getSearchProvider(workspace.id);
     // ⚠ The mock's results were inserted as facts (ENG-14). No key → say so.
     if (!real) {
-      extraContext += "\n[ quick web search unavailable — no search key (Tavily or Serper) is set for this workspace. Tell the person; don't answer as if you had searched.]";
+      extraContext += "\n[ quick web search unavailable — free public search is off and no search key (Tavily, Serper or Exa) is set for this workspace. Tell the person; don't answer as if you had searched.]";
     } else {
       const results = await webSearch.search(webMatch[2], 5);
+      if (!results.length) extraContext += "\n[ quick web search returned nothing — the search service may be at its free limit. Say so; don't answer as if you had found sources.]";
       extraContext += "\n[ quick web search]\n" + results.map((r, i) => `${i + 1}. ${r.title} — ${r.url}\n   ${r.snippet}`).join("\n");
     }
   }

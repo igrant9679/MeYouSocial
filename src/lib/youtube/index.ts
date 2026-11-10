@@ -329,7 +329,14 @@ export function youtubeFor(workspaceId?: string): YouTubeProvider {
       return (await pick(workspaceId)).listVideos(channelId, limit);
     },
     async getTranscript(videoId) {
-      return (await pick(workspaceId)).getTranscript(videoId);
+      const provider = await pick(workspaceId);
+      // The mock keeps its labelled placeholder (testing). Otherwise the captions
+      // come from Reach's YouTube channel — the public player API, no key needed
+      // (the Data API can't download captions without OAuth). No captions, or
+      // YouTube refusing this server, is null — never an invented transcript.
+      if (provider === mock) return provider.getTranscript(videoId);
+      const { readYoutube } = await import("@/lib/reach/channels");
+      return readYoutube(workspaceId, videoId).then((r) => r.item.text || null, () => null);
     },
     async searchChannels(query, limit) {
       return (await pick(workspaceId)).searchChannels(query, limit);
