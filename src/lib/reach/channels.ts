@@ -27,6 +27,71 @@ export async function readReddit(workspaceId: string | null | undefined, url: st
   return webRead(workspaceId, url, { maxChars, skipJina: true, channel: "reddit", source: "reddit" });
 }
 
+// ── Public social posts ──────────────────────────────────────────────────────
+//
+// What people post in public on Threads, Quora, Hacker News, Bluesky, LinkedIn,
+// Medium, YouTube and Pinterest: FOUND by site-restricted search, the way Reddit
+// is, with no login and no platform API. Two searches, not one. Asked together,
+// LinkedIn's product and company pages filled every slot (tested 2026-11-10), so
+// the conversation sites are asked apart from the article and video sites. Only
+// a post-shaped link counts: a profile, a product page or the platform's own
+// help page isn't anyone's post.
+// ⚠ X, Instagram, TikTok and Facebook are NOT here. Search finds almost none of
+// their posts and their pages are login walls; reaching them needs their paid
+// APIs or someone's own login, which a shared server must never borrow.
+
+export type SocialPlatform = { label: string; sites: string[]; post: RegExp; group: "talk" | "posts" };
+
+export const SOCIAL_PLATFORMS: SocialPlatform[] = [
+  { label: "Threads", sites: ["threads.com", "threads.net"], post: /^\/@[^/]+\/post\/[\w-]+/, group: "talk" },
+  { label: "Quora", sites: ["quora.com"], post: /^\/(?!profile\/|topic\/|search\b|about\b|resources\/)[^/?#]*-[^/?#]*/, group: "talk" },
+  { label: "Hacker News", sites: ["news.ycombinator.com"], post: /^\/item\?id=\d+/, group: "talk" },
+  { label: "Bluesky", sites: ["bsky.app"], post: /^\/profile\/[^/]+\/post\/\w+/, group: "talk" },
+  { label: "LinkedIn", sites: ["linkedin.com"], post: /^\/(?:pulse|posts)\/[^/?#]+/, group: "posts" },
+  { label: "Medium", sites: ["medium.com"], post: /-[0-9a-f]{8,12}(?:[/?#]|$)/, group: "posts" },
+  { label: "YouTube", sites: ["youtube.com"], post: /^\/(?:watch\?(?:[^#]*&)?v=[\w-]{11}|shorts\/[\w-]{11})/, group: "posts" },
+  { label: "Pinterest", sites: ["pinterest.com"], post: /^\/pin\/\d+/, group: "posts" },
+];
+
+/** The platform a link is a public post on, or null (a profile, a company page, another site). */
+export function socialPlatformOf(url: string): SocialPlatform | null {
+  let u: URL;
+  try { u = new URL(url); } catch { return null; }
+  const p = SOCIAL_PLATFORMS.find((x) => hostIs(url, ...x.sites));
+  return p && p.post.test(u.pathname + u.search) ? p : null;
+}
+
+export async function searchSocial(workspaceId: string | null | undefined, query: string, limit = 5, opts: { freshDays?: number } = {}): Promise<{ items: ReachItem[]; via: string }> {
+  const [exaKey, free] = await Promise.all([keyFor("exa", workspaceId), freeServicesOn(workspaceId)]);
+  if (!exaKey && !free) throw new ReachError("OFF", "social posts are found through Exa — add an Exa key or turn free public sources on (Settings → Keys → Live sources)");
+  const groups = (["talk", "posts"] as const).map((g) => SOCIAL_PLATFORMS.filter((p) => p.group === g).flatMap((p) => p.sites));
+  const settled = await Promise.allSettled(groups.map((sites) => webSearch(workspaceId, query, { limit: 10, sites, source: "social", freshDays: opts.freshDays ?? 365 }, "social")));
+  const byPlatform = new Map<string, ReachItem[]>();
+  const seen = new Set<string>();
+  let via = "";
+  for (const r of settled) {
+    if (r.status === "rejected") continue;
+    via ||= r.value.via;
+    for (const it of r.value.items) {
+      const p = it.url ? socialPlatformOf(it.url) : null;
+      if (!p || seen.has(it.url!)) continue;
+      seen.add(it.url!);
+      byPlatform.set(p.label, [...(byPlatform.get(p.label) ?? []), { ...it, source: "social", meta: { ...it.meta, platform: p.label } }]);
+    }
+  }
+  // One from each platform before a second from any, so one loud site can't fill the list.
+  const lists = [...byPlatform.values()];
+  const spread: ReachItem[] = [];
+  for (let round = 0; lists.some((l) => l[round]); round++) for (const l of lists) if (l[round]) spread.push(l[round]);
+  if (!spread.length) {
+    const failed = settled.flatMap((r) => (r.status === "rejected" ? [r.reason] : []));
+    // Both searches failed: say why (a limit or a block says more than "no results").
+    if (failed.length === settled.length) throw failed.find((e) => e instanceof ReachError && e.code !== "NOT_FOUND") ?? failed[0];
+    throw new ReachError("NOT_FOUND", "no public social posts matched");
+  }
+  return { items: spread.slice(0, limit), via };
+}
+
 // ── GitHub ───────────────────────────────────────────────────────────────────
 //
 // The public REST API: 60 requests an hour without a token, 5,000 with one (a

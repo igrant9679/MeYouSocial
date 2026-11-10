@@ -2485,3 +2485,27 @@ before changing code in that area.
 - ⚠ Everything a channel returns is other people's text: prompts get it only through `quoteForPrompt` +
   `QUOTED_MATERIAL_RULE`; the assistant through tools marked `outside` (`read_web_page` now reads any link via Reach,
   `search_discussions` is new). `scripts/assistant-eval.mts` must stay green.
+
+## Public social posts join Reach: Threads, Quora, Hacker News, Bluesky, LinkedIn, Medium, YouTube, Pinterest (2026-11-10, the owner's "Yes, add them", growth part db)
+- **`searchSocial()`** (`src/lib/reach/channels.ts`) finds public posts the way Reddit is found: a site-restricted Exa
+  search, no login, no platform API. `SOCIAL_PLATFORMS` lists each platform's hosts and a POST-SHAPED path
+  (`/@u/post/…`, `/item?id=`, `/pulse/` · `/posts/`, `/pin/`, a Medium slug ending in its hex id, a watch/shorts link …);
+  `socialPlatformOf(url)` returns the platform only for such a link — a profile, a company/product page or the
+  platform's own help page is not anyone's post and is dropped. ⚠ TWO searches, not one: asked together, LinkedIn's
+  product and company pages filled all ten slots (tested 2026-11-10), so the conversation sites (Threads, Quora, Hacker
+  News, Bluesky) are asked apart from the article/video sites (LinkedIn, Medium, YouTube, Pinterest). Results are taken
+  one per platform before a second from any. Health is the `social` row of `ReachHealth` ("Social posts").
+- ⚠ **X, Instagram, TikTok, Facebook and anyone's LinkedIn feed are NOT offered.** Probed 2026-11-10: search finds no
+  X posts and almost only TikTok/Facebook help pages; Instagram, TikTok and LinkedIn pages read as login walls. Reaching
+  them needs their paid APIs or a person's login — the owner's decision, never a borrowed session.
+- **Where it shows**: `listen()` asks Reddit, social posts and the web (and GitHub when asked), TAKEN IN TURNS (a first
+  from each channel, then a second …) so a caller keeping the first few still hears every channel; article discovery now
+  keeps 10 (was 8). Deep research's **Include public social posts** (`includeSocial`) adds numbered posts (the first one
+  or two read in full via `readLink`; YouTube by captions) to *What people are saying*; `webSources` carry
+  `source: "social", platform`. Add a link reads a post link (`linkKind` → `social`, read like a page — Quora's bot
+  check and Medium's blocks fall through to Exa). `sourceLabel(source, url)` names the platform everywhere a source is
+  tagged: Drawn from, the report's sources, the assistant's `search_discussions` (`social: no` leaves them out).
+- A post read in full is `tidyPost`-ed (pictures dropped, links reduced to their words) — Jina returns the site's menus
+  and avatars as Markdown. ⚠ Exa's free hosted limit is a BURST limit: ~3 calls in the same second, the rest 429 with
+  `retry-after: 1` (probed 2026-11-10). `listen()` now fires four at once, so `exaHosted` waits what it's told (+ jitter)
+  and retries, twice at most — without it, the social search lost the race in local checks.

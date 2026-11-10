@@ -41,8 +41,11 @@ export default async function ChannelResearchPage({ params, searchParams }: { pa
   const text = focused?.content ?? null;
   // The web results a report was given (E-IDE-15) — http(s) links only, as stored.
   const storedSources = readJson<unknown>(focused?.webSources ?? null, []);
-  const webSources = (Array.isArray(storedSources) ? storedSources as { title?: unknown; url?: unknown; source?: unknown; read?: unknown }[] : [])
-    .filter((w): w is { title?: string; url: string; source?: string; read?: boolean } => typeof w?.url === "string" && /^https?:\/\//i.test(w.url));
+  const webSources = (Array.isArray(storedSources) ? storedSources as { title?: unknown; url?: unknown; source?: unknown; platform?: unknown; read?: unknown }[] : [])
+    .filter((w): w is { title?: string; url: string; source?: string; platform?: string; read?: boolean } => typeof w?.url === "string" && /^https?:\/\//i.test(w.url));
+  // Where a source came from, when it wasn't a plain web result: a Reddit thread or a social post's platform.
+  const fromTag = (w: { source?: string; platform?: string }) =>
+    w.source === "reddit" ? "Reddit" : w.source === "social" ? (typeof w.platform === "string" && w.platform ? w.platform.slice(0, 40) : "Social") : null;
 
   return (
     <div>
@@ -90,6 +93,10 @@ export default async function ChannelResearchPage({ params, searchParams }: { pa
             <input type="checkbox" name="includeDiscussions" value="1" defaultChecked />
             Include what people are saying (Reddit)
           </label>
+          <label className="flex items-center gap-1.5 text-xs ml-2" title="Public posts on Threads, Quora, Hacker News, Bluesky, LinkedIn, Medium, YouTube and Pinterest, found through a site search — no login. X, Instagram, TikTok and Facebook can't be searched without one.">
+            <input type="checkbox" name="includeSocial" value="1" defaultChecked data-include-social="" />
+            Include public social posts
+          </label>
           <span className="flex-1" />
           <SubmitButton className="btn primary">Run deep research</SubmitButton>
         </div>
@@ -102,11 +109,11 @@ export default async function ChannelResearchPage({ params, searchParams }: { pa
           <input type="hidden" name="channelId" value={id} />
           <label className="flex flex-col gap-1 flex-1 min-w-64">
             <span className="text-micro font-mono uppercase tracking-wider text-[var(--mute)]">Add a link</span>
-            <input name="url" type="url" required placeholder="https://… a page, a YouTube video, a Reddit thread or a GitHub repo" className="border border-[var(--line-2)] rounded-lg p-2 text-sm" />
+            <input name="url" type="url" required placeholder="https://… a page, a YouTube video, a Reddit thread, a social post or a GitHub repo" className="border border-[var(--line-2)] rounded-lg p-2 text-sm" />
           </label>
           <SubmitButton className="btn" pendingText="Reading…">Read and add</SubmitButton>
           <p className="basis-full text-2xs text-[var(--mute)] m-0">
-            A page is read as clean text, a video by its captions, a Reddit thread with its comments, a GitHub repository by its README.
+            A page is read as clean text, a video by its captions, a Reddit thread with its comments, a public social post (Threads, LinkedIn, Hacker News, Bluesky …) by its text, a GitHub repository by its README.
             Public links only; the link is fetched through Jina Reader or Exa unless free public sources are off.
           </p>
         </form>
@@ -191,7 +198,7 @@ export default async function ChannelResearchPage({ params, searchParams }: { pa
                     {webSources.map((w, i) => (
                       <li key={i}>
                         <a href={w.url} target="_blank" rel="noopener noreferrer" className="text-[var(--accent)] underline break-all">{w.title || w.url}</a>
-                        {w.source === "reddit" && <span className="ml-1 text-micro font-mono uppercase tracking-wider text-[var(--mute)]">Reddit</span>}
+                        {fromTag(w) && <span className="ml-1 text-micro font-mono uppercase tracking-wider text-[var(--mute)]" data-source-tag="">{fromTag(w)}</span>}
                         {w.read && <span className="ml-1 text-micro font-mono uppercase tracking-wider text-[var(--mute)]">read in full</span>}
                       </li>
                     ))}

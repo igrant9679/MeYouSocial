@@ -1396,16 +1396,16 @@ export const TOOLS: Tool[] = [
   },
   {
     name: "read_web_page",
-    description: "Read a public link the person pointed at and return its title and text (first ~6000 characters): any web page as clean text, a YouTube video's captions, a Reddit thread with its comments, a GitHub repository's README or an issue with its comments. Not for private/internal addresses.",
+    description: "Read a public link the person pointed at and return its title and text (first ~6000 characters): any web page as clean text, a YouTube video's captions, a Reddit thread with its comments, a public social post (Threads, LinkedIn, Quora, Hacker News, Bluesky, Medium), a GitHub repository's README or an issue with its comments. Not for private/internal addresses.",
     args: { url: "https://… the link" },
     readOnly: true,
     outside: "a web page",
     opensUrl: (a) => str(a.url, 500) || null,
     async run(a, ctx) {
-      const { readLink, reasonOf } = await import("@/lib/reach");
+      const { readLink, reasonOf, sourceLabel } = await import("@/lib/reach");
       try {
         const { item, via } = await readLink(ctx.workspaceId, str(a.url, 500), 6000);
-        const kind = item.source === "youtube" ? `YouTube captions${item.meta?.auto ? " (auto-generated)" : ""}` : item.source === "reddit" ? "Reddit thread" : item.source === "github" ? "GitHub" : "page";
+        const kind = item.source === "youtube" ? `YouTube captions${item.meta?.auto ? " (auto-generated)" : ""}` : item.source === "reddit" ? "Reddit thread" : item.source === "github" ? "GitHub" : item.source === "social" ? `${sourceLabel("social", item.url ?? str(a.url, 500))} post` : "page";
         return `${item.title || "(no title)"} — ${kind}, read via ${via}${item.author ? `, by ${item.author}` : ""}${item.publishedAt ? `, ${item.publishedAt}` : ""}\n\n${item.text}`;
       } catch (e) {
         return `could not read it: ${reasonOf(e)}`;
@@ -1414,16 +1414,16 @@ export const TOOLS: Tool[] = [
   },
   {
     name: "search_discussions",
-    description: "What people are saying about a subject right now: Reddit threads (found through a site-restricted search — Reddit refuses anonymous reads), the web, and — for technical subjects — GitHub repositories. Numbered items with links and a snippet; read one in full with read_web_page.",
-    args: { subject: "what to listen for", github: "optional: yes to include GitHub repositories", perSource: "optional, default 4" },
+    description: "What people are saying about a subject right now: Reddit threads (found through a site-restricted search — Reddit refuses anonymous reads), public social posts (Threads, Quora, Hacker News, Bluesky, LinkedIn, Medium, YouTube, Pinterest — found the same way, no login), the web, and — for technical subjects — GitHub repositories. Numbered items with links and a snippet, each tagged with where it came from; read one in full with read_web_page. X, Instagram, TikTok and Facebook can't be searched (they need a login).",
+    args: { subject: "what to listen for", github: "optional: yes to include GitHub repositories", social: "optional: no to leave out social posts", perSource: "optional, default 4" },
     readOnly: true,
     outside: "web search results",
     async run(a, ctx) {
       const subject = str(a.subject, 300);
       if (!subject) return "no subject given";
-      const { listen } = await import("@/lib/reach");
-      const r = await listen(ctx.workspaceId, subject, { perSource: num(a.perSource, 4, 8), github: /^(y|yes|true|1)$/i.test(str(a.github, 5)) });
-      const lines = r.signals.map((s) => `${s.n}. [${s.source}] ${s.title} — ${s.url}${s.publishedAt ? ` (${s.publishedAt.slice(0, 10)})` : ""}\n   ${s.snippet.slice(0, 300)}`);
+      const { listen, sourceLabel } = await import("@/lib/reach");
+      const r = await listen(ctx.workspaceId, subject, { perSource: num(a.perSource, 4, 8), github: /^(y|yes|true|1)$/i.test(str(a.github, 5)), social: !/^(n|no|false|0)$/i.test(str(a.social, 5)) });
+      const lines = r.signals.map((s) => `${s.n}. [${sourceLabel(s.source, s.url)}] ${s.title} — ${s.url}${s.publishedAt ? ` (${s.publishedAt.slice(0, 10)})` : ""}\n   ${s.snippet.slice(0, 300)}`);
       return [lines.join("\n") || "nothing found", r.notes.length ? `Not reached: ${r.notes.join("; ")}` : ""].filter(Boolean).join("\n\n");
     },
   },

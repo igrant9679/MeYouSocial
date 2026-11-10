@@ -137,20 +137,22 @@ export async function discoverIdeasCore(workspaceId: string, topicId?: string | 
 
   // ⚠ GROUNDED IN WHAT PEOPLE ARE SAYING (Reach, 2026-11-09). Ideas used to come
   // from the organization profile alone. Now, unless `ideas:listen` is "off",
-  // one listening pass (Reddit threads + the web) on the Topic — or the top
-  // Topics — goes in as numbered, quoted material, and each idea names the
-  // items it answers; those links are kept on the idea as its evidence. A
-  // source that can't be reached just isn't there: discovery never waits on it.
+  // one listening pass (Reddit threads, public social posts and the web — growth
+  // part db added the social posts 2026-11-10) on the Topic — or the top Topics —
+  // goes in as numbered, quoted material, and each idea names the items it
+  // answers; those links are kept on the idea as its evidence. A source that
+  // can't be reached just isn't there: discovery never waits on it.
   const { getSetting } = await import("@/lib/settings");
   const listenOn = (await getSetting("ideas:listen", workspaceId).catch(() => "")) !== "off";
   const subject = focusTopic
     ? [focusTopic.name, ...readJson<string[]>(focusTopic.keywords, []).slice(0, 3)].join(" ")
     : allTopics.length ? allTopics.slice(0, 2).map((t) => t.name).join(" OR ") : (org?.industry ?? "");
-  const { listen, quoteForPrompt, QUOTED_MATERIAL_RULE } = await import("@/lib/reach");
+  const { listen, quoteForPrompt, QUOTED_MATERIAL_RULE, sourceLabel } = await import("@/lib/reach");
   const heard = listenOn && subject.trim()
     ? await listen(workspaceId, subject.slice(0, 200), { perSource: 4, freshDays: 120 }).catch(() => ({ signals: [], notes: [] }))
     : { signals: [], notes: [] };
-  const signals = heard.signals.slice(0, 8);
+  // listen() takes its channels in turns, so the first ten hold some of each.
+  const signals = heard.signals.slice(0, 10);
 
   const system =
     "You generate blog topic ideas and tag them. Respond ONLY with a JSON array of objects: " +
@@ -183,7 +185,7 @@ export async function discoverIdeasCore(workspaceId: string, topicId?: string | 
     existing.length ? `Avoid duplicating these existing ideas: ${existing.map((i) => i.title).join(" | ")}` : null,
     rejectedLine(rejected),
     signals.length
-      ? `What people are discussing now (numbered — cite them in sources):\n${signals.map((s) => `[${s.n}] (${s.source}) ${s.title}\n${s.url}\n${quoteForPrompt(`discussion ${s.n}`, s.snippet, 500)}`).join("\n")}`
+      ? `What people are discussing now (numbered — cite them in sources):\n${signals.map((s) => `[${s.n}] (${sourceLabel(s.source, s.url)}) ${s.title}\n${s.url}\n${quoteForPrompt(`discussion ${s.n}`, s.snippet, 500)}`).join("\n")}`
       : null,
     `Generate ${want} blog post ideas.`,
   ]

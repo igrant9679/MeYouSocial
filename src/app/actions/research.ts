@@ -34,6 +34,9 @@ export async function deepResearchAction(formData: FormData) {
   // and add what people are saying on Reddit.
   const readSources = String(formData.get("readSources") ?? "") === "1";
   const includeDiscussions = String(formData.get("includeDiscussions") ?? "") === "1";
+  // Public social posts (growth part db, 2026-11-10): Threads, Quora, Hacker
+  // News, Bluesky, LinkedIn, Medium, YouTube, Pinterest — found without a login.
+  const includeSocial = String(formData.get("includeSocial") ?? "") === "1";
   if (!question) return;
 
   const { workspace } = await requireRole("EDITOR");
@@ -64,7 +67,7 @@ export async function deepResearchAction(formData: FormData) {
   // 3) Reach: the top results read in full, and Reddit threads — each numbered
   // after the web results so the report can cite them as [n]. A channel that
   // fails is named at the foot of the report, never silently dropped.
-  const { webRead, searchReddit, readReddit, reasonOf, quoteForPrompt, QUOTED_MATERIAL_RULE } = await import("@/lib/reach");
+  const { webRead, searchReddit, readReddit, searchSocial, readLink, sourceLabel, reasonOf, quoteForPrompt, QUOTED_MATERIAL_RULE } = await import("@/lib/reach");
   const notReached: string[] = [];
   const fullReads = readSources ? ({ basic: 1, intermediate: 2, comprehensive: 4, exhaustive: 6 } as const)[depth] ?? 2 : 0;
   const fullText = new Map<string, string>();
@@ -86,6 +89,23 @@ export async function deepResearchAction(formData: FormData) {
       if (t.url) threads.push({ title: t.title ?? t.url, url: t.url, text });
     }
   }
+  // Social posts: the search excerpt for each, the first one or two read in full
+  // (a YouTube result by its captions). A post that can't be read keeps its excerpt.
+  type Post = Thread & { platform: string };
+  const posts: Post[] = [];
+  if (includeSocial) {
+    const found = await searchSocial(workspace.id, question, depth === "basic" ? 3 : depth === "intermediate" ? 5 : 6).catch((e) => { notReached.push(`Social posts — ${reasonOf(e)}`); return null; });
+    const readPosts = depth === "comprehensive" || depth === "exhaustive" ? 2 : 1;
+    for (const [i, p] of (found?.items ?? []).entries()) {
+      if (!p.url) continue;
+      let text = p.text;
+      if (i < readPosts) {
+        const full = await readLink(workspace.id, p.url, 3500).catch((e) => { notReached.push(`${p.url} — ${reasonOf(e)}`); return null; });
+        if (full) text = full.item.text;
+      }
+      posts.push({ title: p.title ?? p.url, url: p.url, text, platform: sourceLabel("social", p.url) });
+    }
+  }
 
   // 4) LLM synthesis pass.
   const webBlock = webResults.map((r, i) => {
@@ -93,7 +113,10 @@ export async function deepResearchAction(formData: FormData) {
     return body ? `[${i + 1}] ${r.title}\n${r.url}\n${quoteForPrompt(`page ${i + 1}`, body, 4000)}` : `[${i + 1}] ${r.title}\n${r.url}\n${r.snippet}`;
   });
   const threadBlock = threads.map((t, i) => `[${webResults.length + i + 1}] (Reddit) ${t.title}\n${t.url}\n${quoteForPrompt(`thread ${webResults.length + i + 1}`, t.text, 3500)}`);
-  const sourceBlock = [...webBlock, ...threadBlock].join("\n\n");
+  const postStart = webResults.length + threads.length;
+  const postBlock = posts.map((p, i) => `[${postStart + i + 1}] (${p.platform}) ${p.title}\n${p.url}\n${quoteForPrompt(`post ${postStart + i + 1}`, p.text, 3500)}`);
+  const sourceBlock = [...webBlock, ...threadBlock, ...postBlock].join("\n\n");
+  const heardFrom = [threads.length ? "the Reddit threads" : "", posts.length ? "the social posts" : ""].filter(Boolean).join(" and ");
   const completion = await llm.complete({
     purpose: "research",
     model: channel.defaultModel ?? "",
@@ -104,7 +127,7 @@ export async function deepResearchAction(formData: FormData) {
 4. **Surprising data points**
 5. **Suggested angles** (3-5 video ideas grounded in the research)
 6. **Sources** (numbered list from input)
-${threads.length ? "Add a section **What people are saying** between 4 and 5: the questions, complaints and disagreements in the Reddit threads, each with its [n].\n" : ""}Stay within ~${Math.round(budget / 6)} words.
+${heardFrom ? `Add a section **What people are saying** between 4 and 5: the questions, complaints and disagreements in ${heardFrom}, each with its [n].\n` : ""}Stay within ~${Math.round(budget / 6)} words.
 ${QUOTED_MATERIAL_RULE}`,
     messages: [{
       role: "user",
@@ -135,6 +158,7 @@ ${QUOTED_MATERIAL_RULE}`,
       webSources: JSON.stringify([
         ...webResults.filter((r) => /^https?:\/\//i.test(r.url)).map((r) => ({ title: r.title.slice(0, 200), url: r.url.slice(0, 1000), ...(fullText.has(r.url) ? { read: true } : {}) })),
         ...threads.map((t) => ({ title: t.title.slice(0, 200), url: t.url.slice(0, 1000), source: "reddit" })),
+        ...posts.map((p) => ({ title: p.title.slice(0, 200), url: p.url.slice(0, 1000), source: "social", platform: p.platform })),
       ]),
       wordCount: (completion.content.match(/[\p{L}\p{N}]+/gu) ?? []).length,
       starred: false,
@@ -148,7 +172,8 @@ ${QUOTED_MATERIAL_RULE}`,
 /**
  * Add a link to the research library (Reach, 2026-11-09): a web page as clean
  * text, a YouTube video's captions, a Reddit thread with its comments, a GitHub
- * repository's README or an issue with its comments. Stored as read; a link
+ * repository's README or an issue with its comments, a public social post
+ * (Threads, LinkedIn, Hacker News, Bluesky …, 2026-11-10). Stored as read; a link
  * that can't be read is refused with the reason, never saved empty.
  */
 export async function addResearchLinkAction(formData: FormData) {
@@ -160,7 +185,7 @@ export async function addResearchLinkAction(formData: FormData) {
   const back = (q: string): never => redirect(`/channels/${channelId}/research?${q}`);
   if (!channel) back(`flashErr=${encodeURIComponent("That channel isn't in this workspace.")}`);
   if (!/^https?:\/\//i.test(url)) back(`flashErr=${encodeURIComponent("Paste a full link, starting with https://.")}`);
-  const { readLink, reasonOf, linkKind, SOURCE_LABEL } = await import("@/lib/reach");
+  const { readLink, reasonOf, linkKind, sourceLabel } = await import("@/lib/reach");
   const read = await readLink(workspace.id, url, 60_000).catch((e: unknown) => back(`flashErr=${encodeURIComponent(`That link couldn't be read: ${reasonOf(e)}`)}`));
   const { item, via } = read;
   const kind = linkKind(url);
@@ -171,13 +196,13 @@ export async function addResearchLinkAction(formData: FormData) {
       ref: url,
       title: (item.title ?? url).slice(0, 200),
       content: item.text,
-      readNote: `${SOURCE_LABEL[kind]}${item.source === "youtube" ? ` captions${item.meta?.auto ? " (auto-generated)" : ""}` : ""}, read via ${via}${item.author ? ` · by ${item.author}` : ""}${item.publishedAt ? ` · ${String(item.publishedAt).slice(0, 10)}` : ""}`.slice(0, 300),
+      readNote: `${sourceLabel(kind, url)}${kind === "social" ? " post" : ""}${item.source === "youtube" ? ` captions${item.meta?.auto ? " (auto-generated)" : ""}` : ""}, read via ${via}${item.author ? ` · by ${item.author}` : ""}${item.publishedAt ? ` · ${String(item.publishedAt).slice(0, 10)}` : ""}`.slice(0, 300),
       wordCount: (item.text.match(/[\p{L}\p{N}]+/gu) ?? []).length,
       starred: false,
     },
   });
   revalidatePath(`/channels/${channelId}/research`);
-  back(`focus=${created.id}&flash=${encodeURIComponent(`Added “${(item.title ?? url).slice(0, 80)}” — ${SOURCE_LABEL[kind]}, read via ${via}.`)}`);
+  back(`focus=${created.id}&flash=${encodeURIComponent(`Added “${(item.title ?? url).slice(0, 80)}” — ${sourceLabel(kind, url)}${kind === "social" ? " post" : ""}, read via ${via}.`)}`);
 }
 
 export async function starResearchAction(formData: FormData) {

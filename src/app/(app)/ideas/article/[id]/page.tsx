@@ -12,7 +12,7 @@ import { getPostingTimeZone } from "@/lib/social/slots";
 import { REJECT_REASONS, isRejectReason } from "@/lib/reject-reasons";
 import { ideaChange } from "@/lib/idea-drafting";
 import { readJson } from "@/lib/db/json";
-import { SOURCE_LABEL as REACH_LABEL } from "@/lib/reach";
+import { sourceLabel } from "@/lib/reach";
 
 // One article idea's page, off the board (IDE-20): every card carried this
 // form and a list of every other open idea plus 60 site pages, so the board's
@@ -85,7 +85,7 @@ export default async function ArticleIdeaPage({ params, searchParams }: { params
           <ul className="m-0 p-0 flex flex-col gap-0.5" data-idea-evidence>
             {evidence.map((e) => (
               <li key={e.url} className="list-none">
-                <span className="text-micro font-mono uppercase tracking-wider text-[var(--mute)] mr-1">{REACH_LABEL[e.source as keyof typeof REACH_LABEL] ?? "Web"}</span>
+                <span className="text-micro font-mono uppercase tracking-wider text-[var(--mute)] mr-1">{sourceLabel(e.source, e.url)}</span>
                 <a href={e.url} target="_blank" rel="noopener noreferrer" className="underline break-all">{e.title || e.url}</a>
               </li>
             ))}

@@ -59,14 +59,28 @@ async function jinaRead(url: string, key: string): Promise<ReachItem> {
 
 const LIMIT_RE = /\b429\b|rate[ _-]?limit|too many requests|\bquota\b|(?:usage|request|daily|monthly|free)[ _-]+limit|(?:out of|insufficient|exhausted).{0,20}credits?/i;
 
-/** One tool call on Exa's free hosted MCP endpoint (no key). */
+/**
+ * One tool call on Exa's free hosted MCP endpoint (no key). ⚠ Its limit is a
+ * BURST limit: about three calls in the same second get through and the rest
+ * answer 429 with `retry-after: 1` (probed 2026-11-10). listen() fires four at
+ * once (Reddit, the web, two social searches), so a 429 waits what it's told
+ * (a second or two, a little jitter) and tries again, twice at most.
+ */
 async function exaHosted(tool: "web_search_exa" | "web_fetch_exa", args: Record<string, unknown>, timeoutMs = 40_000): Promise<string> {
-  const { status, text } = await getText(EXA_MCP, {
-    method: "POST",
-    headers: { "content-type": "application/json", accept: "application/json, text/event-stream", "user-agent": REACH_UA },
-    body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: tool, arguments: args } }),
-    timeoutMs,
-  });
+  let status = 0, text = "";
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const r = await getText(EXA_MCP, {
+      method: "POST",
+      headers: { "content-type": "application/json", accept: "application/json, text/event-stream", "user-agent": REACH_UA },
+      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: tool, arguments: args } }),
+      timeoutMs,
+    });
+    ({ status, text } = r);
+    if (status !== 429 || attempt === 2) break;
+    const told = Number(r.headers.get("retry-after"));
+    const waitMs = Math.min(5, Number.isFinite(told) && told > 0 ? told : 1) * 1000 + Math.floor(Math.random() * 600 * (attempt + 1));
+    await new Promise((res) => setTimeout(res, waitMs));
+  }
   if (status === 429) throw new ReachError("RATE_LIMITED", "Exa's free hosted limit (add an Exa key on Settings → Keys)");
   if (status >= 400) throw new ReachError("UPSTREAM", `Exa answered ${status}`);
   const payloads = text.split(/\r?\n/).filter((l) => l.startsWith("data:")).map((l) => l.slice(5).trim());
@@ -173,7 +187,7 @@ export type WebSearchOptions = {
 };
 
 /** The free web search: Exa with a workspace key, else Exa's hosted endpoint. */
-export async function webSearch(workspaceId: string | null | undefined, query: string, opts: WebSearchOptions = {}, channel: "web.search" | "reddit" = "web.search"): Promise<{ items: ReachItem[]; via: string }> {
+export async function webSearch(workspaceId: string | null | undefined, query: string, opts: WebSearchOptions = {}, channel: "web.search" | "reddit" | "social" = "web.search"): Promise<{ items: ReachItem[]; via: string }> {
   const q = query.trim().slice(0, 400);
   if (!q) throw new ReachError("BAD_INPUT", "nothing to search for");
   const limit = Math.max(1, Math.min(10, opts.limit ?? 5));
@@ -200,7 +214,7 @@ export async function webSearch(workspaceId: string | null | undefined, query: s
 }
 
 /** Read one public page as clean text: Jina Reader → Exa → our own fetch. */
-export async function webRead(workspaceId: string | null | undefined, rawUrl: string, opts: { maxChars?: number; skipJina?: boolean; channel?: "web.read" | "reddit"; source?: ReachItem["source"] } = {}): Promise<{ item: ReachItem; via: string }> {
+export async function webRead(workspaceId: string | null | undefined, rawUrl: string, opts: { maxChars?: number; skipJina?: boolean; channel?: "web.read" | "reddit" | "social"; source?: ReachItem["source"] } = {}): Promise<{ item: ReachItem; via: string }> {
   const url = await publicLink(rawUrl);
   const maxChars = opts.maxChars ?? 20_000;
   const source = opts.source ?? "web";

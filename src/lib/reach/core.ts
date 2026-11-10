@@ -19,14 +19,16 @@ import { db } from "@/lib/db";
  * Channels: web reading (Jina Reader → Exa → our own fetch), web search (Exa —
  * with a key, or its free hosted endpoint), Reddit (found and read through Exa,
  * since Reddit refuses anonymous reads), GitHub (public REST API, a token raises
- * the limit) and YouTube captions (the public player API — no key, no binary).
+ * the limit), YouTube captions (the public player API — no key, no binary) and
+ * public social posts (Threads, LinkedIn, Quora, Hacker News, Bluesky, Medium,
+ * YouTube, Pinterest — found by site-restricted search, the way Reddit is).
  *
  * ⚠ Everything a channel returns is OTHER PEOPLE'S TEXT. It goes into prompts
  * as quoted material only (`quoteForPrompt`) and into the assistant through
  * tools marked `outside`.
  */
 
-export type ReachSource = "web" | "reddit" | "github" | "youtube";
+export type ReachSource = "web" | "reddit" | "github" | "youtube" | "social";
 
 export type ReachItem = {
   title: string | null;
@@ -57,13 +59,14 @@ export class ReachError extends Error {
 }
 
 /** The channels Connections reports on. */
-export const REACH_CHANNELS = ["web.read", "web.search", "reddit", "github", "youtube"] as const;
+export const REACH_CHANNELS = ["web.read", "web.search", "reddit", "social", "github", "youtube"] as const;
 export type ReachChannel = (typeof REACH_CHANNELS)[number];
 
 export const CHANNEL_LABEL: Record<ReachChannel, string> = {
   "web.read": "Reading pages",
   "web.search": "Free web search",
   reddit: "Reddit discussions",
+  social: "Social posts",
   github: "GitHub",
   youtube: "YouTube captions",
 };

@@ -23,8 +23,9 @@ export async function contextText(c: { kind: string; ref: string }, workspaceId:
     // Reach reads it with the channel made for it (2026-11-09): a YouTube
     // video's captions, a Reddit thread with its comments, a GitHub README,
     // any other page as clean text — not the raw HTML a script-built page hides.
-    const { readLink, reasonOf, linkKind, SOURCE_LABEL } = await import("@/lib/reach");
-    const label = c.kind === "youtube_url" ? "YouTube video" : `${SOURCE_LABEL[linkKind(c.ref)]} page`;
+    const { readLink, reasonOf, linkKind, sourceLabel } = await import("@/lib/reach");
+    const kind = linkKind(c.ref);
+    const label = c.kind === "youtube_url" ? "YouTube video" : `${sourceLabel(kind, c.ref)} ${kind === "social" ? "post" : "page"}`;
     try {
       const { item } = await readLink(workspaceId, c.ref, 6000);
       const what = item.source === "youtube" ? `captions${item.meta?.auto ? " (auto-generated)" : ""}` : "text";

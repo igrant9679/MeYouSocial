@@ -84,9 +84,9 @@ export async function connectionRows(workspaceId: string): Promise<ConnRow[]> {
     return {
       state: (!freeReach && !exaKey ? "missing" : failing.length ? "partial" : "ok") as ConnState,
       detail: !freeReach && !exaKey
-        ? "free public sources are off — pages are read by this server only, and Reddit, GitHub and captions only with keys"
+        ? "free public sources are off — pages are read by this server only, and Reddit and social posts only with an Exa key"
         : tried.length === 0
-          ? "reading pages (Jina Reader, Exa), Reddit threads, GitHub and YouTube captions — nothing used yet"
+          ? "reading pages (Jina Reader, Exa), Reddit threads, public social posts, GitHub and YouTube captions — nothing used yet"
           : tried.map((h) => failing.includes(h)
               ? `${h.label}: failed ${day(h.failAt!)} (${(h.error ?? "").slice(0, 90)})`
               : `${h.label}: worked ${day(h.okAt!)}${h.via ? ` via ${h.via}` : ""}`).join(" · "),
@@ -116,7 +116,7 @@ export async function connectionRows(workspaceId: string): Promise<ConnRow[]> {
         || (freeReach ? "free public search (Exa, rate-limited) — a Tavily, Serper or Exa key raises the limits" : "no search — free public sources are off and no key is set, so [NEEDS SOURCE] claims cannot be auto-sourced"),
     },
     {
-      key: "reach", label: "Live sources (pages, Reddit, GitHub, captions)", href: "/admin/api-keys#reach",
+      key: "reach", label: "Live sources (pages, Reddit, social posts, GitHub, captions)", href: "/admin/api-keys#reach",
       state: reachRow.state,
       detail: reachRow.detail,
     },

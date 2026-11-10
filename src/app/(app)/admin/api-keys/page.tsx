@@ -285,7 +285,7 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
           { vendor: "serper", label: "Serper (Google results)", envVar: "SERPER_API_KEY", envValue: env.SERPER_API_KEY, helpUrl: "https://serper.dev", helpText: "serper.dev (free tier available)", note: "Web search." },
           { vendor: "dataforseo", label: "DataForSEO (keyword volume)", envVar: "DATAFORSEO_AUTH", envValue: env.DATAFORSEO_AUTH, helpUrl: "https://app.dataforseo.com/api-access", helpText: "app.dataforseo.com → API Access", note: "Search data: Google Ads monthly volume, CPC and competition for the keyword strategy, up to 1,000 phrases per refresh. Paste login and API password as one value: login:password." },
           { vendor: "keywordseverywhere", label: "Keywords Everywhere (keyword volume)", envVar: "KEYWORDS_EVERYWHERE_API_KEY", envValue: env.KEYWORDS_EVERYWHERE_API_KEY, helpUrl: "https://keywordseverywhere.com/api-documentation.html", helpText: "keywordseverywhere.com → API", note: "Search data: Google Keyword Planner volume, CPC and competition, 100 phrases per call, one credit per phrase. Used when no DataForSEO login is set." },
-          { vendor: "exa", label: "Exa (search and reading — optional)", envVar: "EXA_API_KEY", envValue: process.env.EXA_API_KEY ?? "", helpUrl: "https://dashboard.exa.ai/api-keys", helpText: "dashboard.exa.ai → API keys", note: "Live sources: web search when no Tavily or Serper key is set, Reddit threads (found and read through Exa), and a fallback for reading pages. Without a key the free hosted Exa is used, at its rate limit." },
+          { vendor: "exa", label: "Exa (search and reading — optional)", envVar: "EXA_API_KEY", envValue: process.env.EXA_API_KEY ?? "", helpUrl: "https://dashboard.exa.ai/api-keys", helpText: "dashboard.exa.ai → API keys", note: "Live sources: web search when no Tavily or Serper key is set, Reddit threads and public social posts (found through Exa), and a fallback for reading pages. Without a key the free hosted Exa is used, at its rate limit." },
           { vendor: "jina", label: "Jina Reader (reading pages — optional)", envVar: "JINA_API_KEY", envValue: process.env.JINA_API_KEY ?? "", helpUrl: "https://jina.ai/reader", helpText: "jina.ai → Reader → API key", note: "Live sources: reads any page as clean text, including pages built by scripts. Works without a key at a lower rate limit." },
           { vendor: "github", label: "GitHub token (optional)", envVar: "GITHUB_API_KEY", envValue: process.env.GITHUB_API_KEY ?? "", helpUrl: "https://github.com/settings/personal-access-tokens/new", helpText: "github.com → fine-grained token, no permissions needed", note: "Live sources: repository search and reading READMEs and issues for research. Public data only; raises GitHub's limit from 60 to 5,000 requests an hour." },
         ] as const
@@ -330,9 +330,11 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
         <p className="m-0 text-[var(--mute)] leading-relaxed">
           Research, ideas and the assistant read the live web through these: any page as clean text (Jina Reader, then Exa,
           then this server), Reddit threads with their comments (found and read through Exa — Reddit refuses anonymous reads),
-          GitHub repositories and issues, and YouTube captions (no key needed). Without a Tavily or Serper key, web search uses Exa too.
-          Only the link or the search words leave the app — never anything private. Logged-in sources (X, LinkedIn, Instagram)
-          aren&apos;t offered: they would need someone&apos;s own sign-in, which a shared server must never hold.
+          public social posts on Threads, Quora, Hacker News, Bluesky, LinkedIn, Medium, YouTube and Pinterest (found the same
+          way, no login), GitHub repositories and issues, and YouTube captions (no key needed). Without a Tavily or Serper key,
+          web search uses Exa too. Only the link or the search words leave the app — never anything private. X, Instagram,
+          TikTok, Facebook and anyone&apos;s LinkedIn feed aren&apos;t offered: searching them needs their paid APIs or someone&apos;s
+          own sign-in, which a shared server must never hold.
         </p>
         <ul className="m-0 p-0 grid sm:grid-cols-2 gap-1">
           {reachRows.map((h) => {
@@ -362,7 +364,7 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
             <input type="hidden" name="value" value={ideasListen ? "off" : "on"} />
             <SubmitButton className="btn sm" pendingText="Saving…">{ideasListen ? "Stop grounding ideas in discussions" : "Ground ideas in live discussions"}</SubmitButton>
           </form>
-          <span className="text-[var(--mute)]">{ideasListen ? "On — article discovery reads what people are discussing about the Topic first, and keeps the links on each idea." : "Off — ideas come from the company profile, Topics and keywords only."}</span>
+          <span className="text-[var(--mute)]">{ideasListen ? "On — article discovery reads what people are discussing about the Topic first (Reddit, public social posts, the web), and keeps the links on each idea." : "Off — ideas come from the company profile, Topics and keywords only."}</span>
         </div>
         <p className="m-0 text-micro text-[var(--mute)]">Keys that raise the limits — Exa, Jina, GitHub — are in Search API keys above. Built on the ideas of the open-source Agent-Reach toolkit (MIT).</p>
       </section>
