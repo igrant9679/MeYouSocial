@@ -715,6 +715,9 @@ model SocialIdea {
   sourceUrl        String?
   socialPostId     String?  @unique // set when drafted into the queue
   priority         Int?
+  // What the idea was drawn from: live discussions found when it was discovered
+  // (Reach, growth part dc), as JSON [{title, url, source}]. Null = nothing live behind it.
+  evidence         String?
   createdById      String?  // null = the engine
   approvedAt       DateTime?
   createdAt        DateTime @default(now())
@@ -1576,6 +1579,9 @@ model Idea {
   suggestedLength String?
   status         String   @default("new") // new | in_progress | scripted | archived
   merit          String?  // pillar | trending | experiment
+  // What the idea was drawn from: live discussions found when it was discovered
+  // (Reach, growth part dc), as JSON [{title, url, source}]. Null = nothing live behind it.
+  evidence       String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 

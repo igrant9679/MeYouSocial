@@ -36,6 +36,7 @@ import { canFollow, whoCanFix } from "@/lib/role-links";
 import { duplicatesAmong, openWorkIndex, KIND_LABEL, type Match } from "@/lib/idea-duplicates";
 import { mergeDuplicateIdeaAction } from "@/app/actions/idea-merge";
 import { mergeBlogIdeasAction } from "@/app/actions/blog-ideas";
+import { evidenceCount } from "@/lib/idea-evidence";
 
 // The Ideas stage IS the one board (One-Loop step 4), in Topic lanes since
 // 2026-09-21 ("Topics as the spine"). Article, video and social ideas share
@@ -640,6 +641,12 @@ function Tag({ children, hue, title }: { children: React.ReactNode; hue?: string
   );
 }
 
+/** "N sources" on any card discovery grounded in live discussions (Reach) — the links are on the idea's page. */
+function SourcesChip({ raw }: { raw: string | null | undefined }) {
+  const n = evidenceCount(raw);
+  return n ? <span data-idea-sources={n}><Tag hue="blue" title="Discovery drew it from what people are discussing — the links are on its page">{n} source{n === 1 ? "" : "s"}</Tag></span> : null;
+}
+
 /** The one "tag it" control, any format. Sits under a disclosure on tagged cards and in the open on untagged ones. */
 /**
  * The card's Topic control: a button that opens the board's one shared picker
@@ -690,7 +697,7 @@ function ArticleCard({ idea, editor, topics, select, rank, dup, back }: { idea: 
         {motifs.map((m) => <Tag key={m.key} hue={motifHue(m.key)}>{m.key} {m.weight}%</Tag>)}
         {idea.seasonalHook && <Tag hue="cyan">{idea.seasonalHook}</Tag>}
         {/* Grounded in live discussions (Reach) — the links are on the idea's page. */}
-        {(() => { const n = (idea.evidence?.match(/"url":/g) ?? []).length; return n ? <Tag hue="blue" title="Discovery drew it from what people are discussing — the links are on its page">{n} source{n === 1 ? "" : "s"}</Tag> : null; })()}
+        <SourcesChip raw={idea.evidence} />
         {idea.status === "rejected" && isRejectReason(idea.rejectReason) && <Tag hue="rose" title="Why it was rejected — discovery steers away from this">{REJECT_REASONS[idea.rejectReason]}</Tag>}
       </div>
       {idea.audience && <p className="text-micro text-[var(--mute)] mt-1">for {idea.audience}</p>}
@@ -772,6 +779,7 @@ function VideoCard({ idea, editor, topics, select, dup, back }: { idea: VideoRow
         {idea.suggestedLength && <Tag>{idea.suggestedLength}</Tag>}
         {idea.merit && <Tag>{idea.merit}</Tag>}
         {idea.sourceVideoId && <Tag>from research</Tag>}
+        <SourcesChip raw={idea.evidence} />
         {idea.status === "in_progress" && <Tag hue="amber">scripting</Tag>}
         {idea.status === "scripted" && <Tag hue="green">scripted</Tag>}
       </div>
@@ -836,6 +844,7 @@ function SocialCard({ idea, editor, topics, select, dup, back }: { idea: SocialR
         <FormatChip format="social" />
         <Link href={`/ideas/social/${idea.id}`} className="text-xs font-semibold leading-snug flex-1 hover:underline" data-idea-link>{idea.hook}</Link>
         {idea.priority != null && <Tag>{idea.priority}</Tag>}
+        <SourcesChip raw={idea.evidence} />
         {idea.status === "rejected" && isRejectReason(idea.rejectReason) && <Tag hue="rose" title="Why it was rejected — discovery steers away from this">{REJECT_REASONS[idea.rejectReason]}</Tag>}
       </div>
       {dup && <DupLine format="social" id={idea.id} dup={dup} canMerge={editor && (idea.status === "discovered" || idea.status === "approved")} back={back} />}

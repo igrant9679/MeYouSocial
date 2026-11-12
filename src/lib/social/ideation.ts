@@ -18,8 +18,11 @@ import { stripListMarker } from "@/lib/list-marker";
  *
  * Grounding is what autogen's prompt used: the company, the Topic and its
  * phrases, recently published article titles, the motif tone and the brand
- * guardrails. The same truthfulness rules apply — the MOCK provider's output
- * is never stored, and the prompt forbids invented specifics.
+ * guardrails — and, since growth part dc, what people are discussing about the
+ * Topic right now (lib/idea-listening.ts: Reddit, public social posts, the web),
+ * as numbered quotes; each idea keeps the ones it answers as its evidence. The
+ * same truthfulness rules apply — the MOCK provider's output is never stored,
+ * and the prompt forbids invented specifics.
  */
 
 const MAX_HOOK = 240;
@@ -54,22 +57,29 @@ export async function discoverSocialIdeasCore(workspaceId: string, topicId: stri
     rejectedLine(rejectedIdeas.map((i) => ({ title: i.hook, rejectReason: i.rejectReason }))) ?? "",
   ].filter(Boolean);
 
+  // What people are saying about the Topic now — the questions a post can answer.
+  const { listenForIdeas, heardBlock, sourcesRule, evidenceFor } = await import("@/lib/idea-listening");
+  const heard = await listenForIdeas(workspaceId, [topic.name, ...phrases.slice(0, 3)].join(" "));
+  const heardText = await heardBlock(heard.signals);
+
   const res = await llm.complete({
     purpose: "ideas.discover",
     model: await resolveUsableModel(workspace.defaultModel ?? llm.defaultModel, workspaceId),
     system:
       "You propose social media post IDEAS for a real company's feed — not finished posts. " +
-      'Respond ONLY with a JSON array: [{"hook": string, "angle": string}] — no prose, no markdown fences. ' +
+      'Respond ONLY with a JSON array: [{"hook": string, "angle": string, "sources": number[]}] — no prose, no markdown fences. ' +
       `hook = the post's core in one line, at most ${MAX_HOOK} characters, specific to this company and topic. ` +
       "angle = one sentence on why it would land with the audience. " +
       "⚠ Never invent facts, numbers, statistics, customer names or claims — if a specific isn't in the context, don't use one. " +
-      "Each idea must be a different angle on the topic, in the company's voice.",
+      "Each idea must be a different angle on the topic, in the company's voice. " +
+      (await sourcesRule(heard.signals.length > 0)),
     messages: [{
       role: "user",
       content: [
         `Context:\n${facts.join("\n")}`,
         motifs ? `Tone:\n${motifs}` : "",
         guardrails ?? "",
+        heardText ?? "",
         `Propose ${want} post ideas.`,
       ].filter(Boolean).join("\n\n"),
     }],
@@ -84,7 +94,7 @@ export async function discoverSocialIdeasCore(workspaceId: string, topicId: stri
     return 0;
   }
 
-  type Raw = { hook?: unknown; angle?: unknown };
+  type Raw = { hook?: unknown; angle?: unknown; sources?: unknown };
   let raw: Raw[] = [];
   try {
     const match = res.content.match(/\[[\s\S]*\]/);
@@ -98,8 +108,8 @@ export async function discoverSocialIdeasCore(workspaceId: string, topicId: stri
     return cleaned || null;
   };
   const rows = raw
-    .map((r) => ({ hook: text(r.hook, MAX_HOOK), angle: text(r.angle, 300) }))
-    .filter((r): r is { hook: string; angle: string | null } => Boolean(r.hook && r.hook.length > 8))
+    .map((r) => ({ hook: text(r.hook, MAX_HOOK), angle: text(r.angle, 300), sources: r.sources }))
+    .filter((r): r is { hook: string; angle: string | null; sources: unknown } => Boolean(r.hook && r.hook.length > 8))
     .slice(0, want)
     .map((r) => ({
       workspaceId,
@@ -108,6 +118,8 @@ export async function discoverSocialIdeasCore(workspaceId: string, topicId: stri
       angle: r.angle,
       status: "discovered",
       source: "discovered",
+      // The discussions it answers — only numbers that were listed (Reach).
+      evidence: evidenceFor(r.sources, heard.signals),
     }));
   if (rows.length) await db.socialIdea.createMany({ data: rows });
   await writeAudit({
@@ -115,7 +127,7 @@ export async function discoverSocialIdeasCore(workspaceId: string, topicId: stri
     actorId: actorId ?? null,
     action: "social.ideation",
     entityType: "social_idea",
-    meta: { topic: topic.name, created: rows.length, provider: res.provider, by: actorId ? "person" : "sweep" },
+    meta: { topic: topic.name, created: rows.length, provider: res.provider, by: actorId ? "person" : "sweep", listened: heard.signals.length, grounded: rows.filter((r) => r.evidence).length, ...(heard.notes.length ? { notReached: heard.notes.slice(0, 3) } : {}) },
   });
   return rows.length;
 }

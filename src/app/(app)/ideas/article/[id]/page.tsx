@@ -11,8 +11,8 @@ import { ideaHistory, SOURCE_LABEL } from "@/lib/idea-history";
 import { getPostingTimeZone } from "@/lib/social/slots";
 import { REJECT_REASONS, isRejectReason } from "@/lib/reject-reasons";
 import { ideaChange } from "@/lib/idea-drafting";
-import { readJson } from "@/lib/db/json";
-import { sourceLabel } from "@/lib/reach";
+import { evidenceCount } from "@/lib/idea-evidence";
+import { IdeaEvidenceList } from "@/components/IdeaEvidenceList";
 
 // One article idea's page, off the board (IDE-20): every card carried this
 // form and a list of every other open idea plus 60 site pages, so the board's
@@ -55,10 +55,6 @@ export default async function ArticleIdeaPage({ params, searchParams }: { params
     }),
   ]);
   const motifs = parseMotifs(idea.motifs);
-  const evidence = (() => {
-    const raw = readJson<unknown>(idea.evidence, []);
-    return (Array.isArray(raw) ? raw : []).filter((e): e is { title?: string; url: string; source?: string } => typeof (e as { url?: unknown })?.url === "string" && /^https?:\/\//i.test((e as { url: string }).url)).slice(0, 8);
-  })();
   // A stored target page that isn't among the pages listed stays selectable.
   const pageOptions = idea.targetPage && !pages.some((p) => p.url === idea.targetPage)
     ? [{ url: idea.targetPage, title: idea.targetPage }, ...pages]
@@ -81,16 +77,7 @@ export default async function ArticleIdeaPage({ params, searchParams }: { params
         ...(idea.keyword ? [{ label: "Keyword", value: idea.keyword }] : []),
         ...(idea.angle ? [{ label: "Angle", value: idea.angle }] : []),
         // What it was drawn from (Reach): the discussions discovery cited, as links.
-        ...(evidence.length ? [{ label: "Drawn from", value: (
-          <ul className="m-0 p-0 flex flex-col gap-0.5" data-idea-evidence>
-            {evidence.map((e) => (
-              <li key={e.url} className="list-none">
-                <span className="text-micro font-mono uppercase tracking-wider text-[var(--mute)] mr-1">{sourceLabel(e.source, e.url)}</span>
-                <a href={e.url} target="_blank" rel="noopener noreferrer" className="underline break-all">{e.title || e.url}</a>
-              </li>
-            ))}
-          </ul>
-        ) }] : []),
+        ...(evidenceCount(idea.evidence) ? [{ label: "Drawn from", value: <IdeaEvidenceList raw={idea.evidence} /> }] : []),
         ...(refreshOf ? [{ label: "Refreshes", value: <Link href={`/blog/${refreshOf.id}`} className="underline">{refreshOf.title}</Link> }] : []),
         // E-IDE-04: a "Retire…" / "Merge…" idea is a site change — it leads to the redirect checklist, not a draft.
         ...(refreshOf && ideaChange(idea) === "site_change" ? [{ label: "Site change", value: <Link href={`/blog/${refreshOf.id}/retire`} className="underline" data-idea-retire-link="">Open the retire / merge checklist</Link> }] : []),

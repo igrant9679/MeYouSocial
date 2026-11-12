@@ -8,6 +8,8 @@ import { formatNum } from "@/lib/intel";
 import { OutlierChip } from "@/components/OutlierChip";
 import { writeIdeaToCanvasAction, updateIdeaStatusAction } from "@/app/actions/ideas";
 import { setIdeaMeritAction } from "@/app/actions/growth";
+import { evidenceCount } from "@/lib/idea-evidence";
+import { IdeaEvidenceList } from "@/components/IdeaEvidenceList";
 
 // Idea detail with all required fields + Write action.
 
@@ -40,6 +42,11 @@ export default async function IdeaDetailPage({ params }: { params: Promise<{ id:
         {idea.strategy && (<>
           <h3 className="font-mono text-xs uppercase tracking-wider text-[var(--mute)] mt-3">Strategy / why it works</h3>
           <p className="text-sm whitespace-pre-wrap">{idea.strategy}</p>
+        </>)}
+        {/* What it was drawn from (Reach, part dc): the discussions discovery cited, as links. */}
+        {evidenceCount(idea.evidence) > 0 && (<>
+          <h3 className="font-mono text-xs uppercase tracking-wider text-[var(--mute)] mt-3">Drawn from</h3>
+          <div className="text-sm"><IdeaEvidenceList raw={idea.evidence} /></div>
         </>)}
       </div>
 

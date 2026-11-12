@@ -331,6 +331,16 @@ export function registerOnboardingJobs() {
     await ctx.progress(0.6);
 
     const seed = candidates.slice(0, 10);
+    await ctx.progress(0.65);
+
+    // What people are discussing about the niche now (Reach, growth part dc):
+    // Reddit, public social posts (YouTube among them) and the web, numbered.
+    // Kept as a step, so a retry that reuses the kept reply below also reuses
+    // the numbers that reply cites. Nothing heard = the prompt as it was.
+    const { listenForIdeas, heardBlock, sourcesRule, evidenceFor } = await import("@/lib/idea-listening");
+    const heard = await ctx.once("onboarding:ideas:heard", () => listenForIdeas(channel.workspaceId, channel.nicheDescription || channel.name));
+    const heardText = await heardBlock(heard.signals);
+    if (heard.notes.length) ctx.log(`ideas: not reached while listening — ${heard.notes.join("; ")}`);
     await ctx.progress(0.7);
 
     try {
@@ -338,14 +348,18 @@ export function registerOnboardingJobs() {
         purpose: "onboarding",
         // See the note in onboarding.voice — a model this workspace can reach.
         model: await resolveUsableModel(channel.defaultModel ?? llm.defaultModel, channel.workspaceId),
-        system: "You convert outlier video titles into 10 fresh idea titles for a creator in a related niche, preserving each one's hook structure.",
+        system:
+          "You convert outlier video titles into 10 fresh idea titles for a creator in a related niche, preserving each one's hook structure." +
+          (heard.signals.length ? " Ideas may also answer the numbered discussions supplied — the questions and complaints people are posting about the niche. " : " ") +
+          (await sourcesRule(heard.signals.length > 0)),
         messages: [
           {
             role: "user",
             content:
               `Creator niche: ${channel.nicheDescription}\nDifferentiation: ${channel.differentiation}${perfHint}\n` +
               (seed.length ? `Outlier seeds:\n${seed.map((s, i) => `${i + 1}. (${s.outlier.toFixed(1)}x) ${s.title}`).join("\n")}\n\n` : "No competitor outliers could be read; work from the niche alone.\n\n") +
-              `Respond with a JSON array only: [{"title": "...", "strategy": "...", "seed": <the seed number it adapts, or null>}].`,
+              (heardText ? `${heardText}\n\n` : "") +
+              `Respond with a JSON array only: [{"title": "...", "strategy": "...", "seed": <the seed number it adapts, or null>, "sources": [<the discussion numbers it answers>]}].`,
           },
         ],
         workspaceId: channel.workspaceId,
@@ -366,12 +380,14 @@ export function registerOnboardingJobs() {
       // stripListMarker, not /^[*\-\d.\s]+/: the old greedy class ate the sign
       // off a title that opens with one ("-40% churn" became "40% churn").
       const lines = items
-        .filter((x): x is { title: string; strategy?: unknown; seed?: unknown } => Boolean(x) && typeof (x as { title?: unknown }).title === "string")
+        .filter((x): x is { title: string; strategy?: unknown; seed?: unknown; sources?: unknown } => Boolean(x) && typeof (x as { title?: unknown }).title === "string")
         .map((x) => ({
           title: cleanTitle(stripListMarker(x.title), 200),
           strategy: typeof x.strategy === "string" && x.strategy.trim() ? x.strategy.trim().slice(0, 500) : null,
           // The seed the model SAYS it adapted, checked against the list.
           seed: typeof x.seed === "number" && Number.isInteger(x.seed) && x.seed >= 1 && x.seed <= seed.length ? seed[x.seed - 1] : null,
+          // The discussions it answers — only numbers that were listed (Reach).
+          evidence: evidenceFor(x.sources, heard.signals),
         }))
         .filter((x) => x.title)
         .slice(0, 10);
@@ -388,11 +404,12 @@ export function registerOnboardingJobs() {
       // All or nothing, once per job (ENG-22): a container killed halfway through
       // this loop used to leave five ideas, and the retry wrote all ten again.
       const writes: Prisma.PrismaPromise<unknown>[] = [];
-      for (const { title, strategy, seed: from } of lines) {
+      for (const { title, strategy, seed: from, evidence } of lines) {
         writes.push(db.idea.create({
           data: {
             channelId,
             title,
+            evidence,
             topicId: matchTopic(`${title} ${strategy ?? ""}`, preparedTopics)?.id ?? null,
             strategy: strategy ?? (from ? `Adapts "${from.title.slice(0, 120)}" (${from.source}).` : null),
             // The score is the real outlier ratio (competitor views over that

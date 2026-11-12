@@ -364,7 +364,7 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
             <input type="hidden" name="value" value={ideasListen ? "off" : "on"} />
             <SubmitButton className="btn sm" pendingText="Saving…">{ideasListen ? "Stop grounding ideas in discussions" : "Ground ideas in live discussions"}</SubmitButton>
           </form>
-          <span className="text-[var(--mute)]">{ideasListen ? "On — article discovery reads what people are discussing about the Topic first (Reddit, public social posts, the web), and keeps the links on each idea." : "Off — ideas come from the company profile, Topics and keywords only."}</span>
+          <span className="text-[var(--mute)]">{ideasListen ? "On — idea discovery (articles, social posts and videos) reads what people are discussing first (Reddit, public social posts, the web), and keeps the links on each idea." : "Off — ideas come from the company profile, Topics, keywords and competitors' videos only."}</span>
         </div>
         <p className="m-0 text-micro text-[var(--mute)]">Keys that raise the limits — Exa, Jina, GitHub — are in Search API keys above. Built on the ideas of the open-source Agent-Reach toolkit (MIT).</p>
       </section>

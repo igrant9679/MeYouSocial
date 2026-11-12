@@ -106,7 +106,7 @@ export async function saveSearchKeyAction(formData: FormData) {
 /**
  * Reach's two dials (2026-11-09): `reach:free` — free public services (Jina
  * Reader and Exa's hosted endpoint, both keyless) on or off; `ideas:listen` —
- * article discovery listens to live discussions first, on or off. Both default
+ * idea discovery (articles, social posts and videos, since part dc) listens to live discussions first, on or off. Both default
  * on; an admin's choice, written through setWorkspaceSetting so it's audited.
  */
 export async function saveReachDialAction(formData: FormData) {
@@ -120,7 +120,7 @@ export async function saveReachDialAction(formData: FormData) {
   revalidatePath("/admin/api-keys");
   const what = dial === "reach:free"
     ? (on ? "Free public sources are on: pages are read through Jina Reader and Exa, and search falls back to Exa without a key." : "Free public sources are off: nothing goes to Jina or Exa without a key, pages are read by this server only, and Reddit needs an Exa key.")
-    : (on ? "Article discovery listens to live discussions first and keeps the links on each idea." : "Article discovery no longer listens to live discussions — ideas come from the company profile, Topics and keywords only.");
+    : (on ? "Idea discovery listens to live discussions first — articles, social posts and videos — and keeps the links on each idea." : "Idea discovery no longer listens to live discussions — ideas come from the company profile, Topics, keywords and competitors' videos only.");
   redirect(`/admin/api-keys?flash=${encodeURIComponent(what)}#reach`);
 }
 

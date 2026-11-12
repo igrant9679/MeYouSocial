@@ -9,6 +9,8 @@ import { ideaHistory, SOURCE_LABEL } from "@/lib/idea-history";
 import { getPostingTimeZone, formatInZone } from "@/lib/social/slots";
 import { REJECT_REASONS, isRejectReason } from "@/lib/reject-reasons";
 import { setSocialIdeaStatusAction, updateSocialIdeaAction } from "@/app/actions/social-ideas";
+import { evidenceCount } from "@/lib/idea-evidence";
+import { IdeaEvidenceList } from "@/components/IdeaEvidenceList";
 
 // One social idea's page (E-IDE-16): what it is, where it came from — an
 // article's angle, a piece of research, a feed item — its priority, the post
@@ -56,6 +58,8 @@ export default async function SocialIdeaPage({ params }: { params: Promise<{ id:
         { label: "Came from", value: <>{SOURCE_LABEL[idea.source] ?? idea.source}{from}</> },
         { label: "Topic", value: idea.topic?.name ?? <span className="text-[var(--mute)]">none</span> },
         ...(idea.angle ? [{ label: "Angle", value: idea.angle }] : []),
+        // What it was drawn from (Reach, part dc): the discussions discovery cited, as links.
+        ...(evidenceCount(idea.evidence) ? [{ label: "Drawn from", value: <IdeaEvidenceList raw={idea.evidence} /> }] : []),
         ...(idea.approvedAt ? [{ label: "Approved", value: formatInZone(idea.approvedAt, tz) }] : []),
         ...(post ? [{
           label: "Post",

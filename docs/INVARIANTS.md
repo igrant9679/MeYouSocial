@@ -2509,3 +2509,20 @@ before changing code in that area.
   and avatars as Markdown. ⚠ Exa's free hosted limit is a BURST limit: ~3 calls in the same second, the rest 429 with
   `retry-after: 1` (probed 2026-11-10). `listen()` now fires four at once, so `exaHosted` waits what it's told (+ jitter)
   and retries, twice at most — without it, the social search lost the race in local checks.
+
+## Social and video ideas listen too — every idea format is grounded in live discussions (2026-11-11, the owner's "Yes, do that", growth part dc)
+- **`lib/idea-listening.ts`** is the ONE listening pass every discovery path makes: `listenForIdeas(ws, subject)` (honours
+  `ideas:listen`; `listen()` with Reddit, public social posts and the web, first 10 — channels in turns), `heardBlock()`
+  (numbered, `quoteForPrompt`-fenced, each tagged with its platform), `sourcesRule()` (the `sources` instruction +
+  `QUOTED_MATERIAL_RULE`), `evidenceFor(sources, signals)` (only LISTED numbers, at most five, JSON [{title,url,source}]).
+  Article discovery (`blog-autopilot`) now uses it too — don't fork a second copy.
+- **Social ideas** (`social/ideation.discoverSocialIdeasCore`): listen on the Topic + three phrases; ideas return
+  `sources`; `SocialIdea.evidence`. The audit row records `listened` / `grounded` / `notReached`.
+- **Video ideas** (the `onboarding.ideas` job): listen on the channel's niche; an idea may adapt an outlier seed AND/OR
+  answer discussions; `Idea.evidence`. ⚠ The heard list is a job step (`ctx.once("onboarding:ideas:heard")`) — the reply
+  is kept across retries (`keptReply`), so the numbers it cites must be the same list; never re-listen on a retry.
+  Migration `20261111090000_idea_evidence` adds both columns.
+- **Shown** through one component, `IdeaEvidenceList` ("Drawn from", platform-tagged) on the article, social and video
+  idea pages, and `SourcesChip` ("N sources") on every board card; `lib/idea-evidence.ts` parses (http(s) only).
+- Probed and NOT added (2026-11-11): Hacker News's own Algolia search (keyword-matched — job posts and unrelated threads
+  for business subjects; HN already comes through `searchSocial`) and Mastodon hashtag feeds (mostly adverts and listings).

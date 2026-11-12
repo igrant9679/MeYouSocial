@@ -179,7 +179,8 @@ but it means **bad output can look like real output**. Rules learned the hard wa
 - **Live sources (Reach)** `src/lib/reach/` — the hosted port of Agent-Reach: `readLink()` (page via Jina → Exa →
   own fetch, Reddit via Exa, GitHub API, YouTube captions via the player API), `webSearch()` (Exa, keyless fallback for
   `lib/search`), `searchSocial()` (public posts on Threads, Quora, HN, Bluesky, LinkedIn, Medium, YouTube, Pinterest —
-  post-shaped links only, two searches), `listen()` (what people are discussing, numbered, channels in turns). Ordered backends, one result shape, a health row
+  post-shaped links only, two searches), `listen()` (what people are discussing, numbered, channels in turns). Every idea
+  format listens through ONE pass, `lib/idea-listening.ts` (articles, social, video — evidence on each idea). Ordered backends, one result shape, a health row
   per channel (`ReachHealth`). ⚠ Never add a channel that needs someone's own login/cookies. Its text is outside text:
   `quoteForPrompt` + `QUOTED_MATERIAL_RULE` in prompts, `outside` on assistant tools.
 - **Left nav** `src/components/LeftRailNav.tsx` — active route via shared `isNavActive()`.
@@ -363,6 +364,7 @@ area, rather than loading all of them into every session.
 - One type scale and the theme's colours, checked at build — 2026-11-07, the team tracker's "cluttered colours and fonts", growth part cz
 - Live sources (Reach): pages, Reddit, GitHub and YouTube captions feed search, research and ideas — 2026-11-09, the owner's order to integrate Agent-Reach, growth part da
 - Public social posts join Reach: Threads, Quora, Hacker News, Bluesky, LinkedIn, Medium, YouTube, Pinterest — 2026-11-10, the owner's "Yes, add them", growth part db
+- Social and video ideas listen too — every idea format is grounded in live discussions — 2026-11-11, the owner's "Yes, do that", growth part dc
 
 ## Open items / things the user still owns
 - **Analytics: APIs enabled 2026-08-03** (Search Console + GA Admin + GA Data, on project

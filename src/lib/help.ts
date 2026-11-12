@@ -295,9 +295,9 @@ export const HELP_CATEGORIES: FaqCategory[] = [
       },
       {
         q: "Why do some ideas say \"3 sources\"?",
-        a: "Article discovery **listens before it writes**: it looks at what people are discussing about the Topic (Reddit threads, public social posts on Threads, Quora, Hacker News, Bluesky, LinkedIn, Medium, YouTube and Pinterest, and the web), gives those to the model as numbered, quoted material, and each idea names the discussions it answers. Those links stay on the idea — **Drawn from** on its page, each tagged with where it came from, and the *N sources* chip on the board — so you can check the real question behind it before approving. An idea with no chip wasn't drawn from anything live. Turn it off under **Settings → Keys → Live sources** (ideas then come from the company profile, Topics and keywords only).",
-        tags: ["ideas", "discovery", "sources", "evidence", "reddit", "social", "grounded"],
-        links: [{ label: "Ideas board →", href: "/ideas?format=article" }],
+        a: "Idea discovery **listens before it writes** — for articles, social posts and videos alike: it looks at what people are discussing about the Topic, or a video channel's niche — Reddit threads, public social posts on Threads, Quora, Hacker News, Bluesky, LinkedIn, Medium, YouTube and Pinterest, and the web — gives those to the model as numbered, quoted material, and each idea names the discussions it answers. Those links stay on the idea — **Drawn from** on its page, each tagged with where it came from, and the *N sources* chip on the board — so you can check the real question behind it before approving. An idea with no chip wasn't drawn from anything live. Turn it off under **Settings → Keys → Live sources** (ideas then come from the company profile, Topics, keywords and competitors' videos only).",
+        tags: ["ideas", "discovery", "sources", "evidence", "reddit", "social", "video", "grounded"],
+        links: [{ label: "Ideas board →", href: "/ideas" }],
       },
       {
         q: "What does outlier score mean?",

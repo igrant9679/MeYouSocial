@@ -142,17 +142,13 @@ export async function discoverIdeasCore(workspaceId: string, topicId?: string | 
   // goes in as numbered, quoted material, and each idea names the items it
   // answers; those links are kept on the idea as its evidence. A source that
   // can't be reached just isn't there: discovery never waits on it.
-  const { getSetting } = await import("@/lib/settings");
-  const listenOn = (await getSetting("ideas:listen", workspaceId).catch(() => "")) !== "off";
+  // (lib/idea-listening.ts — the same pass social and video discovery make since part dc.)
   const subject = focusTopic
     ? [focusTopic.name, ...readJson<string[]>(focusTopic.keywords, []).slice(0, 3)].join(" ")
     : allTopics.length ? allTopics.slice(0, 2).map((t) => t.name).join(" OR ") : (org?.industry ?? "");
-  const { listen, quoteForPrompt, QUOTED_MATERIAL_RULE, sourceLabel } = await import("@/lib/reach");
-  const heard = listenOn && subject.trim()
-    ? await listen(workspaceId, subject.slice(0, 200), { perSource: 4, freshDays: 120 }).catch(() => ({ signals: [], notes: [] }))
-    : { signals: [], notes: [] };
-  // listen() takes its channels in turns, so the first ten hold some of each.
-  const signals = heard.signals.slice(0, 10);
+  const { listenForIdeas, heardBlock, sourcesRule, evidenceFor } = await import("@/lib/idea-listening");
+  const heard = await listenForIdeas(workspaceId, subject);
+  const signals = heard.signals;
 
   const system =
     "You generate blog topic ideas and tag them. Respond ONLY with a JSON array of objects: " +
@@ -163,9 +159,8 @@ export async function discoverIdeasCore(workspaceId: string, topicId?: string | 
     "URLs or omitted. motifs must use the supplied motif keys and sum to 100. seasonalHook only when the topic " +
     "genuinely rides a calendar moment — omit it otherwise. " +
     "Never invent statistics or cite studies in the angle. " +
-    (signals.length
-      ? "When the numbered discussions supplied show a real question, complaint or disagreement an idea answers, say so in the angle and list those numbers in sources; an idea none of them supports gets sources []. Never cite a number that isn't listed. " + QUOTED_MATERIAL_RULE
-      : 'Return "sources": [] for every idea.');
+    (await sourcesRule(signals.length > 0));
+  const heardText = await heardBlock(signals);
   const prompt = [
     org?.description
       ? `The organization: ${org.description}${org.industry ? ` Industry: ${org.industry}.` : ""}${org.audience ? ` Audience: ${org.audience}.` : ""}`
@@ -184,9 +179,7 @@ export async function discoverIdeasCore(workspaceId: string, topicId?: string | 
     pages.length ? `Service pages that ideas can support:\n${pages.map((p) => `${p.url} — ${p.title}`).join("\n")}` : null,
     existing.length ? `Avoid duplicating these existing ideas: ${existing.map((i) => i.title).join(" | ")}` : null,
     rejectedLine(rejected),
-    signals.length
-      ? `What people are discussing now (numbered — cite them in sources):\n${signals.map((s) => `[${s.n}] (${sourceLabel(s.source, s.url)}) ${s.title}\n${s.url}\n${quoteForPrompt(`discussion ${s.n}`, s.snippet, 500)}`).join("\n")}`
-      : null,
+    heardText,
     `Generate ${want} blog post ideas.`,
   ]
     .filter(Boolean)
@@ -263,11 +256,7 @@ export async function discoverIdeasCore(workspaceId: string, topicId?: string | 
         motifs: serializeMotifs(normalizeMotifs(parseMotifs(JSON.stringify(i.motifs ?? [])))),
         seasonalHook: text(i.seasonalHook, 120),
         // The discussions it answers — only numbers that were listed, as links (Reach).
-        evidence: (() => {
-          const nums = Array.isArray(i.sources) ? [...new Set(i.sources.map(Number).filter((n) => Number.isInteger(n)))] : [];
-          const picked = nums.map((n) => signals.find((s) => s.n === n)).filter((s): s is (typeof signals)[number] => !!s).slice(0, 5);
-          return picked.length ? JSON.stringify(picked.map((s) => ({ title: s.title.slice(0, 200), url: s.url.slice(0, 1000), source: s.source }))) : null;
-        })(),
+        evidence: evidenceFor(i.sources, signals),
         // Only stamp the topic when the run was focused on one.
         topicId: focusTopic?.id ?? null,
         source: "ai",
