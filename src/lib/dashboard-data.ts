@@ -263,11 +263,13 @@ export async function autopilotFeed(workspaceId: string, take = 5): Promise<Feed
     orderBy: { createdAt: "desc" },
     take,
   });
+  const postIds = [...new Set(rows.filter((r) => r.entityType === "blog_post" && r.entityId).map((r) => r.entityId!))];
+  const live = new Set((await db.blogPost.findMany({ where: { id: { in: postIds } }, select: { id: true } })).map((p) => p.id));
   return rows.map((r) => ({
     at: r.createdAt,
     label: FEED_LABELS[r.action]?.label ?? r.action,
     tone: FEED_LABELS[r.action]?.tone ?? "info",
-    href: r.entityType === "blog_post" && r.entityId ? `/blog/${r.entityId}` : r.entityType === "video_render" ? "/videos" : null,
+    href: eventHref(r.action, r.entityType, r.entityId, live),
   }));
 }
 
@@ -284,7 +286,27 @@ export type EngineEvent = {
   title: string | null;
   tone: FeedEvent["tone"];
   href: string | null;
+  /** Why it went wrong, in words — a failed draft says which provider refused and how to fix it. */
+  why: string | null;
   at: string;
+};
+
+/**
+ * Where an engine event about an article should lead. ⚠ A failed draft's post
+ * is DELETED right after the failure is recorded (revertRefusedDraft), so its
+ * `/blog/<id>` link 404'd — the owner hit exactly that from the header pill on
+ * 2026-11-13. Link a post only while it exists; a failed draft leads to
+ * Connections, which names the refusing provider.
+ */
+function eventHref(action: string, entityType: string | null, entityId: string | null, livePosts: Set<string>): string | null {
+  if (entityType === "blog_post" && entityId && livePosts.has(entityId)) return `/blog/${entityId}`;
+  if (action === "blog.draft_failed") return "/setup/connections";
+  if (entityType === "video_render") return "/videos";
+  return null;
+}
+
+const metaOf = (raw: string | null): Record<string, unknown> => {
+  try { const v = raw ? JSON.parse(raw) : {}; return v && typeof v === "object" ? v : {}; } catch { return {}; }
 };
 
 export async function tickerEvents(workspaceId: string, take = 12): Promise<EngineEvent[]> {
@@ -323,16 +345,25 @@ export async function tickerEvents(workspaceId: string, take = 12): Promise<Engi
   const postIds = [...new Set(rows.filter((r) => r.entityType === "blog_post" && r.entityId).map((r) => r.entityId!))];
   const posts = await db.blogPost.findMany({ where: { id: { in: postIds } }, select: { id: true, title: true } });
   const titleOf = new Map(posts.map((p) => [p.id, p.title]));
+  const live = new Set(posts.map((p) => p.id));
+  // A failed draft recorded before its row carried the reason: say what is refusing NOW, if anything is.
+  const refusalNow = rows.some((r) => r.action === "blog.draft_failed")
+    ? await (await import("@/lib/llm/provider-health")).refusalNote(workspaceId)
+    : null;
   return rows.map((r) => {
     const meta = ACTIONS[r.action]!;
-    const title = r.entityType === "blog_post" && r.entityId ? titleOf.get(r.entityId) : undefined;
+    const m = metaOf(r.meta);
+    const title = (r.entityType === "blog_post" && r.entityId ? titleOf.get(r.entityId) : undefined) ?? (typeof m.title === "string" ? m.title : undefined);
     return {
       what: meta.what,
       // Full title, not a 60-character stump. The pill shows one line and the
       // panel behind it has room for the whole thing.
       title: title ?? null,
       tone: meta.tone,
-      href: r.entityType === "blog_post" && r.entityId ? `/blog/${r.entityId}` : r.entityType === "video_render" ? "/videos" : null,
+      href: eventHref(r.action, r.entityType, r.entityId, live),
+      why: r.action === "blog.draft_failed"
+        ? (typeof m.why === "string" && m.why) || refusalNow || "The AI didn't answer, so the empty draft was removed and its idea went back on the board."
+        : null,
       at: r.createdAt.toISOString(),
     };
   });

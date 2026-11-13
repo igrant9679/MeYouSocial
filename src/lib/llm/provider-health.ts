@@ -58,6 +58,12 @@ export async function providerRefusals(workspaceId: string): Promise<ProviderRef
 const PROVIDER_NAME: Record<string, string> = { anthropic: "Anthropic", google: "Google" };
 const PROVIDER_CONSOLE: Record<string, string> = { anthropic: "console.anthropic.com", google: "ai.studio/projects" };
 
+/** The first provider refusing this workspace, described — or null when none is (a plain timeout/error). */
+export async function refusalNote(workspaceId: string): Promise<string | null> {
+  const r = (await providerRefusals(workspaceId).catch(() => []))[0];
+  return r ? describeRefusal(r) : null;
+}
+
 /** "Google is refusing this workspace's AI calls — its prepaid credits are used up. Fix it at …" — one place for the wording. */
 export function describeRefusal(r: Pick<ProviderRefusal, "provider" | "kind">): string {
   const name = PROVIDER_NAME[r.provider] ?? r.provider;

@@ -2526,3 +2526,15 @@ before changing code in that area.
   idea pages, and `SourcesChip` ("N sources") on every board card; `lib/idea-evidence.ts` parses (http(s) only).
 - Probed and NOT added (2026-11-11): Hacker News's own Algolia search (keyword-matched — job posts and unrelated threads
   for business subjects; HN already comes through `searchSocial`) and Mastodon hashtag feeds (mostly adverts and listings).
+
+## A failed draft says why and never links to a deleted article (2026-11-13, the owner's 404 from the header pill)
+- ⚠ `generateDraftCore` records `blog.draft_failed` against the post, and `revertRefusedDraft` then DELETES that empty
+  post — so the header pill's `/blog/<id>` link 404'd (LSI, every 30 minutes while its Google credits are out).
+  `eventHref()` in `lib/dashboard-data.ts` links a post only while it exists; a failed draft links to
+  `/setup/connections`, which names the refusing provider. The failure row now carries `title` and `why`
+  (`refusalNote()` in `lib/llm/provider-health.ts` → `describeRefusal`), and the pill's panel shows `why`
+  (`data-engine-why`); older rows get the reason from the refusal recorded now.
+- The "Couldn't draft" notification and the Draft button's message name a refusing provider and its fix instead of
+  "didn't answer (timeout or error)". The engine still retries each cycle — a refusal clears only when a call succeeds,
+  so it must keep trying; the fix for the failures themselves is the provider's (top up, or switch the model).
+

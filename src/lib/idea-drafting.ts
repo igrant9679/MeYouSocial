@@ -216,9 +216,11 @@ export async function draftIdeaCore(
       await db.blogPost.updateMany({ where: { id: target.id, workspaceId, status: "drafting" }, data: { status: "published", refreshStartedAt: null } });
     }
     await revertRefusedDraft(workspaceId, postId, idea, previousStatus);
+    // A refusing provider is named with its fix (2026-11-13) — "the AI provider is down" hid a month of Google 402s.
+    const why = failure ? null : await (await import("@/lib/llm/provider-health")).refusalNote(workspaceId);
     return failure
       ? { ok: false, reason: "error", message: `Drafting failed (${failure}), so nothing was stored. The idea is back on the board.` }
-      : { ok: false, reason: "refused", message: "The writer didn't answer (paused, or the AI provider is down), so nothing was stored. The idea is back on the board." };
+      : { ok: false, reason: "refused", message: why ? `${why} Nothing was stored; the idea is back on the board.` : "The writer didn't answer (paused, or the AI provider is down), so nothing was stored. The idea is back on the board." };
   }
 
   let finished: { imagesGenerated: number; seoOptimized: number } | null = null;

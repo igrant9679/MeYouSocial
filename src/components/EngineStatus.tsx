@@ -174,6 +174,7 @@ export function EngineStatus({
                     <span className="min-w-0">
                       <span className="text-xs" style={{ color: DOT[e.tone] }}>{e.what}</span>
                       {e.title && <span className="text-xs text-[var(--slate)]"> — “{e.title}”</span>}
+                      {e.why && <span className="block text-2xs mt-0.5" style={{ color: "var(--amber-on)" }} data-engine-why="">{e.why}</span>}
                       <span className="block font-mono text-micro text-[var(--mute)]">{dayIn(e.at, timeZone)}</span>
                     </span>
                   </>

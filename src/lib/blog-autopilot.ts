@@ -358,11 +358,17 @@ export async function revertRefusedDraft(
     where: { workspaceId, kind: "generation_failed", entityId: idea.id, createdAt: { gte: new Date(Date.now() - 6 * 3600_000) } },
   });
   if (already === 0) {
+    // A provider that is REFUSING (out of credits, over quota, key rejected) is named, with the fix —
+    // "didn't answer (timeout or error)" was wrong for LSI's month of Google 402s.
+    const { refusalNote } = await import("@/lib/llm/provider-health");
+    const why = await refusalNote(workspaceId);
     await notify({
       workspaceId,
       kind: "generation_failed",
       title: `Couldn't draft "${idea.title.slice(0, 80)}"`,
-      body: "The AI provider didn't answer (timeout or error) and the mock stand-in was refused, so nothing was stored. The idea is back on the board; drafting will be retried.",
+      body: why
+        ? `${why} Until then nothing can be drafted, and the mock stand-in is refused, so nothing was stored. The idea is back on the board; drafting will be retried.`
+        : "The AI provider didn't answer (timeout or error) and the mock stand-in was refused, so nothing was stored. The idea is back on the board; drafting will be retried.",
       path: "/ideas?format=article",
       entityType: "blog_idea",
       entityId: idea.id,
@@ -475,12 +481,15 @@ export async function generateDraftCore(workspaceId: string, postId: string, bri
   // human's Draft button. Fail with an audit trail instead; the caller decides
   // what happens to the empty post.
   if (res.provider === "mock") {
+    // The row outlives the post (revertRefusedDraft deletes the empty one), so it
+    // carries the title and WHY — a refusing provider by name — for the header pill.
+    const { refusalNote } = await import("@/lib/llm/provider-health");
     await writeAudit({
       workspaceId,
       action: "blog.draft_failed",
       entityType: "blog_post",
       entityId: post.id,
-      meta: { model: post.model ?? workspace.defaultModel ?? llm.defaultModel, provider: "mock", reason: "provider unavailable — refused to store mock output" },
+      meta: { model: post.model ?? workspace.defaultModel ?? llm.defaultModel, provider: "mock", reason: "provider unavailable — refused to store mock output", title: post.title.slice(0, 200), why: await refusalNote(workspaceId) },
     });
     return false;
   }
