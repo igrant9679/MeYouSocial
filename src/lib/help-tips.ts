@@ -240,7 +240,7 @@ export const BRAND_TIPS = {
 /** Admin / setup. */
 export const ADMIN_TIPS = {
   apiKeys:
-    "The AI provider keys this workspace generates with. Each company brings its own — keys are never shared between workspaces.",
+    "The AI provider keys this workspace generates with. Each company brings its own. An admin of two workspaces can let one use the other's key (Shared keys, below); nothing else crosses between workspaces.",
   mockWarning:
     "With no working key, generations silently fall back to placeholder text instead of failing. If output looks generic, check here first.",
   connections:

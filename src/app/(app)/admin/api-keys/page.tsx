@@ -10,7 +10,9 @@ import {
 import { getVideoProviderSetting } from "@/lib/video";
 import { getImageProviderSetting, resolveImageProviderName } from "@/lib/images";
 import { getStorageBackendSetting } from "@/lib/storage";
-import { isPlatformManagedKey } from "@/lib/settings";
+import { isPlatformManagedKey, SHAREABLE_KEYS } from "@/lib/settings";
+import { sharesGiven, sharesTaken, shareTargets, shareKeyLabel, type TakenShare, type TakenState } from "@/lib/key-shares";
+import { shareKeyAction, stopKeyShareAction } from "@/app/actions/key-shares";
 import { checkKeyFormat } from "@/lib/key-format";
 import { gdriveStatus, parseServiceAccount, getDriveAuthMode } from "@/lib/storage/gdrive";
 import { HelpTip } from "@/components/HelpTip";
@@ -96,6 +98,13 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
   const rotationSince = byKey.get(ROTATION_SETTING) ? new Date(byKey.get(ROTATION_SETTING)!) : null;
   const storedKeys = wsRows.filter((r) => r.key.startsWith("api_key:") && r.value).map((r) => r.key.slice("api_key:".length)).sort();
   const now = requestNow();
+  // Key sharing (lib/key-shares.ts): what this workspace gives and takes, and the
+  // other workspaces this admin could share with.
+  const [given, taken, targets] = await Promise.all([sharesGiven(workspace.id), sharesTaken(workspace.id), shareTargets(user.id, workspace.id)]);
+  const takenByKey = new Map(taken.map((t) => [t.key, t] as const));
+  const givenCount = new Map<string, number>();
+  for (const g of given) givenCount.set(g.key, (givenCount.get(g.key) ?? 0) + 1);
+  const shareable = wsRows.filter((r) => SHAREABLE_KEYS.has(r.key) && r.value).map((r) => r.key).sort();
   const platformByKey = new Map(platformRows.map((s) => [s.key, s.value] as const));
   const videoProvider = await getVideoProviderSetting(workspace.id);
   const [imageProvider, resolvedImageProvider] = await Promise.all([
@@ -138,7 +147,8 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
           </h1>
           <p className="text-xs text-[var(--mute)]">
             Keys for <b>{workspace.name}</b> — saved per workspace, never visible to other companies on this
-            install. Without your own key, calls fall back to the platform&apos;s shared key where one exists.
+            install. Without your own key, calls use one another workspace shares with this one, or else the
+            platform&apos;s key where one exists.
           </p>
           {/* The single most confusing behaviour in the app, said plainly at the
               place that fixes it: a missing key degrades to placeholder text
@@ -187,9 +197,88 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
       )}
 
       <div className="card mb-4 text-xs text-[var(--mute)] leading-relaxed">
-        <p className="mb-1"><strong>Two sources, one resolved value:</strong> we read from the database first, then fall back to the env var if no DB value is set.</p>
+        <p className="mb-1"><strong>Where a key comes from:</strong> this workspace&apos;s own key first; then one another workspace shares with it; then the platform&apos;s; then the server&apos;s environment.</p>
         <p>Save never clears a key — an empty field is refused. To take one away, use <b>Remove key</b> next to it; you&apos;ll be asked to confirm.</p>
       </div>
+
+      {/* Key sharing between workspaces (lib/key-shares.ts, 2026-11-15). */}
+      <section id="shared" className="card mb-4 scroll-mt-20 text-xs flex flex-col gap-3" data-key-shares>
+        <div>
+          <b className="text-sm">Shared keys</b>
+          <p className="text-[var(--mute)] m-0 mt-0.5 leading-relaxed">
+            If you are an admin of two workspaces, one can use the other&apos;s key. The key is never copied or shown: the
+            other workspace is pointed at it, so replacing the key here reaches them too, and removing it ends the share.
+            Their calls are billed to the key&apos;s account and count against its limits.
+          </p>
+        </div>
+
+        <div>
+          <div className="font-mono font-bold mb-1">Shared with other workspaces</div>
+          {given.length === 0 ? (
+            <p className="text-[var(--mute)] m-0">None of this workspace&apos;s keys are shared.</p>
+          ) : (
+            <ul className="m-0 p-0 flex flex-col gap-1.5">
+              {given.map((g) => (
+                <li key={g.id} className="list-none flex items-center gap-2 flex-wrap" data-share-given={g.key}>
+                  <span><b>{g.label}</b> → {g.toName}{g.toDeleted ? " (deleted, so not using it)" : ""}</span>
+                  <span className="text-[var(--mute)]">since {formatDay(g.at)}{g.by ? `, by ${g.by}` : ""}</span>
+                  <span className="flex-1" />
+                  <form action={stopKeyShareAction}>
+                    <input type="hidden" name="share" value={g.id} />
+                    <SubmitButton className="btn sm" pendingText="…">Stop sharing</SubmitButton>
+                  </form>
+                </li>
+              ))}
+            </ul>
+          )}
+          {shareable.length === 0 ? (
+            <p className="text-[var(--mute)] m-0 mt-2">
+              To share one, this workspace needs a key of its own, saved on this page. A key it borrows, or the platform&apos;s, can&apos;t be passed on.
+            </p>
+          ) : targets.length === 0 ? (
+            <p className="text-[var(--mute)] m-0 mt-2">
+              A key can be shared only with another workspace where you are an admin too, and you aren&apos;t an admin of any other.
+            </p>
+          ) : (
+            <form action={shareKeyAction} className="flex items-end gap-2 flex-wrap mt-2">
+              <label className="flex flex-col gap-0.5">
+                <span className="text-[var(--mute)]">Key</span>
+                <select name="key" required className="border border-[var(--line-2)] rounded-lg p-1.5 text-sm">
+                  {shareable.map((k) => <option key={k} value={k}>{shareKeyLabel(k)}</option>)}
+                </select>
+              </label>
+              <label className="flex flex-col gap-0.5">
+                <span className="text-[var(--mute)]">Share with</span>
+                <select name="to" required className="border border-[var(--line-2)] rounded-lg p-1.5 text-sm">
+                  {targets.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                </select>
+              </label>
+              <SubmitButton className="btn primary sm" pendingText="Sharing…">Share key</SubmitButton>
+            </form>
+          )}
+        </div>
+
+        <div>
+          <div className="font-mono font-bold mb-1">Shared with this workspace</div>
+          {taken.length === 0 ? (
+            <p className="text-[var(--mute)] m-0">No other workspace shares a key with this one.</p>
+          ) : (
+            <ul className="m-0 p-0 flex flex-col gap-1.5">
+              {taken.map((t) => (
+                <li key={t.id} className="list-none flex items-center gap-2 flex-wrap" data-share-taken={t.key}>
+                  <span><b>{t.label}</b> from {t.fromName}</span>
+                  <span style={{ color: t.state === "in_use" ? "var(--green-on)" : t.state === "own_key" ? "var(--mute)" : "var(--rose-on)" }}>{TAKEN_TEXT[t.state]}</span>
+                  <span className="flex-1" />
+                  <form action={stopKeyShareAction}>
+                    <input type="hidden" name="share" value={t.id} />
+                    <SubmitButton className="btn sm" pendingText="…">Stop using it</SubmitButton>
+                  </form>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </section>
 
       {/* The install-wide mock switch, shown only when it is actually ON — it
           overrides every key on this page, so a pasted key would look saved
@@ -217,15 +306,7 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
               <div className="flex-1">
                 <div className="font-mono font-bold text-sm flex items-center gap-2">
                   {row.label}
-                  {dbVal ? (
-                    <span className="text-micro font-mono uppercase tracking-wider px-1.5 py-0.5 rounded flex items-center gap-1" style={{ background: "var(--green-soft)", color: "var(--green-on)" }}>
-                      <CheckCircle2 className="w-3 h-3" /> your key
-                    </span>
-                  ) : platformHas ? (
-                    <span className="text-micro font-mono uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: "var(--blue-soft)", color: "var(--blue-on)" }}>
-                      platform key in use
-                    </span>
-                  ) : null}
+                  <SourceChip own={Boolean(dbVal)} shared={takenByKey.get(`api_key:${row.provider}`)} platformHas={platformHas} />
                 </div>
                 <div className="text-2xs text-[var(--mute)] font-mono mt-0.5">{row.envVar}</div>
                 <div className="text-2xs text-[var(--mute)] mt-0.5" data-key-use={row.provider}>Used for: {row.use}</div>
@@ -236,7 +317,7 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
                 </Link>
               </div>
             </div>
-            <KeyField id={row.provider} label={row.label} stored={Boolean(dbVal)} platformHas={platformHas} confirming={confirmRemove === row.provider} last={history.get(row.provider)} now={now} />
+            <KeyField id={row.provider} label={row.label} stored={Boolean(dbVal)} platformHas={platformHas} confirming={confirmRemove === row.provider} last={history.get(row.provider)} now={now} sharedWith={givenCount.get(`api_key:${row.provider}`) ?? 0} sharedFrom={takenByKey.get(`api_key:${row.provider}`)} />
           </form>
         );
       })}
@@ -299,15 +380,7 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
               <div className="flex-1">
                 <div className="font-mono font-bold text-sm flex items-center gap-2">
                   {row.label}
-                  {dbVal ? (
-                    <span className="text-micro font-mono uppercase tracking-wider px-1.5 py-0.5 rounded flex items-center gap-1" style={{ background: "var(--green-soft)", color: "var(--green-on)" }}>
-                      <CheckCircle2 className="w-3 h-3" /> your key
-                    </span>
-                  ) : platformHas ? (
-                    <span className="text-micro font-mono uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: "var(--blue-soft)", color: "var(--blue-on)" }}>
-                      platform key in use
-                    </span>
-                  ) : null}
+                  <SourceChip own={Boolean(dbVal)} shared={takenByKey.get(`api_key:${row.vendor}`)} platformHas={platformHas} />
                 </div>
                 <div className="text-2xs text-[var(--mute)] font-mono mt-0.5">{row.envVar}</div>
                 <div className="text-2xs text-[var(--mute)] mt-0.5">{row.note}</div>
@@ -318,7 +391,7 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
                 </Link>
               </div>
             </div>
-            <KeyField id={row.vendor} label={row.label} stored={Boolean(dbVal)} platformHas={platformHas} confirming={confirmRemove === row.vendor} last={history.get(row.vendor)} now={now} />
+            <KeyField id={row.vendor} label={row.label} stored={Boolean(dbVal)} platformHas={platformHas} confirming={confirmRemove === row.vendor} last={history.get(row.vendor)} now={now} sharedWith={givenCount.get(`api_key:${row.vendor}`) ?? 0} sharedFrom={takenByKey.get(`api_key:${row.vendor}`)} />
           </form>
         );
       })}
@@ -475,15 +548,7 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
                     <span className="text-micro font-mono uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: platformHas ? "var(--blue-soft)" : "var(--amber-soft)", color: platformHas ? "var(--blue-on)" : "var(--amber-on)" }}>
                       {platformHas ? "shared · all workspaces" : "shared · not set"}
                     </span>
-                  ) : dbVal ? (
-                    <span className="text-micro font-mono uppercase tracking-wider px-1.5 py-0.5 rounded flex items-center gap-1" style={{ background: "var(--green-soft)", color: "var(--green-on)" }}>
-                      <CheckCircle2 className="w-3 h-3" /> your key
-                    </span>
-                  ) : platformHas ? (
-                    <span className="text-micro font-mono uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: "var(--blue-soft)", color: "var(--blue-on)" }}>
-                      platform key in use
-                    </span>
-                  ) : null}
+                  ) : <SourceChip own={Boolean(dbVal)} shared={takenByKey.get(settingKey)} platformHas={platformHas} />}
                 </div>
                 <div className="text-2xs text-[var(--mute)] font-mono mt-0.5">{row.envVar}</div>
                 <div className="text-2xs text-[var(--mute)] mt-0.5">{row.note}</div>
@@ -504,7 +569,7 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
               </div>
             </div>
             {editable && (
-              <KeyField id={row.provider} label={row.label} stored={Boolean(dbVal)} platformHas={managed ? Boolean(process.env[row.envVar]) : platformHas} confirming={confirmRemove === row.provider} last={history.get(row.provider)} now={now} />
+              <KeyField id={row.provider} label={row.label} stored={Boolean(dbVal)} platformHas={managed ? Boolean(process.env[row.envVar]) : platformHas} confirming={confirmRemove === row.provider} last={history.get(row.provider)} now={now} sharedWith={givenCount.get(`api_key:${row.provider}`) ?? 0} sharedFrom={takenByKey.get(`api_key:${row.provider}`)} />
             )}
           </form>
         );
@@ -754,15 +819,44 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
  * while rotating. Removing is now its own button, and the server asks once
  * (?confirmRemove=) before it acts, so it works without JavaScript too.
  */
-function KeyField({ id, label, stored, platformHas, confirming, last, now }: { id: string; label: string; stored: boolean; platformHas: boolean; confirming: boolean; last?: KeyChange; now: number }) {
+const TAKEN_TEXT: Record<TakenState, string> = {
+  in_use: "in use",
+  own_key: "not used: this workspace's own key comes first",
+  giver_no_key: "not working: that workspace no longer stores this key",
+  giver_deleted: "not working: that workspace was deleted",
+};
+
+/** Where a key comes from: this workspace's own, else one shared with it, else the platform's. */
+function SourceChip({ own, shared, platformHas }: { own: boolean; shared?: TakenShare; platformHas: boolean }) {
+  const cls = "text-micro font-mono uppercase tracking-wider px-1.5 py-0.5 rounded";
+  if (own) {
+    return (
+      <span className={`${cls} flex items-center gap-1`} style={{ background: "var(--green-soft)", color: "var(--green-on)" }}>
+        <CheckCircle2 className="w-3 h-3" /> your key
+      </span>
+    );
+  }
+  if (shared?.state === "in_use") {
+    return <span className={cls} style={{ background: "var(--accent-soft)", color: "var(--accent-on)" }} data-shared-chip>shared by {shared.fromName}</span>;
+  }
+  if (platformHas) return <span className={cls} style={{ background: "var(--blue-soft)", color: "var(--blue-on)" }}>platform key in use</span>;
+  return null;
+}
+
+function KeyField({ id, label, stored, platformHas, confirming, last, now, sharedWith = 0, sharedFrom }: { id: string; label: string; stored: boolean; platformHas: boolean; confirming: boolean; last?: KeyChange; now: number; sharedWith?: number; sharedFrom?: TakenShare }) {
+  // A share that would take over once this workspace's own key is gone.
+  const fallbackShare = sharedFrom && (sharedFrom.state === "own_key" || sharedFrom.state === "in_use") ? sharedFrom.fromName : null;
   if (confirming && stored) {
     return (
       <div className="rounded-lg p-2.5 text-sm" style={{ background: "var(--rose-soft)" }}>
         <p className="mb-2">
           Remove this workspace&apos;s {label} key?{" "}
-          {platformHas
-            ? "It then uses the platform's shared key, and its calls are billed to the platform."
-            : "Nothing else is set for it, so what uses it stops working until a key is added again."}
+          {fallbackShare
+            ? `It then uses the key ${fallbackShare} shares with it.`
+            : platformHas
+              ? "It then uses the platform's shared key, and its calls are billed to the platform."
+              : "Nothing else is set for it, so what uses it stops working until a key is added again."}
+          {sharedWith > 0 && <b> It is shared with {sharedWith} other workspace{sharedWith === 1 ? "" : "s"}: {sharedWith === 1 ? "that share ends" : "those shares end"} too, and {sharedWith === 1 ? "its" : "their"} admins are told.</b>}
         </p>
         <div className="flex gap-2">
           <button name="intent" value="remove-confirmed" className="btn sm" style={{ color: "var(--rose-on)" }}>Yes, remove it</button>
@@ -777,7 +871,7 @@ function KeyField({ id, label, stored, platformHas, confirming, last, now }: { i
       <input
         name="value"
         type="password"
-        placeholder={stored ? "Paste a new key to replace it" : "Paste your API key here"}
+        placeholder={stored ? "Paste a new key to replace it" : sharedFrom?.state === "in_use" ? "Paste a key of your own to use it instead of the shared one" : "Paste your API key here"}
         className="flex-1 border border-[var(--line-2)] rounded-lg p-2 text-sm font-mono"
         autoComplete="off"
       />

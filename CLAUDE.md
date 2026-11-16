@@ -100,8 +100,8 @@ but it means **bad output can look like real output**. Rules learned the hard wa
   fluent. Any surface putting generated text in front of a person must check it. ⚠ A small
   `maxTokens` returns **empty** text from `gemini-2.5-pro`: it is a reasoning model and spends the
   budget before emitting anything — don't cap a probe and conclude the provider is broken.
-- **Settings / multi-tenancy** `src/lib/settings.ts` — resolution is **`WorkspaceSetting` → global
-  `Setting` → env var** (30s cache). Each company brings its own keys; a platform row back-fills
+- **Settings / multi-tenancy** `src/lib/settings.ts` — resolution is **`WorkspaceSetting` → (shareable keys
+  only) the row another workspace shares, `KeyShare` → global `Setting` → env var** (30s cache). Each company brings its own keys; a platform row back-fills
   every workspace, which is usually not what you want. ⚠ **`PLATFORM_MANAGED_KEYS` is the deliberate
   exception** — those skip the workspace layer on read and only `isPlatformOperator` can write them,
   so one shared credential serves every tenant and no stale per-workspace row can shadow it.
@@ -365,6 +365,8 @@ area, rather than loading all of them into every session.
 - Live sources (Reach): pages, Reddit, GitHub and YouTube captions feed search, research and ideas — 2026-11-09, the owner's order to integrate Agent-Reach, growth part da
 - Public social posts join Reach: Threads, Quora, Hacker News, Bluesky, LinkedIn, Medium, YouTube, Pinterest — 2026-11-10, the owner's "Yes, add them", growth part db
 - Social and video ideas listen too — every idea format is grounded in live discussions — 2026-11-11, the owner's "Yes, do that", growth part dc
+- A failed draft says why and never links to a deleted article — 2026-11-13, the owner's 404 from the header pill
+- A key can be shared between two workspaces — a pointer, by an admin of both — 2026-11-15, the owner's "build it in Publisher too"
 
 ## Open items / things the user still owns
 - **Analytics: APIs enabled 2026-08-03** (Search Console + GA Admin + GA Data, on project

@@ -2538,3 +2538,29 @@ before changing code in that area.
   "didn't answer (timeout or error)". The engine still retries each cycle — a refusal clears only when a call succeeds,
   so it must keep trying; the fix for the failures themselves is the provider's (top up, or switch the model).
 
+## A key can be shared between two workspaces — a pointer, by an admin of both (2026-11-15, the owner's "build it in Publisher too")
+- **Resolution** (`getSetting`, `lib/settings.ts`): own `WorkspaceSetting` row → for `SHAREABLE_KEYS` only, the row a
+  `KeyShare` points at → the platform's `Setting` → env. ⚠ The shared value is read from the GIVER'S OWN row at the moment
+  of use (`sharedKeyValue`): never copied, never a row the giver itself borrows, so shares don't chain; a replaced key
+  reaches every taker within the 30 s cache, a removed one reaches none. A giver that has been deleted (even inside its
+  restore window) gives nothing.
+- **`SHAREABLE_KEYS` is an allowlist of services** — Anthropic, Google, OpenAI, ElevenLabs, HeyGen, Tavily, Serper,
+  DataForSEO, Keywords Everywhere, Exa, Jina, GitHub. ⚠ Never add a credential that is an identity (`zernio:api_key`
+  posts as a company's social accounts; mailboxes, OAuth tokens and service accounts read one tenant's own property) or
+  a platform-managed key (`api_key:youtube`).
+- **Who** (`lib/key-shares.ts`, checked on the server): only a person who is an active ADMIN of BOTH workspaces can start
+  one; the giver must STORE the key (a borrowed or platform key can't be passed on); one giver per (workspace, key) — a
+  second offer is refused, not swapped in; at most `MAX_KEY_SHARES` (50) takers per key. An admin on EITHER side ends it.
+  `saveApiKeyAction` / `saveSearchKeyAction` call `endSharesOfKey` on Remove key, so no share outlives its key and
+  none comes back to life when a new key is saved.
+- **Told and recorded**: `api_key.shared` / `api_key.share_received` / `api_key.share_stopped` (entity type
+  `key_share`) in BOTH workspaces' audit logs, each a security notice to that side's admins. ⚠ A row in the other
+  workspace's log carries the actor only when they are a member there (`actorIn`) — a log never names an outsider.
+- **Shown**: Settings → Keys has a "Shared keys" card (`#shared`: what this workspace gives, a share form listing only its
+  own stored shareable keys and only workspaces this admin administers, what it takes with its state — in use / own key
+  first / giver has no key / giver deleted); each key card's chip reads "shared by <workspace>" (`SourceChip`); Remove
+  key says how many shares end with it; `keySource()` in `lib/setup-status.ts` says "a key shared by …"; the setup
+  guide's `hasLlmKey` counts a working share (`hasWorkingSharedKey`).
+- ⚠ The provider bills the giver's account for the taker's calls and their quota is one pool; the app's own usage
+  figures stay with the workspace that made the call. Migration `20261115230000_key_shares`.
+

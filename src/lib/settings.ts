@@ -6,8 +6,9 @@ import { db } from "@/lib/db";
  * global Setting row (and ultimately the env var, handled by each caller) is
  * the platform fallback for workspaces that haven't configured their own.
  *
- * Resolution: WorkspaceSetting[workspaceId, key] → Setting[key] → "" (caller
- * applies its env fallback). 30s cache, busted by the admin save actions.
+ * Resolution: WorkspaceSetting[workspaceId, key] → (shareable keys only) the
+ * row a workspace shares with this one → Setting[key] → "" (caller applies its
+ * env fallback). 30s cache, busted by the admin save actions.
  */
 
 /**
@@ -57,6 +58,55 @@ export const WORKSPACE_ONLY_KEYS: ReadonlySet<string> = new Set([
   "youtube_oauth:channel",
 ]);
 
+/**
+ * SHAREABLE keys — the ones a workspace admin may let another workspace use
+ * (KeyShare, lib/key-shares.ts; 2026-11-15). Resolution for these is
+ * own row → a row another workspace shares → the platform's → env.
+ *
+ * ⚠ An ALLOWLIST, and only keys that buy a service: writing, images, voice,
+ * search and reading. Never a credential that IS an identity — `zernio:api_key`
+ * posts as the company's social accounts, a mailbox sends as a person, OAuth
+ * tokens and service accounts read one tenant's own site — and never a
+ * platform-managed key, which every workspace already has.
+ *
+ * ⚠ A share is a pointer, never a copy: the value is read from the giver's OWN
+ * row at the moment of use, so a borrowed key cannot be passed on, a replaced key
+ * reaches everyone, and a removed one reaches no one.
+ */
+export const SHAREABLE_KEYS: ReadonlySet<string> = new Set([
+  "api_key:anthropic",
+  "api_key:google",
+  "api_key:openai",
+  "api_key:elevenlabs",
+  "api_key:heygen",
+  "api_key:tavily",
+  "api_key:serper",
+  "api_key:dataforseo",
+  "api_key:keywordseverywhere",
+  "api_key:exa",
+  "api_key:jina",
+  "api_key:github",
+]);
+
+export function isShareableKey(key: string): boolean {
+  return SHAREABLE_KEYS.has(key);
+}
+
+/**
+ * The value of a key another workspace shares with this one: the giver's own
+ * stored row, or "" when there is no share, the giver has been deleted (even
+ * while it waits out its restore window), or the giver no longer stores one.
+ */
+async function sharedKeyValue(workspaceId: string, key: string): Promise<string> {
+  const share = await db.keyShare.findUnique({
+    where: { toWorkspaceId_key: { toWorkspaceId: workspaceId, key } },
+    select: { fromWorkspaceId: true, from: { select: { deletedAt: true } } },
+  });
+  if (!share || share.from.deletedAt) return "";
+  const row = await db.workspaceSetting.findUnique({ where: { workspaceId_key: { workspaceId: share.fromWorkspaceId, key } } });
+  return row?.value ?? "";
+}
+
 const CACHE_TTL_MS = 30_000;
 const cache = new Map<string, { value: string; expires: number }>();
 
@@ -78,6 +128,9 @@ export async function getSetting(key: string, workspaceId?: string | null): Prom
         where: { workspaceId_key: { workspaceId, key } },
       });
       value = ws?.value ?? "";
+      // No key of its own: one another workspace shares with it comes next,
+      // ahead of the platform's — an admin chose it for this workspace.
+      if (!value && SHAREABLE_KEYS.has(key)) value = await sharedKeyValue(workspaceId, key);
     }
     // Workspace-only keys stop here: no global row, ever (see WORKSPACE_ONLY_KEYS).
     if (!value && !WORKSPACE_ONLY_KEYS.has(key)) {

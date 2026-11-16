@@ -98,8 +98,9 @@ export async function saveSearchKeyAction(formData: FormData) {
   const { setWorkspaceSetting } = await import("@/lib/settings");
   await setWorkspaceSetting(workspace.id, `api_key:${vendor}`, removing ? "" : value);
   await auditKey(workspace.id, user.id, vendor, removing, value);
+  const ended = removing ? await endShares(workspace.id, `api_key:${vendor}`, user.id) : 0;
   revalidatePath("/admin/api-keys");
-  if (removing) redirect(removedRedirect(vendor));
+  if (removing) redirect(removedRedirect(vendor, ended));
   redirect(`/admin/api-keys?ok=${vendor}`);
 }
 
@@ -302,8 +303,9 @@ export async function saveApiKeyAction(formData: FormData) {
 
   llm.invalidateKeyCache();
   await auditKey(workspace.id, user.id, provider, removing, stored, isPlatformManagedKey(settingKey));
+  const ended = removing && !isPlatformManagedKey(settingKey) ? await endShares(workspace.id, settingKey, user.id) : 0;
   revalidatePath("/admin/api-keys");
-  if (removing) redirect(removedRedirect(provider));
+  if (removing) redirect(removedRedirect(provider, ended));
   redirect(`/admin/api-keys?ok=${provider}`);
 }
 
@@ -324,6 +326,19 @@ function keyIntent(formData: FormData, id: string, value: string): "save" | "rem
   return "save";
 }
 
-function removedRedirect(id: string): string {
-  return `/admin/api-keys?flash=${encodeURIComponent(`Removed the ${id} key. Anything that used it falls back to the platform's key if there is one, or stops until a key is added.`)}#key-${id}`;
+/**
+ * A removed key takes its shares with it (lib/key-shares.ts): a share points at
+ * this workspace's own row, so once the row is gone it could only sit there
+ * doing nothing — and come back to life, unasked, when a new key is saved.
+ */
+async function endShares(workspaceId: string, settingKey: string, actorId: string): Promise<number> {
+  const { endSharesOfKey } = await import("@/lib/key-shares");
+  return endSharesOfKey(workspaceId, settingKey, actorId).catch(() => 0);
+}
+
+function removedRedirect(id: string, sharesEnded = 0): string {
+  const shared = sharesEnded > 0
+    ? ` It was shared with ${sharesEnded} other workspace${sharesEnded === 1 ? "" : "s"}; ${sharesEnded === 1 ? "that share has" : "those shares have"} ended and ${sharesEnded === 1 ? "its" : "their"} admins were told.`
+    : "";
+  return `/admin/api-keys?flash=${encodeURIComponent(`Removed the ${id} key. Anything that used it falls back to the platform's key if there is one, or stops until a key is added.${shared}`)}#key-${id}`;
 }

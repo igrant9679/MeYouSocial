@@ -22,6 +22,13 @@ export function securityTitle(action: string, entityId: string | null | undefine
     case "membership.support_view_started": return `The platform operator (${who}) is viewing this workspace read-only, for support${typeof meta.until === "string" ? `, until ${meta.until.slice(11, 16)} UTC` : ""}`;
     case "api_key.saved": return `The ${entityId ?? "API"} key was changed`;
     case "api_key.removed": return `The ${entityId ?? "API"} key was removed`;
+    // Key sharing between workspaces (lib/key-shares.ts): both sides' admins hear.
+    case "api_key.shared": return `The ${entityId ?? "API"} key is now shared with ${str(meta.withWorkspace) ?? "another workspace"} — its calls are billed to this workspace's key`;
+    case "api_key.share_received": return `${str(meta.fromWorkspace) ?? "Another workspace"} now shares its ${entityId ?? "API"} key with this workspace`;
+    case "api_key.share_stopped":
+      return meta.direction === "taken"
+        ? `${str(meta.fromWorkspace) ?? "Another workspace"} no longer shares its ${entityId ?? "API"} key with this workspace${meta.because === "key_removed" ? " — it removed the key" : ""}`
+        : `The ${entityId ?? "API"} key is no longer shared with ${str(meta.withWorkspace) ?? "another workspace"}`;
     case "api_token.created": return `An API token “${str(meta.name) ?? "unnamed"}” (${meta.scope === "write" ? "read and write" : "read"}) was made`;
     case "api_token.revoked": return `The API token “${str(meta.name) ?? "unnamed"}” was revoked`;
     case "security.access_policy_changed": {

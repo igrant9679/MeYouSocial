@@ -57,6 +57,8 @@ model Workspace {
   wikiDocs        WikiDoc[]
   blogPosts       BlogPost[]
   settings        WorkspaceSetting[]
+  keySharesGiven  KeyShare[]         @relation("KeySharesGiven")
+  keySharesTaken  KeyShare[]         @relation("KeySharesTaken")
   unipileAccounts UnipileAccount[]
   zernioAccounts  ZernioAccount[]
   socialPosts     SocialPost[]
@@ -1275,6 +1277,24 @@ model WorkspaceSetting {
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@id([workspaceId, key])
+}
+
+// A key one workspace lets another use (2026-11-15, lib/key-shares.ts). A POINTER,
+// never a copy: `to` reads `from`'s own WorkspaceSetting row at the moment of use
+// (lib/settings.ts), so a replaced key reaches everyone and a removed one reaches
+// no one. One giver per (workspace, key); only the keys in SHAREABLE_KEYS.
+model KeyShare {
+  id              String    @id @default(cuid())
+  key             String    // the setting key, e.g. "api_key:anthropic"
+  fromWorkspaceId String
+  toWorkspaceId   String
+  createdById     String?
+  createdAt       DateTime  @default(now())
+  from            Workspace @relation("KeySharesGiven", fields: [fromWorkspaceId], references: [id], onDelete: Cascade)
+  to              Workspace @relation("KeySharesTaken", fields: [toWorkspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([toWorkspaceId, key])
+  @@index([fromWorkspaceId, key])
 }
 
 model User {

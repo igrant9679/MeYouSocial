@@ -28,10 +28,14 @@ export type ConnRow = { key: string; label: string; state: ConnState; detail: st
 /** The loop can't run without these; everything else is a capability on top. */
 const REQUIRED: ReadonlySet<string> = new Set(["llm", "search", "images", "social"]);
 
-/** Which layer a key resolves from: this workspace's own, the platform's, or the server's environment. */
+/** Which layer a key resolves from: this workspace's own, one another workspace shares, the platform's, or the server's environment. */
 async function keySource(workspaceId: string, settingKey: string, envName?: string): Promise<string | undefined> {
   const { getWorkspaceSettingRaw } = await import("@/lib/settings");
   if (await getWorkspaceSettingRaw(workspaceId, settingKey).catch(() => "")) return "this workspace's key";
+  // A key another workspace shares comes before the platform's, as getSetting resolves it.
+  const { sharedKeySource } = await import("@/lib/key-shares");
+  const sharedBy = await sharedKeySource(workspaceId, settingKey).catch(() => null);
+  if (sharedBy) return `a key shared by ${sharedBy}`;
   const { db: d } = await import("@/lib/db");
   if ((await d.setting.findUnique({ where: { key: settingKey } }).catch(() => null))?.value) return "the platform's key";
   if (envName && process.env[envName]) return "the server's environment";

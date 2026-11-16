@@ -150,7 +150,7 @@ html[data-theme="dark"] .ws-brand {
   const guide = await getGuideState();
   // E-SHL-10: the phone's bottom tabs, unless this browser turned them off.
   const tabBar = (await cookies()).get("mys_tabbar")?.value !== "off";
-  const [llmKeyRows, wsLlmKeyRows, zernioKeyRow, socialAccounts, emailAccounts, topics, postingSlots, blogPosts, storageBackend, analyticsRows] = await Promise.all([
+  const [llmKeyRows, wsLlmKeyRows, zernioKeyRow, socialAccounts, emailAccounts, topics, postingSlots, blogPosts, storageBackend, analyticsRows, sharedLlmKey] = await Promise.all([
     db.setting.count({ where: { key: { in: ["api_key:anthropic", "api_key:google"] }, NOT: { value: "" } } }),
     // ⚠ Workspace keys count too. This only looked at PLATFORM settings, so a
     // company that had pasted its own key was still told to "add an AI provider
@@ -167,9 +167,11 @@ html[data-theme="dark"] .ws-brand {
     db.workspaceSetting.count({
       where: { workspaceId: workspace.id, key: { in: ["gsc:site_url", "ga4:property_id", "youtube_oauth:refresh_token"] }, NOT: { value: "" } },
     }),
+    // A key another workspace shares with this one counts as having one (lib/key-shares.ts).
+    import("@/lib/key-shares").then((m) => m.hasWorkingSharedKey(workspace.id, ["api_key:anthropic", "api_key:google"])).catch(() => false),
   ]);
   const setupState: SetupState = {
-    hasLlmKey: llmKeyRows > 0 || wsLlmKeyRows > 0 || Boolean(process.env.ANTHROPIC_API_KEY || process.env.GOOGLE_GENAI_API_KEY),
+    hasLlmKey: llmKeyRows > 0 || wsLlmKeyRows > 0 || sharedLlmKey || Boolean(process.env.ANTHROPIC_API_KEY || process.env.GOOGLE_GENAI_API_KEY),
     // A model is chosen if the workspace picked one or any channel did.
     defaultModelSet: Boolean(workspace.defaultModel) || channels.some((c) => c.defaultModel),
     channelLinked: channels.some((c) => c.linkedYoutubeId),
