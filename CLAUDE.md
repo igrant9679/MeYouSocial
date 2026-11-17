@@ -197,6 +197,11 @@ but it means **bad output can look like real output**. Rules learned the hard wa
   recommendations, per-person dismissals in `ElsieDismissal`), served by `/api/elsie`. File, URL and event names still
   say "assistant".
 - **Left nav** `src/components/LeftRailNav.tsx` — active route via shared `isNavActive()`.
+- **Stage strip** `src/lib/stages.ts` + `src/components/StageStrip.tsx` — each stage's tabs, as data. Since 2026-11-17
+  Settings, Distribute and Measure are GROUPED: a tab may carry `group`, `stageEntries()` folds the list into the
+  first row, and the second row lists the pages of the group you are in. ⚠ Pages kept their names and URLs — a new
+  page goes into a group (or stands alone) in `stages.ts` and appears in the strip, Ctrl+K, the Help map and the
+  Settings index by itself; never render `group` by hand, and never give a tab a name a stage or group already has.
 - **Theming** `src/app/globals.css` — light/dark via `data-theme`. Per-hue tokens `--<hue>`,
   `--<hue>-soft`, `--<hue>-on`; dark mode derives soft/on via `color-mix`, so **use the tokens, not
   raw hex** (`scripts/check-type-colors.mts` refuses raw hex and `text-[Npx]` in `.tsx`; the type scale is
@@ -219,9 +224,10 @@ renders them as Settings tabs — gated by an `admin` / `operator` flag decided 
 platform-key gating stays in `actions/api-keys.ts`. `/admin` itself redirects to `/setup/people`.
 Don't move the page files — roughly thirty actions `redirect()` to `/admin/*` URLs.
 
-Tabs: **Keys** (`/admin/api-keys`: LLM, search, images, video, TTS, storage) · **Analytics**
-(`/admin/analytics`) · **Email** (`/admin/email`) · **Workspace** (`/admin/settings`) · **Usage**
-(`/admin/usage`, with `/admin/limits` riding it). Not tabs, reached from the pages that own them:
+Pages, under Settings' groups since 2026-11-17 (AI & keys · Workspace · People & access): **Keys**
+(`/admin/api-keys`: LLM, search, images, video, TTS, storage) · **Usage** (`/admin/usage`, with `/admin/limits`
+riding it) · **Workspace** (`/admin/settings`) · **Email** (`/admin/email`) · **Analytics** (`/admin/analytics`) ·
+**Jobs** · **API tokens** · **Audit log**. Not tabs, reached from the pages that own them:
 `/admin/connections` (from Settings → Connections), `/admin/channels` (Channels rail entry),
 `/admin/workspaces` (operator only). All configurable in-app without touching Railway.
 
@@ -383,6 +389,7 @@ area, rather than loading all of them into every session.
 - Elsie is the assistant and the guide — her pane can stay at the side and suggests from data — 2026-11-16, the owner's "Elsie pane", growth part de
 - Claude names point at models Anthropic serves; a retired model is named — 2026-11-17, the owner's "Yes, build it", model plan Phase 1
 - Model tiers: the kind of job picks the model, a person's choice always wins, DeepSeek is Light-only and opt-in — 2026-11-17, the owner's "Model tiers", growth part df
+- The three long strips are grouped: a first row of groups, a second row of the group's pages; one calendar with a switch — 2026-11-17, the owner's "Yes, regroup tabs", growth part dg
 
 ## Open items / things the user still owns
 - **Analytics: APIs enabled 2026-08-03** (Search Console + GA Admin + GA Data, on project

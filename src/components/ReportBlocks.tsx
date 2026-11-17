@@ -66,7 +66,7 @@ export async function ReportBlock({ block, workspaceId, weeks, canAct = true }: 
   // ⚠ The report's range reaches EVERY block that has a window (MEA-11); the
   // rest say what they show instead ("this month", "today", "right now").
   const days = weeks * 7;
-  const since = new Date(Date.now() - days * 86_400_000);
+  const since = daysAgo(days);
   switch (block) {
     case "kpis": {
       const stats = await homeStats(workspaceId);
@@ -451,7 +451,7 @@ export async function ReportBlock({ block, workspaceId, weeks, canAct = true }: 
     case "topics": {
       // The spine's far end (2026-09-21): one row per Topic, the three formats
       // side by side, every cell measured or a dash. The full table with its
-      // reasons is Measure → Topics; this is the report's compact reading.
+      // reasons is Measure → By Topic; this is the report's compact reading.
       const { topicMeasure } = await import("@/lib/topic-measure");
       const m = await topicMeasure(workspaceId, Math.max(7, weeks * 7));
       const t = (v: number | null) => (v == null ? <span className="text-[var(--mute)]" title="Not measured">—</span> : <span className={num}>{v.toLocaleString()}</span>);
@@ -487,7 +487,7 @@ export async function ReportBlock({ block, workspaceId, weeks, canAct = true }: 
                 </table>
               </div>
               <p className="text-micro text-[var(--mute)] mt-2 mb-0">
-                A dash is not measured, never zero; <span className="font-mono">kw</span> = includes videos matched by keyword rather than linked to a project. Reasons and the full columns: <Link href="/measure/topics" className="underline">Measure → Topics</Link>.
+                A dash is not measured, never zero; <span className="font-mono">kw</span> = includes videos matched by keyword rather than linked to a project. Reasons and the full columns: <Link href="/measure/topics" className="underline">Measure → By Topic</Link>.
               </p>
             </>
           )}

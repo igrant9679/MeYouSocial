@@ -1,4 +1,4 @@
-import { railSentence, stagesAndTabs } from "@/lib/stage-copy";
+import { railSentence, stageTabsPhrase, stagesAndTabs } from "@/lib/stage-copy";
 // Searchable Help / FAQ content.
 // Plain data so the UI is purely client-side searchable.
 //
@@ -42,7 +42,7 @@ export const HELP_CATEGORIES: FaqCategory[] = [
       },
       {
         q: "What are all the icons on the left bar?",
-        a: `The rail is the loop, in the order work moves. Top to bottom: ${railSentence({ bold: true })}. The stages and their tabs: ${stagesAndTabs()}. At the bottom: your profile and sign out. Inside a stage, a strip along the top shows its Overview and tabs with count badges.\n\nYou don't have to memorise any of it — **hover any rail entry and a bubble tells you what that module is for**. The rail collapses to icons on a narrow window, and the same hover still names it.`,
+        a: `The rail is the loop, in the order work moves. Top to bottom: ${railSentence({ bold: true })}. The stages and their tabs: ${stagesAndTabs()}. At the bottom: your profile and sign out. Inside a stage, a strip along the top shows its Overview and tabs with count badges. A name followed by square brackets above is a **group**: the strip shows the group's name, and its pages appear on a second row once you are inside it.\n\nYou don't have to memorise any of it — **hover any rail entry and a bubble tells you what that module is for**. The rail collapses to icons on a narrow window, and the same hover still names it.`,
         tags: ["nav", "rail", "icons", "hover", "tooltip"],
       },
       {
@@ -165,14 +165,14 @@ export const HELP_CATEGORIES: FaqCategory[] = [
       },
       {
         q: "What's a Topic, and why would I bother?",
-        a: "A Topic is a theme this company publishes about — \"Nonprofit fundraising\", \"Content-led SEO\". It is the spine of the whole loop.\n\n· **Research** groups outliers under the Topic they match, and “Make it an idea” pre-fills it.\n· **Ideas** is one board in Topic lanes: article, video and social ideas side by side, and discovery runs per Topic so every idea the engine writes arrives knowing what it is about.\n· **Drafts, Publish, Distribute** carry it onto the article, the script, the post.\n· **Measure → Topics** shows what each one earned, per format — measured or a dash.\n\nManage them under **Ideas → Topics**: name, one line, related phrases (they drive the keyword matching), priority (leads discovery and is filled first), archive. Each Topic has its own page with its ideas, what was made and what went out.\n\nDeleting a Topic only clears the tag — it never deletes the content that was tagged with it.",
+        a: "A Topic is a theme this company publishes about — \"Nonprofit fundraising\", \"Content-led SEO\". It is the spine of the whole loop.\n\n· **Research** groups outliers under the Topic they match, and “Make it an idea” pre-fills it.\n· **Ideas** is one board in Topic lanes: article, video and social ideas side by side, and discovery runs per Topic so every idea the engine writes arrives knowing what it is about.\n· **Drafts, Publish, Distribute** carry it onto the article, the script, the post.\n· **Measure → By Topic** shows what each one earned, per format — measured or a dash.\n\nManage them under **Ideas → Topics**: name, one line, related phrases (they drive the keyword matching), priority (leads discovery and is filled first), archive. Each Topic has its own page with its ideas, what was made and what went out.\n\nDeleting a Topic only clears the tag — it never deletes the content that was tagged with it.",
         links: [{ label: "Manage topics →", href: "/ideas/topics" }],
         tags: ["topic", "theme", "tagging", "reports"],
       },
       {
         q: "Why does a Topic's YouTube number say kw — and how do I make it the real video's?",
         a: "**kw** means the figure includes channel videos *matched by keyword*: their titles mention the Topic's name or phrases, which is a guess. Make it exact by linking each production project to its upload: on the project's page, under **YouTube video**, paste the watch, share, Shorts or Studio link (or pick one of the suggested uploads). That video then counts for the project's Topic as its own — views and retention from the YouTube audit — and is never also matched to another Topic by its title. One video belongs to one project, and linking ticks the checklist's **Uploaded** step if nobody has. Numbers appear once the video has views in the audit's 90 days and the audit has been read.",
-        links: [{ label: "Measure → Topics →", href: "/measure/topics" }, { label: "Production →", href: "/production" }],
+        links: [{ label: "Measure → By Topic →", href: "/measure/topics" }, { label: "Production →", href: "/production" }],
         tags: ["youtube", "video", "topic", "kw", "keyword", "link", "upload", "views", "retention"],
       },
       {
@@ -745,7 +745,7 @@ export const HELP_CATEGORIES: FaqCategory[] = [
       },
       {
         q: "Where can I use Topics?",
-        a: "A topic you add under **Ideas → Topics** is on every content surface: **article, video and social ideas**, **blog posts**, **videos**, **production projects** and **social posts**. Three things make them more than labels:\n\n· **They steer ideation** — discovery runs per Topic, emptiest first, and every idea it generates belongs to its Topic; the board is one lane per Topic. Research groups outliers under the Topic they match. In the social composer, the chosen topic's related phrases appear as click-to-insert chips.\n\n· **They follow the work** — promoting an idea to a draft carries the topic onto the post, a social idea onto its post, and packaging an article into a video carries it again, so you set it once at the start.\n\n· **They report back** — Measure → Topics shows what each Topic earned per format, measured or a dash.\n\nDeleting a topic is safe: it clears the tag from anything using it and never deletes your content. Tasks don't have their own topic — they inherit their project's.",
+        a: "A topic you add under **Ideas → Topics** is on every content surface: **article, video and social ideas**, **blog posts**, **videos**, **production projects** and **social posts**. Three things make them more than labels:\n\n· **They steer ideation** — discovery runs per Topic, emptiest first, and every idea it generates belongs to its Topic; the board is one lane per Topic. Research groups outliers under the Topic they match. In the social composer, the chosen topic's related phrases appear as click-to-insert chips.\n\n· **They follow the work** — promoting an idea to a draft carries the topic onto the post, a social idea onto its post, and packaging an article into a video carries it again, so you set it once at the start.\n\n· **They report back** — Measure → By Topic shows what each Topic earned per format, measured or a dash.\n\nDeleting a topic is safe: it clears the tag from anything using it and never deletes your content. Tasks don't have their own topic — they inherit their project's.",
         links: [{ label: "Manage topics →", href: "/ideas/topics" }],
         tags: ["topics", "themes", "ideation", "tagging", "content"],
       },
@@ -807,7 +807,7 @@ export const HELP_CATEGORIES: FaqCategory[] = [
       },
       {
         q: "I moved a post back to drafts — will the engine send it anyway?",
-        a: "No. A post a person parks is **held**: Move to drafts, Cancel, Save as draft in the composer, or **Hold** on Drafts. Under full autonomy the engine gives drafts without a time the next free slot within about half an hour — but never a held one, and **Queue all** leaves held drafts too. Held drafts wear a **Held** chip on Drafts. Queueing or scheduling one yourself lets go of the hold, and so does **Let go**. Drafts the engine wrote itself (auto-generated, RSS, captions) aren't held — under full autonomy they're meant to go out.\n\nIn the composer, **Make this my default** remembers which accounts you post to, so new posts start with them ticked — just for you.",
+        a: "No. A post a person parks is **held**: Move to drafts, Cancel, Save as draft in the composer, or **Hold** on Post drafts. Under full autonomy the engine gives drafts without a time the next free slot within about half an hour — but never a held one, and **Queue all** leaves held drafts too. Held drafts wear a **Held** chip on Post drafts. Queueing or scheduling one yourself lets go of the hold, and so does **Let go**. Drafts the engine wrote itself (auto-generated, RSS, captions) aren't held — under full autonomy they're meant to go out.\n\nIn the composer, **Make this my default** remembers which accounts you post to, so new posts start with them ticked — just for you.",
         links: [{ label: "Drafts →", href: "/social/drafts" }],
         tags: ["drafts", "hold", "held", "autonomy", "move to drafts", "default accounts"],
       },
@@ -1058,8 +1058,14 @@ export const HELP_CATEGORIES: FaqCategory[] = [
         tags: ["status", "pill", "header", "ticker", "engine", "activity", "live"],
       },
       {
+        q: "Where did the Settings, Distribute and Measure tabs go?",
+        a: `Nowhere — they are grouped. Those three strips had grown to sixteen, ten and seven tabs in one row, so since 17 November 2026 the first row shows a few **groups** and a second row lists the pages of the group you are in. Every page kept its name and its address, so a note that says "Settings → Keys" still means the page called Keys — it sits under **AI & keys**.\n\n· ${stageTabsPhrase("/setup")}\n· ${stageTabsPhrase("/distribute")}\n· ${stageTabsPhrase("/measure")}\n\nA name with square brackets is a group and the names inside are its pages; clicking a group opens its first page. Hover a group to see what is inside it, look at **Every Settings page** at the foot of the Settings overview, or press **Ctrl+K** and type the page's name.\n\nThree names changed so that no two things are called the same: the list of unsent social posts is **Post drafts** (Drafts is a whole stage), what each Topic earned is **By Topic** (Topics is where Topics are kept, under Ideas), and Media and RSS sit under **Media & feeds**. There is one calendar to look at: **Distribute → Calendar** has a **Show** switch — Posts or Articles — and Publish → Blog calendar opens the same articles' month.`,
+        links: [{ label: "Settings →", href: "/setup" }, { label: "Distribute → Calendar →", href: "/social/calendar" }],
+        tags: ["tabs", "groups", "strip", "moved", "missing", "where", "settings", "distribute", "measure", "calendar", "post drafts", "by topic"],
+      },
+      {
         q: "What do the badges on the stage strip mean?",
-        a: "The strip at the top of every stage page shows the stage, its Overview and its tabs. A **red** badge counts things a person must act on — articles held at review (Drafts → Articles), posts awaiting approval (Publish → Approvals), open audit items (Publish → Audit), replies nobody has opened (Distribute → Engage). A **muted** badge is news — scheduled posts (Distribute → Calendar), discovered ideas (Ideas overview), articles at final approval (Publish overview), pending invitations (Settings → People). A badge shows only above zero. Where the Inbox knows more than a count can, the badge deliberately under-counts rather than nag about something that isn't there.",
+        a: "The strip at the top of every stage page shows the stage, its Overview and its tabs. A **red** badge counts things a person must act on — articles held at review (Drafts → Articles), posts awaiting approval (Publish → Approvals), open audit items (Publish → Audit), replies nobody has opened (Distribute → Engage). A **muted** badge is news — scheduled posts (Distribute → Posts → Queue), post drafts (Distribute → Posts → Post drafts), discovered ideas (Ideas overview), articles at final approval (Publish overview), pending invitations (Settings → People & access → People). A badge shows only above zero. A **group** on the first row (Posts, People & access…) carries a red badge only — what waits on a person anywhere under it; the muted counts stay on the page's own tab, on the second row. Where the Inbox knows more than a count can, the badge deliberately under-counts rather than nag about something that isn't there.",
         tags: ["badge", "count", "strip", "red", "number"],
       },
       {

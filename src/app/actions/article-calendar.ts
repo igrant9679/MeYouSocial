@@ -23,7 +23,7 @@ export async function rescheduleArticleAction(id: string, day: string | null): P
   if (!post) return { ok: false, message: "That article is gone." };
   if (post.status !== "final_approval") return { ok: false, message: "Only an article at final approval can be scheduled — setting its time is the approval to publish." };
   const tz = await getPostingTimeZone(workspace.id).catch(() => "UTC");
-  const touch = () => { revalidatePath("/blog/calendar"); revalidatePath(`/blog/${post.id}`); revalidatePath("/publish"); };
+  const touch = () => { revalidatePath("/blog/calendar"); revalidatePath("/social/calendar"); revalidatePath(`/blog/${post.id}`); revalidatePath("/publish"); };
 
   if (day === null) {
     if (!post.scheduledAt) return { ok: true, message: "It wasn't scheduled." };

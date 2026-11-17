@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Users, Bot, CalendarClock, Plug, Palette, ArrowRight, OctagonPause, Clapperboard } from "lucide-react";
-import { requireMembership, canAdmin } from "@/lib/acl";
+import { requireMembership, canAdmin, isPlatformOperator } from "@/lib/acl";
+import { STAGES, stageEntries } from "@/lib/stages";
 import { canFollow, whoCanFix } from "@/lib/role-links";
 import { setupOverview } from "@/lib/setup-status";
 import { studioState } from "@/lib/studio";
@@ -13,11 +14,21 @@ import { setStudioEnabledAction } from "@/app/actions/setup";
 // them. Brand and voice keeps its own strip (Setup → Brand) and is linked.
 // The Video studio switch (step 6) sits beneath: it is a workspace option,
 // not a question.
+//
+// Under the cards, every Settings page under the group the strip shows it in
+// (2026-11-17, the owner's "Yes, regroup tabs"): the strip went from sixteen
+// tabs to five groups, and the help still says "Settings → Keys" — this is
+// where that page is found without opening each group. Built from
+// lib/stages.ts, filtered to what this person can open, so it cannot drift.
 
 export default async function SetupOverview({ searchParams }: { searchParams: Promise<{ ok?: string; err?: string }> }) {
-  const { workspace, membership } = await requireMembership();
+  const { workspace, membership, user } = await requireMembership();
   const { ok, err } = await searchParams;
   const admin = canAdmin(membership.role);
+  const pages = stageEntries(
+    STAGES["/setup"].tabs({ channelId: null, studio: false, admin, operator: isPlatformOperator(user.email) }).filter((t) => canFollow(t.href, membership.role)),
+    "/setup",
+  );
   const [o, studio] = await Promise.all([setupOverview(workspace.id), studioState(workspace.id)]);
   const a = o.autonomy;
   const modeLine = a.modes.map((m) => `${m.fn} ${m.mode}`).join(" · ");
@@ -93,6 +104,23 @@ export default async function SetupOverview({ searchParams }: { searchParams: Pr
           )}
         </section>
       </div>
+
+      <section className="card mt-3" data-settings-index>
+        <h2 className="font-mono text-sm font-bold mb-0.5">Every Settings page</h2>
+        <p className="text-2xs text-[var(--mute)] mb-3">Grouped as on the strip above. Ctrl+K finds any of them by name.</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-3">
+          {pages.map((g) => (
+            <div key={g.key} data-settings-group={g.tabs[0].group ?? g.label}>
+              <div className="font-mono text-micro font-bold uppercase tracking-wider text-[var(--mute)] mb-1">{g.tabs[0].group ?? g.label}</div>
+              <ul className="m-0 p-0 list-none flex flex-wrap gap-x-3 gap-y-1 text-sm">
+                {g.tabs.map((t) => (
+                  <li key={t.href}><Link href={t.href} className="underline">{t.label}</Link></li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      </section>
     </div>
   );
 }

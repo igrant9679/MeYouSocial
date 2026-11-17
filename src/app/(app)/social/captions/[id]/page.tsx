@@ -54,7 +54,7 @@ export default async function CaptionBatchPage({ params, searchParams }: { param
       </div>
       <p className="text-xs text-[var(--mute)] mb-3">
         {open.length === 0
-          ? "Every caption in this batch is already a post — edit them on the Queue or Drafts list."
+          ? "Every caption in this batch is already a post — edit them on the Queue or Post drafts list."
           : `Edit anything, untick what you don't want, then schedule, queue or save as drafts. ${flagged ? `${flagged} caption${flagged === 1 ? " has" : "s have"} a flag worth a look.` : "No flags — nothing broke the house rules the app can check."}`}
       </p>
       {sp.ok && <Banner kind="ok" text={sp.ok} />}

@@ -114,7 +114,8 @@ export default async function ReportPage({
         </div>
 
         {customizing && editor && (
-          <aside className="card !p-3.5 sticky top-4">
+          // top-24 clears the stage strip, which is two rows here since Reports sits in a group (2026-11-17).
+          <aside className="card !p-3.5 sticky top-24">
             <h2 className="text-2xs font-mono font-bold uppercase tracking-wider text-[var(--mute)] mb-2">Blocks</h2>
             <ul className="flex flex-col gap-1.5 mb-3">
               {report.blocks.map((b, i) => (

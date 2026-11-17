@@ -349,7 +349,7 @@ export async function queueAllDraftsAction() {
     backTo(!parked
       ? `All ${held} draft${held === 1 ? " is" : "s are"} waiting on approval.`
       : !held
-        ? `All ${parked} draft${parked === 1 ? " is" : "s are"} held — tick ${parked === 1 ? "it" : "them"} on Drafts and queue, or let go.`
+        ? `All ${parked} draft${parked === 1 ? " is" : "s are"} held — tick ${parked === 1 ? "it" : "them"} on Post drafts and queue, or let go.`
         : `Nothing to queue — ${held} waiting on approval, ${parked} held.`);
   }
   const withTargets = allowed.filter((d) => d._count.targets > 0);
@@ -411,6 +411,6 @@ export async function queueAllDraftsAction() {
   if (noTargets > 0) bits.push(`${noTargets} skipped — no account to post to.`);
   if (ruledOut.length > 0) bits.push(`${ruledOut.length} skipped — a network would reject ${ruledOut.length === 1 ? "it" : "them"} (${ruledOut[0]}${ruledOut.length > 1 ? " …" : ""}).`);
   if (held > 0) bits.push(`${held} skipped (awaiting approval).`);
-  if (parked > 0) bits.push(`${parked} held — left on Drafts.`);
+  if (parked > 0) bits.push(`${parked} held — left on Post drafts.`);
   backTo(bits.join(" "), "ok");
 }

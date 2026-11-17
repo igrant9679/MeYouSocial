@@ -28,7 +28,8 @@ export function elsiePageLabel(pathname: string): string {
   const stage = stageFor(pathname);
   if (stage) {
     const def = STAGES[stage];
-    const tab = currentTab(pathname, def.tabs(ALL));
+    // The stage's own page can sit in a group as a tab (Measure's Summary): it is still just "Measure".
+    const tab = currentTab(pathname, def.tabs(ALL).filter((t) => t.href !== stage));
     return tab ? `${def.label} · ${tab.label}` : def.label;
   }
   const hit = OUTSIDE_STAGES.find(([p]) => pathname === p || pathname.startsWith(p + "/"));

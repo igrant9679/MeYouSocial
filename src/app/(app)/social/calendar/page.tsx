@@ -1,5 +1,8 @@
 import Link from "next/link";
 import { CalendarClock, Clock, ListPlus } from "lucide-react";
+import { zoneLabel } from "@/lib/zoned-dates";
+import { articleMonth } from "@/lib/article-calendar";
+import { ArticleCalendarBody, ArticleMonthNav } from "@/components/ArticleCalendarView";
 import { requireRole, canAdmin } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { getSetting } from "@/lib/settings";
@@ -11,15 +14,52 @@ import { Banner, Empty, PostCard, Section, SocialHeader } from "@/components/Soc
 
 // The queue: everything scheduled or drafted, on a grid you can drag, with the
 // agenda as the same data listed by day.
+//
+// ONE calendar, a switch for what it shows (2026-11-17, the owner's "Yes,
+// regroup tabs"): there were two calendars under two stages, and someone asking
+// "what goes out when" had to know which. `?show=articles` puts the articles'
+// publishing month here — the same one as Publish → Blog calendar, from
+// lib/article-calendar.ts — without leaving this page or its strip.
 
-type SP = { ok?: string; err?: string; view?: string; net?: string; cat?: string; camp?: string; ghosts?: string };
+type SP = { ok?: string; err?: string; view?: string; net?: string; cat?: string; camp?: string; ghosts?: string; show?: string; month?: string };
+
+/** Posts or Articles — the same two links on both views, the current one lit. */
+function ShowSwitch({ show }: { show: "posts" | "articles" }) {
+  return (
+    <div className="inline-flex items-center gap-1" role="group" aria-label="What the calendar shows" data-calendar-show={show}>
+      <span className="text-2xs text-[var(--mute)] pr-1">Show</span>
+      <Link href="/social/calendar" aria-current={show === "posts" ? "true" : undefined} className={`btn sm ${show === "posts" ? "primary" : ""}`}>Posts</Link>
+      <Link href="/social/calendar?show=articles" aria-current={show === "articles" ? "true" : undefined} className={`btn sm ${show === "articles" ? "primary" : ""}`}>Articles</Link>
+    </div>
+  );
+}
 
 export default async function SocialCalendarPage({ searchParams }: { searchParams: Promise<SP> }) {
   const { workspace, membership } = await requireRole("EDITOR");
-  const { ok, err, view, net, cat, camp, ghosts } = await searchParams;
+  const { ok, err, view, net, cat, camp, ghosts, show, month } = await searchParams;
   // Calendar is the natural primary view for a scheduler; agenda stays one click away.
   const mode = view === "agenda" ? "agenda" : "calendar";
   const isAdmin = canAdmin(membership.role);
+
+  // The articles' month: its own queries only — none of the posts' below run.
+  if (show === "articles") {
+    const m = await articleMonth(workspace.id, month, "/social/calendar?show=articles");
+    return (
+      <div className="p-6 w-full">
+        <SocialHeader
+          icon={<CalendarClock className="w-6 h-6" strokeWidth={2.25} />}
+          title="Calendar"
+          blurb={`Articles: what went out, what's scheduled, and each week's publish day. Days and times in ${m.timeZone} (${zoneLabel(m.timeZone, m.start)}).${isAdmin ? " Drag an article to a day to schedule it; the checks run again when it falls due." : " An admin schedules articles."}`}
+        >
+          <ArticleMonthNav m={m} />
+        </SocialHeader>
+        <div className="flex items-center gap-2 mb-3 flex-wrap">
+          <ShowSwitch show="articles" />
+        </div>
+        <ArticleCalendarBody m={m} admin={isAdmin} />
+      </div>
+    );
+  }
 
   // ⚠ Two queries, not one. This was a single `status in [draft, scheduled]`
   // read ordered by createdAt with `take: 200`, split client-side — so 200
@@ -128,12 +168,14 @@ export default async function SocialCalendarPage({ searchParams }: { searchParam
       )}
 
       <div className="flex items-center gap-2 mb-3 flex-wrap">
+        <ShowSwitch show="posts" />
+        <span className="w-px h-5 bg-[var(--line)] mx-1" aria-hidden />
         <Link href="/social/calendar?view=calendar" className={`btn sm ${mode === "calendar" ? "primary" : ""}`}>Calendar</Link>
         <Link href="/social/calendar?view=agenda" className={`btn sm ${mode === "agenda" ? "primary" : ""}`}>Agenda</Link>
         <span className="flex-1" />
         {queueable > 0 && hasSlots && (
           <form action={queueAllDraftsAction}>
-            <SubmitButton className="btn sm" pendingText="Queueing…" title={`Fill the free slots with drafts, oldest first — a draft that already has a date is scheduled at that date instead${heldDrafts ? `; ${heldDrafts} held draft${heldDrafts === 1 ? " stays" : "s stay"} on Drafts` : ""}`}>
+            <SubmitButton className="btn sm" pendingText="Queueing…" title={`Fill the free slots with drafts, oldest first — a draft that already has a date is scheduled at that date instead${heldDrafts ? `; ${heldDrafts} held draft${heldDrafts === 1 ? " stays" : "s stay"} on Post drafts` : ""}`}>
               <ListPlus className="w-3.5 h-3.5" /> Queue all {queueable} draft{queueable === 1 ? "" : "s"}
             </SubmitButton>
           </form>

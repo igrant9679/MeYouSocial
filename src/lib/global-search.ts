@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { RAIL } from "@/lib/nav";
-import { STAGES, STAGE_HREFS } from "@/lib/stages";
+import { STAGES, STAGE_HREFS, stageEntries } from "@/lib/stages";
 import { NAV_TIPS } from "@/lib/help-tips";
 import { HELP_CATEGORIES } from "@/lib/help";
 import { canFollow } from "@/lib/role-links";
@@ -34,7 +34,14 @@ export function searchablePages(role: Role, studio: boolean, channelId: string |
   for (const n of RAIL) out.set(n.href, { title: n.label, detail: NAV_TIPS[n.href] ?? "", href: n.href });
   for (const h of STAGE_HREFS) {
     const stage = STAGES[h];
-    for (const t of stage.tabs(ctx)) if (!out.has(t.href)) out.set(t.href, { title: `${stage.label} › ${t.label}`, detail: "", href: t.href });
+    // Named as the strip shows it to THIS person: "Settings › AI & keys › Keys", but an editor's "Settings › Roles".
+    const tabs = stage.tabs(ctx).filter((t) => canFollow(t.href, role));
+    for (const e of stageEntries(tabs, h)) {
+      for (const t of e.tabs) {
+        if (out.has(t.href)) continue;
+        out.set(t.href, { title: `${stage.label} › ${e.group && e.label !== t.label ? `${e.label} › ` : ""}${t.label}`, detail: "", href: t.href });
+      }
+    }
   }
   return [...out.values()].filter((p) => canFollow(p.href, role));
 }

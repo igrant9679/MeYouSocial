@@ -1,4 +1,5 @@
 import { STAGES } from "@/lib/stages";
+import { stripPhrase } from "@/lib/stage-copy";
 import Link from "next/link";
 import { requireMembership } from "@/lib/acl";
 import { RoleLink } from "@/components/RoleLink";
@@ -453,7 +454,7 @@ function Step({
   );
 }
 
-/** A stage's tab names as the strip shows them (SHL-14: hand-typed lists drifted). */
+/** A stage's tab names as the strip shows them — a group with its pages in brackets (SHL-14: hand-typed lists drifted). */
 function tabsOf(href: keyof typeof STAGES, studio = false): string {
-  return STAGES[href].tabs({ admin: true, operator: false, channelId: studio ? "x" : null, studio }).map((t) => t.label).join(" · ");
+  return stripPhrase(STAGES[href].tabs({ admin: true, operator: false, channelId: studio ? "x" : null, studio }), href, " · ");
 }

@@ -2719,3 +2719,52 @@ still reads fluently.
 - **Not built**: a tier per job other than Elsie's; retrying a failed JSON reply one tier higher; a model wording or
   ranking Elsie's suggestions (they stay data-only); the "customer brief" in the other session's plan
   (`docs/MODEL-PLAN-2026-11-17.md`, Phase 4); the Settings / Distribute / Measure tab regrouping.
+
+## ⚠ The three long strips are grouped: a first row of groups, a second row of the group's pages; one calendar with a switch (2026-11-17, the owner's "Yes, regroup tabs", growth part dg)
+
+Settings had grown to sixteen tabs in one row (an admin's thirteen), Distribute to ten and Measure to seven, and three
+names were used twice. The owner approved the regrouping proposed on 11-16.
+
+- **The model** (`src/lib/stages.ts`): a tab may carry `group`, and `stageEntries(tabs, stageHref)` folds a tab list
+  into the strip's first row — a page that stands alone, or a group under its own name. ⚠ Pass it the tabs ALREADY
+  filtered by `canFollow`: a group left with one page is shown as that page (an editor's "People & access" is just
+  **Roles**), and a group's link opens its first page that is left. Never render `group` by hand.
+- **The groups.** Settings: People & access [People, Roles, API tokens, Audit log] · Publishing [Automation, Schedule,
+  Connections] · AI & keys [Keys, Usage] · Workspace [Workspace, Email, Analytics, Jobs] · Operator [Workspaces,
+  Incident, Keyring]. Distribute: Compose [Compose, Captions] · Posts [Queue, Sent, Post drafts, Evergreen] · Calendar ·
+  Engage · Media & feeds [Media, RSS]. Measure: Overview [Summary, Reports, Insights] · Articles [Blog analytics, Blog
+  report] · Social performance · YouTube audit · By Topic. The other stages are untouched and still one row.
+- ⚠ **Every page kept its name and its URL.** Nothing redirects and no route moved; "Settings → Keys" (some 330 such
+  references in the copy) still names the page called Keys, which now sits under AI & keys. Do NOT rewrite those
+  references to name the group, and do not rename a page to suit a group. What finds a page: the group's hover title
+  (its pages), **Every Settings page** at the foot of the Settings overview (built from the same list), Ctrl+K (titles
+  carry the group: "Settings › AI & keys › Keys"), and the Help answer "Where did the Settings, Distribute and Measure
+  tabs go?", whose lists are generated.
+- **The strip** (`components/StageStrip.tsx`): the second row shows only inside a group. `aria-current="page"` is on
+  the page's own link (the second row, or a first-row page that stands alone); a lit group carries
+  `aria-current="true"`. The tab just clicked still lights at once, the group with it. "More ▾" (E-SHL-13) folds
+  ENTRIES now; no stage has more than seven.
+- ⚠ **Measure's Overview is a group that holds the stage's own page** (`StageEntry.home`, the tab `/measure` labelled
+  Summary). At most one group per stage may do that. It replaces the plain Overview link and keeps the name Overview.
+  The stage's own page is matched by PATH, never as a tab: the strip, `elsiePageLabel` and `stageUrls` each leave it
+  out of the list they match or print — a page no tab owns must keep lighting Overview.
+- ⚠ **A group's badge counts only what waits on a person** (the sum of its pages' urgent counts). Its pages count
+  different things — posts scheduled, post drafts — and their sum would be a number of nothing; the news stays on the
+  page's own tab in the second row.
+- **Three names changed so no two things share one**: Distribute's list of unsent posts is **Post drafts** (Drafts is
+  a stage), Measure's per-Topic table is **By Topic** (Topics is the Ideas tab), and Media and RSS sit under **Media &
+  feeds**. ⚠ When adding a tab, check its name is not already a stage, a group or another tab.
+- **The words are generated** (`lib/stage-copy.ts` `stripPhrase`): a group is its name with its pages in square
+  brackets, in the assistant's map, the Help FAQ and the guide. `check-help-copy` still requires every tab's name in
+  the generated text; `STAGE_NOTES` stays the only hand-written part.
+- **One calendar with a switch** (`lib/article-calendar.ts` `articleMonth(workspaceId, month, base)`,
+  `components/ArticleCalendarView.tsx`): Distribute → Calendar has **Show: Posts | Articles**;
+  `/social/calendar?show=articles` renders the articles' publishing month in place — the same loader as Publish → Blog
+  calendar, which stays. ⚠ `base` is the page showing it: month links stay there, so the stage strip never changes
+  under the reader (a link from one calendar to the other page would swap Distribute's strip for Publish's).
+  `rescheduleArticleAction` revalidates both pages. The Articles view runs none of the posts' queries. The Blog
+  calendar's link to the posts' side is offered only to roles that can open it (`canFollow`).
+- **Verified**: 39 checks over HTTP against a local dev server on a throwaway schema, as a fixture platform operator: each strip's first row; 24 pages each lighting the right entry and the right page on the second row (`/admin/limits` lights Usage, `/admin/connections` Connections, `/social/calendar?show=articles` Calendar); a group's link and hover title; the queue's, the post drafts' and the invitations' counts on their own tabs and none on the group; the Settings index; the calendar's switch, its month links and the Blog calendar on the same month; Ctrl+K's titles. The rows each of the four roles gets from `stageEntries`, printed by a script (operator 6 / 6 / 5 entries, admin 5 / 6 / 5, editor 3 / 6 / 5, viewer 3 / 4 / 5 with Overview). In a browser at desktop width and at 375 px: two rows, no sideways page scroll, the first row scrolling on a phone. The six prebuild checks, eslint on the changed files, tsc, next build and its bundle check. ⚠ The editor's and viewer's strips were not loaded as pages locally (the machine ran out of memory for the dev server) — see the production check in the hand-off.
+- **Not built**: posts and articles on ONE grid (the switch shows one kind at a time); moving Approvals from Publish to
+  Distribute (raised on 11-16 as a later question); a remembered "last page" per group; renaming Blog analytics / Blog
+  report / Blog calendar to "Article …".

@@ -33,7 +33,7 @@ export default async function MeasureTopicsPage({ searchParams }: { searchParams
   return (
     <div>
       <StageHeader
-        title="Topics"
+        title="By Topic"
         sentence={
           m.rows.length === 0
             ? "What each Topic earned, per format. There are no Topics yet, so there is nothing to measure against."
