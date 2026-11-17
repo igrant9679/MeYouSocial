@@ -127,7 +127,7 @@ export function CommandPalette() {
               <button type="button" role="option" aria-selected={active === shown.length} onMouseEnter={() => setActive(shown.length)} onClick={() => go(shown.length)}
                 className="w-full text-left flex items-center gap-2.5 px-3 py-2 rounded-lg" style={active === shown.length ? { background: "var(--accent-soft)" } : undefined} data-hit="ask">
                 <Bot className="w-4 h-4 shrink-0" style={{ color: "var(--violet-on)" }} />
-                <span className="text-sm truncate">Ask the assistant: “{q.trim()}”</span>
+                <span className="text-sm truncate">Ask Elsie: “{q.trim()}”</span>
               </button>
             </li>
           )}

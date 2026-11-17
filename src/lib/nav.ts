@@ -25,7 +25,7 @@ export const RAIL: (LeftRailItem & { adminOnly?: boolean; editorOnly?: boolean }
   { href: "/inbox",       label: "Inbox",       icon: "Inbox",         color: "var(--brand)", soft: "var(--brand-soft)" },
   // Editors and admins only: its API is EDITOR-gated, and a viewer's every
   // message failed with "Unexpected token '<'" (ENG-17).
-  { href: "/assistant",   label: "Assistant",   icon: "Bot",           color: "var(--violet)", soft: "var(--violet-soft)", editorOnly: true },
+  { href: "/assistant",   label: "Elsie",       icon: "Bot",           color: "var(--violet)", soft: "var(--violet-soft)", editorOnly: true },
   { href: "/research",    label: "Research",    icon: "Telescope",     color: "var(--blue)", soft: "var(--blue-soft)" },
   { href: "/ideas",       label: "Ideas",       icon: "Sparkles",      color: "var(--amber)", soft: "var(--amber-soft)" },
   { href: "/drafts",      label: "Drafts",      icon: "PenLine",       color: "var(--green)", soft: "var(--green-soft)" },

@@ -183,6 +183,11 @@ but it means **bad output can look like real output**. Rules learned the hard wa
   format listens through ONE pass, `lib/idea-listening.ts` (articles, social, video — evidence on each idea). Ordered backends, one result shape, a health row
   per channel (`ReachHealth`). ⚠ Never add a channel that needs someone's own login/cookies. Its text is outside text:
   `quoteForPrompt` + `QUOTED_MATERIAL_RULE` in prompts, `outside` on assistant tools.
+- **Elsie** — one name for the assistant (`src/lib/assistant/`, `components/AssistantDock.tsx` — her pane, floating or at
+  the side of the page, cookie `mys_elsie`) and the guided tour (`components/Elsie.tsx`, the header's "Tour" switch).
+  Her suggestions are data, not a model call: `src/lib/elsie/suggestions.ts` (the Inbox's decisions + open
+  recommendations, per-person dismissals in `ElsieDismissal`), served by `/api/elsie`. File, URL and event names still
+  say "assistant".
 - **Left nav** `src/components/LeftRailNav.tsx` — active route via shared `isNavActive()`.
 - **Theming** `src/app/globals.css` — light/dark via `data-theme`. Per-hue tokens `--<hue>`,
   `--<hue>-soft`, `--<hue>-on`; dark mode derives soft/on via `color-mix`, so **use the tokens, not
@@ -367,6 +372,7 @@ area, rather than loading all of them into every session.
 - Social and video ideas listen too — every idea format is grounded in live discussions — 2026-11-11, the owner's "Yes, do that", growth part dc
 - A failed draft says why and never links to a deleted article — 2026-11-13, the owner's 404 from the header pill
 - A key can be shared between two workspaces — a pointer, by an admin of both — 2026-11-15, the owner's "build it in Publisher too"
+- Elsie is the assistant and the guide — her pane can stay at the side and suggests from data — 2026-11-16, the owner's "Elsie pane", growth part de
 
 ## Open items / things the user still owns
 - **Analytics: APIs enabled 2026-08-03** (Search Console + GA Admin + GA Data, on project

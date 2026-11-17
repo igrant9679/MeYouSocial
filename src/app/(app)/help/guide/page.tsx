@@ -38,8 +38,8 @@ export default async function GuidePage() {
       </div>
       <p className="text-2xs text-[var(--mute)] mb-5">
         Fifteen-minute read. For step-by-step setup with the app pointing at things, use the compass button in the
-        top bar — this page is the map, not the tour. The <RoleLink href="/assistant" role={role} className="underline">Assistant</RoleLink> knows
-        everything on this page too: ask it &ldquo;how do I…&rdquo; or &ldquo;why is … held&rdquo;.
+        top bar — this page is the map, not the tour. <RoleLink href="/assistant" role={role} className="underline">Elsie</RoleLink> knows
+        everything on this page too: ask her &ldquo;how do I…&rdquo; or &ldquo;why is … held&rdquo;.
       </p>
 
       {/* ── 1 · The machine ─────────────────────────────────────────────── */}
@@ -133,8 +133,9 @@ export default async function GuidePage() {
           <Bot className="w-4 h-4" style={{ color: "var(--violet-on)" }} /> Asking instead of hunting
         </h2>
         <p className="text-sm leading-[1.65] mb-3">
-          The <b>Ask</b> button top-right (or <kbd>Ctrl</kbd>+<kbd>/</kbd>) opens the assistant as a dock over
-          whatever page you are on; <RoleLink href="/assistant" role={role} className="underline">Assistant</RoleLink> is the same
+          The <b>Elsie</b> button top-right (or <kbd>Ctrl</kbd>+<kbd>/</kbd>) opens the assistant as a pane over
+          whatever page you are on — on a wide screen its panel button keeps her at the side of the page instead,
+          open on every page — and the pane lists what she&apos;d suggest next; <RoleLink href="/assistant" role={role} className="underline">Elsie</RoleLink> in the rail is the same
           conversation with more room. It can do <b>nearly everything you can do here</b>: find, add, approve and
           reject ideas; discover keywords and topics; draft articles and scripts; write SEO and images; run Optimize
           and answer or dismiss its findings; verify or drop claims; approve images; advance an article; draft, queue,

@@ -5,6 +5,7 @@ import { runTurn } from "@/lib/assistant/session";
 import { getActiveChannel } from "@/lib/channel";
 import type { AssistantStep } from "@/lib/assistant/run";
 import { publicSteps } from "@/lib/assistant/undo";
+import { forgetElsieCache } from "@/lib/elsie/suggestions";
 
 /**
  * The assistant dock's API — the same turn the full page runs, as JSON, so
@@ -73,6 +74,8 @@ export async function POST(req: Request) {
         const send = (o: unknown) => { try { controller.enqueue(enc.encode(JSON.stringify(o) + "\n")); } catch { /* the reader went away; the turn still finishes */ } };
         try {
           const out = await runTurn({ ...input, live: { onThread: (threadId) => send({ type: "thread", threadId }), onProgress: (e) => send({ type: "progress", ...e }) } });
+          // What she did may have answered one of her own suggestions — the pane re-reads them next.
+          forgetElsieCache(workspace.id);
           send(out ? { type: "reply", ...replyJson(out) } : { type: "error", error: "no thread" });
         } catch (e) {
           send({ type: "error", error: e instanceof Error ? e.message.slice(0, 200) : "the turn failed" });
@@ -85,6 +88,7 @@ export async function POST(req: Request) {
   }
 
   const out = await runTurn(input);
+  forgetElsieCache(workspace.id);
   if (!out) return Response.json({ error: "no thread" }, { status: 404 });
   return Response.json(replyJson(out));
 }

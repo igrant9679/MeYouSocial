@@ -144,12 +144,16 @@ html[data-theme="dark"] .ws-brand {
 
   const engineState = { paused: enginePaused, autonomous: engineAutonomous, heartbeat, autopilotOff: process.env.AUTOPILOT === "off" };
 
-  // Elsie, the guide. Her setup steps are filtered against what this workspace
+  // Elsie's guided tour. Her setup steps are filtered against what this workspace
   // has actually done, so she never walks anyone through work already finished.
   // All counts, deliberately — cheap enough to run on every page render.
   const guide = await getGuideState();
   // E-SHL-10: the phone's bottom tabs, unless this browser turned them off.
-  const tabBar = (await cookies()).get("mys_tabbar")?.value !== "off";
+  const jar = await cookies();
+  const tabBar = jar.get("mys_tabbar")?.value !== "off";
+  // Where Elsie's pane sits (AssistantDock): "side-open" / "side-closed" keep her
+  // at the side of the page, so a side pane is part of the first paint.
+  const elsiePane = jar.get("mys_elsie")?.value ?? "";
   const [llmKeyRows, wsLlmKeyRows, zernioKeyRow, socialAccounts, emailAccounts, topics, postingSlots, blogPosts, storageBackend, analyticsRows, sharedLlmKey] = await Promise.all([
     db.setting.count({ where: { key: { in: ["api_key:anthropic", "api_key:google"] }, NOT: { value: "" } } }),
     // ⚠ Workspace keys count too. This only looked at PLATFORM settings, so a
@@ -276,8 +280,8 @@ html[data-theme="dark"] .ws-brand {
         <header className="min-h-[60px] border-b border-[var(--line)] app-header flex items-center gap-2 md:gap-3 px-3 md:px-6 py-2 flex-shrink-0 flex-wrap">
           <div className="md:hidden">
             <MobileNav items={navItems} userLabel={userLabel} signOutAction={signOutAction} logoUrl={logoUrl} brandName={brandName} coBranded={isBranded}
-              // E-SHL-10: on a phone the header keeps Ask, the bell and the avatar; the engine
-              // pill, Elsie and the tab bar's switch live here.
+              // E-SHL-10: on a phone the header keeps Elsie, the bell and the avatar; the engine
+              // pill, her guided tour and the tab bar's switch live here.
               extra={
                 <div className="flex flex-col gap-2 mb-3" data-drawer-extra>
                   <EngineStatus key={`m-${workspace.id}`} initial={ticker} timeZone={tickerZone} state={engineState} inDrawer />
@@ -287,7 +291,7 @@ html[data-theme="dark"] .ws-brand {
                     )}
                     <form action={setGuideEnabledAction}>
                       <input type="hidden" name="on" value={guide.enabled ? "0" : "1"} />
-                      <button className="btn sm">{guide.enabled ? "Turn Elsie off" : "Turn Elsie on"}</button>
+                      <button className="btn sm">{guide.enabled ? "Turn the guided tour off" : "Turn the guided tour on"}</button>
                     </form>
                     <form action={setTabBarAction}>
                       <input type="hidden" name="on" value={tabBar ? "0" : "1"} />
@@ -413,7 +417,12 @@ html[data-theme="dark"] .ws-brand {
         {/* Suspense: FlashBanner reads useSearchParams, which Next requires be
             suspended so a page can still be prerendered around it. */}
         {/* With the bottom tabs, a phone keeps room for them under the page. */}
-        <main className={"flex-1 overflow-auto bg-[var(--panel)] p-6 @container" + (tabBar ? " max-md:pb-24" : "")}>
+        {/* <main> and Elsie's pane share a row: at the side of the page she is a
+            column of it (`.elsie-side`); floating, she is out of the flow and
+            the row is <main> alone. ⚠ min-h-0 keeps the row to the height the
+            column has left — without it <main> stops being the scroll container. */}
+        <div className="flex-1 min-h-0 flex">
+        <main className={"flex-1 min-w-0 overflow-auto bg-[var(--panel)] p-6 @container" + (tabBar ? " max-md:pb-24" : "")}>
           {/* The persistent stage strip: Overview + the stage's tabs on every
               page a stage owns, so entering a tab never loses the tabs. */}
           <StageStrip
@@ -429,7 +438,10 @@ html[data-theme="dark"] .ws-brand {
         </main>
         {/* Keyed by workspace and scoped to the person: a switch starts on that
             workspace's own conversation (ENG-18). */}
-        <AssistantDock key={workspace.id} activeChannelId={active?.id ?? null} workspaceId={workspace.id} userId={user.id} readOnly={!editorUp} floatingButton={!tabBar} />
+        <AssistantDock key={workspace.id} activeChannelId={active?.id ?? null} workspaceId={workspace.id} userId={user.id} readOnly={!editorUp} floatingButton={!tabBar}
+          initialMode={elsiePane.startsWith("side") ? "side" : "float"} initialOpen={elsiePane === "side-open"}
+          guideEnabled={guide.enabled} guideSteps={elsieSteps.length} />
+        </div>
         {tabBar && <MobileTabBar counts={counts} />}
         <CommandPalette />
       </div>

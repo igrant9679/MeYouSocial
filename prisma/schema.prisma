@@ -68,6 +68,7 @@ model Workspace {
   postingSlots    PostingSlot[]
   inboxSnoozes     InboxSnooze[]
   inboxAssignments InboxAssignment[]
+  elsieDismissals  ElsieDismissal[]
   apiTokens        ApiToken[]
   storedObjects    StoredObject[]
   socialSnippets   SocialSnippet[]
@@ -2495,6 +2496,21 @@ model InboxSnooze {
 
   @@unique([workspaceId, userId, itemKey])
   @@index([workspaceId, userId, until])
+}
+
+// A suggestion this person told Elsie not to make again (2026-11-16, lib/elsie/suggestions.ts):
+// `key` is the suggestion's kind ("home:blog-review") or one recommendation ("rec:<id>").
+// Theirs alone, in this workspace; "Show them again" deletes the rows.
+model ElsieDismissal {
+  id          String   @id @default(cuid())
+  workspaceId String
+  userId      String
+  key         String
+  createdAt   DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, userId, key])
 }
 
 // Who has taken an Inbox item (E-SHL-03): one person per item, seen by everyone.

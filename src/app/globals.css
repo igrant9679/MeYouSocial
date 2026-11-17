@@ -208,6 +208,34 @@ html[data-theme="dark"] body {
 
 /* Left rail + app header — light defaults, dark overrides below. Defined here so
    theme switching works without Tailwind utility classes baking in hex colors. */
+/* Elsie at the side of the page (components/AssistantDock.tsx, 2026-11-16).
+   Her pane is a floating card by default. In side mode, on a shell at least
+   84rem wide, it becomes a column of the page's own row instead — 340px beside
+   <main>, which still keeps about 750px at that width with the rail open.
+   ⚠ Unlayered on purpose, like .btn: that is what lets these beat the card's
+   Tailwind utilities. The container measured is the shell's outer div, so the
+   content-size zoom moves this breakpoint the same way it moves the rail's.
+   Below 84rem a side pane the COOKIE opened (data-auto) stays out of sight —
+   a card over every page nobody asked for — until someone opens her. */
+.elsie-side-toggle { display: none; }
+.elsie-side[data-auto="1"] { display: none; }
+@container (min-width: 84rem) {
+  .elsie-side-toggle { display: inline-flex; }
+  .elsie-side,
+  .elsie-side[data-auto="1"] {
+    display: flex;
+    position: static;
+    inset: auto;
+    z-index: auto;
+    width: 340px;
+    height: auto;
+    flex-shrink: 0;
+    border-width: 0 0 0 1px;
+    border-radius: 0;
+    box-shadow: none;
+  }
+}
+
 .left-rail   { background: linear-gradient(to bottom, var(--bg), var(--zebra)); }
 .app-header  { background-color: var(--bg); }
 html[data-theme="dark"] .left-rail,

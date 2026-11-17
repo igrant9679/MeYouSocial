@@ -30,7 +30,7 @@ export const SOURCES = [
   { value: "engine", label: "Engine" },
   { value: "evergreen", label: "Evergreen repost" },
   { value: "import", label: "CSV import" },
-  { value: "assistant", label: "Assistant" },
+  { value: "assistant", label: "Elsie" },
   { value: "captions", label: "Caption Studio" },
   { value: "rss", label: "RSS" },
 ] as const;

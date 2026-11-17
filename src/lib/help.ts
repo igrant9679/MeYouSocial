@@ -957,14 +957,24 @@ export const HELP_CATEGORIES: FaqCategory[] = [
   },
   {
     id: "guide",
-    label: "Elsie, the guide",
+    label: "Elsie",
     color: "var(--amber)",
     soft: "var(--amber-soft)",
     entries: [
       {
         q: "What is Elsie?",
-        a: "The guide built into the app — the compass button in the top bar. She flags setup that is genuinely still outstanding, then offers a short tour. She is named for LSI Media: *L-S-I* said aloud is el-ess-eye.",
-        tags: ["elsie", "guide", "tour", "onboarding", "help"],
+        a: "The app's assistant and its guide, under one name. The **Elsie** button in the top bar (Ctrl+/) opens her pane: ask her to do or explain anything — whatever goes out or is hard to undo is proposed first and waits for your yes — and she lists what she'd suggest next. The compass **Tour** button beside it is her guided tour: it flags setup that is genuinely still outstanding, then offers a short tour. She is named for LSI Media: *L-S-I* said aloud is el-ess-eye.",
+        tags: ["elsie", "assistant", "ask", "guide", "tour", "onboarding", "help"],
+      },
+      {
+        q: "Where do Elsie's suggestions come from?",
+        a: "From the workspace's own numbers, not from a guess: the same decisions the Inbox lists (posts awaiting approval, articles held for review, ideas waiting for a yes or no, a paused queue…) and the open recommendations on Insights. No AI is called to make the list, so it costs nothing as you move around. The ones that belong to the page you are on come first. Each has the page's own button, **Ask Elsie** — which asks her about it like any typed question, so a change still waits for your yes — and an ✕ that stops her suggesting it to you again; *Show them again* at the bottom of the list brings those back. Viewers get questions to ask rather than suggestions, because nothing in the list would be theirs to act on.",
+        tags: ["elsie", "suggestions", "recommend", "next", "badge", "dismiss", "hide"],
+      },
+      {
+        q: "Can Elsie stay open while I work?",
+        a: "Yes, on a wide screen. Her pane has a panel button in its header: press it and she sits at the side of the page instead of floating over it, and stays open as you move between pages. Press it again to float her; the ✕ closes her either way, and the Elsie button brings her back where she was. On a narrower window she is always the floating card.",
+        tags: ["elsie", "pane", "side", "pin", "dock", "open", "panel"],
       },
       {
         q: "Why does she show me different things than my colleague?",
@@ -977,13 +987,13 @@ export const HELP_CATEGORIES: FaqCategory[] = [
         tags: ["elsie", "tours", "tracks", "tour"],
       },
       {
-        q: "The badge on the guide button — what is the number?",
-        a: "How many setup steps are still outstanding for this workspace. It disappears when everything relevant to you is done. Steps you dismiss stay dismissed.",
+        q: "The badges on the Elsie and Tour buttons — what are the numbers?",
+        a: "On **Tour**: how many setup steps are still outstanding for this workspace. It disappears when everything relevant to you is done; steps you dismiss stay dismissed. On **Elsie**: how many suggestions she has for you right now.",
         tags: ["elsie", "badge", "count", "setup"],
       },
       {
-        q: "How do I turn her off?",
-        a: "The button in the top bar toggles her. Closing the popup with Esc or the X is only *not now* — she stays available and will not reopen on you as you navigate. Turning her back **on** clears progress so the tour replays from the start.",
+        q: "How do I turn the guided tour off?",
+        a: "The **Tour** button in the top bar toggles it. Closing the popup with Esc or the X is only *not now* — the tour stays available and will not reopen on you as you navigate. Turning it back **on** clears progress so the tour replays from the start. Elsie's own pane never opens by itself: it is there when you press her button.",
         tags: ["elsie", "off", "disable", "dismiss", "snooze"],
       },
     ],

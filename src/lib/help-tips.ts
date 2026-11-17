@@ -12,7 +12,7 @@
 
 /** What each left-rail module is for, keyed by href. */
 export const NAV_TIPS: Record<string, string> = {
-  "/assistant": "Ask it to do or explain anything in the app. Anything that goes out or is hard to undo is proposed first and waits for your yes. Also the Ask button on every page (Ctrl+/).",
+  "/assistant": "Ask Elsie to do or explain anything in the app. Anything that goes out or is hard to undo is proposed first and waits for your yes. Also the Elsie button on every page (Ctrl+/), where she lists what she'd suggest next.",
   "/inbox": "Everything waiting on a person — approvals, questions, claims, images, invitations — with the action on the card, and how the pipeline is doing beneath.",
   "/channels": "One YouTube channel per entry. Each carries its own voice, audience, ideas and scripts — switch channels and the whole app follows.",
   "/research": "Competitor channels and the outlier videos that beat their own average — Intel, bookmarks, competitors and chat live here. Turn an outlier into an idea from the row.",

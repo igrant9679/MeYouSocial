@@ -1789,6 +1789,8 @@ before changing code in that area.
   injected instruction past the twelve-message window that used to end the rule.
 
 ## ⚠ Elsie can be resumed where "Not now" left her — her button still only turns her off and on (2026-11-03, audit Phase 5, growth part bo)
+- (2026-11-16: "her button" here is the compass switch, labelled **Tour** since Elsie became the assistant's name too —
+  see the last section. Everything below still holds for it.)
 - **Resume** (E-SHL-07): "Not now" stores the tour and the step it was on (cookie `meyousocial_elsie_at`,
   `<track>:<step>`, `snoozeGuideAction(at)`) as well as the session snooze. While she's on but dismissed, a **Resume
   tour · n/N** control sits beside her button; pressing it clears the snooze (`resumeGuideAction`) and opens on that
@@ -1805,6 +1807,7 @@ before changing code in that area.
   anchor-integrity test runs before every build (`scripts/check-guide-anchors.mts` in `prebuild`).
 
 ## ⚠ Phones get bottom tabs, a header with Ask and the bell, and the engine and Elsie in the drawer (2026-11-03, audit Phase 5, growth part bp)
+- (2026-11-16: "Ask" is the **Elsie** button now and the drawer's switch says "the guided tour" — see the last section.)
 - **Bottom tabs** (E-SHL-10, `components/MobileTabBar.tsx`, `md:hidden`): Inbox · Ideas · Drafts · Distribute · More —
   the strip's own badges from the shell's one poll (Ideas = discovered, Drafts = held articles, Distribute = approvals +
   unseen replies; the Inbox has no cheap count, so no badge); More opens the drawer (`mobilenav:open`). On by default;
@@ -2563,4 +2566,35 @@ before changing code in that area.
   guide's `hasLlmKey` counts a working share (`hasWorkingSharedKey`).
 - ⚠ The provider bills the giver's account for the taker's calls and their quota is one pool; the app's own usage
   figures stay with the workspace that made the call. Migration `20261115230000_key_shares`.
+
+## ⚠ Elsie is the assistant and the guide — her pane can stay at the side and suggests from data (2026-11-16, the owner's "Elsie pane", growth part de)
+- **One name.** The assistant is Elsie: the header button, the pane, the rail entry (`/assistant`, label only — every URL,
+  event name `assistant:open` / `assistant:ask` and file name is unchanged), Ctrl+K's last row, the system prompt's first
+  words. Her guided tour (`components/Elsie.tsx`) is the compass switch beside it, now labelled **Tour** — still only
+  on/off, with Resume beside it; the phone drawer says "the guided tour". Still exactly one Elsie button at every width.
+- **The pane** (`components/AssistantDock.tsx`): the floating card it was, or — its panel button, `mode: "side"` — a
+  340px column of the page's own row, open on every page. ⚠ `<main>` and the pane share `div.flex-1.min-h-0.flex` in the
+  layout; drop `min-h-0` and `<main>` stops being the scroll container. The column exists only on a shell ≥ 84rem
+  (`.elsie-side` in globals.css, UNLAYERED so it beats the card's utilities, measured on the shell's container so the
+  content-size zoom moves it like the rail); narrower, side mode is the same floating card. Cookie `mys_elsie` =
+  `side-open` / `side-closed` (absent = float), written by the pane, read by the layout so a side pane is in the first
+  paint. ⚠ A pane the COOKIE opened (`data-auto`) is `display:none` below 84rem until a person opens her — never a card
+  over every page nobody asked for; Ctrl+/ therefore toggles on what is VISIBLE, not on `open`.
+- **Suggestions come from data, never a model** (`lib/elsie/suggestions.ts`, `GET /api/elsie?page=`): the Inbox's own
+  decisions (`getHomeData().decisions` → `home:<kind>`) and the top open recommendations (`rec:<id>`), kept 45 s per
+  workspace (`forgetElsieCache` after every assistant turn). The page decides the ORDER, not the list: suggestions whose
+  link is in the stage being looked at are "On this page", then four more, then "N more in the Inbox". Fetched while
+  she's open (each page, and after each turn); closed, once per load and when two minutes stale — that number is the
+  badge on her button (`lib/elsie-live.ts`). Not in the shell poll: the Inbox's decisions are ~20 counts.
+- ⚠ **She never acts from a suggestion and never opens herself.** Each has its page's own link, and **Ask Elsie** — a
+  prepared message (`ASK_FOR`, else a general question) sent as an ordinary turn, so a change still waits on its card's
+  Yes. The empty pane's questions are per stage (`lib/elsie/page.ts`; `write` ones aren't offered to a viewer).
+- **Only what this person can act on**: a link the role can't open is left out (`canFollow`), post approval is an
+  admin's (`ADMINS_ACT`), and a viewer gets no suggestions at all — `POST /api/elsie` answers a viewer 403.
+- **Dismissed stays dismissed**: `ElsieDismissal` (workspace, user, key — migration `20261116120000_elsie_dismissals`),
+  per person; keys must match `DISMISS_KEY`. A `home:` key hides that KIND of decision, a `rec:` key one
+  recommendation. "Show them again" deletes that person's rows; `hidden` counts only dismissals of things that would
+  show now.
+- Not built yet (the owner's other two asks, 11-16): model tiers (her turns still run on the workspace's default model)
+  and DeepSeek; the tab regrouping of Settings / Distribute / Measure.
 

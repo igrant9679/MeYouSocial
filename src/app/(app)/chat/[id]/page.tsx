@@ -32,7 +32,7 @@ export default async function ChatThreadPage({ params }: { params: Promise<{ id:
       <main className="card flex flex-col p-0 overflow-hidden">
         {/* Header */}
         <div className="px-5 py-3 border-b border-[var(--line)] flex items-center gap-2">
-          <Link href={chat.scriptId ? `/scripts/${chat.scriptId}` : "/assistant"} className="text-xs font-mono text-[var(--mute)] hover:text-[var(--accent)] flex items-center gap-1"><ArrowLeft className="w-3 h-3" /> {chat.scriptId ? "Back to the script" : "Assistant"}</Link>
+          <Link href={chat.scriptId ? `/scripts/${chat.scriptId}` : "/assistant"} className="text-xs font-mono text-[var(--mute)] hover:text-[var(--accent)] flex items-center gap-1"><ArrowLeft className="w-3 h-3" /> {chat.scriptId ? "Back to the script" : "Elsie"}</Link>
           <span className="flex-1" />
           <span className="text-xs text-[var(--mute)]">Channel: <b>{chat.channel.name}</b></span>
         </div>

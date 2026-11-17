@@ -6,7 +6,10 @@ import { Compass, X, ArrowRight, ArrowLeft, Check, Play } from "lucide-react";
 import { clearGuidePositionAction, markGuideStepsDoneAction, resumeGuideAction, setGuideEnabledAction, snoozeGuideAction } from "@/app/actions/guide";
 
 /**
- * Elsie — LSI Media's in-app guide. ("L-S-I" said aloud is *el-ess-eye*.)
+ * Elsie's guided tour. ("L-S-I" said aloud is *el-ess-eye*.) Since 2026-11-16
+ * Elsie is also the assistant (AssistantDock.tsx) — one name for both — so the
+ * top-bar switch this renders is labelled "Tour", and her header button opens
+ * the pane.
  *
  * Renders two things: the on/off button that lives in the top bar, and the
  * coach-mark overlay itself — a spotlight cut around the thing being explained,
@@ -353,13 +356,13 @@ export function Elsie({
           type="submit"
           data-elsie="elsie-button"
           onClick={() => { setDismissed(false); userDriven.current = false; }}
-          title={enabled ? "Turn Elsie off" : "Turn Elsie on — she'll walk you through the app"}
+          title={enabled ? "Turn Elsie's guided tour off" : "Turn Elsie's guided tour on — she'll walk you through the app"}
           aria-pressed={enabled}
           className="relative inline-flex items-center gap-1.5 h-11 px-2.5 rounded-xl text-sm font-semibold transition-colors hover:bg-[var(--zebra)]"
           style={enabled ? { background: "var(--accent-soft)", color: "var(--accent-on)" } : { color: "var(--mute)" }}
         >
           <Compass className="w-[19px] h-[19px]" strokeWidth={2.25} />
-          <span className="hidden @md:inline">Elsie</span>
+          <span className="hidden @md:inline">Tour</span>
           {outstanding > 0 && (
             <span
               className="absolute -top-0.5 -right-0.5 min-w-[17px] h-[17px] px-1 rounded-full text-micro font-mono font-bold grid place-items-center"

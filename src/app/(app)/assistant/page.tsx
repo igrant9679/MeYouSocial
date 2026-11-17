@@ -97,7 +97,7 @@ export default async function AssistantPage({ searchParams }: { searchParams: Pr
       <main className="p-6 w-full max-w-2xl">
         <EmptyState
           line="This full assistant page is for editors and admins, because it can change things here."
-          note="The Ask button on any page answers your questions — as a viewer it looks things up and explains them, but changes nothing. Ask an admin if you need editor access."
+          note="The Elsie button on any page answers your questions — as a viewer it looks things up and explains them, but changes nothing. Ask an admin if you need editor access."
           action={{ label: "Back to the Inbox", href: "/inbox" }}
         />
       </main>
@@ -126,7 +126,7 @@ export default async function AssistantPage({ searchParams }: { searchParams: Pr
           <Bot className="w-6 h-6" strokeWidth={2.25} />
         </span>
         <div>
-          <h1 className="font-mono font-bold text-2xl leading-tight">Assistant</h1>
+          <h1 className="font-mono font-bold text-2xl leading-tight">Elsie</h1>
           <p className="text-xs text-[var(--mute)]">
             Talk through research, ideas, drafts, publishing and the numbers — it does the work with you, asks before anything goes out, and shows every step.
             {active ? <> Your active channel is <b>{active.name}</b>; it knows its niche, audience, voice and memory.</> : null}
