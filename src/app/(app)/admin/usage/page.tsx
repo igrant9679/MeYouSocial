@@ -10,6 +10,8 @@ import { AGENT_RUN_ACTION, THUMBNAIL_ACTIONS, monthStartUtc } from "@/lib/soft-l
 import { MODELS, PROVIDER_LABEL, modelLabel } from "@/lib/llm/models";
 import { BUDGET_KEY, BUDGET_THRESHOLDS, PRICES_KEY, estimateCost, formatUsd, parseBudget, parsePrices, purposeLabel } from "@/lib/ai-spend";
 import { getSetting } from "@/lib/settings";
+import { tierSettings } from "@/lib/llm";
+import { TIER_LABEL, UNTIERED_PURPOSES, tierOf, type Tier } from "@/lib/llm/tiers";
 import { SubmitButton } from "@/components/SubmitButton";
 import { saveModelPricesAction, saveTokenBudgetAction, saveVideoBudgetAction, saveVideoPricesAction } from "@/app/actions/ai-spend";
 import { monthSpend, videoPrices, usd, perSecondUsd, VIDEO_SCENE_ACTION } from "@/lib/video-spend";
@@ -68,6 +70,9 @@ export default async function AdminUsagePage({ searchParams }: { searchParams: P
     getSetting(BUDGET_KEY, ws),
   ]);
   const prices = parsePrices(priceRow?.value);
+  // Model tiers (lib/llm/tiers.ts): each job's tier as the workspace has it NOW — shown only while tiers are on.
+  const tiers = await tierSettings(ws);
+  const tierFor = (purpose: string | null): Tier | null => (tiers.on && purpose && !UNTIERED_PURPOSES.includes(purpose) ? tierOf(purpose, tiers.elsie) : null);
   // E-VID-06: video by the second — the month's metered scenes, the operator's prices, the workspace's budget.
   const [video, vPrices, videoModelsSeen] = await Promise.all([
     monthSpend(ws),
@@ -217,7 +222,10 @@ export default async function AdminUsagePage({ searchParams }: { searchParams: P
           <ul className="m-0 p-0 list-none flex flex-col">
             {purposes.map((p) => (
               <li key={p.purpose ?? "none"} className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 text-xs py-1.5 border-t border-[var(--line)] first:border-0" data-purpose={p.purpose ?? "none"}>
-                <span className="font-semibold min-w-[12rem]">{purposeLabel(p.purpose)}</span>
+                <span className="font-semibold min-w-[12rem]">
+                  {purposeLabel(p.purpose)}
+                  {tierFor(p.purpose) && <span className="ml-1.5 font-mono font-normal text-2xs text-[var(--mute)]" data-purpose-tier={tierFor(p.purpose)!}>{TIER_LABEL[tierFor(p.purpose)!]}</span>}
+                </span>
                 <span className="font-mono text-2xs text-[var(--mute)] flex flex-wrap gap-x-3">
                   <span><b className="text-[var(--ink)]">{p.calls.toLocaleString("en-GB")}</b> call{p.calls === 1 ? "" : "s"}</span>
                   <span><b className="text-[var(--ink)]">{p.inTok.toLocaleString("en-GB")}</b> in</span>

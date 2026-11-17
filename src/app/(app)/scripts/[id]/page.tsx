@@ -6,7 +6,7 @@ import { notFound } from "next/navigation";
 import { requireMembership, canEdit } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { readJson } from "@/lib/db/json";
-import { modelChoices, resolveUsableModel } from "@/lib/llm";
+import { inheritedModelNote, modelChoices, resolveUsableModel } from "@/lib/llm";
 import { modelLabel } from "@/lib/llm/models";
 import { ModelOptions } from "@/components/ModelOptions";
 import { formatDuration } from "@/lib/canvas/duration";
@@ -70,7 +70,8 @@ export default async function CanvasPage({
   const activeTab = (tab === "script" ? "script" : tab === "shots" ? "shots" : "plan") as "plan" | "script" | "shots";
   const [choices, inherited] = await Promise.all([
     modelChoices(workspace.id),
-    resolveUsableModel(script.channel.defaultModel ?? "", workspace.id),
+    // The channel's own model by name; with none, what the workspace's default (or each job's tier) means here.
+    script.channel.defaultModel ? resolveUsableModel(script.channel.defaultModel, workspace.id).then(modelLabel) : inheritedModelNote(workspace.id),
   ]);
   // E-VID-11: Shorts cut from this script, each with its storyboard.
   const shorts = await db.script.findMany({ where: { cutFromId: script.id, channel: { workspaceId: workspace.id } }, select: { id: true, title: true }, orderBy: { createdAt: "desc" }, take: 6 });
@@ -186,7 +187,7 @@ export default async function CanvasPage({
               {/* Keyed on the saved value: React 19 resets a form after its action, and an
                   unkeyed select snapped back to its first value — "the voice doesn't save" (tracker #9). */}
               <select key={`model-${script.model ?? ""}`} name="model" defaultValue={script.model ?? ""} className="border border-[var(--line-2)] rounded-md p-1 text-xs font-mono">
-                <option value="">Channel default ({modelLabel(inherited)})</option>
+                <option value="">Channel default ({inherited})</option>
                 <ModelOptions choices={choices} current={script.model} />
               </select>
             </label>

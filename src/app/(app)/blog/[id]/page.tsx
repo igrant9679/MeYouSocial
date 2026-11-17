@@ -52,8 +52,7 @@ import {
   remeasureBlogImageAction,
   saveImageAltAction,
 } from "@/app/actions/blog-images";
-import { modelChoices, resolveUsableModel } from "@/lib/llm";
-import { modelLabel } from "@/lib/llm/models";
+import { inheritedModelNote, modelChoices, resolveUsableModel } from "@/lib/llm";
 import { ModelOptions, ModelChoiceNote } from "@/components/ModelOptions";
 import {
   applyTitleAction,
@@ -332,7 +331,7 @@ export default async function BlogPostPage({
 
   const [modelChoiceList, inheritedModel, postModelRuns] = await Promise.all([
     modelChoices(workspace.id),
-    resolveUsableModel("", workspace.id),
+    inheritedModelNote(workspace.id),
     resolveUsableModel(post.model ?? "", workspace.id),
   ]);
   // FR-3: the expert roster, plus who would be auto-matched if none is pinned.
@@ -1344,7 +1343,7 @@ export default async function BlogPostPage({
           <label className="text-sm">
             <span className="block text-xs text-[var(--mute)] mb-1">Model (this post)</span>
             <select key={`model:${post.model ?? ""}`} name="model" defaultValue={post.model ?? ""} className="w-full text-xs font-mono" disabled={!editor}>
-              <option value="">workspace default ({modelLabel(inheritedModel)})</option>
+              <option value="">workspace default ({inheritedModel})</option>
               <ModelOptions choices={modelChoiceList} current={post.model} />
             </select>
             <ModelChoiceNote choices={modelChoiceList} current={post.model} runs={postModelRuns} />

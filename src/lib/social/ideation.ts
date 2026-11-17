@@ -2,7 +2,7 @@ import { db } from "@/lib/db";
 import { rejectedLine } from "@/lib/reject-reasons";
 import { readJson } from "@/lib/db/json";
 import { writeAudit, isGloballyPaused } from "@/lib/governance";
-import { llm, resolveUsableModel } from "@/lib/llm";
+import { llm } from "@/lib/llm";
 import { motifPromptFor, brandContextBlock } from "@/lib/motifs";
 import { stripListMarker } from "@/lib/list-marker";
 
@@ -64,7 +64,7 @@ export async function discoverSocialIdeasCore(workspaceId: string, topicId: stri
 
   const res = await llm.complete({
     purpose: "ideas.discover",
-    model: await resolveUsableModel(workspace.defaultModel ?? llm.defaultModel, workspaceId),
+    model: "",
     system:
       "You propose social media post IDEAS for a real company's feed — not finished posts. " +
       'Respond ONLY with a JSON array: [{"hook": string, "angle": string, "sources": number[]}] — no prose, no markdown fences. ' +
@@ -160,7 +160,7 @@ export async function socialIdeasFromArticle(workspaceId: string, postId: string
 
   const res = await llm.complete({
     purpose: "article.variants",
-    model: await resolveUsableModel(workspace.defaultModel ?? llm.defaultModel, workspaceId),
+    model: "",
     system:
       "You propose social post IDEAS that promote one published article — each a different angle on it, not a summary. " +
       'Respond ONLY with a JSON array: [{"hook": string, "angle": string}] — no prose, no markdown fences. ' +

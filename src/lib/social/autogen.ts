@@ -80,7 +80,7 @@ export async function generateSocialPostForWorkspace(workspaceId: string): Promi
     recentPosts.length ? `Recently published articles: ${recentPosts.map((p) => p.title).join(" · ")}` : "",
   ].filter(Boolean);
 
-  const model = await resolveUsableModel(workspace.defaultModel ?? llm.defaultModel, workspaceId);
+  const model = await resolveUsableModel("", workspaceId, "social.draft");
   const res = await llm.complete({
     purpose: "social.draft",
     model,

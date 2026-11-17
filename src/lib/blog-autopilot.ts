@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
 import { rejectedLine } from "@/lib/reject-reasons";
 import { env } from "@/lib/env";
-import { llm, resolveUsableModel } from "@/lib/llm";
+import { llm } from "@/lib/llm";
 import { readJson } from "@/lib/db/json";
 import { runBlogChecks } from "@/lib/blog-checks";
 import { blockingChecks, gatesSatisfied } from "@/lib/blog-gates";
@@ -187,11 +187,11 @@ export async function discoverIdeasCore(workspaceId: string, topicId?: string | 
 
   const res = await llm.complete({
     purpose: "ideas.discover",
-    // ⚠ resolveUsableModel, not the raw chain: a stored model whose provider
-    // has no key here resolves to the MOCK and the guard then refuses every
-    // generation forever (Demo: defaultModel gemini-2.5-pro, only an env
-    // anthropic key — caught in the 2026-08-25 flow walkthrough).
-    model: await resolveUsableModel(workspace.defaultModel ?? llm.defaultModel, workspaceId),
+    // ⚠ Blank, never the workspace's default by name: the router inherits it,
+    // moves a model whose provider has no key here to one that has (Demo:
+    // defaultModel gemini-2.5-pro, only an env anthropic key — every generation
+    // was the MOCK and was refused, 2026-08-25), and applies this job's tier.
+    model: "",
     system,
     messages: [{ role: "user", content: prompt }],
     // ⚠ 8000, not 1500: gemini-2.5-pro is a REASONING model that spends its
@@ -313,7 +313,7 @@ export async function generateOutlineCore(workspaceId: string, postId: string): 
 
   const res = await llm.complete({
     purpose: "article.outline",
-    model: await resolveUsableModel(post.model ?? workspace.defaultModel ?? llm.defaultModel, workspaceId),
+    model: post.model ?? "",
     system,
     messages: [{ role: "user", content: prompt }],
     maxTokens: 1200,
@@ -466,7 +466,7 @@ export async function generateDraftCore(workspaceId: string, postId: string, bri
 
   const res = await llm.complete({
     purpose: "article.draft",
-    model: await resolveUsableModel(post.model ?? workspace.defaultModel ?? llm.defaultModel, workspaceId),
+    model: post.model ?? "",
     system,
     messages: [{ role: "user", content: prompt }],
     maxTokens: 4000,
@@ -489,7 +489,7 @@ export async function generateDraftCore(workspaceId: string, postId: string, bri
       action: "blog.draft_failed",
       entityType: "blog_post",
       entityId: post.id,
-      meta: { model: post.model ?? workspace.defaultModel ?? llm.defaultModel, provider: "mock", reason: "provider unavailable — refused to store mock output", title: post.title.slice(0, 200), why: await refusalNote(workspaceId) },
+      meta: { model: res.model, provider: "mock", reason: "provider unavailable — refused to store mock output", title: post.title.slice(0, 200), why: await refusalNote(workspaceId) },
     });
     return false;
   }
@@ -637,11 +637,11 @@ export async function generateVariantsCore(workspaceId: string, postId: string, 
 
   const res = await llm.complete({
     purpose: "article.variants",
-    // ⚠ resolveUsableModel, not the raw chain: a stored model whose provider
-    // has no key here resolves to the MOCK and the guard then refuses every
-    // generation forever (Demo: defaultModel gemini-2.5-pro, only an env
-    // anthropic key — caught in the 2026-08-25 flow walkthrough).
-    model: await resolveUsableModel(workspace.defaultModel ?? llm.defaultModel, workspaceId),
+    // ⚠ Blank, never the workspace's default by name: the router inherits it,
+    // moves a model whose provider has no key here to one that has (Demo:
+    // defaultModel gemini-2.5-pro, only an env anthropic key — every generation
+    // was the MOCK and was refused, 2026-08-25), and applies this job's tier.
+    model: "",
     system,
     messages: [{ role: "user", content: prompt }],
     // ⚠ 8000, not 1500: gemini-2.5-pro is a REASONING model that spends its
@@ -1122,11 +1122,11 @@ export async function packageVideoCore(workspaceId: string, blogPostId: string):
     "the last scene is the call to action. No statistics, no invented claims, no brand logos.";
   const res = await llm.complete({
     purpose: "article.video",
-    // ⚠ resolveUsableModel, not the raw chain: a stored model whose provider
-    // has no key here resolves to the MOCK and the guard then refuses every
-    // generation forever (Demo: defaultModel gemini-2.5-pro, only an env
-    // anthropic key — caught in the 2026-08-25 flow walkthrough).
-    model: await resolveUsableModel(workspace.defaultModel ?? llm.defaultModel, workspaceId),
+    // ⚠ Blank, never the workspace's default by name: the router inherits it,
+    // moves a model whose provider has no key here to one that has (Demo:
+    // defaultModel gemini-2.5-pro, only an env anthropic key — every generation
+    // was the MOCK and was refused, 2026-08-25), and applies this job's tier.
+    model: "",
     system,
     messages: [
       {

@@ -103,6 +103,11 @@ but it means **bad output can look like real output**. Rules learned the hard wa
   ⚠ **The Claude names are a map** (`anthropic.ts` `MODEL_MAP`, on the 5.5 models since 2026-11-17). Those models
   refuse `temperature`, think inside `max_tokens` (the adapter adds 4096 on top of a caller's cap) and take
   `output_config.effort`; a model a provider no longer serves is a 404 the Inbox names (`RefusalKind "model"`).
+  ⚠ **Model tiers** (`tiers.ts`, off by default, Settings → Workspace): a BLANK model is resolved to the workspace's
+  default and then to the tier of the call's `purpose` (Light / Standard = the default / Best). **Never pass the
+  workspace's or platform's default, or a model id you name, as `model`** — end the chain in `?? ""`; the prebuild
+  check `scripts/check-model-callers.mts` fails otherwise. DeepSeek (`deepseek.ts`) is Light-only and called only
+  for a workspace whose admin allowed it; picking it makes one real test call (`probe.ts`).
 - **Settings / multi-tenancy** `src/lib/settings.ts` — resolution is **`WorkspaceSetting` → (shareable keys
   only) the row another workspace shares, `KeyShare` → global `Setting` → env var** (30s cache). Each company brings its own keys; a platform row back-fills
   every workspace, which is usually not what you want. ⚠ **`PLATFORM_MANAGED_KEYS` is the deliberate
@@ -377,6 +382,7 @@ area, rather than loading all of them into every session.
 - A key can be shared between two workspaces — a pointer, by an admin of both — 2026-11-15, the owner's "build it in Publisher too"
 - Elsie is the assistant and the guide — her pane can stay at the side and suggests from data — 2026-11-16, the owner's "Elsie pane", growth part de
 - Claude names point at models Anthropic serves; a retired model is named — 2026-11-17, the owner's "Yes, build it", model plan Phase 1
+- Model tiers: the kind of job picks the model, a person's choice always wins, DeepSeek is Light-only and opt-in — 2026-11-17, the owner's "Model tiers", growth part df
 
 ## Open items / things the user still owns
 - **Analytics: APIs enabled 2026-08-03** (Search Console + GA Admin + GA Data, on project

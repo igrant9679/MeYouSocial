@@ -113,7 +113,7 @@ export function registerOnboardingJobs() {
         const basis = transcripts.length ? "transcripts plus video titles and descriptions" : "video titles and descriptions";
         // A model this workspace can reach (ENG-06): the channel default alone
         // sent a Gemini-only workspace to Anthropic, and the mock answered.
-        const model = await resolveUsableModel(channel.defaultModel ?? llm.defaultModel, channel.workspaceId);
+        const model = await resolveUsableModel(channel.defaultModel ?? "", channel.workspaceId, "onboarding");
         try {
           const completion = await keptReply(ctx, "onboarding:voice", () => llm.complete({
             purpose: "onboarding",
@@ -204,7 +204,7 @@ export function registerOnboardingJobs() {
       const completion = await keptReply(ctx, "onboarding:audience", async () => llm.complete({
         purpose: "onboarding",
         // See the note in onboarding.voice — a model this workspace can reach.
-        model: await resolveUsableModel(channel.defaultModel ?? llm.defaultModel, channel.workspaceId),
+        model: channel.defaultModel ?? "",
         system: "You generate audience avatars with demographics, psychographics, online behavior, offline behavior, and key questions.",
         messages: [{ role: "user", content: `Niche: ${channel.nicheDescription}\n${source}\n\nDifferentiation: ${channel.differentiation}\n\nProduce a JSON object with fields: demographics, psychographics, onlineBehavior, offlineBehavior (each a short paragraph), keyQuestions (array of 5 strings). Respond with the JSON object only.` }],
         workspaceId: channel.workspaceId,
@@ -347,7 +347,7 @@ export function registerOnboardingJobs() {
       const completion = await keptReply(ctx, "onboarding:ideas", async () => llm.complete({
         purpose: "onboarding",
         // See the note in onboarding.voice — a model this workspace can reach.
-        model: await resolveUsableModel(channel.defaultModel ?? llm.defaultModel, channel.workspaceId),
+        model: channel.defaultModel ?? "",
         system:
           "You convert outlier video titles into 10 fresh idea titles for a creator in a related niche, preserving each one's hook structure." +
           (heard.signals.length ? " Ideas may also answer the numbered discussions supplied — the questions and complaints people are posting about the niche. " : " ") +

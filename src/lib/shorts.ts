@@ -13,7 +13,7 @@
  */
 
 import { db } from "@/lib/db";
-import { llm, resolveUsableModel } from "@/lib/llm";
+import { llm } from "@/lib/llm";
 import { parseScenes } from "@/lib/captions";
 import { estimateRenderUsd } from "@/lib/video";
 import { passStamp } from "@/lib/provenance";
@@ -56,7 +56,6 @@ export async function cutShortCore(workspaceId: string, scriptId: string, actorI
   if (!long) return { ok: false, error: "That script isn't in this workspace." };
   const text = scriptPlainText(long.body ?? "");
   if (text.split(/\s+/).filter(Boolean).length < 150) return { ok: false, error: "The script is too short to cut a Short from — it needs at least 150 words." };
-  const workspace = await db.workspace.findUnique({ where: { id: workspaceId }, select: { defaultModel: true } });
 
   const system =
     "You cut a long video script into a 30–60 second vertical Short (YouTube Shorts, Reels, TikTok). " +
@@ -67,7 +66,7 @@ export async function cutShortCore(workspaceId: string, scriptId: string, actorI
     "(subject, setting, camera movement, mood) and `text` is that scene's on-screen caption (≤ 8 words). No brand logos.";
   const res = await llm.complete({
     purpose: "script.short",
-    model: await resolveUsableModel(long.model ?? long.channel.defaultModel ?? workspace?.defaultModel ?? llm.defaultModel, workspaceId),
+    model: long.model ?? long.channel.defaultModel ?? "",
     system,
     messages: [{ role: "user", content: `Long script title: "${long.title}"\n\nLong script:\n${text.slice(0, 12000)}` }],
     maxTokens: 1600,

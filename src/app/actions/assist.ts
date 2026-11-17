@@ -188,10 +188,7 @@ export async function draftFieldAction(input: {
     // was a real bug: most assist fields are workspace-level and so have no
     // channel, which sent a fully-configured workspace to env's claude-sonnet —
     // a provider it has no key for — and silently to the mock.
-    const model = await resolveUsableModel(
-      channel?.defaultModel ?? workspace.defaultModel ?? llm.defaultModel,
-      workspace.id,
-    );
+    const model = await resolveUsableModel(channel?.defaultModel ?? "", workspace.id, "assist");
     const res = await llm.complete({
       purpose: "assist",
       model,

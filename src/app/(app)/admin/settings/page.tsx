@@ -11,6 +11,8 @@ import { updateWorkspaceSettingsAction } from "@/app/actions/admin";
 import { getSetting } from "@/lib/settings";
 import { CHANNEL_CREATORS_SETTING } from "@/lib/channel-drafts";
 import { saveWorkspaceAccentAction, uploadWorkspaceLogoAction, clearWorkspaceLogoAction } from "@/app/actions/branding";
+import { ModelTiersCard } from "@/components/ModelTiersCard";
+import { getPostingTimeZone } from "@/lib/social/slots";
 
 // Workspace settings: name, defaults, and per-company branding (accent color +
 // logo — applied to the whole app chrome for this workspace only).
@@ -26,11 +28,12 @@ export default async function AdminSettingsPage({ searchParams }: { searchParams
   const { workspace } = await requireRole("ADMIN");
   const { ok, err } = await searchParams;
   const channels = await db.channel.findMany({ where: { workspaceId: workspace.id }, orderBy: { createdAt: "asc" } });
-  const [choices, systemRuns, runs, channelCreators] = await Promise.all([
+  const [choices, systemRuns, runs, channelCreators, timeZone] = await Promise.all([
     modelChoices(workspace.id),
     resolveUsableModel(llm.defaultModel, workspace.id),
     resolveUsableModel(workspace.defaultModel ?? "", workspace.id),
     getSetting(CHANNEL_CREATORS_SETTING, workspace.id).catch(() => ""),
+    getPostingTimeZone(workspace.id),
   ]);
 
   return (
@@ -83,6 +86,9 @@ export default async function AdminSettingsPage({ searchParams }: { searchParams
 
         <div className="flex justify-end"><SubmitButton className="btn primary">Save settings</SubmitButton></div>
       </form>
+
+      {/* A model for each kind of job (lib/llm/tiers.ts) — its own form and save. */}
+      <ModelTiersCard workspaceId={workspace.id} timeZone={timeZone} />
 
       {/* Branding — per-company chrome. Only THIS workspace sees it. */}
       <div className="flex items-center gap-3 mb-2 mt-8">

@@ -56,6 +56,14 @@ export const WORKSPACE_ONLY_KEYS: ReadonlySet<string> = new Set([
   "ganalytics_oauth:account",
   "youtube_oauth:refresh_token",
   "youtube_oauth:channel",
+  // Model tiers (lib/llm/tiers.ts): which model each kind of job runs on, and
+  // whether DeepSeek may be used, is each workspace admin's own decision — a
+  // platform row must never switch either on for a tenant that didn't.
+  "ai:tiers",
+  "ai:tier:light",
+  "ai:tier:best",
+  "ai:tier:assistant",
+  "ai:allow_deepseek",
 ]);
 
 /**

@@ -112,7 +112,7 @@ export async function tailorPostForNetworksAction(input: {
   ].filter(Boolean).join("\n\n");
 
   try {
-    const model = await resolveUsableModel(workspace.defaultModel ?? llm.defaultModel, workspace.id);
+    const model = await resolveUsableModel("", workspace.id, "social.tailor");
     const res = await llm.complete({
       purpose: "social.tailor",
       model,

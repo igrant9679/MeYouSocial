@@ -32,7 +32,7 @@ export async function eeatReviewAction(formData: FormData) {
 
   const res = await llm.complete({
     purpose: "article.optimize",
-    model: post.model ?? workspace.defaultModel ?? llm.defaultModel,
+    model: post.model ?? "",
     system:
       "You review blog content against Google's E-E-A-T (experience, expertise, authoritativeness, trust). " +
       'Respond ONLY with JSON: {"summary": string, "findings": [{"dimension": "experience"|"expertise"|"authority"|"trust", "finding": string, "suggestion": string}]} — max 8 findings, concrete and actionable.',
@@ -87,7 +87,7 @@ export async function addFaqSectionAction(formData: FormData) {
 
   const res = await llm.complete({
     purpose: "article.optimize",
-    model: post.model ?? workspace.defaultModel ?? llm.defaultModel,
+    model: post.model ?? "",
     system:
       'Generate a FAQ section for a blog post. Respond ONLY with JSON: [{"q": string, "a": string}] — 3 to 5 pairs. Answers are 2-3 sentences, direct, snippet-friendly, and only claim what the article supports. No invented statistics.',
     messages: [{ role: "user", content: `Article "${post.title}":\n${post.body.replace(/<[^>]+>/g, " ").slice(0, 2500)}` }],
@@ -127,7 +127,7 @@ export async function addKeyTakeawaysAction(formData: FormData) {
 
   const res = await llm.complete({
     purpose: "article.optimize",
-    model: post.model ?? workspace.defaultModel ?? llm.defaultModel,
+    model: post.model ?? "",
     system:
       'Generate a key-takeaways list. Respond ONLY with a JSON array of 3-5 short strings (≤120 chars), each a concrete takeaway the article supports. Snippet-friendly, no invented numbers.',
     messages: [{ role: "user", content: `Article "${post.title}":\n${post.body.replace(/<[^>]+>/g, " ").slice(0, 2500)}` }],
@@ -211,7 +211,7 @@ export async function suggestInternalLinksAction(formData: FormData) {
 
   const res = await llm.complete({
     purpose: "article.optimize",
-    model: post.model ?? workspace.defaultModel ?? llm.defaultModel,
+    model: post.model ?? "",
     system:
       "Suggest internal links. Given an article and a site-page inventory, pick up to 5 pages genuinely relevant to the article. " +
       'Respond ONLY with JSON: [{"url": string, "anchorText": string}] — anchorText must be an EXACT phrase that already appears in the article body (2-6 words).',
@@ -284,7 +284,7 @@ export async function entityCoverageAction(formData: FormData) {
 
   const res = await llm.complete({
     purpose: "article.optimize",
-    model: post.model ?? workspace.defaultModel ?? llm.defaultModel,
+    model: post.model ?? "",
     system:
       "Analyze topical entity coverage for SEO. List key entities (concepts, tools, standards, named things — not statistics) an authoritative article on this topic should mention. " +
       'Respond ONLY with JSON: {"covered": string[], "missing": string[]} — max 10 each, based on the article text vs the topic.',
@@ -335,7 +335,7 @@ export async function contentGapAction(formData: FormData) {
   const results = await provider.search(query, 6);
   const res = await llm.complete({
     purpose: "article.optimize",
-    model: post.model ?? workspace.defaultModel ?? llm.defaultModel,
+    model: post.model ?? "",
     system:
       'Compare an article against search results for its target query. Respond ONLY with JSON: {"missing": [{"subtopic": string, "why": string}]} — up to 6 subtopics competitors cover that the article does not.',
     messages: [

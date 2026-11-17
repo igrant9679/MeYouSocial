@@ -1,4 +1,4 @@
-import { llm, resolveUsableModel } from "@/lib/llm";
+import { llm, resolveUsableModel, tierRuns } from "@/lib/llm";
 import { randomBytes } from "node:crypto";
 import { buildPreview, type ConfirmPreview } from "@/lib/assistant/preview";
 import type { StepUndo } from "@/lib/assistant/undo";
@@ -272,9 +272,19 @@ async function runTurnLoop(
   const system = systemPrompt(brand, workspace.name, ctx.role);
   const context = turnContext(ctx.page ?? null, channel, carried.summary ?? null);
 
-  // ⚠ resolveUsableModel, not `defaultModel ?? env default` — a model id whose
-  // provider has no key for THIS workspace resolves to the mock silently.
-  const model = await resolveUsableModel(workspace.defaultModel ?? llm.defaultModel, ctx.workspaceId);
+  // ⚠ Resolved here, once, for the whole turn — a model id whose provider has
+  // no key for THIS workspace would otherwise reach the mock silently. Blank =
+  // inherit the workspace's default, on Elsie's tier when tiers are on.
+  const model = await resolveUsableModel("", ctx.workspaceId, "assistant");
+  // Model tiers (lib/llm/tiers.ts): an admin may put Elsie's own replies on the
+  // Light model. ⚠ A lighter model makes more mistakes writing a request to
+  // CHANGE something, so anything that isn't read-only is asked again of the
+  // Standard model, and it is that answer which is proposed or run. Reading and
+  // answering stay on Light. With tiers off, or Elsie on Standard or Best, the
+  // two are the same model and nothing is asked twice.
+  const tiers = await tierRuns(ctx.workspaceId);
+  const standardModel = tiers.standard;
+  const steppingUp = tiers.settings.on && tiers.settings.elsie === "light" && model !== standardModel;
 
   const steps: AssistantStep[] = [];
   const transcript: Array<{ role: "user" | "assistant"; content: string }> = [...history.slice(-12)];
@@ -343,10 +353,23 @@ async function runTurnLoop(
     // allowWhilePaused: the conversation itself still runs while paused (so the
     // person can ask what is happening and calm things down); the tools it
     // calls are gated in runTool.
-    const res = await llm.complete({ purpose: "assistant", model, systemCached: system, system: context || undefined, messages: transcript, workspaceId: ctx.workspaceId, maxTokens: 2000, allowWhilePaused: true });
-    usage.calls += 1;
-    usage.inputTokens += res.inputTokens ?? 0;
-    usage.outputTokens += res.outputTokens ?? 0;
+    const ask = async (askModel: string) => {
+      const out = await llm.complete({ purpose: "assistant", model: askModel, systemCached: system, system: context || undefined, messages: transcript, workspaceId: ctx.workspaceId, maxTokens: 2000, allowWhilePaused: true });
+      usage.calls += 1;
+      usage.inputTokens += out.inputTokens ?? 0;
+      usage.outputTokens += out.outputTokens ?? 0;
+      return out;
+    };
+    let res = await ask(model);
+    if (steppingUp && res.provider !== "mock") {
+      const first = parseDirective(res.content);
+      const wants = first?.tool ? TOOLS.find((t) => t.name === first.tool) : undefined;
+      // An unknown tool name is treated as a change too: the Standard model gets to say what was meant.
+      if (first?.tool && !wants?.readOnly) {
+        say({ kind: "thinking", label: "Checking that with the stronger model" });
+        res = await ask(standardModel);
+      }
+    }
 
     if (res.provider === "mock") {
       // The real reason, not always "no key" (tracker #25: LSI's Google key was

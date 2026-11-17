@@ -136,9 +136,8 @@ export async function generateFindingsCore(
   if (await isGloballyPaused(workspaceId)) return result;
   const post = await db.blogPost.findFirst({ where: { id: postId, workspaceId }, include: { citations: true } });
   if (!post?.body) return result;
-  const workspace = await db.workspace.findUnique({ where: { id: workspaceId } });
   const org = await db.orgProfile.findUnique({ where: { workspaceId } });
-  const model = await resolveUsableModel(post.model ?? workspace?.defaultModel ?? llm.defaultModel, workspaceId);
+  const model = await resolveUsableModel(post.model ?? "", workspaceId, "article.findings");
   const text = stripTags(post.body).slice(0, 3500);
   const headings = [...post.body.matchAll(/<h2[^>]*>([\s\S]*?)<\/h2>/gi)].map((m) => stripTags(m[1])).filter(Boolean);
   const sources = opts?.sources ?? FINDING_SOURCES;
@@ -413,7 +412,6 @@ export async function weaveFindingCore(workspaceId: string, findingId: string): 
   if (!finding || finding.status !== "answered" || !finding.answers) return false;
   const post = await db.blogPost.findFirst({ where: { id: finding.postId, workspaceId } });
   if (!post?.body) return false;
-  const workspace = await db.workspace.findUnique({ where: { id: workspaceId } });
   let questions: FindingQuestion[] = [];
   let answers: string[] = [];
   try { questions = JSON.parse(finding.questions); answers = JSON.parse(finding.answers); } catch { return false; }
@@ -421,7 +419,7 @@ export async function weaveFindingCore(workspaceId: string, findingId: string): 
 
   const res = await llm.complete({
     purpose: "article.findings",
-    model: await resolveUsableModel(post.model ?? workspace?.defaultModel ?? llm.defaultModel, workspaceId),
+    model: post.model ?? "",
     system:
       "You add the author's first-hand experience to a blog article. Given the article, a finding, and the author's own answers, write the passage that resolves the finding: two to five sentences of HTML (<p>, optionally one <h3>) in the article's voice — first person plural unless the answers are clearly personal. " +
       "Use ONLY facts in the answers; no numbers, names, tools or outcomes that are not in them. " +

@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireRole } from "@/lib/acl";
 import { db } from "@/lib/db";
-import { llm, resolveUsableModel } from "@/lib/llm";
+import { llm } from "@/lib/llm";
 import { whyNoAiReply } from "@/lib/llm/provider-health";
 import { isGloballyPaused, writeAudit } from "@/lib/governance";
 import { setWorkspaceSetting } from "@/lib/settings";
@@ -118,7 +118,7 @@ export async function discoverKeywordsAction() {
   const res = await llm.complete({
     purpose: "keywords",
     // A model this workspace can reach (the channel/workspace/env chain).
-    model: await resolveUsableModel(workspace.defaultModel ?? "", workspace.id),
+    model: "",
     system,
     messages: [{ role: "user", content: prompt }],
     // ⚠ 8000, not 1500 — the documented reasoning-model trap (CLAUDE.md). Both
@@ -206,7 +206,7 @@ export async function classifyIntentsAction() {
   });
   const res = await llm.complete({
     purpose: "keywords",
-    model: workspace.defaultModel ?? llm.defaultModel,
+    model: "",
     system:
       "You are an SEO strategist. For every phrase given, return its search intent and a short topical cluster name. " +
       'Respond ONLY with a JSON object mapping each phrase to {"intent": "informational"|"commercial"|"transactional"|"navigational", "cluster": string}. ' +

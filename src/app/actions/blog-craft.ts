@@ -65,7 +65,7 @@ export async function regenerateSectionAction(formData: FormData) {
 
   const res = await llm.complete({
     purpose: "article.craft",
-    model: post.model ?? workspace.defaultModel ?? llm.defaultModel,
+    model: post.model ?? "",
     system:
       "Rewrite one section of a blog post. Respond ONLY with the replacement HTML for that section, starting with the same <h2> heading. " +
       "Never invent statistics or quotes; flag unverifiable claims with [NEEDS SOURCE].",
@@ -98,7 +98,7 @@ export async function generateTitlesAction(formData: FormData) {
   const motifs = await motifPromptFor(workspace.id, post, "short");
   const res = await llm.complete({
     purpose: "article.craft",
-    model: post.model ?? workspace.defaultModel ?? llm.defaultModel,
+    model: post.model ?? "",
     system:
       'Generate 5 SEO title variants optimized for click-through. Respond ONLY with a JSON array of strings, each ≤60 characters. No clickbait lies — titles must match the content.',
     messages: [
@@ -166,7 +166,7 @@ export async function generateAltTextAction(formData: FormData) {
   const srcs = imgs.map((t) => t.match(/src\s*=\s*"([^"]*)"/i)?.[1] ?? "").slice(0, 10);
   const res = await llm.complete({
     purpose: "article.craft",
-    model: post.model ?? workspace.defaultModel ?? llm.defaultModel,
+    model: post.model ?? "",
     system:
       'Write descriptive image alt text (≤120 chars each) inferred from the article context and the image filename/URL. Respond ONLY with a JSON array of strings, one per image, same order.',
     messages: [

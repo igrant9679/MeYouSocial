@@ -31,13 +31,15 @@ let beforeNextReply: (() => Promise<unknown>) | null = null;
 let failNext = 0;
 /** What the loop told the model on its latest call (the last user message). */
 let lastSeen = "";
+/** The model each request asked for, in order (model tiers). */
+const asked: string[] = [];
 const server = http.createServer((req, res) => {
   let body = "";
   req.on("data", (d) => (body += d));
   req.on("end", async () => {
     if (beforeNextReply) { const f = beforeNextReply; beforeNextReply = null; await f(); }
     if (failNext > 0) { failNext--; res.writeHead(500, { "content-type": "application/json" }); res.end(JSON.stringify({ type: "error", error: { type: "api_error", message: "eval: provider down" } })); return; }
-    try { const j = JSON.parse(body); const m = (j.messages ?? []).at(-1); lastSeen = typeof m?.content === "string" ? m.content : ""; } catch { lastSeen = ""; }
+    try { const j = JSON.parse(body); asked.push(String(j.model ?? "")); const m = (j.messages ?? []).at(-1); lastSeen = typeof m?.content === "string" ? m.content : ""; } catch { lastSeen = ""; }
     const text = script.shift() ?? JSON.stringify({ answer: "(the eval script ran out of replies)" });
     res.writeHead(200, { "content-type": "application/json" });
     res.end(JSON.stringify({ id: "msg_eval", type: "message", role: "assistant", model: "claude-sonnet-5-5", content: [{ type: "text", text }], stop_reason: "end_turn", stop_sequence: null, usage: { input_tokens: 1, output_tokens: 1 } }));
@@ -205,6 +207,35 @@ try {
   r = await turn(editor.id, "EDITOR", "Add an idea while paused");
   check("while paused, a write that adds work is refused", toolSteps(r).some((s) => !s.ok && /paused/.test(s.output)) && (await db.blogIdea.count({ where: { workspaceId: ws.id, title: "Work during a pause" } })) === 0, toolSteps(r));
   await db.automationState.update({ where: { workspaceId: ws.id }, data: { globalPause: false } });
+
+  // 8b. Model tiers (lib/llm/tiers.ts): Elsie on the Light model reads and answers on it; anything that
+  // would CHANGE something is asked again of the Standard model, and only that request is proposed or run.
+  {
+    const { setWorkspaceSetting, invalidateSettingsCache } = await import("@/lib/settings");
+    const dial = async (key: string, value: string) => { await setWorkspaceSetting(ws.id, key, value); invalidateSettingsCache(); };
+    await dial("ai:tiers", "on");
+    await dial("ai:tier:assistant", "light");
+    asked.length = 0;
+    script = [say({ tool: "list_ideas", args: {} }), say({ answer: "One idea is waiting." })];
+    r = await turn(editor.id, "EDITOR", "What ideas are waiting?");
+    check("Elsie on Light: reading and answering stay on the Light model", asked.length === 2 && asked.every((m) => m.startsWith("claude-haiku")) && r.result.answer === "One idea is waiting.", { asked, answer: r.result.answer });
+    asked.length = 0;
+    script = [say({ tool: "add_idea", args: { title: "The light model's wording" } }), say({ tool: "add_idea", args: { title: "The standard model's wording" } }), say({ answer: "Added." })];
+    r = await turn(editor.id, "EDITOR", "Add an idea about tiers");
+    const titles = (await db.blogIdea.findMany({ where: { workspaceId: ws.id, title: { contains: "model's wording" } }, select: { title: true } })).map((i) => i.title);
+    check("…a change is asked again of the Standard model, and only ITS request runs", asked.length === 3 && asked[0].startsWith("claude-haiku") && asked[1].startsWith("claude-sonnet") && asked[2].startsWith("claude-haiku") && JSON.stringify(titles) === JSON.stringify(["The standard model's wording"]), { asked, titles });
+    asked.length = 0;
+    const weeklyBefore = await weekly();
+    script = [say({ tool: "set_weekly_articles", args: { count: 9 } }), say({ ask: "How many a week did you mean?" })];
+    r = await turn(admin.id, "ADMIN", "change how many articles we write");
+    check("…and when the Standard model would rather ask, nothing is proposed", asked.length === 2 && asked[1].startsWith("claude-sonnet") && !r.result.pending && r.result.answer === "How many a week did you mean?" && (await weekly()) === weeklyBefore, { asked, pending: r.result.pending, answer: r.result.answer });
+    await dial("ai:tier:assistant", "");
+    asked.length = 0;
+    script = [say({ tool: "add_idea", args: { title: "With Elsie on Standard" } }), say({ answer: "Added." })];
+    r = await turn(editor.id, "EDITOR", "Add one more idea");
+    check("Elsie on Standard, tiers on: nothing is asked twice", asked.length === 2 && asked.every((m) => m.startsWith("claude-sonnet")), asked);
+    await dial("ai:tiers", "");
+  }
 
   // 9. Last, because a failing provider is remembered for a while: a mock reply never drives a tool.
   failNext = 6;

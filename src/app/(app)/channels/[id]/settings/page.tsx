@@ -1,8 +1,8 @@
 import { requireChannel } from "@/lib/channel";
 import { SubmitButton } from "@/components/SubmitButton";
 import { db } from "@/lib/db";
-import { modelChoices, resolveUsableModel } from "@/lib/llm";
-import { getModel, modelLabel } from "@/lib/llm/models";
+import { inheritedModelNote, modelChoices, resolveUsableModel } from "@/lib/llm";
+import { getModel } from "@/lib/llm/models";
 import { ModelOptions, ModelChoiceNote } from "@/components/ModelOptions";
 import { updateChannelSettingsAction } from "@/app/actions/channel-settings";
 import { relinkYoutubeAction, setBusinessChannelAction } from "@/app/actions/channel-extras";
@@ -29,7 +29,7 @@ export default async function ChannelSettingsPage({ params }: { params: Promise<
   if (!channel) return null;
   const [choices, inherited, runs] = await Promise.all([
     modelChoices(channel.workspaceId),
-    resolveUsableModel("", channel.workspaceId),
+    inheritedModelNote(channel.workspaceId),
     resolveUsableModel(channel.defaultModel ?? "", channel.workspaceId),
   ]);
 
@@ -50,7 +50,7 @@ export default async function ChannelSettingsPage({ params }: { params: Promise<
         <fieldset className="flex flex-col gap-3 border-t border-[var(--line)] pt-4">
           <legend className="font-mono text-xs uppercase tracking-wider text-[var(--mute)]">Script defaults</legend>
           <SelectField name="defaultModel" label="Default draft model" defaultValue={channel.defaultModel ?? ""}>
-            <option value="">Workspace default ({modelLabel(inherited)})</option>
+            <option value="">Workspace default ({inherited})</option>
             <ModelOptions choices={choices} current={channel.defaultModel} detail />
           </SelectField>
           <ModelChoiceNote choices={choices} current={channel.defaultModel} runs={runs} />

@@ -24,7 +24,9 @@ export type RefusalKind = "credits" | "quota" | "key" | "model";
 export type ProviderRefusal = { provider: string; kind: RefusalKind; message: string; since: string; at: string; model?: string };
 
 const KEY = (provider: string) => `llm:refusal:${provider}`;
-const PROVIDERS = ["anthropic", "google"] as const;
+const PROVIDERS = ["anthropic", "google", "deepseek"] as const;
+/** The two that can be a workspace's whole AI — DeepSeek is only ever its Light model. */
+const WRITERS = ["anthropic", "google"] as const;
 
 export function refusalKind(message: string): RefusalKind | null {
   // First, because it is the most specific: Anthropic says `404 … not_found_error … model: <id>`,
@@ -55,7 +57,7 @@ export async function recordProviderRefusal(workspaceId: string | undefined, pro
   // At most one write every ten minutes per workspace and provider.
   if (prev && prev.kind === kind && Date.now() - Date.parse(prev.at) < 10 * 60_000) return;
   const now = new Date().toISOString();
-  const clean = message.replace(/AIza[\w-]+|AQ\.[\w.-]+|sk-ant-[\w-]+/g, "[key]").replace(/\s+/g, " ").slice(0, 300);
+  const clean = message.replace(/AIza[\w-]+|AQ\.[\w.-]+|sk-ant-[\w-]+|sk-[\w-]{12,}/g, "[key]").replace(/\s+/g, " ").slice(0, 300);
   // "Since" survives a repeat. Where a model is involved it does only for the same model again.
   const carries = prev && (kind === "model" || prev.kind === "model" ? prev.kind === kind && prev.model === named : true);
   await setWorkspaceSetting(workspaceId, KEY(provider), JSON.stringify({ provider, kind, message: clean, since: carries ? prev.since : now, at: now, ...(named ? { model: named } : {}) }));
@@ -100,8 +102,8 @@ export async function providerRefusals(workspaceId: string): Promise<ProviderRef
   return found.filter((_, i) => kept[i]);
 }
 
-const PROVIDER_NAME: Record<string, string> = { anthropic: "Anthropic", google: "Google" };
-const PROVIDER_CONSOLE: Record<string, string> = { anthropic: "console.anthropic.com", google: "ai.studio/projects" };
+const PROVIDER_NAME: Record<string, string> = { anthropic: "Anthropic", google: "Google", deepseek: "DeepSeek" };
+const PROVIDER_CONSOLE: Record<string, string> = { anthropic: "console.anthropic.com", google: "ai.studio/projects", deepseek: "platform.deepseek.com" };
 
 /** The first provider refusing this workspace, described — or null when none is (a plain timeout/error). */
 export async function refusalNote(workspaceId: string): Promise<string | null> {
@@ -139,7 +141,7 @@ export async function whyNoAiReply(workspaceId: string | undefined): Promise<str
     if (refusals.length) return refusals.map(describeRefusal).join(" ");
   }
   const { getApiKey } = await import("./keys");
-  const keyed = await Promise.all(PROVIDERS.map((p) => getApiKey(p, workspaceId).then(Boolean, () => false)));
+  const keyed = await Promise.all(WRITERS.map((p) => getApiKey(p, workspaceId).then(Boolean, () => false)));
   if (!keyed.some(Boolean)) return "This workspace has no AI key — add one under Settings → Keys.";
   return "The AI provider didn't answer just now (it timed out or returned an error) — try again in a minute.";
 }

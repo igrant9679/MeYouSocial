@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { llm, resolveUsableModel } from "@/lib/llm";
+import { llm } from "@/lib/llm";
 import { images as imageProvider } from "@/lib/images";
 import { isGloballyPaused, writeAudit } from "@/lib/governance";
 import { getBrandKit, motifPromptFor } from "@/lib/motifs";
@@ -272,7 +272,7 @@ export async function generateImageBriefsCore(workspaceId: string, postId: strin
 
   const res = await llm.complete({
     purpose: "article.images",
-    model: await resolveUsableModel(post.model ?? workspace.defaultModel ?? llm.defaultModel, workspaceId),
+    model: post.model ?? "",
     system,
     messages: [{ role: "user", content: prompt }],
     maxTokens: 800,

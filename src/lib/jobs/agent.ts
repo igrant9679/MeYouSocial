@@ -93,7 +93,7 @@ export function registerAgentJobs() {
       // the router's mock (no key, or the 45 s timeout on a long script)
       // overwrote the script with placeholder text and still emailed "Your
       // script is ready".
-      const model = await resolveUsableModel(script.model ?? script.channel.defaultModel ?? "", script.channel.workspaceId);
+      const model = await resolveUsableModel(script.model ?? script.channel.defaultModel ?? "", script.channel.workspaceId, "script.agent");
       const call = { model, workspaceId: script.channel.workspaceId, timeoutMs: 240_000, maxTokens: 8000 };
       /** A placeholder stops the run BEFORE it is written anywhere. */
       const real = (res: KeptReply, step: string): string => {

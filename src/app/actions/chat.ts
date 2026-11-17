@@ -107,7 +107,7 @@ ${contextLines || "(none)"}`;
   // no key for, and the router's mock answered as "Claude".
   // A blank ends the chain: resolveUsableModel reads the workspace's default,
   // then the platform's — no model is named here.
-  const model = await resolveUsableModel(chat.channel.defaultModel ?? "", workspace.id);
+  const model = await resolveUsableModel(chat.channel.defaultModel ?? "", workspace.id, "chat");
   const reply = await llm.complete({
     purpose: "chat",
     model,

@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { requireRole } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { readJson, writeJson } from "@/lib/db/json";
-import { llm, resolveUsableModel } from "@/lib/llm";
+import { llm } from "@/lib/llm";
 import { youtubeFor } from "@/lib/youtube";
 
 // ── — Writing samples ──────────────────────────────────────
@@ -78,7 +78,7 @@ export async function borrowVoiceAction(formData: FormData) {
   const completion = await llm.complete({
     purpose: "voice",
     // A model this workspace can reach — the bare channel default went to a provider with no key.
-    model: await resolveUsableModel(channel.defaultModel ?? "", workspace.id),
+    model: channel.defaultModel ?? "",
     timeoutMs: 120_000,
     system:
       "You produce a structured voice profile of another creator from their own written material: archetype, delivery, rhetoric, diction and signature phrases." +

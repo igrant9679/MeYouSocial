@@ -116,7 +116,7 @@ async function writePostFromIdea(
     !idea.sourceBlogPost && idea.sourceUrl ? `It shares this link from a feed the company follows: ${idea.sourceUrl} — put that link at the end.` : "",
   ].filter(Boolean);
 
-  const model = await resolveUsableModel(workspace.defaultModel ?? llm.defaultModel, workspaceId);
+  const model = await resolveUsableModel("", workspaceId, "social.draft");
   const res = await llm.complete({
     purpose: "social.draft",
     model,

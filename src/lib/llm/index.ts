@@ -3,8 +3,11 @@ import type { LLMProvider, LLMRequest, LLMResponse, ModelDescriptor } from "./ty
 import { mockProvider } from "./mock";
 import { createAnthropicProvider } from "./anthropic";
 import { createGoogleProvider } from "./google";
-import { MODELS, PICKABLE_MODELS, PROVIDER_LABEL, TEXT_PROVIDERS, getModel } from "./models";
+import { createDeepSeekProvider } from "./deepseek";
+import { LIGHT_ONLY_MODELS, MODELS, PICKABLE_MODELS, PROVIDER_LABEL, TEXT_PROVIDERS, getModel, isLightOnlyModel } from "./models";
+import { TIER_SETTING_KEYS, isTier, tierModel, tierOf, type Tier, type TierSettings } from "./tiers";
 import { getApiKey, invalidateKeyCache } from "./keys";
+import { getSetting } from "@/lib/settings";
 import { meterAi } from "@/lib/usage-meter";
 import { clearProviderRefusal, recordProviderRefusal } from "./provider-health";
 
@@ -19,10 +22,13 @@ import { clearProviderRefusal, recordProviderRefusal } from "./provider-health";
 
 const providerCache = new Map<string, LLMProvider>();
 
+/** The providers the router can call with a key. */
+const KEYED = ["anthropic", "google", "deepseek"] as const;
+type Keyed = (typeof KEYED)[number];
+const isKeyed = (p: string): p is Keyed => (KEYED as readonly string[]).includes(p);
+
 async function getProvider(providerId: string, workspaceId?: string): Promise<LLMProvider> {
-  const key = (providerId === "anthropic" || providerId === "google")
-    ? await getApiKey(providerId, workspaceId)
-    : "";
+  const key = isKeyed(providerId) ? await getApiKey(providerId, workspaceId) : "";
   const cacheKey = `${providerId}:${key ? hash(key) : "none"}`;
   const cached = providerCache.get(cacheKey);
   if (cached) return cached;
@@ -36,7 +42,11 @@ async function getProvider(providerId: string, workspaceId?: string): Promise<LL
       if (!key) { provider = mockProvider; break; }
       provider = wrapWithFallback(createGoogleProvider(key), "google");
       break;
-    // Other providers go here as we wire them up (openai, deepseek, xai, moonshot, minimax).
+    case "deepseek":
+      if (!key) { provider = mockProvider; break; }
+      provider = wrapWithFallback(createDeepSeekProvider(key), "deepseek");
+      break;
+    // Other providers go here as we wire them up (openai, xai, moonshot, minimax).
     default:
       provider = mockProvider;
   }
@@ -109,6 +119,10 @@ async function selectProvider(model: string, workspaceId?: string): Promise<LLMP
   if (env.USE_MOCK_LLM) return mockProvider;
   const descriptor = getModel(model);
   if (!descriptor) return mockProvider;
+  // ⚠ A light-only provider (DeepSeek) is never called for a workspace whose
+  // admin hasn't allowed it — whatever a caller or a stored row names. Where a
+  // workspace's text is processed is that admin's decision (lib/llm/tiers.ts).
+  if (isLightOnlyModel(model) && !(await lightOnlyAllowed(workspaceId))) return mockProvider;
   return getProvider(descriptor.provider, workspaceId);
 }
 
@@ -127,7 +141,7 @@ export const llm = {
   // wrote mock prose. The reply's `model` is the one that actually ran.
   async complete(req: LLMRequest): Promise<LLMResponse> {
     await refuseIfPaused(req);
-    req = { ...req, model: await resolveUsableModel(req.model, req.workspaceId) };
+    req = { ...req, model: await resolveUsableModel(req.model, req.workspaceId, req.purpose) };
     const p = await selectProvider(req.model, req.workspaceId);
     const out = await p.complete(req);
     // Providers don't set this; the router does. `p` is already the mock when a
@@ -139,7 +153,7 @@ export const llm = {
   },
   async *stream(req: LLMRequest): AsyncIterable<string> {
     await refuseIfPaused(req);
-    req = { ...req, model: await resolveUsableModel(req.model, req.workspaceId) };
+    req = { ...req, model: await resolveUsableModel(req.model, req.workspaceId, req.purpose) };
     const p = await selectProvider(req.model, req.workspaceId);
     if (req.answeredBy) Object.assign(req.answeredBy, { provider: p.id, model: req.model });
     for await (const chunk of p.stream(req)) yield chunk;
@@ -168,32 +182,96 @@ export const llm = {
  * A blank preference means "inherit": the workspace's default, then the
  * platform's. The studio's chains end in "" for that reason — they used to end
  * in "claude-sonnet", so a channel set to "Workspace default" never got it.
+ *
+ * MODEL TIERS (2026-11-17, lib/llm/tiers.ts): an INHERITED model, for a call
+ * that says what it is for (`purpose`), becomes the model of that job's tier
+ * when the workspace has tiers on. ⚠ Only a blank preference is tiered — an
+ * article's, a script's or a channel's own model is a person's choice and is
+ * returned as it is. That is why no call site may pass the workspace's default
+ * as its model (scripts/check-model-callers.mts fails the build if one does):
+ * the router could not tell it from a choice, and the job would never be tiered.
+ * A tier's model that can't be reached here falls back to the default, never to
+ * a placeholder.
  */
-export async function resolveUsableModel(preferred: string, workspaceId?: string): Promise<string> {
-  if (!preferred) {
+export async function resolveUsableModel(preferred: string, workspaceId?: string, purpose?: string): Promise<string> {
+  // A light-only model (DeepSeek) is never one article's, script's or channel's choice.
+  if (preferred && isLightOnlyModel(preferred)) preferred = "";
+  const inherited = !preferred;
+  if (inherited) {
     const { db } = await import("@/lib/db");
     const ws = workspaceId ? await db.workspace.findUnique({ where: { id: workspaceId }, select: { defaultModel: true } }) : null;
     preferred = ws?.defaultModel || env.DEFAULT_LLM_MODEL;
+    if (isLightOnlyModel(preferred)) preferred = env.DEFAULT_LLM_MODEL;
   }
-  if (env.USE_MOCK_LLM) return preferred;
-  const wanted = getModel(preferred);
-  const reachable = async (providerId: string) =>
-    (providerId === "anthropic" || providerId === "google")
-      ? Boolean(await getApiKey(providerId, workspaceId).catch(() => ""))
-      : false;
-
-  if (wanted && (await reachable(wanted.provider))) return preferred;
-
-  for (const m of PICKABLE_MODELS) {
-    if (await reachable(m.provider)) return m.id;
+  let base = preferred;
+  if (!env.USE_MOCK_LLM && !(await modelReachable(preferred, workspaceId))) {
+    for (const m of PICKABLE_MODELS) {
+      if (await providerReachable(m.provider, workspaceId)) { base = m.id; break; }
+    }
   }
-  return preferred;
+  if (!inherited || !workspaceId || !purpose) return base;
+  const s = await tierSettings(workspaceId);
+  if (!s.on) return base;
+  return tierRun(tierOf(purpose, s.elsie), s, base, workspaceId);
+}
+
+/** Can this workspace's calls reach the provider: a key — and, for a light-only one, its admin's say-so. */
+async function providerReachable(providerId: string, workspaceId?: string): Promise<boolean> {
+  if (!isKeyed(providerId)) return false;
+  return Boolean(await getApiKey(providerId, workspaceId).catch(() => ""));
+}
+
+async function modelReachable(model: string, workspaceId?: string): Promise<boolean> {
+  const m = getModel(model);
+  if (!m) return false;
+  if (isLightOnlyModel(model) && !(await lightOnlyAllowed(workspaceId))) return false;
+  // With the mock on nothing is called, so every listed model "runs".
+  return env.USE_MOCK_LLM ? true : providerReachable(m.provider, workspaceId);
+}
+
+/** Has this workspace's admin allowed the light-only providers (DeepSeek)? Never without a workspace. */
+async function lightOnlyAllowed(workspaceId?: string): Promise<boolean> {
+  return workspaceId ? (await tierSettings(workspaceId)).deepseek : false;
+}
+
+/** A workspace's tier dials (Settings → Workspace). Each read is cached 30 s by lib/settings. */
+export async function tierSettings(workspaceId: string): Promise<TierSettings> {
+  const [on, light, best, elsie, deepseek] = await Promise.all(TIER_SETTING_KEYS.map((k) => getSetting(k, workspaceId).catch(() => "")));
+  return { on: on === "on", light, best, elsie: isTier(elsie) ? elsie : "standard", deepseek: deepseek === "on" };
+}
+
+/** The model a job of `tier` runs on here: the tier's pick (or automatic model) when it can be reached, else the default. */
+async function tierRun(tier: Tier, s: TierSettings, base: string, workspaceId: string): Promise<string> {
+  if (tier === "standard") return base;
+  const want = tierModel(tier, s, base);
+  if (!want || want === base) return base;
+  // A light-only model is the Light tier's and nobody else's.
+  if (tier !== "light" && isLightOnlyModel(want)) return base;
+  return (await modelReachable(want, workspaceId)) ? want : base;
+}
+
+/**
+ * What each tier runs in this workspace right now — whether or not tiers are
+ * on — for Settings and Usage. `standard` is the usable default model.
+ */
+export async function tierRuns(workspaceId: string): Promise<{ settings: TierSettings } & Record<Tier, string>> {
+  const [settings, standard] = await Promise.all([tierSettings(workspaceId), resolveUsableModel("", workspaceId)]);
+  const [light, best] = await Promise.all([tierRun("light", settings, standard, workspaceId), tierRun("best", settings, standard, workspaceId)]);
+  return { settings, standard, light, best };
+}
+
+/**
+ * What a picker's "inherit" option should say writes: the default model's name —
+ * or, with tiers on, that each job uses its own tier's model (naming one model
+ * there would be wrong for most of the jobs).
+ */
+export async function inheritedModelNote(workspaceId: string): Promise<string> {
+  const { settings, standard } = await tierRuns(workspaceId);
+  return settings.on ? "each job's tier model" : (getModel(standard)?.label ?? standard);
 }
 
 const providerKeyed = (providerId: string, workspaceId?: string) =>
-  TEXT_PROVIDERS.includes(providerId)
-    ? getApiKey(providerId as "anthropic" | "google", workspaceId).then(Boolean, () => false)
-    : Promise.resolve(false);
+  isKeyed(providerId) ? getApiKey(providerId, workspaceId).then(Boolean, () => false) : Promise.resolve(false);
 
 export type ModelChoice = ModelDescriptor & { keyed: boolean };
 
@@ -203,6 +281,27 @@ export async function modelChoices(workspaceId?: string): Promise<ModelChoice[]>
   const keyed = new Map<string, boolean>();
   for (const p of TEXT_PROVIDERS) keyed.set(p, await providerKeyed(p, workspaceId));
   return PICKABLE_MODELS.map((m) => ({ ...m, keyed: keyed.get(m.provider) ?? false }));
+}
+
+/** The Light tier's picker: every pickable model, plus the light-only ones (DeepSeek) with whether a key is saved. */
+export async function lightModelChoices(workspaceId: string): Promise<ModelChoice[]> {
+  const extra = await Promise.all(LIGHT_ONLY_MODELS.map(async (m) => ({ ...m, keyed: await providerKeyed(m.provider, workspaceId) })));
+  return [...(await modelChoices(workspaceId)), ...extra];
+}
+
+/**
+ * Why `next` can't be saved as a tier's model, or null. Blank (automatic) and
+ * the stored value are always fine. A light-only model needs the Light tier, the
+ * admin's allowance (`allowed` — what is being saved now) and a key.
+ */
+export async function tierModelProblem(tier: Exclude<Tier, "standard">, next: string, workspaceId: string, current: string, allowed: boolean): Promise<string | null> {
+  if (!next) return null;
+  if (!isLightOnlyModel(next)) return modelChoiceProblem(next, workspaceId, current);
+  const label = getModel(next)?.label ?? next;
+  if (tier !== "light") return `${label} can only be the Light model.`;
+  if (!allowed) return `${label} can only be used after you tick “Allow DeepSeek for this workspace”.`;
+  if (!(await providerKeyed("deepseek", workspaceId))) return `${label} can't run here: there's no DeepSeek API key. Add one under Settings → Keys first.`;
+  return null;
 }
 
 /**

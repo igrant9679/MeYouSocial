@@ -2647,5 +2647,66 @@ still answered; `claude-sonnet-5-5` with a temperature → 400 "`temperature` is
   the monthly token budget warns sooner; `outputTokens` includes the thinking, which is what is billed. The operator's
   Claude prices on Usage are keyed by the app's ids and were entered for the old models — the operator's to re-enter.
 - Not exercised: a real refusal and a real empty `max_tokens` reply (both faked); the engine's own cycle on the new
-  models. Not built: tiers and DeepSeek — `docs/MODEL-PLAN-2026-11-17.md` (local, untracked), Phases 2 and 3.
+  models. Tiers and DeepSeek were not part of this — they are the next section (built the same day).
 
+## ⚠ Model tiers: the kind of job picks the model, a person's choice always wins, DeepSeek is Light-only and opt-in (2026-11-17, the owner's "Model tiers", growth part df)
+
+The owner asked whether Elsie and "other places" could run on a low-cost model (Haiku, Sonnet, "DeepSeek v4 Flash") and
+whether she would "pick or orchestrate based on the level of complexity". Built: three tiers decided by the KIND of job.
+Nothing judges how hard a request is — a judge is one more call, and its mistakes are invisible because weak prose
+still reads fluently.
+
+- **The map is code**: `PURPOSE_TIER` in `src/lib/llm/tiers.ts`, one tier per `purpose` (`lib/ai-spend.ts`
+  `PURPOSE_LABEL`). Light = short output a person sees and fixes in seconds (SEO fields, keywords, image prompts, field
+  draft buttons, tailoring per network, remixed titles, thumbnails, Elsie's conversation summaries). Best = article
+  drafts, the automatic review, script writing, Agent Mode. Everything else is Standard.
+- **Standard IS the workspace's default model.** There is no Standard pick. Light and Best are an admin's pick
+  (`ai:tier:light`, `ai:tier:best`) or automatic: the fast and the top model of the SAME provider as the usable
+  default (`autoTierModel`), so a Google-only workspace never resolves to a Claude id.
+- **Off by default** (`ai:tiers` = "on" turns it on). Off is byte-for-byte the routing before tiers. Never turn it on
+  in a migration: Best can cost more than the default, and that is each admin's decision. The five dials are in
+  `WORKSPACE_ONLY_KEYS` — a platform row cannot switch tiers or DeepSeek on for a tenant.
+- ⚠ **Only a BLANK model is tiered.** `resolveUsableModel(preferred, workspaceId, purpose)` returns an article's,
+  script's or channel's own model as it is; a blank one becomes the workspace's default, then that job's tier model.
+  So **no call site may pass the workspace's or the platform's default, or a model id it names, as `model`** — the
+  router could not tell it from a person's choice and the job would silently never be tiered. Chains end in `?? ""`.
+  `scripts/check-model-callers.mts` (prebuild) fails the build on a call site that does, on an `llm.complete` /
+  `llm.stream` with no purpose, on a `resolveUsableModel` in a calling file without the purpose, and on a purpose
+  with no label or no tier. A new kind of job must be placed on purpose.
+- **A tier's model that can't be reached falls back to the default — never to a placeholder.** A pick whose provider
+  has no key is refused at save (`tierModelProblem`); one that loses its key later just stops being used.
+- **Elsie's tier** is the one job an admin can move (`ai:tier:assistant`; the owner asked to configure her
+  specifically). ⚠ On Light, a reply that names a tool which is not `readOnly` — or a tool name the app doesn't know —
+  is **asked again of the Standard model**, and it is that answer which is proposed or run
+  (`lib/assistant/run.ts`, "steppingUp"). Reading and answering stay on Light. Everything else about her safety is
+  unchanged and still in code: proposals, the bound Yes, roles, the outside-text rule. Eval cases 8b cover it.
+- **DeepSeek** (`src/lib/llm/deepseek.ts`, plain `fetch`, no SDK) is a **light-only** provider:
+  `LIGHT_ONLY_PROVIDERS` in `models.ts`. It is in no general picker, is never a default, a channel's, an article's or
+  the Best model, and a caller that names it gets the inherited model instead. ⚠ The router calls it only for a
+  workspace whose admin ticked "Allow DeepSeek for this workspace" (`ai:allow_deepseek`) AND saved a key — checked in
+  `selectProvider` as well as in the resolver, so a stored row alone sends nothing. Why the allowance: DeepSeek's
+  privacy policy (Feb 2026) says it processes and stores data in China and may use it to improve its models; with Elsie
+  on Light and DeepSeek as the Light model, her conversations go there too, and the card says so. Its key is
+  NOT in `SHAREABLE_KEYS`. Thinking is switched off in the request (thinking is on by default there and spends the cap
+  before writing — the same empty-answer trap as Gemini and Claude 5.5). The id is `deepseek-flash`; "deepseek-v4-flash"
+  is their legacy alias for it and `deepseek-chat` was retired in July 2026.
+- ⚠ **"Probe first" is enforced in the product for DeepSeek.** Nobody here had a key, so picking it as the Light model
+  makes one real 16-token call on the workspace's own key (`lib/llm/probe.ts`, metered as `model.check`) and the save
+  is refused in DeepSeek's own words if it doesn't answer. Do not offer a DeepSeek id anywhere that skips that.
+- **Prices**: none in code. `deepseek-flash` appears on Usage → Model prices with "no price set" until the operator
+  enters one. Usage shows each job's tier while tiers are on (from the map and the workspace's Elsie setting, at
+  render — no schema change).
+- Pickers' "inherit" option says `each job's tier model` while tiers are on (`inheritedModelNote`) — naming one
+  model there would be wrong for most of an article's jobs.
+- **Verified**: 52 scripted checks on a throwaway schema with a fake network (off = before for all 32 kinds of job;
+  Anthropic, Google-only and Opus-default workspaces; picks, fallbacks, Elsie's tier; no request reaches DeepSeek
+  without the allowance; request shape, token counts, streaming, 401 / 402 / 404 / empty answer named and never stored;
+  the test call). The assistant eval, 20 of 20. In a browser on a local copy: the card, three saves with their change
+  history, Usage's tier labels, the two refusals. **The real DeepSeek API answered the test call** — with a fake key it
+  returned 401 in the documented shape and the pick was refused.
+- **Not verified**: a SUCCESSFUL DeepSeek answer (no real key exists here); any real workspace with tiers on; how well
+  Haiku or DeepSeek follow Elsie's reply format on real questions — the step-up means a wrong Light reply cannot change
+  anything, not that its answers are good.
+- **Not built**: a tier per job other than Elsie's; retrying a failed JSON reply one tier higher; a model wording or
+  ranking Elsie's suggestions (they stay data-only); the "customer brief" in the other session's plan
+  (`docs/MODEL-PLAN-2026-11-17.md`, Phase 4); the Settings / Distribute / Measure tab regrouping.

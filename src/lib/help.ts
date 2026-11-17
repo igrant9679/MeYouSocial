@@ -708,6 +708,24 @@ export const HELP_CATEGORIES: FaqCategory[] = [
         tags: ["api keys", "smtp", "per-workspace", "tenant"],
       },
       {
+        q: "Can different jobs use different AI models?",
+        a: "Yes — an admin turns it on under Settings → **Workspace**, in *A model for each kind of job*. Off, every job uses the workspace's default model. On, each kind of job runs on one of three tiers. **Light** is for short things you can fix in seconds: SEO fields, keywords, image prompts, the draft buttons on fields, tailoring a post per network. **Best** is for article drafts, the automatic review and scripts. **Standard** — your default model — does everything else. Light and Best are each automatic (the fast and the top model from the same provider as your default) or a model you pick; the card lists every job under its tier and names the model before you save, because Best can cost more than your default. A model chosen on one article, script or channel is never replaced. The tier comes from the kind of job, not from a model guessing how hard a request is. While this is on, Settings → **Usage** shows each job's tier.",
+        links: [{ label: "Settings → Workspace →", href: "/admin/settings#tiers" }, { label: "Usage →", href: "/admin/usage" }],
+        tags: ["model", "models", "tier", "tiers", "light", "standard", "best", "cheaper", "cost", "haiku", "sonnet", "opus", "flash"],
+      },
+      {
+        q: "Can Elsie run on a cheaper model?",
+        a: "Yes. On the same card, *Elsie's own replies use* can be Light, Standard (the usual) or Best; it applies while matching is on. On Light she reads and answers on the lighter model, and anything she would **change** is asked again of your Standard model first — and still waits for your Yes on its card. Her list of suggestions never uses a model at all.",
+        links: [{ label: "Settings → Workspace →", href: "/admin/settings#tiers" }],
+        tags: ["elsie", "assistant", "model", "cheaper", "light", "tier"],
+      },
+      {
+        q: "Can I use DeepSeek?",
+        a: "Only as the Light model, and only when an admin allows it for the workspace. On the same card tick *Allow DeepSeek for this workspace*, save a DeepSeek key under Settings → **Keys**, then pick DeepSeek Flash as the Light model. Saving makes one short test call on your key and refuses the pick if DeepSeek doesn't answer. DeepSeek's privacy policy says it processes and stores what it is sent in China and may use it to improve its models, which is why nothing is sent to it until you choose it. What it receives is what Light jobs work on: your brand context, the text of the articles and posts involved, and your conversations with Elsie if she is set to Light. Unticking the box stops every call to it. It has no price until the platform operator enters one on Usage.",
+        links: [{ label: "Settings → Workspace →", href: "/admin/settings#tiers" }, { label: "Settings → Keys →", href: "/admin/api-keys" }],
+        tags: ["deepseek", "flash", "model", "light", "china", "cheaper"],
+      },
+      {
         q: "How do I schedule social posts (like Buffer/Hootsuite)?",
         a: "Open **Social** in the sidebar. Pick which connected accounts to post to, write once (a live counter warns when you exceed the tightest network's limit), optionally attach images, then **Post now**, **Schedule** for a date/time, or **Add to queue** to take the next free slot on your posting schedule. Scheduled posts publish automatically within about a minute of their time. The queue below the composer shows what's scheduled (grouped by day), your drafts, and history — each post shows per-network status, so if one network fails you can **Retry** just that leg, or **Duplicate** to repost. The rest of the Buffer-style toolkit lives on the same page: **campaigns** (a named series with its own UTM tag), **evergreen recycling**, **slot categories**, an optional **approval workflow**, and **CSV import** — each has its own question in this Help centre. Connect accounts first under Settings → Connections.",
         links: [{ label: "Open Distribute →", href: "/distribute" }, { label: "Settings → Connections →", href: "/admin/connections" }],

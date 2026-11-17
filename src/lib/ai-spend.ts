@@ -26,7 +26,7 @@ export const BUDGET_THRESHOLDS = [80, 100] as const;
 export type ModelPrice = { in: number; out: number };
 
 export const PURPOSE_LABEL: Record<string, string> = {
-  assistant: "The assistant",
+  assistant: "Elsie",
   "assistant.summary": "Summarising long conversations",
   assist: "Draft buttons on fields",
   "ideas.discover": "Discovering ideas",
@@ -59,6 +59,7 @@ export const PURPOSE_LABEL: Record<string, string> = {
   voice: "Voice training",
   onboarding: "Channel onboarding",
   vision: "Reading images",
+  "model.check": "Checking a model answers",
 };
 
 export function purposeLabel(p: string | null | undefined): string {
