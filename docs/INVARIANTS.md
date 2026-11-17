@@ -2704,9 +2704,18 @@ still reads fluently.
   the test call). The assistant eval, 20 of 20. In a browser on a local copy: the card, three saves with their change
   history, Usage's tier labels, the two refusals. **The real DeepSeek API answered the test call** — with a fake key it
   returned 401 in the documented shape and the pick was refused.
+- **On production** (`f39f621`, live 2026-11-17 17:54Z; a throwaway workspace on the host's Anthropic key, deleted
+  after): the card and the Keys row are served; tiers saved on through the real form with Elsie on Light; a real
+  question was answered by Claude Haiku alone (9,960 tokens in, 104 out, a correct answer); a real "set the weekly
+  target to 3" went Haiku → Sonnet and stopped at a confirm card for `set_weekly_articles {count: 3}` with nothing
+  run; no refusal recorded; no other workspace has a tier row.
+- ⚠ **A saved dial can take up to 30 seconds to apply.** `lib/settings` caches each read for 30 s per server process,
+  and a save only clears the cache of the process (and bundle) that handled it. The first production run asked Elsie a
+  question seconds before turning tiers on, and the next two questions still ran on Sonnet. Not a tiers bug — every
+  setting behaves this way — but do not "verify" a dial with a call made in the half minute after saving it.
 - **Not verified**: a SUCCESSFUL DeepSeek answer (no real key exists here); any real workspace with tiers on; how well
-  Haiku or DeepSeek follow Elsie's reply format on real questions — the step-up means a wrong Light reply cannot change
-  anything, not that its answers are good.
+  Haiku or DeepSeek follow Elsie's reply format beyond those two real questions — the step-up means a wrong Light reply
+  cannot change anything, not that its answers are good.
 - **Not built**: a tier per job other than Elsie's; retrying a failed JSON reply one tier higher; a model wording or
   ranking Elsie's suggestions (they stay data-only); the "customer brief" in the other session's plan
   (`docs/MODEL-PLAN-2026-11-17.md`, Phase 4); the Settings / Distribute / Measure tab regrouping.
