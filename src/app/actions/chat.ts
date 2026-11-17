@@ -105,7 +105,9 @@ ${contextLines || "(none)"}`;
   // channel → workspace → env, then a model this workspace can actually reach;
   // the bare channel default sent a configured workspace to a provider it had
   // no key for, and the router's mock answered as "Claude".
-  const model = await resolveUsableModel(chat.channel.defaultModel ?? workspace.defaultModel ?? "claude-sonnet", workspace.id);
+  // A blank ends the chain: resolveUsableModel reads the workspace's default,
+  // then the platform's — no model is named here.
+  const model = await resolveUsableModel(chat.channel.defaultModel ?? "", workspace.id);
   const reply = await llm.complete({
     purpose: "chat",
     model,

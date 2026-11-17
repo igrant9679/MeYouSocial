@@ -282,7 +282,9 @@ export async function seedSmeFromSourceAction(formData: FormData) {
 
   const res = await llm.complete({
     purpose: "experts",
-    model: llm.defaultModel,
+    // Inherit: the workspace's default, then the platform's. `llm.defaultModel`
+    // skipped the workspace's own choice.
+    model: "",
     system,
     messages: [{ role: "user", content: prompt }],
     maxTokens: 2500,

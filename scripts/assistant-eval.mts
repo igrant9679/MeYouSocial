@@ -40,7 +40,7 @@ const server = http.createServer((req, res) => {
     try { const j = JSON.parse(body); const m = (j.messages ?? []).at(-1); lastSeen = typeof m?.content === "string" ? m.content : ""; } catch { lastSeen = ""; }
     const text = script.shift() ?? JSON.stringify({ answer: "(the eval script ran out of replies)" });
     res.writeHead(200, { "content-type": "application/json" });
-    res.end(JSON.stringify({ id: "msg_eval", type: "message", role: "assistant", model: "claude-sonnet-4-5-20250929", content: [{ type: "text", text }], stop_reason: "end_turn", stop_sequence: null, usage: { input_tokens: 1, output_tokens: 1 } }));
+    res.end(JSON.stringify({ id: "msg_eval", type: "message", role: "assistant", model: "claude-sonnet-5-5", content: [{ type: "text", text }], stop_reason: "end_turn", stop_sequence: null, usage: { input_tokens: 1, output_tokens: 1 } }));
   });
 });
 await new Promise<void>((r) => server.listen(0, "127.0.0.1", () => r()));

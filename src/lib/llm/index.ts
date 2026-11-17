@@ -73,12 +73,13 @@ function wrapWithFallback(real: LLMProvider, providerId: string): LLMProvider {
         // req.timeoutMs: long-form callers (article drafting) need more than
         // 45s — see the field's doc for the incident that proved it.
         const out = await withTimeout(real.complete(req), req.timeoutMs ?? TIMEOUT_MS);
-        await clearProviderRefusal(req.workspaceId, providerId).catch(() => {});
+        await clearProviderRefusal(req.workspaceId, providerId, req.model).catch(() => {});
         return { ...out, provider: providerId };
       } catch (e) {
         console.warn(`[llm] ${providerId}.complete failed → falling back to mock:`, e instanceof Error ? e.message : e);
-        // Out of credits, over quota or a rejected key: recorded for the Inbox.
-        await recordProviderRefusal(req.workspaceId, providerId, e instanceof Error ? e.message : String(e)).catch(() => {});
+        // Out of credits, over quota, a rejected key, or a model the provider
+        // no longer serves: recorded for the Inbox.
+        await recordProviderRefusal(req.workspaceId, providerId, e instanceof Error ? e.message : String(e), req.model).catch(() => {});
         // ⚠ Stamped "mock", not `providerId`. This branch is exactly the case a
         // caller must be able to detect: the request LOOKS like it went to a
         // real provider and the prose comes back fluent either way.
@@ -97,7 +98,7 @@ function wrapWithFallback(real: LLMProvider, providerId: string): LLMProvider {
       } catch (e) {
         console.warn(`[llm] ${providerId}.stream failed → falling back to mock:`, e instanceof Error ? e.message : e);
         if (req.answeredBy) req.answeredBy.provider = "mock";
-        await recordProviderRefusal(req.workspaceId, providerId, e instanceof Error ? e.message : String(e)).catch(() => {});
+        await recordProviderRefusal(req.workspaceId, providerId, e instanceof Error ? e.message : String(e), req.model).catch(() => {});
         for await (const chunk of mockProvider.stream(req)) yield chunk;
       }
     },

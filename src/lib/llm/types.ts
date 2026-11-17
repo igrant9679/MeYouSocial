@@ -9,8 +9,17 @@ export type LLMMessage = {
 export type LLMRequest = {
   model: string;
   messages: LLMMessage[];
+  /** ⚠ Gemini only. The current Claude models refuse any non-default value (a 400), so the Anthropic provider never sends it. */
   temperature?: number;
+  /** Bounds the ANSWER. Both real providers add room for the model's own reasoning on top. */
   maxTokens?: number;
+  /**
+   * How hard a Claude model should work on this call (`output_config.effort`).
+   * Unset = the provider's rule: "low" for a short answer (a cap of 1,500 tokens
+   * or less), "medium" otherwise. Set it only where a call needs more than that.
+   * Gemini ignores it.
+   */
+  effort?: "low" | "medium" | "high" | "xhigh" | "max";
   /** Optional system prompt; merged with messages by the provider. */
   system?: string;
   /**

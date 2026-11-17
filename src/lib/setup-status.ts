@@ -110,7 +110,7 @@ export async function connectionRows(workspaceId: string): Promise<ConnRow[]> {
       detail: !llmOn.length
         ? "no Claude or Gemini key — every generation falls to the mock and is refused for unattended work"
         : refusals.length
-          ? `${llmOn.join(" · ")} — but ${refusals.map((r) => `${r.provider} is refusing calls (${r.kind === "credits" ? "out of credits" : r.kind === "quota" ? "over quota" : "key rejected"})`).join("; ")}`
+          ? `${llmOn.join(" · ")} — but ${refusals.map((r) => r.kind === "model" ? `${r.provider} no longer offers a model set here` : `${r.provider} is refusing calls (${r.kind === "credits" ? "out of credits" : r.kind === "quota" ? "over quota" : "key rejected"})`).join("; ")}`
           : llmOn.join(" · "),
     },
     {

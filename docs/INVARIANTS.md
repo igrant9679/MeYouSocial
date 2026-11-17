@@ -2598,3 +2598,54 @@ before changing code in that area.
 - Not built yet (the owner's other two asks, 11-16): model tiers (her turns still run on the workspace's default model)
   and DeepSeek; the tab regrouping of Settings / Distribute / Measure.
 
+## ⚠ Claude names point at models Anthropic serves; a retired model is named (2026-11-17, the owner's "Yes, build it", model plan Phase 1)
+
+Anthropic retires `claude-sonnet-4-5-20250929` on 2026-11-30 — the id behind `claude-sonnet`, the platform default that
+three of four workspaces resolved to. `claude-opus` had pointed at an id retired on 2026-08-05 for three months and
+nobody saw: a 404 fell back to the placeholder like any error, and was none of the kinds the Inbox recorded. Asked of
+the real API on 11-17 (CommunityForce's key): the old Opus id → 404 `not_found_error`; the old Sonnet and Haiku ids
+still answered; `claude-sonnet-5-5` with a temperature → 400 "`temperature` is deprecated for this model".
+
+- **The map** (`lib/llm/anthropic.ts` `MODEL_MAP`): `claude-sonnet` → `claude-sonnet-5-5`, `claude-opus` →
+  `claude-opus-5-5`, `claude-haiku` → `claude-haiku-5-5`. The app's own ids, labels, stored choices and the operator's
+  price keys did not change. ⚠ A new generation is not only a new name: probe the id on a real key THROUGH THE ADAPTER
+  (not `models.list()`, not a hand-written call) before shipping it.
+- ⚠ **Never send `temperature`, `top_p` or `top_k` to Anthropic.** `LLMRequest.temperature` is Gemini's only; six
+  callers still set it and the Anthropic adapter drops it.
+- ⚠ **`maxTokens` bounds the ANSWER.** The adapter sends `max_tokens = cap + 4096` (`REASONING_ROOM`, the allowance
+  `google.ts` already gives Gemini): these models think first and the thinking is paid from the same number. Don't
+  "fix" a small cap by turning thinking off — Sonnet 5.5 refuses `thinking: disabled`, Opus 5.5 can't, and
+  `budget_tokens` is a 400 on all three.
+- **Effort is the one reasoning control all three accept**: `output_config.effort`, `low` for a cap of 1,500 or less,
+  else `medium`; a call site may pass `LLMRequest.effort`. Starting values. Measured 11-17 on the real key, through the
+  adapter: a one-sentence caption in about 1 s on each of the three; a 2,250-token article in 21.7 s on Sonnet; the
+  first streamed word after 0.8 s.
+- ⚠ **An empty reply is never a success.** `stop_reason: "refusal"` (HTTP 200, with or without a few words) and a reply
+  with no text both throw, so the router answers with the placeholder stamped `mock` and every existing guard refuses
+  to store it. A reply cut off at the cap WITH text is returned, as before. The stream throws only when NOTHING was
+  written — after real text a throw would append the placeholder to it. ⚠ Those error messages are read by
+  `refusalKind()`: keep them free of status-code-looking numbers and of the words it matches. A model declining one
+  prompt raises no Inbox card.
+- **A model the provider no longer serves is a fourth `RefusalKind`, `"model"`** (`lib/llm/provider-health.ts`): `404`,
+  `not_found_error`, `NOT_FOUND`, "no longer available", "is not found for API version" — tested FIRST. It names the
+  Google 404s in CLAUDE.md's trap table too. The record carries the app's model id, and ⚠ only a success on THAT model
+  clears it (any success clears the other three kinds, as before) — otherwise a workspace on a working model with one
+  channel on a retired one has its card appear and vanish with every other call. Inbox card `ai-model-gone-<provider>`
+  → Settings → Workspace (`lib/home.ts`); `describeRefusal`, `whyNoAiReply` and Connections say "no longer offers
+  <label>".
+- ⚠ **A "model" refusal is aged out when READ** (`stillMatters` in `providerRefusals`), because its fix is choosing
+  another model — after which nothing calls the old one and no success can ever clear the record. It is shown while it
+  failed in the last 45 minutes (longer than a 30-minute sweep), or while that model is still the workspace's default
+  (the platform's, when the workspace has none) or a channel's. An article or script that still names it raises the
+  card again the next time it runs. The other three kinds are never aged out — unchanged.
+- **No call site names a model.** `actions/voice.ts` (both calls: the channel's model, else inherit), `actions/chat.ts`
+  and `actions/sme.ts` end in `""` — the router reads the workspace's default, then the platform's. The string
+  `"claude-sonnet"` now lives only in `models.ts`, `anthropic.ts` and `env.ts`.
+- The streamed script (`api/scripts/[id]/generate`) passes `timeoutMs: 120_000`: the router's limit runs to the first
+  WORD, and the thinking comes before it.
+- Tokens: Anthropic says the newer tokenizer counts the same text as about 30% more (its figure, not measured here), so
+  the monthly token budget warns sooner; `outputTokens` includes the thinking, which is what is billed. The operator's
+  Claude prices on Usage are keyed by the app's ids and were entered for the old models — the operator's to re-enter.
+- Not exercised: a real refusal and a real empty `max_tokens` reply (both faked); the engine's own cycle on the new
+  models. Not built: tiers and DeepSeek — `docs/MODEL-PLAN-2026-11-17.md` (local, untracked), Phases 2 and 3.
+

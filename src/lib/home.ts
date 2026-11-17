@@ -308,13 +308,28 @@ export async function getHomeData(workspaceId: string): Promise<HomeData> {
   }
 
   // An AI provider refusing this workspace's calls (out of credits, over its
-  // quota, a rejected key). The router falls back to a placeholder that the
-  // guards won't store, so without this the engine just goes quiet.
+  // quota, a rejected key) — or no longer serving the model it is set to. The
+  // router falls back to a placeholder that the guards won't store, so without
+  // this the engine just goes quiet.
   {
-    const { providerRefusals } = await import("@/lib/llm/provider-health");
+    const { providerRefusals, refusedModelLabel } = await import("@/lib/llm/provider-health");
     const NAME: Record<string, string> = { anthropic: "Anthropic", google: "Google" };
     const WHERE: Record<string, string> = { anthropic: "console.anthropic.com", google: "ai.studio/projects" };
     for (const r of await providerRefusals(workspaceId).catch(() => [])) {
+      if (r.kind === "model") {
+        // A retired model is fixed by choosing another, not at the provider's console.
+        const label = refusedModelLabel(r);
+        decisions.push({
+          module: "Setup",
+          kind: `ai-model-gone-${r.provider}`,
+          severity: "warn",
+          title: `${NAME[r.provider] ?? r.provider} no longer offers ${label}`,
+          detail: `Since ${formatZonedMoment(new Date(r.since), homeTz)} every call to ${label} gets a placeholder and nothing is written. Pick another model under Settings → Workspace, and on any channel, article or script set to it. Last reply: ${r.message}`.slice(0, 400),
+          href: "/admin/settings",
+          cta: "Open Workspace",
+        });
+        continue;
+      }
       const why = r.kind === "credits" ? "its prepaid credits are used up" : r.kind === "quota" ? "it's over its rate or quota limit" : "it rejected the key";
       decisions.push({
         module: "Setup",

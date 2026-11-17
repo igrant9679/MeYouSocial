@@ -68,6 +68,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
           messages: [{ role: "user", content: userContent }],
           workspaceId: workspace.id,
           answeredBy: answered,
+          // To the first WORD, not the first byte: a Claude model thinks before
+          // it writes, and a whole script's worth of thinking can pass 45 s.
+          timeoutMs: 120_000,
         })) {
           buffer += chunk;
           // Each SSE frame is `data: <json>\n\n`. We send the cumulative content

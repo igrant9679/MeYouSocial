@@ -215,14 +215,17 @@ const voiceBack = (channelId: string, voiceId: string, msg: string, ok = false):
  * for a trained voice).
  */
 async function retrainVoice(opts: { channelId: string; voiceId: string; workspaceId: string; userId: string; ask: string; label: string; trainedFrom?: string }) {
-  const profile = await db.voiceProfile.findFirst({ where: { id: opts.voiceId, channelId: opts.channelId, channel: { workspaceId: opts.workspaceId } } });
+  const profile = await db.voiceProfile.findFirst({ where: { id: opts.voiceId, channelId: opts.channelId, channel: { workspaceId: opts.workspaceId } }, include: { channel: { select: { defaultModel: true } } } });
   if (!profile) return;
   const { jsonObjectFrom, saveVersion, voiceSnapshot } = await import("@/lib/profile-versions");
   const before = voiceSnapshot(profile.data);
   const samples = readJson<Sample[]>(profile.samples, []);
   const result = await llm.complete({
     purpose: "voice",
-    model: "claude-sonnet",
+    // The channel's model, else inherit (workspace → platform). This named
+    // "claude-sonnet" outright until 2026-11-17, so a channel set to Gemini
+    // trained its voice on Claude anyway.
+    model: profile.channel.defaultModel ?? "",
     system: "You maintain a creator's voice profile. Return the COMPLETE updated profile as ONE JSON object with the same keys as the current one (archetype, delivery, rhetoric, diction, extras, summary, …). Respond with the JSON object only.",
     messages: [{ role: "user", content: `${opts.ask}\n\nCurrent profile JSON:\n${JSON.stringify(before, null, 2)}${samplesBlock(samples)}` }],
     workspaceId: opts.workspaceId,
@@ -312,7 +315,7 @@ export async function generateVoicePreviewAction(formData: FormData) {
   const current = readJson<Record<string, unknown>>(profile.data, {});
   const sample = await llm.complete({
     purpose: "voice",
-    model: "claude-sonnet",
+    model: profile.channel.defaultModel ?? "",
     system: "You write a short (3-4 sentence) sample of YouTube spoken-style script that demonstrates the supplied voice profile.",
     messages: [
       { role: "user", content: `Niche: ${profile.channel.nicheDescription}\nVoice profile: ${JSON.stringify(current)}\n\nProduce a hook + first beat.` },
