@@ -236,6 +236,45 @@ try {
     check("…and a profile with no search queries in it holds nothing back", toolSteps(r).some((s) => s.tool === "add_idea" && s.ok) && !r.result.pending, toolSteps(r));
   }
 
+  // 7c. A tool call written in the model's own markup instead of the JSON protocol (seen on production
+  // 2026-11-18: an admin's whole answer was `<invoke name="customer_profile"> </invoke>`). It is read as the
+  // call it was meant to be and goes through every gate; any other protocol debris is never shown to the person.
+  {
+    const MARKUP = (tool: string, params: Record<string, string | number> = {}) => `<invoke name="${tool}">\n${Object.entries(params).map(([k, v]) => `<parameter name="${k}">${v}</parameter>`).join("\n")}\n</invoke>\n</invoke>`;
+    script = [MARKUP("customer_profile"), say({ answer: "Your audience is school bursars." })];
+    r = await turn(admin.id, "ADMIN", "What do we know about our customers?");
+    check("markup naming a tool is read as that call — never shown as the answer", toolSteps(r).some((s) => s.tool === "customer_profile" && s.ok) && r.result.answer === "Your audience is school bursars." && !/invoke/.test(JSON.stringify(r.result.steps.filter((s) => s.kind === "answer"))), r.result);
+
+    const weeklyBefore7c = await weekly();
+    script = [MARKUP("set_weekly_articles", { count: 5 })];
+    r = await turn(admin.id, "ADMIN", "Make it five articles a week");
+    check("…a confirm tool written as markup is still proposed, not run — its argument read as a number", !!confirmStep(r) && (r.result.pending as { args?: { count?: unknown } } | null)?.args?.count === 5 && (await weekly()) === weeklyBefore7c, r.result);
+    script = [say({ answer: "Left it." })];
+    await turn(admin.id, "ADMIN", "no", r.threadId);
+
+    const ideasBefore7c = await db.blogIdea.count({ where: { workspaceId: ws.id } });
+    script = [MARKUP("add_idea", { title: "A viewer's idea, in markup" }), say({ answer: "An editor can add that." })];
+    r = await turn(viewer.id, "VIEWER", "Add an idea about markup");
+    check("…a viewer's write written as markup is refused like any other", (await db.blogIdea.count({ where: { workspaceId: ws.id } })) === ideasBefore7c && toolSteps(r).some((s) => !s.ok && /viewer/.test(s.output)), toolSteps(r));
+
+    script = ["<function_calls>\n<tool_use>look things up</tool_use>\n</function_calls>", say({ answer: "Here is what I found." })];
+    r = await turn(editor.id, "EDITOR", "What's waiting?");
+    check("markup that names no tool is not shown: the model is asked once more for the protocol", r.result.answer === "Here is what I found." && /not in the protocol/.test(lastSeen) && toolSteps(r).length === 0, { answer: r.result.answer, lastSeen: lastSeen.slice(0, 120) });
+
+    script = ['{"answer": "This reply was cut off before it clo', say({ answer: "The whole reply." })];
+    r = await turn(editor.id, "EDITOR", "Tell me something long");
+    check("a JSON reply cut short is not shown either", r.result.answer === "The whole reply." && /not in the protocol/.test(lastSeen), r.result.answer);
+
+    script = ["```tool_code\nprint(default_api.list_ideas())\n```", "<tool_call>again, not the protocol</tool_call>"];
+    r = await turn(editor.id, "EDITOR", "What ideas are waiting?");
+    check("…and after a second miss the person gets a plain sentence, with nothing run", /lost my place/.test(r.result.answer) && !/tool_c|</.test(r.result.answer) && toolSteps(r).length === 0, r.result.answer);
+
+    script = ["The Inbox has two things waiting; start with the article held at review."];
+    r = await turn(editor.id, "EDITOR", "What should I look at first?");
+    check("plain prose is still a legitimate answer", r.result.answer === "The Inbox has two things waiting; start with the article held at review.", r.result.answer);
+    script = [];
+  }
+
   // 8. A pause refuses work.
   await db.automationState.upsert({ where: { workspaceId: ws.id }, create: { workspaceId: ws.id, globalPause: true }, update: { globalPause: true } });
   script = [say({ tool: "add_idea", args: { title: "Work during a pause" } }), say({ answer: "Paused." })];
@@ -259,6 +298,11 @@ try {
     r = await turn(editor.id, "EDITOR", "Add an idea about tiers");
     const titles = (await db.blogIdea.findMany({ where: { workspaceId: ws.id, title: { contains: "model's wording" } }, select: { title: true } })).map((i) => i.title);
     check("…a change is asked again of the Standard model, and only ITS request runs", asked.length === 3 && asked[0].startsWith("claude-haiku") && asked[1].startsWith("claude-sonnet") && asked[2].startsWith("claude-haiku") && JSON.stringify(titles) === JSON.stringify(["The standard model's wording"]), { asked, titles });
+    asked.length = 0;
+    script = ['<invoke name="add_idea">\n<parameter name="title">The light model in markup</parameter>\n</invoke>', say({ tool: "add_idea", args: { title: "The standard model after markup" } }), say({ answer: "Added." })];
+    r = await turn(editor.id, "EDITOR", "Add an idea about markup and tiers");
+    const afterMarkup = (await db.blogIdea.findMany({ where: { workspaceId: ws.id, title: { contains: "markup" } }, select: { title: true } })).map((i) => i.title);
+    check("…a change the Light model wrote as markup is asked again of the Standard model too", asked.length === 3 && asked[0].startsWith("claude-haiku") && asked[1].startsWith("claude-sonnet") && afterMarkup.includes("The standard model after markup") && !afterMarkup.includes("The light model in markup"), { asked, afterMarkup });
     asked.length = 0;
     const weeklyBefore = await weekly();
     script = [say({ tool: "set_weekly_articles", args: { count: 9 } }), say({ ask: "How many a week did you mean?" })];

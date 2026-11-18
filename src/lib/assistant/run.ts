@@ -207,6 +207,63 @@ export function parseDirective(raw: string): Directive | null {
   return null;
 }
 
+// ── A reply that isn't the protocol ─────────────────────────────────────────
+//
+// ⚠ A MODEL SOMETIMES WRITES A TOOL CALL IN ITS OWN DIALECT instead of the JSON
+// it was asked for — seen on production 2026-11-18, Claude Sonnet, an admin's
+// question: the whole reply was `<invoke name="customer_profile"> </invoke>`.
+// The loop took anything that wasn't JSON for "plain prose, a legitimate final
+// answer", so the person was shown markup. Two rules now:
+//   · markup that names a tool is READ AS THAT CALL (`directiveFromMarkup`) and
+//     goes through every gate a JSON call does — role, outside text, the
+//     confirmation card, the pause. It is never a shortcut around one.
+//   · anything else that looks like the protocol gone wrong (other tool
+//     markup, a JSON object cut short) is never shown: the model is asked ONCE
+//     more for the JSON, and if that fails too the person gets a plain
+//     sentence saying nothing was done.
+// Plain prose is still a legitimate final answer.
+
+/** An optional namespace prefix on a tag ("x:invoke") — some dialects carry one. */
+const TAG_NS = "(?:[a-z][a-z0-9]{0,11}:)?";
+const INVOKE_OPEN = new RegExp(`<${TAG_NS}invoke\\s+name\\s*=\\s*["']([A-Za-z0-9_]{1,64})["']\\s*>`, "i");
+const INVOKE_CLOSE = new RegExp(`</${TAG_NS}invoke\\s*>`, "i");
+const PARAMETER = new RegExp(`<${TAG_NS}parameter\\s+name\\s*=\\s*["']([A-Za-z0-9_]{1,64})["']\\s*>([\\s\\S]*?)</${TAG_NS}parameter\\s*>`, "gi");
+const TOOL_MARKUP = new RegExp(`</?${TAG_NS}(?:invoke|function_calls|tool_use|tool_call|tool_code|parameter)\\b|\`\`\`(?:tool_code|tool_call|tool_use)\\b`, "i");
+
+/** A tool call written as `<invoke name="…"><parameter name="…">…</parameter></invoke>`, as the directive it was meant to be. */
+export function directiveFromMarkup(raw: string): Directive | null {
+  const open = INVOKE_OPEN.exec(raw);
+  if (!open) return null;
+  const rest = raw.slice(open.index + open[0].length);
+  const close = INVOKE_CLOSE.exec(rest);
+  const body = close ? rest.slice(0, close.index) : rest;
+  const args: Record<string, unknown> = {};
+  for (const p of body.matchAll(PARAMETER)) {
+    const v = p[2].trim();
+    // Numbers, booleans and JSON values are read as what they are; anything else is the text itself.
+    let value: unknown = v;
+    if (/^(?:-?\d+(?:\.\d+)?|true|false|null|\{[\s\S]*\}|\[[\s\S]*\])$/.test(v)) { try { value = JSON.parse(v); } catch { value = v; } }
+    args[p[1]] = value;
+  }
+  return { tool: open[1], args };
+}
+
+/** The directive in a reply, whichever way the model wrote it. */
+export function readDirective(raw: string): Directive | null {
+  return parseDirective(raw) ?? directiveFromMarkup(raw);
+}
+
+/** True when a reply that is NOT a directive still looks like the protocol gone wrong — never text for a person. */
+export function looksLikeProtocolDebris(raw: string): boolean {
+  const t = raw.trim();
+  if (TOOL_MARKUP.test(t)) return true;
+  // A JSON object naming the protocol's keys that didn't parse: cut short, or two run together.
+  return /^(?:```(?:json)?\s*)?\{/.test(t) && /"(?:tool|answer|ask)"\s*:/.test(t);
+}
+
+const PROTOCOL_NUDGE = `[Your last reply was not in the protocol, so nothing was run and the person was shown nothing. Reply again with EXACTLY ONE json object and nothing else — {"tool": "<name>", "args": {…}} to use a tool, {"ask": "…"} to ask the person, or {"answer": "…"} to answer.]`;
+const LOST_MY_PLACE = "I lost my place while working on that, so I've done nothing. Please ask me again.";
+
 // ⚠ A proposal runs only on a reply that is NOTHING BUT a yes. This used to be
 // a prefix test, so "OK, actually no, cancel", "Go to the calendar instead" and
 // "Sure, but change the text" all ran the proposed publish/send/invite. Now the
@@ -357,6 +414,8 @@ async function runTurnLoop(
     transcript.push({ role: "user", content: message });
   }
 
+  /** The model was already asked once to repeat a reply that wasn't the protocol. */
+  let nudged = false;
   for (let step = 0; step < MAX_STEPS; step++) {
     const halt = await stopped();
     if (halt) return halt;
@@ -373,7 +432,8 @@ async function runTurnLoop(
     };
     let res = await ask(model);
     if (steppingUp && res.provider !== "mock") {
-      const first = parseDirective(res.content);
+      // readDirective, not parseDirective: a change written as markup is still a change.
+      const first = readDirective(res.content);
       const wants = first?.tool ? TOOLS.find((t) => t.name === first.tool) : undefined;
       // An unknown tool name is treated as a change too: the Standard model gets to say what was meant.
       if (first?.tool && !wants?.readOnly) {
@@ -392,8 +452,16 @@ async function runTurnLoop(
       };
     }
 
-    const d = parseDirective(res.content);
+    const d = readDirective(res.content);
     if (!d) {
+      // The protocol gone wrong is never shown: ask once more, then say plainly that nothing was done.
+      if (looksLikeProtocolDebris(res.content)) {
+        if (nudged) return { ok: true, answer: LOST_MY_PLACE, steps, pending: null };
+        nudged = true;
+        transcript.push({ role: "assistant", content: res.content.slice(0, 2000) });
+        transcript.push({ role: "user", content: PROTOCOL_NUDGE });
+        continue;
+      }
       // Plain prose is a legitimate final answer — after a tool ran the model
       // often just tells the person what happened without the JSON wrapper.
       return { ok: true, answer: res.content.trim(), steps, pending: null };

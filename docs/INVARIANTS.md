@@ -2895,3 +2895,24 @@ under Distribute, but the posts held for an admin sat under Publish — a stage 
   fail, the third clears it and succeeds); fails three times (build fails, nothing copied); the app build fails
   (Chrome never tried, cache untouched). **Still not known**: which of the two it was — a build that needed the
   retry will say so in its log ("chrome step failed, exit code N", and "clearing the cached copy" if it got that far).
+
+## ⚠ A reply that isn't the protocol is never shown to a person (2026-11-18, the owner's "Yes, fix and push", found testing Elsie as an admin)
+- **What happened.** On production, an admin's question got Elsie's whole answer as
+  `<invoke name="customer_profile"> </invoke> </invoke>` — Claude Sonnet wrote a tool call in its own dialect instead
+  of the JSON the loop asks for. `parseDirective` found no JSON and `run.ts` took the text for "plain prose, a
+  legitimate final answer". Nothing ran and nothing was written, but a person saw markup. About one Claude turn in
+  ten over two days of checks; never seen on Gemini.
+- **Markup that names a tool is read as that call** (`directiveFromMarkup`, through `readDirective` =
+  `parseDirective ?? directiveFromMarkup`): `<invoke name="…">` with `<parameter name="…">` children, with or without
+  a namespace prefix on the tags; a number, boolean or JSON value is read as what it is. ⚠ It then goes through
+  EVERY gate a JSON call does — the viewer's read-only list, admin-only, outside text, the confirmation card, the
+  pause — and, with model tiers on, a change the Light model wrote as markup is still asked again of the Standard
+  model (the step-up decision uses `readDirective`). Never add a path that runs a tool from a reply without them.
+- **Any other protocol debris is asked for once more, then admitted** (`looksLikeProtocolDebris`): tool markup that
+  names no tool, a `tool_code` block, a JSON object cut short. The model gets one correction (`PROTOCOL_NUDGE`) and,
+  if it misses again, the person gets "I lost my place while working on that, so I've done nothing." — never the raw
+  text. ⚠ Plain prose is still a legitimate final answer; don't tighten that into "JSON or nothing".
+- **Checked**: eight cases in `scripts/assistant-eval.mts` (7c and one in 8b) — markup read as the call, a confirm tool
+  still proposed with its number read, a viewer's write still refused, the two kinds of debris re-asked, the second
+  miss, prose untouched, and the Light-to-Standard step-up. Not exercised on a real model: the fault can't be produced
+  on demand.
