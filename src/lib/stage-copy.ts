@@ -40,7 +40,7 @@ export const STAGE_NOTES: Partial<Record<StageHref, string>> = {
   "/ideas": "the Overview is one board for article, video and social ideas in each Topic's lane, columns Discovered/Approved/Drafted/Rejected",
   "/drafts": "Articles is one page with a Board/List toggle",
   "/publish": "Download HTML and Mark as published when there is no WordPress",
-  "/distribute": "Posts is one list of posts under four filters; Approvals is the posts held for an admin's yes (it was a Publish tab until 18 November 2026); Calendar can show the articles' publishing calendar as well as the posts",
+  "/distribute": "Posts is one list of posts under four filters; Approvals is the posts held for an admin's yes (it was a Publish tab until 18 November 2026); Calendar puts posts and articles on one grid (Show: All), or shows posts alone, or the articles' publishing month",
   "/measure": "Overview is every format at once, with Summary being the Measure page itself; By Topic is what each Topic earned; the YouTube audit is the own-channel audit from the YouTube Analytics API",
   "/setup": "the model each kind of job runs on is on Workspace; People is roles, invitations and require-approval; Automation is full autonomy, the pause, the weekly article target, the publish day, SEO on drafts, social auto-dials and function modes; Schedule is slots, time zone, best time, UTM and campaigns; Connections is what is connected and what is missing",
 };

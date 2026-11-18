@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, useSyncExternalStore, useTransition } from "react";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, Pencil, CalendarClock } from "lucide-react";
+import { ChevronLeft, ChevronRight, Pencil, CalendarClock, FileText } from "lucide-react";
 import { rescheduleSocialPostAction } from "@/app/actions/social";
 import { networkFor } from "@/lib/social/networks";
 
@@ -49,6 +49,14 @@ export type CalendarPost = {
   category: string | null;
   campaign: { id: string; name: string; color: string | null } | null;
 };
+
+/**
+ * An article on the posts' grid (2026-11-18): the instant it went out, or the
+ * instant it is scheduled for. Bucketed by the viewer's local day and hour like
+ * a post, and READ-ONLY here — setting an article's time is its approval to
+ * publish, an admin's act that lives on the publishing month (Show: Articles).
+ */
+export type CalendarArticleMark = { id: string; title: string; at: string; kind: "published" | "scheduled" };
 
 /** The calendar's filters, mirrored in the URL (`net`, `cat`, `camp`, `ghosts=0`) so a filtered view is a link. */
 export type CalendarFilter = { net: string; cat: string; camp: string; ghosts: boolean };
@@ -184,11 +192,47 @@ function GhostSlot({ iso, onTake }: { iso: string; onTake: (at: Date) => void })
   );
 }
 
+/**
+ * Module scope for the same reason as GhostSlot. A link, not a chip: it can't
+ * be dragged (`draggable={false}` — a browser drags any link by default, and a
+ * drop of one onto a day would look like it did something) and carries no
+ * tick-box or date field.
+ */
+function ArticleMark({ a }: { a: CalendarArticleMark }) {
+  const at = new Date(a.at);
+  const done = a.kind === "published";
+  const hue = done ? "green" : "blue";
+  return (
+    <Link
+      href={`/blog/${a.id}`}
+      draggable={false}
+      data-calendar-article={a.kind}
+      className="rounded-md px-1.5 py-1 text-micro leading-tight border block hover:underline"
+      style={{ background: `var(--${hue}-soft)`, borderColor: `var(--${hue})`, color: `var(--${hue}-on)` }}
+      title={`${done ? "Article published" : "Article scheduled for"} ${timeLabel(at)} — ${a.title}${done ? "" : ". An admin moves it under Show → Articles."}`}
+    >
+      {/* One line, clipped rather than wrapped: a month cell is narrow, and the title above says it in full. */}
+      <span className="flex items-center gap-1 font-mono whitespace-nowrap overflow-hidden">
+        <FileText className="w-2.5 h-2.5 shrink-0" />
+        {timeLabel(at)}
+        <span className="ml-auto pl-1">{done ? "out" : "due"}</span>
+      </span>
+      <span className="block truncate">{a.title}</span>
+    </Link>
+  );
+}
+
 type Mode = "month" | "week";
 /** Which half-hour of a week cell the pointer is over. */
 type CellTarget = { key: string; half: 0 | 30 };
 
-export function SocialCalendar({ posts, freeSlots = [], initialFilter }: { posts: CalendarPost[]; freeSlots?: string[]; initialFilter?: Partial<CalendarFilter> }) {
+export function SocialCalendar({ posts, freeSlots = [], articles = NO_ARTICLES, initialFilter }: {
+  posts: CalendarPost[];
+  freeSlots?: string[];
+  /** Articles to mark on the grid — empty when the page shows posts alone. */
+  articles?: CalendarArticleMark[];
+  initialFilter?: Partial<CalendarFilter>;
+}) {
   // `cursor` is a plain anchor date: month view reads its month, week view reads
   // the Monday-start week containing it. One piece of state, two framings.
   const [cursor, setCursor] = useState(() => new Date());
@@ -285,6 +329,19 @@ export function SocialCalendar({ posts, freeSlots = [], initialFilter }: { posts
   const freeByDay = useMemo(() => groupIso(freeAvailable, (d) => dayKey(d)), [freeAvailable]);
   const freeByCell = useMemo(() => groupIso(freeAvailable, (d) => cellKey(d)), [freeAvailable]);
 
+  // Articles, by the same two keys as posts. They are not filtered by network,
+  // category or campaign — an article has none — so those filters leave them be.
+  const [articlesByDay, articlesByCell] = useMemo(() => {
+    const byDayMap = new Map<string, CalendarArticleMark[]>();
+    const byCellMap = new Map<string, CalendarArticleMark[]>();
+    for (const a of [...articles].sort((x, y) => x.at.localeCompare(y.at))) {
+      const d = new Date(a.at);
+      byDayMap.set(dayKey(d), [...(byDayMap.get(dayKey(d)) ?? []), a]);
+      byCellMap.set(cellKey(d), [...(byCellMap.get(cellKey(d)) ?? []), a]);
+    }
+    return [byDayMap, byCellMap];
+  }, [articles]);
+
   const year = cursor.getFullYear();
   const month = cursor.getMonth();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -311,8 +368,10 @@ export function SocialCalendar({ posts, freeSlots = [], initialFilter }: { posts
     };
     for (const p of scheduled) widen(new Date(p.scheduledAt!));
     for (const iso of freeAvailable) widen(new Date(iso));
+    // An article that went out at 05:00 must not be hidden by the default window either.
+    for (const a of articles) widen(new Date(a.at));
     return [lo, hi];
-  }, [allHours, weekStart, scheduled, freeAvailable]);
+  }, [allHours, weekStart, scheduled, freeAvailable, articles]);
 
   /**
    * Commit posts to exact instants, optimistically, each confirmed by the
@@ -544,6 +603,13 @@ export function SocialCalendar({ posts, freeSlots = [], initialFilter }: { posts
           Show proposed and held posts
         </label>
         {hiddenByFilter > 0 && <span className="text-[var(--mute)]">{hiddenByFilter} hidden by these filters</span>}
+        {articles.length > 0 && (
+          <span className="inline-flex items-center gap-1.5 text-[var(--mute)]" data-calendar-legend>
+            <FileText className="w-3 h-3" /> Articles:
+            <span className="px-1.5 rounded" style={{ background: "var(--blue-soft)", color: "var(--blue-on)" }}>due</span>
+            <span className="px-1.5 rounded" style={{ background: "var(--green-soft)", color: "var(--green-on)" }}>out</span>
+          </span>
+        )}
         {ticked.length > 0 && (
           <span className="inline-flex items-center gap-1.5">
             <b>{ticked.length} ticked</b>
@@ -582,6 +648,7 @@ export function SocialCalendar({ posts, freeSlots = [], initialFilter }: { posts
                 }}
               >
                 <span className={`font-mono text-micro ${isToday ? "font-bold" : "text-[var(--mute)]"}`}>{day}</span>
+                {(articlesByDay.get(key) ?? []).map((a) => <ArticleMark key={a.id} a={a} />)}
                 {dayPosts.map((p) => <Chip key={p.id} p={p} />)}
                 {(freeByDay.get(key) ?? []).map((iso) => (
                   <GhostSlot
@@ -663,6 +730,7 @@ export function SocialCalendar({ posts, freeSlots = [], initialFilter }: { posts
                           {hourLabel(hour, over.half)}
                         </span>
                       )}
+                      {(articlesByCell.get(key) ?? []).map((a) => <ArticleMark key={a.id} a={a} />)}
                       {cellPosts.map((p) => <Chip key={p.id} p={p} control="datetime" />)}
                       {cellFree.map((iso) => (
                         <GhostSlot key={iso} iso={iso} onTake={(at) => { setOverCell(null); if (dragId) dropAt(dragId, at); setDragId(null); }} />
@@ -703,6 +771,8 @@ export function SocialCalendar({ posts, freeSlots = [], initialFilter }: { posts
 }
 
 const subscribeNothing = () => () => {};
+/** One array for "no articles", so the default prop doesn't change identity on every render and re-run the memos. */
+const NO_ARTICLES: CalendarArticleMark[] = [];
 
 /**
  * The time, re-read each minute, so "past" and "today" move on while the

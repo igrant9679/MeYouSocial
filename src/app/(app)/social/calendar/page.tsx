@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { CalendarClock, Clock, ListPlus } from "lucide-react";
-import { zoneLabel } from "@/lib/zoned-dates";
-import { articleMonth } from "@/lib/article-calendar";
+import { formatZonedMoment, zoneLabel } from "@/lib/zoned-dates";
+import { articleMarks, articleMonth } from "@/lib/article-calendar";
+import { requestNow } from "@/lib/request-time";
 import { ArticleCalendarBody, ArticleMonthNav } from "@/components/ArticleCalendarView";
 import { requireRole, canAdmin } from "@/lib/acl";
 import { db } from "@/lib/db";
@@ -20,16 +21,27 @@ import { Banner, Empty, PostCard, Section, SocialHeader } from "@/components/Soc
 // "what goes out when" had to know which. `?show=articles` puts the articles'
 // publishing month here — the same one as Publish → Blog calendar, from
 // lib/article-calendar.ts — without leaving this page or its strip.
+//
+// ONE GRID since 2026-11-18 (the owner's "Yes, build it"): the default view,
+// Show: All, puts articles on the posts' grid as read-only marks on the day
+// and hour they went out or are due. `?show=posts` is the grid without them;
+// `?show=articles` is still the publishing month, where an admin schedules.
 
 type SP = { ok?: string; err?: string; view?: string; net?: string; cat?: string; camp?: string; ghosts?: string; show?: string; month?: string };
 
-/** Posts or Articles — the same two links on both views, the current one lit. */
-function ShowSwitch({ show }: { show: "posts" | "articles" }) {
+type Show = "all" | "posts" | "articles";
+
+/** All, Posts or Articles — the same three links on every view, the current one lit. */
+function ShowSwitch({ show }: { show: Show }) {
+  const item = (key: Show, href: string, label: string, title: string) => (
+    <Link href={href} aria-current={show === key ? "true" : undefined} className={`btn sm ${show === key ? "primary" : ""}`} title={title}>{label}</Link>
+  );
   return (
     <div className="inline-flex items-center gap-1" role="group" aria-label="What the calendar shows" data-calendar-show={show}>
       <span className="text-2xs text-[var(--mute)] pr-1">Show</span>
-      <Link href="/social/calendar" aria-current={show === "posts" ? "true" : undefined} className={`btn sm ${show === "posts" ? "primary" : ""}`}>Posts</Link>
-      <Link href="/social/calendar?show=articles" aria-current={show === "articles" ? "true" : undefined} className={`btn sm ${show === "articles" ? "primary" : ""}`}>Articles</Link>
+      {item("all", "/social/calendar", "All", "Posts, with articles on the day they went out or are due")}
+      {item("posts", "/social/calendar?show=posts", "Posts", "Posts only")}
+      {item("articles", "/social/calendar?show=articles", "Articles", "The articles' publishing month — where an admin gives one a date")}
     </div>
   );
 }
@@ -40,6 +52,7 @@ export default async function SocialCalendarPage({ searchParams }: { searchParam
   // Calendar is the natural primary view for a scheduler; agenda stays one click away.
   const mode = view === "agenda" ? "agenda" : "calendar";
   const isAdmin = canAdmin(membership.role);
+  const showing: Show = show === "articles" ? "articles" : show === "posts" ? "posts" : "all";
 
   // The articles' month: its own queries only — none of the posts' below run.
   if (show === "articles") {
@@ -111,6 +124,11 @@ export default async function SocialCalendarPage({ searchParams }: { searchParam
     select: { id: true, text: true, scheduledAt: true, status: true, approval: true, category: true, campaignId: true, targets: { select: { provider: true } }, campaign: { select: { name: true, color: true } } },
     take: 100,
   });
+  // Show: All — the articles that have an instant, and how many don't. Posts alone runs neither query.
+  const articles = showing === "all" ? await articleMarks(workspace.id) : null;
+  const viewHref = (v: "calendar" | "agenda") => `/social/calendar?${showing === "posts" ? "show=posts&" : ""}view=${v}`;
+  const now = requestNow();
+  const articlesAhead = (articles?.marks ?? []).filter((a) => a.kind === "scheduled" && new Date(a.at).getTime() >= now);
   const hasSlots = queue.slots.some((s) => s.enabled);
   // Queue all leaves held drafts (SOC-04), so its count does too.
   const queueable = drafts.filter((d) => !d.heldAt).length;
@@ -152,7 +170,7 @@ export default async function SocialCalendarPage({ searchParams }: { searchParam
       <SocialHeader
         icon={<CalendarClock className="w-6 h-6" strokeWidth={2.25} />}
         title="Calendar"
-        blurb={`Scheduled and draft posts. Times shown in ${queue.timeZone}${queue.timeZoneConfigured ? "" : " (no timezone set)"}.`}
+        blurb={`Scheduled and draft posts${articles ? ", with articles on the day they went out or are due" : ""}. Times shown in ${queue.timeZone}${queue.timeZoneConfigured ? "" : " (no timezone set)"}.`}
       >
         <Link href="/social/compose" className="btn sm primary">New post</Link>
       </SocialHeader>
@@ -168,10 +186,10 @@ export default async function SocialCalendarPage({ searchParams }: { searchParam
       )}
 
       <div className="flex items-center gap-2 mb-3 flex-wrap">
-        <ShowSwitch show="posts" />
+        <ShowSwitch show={showing} />
         <span className="w-px h-5 bg-[var(--line)] mx-1" aria-hidden />
-        <Link href="/social/calendar?view=calendar" className={`btn sm ${mode === "calendar" ? "primary" : ""}`}>Calendar</Link>
-        <Link href="/social/calendar?view=agenda" className={`btn sm ${mode === "agenda" ? "primary" : ""}`}>Agenda</Link>
+        <Link href={viewHref("calendar")} className={`btn sm ${mode === "calendar" ? "primary" : ""}`}>Calendar</Link>
+        <Link href={viewHref("agenda")} className={`btn sm ${mode === "agenda" ? "primary" : ""}`}>Agenda</Link>
         <span className="flex-1" />
         {queueable > 0 && hasSlots && (
           <form action={queueAllDraftsAction}>
@@ -182,12 +200,35 @@ export default async function SocialCalendarPage({ searchParams }: { searchParam
         )}
       </div>
 
+      {/* An article with no time has no day to sit on — say so rather than leave it out silently. */}
+      {articles && articles.waiting > 0 && (
+        <p className="text-2xs text-[var(--mute)] mb-3" data-calendar-waiting={articles.waiting}>
+          {articles.waiting} article{articles.waiting === 1 ? " is" : "s are"} at final approval with no publish date, so {articles.waiting === 1 ? "it is" : "they are"} not on this grid.{" "}
+          <Link href="/social/calendar?show=articles" className="underline">Show: Articles</Link> lists {articles.waiting === 1 ? "it" : "them"}{isAdmin ? " and is where you give one a date" : ""}.
+        </p>
+      )}
+
       {mode === "calendar" && (
         <SocialCalendar
           posts={[...scheduled, ...drafts, ...pending].map(toCalendar)}
           freeSlots={freeSlotIso}
+          articles={articles?.marks}
           initialFilter={{ net: net ?? "", cat: cat ?? "", camp: camp ?? "", ghosts: ghosts !== "0" }}
         />
+      )}
+
+      {mode === "agenda" && articlesAhead.length > 0 && (
+        <div className="mb-4" data-agenda-articles>
+          <Section icon={<CalendarClock className="w-4 h-4" style={{ color: "var(--blue-on)" }} />} title="Articles due" count={articlesAhead.length} />
+          <ul className="card m-0 list-none flex flex-col gap-1 text-sm">
+            {articlesAhead.map((a) => (
+              <li key={a.id} className="flex items-baseline gap-2 flex-wrap">
+                <span className="font-mono text-2xs text-[var(--mute)] w-44 shrink-0">{formatZonedMoment(new Date(a.at), queue.timeZone)}</span>
+                <Link href={`/blog/${a.id}`} className="underline">{a.title}</Link>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
 
       {mode === "agenda" && (

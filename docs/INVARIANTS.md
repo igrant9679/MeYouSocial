@@ -2830,7 +2830,8 @@ names were used twice. The owner approved the regrouping proposed on 11-16.
   session builds in it: `npx tsx <absolute path>` with the repo as the working directory still resolves `@/…`, and
   `createRequire("<repo>/package.json")` loads its packages — nothing lands in `scripts/` for the other build to
   type-check. Stage by path, and by hunk (`git apply --cached` on a filtered patch) in a file both sessions edited.
-- **Not built**: posts and articles on ONE grid (the switch shows one kind at a time); moving Approvals from Publish to
+- **Not built** (as of 11-17 — both of the first two were built on 11-18, see the later sections): posts and articles
+  on ONE grid (the switch shows one kind at a time); moving Approvals from Publish to
   Distribute (raised on 11-16 as a later question); a remembered "last page" per group; renaming Blog analytics / Blog
   report / Blog calendar to "Article …".
 
@@ -2916,3 +2917,36 @@ under Distribute, but the posts held for an admin sat under Publish — a stage 
   still proposed with its number read, a viewer's write still refused, the two kinds of debris re-asked, the second
   miss, prose untouched, and the Light-to-Standard step-up. Not exercised on a real model: the fault can't be produced
   on demand.
+
+## ⚠ Posts and articles share one calendar grid — an article is a read-only mark at its instant (2026-11-18, the owner's "Yes, build it")
+
+The tab regrouping left Distribute → Calendar with a switch that showed posts OR articles. "What goes out on which
+day" still took two looks. Now the default view shows both.
+
+- **Show: All · Posts · Articles** (`social/calendar/page.tsx`). All (`/social/calendar`, the default) is the posts'
+  grid with articles marked on it; Posts (`?show=posts`) is the grid alone and runs no article query; Articles
+  (`?show=articles`) is still the publishing month from `articleMonth`, where an admin gives an article a date. The
+  Calendar / Agenda links keep the Show setting.
+- **What is marked** (`lib/article-calendar.ts` `articleMarks`): an article at final approval WITH a time ("due",
+  blue, up to 100) and one published in the last `ARTICLE_MARK_DAYS` (120) days ("out", green, up to 200). Each is an
+  INSTANT, and the grid (`components/SocialCalendar.tsx`) buckets it by the viewer's local day and hour exactly as it
+  does a post — month cell and week cell — and widens the week's hours for it, so a 04:00 article is not hidden.
+- ⚠ **Only articles that have an instant.** One at final approval with no time is COUNTED, not placed: the page says
+  "N articles … are not on this grid" and links to Show: Articles. Do not put it on the publish day — that would be a
+  guess at what the autopilot will pick. For the same reason the publish day itself is not drawn on this grid: it is
+  a weekday in the POSTING zone and the grid's cells are the VIEWER's days.
+- ⚠ **A mark is read-only** (`ArticleMark`: a link to the article, `draggable={false}`, no tick-box, no date field).
+  Setting an article's time is its approval to publish — an admin's act with its own action
+  (`rescheduleArticleAction`, a posting-zone day) and its own checks. Do not make marks draggable here without all of
+  that; the publishing month is the place. `draggable={false}` matters: a browser drags any link by default, and a
+  drop onto a day would look as if it had done something.
+- **The post filters leave articles alone** (network, category, campaign, "proposed and held") — an article has none
+  of those. Show: Posts is how to hide them.
+- **Past days**: a published article stays on its day for 120 days; a sent post does not (it leaves this calendar for
+  Posts → Sent, as before). The page's first line says "articles on the day they went out or are due".
+- **Agenda** (Show: All): an "Articles due" list of the dated ones still ahead, in the posting zone.
+- `NO_ARTICLES` is one module-level empty array, so the default prop keeps its identity and the grid's memos do not
+  re-run on every render.
+- **Verified**: 15 checks over HTTP against a local dev server on a throwaway schema, as a fixture admin and editor: Show: All is the default with three settings; the grid is sent the dated and the recently published articles and not one from 200 days ago, one still being written or the undated ones; the line counting the undated ones (an editor is not told they can date one); Show: Posts sends no article and keeps its Calendar / Agenda links; Show: Articles is the publishing month; the agenda's Articles due list. In a browser on that copy (viewer in America/New_York): three marks in the month view on the right local days and times, green for the one out and blue for the two due, each a link to its article and not draggable, first in its cell; the week view shows the 09:00 one beside the posts, and the next week's hours widen from 07:00 to 04:00 for the early one; Show: Posts has no marks and no legend; at 375 px the page does not scroll sideways and the marks stay inside their cells. eslint, the six prebuild checks, tsc, next build and its bundle check.
+- **Not built**: moving an article on this grid; sent posts on past days; the publish day drawn on the grid; undated
+  articles placed anywhere.

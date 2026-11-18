@@ -395,6 +395,7 @@ area, rather than loading all of them into every session.
 - Elsie's customer brief is read from rows, never written by a model — 2026-11-17, the owner's "build the customer brief for Elsie", model plan Phase 4
 - Approvals is a Distribute tab — a social post's pages are all in one stage — 2026-11-18, the owner's "Yes, move it"
 - A reply that isn't the protocol is never shown to a person — 2026-11-18, the owner's "Yes, fix and push", found testing Elsie as an admin
+- Posts and articles share one calendar grid — an article is a read-only mark at its instant — 2026-11-18, the owner's "Yes, build it"
 
 ## Open items / things the user still owns
 - **Analytics: APIs enabled 2026-08-03** (Search Console + GA Admin + GA Data, on project

@@ -2,8 +2,9 @@ import { db } from "@/lib/db";
 import { getSetting } from "@/lib/settings";
 import { blockingChecks } from "@/lib/blog-gates";
 import { getPostingTimeZone, zonedParts, zonedTimeToUtc } from "@/lib/social/slots";
-import { requestNow } from "@/lib/request-time";
+import { daysAgo, requestNow } from "@/lib/request-time";
 import type { CalendarArticle, CalendarCell } from "@/components/ArticleCalendar";
+import type { CalendarArticleMark } from "@/components/SocialCalendar";
 
 /**
  * One month of the articles' publishing calendar (E-ART-07), laid out in the
@@ -98,5 +99,40 @@ export async function articleMonth(workspaceId: string, month: string | undefine
     hasSite: !!wp,
     publishDay,
     pending: scheduled.length + waiting.length,
+  };
+}
+
+/** How far back a published article is still put on the posts' grid. */
+export const ARTICLE_MARK_DAYS = 120;
+
+export type ArticleMarks = {
+  marks: CalendarArticleMark[];
+  /** At final approval with no time — they have no day to sit on, so the page says how many there are. */
+  waiting: number;
+};
+
+/**
+ * Articles as INSTANTS for the posts' grid (Distribute → Calendar, Show: All —
+ * 2026-11-18, the owner's "Yes, build it"): when each one went out, and when
+ * each scheduled one is due. The grid buckets them by the viewer's local day
+ * exactly as it does posts, so nothing here knows a timezone.
+ *
+ * ⚠ Only articles that HAVE an instant. One waiting at final approval with no
+ * time is counted, not placed: putting it on the publish day would be a guess
+ * about what the autopilot will pick. The publishing month (Show: Articles)
+ * lists those by name and is where an admin gives one a date.
+ */
+export async function articleMarks(workspaceId: string): Promise<ArticleMarks> {
+  const [scheduled, published, waiting] = await Promise.all([
+    db.blogPost.findMany({ where: { workspaceId, status: "final_approval", scheduledAt: { not: null } }, orderBy: { scheduledAt: "asc" }, select: { id: true, title: true, scheduledAt: true }, take: 100 }),
+    db.blogPost.findMany({ where: { workspaceId, status: "published", publishedAt: { gte: daysAgo(ARTICLE_MARK_DAYS) } }, orderBy: { publishedAt: "desc" }, select: { id: true, title: true, publishedAt: true }, take: 200 }),
+    db.blogPost.count({ where: { workspaceId, status: "final_approval", scheduledAt: null } }),
+  ]);
+  return {
+    marks: [
+      ...scheduled.map((p) => ({ id: p.id, title: p.title, at: p.scheduledAt!.toISOString(), kind: "scheduled" as const })),
+      ...published.map((p) => ({ id: p.id, title: p.title, at: p.publishedAt!.toISOString(), kind: "published" as const })),
+    ],
+    waiting,
   };
 }
