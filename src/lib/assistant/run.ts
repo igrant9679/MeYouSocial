@@ -5,6 +5,7 @@ import type { StepUndo } from "@/lib/assistant/undo";
 import { db } from "@/lib/db";
 import { brandContextBlock } from "@/lib/motifs";
 import { channelBrief } from "@/lib/assistant/context";
+import { briefForTurn, customerBrief } from "@/lib/assistant/customer-brief";
 import { APP_MAP_BRIEF } from "@/lib/assistant/knowledge";
 import { REFUSED_INTENTS, TOOLS, confirmReason, hostOf, hostsIn, outsideIn, runTool, toolAllowedFor, type ToolContext } from "@/lib/assistant/tools";
 
@@ -51,6 +52,7 @@ const TOOL_ACTIVITY: Record<string, string> = {
   draft_article: "Drafting the article — a minute or two", discover_ideas: "Discovering ideas", draft_social_post: "Writing the post",
   search_web: "Searching the web", read_web_page: "Reading the page", analyze_youtube_video: "Reading the video's transcript",
   generate_images: "Making images", generate_seo: "Writing the SEO fields", results_summary: "Reading the results",
+  customer_profile: "Reading what's on record about your customers",
 };
 
 export type AssistantStep =
@@ -131,6 +133,7 @@ How to behave:
 - Tools marked ASKS THE PERSON TO CONFIRM are not run on your say-so: just call them — the system turns the call into a question the person answers with yes or no. Do not ask "shall I?" yourself for those; call the tool and let the confirmation happen. Do not call them again while a confirmation is outstanding.
 - Walk them through what you do: after a tool runs, say in one or two sentences what happened and what it means, then the natural next step, with a link to where it lives. Attach "links" whenever there is a page to open.
 - Recommend. When asked what to do, or when you can see the better move, say which and why — briefly — then offer to do it.
+- Know the customer. What the app has on record about this company's customers may come with each message, and customer_profile returns all of it. Fit ideas, drafts and recommendations to those people and say what you are going on ("your best-engaged post in the last 90 days was…"). A line marked described is the team's own words; an AI draft is unconfirmed — say so if you lean on it; measured comes with a date — give it. Never describe the customer beyond what is on record: where it is thin, say what is missing and where to add it.
 - One tool per reply. You will be given its result and can then call another. Never claim you did something a tool did not report doing. Never invent an id, a statistic, a url or a quote; use search_web when a fact matters.
 - Say where things land: a draft at review, a post as a draft or queued for a time, an article at final approval or published.
 - Research conversations: a pasted YouTube link → analyze_youtube_video; a web link → read_web_page; "this channel" / "this video" on an Intel page → intel_channel / intel_video with the id from the URL; "[attached: …]" in a message → read_research_source. Think out loud with them about hooks, angles and remixes, and when they say "turn this into a script" (or you can see it is ready), call start_script with your synthesis as the brief.
@@ -140,11 +143,17 @@ ${REFUSED_INTENTS.map((r) => `  · ${r}`).join("\n")}
 ${brand ? `\nWhat this company is and does — ground everything you write in it:\n${brand}` : ""}`;
 }
 
-/** What changes turn to turn, after the cached prompt: where the person is, their channel, and what came before the window. */
-function turnContext(page: string | null, channel: string | null, summary: string | null): string {
+/**
+ * What changes turn to turn, after the cached prompt: where the person is, their
+ * channel, what is on record about the customer (lib/assistant/customer-brief.ts —
+ * it moves as results come in, so it must never sit in the cached part), and what
+ * came before the window.
+ */
+function turnContext(page: string | null, channel: string | null, customers: string | null, summary: string | null): string {
   return [
     page ? `The person is currently on the page ${page}. When they say "this" or "here", they mean what that page shows; use its ids when a tool needs one (an article id in /blog/<id>, a post id in /social/<id>/edit, a channel id in /channels/<id>/…).` : null,
     channel,
+    customers,
     summary ? `Earlier in this conversation, before the messages you can see (a summary — check anything that matters with a tool):\n${summary}` : null,
   ].filter(Boolean).join("\n\n");
 }
@@ -265,12 +274,14 @@ async function runTurnLoop(
   };
   const workspace = await db.workspace.findUnique({ where: { id: ctx.workspaceId }, select: { name: true, defaultModel: true } });
   if (!workspace) return { ok: false, answer: "", steps: [], error: "workspace not found" };
-  const [brand, channel] = await Promise.all([
+  const [brand, channel, customers] = await Promise.all([
     brandContextBlock(ctx.workspaceId).catch(() => null),
     channelBrief(ctx.workspaceId, ctx.channelId).catch(() => null),
+    // A brief that can't be read is left out — it never stops a turn.
+    customerBrief(ctx.workspaceId, ctx.channelId).then((b) => briefForTurn(b)).catch(() => null),
   ]);
   const system = systemPrompt(brand, workspace.name, ctx.role);
-  const context = turnContext(ctx.page ?? null, channel, carried.summary ?? null);
+  const context = turnContext(ctx.page ?? null, channel, customers, carried.summary ?? null);
 
   // ⚠ Resolved here, once, for the whole turn — a model id whose provider has
   // no key for THIS workspace would otherwise reach the mock silently. Blank =

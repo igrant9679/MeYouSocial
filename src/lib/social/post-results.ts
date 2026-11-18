@@ -27,6 +27,11 @@ function sum(rs: TargetReading[], pick: (r: TargetReading) => number | null): nu
   return vals.length ? vals.reduce((a, b) => a + b, 0) : null;
 }
 
+/** Each post's result from readings already collapsed to one per network (performance.ts `latestPerTarget`). */
+export function resultsByPost(readings: TargetReading[]): Map<string, PostResult> {
+  return byPost(readings);
+}
+
 function byPost(readings: TargetReading[]): Map<string, PostResult> {
   const groups = new Map<string, TargetReading[]>();
   for (const r of readings) groups.set(r.postId, [...(groups.get(r.postId) ?? []), r]);
@@ -65,7 +70,16 @@ export async function topPerformers(workspaceId: string, now = Date.now()): Prom
     where: { target: { status: "posted", postedAt: { gte: new Date(now - TOP_WINDOW_DAYS * 86_400_000) }, post: { workspaceId } } },
     select: snapshotSelect,
   });
-  const measured = [...byPost(latestPerTarget(rows))].filter(([, r]) => r.engagement != null) as Array<[string, PostResult & { engagement: number }]>;
+  return topAmong(byPost(latestPerTarget(rows)));
+}
+
+/**
+ * The "top performer" rule over a set of results — pure, and the only place it
+ * is written, so the Sent list and Elsie's customer brief can't disagree about
+ * which posts are top.
+ */
+export function topAmong(results: Map<string, PostResult>): { ids: Set<string>; threshold: number | null; measured: number } {
+  const measured = [...results].filter(([, r]) => r.engagement != null) as Array<[string, PostResult & { engagement: number }]>;
   if (measured.length < TOP_MIN_MEASURED) return { ids: new Set(), threshold: null, measured: measured.length };
   const sorted = measured.map(([, r]) => r.engagement).sort((a, b) => b - a);
   const threshold = sorted[Math.max(1, Math.ceil(measured.length * TOP_SHARE)) - 1];

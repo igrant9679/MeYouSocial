@@ -990,6 +990,11 @@ export const HELP_CATEGORIES: FaqCategory[] = [
         tags: ["elsie", "suggestions", "recommend", "next", "badge", "dismiss", "hide"],
       },
       {
+        q: "What does Elsie know about our customers?",
+        a: "Exactly what this workspace has on record, and nothing more — **Brand → What Elsie knows about your customers** shows it line for line. It has three parts: *who they are* (the primary audience and industry from Company info, your audience personas, the active channel's audience profile), *what they responded to* (the best-engaged posts of the last 90 days, results by network and by Topic, the articles and searches that earned clicks) and *what the team approved and rejected* (approval rates, and why ideas were turned down). Every line is marked **Described** (your team's own words), **AI draft** (an audience profile written at channel setup that nobody has edited — unconfirmed) or **Measured** (counted from stored results, with its date). No AI writes any of it, and where something is missing it says **Not known** with a link to where to add it, rather than guessing. The first lines of each part go with every message to her; she reads the rest when a question is about the customer. Comments, messages and reviews are counted but never copied — read them in Distribute → Engage. To make her advice fit better, write the primary audience on Brand and add an audience persona under Ideas → Experts.",
+        tags: ["elsie", "customer", "customers", "audience", "persona", "icp", "profile", "responded", "know", "brief"],
+      },
+      {
         q: "Can Elsie stay open while I work?",
         a: "Yes, on a wide screen. Her pane has a panel button in its header: press it and she sits at the side of the page instead of floating over it, and stays open as you move between pages. Press it again to float her; the ✕ closes her either way, and the Elsie button brings her back where she was. On a narrower window she is always the floating card.",
         tags: ["elsie", "pane", "side", "pin", "dock", "open", "panel"],

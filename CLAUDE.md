@@ -195,7 +195,9 @@ but it means **bad output can look like real output**. Rules learned the hard wa
   the side of the page, cookie `mys_elsie`) and the guided tour (`components/Elsie.tsx`, the header's "Tour" switch).
   Her suggestions are data, not a model call: `src/lib/elsie/suggestions.ts` (the Inbox's decisions + open
   recommendations, per-person dismissals in `ElsieDismissal`), served by `/api/elsie`. File, URL and event names still
-  say "assistant".
+  say "assistant". What she knows about the customer is `lib/assistant/customer-brief.ts`: stored rows read back, each
+  line marked described / AI draft / measured — ⚠ never a model's summary, never a customer's own words, and it rides
+  after the cached prompt. Shown to people on Brand (`/brand#customers`).
 - **Left nav** `src/components/LeftRailNav.tsx` — active route via shared `isNavActive()`.
 - **Stage strip** `src/lib/stages.ts` + `src/components/StageStrip.tsx` — each stage's tabs, as data. Since 2026-11-17
   Settings, Distribute and Measure are GROUPED: a tab may carry `group`, `stageEntries()` folds the list into the
@@ -390,6 +392,7 @@ area, rather than loading all of them into every session.
 - Claude names point at models Anthropic serves; a retired model is named — 2026-11-17, the owner's "Yes, build it", model plan Phase 1
 - Model tiers: the kind of job picks the model, a person's choice always wins, DeepSeek is Light-only and opt-in — 2026-11-17, the owner's "Model tiers", growth part df
 - The three long strips are grouped: a first row of groups, a second row of the group's pages; one calendar with a switch — 2026-11-17, the owner's "Yes, regroup tabs", growth part dg
+- Elsie's customer brief is read from rows, never written by a model — 2026-11-17, the owner's "build the customer brief for Elsie", model plan Phase 4
 
 ## Open items / things the user still owns
 - **Analytics: APIs enabled 2026-08-03** (Search Console + GA Admin + GA Data, on project

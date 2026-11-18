@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/governance";
 import { APP_GUIDE, appGuide } from "@/lib/assistant/knowledge";
+import { OUTSIDE_MARK } from "@/lib/assistant/customer-brief";
 import { PRODUCT } from "@/lib/product";
 import { cleanTitle, stripListMarker } from "@/lib/list-marker";
 import { softLimitProblem } from "@/lib/soft-limits";
@@ -492,6 +493,19 @@ export const TOOLS: Tool[] = [
         perf.length ? `posts: ${perf.map((p) => `"${p.title.slice(0, 40)}" pos ${p.position?.toFixed(1) ?? "—"}${p.prevPosition != null && p.position != null ? ` (${p.prevPosition - p.position >= 0 ? "▲" : "▼"}${Math.abs(p.prevPosition - p.position).toFixed(1)})` : ""} clicks ${p.clicks ?? "—"}`).join("; ")}` : "posts: none tracked yet",
         Array.isArray(nets) && nets.length ? `social by network: ${JSON.stringify(nets).slice(0, 400)}` : "social engagement: not measured yet",
       ].join("\n");
+    },
+  },
+  {
+    name: "customer_profile",
+    description: "Who this company's customers are and what they have responded to — everything the app has on record, each line marked described (the team's own words), drafted by AI (unconfirmed) or measured (with its date): the audience and personas, the best-engaged posts, results by network and by Topic, the articles and search queries that earned clicks, replies counted, and which ideas the team approved and rejected, with reasons. A short form of this already comes with each message; call this for the rest, and before advice that should fit the customer. Nothing in it is written by a model. Also on the page /brand#customers.",
+    args: { channelId: "optional — a YouTube channel whose audience profile to include (list_channels); default: the active channel" },
+    readOnly: true,
+    // Its search queries are words the public typed (E-ENG-02) — outside text, when any are in the result.
+    outside: (output) => (output.includes(OUTSIDE_MARK) ? "search queries people typed" : null),
+    async run(a, ctx) {
+      const { customerBrief, briefForTool } = await import("@/lib/assistant/customer-brief");
+      // Always read fresh here: the person asked, so they get the rows as they are now.
+      return briefForTool(await customerBrief(ctx.workspaceId, str(a.channelId, 40) || ctx.channelId, { fresh: true }));
     },
   },
   {
@@ -1513,7 +1527,7 @@ export const VIEWER_TOOLS: ReadonlySet<string> = new Set([
   "next_steps", "pipeline_status", "inbox_items", "app_guide",
   "list_ideas", "list_video_ideas", "list_articles", "article_checks", "list_social_posts", "list_keywords",
   "list_topics", "topic_summary", "list_channels", "list_outliers",
-  "results_summary", "list_reports", "best_time", "list_research_sources", "read_research_source",
+  "results_summary", "customer_profile", "list_reports", "best_time", "list_research_sources", "read_research_source",
 ]);
 
 /** Whether `role` may call `tool` at all — offered to the model, proposed, or run. */

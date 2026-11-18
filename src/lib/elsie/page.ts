@@ -67,6 +67,7 @@ const BY_STAGE: Record<string, Prompt[]> = {
     { q: "What is losing ground, and what would you do about it?" },
   ],
   "/brand": [
+    { q: "Who is our customer, and what have they responded to?" },
     { q: "Summarise our voice and our audience as you understand them" },
   ],
   "/setup": [

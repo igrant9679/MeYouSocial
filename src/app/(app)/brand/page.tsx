@@ -16,6 +16,9 @@ import { networkFor } from "@/lib/social/networks";
 import { AiAssist } from "@/components/AiAssist";
 import { EmptyState } from "@/components/EmptyState";
 import { BrandContextSection } from "@/components/BrandContextSection";
+import { CustomerBriefSection } from "@/components/CustomerBriefSection";
+import { customerBrief } from "@/lib/assistant/customer-brief";
+import { getActiveChannel } from "@/lib/channel";
 
 // Brand — the workspace's identity in one place: colours, company info,
 // personas, topics, keywords and connected social accounts. Everything here is
@@ -51,6 +54,11 @@ export default async function BrandPage({ searchParams }: { searchParams: Promis
   const contextChars =
     differentiators.concat(features).reduce((n, f) => n + f.title.length + (f.detail?.length ?? 0), 0) +
     documents.filter((d) => d.includeInContext && d.text).reduce((n, d) => n + d.chars, 0);
+
+  // What Elsie knows about the customer (lib/assistant/customer-brief.ts) — the same
+  // object her prompt reads, read fresh here. A read that fails leaves the panel out.
+  const { active: activeChannel } = await getActiveChannel();
+  const brief = await customerBrief(workspace.id, activeChannel?.id ?? null, { fresh: true }).catch(() => null);
 
   const clusterNames = [...new Set(clusters.map((c) => c.cluster).filter(Boolean) as string[])].slice(0, 8);
   const logoUrl = workspace.logoKey ? storage.url(workspace.logoKey) : null;
@@ -206,6 +214,9 @@ export default async function BrandPage({ searchParams }: { searchParams: Promis
         )}
         <Link href="/blog/experts" className="btn sm">Manage experts and personas <ExternalLink className="w-3 h-3" /></Link>
       </div>
+
+      {/* ── What Elsie knows about the customer (2026-11-17) ─────────────── */}
+      {brief && <CustomerBriefSection brief={brief} role={membership.role} channelName={activeChannel?.name ?? null} />}
 
       {/* ── Keywords + social ───────────────────────────────────────────── */}
       <div className="grid grid-cols-1 @3xl:grid-cols-2 gap-4 mb-6">

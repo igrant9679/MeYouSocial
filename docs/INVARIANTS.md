@@ -2598,6 +2598,48 @@ before changing code in that area.
 - Not built yet (the owner's other two asks, 11-16): model tiers (her turns still run on the workspace's default model)
   and DeepSeek; the tab regrouping of Settings / Distribute / Measure.
 
+## ⚠ Elsie's customer brief is read from rows, never written by a model (2026-11-17, the owner's "build the customer brief for Elsie", model plan Phase 4)
+- **What it is.** `lib/assistant/customer-brief.ts` `customerBrief(workspaceId, channelId)` puts what the app already
+  holds about a company's customers side by side, in three parts: **who they are** (`OrgProfile.audience` / `industry`,
+  audience personas = `SmeProfile` kind `persona`, the active channel's `AudienceAvatar`, active Topics, tracked
+  keywords with a search volume), **what they responded to** (the best-engaged posts of the last 90 days, results by
+  network and by Topic, the articles and search queries that earned clicks, visits from social, replies counted) and
+  **what the team approved and rejected** (`ideaYield`, reject reasons, the newest ideas rejected as wrong audience).
+- ⚠ **No model call, no summary, no inferred trait, no new stored text.** Every line is a stored row read back, so
+  every line says what it rests on — `described` (the team's own words), `drafted` (an audience profile AI wrote at
+  channel setup that no person has edited: no `ProfileVersion` with a `createdById`), `measured` (counted, with the
+  date read or the window) — and where it lives (`href`). A part with nothing behind it is a **Not known** with where to
+  add it. A count that isn't there is absent, never zero. Don't add a line that a model writes or that guesses.
+- ⚠ **No customer's own words.** `SocialInboxEvent.preview` is never read — replies are counted, not quoted: a line
+  that rides in every prompt can't be held back the way a tool result can (E-ENG-02). Search queries ARE typed by the
+  public, so they are cleaned to plain words (`plainQuery`), never among the lines carried with every message
+  (`always: false`), and `customer_profile` marks its result outside text when any are in it (`OUTSIDE_MARK`) — the
+  write after it is proposed, as after a web page.
+- **Three readers, one object.** `briefForTurn` goes in `turnContext` (`run.ts`) — ⚠ after the cached prompt, never
+  in `systemCached`: it changes as results come in and would break the cache for every turn. Only the `always` lines,
+  each trimmed at a word to `TURN_LINE_MAX` (300), `TURN_MAX_CHARS` (2800) in all, and each part keeps its first line
+  before any part gets a second. The read-only tool `customer_profile` (a viewer's too) returns every line with its
+  page; Brand → **What Elsie knows about your customers** (`/brand#customers`, `CustomerBriefSection`) shows the same
+  object, links gated by `canFollow`. A brief that can't be read is left out of the turn — it never stops one.
+- **What is kept.** The measured half reads every reading of 90 days, so the per-message copy keeps it 5 minutes per
+  workspace per process. ⚠ Only that copy: the tool and the Brand panel pass `fresh` and read the rows, and the
+  described half is never kept — an edit on Brand reaches the next message.
+- **"Top performer" is written once**: `topAmong` in `lib/social/post-results.ts`, used by the Sent list and the brief.
+- ⚠ **A channel's audience profile holds three kinds of text and only one is knowledge** (`readAvatar`). The setup
+  placeholder — the same four sentences and five questions on every channel, `lib/audience-baseline.ts`, flagged
+  `placeholder` on newer rows and caught by its text on older ones — is never a line. A whole model reply saved as the
+  Demographics text (rows from before the onboarding job parsed its answer) is unpacked into its sections, nested
+  values as plain words; one that can't be unpacked is said to be unreadable, never quoted. Production on 11-17: LSI
+  Media's unpacks; CommunityForce's is cut off mid-object and reads as unreadable until someone refreshes it.
+- **Measured 11-17, read-only, on the four real workspaces**: the per-message form is 588–2,435 characters (about
+  150–610 tokens); building it took 0.3–2.8 s from this machine through the database proxy.
+- ⚠ **Two kinds of date.** A calendar day stored as UTC midnight — a reading's `capturedAt`, a search or visits
+  window's ends — is read in UTC (`calendarDay`), or it slips a day west of Greenwich. An instant — a save, a send,
+  "today" — is read in the workspace's posting timezone (`dayIn`), so an evening save doesn't say tomorrow.
+- **Checked in a browser** from the built app on a seeded throwaway company: 20 lines in three parts, no reply text,
+  links only where the role can follow them, no sideways scroll at 375 px.
+- **Not exercised before the push**: a real model's answer that uses the brief (the eval scripts the model).
+
 ## ⚠ Claude names point at models Anthropic serves; a retired model is named (2026-11-17, the owner's "Yes, build it", model plan Phase 1)
 
 Anthropic retires `claude-sonnet-4-5-20250929` on 2026-11-30 — the id behind `claude-sonnet`, the platform default that

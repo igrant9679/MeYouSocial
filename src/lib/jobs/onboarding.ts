@@ -5,6 +5,7 @@ import type { Prisma } from "@prisma/client";
 import { youtubeFor } from "@/lib/youtube";
 import { llm, resolveUsableModel } from "@/lib/llm";
 import { writeJson } from "@/lib/db/json";
+import { AUDIENCE_BASELINE } from "@/lib/audience-baseline";
 import { cleanTitle, stripListMarker } from "@/lib/list-marker";
 
 // Onboarding background jobs.
@@ -177,18 +178,14 @@ export function registerOnboardingJobs() {
     // ALWAYS create a baseline first so the UI doesn't hang if the LLM call fails.
     // ⚠ It is generic text, not research about this audience — `placeholder`
     // says so on the page until a real answer (or a person) replaces it.
+    // The sentences themselves live in lib/audience-baseline.ts, so the readers
+    // that must not take them for knowledge compare against the same text.
     const baseline = {
-      demographics:    writeJson({ summary: `Adults interested in ${channel.nicheDescription ?? "this niche"}.`, placeholder: true }),
-      psychographics:  writeJson({ summary: "Curious, growth-oriented, time-poor.", placeholder: true }),
-      onlineBehavior:  writeJson({ summary: "YouTube + niche communities; deep-dives.", placeholder: true }),
-      offlineBehavior: writeJson({ summary: "Commute / WFH / weekend project context.", placeholder: true }),
-      keyQuestions:    writeJson([
-        "What's the most efficient way to do this?",
-        "Whose advice should I actually trust?",
-        "Where do experts disagree, and why?",
-        "What do beginners get wrong about this?",
-        "How will this look in 3 years?",
-      ]),
+      demographics:    writeJson({ summary: AUDIENCE_BASELINE.demographics(channel.nicheDescription), placeholder: true }),
+      psychographics:  writeJson({ summary: AUDIENCE_BASELINE.psychographics, placeholder: true }),
+      onlineBehavior:  writeJson({ summary: AUDIENCE_BASELINE.onlineBehavior, placeholder: true }),
+      offlineBehavior: writeJson({ summary: AUDIENCE_BASELINE.offlineBehavior, placeholder: true }),
+      keyQuestions:    writeJson([...AUDIENCE_BASELINE.keyQuestions]),
     };
     // A refresh of an avatar that exists keeps it until a real answer replaces
     // it — the baseline used to overwrite a hand-written avatar first, so a
