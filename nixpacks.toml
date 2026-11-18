@@ -54,5 +54,15 @@ aptPkgs = [
 # /app/.chrome — a real image layer — before capturing the path. If the mount
 # ever fails to engage the copy still works from a normal dir, so the build never
 # breaks; it just re-downloads that time.
+#
+# ⚠ The Chrome step itself CAN break the build, and did: on 2026-11-18 two of four
+# deploys died right after `npx --yes hyperframes@0.7.71 browser ensure` began,
+# with the app already built and no error text in the log. So railway.json tries
+# that one step up to three times (10 s, then 30 s apart) and prints each
+# failure's exit code — search a failed build log for "chrome step failed". The
+# parentheses around the retry in railway.json are load-bearing: without them a
+# failed `npm run build` would fall through to the retry's `||`. Three failures
+# still fail the build, on purpose: a site without Chrome would send branded
+# shorts to the paid cloud renderer without anyone having decided that.
 [phases.build]
 cacheDirectories = ["/root/.cache/hyperframes"]

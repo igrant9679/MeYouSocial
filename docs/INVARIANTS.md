@@ -2866,3 +2866,20 @@ under Distribute, but the posts held for an admin sat under Publish — a stage 
   Railway's dashboard (the CLI token is dead), and the owner's Chrome asked which of two connected browsers to use.
   The same happened once before (growth part ag). So: a failure that fast on a tree that builds locally is retried
   once before it is investigated — and a second failure means reading the log on the dashboard, not a third push.
+- ⚠ **What the log showed, and the retry in the build (2026-11-18, the owner's "Yes, add the retry").** The docs-only
+  commit after it (`0413757`) failed the same way, and the owner pasted its build log. The app had built completely on
+  Railway — the six prebuild checks, compile, TypeScript, 117 pages, the bundle check. It died in the NEXT part of the
+  same build command, `npx --yes hyperframes@0.7.71 browser ensure` (the Chrome that renders branded shorts): npm's
+  install warnings, then nothing — no error text, no Chrome path line, and the Deploy stage never started. So it was
+  not migrate, seed or the health check, which both sessions had guessed. Two of that day's four deploys failed there.
+  `railway.json` now tries that ONE step up to three times (10 s, then 30 s apart) and prints each failure's exit code:
+  search a failed build log for "chrome step failed" (137 = the process was killed, usually for memory; 1 = the
+  download or the tool failed). ⚠ The parentheses around the retry are load-bearing — `&&` and `||` have the same
+  precedence in bash, so without them a failed `npm run build` falls through to the retry and the build carries on
+  without the app. ⚠ Three failures still fail the build, on purpose: without its Chrome the app would send branded
+  shorts to the paid cloud renderer with nobody having decided that. Tested with stand-ins for npx / npm / sleep under
+  `bash -o pipefail` (first try; fails once; fails twice; fails three times; the app build fails — 7 checks), since
+  `next build` cannot exercise a build command. Ruled out by test: `find … | head -1` under pipefail does not fail
+  with two cached Chrome versions (0 of 300 runs). **Not known**: the exit code of the two failures, so whether a
+  retry is the whole cure — the next failed build log will say. To confirm Chrome after a deploy without the log:
+  the Videos page of a workspace with no HeyGen key says "Renders free on this server." only when the server found it.
