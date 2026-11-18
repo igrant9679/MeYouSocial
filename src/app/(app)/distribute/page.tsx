@@ -41,8 +41,10 @@ export default async function DistributeStage({ searchParams }: { searchParams: 
       include: { targets: { select: { provider: true, status: true } } },
     }),
   ]);
-  // Approvals are Review's; everything else Social flags is this stage's own.
-  const attention = overview.attention.filter((a) => a.kind !== "awaiting-approval");
+  // Everything Social flags is this stage's own — posts awaiting approval included, since Approvals became a tab
+  // here (2026-11-18). They used to be filtered out as Review's, so this page said "nothing here needs you" while
+  // posts sat waiting for an admin.
+  const attention = overview.attention;
   const warn = attention.filter((a) => a.severity === "warn");
   const info = attention.filter((a) => a.severity === "info");
   const accounts = overview.accounts;
@@ -112,7 +114,7 @@ export default async function DistributeStage({ searchParams }: { searchParams: 
         )}
       </section>
 
-      {/* Needs you — this stage's own; approvals live under Review */}
+      {/* Needs you — this stage's own, approvals included */}
       {warn.length === 0 && info.length === 0 ? (
         <div className="card text-xs flex items-center gap-2 mb-4" style={{ borderColor: "var(--green)" }}>
           <Check className="w-4 h-4" style={{ color: "var(--green-on)" }} /> Nothing here needs you: accounts are fine and no send has failed.

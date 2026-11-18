@@ -50,7 +50,7 @@ export default async function DraftsStage() {
     db.blogPost.groupBy({ by: ["status"], where: { workspaceId: workspace.id, status: { in: ["drafting", "draft_review"] } }, _count: { _all: true } }),
     // Social drafts: posts written but not yet in a slot (Topics as the
     // spine, 2026-09-21) — the third format's "being made" list. A pending
-    // approval is Publish → Approvals' business, so it is not listed here.
+    // approval is Distribute → Approvals' business, so it is not listed here.
     db.socialPost.findMany({
       where: { workspaceId: workspace.id, status: "draft", scheduledAt: null, OR: [{ approval: null }, { approval: { not: "pending" } }] },
       orderBy: { updatedAt: "desc" },

@@ -282,7 +282,7 @@ export default async function GuidePage() {
             ones; the mechanical ones apply on their own.
           </Step>
           <Step icon={Check} title="Approve and queue the social week.">
-            <RoleLink href="/social/approvals" role={role} className="underline">Publish → Approvals</RoleLink> for anything held, then{" "}
+            <RoleLink href="/social/approvals" role={role} className="underline">Distribute → Approvals</RoleLink> for anything held, then{" "}
             <RoleLink href="/social/calendar" role={role} className="underline">Distribute → Calendar</RoleLink> to queue approved drafts
             into free slots. <b>An approved draft that was never queued will never send</b>; turn on <i>queue on
             approval</i> under <Link href="/setup/automation" className="underline">Settings → Automation</Link> to

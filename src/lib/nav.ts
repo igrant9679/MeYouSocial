@@ -31,7 +31,8 @@ export const RAIL: (LeftRailItem & { adminOnly?: boolean; editorOnly?: boolean }
   { href: "/drafts",      label: "Drafts",      icon: "PenLine",       color: "var(--green)", soft: "var(--green-soft)" },
   // ⚠ "Review" left the rail on 2026-09-20 (audit B1.1). It was the Inbox card
   // for card — the same <NeedsYouGroups> over the same data — so the rail held
-  // two entries to one screen. Its tabs (Approvals, Audit) are Publish's now.
+  // two entries to one screen. Its tabs went to the stages that own the work:
+  // Audit to Publish, Approvals to Distribute (via Publish, until 2026-11-18).
   { href: "/publish",     label: "Publish",     icon: "Globe",         color: "var(--sea)", soft: "var(--sea-soft)" },
   { href: "/distribute",  label: "Distribute",  icon: "Share2",        color: "var(--azure)", soft: "var(--blue-soft)" },
   { href: "/measure",     label: "Measure",     icon: "LineChart",     color: "var(--indigo)", soft: "var(--indigo-soft)" },

@@ -1,7 +1,7 @@
 /**
  * Social shell. The sticky Social tab bar that used to live here is gone
- * (One-Loop step 4b): Compose, Calendar, Engage and Settings are tabs of
- * Distribute, Approvals of Review, Performance of Measure — and the persistent
+ * (One-Loop step 4b): Compose, Calendar, Engage and — since 2026-11-18 —
+ * Approvals are tabs of Distribute, Performance of Measure — and the persistent
  * StageStrip in the app shell shows those. The full-bleed wrapper stays because
  * every /social page pads itself.
  */

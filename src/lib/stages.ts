@@ -93,10 +93,12 @@ export const STAGES: Record<(typeof STAGE_HREFS)[number], StageDef> = {
   "/publish": {
     href: "/publish",
     label: "Publish",
-    // Approvals and Audit came here from the retired Review stage: both gate
-    // what goes out, which is this stage's whole job.
+    // Audit came here from the retired Review stage: it gates what goes out,
+    // which is this stage's whole job. Approvals came with it and left for
+    // Distribute on 2026-11-18 (the owner's "Yes, move it"): what it holds are
+    // social posts, and everything else about a post — writing it, the lists,
+    // the calendar, the replies — was already there. Publish is articles now.
     tabs: () => [
-      { href: "/social/approvals", label: "Approvals" },
       { href: "/blog/audit", label: "Audit" },
       { href: "/website", label: "Website" },
       { href: "/blog/calendar", label: "Blog calendar" },
@@ -122,6 +124,10 @@ export const STAGES: Record<(typeof STAGE_HREFS)[number], StageDef> = {
       { href: "/social/drafts", label: "Post drafts", group: "Posts" },
       // The posts set to recycle, with their controls (E-SOC-15).
       { href: "/social/evergreen", label: "Evergreen", group: "Posts" },
+      // Posts held for an admin's yes — here since 2026-11-18, from Publish.
+      // It stands alone rather than under Posts: with Engage it is the strip's
+      // red count, and a person asked to approve should see where in one look.
+      { href: "/social/approvals", label: "Approvals" },
       { href: "/social/calendar", label: "Calendar" },
       { href: "/social/engage", label: "Engage" },
       { href: "/social/media", label: "Media", group: "Media & feeds" },
@@ -276,7 +282,8 @@ export function stageFor(pathname: string): (typeof STAGE_HREFS)[number] | null 
   if (/^\/blog\/(brand|organization)(\/|$)/.test(p)) return "/brand";
   if (/^\/(intel|chat)(\/|$)/.test(p) || /^\/channels\/[^/]+\/(competitors|research)(\/|$)/.test(p)) return "/research";
   if (/^\/blog\/(keywords|experts)(\/|$)/.test(p) || /^\/channels\/[^/]+\/ideas(\/|$)/.test(p)) return "/ideas";
-  if (/^\/social\/approvals(\/|$)/.test(p) || /^\/blog\/audit(\/|$)/.test(p)) return "/publish";
+  // /social/approvals is Distribute's since 2026-11-18 — it falls to the /social rule below with the other post pages.
+  if (/^\/blog\/audit(\/|$)/.test(p)) return "/publish";
   if (/^\/website(\/|$)/.test(p) || /^\/blog\/(calendar|automation)(\/|$)/.test(p)) return "/publish";
   if (/^\/(reports|insights|youtube)(\/|$)/.test(p) || /^\/blog\/(analytics|report)(\/|$)/.test(p) || /^\/social\/performance(\/|$)/.test(p)) return "/measure";
   if (/^\/social(\/|$)/.test(p)) return "/distribute";

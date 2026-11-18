@@ -9,7 +9,7 @@ before changing code in that area.
 ## ⚠ Nav invariants after the 2026-09-20 UX audit
 - **The rail is 12 entries, not 14.** `Review` and `Publish Admin` are gone. Review WAS the Inbox
   — both rendered the same `<NeedsYouGroups>` — so `/review` redirects to `/inbox`, and its tabs
-  (Approvals, Audit) are Publish's.
+  (Approvals, Audit) are Publish's. (2026-11-18: Approvals is Distribute's now — see the last section. Audit stays.)
 - **One Articles page.** `/blog` takes `?view=board` (default) or `?view=list`; `/blog/board`
   redirects. `stages.ts` has ONE Drafts tab for it, with `also: ["/blog/board"]`.
 - **Every retired URL still resolves** via a page-level `redirect()` — there is no `redirects()`
@@ -2780,7 +2780,7 @@ names were used twice. The owner approved the regrouping proposed on 11-16.
 - **The groups.** Settings: People & access [People, Roles, API tokens, Audit log] · Publishing [Automation, Schedule,
   Connections] · AI & keys [Keys, Usage] · Workspace [Workspace, Email, Analytics, Jobs] · Operator [Workspaces,
   Incident, Keyring]. Distribute: Compose [Compose, Captions] · Posts [Queue, Sent, Post drafts, Evergreen] · Calendar ·
-  Engage · Media & feeds [Media, RSS]. Measure: Overview [Summary, Reports, Insights] · Articles [Blog analytics, Blog
+  Engage · Media & feeds [Media, RSS] (plus Approvals since 2026-11-18, the last section). Measure: Overview [Summary, Reports, Insights] · Articles [Blog analytics, Blog
   report] · Social performance · YouTube audit · By Topic. The other stages are untouched and still one row.
 - ⚠ **Every page kept its name and its URL.** Nothing redirects and no route moved; "Settings → Keys" (some 330 such
   references in the copy) still names the page called Keys, which now sits under AI & keys. Do NOT rewrite those
@@ -2829,3 +2829,25 @@ names were used twice. The owner approved the regrouping proposed on 11-16.
 - **Not built**: posts and articles on ONE grid (the switch shows one kind at a time); moving Approvals from Publish to
   Distribute (raised on 11-16 as a later question); a remembered "last page" per group; renaming Blog analytics / Blog
   report / Blog calendar to "Article …".
+
+## ⚠ Approvals is a Distribute tab — a social post's pages are all in one stage (2026-11-18, the owner's "Yes, move it")
+
+Raised on 11-16 with the tab regrouping as a later question: social posts were written, listed, scheduled and answered
+under Distribute, but the posts held for an admin sat under Publish — a stage that is otherwise about articles.
+
+- **What moved**: the strip only. `/social/approvals` keeps its URL, its page, its EDITOR gate and every action's
+  redirect; in `lib/stages.ts` the tab left Publish's list for Distribute's (standing alone, after Posts), and
+  `stageFor` no longer sends that path to `/publish` — it falls to the `/social` rule. Publish is Audit · Website ·
+  Blog calendar; Distribute is Compose · Posts · Approvals · Calendar · Engage · Media & feeds.
+- ⚠ **Do not put a stage-of-its-own clause for a `/social/*` path back in `stageFor`** unless the page really belongs
+  to another stage (Performance → Measure is the one that does). The strip, Elsie's page name, her "on this page"
+  suggestions and the strip's Help link all follow `stageFor`.
+- **Approvals stands alone, not under Posts**: with Engage it is the strip's red count, and a person asked to approve
+  should see where in one look. Its badge is unchanged (`/social/approvals`, urgent), and the phone tab bar already
+  counted it under Distribute.
+- **The Distribute overview shows posts awaiting approval under Needs you.** It used to filter them out as "Review's",
+  so the page could say "nothing here needs you" while posts waited for an admin. The Inbox card is unchanged.
+- **Words**: "Publish → Approvals" became "Distribute → Approvals" in the guide, the Help, the rail's hover tips and
+  the weekly routine Elsie reads out (`lib/assistant/knowledge.ts` — one phrase, the eval was run for it). The
+  generated map follows by itself.
+- **Verified**: 47 checks over HTTP against a local dev server on a throwaway schema, as a fixture operator, editor and viewer: Distribute's first row reads Overview · Compose · Posts · Approvals · Calendar · Engage · Media & feeds for the operator and the editor and has no Approvals for the viewer; Publish's reads Overview · Audit · Website · Blog calendar for all three; `/social/approvals` lights Approvals on Distribute's strip with its red count, on one row at 1100 px; the Distribute overview lists the post awaiting approval; Ctrl+K says Distribute › Approvals; the tab regrouping's strip, calendar and Settings checks still pass. The assistant eval, 25 of 25. The six prebuild checks, eslint on the changed files, tsc, next build and its bundle check.

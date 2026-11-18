@@ -393,6 +393,7 @@ area, rather than loading all of them into every session.
 - Model tiers: the kind of job picks the model, a person's choice always wins, DeepSeek is Light-only and opt-in — 2026-11-17, the owner's "Model tiers", growth part df
 - The three long strips are grouped: a first row of groups, a second row of the group's pages; one calendar with a switch — 2026-11-17, the owner's "Yes, regroup tabs", growth part dg
 - Elsie's customer brief is read from rows, never written by a model — 2026-11-17, the owner's "build the customer brief for Elsie", model plan Phase 4
+- Approvals is a Distribute tab — a social post's pages are all in one stage — 2026-11-18, the owner's "Yes, move it"
 
 ## Open items / things the user still owns
 - **Analytics: APIs enabled 2026-08-03** (Search Console + GA Admin + GA Data, on project

@@ -44,7 +44,7 @@ Ask me "what needs my attention?" and I will read the same data and can do the n
     keywords: ["weekly", "week", "this week", "triage", "plan", "publish day", "wednesday"],
     body: `1. Ideas: triage Discovered — approve what is worth writing, reject the rest. Only approved ideas are drafted; an empty Approved pool means no new articles whatever the dial says. Keep three to five approved.
 2. Drafts → Articles: read what arrived — words, images and SEO together — and fix only what auto-review could not. In the article's Optimize tab, answer the knowledge cards, decide the strategic ones; mechanical ones apply on their own.
-3. Publish → Approvals, then Distribute → Calendar: approve the social week and make sure approved drafts are queued into slots. An approved draft that was never queued never sends (turn on "queue on approval" under Settings → Automation to collapse the two).
+3. Distribute → Approvals, then Distribute → Calendar: approve the social week and make sure approved drafts are queued into slots. An approved draft that was never queued never sends (turn on "queue on approval" under Settings → Automation to collapse the two).
 4. Publish: confirm the article due on the publish day is at final approval. With no WordPress, Download HTML, add it to the site, then Mark as published with the live URL.
 5. Measure → Social performance, and the best-time-to-post section under Settings → Schedule once enough posts are measured.
 6. Research: skim the strong outliers; turn one into an idea if it fits a Topic.`,
