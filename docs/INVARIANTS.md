@@ -2880,6 +2880,18 @@ under Distribute, but the posts held for an admin sat under Publish — a stage 
   shorts to the paid cloud renderer with nobody having decided that. Tested with stand-ins for npx / npm / sleep under
   `bash -o pipefail` (first try; fails once; fails twice; fails three times; the app build fails — 7 checks), since
   `next build` cannot exercise a build command. Ruled out by test: `find … | head -1` under pipefail does not fail
-  with two cached Chrome versions (0 of 300 runs). **Not known**: the exit code of the two failures, so whether a
-  retry is the whole cure — the next failed build log will say. To confirm Chrome after a deploy without the log:
-  the Videos page of a workspace with no HeyGen key says "Renders free on this server." only when the server found it.
+  with two cached Chrome versions (0 of 300 runs). To confirm Chrome after a deploy without the log: the Videos page
+  of a workspace with no HeyGen key says "Renders free on this server." only when the server found it.
+- ⚠ **The exit code was 1, and the last try clears the cached copy** (2026-11-18, the owner's "Yes, add that"). The
+  owner sent the failed build's whole log file: `exit code: 1` — not 137, so not a memory kill. The app's bundle check
+  passed at 14:31:07.6Z, npm's install warnings for hyperframes came at 14:31:12.4–12.7Z, and the step failed at
+  14:31:17.3Z with nothing printed by the tool. So `hyperframes browser ensure` itself returned 1 within about four
+  and a half seconds, silently: a failed download or version lookup, or a bad copy in that builder's cache mount. A
+  same-build retry cures the first and not the second — every try in one build sees the same cache. So the THIRD try
+  first empties the cache folder (`find /root/.cache/hyperframes -mindepth 1 -delete`, which leaves the mount point;
+  `;` after it, not `&&`, so the try runs even if clearing complains) and downloads Chrome afresh. The first and
+  second tries never clear it. Stand-in test, 10 checks (`bash -o pipefail`, real `find` and `cp` on a temp folder):
+  first try; fails once (cache kept); fails twice (cache cleared, mount point kept); a broken cached copy (two tries
+  fail, the third clears it and succeeds); fails three times (build fails, nothing copied); the app build fails
+  (Chrome never tried, cache untouched). **Still not known**: which of the two it was — a build that needed the
+  retry will say so in its log ("chrome step failed, exit code N", and "clearing the cached copy" if it got that far).

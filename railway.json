@@ -2,7 +2,7 @@
   "$schema": "https://railway.com/railway.schema.json",
   "build": {
     "builder": "NIXPACKS",
-    "buildCommand": "npx prisma generate && npm run build && (npx --yes hyperframes@0.7.71 browser ensure || (echo chrome step failed, exit code $?, trying again in 10s && sleep 10 && npx --yes hyperframes@0.7.71 browser ensure) || (echo chrome step failed again, exit code $?, last try in 30s && sleep 30 && npx --yes hyperframes@0.7.71 browser ensure) || (echo chrome step failed 3 times, exit code $?, giving up && exit 1)) && rm -rf /app/.chrome && cp -r /root/.cache/hyperframes /app/.chrome && find /app/.chrome -type f -name chrome-headless-shell | head -1 > /app/.chrome-path && cat /app/.chrome-path"
+    "buildCommand": "npx prisma generate && npm run build && (npx --yes hyperframes@0.7.71 browser ensure || (echo chrome step failed, exit code $?, trying again in 10s && sleep 10 && npx --yes hyperframes@0.7.71 browser ensure) || (echo chrome step failed again, exit code $?, clearing the cached copy for a last try in 30s && sleep 30 && (find /root/.cache/hyperframes -mindepth 1 -delete; npx --yes hyperframes@0.7.71 browser ensure)) || (echo chrome step failed 3 times, exit code $?, giving up && exit 1)) && rm -rf /app/.chrome && cp -r /root/.cache/hyperframes /app/.chrome && find /app/.chrome -type f -name chrome-headless-shell | head -1 > /app/.chrome-path && cat /app/.chrome-path"
   },
   "deploy": {
     "startCommand": "npx prisma migrate deploy && npm run db:seed && npm run start",

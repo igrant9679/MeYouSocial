@@ -57,9 +57,14 @@ aptPkgs = [
 #
 # ⚠ The Chrome step itself CAN break the build, and did: on 2026-11-18 two of four
 # deploys died right after `npx --yes hyperframes@0.7.71 browser ensure` began,
-# with the app already built and no error text in the log. So railway.json tries
-# that one step up to three times (10 s, then 30 s apart) and prints each
-# failure's exit code — search a failed build log for "chrome step failed". The
+# with the app already built and no error text in the log (exit code 1, about
+# four seconds after npx had installed the tool). So railway.json tries that one
+# step up to three times (10 s, then 30 s apart) and prints each failure's exit
+# code — search a failed build log for "chrome step failed". The LAST try first
+# empties this cache folder (`find … -mindepth 1 -delete`, which leaves the mount
+# point itself): every try in one build sees the same cached copy, so a broken
+# one would otherwise fail three times running. That try downloads Chrome
+# afresh (~114MB) and refills the cache for the builds after it. The
 # parentheses around the retry in railway.json are load-bearing: without them a
 # failed `npm run build` would fall through to the retry's `||`. Three failures
 # still fail the build, on purpose: a site without Chrome would send branded
