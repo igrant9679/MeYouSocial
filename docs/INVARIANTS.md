@@ -2638,7 +2638,13 @@ before changing code in that area.
   "today" — is read in the workspace's posting timezone (`dayIn`), so an evening save doesn't say tomorrow.
 - **Checked in a browser** from the built app on a seeded throwaway company: 20 lines in three parts, no reply text,
   links only where the role can follow them, no sideways scroll at 375 px.
-- **Not exercised before the push**: a real model's answer that uses the brief (the eval scripts the model).
+- **On production 11-17** (`c6e0927`, build `2kJdGOPlZMdaovlToKDAU`; two temporary viewer accounts, removed after):
+  Brand shows the panel on Demo (3 lines, 4 not known) and on LSI Media (13 lines, 1 not known). Asked "who is our
+  customer, and what have they responded to?", Elsie called `customer_profile` and answered from it on both, on a real
+  provider: Demo (Claude Sonnet) said how little is on record, called the AI draft a guess and named where to add
+  the rest; LSI Media (Gemini) gave the team's description, the unconfirmed draft and the measured results. ⚠ Gemini
+  rounded the search window to "mid-October to mid-November" — the brief asks for the date; a model may still round it.
+  Not exercised: an editor's or admin's turn on production, and a workspace whose brief fails to read.
 
 ## ⚠ Claude names point at models Anthropic serves; a retired model is named (2026-11-17, the owner's "Yes, build it", model plan Phase 1)
 
