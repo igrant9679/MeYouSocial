@@ -2606,8 +2606,8 @@ before changing code in that area.
   network and by Topic, the articles and search queries that earned clicks, visits from social, replies counted) and
   **what the team approved and rejected** (`ideaYield`, reject reasons, the newest ideas rejected as wrong audience).
 - ⚠ **No model call, no summary, no inferred trait, no new stored text.** Every line is a stored row read back, so
-  every line says what it rests on — `described` (the team's own words), `drafted` (an audience profile AI wrote at
-  channel setup that no person has edited: no `ProfileVersion` with a `createdById`), `measured` (counted, with the
+  every line says what it rests on — `described` (the team's own words), `drafted` (an audience profile AI wrote, at
+  channel setup or on a Refresh, that no person has edited: no `ProfileVersion` with a `createdById`), `measured` (counted, with the
   date read or the window) — and where it lives (`href`). A part with nothing behind it is a **Not known** with where to
   add it. A count that isn't there is absent, never zero. Don't add a line that a model writes or that guesses.
 - ⚠ **No customer's own words.** `SocialInboxEvent.preview` is never read — replies are counted, not quoted: a line
@@ -2625,12 +2625,16 @@ before changing code in that area.
   workspace per process. ⚠ Only that copy: the tool and the Brand panel pass `fresh` and read the rows, and the
   described half is never kept — an edit on Brand reaches the next message.
 - **"Top performer" is written once**: `topAmong` in `lib/social/post-results.ts`, used by the Sent list and the brief.
-- ⚠ **A channel's audience profile holds three kinds of text and only one is knowledge** (`readAvatar`). The setup
+- ⚠ **A channel's audience profile holds four kinds of text and only one is knowledge** (`readAvatar`). The setup
   placeholder — the same four sentences and five questions on every channel, `lib/audience-baseline.ts`, flagged
   `placeholder` on newer rows and caught by its text on older ones — is never a line. A whole model reply saved as the
   Demographics text (rows from before the onboarding job parsed its answer) is unpacked into its sections, nested
-  values as plain words; one that can't be unpacked is said to be unreadable, never quoted. Production on 11-17: LSI
-  Media's unpacks; CommunityForce's is cut off mid-object and reads as unreadable until someone refreshes it.
+  values as plain words; one that can't be unpacked is said to be unreadable, never quoted. **Mock text** — the
+  stand-in provider's prose, stored on rows from before the job checked who had answered — is never a line either,
+  wherever it sits (a section, a reply's value, a question): `looksLikeMockText` in `lib/llm/mock.ts`, ⚠ kept beside
+  the replies it recognises, so a new mock branch needs its marker there. The brief says the profile holds stand-in
+  text rather than staying silent. (2026-11-18: found on CommunityForce's second channel, "Educian", the day after
+  the brief shipped; the first channel's and LSI Media's profiles were refreshed that day on the owner's order.)
 - **Measured 11-17, read-only, on the four real workspaces**: the per-message form is 588–2,435 characters (about
   150–610 tokens); building it took 0.3–2.8 s from this machine through the database proxy.
 - ⚠ **Two kinds of date.** A calendar day stored as UTC midnight — a reading's `capturedAt`, a search or visits

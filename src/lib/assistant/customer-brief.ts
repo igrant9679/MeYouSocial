@@ -2,6 +2,7 @@ import { areBaselineQuestions, isAudienceBaseline, type AudienceSection } from "
 import { db } from "@/lib/db";
 import { readJson } from "@/lib/db/json";
 import { ideaYield, summarize, MIN_DECIDED, YIELD_WINDOW_DAYS, type YieldRow } from "@/lib/idea-yield";
+import { looksLikeMockText } from "@/lib/llm/mock";
 import { REJECT_REASONS, isRejectReason } from "@/lib/reject-reasons";
 import { parseAnswers } from "@/lib/sme";
 import { networkFor } from "@/lib/social/networks";
@@ -20,8 +21,9 @@ import { resultsByPost, topAmong, TOP_MIN_MEASURED, TOP_WINDOW_DAYS } from "@/li
  * read back — nothing here calls a model, summarises, or infers a trait. So
  * every line can say what it rests on:
  *   described — the team's own words (Brand → Company info, a persona);
- *   drafted   — an audience profile AI wrote at channel setup that no person
- *               has edited since: unconfirmed, and it says so;
+ *   drafted   — an audience profile AI wrote (at channel setup, or on a
+ *               Refresh) that no person has edited since: unconfirmed, and it
+ *               says so;
  *   measured  — counted from stored results, with the date read or the window.
  * A part with nothing behind it says what is missing and where to add it —
  * never a guess, and a count that isn't there is absent, not zero.
@@ -106,6 +108,9 @@ const plainQuery = (q: string) => q.replace(/[^\p{L}\p{N} '&+\-./?%#]/gu, " ").r
 //     WHOLE reply — a fenced JSON object with every section in it — saved as
 //     the Demographics text, while the other sections kept the placeholder.
 //     Unpacked here into its sections; a nested value becomes plain words.
+//   · a MOCK reply — the stand-in provider's prose ("# Outline (mock — …)"),
+//     stored on rows from before the job checked who had answered. Never a
+//     line: it is not about this audience, or about anything.
 //   · a real paragraph, from the model or a person.
 
 const AVATAR_SECTIONS = ["demographics", "psychographics", "onlineBehavior", "offlineBehavior"] as const;
@@ -156,27 +161,36 @@ function plainWords(v: unknown): string {
   return "";
 }
 
-type AvatarText = Record<AudienceSection, string> & { questions: string[]; unreadable: boolean };
+type AvatarText = Record<AudienceSection, string> & {
+  questions: string[];
+  /** A stored model reply that can't be unpacked into anything. */
+  unreadable: boolean;
+  /** Some of what is stored is the mock provider's stand-in text — left out of every line. */
+  mock: boolean;
+};
 
 export function readAvatar(a: AvatarRow): AvatarText {
   const own = (section: AudienceSection) => {
     const v = readJson<{ summary?: unknown; placeholder?: unknown }>(a[section], {});
     return { text: typeof v.summary === "string" ? v.summary.trim() : "", placeholder: v.placeholder === true };
   };
+  let mock = false;
+  /** Anything the stand-in provider wrote is dropped — wherever it turns up: a section, a reply's value, a question. */
+  const real = (text: string) => { if (text && looksLikeMockText(text)) { mock = true; return ""; } return text; };
   const reply = AVATAR_SECTIONS.map((s) => own(s).text).find(looksLikeReply);
   const body = reply ? unfence(reply) : null;
   const fromReply = (key: string) => (body ? valueAfterKey(body, key) : undefined);
   const pick = (section: AudienceSection) => {
     const { text, placeholder } = own(section);
-    if (text && !placeholder && !looksLikeReply(text) && !isAudienceBaseline(section, text)) return text;
-    return plainWords(fromReply(section));
+    if (text && !placeholder && !looksLikeReply(text) && !isAudienceBaseline(section, text)) return real(text);
+    return real(plainWords(fromReply(section)));
   };
   const out = { demographics: pick("demographics"), psychographics: pick("psychographics"), onlineBehavior: pick("onlineBehavior"), offlineBehavior: pick("offlineBehavior") };
-  const strings = (v: unknown) => (Array.isArray(v) ? v.filter((q): q is string => typeof q === "string" && !!q.trim()).map((q) => q.trim()) : []);
+  const strings = (v: unknown) => (Array.isArray(v) ? v.filter((q): q is string => typeof q === "string" && !!q.trim()).map((q) => real(q.trim())).filter(Boolean) : []);
   const stored = strings(readJson<unknown>(a.keyQuestions, []));
   const questions = stored.length && !areBaselineQuestions(stored) ? stored : strings(fromReply("keyQuestions"));
   // A reply that can't be unpacked at all is said to be unreadable — not quoted, and not passed off as empty.
-  return { ...out, questions, unreadable: !!reply && !Object.values(out).some(Boolean) && !questions.length };
+  return { ...out, questions, mock, unreadable: !mock && !!reply && !Object.values(out).some(Boolean) && !questions.length };
 }
 
 // ── Who the customer is ─────────────────────────────────────────────────────
@@ -232,8 +246,9 @@ async function whoSection(workspaceId: string, channelId: string | null, day: Da
     if (read?.unreadable) {
       missing.push({ text: `The audience profile of the channel ${quote(channel.name, 60)} is stored in a form that can't be read — open it and refresh or re-save it.`, href });
     } else if (a && (demo || psycho || online || offline || questions.length)) {
-      // AI writes this profile when a channel is set up (jobs/onboarding.ts). It
-      // is the team's only once a person has edited or restored it.
+      // AI writes this profile when a channel is set up, and again on a Refresh
+      // (jobs/onboarding.ts). It is the team's only once a person has edited or
+      // restored it.
       const touched = await db.profileVersion.findFirst({ where: { kind: "audience", profileId: a.id, createdById: { not: null } }, select: { id: true } });
       const basis: BriefBasis = touched ? "described" : "drafted";
       const when = `saved ${day(a.updatedAt)}`;
@@ -241,9 +256,14 @@ async function whoSection(workspaceId: string, channelId: string | null, day: Da
       if (demo || psycho) lines.push({ text: `Audience of the channel ${name}: ${[cut(demo, 260), cut(psycho, 260)].filter(Boolean).join(" ")}`, basis, when, href, always: true });
       if (online || offline) lines.push({ text: `Where the ${name} audience spends time: ${[online ? `online — ${cut(online, 220)}` : "", offline ? `offline — ${cut(offline, 220)}` : ""].filter(Boolean).join("; ")}`, basis, when, href, always: false });
       if (questions.length) lines.push({ text: `Questions the ${name} audience asks: ${questions.slice(0, 5).map((q) => cut(q, 140)).join(" · ")}`, basis, when, href, always: false });
-    } else {
+    } else if (!read?.mock) {
       // No row, an empty one, or nothing but the setup placeholder — all the same to a reader.
       missing.push({ text: `The channel ${quote(channel.name, 60)} has no audience profile yet${a ? " — only the placeholder text every new channel starts with" : ""}.`, href });
+    }
+    // Stand-in text is left out wherever it sat, and said to be there: silence would read as "nothing was written".
+    if (read?.mock) {
+      const only = !(demo || psycho || online || offline || questions.length);
+      missing.push({ text: `${only ? "The" : "Part of the"} audience profile of the channel ${quote(channel.name, 60)} is stand-in text from a time no AI provider answered — ${only ? "nothing in it is about this audience" : "that part is left out"}. Refresh the profile or write your own.`, href });
     }
   }
 
@@ -523,7 +543,7 @@ export function forgetCustomerBrief(workspaceId?: string) {
 
 const BASIS_LABEL: Record<BriefBasis, string> = {
   described: "described by the team",
-  drafted: "AI draft from setup, not confirmed by the team",
+  drafted: "AI draft, not confirmed by the team",
   measured: "measured",
 };
 /** What a line rests on, as the model and a person both read it. */

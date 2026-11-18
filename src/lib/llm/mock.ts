@@ -19,6 +19,17 @@ const FILLER = [
   "Now, real quick — let me give you context.",
 ];
 
+/**
+ * True when `text` carries one of the markers every mock reply below is stamped
+ * with. For text that was STORED before its caller learned to check
+ * `LLMResponse.provider` — a reader that would otherwise take a stand-in's prose
+ * for something a model (or a person) wrote about this company.
+ * ⚠ Keep in step with buildMockReply: a new branch needs its marker here.
+ */
+export function looksLikeMockText(text: string): boolean {
+  return /\(mock — [^)\n]{1,80}\)|\[mock \d+: no API key\]|\(mock output from [^)\n]{1,80}\)/.test(text);
+}
+
 function pseudoRandom(seed: string): () => number {
   // tiny mulberry32
   let s = 0;

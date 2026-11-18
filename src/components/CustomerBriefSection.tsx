@@ -16,7 +16,7 @@ import { canFollow, whoCanFix } from "@/lib/role-links";
 
 const CHIP: Record<BriefBasis, { label: string; title: string; bg: string; fg: string }> = {
   described: { label: "Described", title: "The team's own words — not a measurement", bg: "var(--indigo-soft)", fg: "var(--indigo-on)" },
-  drafted: { label: "AI draft", title: "Written by AI when the channel was set up, and not edited by a person since — unconfirmed", bg: "var(--amber-soft)", fg: "var(--amber-on)" },
+  drafted: { label: "AI draft", title: "Written by AI — when the channel was set up, or on a refresh — and not edited by a person since: unconfirmed", bg: "var(--amber-soft)", fg: "var(--amber-on)" },
   measured: { label: "Measured", title: "Counted from stored results", bg: "var(--teal-soft)", fg: "var(--teal-on)" },
 };
 
