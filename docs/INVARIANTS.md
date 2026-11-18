@@ -2851,3 +2851,14 @@ under Distribute, but the posts held for an admin sat under Publish — a stage 
   the weekly routine Elsie reads out (`lib/assistant/knowledge.ts` — one phrase, the eval was run for it). The
   generated map follows by itself.
 - **Verified**: 47 checks over HTTP against a local dev server on a throwaway schema, as a fixture operator, editor and viewer: Distribute's first row reads Overview · Compose · Posts · Approvals · Calendar · Engage · Media & feeds for the operator and the editor and has no Approvals for the viewer; Publish's reads Overview · Audit · Website · Blog calendar for all three; `/social/approvals` lights Approvals on Distribute's strip with its red count, on one row at 1100 px; the Distribute overview lists the post awaiting approval; Ctrl+K says Distribute › Approvals; the tab regrouping's strip, calendar and Settings checks still pass. The assistant eval, 25 of 25. The six prebuild checks, eslint on the changed files, tsc, next build and its bundle check.
+- **On production** (`7f93b50`, live as build `DuF95IezwwTKWKuA1KyKC` 2026-11-18 09:25 EST): 71 of 71 over HTTP as a throwaway
+  admin, editor and viewer of one throwaway workspace (deleted after; no real workspace read or changed): the three
+  rows above; `/social/approvals` lit on Distribute's strip with its red count; the overview's Needs you; Ctrl+K's
+  "Distribute › Approvals"; no Approvals tab for the viewer; and every check from the tab regrouping.
+- ⚠ **The first deploy of `7f93b50` failed and a retry fixed it.** Railway reported "Deployment failed" 2 min 41 s
+  after it started; production kept serving the previous build. The tree had passed tsc and next build here, and the
+  commit added no import, route or migration. An empty commit (`3210f6b`, `git commit --allow-empty`, pushed to both
+  remotes) built and went live in four and a half minutes. The cause was never seen: the build log is only on
+  Railway's dashboard (the CLI token is dead), and the owner's Chrome asked which of two connected browsers to use.
+  The same happened once before (growth part ag). So: a failure that fast on a tree that builds locally is retried
+  once before it is investigated — and a second failure means reading the log on the dashboard, not a third push.
