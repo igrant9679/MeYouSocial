@@ -698,7 +698,7 @@ export const HELP_CATEGORIES: FaqCategory[] = [
       },
       {
         q: "Can several companies share one install?",
-        a: "Yes — each company lives in its own **workspace** with fully separate content, team, API keys, SMTP and branding. Signing up creates your company's workspace (rename it under Settings → Workspace); invite teammates from Admin. Someone invited to your workspace who signs up via the invite link joins **your** workspace directly. People who belong to several companies get a workspace switcher in the header.",
+        a: "Yes — each company lives in its own **workspace** with fully separate content, team, API keys, SMTP and branding. Signing up creates your company's workspace (rename it under Settings → Workspace); invite teammates from Admin. Someone invited to your workspace who signs up via the invite link joins **your** workspace directly. People who belong to several companies get a workspace switcher in the header. If you open an article that belongs to another of your workspaces — a tab reloaded after switching somewhere else, a link from an email — the page says which workspace has it and offers **Switch to … and open it**, instead of \"not found\".",
         tags: ["multi-tenant", "companies", "workspaces", "teams"],
       },
       {

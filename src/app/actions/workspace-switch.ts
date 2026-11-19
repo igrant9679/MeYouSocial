@@ -29,8 +29,28 @@ export async function setActiveWorkspaceAction(formData: FormData) {
   redirect(switchLanding(String(formData.get("back") ?? "")));
 }
 
+/**
+ * Switch to the workspace that holds an article and open it (2026-11-19, the
+ * owner's 404 on an LSI draft). Offered by the article page when the id is not in
+ * the active workspace but is in another of this person's (`lib/record-elsewhere`).
+ * Both are re-checked here: an active membership of that workspace, and the
+ * article being in it. If either fails nothing is switched.
+ */
+export async function openArticleInWorkspaceAction(formData: FormData) {
+  const user = await requireUser();
+  const workspaceId = String(formData.get("workspaceId") ?? "");
+  const articleId = String(formData.get("articleId") ?? "");
+  const tab = String(formData.get("tab") ?? "");
+  const member = user.memberships.some((m) => m.workspaceId === workspaceId && m.status === "active");
+  if (!member) redirect("/forbidden?why=member");
+  if (!/^[a-z0-9]{10,40}$/i.test(articleId) || !(await db.blogPost.count({ where: { id: articleId, workspaceId } }))) redirect("/blog");
+  await setActive(workspaceId);
+  redirect(`/blog/${articleId}${/^[a-z]{2,20}$/.test(tab) ? `?tab=${tab}` : ""}`);
+}
+
 /** Set the active-workspace cookie without the membership re-check — only for
- *  a workspace we just created for this user in the same request. */
+ *  a workspace we just created for this user in the same request, or one the
+ *  caller has just checked. */
 async function setActive(workspaceId: string) {
   (await cookies()).set(ACTIVE_WS_COOKIE, workspaceId, {
     httpOnly: true,

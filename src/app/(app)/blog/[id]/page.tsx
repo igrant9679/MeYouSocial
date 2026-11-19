@@ -108,6 +108,8 @@ import { SearchSocialPreview } from "./SearchSocialPreview";
 import { ArticlePerformance } from "./ArticlePerformance";
 import { InternalLinks } from "./InternalLinks";
 import { ReadabilityCoach } from "./ReadabilityCoach";
+import { ArticleElsewhere } from "./ArticleElsewhere";
+import { articleElsewhere } from "@/lib/record-elsewhere";
 
 // Blog post editor (Spark port, slice 1): SEO metadata + HTML body + grounded
 // AI draft + the review-state machine. Publishing is an ADMIN act (human gate).
@@ -151,7 +153,7 @@ export default async function BlogPostPage({
   const sp = await searchParams;
   const tab: TabKey = (TABS.some((t) => t.key === sp.tab) ? sp.tab : "write") as TabKey;
   const is = (k: TabKey) => tab === k;
-  const { workspace, membership } = await requireMembership();
+  const { user: viewer, workspace, membership } = await requireMembership();
   const post = await db.blogPost.findFirst({
     where: { id, workspaceId: workspace.id },
     include: {
@@ -163,8 +165,15 @@ export default async function BlogPostPage({
       versions: { orderBy: { createdAt: "desc" }, take: 20 },
     },
   });
-  if (!post) notFound();
-  const wpConn = await db.wordPressConnection.findUnique({ where: { workspaceId: workspace.id } });
+  if (!post) {
+    // An id from another of this person's workspaces (a tab reloaded after a
+    // switch elsewhere, an email, an old link) says where it is and offers the
+    // switch, instead of a bare "not found" (2026-11-19). Anything else is a 404.
+    const elsewhere = await articleElsewhere(viewer.memberships, workspace.id, id);
+    if (!elsewhere) notFound();
+    return <ArticleElsewhere article={elsewhere} articleId={id} current={workspace.name} tab={sp.tab && TABS.some((t) => t.key === sp.tab) ? sp.tab : undefined} />;
+  }
+  const wpConn =await db.wordPressConnection.findUnique({ where: { workspaceId: workspace.id } });
   // Publish times are typed and shown in the posting timezone — the zone the
   // schedule action reads them in (ART-04). The server's own clock is UTC.
   const tz = await getPostingTimeZone(workspace.id);

@@ -2997,3 +2997,28 @@ day" still took two looks. Now the default view shows both.
 - **On production** (`fdc530c` + its retry `22d1ec8`, live 2026-11-19 09:49 EST): the Help's four rewritten answers and
   the earlier rewrites were in the page's scripts, the "three lists" wording gone (8 of 8, throwaway admin, deleted).
 - **Verified (this change)**: eslint on the changed files; the six prebuild checks; the strips and Ctrl+K titles printed from `stageEntries` (Measure › Articles › Article analytics / Article report, Publish › Article calendar, the Help's generated lists); tsc and next build with its bundle check. The production check is in the local hand-off.
+
+## An article from another of your workspaces offers the switch, never a bare 404 (2026-11-19, the owner's 404 on an LSI draft)
+
+- **What happened**: the owner opened a draft article while in LSI Media and got "This page could not be found". Both of
+  LSI's unpublished articles existed and opened normally; the address carried an article of ANOTHER workspace. Every
+  record page looks its id up in the ACTIVE workspace only, so a link carried across a switch lands on a 404. The
+  likeliest route: an article tab reloaded after switching workspace in another tab (`WorkspaceGuard`'s "Reload"); also
+  an email or notification link, or an old tab.
+- **Now** (`/blog/[id]`): when the id is not in the active workspace, `articleElsewhere()` (`lib/record-elsewhere.ts`)
+  looks for it in the person's OTHER **active** memberships. Found → `ArticleElsewhere.tsx`: the article's title, the
+  workspace that has it, **Switch to … and open it** and **Stay in …**. Not found → `notFound()` as before.
+- ⚠ **Nothing about another tenant leaks**: only the person's own active memberships are searched (`getCurrentUser`
+  already leaves out deleted workspaces). A revoked membership, a workspace they were never in, or a deleted article
+  is the same plain 404 as an id that is no article at all.
+- ⚠ **The switch re-checks both** (`openArticleInWorkspaceAction`, `actions/workspace-switch.ts`): an active membership
+  of the named workspace (else `/forbidden?why=member`) and the article being IN it (else `/blog`); either failing
+  switches nothing. It then sets the workspace cookie and lands on `/blog/<id>`, keeping a valid `?tab=`. The header
+  switcher (`setActiveWorkspaceAction`) is unchanged — it still drops a record id, because the record it names
+  belongs to the workspace being left.
+- **Not built**: the same notice on the article's sub-pages (`/blog/[id]/versions`, `/update`, `/retire`) and on other
+  record pages (social posts, ideas, projects) — they still 404 for another workspace's id.
+- **Words**: the Help ("Can several companies share one install?") and Elsie's "When something looks wrong" say what the
+  notice means and what a plain "not found" means.
+- **Verified (this change)**: eslint on the changed files; tsc; next build with the prebuild checks; the assistant eval
+  on a throwaway schema (knowledge text changed). The production check is in the local hand-off.
