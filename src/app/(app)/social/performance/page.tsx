@@ -81,7 +81,7 @@ export default async function SocialPerformancePage({ searchParams }: { searchPa
         <EmptyState
           line={`No engagement has been recorded for any network in the ${range.label}.`}
           note="Blank is not zero. Figures are synced from posts that have actually gone out, and anything a network does not report stays blank rather than becoming a number."
-          action={{ label: "Open Distribute", href: "/distribute" }}
+          action={{ label: "Open Social posts", href: "/distribute" }}
         />
       ) : (
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 mb-6">

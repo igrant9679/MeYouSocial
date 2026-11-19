@@ -199,6 +199,10 @@ but it means **bad output can look like real output**. Rules learned the hard wa
   line marked described / AI draft / measured — ⚠ never a model's summary, never a customer's own words, and it rides
   after the cached prompt. Shown to people on Brand (`/brand#customers`).
 - **Left nav** `src/components/LeftRailNav.tsx` — active route via shared `isNavActive()`.
+- **Stages are named by FORMAT** (2026-11-19, the owner's "Name by format"): the rail reads Research · Ideas ·
+  **Articles** (`/publish`) · **Social posts** (`/distribute`) · **Video** (`/studio`, only while the studio is shown) ·
+  Measure. Drafts / Publish / Distribute are gone as names — `/drafts` redirects to Articles. ⚠ Never name a stage
+  after a step again, and never write "Distribute →", "Publish →" or "Drafts →" in copy.
 - **Stage strip** `src/lib/stages.ts` + `src/components/StageStrip.tsx` — each stage's tabs, as data. Since 2026-11-17
   Settings, Distribute and Measure are GROUPED: a tab may carry `group`, `stageEntries()` folds the list into the
   first row, and the second row lists the pages of the group you are in. ⚠ Pages kept their names and URLs — a new
@@ -398,6 +402,7 @@ area, rather than loading all of them into every session.
 - Posts and articles share one calendar grid — an article is a read-only mark at its instant — 2026-11-18, the owner's "Yes, build it"
 - The tabs say "article", and the Help follows the app — 2026-11-19, the owner's "Yes, tidy up"
 - An article from another of your workspaces offers the switch, never a bare 404 — 2026-11-19, the owner's 404 on an LSI draft
+- The stages are named by format: Articles, Social posts, Video — 2026-11-19, the owner's "Name by format"
 
 ## Open items / things the user still owns
 - **Analytics: APIs enabled 2026-08-03** (Search Console + GA Admin + GA Data, on project

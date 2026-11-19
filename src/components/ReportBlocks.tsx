@@ -422,7 +422,7 @@ export async function ReportBlock({ block, workspaceId, weeks, canAct = true }: 
       return (
         <Card title={`Video renders — last ${weeks} weeks`}>
           {renders.length === 0 ? (
-            <Empty canAct={canAct} to="/distribute" cta="Open Distribute">{`No render in the last ${weeks} weeks — a published post is packaged into one from its Distribute tab.`}</Empty>
+            <Empty canAct={canAct} to="/publish" cta="Open Articles">{`No render in the last ${weeks} weeks — a published article is packaged into one from its Distribute tab.`}</Empty>
           ) : (
             <>
               <p className="text-2xs text-[var(--mute)] mb-2">

@@ -198,9 +198,9 @@ export default async function SetupAutomation({ searchParams }: { searchParams: 
         </div>
         {admin && confirmUnschedule === "1" && (
           <div className="card text-xs flex flex-col gap-2" style={{ borderColor: "var(--rose)" }}>
-            <p className="m-0"><b>Unschedule all {scheduledSocial} social post{scheduledSocial === 1 ? "" : "s"}?</b> Each moves back to Post drafts and keeps its time, so nothing
+            <p className="m-0"><b>Unschedule all {scheduledSocial} social post{scheduledSocial === 1 ? "" : "s"}?</b> Each moves back to Social posts → Drafts and keeps its time, so nothing
               goes out when the pause is lifted. A dated draft is never queued by itself, even under full autonomy; Queue all on
-              Drafts puts them back at their times while those are still ahead. Articles aren&apos;t touched — to hold those, set
+              Social posts → Calendar puts them back at their times while those are still ahead. Articles aren&apos;t touched — to hold those, set
               Publishing to manual below.</p>
             <div className="flex gap-2">
               <form action={unscheduleAllSocialAction}>

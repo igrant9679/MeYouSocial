@@ -292,8 +292,8 @@ export async function register() {
 }
 
 const WARM_ROUTES = [
-  "/inbox", "/research", "/intel", "/ideas", "/ideas/topics", "/drafts", "/blog", "/blog/keywords", "/blog/experts",
-  "/blog/audit", "/publish", "/distribute", "/social/compose", "/social/queue", "/social/sent", "/social/calendar",
+  "/inbox", "/research", "/intel", "/ideas", "/ideas/topics", "/blog", "/blog/keywords", "/blog/experts",
+  "/blog/audit", "/publish", "/distribute", "/studio", "/social/compose", "/social/queue", "/social/sent", "/social/calendar",
   "/social/engage", "/measure", "/reports", "/insights", "/measure/topics", "/social/performance", "/youtube",
   "/assistant", "/setup", "/setup/automation", "/setup/connections", "/admin/api-keys", "/admin/usage", "/help", "/videos",
 ];

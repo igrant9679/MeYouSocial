@@ -25,7 +25,7 @@ export default async function BlogCalendarPage({ searchParams }: { searchParams:
   return (
     <main className="p-6 w-full">
       <Link href="/publish" className="inline-flex items-center gap-1 text-xs text-[var(--mute)] hover:text-[var(--ink)] mb-3">
-        <ArrowLeft className="w-3.5 h-3.5" /> Publish
+        <ArrowLeft className="w-3.5 h-3.5" /> Articles
       </Link>
       <div className="flex items-center gap-3 mb-4 flex-wrap">
         <span className="w-12 h-12 rounded-2xl grid place-items-center" style={{ background: "var(--cyan-soft)", color: "var(--cyan-on)" }}>
@@ -37,7 +37,7 @@ export default async function BlogCalendarPage({ searchParams }: { searchParams:
             What went out, what&apos;s scheduled, and each week&apos;s publish day — days and times in <b>{m.timeZone}</b> ({zoneLabel(m.timeZone, m.start)}).
             {admin ? " Drag an article to a day to schedule it; the checks run again when it falls due." : " An admin schedules articles."}
             {/* One calendar, two kinds of thing: the posts' side is a click away, and shows these articles too. */}
-            {canFollow("/social/calendar", membership.role) && <> Social posts are on <Link href="/social/calendar" className="underline" data-calendar-other="posts">Distribute → Calendar</Link>.</>}
+            {canFollow("/social/calendar", membership.role) && <> Social posts are on <Link href="/social/calendar" className="underline" data-calendar-other="posts">Social posts → Calendar</Link>.</>}
           </p>
         </div>
         <ArticleMonthNav m={m} />

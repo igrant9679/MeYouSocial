@@ -1037,7 +1037,7 @@ export async function publishWordPressDraftCore(workspaceId: string, postId: str
   try {
     creds = { baseUrl: conn.baseUrl, username: conn.username, appPassword: decryptSecret(JSON.parse(conn.encAppPassword) as Encrypted) };
   } catch {
-    return { ok: false, reason: "The WordPress password couldn't be read — reconnect on Distribute → Website." };
+    return { ok: false, reason: "The WordPress password couldn't be read — reconnect on Articles → Website." };
   }
   const claim = await db.blogPost.updateMany({ where: { id: post.id, workspaceId, status: "final_approval" }, data: { status: "publishing" } });
   if (claim.count !== 1) return { ok: false, reason: "Another publish of this article is running." };

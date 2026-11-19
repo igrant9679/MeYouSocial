@@ -23,7 +23,7 @@ const OUTSIDE_STAGES: Array<[string, string]> = [
   ["/account", "Your account"],
 ];
 
-/** "Distribute · Queue", "Inbox" — or the path itself where the page has no name here. */
+/** "Social posts · Queue", "Inbox" — or the path itself where the page has no name here. */
 export function elsiePageLabel(pathname: string): string {
   const stage = stageFor(pathname);
   if (stage) {
@@ -48,12 +48,10 @@ const BY_STAGE: Record<string, Prompt[]> = {
     { q: "What have we been rejecting, and what does that say about our Topics?" },
     { q: "Find new ideas for our weakest Topic", write: true },
   ],
-  "/drafts": [
+  // Articles (2026-11-19: the Drafts and Publish stages' prompts, together).
+  "/publish": [
     { q: "What should be drafted next, and why that one?" },
     { q: "Draft the next approved idea", write: true },
-    { q: "Which draft is closest to ready?" },
-  ],
-  "/publish": [
     { q: "What is ready to go out, and what is holding the rest?" },
     { q: "What is on the calendar for the next two weeks?" },
   ],
@@ -61,6 +59,10 @@ const BY_STAGE: Record<string, Prompt[]> = {
     { q: "Is the queue full enough for the next 7 days?" },
     { q: "Which sent post is worth reposting?" },
     { q: "Draft posts for our newest article", write: true },
+  ],
+  "/studio": [
+    { q: "Which script is closest to ready?" },
+    { q: "What video should we make next, and why that one?" },
   ],
   "/measure": [
     { q: "What worked best in the last 28 days, and what should we do more of?" },

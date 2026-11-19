@@ -101,7 +101,7 @@ export default async function InboxPage() {
       )}
 
       {/* The two surfaces the retired Review stage carried (audit B1.1). They
-          are Publish's tabs now, but the queues they hold are reviewing work,
+          are tabs of Articles and Social posts now, but the queues they hold are reviewing work,
           so they stay one click from the landing page. Shown only when there
           is something in them — an empty link is another place to look. */}
       {((editor && inbox.socialPosts.length > 0) || auditOpen > 0) && (

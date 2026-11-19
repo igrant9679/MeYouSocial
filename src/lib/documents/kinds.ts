@@ -49,7 +49,7 @@ export function uploadKind(name: string, browserType: string): { kind: UploadKin
 export function refusalFor(name: string, browserType: string): string {
   const ext = extOf(name);
   if (ext === ".doc" || browserType === "application/msword") return "Old .doc files can't be read. Open it in Word, save it as .docx, and attach that.";
-  if (browserType.startsWith("video/") || browserType.startsWith("audio/")) return "Video and sound can't be attached here — the assistant can't watch or listen to them. A video for a post goes in Distribute → Media.";
+  if (browserType.startsWith("video/") || browserType.startsWith("audio/")) return "Video and sound can't be attached here — the assistant can't watch or listen to them. A video for a post goes in Social posts → Media.";
   return "That type of file can't be attached. PDF, Word (.docx), text, Markdown, CSV, JSON and images (JPEG, PNG, GIF, WebP) can.";
 }
 

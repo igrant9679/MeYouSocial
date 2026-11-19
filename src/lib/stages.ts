@@ -45,7 +45,16 @@ export type StageDef = {
 // ⚠ "/review" left this list on 2026-09-20 (audit B1.1): its overview was the
 // Inbox, card for card, and its two real tabs belong to Publish. /review still
 // resolves — it redirects to /inbox.
-export const STAGE_HREFS = ["/research", "/ideas", "/drafts", "/publish", "/distribute", "/measure", "/brand", "/setup"] as const;
+//
+// ⚠ NAMED BY FORMAT since 2026-11-19 (the owner's "Name by format"): the step
+// names Drafts / Publish / Distribute each served ONE format in practice —
+// Drafts and Publish were articles, Distribute was social posts, and social
+// drafts sat under Distribute, not Drafts — so the rail now says what each
+// stage is for: Articles, Social posts, Video. The addresses stayed: Articles
+// is /publish, Social posts is /distribute; Video got its own overview,
+// /studio; /drafts redirects to Articles. Research, Ideas and Measure stay
+// shared by every format. Never name a stage after a step again.
+export const STAGE_HREFS = ["/research", "/ideas", "/publish", "/distribute", "/studio", "/measure", "/brand", "/setup"] as const;
 
 export const STAGES: Record<(typeof STAGE_HREFS)[number], StageDef> = {
   "/research": {
@@ -70,63 +79,50 @@ export const STAGES: Record<(typeof STAGE_HREFS)[number], StageDef> = {
       { href: "/blog/experts", label: "Experts" },
     ],
   },
-  "/drafts": {
-    href: "/drafts",
-    label: "Drafts",
-    // The studio tabs show only when a YouTube channel exists and the Video
-    // studio switch under Settings is on (lib/studio.ts) — the owner's
-    // "optional as a studio". Articles and the board are always there.
-    tabs: ({ channelId, studio }) => [
-      // One tab, not two: /blog and /blog/board were the same four columns
-      // under two names (audit B1.2). The board/list toggle lives on the page.
-      { href: "/blog", label: "Articles", also: ["/blog/board"] },
-      ...(studio
-        ? [
-            { href: channelId ? `/channels/${channelId}/scripts` : "/scripts", label: "Scripts", also: ["/scripts", "/channels/*/scripts"] },
-            { href: "/thumbnails", label: "Thumbnails" },
-            { href: "/videos", label: "Videos" },
-            { href: "/production", label: "Production" },
-          ]
-        : []),
-    ],
-  },
+  // ARTICLES (was two stages, Drafts and Publish, until 2026-11-19): an
+  // article's whole life — the board where it is written, the audit and the
+  // website it goes to, its calendar. The overview at /publish lists what is
+  // being written, what waits to go out and what went live.
   "/publish": {
     href: "/publish",
-    label: "Publish",
-    // Audit came here from the retired Review stage: it gates what goes out,
-    // which is this stage's whole job. Approvals came with it and left for
-    // Distribute on 2026-11-18 (the owner's "Yes, move it"): what it holds are
-    // social posts, and everything else about a post — writing it, the lists,
-    // the calendar, the replies — was already there. Publish is articles now.
+    label: "Articles",
     tabs: () => [
+      // One tab, not two: /blog and /blog/board were the same four columns
+      // under two names (audit B1.2). The board/list toggle lives on the page.
+      // "All articles", not "Articles": that is the stage's own name.
+      { href: "/blog", label: "All articles", also: ["/blog/board"] },
+      // Audit came here from the retired Review stage: it gates what goes out.
       { href: "/blog/audit", label: "Audit" },
       { href: "/website", label: "Website" },
-      // "Article …", not "Blog …", since 2026-11-19 (the owner's "Yes, tidy up"): the
-      // app says "article" everywhere else, the calendars included. URLs unchanged.
-      { href: "/blog/calendar", label: "Article calendar" },
+      // "Calendar" inside Articles (it was "Article calendar" under Publish for
+      // one day, and "Blog calendar" before). Social posts has its own Calendar,
+      // which shows articles too; Ctrl+K tells them apart by stage.
+      { href: "/blog/calendar", label: "Calendar" },
     ],
   },
+  // SOCIAL POSTS (was "Distribute" until 2026-11-19 — everything about a post,
+  // writing it included, was already here).
   "/distribute": {
     href: "/distribute",
-    label: "Distribute",
+    label: "Social posts",
     // Queue / Sent / Drafts joined 2026-10-17 (Socialmonials parity): the
     // same posts as the Calendar, as searchable lists with filters.
     //
     // Grouped 2026-11-17: ten tabs in one row became five entries. Writing a
     // post (Compose, Captions), the lists of posts (the same PostList under
     // four filters), and what posts are made from (Media, RSS) each sit under
-    // one name; Calendar and Engage stand alone. ⚠ "Post drafts", not "Drafts":
-    // Drafts is the name of a whole stage on the rail.
+    // one name; Calendar and Engage stand alone. "Drafts" again since
+    // 2026-11-19: it was "Post drafts" while Drafts was a stage on the rail.
     tabs: () => [
       { href: "/social/compose", label: "Compose", group: "Compose" },
       // Caption Studio (2026-10-17): the team's caption scenarios, run here.
       { href: "/social/captions", label: "Captions", group: "Compose" },
       { href: "/social/queue", label: "Queue", group: "Posts" },
       { href: "/social/sent", label: "Sent", group: "Posts" },
-      { href: "/social/drafts", label: "Post drafts", group: "Posts" },
+      { href: "/social/drafts", label: "Drafts", group: "Posts" },
       // The posts set to recycle, with their controls (E-SOC-15).
       { href: "/social/evergreen", label: "Evergreen", group: "Posts" },
-      // Posts held for an admin's yes — here since 2026-11-18, from Publish.
+      // Posts held for an admin's yes — here since 2026-11-18, from the old Publish stage.
       // It stands alone rather than under Posts: with Engage it is the strip's
       // red count, and a person asked to approve should see where in one look.
       { href: "/social/approvals", label: "Approvals" },
@@ -135,6 +131,24 @@ export const STAGES: Record<(typeof STAGE_HREFS)[number], StageDef> = {
       { href: "/social/media", label: "Media", group: "Media & feeds" },
       { href: "/social/rss", label: "RSS", group: "Media & feeds" },
     ],
+  },
+  // VIDEO (2026-11-19, the owner's "Name by format"): the studio's pages were
+  // tabs of Drafts. The stage shows on the rail only when the studio does (a
+  // YouTube channel exists and the switch under Settings is on — lib/studio.ts);
+  // its overview, /studio, says how to turn it on when it is off.
+  "/studio": {
+    href: "/studio",
+    label: "Video",
+    tabs: ({ channelId, studio }) =>
+      studio
+        ? [
+            { href: channelId ? `/channels/${channelId}/scripts` : "/scripts", label: "Scripts", also: ["/scripts", "/channels/*/scripts"] },
+            { href: "/thumbnails", label: "Thumbnails" },
+            // "Renders", not "Videos": the stage is Video, and this page is the renders.
+            { href: "/videos", label: "Renders" },
+            { href: "/production", label: "Production" },
+          ]
+        : [],
   },
   "/measure": {
     href: "/measure",
@@ -285,11 +299,12 @@ export function stageFor(pathname: string): (typeof STAGE_HREFS)[number] | null 
   if (/^\/(intel|chat)(\/|$)/.test(p) || /^\/channels\/[^/]+\/(competitors|research)(\/|$)/.test(p)) return "/research";
   if (/^\/blog\/(keywords|experts)(\/|$)/.test(p) || /^\/channels\/[^/]+\/ideas(\/|$)/.test(p)) return "/ideas";
   // /social/approvals is Distribute's since 2026-11-18 — it falls to the /social rule below with the other post pages.
-  if (/^\/blog\/audit(\/|$)/.test(p)) return "/publish";
-  if (/^\/website(\/|$)/.test(p) || /^\/blog\/(calendar|automation)(\/|$)/.test(p)) return "/publish";
+  if (/^\/website(\/|$)/.test(p)) return "/publish";
   if (/^\/(reports|insights|youtube)(\/|$)/.test(p) || /^\/blog\/(analytics|report)(\/|$)/.test(p) || /^\/social\/performance(\/|$)/.test(p)) return "/measure";
   if (/^\/social(\/|$)/.test(p)) return "/distribute";
-  if (/^\/(scripts|thumbnails|videos|production)(\/|$)/.test(p) || /^\/channels\/[^/]+\/scripts(\/|$)/.test(p) || /^\/blog(\/|$)/.test(p)) return "/drafts";
+  if (/^\/(scripts|thumbnails|videos|production)(\/|$)/.test(p) || /^\/channels\/[^/]+\/scripts(\/|$)/.test(p)) return "/studio";
+  // Every other /blog page is an article's — its board, its editor, its audit and calendar.
+  if (/^\/blog(\/|$)/.test(p)) return "/publish";
   return null;
 }
 

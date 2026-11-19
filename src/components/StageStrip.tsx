@@ -11,8 +11,8 @@ import { canFollow } from "@/lib/role-links";
 
 /** Each stage's Help section, for the strip's "?" (E-SHL-11). */
 const HELP_FOR: Record<string, string> = {
-  "/research": "intel", "/ideas": "blog", "/drafts": "writing", "/publish": "publishing",
-  "/distribute": "social", "/measure": "insights", "/brand": "brand", "/setup": "team-admin",
+  "/research": "intel", "/ideas": "blog", "/publish": "writing", "/distribute": "social",
+  "/studio": "videos", "/measure": "insights", "/brand": "brand", "/setup": "team-admin",
 };
 
 /** Entries shown inline at laptop widths before the rest fold into More (E-SHL-13). */

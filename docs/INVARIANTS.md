@@ -3022,3 +3022,39 @@ day" still took two looks. Now the default view shows both.
   notice means and what a plain "not found" means.
 - **Verified (this change)**: eslint on the changed files; tsc; next build with the prebuild checks; the assistant eval
   on a throwaway schema (knowledge text changed). The production check is in the local hand-off.
+
+## The stages are named by format: Articles, Social posts, Video (2026-11-19, the owner's "Name by format")
+
+- **Why**: the owner asked which pages are for articles and which for social posts. The stage names were STEPS (Drafts,
+  Publish, Distribute) but each served one format: Drafts and Publish were articles (plus the studio tabs), Distribute was
+  social posts, and social drafts lived under Distribute → Posts, not Drafts. The rail now says what each stage is for.
+- **The rail** (`lib/nav.ts`): Inbox · Elsie · Research · Ideas · **Articles** (`/publish`) · **Social posts** (`/distribute`) ·
+  **Video** (`/studio`, `studioOnly` — on the rail only while `studioState().show`) · Measure · Setup · Help. The loop sentence
+  (`loopSentence()`) reads "Research → Ideas → Articles / Social posts / Video → Measure": the middle three are formats side by
+  side, not steps.
+- **Articles** (`STAGES["/publish"]`): tabs **All articles** (`/blog`, board/list) · Audit · Website · **Calendar** (`/blog/calendar`).
+  Its overview (`publish/page.tsx`) gained **Being written** (drafting / in review) with the WHY-nothing-drafts logic that was
+  on the Drafts page (pause → manual drafting → no approved idea), above Waiting to go out and Recently published. Every
+  `/blog/*` page not claimed by Ideas, Brand or Measure lights Articles (the editor, versions, audit, calendar).
+- **Social posts** (`STAGES["/distribute"]`): the same tabs; "Post drafts" is **Drafts** again (it was renamed only because Drafts
+  was a stage). Its heading and every "Distribute → X" in copy say "Social posts → X".
+- **Video** (`STAGES["/studio"]`, new page `studio/page.tsx`): Scripts · Thumbnails · **Renders** (`/videos`, was "Videos") ·
+  Production; overview = scripts in draft and renders running (the lower half of the old Drafts page). Tabs are empty when
+  the studio is off, and the page then says how to turn it on (Channels / the Settings switch).
+- **`/drafts` redirects to `/publish`.** Its social-drafts list is Social posts → Posts → Drafts; scripts and renders are on Video.
+- **Phone tabs** (`MobileTabBar`): Inbox · Ideas · Articles · **Social** · More ("Social posts" does not fit a fifth of a phone).
+- ⚠ **Unchanged on purpose**: every URL; Measure's groups (Overview · Articles [Article analytics, Article report] · Social
+  performance · YouTube audit · By Topic); the article editor's **Distribute** tab (social variants, video package — a verb
+  inside an article, no longer a stage name); the script page's **Publish →** button; Socialmonials' "Publish screen" named as
+  theirs in the Help.
+- ⚠ **Copy rule**: never write "Distribute →", "Publish →" (as a place) or "Drafts →" again. Places are "Articles → Website",
+  "Social posts → Engage", "Articles → All articles", "Video → Renders". Error messages that said "Distribute → Website"
+  (wrong even before — Website was never a Distribute tab) now say "Articles → Website".
+- **Words**: the Help (mental model, first post, Topics, "Where is the blog?", a new "Where did Drafts, Publish and Distribute
+  go?", the grouped-tabs answer, badges, the studio switch, no-WordPress, old menus, Socialmonials), the guide page
+  (`/help/guide`: the stage list gained Video), the rail tips (`NAV_TIPS`), the tour (`nav/publish`, `nav/studio` anchors),
+  Elsie's knowledge (`APP_MAP_BRIEF`, routines, studio, setup order), her page prompts (`elsie/page.ts`, Articles = the old
+  Drafts + Publish prompts, Video new) and the customer brief's "read it in Social posts → Engage".
+- **Verified (this change)**: eslint on the changed files; the six prebuild checks (links, tour anchors, Help copy); the strips,
+  loop sentence, Ctrl+K stage list and stageFor of 24 paths printed from the data; tsc; the assistant eval on a throwaway
+  schema; next build with its bundle check. The production check is in the local hand-off.

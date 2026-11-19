@@ -11,7 +11,8 @@ import { Banner } from "@/components/SocialPostCard";
 import { StageHeader, StageList, StageRow, StateChip } from "@/components/StageShell";
 import { EmptyState } from "@/components/EmptyState";
 
-// Distribute stage: the queue on the slot grid, the accounts and their
+// Social posts stage ("Distribute" until 2026-11-19, the owner's "Name by
+// format"): the queue on the slot grid, the accounts and their
 // health, what needs a person here, and what went out. Since One-Loop step 6
 // this is also where the old Social overview's content lives (that page
 // redirects here). Compose, Calendar and Engage are its tabs.
@@ -52,7 +53,7 @@ export default async function DistributeStage({ searchParams }: { searchParams: 
   return (
     <div>
       <StageHeader
-        title="Distribute"
+        title="Social posts"
         sentence={
           overview.connectedCount === 0
             ? "No social accounts connected — connect one under Settings → Connections and the queue comes alive."

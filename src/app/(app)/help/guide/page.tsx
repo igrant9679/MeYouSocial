@@ -52,8 +52,9 @@ export default async function GuidePage() {
           MeYouSocial Publisher is a content engine that runs mostly on its own: it researches what&apos;s worth saying,
           drafts articles and social posts (with their images and SEO), reviews its own work, schedules and
           publishes what passes, and pulls the results back in. <b>Your job is decisions, not production</b> —
-          approving, answering, adjusting, occasionally steering. The whole interface is one loop: the left rail
-          reads <b>Research → Ideas → Drafts → Publish → Distribute → Measure</b>, with{" "}
+          approving, answering, adjusting, occasionally steering. The left rail reads{" "}
+          <b>Research → Ideas → Articles · Social posts · Video → Measure</b>: research and ideas feed every format,
+          each format has its own stage (Video only when the video studio is on), and Measure reads them all — with{" "}
           <Link href="/inbox" className="underline">Inbox</Link> above it (exactly what&apos;s waiting on you —
           reviewing happens there, not in a stage of its own) and Setup below it (Settings, Channels, Brand —
           admins only).
@@ -84,13 +85,13 @@ export default async function GuidePage() {
       {/* ── 2 · The seven stages ────────────────────────────────────────── */}
       <section className="card mb-4">
         <h2 className="font-mono font-bold text-sm mb-1 flex items-center gap-2">
-          <Layers className="w-4 h-4" style={{ color: "var(--violet-on)" }} /> The Inbox and six stages, one screen each
+          <Layers className="w-4 h-4" style={{ color: "var(--violet-on)" }} /> The Inbox and the stages, one screen each
         </h2>
         <p className="text-xs text-[var(--mute)] mb-3">
           Every stage page has an Overview (its own rows, the verb on the row) and a strip along the top with its
           tabs — the module pages, which kept their addresses. A <b>red badge</b> on the strip means a person must
           act; a muted one is news. Old links (Home, the old Blog and Social menus, Review) all redirect to the right
-          place. The tab names below are read from the app&apos;s own navigation, so they&apos;re always current.
+          place — /drafts opens Articles. The tab names below are read from the app&apos;s own navigation, so they&apos;re always current.
         </p>
         <ul className="m-0 p-0 text-sm space-y-2">
           <Stage href="/inbox" name="Inbox" tabs="—">
@@ -108,18 +109,19 @@ export default async function GuidePage() {
             Rejected, a format chip on each card. <b>Only approved article ideas are drafted, and approving is your act.</b> Discover ideas,
             generate video ideas, recompute priorities (every score shows its working).
           </Stage>
-          <Stage href="/drafts" name="Drafts" tabs={tabsOf("/drafts", true)}>
-            Everything being written or rendered. The four studio tabs appear only when a YouTube channel exists and
-            the Video studio switch under Settings is on.
+          <Stage href="/publish" name="Articles" tabs={tabsOf("/publish")}>
+            Everything about articles: what is being written (and, when nothing is, why), what&apos;s at final approval
+            and when it goes (the publish day, or a date you set), and what went live. With no WordPress:{" "}
+            <b>Download HTML</b> and <b>Mark as published</b> on the row.
           </Stage>
-          <Stage href="/publish" name="Publish" tabs={tabsOf("/publish")}>
-            Articles at final approval, when they go (the publish day, or a date you set), and what went live.
-            With no WordPress: <b>Download HTML</b> and <b>Mark as published</b> on the row.
-          </Stage>
-          <Stage href="/distribute" name="Distribute" tabs={tabsOf("/distribute")}>
+          <Stage href="/distribute" name="Social posts" tabs={tabsOf("/distribute")}>
             Accounts with their health, this stage&apos;s own Needs you, the queue in your posting zone, recently
             published with failed legs called out. Engage holds comments, DMs and reviews — the 24-hour DM window
             for Facebook and Instagram lives here.
+          </Stage>
+          <Stage href="/studio" name="Video" tabs={tabsOf("/studio", true)}>
+            The video studio: scripts being written and renders running. On the rail only when a YouTube channel
+            exists and the Video studio switch under Settings is on.
           </Stage>
           <Stage href="/measure" name="Measure" tabs={tabsOf("/measure")}>
             Search impressions and clicks, positions and their deltas, engagement by network — measured numbers
@@ -185,7 +187,7 @@ export default async function GuidePage() {
             <b>Connect where it publishes.</b> <Link href="/setup/connections" className="underline">Settings → Connections</Link>{" "}
             shows every connection the loop needs and which are missing: social accounts (use this app&apos;s Connect
             buttons, not the provider&apos;s dashboard), a mailbox (how invitations and digests leave), your website
-            under <Link href="/website" className="underline">Publish → Website</Link> (WordPress, or per-article HTML
+            under <Link href="/website" className="underline">Articles → Website</Link> (WordPress, or per-article HTML
             export), analytics.
           </li>
           <li>
@@ -249,7 +251,7 @@ export default async function GuidePage() {
             article whose card names a check only a person can fix. The header count should reach zero.
           </Step>
           <Step icon={AlertTriangle} title="Answer people the day they write.">
-            <RoleLink href="/social/engage" role={role} className="underline">Distribute → Engage</RoleLink> — comments, DMs and reviews.
+            <RoleLink href="/social/engage" role={role} className="underline">Social posts → Engage</RoleLink> — comments, DMs and reviews.
             The one hard deadline in the whole app: Facebook and Instagram only accept a DM reply within{" "}
             <b>24 hours</b> of the person&apos;s message.
           </Step>
@@ -276,14 +278,14 @@ export default async function GuidePage() {
             no new articles, however high the dial. Keep three to five approved.
           </Step>
           <Step icon={Check} title="Read what was drafted — words, pictures and SEO together.">
-            <Link href="/blog?view=list" className="underline">Drafts → Articles</Link>: each article arrives with its
+            <Link href="/blog?view=list" className="underline">Articles → All articles</Link>: each article arrives with its
             featured and social-preview images and its SEO filled in, and auto-review has already fixed what it
             could. In the article&apos;s <b>Optimize</b> tab, answer the knowledge cards and decide the strategic
             ones; the mechanical ones apply on their own.
           </Step>
           <Step icon={Check} title="Approve and queue the social week.">
-            <RoleLink href="/social/approvals" role={role} className="underline">Distribute → Approvals</RoleLink> for anything held, then{" "}
-            <RoleLink href="/social/calendar" role={role} className="underline">Distribute → Calendar</RoleLink> to queue approved drafts
+            <RoleLink href="/social/approvals" role={role} className="underline">Social posts → Approvals</RoleLink> for anything held, then{" "}
+            <RoleLink href="/social/calendar" role={role} className="underline">Social posts → Calendar</RoleLink> to queue approved drafts
             into free slots. <b>An approved draft that was never queued will never send</b>; turn on <i>queue on
             approval</i> under <Link href="/setup/automation" className="underline">Settings → Automation</Link> to
             collapse the two.
@@ -337,7 +339,7 @@ export default async function GuidePage() {
             joined or left.
           </Step>
           <Step icon={Check} title="Run a content audit.">
-            <Link href="/blog/audit" className="underline">Publish → Audit</Link>: act on the refresh, merge and retire
+            <Link href="/blog/audit" className="underline">Articles → Audit</Link>: act on the refresh, merge and retire
             recommendations before the archive goes stale.
           </Step>
         </ul>
@@ -373,7 +375,7 @@ export default async function GuidePage() {
             sweep advances the article.
           </Step>
           <Step icon={ListChecks} title="Publishing without WordPress.">
-            Publish → <i>Download HTML</i> (self-contained: meta, Open Graph, images embedded; add <code>?fragment=1</code>{" "}
+            Articles → <i>Download HTML</i> (self-contained: meta, Open Graph, images embedded; add <code>?fragment=1</code>{" "}
             for just the body) → add it to the site → <i>Mark as published</i> with the live URL. Upload the Open Graph
             image to the site for social previews; crawlers ignore embedded images.
           </Step>
@@ -387,10 +389,10 @@ export default async function GuidePage() {
           </Step>
           <Step icon={ListChecks} title="A script through the studio.">
             Ideas (video) → <i>Write</i> → the script canvas or builder → Thumbnails (Clone looks at your reference) →
-            Production (Writer&apos;s Room → Film Queue → Edit Bay → Calendar) → Videos (a Veo render from a storyboard).
+            Production (Writer&apos;s Room → Film Queue → Edit Bay → Calendar) → Renders (a Veo render from a storyboard).
           </Step>
           <Step icon={ListChecks} title="Running the loop by hand.">
-            Settings → Automation → <i>Run cycle now</i>, then watch Drafts and the Inbox. An idle sweep is silent by
+            Settings → Automation → <i>Run cycle now</i>, then watch Articles and the Inbox. An idle sweep is silent by
             design — other activity (analytics and performance syncs) shows the scheduler is alive.
           </Step>
         </ul>
@@ -406,7 +408,7 @@ export default async function GuidePage() {
           <li><b>Nothing is being drafted</b> — the Approved column is empty, the weekly target or daily budget is reached, drafting is on manual, or global pause is on. Settings → Automation says which.</li>
           <li><b>An article is held with nothing to act on</b> — the Inbox card names the failing check. A flagged claim needs a live-search key to be sourced; give it one sweep, then verify or remove the sentence yourself.</li>
           <li><b>At final approval but never publishes</b> — not the publish day yet, or no WordPress (Download HTML + Mark as published), or publishing isn&apos;t on auto.</li>
-          <li><b>Social posts never send</b> — no slots or timezone, a post awaiting approval, approved but never queued, or a broken account (the chip on Distribute is red on the provider&apos;s own verdict, never on a token-expiry note alone).</li>
+          <li><b>Social posts never send</b> — no slots or timezone, a post awaiting approval, approved but never queued, or a broken account (the chip on Social posts is red on the provider&apos;s own verdict, never on a token-expiry note alone).</li>
           <li><b>Measure shows dashes</b> — analytics not connected, or the Search Console property is missing the service account; Settings → Analytics runs the live probe that says which.</li>
           <li><b>A button does nothing after an update</b> — a tab held open across a deployment. Reload.</li>
           <li><b>Trust the dashes.</b> A dash with a reason means &ldquo;not measured yet&rdquo; — this app never invents a number to fill a card, so the numbers you do see are real.</li>

@@ -15,7 +15,7 @@ import { TRACKS, ELSIE_NAME } from "@/lib/guide/steps";
 const QUICK_START = [
   { role: "Setting the app up",       steps: ["Settings → Keys: paste a Claude or Gemini key", "Settings → Workspace: pick the default model (only models with a key are offered)", "Settings → Connections: social accounts + a mailbox", "Settings → Keys → Storage: Google Drive, not local disk (the platform operator)"] },
   { role: "New creator (solo)",       steps: ["Ideas → Topics: add two or three Topics", "Link your YouTube channel (Channels)", "Approve the ideas you want on the Ideas board", "Click Write, then run the agent"] },
-  { role: "Publishing regularly",     steps: ["Settings → Schedule: posting slots + timezone", "Distribute → Compose: write once, pick the accounts", "Queue drafts into the next free slot", "Distribute → Sent: each network's result"] },
+  { role: "Publishing regularly",     steps: ["Settings → Schedule: posting slots + timezone", "Social posts → Compose: write once, pick the accounts", "Queue drafts into the next free slot", "Social posts → Sent: each network's result"] },
   { role: "Agency / team lead",       steps: ["Invite the team under Settings → People", "One workspace per client — keys stay separate", "Per-channel default models & templates", "Track work on the Production board"] },
 ];
 
@@ -192,7 +192,7 @@ export default async function HelpPage({ searchParams }: { searchParams: Promise
           <Link href="/brand" className="btn sm flex items-center gap-1.5">Brand &amp; topics <ExternalLink className="w-3 h-3" /></Link>
           <Link href="/intel" className="btn sm flex items-center gap-1.5">Intel <ExternalLink className="w-3 h-3" /></Link>
           <Link href="/blog" className="btn sm flex items-center gap-1.5">Blog <ExternalLink className="w-3 h-3" /></Link>
-          <Link href="/distribute" className="btn sm flex items-center gap-1.5">Distribute <ExternalLink className="w-3 h-3" /></Link>
+          <Link href="/distribute" className="btn sm flex items-center gap-1.5">Social posts <ExternalLink className="w-3 h-3" /></Link>
           <Link href="/insights" className="btn sm flex items-center gap-1.5">Insights <ExternalLink className="w-3 h-3" /></Link>
           <Link href="/production" className="btn sm flex items-center gap-1.5">Production board <ExternalLink className="w-3 h-3" /></Link>
           <Link href="/setup" className="btn sm flex items-center gap-1.5">Settings <ExternalLink className="w-3 h-3" /></Link>

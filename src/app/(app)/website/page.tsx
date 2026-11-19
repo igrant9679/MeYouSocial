@@ -319,7 +319,7 @@ export default async function WebsitePage({ searchParams }: { searchParams: Prom
             variant="inline"
             line="Nothing is at final approval, so there is nothing to export."
             note="An article appears here once every required check has passed."
-            action={{ label: "See what's being written", href: "/drafts" }}
+            action={{ label: "See what's being written", href: "/publish" }}
           />
         ) : (
           <ul className="text-xs flex flex-col gap-1">

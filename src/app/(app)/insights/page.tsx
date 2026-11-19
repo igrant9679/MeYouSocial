@@ -463,7 +463,7 @@ export default async function InsightsPage({
           // about why they are blank, which is exactly when we do not know.
           line={socialReason ?? "No social engagement figures for this window."}
           note="Blank here means unknown, never zero. Engagement syncs on its own once an account is connected and posts have actually gone out."
-          action={{ label: "Open Distribute", href: "/distribute" }}
+          action={{ label: "Open Social posts", href: "/distribute" }}
         />
       )}
       <div className="grid grid-cols-1 @xl:grid-cols-2 @4xl:grid-cols-4 gap-3 mb-3">

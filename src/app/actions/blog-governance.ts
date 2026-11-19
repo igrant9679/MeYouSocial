@@ -165,7 +165,7 @@ export async function unscheduleAllSocialAction(formData: FormData) {
   revalidatePath("/social", "layout");
   revalidatePath("/setup/automation");
   redirect(`/setup/automation?ok=${encodeURIComponent(moved.count
-    ? `${moved.count} scheduled post${moved.count === 1 ? "" : "s"} moved back to drafts, each keeping its time — Queue all on Distribute → Calendar puts them back.`
+    ? `${moved.count} scheduled post${moved.count === 1 ? "" : "s"} moved back to drafts, each keeping its time — Queue all on Social posts → Calendar puts them back.`
     : "Nothing was scheduled.")}#pause`);
 }
 

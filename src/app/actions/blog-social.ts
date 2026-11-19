@@ -103,7 +103,7 @@ export async function postSocialVariantAction(formData: FormData) {
   await db.socialVariant.update({ where: { id }, data: { status: out ? "posted" : "approved" } });
   revalidatePath(`/blog/${variant.postId}`);
   revalidatePath("/social", "layout");
-  if (!out) return revalidate(sent?.targets[0]?.error ?? "Posting failed — the post is in Distribute → Queue with what went wrong.");
+  if (!out) return revalidate(sent?.targets[0]?.error ?? "Posting failed — the post is in Social posts → Queue with what went wrong.");
   redirect(`/blog/${variant.postId}?tab=distribute&social_ok=1`);
 }
 

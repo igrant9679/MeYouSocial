@@ -160,11 +160,11 @@ export async function pushSeoMetaAction(formData: FormData) {
   if (!post.wpPostId) back("This post isn't on WordPress yet — publish it first.");
   const conn = await db.wordPressConnection.findUnique({ where: { workspaceId: workspace.id } });
   const creds = conn && (await credentialsFor(workspace.id));
-  if (!conn || !creds) back("No WordPress connection — set one up on Distribute → Website.");
+  if (!conn || !creds) back("No WordPress connection — set one up on Articles → Website.");
 
   const { effectiveFieldMap, buildSeoMeta, verifySeoMeta, isSeoPlugin: isPlugin } = await import("@/lib/seo-plugins");
   const plugin = isPlugin(conn!.seoPlugin) ? conn!.seoPlugin : "none";
-  if (plugin === "none") back("Pick your site's SEO plugin on Distribute → Website first — with None selected there is nowhere to put the metadata.");
+  if (plugin === "none") back("Pick your site's SEO plugin on Articles → Website first — with None selected there is nowhere to put the metadata.");
 
   const fieldMap = effectiveFieldMap(plugin, conn!.seoFieldMap);
   const seoValues = {
@@ -237,7 +237,7 @@ export async function checkLiveSocialTagsAction(formData: FormData) {
   if (!post) redirect("/blog");
   if (!post.publishedUrl) back("This article isn't live yet — there's no page to read.");
   const conn = await db.wordPressConnection.findUnique({ where: { workspaceId: workspace.id }, select: { baseUrl: true } });
-  if (!conn) back("No WordPress connection — set one up on Distribute → Website.");
+  if (!conn) back("No WordPress connection — set one up on Articles → Website.");
   let report: Record<string, unknown> = {};
   try {
     report = JSON.parse(post.publishReport ?? "{}") as Record<string, unknown>;

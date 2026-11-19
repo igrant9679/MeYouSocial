@@ -280,10 +280,10 @@ export const STEPS: GuideStep[] = [
     track: "essentials",
     title: "Write and publish",
     body:
-      "The blog module takes an idea to a finished post — outline, draft, SEO and accessibility checks, then publish. Its " +
-      "Distribute tab spins the finished piece into social variants.",
-    anchor: "nav/drafts",
-    cta: { label: "Open Blog", href: "/blog" },
+      "Articles takes an idea to a finished post — outline, draft, SEO and accessibility checks, then publish. An " +
+      "article's Distribute tab spins the finished piece into social posts.",
+    anchor: "nav/publish",
+    cta: { label: "Open Articles", href: "/publish" },
   },
   {
     id: "tour-social",
@@ -291,10 +291,10 @@ export const STEPS: GuideStep[] = [
     track: "essentials",
     title: "Get it out the door",
     body:
-      "Social is composer, calendar and queue in one place: write once, choose the accounts, and either schedule it or drop " +
-      "it into the next free slot.",
+      "Social posts is composer, calendar and queue in one place: write once, choose the accounts, and either schedule it or " +
+      "drop it into the next free slot.",
     anchor: "nav/distribute",
-    cta: { label: "Open Distribute", href: "/distribute" },
+    cta: { label: "Open Social posts", href: "/distribute" },
   },
   {
     id: "tour-insights",
@@ -362,7 +362,7 @@ export const STEPS: GuideStep[] = [
     body:
       "Scripts is the long-form writing surface: templates for recurring formats, a canvas for drafting, and the agent for " +
       "the first pass. The channel's voice profile and your motifs are injected into every generation.",
-    anchor: "nav/drafts",
+    anchor: "nav/studio",
     cta: { label: "Open Scripts", href: "/scripts" },
   },
   {
@@ -372,10 +372,10 @@ export const STEPS: GuideStep[] = [
     track: "content",
     title: "Storyboards and shorts",
     body:
-      "Videos turns a post or script into a scene board, renders it, and stitches the scenes into one file. Branded shorts " +
+      "Renders turns a post or script into a scene board, renders it, and stitches the scenes into one file. Branded shorts " +
       "are the quicker path — a title card themed from your BrandKit, no storyboard needed.",
-    anchor: "nav/drafts",
-    cta: { label: "Open Videos", href: "/videos" },
+    anchor: "nav/studio",
+    cta: { label: "Open Renders", href: "/videos" },
   },
   {
     id: "content-production",
@@ -386,7 +386,7 @@ export const STEPS: GuideStep[] = [
     body:
       "The production board runs the pipeline from idea to published, with tasks, assets and a wiki for the standing " +
       "answers. Drag cards between columns, or use the dropdown on each — dragging is never the only way.",
-    anchor: "nav/drafts",
+    anchor: "nav/studio",
     cta: { label: "Open Production", href: "/production" },
   },
 
@@ -433,7 +433,7 @@ export const STEPS: GuideStep[] = [
       "History shows the per-network result of every send, with retry on the ones that failed. Links are tagged per network " +
       "at send time, not when you write, so the same post can be told apart by source in your analytics.",
     anchor: "nav/distribute",
-    cta: { label: "Open Distribute", href: "/distribute" },
+    cta: { label: "Open Social posts", href: "/distribute" },
   },
 
   // ── Track: measuring ─────────────────────────────────────────────────────

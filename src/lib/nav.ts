@@ -21,20 +21,23 @@ import type { LeftRailItem } from "@/components/LeftRailNav";
 // the seven stages in the order work moves, then Setup. The sixteen module
 // pages did not go anywhere — each is a tab inside the stage that owns it
 // (see StageHeader), at its unchanged URL. Setup is Admin-only (decision 4).
-export const RAIL: (LeftRailItem & { adminOnly?: boolean; editorOnly?: boolean })[] = [
+// NAMED BY FORMAT since 2026-11-19 (the owner's "Name by format"): Drafts,
+// Publish and Distribute became Articles, Social posts and Video — see the
+// note on STAGE_HREFS in lib/stages.ts. Video shows only with the studio.
+export const RAIL: (LeftRailItem & { adminOnly?: boolean; editorOnly?: boolean; studioOnly?: boolean })[] = [
   { href: "/inbox",       label: "Inbox",       icon: "Inbox",         color: "var(--brand)", soft: "var(--brand-soft)" },
   // Editors and admins only: its API is EDITOR-gated, and a viewer's every
   // message failed with "Unexpected token '<'" (ENG-17).
   { href: "/assistant",   label: "Elsie",       icon: "Bot",           color: "var(--violet)", soft: "var(--violet-soft)", editorOnly: true },
   { href: "/research",    label: "Research",    icon: "Telescope",     color: "var(--blue)", soft: "var(--blue-soft)" },
   { href: "/ideas",       label: "Ideas",       icon: "Sparkles",      color: "var(--amber)", soft: "var(--amber-soft)" },
-  { href: "/drafts",      label: "Drafts",      icon: "PenLine",       color: "var(--green)", soft: "var(--green-soft)" },
+  { href: "/publish",     label: "Articles",    icon: "PenLine",       color: "var(--green)", soft: "var(--green-soft)" },
   // ⚠ "Review" left the rail on 2026-09-20 (audit B1.1). It was the Inbox card
   // for card — the same <NeedsYouGroups> over the same data — so the rail held
   // two entries to one screen. Its tabs went to the stages that own the work:
-  // Audit to Publish, Approvals to Distribute (via Publish, until 2026-11-18).
-  { href: "/publish",     label: "Publish",     icon: "Globe",         color: "var(--sea)", soft: "var(--sea-soft)" },
-  { href: "/distribute",  label: "Distribute",  icon: "Share2",        color: "var(--azure)", soft: "var(--blue-soft)" },
+  // Audit to Articles (then Publish), Approvals to Social posts (via Publish, until 2026-11-18).
+  { href: "/distribute",  label: "Social posts", icon: "Share2",       color: "var(--azure)", soft: "var(--blue-soft)" },
+  { href: "/studio",      label: "Video",       icon: "Clapperboard",  color: "var(--sea)", soft: "var(--sea-soft)", studioOnly: true },
   { href: "/measure",     label: "Measure",     icon: "LineChart",     color: "var(--indigo)", soft: "var(--indigo-soft)" },
   { href: "/setup",       label: "Settings",    icon: "SlidersHorizontal", color: "var(--violet)", soft: "var(--violet-soft)", group: "Setup", adminOnly: true },
   { href: "/channels",    label: "Channels",    icon: "Layers",        color: "var(--purple)", soft: "var(--purple-soft)", group: "Setup", adminOnly: true },

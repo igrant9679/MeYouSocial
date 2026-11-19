@@ -148,7 +148,7 @@ export default async function ConnectionsPage({ searchParams }: { searchParams: 
       {socialAccounts.length === 0 ? (
         <div className="card mb-3 text-xs text-[var(--mute)]">
           No social profile connected here — connect one below to publish from{" "}
-          <Link href="/distribute" className="underline">Distribute</Link> or a blog post&apos;s Distribute tab.
+          <Link href="/distribute" className="underline">Social posts</Link> or an article&apos;s Distribute tab.
           {socialReady && (
             <>
               {" "}

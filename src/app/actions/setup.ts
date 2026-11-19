@@ -22,5 +22,5 @@ export async function setStudioEnabledAction(formData: FormData) {
   });
   // The strip is in the shell, so every page's tabs change with this.
   revalidatePath("/", "layout");
-  redirect(`/setup?ok=${encodeURIComponent(on ? "Video studio on — Scripts, Thumbnails, Videos and Production show under Drafts." : "Video studio off — the studio tabs and controls are hidden; nothing was deleted.")}`);
+  redirect(`/setup?ok=${encodeURIComponent(on ? "Video studio on — Video shows on the rail, with Scripts, Thumbnails, Renders and Production." : "Video studio off — the studio tabs and controls are hidden; nothing was deleted.")}`);
 }

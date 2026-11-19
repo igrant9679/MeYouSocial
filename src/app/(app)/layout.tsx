@@ -61,7 +61,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const { user, workspace, membership, channels, active } = await getActiveChannel();
   const userLabel = user.name ?? user.email.split("@")[0];
   const editorUp = canEdit(membership.role);
-  const navItems = RAIL.filter((n) => (!n.adminOnly || membership.role === "ADMIN") && (!n.editorOnly || editorUp));
+  // Video (studioOnly) is dropped below, once the studio's state is read.
+  const roleRail = RAIL.filter((n) => (!n.adminOnly || membership.role === "ADMIN") && (!n.editorOnly || editorUp));
   const activeChoices = user.memberships
     .filter((m) => m.status === "active")
     .map((m) => ({ id: m.workspaceId, name: m.workspace.name }));
@@ -143,6 +144,8 @@ html[data-theme="dark"] .ws-brand {
   const supportView = await activeSupportView(workspace.id).catch(() => null);
 
   const engineState = { paused: enginePaused, autonomous: engineAutonomous, heartbeat, autopilotOff: process.env.AUTOPILOT === "off" };
+  // The rail: Video only while the studio is shown (2026-11-19, stages named by format).
+  const navItems = roleRail.filter((n) => !n.studioOnly || studio.show);
 
   // Elsie's guided tour. Her setup steps are filtered against what this workspace
   // has actually done, so she never walks anyone through work already finished.

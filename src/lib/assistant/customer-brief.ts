@@ -415,7 +415,7 @@ async function respondedSection(workspaceId: string, now: Date, day: Day): Promi
       places.set(place, (places.get(place) ?? 0) + r._count._all);
     }
     lines.push({
-      text: `Replies received: ${[...kinds].map(([k, c]) => `${n(c)} ${k}${c === 1 ? "" : "s"}`).join(", ")} (${[...places].sort((a, b) => b[1] - a[1]).map(([p, c]) => `${p} ${n(c)}`).join(", ")}). Counted only — what people wrote is not kept here; read it in Distribute → Engage.`,
+      text: `Replies received: ${[...kinds].map(([k, c]) => `${n(c)} ${k}${c === 1 ? "" : "s"}`).join(", ")} (${[...places].sort((a, b) => b[1] - a[1]).map(([p, c]) => `${p} ${n(c)}`).join(", ")}). Counted only — what people wrote is not kept here; read it in Social posts → Engage.`,
       basis: "measured", when: `${REPLIES_WINDOW_DAYS} days to ${day(now)}`, href: "/social/engage", always: false,
     });
   }

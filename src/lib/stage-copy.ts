@@ -38,14 +38,14 @@ export function stripPhrase(tabs: StageTab[], stageHref: string, sep = ", "): st
 /** What a stage's tabs don't say for themselves. Keep each to one clause. */
 export const STAGE_NOTES: Partial<Record<StageHref, string>> = {
   "/ideas": "the Overview is one board for article, video and social ideas in each Topic's lane, columns Discovered/Approved/Drafted/Rejected",
-  "/drafts": "Articles is one page with a Board/List toggle",
-  "/publish": "Download HTML and Mark as published when there is no WordPress",
-  "/distribute": "Posts is one list of posts under four filters; Approvals is the posts held for an admin's yes (it was a Publish tab until 18 November 2026); Calendar puts posts and articles on one grid (Show: All), or shows posts alone, or the articles' publishing month",
+  "/publish": "the Overview lists what is being written, what waits to go out and what went live; All articles is one page with a Board/List toggle; Download HTML and Mark as published when there is no WordPress",
+  "/distribute": "Posts is one list of posts under four filters; Approvals is the posts held for an admin's yes; Calendar puts posts and articles on one grid (Show: All), or shows posts alone, or the articles' publishing month",
+  "/studio": "shown only while the video studio is on (a YouTube channel exists and the switch under Settings is on); the Overview lists scripts being written and renders running",
   "/measure": "Overview is every format at once, with Summary being the Measure page itself; By Topic is what each Topic earned; the YouTube audit is the own-channel audit from the YouTube Analytics API",
   "/setup": "the model each kind of job runs on is on Workspace; People is roles, invitations and require-approval; Automation is full autonomy, the pause, the weekly article target, the publish day, SEO on drafts, social auto-dials and function modes; Schedule is slots, time zone, best time, UTM and campaigns; Connections is what is connected and what is missing",
 };
 
-/** "Drafts (Articles; with the video studio on, also Scripts, Thumbnails, Videos, Production)" */
+/** "Articles (All articles, Audit, Website, Calendar)"; "Video (with the video studio on: Scripts, Thumbnails, Renders, Production)" */
 export function stageTabsPhrase(href: StageHref): string {
   const base = tabsFor(href, ctx({}));
   const studio = extra(tabsFor(href, ctx({ studio: true })), base);
@@ -53,7 +53,8 @@ export function stageTabsPhrase(href: StageHref): string {
   const operator = extra(tabsFor(href, ctx({ admin: true, operator: true })), [...base, ...admin]);
   const parts = [
     stripPhrase(base, href),
-    studio.length ? `with the video studio on, also ${stripPhrase(studio, href)}` : "",
+    // Video has no tabs but the studio's, so "also" would follow nothing there.
+    studio.length ? `with the video studio on, ${base.length ? "also " : ""}${stripPhrase(studio, href)}` : "",
     admin.length ? `admins also see ${stripPhrase(admin, href)}` : "",
     operator.length ? `the platform operator also sees ${stripPhrase(operator, href)}` : "",
   ].filter(Boolean);
@@ -75,9 +76,15 @@ export function stageUrls(): string {
   }).join(". ");
 }
 
-/** "Research → Ideas → Drafts → Publish → Distribute → Measure" */
+/**
+ * "Research → Ideas → Articles / Social posts / Video → Measure" — since
+ * 2026-11-19 the middle stages are FORMATS side by side, not steps in a row:
+ * Research and Ideas feed all three, and Measure reads all three.
+ */
+const FORMAT_STAGES: StageHref[] = ["/publish", "/distribute", "/studio"];
 export function loopSentence(): string {
-  return LOOP_STAGES.map((h) => STAGES[h].label).join(" → ");
+  const front = LOOP_STAGES.filter((h) => !FORMAT_STAGES.includes(h) && h !== "/measure").map((h) => STAGES[h].label);
+  return [...front, FORMAT_STAGES.map((h) => STAGES[h].label).join(" / "), STAGES["/measure"].label].join(" → ");
 }
 
 /** The rail, top to bottom, with each group named once: "Inbox · Assistant · … · Setup (Settings, Channels, Brand) · Help". */

@@ -27,7 +27,7 @@ import { Banner, MediaThumbs, listKeys, STATUS_STYLE } from "@/components/Social
 const TITLES: Record<ListTab, { title: string; sentence: (n: number) => string }> = {
   queue: { title: "Queue", sentence: (n) => (n ? `${n} post${n === 1 ? "" : "s"} waiting to go out. When the time comes, each publishes on its own.` : "Nothing is waiting to go out.") },
   sent: { title: "Sent", sentence: (n) => (n ? `${n} post${n === 1 ? "" : "s"} published, partly published or failed — the record of what actually went out.` : "Nothing has been sent yet.") },
-  drafts: { title: "Post drafts", sentence: (n) => (n ? `${n} draft${n === 1 ? "" : "s"} — nothing here goes anywhere until someone queues, schedules or approves it.` : "No drafts.") },
+  drafts: { title: "Drafts", sentence: (n) => (n ? `${n} draft${n === 1 ? "" : "s"} — nothing here goes anywhere until someone queues, schedules or approves it.` : "No drafts.") },
 };
 
 export async function PostList({

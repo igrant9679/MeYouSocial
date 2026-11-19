@@ -241,7 +241,7 @@ export async function advanceBlogStatusAction(formData: FormData) {
         // Status unchanged — the state stays true. Name the failure.
         redirect(
           `/blog/${post.id}?flashErr=${encodeURIComponent(
-            `WordPress publish failed — the post was NOT marked published. ${failure ?? "Check the connection on Distribute → Website."}`.slice(0, 300),
+            `WordPress publish failed — the post was NOT marked published. ${failure ?? "Check the connection on Articles → Website."}`.slice(0, 300),
           )}`,
         );
       }

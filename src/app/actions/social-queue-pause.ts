@@ -62,6 +62,6 @@ export async function resumeSocialQueueAction(formData: FormData) {
     ? "Social queue resumed — nothing came due while it was paused."
     : how === "send"
       ? `Social queue resumed — ${n(missed.length, "post")} that came due while paused go${missed.length === 1 ? "es" : ""} out on the next sweep.`
-      : `Social queue resumed — ${moved} of ${n(missed.length, "missed post")} moved into the next free slots.${drafted ? ` ${drafted} went back to Post drafts with their times (${failure ?? "no free slot"}) — Queue all on Distribute → Calendar puts them back.` : ""}`;
+      : `Social queue resumed — ${moved} of ${n(missed.length, "missed post")} moved into the next free slots.${drafted ? ` ${drafted} went back to Drafts with their times (${failure ?? "no free slot"}) — Queue all on Social posts → Calendar puts them back.` : ""}`;
   back((failure ? "err=" : "ok=") + encodeURIComponent(msg));
 }

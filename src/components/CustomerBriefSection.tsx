@@ -90,7 +90,7 @@ export function CustomerBriefSection({ brief, role, channelName }: { brief: Cust
         })}
         <p className="text-2xs text-[var(--mute)] m-0 pt-3 border-t border-[var(--line)]">
           The first lines of each part go with every message to Elsie; she reads the rest when a question is about the customer. Results under those first lines can be up to five minutes behind this page.
-          {" "}Comments, messages and reviews are counted, never copied here — read them in Distribute → Engage.
+          {" "}Comments, messages and reviews are counted, never copied here — read them in Social posts → Engage.
           {" "}{channelName ? <>The channel audience shown is <b>{channelName}</b>&apos;s — your active channel.</> : "No YouTube channel is set up here, so no channel audience is shown."}
         </p>
       </div>

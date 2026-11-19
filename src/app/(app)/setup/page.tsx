@@ -93,7 +93,7 @@ export default async function SetupOverview({ searchParams }: { searchParams: Pr
             {studio.channels === 0
               ? <>Hidden because no YouTube channel exists yet{admin ? <> — <Link href="/channels" className="underline">add one under Channels</Link></> : ""}.</>
               : studio.on
-                ? <>Shown under Drafts because {studio.channels === 1 ? "a YouTube channel exists" : `${studio.channels} YouTube channels exist`}. Turning a short or a render out of an article stays available either way.</>
+                ? <>Video shows on the rail because {studio.channels === 1 ? "a YouTube channel exists" : `${studio.channels} YouTube channels exist`}. Turning a short or a render out of an article stays available either way.</>
                 : <>Switched off — the tabs and controls are hidden; nothing was deleted.</>}
           </p>
           {admin && studio.channels > 0 && (

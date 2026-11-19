@@ -10,7 +10,7 @@ import type { StripCounts } from "@/lib/stage-counts";
 
 /**
  * The phone's bottom tabs (E-SHL-10): the four places a person works from
- * every day — Inbox, Ideas, Drafts, Distribute — a thumb away, with the
+ * every day — Inbox, Ideas, Articles, Social posts — a thumb away, with the
  * strip's own badges (the shell's one poll keeps them fresh), and More for the
  * rest (it opens the drawer). Phones only (`md:hidden`); a person can turn
  * it off from the drawer, and the layout then drops the space kept for it.
@@ -18,8 +18,10 @@ import type { StripCounts } from "@/lib/stage-counts";
 const TABS = [
   { href: "/inbox", label: "Inbox", Icon: Inbox, badge: [] as string[] },
   { href: "/ideas", label: "Ideas", Icon: Sparkles, badge: ["/ideas"] },
-  { href: "/drafts", label: "Drafts", Icon: PenLine, badge: ["/blog"] },
-  { href: "/distribute", label: "Distribute", Icon: Share2, badge: ["/social/approvals", "/social/engage"] },
+  // Named by format since 2026-11-19 (were Drafts and Distribute). "Social", not
+  // "Social posts": a fifth of a phone's width holds one short word.
+  { href: "/publish", label: "Articles", Icon: PenLine, badge: ["/blog"] },
+  { href: "/distribute", label: "Social", Icon: Share2, badge: ["/social/approvals", "/social/engage"] },
 ];
 
 export function MobileTabBar({ counts: initial }: { counts: StripCounts }) {
