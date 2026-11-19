@@ -22,7 +22,7 @@ export const NAV_TIPS: Record<string, string> = {
   "/distribute": "The queue on your posting slots, the drafts behind it, posts waiting for approval, and replies waiting. Compose, the post lists, approvals, calendar and engage are tabs.",
   "/measure": "Search impressions and clicks, engagement, reports — measured numbers only, never invented curves.",
   "/brand": "The things every generation should obey: colours, logo, company info, personas and tone.",
-  "/setup": "Every dial, under the question it answers: who can do what, what runs by itself, when things go out, what is connected. Admins also get the operator pages as tabs.",
+  "/setup": "Every dial, under the question it answers: who can do what, what runs by itself, when things go out, what is connected. Admins also get the operator pages, in groups: People & access, AI & keys and Workspace.",
   "/help": "Guides, FAQs and search. Start here if you're new.",
 };
 
@@ -122,7 +122,7 @@ export const BLOG_TAB_TIPS: Record<string, string> = {
   "/blog/audit": "Existing content flagged for refresh or repair.",
   "/blog/analytics": "Search and traffic for published articles. Needs Search Console and GA4 connected.",
   "/blog/report": "A client-ready summary you can export.",
-  "/setup": "Every dial, under the question it answers: who can do what, what runs by itself, when things go out, what is connected — plus the operator tabs (keys, analytics, email, workspace, usage) for admins.",
+  "/setup": "Every dial, under the question it answers: who can do what, what runs by itself, when things go out, what is connected — plus, for admins, the operator pages in groups: People & access (API tokens, audit log), AI & keys (keys, usage) and Workspace (workspace, email, analytics, jobs).",
   "/blog/automation": "Moved to Settings → Automation.",
   "/blog/brand": "Tone of voice (the 7 Motifs) and the image policy that gates publishing.",
   "/website": "WordPress connection, theme template, and HTML export for any other site.",
@@ -137,7 +137,7 @@ export const BLOG_TAB_TIPS: Record<string, string> = {
 export const SOCIAL_TAB_TIPS: Record<string, string> = {
   "/social": "The command centre: what's connected, what's due, and what's asking for a decision.",
   "/social/compose": "Write a post, tailor it per network, and send it now, on a date, or into the next free slot.",
-  "/social/calendar": "Everything scheduled and drafted, on a grid you can drag. Agenda view lists the same by day.",
+  "/social/calendar": "Posts scheduled and drafted, on a grid you can drag, with articles marked on the day they are due or went out. Show picks both, posts alone, or the articles' publishing month; Agenda lists the same by day.",
   "/social/approvals": "Posts held for review. Nothing here can be sent until an admin approves it.",
   "/social/engage": "Direct messages and comments Zernio can read. Facebook and Instagram have both; LinkedIn has comments only; X exposes no inbox at all.",
   "/social/performance": "What went out, per network, and the engagement pulled back from each.",

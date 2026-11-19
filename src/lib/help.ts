@@ -501,7 +501,7 @@ export const HELP_CATEGORIES: FaqCategory[] = [
       },
       {
         q: "How does the social approval workflow work?",
-        a: "Turn on **Require approval** under Settings → People and posts by non-admins are **held as drafts** until an admin approves them — held posts cannot be sent, scheduled, queued or dragged onto the calendar, and the server enforces that, not just the buttons. Admins see an **Awaiting approval** section with Approve and Request-changes (with a note); approving honors the time the author asked for if it's still in the future. Authors are notified of decisions, and editing a sent-back post resubmits it automatically.",
+        a: "Turn on **Require approval** under Settings → People and posts by non-admins are **held as drafts** until an admin approves them — held posts cannot be sent, scheduled, queued or dragged onto the calendar, and the server enforces that, not just the buttons. Admins see an **Awaiting approval** section under **Distribute → Approvals**, with Approve and Request-changes (with a note); approving honors the time the author asked for if it's still in the future. Authors are notified of decisions, and editing a sent-back post resubmits it automatically.",
         links: [{ label: "Distribute →", href: "/distribute" }, { label: "Notifications →", href: "/notifications" }],
         tags: ["approval", "review", "workflow", "permissions", "social"],
       },
@@ -664,9 +664,9 @@ export const HELP_CATEGORIES: FaqCategory[] = [
       },
       {
         q: "Does the calendar show blog posts too?",
-        a: "Yes — Production → **Calendar** is the unified view: content projects by publish date plus scheduled blog publishes (the ✍ entries, which link straight into the post editor).",
-        links: [{ label: "Calendar →", href: "/production/calendar" }],
-        tags: ["calendar", "unified", "schedule"],
+        a: "Yes. **Distribute → Calendar** puts posts and articles on one grid (**Show: All**, the default): an article sits on the day and hour it is due, in blue, or went out in the last 120 days, in green, and opens when you click it. It can't be dragged there — **Show: Articles** is the publishing month, where an admin drags an article to a day, and **Show: Posts** is the posts alone. An article at final approval with no date has no day to sit on, so the grid says how many there are instead.\n\nSeparately, with the video studio on, Production → **Calendar** lays out content projects by publish date plus scheduled blog publishes (the ✍ entries, which link straight into the post editor).",
+        links: [{ label: "Distribute → Calendar →", href: "/social/calendar" }, { label: "Production → Calendar →", href: "/production/calendar" }],
+        tags: ["calendar", "unified", "schedule", "articles", "blog", "posts", "one grid"],
       },
     ],
   },
@@ -765,7 +765,7 @@ export const HELP_CATEGORIES: FaqCategory[] = [
     entries: [
       {
         q: "Coming from Socialmonials — where is everything?",
-        a: "Distribute has it all, under these tabs:\n\n· **Compose** — the Publish screen: pick accounts (Select all / Clear all), write the caption, add images, customise each network, **first comment**, **move links to the first comment**, category, **watermark**, repost (Evergreen), then **Post now · Schedule · Add to queue · Optimal · Save as draft**.\n· **Queue · Sent · Drafts** — the three lists, with search and Category / Type / Social profile / Source filters, and bulk actions.\n· **Captions** — Caption Studio: the caption prompts (special days, weekly campaign, from image descriptions, event countdown) run for you.\n· **Media** — the image library. **RSS** — feeds that bring in ideas or drafts. **Calendar**, **Engage** (Social CRM).\n\nThe client switcher is the workspace switcher top left; Schedule (posting slots), Import (CSV) and Campaigns are under Settings → Schedule.",
+        a: "Distribute has it all. Its strip shows a few groups; a group's pages appear on a second row once you are in it:\n\n· **Compose** — two pages. **Compose** is the Publish screen: pick accounts (Select all / Clear all), write the caption, add images, customise each network, **first comment**, **move links to the first comment**, category, **watermark**, repost (Evergreen), then **Post now · Schedule · Add to queue · Optimal · Save as draft**. **Captions** is Caption Studio: the caption prompts (special days, weekly campaign, from image descriptions, event countdown) run for you.\n· **Posts** — **Queue · Sent · Post drafts · Evergreen**: the lists, with search and Category / Type / Social profile / Source filters, and bulk actions. Evergreen is the posts set to repeat.\n· **Approvals** — posts held for an admin's yes, when this workspace reviews posts.\n· **Calendar** — posts and articles on one grid, by month or by week; drag a post to move it.\n· **Engage** — Social CRM: comments, messages and reviews.\n· **Media & feeds** — **Media** is the image and video library; **RSS** is feeds that bring in ideas or drafts.\n\nThe client switcher is the workspace switcher top left; Schedule (posting slots), Import (CSV) and Campaigns are under Settings → Schedule.",
         links: [{ label: "Open Distribute →", href: "/distribute" }],
         tags: ["socialmonials", "migration", "where is", "publish", "queue", "sent", "drafts"],
       },
@@ -848,7 +848,7 @@ export const HELP_CATEGORIES: FaqCategory[] = [
       },
       {
         q: "Month view or week view?",
-        a: "Month shows coverage at a glance — which days have something going out. Week is a time grid when you care about the hour: drops snap to the half hour and the cell shows the landing time as you hover. Both let you drag, and both keep a date box on every card, because dragging is never the only way to move something.",
+        a: "Month shows coverage at a glance — which days have something going out. Week is a time grid when you care about the hour: drops snap to the half hour and the cell shows the landing time as you hover. Both let you drag, and both keep a date box on every card, because dragging is never the only way to move something.\n\n**Show**, above the grid, picks what is on it: **All** adds articles as marks on the day and hour they are due or went out (a mark opens the article and can't be dragged), **Posts** is the posts alone, and **Articles** is the publishing month, where an admin gives an article a date.",
         tags: ["calendar", "month", "week", "drag"],
       },
       {
