@@ -1982,6 +1982,12 @@ before changing code in that area.
 - ⚠ **A refresh never blanks a real avatar**: `onboarding.audience` writes its generic baseline only when there is
   no avatar yet; on a refresh the existing one stays until a real answer replaces it, so a failed model call leaves
   the team's text in place (it used to write the placeholder first).
+- ⚠ **A refreshed paragraph is never stored cut mid-sentence** (2026-11-19, the owner's "proceed"): the job kept the
+  first 600 characters flat, and Claude's longer answer for CommunityForce left all four paragraphs stopping mid-word.
+  The prompt now asks for at most 90 words as a string, and a longer answer is shortened by `endAtSentence`
+  (`lib/sentence-cut.ts`) to its last whole sentence within `AUDIENCE_SECTION_MAX` (900): a decimal point or a domain
+  is not a sentence end, and one endless sentence stops at a word and ends with "…". Use it wherever generated prose
+  is stored under a limit — never a bare `slice`.
 
 ## ⚠ The visits social brought are a 28-day GA4 snapshot, social rows only, replaced whole (2026-11-03, audit Phase 5, growth part cb)
 - **The read** (E-MEA-07): after its path × date pass, a normal analytics sync (never a backfill window) reads GA4

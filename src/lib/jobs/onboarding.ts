@@ -6,6 +6,7 @@ import { youtubeFor } from "@/lib/youtube";
 import { llm, resolveUsableModel } from "@/lib/llm";
 import { writeJson } from "@/lib/db/json";
 import { AUDIENCE_BASELINE } from "@/lib/audience-baseline";
+import { endAtSentence } from "@/lib/sentence-cut";
 import { cleanTitle, stripListMarker } from "@/lib/list-marker";
 
 // Onboarding background jobs.
@@ -19,6 +20,9 @@ import { cleanTitle, stripListMarker } from "@/lib/list-marker";
 
 // onDemand: a person pressed Generate — a failure is reported, not swallowed (tracker #27).
 type Payload = { channelId: string; onDemand?: boolean };
+
+/** The most one section of an audience profile keeps — about 140 words; longer answers end at their last whole sentence inside it. */
+export const AUDIENCE_SECTION_MAX = 900;
 
 let registered = false;
 
@@ -203,7 +207,7 @@ export function registerOnboardingJobs() {
         // See the note in onboarding.voice — a model this workspace can reach.
         model: channel.defaultModel ?? "",
         system: "You generate audience avatars with demographics, psychographics, online behavior, offline behavior, and key questions.",
-        messages: [{ role: "user", content: `Niche: ${channel.nicheDescription}\n${source}\n\nDifferentiation: ${channel.differentiation}\n\nProduce a JSON object with fields: demographics, psychographics, onlineBehavior, offlineBehavior (each a short paragraph), keyQuestions (array of 5 strings). Respond with the JSON object only.` }],
+        messages: [{ role: "user", content: `Niche: ${channel.nicheDescription}\n${source}\n\nDifferentiation: ${channel.differentiation}\n\nProduce a JSON object with fields: demographics, psychographics, onlineBehavior, offlineBehavior (each a short paragraph of plain sentences, at most 90 words — a string, not a list or an object), keyQuestions (array of 5 strings). Respond with the JSON object only.` }],
         workspaceId: channel.workspaceId,
         timeoutMs: 120_000,
       }));
@@ -220,7 +224,10 @@ export function registerOnboardingJobs() {
         }
       })();
       if (!parsed) throw new Error("the model's answer wasn't the JSON asked for");
-      const text = (v: unknown) => (typeof v === "string" && v.trim() ? writeJson({ summary: v.trim().slice(0, 600) }) : undefined);
+      // ⚠ Shortened at a sentence end, never mid-word: a flat 600-character cut stored
+      // paragraphs that stopped at "…'best alternati" (2026-11-18, CommunityForce). The
+      // prompt asks for about 90 words; this is the backstop when a model writes more.
+      const text = (v: unknown) => (typeof v === "string" && v.trim() ? writeJson({ summary: endAtSentence(v, AUDIENCE_SECTION_MAX) }) : undefined);
       const questions = Array.isArray(parsed.keyQuestions) ? parsed.keyQuestions.filter((q): q is string => typeof q === "string" && Boolean(q.trim())).slice(0, 5) : [];
       const avatar = await db.audienceAvatar.update({
         where: { channelId },
