@@ -2902,6 +2902,21 @@ under Distribute, but the posts held for an admin sat under Publish — a stage 
   fail, the third clears it and succeeds); fails three times (build fails, nothing copied); the app build fails
   (Chrome never tried, cache untouched). **Still not known**: which of the two it was — a build that needed the
   retry will say so in its log ("chrome step failed, exit code N", and "clearing the cached copy" if it got that far).
+- ⚠ **A second cause: the health check (2026-11-19, the owner's "Yes, raise it").** `fdc530c` (Help wording) failed
+  after 5 min 52 s and its empty retry `22d1ec8` went live. The owner sent that deploy's Build and Deploy logs: the
+  whole build passed, Chrome step included (no "chrome step failed" line); the image was pushed at 09:41:07 EST;
+  "Starting Healthcheck · Path: / · Retry window: 1m0s" at 09:41:34; "1/1 replicas never became healthy!" at 09:42:35.
+  The container started at 09:41:35 and migrate said "No pending migrations to apply." at 09:41:38 — the rest of the
+  start command, `npm run db:seed` (tsx compiling and running `prisma/seed.ts`) and `next start`, did not answer `/`
+  within the minute. The same tree passed on the retry, so it is a boot that sometimes takes longer than 60 s, not a
+  crash, and the Chrome retry cannot help it. `healthcheckTimeout` is now **300** (Railway's own default): a failed
+  health check leaves the previous deployment serving, so the only cost is that a truly broken boot takes up to five
+  minutes to be declared failed. Telling the two apart: a failure at about 2½–3 minutes with "chrome step failed" in
+  the Build Logs is the Chrome step; a failure near 6 minutes with a clean build and "replicas never became healthy"
+  is the health check. **Not known**: how long a normal boot takes — "Starting Container" to Next's ready line in a
+  SUCCESSFUL deployment's Deploy Logs. If it is usually close to a minute, running the seed on every boot is the cost
+  worth a follow-up (the owner's call); if it is usually seconds, something stalls now and then (the database proxy is
+  the first suspect) and the longer window rides it out.
 
 ## ⚠ A reply that isn't the protocol is never shown to a person (2026-11-18, the owner's "Yes, fix and push", found testing Elsie as an admin)
 - **What happened.** On production, an admin's question got Elsie's whole answer as

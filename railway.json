@@ -7,7 +7,7 @@
   "deploy": {
     "startCommand": "npx prisma migrate deploy && npm run db:seed && npm run start",
     "healthcheckPath": "/",
-    "healthcheckTimeout": 60,
+    "healthcheckTimeout": 300,
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 3
   }
