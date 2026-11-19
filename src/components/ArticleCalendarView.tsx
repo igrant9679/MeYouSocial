@@ -6,7 +6,7 @@ import type { ArticleMonth } from "@/lib/article-calendar";
 /**
  * The articles' publishing calendar as two pieces a page drops under its own
  * heading — the month stepper and the month itself with its warnings. Shared
- * by Publish → Blog calendar and by Distribute → Calendar's "Articles" view
+ * by Publish → Article calendar and by Distribute → Calendar's "Articles" view
  * (2026-11-17), fed by lib/article-calendar.ts `articleMonth`.
  */
 

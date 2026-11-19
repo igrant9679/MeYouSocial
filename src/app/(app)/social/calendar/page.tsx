@@ -19,7 +19,7 @@ import { Banner, Empty, PostCard, Section, SocialHeader } from "@/components/Soc
 // ONE calendar, a switch for what it shows (2026-11-17, the owner's "Yes,
 // regroup tabs"): there were two calendars under two stages, and someone asking
 // "what goes out when" had to know which. `?show=articles` puts the articles'
-// publishing month here — the same one as Publish → Blog calendar, from
+// publishing month here — the same one as Publish → Article calendar, from
 // lib/article-calendar.ts — without leaving this page or its strip.
 //
 // ONE GRID since 2026-11-18 (the owner's "Yes, build it"): the default view,

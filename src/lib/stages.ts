@@ -101,7 +101,9 @@ export const STAGES: Record<(typeof STAGE_HREFS)[number], StageDef> = {
     tabs: () => [
       { href: "/blog/audit", label: "Audit" },
       { href: "/website", label: "Website" },
-      { href: "/blog/calendar", label: "Blog calendar" },
+      // "Article …", not "Blog …", since 2026-11-19 (the owner's "Yes, tidy up"): the
+      // app says "article" everywhere else, the calendars included. URLs unchanged.
+      { href: "/blog/calendar", label: "Article calendar" },
     ],
   },
   "/distribute": {
@@ -147,8 +149,8 @@ export const STAGES: Record<(typeof STAGE_HREFS)[number], StageDef> = {
       { href: "/measure", label: "Summary", group: "Overview" },
       { href: "/reports", label: "Reports", group: "Overview" },
       { href: "/insights", label: "Insights", group: "Overview" },
-      { href: "/blog/analytics", label: "Blog analytics", group: "Articles" },
-      { href: "/blog/report", label: "Blog report", group: "Articles" },
+      { href: "/blog/analytics", label: "Article analytics", group: "Articles" },
+      { href: "/blog/report", label: "Article report", group: "Articles" },
       { href: "/social/performance", label: "Social performance" },
       { href: "/youtube", label: "YouTube audit" },
       // What each Topic earned, per format — the spine's far end (2026-09-21).

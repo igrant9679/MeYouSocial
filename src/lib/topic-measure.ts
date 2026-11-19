@@ -96,7 +96,7 @@ export async function topicMeasure(workspaceId: string, days: number | MetricsRa
     if (s.position != null && !latestPos.has(s.postId)) latestPos.set(s.postId, s.position);
     if (s.clicks != null && s.capturedAt >= range.since && (!range.until || s.capturedAt < range.until)) clicksByPost.set(s.postId, (clicksByPost.get(s.postId) ?? 0) + s.clicks);
   }
-  if (posts.length > 0 && snapshots.length === 0) notes.articles = "Published articles carry these Topics, but no positions or clicks have been recorded for them — connect Search Console under Settings → Analytics, or enter numbers on Blog analytics.";
+  if (posts.length > 0 && snapshots.length === 0) notes.articles = "Published articles carry these Topics, but no positions or clicks have been recorded for them — connect Search Console under Settings → Analytics, or enter numbers on Measure → Article analytics.";
 
   // Social: readings → post → topic.
   const socialTopic = new Map(socialPosts.map((p) => [p.id, p.topicId!]));

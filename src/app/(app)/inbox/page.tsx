@@ -380,7 +380,7 @@ async function InboxResults({ workspaceId, editor }: { workspaceId: string; edit
       ) : (
         <p className="text-sm text-[var(--mute)] py-6 text-center m-0">
           No search analytics yet — numbers appear once snapshots exist under{" "}
-          <Link href="/blog/analytics" className="underline">Measure → Blog analytics</Link>. Charts light up from real data, never invented curves.
+          <Link href="/blog/analytics" className="underline">Measure → Article analytics</Link>. Charts light up from real data, never invented curves.
         </p>
       )}
       {perf.length > 0 && (

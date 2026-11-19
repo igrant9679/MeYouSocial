@@ -86,7 +86,7 @@ export async function ArticlePerformance({ postId, workspaceId, publishedUrl, ti
       <section className="card">
         <h2 className="text-sm font-semibold mb-0.5">Search</h2>
         {anchor == null ? (
-          <p className="text-xs text-[var(--mute)] m-0" data-perf-empty>No search readings for this article yet — they arrive with the Search Console sync once it&apos;s live at a known link, or can be entered under Measure → Analytics.</p>
+          <p className="text-xs text-[var(--mute)] m-0" data-perf-empty>No search readings for this article yet — they arrive with the Search Console sync once it&apos;s live at a known link, or can be entered under Measure → Article analytics.</p>
         ) : (
           <>
             <p className="text-xs text-[var(--mute)] mt-0 mb-3">The 28 days to the latest reading ({formatDay(new Date(anchor), timeZone)}) against the 28 days before.</p>

@@ -11,7 +11,7 @@ import type { CalendarArticleMark } from "@/components/SocialCalendar";
  * POSTING timezone: what went out, what is scheduled and when, each week's
  * publish day, and the articles waiting at final approval with no time.
  *
- * Moved out of the Publish → Blog calendar page on 2026-11-17 (the owner's
+ * Moved out of the Publish → Article calendar page on 2026-11-17 (the owner's
  * "Yes, regroup tabs") so Distribute → Calendar can show the same month
  * without a second copy of the queries: there were two calendars, and now the
  * posts' calendar has a switch to this one. `base` is the page showing it —

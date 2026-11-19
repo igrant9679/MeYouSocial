@@ -8,7 +8,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { daysAgo } from "@/lib/request-time";
 import { CsvButton } from "@/components/CsvButton";
 
-// Blog analytics (Spark FR-14 port): manual snapshots per published post,
+// Article analytics ("Blog analytics" until 2026-11-19; Spark FR-14 port): manual snapshots per published post,
 // aggregate tiles, refresh candidates (position > 10), top performers, and the
 // protect-from-rewrite toggle. Numbers are operator-entered — never invented.
 
@@ -54,7 +54,7 @@ export default async function BlogAnalyticsPage() {
           <ChartLine className="w-6 h-6" strokeWidth={2.25} />
         </span>
         <div>
-          <h1 className="font-mono font-bold text-2xl leading-tight">Blog analytics</h1>
+          <h1 className="font-mono font-bold text-2xl leading-tight">Article analytics</h1>
           <p className="text-xs text-[var(--mute)]">
             Operator-entered snapshots per published post — never invented. GSC/GA4 connectors replace manual entry later.
           </p>

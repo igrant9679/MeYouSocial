@@ -2839,7 +2839,7 @@ names were used twice. The owner approved the regrouping proposed on 11-16.
 - **Not built** (as of 11-17 — both of the first two were built on 11-18, see the later sections): posts and articles
   on ONE grid (the switch shows one kind at a time); moving Approvals from Publish to
   Distribute (raised on 11-16 as a later question); a remembered "last page" per group; renaming Blog analytics / Blog
-  report / Blog calendar to "Article …".
+  report / Blog calendar to "Article …" (built 2026-11-19 — the last section).
 
 ## ⚠ Approvals is a Distribute tab — a social post's pages are all in one stage (2026-11-18, the owner's "Yes, move it")
 
@@ -2969,5 +2969,31 @@ day" still took two looks. Now the default view shows both.
 - `NO_ARTICLES` is one module-level empty array, so the default prop keeps its identity and the grid's memos do not
   re-run on every render.
 - **Verified**: 15 checks over HTTP against a local dev server on a throwaway schema, as a fixture admin and editor: Show: All is the default with three settings; the grid is sent the dated and the recently published articles and not one from 200 days ago, one still being written or the undated ones; the line counting the undated ones (an editor is not told they can date one); Show: Posts sends no article and keeps its Calendar / Agenda links; Show: Articles is the publishing month; the agenda's Articles due list. In a browser on that copy (viewer in America/New_York): three marks in the month view on the right local days and times, green for the one out and blue for the two due, each a link to its article and not draggable, first in its cell; the week view shows the 09:00 one beside the posts, and the next week's hours widen from 07:00 to 04:00 for the early one; Show: Posts has no marks and no legend; at 375 px the page does not scroll sideways and the marks stay inside their cells. eslint, the six prebuild checks, tsc, next build and its bundle check.
+- **On production** (`10cfc5d`, live 2026-11-18 17:42 EST, build `mpjG0fUNIwP_GaJQOlI-_`): 16 of 16 over HTTP as a throwaway
+  admin and editor of one throwaway workspace (deleted after): what the server sends for each Show setting, the count
+  of undated articles, the agenda list, an editor not told they can date one. The grid is drawn in the browser, so on
+  production only the DATA sent to it was checked; the drawing was checked locally (above).
 - **Not built**: moving an article on this grid; sent posts on past days; the publish day drawn on the grid; undated
   articles placed anywhere.
+
+## ⚠ The tabs say "article", and the Help follows the app (2026-11-19, the owner's "Yes, tidy up")
+
+- **Three tabs renamed** in `lib/stages.ts`: Measure → Articles → **Article analytics** and **Article report** (were Blog
+  analytics, Blog report), Publish → **Article calendar** (was Blog calendar). Same URLs. The app says "article"
+  everywhere else, the calendars included. The Article analytics page's heading follows; the Article report keeps
+  its heading ("Content report — month"), the name of the client-facing deliverable, and the Article calendar keeps
+  "Publishing calendar". Copy that named the old tabs (the Inbox's empty results, an article's Performance tab, the
+  Measure → By Topic note, the Help) names the new ones. Older sections of this file keep the old names as history.
+- **`BLOG_TAB_TIPS` and `SOCIAL_TAB_TIPS` are gone** from `lib/help-tips.ts`: tips for the retired Blog and Social tab
+  bars that nothing read (two of the three tips "updated" on 11-19 were in them). Live tips: `NAV_TIPS` (the rail and
+  Ctrl+K), the per-page lists that pages import.
+- ⚠ **The Help has to be checked after any change people can see** — on 11-19 the owner had to ask, and four answers
+  still described the week-old layout. Grep `src/lib/help.ts` and `NAV_TIPS` for the old names and the old behaviour
+  before calling the work done. The generated parts (the map, the tab lists in "Where did the tabs go?") follow
+  `lib/stages.ts` by themselves; the hand-written answers do not.
+- ⚠ **Checking the Help on a running site**: the Help page's HTML carries only the QUESTIONS; each answer's text is in the
+  scripts the page loads. A check must fetch those scripts (the `<script src>` of /help) and look there — an HTML-only
+  check finds nothing and fails on a correct page.
+- **On production** (`fdc530c` + its retry `22d1ec8`, live 2026-11-19 09:49 EST): the Help's four rewritten answers and
+  the earlier rewrites were in the page's scripts, the "three lists" wording gone (8 of 8, throwaway admin, deleted).
+- **Verified (this change)**: eslint on the changed files; the six prebuild checks; the strips and Ctrl+K titles printed from `stageEntries` (Measure › Articles › Article analytics / Article report, Publish › Article calendar, the Help's generated lists); tsc and next build with its bundle check. The production check is in the local hand-off.

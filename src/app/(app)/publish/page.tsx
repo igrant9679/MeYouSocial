@@ -13,8 +13,8 @@ import { StageHeader, StageList, StageRow, StateChip } from "@/components/StageS
 import { EmptyState } from "@/components/EmptyState";
 
 // Publish stage: what's at final approval, when it goes (the publish-day
-// gate, or a hand-set date), and what went live. Website, the blog calendar
-// and Automation are its tabs.
+// gate, or a hand-set date), and what went live. Audit, Website and the
+// Article calendar are its tabs.
 
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
