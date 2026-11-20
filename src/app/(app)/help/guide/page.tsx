@@ -291,7 +291,7 @@ export default async function GuidePage() {
             collapse the two.
           </Step>
           <Step icon={Check} title="Confirm the publish day's article is ready.">
-            <Link href="/publish" className="underline">Publish</Link>: the article due should be at final approval.
+            <Link href="/publish" className="underline">Articles</Link>: the article due should be at final approval.
             With no WordPress, download the HTML, add it to the site, and Mark as published with the live link.
           </Step>
           <Step icon={Check} title="Glance at what the numbers are saying.">
@@ -355,7 +355,7 @@ export default async function GuidePage() {
           <Step icon={ListChecks} title="An article, end to end.">
             Ideas (approve) → the sweep drafts it, or <i>Send to draft</i> → auto-review fills SEO, renders images,
             sources claims → the Inbox shows anything it couldn&apos;t fix → you answer, verify or approve → it
-            advances to final approval → the publish day (or <i>Publish now</i>) → Publish shows the live link → social
+            advances to final approval → the publish day (or <i>Publish now</i>) → Articles shows the live link → social
             variants follow under the social mode.
           </Step>
           <Step icon={ListChecks} title="A held article you want out anyway (admin).">

@@ -2913,10 +2913,11 @@ under Distribute, but the posts held for an admin sat under Publish — a stage 
   health check leaves the previous deployment serving, so the only cost is that a truly broken boot takes up to five
   minutes to be declared failed. Telling the two apart: a failure at about 2½–3 minutes with "chrome step failed" in
   the Build Logs is the Chrome step; a failure near 6 minutes with a clean build and "replicas never became healthy"
-  is the health check. **Not known**: how long a normal boot takes — "Starting Container" to Next's ready line in a
-  SUCCESSFUL deployment's Deploy Logs. If it is usually close to a minute, running the seed on every boot is the cost
-  worth a follow-up (the owner's call); if it is usually seconds, something stalls now and then (the database proxy is
-  the first suspect) and the longer window rides it out.
+  is the health check. **A normal boot is about two seconds** (measured 2026-11-20 03:26Z in `0ecf81d`'s Deploy Logs,
+  the owner's copy): migrate done at +1.1 s, `[seed] done in 0.2 s`, Next ready in 96 ms, `[boot] … (container up 2.3 s)`.
+  The service reaches the database on Railway's PRIVATE network (`postgres-qsxl.railway.internal`), so the public proxy
+  is not in the path. So `fdc530c`'s lost minute was a stall, not a slow boot; the timing lines below name the step of
+  the next one, and the longer window rides a short one out.
 - **Every start-up says where its time went (2026-11-19, the owner's "Yes, add timings").** The `fdc530c` log above
   had nothing between migrate and the deadline. Now the Deploy Logs carry, in order: Prisma's own migrate lines; one
   `[seed] done in N s — database connect …, templates …, account and demo workspace … (container up N s)` line
