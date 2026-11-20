@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
 import { ArrowLeft, UploadCloud } from "lucide-react";
 import { requireMembership, canAdmin } from "@/lib/acl";
+import { elsewhereOr404 } from "@/lib/record-elsewhere";
 import { db } from "@/lib/db";
 import { DiffRows } from "@/components/DiffView";
 import { SubmitButton } from "@/components/SubmitButton";
@@ -20,7 +20,7 @@ export default async function UpdateOnWordPressPage({ params }: { params: Promis
   const { id } = await params;
   const { workspace, membership } = await requireMembership();
   const post = await db.blogPost.findFirst({ where: { id, workspaceId: workspace.id }, select: { id: true, title: true, status: true, wpPostId: true, publishedAt: true } });
-  if (!post) notFound();
+  if (!post) return elsewhereOr404(`/blog/${id}/update`);
   const admin = canAdmin(membership.role);
   const [cmp, blocking, tz] = await Promise.all([compareWithLive(workspace.id, post.id), blockingChecks(workspace.id, post.id), getPostingTimeZone(workspace.id)]);
 

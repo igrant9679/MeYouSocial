@@ -2998,28 +2998,40 @@ day" still took two looks. Now the default view shows both.
   the earlier rewrites were in the page's scripts, the "three lists" wording gone (8 of 8, throwaway admin, deleted).
 - **Verified (this change)**: eslint on the changed files; the six prebuild checks; the strips and Ctrl+K titles printed from `stageEntries` (Measure › Articles › Article analytics / Article report, Publish › Article calendar, the Help's generated lists); tsc and next build with its bundle check. The production check is in the local hand-off.
 
-## An article from another of your workspaces offers the switch, never a bare 404 (2026-11-19, the owner's 404 on an LSI draft)
+## A record from another of your workspaces offers the switch, never a bare 404 (2026-11-19, the owner's 404 on an LSI draft)
 
 - **What happened**: the owner opened a draft article while in LSI Media and got "This page could not be found". Both of
   LSI's unpublished articles existed and opened normally; the address carried an article of ANOTHER workspace. Every
   record page looks its id up in the ACTIVE workspace only, so a link carried across a switch lands on a 404. The
   likeliest route: an article tab reloaded after switching workspace in another tab (`WorkspaceGuard`'s "Reload"); also
   an email or notification link, or an old tab.
-- **Now** (`/blog/[id]`): when the id is not in the active workspace, `articleElsewhere()` (`lib/record-elsewhere.ts`)
-  looks for it in the person's OTHER **active** memberships. Found → `ArticleElsewhere.tsx`: the article's title, the
-  workspace that has it, **Switch to … and open it** and **Stay in …**. Not found → `notFound()` as before.
+- **Now — every record page** (first the article page, `c8f791d`; then all of them the same evening, the owner's "Yes,
+  build it"): a record page's not-found branch is `if (!x) return elsewhereOr404(<its own path>)`
+  (`lib/record-elsewhere.ts`). It looks the record up in the person's **active** memberships; found in ANOTHER one →
+  redirect to **`/elsewhere?to=<path>`**, which shows the record's name, the workspace that has it, **Switch to … and
+  open it** and **Stay in …** (to that kind's list). Not found, or found in the active workspace (the page 404'd for its
+  own reasons) → `notFound()` as before. If `/elsewhere` is reloaded after switching in another tab, it opens the record.
+- **Covered**: articles (+ Versions, Update, Retire), experts, social posts (+ Edit), campaigns, caption sets, article and
+  social ideas, Topics, scripts (+ Builder, Publish, Versions), projects, wiki documents, renders, thumbnails, competitor
+  channels and videos, channels (every `/channels/[id]/…` page through `requireChannel()`, which sends the CHANNEL'S
+  HOME path — its layout and its page both check and must agree), Elsie conversations (looked up with the person's own
+  id, as their page does). Not covered on purpose: `/chat/[id]` (folded into Elsie; a stale link still lands on
+  `/assistant`), `/reports/[key]` (a report kind, not a record), and pages that look records up by something other
+  than an id in the path.
+- ⚠ **The path is the whole interface**: `ROUTES` lists each record route (a regex whose group 1 is the id, its noun,
+  its list, its lookup). `parseRecordPath()` refuses any path that matches none and keeps only a `?tab=[a-z]{2,20}`, so
+  `/elsewhere?to=` and the switch can only ever send someone to one of these record pages — never an open redirect. A
+  new record page adds its route to `ROUTES` and calls `elsewhereOr404` in its not-found branch.
 - ⚠ **Nothing about another tenant leaks**: only the person's own active memberships are searched (`getCurrentUser`
-  already leaves out deleted workspaces). A revoked membership, a workspace they were never in, or a deleted article
-  is the same plain 404 as an id that is no article at all.
-- ⚠ **The switch re-checks both** (`openArticleInWorkspaceAction`, `actions/workspace-switch.ts`): an active membership
-  of the named workspace (else `/forbidden?why=member`) and the article being IN it (else `/blog`); either failing
-  switches nothing. It then sets the workspace cookie and lands on `/blog/<id>`, keeping a valid `?tab=`. The header
-  switcher (`setActiveWorkspaceAction`) is unchanged — it still drops a record id, because the record it names
+  already leaves out deleted workspaces). A revoked membership, a workspace they were never in, or a deleted record
+  is the same plain 404 as an id that is no record at all; `/elsewhere` with such a `to` is a 404 too.
+- ⚠ **The switch re-checks everything** (`openRecordInWorkspaceAction`, `actions/workspace-switch.ts`): an active
+  membership of the named workspace (else `/forbidden?why=member`), `to` being a record route and the record being IN
+  that workspace (else `/inbox`); any failing switches nothing. It then sets the workspace cookie and lands on `to`. The
+  header switcher (`setActiveWorkspaceAction`) is unchanged — it still drops a record id, because the record it names
   belongs to the workspace being left.
-- **Not built**: the same notice on the article's sub-pages (`/blog/[id]/versions`, `/update`, `/retire`) and on other
-  record pages (social posts, ideas, projects) — they still 404 for another workspace's id.
 - **Words**: the Help ("Can several companies share one install?") and Elsie's "When something looks wrong" say what the
-  notice means and what a plain "not found" means.
+  notice means, which records it covers and what a plain "not found" means.
 - **Verified (this change)**: eslint on the changed files; tsc; next build with the prebuild checks; the assistant eval
   on a throwaway schema (knowledge text changed). The production check is in the local hand-off.
 

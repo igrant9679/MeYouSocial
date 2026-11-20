@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { SubmitButton } from "@/components/SubmitButton";
 import { ArrowLeft, Tag, Hash, GitBranch, FileText, BookOpen, ListChecks, Check, SquarePlay } from "lucide-react";
-import { notFound } from "next/navigation";
 import { requireMembership, canEdit, canAdmin } from "@/lib/acl";
+import { elsewhereOr404 } from "@/lib/record-elsewhere";
 import { AutoRefresh } from "@/components/AutoRefresh";
 import { formatBytes } from "@/lib/documents/kinds";
 import { getPostingTimeZone } from "@/lib/social/slots";
@@ -52,7 +52,7 @@ export default async function ProjectDetailPage({ params, searchParams }: { para
       tasks: { orderBy: { dueDate: { sort: "asc", nulls: "last" } } },
     },
   });
-  if (!project) notFound();
+  if (!project) return elsewhereOr404(`/production/projects/${id}`);
   // E-VID-03: what can go to YouTube, and how earlier uploads went — admins only.
   const admin = canAdmin(membership.role);
   const [uploads, ytLink, uploadSources, tz, scriptOutline] = admin

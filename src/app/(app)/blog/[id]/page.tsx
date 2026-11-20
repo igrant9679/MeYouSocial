@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { DiffRows } from "@/components/DiffView";
 import { compareWithLive } from "@/lib/wp-update";
-import { notFound } from "next/navigation";
 import { ArrowLeft, Check, ChevronLeft, ChevronRight, CircleAlert, MonitorSmartphone, ShieldCheck, Sparkles, Trash2, X, Send } from "lucide-react";
 import { requireMembership, canEdit, canAdmin } from "@/lib/acl";
 import { db } from "@/lib/db";
@@ -108,8 +107,7 @@ import { SearchSocialPreview } from "./SearchSocialPreview";
 import { ArticlePerformance } from "./ArticlePerformance";
 import { InternalLinks } from "./InternalLinks";
 import { ReadabilityCoach } from "./ReadabilityCoach";
-import { ArticleElsewhere } from "./ArticleElsewhere";
-import { articleElsewhere } from "@/lib/record-elsewhere";
+import { elsewhereOr404 } from "@/lib/record-elsewhere";
 
 // Blog post editor (Spark port, slice 1): SEO metadata + HTML body + grounded
 // AI draft + the review-state machine. Publishing is an ADMIN act (human gate).
@@ -153,7 +151,7 @@ export default async function BlogPostPage({
   const sp = await searchParams;
   const tab: TabKey = (TABS.some((t) => t.key === sp.tab) ? sp.tab : "write") as TabKey;
   const is = (k: TabKey) => tab === k;
-  const { user: viewer, workspace, membership } = await requireMembership();
+  const { workspace, membership } = await requireMembership();
   const post = await db.blogPost.findFirst({
     where: { id, workspaceId: workspace.id },
     include: {
@@ -165,14 +163,10 @@ export default async function BlogPostPage({
       versions: { orderBy: { createdAt: "desc" }, take: 20 },
     },
   });
-  if (!post) {
-    // An id from another of this person's workspaces (a tab reloaded after a
-    // switch elsewhere, an email, an old link) says where it is and offers the
-    // switch, instead of a bare "not found" (2026-11-19). Anything else is a 404.
-    const elsewhere = await articleElsewhere(viewer.memberships, workspace.id, id);
-    if (!elsewhere) notFound();
-    return <ArticleElsewhere article={elsewhere} articleId={id} current={workspace.name} tab={sp.tab && TABS.some((t) => t.key === sp.tab) ? sp.tab : undefined} />;
-  }
+  // An id from another of this person's workspaces (a tab reloaded after a
+  // switch elsewhere, an email, an old link) goes to the notice that offers the
+  // switch, instead of a bare "not found" (2026-11-19). Anything else is a 404.
+  if (!post) return elsewhereOr404(`/blog/${id}${tab !== "write" ? `?tab=${tab}` : ""}`);
   const wpConn =await db.wordPressConnection.findUnique({ where: { workspaceId: workspace.id } });
   // Publish times are typed and shown in the posting timezone — the zone the
   // schedule action reads them in (ART-04). The server's own clock is UTC.

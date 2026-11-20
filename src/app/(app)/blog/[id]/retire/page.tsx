@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
 import { ArrowLeft, Archive } from "lucide-react";
 import { requireMembership, canAdmin, canEdit } from "@/lib/acl";
+import { elsewhereOr404 } from "@/lib/record-elsewhere";
 import { db } from "@/lib/db";
 import { SubmitButton } from "@/components/SubmitButton";
 import { articlesLinkingTo, redirectLines } from "@/lib/blog-retire";
@@ -20,7 +20,7 @@ export default async function RetireArticlePage({ params, searchParams }: { para
   const { to: rawTo } = await searchParams;
   const { workspace, membership } = await requireMembership();
   const post = await db.blogPost.findFirst({ where: { id, workspaceId: workspace.id }, select: { id: true, title: true, status: true, publishedUrl: true, wpPostId: true, retiredAt: true, redirectTo: true } });
-  if (!post) notFound();
+  if (!post) return elsewhereOr404(`/blog/${id}/retire`);
   const editor = canEdit(membership.role);
   const admin = canAdmin(membership.role);
   const tz = await getPostingTimeZone(workspace.id);

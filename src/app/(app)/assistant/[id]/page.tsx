@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
 import { ArrowLeft, Bot, User as UserIcon, Wrench, ExternalLink, HelpCircle, ShieldQuestion } from "lucide-react";
 import { requireRole } from "@/lib/acl";
+import { elsewhereOr404 } from "@/lib/record-elsewhere";
 import { getActiveChannel } from "@/lib/channel";
 import { db } from "@/lib/db";
 import { readJson } from "@/lib/db/json";
@@ -30,7 +30,7 @@ export default async function AssistantThreadPage({ params, searchParams }: { pa
     where: { id, workspaceId: workspace.id, userId: user.id },
     include: { messages: { orderBy: { createdAt: "asc" } } },
   });
-  if (!thread) notFound();
+  if (!thread) return elsewhereOr404(`/assistant/${id}`);
   const pending = thread.pending ? readJson<PendingAction | null>(thread.pending, null) : null;
   const last = thread.messages[thread.messages.length - 1];
   const lastSteps = last ? readJson<AssistantStep[]>(last.steps, []) : [];

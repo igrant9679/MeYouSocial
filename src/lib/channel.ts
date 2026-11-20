@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
-import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { requireMembership } from "@/lib/acl";
+import { elsewhereOr404 } from "@/lib/record-elsewhere";
 
 export const CHANNEL_COOKIE = "meyousocial_channel";
 
@@ -27,6 +27,6 @@ export async function requireChannel(channelId: string) {
   const channel = await db.channel.findFirst({
     where: { id: channelId, workspaceId: workspace.id },
   });
-  if (!channel) notFound();
+  if (!channel) return elsewhereOr404(`/channels/${channelId}`);
   return { channel, workspace, user, membership };
 }

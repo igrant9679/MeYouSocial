@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
 import { ArrowLeft, Copy, ExternalLink, Eye, LayoutTemplate, Link2, Pencil, RotateCw, Send } from "lucide-react";
 import { requireMembership, canEdit } from "@/lib/acl";
+import { elsewhereOr404 } from "@/lib/record-elsewhere";
 import { db } from "@/lib/db";
 import { readJson } from "@/lib/db/json";
 import { networkFor } from "@/lib/social/networks";
@@ -46,7 +46,7 @@ export default async function SocialPostPage({ params, searchParams }: { params:
     }),
     getPostingTimeZone(workspace.id),
   ]);
-  if (!post) notFound();
+  if (!post) return elsewhereOr404(`/social/${id}`);
   // Each leg's account, for "Reconnect and retry" (E-SOC-07).
   const accounts = new Map(
     (await db.zernioAccount.findMany({

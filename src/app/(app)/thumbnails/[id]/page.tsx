@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { SubmitButton } from "@/components/SubmitButton";
 import { ArrowLeft, Download, CheckCircle2 } from "lucide-react";
-import { notFound } from "next/navigation";
 import { requireMembership } from "@/lib/acl";
+import { elsewhereOr404 } from "@/lib/record-elsewhere";
 import { db } from "@/lib/db";
 import { readJson } from "@/lib/db/json";
 import { renderThumbnailAction } from "@/app/actions/thumbnails";
@@ -19,7 +19,7 @@ export default async function ThumbnailDetailPage({ params }: { params: Promise<
     where: { id, channel: { workspaceId: workspace.id } },
     include: { channel: true },
   });
-  if (!thumb) notFound();
+  if (!thumb) return elsewhereOr404(`/thumbnails/${id}`);
 
   const conceptsBlob = readJson<{ id: string; label: string; description: string; url: string; sawReference?: boolean }[] | { items: { id: string; label: string; description: string; url: string; sawReference?: boolean }[]; critique?: string }>(thumb.concepts, []);
   const concepts = Array.isArray(conceptsBlob) ? conceptsBlob : conceptsBlob.items;

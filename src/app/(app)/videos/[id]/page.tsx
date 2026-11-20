@@ -1,9 +1,9 @@
 import { AutoRefresh } from "@/components/AutoRefresh";
 import { SCENE_SECONDS } from "@/lib/captions";
 import Link from "next/link";
-import { notFound } from "next/navigation";
 import { ArrowLeft, Captions, Clapperboard, Download, Film, Mic, Play, Plus, RotateCcw, Trash2 } from "lucide-react";
 import { requireMembership, canAdmin, canEdit } from "@/lib/acl";
+import { elsewhereOr404 } from "@/lib/record-elsewhere";
 import { db } from "@/lib/db";
 import { env } from "@/lib/env";
 import { SubmitButton } from "@/components/SubmitButton";
@@ -60,7 +60,7 @@ export default async function StoryboardPage({
   const sp = await searchParams;
   const { workspace, membership } = await requireMembership();
   const render = await db.videoRender.findFirst({ where: { id, workspaceId: workspace.id } });
-  if (!render) notFound();
+  if (!render) return elsewhereOr404(`/videos/${id}`);
   const editor = canEdit(membership.role);
   const admin = canAdmin(membership.role);
   const scenes = parseScenes(render.scenes);

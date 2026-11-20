@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
 import { AlertTriangle, ArrowLeft, CalendarClock, ListPlus, RotateCw, Save } from "lucide-react";
 import { requireMembership, canEdit } from "@/lib/acl";
+import { elsewhereOr404 } from "@/lib/record-elsewhere";
 import { db } from "@/lib/db";
 import { readJson } from "@/lib/db/json";
 import { networkFor } from "@/lib/social/networks";
@@ -28,7 +28,7 @@ export default async function CaptionBatchPage({ params, searchParams }: { param
   const { workspace, membership } = await requireMembership();
   const editor = canEdit(membership.role);
   const batch = await db.captionBatch.findFirst({ where: { id, workspaceId: workspace.id }, include: { campaign: { select: { name: true } } } });
-  if (!batch) notFound();
+  if (!batch) return elsewhereOr404(`/social/captions/${id}`);
   const items = readJson<BatchItem[]>(batch.items, []);
   const [tz, accounts, used] = await Promise.all([
     getPostingTimeZone(workspace.id),

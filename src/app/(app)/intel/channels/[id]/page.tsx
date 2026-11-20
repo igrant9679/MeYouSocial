@@ -1,8 +1,8 @@
 import { formatDay } from "@/lib/zoned-dates";
 import Link from "next/link";
 import { Bookmark, ArrowLeft, Eye, Calendar, TrendingUp } from "lucide-react";
-import { notFound } from "next/navigation";
 import { requireMembership, canEdit } from "@/lib/acl";
+import { elsewhereOr404 } from "@/lib/record-elsewhere";
 import { db } from "@/lib/db";
 import { isFastGrowing, formatNum, intelThumbUrl, formatVph } from "@/lib/intel";
 import { OutlierChip } from "@/components/OutlierChip";
@@ -32,7 +32,7 @@ export default async function IntelChannelPage({ params, searchParams }: { param
       },
     },
   });
-  if (!channel) notFound();
+  if (!channel) return elsewhereOr404(`/intel/channels/${id}`);
 
   const bookmarked = await db.bookmark.findFirst({ where: { workspaceId: workspace.id, intelChannelId: id } });
   const avgViews = channel.videos.length

@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { requireMembership, canEdit } from "@/lib/acl";
+import { elsewhereOr404 } from "@/lib/record-elsewhere";
 import { db } from "@/lib/db";
 import { SubmitButton } from "@/components/SubmitButton";
 import { ensureMotifDirectives, parseMotifs } from "@/lib/motifs";
@@ -31,7 +31,7 @@ export default async function ArticleIdeaPage({ params, searchParams }: { params
     where: { id, workspaceId: workspace.id },
     include: { topic: { select: { name: true } }, sourceVideo: { select: { id: true, title: true } } },
   });
-  if (!idea) notFound();
+  if (!idea) return elsewhereOr404(`/ideas/article/${id}`);
   const live = idea.status !== "drafted" && idea.status !== "merged";
   const linkedIds = [idea.postId, idea.refreshPostId].filter((v): v is string => !!v);
   const [history, tz, linked, mergedInto] = await Promise.all([

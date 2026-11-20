@@ -401,7 +401,7 @@ area, rather than loading all of them into every session.
 - A reply that isn't the protocol is never shown to a person — 2026-11-18, the owner's "Yes, fix and push", found testing Elsie as an admin
 - Posts and articles share one calendar grid — an article is a read-only mark at its instant — 2026-11-18, the owner's "Yes, build it"
 - The tabs say "article", and the Help follows the app — 2026-11-19, the owner's "Yes, tidy up"
-- An article from another of your workspaces offers the switch, never a bare 404 — 2026-11-19, the owner's 404 on an LSI draft
+- A record from another of your workspaces offers the switch, never a bare 404 — 2026-11-19, the owner's 404 on an LSI draft; every record page the same evening
 - The stages are named by format: Articles, Social posts, Video — 2026-11-19, the owner's "Name by format"
 
 ## Open items / things the user still owns

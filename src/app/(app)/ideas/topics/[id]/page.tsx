@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
 import { Archive, ArrowLeft, Check, Sparkles, Tags } from "lucide-react";
 import { requireMembership, canEdit } from "@/lib/acl";
+import { elsewhereOr404 } from "@/lib/record-elsewhere";
 import { db } from "@/lib/db";
 import { readJson } from "@/lib/db/json";
 import { SubmitButton } from "@/components/SubmitButton";
@@ -29,7 +29,7 @@ export default async function TopicPage({ params, searchParams }: { params: Prom
   const { workspace, membership } = await requireMembership();
   const editor = canEdit(membership.role);
   const topic = await db.topic.findFirst({ where: { id, workspaceId: workspace.id } });
-  if (!topic) notFound();
+  if (!topic) return elsewhereOr404(`/ideas/topics/${id}`);
   const back = `/ideas/topics/${topic.id}`;
   const phrases = readJson<string[]>(topic.keywords, []);
 

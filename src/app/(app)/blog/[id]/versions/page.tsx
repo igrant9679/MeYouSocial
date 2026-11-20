@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
 import { ArrowLeft, History, RotateCcw } from "lucide-react";
 import { requireMembership, canEdit } from "@/lib/acl";
+import { elsewhereOr404 } from "@/lib/record-elsewhere";
 import { db } from "@/lib/db";
 import { getPostingTimeZone } from "@/lib/social/slots";
 import { formatZonedMoment } from "@/lib/zoned-dates";
@@ -28,7 +28,7 @@ export default async function ArticleVersionsPage({ params, searchParams }: { pa
     where: { id, workspaceId: workspace.id },
     select: { id: true, title: true, body: true, updatedAt: true, versions: { orderBy: { createdAt: "desc" }, take: 50, select: { id: true, label: true, body: true, actorId: true, createdAt: true } } },
   });
-  if (!post) notFound();
+  if (!post) return elsewhereOr404(`/blog/${id}/versions`);
   const [tz, since, members] = await Promise.all([
     getPostingTimeZone(workspace.id),
     actorRecordedFrom(),

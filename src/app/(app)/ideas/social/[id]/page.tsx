@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { requireMembership, canEdit } from "@/lib/acl";
+import { elsewhereOr404 } from "@/lib/record-elsewhere";
 import { db } from "@/lib/db";
 import { SubmitButton } from "@/components/SubmitButton";
 import { IdeaFacts, IdeaHistory, IdeaPriority } from "@/components/IdeaDetail";
@@ -30,7 +30,7 @@ export default async function SocialIdeaPage({ params }: { params: Promise<{ id:
       socialPost: { select: { id: true, status: true, scheduledAt: true, publishedAt: true } },
     },
   });
-  if (!idea) notFound();
+  if (!idea) return elsewhereOr404(`/ideas/social/${id}`);
   const [history, tz] = await Promise.all([ideaHistory(workspace.id, "social_idea", idea.id), getPostingTimeZone(workspace.id)]);
   const live = idea.status !== "drafted";
   const field = "w-full mt-0.5 border border-[var(--line-2)] rounded-lg px-2 py-1 text-xs";

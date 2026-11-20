@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
 import { ArrowLeft, Sparkles, Trash2 } from "lucide-react";
 import { requireMembership, canEdit, canAdmin } from "@/lib/acl";
+import { elsewhereOr404 } from "@/lib/record-elsewhere";
 import { db } from "@/lib/db";
 import { SubmitButton } from "@/components/SubmitButton";
 import {
@@ -29,7 +29,7 @@ export default async function SmeProfilePage({ params }: { params: Promise<{ id:
     where: { id, workspaceId: workspace.id },
     include: { versions: { orderBy: { version: "desc" }, take: 8 }, topicLinks: { select: { id: true } } },
   });
-  if (!profile) notFound();
+  if (!profile) return elsewhereOr404(`/blog/experts/${id}`);
   // E-IDE-14: the Topics an expert can speak on, what waits for them, and the drafts that spoke as them.
   const linked = new Set(profile.topicLinks.map((t) => t.id));
   const [allTopics, spoke] = await Promise.all([

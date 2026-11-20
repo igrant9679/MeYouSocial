@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { SubmitButton } from "@/components/SubmitButton";
 import { ArrowLeft } from "lucide-react";
-import { notFound } from "next/navigation";
 import { requireMembership } from "@/lib/acl";
+import { elsewhereOr404 } from "@/lib/record-elsewhere";
 import { db } from "@/lib/db";
 import { upsertWikiDocAction } from "@/app/actions/production";
 import { AiAssist } from "@/components/AiAssist";
@@ -14,7 +14,7 @@ export default async function WikiDocPage({ params }: { params: Promise<{ id: st
     db.wikiDoc.findFirst({ where: { id, workspaceId: workspace.id } }),
     db.channel.findMany({ where: { workspaceId: workspace.id } }),
   ]);
-  if (!doc) notFound();
+  if (!doc) return elsewhereOr404(`/production/wiki/${id}`);
 
   return (
     <div className="w-full">

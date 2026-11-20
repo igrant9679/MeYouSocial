@@ -1,8 +1,8 @@
 import { formatDay } from "@/lib/zoned-dates";
 import Link from "next/link";
-import { notFound } from "next/navigation";
 import { ArrowLeft, Bookmark, Eye, ThumbsUp, MessageSquare, Calendar } from "lucide-react";
 import { requireMembership, canEdit } from "@/lib/acl";
+import { elsewhereOr404 } from "@/lib/record-elsewhere";
 import { matchTopic, prepareTopics } from "@/lib/topic-match";
 import { studioState } from "@/lib/studio";
 import { ResearchIdeaForm } from "@/components/ResearchIdeaForm";
@@ -24,7 +24,7 @@ export default async function IntelVideoPage({ params, searchParams }: { params:
     where: { id, intelChannel: { workspaceId: workspace.id } },
     include: { intelChannel: true },
   });
-  if (!video) notFound();
+  if (!video) return elsewhereOr404(`/intel/videos/${id}`);
 
   const [bookmarked, topics, studio, ownChannels] = await Promise.all([
     db.bookmark.findFirst({ where: { workspaceId: workspace.id, intelVideoId: id } }),

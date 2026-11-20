@@ -7,6 +7,7 @@ import { TEMPLATE_PARTS, copyFromTemplate } from "@/lib/workspace-template";
 import { writeAudit } from "@/lib/governance";
 import { requireUser, isPlatformOperator, ACTIVE_WS_COOKIE } from "@/lib/acl";
 import { switchLanding } from "@/lib/workspace-badges";
+import { locateRecord } from "@/lib/record-elsewhere";
 
 /**
  * Multi-company users: switch the active workspace. Validated against the
@@ -30,22 +31,22 @@ export async function setActiveWorkspaceAction(formData: FormData) {
 }
 
 /**
- * Switch to the workspace that holds an article and open it (2026-11-19, the
- * owner's 404 on an LSI draft). Offered by the article page when the id is not in
- * the active workspace but is in another of this person's (`lib/record-elsewhere`).
- * Both are re-checked here: an active membership of that workspace, and the
- * article being in it. If either fails nothing is switched.
+ * Switch to the workspace that holds a record and open it (2026-11-19, the
+ * owner's 404 on an LSI draft). Offered by `/elsewhere` when a record page's id is
+ * not in the active workspace but is in another of this person's
+ * (`lib/record-elsewhere`). Re-checked here: an active membership of that
+ * workspace, `to` being one of the record routes, and the record being in that
+ * workspace. If any fails nothing is switched.
  */
-export async function openArticleInWorkspaceAction(formData: FormData) {
+export async function openRecordInWorkspaceAction(formData: FormData) {
   const user = await requireUser();
   const workspaceId = String(formData.get("workspaceId") ?? "");
-  const articleId = String(formData.get("articleId") ?? "");
-  const tab = String(formData.get("tab") ?? "");
-  const member = user.memberships.some((m) => m.workspaceId === workspaceId && m.status === "active");
+  const member = user.memberships.find((m) => m.workspaceId === workspaceId && m.status === "active");
   if (!member) redirect("/forbidden?why=member");
-  if (!/^[a-z0-9]{10,40}$/i.test(articleId) || !(await db.blogPost.count({ where: { id: articleId, workspaceId } }))) redirect("/blog");
+  const hit = await locateRecord([member], user.id, String(formData.get("to") ?? ""));
+  if (!hit) redirect("/inbox");
   await setActive(workspaceId);
-  redirect(`/blog/${articleId}${/^[a-z]{2,20}$/.test(tab) ? `?tab=${tab}` : ""}`);
+  redirect(hit.to);
 }
 
 /** Set the active-workspace cookie without the membership re-check — only for

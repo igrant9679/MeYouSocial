@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { SubmitButton } from "@/components/SubmitButton";
 import { ArrowLeft, Search, Layers, Type, Image as ImageIcon, Zap, Target, FileText, Edit3, Download, Send, ListChecks, Check, RefreshCw } from "lucide-react";
-import { notFound } from "next/navigation";
 import { requireMembership } from "@/lib/acl";
+import { elsewhereOr404 } from "@/lib/record-elsewhere";
 import { db } from "@/lib/db";
 import { readJson } from "@/lib/db/json";
 import { CopyButton } from "@/components/CopyButton";
@@ -58,7 +58,7 @@ export default async function BuilderPage({ params }: { params: Promise<{ id: st
     where: { id, channel: { workspaceId: workspace.id } },
     include: { channel: true, template: true, thumbnails: { take: 4, orderBy: { createdAt: "desc" } } },
   });
-  if (!script) notFound();
+  if (!script) return elsewhereOr404(`/scripts/${id}/builder`);
 
   const state: BuilderState = readJson<BuilderState>(script.builderSteps ?? null, {
     step: 1,

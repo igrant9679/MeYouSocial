@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
 import { Megaphone } from "lucide-react";
 import { requireMembership } from "@/lib/acl";
+import { elsewhereOr404 } from "@/lib/record-elsewhere";
 import { db } from "@/lib/db";
 import { getPostingTimeZone } from "@/lib/social/slots";
 import { byNetwork, latestPerTarget } from "@/lib/social/performance";
@@ -29,7 +29,7 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
   const { id } = await params;
   const { workspace } = await requireMembership();
   const campaign = await db.campaign.findFirst({ where: { id, workspaceId: workspace.id } });
-  if (!campaign) notFound();
+  if (!campaign) return elsewhereOr404(`/social/campaigns/${id}`);
   const [tz, posts, snaps] = await Promise.all([
     getPostingTimeZone(workspace.id),
     db.socialPost.findMany({

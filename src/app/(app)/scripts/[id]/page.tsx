@@ -2,8 +2,8 @@ import Link from "next/link";
 import { SubmitButton } from "@/components/SubmitButton";
 import { ArrowLeft, PenLine, FileText, MessageCircle, History, ListTree, Type, Bot, Clapperboard } from "lucide-react";
 import { ShotList } from "@/components/ShotList";
-import { notFound } from "next/navigation";
 import { requireMembership, canEdit } from "@/lib/acl";
+import { elsewhereOr404 } from "@/lib/record-elsewhere";
 import { db } from "@/lib/db";
 import { readJson } from "@/lib/db/json";
 import { inheritedModelNote, modelChoices, resolveUsableModel } from "@/lib/llm";
@@ -59,7 +59,7 @@ export default async function CanvasPage({
       agentRuns: { orderBy: { startedAt: "desc" }, take: 1 },
     },
   });
-  if (!script) notFound();
+  if (!script) return elsewhereOr404(`/scripts/${id}`);
 
   const outline = readJson<{ questions?: Record<string, string>; markdown?: string }>(script.outline ?? null, {});
   const [templates, voiceProfiles] = await Promise.all([

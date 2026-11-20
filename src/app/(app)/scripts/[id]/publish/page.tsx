@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { SubmitButton } from "@/components/SubmitButton";
 import { ArrowLeft, Download, FileText, Tv, Sparkles } from "lucide-react";
-import { notFound } from "next/navigation";
 import { requireMembership } from "@/lib/acl";
+import { elsewhereOr404 } from "@/lib/record-elsewhere";
 import { db } from "@/lib/db";
 import { readJson } from "@/lib/db/json";
 import { generatePromoAction } from "@/app/actions/publish";
@@ -41,7 +41,7 @@ export default async function PublishPage({ params }: { params: Promise<{ id: st
     where: { id, channel: { workspaceId: workspace.id } },
     include: { channel: true },
   });
-  if (!script) notFound();
+  if (!script) return elsewhereOr404(`/scripts/${id}/publish`);
 
   const publish = readJson<{ publish?: Record<string, string> }>(script.outline ?? null, {}).publish ?? {};
 

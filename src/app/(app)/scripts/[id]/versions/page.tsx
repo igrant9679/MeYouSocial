@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
 import { ArrowLeft, History, RotateCcw } from "lucide-react";
 import { requireMembership, canEdit } from "@/lib/acl";
+import { elsewhereOr404 } from "@/lib/record-elsewhere";
 import { db } from "@/lib/db";
 import { formatZonedMoment } from "@/lib/zoned-dates";
 import { displayTimeZone } from "@/lib/display-zone";
@@ -41,7 +41,7 @@ export default async function ScriptVersionsPage({ params, searchParams }: { par
     where: { id, channel: { workspaceId: workspace.id } },
     select: { id: true, title: true, body: true, outline: true, updatedAt: true, versions: { orderBy: { createdAt: "desc" }, take: 60, select: { id: true, label: true, body: true, outline: true, wordCount: true, createdAt: true } } },
   });
-  if (!script) notFound();
+  if (!script) return elsewhereOr404(`/scripts/${id}/versions`);
   const tz = await displayTimeZone(workspace.id);
   const part: "body" | "outline" = sp.part === "outline" ? "outline" : "body";
   const read = (v: { body: string | null; outline: string | null }) => (part === "body" ? v.body : outlineText(v.outline));

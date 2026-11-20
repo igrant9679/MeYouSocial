@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { getUtmConfig } from "@/lib/social/utm";
-import { notFound, redirect } from "next/navigation";
+import { redirect } from "next/navigation";
 import { ArrowLeft, Pencil } from "lucide-react";
 import { requireRole } from "@/lib/acl";
+import { elsewhereOr404 } from "@/lib/record-elsewhere";
 import { db } from "@/lib/db";
 import { readJson } from "@/lib/db/json";
 import { SocialComposer, type ComposerInitial } from "@/components/SocialComposer";
@@ -47,7 +48,7 @@ export default async function EditSocialPostPage({ params }: { params: Promise<{
       select: { id: true, name: true, color: true, utmCampaign: true },
     }),
   ]);
-  if (!post) notFound();
+  if (!post) return elsewhereOr404(`/social/${id}/edit`);
   if (!EDITABLE.has(post.status)) {
     redirect(`/social/${post.id}`);
   }
