@@ -2917,6 +2917,21 @@ under Distribute, but the posts held for an admin sat under Publish — a stage 
   SUCCESSFUL deployment's Deploy Logs. If it is usually close to a minute, running the seed on every boot is the cost
   worth a follow-up (the owner's call); if it is usually seconds, something stalls now and then (the database proxy is
   the first suspect) and the longer window rides it out.
+- **Every start-up says where its time went (2026-11-19, the owner's "Yes, add timings").** The `fdc530c` log above
+  had nothing between migrate and the deadline. Now the Deploy Logs carry, in order: Prisma's own migrate lines; one
+  `[seed] done in N s — database connect …, templates …, account and demo workspace … (container up N s)` line
+  (`prisma/seed.ts`), or `[seed] still running after 15.0 s — waiting on: <step>` every 15 s while a step hangs, or
+  `[seed] failed after N s during: <step>` before the error; Next's "Ready in …"; `[boot] server up after N s in this
+  process (container up N s)` first thing in `register()`; and the `[warm] …` line with the container's age. The age is
+  read from Linux's `/proc` (`src/lib/boot-clock.ts`: PID 1's start against `/proc/uptime`, both counted from the host's
+  boot); off Linux or when `/proc` reads oddly it is left out, and nothing there can throw or fail a boot. ⚠ Keep it so:
+  a timing line is never worth a failed start, `register()` imports it dynamically for the Edge reason at the top of
+  the file, and the seed's 15-second interval is `unref()`ed so it never keeps the process alive. ⚠ The seed still
+  stops the start command when it fails (`migrate && seed && start`): a database that can't be reached at that moment
+  means no server, and the window runs out. That was not changed here. Measured on a throwaway schema through the public
+  proxy: 13.0 s for a seeded database (19 template upserts ≈ 8 s, about 0.4 s each), so if a production boot's seed
+  line shows seconds rather than a fraction of one, check whether the service's `DATABASE_URL` points at the public
+  proxy instead of Railway's private network.
 
 ## ⚠ A reply that isn't the protocol is never shown to a person (2026-11-18, the owner's "Yes, fix and push", found testing Elsie as an admin)
 - **What happened.** On production, an admin's question got Elsie's whole answer as
