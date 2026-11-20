@@ -24,6 +24,17 @@ type Guarded = (name: string, ttlMs: number, body: () => Promise<void>) => () =>
 
 export async function register() {
   if (process.env.NEXT_RUNTIME !== "nodejs") return;
+  // Where a start-up's time went, counted from the container's start: migrate prints its own
+  // lines, the seed prints "[seed] done in …", and this says when the server came up. The
+  // 2026-11-19 deploy of fdc530c failed the health check with nothing in the log between migrate
+  // and the deadline. Dynamic import for the same Edge reason as everything below; never throws.
+  try {
+    const { containerUpLabel } = await import("@/lib/boot-clock");
+    const label = containerUpLabel();
+    console.log(`[boot] server up after ${process.uptime().toFixed(1)} s in this process${label ? ` (${label})` : ""}`);
+  } catch {
+    // A timing line is never worth a failed boot.
+  }
   // PRF-01: the first visit to a page after a deploy took 6–30 s while its
   // server chunks loaded. Request each page once at boot (signed out — the
   // module still loads before the sign-in redirect), production only.
@@ -307,5 +318,6 @@ async function warmRoutes(): Promise<void> {
     const res = await fetch(base + route, { redirect: "manual", signal: AbortSignal.timeout(60_000) }).catch(() => null);
     if (res && res.status < 500) answered++;
   }
-  console.log(`[warm] ${answered} of ${WARM_ROUTES.length} routes answered in ${Math.round((Date.now() - started) / 1000)} s`);
+  const up = await import("@/lib/boot-clock").then((m) => m.containerUpLabel()).catch(() => "");
+  console.log(`[warm] ${answered} of ${WARM_ROUTES.length} routes answered in ${Math.round((Date.now() - started) / 1000)} s${up ? ` (${up})` : ""}`);
 }

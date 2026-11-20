@@ -7,8 +7,39 @@
 
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { containerUpLabel } from "../src/lib/boot-clock";
 
 const db = new PrismaClient();
+
+// ── Where a start-up's time goes ─────────────────────────────────────────────
+// The 2026-11-19 deploy of fdc530c failed Railway's 60-second health check, and its
+// log said nothing between migrate finishing and the deadline. So the seed now prints
+// one "[seed] done in …" line with each step's time, a "still running" line every
+// 15 seconds while a step hangs (so a database that won't answer names itself), and
+// "[seed] failed after …" naming the step it died in. Ages are counted from the
+// container's start (src/lib/boot-clock.ts).
+const seedStarted = Date.now();
+const seedPhases: string[] = [];
+let seedStep = "starting";
+const secs = (ms: number) => (ms / 1000).toFixed(1);
+const upSuffix = () => {
+  const label = containerUpLabel();
+  return label ? ` (${label})` : "";
+};
+
+async function timed<T>(label: string, run: () => Promise<T>): Promise<T> {
+  seedStep = label;
+  const started = Date.now();
+  const out = await run();
+  seedPhases.push(`${label} ${secs(Date.now() - started)} s`);
+  return out;
+}
+
+const stillRunning = setInterval(() => {
+  console.log(`[seed] still running after ${secs(Date.now() - seedStarted)} s — waiting on: ${seedStep}${upSuffix()}`);
+}, 15_000);
+// Never what keeps the seed alive: once main() settles, the process may exit.
+stillRunning.unref();
 
 /**
  * Whether to seed fabricated DEMO CONTENT (sample channel ideas, the mock Intel
@@ -294,11 +325,15 @@ async function seedIntel() {
 }
 
 async function main() {
-  await seedTemplates();
-  await seedDemoData();
+  // Connecting is its own step, so a database that is slow to answer shows as exactly that.
+  await timed("database connect", () => db.$connect());
+  await timed("templates", seedTemplates);
+  await timed("account and demo workspace", seedDemoData);
   // Mock market data — fabricated subscriber/view figures. Opt-in only; see
   // seedDemoContent().
-  if (seedDemoContent()) await seedIntel();
+  if (seedDemoContent()) await timed("demo market data", seedIntel);
+  clearInterval(stillRunning);
+  console.log(`[seed] done in ${secs(Date.now() - seedStarted)} s — ${seedPhases.join(", ")}${upSuffix()}`);
   const adminEmail = (process.env.BOOTSTRAP_ADMIN_EMAIL ?? "you@example.com").toLowerCase();
   // Don't print a configured admin password into deploy logs (this runs on every
   // Railway boot). Only echo the built-in dev default, which is public anyway.
@@ -314,6 +349,8 @@ async function main() {
 }
 
 main().then(() => db.$disconnect()).catch(async (e) => {
+  clearInterval(stillRunning);
+  console.error(`[seed] failed after ${secs(Date.now() - seedStarted)} s during: ${seedStep}${upSuffix()}`);
   console.error(e);
   await db.$disconnect();
   process.exit(1);
