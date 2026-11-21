@@ -51,6 +51,10 @@ embedded in the remote URLs on purpose — Git Credential Manager juggles two ac
   deploy on 2026-07-22; recovery is `prisma migrate resolve --rolled-back <name>` against
   `DATABASE_PUBLIC_URL` of the `Postgres-Qsxl` service, then redeploy). Use
   `[System.IO.File]::WriteAllText(path, $sql, (New-Object System.Text.UTF8Encoding $false))`.
+- **Never delete, rename or edit a migration once it has been pushed.** Production has run it, and a fresh database
+  needs it to reach the next one; undo a change with a new migration. Deleting `20260818120000_org_description_blocks`
+  left empty databases unable to start until 2026-11-21. The replay check runs on a local throwaway Postgres
+  (`npx prisma dev`), recipe in `docs/INVARIANTS.md` → "Every migration stays".
 - **Commit messages with quotes need `git commit -F <file>`** — a PowerShell 5.1 here-string
   (`@'…'@`) passed to `git commit -m` breaks on double quotes in the body and git reads the
   remainder as a pathspec. Write the message to a scratch file and use `-F`.
@@ -403,6 +407,7 @@ area, rather than loading all of them into every session.
 - The tabs say "article", and the Help follows the app — 2026-11-19, the owner's "Yes, tidy up"
 - A record from another of your workspaces offers the switch, never a bare 404 — 2026-11-19, the owner's 404 on an LSI draft; every record page the same evening
 - The stages are named by format: Articles, Social posts, Video — 2026-11-19, the owner's "Name by format"
+- Every migration stays: an empty database replays them all — 2026-11-21, the owner's "Yes, fix the migrations"
 
 ## Open items / things the user still owns
 - **Analytics: APIs enabled 2026-08-03** (Search Console + GA Admin + GA Data, on project

@@ -3086,3 +3086,34 @@ day" still took two looks. Now the default view shows both.
 - **Verified (this change)**: eslint on the changed files; the six prebuild checks (links, tour anchors, Help copy); the strips,
   loop sentence, Ctrl+K stage list and stageFor of 24 paths printed from the data; tsc; the assistant eval on a throwaway
   schema; next build with its bundle check. The production check is in the local hand-off.
+
+## ⚠ Every migration stays: an empty database replays them all (2026-11-21, the owner's "Yes, fix the migrations")
+
+- **Why**: `prisma migrate deploy` on an EMPTY database stopped at `20260818140000_org_description_html` with
+  `column "descriptionBlocks" does not exist`. `61ffa8c` (2026-08-18 10:10) added `20260818120000_org_description_blocks`,
+  which creates that column. Railway deployed that commit on its own (its commit status on the deploy repo is "success"),
+  so production applied the migration and recorded it. `45ee2b1`, 53 minutes later, deleted the folder and added the
+  rename. Production carried on fine, but a fresh database (a rebuild, a second install, a test copy) could not start.
+- **Fix**: the deleted folder is back, byte for byte (`git checkout 61ffa8c -- prisma/migrations/20260818120000_org_description_blocks/migration.sql`,
+  blob `7bfa450`). On production its row is already in `_prisma_migrations`, so deploy skips it. On an empty database it
+  creates the column just before the rename needs it. No migration that has already run was edited.
+- **Verified** on a throwaway local Postgres (`npx prisma dev`, recipe below). Without the folder, the replay fails as
+  above. With it, all 119 migrations apply in 26 s, and `prisma migrate diff` from that database to `prisma/schema.prisma`
+  prints "This is an empty migration": a fresh build IS the schema.
+- **Production's history, simulated**: deploying again prints "No pending migrations". With a different recorded
+  checksum it still prints "No pending migrations", because deploy does not compare checksums. If the row were missing,
+  the migration would apply once and add one unused nullable column, and the start-up would still succeed.
+- ⚠ **Rule**: never delete, rename or edit a migration once it has been pushed. Production has run it, and a fresh
+  database needs it to reach the next one. Undo a change with a NEW migration. (The only other deleted migration,
+  `20260723_workspace_settings_branding`, was an empty file and changes nothing. The 2026-07-22 BOM strip in
+  `20260722180000_motifs_brand_kit` is the one edit in history; the fixed file replays cleanly.)
+- **The replay check** needs no production access and takes about a minute. Since this fix a throwaway schema can be
+  built with `migrate deploy` again, not only `db push`:
+  ```bash
+  npx prisma dev --name migreplay --detach     # local Postgres; its TCP URL is printed (port 51214 by default)
+  export DATABASE_URL='postgres://postgres:postgres@localhost:51214/template1?sslmode=disable&connection_limit=1'
+  echo 'DROP SCHEMA public CASCADE; CREATE SCHEMA public;' | npx prisma db execute --url "$DATABASE_URL" --stdin
+  npx prisma migrate deploy                    # must end "All migrations have been successfully applied."
+  npx prisma migrate diff --from-url "$DATABASE_URL" --to-schema-datamodel prisma/schema.prisma --script   # must be empty
+  npx prisma dev stop migreplay; npx prisma dev rm migreplay
+  ```
