@@ -1,7 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Send, CalendarClock, ImagePlus, X, Pencil, RotateCcw, Tags, Plus, ListPlus, Megaphone, Recycle, Sparkles, Loader2, Eye, EyeOff, Wand2, Check } from "lucide-react";
+import { Send, CalendarClock, ImagePlus, X, Pencil, RotateCcw, Tags, Plus, ListPlus, Megaphone, Recycle, Sparkles, Loader2, Eye, Wand2, Check, Hash, Link2, RefreshCw } from "lucide-react";
+import { PostPreviewDialog, type PreviewPost } from "@/components/PostPreview";
+import { suggestHashtagsAction, type HashtagSuggestion } from "@/app/actions/social-hashtags";
+import { TAG_RE, tagsIn, appendTags, removeTag, insertLinkAt } from "@/lib/social/hashtag-text";
 import { SubmitButton } from "@/components/SubmitButton";
 import { createSocialPostAction, updateSocialPostAction } from "@/app/actions/social";
 import { generateComposerImageAction } from "@/app/actions/social-image-gen";
@@ -61,7 +64,13 @@ function mediaWords(items: PreviewMedia[]): string {
   return [i ? `${i} image${i > 1 ? "s" : ""}` : "", v ? `${v} video${v > 1 ? "s" : ""}` : ""].filter(Boolean).join(", ");
 }
 
-export type ComposerAccount = { id: string; provider: string; name: string | null };
+/** `handle` is the account's username on the network, for "Preview as posted". */
+export type ComposerAccount = { id: string; provider: string; name: string | null; handle?: string | null };
+/** A published article "Add link" can put in the post. */
+export type ComposerArticle = { title: string; url: string };
+
+const TAG_KIND: Record<HashtagSuggestion["kind"], string> = { brand: "The brand's own tag", topic: "From the Topic", post: "From what the post says" };
+
 export type ComposerTopic = { id: string; name: string; keywords: string[] };
 export type ComposerCampaign = { id: string; name: string; color: string | null; utmCampaign?: string | null };
 
@@ -93,6 +102,10 @@ export type ComposerInitial = {
   /** UPPERCASED slugs whose target has its own images. */
   ownMedia?: string[];
   tiktok?: TikTokOptions | null;
+  /** The post's own pictures and videos, for "Preview as posted" (kept unless replaced or removed). */
+  existingMediaPreview?: PreviewMedia[];
+  /** Each network's own saved pictures, keyed by UPPERCASED slug. */
+  ownMediaPreview?: Record<string, PreviewMedia[]>;
 };
 
 /** The measured best time for "Optimal", or why there isn't one (social/optimal.ts). */
@@ -154,7 +167,15 @@ export function SocialComposer({
   seed,
   utm,
   defaultAccountIds = [],
+  articles = [],
+  avatarUrl = null,
+  brandName = "",
 }: {
+  /** The workspace's published articles, newest first, for "Add link". */
+  articles?: ComposerArticle[];
+  /** The brand's logo, drawn as the accounts' picture in "Preview as posted". */
+  avatarUrl?: string | null;
+  brandName?: string;
   accounts: ComposerAccount[];
   topics?: ComposerTopic[];
   /** Active campaigns this post can join. */
@@ -235,7 +256,21 @@ export function SocialComposer({
   const [genBusy, setGenBusy] = useState(false);
   const [genError, setGenError] = useState<string | null>(null);
   const [genGuidance, setGenGuidance] = useState("");
-  const [showPreview, setShowPreview] = useState(false);
+  // "Preview as posted" (2026-11-21): a window with one tab per network.
+  const [previewOpen, setPreviewOpen] = useState(false);
+  // Hashtag suggestions: asked once by themselves when the post has enough to go on, again on Refresh.
+  const [tagBusy, setTagBusy] = useState(false);
+  const [tagList, setTagList] = useState<HashtagSuggestion[]>([]);
+  const [tagNote, setTagNote] = useState<string | null>(null);
+  const [tagAdvice, setTagAdvice] = useState<{ text: string; count: number } | null>(null);
+  const tagAsked = useRef(false);
+  // "Add link": a link typed or one of the workspace's published articles, put where the cursor was.
+  const [linkOpen, setLinkOpen] = useState(false);
+  const [linkUrl, setLinkUrl] = useState("");
+  const [linkQuery, setLinkQuery] = useState("");
+  const [linkError, setLinkError] = useState<string | null>(null);
+  /** Where the cursor last was in the base text (null = never there): a link goes there. */
+  const caret = useRef<number | null>(null);
   // AI per-network tailoring: PROPOSED variants awaiting accept/discard.
   const [tailorBusy, setTailorBusy] = useState(false);
   const [tailorError, setTailorError] = useState<string | null>(null);
@@ -377,6 +412,84 @@ export function SocialComposer({
   const brandedSelfOnly = tiktokSelected && tiktok.commercial === "brand_content" && tiktok.privacy === "SELF_ONLY";
   const firstCommentProviders = selectedProviders.filter((p) => FIRST_COMMENT_NETWORKS.has(p.toLowerCase()));
   const topic = topics.find((t) => t.id === topicId);
+
+  // ── Hashtags (2026-11-21) ──
+  // The networks the suggestions are pitched at: the ticked ones, else every connected one.
+  const tagProviders = (selectedProviders.length ? selectedProviders : [...new Set(accounts.map((a) => a.provider.toUpperCase()))]).map((p) => p.toLowerCase());
+  const tagWords = text.replace(TAG_RE, " ").replace(/https?:\/\/\S+/g, " ").trim();
+  const enoughForTags = tagWords.length >= 40 || Boolean(topicId);
+  async function suggestTags() {
+    tagAsked.current = true;
+    setTagBusy(true);
+    setTagNote(null);
+    try {
+      const r = await suggestHashtagsAction({ text, topicId: topicId || null, providers: tagProviders });
+      if (r.ok) {
+        setTagList(r.tags);
+        setTagAdvice({ text: r.advice, count: r.addCount });
+      } else {
+        setTagNote(r.error);
+      }
+    } catch {
+      setTagNote("Hashtags couldn't be suggested — try Refresh.");
+    } finally {
+      setTagBusy(false);
+    }
+  }
+  // Asked once by themselves, a moment after typing pauses with enough to go on; Refresh asks again.
+  useEffect(() => {
+    if (tagAsked.current || !enoughForTags) return;
+    const t = setTimeout(() => { if (!tagAsked.current) void suggestTags(); }, 1500);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- the pause restarts on every edit; suggestTags reads the latest text
+  }, [enoughForTags, text, topicId]);
+
+  // ── Preview as posted (2026-11-21) ──
+  /** What a network's post shows: its own new files, else its own saved ones, else the base — new, then the post's own. */
+  const previewMediaFor = (p: string): PreviewMedia[] => {
+    if (customizing.has(p) && (variantFiles[p]?.length ?? 0) > 0) return previewImagesFor(p);
+    const ownSaved = customizing.has(p) ? initial?.ownMediaPreview?.[p] : undefined;
+    if (ownSaved?.length) return ownSaved;
+    const fresh = previewImagesFor(p);
+    if (fresh.length) return fresh;
+    return editing && !clearMedia ? initial?.existingMediaPreview ?? [] : [];
+  };
+  /** One post per network: the ticked ones, else every connected one, else the main networks (nothing connected yet). */
+  const previewPosts = (): PreviewPost[] => {
+    const connected = [...new Set(accounts.map((a) => a.provider.toUpperCase()))];
+    const list = selectedProviders.length ? selectedProviders : connected.length ? connected : ["LINKEDIN", "FACEBOOK", "INSTAGRAM", "TWITTER"];
+    return list.map((p) => {
+      const account = accounts.find((a) => a.provider.toUpperCase() === p && selected.has(a.id)) ?? accounts.find((a) => a.provider.toUpperCase() === p);
+      const sent = sendFor(p);
+      const fmt = subFormats[p];
+      return {
+        provider: p,
+        accountName: account?.name ?? null,
+        handle: account?.handle ?? null,
+        text: sent.text,
+        comment: sent.comment,
+        media: previewMediaFor(p),
+        subFormat: fmt === "story" || fmt === "reel" ? fmt : null,
+        unselected: accounts.length > 0 && !selectedProviders.includes(p),
+      };
+    });
+  };
+
+  // ── Add link (2026-11-21) ──
+  function insertLink(raw: string) {
+    const url = raw.trim();
+    if (!/^https?:\/\/[^\s<>"']+\.[^\s<>"']+$/i.test(url)) {
+      setLinkError("Paste a full address, starting with https://");
+      return;
+    }
+    // Where the cursor was, or at the end — above a closing line of hashtags, so the tags stay last.
+    const at = caret.current;
+    setText((prev) => insertLinkAt(prev, url, at));
+    setLinkOpen(false);
+    setLinkUrl("");
+    setLinkQuery("");
+    setLinkError(null);
+  }
 
   /** B / I on the base text: style the selection, or the whole text when nothing is selected. */
   function applyStyle(kind: "bold" | "italic") {
@@ -560,6 +673,14 @@ export function SocialComposer({
           {selectedProviders.length > 1 ? "Base post (used by any network you don’t customize)" : "Text"}
           <span className="flex-1" />
           {/* type="button" is load-bearing — these sit inside the form. */}
+          <button type="button" className="btn sm !px-2 !py-0.5 normal-case tracking-normal inline-flex items-center gap-1" aria-expanded={linkOpen}
+            onClick={() => { setLinkOpen((o) => !o); setLinkError(null); }} title="Put a link in the post — any address, or one of your published articles" data-add-link-toggle>
+            <Link2 className="w-3.5 h-3.5" /> Add link
+          </button>
+          <button type="button" className="btn sm !px-2 !py-0.5 normal-case tracking-normal inline-flex items-center gap-1"
+            onClick={() => setPreviewOpen(true)} title="See the post the way each network will show it" data-preview-open>
+            <Eye className="w-3.5 h-3.5" /> Preview
+          </button>
           <button type="button" className="btn sm !px-1.5 !py-0.5 font-bold normal-case" onClick={() => applyStyle("bold")} title="Bold the selection (or all the text). No network takes markup, so this uses styled Unicode letters — sparingly: screen readers may spell them out.">B</button>
           <button type="button" className="btn sm !px-1.5 !py-0.5 italic normal-case" onClick={() => applyStyle("italic")} title="Italicise the selection (or all the text), as styled Unicode letters — sparingly.">I</button>
         </div>
@@ -567,11 +688,50 @@ export function SocialComposer({
           ref={textRef}
           name="text"
           value={text}
-          onChange={(e) => setText(e.target.value)}
+          // The cursor is remembered on every edit and selection, so "Add link" puts the link where the person was.
+          onChange={(e) => { setText(e.target.value); caret.current = e.target.selectionStart; }}
+          onSelect={(e) => { caret.current = e.currentTarget.selectionStart; }}
           rows={4}
           placeholder="What do you want to share?"
           className="w-full border border-[var(--line-2)] rounded-lg p-2.5 text-sm resize-y"
         />
+        {/* Add link (2026-11-21): typed, or one of the workspace's published articles; it goes where the cursor
+            was, or at the end (before a closing line of hashtags). Tagging and "move links to the first comment"
+            apply to it at send like any link. */}
+        {linkOpen && (
+          <div className="mt-1.5 mb-1 p-2.5 rounded-lg border border-[var(--line-2)] flex flex-col gap-2" data-add-link>
+            <div className="flex flex-wrap items-center gap-2">
+              <input type="url" inputMode="url" value={linkUrl} onChange={(e) => { setLinkUrl(e.target.value); setLinkError(null); }} autoFocus
+                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); insertLink(linkUrl); } if (e.key === "Escape") { e.preventDefault(); setLinkOpen(false); } }}
+                placeholder="https://…" aria-label="Link address" className="flex-1 min-w-[200px] border border-[var(--line-2)] rounded-lg px-2 py-1 text-xs" data-add-link-url />
+              <button type="button" className="btn sm" onClick={() => insertLink(linkUrl)} disabled={!linkUrl.trim()} data-add-link-insert>Insert</button>
+              <button type="button" className="text-2xs underline" onClick={() => setLinkOpen(false)}>Cancel</button>
+            </div>
+            {linkError && <p className="text-2xs m-0" style={{ color: "var(--rose-on)" }} role="alert">{linkError}</p>}
+            {articles.length > 0 && (
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-micro font-mono uppercase tracking-wider text-[var(--mute)]">Or one of your articles</span>
+                  {articles.length > 6 && (
+                    <input value={linkQuery} onChange={(e) => setLinkQuery(e.target.value)} placeholder="Find an article" aria-label="Find an article"
+                      className="border border-[var(--line-2)] rounded-lg px-2 py-0.5 text-2xs w-44" />
+                  )}
+                </div>
+                <div className="flex flex-col gap-0.5 max-h-48 overflow-y-auto" data-add-link-articles>
+                  {articles.filter((a) => !linkQuery.trim() || a.title.toLowerCase().includes(linkQuery.trim().toLowerCase())).slice(0, 12).map((a) => (
+                    <button key={a.url} type="button" onClick={() => insertLink(a.url)} className="text-left px-2 py-1 rounded-md hover:bg-[var(--zebra)] text-xs min-w-0" title={a.url}>
+                      <span className="font-semibold">{a.title}</span> <span className="text-[var(--mute)] text-2xs">{a.url.replace(/^https?:\/\//, "")}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            <p className="text-micro text-[var(--mute)] m-0">
+              {utmCfg?.enabled ? "Tracking tags are added when the post goes out. " : ""}X, LinkedIn, Facebook and Threads turn a link into a card when the post has no picture —
+              Preview shows the card.
+            </p>
+          </div>
+        )}
         {/* Saved snippets (E-SOC-10): one click puts the text where the cursor is
             (or at the end). Those for another category are left out. */}
         {snippets.some((s) => !s.category || s.category === category) && (
@@ -589,6 +749,49 @@ export function SocialComposer({
               </button>
             ))}
           </div>
+        )}
+        {/* Hashtags from the brand and the Topic (2026-11-21): suggested by themselves once the post has a sentence
+            or two (or a Topic), as chips — nothing goes into the post until one is clicked or "Add top N". */}
+        <div className="flex flex-wrap items-center gap-1 mt-1.5" data-hashtags>
+          <span className="text-micro font-mono uppercase tracking-wider text-[var(--mute)] inline-flex items-center gap-1">
+            <Hash className="w-3 h-3" /> Hashtags
+          </span>
+          {tagBusy && (
+            <span className="text-2xs text-[var(--mute)] inline-flex items-center gap-1" role="status">
+              <Loader2 className="w-3 h-3 animate-spin" /> Suggesting from your brand{topic ? ` and “${topic.name}”` : ""}…
+            </span>
+          )}
+          {!tagBusy && tagList.map((t) => {
+            const on = tagsIn(text).has(t.tag.toLowerCase());
+            return (
+              <button key={t.tag} type="button" aria-pressed={on} data-hashtag={t.tag}
+                onClick={() => setText((prev) => (on ? removeTag(prev, t.tag) : appendTags(prev, [t.tag])))}
+                title={on ? "In the post — click to take it out" : `${TAG_KIND[t.kind]} — click to add it at the end`}
+                className="inline-flex items-center gap-1 text-2xs font-mono px-1.5 py-0.5 rounded-full border"
+                style={on ? { borderColor: "var(--accent)", background: "var(--accent-soft)", color: "var(--accent-on)" } : { borderColor: "var(--line-2)" }}>
+                {on ? <Check className="w-2.5 h-2.5" /> : <Plus className="w-2.5 h-2.5" />} {t.tag}
+                {t.kind === "brand" && <span className="text-micro opacity-70">brand</span>}
+              </button>
+            );
+          })}
+          {!tagBusy && tagList.length > 0 && tagAdvice && (
+            <button type="button" className="btn sm !px-2 !py-0.5" title={tagAdvice.text} data-hashtags-add
+              onClick={() => setText((prev) => appendTags(prev, tagList.slice(0, tagAdvice.count).map((t) => t.tag)))}>
+              Add top {tagAdvice.count}
+            </button>
+          )}
+          {!tagBusy && (enoughForTags || tagList.length > 0) && (
+            <button type="button" className="text-2xs underline inline-flex items-center gap-1" onClick={() => void suggestTags()} data-hashtags-refresh>
+              {tagList.length ? <><RefreshCw className="w-3 h-3" /> Refresh</> : "Suggest"}
+            </button>
+          )}
+          {!tagBusy && !enoughForTags && tagList.length === 0 && (
+            <span className="text-2xs text-[var(--mute)]">suggested from your brand once the post has a sentence or two, or a Topic</span>
+          )}
+        </div>
+        {tagNote && <p className="text-micro m-0" style={{ color: "var(--amber-on)" }} role="status">{tagNote}</p>}
+        {!tagBusy && tagAdvice && tagList.length > 0 && (
+          <p className="text-micro text-[var(--mute)] m-0">{tagAdvice.text}. They go on the base post; a network you customize keeps its own text.</p>
         )}
         {/* This textarea is CONTROLLED, so accepting a draft has to go through
             the prototype value setter — see the note in AiAssist.accept(). */}
@@ -920,45 +1123,22 @@ export function SocialComposer({
         </div>
       )}
 
-      {/* Per-platform preview — how the post will read on each selected
-          network, using the same effective text/media fallbacks the server
-          applies. An approximation of each network's card, not a screenshot. */}
-      {selectedProviders.length > 0 && (
-        <div>
-          <button
-            type="button"
-            onClick={() => setShowPreview((v) => !v)}
-            className="text-2xs font-semibold inline-flex items-center gap-1"
-            style={{ color: "var(--accent)" }}
-          >
-            {showPreview ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-            {showPreview ? "Hide previews" : `Preview on ${selectedProviders.length} network${selectedProviders.length > 1 ? "s" : ""}`}
-          </button>
-          {showPreview && (
-            <div className="grid gap-3 mt-2" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))" }}>
-              {selectedProviders.map((p) => {
-                const account = accounts.find((a) => selected.has(a.id) && a.provider.toUpperCase() === p);
-                return (
-                  <PlatformPreview
-                    key={p}
-                    provider={p}
-                    accountName={account?.name ?? null}
-                    text={sendFor(p).text}
-                    comment={sendFor(p).comment}
-                    images={previewImagesFor(p)}
-                  />
-                );
-              })}
-            </div>
-          )}
-          {showPreview && (
-            <p className="text-micro text-[var(--mute)] mt-1.5">
-              Approximate rendering — networks apply their own fonts and cropping. The text is what will be sent:
-              {utmCfg?.enabled ? " links carry the tags added at send," : " link tagging is off (Settings → Schedule),"} and a first comment shows where the
-              network takes one.
-            </p>
-          )}
-        </div>
+      {/* Preview as posted (2026-11-21) — each network's post drawn the way that network shows it, from exactly
+          what will be sent (sendFor: links tagged, links moved to the first comment). It replaced the row of
+          approximate cards; the look is data in lib/social/preview-skins.ts. */}
+      <div className="flex flex-wrap items-center gap-2">
+        <button type="button" className="btn sm" onClick={() => setPreviewOpen(true)} data-preview-open-main>
+          <Eye className="w-4 h-4" /> Preview as posted
+        </button>
+        <span className="text-2xs text-[var(--mute)]">
+          {selectedProviders.length
+            ? `How it will look on ${selectedProviders.map((p) => networkFor(p)?.label ?? p).join(", ")}`
+            : accounts.length ? "Tick an account to preview it there — or open it to see every connected network" : "See it on the main networks before an account is connected"}
+          {utmCfg?.enabled ? ", links tagged as they'll be sent." : "."}
+        </span>
+      </div>
+      {previewOpen && (
+        <PostPreviewDialog posts={previewPosts()} avatarUrl={avatarUrl} brandName={brandName || accounts[0]?.name || "Your brand"} onClose={() => setPreviewOpen(false)} />
       )}
 
       {/* Existing images — an edit keeps them unless you say otherwise. */}
@@ -1096,101 +1276,5 @@ export function SocialComposer({
         </SubmitButton>
       </div>
     </form>
-  );
-}
-
-/**
- * One network's preview card. Deliberately an APPROXIMATION built from the
- * network's own facts (color, label, char limit, image-first layouts) rather
- * than a pixel-clone of its feed — clones rot the moment a network redesigns,
- * and a stale clone is worse than an honest sketch.
- */
-function PlatformPreview({
-  provider,
-  accountName,
-  text,
-  comment,
-  images,
-}: {
-  provider: string;
-  accountName: string | null;
-  text: string;
-  /** The first comment as it will be posted (links moved there, tags added), or null where there's none. */
-  comment: string | null;
-  images: PreviewMedia[];
-}) {
-  const net = networkFor(provider);
-  const limit = net?.charLimit ?? 3000;
-  const length = postLength(provider, text);
-  const truncated = length > limit;
-  // X's weighting can't be cut by characters — say how far over instead of slicing.
-  const weighted = !!lengthNote(provider);
-  const shown = truncated && !weighted ? text.slice(0, limit) : text;
-  const slug = provider.toLowerCase();
-  const imageFirst = ["instagram", "pinterest", "tiktok"].includes(slug);
-  const square = imageFirst;
-  const name = accountName ?? net?.label ?? provider;
-
-  const imageBlock =
-    images.length > 0 ? (
-      <div className={images.length > 1 ? "grid grid-cols-2 gap-0.5" : ""}>
-        {images.slice(0, 4).map((m, i) =>
-          m.video ? (
-            <video key={i} src={m.url} muted controls preload="metadata" className={`w-full object-cover bg-black ${square ? "aspect-square" : "aspect-video"}`} />
-          ) : (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              key={i}
-              src={m.url}
-              alt=""
-              className={`w-full object-cover ${square ? "aspect-square" : "aspect-video"}`}
-            />
-          ),
-        )}
-      </div>
-    ) : imageFirst ? (
-      <div className="aspect-square grid place-items-center text-2xs" style={{ background: "var(--zebra)", color: "var(--amber-on)" }}>
-        {net?.label} needs an image
-      </div>
-    ) : null;
-
-  return (
-    <div className="rounded-xl border border-[var(--line)] overflow-hidden text-sm" style={{ background: "var(--panel)" }}>
-      {/* Network strip */}
-      <div className="px-3 py-1.5 flex items-center gap-1.5 border-b border-[var(--line)]">
-        <span className="w-2 h-2 rounded-full" style={{ background: net?.color ?? "var(--mute)" }} />
-        <span className="font-mono text-micro uppercase tracking-wider text-[var(--mute)]">{net?.label ?? provider}</span>
-      </div>
-      {/* Author row */}
-      <div className="px-3 pt-2.5 pb-1.5 flex items-center gap-2">
-        <span
-          className="w-8 h-8 rounded-full grid place-items-center text-xs font-bold shrink-0"
-          style={{ background: net?.color ?? "var(--mute)", color: "white" }}
-        >
-          {name.slice(0, 1).toUpperCase()}
-        </span>
-        <div className="min-w-0">
-          <div className="text-xs font-semibold truncate">{name}</div>
-          <div className="text-micro text-[var(--mute)]">Just now</div>
-        </div>
-      </div>
-      {imageFirst && imageBlock}
-      {shown && (
-        <p className="px-3 py-2 text-sm whitespace-pre-wrap break-words leading-snug">
-          {shown}
-          {truncated && <span style={{ color: "var(--rose-on)" }}>{weighted ? ` — ${length - limit} over ${net?.label ?? provider}'s ${limit}` : `… ✂ cut at ${limit} characters`}</span>}
-        </p>
-      )}
-      {!imageFirst && imageBlock}
-      <div className="px-3 py-1.5 border-t border-[var(--line)] flex gap-4 text-micro font-mono text-[var(--mute)]">
-        <span>Like</span><span>Comment</span><span>Share</span>
-      </div>
-      {comment && (
-        <div className="px-3 py-2 border-t border-[var(--line)] flex gap-2 items-start" data-preview-comment={provider}>
-          <span className="w-5 h-5 rounded-full shrink-0 grid place-items-center text-micro font-bold" style={{ background: net?.color ?? "var(--mute)", color: "white" }}>{name.slice(0, 1).toUpperCase()}</span>
-          <p className="m-0 text-xs whitespace-pre-wrap break-words leading-snug min-w-0"><span className="font-semibold">First comment · </span>{comment}</p>
-        </div>
-      )}
-    </div>
   );
 }

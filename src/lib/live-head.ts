@@ -20,6 +20,11 @@ export type SocialHead = {
   twitterCard: string | null;
   twitterImage: string | null;
   canonical: string | null;
+  /** For a link card (the composer's preview): what the page says about itself. */
+  ogDescription?: string | null;
+  ogSiteName?: string | null;
+  /** The page's <title>, when it has no og:title. */
+  title?: string | null;
 };
 
 export type HeadCheck = { tag: string; state: "ok" | "warn" | "missing"; note: string };
@@ -32,8 +37,17 @@ export type LiveHead = {
   checks?: HeadCheck[];
 };
 
+const NAMED: Record<string, string> = {
+  amp: "&", quot: '"', apos: "'", lt: "<", gt: ">", nbsp: " ", ndash: "–", mdash: "—", hellip: "…",
+  lsquo: "‘", rsquo: "’", ldquo: "“", rdquo: "”", laquo: "«", raquo: "»", middot: "·", bull: "•", copy: "©", reg: "®", trade: "™",
+};
+/** Entities in a tag's value: numeric (&#124; &#x7c;) and the named ones titles use. An unknown name is left as written. */
 const decode = (s: string) =>
-  s.replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&#0?39;|&#x27;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">").trim();
+  s
+    .replace(/&#(\d{1,7});/g, (m, d: string) => { const n = Number(d); return n > 0 && n <= 0x10ffff ? String.fromCodePoint(n) : m; })
+    .replace(/&#x([0-9a-f]{1,6});/gi, (m, h: string) => { const n = parseInt(h, 16); return n > 0 && n <= 0x10ffff ? String.fromCodePoint(n) : m; })
+    .replace(/&([a-z]{2,8});/gi, (m, name: string) => NAMED[name.toLowerCase()] ?? m)
+    .trim();
 
 /** The social tags in a page's <head> (or the whole page, when it has no closing head). */
 export function parseSocialHead(html: string): SocialHead {
@@ -62,6 +76,9 @@ export function parseSocialHead(html: string): SocialHead {
     twitterCard: get("twitter:card"),
     twitterImage: get("twitter:image") ?? get("twitter:image:src"),
     canonical,
+    ogDescription: get("og:description") ?? get("twitter:description") ?? get("description"),
+    ogSiteName: get("og:site_name"),
+    title: decode(head.match(/<title\b[^>]*>([^<]*)<\/title>/i)?.[1] ?? "") || null,
   };
 }
 

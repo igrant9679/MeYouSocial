@@ -830,6 +830,24 @@ export const HELP_CATEGORIES: FaqCategory[] = [
         tags: ["social", "composer", "publish", "cross-post", "multi-network"],
       },
       {
+        q: "Can I see a post the way it will look on each network?",
+        a: "Yes. In **Compose**, or when editing a post, press **Preview** (above the text) or **Preview as posted** (under the networks). A window opens with a tab for each network you've ticked, or every connected network when none is ticked yet. Each tab draws the post the way that network does: its colours and layout, your logo and account name, the caption cut off behind “more” where the network cuts it, links and hashtags written the way it writes them, pictures cropped to its shapes, and the first comment under the post. A link in a post with no picture becomes the linked page's card (its picture and title) on X, LinkedIn, Facebook, Threads, Telegram, WhatsApp, Discord and Reddit. Bluesky shows a card only when the sending app builds one. A Story or Reel shows full-screen. **Phone** and **Wide** change the width.\n\nThe text is exactly what will be sent: links carry their tracking tags, and links you move to the first comment show there. The network still draws the final pixels in its own fonts, and it may keep an older copy of a linked page's card for a while.",
+        links: [{ label: "Open Compose →", href: "/social/compose" }],
+        tags: ["preview", "social", "composer", "look", "linkedin", "instagram", "x", "facebook", "link card", "see more"],
+      },
+      {
+        q: "Can it suggest hashtags for a post?",
+        a: "Yes. Under the post's text, **Hashtags** suggests up to twelve once the post has a sentence or two, or a Topic. They're picked for your brand (from your brand facts and the hashtags in your saved hashtag sets, which come first and keep their spelling), for the post's Topic and for what the post says. Click a chip to add it at the end of the post (click again to take it out), or press **Add top N**. N is the number that reads well on the networks you've ticked, e.g. one for Threads, one or two for X, about three for LinkedIn, up to eight for Instagram. **Refresh** asks again. Nothing is added until you click, and with no AI model set up nothing is suggested.",
+        links: [{ label: "Open Compose →", href: "/social/compose" }],
+        tags: ["hashtag", "hashtags", "tags", "brand", "topic", "social", "suggest"],
+      },
+      {
+        q: "How do I add a link to a post?",
+        a: "Type or paste it into the text, or press **Add link** above the text: paste any address, or pick one of your published articles from the list. The link goes where your cursor was, or at the end (above a closing line of hashtags). Link tagging and “Move links from the caption to the first comment” apply to it when the post goes out. **Preview** shows the card the networks will make from it.",
+        links: [{ label: "Open Compose →", href: "/social/compose" }],
+        tags: ["link", "url", "article", "social", "card", "add link"],
+      },
+      {
         q: "What are queue slots, and why use them instead of picking a date?",
         a: "Slots are your standing publishing times — say 09:00 Monday to Friday. Queue a draft and it takes the next free one, so you are not choosing a date for every post. If every slot in the horizon is taken the app tells you rather than inventing a time, and pausing a slot never un-schedules a post already sitting in it.",
         links: [{ label: "Posting schedule →", href: "/setup/schedule" }],

@@ -44,6 +44,7 @@ export const PURPOSE_LABEL: Record<string, string> = {
   keywords: "Keywords",
   "social.draft": "Social drafts",
   "social.tailor": "Tailoring posts per network",
+  "social.hashtags": "Hashtag suggestions",
   captions: "Caption Studio",
   "script.generate": "Script writing",
   "script.builder": "Script builder",

@@ -26,6 +26,10 @@ export const LIMITS = {
   submitPerIp: { limit: 5, windowSec: 600 },
   // Attaching files (E-ENG-13): one person's new uploads, which can each be 2,500 MB of someone's Drive.
   uploadsPerUser: { limit: 60, windowSec: 3600 },
+  // The composer's preview reading a linked page for its card (2026-11-21): outside fetches, one person's.
+  linkCardsPerUser: { limit: 60, windowSec: 600 },
+  // Hashtag suggestions (2026-11-21): each is a model call on the workspace's key.
+  hashtagsPerUser: { limit: 40, windowSec: 600 },
 } as const;
 export type LimitName = keyof typeof LIMITS;
 

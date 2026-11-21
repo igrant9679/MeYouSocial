@@ -14,6 +14,8 @@ import { optimalTime } from "@/lib/social/optimal";
 import { readTargetOptions } from "@/lib/social/platform-options";
 import { threadsFor } from "@/lib/social/post-comments";
 import { PostThread } from "@/components/SocialPostCard";
+import { composerExtras } from "@/lib/social/composer-extras";
+import { storage } from "@/lib/storage";
 
 // Editing an unsent post. Reuses the composer wholesale so per-network rules
 // (char limits, variants, per-network images) behave identically to composing.
@@ -61,7 +63,11 @@ export default async function EditSocialPostPage({ params }: { params: Promise<{
     id: a.id,
     provider: a.platform,
     name: a.displayName ?? a.username,
+    handle: a.username,
   }));
+  // "Add link" and "Preview as posted" (2026-11-21).
+  const extras = await composerExtras(workspace);
+  const previewOf = (keys: string[]) => keys.slice(0, 4).map((k) => ({ url: storage.url(k), video: /\.(mp4|mov|m4v|webm|mkv|avi)$/i.test(k) }));
 
   const variants: Record<string, string> = {};
   for (const t of post.targets) if (t.text) variants[t.provider.toUpperCase()] = t.text;
@@ -92,6 +98,11 @@ export default async function EditSocialPostPage({ params }: { params: Promise<{
     variants,
     subFormats,
     existingMedia: readJson<string[]>(post.mediaKeys, []).length,
+    // "Preview as posted" (2026-11-21): the files already on the post, and each network's own.
+    existingMediaPreview: previewOf(readJson<string[]>(post.mediaKeys, [])),
+    ownMediaPreview: Object.fromEntries(
+      post.targets.filter((t) => readJson<string[]>(t.mediaKeys, []).length > 0).map((t) => [t.provider.toUpperCase(), previewOf(readJson<string[]>(t.mediaKeys, []))]),
+    ),
     firstComment: post.firstComment,
     linkToFirstComment: post.linkToFirstComment,
     watermark: post.watermark,
@@ -158,6 +169,9 @@ export default async function EditSocialPostPage({ params }: { params: Promise<{
           watermarkAvailable={watermarkAvailable}
           optimal={optimal.ok ? { label: optimal.label, why: optimal.why } : { reason: optimal.reason }}
           snippets={await db.socialSnippet.findMany({ where: { workspaceId: workspace.id }, orderBy: { name: "asc" }, select: { id: true, name: true, body: true, category: true } })}
+          articles={extras.articles}
+          avatarUrl={extras.avatarUrl}
+          brandName={extras.brandName}
         />
       )}
 

@@ -17,6 +17,7 @@ import { SocialCsvImport } from "@/components/SocialCsvImport";
 import { saveSnippetAction, deleteSnippetAction } from "@/app/actions/social-snippets";
 import { Banner, SocialHeader } from "@/components/SocialPostCard";
 import { DeleteButton } from "@/components/DeleteButton";
+import { composerExtras } from "@/lib/social/composer-extras";
 
 // Composing, and the bulk path that skips composing. Everything that CREATES a
 // post lives here; everything that manages one lives on the other tabs.
@@ -59,7 +60,10 @@ export default async function SocialComposePage({ searchParams }: { searchParams
     id: a.id,
     provider: a.platform,
     name: a.displayName ?? a.username,
+    handle: a.username,
   }));
+  // "Add link" and "Preview as posted" (2026-11-21).
+  const extras = await composerExtras(workspace);
   // This person's saved starting selection (tracker #32) — still-connected accounts only.
   const { myDefaultAccounts } = await import("@/lib/social/default-accounts");
   const defaultAccountIds = await myDefaultAccounts(workspace.id, user.id, accounts.map((a) => a.id));
@@ -118,6 +122,9 @@ export default async function SocialComposePage({ searchParams }: { searchParams
         optimal={optimal.ok ? { label: optimal.label, why: optimal.why } : { reason: optimal.reason }}
         snippets={snippets}
         defaultAccountIds={defaultAccountIds}
+        articles={extras.articles}
+        avatarUrl={extras.avatarUrl}
+        brandName={extras.brandName}
       />
 
       {/* Post templates (E-SOC-23): saved from a post's page; Use starts a new post with its content. */}

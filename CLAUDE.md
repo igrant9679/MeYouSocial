@@ -408,6 +408,7 @@ area, rather than loading all of them into every session.
 - A record from another of your workspaces offers the switch, never a bare 404 — 2026-11-19, the owner's 404 on an LSI draft; every record page the same evening
 - The stages are named by format: Articles, Social posts, Video — 2026-11-19, the owner's "Name by format"
 - Every migration stays: an empty database replays them all — 2026-11-21, the owner's "Yes, fix the migrations"
+- A post previews as posted, suggests its hashtags, and takes a link — 2026-11-21, the owner's "click to preview it so I see exactly what it looks like as posted"
 
 ## Open items / things the user still owns
 - **Analytics: APIs enabled 2026-08-03** (Search Console + GA Admin + GA Data, on project
