@@ -206,7 +206,9 @@ but it means **bad output can look like real output**. Rules learned the hard wa
 - **Stages are named by FORMAT** (2026-11-19, the owner's "Name by format"): the rail reads Research · Ideas ·
   **Articles** (`/publish`) · **Social posts** (`/distribute`) · **Video** (`/studio`, only while the studio is shown) ·
   Measure. Drafts / Publish / Distribute are gone as names — `/drafts` redirects to Articles. ⚠ Never name a stage
-  after a step again, and never write "Distribute →", "Publish →" or "Drafts →" in copy.
+  after a step again, and never write "Distribute →", "Publish →" or "Drafts →" in copy. The prebuild check
+  `scripts/check-retired-names.mts` fails the build on these and every other retired name; a rename that retires a
+  name adds a line to its `RETIRED` list in the same commit.
 - **Stage strip** `src/lib/stages.ts` + `src/components/StageStrip.tsx` — each stage's tabs, as data. Since 2026-11-17
   Settings, Distribute and Measure are GROUPED: a tab may carry `group`, `stageEntries()` folds the list into the
   first row, and the second row lists the pages of the group you are in. ⚠ Pages kept their names and URLs — a new
@@ -409,6 +411,7 @@ area, rather than loading all of them into every session.
 - The stages are named by format: Articles, Social posts, Video — 2026-11-19, the owner's "Name by format"
 - Every migration stays: an empty database replays them all — 2026-11-21, the owner's "Yes, fix the migrations"
 - A post previews as posted, suggests its hashtags, and takes a link — 2026-11-21, the owner's "click to preview it so I see exactly what it looks like as posted"
+- A retired name stops the build — 2026-11-21, the owner's "The Help check"
 
 ## Open items / things the user still owns
 - **Analytics: APIs enabled 2026-08-03** (Search Console + GA Admin + GA Data, on project

@@ -802,13 +802,13 @@ export const HELP_CATEGORIES: FaqCategory[] = [
       {
         q: "Why do Caption Studio drafts keep a date?",
         a: "Because a holiday post has to go out on the holiday. Under full autonomy the engine gives every draft *without* a time the next free slot — which would send Halloween's post on whichever day had room. A draft that keeps its proposed time is never queued that way; schedule it, or open it and change the time, when you're ready.",
-        links: [{ label: "Drafts →", href: "/social/drafts" }],
+        links: [{ label: "Social posts → Drafts →", href: "/social/drafts" }],
         tags: ["drafts", "autonomy", "special days", "date"],
       },
       {
         q: "I moved a post back to drafts — will the engine send it anyway?",
         a: "No. A post a person parks is **held**: Move to drafts, Cancel, Save as draft in the composer, or **Hold** on Drafts. Under full autonomy the engine gives drafts without a time the next free slot within about half an hour — but never a held one, and **Queue all** leaves held drafts too. Held drafts wear a **Held** chip on Drafts. Queueing or scheduling one yourself lets go of the hold, and so does **Let go**. Drafts the engine wrote itself (auto-generated, RSS, captions) aren't held — under full autonomy they're meant to go out.\n\nIn the composer, **Make this my default** remembers which accounts you post to, so new posts start with them ticked — just for you.",
-        links: [{ label: "Drafts →", href: "/social/drafts" }],
+        links: [{ label: "Social posts → Drafts →", href: "/social/drafts" }],
         tags: ["drafts", "hold", "held", "autonomy", "move to drafts", "default accounts"],
       },
       {

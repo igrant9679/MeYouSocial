@@ -3162,3 +3162,31 @@ day" still took two looks. Now the default view shows both.
 - Pure helpers checked by a script: `richParts` round-trips its input, the fold, X's short links, `untagged`,
   `feedAspect`, and appendTags / removeTag / insertLinkAt (29 cases). ⚠ Not proven against a real model: the hashtag
   call's success path. Locally and on a key-less workspace it refuses as designed.
+
+## ⚠ A retired name stops the build (2026-11-21, the owner's "The Help check")
+
+- **Why**: the stages, tabs and product were renamed several times, and twice in one week the Help still described the
+  old layout. On 11-19 the owner had to ask; on 11-20 the product-doc export found six more stale texts. Each rename's
+  "never write X again" lived in this file, and nothing enforced it.
+- **`scripts/check-retired-names.mts`** (in `prebuild`, after the help-copy check; `npm run check:retired`) reads every
+  string literal, template text and JSX text in `src/` with TypeScript's own parser. Comments and code never count. The
+  build fails when one names a place that no longer exists. Each `RETIRED` entry says what to write instead and since
+  when:
+  - "Distribute →" / "Drafts →" opening a place (not "Social posts → Drafts →", the tab as a link label);
+  - "Publish → X" as a place (the script page's own **Publish →** button is not a place);
+  - "the Drafts / Distribute / Publish / Review stage"; "on / in / to / from / open Distribute" (the article editor's
+    Distribute tab is fine);
+  - "Review → X"; "Blog analytics / report / calendar"; "Post drafts" (case-sensitive, the tab, not plain English);
+  - "Brand → Topics", "Measure → Topics", "Research → Chat", "Publish Admin", and "MeYouSocial Publish" without "-er".
+- **`ALLOWED`** holds the mentions that are ABOUT a rename ("there is no separate Review stage", "the Research → Chat tab
+  was folded into the assistant", the "Where did the tabs go?" answer): file, phrase and reason. The phrase must contain
+  the match at that spot. An entry that no longer matches anything fails the check too, so the list can't rot.
+- ⚠ **A rename that retires a name adds its line to `RETIRED` in the same commit.** That is what keeps the Help, Elsie's
+  knowledge, the tips, the guide and every button following the app. Older sections of this file keep the old names as
+  history: `docs/` is not scanned.
+- **Fixed when it first ran**: the Social posts calendar's "Queue all" tooltip ("held drafts stay on Post drafts" → "in
+  Drafts"), and two Help links labelled "Drafts →" ("Social posts → Drafts →"). A stale code comment on the Topics page
+  now says Measure → By Topic.
+- **Verified**: a probe file with 14 retired names and 8 look-alikes, plus a comment naming an old place. All 14 were
+  flagged ("Open Distribute" by two rules), none of the 8, not the comment. The probe was deleted after. Then the check
+  on the app: 12 retired names, none in 57,857 texts across 747 files, 6 explained mentions. tsc and next build.

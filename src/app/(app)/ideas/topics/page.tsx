@@ -266,7 +266,7 @@ function TopicRow({ t, editor, admin, others, tuning }: { t: Awaited<ReturnType<
       </div>
 
       {/* The ledger: counts only, every one a fact. What the Topic EARNED is
-          on Measure → Topics, where a dash can mean "not measured". */}
+          on Measure → By Topic, where a dash can mean "not measured". */}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-2xs text-[var(--mute)] mb-2 font-mono">
         <span title="Ideas in any state, by format">
           <b className="text-[var(--ink)] tabular-nums">{ideas}</b> ideas{ideas > 0 ? ` · ${[t.ideas.article ? `${t.ideas.article} article` : "", t.ideas.video ? `${t.ideas.video} video` : "", t.ideas.social ? `${t.ideas.social} social` : ""].filter(Boolean).join(", ")}` : ""}

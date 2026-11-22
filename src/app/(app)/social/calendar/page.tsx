@@ -193,7 +193,7 @@ export default async function SocialCalendarPage({ searchParams }: { searchParam
         <span className="flex-1" />
         {queueable > 0 && hasSlots && (
           <form action={queueAllDraftsAction}>
-            <SubmitButton className="btn sm" pendingText="Queueing…" title={`Fill the free slots with drafts, oldest first — a draft that already has a date is scheduled at that date instead${heldDrafts ? `; ${heldDrafts} held draft${heldDrafts === 1 ? " stays" : "s stay"} on Post drafts` : ""}`}>
+            <SubmitButton className="btn sm" pendingText="Queueing…" title={`Fill the free slots with drafts, oldest first — a draft that already has a date is scheduled at that date instead${heldDrafts ? `; ${heldDrafts} held draft${heldDrafts === 1 ? " stays" : "s stay"} in Drafts` : ""}`}>
               <ListPlus className="w-3.5 h-3.5" /> Queue all {queueable} draft{queueable === 1 ? "" : "s"}
             </SubmitButton>
           </form>
