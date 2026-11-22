@@ -18,6 +18,7 @@ import { AreaChart } from "@/components/charts";
 import { networkFor } from "@/lib/social/networks";
 import { getPublicUrl } from "@/lib/public-url";
 import { NeedsYouGroups } from "@/components/NeedsYou";
+import { WhatsNew } from "@/components/WhatsNew";
 import { EmptyState } from "@/components/EmptyState";
 import { SubmitButton } from "@/components/SubmitButton";
 import { snoozeInboxItemAction } from "@/app/actions/inbox";
@@ -89,6 +90,10 @@ export default async function InboxPage() {
             : `${inbox.total} thing${inbox.total === 1 ? "" : "s"} need${inbox.total === 1 ? "s" : ""} you in ${workspace.name} — everything else is running.`}
         </p>
       </div>
+
+      {/* What changed in the app since this person last looked (lib/whats-new.ts).
+          Renders nothing when there is nothing new; "Got it" hides it for them. */}
+      <WhatsNew userId={user.id} role={membership.role} joinedAt={membership.createdAt} />
 
       {nothing && (
         <EmptyState

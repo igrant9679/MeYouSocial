@@ -1,4 +1,5 @@
 import { loopSentence, railSentence, stageUrls, stagesAndTabs } from "@/lib/stage-copy";
+import { SHOW_DAYS, WHATS_NEW, whatsNewDay } from "@/lib/whats-new";
 /**
  * What the assistant KNOWS about the app it lives in — the operator's guide,
  * in topics it can look up. Kept as plain data so the Help Center and the
@@ -155,6 +156,14 @@ Video studio — a switch on the Settings overview: the Video stage (Scripts, Th
     keywords: ["assistant", "you", "can you", "ask", "tool", "help me", "dock", "confirm", "yes"],
     body: `I can do nearly everything a person can do in the app, from any page: the Elsie button top-right (or Ctrl+/) opens me as a pane over whatever you are looking at — its panel button keeps me at the side of the page instead, open on every page — and the pane lists what I'd suggest next, from the Inbox's decisions and the open recommendations; /assistant is the same conversation with more room. I read everything (pipeline, Inbox, ideas, articles and their checks, social posts, keywords, topics, channels, outliers, connections, dials, results, reports, best times, the live web, this guide) and I act: add, approve and reject ideas, discover ideas and keywords, add topics, draft articles and scripts, write SEO and images, run Optimize and apply / answer / dismiss findings, set article fields, verify or drop claims, approve images, advance an article, draft social posts, queue / schedule / send / unschedule them, publish an article or record it as published, export its HTML, set the publish day, slots, timezone, weekly target, modes, full autonomy, pause, the social dials, the video studio, invite people and change roles, run the autopilot now. I am also the research conversation: I know the active channel's niche, audience, voice and memory, read Intel channels and videos, YouTube transcripts, web pages and uploaded files, and turn a conversation into a script on the canvas.
 How I behave: when a request is ambiguous I ask, with choices you can tap. When you are lost, say "what should I do next?" — I read the whole situation and rank the moves. Anything outward-facing or hard to undo (publishing, sending, queueing, approving, an override, a setting, an invitation) I PROPOSE first — "I'm about to: … Go ahead?" — and run only when you say yes; the proposal waits on the thread until you answer. Admin-only acts refuse for an editor, exactly as the page would. Every action I take is written to the audit log with its arguments, and each reply shows the steps I ran. I still cannot enter or change API keys or connection credentials, delete a workspace or an account, or send email — those stay a person's hands on the page.`,
+  },
+  {
+    // Generated from lib/whats-new.ts — the same list as the Inbox's "What's new" card and the Help's
+    // What's new category — so "what changed?" is answered from the app's record, never from memory.
+    id: "whats-new",
+    title: "What changed recently",
+    keywords: ["what's new", "whats new", "new", "changed", "changes", "recent", "recently", "update", "updates", "moved", "renamed", "release"],
+    body: `The app's own record of recent changes people can see, newest first (the Inbox shows the last ${SHOW_DAYS} days to each person until they press "Got it"; the Help's What's new lists them all):\n${WHATS_NEW.map((e) => `- ${whatsNewDay(e)}: ${e.title}. ${e.body}${e.href ? ` (${e.href})` : ""}${e.admin ? " [admins only]" : ""}`).join("\n")}\nIf someone asks about a change that is not on this list, say it isn't in the record rather than guessing.`,
   },
 ];
 

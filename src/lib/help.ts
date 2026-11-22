@@ -6,6 +6,7 @@ import { railSentence, stageTabsPhrase, stagesAndTabs } from "@/lib/stage-copy";
 // topics (lib/assistant/knowledge.ts), so the Help Center and the assistant
 // answer "how do I…" the same way. Change the topic there; both follow.
 import { APP_GUIDE } from "@/lib/assistant/knowledge";
+import { SHOW_DAYS, WHATS_NEW, whatsNewDay } from "@/lib/whats-new";
 
 export type FaqEntry = {
   q: string;
@@ -92,6 +93,28 @@ export const HELP_CATEGORIES: FaqCategory[] = [
         a: "Yes. Anything with a small **?** next to it has a one-line explanation on hover — and some controls (the left-rail modules, the per-network *Customize* button, character counts) explain themselves when you hover the control directly.\n\nThey work on keyboard focus too, so tabbing through a form surfaces the same text. If you want the longer version, search for the same words here.",
         tags: ["hover", "tooltip", "popup", "help", "keyboard"],
       },
+    ],
+  },
+  {
+    // Built from lib/whats-new.ts, the list the Inbox's "What's new" card and Elsie's
+    // "What changed recently" topic read, so the three can never disagree.
+    id: "whats-new",
+    label: "What's new",
+    color: "var(--violet)",
+    soft: "var(--violet-soft)",
+    entries: [
+      {
+        q: "Where do I see what changed in the app?",
+        a: `At the top of the **Inbox**: a **What's new** card lists the changes of the last ${SHOW_DAYS} days you haven't seen yet, each with a link to where it is. **Got it** hides them for you, in every workspace you belong to; the next change shows up there by itself. It only lists changes made after you joined the workspace, leaves out what your role can't open, and stays away when there is nothing new. Every change, older ones included, is listed here, and Elsie answers "what's new?" from the same list.`,
+        links: [{ label: "Inbox →", href: "/inbox" }],
+        tags: ["what's new", "whats new", "new", "changed", "changes", "update", "updates", "release notes", "recent"],
+      },
+      ...WHATS_NEW.map((e) => ({
+        q: `${e.title} (${whatsNewDay(e)})`,
+        a: `${e.body}${e.admin ? " (For admins.)" : ""}`,
+        links: e.href ? [{ label: `${e.cta ?? "Open it"} →`, href: e.href }] : undefined,
+        tags: ["what's new", "new", "changed", ...e.title.toLowerCase().split(/[^a-z]+/).filter((w) => w.length > 3)],
+      })),
     ],
   },
   {
@@ -1073,7 +1096,8 @@ export const HELP_CATEGORIES: FaqCategory[] = [
     color: "var(--green)",
     soft: "var(--green-soft)",
     entries: [
-      ...APP_GUIDE.map((t) => ({ q: t.title, a: t.body, tags: t.keywords })),
+      // "whats-new" has its own category near the top (from the same list), so it isn't repeated here.
+      ...APP_GUIDE.filter((t) => t.id !== "whats-new").map((t) => ({ q: t.title, a: t.body, tags: t.keywords })),
       {
         q: "What is the status pill in the header telling me?",
         a: "It answers one question - is the engine working, and what did it last do? - in a sentence: **\"Published an article - 12:02\"**, or **\"Drafted an article\"**, or **\"Nothing has run yet\"**. The coloured dot is the tone of that last event: green done, amber in progress, red something failed.\n\nIf the global pause is on it says **Paused** and nothing else, because that is the only fact that matters until you resume it.\n\n**Click it** for the rest: the last dozen things the engine did, with their full titles, real times and links straight to what it made - plus whether it is running on its own (full autonomy) or waiting for you at the checkpoints you set.\n\n\"Nothing has run yet\" is not a failure. An idle autopilot writes no audit rows on purpose, so a quiet workspace genuinely has nothing to show.\n\nIt replaced a scrolling ticker of all-caps tokens that nobody could read: same information, fewer hieroglyphs.",

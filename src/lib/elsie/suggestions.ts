@@ -170,8 +170,12 @@ export async function dismissElsieSuggestion(workspaceId: string, userId: string
   return true;
 }
 
-/** "Show them again" — every suggestion this person dismissed here. */
+/**
+ * "Show them again" — every suggestion this person dismissed here. Only Elsie's own
+ * keys: the Inbox's "What's new" dismissals share the table ("new:<id>",
+ * lib/whats-new.ts) and are not suggestions, so they stay put.
+ */
 export async function restoreElsieSuggestions(workspaceId: string, userId: string): Promise<number> {
-  const out = await db.elsieDismissal.deleteMany({ where: { workspaceId, userId } });
+  const out = await db.elsieDismissal.deleteMany({ where: { workspaceId, userId, NOT: { key: { startsWith: "new:" } } } });
   return out.count;
 }

@@ -3190,3 +3190,39 @@ day" still took two looks. Now the default view shows both.
 - **Verified**: a probe file with 14 retired names and 8 look-alikes, plus a comment naming an old place. All 14 were
   flagged ("Open Distribute" by two rules), none of the 8, not the comment. The probe was deleted after. Then the check
   on the app: 12 retired names, none in 57,857 texts across 747 files, 6 explained mentions. tsc and next build.
+
+## ⚠ What's new: one dated list, a card on the Inbox until each person says "Got it" (2026-11-22, the owner's "Yes, build it")
+
+- **Why**: in one week the stages were renamed after formats, three tab rows were grouped, Approvals moved, and the composer
+  gained a preview, hashtags and links. A person back after a week found things moved and nothing said so.
+- **`src/lib/whats-new.ts` is the one list** (`WHATS_NEW`, newest first): `id` (stable, never reused), `date` (the day it
+  went live), `title`, `body` (one or two plain sentences), optional `href` + `cta`, and `admin` for admin-only changes.
+  Plain data with no server imports, because the Help ships it to the browser. ⚠ So it can't import `lib/zoned-dates.ts`,
+  which reaches the database through `lib/social/slots`; `whatsNewDay` repeats `formatDay`'s options instead ("21 Nov 2026").
+- **Three readers, so they never disagree**:
+  - **The Inbox card** (`components/WhatsNew.tsx`, under the Inbox's header line): the entries of the last `SHOW_DAYS`
+    (30) days, dated AFTER the day the person joined this workspace (a newcomer is never told about a rename of
+    something they never saw), admin-only ones for admins, links their role can open (`canFollow`), and not
+    dismissed. At most `CARD_MAX` (5) at a time. Nothing to show = nothing rendered. Server component, server-action
+    form, works without JavaScript.
+  - **The Help's "What's new" category** (second in `HELP_CATEGORIES`): an explainer plus every entry, with links. Those
+    links are checked at build like every Help link. `/help?cat=whats-new` opens it; the card links there.
+  - **Elsie's "What changed recently" topic** (`APP_GUIDE` id `whats-new`, kept out of the Help's "Running the loop"
+    so it isn't listed twice): she answers "what's new?" from the list and says when a change isn't on it.
+- **"Got it"** (`actions/whats-new.ts` `dismissWhatsNewAction`, any role, since it is the person's own view) stores one
+  `ElsieDismissal` row per entry the card LISTED, key `new:<id>`, against the workspace it was pressed in. Rows are READ
+  across all of the person's workspaces, so one Got it counts everywhere. A page of 5 then shows the next ones
+  ("Got it, show the next"). Ids not on the list are ignored. ⚠ Elsie's "Show them again"
+  (`restoreElsieSuggestions`) deletes only her own keys now (`NOT key startsWith "new:"`), so it can't bring the card back.
+- ⚠ **A change people will notice adds its entry to `WHATS_NEW` in the same commit**, beside the Help and Elsie's
+  knowledge. The text is checked by `scripts/check-retired-names.mts` like all copy.
+- **Verified**: 19 rule cases (`whatsNewFor`: join date, the 30-day edge, same-day join, admin, links, dismissals, with
+  the real role table: admin 11, editor 9, viewer 6). End to end on a throwaway LOCAL copy: `prisma dev`, all
+  migrations, the seed, then fixtures (an admin joined 1 Oct in two workspaces, an editor joined 18 Nov, a viewer), and
+  `next start` on :3001 with a temporary `.env.local`, deleted after. The admin saw 11 and paged through them with
+  Got it (5, 5, 1, then no card), and the second workspace showed none. The editor saw only the 3 after 18 Nov, the
+  viewer 6. A forged id stored nothing (12 rows, all `new:`). `/help?cat=whats-new` lists all 11. Screenshots at
+  desktop and 375 px. tsc and next build with its checks.
+- ⚠ **Local check note**: `prisma dev`'s Postgres takes ONE connection at a time. Run the app with
+  `connection_limit=1&pgbouncer=true` in its URL. Stopping the app without closing its connection jams the server; run
+  `npx prisma dev --name <n> --detach` again to revive it (its data survives).

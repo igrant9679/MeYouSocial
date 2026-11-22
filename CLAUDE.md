@@ -209,6 +209,9 @@ but it means **bad output can look like real output**. Rules learned the hard wa
   after a step again, and never write "Distribute →", "Publish →" or "Drafts →" in copy. The prebuild check
   `scripts/check-retired-names.mts` fails the build on these and every other retired name; a rename that retires a
   name adds a line to its `RETIRED` list in the same commit.
+- **What's new** `src/lib/whats-new.ts` — ONE dated list of changes people can see. It feeds the Inbox's "What's new" card
+  (per person, 30 days, after they joined, until "Got it"), the Help's What's new category and Elsie's "What changed
+  recently". ⚠ A change people will notice adds its entry there in the same commit, beside the Help and Elsie's knowledge.
 - **Stage strip** `src/lib/stages.ts` + `src/components/StageStrip.tsx` — each stage's tabs, as data. Since 2026-11-17
   Settings, Distribute and Measure are GROUPED: a tab may carry `group`, `stageEntries()` folds the list into the
   first row, and the second row lists the pages of the group you are in. ⚠ Pages kept their names and URLs — a new
@@ -412,6 +415,7 @@ area, rather than loading all of them into every session.
 - Every migration stays: an empty database replays them all — 2026-11-21, the owner's "Yes, fix the migrations"
 - A post previews as posted, suggests its hashtags, and takes a link — 2026-11-21, the owner's "click to preview it so I see exactly what it looks like as posted"
 - A retired name stops the build — 2026-11-21, the owner's "The Help check"
+- What's new: one dated list, a card on the Inbox until each person says "Got it" — 2026-11-22, the owner's "Yes, build it"
 
 ## Open items / things the user still owns
 - **Analytics: APIs enabled 2026-08-03** (Search Console + GA Admin + GA Data, on project
