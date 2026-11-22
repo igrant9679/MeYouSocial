@@ -413,7 +413,7 @@ area, rather than loading all of them into every session.
 - A record from another of your workspaces offers the switch, never a bare 404 — 2026-11-19, the owner's 404 on an LSI draft; every record page the same evening
 - The stages are named by format: Articles, Social posts, Video — 2026-11-19, the owner's "Name by format"
 - Every migration stays: an empty database replays them all — 2026-11-21, the owner's "Yes, fix the migrations"
-- A post previews as posted, suggests its hashtags, and takes a link — 2026-11-21, the owner's "click to preview it so I see exactly what it looks like as posted"
+- A post previews as posted, suggests its hashtags, and takes a link — 2026-11-21, the owner's "click to preview it so I see exactly what it looks like as posted"; the engine's posts get the same hashtags and a post's page previews too — 2026-11-22
 - A retired name stops the build — 2026-11-21, the owner's "The Help check"
 - What's new: one dated list, a card on the Inbox until each person says "Got it" — 2026-11-22, the owner's "Yes, build it"
 

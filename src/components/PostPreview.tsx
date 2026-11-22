@@ -42,15 +42,32 @@ export type PreviewPost = {
 
 type CardState = { state: "loading" } | { state: "done"; card: LinkCard; note?: string };
 
+/** A button that opens the window — for a saved post's own page, where the posts are built on the server. */
+export function PostPreviewButton({ posts, avatarUrl, brandName, sent }: { posts: PreviewPost[]; avatarUrl: string | null; brandName: string; sent: boolean }) {
+  const [open, setOpen] = useState(false);
+  if (!posts.length) return null;
+  return (
+    <>
+      <button type="button" className="btn sm" onClick={() => setOpen(true)} data-preview-open-post>
+        <Eye className="w-3.5 h-3.5" /> Preview as posted
+      </button>
+      {open && <PostPreviewDialog posts={posts} avatarUrl={avatarUrl} brandName={brandName} sent={sent} onClose={() => setOpen(false)} />}
+    </>
+  );
+}
+
 export function PostPreviewDialog({
   posts,
   avatarUrl,
   brandName,
+  sent = false,
   onClose,
 }: {
   posts: PreviewPost[];
   avatarUrl: string | null;
   brandName: string;
+  /** The post has gone out: the footnote says what was sent, not what will be. */
+  sent?: boolean;
   onClose: () => void;
 }) {
   const [tab, setTab] = useState(0);
@@ -136,8 +153,9 @@ export function PostPreviewDialog({
           </div>
         </div>
         <p className="px-3 py-2 border-t border-[var(--line)] text-micro text-[var(--mute)]">
-          Drawn the way {skin.label} lays out a post, from exactly what will be sent — links as tagged, the first comment where
-          it goes. {skin.label} draws the final pixels in its own fonts{card ? ", and builds the link card from the page when the post goes out (it may keep an older copy of the page for a while)" : ""}.
+          {sent
+            ? <>Drawn the way {skin.label} lays out a post, from what was sent to it — links tagged with today&apos;s link settings, the first comment where it went. {skin.label} drew the real post in its own fonts{card ? ", with the card it read from the page then" : ""}.</>
+            : <>Drawn the way {skin.label} lays out a post, from exactly what will be sent — links as tagged, the first comment where it goes. {skin.label} draws the final pixels in its own fonts{card ? ", and builds the link card from the page when the post goes out (it may keep an older copy of the page for a while)" : ""}.</>}
           {post.unselected ? " No account on this network is ticked, so this post won't go here unless you tick one." : ""}
         </p>
       </div>
@@ -334,7 +352,7 @@ function LinkCardView({ card, skin, provider }: { card: CardState; skin: Skin; p
       {body}
       {skin.linkCard === "maybe" && (
         <p className="text-micro mt-1" style={{ color: skin.mute }}>
-          {skin.label} shows this card only when the app sending the post builds it. That isn&apos;t confirmed for Zernio, so the post may show the link as text only.
+          {skin.label} shows this card only when the app sending the post builds it. Zernio&apos;s documentation says it does that for LinkedIn, Facebook and Telegram but says nothing about {skin.label}, so the post may show the link as text only.
         </p>
       )}
       {card.note && <p className="text-micro mt-1" style={{ color: skin.mute }}>{card.note}</p>}

@@ -16,6 +16,9 @@ import { cancelReconnectRetryAction, checkReconnectAction, reconnectAndRetryActi
 import { SubmitButton } from "@/components/SubmitButton";
 import { DeleteButton } from "@/components/DeleteButton";
 import { MediaThumbs, STATUS_STYLE } from "@/components/SocialPostCard";
+import { PostPreviewButton } from "@/components/PostPreview";
+import { previewPostsFor } from "@/lib/social/post-preview-data";
+import { brandAvatarUrl } from "@/lib/brand-avatar";
 
 // One post, read-only: what went out, where, and what each network said.
 // Sent posts used to have no page at all — Distribute's "Open" bounced to the
@@ -41,7 +44,7 @@ export default async function SocialPostPage({ params, searchParams }: { params:
       include: {
         targets: { orderBy: { provider: "asc" } },
         topic: { select: { name: true } },
-        campaign: { select: { name: true } },
+        campaign: { select: { name: true, utmCampaign: true } },
       },
     }),
     getPostingTimeZone(workspace.id),
@@ -65,6 +68,8 @@ export default async function SocialPostPage({ params, searchParams }: { params:
   const unsure = [...new Set(post.targets.filter((t) => t.status === "failed" && mayHavePosted(t.error)).map((t) => networkFor(t.provider)?.label ?? t.provider))];
   const here = `/social/${post.id}`;
   const name = post.text.replace(/\s+/g, " ").trim().slice(0, 60) || "(image only)";
+  // "Preview as posted" (2026-11-21): each leg drawn the way its network shows it, from what the send builds.
+  const [previewPosts, avatarUrl] = await Promise.all([previewPostsFor(post), brandAvatarUrl(workspace.id).catch(() => null)]);
 
   return (
     <main className="w-full max-w-4xl">
@@ -88,6 +93,7 @@ export default async function SocialPostPage({ params, searchParams }: { params:
             {!unsent && " · what went out is the record, so it can't be edited"}
           </p>
         </div>
+        <PostPreviewButton posts={previewPosts} avatarUrl={avatarUrl} brandName={workspace.name} sent={!unsent} />
         {editor && (
           <div className="flex flex-wrap gap-1.5">
             {unsent && <Link href={`/social/${post.id}/edit`} className="btn sm"><Pencil className="w-3.5 h-3.5" /> Edit</Link>}

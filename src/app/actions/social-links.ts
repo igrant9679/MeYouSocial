@@ -1,6 +1,6 @@
 "use server";
 
-import { requireRole } from "@/lib/acl";
+import { requireMembership } from "@/lib/acl";
 import { safeFetch, UnsafeUrlError } from "@/lib/net/safe-fetch";
 import { parseSocialHead } from "@/lib/live-head";
 import { hit } from "@/lib/rate-limit";
@@ -58,7 +58,8 @@ async function readHead(res: Response): Promise<string> {
 }
 
 export async function linkCardAction(raw: string): Promise<LinkCardResult> {
-  const { user } = await requireRole("EDITOR");
+  // Any member: a viewer opens a post's page and its preview too, and this only reads a public page (rate-limited).
+  const { user } = await requireMembership();
   const input = String(raw ?? "").trim().slice(0, 2000);
   let url: URL;
   try {

@@ -7,6 +7,8 @@ import { llm, resolveUsableModel } from "@/lib/llm";
 import { motifPromptFor, brandContextBlock } from "@/lib/motifs";
 import { networkFor } from "@/lib/social/networks";
 import { claimNextFreeSlot } from "@/lib/social/slots";
+import { howManyTags, settleTagLine, tagInstruction } from "@/lib/social/hashtag-text";
+import { houseTags } from "@/lib/social/house-tags";
 
 /**
  * Autonomous social post generation — "N fresh posts a week, on schedule".
@@ -58,7 +60,7 @@ export async function generateSocialPostForWorkspace(workspaceId: string): Promi
   if (topics.length === 0) return false; // topics are the grounding — nothing to say without them
   const topic = topics[thisWeek % topics.length]; // rotate through the week's quota
 
-  const [org, recentPosts, motifs, guardrails, workspace] = await Promise.all([
+  const [org, recentPosts, motifs, guardrails, workspace, house] = await Promise.all([
     db.orgProfile.findUnique({ where: { workspaceId }, select: { description: true, industry: true, audience: true } }),
     db.blogPost.findMany({
       where: { workspaceId, status: "published" },
@@ -67,8 +69,12 @@ export async function generateSocialPostForWorkspace(workspaceId: string): Promi
     motifPromptFor(workspaceId, {}, "short").catch(() => null),
     brandContextBlock(workspaceId).catch(() => null),
     db.workspace.findUnique({ where: { id: workspaceId }, select: { name: true, defaultModel: true } }),
+    houseTags(workspaceId).catch(() => [] as string[]),
   ]);
   if (!workspace) return false;
+  // Hashtags the way the composer suggests them (2026-11-21): the brand's saved ones first, the Topic's next, as many
+  // as the networks it goes to read well (the tightest wins), on one closing line.
+  const tagCount = howManyTags(targets.map((a) => a.platform)).count;
 
   const keywords = readJson<string[]>(topic.keywords, []);
   const facts = [
@@ -87,7 +93,8 @@ export async function generateSocialPostForWorkspace(workspaceId: string): Promi
     system:
       "You write ONE social media post for a real company's feed. " +
       "Return ONLY the post text — no preamble, no quotation marks around it, no markdown. " +
-      `Hard limits: at most ${MAX_CHARS} characters, at most 2 hashtags, no links, no emojis unless the tone calls for one. ` +
+      `Hard limits: at most ${MAX_CHARS} characters, hashtags included; no links; no emojis unless the tone calls for one. ` +
+      `${tagInstruction(tagCount, house)} ` +
       "⚠ Never invent facts, numbers, statistics, customer names or claims — if a specific isn't in the context, don't use one. " +
       "Write something genuinely useful or thought-provoking about the topic, in the company's voice.",
     messages: [{
@@ -108,8 +115,8 @@ export async function generateSocialPostForWorkspace(workspaceId: string): Promi
     console.warn(`[social-autogen] ${workspaceId}: no real provider resolved (got ${res.provider}) — skipped`);
     return false;
   }
-  let text = res.content.trim().replace(/^["“]|["”]$/g, "").slice(0, MAX_CHARS + 40);
-  if (text.length > MAX_CHARS) text = text.slice(0, MAX_CHARS).replace(/\s+\S*$/, "");
+  // The closing hashtag line settled and the whole kept within MAX_CHARS by shortening the body, never a tag.
+  const text = settleTagLine(res.content.trim().replace(/^["“]|["”]$/g, ""), { count: tagCount, house, limit: MAX_CHARS });
 
   // Optional campaign; validated so a stale id degrades to none.
   const campaignRaw = (await getSetting("social:autogen_campaign", workspaceId).catch(() => "")).trim();

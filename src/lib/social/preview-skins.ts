@@ -46,7 +46,10 @@ export type Skin = {
   firstTagOnly?: boolean;
   /**
    * A bare link (no picture or video attached) becomes a card with the page's picture and title. "maybe": the network
-   * shows one only when the app that sends the post builds it (Bluesky), which isn't confirmed for Zernio.
+   * shows one only when the app that sends the post builds it (Bluesky). Checked 2026-11-22: Zernio's OpenAPI spec
+   * (zernio.com/openapi.yaml) says link previews are generated for LinkedIn (`disableLinkPreview`, "auto-generated when
+   * no media is attached"), Facebook and Telegram, and its BlueskyPlatformData and docs.zernio.com/platforms/bluesky
+   * say nothing about cards or facets. Only a real post to a connected Bluesky account would settle it.
    */
   linkCard: "yes" | "no" | "maybe";
   /** The shapes a picture is cropped to in the feed, as width ÷ height: [tallest, widest]. */

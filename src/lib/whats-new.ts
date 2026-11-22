@@ -41,6 +41,14 @@ export const CARD_MAX = 5;
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    id: "2026-11-22-engine-hashtags",
+    date: "2026-11-22",
+    title: "Hashtags on the posts the app writes",
+    body: "Posts the app writes by itself now end with hashtags picked the way Compose suggests them: your saved hashtags first, then the Topic's, as many as the networks read well. A post's own page has Preview as posted too.",
+    href: "/social/sent",
+    cta: "Open Sent",
+  },
+  {
     id: "2026-11-21-post-preview",
     date: "2026-11-21",
     title: "See a post the way it will look",

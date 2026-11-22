@@ -3137,7 +3137,7 @@ day" still took two looks. Now the default view shows both.
   Avatar: the brand's logo (`lib/brand-avatar.ts`: `Workspace.logoKey`, then the brand kit's logo, the lockup's order),
   else the account's initial. Name and handle come from `ZernioAccount.displayName` / `username`. Zernio doesn't hand
   over the network's own profile picture.
-- **Link cards** (`actions/social-links.ts` `linkCardAction`, EDITOR): only where `skin.linkCard` isn't "no" and the
+- **Link cards** (`actions/social-links.ts` `linkCardAction`, any member since 2026-11-22): only where `skin.linkCard` isn't "no" and the
   post has no media. The first link, with its `utm_*` tags taken off (`untagged`), is read through `safeFetch`
   (public hosts only, every redirect re-checked), only up to `</head>` and at most 512 KB, with an 8 s timeout.
   `parseSocialHead` (now also og:description, og:site_name, <title>) supplies the picture, title and description, and
@@ -3162,6 +3162,29 @@ day" still took two looks. Now the default view shows both.
 - Pure helpers checked by a script: `richParts` round-trips its input, the fold, X's short links, `untagged`,
   `feedAspect`, and appendTags / removeTag / insertLinkAt (29 cases). ⚠ Not proven against a real model: the hashtag
   call's success path. Locally and on a key-less workspace it refuses as designed.
+- **Posts the engine writes get their hashtags the same way** (2026-11-22, the owner's "do #2"): `lib/social/drafting.ts`
+  (approved ideas, sweep and Draft now) and `lib/social/autogen.ts` (the weekly writer from Topics) tell the writer
+  `tagInstruction(count, houseTags)`: one closing line of exactly `howManyTags(targets)` hashtags (the same tightest-wins
+  count as the composer's "Add top N"), none inside the sentences, the brand's saved hashtags first, spelled as saved
+  (`lib/social/house-tags.ts`, shared with the composer's suggestions). The old "at most 2 hashtags" rule is gone. The
+  reply is settled by `settleTagLine` (pure, `hashtag-text.ts`): the closing tags are valid and de-duplicated (against
+  any in the sentences too), at most the count all told, house tags respelled as saved, and an over-long post is
+  shortened in the BODY at a word, keeping a link it ends with. A tag is never cut, and tags are dropped from the end
+  only when the body can't make room. The link instruction now says "at the end of the text, before the hashtags". It
+  is still one model call, and mock or empty output is still never stored. Checked end to end with the real writers, a
+  throwaway database and a stand-in model: the prompt names the count and the house tags, and stored posts come out
+  settled (10 cases). Caption Studio and RSS drafts keep their own rules.
+- **A saved post's own page has Preview as posted** (`/social/[id]`, `PostPreviewButton`, every member, 2026-11-22): one
+  tab per leg, built by `lib/social/post-preview-data.ts` `previewPostsFor` the way `publish.ts` builds the send (the
+  leg's text else the post's, `tagLinksForNetwork` with the campaign tag first, the leg's first comment else the post's,
+  links moved to it after tagging where a first comment exists, the leg's own media else the post's). ⚠ Change
+  publish.ts's arithmetic and change this with it. Tags use today's link settings, and the footnote says so for a sent
+  post. `linkCardAction` is any member's now (`requireMembership`), since viewers open this page: it only reads a
+  public page, under the same rate limit.
+- **Bluesky cards stay "maybe"** (checked 2026-11-22): Zernio's OpenAPI spec says link previews are generated for
+  LinkedIn ("auto-generated when no media is attached", `disableLinkPreview`), Facebook and Telegram, and says nothing
+  about cards or facets in `BlueskyPlatformData` or on docs.zernio.com/platforms/bluesky. Only a real post to a connected
+  Bluesky account would settle it. The note under the card now says what the docs do and don't say.
 
 ## ⚠ A retired name stops the build (2026-11-21, the owner's "The Help check")
 

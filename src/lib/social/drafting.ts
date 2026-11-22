@@ -8,6 +8,8 @@ import { llm, resolveUsableModel } from "@/lib/llm";
 import { motifPromptFor, brandContextBlock } from "@/lib/motifs";
 import { networkFor } from "@/lib/social/networks";
 import { claimNextFreeSlot } from "@/lib/social/slots";
+import { howManyTags, settleTagLine, tagInstruction } from "@/lib/social/hashtag-text";
+import { houseTags } from "@/lib/social/house-tags";
 
 /**
  * Social drafting — an approved social idea becomes a post in the queue.
@@ -94,12 +96,16 @@ async function writePostFromIdea(
     return { ok: false, message: "No connected account takes a text-only post (Instagram and the like need an image) — connect one under Settings → Connections." };
   }
 
-  const [org, motifs, guardrails, workspace] = await Promise.all([
+  const [org, motifs, guardrails, workspace, house] = await Promise.all([
     db.orgProfile.findUnique({ where: { workspaceId }, select: { description: true, industry: true, audience: true } }),
     motifPromptFor(workspaceId, {}, "short").catch(() => null),
     brandContextBlock(workspaceId).catch(() => null),
     db.workspace.findUnique({ where: { id: workspaceId }, select: { name: true, defaultModel: true } }),
+    houseTags(workspaceId).catch(() => [] as string[]),
   ]);
+  // Hashtags the way the composer suggests them (2026-11-21): the brand's saved ones first, the Topic's next, as many
+  // as the networks it goes to read well (the tightest wins), on one closing line.
+  const tagCount = howManyTags(targets.map((a) => a.platform)).count;
   if (!workspace) return { ok: false, message: "Workspace not found." };
 
   const phrases = idea.topic ? readJson<string[]>(idea.topic.keywords, []) : [];
@@ -112,8 +118,8 @@ async function writePostFromIdea(
     org?.audience ? `Audience: ${org.audience}` : "",
     idea.topic ? `Topic: ${idea.topic.name}${phrases.length ? ` (related phrases: ${phrases.slice(0, 5).join(", ")})` : ""}` : "",
     `The post's idea: ${idea.hook}${idea.angle ? ` — ${idea.angle}` : ""}`,
-    idea.sourceBlogPost ? `It promotes the article "${idea.sourceBlogPost.title}"${idea.sourceBlogPost.publishedUrl ? ` at ${idea.sourceBlogPost.publishedUrl} — put that link at the end` : ""}.` : "",
-    !idea.sourceBlogPost && idea.sourceUrl ? `It shares this link from a feed the company follows: ${idea.sourceUrl} — put that link at the end.` : "",
+    idea.sourceBlogPost ? `It promotes the article "${idea.sourceBlogPost.title}"${idea.sourceBlogPost.publishedUrl ? ` at ${idea.sourceBlogPost.publishedUrl} — put that link at the end of the text, before the hashtags` : ""}.` : "",
+    !idea.sourceBlogPost && idea.sourceUrl ? `It shares this link from a feed the company follows: ${idea.sourceUrl} — put that link at the end of the text, before the hashtags.` : "",
   ].filter(Boolean);
 
   const model = await resolveUsableModel("", workspaceId, "social.draft");
@@ -123,7 +129,8 @@ async function writePostFromIdea(
     system:
       "You write ONE social media post for a real company's feed, from the idea you are given. " +
       "Return ONLY the post text — no preamble, no quotation marks around it, no markdown. " +
-      `Hard limits: at most ${MAX_CHARS} characters${link ? " plus the link" : ""}, at most 2 hashtags, ${link ? "that one link only" : "no links"}, no emojis unless the tone calls for one. ` +
+      `Hard limits: at most ${MAX_CHARS} characters${link ? " plus the link" : ""}, hashtags included; ${link ? "that one link only" : "no links"}; no emojis unless the tone calls for one. ` +
+      `${tagInstruction(tagCount, house)} ` +
       "⚠ Never invent facts, numbers, statistics, customer names or claims — if a specific isn't in the context, don't use one. " +
       "Say the idea well, in the company's voice.",
     messages: [{
@@ -140,8 +147,9 @@ async function writePostFromIdea(
     return { ok: false, message: "No AI provider could write it — it would have been placeholder text. Check the key under Settings → Keys." };
   }
   const limit = MAX_CHARS + (link ? link.length + 1 : 0);
-  let text = res.content.trim().replace(/^["“]|["”]$/g, "").slice(0, limit + 40);
-  if (text.length > limit) text = text.slice(0, limit).replace(/\s+\S*$/, "");
+  // The closing hashtag line settled (valid, no repeats, at most tagCount, saved spellings) and the whole kept within
+  // the limit by shortening the body — never a tag or the link cut in half.
+  const text = settleTagLine(res.content.trim().replace(/^["“]|["”]$/g, ""), { count: tagCount, house, limit });
 
   const campaignRaw = (await getSetting("social:autogen_campaign", workspaceId).catch(() => "")).trim();
   const campaign = campaignRaw
