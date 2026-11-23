@@ -130,7 +130,8 @@ What runs by itself — Settings → Automation: full autonomy, global pause, au
 When things go out — Settings → Schedule: posting slots and timezone, measured best time to post, link tagging, campaigns.
 Keys and connections — Settings → Connections: one row per thing the loop needs (AI keys, live search, images, video, voice, shorts, YouTube, channels, social accounts, mailbox, WordPress, analytics, storage), connected or not, each linking to the page that fixes it.
 Brand and voice — Brand: company info, the seven Motifs, the brand kit and image specs, the AI brand context, and the experts the writing quotes (real people, each linked to the Topics they speak on) apart from the audience personas it is written for.
-Video studio — a switch on the Settings overview: the Video stage (Scripts, Thumbnails, Renders, Production) shows on the rail only when a YouTube channel exists and it is on; nothing is deleted by turning it off.`,
+Video studio — a switch on the Settings overview: the Video stage (Scripts, Thumbnails, Renders, Production) shows on the rail only when a YouTube channel exists and it is on; nothing is deleted by turning it off.
+One workspace like another — for an admin of both: Settings → Workspace → "Copy from another of your workspaces" copies the accent color and logo once (the logo becomes this workspace's own file); Settings → Keys → "Share with" lends AI, search and voice keys as a pointer (the sharer is billed). Social accounts, the website connection, YouTube, the mailbox, storage and analytics are never shared, so a workspace that borrows another's look and keys can't post, publish or send as it.`,
   },
   {
     id: "model-tiers",

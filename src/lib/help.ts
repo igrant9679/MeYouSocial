@@ -778,6 +778,12 @@ export const HELP_CATEGORIES: FaqCategory[] = [
         links: [{ label: "Settings → Workspace →", href: "/admin/settings" }],
         tags: ["branding", "logo", "colors", "accent", "personalization"],
       },
+      {
+        q: "Can one workspace look like another of ours, or use its keys?",
+        a: "Yes, if you are an admin of both. **Branding**: in the workspace that should change, Settings → **Workspace** → *Copy from another of your workspaces* replaces its accent color and logo with the other's, as a one-time copy (the logo becomes its own file, and later changes don't follow). **Keys**: in the workspace that holds them, Settings → **Keys** → *Share with* lets the other use its AI, search and voice keys without copying them; the provider bills the workspace that shares. **Never shared**: social accounts, the website connection, YouTube, the mailbox, file storage and analytics stay with each workspace, so a workspace that borrows another's look and keys can never post, publish or send as it.",
+        links: [{ label: "Settings → Workspace →", href: "/admin/settings" }, { label: "Settings → Keys →", href: "/admin/api-keys" }],
+        tags: ["branding", "copy", "share", "keys", "demo", "workspace", "logo", "accent", "another workspace"],
+      },
     ],
   },
   {

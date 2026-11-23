@@ -41,6 +41,15 @@ export const CARD_MAX = 5;
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    id: "2026-11-22-copy-branding",
+    date: "2026-11-22",
+    title: "Copy branding from another of your workspaces",
+    body: "An admin of two workspaces can give one the other's accent color and logo in one step, as a one-time copy. Keys can already be shared under Settings → Keys; social accounts, website, mailbox and storage never are.",
+    href: "/admin/settings",
+    cta: "Open Settings → Workspace",
+    admin: true,
+  },
+  {
     id: "2026-11-22-readable-colours",
     date: "2026-11-22",
     title: "Coloured text is easier to read",

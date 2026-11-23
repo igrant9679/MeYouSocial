@@ -10,7 +10,7 @@ import { ModelOptions, ModelChoiceNote } from "@/components/ModelOptions";
 import { updateWorkspaceSettingsAction } from "@/app/actions/admin";
 import { getSetting } from "@/lib/settings";
 import { CHANNEL_CREATORS_SETTING } from "@/lib/channel-drafts";
-import { saveWorkspaceAccentAction, uploadWorkspaceLogoAction, clearWorkspaceLogoAction } from "@/app/actions/branding";
+import { saveWorkspaceAccentAction, uploadWorkspaceLogoAction, clearWorkspaceLogoAction, copyBrandingFromAction } from "@/app/actions/branding";
 import { ModelTiersCard } from "@/components/ModelTiersCard";
 import { getPostingTimeZone } from "@/lib/social/slots";
 
@@ -25,8 +25,16 @@ const LANGS = ["en", "es", "fr", "de", "it", "pt", "nl", "sv", "da", "fi", "no",
 const ACCENT_PRESETS = ["#E5482F", "#6D28D9", "#2563EB", "#0D9488", "#D97706", "#DB2777", "#4F46E5", "#15924B", "#0891B2", "#E11D48"];
 
 export default async function AdminSettingsPage({ searchParams }: { searchParams: Promise<{ ok?: string; err?: string }> }) {
-  const { workspace } = await requireRole("ADMIN");
+  const { workspace, user } = await requireRole("ADMIN");
   const { ok, err } = await searchParams;
+  // Other workspaces this person also administers — where "Copy branding from" can take its look.
+  const brandSources = (
+    await db.membership.findMany({
+      where: { userId: user.id, role: "ADMIN", status: "active", workspaceId: { not: workspace.id }, workspace: { deletedAt: null } },
+      select: { workspace: { select: { id: true, name: true } } },
+      orderBy: { workspace: { name: "asc" } },
+    })
+  ).map((m) => m.workspace);
   const channels = await db.channel.findMany({ where: { workspaceId: workspace.id }, orderBy: { createdAt: "asc" } });
   const [choices, systemRuns, runs, channelCreators, timeZone] = await Promise.all([
     modelChoices(workspace.id),
@@ -107,13 +115,13 @@ export default async function AdminSettingsPage({ searchParams }: { searchParams
       {ok && (
         <div className="card mb-3 flex items-center gap-2 text-sm" style={{ background: "var(--green-soft)", borderColor: "var(--green)" }}>
           <CheckCircle2 className="w-4 h-4" style={{ color: "var(--green-on)" }} />
-          {ok === "accent" ? "Accent saved — the app chrome updates immediately." : ok === "logo" ? "Logo uploaded." : "Logo cleared — back to the MeYouSocial mark."}
+          {ok === "accent" ? "Accent saved — the app chrome updates immediately." : ok === "logo" ? "Logo uploaded." : ok === "copied" ? "Branding copied — this workspace now has the other's accent color and its own copy of the logo." : "Logo cleared — back to the MeYouSocial mark."}
         </div>
       )}
       {err && (
         <div className="card mb-3 flex items-center gap-2 text-sm" style={{ background: "var(--rose-soft)", borderColor: "var(--rose)" }}>
           <AlertTriangle className="w-4 h-4" style={{ color: "var(--rose-on)" }} />
-          {err === "accent" ? "Accent must be a 6-digit hex color like #2563EB." : err === "logo-size" ? "Logo too large (max 2 MB)." : err === "logo-type" ? "Use PNG, JPEG or WebP (SVG isn't accepted — export it as a PNG)." : "Pick a file first."}
+          {err === "accent" ? "Accent must be a 6-digit hex color like #2563EB." : err === "logo-size" ? "Logo too large (max 2 MB)." : err === "logo-type" ? "Use PNG, JPEG or WebP (SVG isn't accepted — export it as a PNG)." : err === "copy-from" ? "Pick a workspace you are also an admin of." : err === "copy-logo" ? "The other workspace's logo couldn't be read, so nothing was copied. Upload it here instead." : "Pick a file first."}
         </div>
       )}
 
@@ -150,7 +158,7 @@ export default async function AdminSettingsPage({ searchParams }: { searchParams
       <form action={uploadWorkspaceLogoAction} className="card mb-3">
         <div className="font-mono font-bold text-sm mb-1">Logo</div>
         <p className="text-2xs text-[var(--mute)] mb-2">
-          Shown in the sidebar and menu instead of the MeYouSocial mark. Square works best (it renders at 38px, rounded). PNG, JPEG, WebP or SVG, max 2 MB.
+          Shown in the sidebar and menu instead of the MeYouSocial mark. Square works best (it renders at 38px, rounded). PNG, JPEG or WebP, max 2 MB.
         </p>
         <div className="flex items-center gap-3">
           {workspace.logoKey ? (
@@ -170,6 +178,27 @@ export default async function AdminSettingsPage({ searchParams }: { searchParams
           Configure Google Drive under Settings → Keys → Storage for a logo that survives.
         </p>
       </form>
+
+      {/* Copy another workspace's look, once (2026-11-22). Only workspaces this person also administers. */}
+      {brandSources.length > 0 && (
+        <form action={copyBrandingFromAction} className="card mb-3" data-copy-branding>
+          <div className="font-mono font-bold text-sm mb-1">Copy from another of your workspaces</div>
+          <p className="text-2xs text-[var(--mute)] mb-2">
+            Replaces this workspace&apos;s accent color and logo with the other&apos;s; the logo becomes this workspace&apos;s own copy.
+            It&apos;s a one-time copy, so later changes on either side don&apos;t follow. Branding only: keys are shared under
+            Settings → Keys, and social accounts, website, YouTube, mailbox, storage and analytics stay with each workspace.
+          </p>
+          <div className="flex items-center gap-2 flex-wrap">
+            <select name="from" required className="border border-[var(--line-2)] rounded-lg p-2 text-sm" defaultValue="">
+              <option value="" disabled>Choose a workspace…</option>
+              {brandSources.map((w) => (
+                <option key={w.id} value={w.id}>{w.name}</option>
+              ))}
+            </select>
+            <SubmitButton className="btn sm" pendingText="Copying…">Copy branding</SubmitButton>
+          </div>
+        </form>
+      )}
 
       {/* Everything this workspace holds, as one file (E-SEC-14) — before a delete, or to keep. */}
       <section id="export" className="card mt-3 flex items-center gap-3 flex-wrap scroll-mt-20">

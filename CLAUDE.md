@@ -419,6 +419,7 @@ area, rather than loading all of them into every session.
 - A retired name stops the build — 2026-11-21, the owner's "The Help check"
 - What's new: one dated list, a card on the Inbox until each person says "Got it" — 2026-11-22, the owner's "Yes, build it"
 - Text people can read: 4.5:1 in light and dark, checked at build — 2026-11-22, the owner's "Yes, build it"
+- One workspace can take another's look, never its identity — 2026-11-22, the owner's Demo Workspace order
 
 ## Open items / things the user still owns
 - **Analytics: APIs enabled 2026-08-03** (Search Console + GA Admin + GA Data, on project

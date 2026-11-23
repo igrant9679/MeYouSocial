@@ -3289,3 +3289,32 @@ day" still took two looks. Now the default view shows both.
   383 element pairs in 276 files, 4 skipped. tsc, next build; screenshots in light and dark on a local copy.
 - ⚠ **A new colour token, hue or surface is measured by the next build.** If it fails, darken (light) or lift (dark) the
   token rather than adding an exception. Exceptions are for non-text marks and large text only.
+
+## One workspace can take another's look, never its identity (2026-11-22, the owner's Demo Workspace order)
+
+- **Why**: the owner asked that Demo Workspace "share the LSI Media Workspace's Keys/Tokens/Storage/everything even its
+  branding". They were asked to choose, and chose: **look like LSI, never publish**, and copy the branding **once**.
+- **`copyBrandingFromAction`** (`actions/branding.ts`), shown on Settings → Workspace as "Copy from another of your
+  workspaces" to an active ADMIN of at least one other workspace (that workspace not deleted). It replaces this
+  workspace's `accentColor` and `logoKey` with the other's. The logo is read with `storage.get` and stored again as a NEW
+  file OWNED BY THIS workspace (E-SEC-11), never a pointer into the other's storage. A source with no logo clears this
+  one's, because the copy is the other's look, exactly. One-time: later changes on either side don't travel. Refused
+  (`?err=copy-from`, nothing written) unless the person is an admin of the source; a source logo that can't be read
+  is refused too (`?err=copy-logo`). Both audit logs record it (`branding.copied_from` / `branding.copied_to`).
+- **Keys** travel through the existing share (Settings → Keys → Share with, 2026-11-15): a pointer, by an admin of both,
+  billed to the giver. **Never shared, by the owner's choice and the share's own rule**: Zernio (social accounts),
+  the WordPress connection, YouTube OAuth, the Unipile mailbox, storage, and analytics (`WORKSPACE_ONLY_KEYS`). A
+  workspace that borrows another's look and keys can't post, publish, send or store as it.
+- ⚠ Analytics was left out on purpose. LSI reads it through a Google sign-in or its own service account, and both are
+  workspace-only so one company can never read another's numbers. Lending them is a separate decision.
+- Fixed in passing: the logo card offered SVG, which the upload has refused since SEC-14 ("PNG, JPEG or WebP").
+- **Verified** end to end on a throwaway local copy (`prisma dev`, the seed, fixtures, `next start`), 15 of 15:
+  - LSI-like and plain workspaces were given or not given a colour and logo through their own Settings forms.
+  - Demo's card offers only the other workspaces this admin runs.
+  - The copy answered `?ok=copied`: Demo got the colour and a DIFFERENT logo file with identical bytes, owned by Demo
+    (StoredObject), while the source kept its own.
+  - Refused with nothing written: an admin of Demo who is only an editor of the source, a source the person isn't in,
+    and copying from itself.
+  - A copy from a workspace with no branding cleared both.
+  - Each copy wrote `branding.copied_from` and `branding.copied_to`.
+  - Plus eslint, the eight prebuild checks, tsc and next build.
