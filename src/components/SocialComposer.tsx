@@ -7,7 +7,9 @@ import { suggestHashtagsAction, type HashtagSuggestion } from "@/app/actions/soc
 import { TAG_RE, tagsIn, appendTags, removeTag, insertLinkAt } from "@/lib/social/hashtag-text";
 import { SubmitButton } from "@/components/SubmitButton";
 import { createSocialPostAction, updateSocialPostAction } from "@/app/actions/social";
-import { generateComposerImageAction } from "@/app/actions/social-image-gen";
+import { generateComposerImageAction, reframeComposerImageAction } from "@/app/actions/social-image-gen";
+import { IMAGE_STYLES, imageStyleLabel, type ImageStyleSetting } from "@/lib/social/image-styles";
+import { frameHasHeadline, frameLabel, HEADLINE_MAX, type FrameLayout } from "@/lib/social/frame";
 import { tailorPostForNetworksAction } from "@/app/actions/social-tailor";
 import { saveMyDefaultAccountsAction } from "@/app/actions/social-defaults";
 import { networkFor } from "@/lib/social/networks";
@@ -21,7 +23,11 @@ import { SOCIAL_TIPS } from "@/lib/help-tips";
 import { AiAssist } from "@/components/AiAssist";
 
 /** A composer-generated AI image, already stored server-side. */
-type GenImage = { key: string; url: string; provider: string; video?: boolean };
+type GenImage = {
+  key: string; url: string; provider: string; video?: boolean;
+  /** AI images since 2026-11-23: the picture without its frame (for a new headline), the frame, its headline, the style. */
+  baseKey?: string; frame?: FrameLayout; headline?: string | null; style?: string;
+};
 /** What a preview shows for one attachment. */
 type PreviewMedia = { url: string; video: boolean };
 
@@ -171,7 +177,13 @@ export function SocialComposer({
   unlinkedArticles = 0,
   avatarUrl = null,
   brandName = "",
+  imageStyle = "editorial",
+  frameLayout = "off",
 }: {
+  /** The workspace's image style (Brand → Post images); the AI image button starts from it. */
+  imageStyle?: ImageStyleSetting;
+  /** The workspace's branded frame ("off" = none); the AI image button can leave it off one image. */
+  frameLayout?: FrameLayout;
   /** The workspace's published articles, newest first, for "Add link". */
   articles?: ComposerArticle[];
   /** With no article to offer: how many published articles have no live web address (the panel says why). */
@@ -259,6 +271,13 @@ export function SocialComposer({
   const [genBusy, setGenBusy] = useState(false);
   const [genError, setGenError] = useState<string | null>(null);
   const [genGuidance, setGenGuidance] = useState("");
+  // Style and frame for the next AI image (2026-11-23): "" = the workspace's style.
+  const [genStyle, setGenStyle] = useState("");
+  const [genFrame, setGenFrame] = useState(true);
+  const [genHeadline, setGenHeadline] = useState("");
+  const [genNote, setGenNote] = useState<string | null>(null);
+  // A new headline on a framed image: framed again from its stored picture, nothing spent.
+  const [headlineEdit, setHeadlineEdit] = useState<{ key: string; value: string; busy: boolean; error: string | null } | null>(null);
   // "Preview as posted" (2026-11-21): a window with one tab per network.
   const [previewOpen, setPreviewOpen] = useState(false);
   // Hashtag suggestions: asked once by themselves when the post has enough to go on, again on Refresh.
@@ -363,15 +382,35 @@ export function SocialComposer({
     }
   }
 
+  async function saveHeadline() {
+    if (!headlineEdit) return;
+    const img = genImages.find((g) => g.key === headlineEdit.key);
+    if (!img?.baseKey) return;
+    setHeadlineEdit({ ...headlineEdit, busy: true, error: null });
+    try {
+      const res = await reframeComposerImageAction({ baseKey: img.baseKey, headline: headlineEdit.value });
+      if (res.ok) {
+        setGenImages((prev) => prev.map((g) => (g.key === img.key ? { ...g, key: res.key, url: res.url, frame: res.frame, headline: res.headline } : g)));
+        setHeadlineEdit(null);
+      } else {
+        setHeadlineEdit((h) => (h ? { ...h, busy: false, error: res.error } : h));
+      }
+    } catch {
+      setHeadlineEdit((h) => (h ? { ...h, busy: false, error: "Couldn't change the headline — try again." } : h));
+    }
+  }
+
   async function generateAiImage() {
     setGenBusy(true);
     setGenError(null);
+    setGenNote(null);
     try {
       const squareFirst = new Set(["instagram", "pinterest", "tiktok"]);
       const square = accounts.some((a) => selected.has(a.id) && squareFirst.has(a.provider.toLowerCase()));
-      const res = await generateComposerImageAction({ text, guidance: genGuidance, square });
+      const res = await generateComposerImageAction({ text, guidance: genGuidance, square, style: genStyle, frame: genFrame, headline: genHeadline });
       if (res.ok) {
-        setGenImages((g) => [...g, { key: res.key, url: res.url, provider: res.provider }].slice(0, 4));
+        setGenImages((g) => [...g, { key: res.key, url: res.url, provider: res.provider, baseKey: res.baseKey, frame: res.frame, headline: res.headline, style: res.style }].slice(0, 4));
+        setGenNote(res.note);
       } else {
         setGenError(res.error);
       }
@@ -838,6 +877,27 @@ export function SocialComposer({
             onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); if (!genBusy) void generateAiImage(); } }}
           />
         </div>
+        {/* The next AI image's style and frame (2026-11-23, Brand → Post images). Selects and inputs are siblings, never inside a label. */}
+        <div className="flex items-center gap-2 flex-wrap mt-1.5 text-xs" data-ai-image-options>
+          <select value={genStyle} onChange={(e) => setGenStyle(e.target.value)} aria-label="Style of the AI image"
+            className="border border-[var(--line-2)] rounded-lg px-1.5 py-1 text-xs">
+            <option value="">Style: {imageStyleLabel(imageStyle)} (this workspace&apos;s)</option>
+            {IMAGE_STYLES.map((st) => <option key={st.id} value={st.id}>Style: {st.label}</option>)}
+          </select>
+          {frameLayout !== "off" && (
+            <>
+              <label className="inline-flex items-center gap-1.5 cursor-pointer">
+                <input type="checkbox" checked={genFrame} onChange={(e) => setGenFrame(e.target.checked)} />
+                Branded frame <span className="text-[var(--mute)]">({frameLabel(frameLayout).toLowerCase()})</span>
+              </label>
+              {genFrame && frameHasHeadline(frameLayout) && (
+                <input value={genHeadline} onChange={(e) => setGenHeadline(e.target.value)} maxLength={HEADLINE_MAX}
+                  placeholder="Headline on the image (blank = written from the post)" aria-label="Headline on the image"
+                  className="border border-[var(--line-2)] rounded-lg px-2 py-1 text-xs min-w-56 flex-1 max-w-md" />
+              )}
+            </>
+          )}
+        </div>
         {files.length > 0 && (
           <div className="flex items-start gap-2 flex-wrap mt-2">
             {files.map((f, i) => (
@@ -848,6 +908,9 @@ export function SocialComposer({
         )}
         {genError && (
           <p className="text-2xs mt-1" style={{ color: "var(--amber-on)" }}>{genError}</p>
+        )}
+        {genNote && (
+          <p className="text-2xs mt-1" style={{ color: "var(--amber-on)" }} data-ai-image-note>{genNote}</p>
         )}
         {genImages.length > 0 && (
           <div className="flex items-center gap-2 flex-wrap mt-2">
@@ -863,10 +926,21 @@ export function SocialComposer({
                 <span className="absolute bottom-0.5 left-0.5 font-mono text-micro px-1 rounded" style={{ background: "var(--panel)", color: "var(--mute)" }}>
                   {g.provider}
                 </span>
+                {g.baseKey && g.frame && frameHasHeadline(g.frame) && (
+                  <button
+                    type="button"
+                    onClick={() => setHeadlineEdit({ key: g.key, value: g.headline ?? "", busy: false, error: null })}
+                    className="absolute bottom-0.5 right-0.5 rounded px-1 font-mono text-micro border border-[var(--line-2)]"
+                    style={{ background: "var(--panel)" }}
+                    title={g.headline ? `Headline: ${g.headline}` : "Change the headline"}
+                  >
+                    Headline
+                  </button>
+                )}
                 <button
                   type="button"
                   aria-label={`Remove AI image ${i + 1}`}
-                  onClick={() => setGenImages((prev) => prev.filter((x) => x.key !== g.key))}
+                  onClick={() => { setGenImages((prev) => prev.filter((x) => x.key !== g.key)); if (headlineEdit?.key === g.key) setHeadlineEdit(null); }}
                   className="absolute -top-1.5 -right-1.5 rounded-full p-0.5 border border-[var(--line-2)]"
                   style={{ background: "var(--panel)" }}
                 >
@@ -874,6 +948,20 @@ export function SocialComposer({
                 </button>
               </span>
             ))}
+          </div>
+        )}
+        {headlineEdit && (
+          <div className="flex items-center gap-2 flex-wrap mt-2 text-xs" data-headline-edit>
+            <input value={headlineEdit.value} autoFocus maxLength={HEADLINE_MAX} aria-label="New headline for the image"
+              onChange={(e) => setHeadlineEdit({ ...headlineEdit, value: e.target.value, error: null })}
+              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); if (!headlineEdit.busy) void saveHeadline(); } if (e.key === "Escape") setHeadlineEdit(null); }}
+              className="border border-[var(--line-2)] rounded-lg px-2 py-1 text-xs min-w-64 flex-1 max-w-md" />
+            <button type="button" className="btn sm primary" disabled={headlineEdit.busy || !headlineEdit.value.trim()} onClick={() => void saveHeadline()}>
+              {headlineEdit.busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />} Use this headline
+            </button>
+            <button type="button" className="btn sm" onClick={() => setHeadlineEdit(null)}>Cancel</button>
+            <span className="text-2xs text-[var(--mute)]">The same picture, framed again — no new image is made.</span>
+            {headlineEdit.error && <span className="text-2xs basis-full" style={{ color: "var(--amber-on)" }}>{headlineEdit.error}</span>}
           </div>
         )}
       </div>

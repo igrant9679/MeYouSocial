@@ -58,14 +58,14 @@ export function registerSocialImageJobs() {
     const squareFirst = new Set(["instagram", "pinterest", "tiktok"]);
     const aspect = post.targets.some((t) => squareFirst.has(t.provider)) ? "1:1" : "16:9";
 
-    const { socialImagePrompt } = await import("@/lib/social/image-prompt");
-    const prompt = socialImagePrompt({ text: post.text, campaign: post.campaign?.name });
-
+    // The workspace's style and branded frame (Brand → Post images) through the
+    // one renderer Compose uses too (lib/social/post-image.ts).
     // Once per job (ENG-22): a retry after the render reuses the stored image
     // instead of paying for another.
     const img = await ctx.once("social:render", async () => {
-      const r = await provider.generate({ prompt, aspectRatio: aspect, workspaceId: post.workspaceId });
-      return { key: r.key ?? null, provider: r.provider };
+      const { renderPostImage } = await import("@/lib/social/post-image");
+      const r = await renderPostImage({ workspaceId: post.workspaceId, provider, text: post.text, aspect, campaign: post.campaign?.name ?? null });
+      return { key: r.key as string | null, provider: r.provider, style: r.style, frame: r.frame, frameNote: r.frameNote, headlineBy: r.headlineBy };
     });
     if (!img.key) return; // defensive: only real, stored bytes get attached
     await ctx.progress(0.9);
@@ -92,7 +92,12 @@ export function registerSocialImageJobs() {
       action: "social.autoimage",
       entityType: "social_post",
       entityId: post.id,
-      meta: { provider: img.provider, aspect, ...(reviewed && attached.count ? { backToReview: true } : {}) },
+      meta: {
+        provider: img.provider, aspect, style: img.style, frame: img.frame,
+        ...(img.headlineBy ? { headlineBy: img.headlineBy } : {}),
+        ...(img.frameNote ? { frameFailed: true } : {}),
+        ...(reviewed && attached.count ? { backToReview: true } : {}),
+      },
     });
     if (reviewed && attached.count) {
       const { notify } = await import("@/lib/notify");

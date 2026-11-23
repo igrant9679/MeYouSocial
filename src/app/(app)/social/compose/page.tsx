@@ -126,6 +126,8 @@ export default async function SocialComposePage({ searchParams }: { searchParams
         unlinkedArticles={extras.unlinkedArticles}
         avatarUrl={extras.avatarUrl}
         brandName={extras.brandName}
+        imageStyle={extras.imageStyle}
+        frameLayout={extras.frameLayout}
       />
 
       {/* Post templates (E-SOC-23): saved from a post's page; Use starts a new post with its content. */}

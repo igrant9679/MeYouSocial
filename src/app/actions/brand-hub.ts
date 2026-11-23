@@ -51,6 +51,35 @@ export async function saveBrandIdentityAction(formData: FormData) {
   back("Brand identity saved.");
 }
 
+/**
+ * Post images (2026-11-23): the style every post picture is made in, and the branded frame typeset over it
+ * (lib/social/post-image.ts). Settings, not brand-kit columns: they're read where the other social dials are.
+ * A handle or website that isn't one is refused rather than stored, so the frame never prints a typo it was given.
+ */
+export async function savePostImageSettingsAction(formData: FormData) {
+  const { workspace } = await requireRole("ADMIN");
+  const { setWorkspaceSetting } = await import("@/lib/settings");
+  const { IMAGE_STYLE_KEY, parseImageStyle, imageStyleLabel } = await import("@/lib/social/image-styles");
+  const { FRAME_KEY, FRAME_HANDLE_KEY, FRAME_WEBSITE_KEY, FRAME_ICONS_KEY, parseFrameLayout, frameLabel, cleanHandle, websiteLabel } = await import("@/lib/social/frame");
+  const style = parseImageStyle(String(formData.get("imageStyle") ?? ""));
+  const frame = parseFrameLayout(String(formData.get("frame") ?? ""));
+  const handleRaw = String(formData.get("frameHandle") ?? "").trim();
+  const websiteRaw = String(formData.get("frameWebsite") ?? "").trim();
+  const handle = handleRaw ? cleanHandle(handleRaw) : "";
+  if (handle === null) back(`"${handleRaw.slice(0, 40)}" isn't a handle — type it as it appears on the networks, like @LSIMedia (no spaces).`, "err");
+  const website = websiteRaw ? websiteLabel(websiteRaw) : "";
+  if (website === null) back(`"${websiteRaw.slice(0, 60)}" isn't a web address — type it like www.example.com.`, "err");
+  const icons = String(formData.get("frameIcons") ?? "") === "on";
+  await setWorkspaceSetting(workspace.id, IMAGE_STYLE_KEY, style);
+  await setWorkspaceSetting(workspace.id, FRAME_KEY, frame);
+  await setWorkspaceSetting(workspace.id, FRAME_HANDLE_KEY, handle ?? "");
+  await setWorkspaceSetting(workspace.id, FRAME_WEBSITE_KEY, website ?? "");
+  // ⚠ Default-on: absent means shown, so "off" is written explicitly.
+  await setWorkspaceSetting(workspace.id, FRAME_ICONS_KEY, icons ? "true" : "false");
+  revalidatePath("/brand");
+  back(`Post images: ${imageStyleLabel(style)} style, ${frameLabel(frame).toLowerCase()}. New images use it; images already made keep theirs.`);
+}
+
 // ── Topics ───────────────────────────────────────────────────────────────────
 //
 // Topics live under Ideas since 2026-09-21 ("Topics as the spine"): the

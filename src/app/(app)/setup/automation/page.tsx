@@ -298,7 +298,7 @@ export default async function SetupAutomation({ searchParams }: { searchParams: 
             </label>
             <label className="inline-flex items-start gap-2 text-xs cursor-pointer">
               <input type="checkbox" name="autoImage" defaultChecked={autoImage} className="mt-0.5" />
-              <span><b>Auto-generate an image</b> for any post composed without one (the image provider&apos;s per-image fee applies). Your own attachments always win.{note("social:auto_image", (v) => (v === "false" ? "off" : "on"))}</span>
+              <span><b>Auto-generate an image</b> for any post composed without one (the image provider&apos;s per-image fee applies). Your own attachments always win. Its style and branded frame are under <Link href="/brand#post-images" className="underline">Brand → Post images</Link>.{note("social:auto_image", (v) => (v === "false" ? "off" : "on"))}</span>
             </label>
             <div className="flex items-start gap-2 text-xs">
               <label className="inline-flex items-start gap-2 cursor-pointer">

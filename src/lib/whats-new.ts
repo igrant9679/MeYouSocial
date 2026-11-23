@@ -41,6 +41,14 @@ export const CARD_MAX = 5;
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    id: "2026-11-23-post-images",
+    date: "2026-11-23",
+    title: "Post images: pick a style, add your branding",
+    body: "Post pictures can be Editorial, Real people, Illustration, 3D render, Bold graphic or a Mix, and can wear a branded frame with a headline, your logo, @handle and website. Set both under Brand → Post images; Compose can change the style for one image.",
+    href: "/brand#post-images",
+    cta: "Open Brand",
+  },
+  {
     id: "2026-11-23-still-sending",
     date: "2026-11-23",
     title: "A post a network is still working on is no longer called failed",

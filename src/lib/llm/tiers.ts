@@ -56,6 +56,7 @@ export const PURPOSE_TIER: Record<string, Tier> = {
   keywords: "light",
   "social.tailor": "light",
   "social.hashtags": "light",
+  "social.headline": "light",
   thumbnails: "light",
   // Standard
   assistant: "standard",

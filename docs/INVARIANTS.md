@@ -3369,3 +3369,46 @@ day" still took two looks. Now the default view shows both.
   replaced by an in-process stand-in): 24 checks covering the send, no second send, the reconcile pass, both repairs and
   the day-long give-up. With `sendOutcome` put back to the old rule 18 of the 24 fail, including "Retry sends nothing"
   (the old code made a second request). Run it before any deploy that touches `publish.ts` or `leg-outcome.ts`.
+
+## Post images have a style, and can wear a branded frame Publisher typesets (2026-11-23, the owner's "Yes, build both")
+
+The owner: every post image looked the same, and posts should be "branded with head/footer/etc." like the designed
+posts LSI, CommunityForce and EDG make by hand.
+
+- **One renderer**: `renderPostImage` (`lib/social/post-image.ts`) makes every post picture. The background job
+  (`social.autoimage`) and Compose's AI image button (`generateComposerImageAction`) both call it, so a style or a frame
+  can never apply to one and not the other. Don't render a post image anywhere else.
+- **Styles** (`lib/social/image-styles.ts`): Editorial (the old direction word for word, and the default when unset),
+  Real people, Illustration, 3D render, Bold graphic, and Mix. A style swaps only the prompt's craft and "never" lines
+  (`lib/social/image-prompt.ts`); the one-idea concept line, the series line and the author's hint stay. Illustration,
+  3D render and Bold graphic lean on the brand kit's colours. Mix = `pickMixStyle`: the style used longest ago, read
+  from the `style` in the last 12 `social.autoimage` / `social.composer_image` audit rows, so the first five images
+  under Mix are all different. Setting `social:image_style`; Compose can pass one style for one image.
+- **⚠ The AI never draws words.** Every style's "never" line bans text on the image. Words come only from the frame,
+  which `frameSocialImage` (`lib/images/social-frame.ts`) typesets with sharp over the text-free picture: the headline,
+  the real logo on a white chip, the @handle, the network icons and the website, in the brand kit's colours (primary,
+  else the app accent; ink white or near-black by contrast). Same reasoning as the article lockup: a model invents
+  logos and misspells names.
+- **Layouts** (`social:frame`): off (default), footer, headline (headline over a colour wash at the top + footer),
+  bands (a solid band with the headline, the picture cropped below it by sharp's attention strategy, + footer). The
+  canvas keeps the picture's size, so a square stays square. A headline layout with no headline falls back to footer.
+  The prompt tells the model where to leave calm space for the layout.
+- **What the footer prints** (`frameDetails`): `social:frame_handle`, else the username most connected accounts share
+  (`handleFromAccounts`, numeric ids skipped); `social:frame_website`, else the WordPress connection's address, else the
+  Search Console site; network icons from the connected accounts unless `social:frame_icons` is "false" (default on,
+  written explicitly); the logo from `loadBrandLogo` with a 40 px floor, never scaled past 1.5× its own pixels; no logo
+  → the company name in type. A typed handle with a space or a URL, or a website that isn't one, is refused at save.
+- **The headline** (`writeHeadline`, purpose `social.headline`, Light tier): a model's 3–8 words, checked by
+  `cleanHeadline` (no links, hashtags, @mentions, emoji, quotes; 2–10 words; at most 70 characters, cut at a word). A
+  mock reply, a failure or a reply that fails the check falls back to the post's own first sentence
+  (`headlineFromText`) — never invented words. A headline the author types in Compose wins.
+- **The base is kept**: the render is stored as it came and the framed copy is stored beside it (a JPEG, owned by
+  the workspace). Compose's **Headline** button re-frames the base (`reframeComposerImageAction`) — no new render,
+  nothing spent — and refuses a base key another workspace owns.
+- **A failed frame never loses the picture**: the plain render is attached, `frameNote` says why in Compose, and the
+  audit row carries `frameFailed`. Fonts: Liberation Sans (installed on Railway, Arial's metrics, so the width table
+  wraps correctly); the brand kit's heading font isn't installed and isn't used.
+- **Settings UI**: Brand → Post images (`/brand#post-images`), admin-only, with a sample of each layout drawn by
+  `/api/social/frame-sample` on a stand-in picture with the workspace's own logo, colours and handle (members only,
+  nothing rendered by a model, nothing stored). Automation's auto-image line points there.
+- Not framed: uploads, library images and videos. The send-time watermark is separate and still the author's choice.

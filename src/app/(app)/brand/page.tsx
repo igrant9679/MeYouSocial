@@ -1,7 +1,7 @@
 import Link from "next/link";
 import {
   Palette, Building2, Users, Tags, Hash, Share2, Check, X,
-  ExternalLink, Sparkles,
+  ExternalLink, Sparkles, Image as ImageIcon,
 } from "lucide-react";
 import { requireMembership, canEdit, canAdmin } from "@/lib/acl";
 import { db } from "@/lib/db";
@@ -11,7 +11,11 @@ import { HelpTip } from "@/components/HelpTip";
 import { BRAND_TIPS } from "@/lib/help-tips";
 import { saveOrgProfileAction } from "@/app/actions/blog";
 import { RichTextEditor } from "@/components/RichTextEditor";
-import { saveBrandIdentityAction } from "@/app/actions/brand-hub";
+import { saveBrandIdentityAction, savePostImageSettingsAction } from "@/app/actions/brand-hub";
+import { getSetting } from "@/lib/settings";
+import { frameDetails } from "@/lib/social/post-image";
+import { IMAGE_STYLES, IMAGE_STYLE_KEY, parseImageStyle } from "@/lib/social/image-styles";
+import { FRAME_HANDLE_KEY, FRAME_ICONS_KEY, FRAME_LAYOUTS, FRAME_WEBSITE_KEY } from "@/lib/social/frame";
 import { networkFor } from "@/lib/social/networks";
 import { AiAssist } from "@/components/AiAssist";
 import { EmptyState } from "@/components/EmptyState";
@@ -60,6 +64,16 @@ export default async function BrandPage({ searchParams }: { searchParams: Promis
   const { active: activeChannel } = await getActiveChannel();
   const brief = await customerBrief(workspace.id, activeChannel?.id ?? null, { fresh: true }).catch(() => null);
 
+  // Post images (2026-11-23): the saved style and frame, and what the frame would print when a field is blank.
+  const [styleRaw, handleRaw, websiteRaw, iconsRaw, frame] = await Promise.all([
+    getSetting(IMAGE_STYLE_KEY, workspace.id).catch(() => ""),
+    getSetting(FRAME_HANDLE_KEY, workspace.id).catch(() => ""),
+    getSetting(FRAME_WEBSITE_KEY, workspace.id).catch(() => ""),
+    getSetting(FRAME_ICONS_KEY, workspace.id).catch(() => ""),
+    frameDetails(workspace.id).catch(() => null),
+  ]);
+  const imageStyleNow = parseImageStyle(styleRaw);
+
   const clusterNames = [...new Set(clusters.map((c) => c.cluster).filter(Boolean) as string[])].slice(0, 8);
   const logoUrl = workspace.logoKey ? storage.url(workspace.logoKey) : null;
 
@@ -107,6 +121,73 @@ export default async function BrandPage({ searchParams }: { searchParams: Promis
           </div>
         ) : (
           <p className="text-2xs text-[var(--mute)]">Admins can edit brand identity.</p>
+        )}
+      </form>
+
+      {/* ── Post images: style + branded frame (2026-11-23) ─────────────── */}
+      {/* The model paints the picture, never words; the frame is typeset by Publisher (lib/images/social-frame.ts). */}
+      <span id="post-images" className="block scroll-mt-4" aria-hidden />
+      <SectionHead icon={<ImageIcon className="w-4 h-4" style={{ color: "var(--blue-on)" }} />} title="Post images"
+        note="The style of the pictures made for social posts, and the branded frame Publisher puts on them." />
+      <form action={savePostImageSettingsAction} className="card mb-6 flex flex-col gap-4" data-post-images>
+        <fieldset className="flex flex-col gap-2" disabled={!admin}>
+          <legend className="text-xs font-semibold mb-1">Style</legend>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+            {[...IMAGE_STYLES.map((s) => ({ id: s.id as string, label: s.label, blurb: s.blurb })),
+              { id: "mix", label: "Mix", blurb: "A different style each time: the one used longest ago, so posts don't repeat." }].map((s) => (
+              <label key={s.id} className="flex items-start gap-2 text-xs border border-[var(--line)] rounded-lg p-2 cursor-pointer has-[:checked]:border-[var(--accent)]">
+                <input type="radio" name="imageStyle" value={s.id} defaultChecked={imageStyleNow === s.id} className="mt-0.5" />
+                <span><b>{s.label}</b><span className="block text-2xs text-[var(--mute)]">{s.blurb}</span></span>
+              </label>
+            ))}
+          </div>
+          <p className="text-2xs text-[var(--mute)] m-0">
+            Used for every picture the app makes for a post. In Compose, the AI image button can use another style for one image.
+          </p>
+        </fieldset>
+
+        <fieldset className="flex flex-col gap-2" disabled={!admin}>
+          <legend className="text-xs font-semibold mb-1">Branded frame</legend>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
+            {FRAME_LAYOUTS.map((l) => (
+              <label key={l.id} className="flex flex-col gap-1.5 text-xs border border-[var(--line)] rounded-lg p-2 cursor-pointer has-[:checked]:border-[var(--accent)]">
+                <span className="flex items-start gap-2">
+                  <input type="radio" name="frame" value={l.id} defaultChecked={(frame?.layout ?? "off") === l.id} className="mt-0.5" />
+                  <span><b>{l.label}</b><span className="block text-2xs text-[var(--mute)]">{l.blurb}</span></span>
+                </span>
+                {l.id !== "off" && (
+                  // A sample on a stand-in picture with this workspace's own logo, colours and handle — nothing is spent.
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={`/api/social/frame-sample?layout=${l.id}`} alt={`${l.label} sample`} loading="lazy" width={720} height={720}
+                    className="w-full h-auto rounded-md border border-[var(--line)]" />
+                )}
+              </label>
+            ))}
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Field name="frameHandle" label="Handle in the footer" value={handleRaw} placeholder={frame?.handle ?? "@yourhandle"} disabled={!admin} />
+            <Field name="frameWebsite" label="Website in the footer" value={websiteRaw} placeholder={frame?.website ?? "www.example.com"} disabled={!admin} />
+          </div>
+          <label className="inline-flex items-center gap-2 text-xs cursor-pointer">
+            <input type="checkbox" name="frameIcons" defaultChecked={iconsRaw !== "false"} />
+            Show the icons of the connected networks{frame && frame.networks.length === 0 ? " (none are connected yet)" : ""}
+          </label>
+          <p className="text-2xs text-[var(--mute)] m-0">
+            Blank fields use what Publisher finds: the handle your connected accounts share and the address of the connected website.
+            The colours are the brand identity&apos;s above. The headline is written from each post, or typed in Compose. The AI never draws words:
+            Publisher sets the headline, logo, handle and address itself, so they&apos;re never misspelled.
+          </p>
+          {frame && !frame.logo && (
+            <p className="text-2xs m-0" style={{ color: "var(--amber-on)" }} data-frame-no-logo>
+              No logo of at least 40 pixels is on file, so the frame shows the company name instead. Add one under{" "}
+              <Link href="/admin/settings" className="underline">Settings → Workspace</Link> or as the logo URL above.
+            </p>
+          )}
+        </fieldset>
+        {admin ? (
+          <SubmitButton className="btn primary self-start">Save post images</SubmitButton>
+        ) : (
+          <p className="text-2xs text-[var(--mute)] m-0">Admins can change post images.</p>
         )}
       </form>
 

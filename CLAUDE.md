@@ -132,7 +132,9 @@ but it means **bad output can look like real output**. Rules learned the hard wa
   (via `@google/genai`), chosen by `image:provider` (`auto|mock|openai|google`). Bytes are written
   into StorageProvider so URLs are ours and permanent; dimensions are parsed from the bytes, not
   echoed from the request. A selected real provider that fails **throws** rather than substituting
-  a placeholder.
+  a placeholder. **Post** pictures all go through `lib/social/post-image.ts` `renderPostImage` (a style from
+  `lib/social/image-styles.ts`, and the branded frame `lib/images/social-frame.ts` typesets over the text-free
+  render — the model never draws words); settings under Brand → Post images.
 - **Vision** `src/lib/vision.ts` — `fetchReferenceImage()` (YouTube link → `i.ytimg.com`, direct
   image URLs, else null) + `describeImageStyle()`. Used by Thumbnail Studio's Clone so it actually
   looks at the reference instead of guessing from the URL string.
@@ -429,6 +431,7 @@ area, rather than loading all of them into every session.
 - Text people can read: 4.5:1 in light and dark, checked at build — 2026-11-22, the owner's "Yes, build it"
 - One workspace can take another's look, never its identity — 2026-11-22, the owner's Demo Workspace order
 - A leg Zernio is still sending is not a failure — 2026-11-23, the owner's "Yes, fix it" (LSI's 19 Nov Instagram leg)
+- Post images have a style, and can wear a branded frame Publisher typesets — 2026-11-23, the owner's "Yes, build both"
 
 ## Open items / things the user still owns
 - **Analytics: APIs enabled 2026-08-03** (Search Console + GA Admin + GA Data, on project

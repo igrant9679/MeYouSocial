@@ -173,6 +173,8 @@ export default async function EditSocialPostPage({ params }: { params: Promise<{
           unlinkedArticles={extras.unlinkedArticles}
           avatarUrl={extras.avatarUrl}
           brandName={extras.brandName}
+          imageStyle={extras.imageStyle}
+          frameLayout={extras.frameLayout}
         />
       )}
 
