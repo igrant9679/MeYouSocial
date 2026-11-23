@@ -3331,3 +3331,41 @@ day" still took two looks. Now the default view shows both.
   - A copy from a workspace with no branding cleared both.
   - Each copy wrote `branding.copied_from` and `branding.copied_to`.
   - Plus eslint, the eight prebuild checks, tsc and next build.
+
+## ⚠ A leg Zernio is still sending is not a failure (2026-11-23, the owner's "Yes, fix it")
+
+- **Why**: LSI Media's 19 Nov post went out on Facebook, LinkedIn and X; its Instagram leg was marked FAILED with the
+  reason `Zernio reported status “processing”`. The send treated every per-network status other than
+  published/publishing as a failure and wrote the leg without the Zernio post's id. Nothing could correct it later (the
+  webhook and `settleLegsFromZernio` both find legs by `providerPostId`), the Inbox offered Retry, and a retry of that
+  one leg is a new request to Zernio — a second post if the first had gone out.
+- **Zernio's per-network statuses** (docs, read 2026-11-23): `pending`, `processing`, `uploading` (TikTok's hold, up to
+  48 hours), `published`, `failed`, `cancelled`. `post.published` / `post.partial` / `post.failed` fire once per post,
+  after every network has ended.
+- **`lib/social/leg-outcome.ts` is the one reading of those words** — no database, so the send, the webhook, the
+  reconcile pass and the eval share it:
+  - `sendOutcome(leg)`: published/publishing = posted; failed/error/cancelled/rejected or an error message = failed;
+    **anything else is in flight**, a word Zernio adds later included.
+  - An in-flight leg is `pending` WITH `providerPostId`, and its `error` holds a plain note (`inFlightNote`), not a
+    warning. `isInFlight(leg)` is that pair.
+  - `rollUpPostStatus(legs)`: all posted = posted; **any pending leg = "publishing"**, even beside posted or failed
+    legs; else partial or failed. The send, `reconcileStuckSocialPosts` and the webhook all call it. ⚠ Don't write the
+    roll-up by hand again: three hand-written copies put "partial" ahead of a pending leg, which told people a send had
+    failed while it was still going, and left the post where Retry could claim it.
+- **Never sent twice**: `publishSocialPost` leaves in-flight legs out of what it sends, whoever calls it, and a
+  "publishing" post can't be claimed by Retry at all.
+- **Settled from Zernio's record**: the webhook, or after 15 quiet minutes the reconcile pass (`GET /posts/{id}`), moves
+  the leg to posted (at Zernio's `publishedAt` for that network when it gives one) or failed with Zernio's reason. After
+  a day in flight it is failed as unknown with the may-have-posted warning, and it keeps its id so a late event can
+  still correct it.
+- **The repair for old rows** (`adoptLegacyInFlightLegs`, first thing in the reconcile pass; it sends nothing): a failed
+  leg with no id whose reason is `Zernio reported status “<an in-flight word>”` takes the one id its sibling legs share
+  and goes back to pending; with no sibling id, or two, its reason becomes the may-have-posted warning. A post left
+  "partial"/"failed" with a pending leg that has an id goes to "publishing". A leg whose reason names a real failure
+  (`“failed”`) is not touched.
+- **Shown**: the post page labels an in-flight network **sending** ("not sent" is a pending leg with no id). The post is
+  in the Queue as "Publishing now" until it settles; a failure alert goes out only once a leg has actually failed.
+- **Verified**: `scripts/social-send-eval.mts` (`npm run eval:social-send`, throwaway schema ending in "verify", Zernio
+  replaced by an in-process stand-in): 24 checks covering the send, no second send, the reconcile pass, both repairs and
+  the day-long give-up. With `sendOutcome` put back to the old rule 18 of the 24 fail, including "Retry sends nothing"
+  (the old code made a second request). Run it before any deploy that touches `publish.ts` or `leg-outcome.ts`.

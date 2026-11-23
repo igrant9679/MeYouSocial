@@ -312,19 +312,22 @@ export async function POST(req: NextRequest) {
       // Re-roll the parent post from its targets, so a per-leg event moves the
       // post between posted / partial / failed instead of leaving whatever the
       // send-time roll-up wrote.
+      // ⚠ One rule, shared with the send and the reconcile pass
+      // (`rollUpPostStatus`): while a leg is still in flight the post is
+      // "publishing", not "partial" — nothing has failed yet.
       const all = await db.socialPostTarget.findMany({ where: { postId: target.postId } });
       const posted = all.filter((t) => t.status === "posted").length;
-      const stillPending = all.some((t) => t.status === "pending");
+      const { rollUpPostStatus } = await import("@/lib/social/leg-outcome");
+      const rolled = rollUpPostStatus(all);
       await db.socialPost.update({
         where: { id: target.postId },
         data: {
-          status:
-            posted === all.length ? "posted" : posted > 0 ? "partial" : stillPending ? "publishing" : "failed",
+          status: rolled,
           ...(posted > 0 ? {} : { publishedAt: null }),
         },
       });
       // A leg Zernio reports failed is told at once (E-SOC-22; once a day per post).
-      if (posted < all.length && !stillPending) {
+      if (rolled === "failed" || rolled === "partial") {
         const { alertSendFailure } = await import("@/lib/social/send-alerts");
         await alertSendFailure(target.postId);
       }

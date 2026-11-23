@@ -41,6 +41,14 @@ export const CARD_MAX = 5;
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    id: "2026-11-23-still-sending",
+    date: "2026-11-23",
+    title: "A post a network is still working on is no longer called failed",
+    body: "When a network hasn't finished with a post (Instagram can take a few minutes with a picture), that network now shows as sending and the post waits under Publishing now until the result is in. It used to be marked failed and offered for Retry, which could have posted it twice. Older posts caught by this are checked again and corrected.",
+    href: "/social/sent",
+    cta: "Open Sent",
+  },
+  {
     id: "2026-11-23-add-live-link",
     date: "2026-11-23",
     title: "Add the live link to a published article",

@@ -176,7 +176,7 @@ export default async function SocialPostPage({ params, searchParams }: { params:
                   <b>{net?.label ?? t.provider}</b>
                   {sub && <span className="text-[var(--mute)]">· {sub}</span>}
                   {t.accountName && <span className="text-[var(--mute)]">· {t.accountName}</span>}
-                  <span className="font-mono text-micro uppercase tracking-wider px-1.5 py-0.5 rounded-full" style={{ background: ts.bg, color: ts.fg }}>{t.status === "pending" ? "not sent" : ts.label}</span>
+                  <span className="font-mono text-micro uppercase tracking-wider px-1.5 py-0.5 rounded-full" style={{ background: ts.bg, color: ts.fg }}>{t.status === "pending" ? (t.providerPostId ? "sending" : "not sent") : ts.label}</span>
                   {t.postedAt && <span className="font-mono text-micro text-[var(--mute)]">{formatInZone(t.postedAt, tz)}</span>}
                   <span className="flex-1" />
                   {t.platformPostUrl && (

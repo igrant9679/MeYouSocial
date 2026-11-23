@@ -15,6 +15,17 @@ import {
   type ZernioPostTargetSpec,
 } from "@/lib/zernio";
 import { MAY_HAVE_POSTED } from "@/lib/social/unknown-outcome";
+import {
+  LEGACY_IN_FLIGHT_PREFIX,
+  LEGACY_SETTLED_REASONS,
+  ZERNIO_FAILED,
+  ZERNIO_POSTED,
+  inFlightNote,
+  isInFlight,
+  legacyInFlightStatus,
+  rollUpPostStatus,
+  sendOutcome,
+} from "@/lib/social/leg-outcome";
 import { legProblem, videosAmong } from "@/lib/social/validate";
 
 /** Every leg was refused before sending — not an error to record on them again. */
@@ -229,10 +240,14 @@ export async function publishSocialPost(postId: string, opts: { claimed?: boolea
     }
     return;
   }
+  // ⚠ A leg Zernio is still sending is never sent again, whoever asks: its
+  // outcome arrives by webhook or the reconcile pass, and a second request
+  // for it is a second post on someone's real feed.
+  const sendable = pending.filter((t) => !isInFlight(t));
   // Only the legs asked for, when a caller names them: a retry after a
   // reconnect sends what was waiting on that account, not every other failure
   // on the post (E-SOC-07). The roll-up below still reads every leg.
-  const sending = opts.only ? pending.filter((t) => opts.only!.includes(t.id)) : pending;
+  const sending = opts.only ? sendable.filter((t) => opts.only!.includes(t.id)) : sendable;
   if (sending.length === 0) return;
 
   if (!opts.claimed) {
@@ -369,14 +384,20 @@ export async function publishSocialPost(postId: string, opts: { claimed?: boolea
       // ⚠ A 200 replay of an earlier request DOES carry the legs, and each
       // keeps its own outcome: marking every leg of a replay posted turned a
       // leg that had failed into "posted" (audit SOC-12).
-      const posted = leg ? leg.status === "published" || leg.status === "publishing" : result.deduped;
+      const outcome = leg ? sendOutcome(leg) : null;
+      const posted = leg ? outcome === "posted" : result.deduped;
       // ⚠ A MISSING leg is not a success. Zernio accepting the request says
       // nothing about a platform it then didn't report on, and marking that
       // "posted" with a postedAt invents an outcome we were never told — the
       // one thing this codebase doesn't do. Leave it pending, keep the post id
-      // so `post.published` can still reconcile it, and say why. The roll-up
-      // below turns that into "partial", which is the honest reading.
+      // so `post.published` can still reconcile it, and say why.
       const unreported = !result.deduped && !leg;
+      // ⚠ Nor is a leg Zernio is STILL SENDING a failure ("processing" —
+      // Instagram, while it takes in the picture). It was recorded as one, and
+      // without the post id, so nothing could correct it and Retry would have
+      // posted it twice (LSI, 19 Nov 2026). Pending, with the id, like the
+      // unreported leg: the webhook or the reconcile pass settles both, and
+      // the roll-up keeps the post "publishing" until then.
       await db.socialPostTarget.update({
         where: { id: t.id },
         data: posted
@@ -390,10 +411,12 @@ export async function publishSocialPost(postId: string, opts: { claimed?: boolea
           : unreported
             ? {
                 status: "pending",
-                providerPostId: result.postId,
+                providerPostId: result.postId || null,
                 error: "Zernio accepted the post but reported nothing for this account — status unknown.",
               }
-            : { status: "failed", error: (leg?.error ?? `Zernio reported status “${leg?.status}”`).slice(0, 500) },
+            : outcome === "in_flight"
+              ? { status: "pending", providerPostId: result.postId || null, error: inFlightNote(leg!.status) }
+              : { status: "failed", error: (leg?.error ?? `Zernio reported status “${leg?.status}”`).slice(0, 500) },
       });
     }
   } catch (e) {
@@ -408,14 +431,12 @@ export async function publishSocialPost(postId: string, opts: { claimed?: boolea
   }
 
   // Roll up the post status from its targets. A target left PENDING is still in
-  // flight, not a failure: if nothing posted but nothing failed either, the post
-  // stays "publishing" so the webhook can settle it, rather than being written
-  // off as failed on no evidence.
+  // flight, not a failure: while one is, the post stays "publishing" — whether
+  // or not other legs are already out — so the webhook or the reconcile pass
+  // settles it, rather than it being called partly failed on no evidence.
   const fresh = await db.socialPostTarget.findMany({ where: { postId: post.id } });
   const posted = fresh.filter((t) => t.status === "posted").length;
-  const stillPending = fresh.some((t) => t.status === "pending");
-  const status =
-    posted === fresh.length ? "posted" : posted > 0 ? "partial" : stillPending ? "publishing" : "failed";
+  const status = rollUpPostStatus(fresh);
   await db.socialPost.update({
     where: { id: post.id },
     data: { status, publishedAt: posted > 0 ? new Date() : null },
@@ -472,8 +493,6 @@ export async function publishDueSocialPosts(): Promise<number> {
 
 const STUCK_AFTER_MS = 15 * 60_000;
 const GIVE_UP_AFTER_MS = 24 * 3_600_000;
-const SETTLED_POSTED = new Set(["published"]);
-const SETTLED_FAILED = new Set(["failed", "error", "cancelled", "rejected"]);
 
 /**
  * Settle posts stuck in "publishing" (audit SOC-11). A container killed
@@ -489,6 +508,10 @@ const SETTLED_FAILED = new Set(["failed", "error", "cancelled", "rejected"]);
  * Then the post rolls up from its legs, as after a send.
  */
 export async function reconcileStuckSocialPosts(): Promise<number> {
+  // Rows from before 2026-11-23 first, so this pass (or the next) settles them.
+  await adoptLegacyInFlightLegs().catch((e) => {
+    console.error("[social] adopting legacy in-flight legs failed:", e instanceof Error ? e.message : e);
+  });
   const now = Date.now();
   const stuck = await db.socialPost.findMany({
     where: { status: "publishing", updatedAt: { lt: new Date(now - STUCK_AFTER_MS) } },
@@ -517,12 +540,12 @@ export async function reconcileStuckSocialPosts(): Promise<number> {
       const byPlatform = new Map((remote?.perPlatform ?? []).map((p) => [p.platform, p]));
       for (const t of legs) {
         const leg = byAccount.get(t.accountId) ?? byPlatform.get(t.provider.toLowerCase());
-        if (leg && SETTLED_POSTED.has(leg.status)) {
+        if (leg && ZERNIO_POSTED.has(leg.status)) {
           await db.socialPostTarget.updateMany({
             where: { id: t.id, status: "pending" },
-            data: { status: "posted", postedAt: new Date(), error: null, ...(leg.url ? { platformPostUrl: leg.url } : {}) },
+            data: { status: "posted", postedAt: leg.publishedAt ?? new Date(), error: null, ...(leg.url ? { platformPostUrl: leg.url } : {}) },
           });
-        } else if (leg && SETTLED_FAILED.has(leg.status)) {
+        } else if (leg && ZERNIO_FAILED.has(leg.status)) {
           await db.socialPostTarget.updateMany({
             where: { id: t.id, status: "pending" },
             data: { status: "failed", error: (leg.error ?? `Zernio reports this ${leg.status}.`).slice(0, 500) },
@@ -540,8 +563,7 @@ export async function reconcileStuckSocialPosts(): Promise<number> {
     const fresh = await db.socialPostTarget.findMany({ where: { postId: post.id }, select: { status: true } });
     if (fresh.length === 0) continue;
     const posted = fresh.filter((t) => t.status === "posted").length;
-    const stillPending = fresh.some((t) => t.status === "pending");
-    const status = posted === fresh.length ? "posted" : posted > 0 ? "partial" : stillPending ? "publishing" : "failed";
+    const status = rollUpPostStatus(fresh);
     if (status === "publishing") continue;
     const moved = await db.socialPost.updateMany({
       where: { id: post.id, status: "publishing" },
@@ -554,6 +576,67 @@ export async function reconcileStuckSocialPosts(): Promise<number> {
     }
   }
   return settled;
+}
+
+/**
+ * Repair for rows written before 2026-11-23 (the fix is `leg-outcome.ts`).
+ * Nothing here sends, and nothing here decides an outcome: it only puts a
+ * leg back where the pass above can read Zernio's own record for it.
+ *
+ *   · A leg Zernio was still sending was recorded as FAILED, with the reason
+ *     "Zernio reported status “processing”" and without the Zernio post's id.
+ *     It takes the id its sibling legs got from the same request and goes back
+ *     to pending. With no sibling to take one from (or two different ones), the
+ *     outcome can't be read back, so its reason becomes the may-have-posted
+ *     warning Retry shows — never a blind re-send.
+ *   · A leg Zernio never reported on sat pending inside a post rolled up as
+ *     "partial", where no pass looked at it again and Retry would re-send it.
+ *
+ * Either way the post goes to "publishing": the state that pass reads, and
+ * one Retry can't claim. Returns how many legs were put back.
+ */
+async function adoptLegacyInFlightLegs(): Promise<number> {
+  const rows = await db.socialPostTarget.findMany({
+    where: {
+      status: "failed",
+      providerPostId: null,
+      error: { startsWith: LEGACY_IN_FLIGHT_PREFIX, notIn: LEGACY_SETTLED_REASONS },
+    },
+    select: { id: true, postId: true, error: true },
+    take: 50,
+  });
+  let adopted = 0;
+  for (const t of rows) {
+    const was = legacyInFlightStatus(t.error);
+    if (!was) continue;
+    const siblings = await db.socialPostTarget.findMany({
+      where: { postId: t.postId, providerPostId: { not: null } },
+      select: { providerPostId: true },
+    });
+    const ids = [...new Set(siblings.map((s) => s.providerPostId!))];
+    if (ids.length !== 1) {
+      await db.socialPostTarget.updateMany({
+        where: { id: t.id, status: "failed", providerPostId: null },
+        data: { error: `Zernio was still sending this (“${was}”) when it answered, and what became of it was never recorded — this ${MAY_HAVE_POSTED}. Check the network before retrying.` },
+      });
+      continue;
+    }
+    const moved = await db.socialPostTarget.updateMany({
+      where: { id: t.id, status: "failed", providerPostId: null },
+      data: { status: "pending", providerPostId: ids[0], error: inFlightNote(was) },
+    });
+    adopted += moved.count;
+  }
+  // Every post holding a leg in flight is "publishing" — the ones just put
+  // back, and the older "partial" ones with a leg Zernio never reported on.
+  await db.socialPost.updateMany({
+    where: {
+      status: { in: ["partial", "failed"] },
+      targets: { some: { status: "pending", providerPostId: { not: null } } },
+    },
+    data: { status: "publishing" },
+  });
+  return adopted;
 }
 
 /**
@@ -576,12 +659,12 @@ export async function settleLegsFromZernio(zernioPostId: string, workspaceId: st
   let changed = 0;
   for (const t of legs) {
     const leg = byAccount.get(t.accountId) ?? byPlatform.get(t.provider.toLowerCase());
-    if (leg && SETTLED_POSTED.has(leg.status)) {
+    if (leg && ZERNIO_POSTED.has(leg.status)) {
       changed += (await db.socialPostTarget.updateMany({
         where: { id: t.id, status: { not: "posted" } },
-        data: { status: "posted", postedAt: new Date(), error: null, ...(leg.url ? { platformPostUrl: leg.url } : {}) },
+        data: { status: "posted", postedAt: leg.publishedAt ?? new Date(), error: null, ...(leg.url ? { platformPostUrl: leg.url } : {}) },
       })).count;
-    } else if (leg && SETTLED_FAILED.has(leg.status)) {
+    } else if (leg && ZERNIO_FAILED.has(leg.status)) {
       changed += (await db.socialPostTarget.updateMany({
         where: { id: t.id, status: { not: "posted" } },
         data: { status: "failed", error: (leg.error ?? `Zernio reports this ${leg.status}.`).slice(0, 500) },

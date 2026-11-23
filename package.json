@@ -18,6 +18,7 @@
     "check:retired": "tsx scripts/check-retired-names.mts",
     "check:contrast": "tsx scripts/check-contrast.mts",
     "eval:assistant": "tsx scripts/assistant-eval.mts",
+    "eval:social-send": "tsx scripts/social-send-eval.mts",
     "push": "tsx scripts/push.mts",
     "prebuild": "tsx scripts/check-routes.mts && tsx scripts/check-guide-anchors.mts && tsx scripts/check-css-vars.mts && tsx scripts/check-type-colors.mts && tsx scripts/check-contrast.mts && tsx scripts/check-help-copy.mts && tsx scripts/check-retired-names.mts && tsx scripts/check-model-callers.mts",
     "postbuild": "tsx scripts/check-bundle.mts",

@@ -900,7 +900,7 @@ export const HELP_CATEGORIES: FaqCategory[] = [
       },
       {
         q: "A post failed to send. What now?",
-        a: "History shows the outcome per network, so a post that reached LinkedIn and failed on X says exactly that. Use **Retry** on the failed target — it re-sends only that one. Duplicate sends are guarded four ways, so a retry cannot double-post.",
+        a: "History shows the outcome per network, so a post that reached LinkedIn and failed on X says exactly that. Use **Retry** on the failed target — it re-sends only that one. Duplicate sends are guarded four ways, so a retry cannot double-post.\n\nA network that hasn't finished with the post is not a failure: Instagram can take a few minutes with a picture. That network shows **sending**, the post stays under **Publishing now**, and there is nothing to retry — it becomes posted or failed by itself when the result is in. If no result arrives within a day it is marked failed with a note that it may have posted, so check the network before you retry.",
         tags: ["failed", "retry", "history", "error"],
       },
       {

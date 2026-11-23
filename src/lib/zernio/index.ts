@@ -354,7 +354,15 @@ export type ZernioPostTargetSpec = {
 export type ZernioPostResult = {
   postId: string;
   status: string;
-  perPlatform: { platform: string; accountId: string | null; status: string; url: string | null; error: string | null }[];
+  perPlatform: {
+    platform: string;
+    accountId: string | null;
+    status: string;
+    url: string | null;
+    error: string | null;
+    /** When this network's copy went out, as Zernio records it; null when it doesn't say. */
+    publishedAt: Date | null;
+  }[];
   /** True when Zernio returned an existing post rather than creating one. */
   deduped: boolean;
 };
@@ -376,8 +384,16 @@ function resultOf(body: Record<string, unknown>, deduped: boolean): ZernioPostRe
       status: String(p.status ?? "unknown"),
       url: (p.platformPostUrl as string) ?? null,
       error: (p.errorMessage as string) ?? (p.error as string) ?? null,
+      publishedAt: pastInstant(p.publishedAt),
     })),
   };
+}
+
+/** A timestamp Zernio sent, if it is a real instant that has already happened; else null. */
+function pastInstant(v: unknown): Date | null {
+  if (typeof v !== "string" || !v) return null;
+  const d = new Date(v);
+  return Number.isFinite(d.getTime()) && d.getTime() <= Date.now() + 60_000 ? d : null;
 }
 
 /**
