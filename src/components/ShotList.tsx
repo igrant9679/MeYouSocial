@@ -28,7 +28,7 @@ export async function ShotList({ workspaceId, scriptId, body, editor }: { worksp
     <div className="flex flex-col gap-4" data-shot-list="">
       <div className="card">
         <div className="flex items-center gap-2 flex-wrap mb-2">
-          <h3 className="font-mono font-bold text-sm flex items-center gap-2 m-0"><Clapperboard className="w-4 h-4" style={{ color: "var(--accent)" }} /> Shot list</h3>
+          <h3 className="font-mono font-bold text-sm flex items-center gap-2 m-0"><Clapperboard className="w-4 h-4" style={{ color: "var(--accent-on)" }} /> Shot list</h3>
           <span className="font-mono text-micro px-1.5 py-0.5 rounded-full" style={{ background: "var(--panel)", color: "var(--mute)" }}>{shots.length} marked</span>
           <span className="flex-1" />
           {editor && shots.length > 0 && (

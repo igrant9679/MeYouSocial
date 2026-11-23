@@ -44,7 +44,7 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
       <nav className="flex flex-wrap gap-1 mb-4" data-job-filters>
         {JOB_FILTERS.map((f) => (
           <Link key={f} href={`/admin/jobs?state=${f}`}
-            className={"text-xs font-mono px-2.5 py-1 rounded-md border " + (filter === f ? "border-[var(--accent)] text-[var(--accent)]" : "border-[var(--line-2)] text-[var(--mute)]")}>
+            className={"text-xs font-mono px-2.5 py-1 rounded-md border " + (filter === f ? "border-[var(--accent)] text-[var(--accent-on)]" : "border-[var(--line-2)] text-[var(--mute)]")}>
             {FILTER_LABEL[f]}{count(f) != null ? ` (${count(f)})` : ""}
           </Link>
         ))}

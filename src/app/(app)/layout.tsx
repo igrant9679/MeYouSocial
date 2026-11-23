@@ -260,7 +260,7 @@ html[data-theme="dark"] .ws-brand {
           >
             <span
               className="w-7 h-7 rounded-lg text-white grid place-items-center flex-shrink-0"
-              style={{ background: "linear-gradient(135deg,var(--brand),var(--violet))" }}
+              style={{ background: "linear-gradient(135deg,var(--accent-strong),var(--violet))" }}
               aria-hidden
             >
               <User className="w-[16px] h-[16px]" strokeWidth={2.25} />
@@ -270,7 +270,7 @@ html[data-theme="dark"] .ws-brand {
           <form action={signOutAction}>
             <button
               title="Sign out"
-              className="w-full flex items-center justify-center @6xl:justify-start gap-3 px-0 @6xl:px-3 py-2 rounded-xl text-sm font-semibold min-h-[44px] text-[var(--mute)] hover:text-[var(--brand)] hover:bg-[var(--brand-soft)] transition-colors"
+              className="w-full flex items-center justify-center @6xl:justify-start gap-3 px-0 @6xl:px-3 py-2 rounded-xl text-sm font-semibold min-h-[44px] text-[var(--mute)] hover:text-[var(--brand-on)] hover:bg-[var(--brand-soft)] transition-colors"
             >
               <LogOut className="w-[18px] h-[18px] flex-shrink-0" strokeWidth={2.25} />
               <span className="hidden @6xl:inline">Sign out</span>
@@ -316,7 +316,7 @@ html[data-theme="dark"] .ws-brand {
               />
             </form>
           ) : (
-            <Link href="/channels" className="font-mono font-bold text-sm tracking-tight hover:text-[var(--accent)] transition truncate max-w-[40vw] md:max-w-[200px] @6xl:max-w-none" title="Manage workspace channels">
+            <Link href="/channels" className="font-mono font-bold text-sm tracking-tight hover:text-[var(--accent-on)] transition truncate max-w-[40vw] md:max-w-[200px] @6xl:max-w-none" title="Manage workspace channels">
               {workspace.name}
             </Link>
           )}

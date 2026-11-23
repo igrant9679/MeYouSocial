@@ -3249,3 +3249,43 @@ day" still took two looks. Now the default view shows both.
 - ⚠ **Local check note**: `prisma dev`'s Postgres takes ONE connection at a time. Run the app with
   `connection_limit=1&pgbouncer=true` in its URL. Stopping the app without closing its connection jams the server; run
   `npx prisma dev --name <n> --detach` again to revive it (its data survives).
+
+## ⚠ Text people can read: 4.5:1 in light and dark, checked at build (2026-11-22, the owner's "Yes, build it")
+
+- **Why**: measured on 2026-11-22, coloured text was below WCAG AA (4.5:1) for 9 of 14 hues in light mode (amber chips
+  2.78:1, cyan 3.08, teal 3.15, brand 3.34), and brand, teal, amber, green and cyan text on white read at 3.2–4.0. In
+  dark mode 237 places used a BARE hue as text (`text-[var(--amber)]`, `color: "var(--accent)"`). The dark theme only
+  lifts the `-on` tokens, so those stayed dim (violet on its dark chip 2.39). Primary buttons, two badges, two chat
+  bubbles, the link-in-bio initials and the avatar gradient put white on a hue that reads at 3.96 or less.
+- **The fix**:
+  - The light `--<hue>-on` tokens are each hue darkened JUST enough for 4.5:1 on its own `-soft` and on every surface
+    (`color-mix(in srgb, var(--x) P%, black)`): brand 80, blue 95, teal 80, amber 70, pink 85, green 80, cyan 75,
+    rose 85, sea 95. Violet, indigo, purple and azure already passed and are unchanged.
+  - The 237 bare-hue text colours in `.tsx` are `-on` now. The change was done by a script whose every changed line
+    equals the original minus the inserted "-on"; 75 files.
+  - White on a hue is `--accent-strong`: the dark-mode primary button (both dark copies), the Unread bell's badge,
+    user chat bubbles on /chat and the script page, the link-in-bio initials tile, and the start of the avatar
+    gradient (layout header + Settings).
+  - Elsie's Tour badge sits on `--amber-on` with `color: var(--bg)`, which is white in light and dark in dark,
+    because `--amber-on` itself flips.
+- **`scripts/check-contrast.mts`** (prebuild, `npm run check:contrast`) works both themes out of `globals.css` (light =
+  `:root`; dark = `:root` + `html[data-theme="dark"]`; `var()` with fallbacks and `color-mix(in srgb…)` resolved) and
+  fails under 4.5:1 for:
+  1. TOKENS: ink, slate and mute on bg, card, panel and zebra; each hue's `-on` on its `-soft` and on every surface;
+     white on `--accent-strong`.
+  2. ELEMENTS: every JSX element whose className and/or style give it both a text and a background colour. Conditional
+     classes are evaluated branch by branch (never one branch's text with the other's background), and `hover:` and
+     other variants state by state. Gradients count at their worst stop.
+  3. CSS RULES in globals.css that set both (a `[data-theme="dark"]` rule is checked in dark only).
+  4. No bare hue as text in `.tsx`: text and icons use `--<hue>-on`. Bare hues are for backgrounds, borders and dots.
+  5. The `[data-theme="auto"]` copy of the dark theme must say exactly what `[data-theme="dark"]` says, tokens and rules.
+  A pair it can't resolve (white over a translucent overlay on a photo: the post preview's two) is skipped and counted;
+  `CONTRAST_VERBOSE=1` lists them. `ALLOWED` holds one exception with its reason: the production checklist's ticked box,
+  a white check-mark ICON on green (WCAG asks 3:1 of non-text; it is 4.00).
+- **Verified**: a probe outside the repo with 7 planted failures (faint text, white on bare brand, bare hue as class and
+  as style, a hover pair, one bad branch of a conditional, a gradient's weak stop), plus a faint `-on` token, a
+  disagreeing dark/auto copy and a faint CSS rule. All were flagged. Four look-alikes that must pass (separate
+  branches, a hover pair, a chip, a `var()` fallback) and a comment were not. On the app: 938 pairs pass in both themes,
+  383 element pairs in 276 files, 4 skipped. tsc, next build; screenshots in light and dark on a local copy.
+- ⚠ **A new colour token, hue or surface is measured by the next build.** If it fails, darken (light) or lift (dark) the
+  token rather than adding an exception. Exceptions are for non-text marks and large text only.

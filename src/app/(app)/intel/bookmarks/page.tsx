@@ -41,9 +41,9 @@ export default async function BookmarksPage({ searchParams }: { searchParams: Pr
 
   return (
     <div>
-      <Link href="/intel" className="text-xs font-mono text-[var(--mute)] hover:text-[var(--accent)] flex items-center gap-1 mb-3"><ArrowLeft className="w-3 h-3" /> Back to Intel</Link>
+      <Link href="/intel" className="text-xs font-mono text-[var(--mute)] hover:text-[var(--accent-on)] flex items-center gap-1 mb-3"><ArrowLeft className="w-3 h-3" /> Back to Intel</Link>
       <div className="flex items-center gap-3 mb-5">
-        <span className="w-12 h-12 rounded-2xl grid place-items-center" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
+        <span className="w-12 h-12 rounded-2xl grid place-items-center" style={{ background: "var(--brand-soft)", color: "var(--brand-on)" }}>
           <Bookmark className="w-6 h-6" strokeWidth={2.25} />
         </span>
         <div>
@@ -100,7 +100,7 @@ function BookmarkRow({ bookmark, kind, ramp = null }: { ramp?: Ramp; bookmark: {
         <div className="flex items-center gap-3">
           <ChannelAvatar name={c.name} url={c.thumbnailUrl} size={40} />
           <div className="flex-1 min-w-0">
-            <Link href={`/intel/channels/${c.id}`} className="font-semibold text-sm hover:text-[var(--accent)]">{c.name}</Link>
+            <Link href={`/intel/channels/${c.id}`} className="font-semibold text-sm hover:text-[var(--accent-on)]">{c.name}</Link>
             <div className="text-xs text-[var(--mute)]">{c.handle} · {formatNum(c.subscribers)} subs</div>
           </div>
           <form action={toggleBookmarkAction}>
@@ -117,7 +117,7 @@ function BookmarkRow({ bookmark, kind, ramp = null }: { ramp?: Ramp; bookmark: {
     return (
       <li className="border-t border-[var(--line)] first:border-t-0 py-3 flex items-center gap-3 flex-wrap">
         <OutlierChip score={v.outlierScore} />
-        <Link href={`/intel/videos/${v.id}`} className="font-semibold text-sm hover:text-[var(--accent)] flex-1 min-w-0 truncate">{v.title}</Link>
+        <Link href={`/intel/videos/${v.id}`} className="font-semibold text-sm hover:text-[var(--accent-on)] flex-1 min-w-0 truncate">{v.title}</Link>
         <span className="text-xs text-[var(--mute)]">{v.intelChannel.name} · {formatNum(v.views)} views{v.viewsPerHour != null && <span title="Views per hour since publish"> · {formatVph(v.viewsPerHour)}/hr</span>}</span>
         {ramp && <ResearchIdeaForm videoId={v.id} videoTitle={v.title} topics={ramp.topics} channels={ramp.channels} matchedTopicId={matchTopic(v.title, ramp.prepared)?.id ?? null} back="/intel/bookmarks" compact already={alreadyAnIdea(ramp.work, v)} />}
         <form action={toggleBookmarkAction}>

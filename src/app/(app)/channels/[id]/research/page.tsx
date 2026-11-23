@@ -50,7 +50,7 @@ export default async function ChannelResearchPage({ params, searchParams }: { pa
   return (
     <div>
       <div className="flex items-center gap-3 mb-4">
-        <span className="w-10 h-10 rounded-xl grid place-items-center" style={{ background: "var(--blue-soft)", color: "var(--blue)" }}>
+        <span className="w-10 h-10 rounded-xl grid place-items-center" style={{ background: "var(--blue-soft)", color: "var(--blue-on)" }}>
           <FileSearch className="w-5 h-5" strokeWidth={2.25} />
         </span>
         <div>
@@ -64,7 +64,7 @@ export default async function ChannelResearchPage({ params, searchParams }: { pa
         <p className="text-xs text-[var(--mute)] mb-5" data-read-only>Running research is for editors — the saved reports are below.</p>
       ) : (
       <form action={deepResearchAction} className="card mb-5">
-        <h3 className="font-mono font-bold text-sm mb-3 flex items-center gap-2"><FileSearch className="w-4 h-4" style={{ color: "var(--blue)" }} /> New deep research</h3>
+        <h3 className="font-mono font-bold text-sm mb-3 flex items-center gap-2"><FileSearch className="w-4 h-4" style={{ color: "var(--blue-on)" }} /> New deep research</h3>
         <input type="hidden" name="channelId" value={id} />
         <label className="flex flex-col gap-1 mb-2">
           <span className="text-micro font-mono uppercase tracking-wider text-[var(--mute)]">Question / topic</span>
@@ -127,8 +127,8 @@ export default async function ChannelResearchPage({ params, searchParams }: { pa
           <ul className="m-0 p-0 flex flex-col gap-1">
             {sources.map((s) => (
               <li key={s.id}>
-                <a href={`/channels/${id}/research?focus=${s.id}`} className={"flex items-start gap-2 px-2 py-1.5 rounded-md text-xs transition " + (focused?.id === s.id ? "bg-[var(--accent-soft)] text-[var(--accent)]" : "text-[var(--slate)] hover:bg-[var(--zebra)]")}>
-                  {s.starred && <Star className="w-3 h-3 flex-shrink-0 mt-0.5" fill="currentColor" style={{ color: "var(--amber)" }} />}
+                <a href={`/channels/${id}/research?focus=${s.id}`} className={"flex items-start gap-2 px-2 py-1.5 rounded-md text-xs transition " + (focused?.id === s.id ? "bg-[var(--accent-soft)] text-[var(--accent-on)]" : "text-[var(--slate)] hover:bg-[var(--zebra)]")}>
+                  {s.starred && <Star className="w-3 h-3 flex-shrink-0 mt-0.5" fill="currentColor" style={{ color: "var(--amber-on)" }} />}
                   <span className="flex-1 truncate font-semibold">{s.title ?? s.ref}</span>
                 </a>
               </li>
@@ -141,7 +141,7 @@ export default async function ChannelResearchPage({ params, searchParams }: { pa
           {focused ? (
             <article className="card">
               <div className="flex items-center gap-2 mb-3">
-                <span className="font-mono text-micro uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: "var(--accent-soft)", color: "var(--accent)" }}>{focused.kind}</span>
+                <span className="font-mono text-micro uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: "var(--accent-soft)", color: "var(--accent-on)" }}>{focused.kind}</span>
                 <h2 className="font-mono font-bold text-lg flex-1">{focused.title ?? focused.ref}</h2>
                 {editor && (<>
                 <form action={starResearchAction}>
@@ -197,7 +197,7 @@ export default async function ChannelResearchPage({ params, searchParams }: { pa
                   <ol className="mt-2 mb-0 pl-5 text-xs flex flex-col gap-1">
                     {webSources.map((w, i) => (
                       <li key={i}>
-                        <a href={w.url} target="_blank" rel="noopener noreferrer" className="text-[var(--accent)] underline break-all">{w.title || w.url}</a>
+                        <a href={w.url} target="_blank" rel="noopener noreferrer" className="text-[var(--accent-on)] underline break-all">{w.title || w.url}</a>
                         {fromTag(w) && <span className="ml-1 text-micro font-mono uppercase tracking-wider text-[var(--mute)]" data-source-tag="">{fromTag(w)}</span>}
                         {w.read && <span className="ml-1 text-micro font-mono uppercase tracking-wider text-[var(--mute)]">read in full</span>}
                       </li>

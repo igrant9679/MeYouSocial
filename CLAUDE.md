@@ -220,7 +220,9 @@ but it means **bad output can look like real output**. Rules learned the hard wa
 - **Theming** `src/app/globals.css` — light/dark via `data-theme`. Per-hue tokens `--<hue>`,
   `--<hue>-soft`, `--<hue>-on`; dark mode derives soft/on via `color-mix`, so **use the tokens, not
   raw hex** (`scripts/check-type-colors.mts` refuses raw hex and `text-[Npx]` in `.tsx`; the type scale is
-  text-micro 10 · 2xs 11 · xs 12 · sm 14 · base 16 · lg 18 · xl 20 · 2xl 24). ⚠ `.btn` / `.card` are **unlayered** and beat Tailwind utilities — a bare `hidden` on a
+  text-micro 10 · 2xs 11 · xs 12 · sm 14 · base 16 · lg 18 · xl 20 · 2xl 24). ⚠ **Text and icons in a hue use
+  `--<hue>-on`, never the bare `--<hue>`**, and white on a hue sits on `--accent-strong`: `scripts/check-contrast.mts`
+  (prebuild) fails the build when any text pair is under 4.5:1 in light or dark (INVARIANTS "Text people can read"). ⚠ `.btn` / `.card` are **unlayered** and beat Tailwind utilities — a bare `hidden` on a
   `.btn` does nothing; use `!`-marked utilities.
 - **Type** (2026-11-03, the owner's call) — one face, **Plus Jakarta Sans** (`layout.tsx`, `--font-sans`).
   ⚠ `font-mono` is the app's **display style** for headings, labels, chips and numbers, and is NOT a
@@ -416,6 +418,7 @@ area, rather than loading all of them into every session.
 - A post previews as posted, suggests its hashtags, and takes a link — 2026-11-21, the owner's "click to preview it so I see exactly what it looks like as posted"; the engine's posts get the same hashtags and a post's page previews too — 2026-11-22
 - A retired name stops the build — 2026-11-21, the owner's "The Help check"
 - What's new: one dated list, a card on the Inbox until each person says "Got it" — 2026-11-22, the owner's "Yes, build it"
+- Text people can read: 4.5:1 in light and dark, checked at build — 2026-11-22, the owner's "Yes, build it"
 
 ## Open items / things the user still owns
 - **Analytics: APIs enabled 2026-08-03** (Search Console + GA Admin + GA Data, on project

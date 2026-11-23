@@ -39,7 +39,7 @@ export default async function FilmQueuePage({ searchParams }: { searchParams: Pr
   return (
     <div>
       <div className="flex items-center gap-2 mb-4">
-        <h2 className="font-mono font-bold text-lg flex items-center gap-2"><Clapperboard className="w-5 h-5" style={{ color: "var(--amber)" }} /> Film Queue</h2>
+        <h2 className="font-mono font-bold text-lg flex items-center gap-2"><Clapperboard className="w-5 h-5" style={{ color: "var(--amber-on)" }} /> Film Queue</h2>
         <span className="text-xs text-[var(--mute)]">({projects.length})</span>
         <span className="flex-1" />
         <Link href={mine === "1" ? "/production/film-queue" : "/production/film-queue?mine=1"} className="btn sm">{mine === "1" ? "All" : "My work"}</Link>
@@ -57,7 +57,7 @@ export default async function FilmQueuePage({ searchParams }: { searchParams: Pr
                   <span className="w-8 h-8 rounded-lg text-white grid place-items-center text-2xs font-mono font-bold" style={{ background: p.channel.accentColor ?? "var(--accent)" }}>{p.channel.name.slice(0, 2).toUpperCase()}</span>
                   <div className="flex-1 min-w-0">
                     {p.script ? (
-                      <Link href={`/scripts/${p.script.id}`} className="font-semibold text-sm hover:text-[var(--accent)]">{p.title}</Link>
+                      <Link href={`/scripts/${p.script.id}`} className="font-semibold text-sm hover:text-[var(--accent-on)]">{p.title}</Link>
                     ) : (
                       <div className="font-semibold text-sm">{p.title}</div>
                     )}

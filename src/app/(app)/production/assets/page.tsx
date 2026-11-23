@@ -30,7 +30,7 @@ export default async function AssetsPage({ searchParams }: { searchParams: Promi
   return (
     <div>
       <div className="flex items-center gap-2 mb-4">
-        <h2 className="font-mono font-bold text-lg flex items-center gap-2"><Film className="w-5 h-5" style={{ color: "var(--cyan)" }} /> B-roll & shot library</h2>
+        <h2 className="font-mono font-bold text-lg flex items-center gap-2"><Film className="w-5 h-5" style={{ color: "var(--cyan-on)" }} /> B-roll & shot library</h2>
         <span className="text-xs text-[var(--mute)]">({assets.length})</span>
       </div>
 

@@ -235,7 +235,7 @@ export default async function BlogPage({ searchParams }: { searchParams: Promise
         <div className="flex items-center gap-2 mb-2">
           <CalendarDays className="w-4 h-4" style={{ color: "var(--cyan-on)" }} />
           <h2 className="font-mono text-sm font-bold flex-1">This week</h2>
-          <Link href="/blog/calendar" className="text-xs font-mono text-[var(--accent)] font-semibold hover:underline">full calendar →</Link>
+          <Link href="/blog/calendar" className="text-xs font-mono text-[var(--accent-on)] font-semibold hover:underline">full calendar →</Link>
         </div>
         {/* 7 columns are unreadable on phones — below ~42rem effective width
             the week becomes a horizontal scroll track instead of 50px slivers. */}
@@ -270,7 +270,7 @@ export default async function BlogPage({ searchParams }: { searchParams: Promise
               <SubmitButton className="btn sm" pendingText="Discovering…">Discover more</SubmitButton>
             </form>
           )}
-          <Link href="/ideas?format=article" className="text-xs font-mono text-[var(--accent)] font-semibold hover:underline">idea board →</Link>
+          <Link href="/ideas?format=article" className="text-xs font-mono text-[var(--accent-on)] font-semibold hover:underline">idea board →</Link>
         </div>
         {topIdeas.length === 0 ? (
           <EmptyState

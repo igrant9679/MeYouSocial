@@ -185,7 +185,7 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
 
       {ok && (
         <div className="card mb-4 flex items-center gap-2" style={{ background: "var(--green-soft)", borderColor: "var(--green)" }}>
-          <CheckCircle2 className="w-4 h-4" style={{ color: "var(--green)" }} />
+          <CheckCircle2 className="w-4 h-4" style={{ color: "var(--green-on)" }} />
           <span className="text-sm">Saved {ok}{ok.includes(":") ? "" : " key"}. New requests will use it within ~30s.</span>
         </div>
       )}
@@ -312,7 +312,7 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
                 <div className="text-2xs text-[var(--mute)] mt-0.5" data-key-use={row.provider}>Used for: {row.use}</div>
                 {dbVal && <div className="text-2xs font-mono text-[var(--mute)] mt-0.5">Current: {mask(dbVal)}</div>}
                 <StoredKeyWarning provider={row.provider} value={dbVal} />
-                <Link href={row.helpUrl} target="_blank" rel="noopener noreferrer" className="text-2xs inline-flex items-center gap-1 mt-1" style={{ color: "var(--accent)" }}>
+                <Link href={row.helpUrl} target="_blank" rel="noopener noreferrer" className="text-2xs inline-flex items-center gap-1 mt-1" style={{ color: "var(--accent-on)" }}>
                   Get a key from {row.helpText} <ExternalLink className="w-3 h-3" />
                 </Link>
               </div>
@@ -386,7 +386,7 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
                 <div className="text-2xs text-[var(--mute)] mt-0.5">{row.note}</div>
                 {dbVal && <div className="text-2xs font-mono text-[var(--mute)] mt-0.5">Current: {mask(dbVal)}</div>}
                 <StoredKeyWarning provider={row.vendor} value={dbVal} />
-                <Link href={row.helpUrl} target="_blank" rel="noopener noreferrer" className="text-2xs inline-flex items-center gap-1 mt-1" style={{ color: "var(--accent)" }}>
+                <Link href={row.helpUrl} target="_blank" rel="noopener noreferrer" className="text-2xs inline-flex items-center gap-1 mt-1" style={{ color: "var(--accent-on)" }}>
                   Get a key from {row.helpText} <ExternalLink className="w-3 h-3" />
                 </Link>
               </div>
@@ -562,7 +562,7 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
                 {dbVal && editable && <div className="text-2xs font-mono text-[var(--mute)] mt-0.5">Current: {mask(dbVal)}</div>}
                 {editable && <StoredKeyWarning provider={row.provider} value={dbVal} />}
                 {editable && (
-                  <Link href={row.helpUrl} target="_blank" rel="noopener noreferrer" className="text-2xs inline-flex items-center gap-1 mt-1" style={{ color: "var(--accent)" }}>
+                  <Link href={row.helpUrl} target="_blank" rel="noopener noreferrer" className="text-2xs inline-flex items-center gap-1 mt-1" style={{ color: "var(--accent-on)" }}>
                     Get a key from {row.helpText} <ExternalLink className="w-3 h-3" />
                   </Link>
                 )}

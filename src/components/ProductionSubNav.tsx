@@ -15,15 +15,15 @@ import { PRODUCTION_TAB_TIPS } from "@/lib/help-tips";
  */
 
 const NAV = [
-  { href: "/production",              label: "Board",         icon: KanbanSquare, color: "var(--teal)" },
-  { href: "/production/writers-room", label: "Writer's Room", icon: PenLine,      color: "var(--blue)" },
-  { href: "/production/film-queue",   label: "Film Queue",    icon: Clapperboard, color: "var(--amber)" },
-  { href: "/production/edit-bay",     label: "Edit Bay",      icon: Scissors,     color: "var(--violet)" },
-  { href: "/production/calendar",     label: "Calendar",      icon: Calendar,     color: "var(--green)" },
-  { href: "/production/tasks",        label: "Tasks",         icon: ListChecks,   color: "var(--brand)" },
-  { href: "/production/assets",       label: "Assets",        icon: Film,         color: "var(--cyan)" },
-  { href: "/production/swipes",       label: "Swipes",        icon: ImageIcon,    color: "var(--pink)" },
-  { href: "/production/wiki",         label: "Wiki",          icon: BookOpen,     color: "var(--indigo)" },
+  { href: "/production",              label: "Board",         icon: KanbanSquare, color: "var(--teal-on)" },
+  { href: "/production/writers-room", label: "Writer's Room", icon: PenLine,      color: "var(--blue-on)" },
+  { href: "/production/film-queue",   label: "Film Queue",    icon: Clapperboard, color: "var(--amber-on)" },
+  { href: "/production/edit-bay",     label: "Edit Bay",      icon: Scissors,     color: "var(--violet-on)" },
+  { href: "/production/calendar",     label: "Calendar",      icon: Calendar,     color: "var(--green-on)" },
+  { href: "/production/tasks",        label: "Tasks",         icon: ListChecks,   color: "var(--brand-on)" },
+  { href: "/production/assets",       label: "Assets",        icon: Film,         color: "var(--cyan-on)" },
+  { href: "/production/swipes",       label: "Swipes",        icon: ImageIcon,    color: "var(--pink-on)" },
+  { href: "/production/wiki",         label: "Wiki",          icon: BookOpen,     color: "var(--indigo-on)" },
 ];
 
 export function ProductionSubNav() {

@@ -89,7 +89,7 @@ export default async function BuilderPage({ params }: { params: Promise<{ id: st
     <div className="grid grid-cols-1 lg:grid-cols-[200px_1fr] gap-4">
       {/* Step sidebar */}
       <aside className="card p-3 h-fit lg:sticky lg:top-4">
-        <Link href={`/scripts/${id}`} className="text-xs font-mono text-[var(--mute)] hover:text-[var(--accent)] flex items-center gap-1 mb-3"><ArrowLeft className="w-3 h-3" /> Canvas mode</Link>
+        <Link href={`/scripts/${id}`} className="text-xs font-mono text-[var(--mute)] hover:text-[var(--accent-on)] flex items-center gap-1 mb-3"><ArrowLeft className="w-3 h-3" /> Canvas mode</Link>
         <ul className="m-0 p-0 flex flex-col gap-1">
           {STEPS.map((s) => {
             const Icon = s.icon;
@@ -100,7 +100,7 @@ export default async function BuilderPage({ params }: { params: Promise<{ id: st
                 <form action={setBuilderStepAction}>
                   <input type="hidden" name="scriptId" value={id} />
                   <input type="hidden" name="step" value={s.n} />
-                  <button type="submit" className={"w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-xs font-mono uppercase tracking-wider transition " + (isActive ? "bg-[var(--accent-soft)] text-[var(--accent)]" : "text-[var(--mute)] hover:bg-[var(--zebra)]")}>
+                  <button type="submit" className={"w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-xs font-mono uppercase tracking-wider transition " + (isActive ? "bg-[var(--accent-soft)] text-[var(--accent-on)]" : "text-[var(--mute)] hover:bg-[var(--zebra)]")}>
                     <span className="w-5 h-5 rounded-md grid place-items-center" style={{ background: isDone ? "var(--green-soft)" : "var(--zebra)", color: isDone ? "var(--green)" : "var(--mute)" }}>
                       {isDone ? <Check className="w-3 h-3" /> : <Icon className="w-3 h-3" />}
                     </span>
@@ -182,7 +182,7 @@ function StepResearch({ scriptId, state }: { scriptId: string; state: BuilderSta
       <ul className="m-0 p-0">
         {state.research.items.map((r, i) => (
           <li key={i} className="border-t border-[var(--line)] py-2 text-sm flex items-center gap-2">
-            <span className="font-mono text-micro uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: "var(--accent-soft)", color: "var(--accent)" }}>{r.kind}</span>
+            <span className="font-mono text-micro uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: "var(--accent-soft)", color: "var(--accent-on)" }}>{r.kind}</span>
             <span className="flex-1 truncate">{r.title ?? r.ref}</span>
             <span className="text-2xs text-[var(--mute)]">{r.words}w</span>
           </li>

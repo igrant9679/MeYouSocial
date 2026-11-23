@@ -34,7 +34,7 @@ export default async function HelpPage({ searchParams }: { searchParams: Promise
   return (
     <div>
       <div className="flex items-center gap-3 mb-5">
-        <span className="w-12 h-12 rounded-2xl grid place-items-center" style={{ background: "var(--cyan-soft)", color: "var(--cyan)" }}>
+        <span className="w-12 h-12 rounded-2xl grid place-items-center" style={{ background: "var(--cyan-soft)", color: "var(--cyan-on)" }}>
           <HelpCircle className="w-6 h-6" strokeWidth={2.25} />
         </span>
         <div>
@@ -50,7 +50,7 @@ export default async function HelpPage({ searchParams }: { searchParams: Promise
           first session (placeholder output, and hover help existing at all). */}
       <section className="card mb-4">
         <h2 className="font-mono font-bold text-sm mb-1 flex items-center gap-2">
-          <Compass className="w-4 h-4" style={{ color: "var(--accent)" }} /> Start here
+          <Compass className="w-4 h-4" style={{ color: "var(--accent-on)" }} /> Start here
         </h2>
         <p className="text-sm mb-3 leading-[1.6]">
           This app turns research into content, publishes it, and measures what happened — for one company or several.
@@ -109,7 +109,7 @@ export default async function HelpPage({ searchParams }: { searchParams: Promise
 
       {/* Quick starts by role */}
       <section className="card mb-4">
-        <h2 className="font-mono font-bold text-sm mb-3 flex items-center gap-2"><Sparkles className="w-4 h-4" style={{ color: "var(--accent)" }} /> Quick start by role</h2>
+        <h2 className="font-mono font-bold text-sm mb-3 flex items-center gap-2"><Sparkles className="w-4 h-4" style={{ color: "var(--accent-on)" }} /> Quick start by role</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
           {QUICK_START.map((qs) => (
             <div key={qs.role} className="border border-[var(--line)] rounded-xl p-3">
@@ -125,7 +125,7 @@ export default async function HelpPage({ searchParams }: { searchParams: Promise
       {/* Appearance + shortcuts row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
         <section className="card">
-          <h2 className="font-mono font-bold text-sm mb-3 flex items-center gap-2"><Palette className="w-4 h-4" style={{ color: "var(--violet)" }} /> Appearance</h2>
+          <h2 className="font-mono font-bold text-sm mb-3 flex items-center gap-2"><Palette className="w-4 h-4" style={{ color: "var(--violet-on)" }} /> Appearance</h2>
           <form action={setThemeAction} className="flex flex-col sm:flex-row gap-2 items-stretch">
             <input type="hidden" name="return" value="/help" />
             {(["light", "dark", "auto"] as const).map((t) => (
@@ -142,7 +142,7 @@ export default async function HelpPage({ searchParams }: { searchParams: Promise
         </section>
 
         <section className="card">
-          <h2 className="font-mono font-bold text-sm mb-3 flex items-center gap-2"><Keyboard className="w-4 h-4" style={{ color: "var(--accent)" }} /> Keyboard shortcuts</h2>
+          <h2 className="font-mono font-bold text-sm mb-3 flex items-center gap-2"><Keyboard className="w-4 h-4" style={{ color: "var(--accent-on)" }} /> Keyboard shortcuts</h2>
           <ul className="m-0 p-0">
             {SHORTCUTS.map((s) => (
               <li key={s.keys} className="border-t border-[var(--line)] first:border-t-0 py-2 flex items-center gap-3 text-sm">

@@ -36,7 +36,7 @@ export async function ModelTiersCard({ workspaceId, timeZone }: { workspaceId: s
   return (
     <form id="tiers" action={saveModelTiersAction} className="card flex flex-col gap-4 mt-3 scroll-mt-20" data-model-tiers={s.on ? "on" : "off"}>
       <div className="flex items-start gap-3">
-        <span className="w-10 h-10 rounded-xl grid place-items-center shrink-0" style={{ background: "var(--violet-soft)", color: "var(--violet)" }}>
+        <span className="w-10 h-10 rounded-xl grid place-items-center shrink-0" style={{ background: "var(--violet-soft)", color: "var(--violet-on)" }}>
           <Layers className="w-5 h-5" strokeWidth={2.25} />
         </span>
         <div>

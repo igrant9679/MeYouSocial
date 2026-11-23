@@ -35,7 +35,7 @@ export default async function EmailSettingsPage({ searchParams }: { searchParams
   return (
     <div className="w-full">
       <div className="flex items-center gap-3 mb-2">
-        <span className="w-10 h-10 rounded-xl grid place-items-center" style={{ background: "var(--blue-soft)", color: "var(--blue)" }}>
+        <span className="w-10 h-10 rounded-xl grid place-items-center" style={{ background: "var(--blue-soft)", color: "var(--blue-on)" }}>
           <Mail className="w-5 h-5" strokeWidth={2.25} />
         </span>
         <div>
@@ -154,7 +154,7 @@ function Banner({ kind, text }: { kind: "ok" | "err"; text: string }) {
   const ok = kind === "ok";
   return (
     <div className="card mb-4 flex items-start gap-2" style={{ background: ok ? "var(--green-soft)" : "var(--brand-soft)", borderColor: ok ? "var(--green)" : "var(--brand)" }}>
-      {ok ? <CheckCircle2 className="w-4 h-4 mt-0.5" style={{ color: "var(--green)" }} /> : <AlertCircle className="w-4 h-4 mt-0.5" style={{ color: "var(--brand)" }} />}
+      {ok ? <CheckCircle2 className="w-4 h-4 mt-0.5" style={{ color: "var(--green-on)" }} /> : <AlertCircle className="w-4 h-4 mt-0.5" style={{ color: "var(--brand-on)" }} />}
       <span className="text-sm">{text}</span>
     </div>
   );

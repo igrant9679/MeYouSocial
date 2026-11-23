@@ -33,7 +33,7 @@ export default async function ResetPage({
       <div className="card w-full max-w-md">
         <h1 className="font-mono font-bold text-xl mb-1">Choose a new password</h1>
         <p className="text-sm text-[var(--mute)] mb-5">8+ characters.</p>
-        {error === "invalid" && <p className="text-sm text-[var(--brand)] mb-3">Password too short.</p>}
+        {error === "invalid" && <p className="text-sm text-[var(--brand-on)] mb-3">Password too short.</p>}
         <form action={completePasswordResetAction} className="flex flex-col gap-3">
           <input type="hidden" name="token" value={token} />
           <ValidatedInput label="New password" name="password" type="password" required minLength={8} autoComplete="new-password" errorMessage="Use at least 8 characters." className="w-full border border-[var(--line-2)] rounded-lg px-3 py-2 text-sm" />

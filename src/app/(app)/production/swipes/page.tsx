@@ -20,7 +20,7 @@ export default async function SwipesPage({ searchParams }: { searchParams: Promi
   return (
     <div>
       <div className="flex items-center gap-2 mb-4">
-        <h2 className="font-mono font-bold text-lg flex items-center gap-2"><ImageIcon className="w-5 h-5" style={{ color: "var(--pink)" }} /> Swipes</h2>
+        <h2 className="font-mono font-bold text-lg flex items-center gap-2"><ImageIcon className="w-5 h-5" style={{ color: "var(--pink-on)" }} /> Swipes</h2>
         <span className="text-xs text-[var(--mute)]">({swipes.length})</span>
       </div>
 
@@ -28,7 +28,7 @@ export default async function SwipesPage({ searchParams }: { searchParams: Promi
       <div className="flex flex-wrap gap-1 mb-4">
         {["", "thumbnail", "set", "landing"].map((k) => (
           <a key={k || "all"} href={k ? `/production/swipes?kind=${k}` : "/production/swipes"}
-            className={"text-xs font-mono uppercase tracking-wider px-2.5 py-1 rounded-md border " + ((kind ?? "") === k ? "border-[var(--accent)] text-[var(--accent)]" : "border-[var(--line-2)] text-[var(--mute)]")}>
+            className={"text-xs font-mono uppercase tracking-wider px-2.5 py-1 rounded-md border " + ((kind ?? "") === k ? "border-[var(--accent)] text-[var(--accent-on)]" : "border-[var(--line-2)] text-[var(--mute)]")}>
             {k || "all"}
           </a>
         ))}
@@ -36,7 +36,7 @@ export default async function SwipesPage({ searchParams }: { searchParams: Promi
 
       {/* Clipper: paste any URL, we extract the image. — YouTube thumbnails auto-captured. */}
       <form action={clipSwipeAction} className="card flex items-end gap-2 mb-3">
-        <LinkIcon className="w-4 h-4" style={{ color: "var(--pink)" }} />
+        <LinkIcon className="w-4 h-4" style={{ color: "var(--pink-on)" }} />
         <label className="flex-1 flex flex-col gap-1">
           <span className="text-micro font-mono uppercase tracking-wider text-[var(--mute)]">Clip a URL</span>
           <input name="url" required placeholder="https://youtube.com/watch?v=… or any image/page URL" className="border border-[var(--line-2)] rounded-lg p-2 text-sm font-mono" />
@@ -84,7 +84,7 @@ export default async function SwipesPage({ searchParams }: { searchParams: Promi
             <div className="p-2">
               <div className="text-xs font-semibold truncate">{s.title ?? "Untitled"}</div>
               <div className="text-micro font-mono uppercase tracking-wider text-[var(--mute)]">{s.kind}</div>
-              {s.sourceUrl && <a href={s.sourceUrl} target="_blank" rel="noopener" className="text-micro text-[var(--accent)] truncate block">source ↗</a>}
+              {s.sourceUrl && <a href={s.sourceUrl} target="_blank" rel="noopener" className="text-micro text-[var(--accent-on)] truncate block">source ↗</a>}
             </div>
             <form action={removeSwipeAction} className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition">
               <input type="hidden" name="id" value={s.id} />

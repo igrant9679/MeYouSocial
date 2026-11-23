@@ -39,7 +39,7 @@ export default async function AdminSettingsPage({ searchParams }: { searchParams
   return (
     <div className="w-full">
       <div className="flex items-center gap-3 mb-4">
-        <span className="w-10 h-10 rounded-xl grid place-items-center" style={{ background: "var(--blue-soft)", color: "var(--blue)" }}>
+        <span className="w-10 h-10 rounded-xl grid place-items-center" style={{ background: "var(--blue-soft)", color: "var(--blue-on)" }}>
           <Settings className="w-5 h-5" strokeWidth={2.25} />
         </span>
         <div>
@@ -106,7 +106,7 @@ export default async function AdminSettingsPage({ searchParams }: { searchParams
 
       {ok && (
         <div className="card mb-3 flex items-center gap-2 text-sm" style={{ background: "var(--green-soft)", borderColor: "var(--green)" }}>
-          <CheckCircle2 className="w-4 h-4" style={{ color: "var(--green)" }} />
+          <CheckCircle2 className="w-4 h-4" style={{ color: "var(--green-on)" }} />
           {ok === "accent" ? "Accent saved — the app chrome updates immediately." : ok === "logo" ? "Logo uploaded." : "Logo cleared — back to the MeYouSocial mark."}
         </div>
       )}

@@ -149,7 +149,7 @@ export default async function IntelPage({ searchParams }: { searchParams: Promis
                     <li key={c.id} className="border-t border-[var(--line)] first:border-t-0 py-2 flex items-center gap-2 text-xs">
                       <ChannelAvatar name={c.name} url={c.thumbnailUrl} size={24} />
                       <span className="font-mono font-bold text-micro px-1.5 py-0.5 rounded" style={{ background: "var(--brand-soft)", color: "var(--brand-on)" }} title="Uploads per week, measured from upload dates">{c.uploadFrequency?.toFixed(1)}/wk</span>
-                      <Link href={`/intel/channels/${c.id}`} className="flex-1 truncate hover:text-[var(--accent)]">{c.name}</Link>
+                      <Link href={`/intel/channels/${c.id}`} className="flex-1 truncate hover:text-[var(--accent-on)]">{c.name}</Link>
                       <span className="text-[var(--mute)]">{formatNum(c.subscribers)}</span>
                     </li>
                   ))}
@@ -165,7 +165,7 @@ export default async function IntelPage({ searchParams }: { searchParams: Promis
                 <ul className="m-0 p-0">
                   {byCategory.filter((c) => c.category).map((c) => (
                     <li key={c.category ?? "—"} className="border-t border-[var(--line)] first:border-t-0 py-1.5 flex items-center gap-2 text-xs">
-                      <Link href={`/intel?q=${encodeURIComponent(c.category ?? "")}`} className="flex-1 hover:text-[var(--accent)]">{c.category}</Link>
+                      <Link href={`/intel?q=${encodeURIComponent(c.category ?? "")}`} className="flex-1 hover:text-[var(--accent-on)]">{c.category}</Link>
                       <span className="text-[var(--mute)]">{c._count._all} ch</span>
                     </li>
                   ))}

@@ -88,13 +88,13 @@ export default async function SignInPage({ searchParams }: { searchParams: Promi
         <div className="card w-full max-w-md">
           <h1 className="font-mono font-bold text-xl mb-1">Two-factor sign-in</h1>
           <p className="text-sm text-[var(--mute)] mb-5">Enter the six-digit code from your authenticator app, or one of your recovery codes.</p>
-          {error === "code" && <p className="text-sm text-[var(--brand)] mb-3">That code didn&apos;t work. Codes change every 30 seconds; each works once.</p>}
+          {error === "code" && <p className="text-sm text-[var(--brand-on)] mb-3">That code didn&apos;t work. Codes change every 30 seconds; each works once.</p>}
           <form action={codeAction} className="flex flex-col gap-3">
             {next && <input type="hidden" name="next" value={next} />}
             <ValidatedInput label="Code" name="code" required autoComplete="one-time-code" inputMode="text" className="w-full border border-[var(--line-2)] rounded-lg px-3 py-2 text-sm font-mono tracking-widest" />
             <SubmitButton className="btn primary mt-2" pendingText="Checking…">Sign in</SubmitButton>
           </form>
-          <p className="text-xs text-[var(--mute)] mt-4"><Link href="/signin" className="text-[var(--mute)] hover:text-[var(--accent)]">Start again</Link> · Lost your device and your recovery codes? Ask the platform administrator to turn two-factor off for you.</p>
+          <p className="text-xs text-[var(--mute)] mt-4"><Link href="/signin" className="text-[var(--mute)] hover:text-[var(--accent-on)]">Start again</Link> · Lost your device and your recovery codes? Ask the platform administrator to turn two-factor off for you.</p>
         </div>
       </div>
     );
@@ -105,10 +105,10 @@ export default async function SignInPage({ searchParams }: { searchParams: Promi
       <div className="card w-full max-w-md">
         <h1 className="font-mono font-bold text-xl mb-1">Sign in</h1>
         <p className="text-sm text-[var(--mute)] mb-5">to {PRODUCT}</p>
-        {error === "use_google" ? <p className="text-sm text-[var(--brand)] mb-3">Your company signs in with Google — use Continue with Google below.</p>
-          : error === "expired" ? <p className="text-sm text-[var(--brand)] mb-3">That sign-in took more than five minutes — enter your password again.</p>
-          : error && <p className="text-sm text-[var(--brand)] mb-3">Invalid email or password.</p>}
-        {reset === "1" && <p className="text-sm bg-[var(--green-soft)] text-[var(--green)] rounded-md px-3 py-2 mb-3">Password updated. Sign in with your new password.</p>}
+        {error === "use_google" ? <p className="text-sm text-[var(--brand-on)] mb-3">Your company signs in with Google — use Continue with Google below.</p>
+          : error === "expired" ? <p className="text-sm text-[var(--brand-on)] mb-3">That sign-in took more than five minutes — enter your password again.</p>
+          : error && <p className="text-sm text-[var(--brand-on)] mb-3">Invalid email or password.</p>}
+        {reset === "1" && <p className="text-sm bg-[var(--green-soft)] text-[var(--green-on)] rounded-md px-3 py-2 mb-3">Password updated. Sign in with your new password.</p>}
         <form action={signinAction} className="flex flex-col gap-3">
           {next && <input type="hidden" name="next" value={next} />}
           <ValidatedInput label="Email" name="email" type="email" required autoComplete="email" className="w-full border border-[var(--line-2)] rounded-lg px-3 py-2 text-sm" />
@@ -122,14 +122,14 @@ export default async function SignInPage({ searchParams }: { searchParams: Promi
           </form>
         )}
         <p className="text-xs text-[var(--mute)] mt-4 text-center flex items-center justify-between">
-          <Link href="/forgot" className="text-[var(--mute)] hover:text-[var(--accent)]">Forgot password?</Link>
+          <Link href="/forgot" className="text-[var(--mute)] hover:text-[var(--accent-on)]">Forgot password?</Link>
           {/* An invitee bounced here from /invitations/<token> keeps the token:
               sign-up is invitation-only unless ALLOW_OPEN_SIGNUP, and the token
               is what lets them in. Nobody else is offered a sign-up link. */}
           {inviteToken ? (
-            <span>No account? <Link href={`/signup?invite=${encodeURIComponent(inviteToken)}`} className="text-[var(--accent)] font-semibold">Create one</Link></span>
+            <span>No account? <Link href={`/signup?invite=${encodeURIComponent(inviteToken)}`} className="text-[var(--accent-on)] font-semibold">Create one</Link></span>
           ) : env.ALLOW_OPEN_SIGNUP ? (
-            <span>No account? <Link href="/signup" className="text-[var(--accent)] font-semibold">Create one</Link></span>
+            <span>No account? <Link href="/signup" className="text-[var(--accent-on)] font-semibold">Create one</Link></span>
           ) : null}
         </p>
       </div>

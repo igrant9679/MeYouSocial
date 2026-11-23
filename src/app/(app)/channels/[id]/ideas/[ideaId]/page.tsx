@@ -26,7 +26,7 @@ export default async function IdeaDetailPage({ params }: { params: Promise<{ id:
 
   return (
     <div className="w-full">
-      <Link href={`/ideas?channel=${id}`} className="text-xs font-mono text-[var(--mute)] hover:text-[var(--accent)] flex items-center gap-1 mb-3"><ArrowLeft className="w-3 h-3" /> Back to Ideas</Link>
+      <Link href={`/ideas?channel=${id}`} className="text-xs font-mono text-[var(--mute)] hover:text-[var(--accent-on)] flex items-center gap-1 mb-3"><ArrowLeft className="w-3 h-3" /> Back to Ideas</Link>
 
       <div className="card mb-4">
         <div className="flex items-center gap-2 mb-3">
@@ -56,7 +56,7 @@ export default async function IdeaDetailPage({ params }: { params: Promise<{ id:
           <div className="flex items-center gap-3">
             <OutlierChip score={idea.sourceVideo.outlierScore} />
             <div className="flex-1 min-w-0">
-              <Link href={`/intel/videos/${idea.sourceVideo.id}`} className="font-semibold text-sm hover:text-[var(--accent)] truncate block">{idea.sourceVideo.title}</Link>
+              <Link href={`/intel/videos/${idea.sourceVideo.id}`} className="font-semibold text-sm hover:text-[var(--accent-on)] truncate block">{idea.sourceVideo.title}</Link>
               <div className="text-xs text-[var(--mute)]">{idea.sourceVideo.intelChannel.name} · {formatNum(idea.sourceVideo.views)} views</div>
             </div>
           </div>

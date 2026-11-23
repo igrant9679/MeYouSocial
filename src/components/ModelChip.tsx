@@ -32,7 +32,7 @@ export function ModelChip({ model }: { model: ModelDescriptor }) {
 // image-gen guidance hint (used on the Thumbnail Studio header).
 export function ImageGenHint() {
   return (
-    <span className="inline-flex items-center gap-1 text-micro font-mono uppercase tracking-wider px-2 py-0.5 rounded" style={{ background: "var(--pink-soft)", color: "var(--pink)" }}>
+    <span className="inline-flex items-center gap-1 text-micro font-mono uppercase tracking-wider px-2 py-0.5 rounded" style={{ background: "var(--pink-soft)", color: "var(--pink-on)" }}>
       <Gauge className="w-2.5 h-2.5" /> Image model
     </span>
   );

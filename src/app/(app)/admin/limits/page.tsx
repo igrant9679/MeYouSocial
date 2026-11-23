@@ -12,7 +12,7 @@ export default async function AdminLimitsPage() {
   return (
     <div className="w-full">
       <div className="flex items-center gap-3 mb-4">
-        <span className="w-10 h-10 rounded-xl grid place-items-center" style={{ background: "var(--amber-soft)", color: "var(--amber)" }}>
+        <span className="w-10 h-10 rounded-xl grid place-items-center" style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }}>
           <Gauge className="w-5 h-5" strokeWidth={2.25} />
         </span>
         <div>

@@ -20,7 +20,8 @@ export function UnreadBell({ initial }: { initial: number }) {
       {unread > 0 && (
         <span
           className="badge-pop absolute -top-0.5 -right-0.5 min-w-[17px] h-[17px] px-1 rounded-full text-micro font-mono font-bold grid place-items-center"
-          style={{ background: "var(--brand)", color: "white" }}
+          // --accent-strong, as primary buttons: white on plain --brand reads at only 3.96:1 (check-contrast).
+          style={{ background: "var(--accent-strong)", color: "white" }}
         >
           {unread > 9 ? "9+" : unread}
         </span>

@@ -40,7 +40,7 @@ export default async function IntelVideoPage({ params, searchParams }: { params:
 
   return (
     <div>
-      <Link href={`/intel/channels/${video.intelChannelId}`} className="text-xs font-mono text-[var(--mute)] hover:text-[var(--accent)] flex items-center gap-1 mb-3"><ArrowLeft className="w-3 h-3" /> {video.intelChannel.name}</Link>
+      <Link href={`/intel/channels/${video.intelChannelId}`} className="text-xs font-mono text-[var(--mute)] hover:text-[var(--accent-on)] flex items-center gap-1 mb-3"><ArrowLeft className="w-3 h-3" /> {video.intelChannel.name}</Link>
       {ok && <p className="text-xs mb-3 px-3 py-2 rounded-lg" style={{ background: "var(--green-soft)", color: "var(--green-on)" }}>{ok} <Link href="/ideas" className="underline">Open the board</Link></p>}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -87,7 +87,7 @@ export default async function IntelVideoPage({ params, searchParams }: { params:
                 href={video.format === "short" ? `https://www.youtube.com/shorts/${video.youtubeId}` : `https://www.youtube.com/watch?v=${video.youtubeId}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="underline hover:text-[var(--accent)]"
+                className="underline hover:text-[var(--accent-on)]"
               >
                 Watch on YouTube ↗
               </a>

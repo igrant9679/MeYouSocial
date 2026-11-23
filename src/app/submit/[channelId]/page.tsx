@@ -44,9 +44,9 @@ export default async function PublicSubmitPage({
             <div aria-hidden="true" className="absolute -left-[10000px] w-px h-px overflow-hidden">
               <label>Website <input name="website" tabIndex={-1} autoComplete="off" /></label>
             </div>
-            {error === "invalid" && <p className="text-sm text-[var(--brand)]">Please give a topic of at least 5 characters.</p>}
-            {error === "slow" && <p className="text-sm text-[var(--brand)]" data-form-slow>That&apos;s a lot of suggestions at once — please try again in a few minutes.</p>}
-            {error === "closed" && <p className="text-sm text-[var(--brand)]">This form has just closed.</p>}
+            {error === "invalid" && <p className="text-sm text-[var(--brand-on)]">Please give a topic of at least 5 characters.</p>}
+            {error === "slow" && <p className="text-sm text-[var(--brand-on)]" data-form-slow>That&apos;s a lot of suggestions at once — please try again in a few minutes.</p>}
+            {error === "closed" && <p className="text-sm text-[var(--brand-on)]">This form has just closed.</p>}
             <label className="flex flex-col gap-1">
               <span className="text-xs font-mono uppercase text-[var(--mute)]">Topic *</span>
               <input name="topic" required minLength={5} maxLength={500} placeholder="What would you love a video on?" className="border border-[var(--line-2)] rounded-lg p-2.5 text-sm" />

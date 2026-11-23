@@ -22,7 +22,7 @@ export default async function WikiPage({ searchParams }: { searchParams: Promise
   return (
     <div>
       <div className="flex items-center gap-2 mb-4">
-        <h2 className="font-mono font-bold text-lg flex items-center gap-2"><BookOpen className="w-5 h-5" style={{ color: "var(--indigo)" }} /> Wiki / SOPs</h2>
+        <h2 className="font-mono font-bold text-lg flex items-center gap-2"><BookOpen className="w-5 h-5" style={{ color: "var(--indigo-on)" }} /> Wiki / SOPs</h2>
         <span className="text-xs text-[var(--mute)]">({docs.length})</span>
         <span className="flex-1" />
         <Link href="/production/wiki/new" className="btn primary sm flex items-center gap-1.5"><Plus className="w-3.5 h-3.5" /> New page</Link>
@@ -30,9 +30,9 @@ export default async function WikiPage({ searchParams }: { searchParams: Promise
 
       {/* Channel filter */}
       <div className="flex flex-wrap gap-1 mb-4">
-        <Link href="/production/wiki" className={"text-xs font-mono uppercase tracking-wider px-2.5 py-1 rounded-md border " + (!channelId ? "border-[var(--accent)] text-[var(--accent)]" : "border-[var(--line-2)] text-[var(--mute)]")}>All</Link>
+        <Link href="/production/wiki" className={"text-xs font-mono uppercase tracking-wider px-2.5 py-1 rounded-md border " + (!channelId ? "border-[var(--accent)] text-[var(--accent-on)]" : "border-[var(--line-2)] text-[var(--mute)]")}>All</Link>
         {channels.map((c) => (
-          <Link key={c.id} href={`/production/wiki?channelId=${c.id}`} className={"text-xs font-mono uppercase tracking-wider px-2.5 py-1 rounded-md border " + (channelId === c.id ? "border-[var(--accent)] text-[var(--accent)]" : "border-[var(--line-2)] text-[var(--mute)]")}>
+          <Link key={c.id} href={`/production/wiki?channelId=${c.id}`} className={"text-xs font-mono uppercase tracking-wider px-2.5 py-1 rounded-md border " + (channelId === c.id ? "border-[var(--accent)] text-[var(--accent-on)]" : "border-[var(--line-2)] text-[var(--mute)]")}>
             {c.name}
           </Link>
         ))}

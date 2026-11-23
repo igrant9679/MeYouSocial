@@ -27,7 +27,7 @@ export default async function ChannelTemplatesPage({ params, searchParams }: { p
   return (
     <div>
       <div className="flex items-center gap-3 mb-4">
-        <span className="w-10 h-10 rounded-xl grid place-items-center" style={{ background: "var(--indigo-soft)", color: "var(--indigo)" }}>
+        <span className="w-10 h-10 rounded-xl grid place-items-center" style={{ background: "var(--indigo-soft)", color: "var(--indigo-on)" }}>
           <Layers className="w-5 h-5" strokeWidth={2.25} />
         </span>
         <div>
@@ -38,7 +38,7 @@ export default async function ChannelTemplatesPage({ params, searchParams }: { p
 
       {/* Clone from video(s) */}
       <form action={cloneTemplateAction} className="card mb-5">
-        <h3 className="font-mono font-bold text-sm mb-2 flex items-center gap-2"><Sparkles className="w-4 h-4" style={{ color: "var(--indigo)" }} /> Clone a template from a video</h3>
+        <h3 className="font-mono font-bold text-sm mb-2 flex items-center gap-2"><Sparkles className="w-4 h-4" style={{ color: "var(--indigo-on)" }} /> Clone a template from a video</h3>
         <p className="text-xs text-[var(--mute)] mb-3">Paste 1 YouTube URL/handle to clone its structure, or 2-3 to synthesize a hybrid template.</p>
         <input type="hidden" name="channelId" value={id} />
         <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-2">
@@ -73,7 +73,7 @@ export default async function ChannelTemplatesPage({ params, searchParams }: { p
           <section className="card mb-5">
             <div className="flex items-center mb-2">
               <h3 className="font-mono font-bold text-sm flex items-center gap-2">{focused.name}</h3>
-              <span className="text-micro font-mono uppercase tracking-wider ml-2 px-1.5 py-0.5 rounded" style={{ background: "var(--accent-soft)", color: "var(--accent)" }}>{focused.source}</span>
+              <span className="text-micro font-mono uppercase tracking-wider ml-2 px-1.5 py-0.5 rounded" style={{ background: "var(--accent-soft)", color: "var(--accent-on)" }}>{focused.source}</span>
               <span className="text-xs text-[var(--mute)] ml-2">· {focused.kind}</span>
               <span className="flex-1" />
               {!isCustom && (
@@ -134,9 +134,9 @@ export default async function ChannelTemplatesPage({ params, searchParams }: { p
           <ul className="m-0 p-0">
             {custom.map((t) => (
               <li key={t.id} className="border-t border-[var(--line)] first:border-t-0 py-2 flex items-center gap-2 text-sm">
-                <Layers className="w-3.5 h-3.5" style={{ color: "var(--indigo)" }} />
-                <a href={`/channels/${id}/templates?focus=${t.id}`} className="flex-1 font-semibold hover:text-[var(--accent)]">{t.name}</a>
-                <span className="text-micro font-mono uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: "var(--accent-soft)", color: "var(--accent)" }}>{t.kind}</span>
+                <Layers className="w-3.5 h-3.5" style={{ color: "var(--indigo-on)" }} />
+                <a href={`/channels/${id}/templates?focus=${t.id}`} className="flex-1 font-semibold hover:text-[var(--accent-on)]">{t.name}</a>
+                <span className="text-micro font-mono uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: "var(--accent-soft)", color: "var(--accent-on)" }}>{t.kind}</span>
                 <a href={`/channels/${id}/templates?focus=${t.id}`} className="btn sm" title="View and edit"><Pencil className="w-3.5 h-3.5" /></a>
                 <form action={deleteTemplateAction}>
                   <input type="hidden" name="id" value={t.id} />
@@ -155,7 +155,7 @@ export default async function ChannelTemplatesPage({ params, searchParams }: { p
             {builtIn.map((t) => (
               <li key={t.id} className="py-1.5 flex items-center gap-2 text-sm border-t border-[var(--line)] first:border-t-0">
                 <Layers className="w-3.5 h-3.5 text-[var(--mute)]" />
-                <a href={`/channels/${id}/templates?focus=${t.id}`} className="flex-1 hover:text-[var(--accent)]" title="View — duplicate to customize">{t.name}</a>
+                <a href={`/channels/${id}/templates?focus=${t.id}`} className="flex-1 hover:text-[var(--accent-on)]" title="View — duplicate to customize">{t.name}</a>
                 <span className="text-micro font-mono uppercase tracking-wider px-1.5 py-0.5 rounded text-[var(--mute)]" style={{ background: "var(--zebra)" }}>{t.kind}</span>
               </li>
             ))}

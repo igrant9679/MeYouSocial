@@ -30,9 +30,9 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 const MERIT_COLOR: Record<string, { color: string; soft: string }> = {
-  pillar:     { color: "var(--green)", soft: "var(--green-soft)" },
-  trending:   { color: "var(--brand)", soft: "var(--brand-soft)" },
-  experiment: { color: "var(--violet)", soft: "var(--violet-soft)" },
+  pillar:     { color: "var(--green-on)", soft: "var(--green-soft)" },
+  trending:   { color: "var(--brand-on)", soft: "var(--brand-soft)" },
+  experiment: { color: "var(--violet-on)", soft: "var(--violet-soft)" },
 };
 
 export default async function ProjectDetailPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ ok?: string; err?: string }> }) {
@@ -118,7 +118,7 @@ export default async function ProjectDetailPage({ params, searchParams }: { para
 
   return (
     <div>
-      <Link href="/production" className="text-xs font-mono text-[var(--mute)] hover:text-[var(--accent)] flex items-center gap-1 mb-3"><ArrowLeft className="w-3 h-3" /> Production board</Link>
+      <Link href="/production" className="text-xs font-mono text-[var(--mute)] hover:text-[var(--accent-on)] flex items-center gap-1 mb-3"><ArrowLeft className="w-3 h-3" /> Production board</Link>
 
       {/* Header */}
       <div className="card mb-4">
@@ -140,7 +140,7 @@ export default async function ProjectDetailPage({ params, searchParams }: { para
 
         {project.parent && (
           <div className="text-xs text-[var(--mute)] flex items-center gap-1 mt-2">
-            <GitBranch className="w-3 h-3" /> Repurposed from <Link href={`/production/projects/${project.parent.id}`} className="text-[var(--accent)] font-semibold">{project.parent.title}</Link>
+            <GitBranch className="w-3 h-3" /> Repurposed from <Link href={`/production/projects/${project.parent.id}`} className="text-[var(--accent-on)] font-semibold">{project.parent.title}</Link>
           </div>
         )}
       </div>
@@ -179,7 +179,7 @@ export default async function ProjectDetailPage({ params, searchParams }: { para
         {/* Upload checklist (E-VID-04) */}
         <section className="card" data-upload-checklist>
           <h2 className="font-mono font-bold text-sm mb-3 flex items-center gap-2">
-            <ListChecks className="w-4 h-4" style={{ color: "var(--green)" }} /> Upload checklist
+            <ListChecks className="w-4 h-4" style={{ color: "var(--green-on)" }} /> Upload checklist
             <span className="text-xs text-[var(--mute)] font-normal" data-upload-done>{done}/{UPLOAD_STEPS.length}</span>
           </h2>
           <ol className="m-0 p-0 list-none">
@@ -205,7 +205,7 @@ export default async function ProjectDetailPage({ params, searchParams }: { para
                   {tick ? (
                     <span className="text-micro text-[var(--mute)] text-right">{nameOf.get(tick.by) ?? "someone"} · {formatDay(new Date(tick.at))}</span>
                   ) : s.key === "thumbnail" && studioThumbs > 0 ? (
-                    <Link href="/thumbnails" className="text-micro text-[var(--accent)]" data-thumb-hint>{studioThumbs} made in the studio →</Link>
+                    <Link href="/thumbnails" className="text-micro text-[var(--accent-on)]" data-thumb-hint>{studioThumbs} made in the studio →</Link>
                   ) : null}
                 </li>
               );
@@ -219,7 +219,7 @@ export default async function ProjectDetailPage({ params, searchParams }: { para
         {/* Its YouTube upload (E-MEA-17) */}
         <section className="card" id="youtube" data-youtube-link>
           <h2 className="font-mono font-bold text-sm mb-3 flex items-center gap-2">
-            <SquarePlay className="w-4 h-4" style={{ color: "var(--rose)" }} /> YouTube video
+            <SquarePlay className="w-4 h-4" style={{ color: "var(--rose-on)" }} /> YouTube video
           </h2>
           {(ok || err) && (
             <p className="text-xs m-0 mb-2" style={{ color: ok ? "var(--green-on)" : "var(--rose-on)" }}>{ok ?? err}</p>
@@ -284,7 +284,7 @@ export default async function ProjectDetailPage({ params, searchParams }: { para
         {admin && (
           <section className="card scroll-mt-20" id="youtube-upload" data-youtube-upload>
             <h2 className="font-mono font-bold text-sm mb-2 flex items-center gap-2">
-              <SquarePlay className="w-4 h-4" style={{ color: "var(--rose)" }} /> Upload to YouTube
+              <SquarePlay className="w-4 h-4" style={{ color: "var(--rose-on)" }} /> Upload to YouTube
             </h2>
             {uploads.map((u) => (
               <div key={u.id} className="text-xs mb-2 p-2 rounded-lg" style={{ background: "var(--zebra)" }} data-upload-state={u.state}>
@@ -436,7 +436,7 @@ export default async function ProjectDetailPage({ params, searchParams }: { para
 
         {/* Merit + Keywords */}
         <section className="card">
-          <h2 className="font-mono font-bold text-sm mb-3 flex items-center gap-2"><Tag className="w-4 h-4" style={{ color: "var(--violet)" }} /> Strategy tags</h2>
+          <h2 className="font-mono font-bold text-sm mb-3 flex items-center gap-2"><Tag className="w-4 h-4" style={{ color: "var(--violet-on)" }} /> Strategy tags</h2>
 
           {editor && (
           <form action={setProjectMeritAction} className="flex items-end gap-2 mb-3">
@@ -495,7 +495,7 @@ export default async function ProjectDetailPage({ params, searchParams }: { para
         {/* Attach an SOP checklist as project tasks */}
         {wikiDocs.length > 0 && (
           <section className="card">
-            <h2 className="font-mono font-bold text-sm mb-3 flex items-center gap-2"><BookOpen className="w-4 h-4" style={{ color: "var(--indigo)" }} /> Attach SOP checklist</h2>
+            <h2 className="font-mono font-bold text-sm mb-3 flex items-center gap-2"><BookOpen className="w-4 h-4" style={{ color: "var(--indigo-on)" }} /> Attach SOP checklist</h2>
             <form action={attachChecklistAction} className="flex items-end gap-2">
               <input type="hidden" name="contentProjectId" value={project.id} />
               <label className="flex flex-col gap-1 flex-1">
@@ -512,7 +512,7 @@ export default async function ProjectDetailPage({ params, searchParams }: { para
 
         {/* Repurposing */}
         <section className="card">
-          <h2 className="font-mono font-bold text-sm mb-3 flex items-center gap-2"><GitBranch className="w-4 h-4" style={{ color: "var(--teal)" }} /> Repurpose</h2>
+          <h2 className="font-mono font-bold text-sm mb-3 flex items-center gap-2"><GitBranch className="w-4 h-4" style={{ color: "var(--teal-on)" }} /> Repurpose</h2>
           {editor ? (
           <form action={repurposeProjectAction} className="flex flex-wrap items-end gap-2 mb-3">
             <input type="hidden" name="parentId" value={project.id} />
@@ -536,8 +536,8 @@ export default async function ProjectDetailPage({ params, searchParams }: { para
             <ul className="m-0 p-0">
               {project.derivatives.map((d) => (
                 <li key={d.id} className="border-t border-[var(--line)] py-2 text-sm flex items-center gap-2">
-                  <span className="font-mono text-micro uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: "var(--accent-soft)", color: "var(--accent)" }}>{d.format ?? "—"}</span>
-                  <Link href={`/production/projects/${d.id}`} className="flex-1 hover:text-[var(--accent)] truncate">{d.title}</Link>
+                  <span className="font-mono text-micro uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: "var(--accent-soft)", color: "var(--accent-on)" }}>{d.format ?? "—"}</span>
+                  <Link href={`/production/projects/${d.id}`} className="flex-1 hover:text-[var(--accent-on)] truncate">{d.title}</Link>
                   <span className="text-micro font-mono text-[var(--mute)]">{d.status}</span>
                 </li>
               ))}

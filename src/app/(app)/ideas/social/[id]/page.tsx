@@ -49,7 +49,7 @@ export default async function SocialIdeaPage({ params }: { params: Promise<{ id:
 
   return (
     <div className="max-w-2xl">
-      <Link href="/ideas?format=social" className="text-xs font-mono text-[var(--mute)] hover:text-[var(--accent)] flex items-center gap-1 mb-3"><ArrowLeft className="w-3 h-3" /> Ideas board</Link>
+      <Link href="/ideas?format=social" className="text-xs font-mono text-[var(--mute)] hover:text-[var(--accent-on)] flex items-center gap-1 mb-3"><ArrowLeft className="w-3 h-3" /> Ideas board</Link>
       <h1 className="font-mono text-xl font-bold m-0 mb-1">{idea.hook}</h1>
       <p className="text-xs text-[var(--mute)] mb-4">Social idea · {idea.status}</p>
 

@@ -29,7 +29,7 @@ export function ValidatedInput({ label, errorMessage, className = "", labelClass
       {label && (
         <label htmlFor={id} className={labelClassName ?? "text-xs font-mono uppercase text-[var(--mute)]"}>
           {label}
-          {props.required && <span aria-hidden className="text-[var(--rose)]"> *</span>}
+          {props.required && <span aria-hidden className="text-[var(--rose-on)]"> *</span>}
         </label>
       )}
       <input
@@ -42,7 +42,7 @@ export function ValidatedInput({ label, errorMessage, className = "", labelClass
         className={className + (showError ? " !border-[var(--rose)]" : "")}
       />
       {showError && (
-        <span id={errId} role="alert" className="text-2xs text-[var(--rose)]">{msg}</span>
+        <span id={errId} role="alert" className="text-2xs text-[var(--rose-on)]">{msg}</span>
       )}
     </div>
   );

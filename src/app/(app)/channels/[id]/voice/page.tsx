@@ -78,7 +78,7 @@ export default async function ChannelVoicePage({
       {/* Profile sidebar */}
       <aside className="card p-3 h-fit">
         <div className="flex items-center gap-2 mb-3">
-          <Mic2 className="w-4 h-4" style={{ color: "var(--accent)" }} />
+          <Mic2 className="w-4 h-4" style={{ color: "var(--accent-on)" }} />
           <h2 className="font-mono font-bold text-xs uppercase tracking-wider">Profiles ({profiles.length})</h2>
         </div>
         <ul className="m-0 p-0 flex flex-col gap-1 mb-3">
@@ -86,9 +86,9 @@ export default async function ChannelVoicePage({
             <li key={p.id}>
               <Link
                 href={`/channels/${id}/voice?profile=${p.id}`}
-                className={"flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition " + (p.id === active.id ? "bg-[var(--accent-soft)] text-[var(--accent)]" : "text-[var(--slate)] hover:bg-[var(--zebra)]")}
+                className={"flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition " + (p.id === active.id ? "bg-[var(--accent-soft)] text-[var(--accent-on)]" : "text-[var(--slate)] hover:bg-[var(--zebra)]")}
               >
-                {p.isDefault && <Star className="w-3.5 h-3.5" fill="currentColor" style={{ color: "var(--amber)" }} />}
+                {p.isDefault && <Star className="w-3.5 h-3.5" fill="currentColor" style={{ color: "var(--amber-on)" }} />}
                 <span className="truncate flex-1">{p.label}</span>
               </Link>
             </li>
@@ -108,7 +108,7 @@ export default async function ChannelVoicePage({
           <input name="label" placeholder="Label (optional)" className="border border-[var(--line-2)] rounded-md p-1.5 text-xs" />
           <SubmitButton className="btn primary sm">Train from their videos</SubmitButton>
         </form>
-        {error === "notfound" && <p className="text-xs text-[var(--brand)] mt-2">Channel not found for that handle.</p>}
+        {error === "notfound" && <p className="text-xs text-[var(--brand-on)] mt-2">Channel not found for that handle.</p>}
       </aside>
 
       {/* Active profile editor */}
@@ -118,7 +118,7 @@ export default async function ChannelVoicePage({
             <h1 className="font-mono font-bold text-xl leading-tight flex items-center gap-2">
               {active.label}
               {active.isDefault && <span className="text-micro font-mono uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }}>default</span>}
-              {data.borrowedFrom && <span className="text-micro font-mono uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: "var(--accent-soft)", color: "var(--accent)" }}>borrowed from {data.borrowedFrom}</span>}
+              {data.borrowedFrom && <span className="text-micro font-mono uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: "var(--accent-soft)", color: "var(--accent-on)" }}>borrowed from {data.borrowedFrom}</span>}
             </h1>
             {/* A profile the AI wrote from PLACEHOLDER data says so in its own
                 text (tracker #24: LSI's default voice read "INCOMPLETE - MOCK
@@ -170,7 +170,7 @@ export default async function ChannelVoicePage({
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {/* Simple mode */}
           <section className="card">
-            <h2 className="font-mono text-sm font-bold mb-3 flex items-center gap-2"><Sparkles className="w-4 h-4" style={{ color: "var(--accent)" }} /> Simple mode</h2>
+            <h2 className="font-mono text-sm font-bold mb-3 flex items-center gap-2"><Sparkles className="w-4 h-4" style={{ color: "var(--accent-on)" }} /> Simple mode</h2>
             <p className="text-xs text-[var(--mute)] mb-3">Refine your voice with plain-language instructions.</p>
             <form action={refineVoiceSimpleAction} className="flex flex-col gap-2">
               <input type="hidden" name="channelId" value={id} />
@@ -215,7 +215,7 @@ export default async function ChannelVoicePage({
 
         {/* Writing samples */}
         <section className="card">
-          <h2 className="font-mono text-sm font-bold mb-3 flex items-center gap-2"><FileText className="w-4 h-4" style={{ color: "var(--blue)" }} /> Writing samples <span className="text-xs text-[var(--mute)] font-normal">— up to 50,000 chars each</span></h2>
+          <h2 className="font-mono text-sm font-bold mb-3 flex items-center gap-2"><FileText className="w-4 h-4" style={{ color: "var(--blue-on)" }} /> Writing samples <span className="text-xs text-[var(--mute)] font-normal">— up to 50,000 chars each</span></h2>
           <p className="text-xs text-[var(--mute)] mb-3">Paste blog posts, threads, transcripts, or other scripts you&apos;ve written. More samples = better voice match — Simple mode reads them too.</p>
           {samples.length > 0 && (
             <form action={retrainVoiceFromSamplesAction} className="mb-3 flex items-center gap-2 flex-wrap">

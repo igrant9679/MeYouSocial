@@ -102,7 +102,7 @@ export default async function ConnectionsPage({ searchParams }: { searchParams: 
 
       {(ok || connected) && (
         <div className="card mb-3 flex items-start gap-2 text-sm" style={{ background: "var(--green-soft)", borderColor: "var(--green)" }}>
-          <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" style={{ color: "var(--green)" }} />
+          <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" style={{ color: "var(--green-on)" }} />
           <span>{connected ? "Account connected — it should appear below within a few seconds." : ok === "disconnected" ? "Account disconnected." : ok === "default" ? "Default account updated." : ok}</span>
         </div>
       )}
@@ -364,7 +364,7 @@ export default async function ConnectionsPage({ searchParams }: { searchParams: 
           <div className="card mb-3 text-xs text-[var(--mute)] leading-relaxed">
             One Zernio team key serves every workspace on this install; each workspace gets its own Zernio{" "}
             <b>profile</b> and connects its own accounts under it. Create a key in your{" "}
-            <a href="https://zernio.com" target="_blank" rel="noopener noreferrer" className="underline" style={{ color: "var(--accent)" }}>Zernio dashboard</a>{" "}
+            <a href="https://zernio.com" target="_blank" rel="noopener noreferrer" className="underline" style={{ color: "var(--accent-on)" }}>Zernio dashboard</a>{" "}
             — it starts <code className="font-mono px-1 rounded" style={{ background: "var(--zebra)" }}>sk_</code> followed by 64 hex characters.
           </div>
           <form action={saveZernioConfigAction} className="card mb-2 flex flex-col gap-3">
@@ -425,7 +425,7 @@ export default async function ConnectionsPage({ searchParams }: { searchParams: 
             Kept solely for email delivery. Get the <b>DSN</b> (e.g.{" "}
             <code className="font-mono px-1 rounded" style={{ background: "var(--zebra)" }}>api8.unipile.com:13443</code>) and an
             <b> API key</b> from{" "}
-            <a href="https://dashboard.unipile.com/access-tokens" target="_blank" rel="noopener noreferrer" className="underline" style={{ color: "var(--accent)" }}>dashboard.unipile.com</a>.
+            <a href="https://dashboard.unipile.com/access-tokens" target="_blank" rel="noopener noreferrer" className="underline" style={{ color: "var(--accent-on)" }}>dashboard.unipile.com</a>.
           </div>
           <form action={saveUnipileConfigAction} className="card mb-3 flex flex-col gap-3">
             <label className="flex flex-col gap-1">
@@ -467,7 +467,7 @@ export default async function ConnectionsPage({ searchParams }: { searchParams: 
           <div className="card text-xs" style={{ background: lock.ok ? "var(--green-soft)" : "var(--amber-soft)" }}>
             <div className="flex items-center gap-2 mb-1">
               {lock.ok
-                ? <CheckCircle2 className="w-4 h-4 shrink-0" style={{ color: "var(--green)" }} />
+                ? <CheckCircle2 className="w-4 h-4 shrink-0" style={{ color: "var(--green-on)" }} />
                 : <AlertTriangle className="w-4 h-4 shrink-0" style={{ color: "var(--amber-on)" }} />}
               <b className="font-mono">{lock.backend}</b>
             </div>

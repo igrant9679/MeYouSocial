@@ -180,7 +180,7 @@ export default async function InvitationPage({ params }: { params: Promise<{ tok
           <SubmitButton className="btn primary">Accept invitation</SubmitButton>
         </form>
         <p className="text-xs text-[var(--mute)] mt-4">
-          New? <Link href={`/signup?invite=${token}`} className="text-[var(--accent)] font-semibold">Create an account first</Link>
+          New? <Link href={`/signup?invite=${token}`} className="text-[var(--accent-on)] font-semibold">Create an account first</Link>
         </p>
       </div>
     </div>

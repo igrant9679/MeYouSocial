@@ -114,13 +114,13 @@ export default async function ProductionBoardPage() {
                       })()}
                     </div>
                     {p.script ? (
-                      <Link href={`/scripts/${p.script.id}`} className="font-semibold text-sm leading-tight hover:text-[var(--accent)]">{p.title}</Link>
+                      <Link href={`/scripts/${p.script.id}`} className="font-semibold text-sm leading-tight hover:text-[var(--accent-on)]">{p.title}</Link>
                     ) : (
                       <div className="font-semibold text-sm leading-tight">{p.title}</div>
                     )}
                     <div className="text-2xs text-[var(--mute)] mt-1">{p.channel.name}{p.script ? ` · ${p.script.wordCount}w` : ""}</div>
                     {/* The project page, and how far its upload checklist is (E-VID-04). */}
-                    <Link href={`/production/projects/${p.id}`} className="font-mono text-micro text-[var(--mute)] hover:text-[var(--accent)] mt-1 inline-flex items-center gap-1" data-upload-count>
+                    <Link href={`/production/projects/${p.id}`} className="font-mono text-micro text-[var(--mute)] hover:text-[var(--accent-on)] mt-1 inline-flex items-center gap-1" data-upload-count>
                       <ListChecks className="w-3 h-3" /> Upload {checklistDone(readChecklist(p.uploadChecklist))}/{UPLOAD_STEPS.length} →
                     </Link>
                     {editor && topics.length > 0 ? (

@@ -69,7 +69,7 @@ export default async function NotificationsPage({ searchParams }: { searchParams
   const error = typeof sp.error === "string" ? sp.error : null;
   const filtered = !!q.kind || q.unread;
   const chip = (active: boolean) =>
-    "text-xs font-mono px-2.5 py-1 rounded-md border " + (active ? "border-[var(--accent)] text-[var(--accent)]" : "border-[var(--line-2)] text-[var(--mute)]");
+    "text-xs font-mono px-2.5 py-1 rounded-md border " + (active ? "border-[var(--accent)] text-[var(--accent-on)]" : "border-[var(--line-2)] text-[var(--mute)]");
 
   return (
     <main className="w-full">

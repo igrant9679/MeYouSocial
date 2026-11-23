@@ -263,7 +263,7 @@ export default async function InboxPage() {
           <div className="flex items-center mb-3">
             <h2 className="font-mono text-sm font-bold">Your channels</h2>
             <span className="flex-1" />
-            {editor && <Link href="/onboarding/channel/new" className="text-xs font-mono text-[var(--accent)] font-semibold hover:underline">+ new channel</Link>}
+            {editor && <Link href="/onboarding/channel/new" className="text-xs font-mono text-[var(--accent-on)] font-semibold hover:underline">+ new channel</Link>}
           </div>
           <div className="flex gap-3 flex-wrap">
             {channels.map((c) => (
@@ -275,7 +275,7 @@ export default async function InboxPage() {
                   <span className="text-sm font-semibold">{c.name}</span>
                   <span className="text-2xs text-[var(--mute)]">{c.presentationStyle ?? "—"} · {c.defaultLanguage}</span>
                 </div>
-                <ArrowRight className="w-4 h-4 text-[var(--mute)] group-hover:text-[var(--accent)] ml-1" />
+                <ArrowRight className="w-4 h-4 text-[var(--mute)] group-hover:text-[var(--accent-on)] ml-1" />
               </Link>
             ))}
           </div>
@@ -291,14 +291,14 @@ function PipelineCell({ stage, first, role }: { stage: PipelineStage; first: boo
     <div className={"flex-1 min-w-[120px] px-3 py-2.5 relative " + (first ? "" : "border-l border-[var(--line)]")}>
       <div className="flex items-center gap-1">
         {!first && <ChevronRight className="w-3 h-3 text-[var(--mute)] -ml-1.5 flex-shrink-0" aria-hidden />}
-        <FollowLink role={role} href={stage.href} className="font-mono text-micro uppercase tracking-wider text-[var(--mute)] font-bold hover:text-[var(--accent)] hover:underline truncate">
+        <FollowLink role={role} href={stage.href} className="font-mono text-micro uppercase tracking-wider text-[var(--mute)] font-bold hover:text-[var(--accent-on)] hover:underline truncate">
           {stage.label}
         </FollowLink>
       </div>
       {stage.total === null ? (
         <div className="font-mono font-bold text-2xl leading-tight text-[var(--mute)]" title={stage.reason}>—</div>
       ) : (
-        <FollowLink role={role} href={stage.href} className="font-mono font-bold text-2xl leading-tight tabular-nums block hover:text-[var(--accent)]">
+        <FollowLink role={role} href={stage.href} className="font-mono font-bold text-2xl leading-tight tabular-nums block hover:text-[var(--accent-on)]">
           {stage.total.toLocaleString("en-GB")}
         </FollowLink>
       )}
@@ -377,8 +377,8 @@ async function InboxResults({ workspaceId, editor }: { workspaceId: string; edit
           Results
         </h2>
         <span className="flex-1" />
-        {editor && <Link href="/social/performance" className="text-xs font-mono text-[var(--accent)] font-semibold hover:underline mr-3">social →</Link>}
-        <Link href="/blog/analytics" className="text-xs font-mono text-[var(--accent)] font-semibold hover:underline">blog →</Link>
+        {editor && <Link href="/social/performance" className="text-xs font-mono text-[var(--accent-on)] font-semibold hover:underline mr-3">social →</Link>}
+        <Link href="/blog/analytics" className="text-xs font-mono text-[var(--accent-on)] font-semibold hover:underline">blog →</Link>
       </div>
       {hasAnalytics ? (
         <AreaChart points={series.map((p) => ({ label: p.label, value: p.impressions }))} color="var(--blue)" title="Blog impressions — last 8 weeks" />

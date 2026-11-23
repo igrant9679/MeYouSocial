@@ -12,7 +12,7 @@ export default function VerifyExpiredPage() {
           <SubmitButton className="btn primary">Send a new link</SubmitButton>
         </form>
         <p className="text-xs text-[var(--mute)] mt-4">
-          <Link href="/signin" className="text-[var(--accent)] font-semibold">Sign in</Link>
+          <Link href="/signin" className="text-[var(--accent-on)] font-semibold">Sign in</Link>
         </p>
       </div>
     </div>

@@ -50,8 +50,8 @@ export default async function ChannelsManagerPage() {
                 </span>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <Link href={`/channels/${c.id}`} className="font-mono font-bold text-lg leading-tight hover:text-[var(--accent)]">{c.name}</Link>
-                    {active?.id === c.id && <span className="text-micro font-mono uppercase tracking-wider px-1.5 py-0.5 rounded flex items-center gap-1" style={{ background: "var(--accent-soft)", color: "var(--accent)" }}><Star className="w-3 h-3" fill="currentColor" /> active</span>}
+                    <Link href={`/channels/${c.id}`} className="font-mono font-bold text-lg leading-tight hover:text-[var(--accent-on)]">{c.name}</Link>
+                    {active?.id === c.id && <span className="text-micro font-mono uppercase tracking-wider px-1.5 py-0.5 rounded flex items-center gap-1" style={{ background: "var(--accent-soft)", color: "var(--accent-on)" }}><Star className="w-3 h-3" fill="currentColor" /> active</span>}
                   </div>
                   <div className="text-xs text-[var(--mute)]">
                     {c.linkedYoutubeHandle ?? c.presentationStyle ?? "—"} · {c.defaultLanguage}

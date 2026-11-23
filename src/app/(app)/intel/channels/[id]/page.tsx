@@ -42,7 +42,7 @@ export default async function IntelChannelPage({ params, searchParams }: { param
 
   return (
     <div>
-      <Link href="/intel" className="text-xs font-mono text-[var(--mute)] hover:text-[var(--accent)] flex items-center gap-1 mb-3"><ArrowLeft className="w-3 h-3" /> Back to Intel</Link>
+      <Link href="/intel" className="text-xs font-mono text-[var(--mute)] hover:text-[var(--accent-on)] flex items-center gap-1 mb-3"><ArrowLeft className="w-3 h-3" /> Back to Intel</Link>
 
       {/* Header */}
       <div className="card mb-5 flex items-start gap-4">
@@ -51,7 +51,7 @@ export default async function IntelChannelPage({ params, searchParams }: { param
           <h1 className="font-mono font-bold text-2xl leading-tight flex items-center gap-2">
             {channel.name}
             {isFastGrowing(channel.velocityScore) && (
-              <span className="text-micro font-mono font-bold px-2 py-1 rounded-md" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>▲ FAST GROWING</span>
+              <span className="text-micro font-mono font-bold px-2 py-1 rounded-md" style={{ background: "var(--brand-soft)", color: "var(--brand-on)" }}>▲ FAST GROWING</span>
             )}
           </h1>
           <div className="text-sm text-[var(--mute)]">{channel.handle} · {channel.category}{channel.language ? " · " + channel.language : ""}</div>
@@ -105,7 +105,7 @@ export default async function IntelChannelPage({ params, searchParams }: { param
         {/* Top videos */}
         <section className="card lg:col-span-2">
           <div className="flex items-center mb-3">
-            <h2 className="font-mono text-sm font-bold flex items-center gap-2"><Eye className="w-4 h-4" style={{ color: "var(--amber)" }} /> Top videos</h2>
+            <h2 className="font-mono text-sm font-bold flex items-center gap-2"><Eye className="w-4 h-4" style={{ color: "var(--amber-on)" }} /> Top videos</h2>
             <span className="flex-1" />
             <form>
               <select key={`sort:${sort}`} name="sort" defaultValue={sort} className="border border-[var(--line-2)] rounded-md px-2 py-1 text-xs font-mono">
@@ -126,7 +126,7 @@ export default async function IntelChannelPage({ params, searchParams }: { param
                 )}
                 <OutlierChip score={v.outlierScore} />
                 <div className="flex-1 min-w-0">
-                  <Link href={`/intel/videos/${v.id}`} className="font-semibold text-sm hover:text-[var(--accent)] line-clamp-1">{v.title}</Link>
+                  <Link href={`/intel/videos/${v.id}`} className="font-semibold text-sm hover:text-[var(--accent-on)] line-clamp-1">{v.title}</Link>
                   <div className="text-xs text-[var(--mute)] flex items-center gap-2">
                     <span><Calendar className="inline w-3 h-3" /> {v.publishedAt ? formatDay(v.publishedAt) : "—"}</span>
                     <span>· {formatNum(v.views)} views</span>
@@ -142,13 +142,13 @@ export default async function IntelChannelPage({ params, searchParams }: { param
         {/* Outliers + avg */}
         <aside className="flex flex-col gap-3">
           <section className="card">
-            <h2 className="font-mono text-sm font-bold mb-2 flex items-center gap-2"><TrendingUp className="w-4 h-4" style={{ color: "var(--brand)" }} /> Outliers (≥ 2x)</h2>
+            <h2 className="font-mono text-sm font-bold mb-2 flex items-center gap-2"><TrendingUp className="w-4 h-4" style={{ color: "var(--brand-on)" }} /> Outliers (≥ 2x)</h2>
             {outlierVideos.length === 0 && <p className="text-xs text-[var(--mute)]">No outliers in the indexed slice.</p>}
             <ul className="m-0 p-0">
               {outlierVideos.map((v) => (
                 <li key={v.id} className="border-t border-[var(--line)] first:border-t-0 py-2 flex items-center gap-2 text-xs">
                   <OutlierChip score={v.outlierScore} views={v.views} size="xs" />
-                  <Link href={`/intel/videos/${v.id}`} className="flex-1 truncate hover:text-[var(--accent)]">{v.title}</Link>
+                  <Link href={`/intel/videos/${v.id}`} className="flex-1 truncate hover:text-[var(--accent-on)]">{v.title}</Link>
                 </li>
               ))}
             </ul>

@@ -60,7 +60,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
   return (
     <div>
       <div className="flex items-center gap-2 mb-4">
-        <h2 className="font-mono font-bold text-lg flex items-center gap-2"><Calendar className="w-5 h-5" style={{ color: "var(--green)" }} /> {first.toLocaleString(undefined, { month: "long", year: "numeric" })}</h2>
+        <h2 className="font-mono font-bold text-lg flex items-center gap-2"><Calendar className="w-5 h-5" style={{ color: "var(--green-on)" }} /> {first.toLocaleString(undefined, { month: "long", year: "numeric" })}</h2>
         <span className="flex-1" />
         <Link href={`/production/calendar?y=${prevY}&m=${prevM}`} className="btn sm"><ChevronLeft className="w-4 h-4" /></Link>
         <Link href="/production/calendar" className="btn sm">Today</Link>
@@ -81,7 +81,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
                 className="aspect-[5/4] border border-[var(--line)] rounded-lg p-1.5 flex flex-col gap-1 overflow-hidden"
                 style={{ background: cell.date ? (isToday ? "var(--accent-soft)" : "white") : "var(--zebra)" }}
               >
-                {cell.date && <div className={"text-2xs font-mono " + (isToday ? "font-bold text-[var(--accent)]" : "text-[var(--mute)]")}>{cell.date.getDate()}</div>}
+                {cell.date && <div className={"text-2xs font-mono " + (isToday ? "font-bold text-[var(--accent-on)]" : "text-[var(--mute)]")}>{cell.date.getDate()}</div>}
                 {items.map((p) => (
                   <Link key={p.id} href={`/production?focus=${p.id}`} className="block text-micro font-mono px-1.5 py-0.5 rounded truncate hover:opacity-80" style={{ background: (STATUS_COLOR[p.status] ?? "var(--accent)") + "20", color: STATUS_COLOR[p.status] ?? "var(--accent)" }}>
                     {p.title}

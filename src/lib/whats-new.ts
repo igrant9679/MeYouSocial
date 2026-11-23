@@ -41,6 +41,12 @@ export const CARD_MAX = 5;
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    id: "2026-11-22-readable-colours",
+    date: "2026-11-22",
+    title: "Coloured text is easier to read",
+    body: "Coloured labels, chips and links were darkened just enough to meet the accessibility standard for small text in light mode, and in dark mode they are now lifted instead of staying dim. A check keeps every colour readable from here on.",
+  },
+  {
     id: "2026-11-22-engine-hashtags",
     date: "2026-11-22",
     title: "Hashtags on the posts the app writes",

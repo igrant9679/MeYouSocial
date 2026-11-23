@@ -149,7 +149,7 @@ export function MobileNav({
               <form action={signOutAction}>
                 <button
                   type="submit"
-                  className="w-full flex items-center gap-3 px-2.5 py-2.5 rounded-xl text-sm font-semibold min-h-[44px] text-[var(--mute)] hover:text-[var(--brand)] hover:bg-[var(--brand-soft)]"
+                  className="w-full flex items-center gap-3 px-2.5 py-2.5 rounded-xl text-sm font-semibold min-h-[44px] text-[var(--mute)] hover:text-[var(--brand-on)] hover:bg-[var(--brand-soft)]"
                 >
                   <LogOut className="w-5 h-5" strokeWidth={2.25} /> Sign out
                 </button>

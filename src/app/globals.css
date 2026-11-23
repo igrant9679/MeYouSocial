@@ -58,15 +58,21 @@
      WCAG AA 4.5:1 — plain --brand (#E5482F) on white text is only ~3.9:1. */
   --accent-strong: var(--brand-2);
 
-  /* Chip FOREGROUND tokens. In light mode the text/icon on a soft pastel chip is
-     just the saturated hue. Dark mode (below) lightens these and darkens the matching
-     --*-soft backgrounds, so any chip using `background:var(--x-soft); color:var(--x-on)`
-     adapts to theme automatically. */
-  --brand-on: var(--brand);  --violet-on: var(--violet);  --blue-on: var(--blue);
-  --teal-on: var(--teal);    --amber-on: var(--amber);    --pink-on: var(--pink);
-  --indigo-on: var(--indigo);--green-on: var(--green);    --cyan-on: var(--cyan);
-  --purple-on: var(--purple);--rose-on: var(--rose);
-  --sea-on: var(--sea);      --azure-on: var(--azure);
+  /* Chip and TEXT foreground tokens: any text or icon in a hue uses --x-on, never the
+     bare --x (scripts/check-contrast.mts refuses it). Dark mode (below) lightens these
+     and darkens the matching --*-soft backgrounds, so `background:var(--x-soft);
+     color:var(--x-on)` adapts to theme automatically.
+     ⚠ In light mode each is the hue darkened JUST enough to read at 4.5:1 (WCAG AA) on
+     its own -soft and on every light surface (2026-11-22): the bare hues read as low
+     as 2.8:1 (amber on amber-soft). Violet, indigo, purple and azure already passed.
+     The check recomputes every pair at build, so a new hue or surface can't slip under. */
+  --brand-on: color-mix(in srgb, var(--brand) 80%, black);  --violet-on: var(--violet);
+  --blue-on: color-mix(in srgb, var(--blue) 95%, black);    --teal-on: color-mix(in srgb, var(--teal) 80%, black);
+  --amber-on: color-mix(in srgb, var(--amber) 70%, black);  --pink-on: color-mix(in srgb, var(--pink) 85%, black);
+  --indigo-on: var(--indigo);                               --green-on: color-mix(in srgb, var(--green) 80%, black);
+  --cyan-on: color-mix(in srgb, var(--cyan) 75%, black);    --purple-on: var(--purple);
+  --rose-on: color-mix(in srgb, var(--rose) 85%, black);    --sea-on: color-mix(in srgb, var(--sea) 95%, black);
+  --azure-on: var(--azure);
   --accent-on: var(--brand-on);
 }
 
@@ -254,7 +260,7 @@ html[data-theme="dark"] input,
 html[data-theme="dark"] textarea,
 html[data-theme="dark"] select { background-color: var(--zebra) !important; color: var(--ink) !important; border-color: var(--line-2) !important; }
 html[data-theme="dark"] .btn { background-color: var(--zebra) !important; color: var(--ink); border-color: var(--line-2); }
-html[data-theme="dark"] .btn.primary { background-color: var(--accent) !important; color: white; }
+html[data-theme="dark"] .btn.primary { background-color: var(--accent-strong) !important; color: white; }
 @media (prefers-color-scheme: dark) {
   html[data-theme="auto"] .card,
   html[data-theme="auto"] header,
@@ -264,7 +270,7 @@ html[data-theme="dark"] .btn.primary { background-color: var(--accent) !importan
   html[data-theme="auto"] textarea,
   html[data-theme="auto"] select { background-color: var(--zebra) !important; color: var(--ink) !important; border-color: var(--line-2) !important; }
   html[data-theme="auto"] .btn { background-color: var(--zebra) !important; color: var(--ink); border-color: var(--line-2); }
-  html[data-theme="auto"] .btn.primary { background-color: var(--accent) !important; color: white; }
+  html[data-theme="auto"] .btn.primary { background-color: var(--accent-strong) !important; color: white; }
 }
 
 /* Reusable mockup-derived utility classes */

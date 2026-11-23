@@ -181,7 +181,7 @@ export default async function YoutubeAuditPage({ searchParams }: { searchParams:
                                     <a href={v.url} target="_blank" rel="noopener noreferrer" className="font-semibold hover:underline truncate">{v.title}</a>
                                     <span className="font-mono text-micro text-[var(--mute)] shrink-0">{v.note}</span>
                                     {f.kind === "fix" && (
-                                      <Link href={askUrl(`My YouTube video "${v.title}" (${v.id}) is under-performing: ${v.note}. Suggest five stronger titles and a thumbnail direction, in my channel's voice.`)} className="text-micro shrink-0 hover:underline" style={{ color: "var(--accent)" }} title="Ask the assistant for titles and a thumbnail direction">
+                                      <Link href={askUrl(`My YouTube video "${v.title}" (${v.id}) is under-performing: ${v.note}. Suggest five stronger titles and a thumbnail direction, in my channel's voice.`)} className="text-micro shrink-0 hover:underline" style={{ color: "var(--accent-on)" }} title="Ask the assistant for titles and a thumbnail direction">
                                         fix it →
                                       </Link>
                                     )}

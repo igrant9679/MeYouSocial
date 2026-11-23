@@ -32,7 +32,7 @@ export default async function ChatThreadPage({ params }: { params: Promise<{ id:
       <main className="card flex flex-col p-0 overflow-hidden">
         {/* Header */}
         <div className="px-5 py-3 border-b border-[var(--line)] flex items-center gap-2">
-          <Link href={chat.scriptId ? `/scripts/${chat.scriptId}` : "/assistant"} className="text-xs font-mono text-[var(--mute)] hover:text-[var(--accent)] flex items-center gap-1"><ArrowLeft className="w-3 h-3" /> {chat.scriptId ? "Back to the script" : "Elsie"}</Link>
+          <Link href={chat.scriptId ? `/scripts/${chat.scriptId}` : "/assistant"} className="text-xs font-mono text-[var(--mute)] hover:text-[var(--accent-on)] flex items-center gap-1"><ArrowLeft className="w-3 h-3" /> {chat.scriptId ? "Back to the script" : "Elsie"}</Link>
           <span className="flex-1" />
           <span className="text-xs text-[var(--mute)]">Channel: <b>{chat.channel.name}</b></span>
         </div>
@@ -41,7 +41,7 @@ export default async function ChatThreadPage({ params }: { params: Promise<{ id:
         <div className="flex-1 px-5 py-4 overflow-auto flex flex-col gap-3 min-h-[400px]">
           {chat.messages.length === 0 && (
             <div className="text-center py-12">
-              <span className="w-12 h-12 rounded-2xl grid place-items-center mx-auto mb-3" style={{ background: "var(--violet-soft)", color: "var(--violet)" }}>
+              <span className="w-12 h-12 rounded-2xl grid place-items-center mx-auto mb-3" style={{ background: "var(--violet-soft)", color: "var(--violet-on)" }}>
                 <MessageCircle className="w-6 h-6" />
               </span>
               <p className="text-sm text-[var(--mute)]">Ask anything about your niche, paste a YouTube URL to analyze, or say <i className="font-mono">turn this into a script</i> to spin up a Canvas.</p>
@@ -60,7 +60,7 @@ export default async function ChatThreadPage({ params }: { params: Promise<{ id:
                   (m.role === "user"
                     // Humans typing *asterisks* mean asterisks — user bubbles
                     // stay plain text; only the model's replies render.
-                    ? "bg-[var(--accent)] text-white whitespace-pre-wrap"
+                    ? "bg-[var(--accent-strong)] text-white whitespace-pre-wrap"
                     : "bg-[var(--zebra)] border border-[var(--line)]")
                 }
               >
@@ -97,7 +97,7 @@ export default async function ChatThreadPage({ params }: { params: Promise<{ id:
       <aside className="flex flex-col gap-3">
         {chat.scriptId && (
           <Link href={`/scripts/${chat.scriptId}`} className="card flex items-center gap-3 hover:border-[var(--accent)] transition">
-            <span className="w-10 h-10 rounded-xl grid place-items-center" style={{ background: "var(--green-soft)", color: "var(--green)" }}>
+            <span className="w-10 h-10 rounded-xl grid place-items-center" style={{ background: "var(--green-soft)", color: "var(--green-on)" }}>
               <PenLine className="w-5 h-5" />
             </span>
             <div className="flex-1">
@@ -109,7 +109,7 @@ export default async function ChatThreadPage({ params }: { params: Promise<{ id:
 
         <section className="card">
           <h2 className="font-mono text-sm font-bold mb-3 flex items-center gap-2">
-            <Link2 className="w-4 h-4" style={{ color: "var(--blue)" }} /> Context
+            <Link2 className="w-4 h-4" style={{ color: "var(--blue-on)" }} /> Context
           </h2>
 
           {chat.contextItems.length === 0 && (
@@ -119,7 +119,7 @@ export default async function ChatThreadPage({ params }: { params: Promise<{ id:
           <ul className="m-0 p-0 mb-3">
             {chat.contextItems.map((c) => (
               <li key={c.id} className="border-t border-[var(--line)] first:border-t-0 py-2 text-xs flex items-center gap-2">
-                <span className="font-mono uppercase text-micro tracking-wider px-1.5 py-0.5 rounded" style={{ background: "var(--accent-soft)", color: "var(--accent)" }}>{c.kind.replace("_", " ")}</span>
+                <span className="font-mono uppercase text-micro tracking-wider px-1.5 py-0.5 rounded" style={{ background: "var(--accent-soft)", color: "var(--accent-on)" }}>{c.kind.replace("_", " ")}</span>
                 <span className="flex-1 truncate font-mono" title={c.ref}>{c.ref}</span>
               </li>
             ))}

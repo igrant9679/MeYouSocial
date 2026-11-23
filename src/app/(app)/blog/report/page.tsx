@@ -63,7 +63,7 @@ export default async function BlogReportPage() {
   // Keyword position buckets from each published post's latest snapshot.
   const positions = perf.filter((p) => p.status === "published" && p.position != null).map((p) => p.position!);
   const buckets = [
-    { label: "Top 3", value: positions.filter((x) => x <= 3).length, color: "var(--blue)" },
+    { label: "Top 3", value: positions.filter((x) => x <= 3).length, color: "var(--blue-on)" },
     { label: "4 – 10", value: positions.filter((x) => x > 3 && x <= 10).length, color: "color-mix(in srgb, var(--blue) 70%, var(--bg))" },
     { label: "11 – 20", value: positions.filter((x) => x > 10 && x <= 20).length, color: "color-mix(in srgb, var(--blue) 42%, var(--bg))" },
     { label: "21 +", value: positions.filter((x) => x > 20).length, color: "color-mix(in srgb, var(--blue) 18%, var(--bg))" },
@@ -83,7 +83,7 @@ export default async function BlogReportPage() {
     .map(([key, value]) => ({
       label: MOTIF_SEED_BY_KEY.get(key as never)?.label ?? key,
       value,
-      color: "var(--violet)",
+      color: "var(--violet-on)",
     }));
 
   const topContent = perf

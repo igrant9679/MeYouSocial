@@ -46,8 +46,8 @@ function StepTwoYouTube({ channelId, error }: { channelId: string; error?: strin
       <StepHeader step={2} total={5} title="Link your YouTube channel" subtitle="Paste your channel URL or @handle — no YouTube login needed." />
       <form action={lookupYoutubeAction} className="card flex flex-col gap-4 mt-5">
         <input type="hidden" name="channelId" value={channelId} />
-        {error === "notfound" && <p className="text-sm text-[var(--brand)]">No channel found for that handle.</p>}
-        {error === "invalid" && <p className="text-sm text-[var(--brand)]">Please enter a handle or URL.</p>}
+        {error === "notfound" && <p className="text-sm text-[var(--brand-on)]">No channel found for that handle.</p>}
+        {error === "invalid" && <p className="text-sm text-[var(--brand-on)]">Please enter a handle or URL.</p>}
         <label className="flex flex-col gap-1">
           <span className="text-xs font-mono uppercase text-[var(--mute)]">YouTube @handle or URL</span>
           <input name="handle" required placeholder="@hubermanlab" className="border border-[var(--line-2)] rounded-lg p-3 text-sm" />
@@ -69,7 +69,7 @@ function StepTwoCustom({ channelId, error }: { channelId: string; error?: string
       <StepHeader step={2} total={5} title="Describe your new channel" subtitle="No videos yet? Give us a name and detailed niche description." />
       <form action={customChannelAction} className="card flex flex-col gap-4 mt-5">
         <input type="hidden" name="channelId" value={channelId} />
-        {error && <p className="text-sm text-[var(--brand)]">Name (2+ chars) and description (20+ chars) are required.</p>}
+        {error && <p className="text-sm text-[var(--brand-on)]">Name (2+ chars) and description (20+ chars) are required.</p>}
         <label className="flex flex-col gap-1">
           <span className="text-xs font-mono uppercase text-[var(--mute)]">Channel name</span>
           <input name="name" required maxLength={120} className="border border-[var(--line-2)] rounded-lg p-3 text-sm" />
@@ -108,7 +108,7 @@ async function StepThreeCompetitors({ channel, path, error }: { channel: { id: s
       <form action={saveCompetitorsAction} className="card flex flex-col gap-4 mt-5">
         <input type="hidden" name="channelId" value={channel.id} />
         <input type="hidden" name="path" value={path} />
-        {error && <p className="text-sm text-[var(--brand)]">Failed to save.</p>}
+        {error && <p className="text-sm text-[var(--brand-on)]">Failed to save.</p>}
         <div>
           <p className="text-xs font-mono uppercase text-[var(--mute)] mb-2">Suggested in your niche</p>
           <div className="flex flex-wrap gap-2">
@@ -137,7 +137,7 @@ function StepFourDifferentiation({ channelId, error }: { channelId: string; erro
       <StepHeader step={4} total={5} title="What makes you different?" subtitle="A short differentiation statement (≥ 20 chars) shapes everything we generate next." />
       <form action={differentiationAction} className="card flex flex-col gap-4 mt-5">
         <input type="hidden" name="channelId" value={channelId} />
-        {error && <p className="text-sm text-[var(--brand)]">Must be at least 20 characters.</p>}
+        {error && <p className="text-sm text-[var(--brand-on)]">Must be at least 20 characters.</p>}
         <label className="flex flex-col gap-1">
           <span className="text-xs font-mono uppercase text-[var(--mute)]">Differentiation</span>
           <textarea name="differentiation" required minLength={20} rows={3} placeholder="e.g. I cite the actual papers and show the math instead of vague advice." className="border border-[var(--line-2)] rounded-lg p-3 text-sm" />
@@ -235,7 +235,7 @@ async function StepFivePreview({ channelId }: { channelId: string }) {
       {Object.values(voiceData).length > 0 && (
         <section className="card mt-3">
           <h2 className="font-mono text-sm mb-2">Voice profile (preview)</h2>
-          <p className="text-xs text-[var(--mute)]">Refine in Channel → Voice. <Link className="text-[var(--accent)] font-semibold" href={`/channels/${channelId}/voice`}>Open voice editor →</Link></p>
+          <p className="text-xs text-[var(--mute)]">Refine in Channel → Voice. <Link className="text-[var(--accent-on)] font-semibold" href={`/channels/${channelId}/voice`}>Open voice editor →</Link></p>
         </section>
       )}
 

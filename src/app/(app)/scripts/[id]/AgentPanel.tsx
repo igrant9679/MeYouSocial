@@ -81,8 +81,8 @@ export function AgentPanel({ scriptId, runId, initialStatus }: { scriptId: strin
         {steps.map((s) => <StepBadge key={s.name} step={s} />)}
       </ul>
 
-      {status === "succeeded" && <p className="text-xs text-[var(--green)] mt-2">Script ready. Refreshing…</p>}
-      {status === "failed" && <p className="text-xs text-[var(--brand)] mt-2">Failed. Use the Retry button to try again.</p>}
+      {status === "succeeded" && <p className="text-xs text-[var(--green-on)] mt-2">Script ready. Refreshing…</p>}
+      {status === "failed" && <p className="text-xs text-[var(--brand-on)] mt-2">Failed. Use the Retry button to try again.</p>}
     </div>
   );
 }

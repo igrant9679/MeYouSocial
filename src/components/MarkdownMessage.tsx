@@ -26,7 +26,7 @@ export function MarkdownMessage({ content, className }: { content: string; class
         components={{
           p: (p) => <p className="my-1.5 first:mt-0 last:mb-0" {...p} />,
           a: ({ href, children }) => (
-            <a href={href} target="_blank" rel="noopener noreferrer" className="underline text-[var(--accent)] break-all">
+            <a href={href} target="_blank" rel="noopener noreferrer" className="underline text-[var(--accent-on)] break-all">
               {children}
             </a>
           ),

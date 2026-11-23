@@ -18,7 +18,7 @@ export default async function WikiDocPage({ params }: { params: Promise<{ id: st
 
   return (
     <div className="w-full">
-      <Link href="/production/wiki" className="text-xs font-mono text-[var(--mute)] hover:text-[var(--accent)] flex items-center gap-1 mb-3"><ArrowLeft className="w-3 h-3" /> Wiki</Link>
+      <Link href="/production/wiki" className="text-xs font-mono text-[var(--mute)] hover:text-[var(--accent-on)] flex items-center gap-1 mb-3"><ArrowLeft className="w-3 h-3" /> Wiki</Link>
 
       <form action={upsertWikiDocAction} className="card flex flex-col gap-3">
         <input type="hidden" name="id" value={doc.id} />

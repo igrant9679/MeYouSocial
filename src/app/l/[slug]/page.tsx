@@ -27,7 +27,7 @@ export default async function LinkInBioPage({ params }: { params: Promise<{ slug
       {/* A plain centred column — a centring grid shrank the cards to their text on a phone. */}
       <div className="w-full max-w-md mx-auto">
         <div className="text-center mb-5">
-          <span className="w-14 h-14 rounded-2xl text-white inline-grid place-items-center font-mono font-bold text-xl mb-2" style={{ background: "var(--accent)" }}>{ws.name.slice(0, 2).toUpperCase()}</span>
+          <span className="w-14 h-14 rounded-2xl text-white inline-grid place-items-center font-mono font-bold text-xl mb-2" style={{ background: "var(--accent-strong)" }}>{ws.name.slice(0, 2).toUpperCase()}</span>
           <h1 className="font-mono font-bold text-xl leading-tight m-0">{ws.name}</h1>
           <p className="text-xs text-[var(--mute)] m-0">What we&apos;ve shared lately</p>
         </div>

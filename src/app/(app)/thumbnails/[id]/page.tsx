@@ -27,17 +27,17 @@ export default async function ThumbnailDetailPage({ params }: { params: Promise<
 
   return (
     <div>
-      <Link href="/thumbnails" className="text-xs font-mono text-[var(--mute)] hover:text-[var(--accent)] flex items-center gap-1 mb-3"><ArrowLeft className="w-3 h-3" /> Back to Thumbnails</Link>
+      <Link href="/thumbnails" className="text-xs font-mono text-[var(--mute)] hover:text-[var(--accent-on)] flex items-center gap-1 mb-3"><ArrowLeft className="w-3 h-3" /> Back to Thumbnails</Link>
 
       <div className="flex items-center gap-3 mb-5">
         <h1 className="font-mono font-bold text-2xl leading-tight">{thumb.title ?? "Untitled"}</h1>
-        <span className="text-micro font-mono uppercase tracking-wider px-2 py-1 rounded" style={{ background: "var(--pink-soft)", color: "var(--pink)" }}>{thumb.mode}</span>
+        <span className="text-micro font-mono uppercase tracking-wider px-2 py-1 rounded" style={{ background: "var(--pink-soft)", color: "var(--pink-on)" }}>{thumb.mode}</span>
         <span className="text-xs text-[var(--mute)]">· {thumb.channel.name}</span>
       </div>
 
       {thumb.renderUrl ? (
         <section className="card mb-5">
-          <h2 className="font-mono font-bold text-sm mb-3 flex items-center gap-2"><CheckCircle2 className="w-4 h-4" style={{ color: "var(--green)" }} /> Rendered thumbnail</h2>
+          <h2 className="font-mono font-bold text-sm mb-3 flex items-center gap-2"><CheckCircle2 className="w-4 h-4" style={{ color: "var(--green-on)" }} /> Rendered thumbnail</h2>
           <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-4 items-start">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={thumb.renderUrl} alt={thumb.title ?? ""} className="w-full max-w-2xl rounded-xl border border-[var(--line)]" />

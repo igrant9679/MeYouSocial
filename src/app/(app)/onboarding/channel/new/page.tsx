@@ -63,7 +63,7 @@ export default async function OnboardingStartPage({ searchParams }: { searchPara
       )}
 
       <form action={startOnboardingAction} className="card flex flex-col gap-5 mt-5">
-        {error && <p className="text-sm text-[var(--brand)]">Please fill in every field — at least 10 characters for the niche.</p>}
+        {error && <p className="text-sm text-[var(--brand-on)]">Please fill in every field — at least 10 characters for the niche.</p>}
 
         <label className="flex flex-col gap-1">
           <span className="text-xs font-mono uppercase text-[var(--mute)]">What&apos;s your channel about?</span>

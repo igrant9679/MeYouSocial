@@ -85,7 +85,7 @@ export default async function CanvasPage({
       {/* LEFT: Chat pane */}
       <aside className="card flex flex-col p-0 overflow-hidden h-full">
         <div className="px-4 py-3 border-b border-[var(--line)] flex items-center gap-2">
-          <span className="w-7 h-7 rounded-lg grid place-items-center" style={{ background: "var(--violet-soft)", color: "var(--violet)" }}><MessageCircle className="w-4 h-4" /></span>
+          <span className="w-7 h-7 rounded-lg grid place-items-center" style={{ background: "var(--violet-soft)", color: "var(--violet-on)" }}><MessageCircle className="w-4 h-4" /></span>
           <div className="text-xs font-mono uppercase tracking-wider text-[var(--mute)]">Canvas chat</div>
         </div>
 
@@ -97,13 +97,13 @@ export default async function CanvasPage({
               )}
               {[...script.chat.messages].reverse().map((m) => (
                 <div key={m.id} className={"flex " + (m.role === "user" ? "justify-end" : "")}>
-                  <div className={"rounded-2xl px-3 py-2 max-w-[85%] " + (m.role === "user" ? "bg-[var(--accent)] text-white text-xs whitespace-pre-wrap" : "bg-[var(--zebra)] border border-[var(--line)] text-xs")}>
+                  <div className={"rounded-2xl px-3 py-2 max-w-[85%] " + (m.role === "user" ? "bg-[var(--accent-strong)] text-white text-xs whitespace-pre-wrap" : "bg-[var(--zebra)] border border-[var(--line)] text-xs")}>
                     {/* User bubbles stay plain text — only the model's replies render as markdown. */}
                     {m.role === "user" ? m.content : <MarkdownMessage content={m.content} className="text-xs" />}
                   </div>
                 </div>
               ))}
-              <Link href={`/chat/${script.chat.id}`} className="text-2xs font-mono text-[var(--accent)] hover:underline mt-2 text-center">Open in full chat →</Link>
+              <Link href={`/chat/${script.chat.id}`} className="text-2xs font-mono text-[var(--accent-on)] hover:underline mt-2 text-center">Open in full chat →</Link>
             </>
           ) : (
             <p className="text-xs text-[var(--mute)] text-center mt-8">No chat thread linked to this script yet.</p>
@@ -116,8 +116,8 @@ export default async function CanvasPage({
         {/* Top toolbar */}
         <div className="px-5 py-3 border-b border-[var(--line)] flex flex-col gap-2">
           <div className="flex items-center gap-3">
-            <Link href={`/channels/${script.channelId}/scripts`} className="text-xs font-mono text-[var(--mute)] hover:text-[var(--accent)] flex items-center gap-1"><ArrowLeft className="w-3 h-3" /> {script.channel.name}</Link>
-            {editor && <Link href={`/scripts/${script.id}/builder`} className="text-xs font-mono text-[var(--mute)] hover:text-[var(--accent)] flex items-center gap-1" title="Switch to the 10-step Script Builder">Builder mode →</Link>}
+            <Link href={`/channels/${script.channelId}/scripts`} className="text-xs font-mono text-[var(--mute)] hover:text-[var(--accent-on)] flex items-center gap-1"><ArrowLeft className="w-3 h-3" /> {script.channel.name}</Link>
+            {editor && <Link href={`/scripts/${script.id}/builder`} className="text-xs font-mono text-[var(--mute)] hover:text-[var(--accent-on)] flex items-center gap-1" title="Switch to the 10-step Script Builder">Builder mode →</Link>}
             <span className="flex-1" />
             {!editor && <span className="text-2xs text-[var(--mute)]" data-read-only>Read-only — an editor can change this script.</span>}
             {/* Launch agent. Disabled while a run is in flight. */}
@@ -128,7 +128,7 @@ export default async function CanvasPage({
               return (
                 <form action={launchAgentAction}>
                   <input type="hidden" name="scriptId" value={script.id} />
-                  <SubmitButton className="btn sm flex items-center gap-1.5" style={{ background: "var(--accent-soft)", color: "var(--accent)", borderColor: "var(--accent)" }} title="Run the automated research+outline+script+QA pipeline" pendingText="Starting the Agent…">
+                  <SubmitButton className="btn sm flex items-center gap-1.5" style={{ background: "var(--accent-soft)", color: "var(--accent-on)", borderColor: "var(--accent)" }} title="Run the automated research+outline+script+QA pipeline" pendingText="Starting the Agent…">
                     <Bot className="w-3.5 h-3.5" /> {script.body ? "Re-run Agent" : "Run Agent"}
                   </SubmitButton>
                 </form>
@@ -295,7 +295,7 @@ function TabLink({ href, active, icon, children }: { href: string; active: boole
   return (
     <Link
       href={href}
-      className={"flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-mono uppercase tracking-wider transition " + (active ? "bg-[var(--accent-soft)] text-[var(--accent)]" : "text-[var(--mute)] hover:bg-[var(--zebra)]")}
+      className={"flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-mono uppercase tracking-wider transition " + (active ? "bg-[var(--accent-soft)] text-[var(--accent-on)]" : "text-[var(--mute)] hover:bg-[var(--zebra)]")}
     >
       {icon} {children}
     </Link>
@@ -310,7 +310,7 @@ function PlanTab({ script, hasBody, editor }: { script: { id: string; outline: {
     return (
       <div className="flex flex-col gap-4">
         <div className="card">
-          <h3 className="font-mono font-bold text-sm mb-2 flex items-center gap-2"><ListTree className="w-4 h-4" style={{ color: "var(--accent)" }} /> Planning questions</h3>
+          <h3 className="font-mono font-bold text-sm mb-2 flex items-center gap-2"><ListTree className="w-4 h-4" style={{ color: "var(--accent-on)" }} /> Planning questions</h3>
           {answers.length ? (
             <dl className="m-0 grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
               {answers.map(([k, label]) => <div key={k}><dt className="text-micro font-mono uppercase tracking-wider text-[var(--mute)]">{label}</dt><dd className="m-0 whitespace-pre-wrap">{q[k]}</dd></div>)}
@@ -318,7 +318,7 @@ function PlanTab({ script, hasBody, editor }: { script: { id: string; outline: {
           ) : <p className="text-sm text-[var(--mute)] m-0">Not answered yet.</p>}
         </div>
         <div className="card">
-          <h3 className="font-mono font-bold text-sm mb-2 flex items-center gap-2"><PenLine className="w-4 h-4" style={{ color: "var(--accent)" }} /> Outline</h3>
+          <h3 className="font-mono font-bold text-sm mb-2 flex items-center gap-2"><PenLine className="w-4 h-4" style={{ color: "var(--accent-on)" }} /> Outline</h3>
           {script.outline.markdown ? <pre className="whitespace-pre-wrap text-sm font-mono leading-[1.6] m-0">{script.outline.markdown}</pre> : <p className="text-sm text-[var(--mute)] m-0">No outline yet.</p>}
         </div>
       </div>
@@ -328,7 +328,7 @@ function PlanTab({ script, hasBody, editor }: { script: { id: string; outline: {
     <div className="flex flex-col gap-4">
       {/* Planning questions */}
       <form action={savePlanQuestionsAction} className="card">
-        <h3 className="font-mono font-bold text-sm mb-3 flex items-center gap-2"><ListTree className="w-4 h-4" style={{ color: "var(--accent)" }} /> Planning questions</h3>
+        <h3 className="font-mono font-bold text-sm mb-3 flex items-center gap-2"><ListTree className="w-4 h-4" style={{ color: "var(--accent-on)" }} /> Planning questions</h3>
         <input type="hidden" name="scriptId" value={script.id} />
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <PlanField name="takeaway" label="One main takeaway" max={2000} defaultValue={script.outline.questions?.takeaway} />
@@ -344,7 +344,7 @@ function PlanTab({ script, hasBody, editor }: { script: { id: string; outline: {
       {/* Generate / edit outline */}
       <div className="card">
         <div className="flex items-center mb-3">
-          <h3 className="font-mono font-bold text-sm flex items-center gap-2"><PenLine className="w-4 h-4" style={{ color: "var(--accent)" }} /> Outline</h3>
+          <h3 className="font-mono font-bold text-sm flex items-center gap-2"><PenLine className="w-4 h-4" style={{ color: "var(--accent-on)" }} /> Outline</h3>
           <span className="flex-1" />
           <form action={generateOutlineAction}>
             <input type="hidden" name="scriptId" value={script.id} />

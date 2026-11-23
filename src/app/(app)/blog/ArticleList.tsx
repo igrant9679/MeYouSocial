@@ -34,7 +34,7 @@ export function ArticleList({ q, list, topics, members, editor, admin, timeZone,
   const nameOf = new Map(members.map((m) => [m.userId, m.name]));
   const all = Object.values(list.counts).reduce((a, n) => a + n, 0);
   const chip = (active: boolean) =>
-    "text-xs font-mono px-2.5 py-1 rounded-md border " + (active ? "border-[var(--accent)] text-[var(--accent)]" : "border-[var(--line-2)] text-[var(--mute)]");
+    "text-xs font-mono px-2.5 py-1 rounded-md border " + (active ? "border-[var(--accent)] text-[var(--accent-on)]" : "border-[var(--line-2)] text-[var(--mute)]");
 
   if (!anyArticles) {
     return (

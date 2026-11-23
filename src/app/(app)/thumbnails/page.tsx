@@ -23,7 +23,7 @@ export default async function ThumbnailsPage({ searchParams }: { searchParams: P
   if (!active) {
     return (
       <div className="card max-w-md mx-auto text-center py-10">
-        <span className="w-12 h-12 rounded-2xl grid place-items-center mx-auto mb-3" style={{ background: "var(--pink-soft)", color: "var(--pink)" }}>
+        <span className="w-12 h-12 rounded-2xl grid place-items-center mx-auto mb-3" style={{ background: "var(--pink-soft)", color: "var(--pink-on)" }}>
           <ImageIcon className="w-6 h-6" />
         </span>
         <h1 className="font-mono font-bold text-lg mb-2">Pick a channel first</h1>
@@ -43,7 +43,7 @@ export default async function ThumbnailsPage({ searchParams }: { searchParams: P
   return (
     <div>
       <div className="flex items-center gap-3 mb-5">
-        <span className="w-12 h-12 rounded-2xl grid place-items-center" style={{ background: "var(--pink-soft)", color: "var(--pink)" }}>
+        <span className="w-12 h-12 rounded-2xl grid place-items-center" style={{ background: "var(--pink-soft)", color: "var(--pink-on)" }}>
           <ImageIcon className="w-6 h-6" strokeWidth={2.25} />
         </span>
         <div>
@@ -81,7 +81,7 @@ export default async function ThumbnailsPage({ searchParams }: { searchParams: P
         <form action={cloneThumbnailAction} className="card flex flex-col gap-3 max-w-2xl mb-6">
           <input type="hidden" name="channelId" value={active.id} />
           <h2 className="font-mono font-bold text-sm flex items-center gap-2">
-            <Copy className="w-4 h-4" style={{ color: "var(--pink)" }} /> Clone a thumbnail&apos;s style
+            <Copy className="w-4 h-4" style={{ color: "var(--pink-on)" }} /> Clone a thumbnail&apos;s style
             <HelpTip text={IMAGE_TIPS.clone} side="bottom" wide />
           </h2>
           {/* Was: "We'll analyze palette, typography, composition, and render a
@@ -109,7 +109,7 @@ export default async function ThumbnailsPage({ searchParams }: { searchParams: P
         <form action={brainstormThumbnailsAction} className="card flex flex-col gap-3 max-w-2xl mb-6">
           <input type="hidden" name="channelId" value={active.id} />
           <h2 className="font-mono font-bold text-sm flex items-center gap-2">
-            <Wand2 className="w-4 h-4" style={{ color: "var(--pink)" }} /> Brainstorm 4 concepts
+            <Wand2 className="w-4 h-4" style={{ color: "var(--pink-on)" }} /> Brainstorm 4 concepts
             <HelpTip text={IMAGE_TIPS.brainstorm} side="bottom" wide />
           </h2>
           <p className="text-xs text-[var(--mute)]">
@@ -133,7 +133,7 @@ export default async function ThumbnailsPage({ searchParams }: { searchParams: P
 
       {/* History */}
       <section className="card">
-        <h2 className="font-mono font-bold text-sm mb-3 flex items-center gap-2"><History className="w-4 h-4" style={{ color: "var(--pink)" }} /> History <span className="text-xs text-[var(--mute)] font-normal">({history.length})</span></h2>
+        <h2 className="font-mono font-bold text-sm mb-3 flex items-center gap-2"><History className="w-4 h-4" style={{ color: "var(--pink-on)" }} /> History <span className="text-xs text-[var(--mute)] font-normal">({history.length})</span></h2>
         {history.length === 0 ? (
           <EmptyState variant="inline" line="No thumbnails yet — the generator above makes the first set." />
         ) : (
@@ -176,7 +176,7 @@ function TabLink({ href, active, icon, children }: { href: string; active: boole
   return (
     <Link
       href={href}
-      className={"flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-mono uppercase tracking-wider transition " + (active ? "bg-[var(--pink-soft)] text-[var(--pink)]" : "text-[var(--mute)] hover:bg-[var(--zebra)]")}
+      className={"flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-mono uppercase tracking-wider transition " + (active ? "bg-[var(--pink-soft)] text-[var(--pink-on)]" : "text-[var(--mute)] hover:bg-[var(--zebra)]")}
     >
       {icon} {children}
     </Link>

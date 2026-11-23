@@ -7,11 +7,11 @@ import { setProjectEditStatusAction, setProjectStatusAction } from "@/app/action
 // Edit Bay: kanban on EditStatus.
 
 const COLUMNS = [
-  { key: "assembly",    label: "Assembly",     color: "var(--amber)", soft: "var(--amber-soft)" },
-  { key: "rough_cut",   label: "Rough cut",    color: "var(--blue)", soft: "var(--blue-soft)" },
-  { key: "vfx",         label: "VFX",          color: "var(--violet)", soft: "var(--violet-soft)" },
-  { key: "sound_music", label: "Sound & music", color: "var(--cyan)", soft: "var(--cyan-soft)" },
-  { key: "color",       label: "Color grading", color: "var(--green)", soft: "var(--green-soft)" },
+  { key: "assembly",    label: "Assembly",     color: "var(--amber-on)", soft: "var(--amber-soft)" },
+  { key: "rough_cut",   label: "Rough cut",    color: "var(--blue-on)", soft: "var(--blue-soft)" },
+  { key: "vfx",         label: "VFX",          color: "var(--violet-on)", soft: "var(--violet-soft)" },
+  { key: "sound_music", label: "Sound & music", color: "var(--cyan-on)", soft: "var(--cyan-soft)" },
+  { key: "color",       label: "Color grading", color: "var(--green-on)", soft: "var(--green-soft)" },
 ] as const;
 
 export default async function EditBayPage() {
@@ -25,7 +25,7 @@ export default async function EditBayPage() {
   return (
     <div>
       <div className="flex items-center gap-2 mb-4">
-        <h2 className="font-mono font-bold text-lg flex items-center gap-2"><Scissors className="w-5 h-5" style={{ color: "var(--violet)" }} /> Edit Bay</h2>
+        <h2 className="font-mono font-bold text-lg flex items-center gap-2"><Scissors className="w-5 h-5" style={{ color: "var(--violet-on)" }} /> Edit Bay</h2>
         <span className="text-xs text-[var(--mute)]">({projects.length} in editing)</span>
       </div>
 
@@ -59,12 +59,12 @@ export default async function EditBayPage() {
                         <form action={setProjectStatusAction} title="Move to Scheduled">
                           <input type="hidden" name="id" value={p.id} />
                           <input type="hidden" name="status" value="scheduled" />
-                          <button type="submit" className="w-6 h-6 rounded-md grid place-items-center hover:bg-[var(--zebra)]"><ArrowRight className="w-3.5 h-3.5" style={{ color: "var(--teal)" }} /></button>
+                          <button type="submit" className="w-6 h-6 rounded-md grid place-items-center hover:bg-[var(--zebra)]"><ArrowRight className="w-3.5 h-3.5" style={{ color: "var(--teal-on)" }} /></button>
                         </form>
                       )}
                     </div>
                     {p.script ? (
-                      <Link href={`/scripts/${p.script.id}`} className="font-semibold text-sm hover:text-[var(--accent)]">{p.title}</Link>
+                      <Link href={`/scripts/${p.script.id}`} className="font-semibold text-sm hover:text-[var(--accent-on)]">{p.title}</Link>
                     ) : (
                       <div className="font-semibold text-sm">{p.title}</div>
                     )}

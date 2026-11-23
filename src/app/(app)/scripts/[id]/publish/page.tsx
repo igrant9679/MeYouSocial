@@ -15,21 +15,21 @@ const PROMO_GROUPS = [
   {
     label: "Titles & metadata",
     items: [
-      { kind: "titles", title: "Title variations", color: "var(--brand)" },
-      { kind: "hooks", title: "Hook variations", color: "var(--amber)" },
-      { kind: "description", title: "Video description", color: "var(--blue)" },
-      { kind: "tags", title: "Tags", color: "var(--green)" },
+      { kind: "titles", title: "Title variations", color: "var(--brand-on)" },
+      { kind: "hooks", title: "Hook variations", color: "var(--amber-on)" },
+      { kind: "description", title: "Video description", color: "var(--blue-on)" },
+      { kind: "tags", title: "Tags", color: "var(--green-on)" },
     ],
   },
   {
     label: "Promo / cross-post",
     items: [
-      { kind: "social_twitter", title: "Twitter / X thread", color: "var(--cyan)" },
-      { kind: "social_linkedin", title: "LinkedIn post", color: "var(--indigo)" },
-      { kind: "social_instagram", title: "Instagram caption", color: "var(--pink)" },
-      { kind: "newsletter", title: "Newsletter section", color: "var(--purple)" },
-      { kind: "blog", title: "Blog adaptation", color: "var(--violet)" },
-      { kind: "shotlist", title: "Shot list / B-roll", color: "var(--rose)" },
+      { kind: "social_twitter", title: "Twitter / X thread", color: "var(--cyan-on)" },
+      { kind: "social_linkedin", title: "LinkedIn post", color: "var(--indigo-on)" },
+      { kind: "social_instagram", title: "Instagram caption", color: "var(--pink-on)" },
+      { kind: "newsletter", title: "Newsletter section", color: "var(--purple-on)" },
+      { kind: "blog", title: "Blog adaptation", color: "var(--violet-on)" },
+      { kind: "shotlist", title: "Shot list / B-roll", color: "var(--rose-on)" },
     ],
   },
 ];
@@ -47,10 +47,10 @@ export default async function PublishPage({ params }: { params: Promise<{ id: st
 
   return (
     <div>
-      <Link href={`/scripts/${id}`} className="text-xs font-mono text-[var(--mute)] hover:text-[var(--accent)] flex items-center gap-1 mb-3"><ArrowLeft className="w-3 h-3" /> Back to script</Link>
+      <Link href={`/scripts/${id}`} className="text-xs font-mono text-[var(--mute)] hover:text-[var(--accent-on)] flex items-center gap-1 mb-3"><ArrowLeft className="w-3 h-3" /> Back to script</Link>
 
       <div className="flex items-center gap-3 mb-5">
-        <span className="w-12 h-12 rounded-2xl grid place-items-center" style={{ background: "var(--green-soft)", color: "var(--green)" }}>
+        <span className="w-12 h-12 rounded-2xl grid place-items-center" style={{ background: "var(--green-soft)", color: "var(--green-on)" }}>
           <Sparkles className="w-6 h-6" strokeWidth={2.25} />
         </span>
         <div>
@@ -61,7 +61,7 @@ export default async function PublishPage({ params }: { params: Promise<{ id: st
 
       {/* Export & Teleprompter row */}
       <section className="card mb-5">
-        <h2 className="font-mono font-bold text-sm mb-3 flex items-center gap-2"><Download className="w-4 h-4" style={{ color: "var(--green)" }} /> Export</h2>
+        <h2 className="font-mono font-bold text-sm mb-3 flex items-center gap-2"><Download className="w-4 h-4" style={{ color: "var(--green-on)" }} /> Export</h2>
         <div className="flex flex-wrap gap-2">
           <CopyButton text={script.body ?? ""} label="Copy to clipboard" />
           <a href={`/api/scripts/${id}/export?format=docx`} className="btn flex items-center gap-1.5"><FileText className="w-3.5 h-3.5" /> Download .docx</a>

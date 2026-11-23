@@ -13,7 +13,7 @@ export function ProfileVersions({ versions, editor, timeZone, noun }: { versions
   return (
     <section className="card" data-profile-versions>
       <h2 className="font-mono text-sm font-bold mb-1 flex items-center gap-2">
-        <History className="w-4 h-4" style={{ color: "var(--violet)" }} /> Versions
+        <History className="w-4 h-4" style={{ color: "var(--violet-on)" }} /> Versions
         <span className="text-xs text-[var(--mute)] font-normal">{versions.length}</span>
       </h2>
       {versions.length === 0 ? (

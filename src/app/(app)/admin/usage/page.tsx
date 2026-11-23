@@ -128,7 +128,7 @@ export default async function AdminUsagePage({ searchParams }: { searchParams: P
   return (
     <div>
       <div className="flex items-center gap-3 mb-5">
-        <span className="w-10 h-10 rounded-xl grid place-items-center" style={{ background: "var(--green-soft)", color: "var(--green)" }}>
+        <span className="w-10 h-10 rounded-xl grid place-items-center" style={{ background: "var(--green-soft)", color: "var(--green-on)" }}>
           <BarChart3 className="w-5 h-5" strokeWidth={2.25} />
         </span>
         <div className="flex-1">
@@ -361,7 +361,7 @@ export default async function AdminUsagePage({ searchParams }: { searchParams: P
             <ul className="m-0 p-0">
               {scriptRank.slice(0, 5).map((u, i) => (
                 <li key={u.id} className="border-t border-[var(--line)] first:border-t-0 py-2 flex items-center gap-2 text-sm">
-                  <span className="w-6 h-6 rounded-full grid place-items-center text-micro font-mono font-bold" style={{ background: "var(--accent-soft)", color: "var(--accent)" }}>{i + 1}</span>
+                  <span className="w-6 h-6 rounded-full grid place-items-center text-micro font-mono font-bold" style={{ background: "var(--accent-soft)", color: "var(--accent-on)" }}>{i + 1}</span>
                   <span className="flex-1">{who(u.id)}</span>
                   <span className="text-xs font-mono text-[var(--mute)]">{u.n} scripts</span>
                 </li>
@@ -380,7 +380,7 @@ export default async function AdminUsagePage({ searchParams }: { searchParams: P
             <ul className="m-0 p-0">
               {recentUsageLogs.map((log) => (
                 <li key={log.id} className="border-t border-[var(--line)] first:border-t-0 py-2 text-xs flex items-center gap-2">
-                  <span className="font-mono uppercase tracking-wider text-micro px-1.5 py-0.5 rounded" style={{ background: "var(--accent-soft)", color: "var(--accent)" }}>{log.action}</span>
+                  <span className="font-mono uppercase tracking-wider text-micro px-1.5 py-0.5 rounded" style={{ background: "var(--accent-soft)", color: "var(--accent-on)" }}>{log.action}</span>
                   <span className="flex-1">{log.model ?? "—"}</span>
                   <span className="text-[var(--mute)]">{formatZonedMoment(new Date(log.createdAt), postingTz)}</span>
                 </li>

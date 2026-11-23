@@ -143,7 +143,7 @@ export default async function KeywordsPage({ searchParams }: { searchParams: Pro
               <>
                 Volume and competition arrive with a search-data provider —{" "}
                 {membership.role === "ADMIN" ? (
-                  <Link href="/admin/api-keys" className="underline" style={{ color: "var(--accent)" }}>add a DataForSEO or Keywords Everywhere key</Link>
+                  <Link href="/admin/api-keys" className="underline" style={{ color: "var(--accent-on)" }}>add a DataForSEO or Keywords Everywhere key</Link>
                 ) : (
                   "ask an admin to add a DataForSEO or Keywords Everywhere key"
                 )}
@@ -442,7 +442,7 @@ export default async function KeywordsPage({ searchParams }: { searchParams: Pro
               <div className="text-2xs mt-2" data-kw-more>
                 {all === cluster
                   ? <Link href={`/blog/keywords#kw-${list[0].id}`} className="underline text-[var(--mute)]">Show the first {CLUSTER_ROWS}</Link>
-                  : <Link href={`/blog/keywords?all=${encodeURIComponent(cluster)}#kw-${list[CLUSTER_ROWS].id}`} scroll={false} className="underline" style={{ color: "var(--accent)" }}>Show all {list.length} in “{cluster}”</Link>}
+                  : <Link href={`/blog/keywords?all=${encodeURIComponent(cluster)}#kw-${list[CLUSTER_ROWS].id}`} scroll={false} className="underline" style={{ color: "var(--accent-on)" }}>Show all {list.length} in “{cluster}”</Link>}
               </div>
             )}
           </section>

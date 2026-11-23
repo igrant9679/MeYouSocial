@@ -203,7 +203,7 @@ export function UploadButton({ chatId, scriptId, channelId, onDone, reload = tru
           <span className="text-micro text-[var(--mute)]">{formatBytes(progress.sent)} of {formatBytes(progress.total)}{timeLeft(progress)} — keep this page open</span>
         </div>
       )}
-      {err && <span className="text-micro text-[var(--brand)]" data-upload-error="">{err}</span>}
+      {err && <span className="text-micro text-[var(--brand-on)]" data-upload-error="">{err}</span>}
       {note && <span className="text-micro" style={{ color: "var(--amber-on)" }} data-upload-note="">{note}</span>}
       {!compact && !busy && <span className="text-micro text-[var(--mute)]">Up to {formatBytes(UPLOAD_MAX_BYTES)} · PDF / Word / text / image</span>}
     </div>

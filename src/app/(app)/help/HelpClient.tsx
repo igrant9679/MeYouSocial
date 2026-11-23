@@ -82,7 +82,7 @@ export function HelpClient({ role, initialQuery = "", initialCat = "__all" }: { 
         <div className="text-micro font-mono uppercase tracking-wider text-[var(--mute)] mb-2 px-1">Categories</div>
         <ul className="m-0 p-0 flex flex-col gap-1">
           <li>
-            <button onClick={() => setActiveCat("__all")} className={"w-full text-left px-2 py-1.5 rounded-md text-xs font-mono uppercase tracking-wider transition " + (activeCat === "__all" ? "bg-[var(--accent-soft)] text-[var(--accent)]" : "text-[var(--mute)] hover:bg-[var(--zebra)]")}>
+            <button onClick={() => setActiveCat("__all")} className={"w-full text-left px-2 py-1.5 rounded-md text-xs font-mono uppercase tracking-wider transition " + (activeCat === "__all" ? "bg-[var(--accent-soft)] text-[var(--accent-on)]" : "text-[var(--mute)] hover:bg-[var(--zebra)]")}>
               All
             </button>
           </li>
@@ -118,7 +118,7 @@ export function HelpClient({ role, initialQuery = "", initialCat = "__all" }: { 
         {filtered.length === 0 ? (
           <div className="card text-center py-12 text-sm text-[var(--mute)]">
             <HelpCircle className="w-8 h-8 mx-auto mb-2 opacity-50" />
-            No matches. Try a different keyword, or click <button onClick={() => setQuery("")} className="text-[var(--accent)] font-semibold">clear</button>.
+            No matches. Try a different keyword, or click <button onClick={() => setQuery("")} className="text-[var(--accent-on)] font-semibold">clear</button>.
           </div>
         ) : (
           filtered.map((cat) => (

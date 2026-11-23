@@ -36,7 +36,7 @@ export default async function SubmissionsPage({ params, searchParams }: { params
   return (
     <div>
       <div className="flex items-center gap-3 mb-4">
-        <span className="w-10 h-10 rounded-xl grid place-items-center" style={{ background: "var(--pink-soft)", color: "var(--pink)" }}>
+        <span className="w-10 h-10 rounded-xl grid place-items-center" style={{ background: "var(--pink-soft)", color: "var(--pink-on)" }}>
           <Inbox className="w-5 h-5" strokeWidth={2.25} />
         </span>
         <div>
@@ -73,7 +73,7 @@ export default async function SubmissionsPage({ params, searchParams }: { params
       <div className="flex flex-wrap gap-1 mb-4">
         {(["new", "reviewed", "promoted", "rejected"] as const).map((s) => (
           <Link key={s} href={`/channels/${id}/submissions?status=${s}`}
-            className={"text-xs font-mono uppercase tracking-wider px-2.5 py-1 rounded-md border " + (status === s ? "border-[var(--accent)] text-[var(--accent)]" : "border-[var(--line-2)] text-[var(--mute)]")}>
+            className={"text-xs font-mono uppercase tracking-wider px-2.5 py-1 rounded-md border " + (status === s ? "border-[var(--accent)] text-[var(--accent-on)]" : "border-[var(--line-2)] text-[var(--mute)]")}>
             {s} ({count(s)})
           </Link>
         ))}
@@ -86,7 +86,7 @@ export default async function SubmissionsPage({ params, searchParams }: { params
           {submissions.map((s) => (
             <li key={s.id} className="card">
               <div className="flex items-center gap-2 mb-2">
-                <span className="font-mono text-micro uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: "var(--accent-soft)", color: "var(--accent)" }}>{s.status}</span>
+                <span className="font-mono text-micro uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: "var(--accent-soft)", color: "var(--accent-on)" }}>{s.status}</span>
                 <span className="text-2xs text-[var(--mute)]">{formatDay(new Date(s.createdAt))}</span>
                 {s.submitter && <span className="text-2xs font-mono text-[var(--mute)]">· {s.submitter}</span>}
               </div>

@@ -190,7 +190,7 @@ export async function ReportBlock({ block, workspaceId, weeks, canAct = true }: 
       const perf = await postPerformance(workspaceId, 60, { status: "published", days });
       const positions = perf.filter((p) => p.status === "published" && p.position != null).map((p) => p.position!);
       const rows = [
-        { label: "Top 3", value: positions.filter((x) => x <= 3).length, color: "var(--blue)" },
+        { label: "Top 3", value: positions.filter((x) => x <= 3).length, color: "var(--blue-on)" },
         { label: "4 – 10", value: positions.filter((x) => x > 3 && x <= 10).length, color: "color-mix(in srgb, var(--blue) 70%, var(--bg))" },
         { label: "11 – 20", value: positions.filter((x) => x > 10 && x <= 20).length, color: "color-mix(in srgb, var(--blue) 42%, var(--bg))" },
         { label: "21 +", value: positions.filter((x) => x > 20).length, color: "color-mix(in srgb, var(--blue) 18%, var(--bg))" },
@@ -211,11 +211,11 @@ export async function ReportBlock({ block, workspaceId, weeks, canAct = true }: 
       return (
         <Card title="Pipeline — right now">
           <HBars rows={[
-            { label: "Ideas open", value: ideas, color: "var(--cyan)" },
-            { label: "Drafting", value: c("drafting"), color: "var(--amber)" },
-            { label: "In review", value: c("draft_review"), color: "var(--blue)" },
-            { label: "Approval", value: c("final_approval"), color: "var(--violet)" },
-            { label: "Published", value: c("published"), color: "var(--green)" },
+            { label: "Ideas open", value: ideas, color: "var(--cyan-on)" },
+            { label: "Drafting", value: c("drafting"), color: "var(--amber-on)" },
+            { label: "In review", value: c("draft_review"), color: "var(--blue-on)" },
+            { label: "Approval", value: c("final_approval"), color: "var(--violet-on)" },
+            { label: "Published", value: c("published"), color: "var(--green-on)" },
           ]} />
         </Card>
       );
@@ -353,7 +353,7 @@ export async function ReportBlock({ block, workspaceId, weeks, canAct = true }: 
       const rows = [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([k, v]) => ({
         label: MOTIF_SEED_BY_KEY.get(k as never)?.label ?? k,
         value: v,
-        color: "var(--violet)",
+        color: "var(--violet-on)",
       }));
       return (
         <Card title={`Voice mix — dominant motif of posts published in the last ${weeks} weeks`}>
@@ -505,10 +505,10 @@ export async function ReportBlock({ block, workspaceId, weeks, canAct = true }: 
           ) : (
             <>
               <HBars rows={[
-                { label: "Rewrite", value: byRec("rewrite"), color: "var(--amber)" },
-                { label: "Merge", value: byRec("merge"), color: "var(--blue)" },
-                { label: "Retire", value: byRec("retire"), color: "var(--rose)" },
-                { label: "Keep", value: byRec("keep"), color: "var(--green)" },
+                { label: "Rewrite", value: byRec("rewrite"), color: "var(--amber-on)" },
+                { label: "Merge", value: byRec("merge"), color: "var(--blue-on)" },
+                { label: "Retire", value: byRec("retire"), color: "var(--rose-on)" },
+                { label: "Keep", value: byRec("keep"), color: "var(--green-on)" },
               ]} />
               {open.length > 0 && open[0].slopScore != null && (
                 <p className="text-2xs text-[var(--mute)] mt-2">

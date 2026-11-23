@@ -146,7 +146,7 @@ export function ScriptEditor({ scriptId, initialBody, serverHash }: { scriptId: 
         <span className="text-xs font-mono text-[var(--mute)]">
           {/* suppressHydrationWarning on both counts: viewer-locale grouping,
               intended, and a React #418 without it (audit A2). */}
-          <b className={words >= MAX_WORDS ? "text-[var(--brand)]" : ""} suppressHydrationWarning>{words.toLocaleString()}</b> /{" "}
+          <b className={words >= MAX_WORDS ? "text-[var(--brand-on)]" : ""} suppressHydrationWarning>{words.toLocaleString()}</b> /{" "}
           <span suppressHydrationWarning>{MAX_WORDS.toLocaleString()}</span> words · {dur}
         </span>
         <div className="flex-1 min-w-[40px] h-1.5 rounded-full bg-[var(--line)] overflow-hidden">
@@ -198,7 +198,7 @@ export function ScriptEditor({ scriptId, initialBody, serverHash }: { scriptId: 
       {improveOpen && selection && (
         <div className="fixed inset-0 bg-black/40 z-50 grid place-items-center p-4" onClick={() => !pending && setImproveOpen(false)}>
           <div className="card max-w-lg w-full" onClick={(e) => e.stopPropagation()}>
-            <h3 className="font-mono font-bold mb-1 flex items-center gap-2"><Sparkles className="w-4 h-4" style={{ color: "var(--accent)" }} /> Improve this passage</h3>
+            <h3 className="font-mono font-bold mb-1 flex items-center gap-2"><Sparkles className="w-4 h-4" style={{ color: "var(--accent-on)" }} /> Improve this passage</h3>
             <p className="text-xs text-[var(--mute)] mb-2">{selection.end - selection.start} chars selected</p>
             <div className="bg-[var(--zebra)] rounded-md p-2.5 mb-3 text-xs font-mono max-h-32 overflow-auto whitespace-pre-wrap">
               {body.slice(selection.start, selection.end)}
@@ -223,7 +223,7 @@ export function ScriptEditor({ scriptId, initialBody, serverHash }: { scriptId: 
             >
               <div className="flex flex-wrap gap-1.5">
                 {QUICK_INSTRUCTIONS.map((q) => (
-                  <button key={q} type="button" onClick={() => setInstruction(q)} className="text-2xs font-mono px-2 py-1 rounded-md border border-[var(--line-2)] hover:border-[var(--accent)] hover:text-[var(--accent)]">{q}</button>
+                  <button key={q} type="button" onClick={() => setInstruction(q)} className="text-2xs font-mono px-2 py-1 rounded-md border border-[var(--line-2)] hover:border-[var(--accent)] hover:text-[var(--accent-on)]">{q}</button>
                 ))}
               </div>
               <input

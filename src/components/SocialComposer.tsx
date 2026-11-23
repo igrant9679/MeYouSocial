@@ -1045,7 +1045,7 @@ export function SocialComposer({
                   )}
                   <span className="flex-1" />
                   <WithTip text={SOCIAL_TIPS.customize} side="left" wide>
-                    <button type="button" onClick={() => toggleCustom(p)} className="text-2xs font-semibold inline-flex items-center gap-1" style={{ color: "var(--accent)" }}>
+                    <button type="button" onClick={() => toggleCustom(p)} className="text-2xs font-semibold inline-flex items-center gap-1" style={{ color: "var(--accent-on)" }}>
                       {isCustom ? <><RotateCcw className="w-3 h-3" /> Use base</> : <><Pencil className="w-3 h-3" /> Customize</>}
                     </button>
                   </WithTip>

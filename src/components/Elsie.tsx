@@ -366,7 +366,8 @@ export function Elsie({
           {outstanding > 0 && (
             <span
               className="absolute -top-0.5 -right-0.5 min-w-[17px] h-[17px] px-1 rounded-full text-micro font-mono font-bold grid place-items-center"
-              style={{ background: "var(--amber-on)", color: "white" }}
+              // --bg, not white: --amber-on is dark in light mode and light in dark mode (check-contrast).
+              style={{ background: "var(--amber-on)", color: "var(--bg)" }}
               title={`${outstanding} setup step${outstanding === 1 ? "" : "s"} outstanding`}
             >
               {outstanding}

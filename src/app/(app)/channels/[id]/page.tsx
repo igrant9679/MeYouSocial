@@ -48,7 +48,7 @@ export default async function ChannelHomePage({ params }: { params: Promise<{ id
 
       <section className="card lg:col-span-3">
         <h2 className="font-mono text-sm mb-3">Recent ideas</h2>
-        {recentIdeas.length === 0 && <p className="text-sm text-[var(--mute)]">No ideas yet. <Link href={`/ideas?channel=${id}`} className="text-[var(--accent)] font-semibold">Generate some →</Link></p>}
+        {recentIdeas.length === 0 && <p className="text-sm text-[var(--mute)]">No ideas yet. <Link href={`/ideas?channel=${id}`} className="text-[var(--accent-on)] font-semibold">Generate some →</Link></p>}
         <ul className="m-0 p-0 grid grid-cols-1 md:grid-cols-2 gap-x-6">
           {recentIdeas.map((i) => (
             <li key={i.id} className="border-t border-[var(--line)] py-2 flex items-center gap-3 text-sm">

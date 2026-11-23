@@ -79,7 +79,7 @@ export default async function UserSettingsPage({ searchParams }: { searchParams:
   return (
     <div className="w-full">
       <div className="flex items-center gap-3 mb-5">
-        <span className="w-12 h-12 rounded-2xl text-white grid place-items-center font-mono font-bold text-lg" style={{ background: "linear-gradient(135deg,var(--brand),var(--violet))" }}>
+        <span className="w-12 h-12 rounded-2xl text-white grid place-items-center font-mono font-bold text-lg" style={{ background: "linear-gradient(135deg,var(--accent-strong),var(--violet))" }}>
           {(user.name ?? user.email).slice(0, 2).toUpperCase()}
         </span>
         <div>
@@ -143,7 +143,7 @@ export default async function UserSettingsPage({ searchParams }: { searchParams:
       <section className="card mb-4" id="password">
         <h2 className="font-mono font-bold text-sm mb-3 flex items-center gap-2"><Lock className="w-4 h-4" style={{ color: "var(--amber-on)" }} /> Change password</h2>
         {flash(["wrongpass", "invalid", "mismatch", "password"])}
-        {error === "nopass" && <p className="text-sm text-[var(--brand)] mb-2">No password is set on this account. Use <Link href="/forgot" className="text-[var(--accent)] font-semibold">Forgot password</Link> instead.</p>}
+        {error === "nopass" && <p className="text-sm text-[var(--brand-on)] mb-2">No password is set on this account. Use <Link href="/forgot" className="text-[var(--accent-on)] font-semibold">Forgot password</Link> instead.</p>}
         <form action={changePasswordAction} className="flex flex-col gap-3">
           <PasswordInput label="Current password" name="current" autoComplete="current-password" />
           <PasswordInput label="New password (8+ chars)" name="next" autoComplete="new-password" minLength={8} />

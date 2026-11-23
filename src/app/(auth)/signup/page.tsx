@@ -141,7 +141,7 @@ export default async function SignUpPage({ searchParams }: { searchParams: Promi
             can&apos;t find it, an admin of your workspace can copy it for you from Settings → People.
           </p>
         )}
-        {message && <p className="text-sm text-[var(--brand)] mb-3" role="alert">{message}</p>}
+        {message && <p className="text-sm text-[var(--brand-on)] mb-3" role="alert">{message}</p>}
         {showForm ? (
           <form action={signupAction} className="flex flex-col gap-3">
             {pendingInvite && <input type="hidden" name="invite" value={invite} />}
@@ -154,7 +154,7 @@ export default async function SignUpPage({ searchParams }: { searchParams: Promi
           <Link href="/signin" className="btn primary">Sign in</Link>
         )}
         <p className="text-xs text-[var(--mute)] mt-4 text-center">
-          Already have an account? <Link href={invite ? `/signin?next=${encodeURIComponent(`/invitations/${invite}`)}` : "/signin"} className="text-[var(--accent)] font-semibold">Sign in</Link>
+          Already have an account? <Link href={invite ? `/signin?next=${encodeURIComponent(`/invitations/${invite}`)}` : "/signin"} className="text-[var(--accent-on)] font-semibold">Sign in</Link>
         </p>
       </div>
     </div>

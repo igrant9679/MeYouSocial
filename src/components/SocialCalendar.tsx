@@ -489,7 +489,7 @@ export function SocialCalendar({ posts, freeSlots = [], articles = NO_ARTICLES, 
             <span key={prov} className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: networkFor(prov)?.color ?? "var(--mute)" }} />
           ))}
           {time && <span className="font-mono text-micro text-[var(--mute)]">{time}</span>}
-          <Link href={`/social/${p.id}/edit`} className="ml-auto text-[var(--mute)] hover:text-[var(--accent)]" title="Edit">
+          <Link href={`/social/${p.id}/edit`} className="ml-auto text-[var(--mute)] hover:text-[var(--accent-on)]" title="Edit">
             <Pencil className="w-2.5 h-2.5" />
           </Link>
         </div>

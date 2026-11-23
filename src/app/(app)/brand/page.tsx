@@ -111,7 +111,7 @@ export default async function BrandPage({ searchParams }: { searchParams: Promis
       </form>
 
       {/* ── App appearance (chrome) ─────────────────────────────────────── */}
-      <SectionHead icon={<Sparkles className="w-4 h-4" style={{ color: "var(--accent)" }} />} title="App appearance"
+      <SectionHead icon={<Sparkles className="w-4 h-4" style={{ color: "var(--accent-on)" }} />} title="App appearance"
         note="The accent colour and logo of the app itself, for everyone in this workspace." />
       <div className="card mb-6 flex items-center gap-3 flex-wrap">
         {logoUrl ? (

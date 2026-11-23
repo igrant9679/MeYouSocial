@@ -33,7 +33,7 @@ export default async function AdminChannelsPage() {
   return (
     <div>
       <div className="flex items-center gap-3 mb-4">
-        <span className="w-10 h-10 rounded-xl grid place-items-center" style={{ background: "var(--violet-soft)", color: "var(--violet)" }}>
+        <span className="w-10 h-10 rounded-xl grid place-items-center" style={{ background: "var(--violet-soft)", color: "var(--violet-on)" }}>
           <Layers className="w-5 h-5" strokeWidth={2.25} />
         </span>
         <div>
@@ -49,7 +49,7 @@ export default async function AdminChannelsPage() {
             <div className="flex items-center gap-3 mb-3">
               <span className="w-10 h-10 rounded-xl text-white grid place-items-center font-mono font-bold text-sm" style={{ background: c.accentColor ?? "var(--accent)" }}>{c.name.slice(0, 2).toUpperCase()}</span>
               <div className="flex-1 min-w-0">
-                <Link href={`/channels/${c.id}`} className="font-semibold hover:text-[var(--accent)]">{c.name}</Link>
+                <Link href={`/channels/${c.id}`} className="font-semibold hover:text-[var(--accent-on)]">{c.name}</Link>
                 <div className="text-xs text-[var(--mute)]">
                   {c._count.scripts} scripts · {c._count.ideas} ideas · {c._count.contentProjects} projects · {c._count.voiceProfiles} voices
                 </div>
