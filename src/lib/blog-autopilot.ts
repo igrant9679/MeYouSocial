@@ -930,6 +930,11 @@ export async function publishCore(workspaceId: string, postId: string, opts: { u
         adoptedExisting: Boolean(adopted),
       },
     });
+    // Article Social Share: a first publish (not an update or a refresh of a live page) may be announced.
+    if (status === "publish" && !isUpdate && !isRefresh) {
+      const { queueArticleShare } = await import("@/lib/social/article-share");
+      await queueArticleShare(workspaceId, post.id);
+    }
     settled = true;
     return true;
   } finally {
@@ -1050,6 +1055,10 @@ export async function publishWordPressDraftCore(workspaceId: string, postId: str
     }
     await db.blogPost.update({ where: { id: post.id }, data: { status: "published", publishedAt: new Date(), publishedUrl: after.link || null } });
     await writeAudit({ workspaceId, action: "blog.published_wordpress", entityType: "blog_post", entityId: post.id, meta: { wpPostId: post.wpPostId, link: after.link, via: "draft hand-off" } });
+    if (after.link) {
+      const { queueArticleShare } = await import("@/lib/social/article-share");
+      await queueArticleShare(workspaceId, post.id);
+    }
     return { ok: true, link: after.link };
   } catch (e) {
     await db.blogPost.updateMany({ where: { id: post.id, status: "publishing" }, data: { status: "final_approval" } });

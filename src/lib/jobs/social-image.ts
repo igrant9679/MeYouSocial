@@ -30,7 +30,9 @@ export function registerSocialImageJobs() {
   if (registered) return;
   registered = true;
 
-  jobs.register<{ postId: string }>("social.autoimage", async ({ postId }, ctx) => {
+  // `headline`: the branded frame's headline when the caller knows a better one than a model would write — an
+  // article share passes the article's title.
+  jobs.register<{ postId: string; headline?: string }>("social.autoimage", async ({ postId, headline }, ctx) => {
     await ctx.progress(0.1);
     const post = await db.socialPost.findUnique({
       where: { id: postId },
@@ -64,7 +66,7 @@ export function registerSocialImageJobs() {
     // instead of paying for another.
     const img = await ctx.once("social:render", async () => {
       const { renderPostImage } = await import("@/lib/social/post-image");
-      const r = await renderPostImage({ workspaceId: post.workspaceId, provider, text: post.text, aspect, campaign: post.campaign?.name ?? null });
+      const r = await renderPostImage({ workspaceId: post.workspaceId, provider, text: post.text, aspect, campaign: post.campaign?.name ?? null, headline: headline ?? null, headlineFrom: "article" });
       return { key: r.key as string | null, provider: r.provider, style: r.style, frame: r.frame, frameNote: r.frameNote, headlineBy: r.headlineBy };
     });
     if (!img.key) return; // defensive: only real, stored bytes get attached

@@ -129,6 +129,9 @@ export async function linkUnmatchedPageAction(formData: FormData) {
   await writeAudit({ workspaceId: workspace.id, actorId: membership.userId, action: "analytics.url_linked", entityType: "blog_post", entityId: post.id, meta: { url } });
   const { forgetUnmatched, urlKey } = await import("@/lib/analytics/sync");
   await forgetUnmatched(workspace.id, urlKey(url)).catch(() => undefined);
+  // Article Social Share: only an article that went live recently is shared by itself (the job checks).
+  const { queueArticleShare } = await import("@/lib/social/article-share");
+  await queueArticleShare(workspace.id, post.id);
   revalidatePath("/admin/analytics");
   back(`Linked ${url} to “${post.title}”. The next sync (or Sync now) attaches its numbers.`, true);
 }

@@ -3412,3 +3412,37 @@ posts LSI, CommunityForce and EDG make by hand.
   `/api/social/frame-sample` on a stand-in picture with the workspace's own logo, colours and handle (members only,
   nothing rendered by a model, nothing stored). Automation's auto-image line points there.
 - Not framed: uploads, library images and videos. The send-time watermark is separate and still the author's choice.
+
+## ⚠ Article Social Share: one post per article, when it goes live, as the dial says (2026-11-23, the owner's "an Article Social Share function that, optionally, shares out blog articles after they're posted/published")
+
+- **The dial**: `social:article_share` = off (default, unset) · draft · queue · now, under Settings → Automation
+  (`lib/social/article-share-options.ts`). Off really is off: `queueArticleShare` enqueues nothing.
+- **When**: every place an article gets its live link calls `queueArticleShare` (best effort, never throws): the
+  WordPress publish (a first publish only — not an update or a refresh), the draft hand-off's publish, Mark published
+  (not a refresh), Add live link, Search Console's "link this page", and Elsie's mark-published tool. A new place that
+  sets `publishedUrl` must call it too. The durable job `social.article_share` runs `autoShareArticle` once
+  (`ctx.once`).
+- **⚠ The window**: only an article whose `publishedAt` is within `AUTO_SHARE_WINDOW_DAYS` (7) is shared by itself.
+  Add live link on CommunityForce's months-old articles must not announce them as new. A person's **Share it now** has
+  no window.
+- **⚠ One per article**: the record is a SocialIdea with `source: "share"` and `sourceBlogPostId`. Any such idea —
+  drafted, rejected (a failed write keeps the reason), or skipped by a person ("Don't share this one") — stops the
+  automatic share for good. A person's Share it now may replace a skip; the engine never does.
+- **One writer**: the post is written by `writeArticleShare` → `writePostFromIdea` (`lib/social/drafting.ts`): the
+  brand's voice and guardrails, the article's link at the end, the house hashtags, connected text-capable accounts. Its
+  `placement` decides the rest: draft · the next free slot · scheduled two minutes out (`timeChosen`, so the picture
+  lands first and the minute sweep sends it). ⚠ **Approval wins**: under Require approval the engine's share is
+  `pending` and stays a draft whatever the dial. Shares audit as `social.article_shared` (with `placement`, `status`,
+  `article`), so they never count against the weekly autogen quota, and they never join the autogen campaign. The weekly
+  sweep's idea pick excludes `source: "share"`.
+- **The picture**: the auto-image job gets `headline` = the article's title, so a framed image says what the article is
+  called (`headlineFrom: "article"` in its audit row).
+- **By hand**: the article's Distribute tab card **Share on social**. Live with a link: the share's state (posted ·
+  sending · going out at … · waiting for approval · a draft · deleted · skipped · being written) and **Share it now**
+  (editors; always a DRAFT, then opens `/social/{id}/edit`). At final approval (or publishing), while the dial is on:
+  what will happen when it goes live, **Don't share this one** (a skip recorded in advance) and **Share it when it goes
+  live** (removes the skip). ⚠ Skipping belongs BEFORE the publish: once it's live the job has already run. Articles
+  live before the dial was turned on aren't shared retroactively.
+- **Being written**: an approved share idea with no post yet is `writing`; past 15 minutes (a killed container) it
+  reads as skipped, so the engine leaves it and a person's Share it now replaces it.
+- The Ideas board shows a share as "shares the article: …"; `SOURCE_LABEL.share` names it in an idea's history.

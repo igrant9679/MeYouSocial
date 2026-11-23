@@ -10,6 +10,7 @@ import { GOVERNED_FUNCTIONS, FUNCTION_LABELS, MODES, getModes, isGloballyPaused 
 import { SubmitButton } from "@/components/SubmitButton";
 import { Banner } from "@/components/SocialPostCard";
 import { runAutopilotNowAction, setFunctionModeAction, toggleGlobalPauseAction, unscheduleAllSocialAction, saveWeeklyArticleTargetAction, toggleAutoSeoAction, toggleFullAutonomyAction } from "@/app/actions/blog-governance";
+import { ARTICLE_SHARE_KEY, AUTO_SHARE_WINDOW_DAYS, SHARE_MODES, parseShareMode, shareModeLabel } from "@/lib/social/article-share-options";
 import { saveSocialWorkflowSettingsAction } from "@/app/actions/social-workflow";
 import { pauseSocialQueueAction, resumeSocialQueueAction } from "@/app/actions/social-queue-pause";
 import { socialQueuePause, missedWhilePaused } from "@/lib/social/queue-pause";
@@ -40,7 +41,7 @@ export default async function SetupAutomation({ searchParams }: { searchParams: 
   const { workspace, membership } = await requireMembership();
   const { ok, err, confirmUnschedule } = await searchParams;
   const admin = canAdmin(membership.role);
-  const [modes, paused, lastCycle, weeklyArticles, publishDay, autoSeoRaw, autonomy, queue, campaigns, autoQueue, evergreenFill, autoImage, autogenOn, autogenWeekly, autogenCampaign, socialGate, socialSource] = await Promise.all([
+  const [modes, paused, lastCycle, weeklyArticles, publishDay, autoSeoRaw, autonomy, queue, campaigns, autoQueue, evergreenFill, autoImage, autogenOn, autogenWeekly, autogenCampaign, socialGate, socialSource, articleShare] = await Promise.all([
     getModes(workspace.id),
     isGloballyPaused(workspace.id),
     db.auditLog.findFirst({ where: { workspaceId: workspace.id, action: { in: ["autopilot.cycle", "autopilot.manual_run"] } }, orderBy: { createdAt: "desc" } }),
@@ -59,6 +60,7 @@ export default async function SetupAutomation({ searchParams }: { searchParams: 
     getSetting("social:autogen_campaign", workspace.id).catch(() => ""),
     getSetting("ideas:social_gate", workspace.id).catch(() => "").then((v) => (v === "human" ? "human" : "auto")),
     getSetting("social:source", workspace.id).catch(() => "").then((v) => (v === "rotation" ? "rotation" : "ideas")),
+    getSetting(ARTICLE_SHARE_KEY, workspace.id).catch(() => "").then(parseShareMode),
   ]);
   const autoSeo = autoSeoRaw !== "false";
   const intervalMin = Math.max(5, parseInt(process.env.AUTOPILOT_INTERVAL_MIN ?? "30", 10) || 30);
@@ -78,7 +80,7 @@ export default async function SetupAutomation({ searchParams }: { searchParams: 
     // E-ENG-04: the week's cycles, newest first.
     db.engineCycle.findMany({ where: { workspaceId: workspace.id, at: { gte: new Date(requestNow() - KEEP_DAYS * 86_400_000) } }, orderBy: { at: "desc" }, take: 3000, select: { at: true, skipped: true, budgetReached: true, activity: true, failed: true, report: true } }).catch(() => []),
     // E-SET-05: who last changed each dial here, and from what.
-    lastSettingChanges(workspace.id, [AUTONOMY_KEY, "autopilot:weekly_articles", "autopilot:publish_day", "blog:auto_seo", "social:autoqueue", "social:evergreen_fill", "social:auto_image", "social:autogen", "social:autogen_weekly", "social:autogen_campaign", "ideas:social_gate", "social:source"]).catch(() => new Map()),
+    lastSettingChanges(workspace.id, [AUTONOMY_KEY, "autopilot:weekly_articles", "autopilot:publish_day", "blog:auto_seo", "social:autoqueue", "social:evergreen_fill", "social:auto_image", "social:autogen", "social:autogen_weekly", "social:autogen_campaign", "ideas:social_gate", "social:source", ARTICLE_SHARE_KEY]).catch(() => new Map()),
     lastModeChanges(workspace.id).catch(() => new Map()),
   ]);
   const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
@@ -300,6 +302,20 @@ export default async function SetupAutomation({ searchParams }: { searchParams: 
               <input type="checkbox" name="autoImage" defaultChecked={autoImage} className="mt-0.5" />
               <span><b>Auto-generate an image</b> for any post composed without one (the image provider&apos;s per-image fee applies). Your own attachments always win. Its style and branded frame are under <Link href="/brand#post-images" className="underline">Brand → Post images</Link>.{note("social:auto_image", (v) => (v === "false" ? "off" : "on"))}</span>
             </label>
+            {/* Article Social Share (2026-11-23). The select is a SIBLING of the text, never inside a label with a checkbox. */}
+            <div className="flex items-start gap-2 text-xs" data-article-share>
+              <b className="whitespace-nowrap">Share new articles.</b>
+              <span className="flex-1">
+                When an article goes live on your site, write one post announcing it, with its link:{" "}
+                <select key={`articleShare:${articleShare}`} name="articleShare" defaultValue={articleShare} aria-label="Share new articles"
+                  className="border border-[var(--line-2)] rounded px-1 py-0.5 text-xs">
+                  {SHARE_MODES.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
+                </select>
+                {" "}<span className="text-[var(--mute)]">{SHARE_MODES.find((m) => m.id === articleShare)?.blurb}</span>{" "}
+                Only articles that went live in the last {AUTO_SHARE_WINDOW_DAYS} days are shared by themselves, once each, and posts still wait for approval when it&apos;s required. Articles already live when you turn it on aren&apos;t shared by themselves. An article&apos;s Distribute tab has <b>Don&apos;t share this one</b> while it waits at final approval, and <b>Share it now</b> once it&apos;s live.
+                {note(ARTICLE_SHARE_KEY, (v) => shareModeLabel(parseShareMode(v)).toLowerCase())}
+              </span>
+            </div>
             <div className="flex items-start gap-2 text-xs">
               <label className="inline-flex items-start gap-2 cursor-pointer">
                 <input type="checkbox" name="autogen" defaultChecked={autogenOn} className="mt-0.5" />

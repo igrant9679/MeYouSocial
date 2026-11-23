@@ -90,6 +90,11 @@ import { checkLiveSocialTagsAction, publishToWordPressAction, pushSeoMetaAction 
 import type { LiveHead } from "@/lib/live-head";
 import { markPublishedManuallyAction } from "@/app/actions/blog-export";
 import { AddLiveLink } from "@/components/AddLiveLink";
+import { shareArticleNowAction, skipArticleShareAction, unskipArticleShareAction } from "@/app/actions/article-share";
+import { shareStateFor } from "@/lib/social/article-share";
+import { ARTICLE_SHARE_KEY, AUTO_SHARE_WINDOW_DAYS, parseShareMode, shareModeLabel } from "@/lib/social/article-share-options";
+import { getSetting as readSetting } from "@/lib/settings";
+import { daysAgo } from "@/lib/request-time";
 import {
   deleteSocialVariantAction,
   generateSocialVariantsAction,
@@ -187,6 +192,17 @@ export default async function BlogPostPage({
 
   const editor = canEdit(membership.role);
   const admin = canAdmin(membership.role);
+  // Article Social Share (2026-11-23): what became of this article's share, and the workspace's dial.
+  // Shown when it's live with a link (what became of the share), and while it waits to go live (skip it in advance).
+  const shareLive = post.status === "published" && Boolean(post.publishedUrl);
+  const shareSoon = post.status === "final_approval" || post.status === "publishing";
+  const [share, shareMode] = shareLive || shareSoon
+    ? await Promise.all([
+        shareStateFor(workspace.id, post.id).catch(() => null),
+        readSetting(ARTICLE_SHARE_KEY, workspace.id).catch(() => "").then(parseShareMode),
+      ])
+    : [null, parseShareMode("")];
+  const shareInWindow = post.publishedAt != null && post.publishedAt.getTime() >= daysAgo(AUTO_SHARE_WINDOW_DAYS).getTime();
   const idx = FLOW.indexOf(post.status as (typeof FLOW)[number]);
   const nextIsPublish = FLOW[idx + 1] === "published";
   // A refresh of an article published by hand goes out by hand, even with a
@@ -650,6 +666,76 @@ export default async function BlogPostPage({
                 {admin ? " Paste the address of the page where it's live." : " An admin can add it here."}
               </p>
               {admin && <AddLiveLink postId={post.id} back="editor" />}
+            </div>
+          )}
+        </div>
+      )}
+
+      {share && (
+        // Article Social Share (2026-11-23): one post announcing the article, by the dial or by hand.
+        <div className="card mb-4 text-xs flex flex-col gap-1.5" data-article-share={share.state}>
+          <div className="flex items-center gap-2 flex-wrap">
+            <h3 className="text-xs font-semibold m-0">Share on social</h3>
+            <span className="text-[var(--mute)]">
+              New articles: {shareModeLabel(shareMode).toLowerCase()} (<Link href="/setup/automation" className="underline">Settings → Automation</Link>)
+            </span>
+          </div>
+          {share.state === "shared" ? (
+            <p className="m-0">
+              Shared as a social post — {
+                share.postStatus === "posted" ? "posted"
+                : share.postStatus === "publishing" ? "sending now"
+                : share.postStatus === "scheduled" && share.scheduledAt ? <>going out {formatInZone(share.scheduledAt, tz)} {tz}</>
+                : share.postStatus === "failed" || share.postStatus === "partial" ? "it didn't all go out"
+                : share.approval === "pending" ? "waiting for approval"
+                : share.postStatus ? "a draft waiting for someone to send it" : "the post was deleted"
+              }.{" "}
+              {share.socialPostId && <Link href={`/social/${share.socialPostId}`} className="underline">Open the post</Link>}
+            </p>
+          ) : share.state === "writing" ? (
+            <p className="m-0 text-[var(--mute)]">The post sharing it is being written now — reload in a moment.</p>
+          ) : !shareLive ? (
+            // Not live yet: what will happen when it is, and the chance to skip it.
+            <p className="m-0 text-[var(--mute)]">
+              {share.state === "skipped"
+                ? "It won't be shared when it goes live — someone chose to skip it."
+                : shareMode === "off"
+                  ? "Sharing new articles is off, so it won't be shared when it goes live."
+                  : `When it goes live, a post announcing it will be ${shareMode === "draft" ? "drafted for a person to send" : shareMode === "queue" ? "queued in the next free slot" : "posted within a few minutes"}.`}
+            </p>
+          ) : share.state === "skipped" ? (
+            <p className="m-0 text-[var(--mute)]">Not shared: {share.reason ?? "skipped"}</p>
+          ) : (
+            <p className="m-0 text-[var(--mute)]">
+              {shareMode === "off"
+                ? "Not shared. Sharing new articles is off, so this one is shared only if someone presses Share it now."
+                : shareInWindow
+                  ? `Not shared. New articles are ${shareMode === "draft" ? "drafted for a person" : shareMode === "queue" ? "queued" : "posted"} as they go live; one that went live before that was turned on isn't — press Share it now to share this one.`
+                  : `Not shared. It went live more than ${AUTO_SHARE_WINDOW_DAYS} days ago, so it isn't shared by itself.`}
+            </p>
+          )}
+          {editor && shareLive && (share.state === "none" || share.state === "skipped") && (
+            <div className="flex items-center gap-2 flex-wrap">
+              <form action={shareArticleNowAction}>
+                <input type="hidden" name="id" value={post.id} />
+                <SubmitButton className="btn sm primary" pendingText="Writing the post…">Share it now</SubmitButton>
+              </form>
+              <span className="text-2xs text-[var(--mute)]">Share it now writes the post as a draft and opens it, so you read it before it goes out.</span>
+            </div>
+          )}
+          {editor && !shareLive && shareMode !== "off" && (share.state === "none" || share.state === "skipped") && (
+            <div className="flex items-center gap-2 flex-wrap">
+              {share.state === "none" ? (
+                <form action={skipArticleShareAction}>
+                  <input type="hidden" name="id" value={post.id} />
+                  <SubmitButton className="btn sm" pendingText="Saving…">Don&apos;t share this one</SubmitButton>
+                </form>
+              ) : (
+                <form action={unskipArticleShareAction}>
+                  <input type="hidden" name="id" value={post.id} />
+                  <SubmitButton className="btn sm" pendingText="Saving…">Share it when it goes live</SubmitButton>
+                </form>
+              )}
             </div>
           )}
         </div>

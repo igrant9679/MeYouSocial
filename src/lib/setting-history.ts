@@ -25,7 +25,7 @@ const DEFAULTS: Record<string, string> = {
   "autonomy:full": "false", "blog:auto_seo": "true", "social:autoqueue": "false", "social:evergreen_fill": "false",
   "social:auto_image": "true", "social:autogen": "false", "social:autogen_weekly": "5", "social:autogen_campaign": "",
   "ideas:social_gate": "auto", "social:source": "ideas", "social:require_approval": "false",
-  "social:image_style": "editorial", "social:frame": "off", "social:frame_icons": "true",
+  "social:image_style": "editorial", "social:frame": "off", "social:frame_icons": "true", "social:article_share": "off",
 };
 const effective = (key: string, v: string | null) => (v ?? DEFAULTS[key] ?? "") || (DEFAULTS[key] ?? "");
 

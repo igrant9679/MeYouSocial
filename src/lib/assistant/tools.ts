@@ -989,6 +989,10 @@ export const TOOLS: Tool[] = [
       if (raw) { try { const u = new URL(raw); if (u.protocol === "http:" || u.protocol === "https:") url = u.toString(); } catch { /* ignore */ } if (!url) return "that live URL is not a web address"; }
       await db.blogPost.update({ where: { id: post.id }, data: { status: "published", publishedAt: new Date(), publishedUrl: url } });
       await writeAudit({ workspaceId: ctx.workspaceId, actorId: ctx.userId, action: "blog.published_manually", entityType: "blog_post", entityId: post.id, meta: { publishedUrl: url, via: "assistant" } });
+      if (url) {
+        const { queueArticleShare } = await import("@/lib/social/article-share");
+        await queueArticleShare(ctx.workspaceId, post.id);
+      }
       return `recorded "${post.title}" as published${url ? ` at ${url}` : ""}`;
     },
   },

@@ -48,6 +48,11 @@ export async function markPublishedManuallyAction(formData: FormData) {
     entityId: post.id,
     meta: { publishedUrl, via: "html export", ...(refresh ? { previousUrl: post.publishedUrl } : {}) },
   });
+  // Article Social Share: a first publish may be announced (a refresh of a live page isn't news).
+  if (!refresh) {
+    const { queueArticleShare } = await import("@/lib/social/article-share");
+    await queueArticleShare(workspace.id, post.id);
+  }
   revalidatePath("/publish");
   revalidatePath("/blog");
   revalidatePath(`/blog/${post.id}`);
@@ -91,6 +96,9 @@ export async function addLiveLinkAction(formData: FormData) {
   // Search Console may have listed the page as unmatched; it isn't now.
   const { forgetUnmatched, urlKey } = await import("@/lib/analytics/sync");
   await forgetUnmatched(workspace.id, urlKey(url)).catch(() => undefined);
+  // Article Social Share: only an article that went live recently is shared by itself (the job checks).
+  const { queueArticleShare } = await import("@/lib/social/article-share");
+  await queueArticleShare(workspace.id, post.id);
   revalidatePath("/publish");
   revalidatePath("/blog");
   revalidatePath(`/blog/${post.id}`);

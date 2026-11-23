@@ -41,6 +41,15 @@ export const CARD_MAX = 5;
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    id: "2026-11-23-article-share",
+    date: "2026-11-23",
+    title: "Share new articles on social automatically",
+    body: "When an article goes live, Publisher can write a post announcing it, with its link, and draft, queue or post it. Turn it on under Settings → Automation (Share new articles); an article's Distribute tab has Share it now once it's live, and Don't share this one before.",
+    href: "/setup/automation",
+    cta: "Open Settings → Automation",
+    admin: true,
+  },
+  {
     id: "2026-11-23-post-images",
     date: "2026-11-23",
     title: "Post images: pick a style, add your branding",

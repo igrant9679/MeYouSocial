@@ -278,6 +278,10 @@ export async function saveSocialWorkflowSettingsAction(formData: FormData) {
   // The social idea gate (Topics as the spine): auto | human. Absent = auto.
   const socialGate = String(formData.get("socialGate") ?? "") === "human" ? "human" : "auto";
   await setWorkspaceSetting(workspace.id, "ideas:social_gate", socialGate);
+  // Article Social Share (2026-11-23): off | draft | queue | now. Absent = off.
+  const { ARTICLE_SHARE_KEY, parseShareMode, shareModeLabel } = await import("@/lib/social/article-share-options");
+  const articleShare = parseShareMode(String(formData.get("articleShare") ?? ""));
+  await setWorkspaceSetting(workspace.id, ARTICLE_SHARE_KEY, articleShare === "off" ? "" : articleShare);
   // Rollback dial: the page only offers "Use ideas" when the workspace is on
   // rotation; the rotation itself is set by an operator (a script or a DB
   // row), never from this form, so nobody switches a feed back by accident.
@@ -287,7 +291,7 @@ export async function saveSocialWorkflowSettingsAction(formData: FormData) {
   revalidatePath("/social", "layout");
   revalidatePath("/ideas", "layout");
   backTo(
-    `Auto-queue on approval ${autoqueue ? "on" : "off"} · evergreen fill ${evergreen ? "on" : "off"} · auto-image ${autoImage ? "on" : "off"} · auto-generate ${autogen ? `${autogenWeekly}/week` : "off"} · social ideas ${socialGate === "human" ? "wait for a person" : "approve themselves"}.`,
+    `Auto-queue on approval ${autoqueue ? "on" : "off"} · evergreen fill ${evergreen ? "on" : "off"} · auto-image ${autoImage ? "on" : "off"} · auto-generate ${autogen ? `${autogenWeekly}/week` : "off"} · social ideas ${socialGate === "human" ? "wait for a person" : "approve themselves"} · new articles: ${shareModeLabel(articleShare).toLowerCase()}.`,
     "ok",
   );
 }

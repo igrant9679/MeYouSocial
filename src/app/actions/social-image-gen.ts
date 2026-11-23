@@ -30,7 +30,7 @@ import type { FrameLayout } from "@/lib/social/frame";
 export type ComposerImageResult =
   | {
       ok: true; key: string; url: string; provider: string; width: number; height: number;
-      style: ImageStyleId; frame: FrameLayout; headline: string | null; headlineBy: "ai" | "post" | "person" | null;
+      style: ImageStyleId; frame: FrameLayout; headline: string | null; headlineBy: "ai" | "post" | "person" | "article" | null;
       baseKey: string; note: string | null;
     }
   | { ok: false; error: string };

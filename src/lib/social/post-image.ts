@@ -161,7 +161,7 @@ export type PostImageResult = {
   /** Set when a frame was wanted and isn't there. */
   frameNote: string | null;
   headline: string | null;
-  headlineBy: "ai" | "post" | "person" | null;
+  headlineBy: "ai" | "post" | "person" | "article" | null;
   /** The picture without its frame, for changing the headline later. Same as `key` when unframed. */
   baseKey: string;
 };
@@ -181,6 +181,8 @@ export async function renderPostImage(opts: {
   style?: string | null;
   frame?: boolean;
   headline?: string | null;
+  /** Who gave `headline`: a person (Compose), or an article share (its title). */
+  headlineFrom?: "person" | "article";
 }): Promise<PostImageResult> {
   const { workspaceId } = opts;
   const [style, details] = await Promise.all([resolveStyle(workspaceId, opts.style), frameDetails(workspaceId)]);
@@ -213,6 +215,6 @@ export async function renderPostImage(opts: {
     key: framed.key, url: framed.url, width: framed.width, height: framed.height,
     frame: framed.layout,
     headline: frameHasHeadline(framed.layout) ? headline : null,
-    headlineBy: frameHasHeadline(framed.layout) ? (ownHeadline ? "person" : written?.by ?? null) : null,
+    headlineBy: frameHasHeadline(framed.layout) ? (ownHeadline ? opts.headlineFrom ?? "person" : written?.by ?? null) : null,
   };
 }

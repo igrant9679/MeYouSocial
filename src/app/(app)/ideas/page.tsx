@@ -833,6 +833,7 @@ function SocialCard({ idea, editor, topics, select, dup, back }: { idea: SocialR
   const live = idea.status !== "drafted";
   const source =
     idea.source === "article" && idea.sourceBlogPost ? { label: `from article: ${idea.sourceBlogPost.title}`, href: `/blog/${idea.sourceBlogPost.id}` }
+    : idea.source === "share" && idea.sourceBlogPost ? { label: `shares the article: ${idea.sourceBlogPost.title}`, href: `/blog/${idea.sourceBlogPost.id}` }
     : idea.source === "research" && idea.sourceVideo ? { label: `from research: ${idea.sourceVideo.title}`, href: `/intel/videos/${idea.sourceVideo.id}` }
     : idea.source === "rss" && idea.sourceUrl ? { label: `from a feed: ${(() => { try { return new URL(idea.sourceUrl).hostname.replace(/^www\./, ""); } catch { return "link"; } })()}`, href: idea.sourceUrl }
     : idea.source === "discovered" ? { label: "discovered", href: null }

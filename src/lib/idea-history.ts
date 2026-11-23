@@ -55,6 +55,7 @@ export const SOURCE_LABEL: Record<string, string> = {
   seasonal: "a seasonal suggestion",
   research: "made from research",
   article: "an angle from a published article",
+  share: "the share of a newly published article",
   rss: "from a feed",
   import: "imported from a spreadsheet",
   finding: "made from an article's finding",

@@ -46,7 +46,9 @@ export async function draftSocialIdeasForWorkspace(workspaceId: string): Promise
   if (thisWeek >= target) return false;
 
   const idea = await db.socialIdea.findFirst({
-    where: { workspaceId, status: "approved", socialPostId: null },
+    // An article's share is written by its own path the moment it's made (lib/social/article-share.ts), never by the
+    // weekly sweep — not even in the instant between the two.
+    where: { workspaceId, status: "approved", socialPostId: null, source: { not: "share" } },
     orderBy: [{ priority: "desc" }, { approvedAt: "asc" }, { createdAt: "asc" }],
     include: IDEA_INCLUDE,
   });
@@ -77,6 +79,29 @@ export async function draftSocialIdeaNow(
   }
 }
 
+/**
+ * Article Social Share (lib/social/article-share.ts): the share idea for a published article, written now and placed
+ * as asked. Not held to `social:autogen` or the weekly quota — the share dial (or a person) asked for this one post.
+ */
+export async function writeArticleShare(
+  workspaceId: string,
+  ideaId: string,
+  opts: { placement: "draft" | "queue" | "now"; actor: { id: string; role: string } | null; headline?: string | null },
+): Promise<DraftResult> {
+  const idea = await db.socialIdea.findFirst({
+    where: { id: ideaId, workspaceId, status: "approved", socialPostId: null },
+    include: IDEA_INCLUDE,
+  });
+  if (!idea) return { ok: false, message: "That share has already been written." };
+  try {
+    return await writePostFromIdea(workspaceId, idea, {
+      actorId: opts.actor?.id ?? null, role: opts.actor?.role ?? null, placement: opts.placement, headline: opts.headline ?? null, share: true,
+    });
+  } catch (e) {
+    return { ok: false, message: e instanceof Error ? e.message : String(e) };
+  }
+}
+
 const IDEA_INCLUDE = {
   topic: { select: { id: true, name: true, keywords: true } },
   sourceBlogPost: { select: { id: true, title: true, publishedUrl: true } },
@@ -88,7 +113,19 @@ type DraftResult = { ok: true; postId: string } | { ok: false; message: string }
 async function writePostFromIdea(
   workspaceId: string,
   idea: Prisma.SocialIdeaGetPayload<{ include: typeof IDEA_INCLUDE }>,
-  who: { actorId: string | null; role: string | null },
+  who: {
+    actorId: string | null;
+    role: string | null;
+    /**
+     * Article Social Share (lib/social/article-share.ts): where the post goes — a draft, the next free slot, or out in a
+     * couple of minutes (time for its picture). Absent = the old rule: the engine queues, a person gets a draft.
+     */
+    placement?: "draft" | "queue" | "now";
+    /** The frame's headline for the post's auto-image (a share's is the article's title). */
+    headline?: string | null;
+    /** A share: its own audit action, so it never counts against the weekly autogen quota, and no autogen campaign. */
+    share?: boolean;
+  },
 ): Promise<DraftResult> {
   const accounts = await db.zernioAccount.findMany({ where: { workspaceId, status: "connected" } });
   const targets = accounts.filter((a) => !networkFor(a.platform)?.requiresMedia);
@@ -152,7 +189,7 @@ async function writePostFromIdea(
   const text = settleTagLine(res.content.trim().replace(/^["“]|["”]$/g, ""), { count: tagCount, house, limit });
 
   const campaignRaw = (await getSetting("social:autogen_campaign", workspaceId).catch(() => "")).trim();
-  const campaign = campaignRaw
+  const campaign = campaignRaw && !who.share
     ? await db.campaign.findFirst({ where: { id: campaignRaw, workspaceId, status: "active" }, select: { id: true } })
     : null;
 
@@ -162,11 +199,21 @@ async function writePostFromIdea(
   const approval = requireApproval ? (who.role === "ADMIN" ? "approved" : "pending") : null;
   let scheduledAt: Date | null = null;
   let status = "draft";
+  let timeChosen = false;
+  // A post waiting for approval can't be queued or sent, whatever asked for it.
+  const mayGo = approval !== "pending";
   // The engine queues what it writes; a person's Draft now stays a draft for
-  // them to read first.
-  if (!requireApproval && !who.actorId) {
+  // them to read first. A share says where it goes (draft · queue · now).
+  const queueIt = who.placement ? who.placement === "queue" && mayGo : !requireApproval && !who.actorId;
+  if (queueIt) {
     const claim = await claimNextFreeSlot(workspaceId, undefined, null);
     if (!("error" in claim)) { scheduledAt = claim.at; status = "scheduled"; }
+  }
+  if (who.placement === "now" && mayGo) {
+    // Two minutes: the auto-image job lands the picture first; the minute sweep sends it.
+    scheduledAt = new Date(Date.now() + 2 * 60_000);
+    status = "scheduled";
+    timeChosen = true;
   }
 
   const post = await db.socialPost.create({
@@ -179,7 +226,7 @@ async function writePostFromIdea(
       text,
       mediaKeys: "[]",
       scheduledAt,
-      timeChosen: false,
+      timeChosen,
       status,
       approval,
       targets: {
@@ -202,21 +249,23 @@ async function writePostFromIdea(
     return { ok: false, message: "That idea was drafted a moment ago by someone else." };
   }
   const { jobs } = await import("@/lib/jobs");
-  await jobs.enqueue("social.autoimage", { postId: post.id }, { refId: post.id, workspaceId });
+  await jobs.enqueue("social.autoimage", { postId: post.id, ...(who.headline ? { headline: who.headline } : {}) }, { refId: post.id, workspaceId });
 
   await writeAudit({
     workspaceId,
     actorId: who.actorId,
-    action: "social.post_generated",
+    action: who.share ? "social.article_shared" : "social.post_generated",
     entityType: "social_post",
     entityId: post.id,
-    meta: { topic: idea.topic?.name ?? null, ideaId: idea.id, source: idea.source, provider: res.provider, scheduled: Boolean(scheduledAt), via: who.actorId ? "draft now" : "sweep" },
+    meta: { topic: idea.topic?.name ?? null, ideaId: idea.id, source: idea.source, provider: res.provider, scheduled: Boolean(scheduledAt), via: who.share ? (who.actorId ? "share now" : "article share") : who.actorId ? "draft now" : "sweep", ...(who.placement ? { placement: who.placement, status } : {}), ...(idea.sourceBlogPost ? { article: idea.sourceBlogPost.id } : {}) },
   });
   if (approval === "pending") {
     await notify({
       workspaceId,
       kind: "approval_needed",
-      title: who.actorId ? "A social post was drafted from an idea — it needs approval" : "Autopilot drafted a social post — it needs approval",
+      title: who.share
+        ? "A post sharing a new article needs approval"
+        : who.actorId ? "A social post was drafted from an idea — it needs approval" : "Autopilot drafted a social post — it needs approval",
       body: text.slice(0, 140),
       path: "/social/approvals",
       entityType: "social_post",
