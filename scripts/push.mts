@@ -12,10 +12,11 @@
  *   npm run push -- --max-wait=30   minutes to wait for a running deploy (default 20)
  *   npm run push -- --no-wait       don't wait (a deploy you know is stuck); the fast-forward check still runs
  *
- * How it knows a deploy is running: Railway posts ONE commit status on the deploy repo when a deploy ends
- * (success or failure) and nothing while it builds. So the deploy remote's head having no status, and having
- * been pushed less than MAX_BUILD_MS ago (GitHub's activity API gives the push time), means a build is under
- * way. A final status must also be SETTLE_MS old, so the switch-over finishes before the next build starts.
+ * How it knows a deploy is running: Railway's commit status on the deploy repo reads "pending" while it
+ * deploys and "success" or "failure" when it ends (afterwards GitHub shows only the final one). A head that is
+ * pending, or has no status yet, and was pushed less than MAX_BUILD_MS ago (GitHub's activity API gives the
+ * push time) is a build under way. A final status must also be SETTLE_MS old, so the switch-over finishes
+ * before the next build starts.
  *
  * It never overwrites: both remotes must fast-forward to local main, so another session's commits are pulled
  * in first (`git pull --rebase <remote> main`), never pushed over. Run it from Bash with a long timeout or in
@@ -76,7 +77,8 @@ export function decide(o: {
     const state = o.status ? "is pending" : "has no status yet";
     return { go: false, why: `${short}'s deploy is still running (${what} ${ago(Math.max(0, age))} ago, ${state})`, recheckMs: POLL_MS };
   }
-  return { go: true, why: `${short} was ${what} ${ago(age)} ago and Railway never reported on it; not waiting longer` };
+  const silence = o.status ? "its deploy is still pending" : "Railway never reported on it";
+  return { go: true, why: `${short} was ${what} ${ago(age)} ago and ${silence}; not waiting longer` };
 }
 
 // ── the command ───────────────────────────────────────────────────────────────────────────────────────
@@ -131,9 +133,10 @@ async function main() {
   const maxWaitMs = Number(args.find((a) => a.startsWith("--max-wait="))?.split("=")[1] ?? 20) * 60_000;
 
   process.chdir(git("rev-parse", "--show-toplevel"));
-  const branch = git("symbolic-ref", "--short", "HEAD");
+  const branch = (spawnSync("git", ["symbolic-ref", "--short", "-q", "HEAD"], { encoding: "utf8" }).stdout ?? "").trim();
   if (branch !== "main") {
-    console.error(`On branch ${branch}. This pushes main only; switch to main first.`);
+    const where = branch ? `On branch ${branch}` : "HEAD is detached (a rebase or checkout in progress?)";
+    console.error(`${where}. This pushes main only; finish that and switch to main first.`);
     process.exit(1);
   }
   const slug = deploySlug();
