@@ -30,8 +30,16 @@ tokens) — read its Progress section, not the file. Go deeper only when the tas
 ## ⚠ Two repos — every push goes to BOTH
 
 ```bash
-git push origin main; git push deploy main:main
+npm run push        # from Bash with a long timeout, or in the background: a watched push takes ~4 min
 ```
+
+`npm run push` (`scripts/push.mts`, 2026-11-23) waits while Railway is still deploying the last push,
+then runs `git push origin main; git push deploy main:main`, then watches the new deploy until Railway
+posts its status. ⚠ Don't push by hand within a few minutes of another push: a push that lands while
+the previous deploy builds gets one of the two marked "Deployment failed" (cea7f51 on 11-01, 3306b23 on
+11-23, 34 s after another session's a0bebb3). It refuses when either remote has commits this checkout
+lacks (another session pushed: `git pull --rebase <remote> main` first). `--dry-run` says what it
+would do; `--no-watch` returns after the pushes; `--no-wait` skips the wait for a deploy known to be stuck.
 
 `origin` = `igrant9679/MeYouSocial` (canonical). `deploy` = `sgrant5724/spark`, which is what
 Railway actually builds from. Push only to `origin` and nothing deploys. The usernames are
