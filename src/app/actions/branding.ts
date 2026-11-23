@@ -6,6 +6,7 @@ import { requireRole } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { storage } from "@/lib/storage";
 import { writeAudit } from "@/lib/governance";
+import { sniffImageMime } from "@/lib/wordpress";
 
 // Per-company app-chrome branding (multi-tenant): accent color + logo, stored
 // on the Workspace row and applied by the app shell as CSS-token overrides.
@@ -54,8 +55,6 @@ export async function uploadWorkspaceLogoAction(formData: FormData) {
   redirect("/admin/settings?ok=logo");
 }
 
-const LOGO_EXT_TYPE: Record<string, string> = { ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp" };
-
 /**
  * "Copy branding from another of your workspaces" (2026-11-22, the owner's order that Demo
  * Workspace look like LSI Media; their choice: "Copy once").
@@ -82,11 +81,15 @@ export async function copyBrandingFromAction(formData: FormData) {
 
   let logoKey: string | null = null;
   if (from.logoKey) {
-    const ext = (from.logoKey.match(/\.(png|jpe?g|webp)$/i)?.[0] ?? "").toLowerCase();
-    const type = LOGO_EXT_TYPE[ext];
-    const bytes = type ? await storage.get(from.logoKey) : null;
-    if (!type || !bytes) redirect("/admin/settings?err=copy-logo");
-    logoKey = (await storage.put(`workspace-logo${ext === ".jpeg" ? ".jpg" : ext}`, bytes, type, workspace.id)).key;
+    // ⚠ The type comes from the BYTES, never the key: a Drive-stored file's key is
+    // `gdrive:<id>`, with no extension, and Drive is production's backend. Reading it off the
+    // key refused every logo there (2026-11-23, the first copy from LSI Media). The upload
+    // allowed raster types only (SEC-14); anything else is refused here too.
+    const bytes = await storage.get(from.logoKey);
+    const type = bytes ? sniffImageMime(bytes) : null;
+    const ext = type ? LOGO_TYPES[type] : undefined;
+    if (!bytes || !type || !ext) redirect("/admin/settings?err=copy-logo");
+    logoKey = (await storage.put(`workspace-logo${ext}`, bytes, type, workspace.id)).key;
   }
   await db.workspace.update({ where: { id: workspace.id }, data: { accentColor: from.accentColor, logoKey } });
   const meta = { accentColor: from.accentColor, logo: logoKey ? "copied" : "none" };
