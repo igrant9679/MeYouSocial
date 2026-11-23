@@ -872,7 +872,7 @@ export const HELP_CATEGORIES: FaqCategory[] = [
       },
       {
         q: "How do I add a link to a post?",
-        a: "Type or paste it into the text, or press **Add link** above the text: paste any address, or pick one of your published articles from the list. The link goes where your cursor was, or at the end (above a closing line of hashtags). Link tagging and “Move links from the caption to the first comment” apply to it when the post goes out. **Preview** shows the card the networks will make from it.",
+        a: "Type or paste it into the text, or press **Add link** above the text: paste any address, or pick one of your published articles from the list. The list offers only articles with a web address saved in Publisher (one published to your site through Publisher, or marked published with its live link), and says so when none has one. The link goes where your cursor was, or at the end (above a closing line of hashtags). Link tagging and “Move links from the caption to the first comment” apply to it when the post goes out. **Preview** shows the card the networks will make from it.",
         links: [{ label: "Open Compose →", href: "/social/compose" }],
         tags: ["link", "url", "article", "social", "card", "add link"],
       },

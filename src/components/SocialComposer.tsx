@@ -168,11 +168,14 @@ export function SocialComposer({
   utm,
   defaultAccountIds = [],
   articles = [],
+  unlinkedArticles = 0,
   avatarUrl = null,
   brandName = "",
 }: {
   /** The workspace's published articles, newest first, for "Add link". */
   articles?: ComposerArticle[];
+  /** With no article to offer: how many published articles have no live web address (the panel says why). */
+  unlinkedArticles?: number;
   /** The brand's logo, drawn as the accounts' picture in "Preview as posted". */
   avatarUrl?: string | null;
   brandName?: string;
@@ -725,6 +728,14 @@ export function SocialComposer({
                   ))}
                 </div>
               </div>
+            )}
+            {/* Why there's no list (2026-11-22): the picker offers only articles with a live web address saved. */}
+            {articles.length === 0 && (
+              <p className="text-2xs text-[var(--mute)] m-0" data-add-link-none>
+                {unlinkedArticles > 0
+                  ? `None of your ${unlinkedArticles === 1 ? "published article has" : `${unlinkedArticles} published articles have`} a web address in Publisher yet, so there's none to pick. An article gets one when it's published to your site through Publisher, or marked published with its live link.`
+                  : "Your published articles are offered here once one has a web address, so you can link to it in a click."}
+              </p>
             )}
             <p className="text-micro text-[var(--mute)] m-0">
               {utmCfg?.enabled ? "Tracking tags are added when the post goes out. " : ""}X, LinkedIn, Facebook and Threads turn a link into a card when the post has no picture —

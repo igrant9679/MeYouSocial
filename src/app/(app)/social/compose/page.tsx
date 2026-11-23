@@ -123,6 +123,7 @@ export default async function SocialComposePage({ searchParams }: { searchParams
         snippets={snippets}
         defaultAccountIds={defaultAccountIds}
         articles={extras.articles}
+        unlinkedArticles={extras.unlinkedArticles}
         avatarUrl={extras.avatarUrl}
         brandName={extras.brandName}
       />

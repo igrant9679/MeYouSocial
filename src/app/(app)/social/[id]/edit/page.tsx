@@ -170,6 +170,7 @@ export default async function EditSocialPostPage({ params }: { params: Promise<{
           optimal={optimal.ok ? { label: optimal.label, why: optimal.why } : { reason: optimal.reason }}
           snippets={await db.socialSnippet.findMany({ where: { workspaceId: workspace.id }, orderBy: { name: "asc" }, select: { id: true, name: true, body: true, category: true } })}
           articles={extras.articles}
+          unlinkedArticles={extras.unlinkedArticles}
           avatarUrl={extras.avatarUrl}
           brandName={extras.brandName}
         />
