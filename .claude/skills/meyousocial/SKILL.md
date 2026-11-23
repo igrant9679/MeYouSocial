@@ -184,7 +184,7 @@ Notifications (bell) carry holds and failures with a link. The **digest** (`dige
 
 **Answer a knowledge question.** Inbox or the article's Optimize tab → answer in your own words → it is woven into the article and banked in the Experts profile so it is asked once.
 
-**Publish without WordPress.** Articles → Download HTML (self-contained: meta, Open Graph, images embedded) → add to the site → Mark as published with the live URL. For social previews, upload the Open Graph image to the site and point `og:image` at its public URL (crawlers ignore embedded images). `?fragment=1` gives just the article body for a CMS block.
+**Publish without WordPress.** Articles → Download HTML (self-contained: meta, Open Graph, images embedded) → add to the site → Mark as published with the live URL. For social previews, upload the Open Graph image to the site and point `og:image` at its public URL (crawlers ignore embedded images). `?fragment=1` gives just the article body for a CMS block. An article already published with no live link (marked before the link was required) gets one from **Add live link** under Articles or on its Distribute tab (admins; never replaces a saved link; refuses an address another article has) — until then Compose's Add link can't offer it and analytics can't match it.
 
 **Add a competitor and mine it.** Research → Intel → add by @handle or keyword → outliers appear as videos index → Bookmarks for the ones to keep → "Make it an idea" or open the video and chat with it.
 

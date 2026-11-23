@@ -729,11 +729,12 @@ export function SocialComposer({
                 </div>
               </div>
             )}
-            {/* Why there's no list (2026-11-22): the picker offers only articles with a live web address saved. */}
+            {/* Why there's no list (2026-11-22): the picker offers only articles with a live web address saved;
+                since 2026-11-23 the note names Add live link, which saves a missing one. */}
             {articles.length === 0 && (
               <p className="text-2xs text-[var(--mute)] m-0" data-add-link-none>
                 {unlinkedArticles > 0
-                  ? `None of your ${unlinkedArticles === 1 ? "published article has" : `${unlinkedArticles} published articles have`} a web address in Publisher yet, so there's none to pick. An article gets one when it's published to your site through Publisher, or marked published with its live link.`
+                  ? `None of your ${unlinkedArticles === 1 ? "published article has" : `${unlinkedArticles} published articles have`} a web address in Publisher yet, so there's none to pick. An admin can add the address with Add live link, under Articles or on the article's Distribute tab, and it's offered here from then on.`
                   : "Your published articles are offered here once one has a web address, so you can link to it in a click."}
               </p>
             )}

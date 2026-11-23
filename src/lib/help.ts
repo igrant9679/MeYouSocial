@@ -872,7 +872,7 @@ export const HELP_CATEGORIES: FaqCategory[] = [
       },
       {
         q: "How do I add a link to a post?",
-        a: "Type or paste it into the text, or press **Add link** above the text: paste any address, or pick one of your published articles from the list. The list offers only articles with a web address saved in Publisher (one published to your site through Publisher, or marked published with its live link), and says so when none has one. The link goes where your cursor was, or at the end (above a closing line of hashtags). Link tagging and “Move links from the caption to the first comment” apply to it when the post goes out. **Preview** shows the card the networks will make from it.",
+        a: "Type or paste it into the text, or press **Add link** above the text: paste any address, or pick one of your published articles from the list. The list offers only articles with a web address saved in Publisher (one published to your site through Publisher, or marked published with its live link), and says so when none has one. An admin can add a missing address with **Add live link**, under Articles or on the article's **Distribute** tab. The link goes where your cursor was, or at the end (above a closing line of hashtags). Link tagging and “Move links from the caption to the first comment” apply to it when the post goes out. **Preview** shows the card the networks will make from it.",
         links: [{ label: "Open Compose →", href: "/social/compose" }],
         tags: ["link", "url", "article", "social", "card", "add link"],
       },
@@ -1147,6 +1147,12 @@ export const HELP_CATEGORIES: FaqCategory[] = [
         a: "On the **Articles** overview every article at final approval has **Download HTML**: a self-contained file with the meta title, description, canonical and Open Graph tags, a little CSS, and the article with its images embedded (the app's own image links need a session, so embedding keeps the file standing on its own). Add `?fragment=1` to the link for just the article body, for pasting into a CMS block. Once it's on your site, **Mark as published** with the live URL records it as published so social variants, analytics and the board move on. For social previews, upload the Open Graph image to your site and point og:image at its public URL — crawlers ignore embedded images.",
         links: [{ label: "Articles →", href: "/publish" }],
         tags: ["html", "export", "download", "wordpress", "manual", "mark as published"],
+      },
+      {
+        q: "An article is published but has no live link — how do I add it?",
+        a: "Articles marked published before the live link was required have no web address in Publisher, so Add link in the composer can't offer them and analytics can't match their page. An admin pastes the page's full address (https://…) into **Add live link** on the article's **Distribute** tab, on its row under **Recently published** on the Articles overview, or under **Published without a live link** for older ones. It's saved only for a published article that has no link yet. A saved link is never replaced from here. The site's home page, or an address another article already has, is refused. The date it went live stays as it was.",
+        links: [{ label: "Articles →", href: "/publish" }],
+        tags: ["live link", "url", "web address", "published", "add live link", "analytics", "add link"],
       },
       {
         q: "Where did Blog → Automation, Social → Settings, the Social overview and Blog → Ideas go?",

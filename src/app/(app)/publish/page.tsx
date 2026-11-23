@@ -11,6 +11,7 @@ import { markPublishedManuallyAction } from "@/app/actions/blog-export";
 import { Banner } from "@/components/SocialPostCard";
 import { StageHeader, StageList, StageRow, StateChip } from "@/components/StageShell";
 import { EmptyState } from "@/components/EmptyState";
+import { AddLiveLink } from "@/components/AddLiveLink";
 
 // Articles stage (2026-11-19, the owner's "Name by format"; it was the Publish
 // stage, and the article list of the Drafts stage): what is being written,
@@ -58,6 +59,15 @@ export default async function PublishStage({ searchParams }: { searchParams: Pro
         ? { why: "no idea has been approved yet — drafting only ever consumes approved ideas", label: "Approve an idea", href: "/ideas" }
         : null;
   const n = (st: string) => counts.find((c) => c.status === st)?._count._all ?? 0;
+  // Published articles with no live link beyond the six above — admins can add it (2026-11-23).
+  const unlinkedOlder = admin
+    ? await db.blogPost.findMany({
+        where: { workspaceId: workspace.id, status: "published", publishedUrl: null, id: { notIn: published.map((p) => p.id) } },
+        orderBy: { publishedAt: "desc" },
+        take: 20,
+        select: { id: true, title: true, publishedAt: true, publishedUrl: true },
+      })
+    : [];
   const day = parseInt(publishDayRaw, 10);
   const publishDay = Number.isInteger(day) && day >= 0 && day <= 6 ? DAYS[day] : null;
   const auto = modes.publishing === "auto";
@@ -179,19 +189,35 @@ export default async function PublishStage({ searchParams }: { searchParams: Pro
 
       {published.length > 0 && (
         <StageList title="Recently published">
-          {published.map((p) => (
-            <StageRow key={p.id}>
-              <StateChip label="published" hue="green" />
-              <div className="flex-1 min-w-48">
-                <Link href={`/blog/${p.id}`} className="text-sm font-semibold hover:underline line-clamp-1">{p.title}</Link>
-                <div className="text-2xs text-[var(--mute)]">{p.publishedAt?.toLocaleDateString("en-GB", { day: "2-digit", month: "short" }) ?? "—"}</div>
-              </div>
-              {p.publishedUrl && <a href={p.publishedUrl} target="_blank" rel="noopener noreferrer" className="btn sm">View live ↗</a>}
-            </StageRow>
-          ))}
+          {published.map((p) => <PublishedRow key={p.id} p={p} admin={admin} />)}
+        </StageList>
+      )}
+      {/* "Add live link" (2026-11-23): older published articles with no live
+          link would otherwise be found only one by one; admins get them here. */}
+      {unlinkedOlder.length > 0 && (
+        <StageList title="Published without a live link">
+          {unlinkedOlder.map((p) => <PublishedRow key={p.id} p={p} admin={admin} />)}
         </StageList>
       )}
 
     </div>
+  );
+}
+
+/** One published article: its date and live link, or, for an admin, the box that adds the link it lacks. */
+function PublishedRow({ p, admin }: { p: { id: string; title: string; publishedAt: Date | null; publishedUrl: string | null }; admin: boolean }) {
+  return (
+    <StageRow>
+      <StateChip label="published" hue="green" />
+      <div className="flex-1 min-w-48">
+        <Link href={`/blog/${p.id}`} className="text-sm font-semibold hover:underline line-clamp-1">{p.title}</Link>
+        <div className="text-2xs text-[var(--mute)]">
+          {p.publishedAt?.toLocaleDateString("en-GB", { day: "2-digit", month: "short" }) ?? "—"}
+          {!p.publishedUrl && <> · no live link in Publisher{admin ? "" : " — an admin can add it"}</>}
+        </div>
+      </div>
+      {p.publishedUrl && <a href={p.publishedUrl} target="_blank" rel="noopener noreferrer" className="btn sm">View live ↗</a>}
+      {admin && !p.publishedUrl && <AddLiveLink postId={p.id} back="publish" className="basis-full" />}
+    </StageRow>
   );
 }

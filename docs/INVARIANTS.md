@@ -3185,6 +3185,19 @@ day" still took two looks. Now the default view shows both.
   LinkedIn ("auto-generated when no media is attached", `disableLinkPreview`), Facebook and Telegram, and says nothing
   about cards or facets in `BlueskyPlatformData` or on docs.zernio.com/platforms/bluesky. Only a real post to a connected
   Bluesky account would settle it. The note under the card now says what the docs do and don't say.
+- **Add link says why it has no list** (2026-11-22, the owner's "Yes, add it"): with no article to offer,
+  `composerExtras` counts the published ones (`unlinkedArticles`) and the panel says none has a web address in
+  Publisher yet. Since 2026-11-23 it names **Add live link**.
+- **Add live link** (2026-11-23, the owner's "Yes, build it"): a published article with no `publishedUrl` (marked
+  published before ART-12 made the link required) gets one from `actions/blog-export.ts` `addLiveLinkAction`, through
+  `components/AddLiveLink.tsx`, shown to admins in the publish card on the article's Distribute tab and under Articles on its
+  Recently published row, plus "Published without a live link" for older ones (up to 20). Members who aren't admins see
+  "an admin can add it". ⚠ The rules are linkUnmatchedPageAction's and must stay so. It's ADMIN only, and the article
+  must be published. A saved link is never replaced: the write is `updateMany` where `publishedUrl` is null, so a link
+  saved in between wins. The address must be full http(s) with a dotted host (`lib/live-link.ts` `parseLiveLink`) and
+  not the site's home page (`isHomePage`: path "/" and no query, so `/?p=12` passes), and it's refused when another article is the same page (`sameLivePage`: host without www plus analytics' lower-cased
+  path, no query, hash or trailing slash). `publishedAt` is untouched. It audits `blog.live_link_added` and drops the
+  page from Search Console's unmatched list.
 
 ## ⚠ A retired name stops the build (2026-11-21, the owner's "The Help check")
 

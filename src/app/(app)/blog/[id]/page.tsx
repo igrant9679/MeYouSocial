@@ -89,6 +89,7 @@ import {
 import { checkLiveSocialTagsAction, publishToWordPressAction, pushSeoMetaAction } from "@/app/actions/blog-wp";
 import type { LiveHead } from "@/lib/live-head";
 import { markPublishedManuallyAction } from "@/app/actions/blog-export";
+import { AddLiveLink } from "@/components/AddLiveLink";
 import {
   deleteSocialVariantAction,
   generateSocialVariantsAction,
@@ -639,6 +640,17 @@ export default async function BlogPostPage({
             <span className="text-xs text-[var(--mute)]">
               No site connected — <Link href="/website" className="underline">connect WordPress</Link> to publish directly.
             </span>
+          )}
+          {/* "Add live link" (2026-11-23): published, but Publisher has no web
+              address for it — so Add link can't offer it and analytics can't match it. */}
+          {post.status === "published" && !post.publishedUrl && (
+            <div className="basis-full flex flex-col gap-1.5 pt-1" data-no-live-link>
+              <p className="text-xs text-[var(--mute)] m-0">
+                This article is published, but Publisher has no live link for it, so posts can&apos;t link to it and analytics can&apos;t match its page.
+                {admin ? " Paste the address of the page where it's live." : " An admin can add it here."}
+              </p>
+              {admin && <AddLiveLink postId={post.id} back="editor" />}
+            </div>
           )}
         </div>
       )}

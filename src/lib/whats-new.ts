@@ -41,6 +41,15 @@ export const CARD_MAX = 5;
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    id: "2026-11-23-add-live-link",
+    date: "2026-11-23",
+    title: "Add the live link to a published article",
+    body: "A published article with no web address in Publisher now has Add live link, on the Articles overview and on the article's Distribute tab. Once it's saved, Add link in Compose offers the article and analytics matches its page.",
+    href: "/publish",
+    cta: "Open Articles",
+    admin: true,
+  },
+  {
     id: "2026-11-22-copy-branding",
     date: "2026-11-22",
     title: "Copy branding from another of your workspaces",
