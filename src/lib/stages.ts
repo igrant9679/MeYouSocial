@@ -236,6 +236,7 @@ export const STAGES: Record<(typeof STAGE_HREFS)[number], StageDef> = {
             { href: "/admin/workspaces", label: "Workspaces", also: ["/admin/unclaimed"], group: "Operator" },
             { href: "/admin/incident", label: "Incident", group: "Operator" },
             { href: "/admin/keyring", label: "Keyring", group: "Operator" },
+            { href: "/admin/file-owners", label: "File owners", group: "Operator" },
           ]
         : []),
     ],

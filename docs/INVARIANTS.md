@@ -746,6 +746,18 @@ before changing code in that area.
   exists), checked before Drive is called. ⚠ **Files stored before 2026-10-29 have no owner row and keep the old rule** (any
   signed-in member; keys are unguessable). Owners were deliberately NOT back-filled — guessing the owner of LSI's and
   CF's files from references could lock a tenant out of its own images; a back-fill is the operator's call.
+- **The back-fill, the operator's call** (2026-11-24, the owner's "Yes, dry run"): Settings → **File owners**
+  (`/admin/file-owners`, operator only). `planOwnerBackfill` (`lib/storage/owner-backfill.ts`) READS every place a
+  workspace's rows point at a stored file — workspace logo, brand logo URL, Media library, brand documents, posts and
+  their per-network media, post templates, article images and pictures inside article bodies, video assets, research
+  files, renders, branded shorts, thumbnails, YouTube uploads, audience avatars, the swipe file — and traces each to its
+  workspace (its own `workspaceId`, its channel's, or its post's). A file with no owner row used by exactly ONE
+  workspace is a candidate; used by two or more it's ambiguous and left alone; one nothing references isn't seen
+  (storage isn't listed) and keeps the old rule. A file owned by one workspace but used only by another is listed,
+  never changed. Reading the page writes nothing. **Give them owners** (a tick, then `applyFileOwnersAction`) re-plans
+  and writes rows with `skipDuplicates`, so a row written meanwhile is never replaced; audited `storage.owners_backfilled`
+  in each workspace. ⚠ A new place that stores a file reference must be added to `collectRefs`, or its pre-10-29 files
+  read as unreferenced (safe: they keep the old rule, but aren't offered).
 
 ## ⚠ Two-factor sign-in (2026-10-29, audit Phase 5, security part 6)
 - **TOTP on node:crypto** (E-SEC-07, `lib/totp.ts` — checked against RFC 6238's vectors; no dependency) and `lib/two-factor.ts`:

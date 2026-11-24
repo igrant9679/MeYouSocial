@@ -299,7 +299,7 @@ area, rather than loading all of them into every session.
 - Rate limits and security headers — 2026-10-29, audit Phase 5, security part 2
 - API tokens, key history, idle members — 2026-10-29, audit Phase 5, security part 3
 - Incident mode; shared accounts wait for the operator — 2026-10-29, audit Phase 5, security part 4
-- Stored files have an owner — 2026-10-29, audit Phase 5, security part 5
+- Stored files have an owner — 2026-10-29, audit Phase 5, security part 5; the operator's back-fill page (Settings → File owners) — 2026-11-24
 - Two-factor sign-in — 2026-10-29, audit Phase 5, security part 6
 - Every stored secret is on the keyring — 2026-10-31, audit Phase 5, security part 7
 - Deleting a workspace keeps it for 30 days — 2026-11-01, audit Phase 5, security part 8
