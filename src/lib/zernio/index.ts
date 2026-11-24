@@ -496,10 +496,16 @@ export type ZernioListedPost = ZernioPostResult & {
 
 /**
  * The posts Zernio holds for a profile between two days — `GET /posts`. Reads
- * only. From its docs (read 2026-11-24, NOT yet probed against the live key):
- * `profileId`, `fromDate` / `toDate` as YYYY-MM-DD, `limit`, `offset` and
- * `view=summary`; the rows are under `posts`, each with `_id`, `content`,
- * `status`, `scheduledFor`, `createdAt` and `platforms[]`.
+ * only. From its docs (read 2026-11-24): `profileId`, `fromDate` / `toDate` as
+ * YYYY-MM-DD, `limit`, `offset` and `view=summary`; the rows are under `posts`,
+ * each with `_id`, `content`, `status`, `scheduledFor`, `createdAt` and
+ * `platforms[]`.
+ *
+ * Proven against the live key the same day: CommunityForce's 23 Oct post was
+ * found and settled through it, so the rows do carry `_id`, the post's words,
+ * and per platform `accountId`, `status`, `platformPostUrl` and `publishedAt`.
+ * NOT observed: which of the request shapes below the live API accepted, and
+ * whether the dated list or the walk back from the newest post found it.
  *
  * ⚠ An unknown query parameter is a 400 there, and "values above the maximum
  * return 400 rather than being clamped" — with the maximum unpublished. So the

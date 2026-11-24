@@ -3499,8 +3499,7 @@ a minute later.
   `offset` — only documented parameters, because Zernio answers 400 to an unknown one and to a `limit` above its
   unpublished maximum. The first page is asked in four shapes, each simpler, and a 400 moves to the next. A reply
   without a `posts` array THROWS (an error, never an empty list). If the dated list lacks the control, the lookup walks
-  back from the newest post without dates. ⚠ Written from Zernio's docs (read 2026-11-24); see Verified for what the
-  live API has and hasn't confirmed.
+  back from the newest post without dates. Written from Zernio's docs (read 2026-11-24) and then proven live, below.
 - **When**: `settleUnansweredSends` rides the social sweep (its lock keeps it off a send in progress), at most every
   `UNANSWERED_LOOKUP_MIN` minutes (default 360), ten posts a pass, posts touched in the last 90 days. **Ask Zernio** on
   the post's page (`askZernioAction`, editors) does one post now and says which verdict it got. Audit:
@@ -3511,3 +3510,9 @@ a minute later.
   with the same words not mistaken for the send; an account Zernio left out; other words to the same account; wordless
   rows; an API that refuses `view`; a date filter that hides everything; the sweep and its wait. With the proof
   requirement removed 4 checks fail; with known posts not excluded 1 fails.
+- **Proven on production 2026-11-24 01:05Z**, minutes after `0cc7a94` went live: **Ask Zernio** on CommunityForce's 23 Oct
+  post answered "Zernio's record of this send: 3 posted". Facebook, LinkedIn and X each became posted with Zernio's post
+  id, its link and Zernio's own time (09:01 and 09:02 that morning), the post became posted, and the Inbox's "3 failed
+  sends" card went. It HAD gone out, so Retry would have posted it twice. So the live list does return `_id`, the words,
+  and per platform `accountId`, `status`, `platformPostUrl` and `publishedAt`. ⚠ Not observed: which request shape the
+  live API accepted, whether the dated list or the walk-back found it, and a real "no record" or "unproven" answer.
