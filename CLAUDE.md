@@ -434,6 +434,7 @@ area, rather than loading all of them into every session.
 - Post images have a style, and can wear a branded frame Publisher typesets — 2026-11-23, the owner's "Yes, build both"
 - Article Social Share: one post per article, when it goes live, as the dial says — 2026-11-23, the owner's "Article Social Share function"
 - The app's own posts reach Instagram and Pinterest when a picture is coming, and wait for it — 2026-11-23, the owner's "Yes, build it"
+- A send that got no answer is looked up in Zernio's list — and "not there" needs proof — 2026-11-23, the owner's "Yes, build it" (CommunityForce's 23 Oct post)
 
 ## Open items / things the user still owns
 - **Analytics: APIs enabled 2026-08-03** (Search Console + GA Admin + GA Data, on project

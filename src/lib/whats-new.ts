@@ -41,6 +41,14 @@ export const CARD_MAX = 5;
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    id: "2026-11-23-ask-zernio",
+    date: "2026-11-23",
+    title: "A send that got no answer is looked up for you",
+    body: "When a send timed out, the post said it may have posted and left you to check each network. Publisher now looks it up in Zernio's own list of posts: if it went out, each network is marked posted with its link, and if it didn't, the post says Retry is safe. It happens by itself within a few hours, or at once with Ask Zernio on the post's page.",
+    href: "/social/sent",
+    cta: "Open Sent",
+  },
+  {
     id: "2026-11-23-engine-instagram",
     date: "2026-11-23",
     title: "The app's own posts reach Instagram and Pinterest",

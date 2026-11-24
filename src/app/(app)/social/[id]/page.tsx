@@ -7,12 +7,14 @@ import { readJson } from "@/lib/db/json";
 import { networkFor } from "@/lib/social/networks";
 import { subFormatLabel } from "@/lib/social/sub-formats";
 import { mayHavePosted } from "@/lib/social/unknown-outcome";
+import { isUnanswered } from "@/lib/social/unanswered";
 import { needsReconnect, retryCutoff, RETRY_WINDOW_HOURS } from "@/lib/social/reconnect-retry";
 import { formatInZone, getPostingTimeZone } from "@/lib/social/slots";
 import { DELETABLE_POST_STATUSES } from "@/lib/social/post-lists";
 import { duplicateSocialPostAction, publishNowAction } from "@/app/actions/social";
 import { copyPostToWorkspaceAction, saveTemplateFromPostAction } from "@/app/actions/social-templates";
 import { cancelReconnectRetryAction, checkReconnectAction, reconnectAndRetryAction } from "@/app/actions/social-reconnect";
+import { askZernioAction } from "@/app/actions/social-unanswered";
 import { SubmitButton } from "@/components/SubmitButton";
 import { DeleteButton } from "@/components/DeleteButton";
 import { MediaThumbs, STATUS_STYLE } from "@/components/SocialPostCard";
@@ -66,6 +68,8 @@ export default async function SocialPostPage({ params, searchParams }: { params:
   const unsent = post.status === "draft" || post.status === "scheduled";
   const canRetry = editor && (post.status === "failed" || post.status === "partial");
   const unsure = [...new Set(post.targets.filter((t) => t.status === "failed" && mayHavePosted(t.error)).map((t) => networkFor(t.provider)?.label ?? t.provider))];
+  // Only a send with no Zernio id can be looked up in Zernio's list (lib/social/unanswered.ts).
+  const unanswered = post.targets.some(isUnanswered);
   const here = `/social/${post.id}`;
   const name = post.text.replace(/\s+/g, " ").trim().slice(0, 60) || "(image only)";
   // "Preview as posted" (2026-11-21): each leg drawn the way its network shows it, from what the send builds.
@@ -149,8 +153,16 @@ export default async function SocialPostPage({ params, searchParams }: { params:
         </div>
       )}
       {canRetry && unsure.length > 0 && (
-        <div className="card mb-3 text-xs" style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }}>
-          We never heard back from {unsure.join(", ")} — {unsure.length === 1 ? "it" : "they"} may have posted. Check {unsure.length === 1 ? "that network" : "those networks"} before you retry, or it may go out twice.
+        <div className="card mb-3 text-xs flex items-center gap-3 flex-wrap" data-unanswered style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }}>
+          <span className="flex-1 min-w-64">
+            We never heard back from {unsure.join(", ")} — {unsure.length === 1 ? "it" : "they"} may have posted. Ask Zernio what became of it, or check {unsure.length === 1 ? "that network" : "those networks"} yourself, before you retry — or it may go out twice.
+          </span>
+          {unanswered && (
+            <form action={askZernioAction}>
+              <input type="hidden" name="id" value={post.id} />
+              <SubmitButton className="btn sm" pendingText="Asking…" title="Looks this send up in Zernio's own list of posts. It sends nothing.">Ask Zernio</SubmitButton>
+            </form>
+          )}
         </div>
       )}
 

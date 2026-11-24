@@ -486,6 +486,97 @@ export async function getZernioPost(postId: string, workspaceId?: string | null)
   return body ? resultOf(body, false) : null;
 }
 
+/** One post in Zernio's own list, read back for a send that never got an answer. */
+export type ZernioListedPost = ZernioPostResult & {
+  /** Null when Zernio no longer holds the words (a team can choose not to retain content). */
+  content: string | null;
+  createdAt: Date | null;
+  scheduledFor: Date | null;
+};
+
+/**
+ * The posts Zernio holds for a profile between two days — `GET /posts`. Reads
+ * only. From its docs (read 2026-11-24, NOT yet probed against the live key):
+ * `profileId`, `fromDate` / `toDate` as YYYY-MM-DD, `limit`, `offset` and
+ * `view=summary`; the rows are under `posts`, each with `_id`, `content`,
+ * `status`, `scheduledFor`, `createdAt` and `platforms[]`.
+ *
+ * ⚠ An unknown query parameter is a 400 there, and "values above the maximum
+ * return 400 rather than being clamped" — with the maximum unpublished. So the
+ * first page is asked for in a few shapes, each simpler than the last, and a
+ * 400 moves to the next one.
+ *
+ * ⚠ A reply that is not `{ posts: [...] }` THROWS. The caller concludes "Zernio
+ * has no such post" from this list, and an empty list and a list we couldn't
+ * read are different answers — returning [] for both is the failure-masking
+ * trap. Without dates it walks back from the newest post.
+ */
+export async function listZernioPosts(opts: {
+  profileId: string;
+  fromDate?: Date;
+  toDate?: Date;
+  /** Stop after this many rows (default 300). */
+  max?: number;
+  workspaceId?: string | null;
+}): Promise<ZernioListedPost[]> {
+  const max = Math.max(1, opts.max ?? 300);
+  const shapes: Array<{ view?: string; limit?: number }> = [{ view: "summary", limit: 50 }, { limit: 50 }, { limit: 20 }, {}];
+  const read = async (shape: { view?: string; limit?: number }, offset: number) => {
+    const qs = new URLSearchParams({ profileId: opts.profileId });
+    if (opts.fromDate) qs.set("fromDate", ymd(opts.fromDate));
+    if (opts.toDate) qs.set("toDate", ymd(opts.toDate));
+    if (shape.view) qs.set("view", shape.view);
+    if (shape.limit) qs.set("limit", String(shape.limit));
+    if (offset) qs.set("offset", String(offset));
+    const body = await zernioJson(`/posts?${qs}`, opts.workspaceId);
+    if (!body) throw new ZernioError("Zernio has no post list at /posts (it answered with its website, not JSON).", 404);
+    if (!Array.isArray(body.posts)) throw new ZernioError("Zernio's post list came back in a shape this app doesn't know (no `posts` array).", 502, body);
+    return body.posts as Record<string, unknown>[];
+  };
+
+  let shape = shapes[0];
+  let rows: Record<string, unknown>[] | null = null;
+  for (const candidate of shapes) {
+    try {
+      rows = await read(candidate, 0);
+      shape = candidate;
+      break;
+    } catch (e) {
+      if (!(e instanceof ZernioError) || e.status !== 400 || candidate === shapes[shapes.length - 1]) throw e;
+    }
+  }
+
+  const out: ZernioListedPost[] = [];
+  const seen = new Set<string>();
+  let offset = 0;
+  while (rows && rows.length) {
+    let fresh = 0;
+    for (const r of rows) {
+      const base = resultOf(r, false);
+      if (!base.postId || seen.has(base.postId)) continue;
+      seen.add(base.postId);
+      fresh++;
+      out.push({
+        ...base,
+        content: typeof r.content === "string" ? r.content : null,
+        createdAt: instantOf(r.createdAt),
+        scheduledFor: instantOf(r.scheduledFor),
+      });
+    }
+    offset += rows.length;
+    // A page of nothing new means `offset` isn't being honoured: stop, don't loop.
+    if (out.length >= max || fresh === 0 || (shape.limit && rows.length < shape.limit)) break;
+    rows = await read(shape, offset);
+  }
+  return out;
+}
+
+function instantOf(v: unknown): Date | null {
+  if (typeof v !== "string" || !v) return null;
+  const d = new Date(v);
+  return Number.isFinite(d.getTime()) ? d : null;
+}
+
 // ── Analytics ────────────────────────────────────────────────────────────────
 
 /** Zernio's per-post metric block. All fields optional — a platform reports

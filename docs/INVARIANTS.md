@@ -3465,3 +3465,49 @@ a minute later.
   an image…"), the other legs go out, and it's told like any failed send (SOC-13/14). Not a new status.
 - **The overview** doesn't list a post as "needs an image" while its auto-image job is live.
 - Posts a person composes are unchanged: Compose still refuses Instagram without a picture.
+
+## ⚠ A send that got no answer is looked up in Zernio's list — and "not there" needs proof (2026-11-23, the owner's "Yes, build it")
+
+- **Why**: CommunityForce's 23 Oct post was sent to Facebook, LinkedIn and X in one request that timed out. All three
+  legs were failed with "may have posted anyway" and no Zernio post id, so nothing could read the outcome back and the
+  only button was Retry, which a month later would post it late or twice. A person couldn't settle it either: all three
+  networks hide older posts from anyone not signed in (X shows no timeline, LinkedIn redirects to its sign-in wall,
+  Facebook's page embed stops at five posts).
+- **`lib/social/unanswered.ts`** (it sends nothing). An *unanswered* leg is failed, has no `providerPostId`, and its
+  reason reads as may-have-posted (`isUnanswered`, on `mayHavePosted`). `lookUpUnanswered(postId)`:
+  1. lists Zernio's posts for the workspace's profile over the days from the first attempt (`scheduledAt`, else
+     `createdAt`) to the last write on the post, widened to reach the control (below): `listZernioPosts`, `GET /posts`;
+  2. takes as *candidates* the rows this app has no leg for that went to one of the waiting accounts, and as *matches*
+     the candidates with the same words (whitespace-normalised) — or, where Zernio no longer holds a row's words, the
+     single one made within 15 minutes of an attempt;
+  3. with a match, gives each leg what Zernio recorded for its account (`outcomeForLeg`): posted with the id, link and
+     Zernio's time; failed with Zernio's own reason and the id; still sending → `pending` with the id, and the post goes
+     to "publishing" for `reconcileStuckSocialPosts`; no entry for that account → `NO_ENTRY`. Then the post is rolled up
+     with `rollUpPostStatus`, only from failed/partial, so a Retry that has claimed it is not overwritten;
+  4. with no match, says `NO_RECORD` ("did not go out, Retry is safe") **only when absence is proven**.
+- ⚠ **Absence needs proof** (`readsControl`). The control is the nearest post this app knows went out through Zernio,
+  within 10 days of the send. "Not there" is said only when the control's row is in the same list (the list covers those
+  days), that row names the account this app sent from (rows can be tied to accounts), no unmatched wordless row went to
+  the waiting accounts, and either no other unknown row went to them or the control's row carries the words this app
+  sent (so other words mean another post). Anything less is the verdict `unproven`: nothing is written and the warning
+  stays. ⚠ Never relax this to "the list came back empty": an empty list from a wrong parameter, a filter that means
+  something else or the wrong profile would read as "it didn't go out" and invite the double post this exists to prevent
+  (the failure-masking trap). Finding the post needs no control: presence is evidence.
+- ⚠ **Neither `NO_RECORD` nor `NO_ENTRY` may read as may-have-posted** (no "timeout", "timed out", "aborted"): a settled
+  leg has to leave the lookup's own list, or it would be looked up for ever.
+- **`listZernioPosts`** (`lib/zernio/index.ts`): `profileId`, `fromDate`/`toDate` as YYYY-MM-DD, `view=summary`, `limit`,
+  `offset` — only documented parameters, because Zernio answers 400 to an unknown one and to a `limit` above its
+  unpublished maximum. The first page is asked in four shapes, each simpler, and a 400 moves to the next. A reply
+  without a `posts` array THROWS (an error, never an empty list). If the dated list lacks the control, the lookup walks
+  back from the newest post without dates. ⚠ Written from Zernio's docs (read 2026-11-24); see Verified for what the
+  live API has and hasn't confirmed.
+- **When**: `settleUnansweredSends` rides the social sweep (its lock keeps it off a send in progress), at most every
+  `UNANSWERED_LOOKUP_MIN` minutes (default 360), ten posts a pass, posts touched in the last 90 days. **Ask Zernio** on
+  the post's page (`askZernioAction`, editors) does one post now and says which verdict it got. Audit:
+  `social.unanswered_settled`, `social.unanswered_no_record`.
+- **Verified**: `scripts/social-send-eval.mts` section 7 (24 more checks, 48 in all), each case in its own workspace
+  against a stand-in for Zernio's list: found and settled; proven absent; an empty list not taken as absent; a list with
+  no accounts on its rows not trusted; a reply without `posts` an error; a mixed record settled leg by leg; a known post
+  with the same words not mistaken for the send; an account Zernio left out; other words to the same account; wordless
+  rows; an API that refuses `view`; a date filter that hides everything; the sweep and its wait. With the proof
+  requirement removed 4 checks fail; with known posts not excluded 1 fails.

@@ -112,6 +112,14 @@ export async function register() {
       return 0;
     });
     if (settled > 0) console.log(`[social] settled ${settled} post(s) stuck in publishing`);
+    // Sends that never got an answer (a timeout) are looked up in Zernio's own
+    // list of posts — every few hours, not every tick. Reads only.
+    const { settleUnansweredSends } = await import("@/lib/social/unanswered");
+    const looked = await settleUnansweredSends().catch((e) => {
+      console.error("[social] looking up unanswered sends failed:", e instanceof Error ? e.message : e);
+      return [];
+    });
+    if (looked.length) console.log(`[social] unanswered sends: ${looked.map((o) => `${o.postId} ${o.verdict}`).join(", ")}`);
     // Evergreen refill rides the same lock: it writes scheduled posts, so it
     // must never race the publisher or run on two replicas at once. Opt-in per
     // workspace (social:evergreen_fill) — the sweep no-ops cheaply otherwise.
