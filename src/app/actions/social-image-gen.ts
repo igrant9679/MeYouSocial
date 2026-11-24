@@ -1,7 +1,6 @@
 "use server";
 
 import { requireRole } from "@/lib/acl";
-import { db } from "@/lib/db";
 import { getImageProvider } from "@/lib/images";
 import { isGloballyPaused, writeAudit } from "@/lib/governance";
 import type { ImageStyleId } from "@/lib/social/image-styles";
@@ -111,8 +110,8 @@ export type ReframeResult =
 export async function reframeComposerImageAction(input: { baseKey: string; headline: string }): Promise<ReframeResult> {
   const { workspace } = await requireRole("EDITOR");
   const baseKey = String(input.baseKey ?? "");
-  const owner = baseKey ? await db.storedObject.findUnique({ where: { key: baseKey }, select: { workspaceId: true } }) : null;
-  if (!owner || owner.workspaceId !== workspace.id) return { ok: false, error: "That image isn't in this workspace any more — make a new one." };
+  const { ownsStoredKey } = await import("@/lib/social/post-image");
+  if (!(await ownsStoredKey(workspace.id, baseKey))) return { ok: false, error: "That image isn't in this workspace any more — make a new one." };
   const { cleanHeadline, frameHasHeadline } = await import("@/lib/social/frame");
   const headline = cleanHeadline(input.headline);
   if (!headline) return { ok: false, error: "Type the headline first." };
@@ -122,4 +121,62 @@ export async function reframeComposerImageAction(input: { baseKey: string; headl
   const framed = await frameStoredImage(workspace.id, baseKey, details, headline);
   if (!framed) return { ok: false, error: "The frame couldn't be added — try again." };
   return { ok: true, key: framed.key, url: framed.url, frame: framed.layout, headline };
+}
+
+export type FramePhotoResult =
+  | { ok: true; key: string; url: string; baseKey: string; frame: FrameLayout; headline: string | null }
+  | { ok: false; error: string };
+
+/** Photos a person frames: big enough for any network, small enough to frame in a request. */
+const PHOTO_MAX_BYTES = 25 * 1024 * 1024;
+
+/**
+ * "Add frame" on a photo the author attached in Compose (2026-11-24, the owner's "build the Add frame for my own
+ * photos"). The photo is stored as it came (the base, owned by this workspace), the workspace's frame is typeset over
+ * it (lib/social/post-image.ts frameOwnPicture), and Compose swaps the attachment for the framed copy, which is
+ * attached on submit like an AI image. Images only: a video or an animated GIF is refused, not flattened.
+ */
+export async function frameUploadedPhotoAction(formData: FormData): Promise<FramePhotoResult> {
+  const { workspace } = await requireRole("EDITOR");
+  const file = formData.get("file");
+  if (!(file instanceof File) || file.size === 0) return { ok: false, error: "Choose a photo first." };
+  if (file.size > PHOTO_MAX_BYTES) return { ok: false, error: "That photo is over 25 MB — use a smaller copy to frame it." };
+  const bytes = Buffer.from(await file.arrayBuffer());
+  const sharp = (await import("sharp")).default;
+  const meta = await sharp(bytes).metadata().catch(() => null);
+  const format = meta?.format ?? "";
+  if (!["jpeg", "png", "webp", "heif", "avif", "tiff"].includes(format)) {
+    return { ok: false, error: format === "gif" ? "An animated GIF can't be framed — it would lose its animation." : "Only photos can be framed (JPEG, PNG or WebP)." };
+  }
+  const { storage } = await import("@/lib/storage");
+  const ext = format === "jpeg" ? "jpg" : format;
+  const base = await storage.put(`photo-${Date.now()}.${ext}`, bytes, `image/${format}`, workspace.id);
+  const { frameOwnPicture } = await import("@/lib/social/post-image");
+  const res = await frameOwnPicture(workspace.id, base.key, {
+    headline: String(formData.get("headline") ?? ""),
+    text: String(formData.get("text") ?? ""),
+    mayWrite: !(await isGloballyPaused(workspace.id)),
+  });
+  if (!res.ok) return res;
+  await writeAudit({ workspaceId: workspace.id, action: "social.image_framed", entityType: "social_post", meta: { source: "upload", frame: res.frame, ...(res.headlineBy ? { headlineBy: res.headlineBy } : {}) } });
+  return { ok: true, key: res.key, url: res.url, baseKey: base.key, frame: res.frame, headline: res.headline };
+}
+
+/**
+ * "Add frame" on a picture Compose already holds — a Media library image, or an AI image made without its frame. The
+ * key must be this workspace's (ownsStoredKey); the original stays as it is and becomes the base.
+ */
+export async function frameStoredPhotoAction(input: { key: string; headline?: string; text?: string }): Promise<FramePhotoResult> {
+  const { workspace } = await requireRole("EDITOR");
+  const key = String(input.key ?? "");
+  const { ownsStoredKey, frameOwnPicture } = await import("@/lib/social/post-image");
+  if (!(await ownsStoredKey(workspace.id, key))) return { ok: false, error: "That picture isn't in this workspace." };
+  const res = await frameOwnPicture(workspace.id, key, {
+    headline: input.headline ?? "",
+    text: input.text ?? "",
+    mayWrite: !(await isGloballyPaused(workspace.id)),
+  });
+  if (!res.ok) return res;
+  await writeAudit({ workspaceId: workspace.id, action: "social.image_framed", entityType: "social_post", meta: { source: "stored", frame: res.frame, ...(res.headlineBy ? { headlineBy: res.headlineBy } : {}) } });
+  return { ok: true, key: res.key, url: res.url, baseKey: key, frame: res.frame, headline: res.headline };
 }

@@ -149,6 +149,54 @@ export async function frameStoredImage(
   }
 }
 
+/**
+ * Is this stored file this workspace's? Its owner row says so, or it's in the workspace's Media library (files stored
+ * before owners were recorded have no row). A key from anywhere else is refused, so nobody frames — and so copies —
+ * another company's picture.
+ */
+export async function ownsStoredKey(workspaceId: string, key: string): Promise<boolean> {
+  if (!key) return false;
+  const row = await db.storedObject.findUnique({ where: { key }, select: { workspaceId: true } });
+  if (row) return row.workspaceId === workspaceId;
+  return (await db.mediaItem.count({ where: { workspaceId, key } })) > 0;
+}
+
+export type FramedOwn = { ok: true; key: string; url: string; frame: FrameLayout; headline: string | null; headlineBy: "ai" | "post" | "person" | null } | { ok: false; error: string };
+
+/**
+ * "Add frame" on a person's own photo (2026-11-24, the owner's "build the Add frame for my own photos"): the
+ * workspace's frame typeset over a stored picture that no model made — an upload, a Media library image, or an AI
+ * image made without its frame. The original is untouched (it's the base a new headline re-frames). The headline is
+ * the one typed, else a model's few words from the post (`mayWrite` false — a paused workspace — uses the post's own
+ * first sentence), else none (a headline layout then falls back to the footer).
+ */
+export async function frameOwnPicture(
+  workspaceId: string,
+  baseKey: string,
+  opts: { headline?: string | null; text?: string | null; mayWrite?: boolean },
+): Promise<FramedOwn> {
+  const details = await frameDetails(workspaceId);
+  if (details.layout === "off") return { ok: false, error: "Choose a frame first, under Brand → Post images." };
+  const typed = cleanHeadline(opts.headline);
+  const text = String(opts.text ?? "").trim();
+  let headline: string | null = null;
+  let headlineBy: "ai" | "post" | "person" | null = null;
+  if (frameHasHeadline(details.layout)) {
+    if (typed) [headline, headlineBy] = [typed, "person"];
+    else if (text.length >= 10) {
+      const w = opts.mayWrite === false ? { headline: headlineFromText(text), by: "post" as const } : await writeHeadline(workspaceId, text);
+      [headline, headlineBy] = w.headline ? [w.headline, w.by] : [null, null];
+    }
+  }
+  const framed = await frameStoredImage(workspaceId, baseKey, details, headline);
+  if (!framed) return { ok: false, error: "That picture couldn't be framed — is it an image (JPEG, PNG or WebP)?" };
+  return {
+    ok: true, key: framed.key, url: framed.url, frame: framed.layout,
+    headline: frameHasHeadline(framed.layout) ? headline : null,
+    headlineBy: frameHasHeadline(framed.layout) ? headlineBy : null,
+  };
+}
+
 export type PostImageResult = {
   key: string;
   url: string;

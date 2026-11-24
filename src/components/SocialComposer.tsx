@@ -7,7 +7,7 @@ import { suggestHashtagsAction, type HashtagSuggestion } from "@/app/actions/soc
 import { TAG_RE, tagsIn, appendTags, removeTag, insertLinkAt } from "@/lib/social/hashtag-text";
 import { SubmitButton } from "@/components/SubmitButton";
 import { createSocialPostAction, updateSocialPostAction } from "@/app/actions/social";
-import { generateComposerImageAction, reframeComposerImageAction } from "@/app/actions/social-image-gen";
+import { frameStoredPhotoAction, frameUploadedPhotoAction, generateComposerImageAction, reframeComposerImageAction } from "@/app/actions/social-image-gen";
 import { IMAGE_STYLES, imageStyleLabel, type ImageStyleSetting } from "@/lib/social/image-styles";
 import { frameHasHeadline, frameLabel, HEADLINE_MAX, type FrameLayout } from "@/lib/social/frame";
 import { tailorPostForNetworksAction } from "@/app/actions/social-tailor";
@@ -43,7 +43,7 @@ const isVideoFile = (f?: File) => !!f?.type.startsWith("video/");
  * confusing), with its name underneath and a remove button. `url` is the
  * object URL the previews already use.
  */
-function FileThumb({ file, url, onRemove }: { file: File; url: string | undefined; onRemove: () => void }) {
+function FileThumb({ file, url, onRemove, onFrame, framing = false }: { file: File; url: string | undefined; onRemove: () => void; onFrame?: () => void; framing?: boolean }) {
   return (
     <span className="relative inline-flex flex-col items-center gap-0.5 w-20" data-attached-file title={file.name}>
       {url && isVideoFile(file) ? (
@@ -55,6 +55,14 @@ function FileThumb({ file, url, onRemove }: { file: File; url: string | undefine
         <span className="h-20 w-20 rounded-lg border border-[var(--line)] grid place-items-center text-micro text-[var(--mute)]">file</span>
       )}
       <span className="font-mono text-micro text-[var(--mute)] truncate w-full text-center">{file.name}</span>
+      {/* "Add frame" (2026-11-24): the workspace's branded frame on the author's own photo. */}
+      {onFrame && (
+        <button type="button" onClick={onFrame} disabled={framing} data-add-frame
+          className="font-mono text-micro px-1 rounded border border-[var(--line-2)]" style={{ background: "var(--panel)" }}
+          title="Put this workspace's branded frame on this photo (the headline box above, or one written from the post)">
+          {framing ? "Framing…" : "Add frame"}
+        </button>
+      )}
       <button type="button" aria-label={`Remove ${file.name}`} onClick={onRemove}
         className="absolute -top-1.5 -right-1.5 rounded-full p-0.5 border border-[var(--line-2)]" style={{ background: "var(--panel)" }}>
         <X className="w-3 h-3" />
@@ -278,6 +286,8 @@ export function SocialComposer({
   const [genNote, setGenNote] = useState<string | null>(null);
   // A new headline on a framed image: framed again from its stored picture, nothing spent.
   const [headlineEdit, setHeadlineEdit] = useState<{ key: string; value: string; busy: boolean; error: string | null } | null>(null);
+  // "Add frame" on the author's own photo (2026-11-24): which attachment is being framed ("file:<i>" or a stored key).
+  const [framing, setFraming] = useState<string | null>(null);
   // "Preview as posted" (2026-11-21): a window with one tab per network.
   const [previewOpen, setPreviewOpen] = useState(false);
   // Hashtag suggestions: asked once by themselves when the post has enough to go on, again on Refresh.
@@ -379,6 +389,46 @@ export function SocialComposer({
       );
     } finally {
       setTailorBusy(false);
+    }
+  }
+
+  // An attached photo framed: it's stored, framed, and the framed copy replaces the attachment (attached on submit like
+  // an AI image, with the Headline button to change its words).
+  async function frameFile(i: number) {
+    const f = files[i];
+    if (!f) return;
+    setFraming(`file:${i}`);
+    setGenError(null);
+    try {
+      const fd = new FormData();
+      fd.set("file", f);
+      fd.set("headline", genHeadline);
+      fd.set("text", text);
+      const res = await frameUploadedPhotoAction(fd);
+      if (!res.ok) { setGenError(res.error); return; }
+      const next = files.filter((_, j) => j !== i);
+      setFiles(next);
+      syncInput(baseInput.current, next);
+      setGenImages((g) => [...g, { key: res.key, url: res.url, provider: "your photo", baseKey: res.baseKey, frame: res.frame, headline: res.headline }].slice(0, 4));
+    } catch {
+      setGenError("Couldn't add the frame — try again.");
+    } finally {
+      setFraming(null);
+    }
+  }
+
+  // A picture Compose already holds (a Media library image, or an AI image made without its frame) framed in place.
+  async function frameStored(key: string) {
+    setFraming(key);
+    setGenError(null);
+    try {
+      const res = await frameStoredPhotoAction({ key, headline: genHeadline, text });
+      if (!res.ok) { setGenError(res.error); return; }
+      setGenImages((prev) => prev.map((g) => (g.key === key ? { ...g, key: res.key, url: res.url, baseKey: res.baseKey, frame: res.frame, headline: res.headline } : g)));
+    } catch {
+      setGenError("Couldn't add the frame — try again.");
+    } finally {
+      setFraming(null);
     }
   }
 
@@ -902,7 +952,9 @@ export function SocialComposer({
           <div className="flex items-start gap-2 flex-wrap mt-2">
             {files.map((f, i) => (
               <FileThumb key={i} file={f} url={fileUrls[i]}
-                onRemove={() => { const next = files.filter((_, j) => j !== i); setFiles(next); syncInput(baseInput.current, next); }} />
+                onRemove={() => { const next = files.filter((_, j) => j !== i); setFiles(next); syncInput(baseInput.current, next); }}
+                onFrame={frameLayout !== "off" && !isVideoFile(f) && f.type !== "image/gif" ? () => void frameFile(i) : undefined}
+                framing={framing === `file:${i}`} />
             ))}
           </div>
         )}
@@ -926,6 +978,19 @@ export function SocialComposer({
                 <span className="absolute bottom-0.5 left-0.5 font-mono text-micro px-1 rounded" style={{ background: "var(--panel)", color: "var(--mute)" }}>
                   {g.provider}
                 </span>
+                {frameLayout !== "off" && !g.video && (!g.frame || g.frame === "off") && (
+                  <button
+                    type="button"
+                    onClick={() => void frameStored(g.key)}
+                    disabled={framing === g.key}
+                    data-add-frame
+                    className="absolute bottom-0.5 right-0.5 rounded px-1 font-mono text-micro border border-[var(--line-2)]"
+                    style={{ background: "var(--panel)" }}
+                    title="Put this workspace's branded frame on this picture (the headline box above, or one written from the post)"
+                  >
+                    {framing === g.key ? "Framing…" : "Add frame"}
+                  </button>
+                )}
                 {g.baseKey && g.frame && frameHasHeadline(g.frame) && (
                   <button
                     type="button"

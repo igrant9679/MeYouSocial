@@ -431,7 +431,7 @@ area, rather than loading all of them into every session.
 - Text people can read: 4.5:1 in light and dark, checked at build — 2026-11-22, the owner's "Yes, build it"
 - One workspace can take another's look, never its identity — 2026-11-22, the owner's Demo Workspace order
 - A leg Zernio is still sending is not a failure — 2026-11-23, the owner's "Yes, fix it" (LSI's 19 Nov Instagram leg)
-- Post images have a style, and can wear a branded frame Publisher typesets — 2026-11-23, the owner's "Yes, build both"
+- Post images have a style, and can wear a branded frame Publisher typesets — 2026-11-23, the owner's "Yes, build both"; your own photos get Add frame — 2026-11-24
 - Article Social Share: one post per article, when it goes live, as the dial says — 2026-11-23, the owner's "Article Social Share function"
 - The app's own posts reach Instagram and Pinterest when a picture is coming, and wait for it — 2026-11-23, the owner's "Yes, build it"
 - A send that got no answer is looked up in Zernio's list — and "not there" needs proof — 2026-11-23, the owner's "Yes, build it" (CommunityForce's 23 Oct post)

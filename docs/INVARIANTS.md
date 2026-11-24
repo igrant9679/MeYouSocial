@@ -3411,7 +3411,15 @@ posts LSI, CommunityForce and EDG make by hand.
 - **Settings UI**: Brand → Post images (`/brand#post-images`), admin-only, with a sample of each layout drawn by
   `/api/social/frame-sample` on a stand-in picture with the workspace's own logo, colours and handle (members only,
   nothing rendered by a model, nothing stored). Automation's auto-image line points there.
-- Not framed: uploads, library images and videos. The send-time watermark is separate and still the author's choice.
+- **Your own photos** (2026-11-24, the owner's "build the Add frame for my own photos"): Compose's **Add frame** on an
+  attached photo (`frameUploadedPhotoAction`: stored as it came, owned by the workspace, ≤25 MB, JPEG/PNG/WebP/HEIF/
+  AVIF/TIFF by its bytes — a GIF or a video is refused, never flattened) or on a picture Compose holds — a Media
+  library image or an AI image made without its frame (`frameStoredPhotoAction`). Both run `frameOwnPicture`: the
+  workspace's layout (off → "choose a frame first"), the headline typed, else a model's few words from the post (a
+  paused workspace gets the post's own first sentence), else none. The original is the base, so Headline re-frames it.
+  ⚠ `ownsStoredKey` gates every key the browser sends (framing and re-framing): its owner row is this workspace, or —
+  for files stored before owners were recorded — it's in this workspace's Media library. Audited `social.image_framed`.
+- Never framed: videos. The send-time watermark is separate and still the author's choice.
 
 ## ⚠ Article Social Share: one post per article, when it goes live, as the dial says (2026-11-23, the owner's "an Article Social Share function that, optionally, shares out blog articles after they're posted/published")
 

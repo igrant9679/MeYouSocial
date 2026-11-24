@@ -41,6 +41,14 @@ export const CARD_MAX = 5;
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    id: "2026-11-24-frame-own-photos",
+    date: "2026-11-24",
+    title: "Put your branded frame on your own photos",
+    body: "In Compose, a photo you attach or pick from Media now has Add frame: the workspace's headline, logo, @handle and website go on it, and the Headline button changes the words later.",
+    href: "/social/compose",
+    cta: "Open Compose",
+  },
+  {
     id: "2026-11-23-ask-zernio",
     date: "2026-11-23",
     title: "A send that got no answer is looked up for you",
