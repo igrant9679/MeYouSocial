@@ -470,11 +470,22 @@ export async function publishDueSocialPosts(): Promise<number> {
       scheduledAt: { lte: new Date() },
       OR: [{ approval: null }, { approval: "approved" }],
     },
-    select: { id: true },
+    select: { id: true, mediaKeys: true, scheduledAt: true, targets: { select: { provider: true, status: true, mediaKeys: true } } },
     take: 50,
   });
+  // A post the app wrote for Instagram or Pinterest waits for its picture (lib/social/picture-networks.ts): while its
+  // auto-image job is still queued or running, and at most PICTURE_HOLD_MS past its time, it stays scheduled.
+  const { awaitingPicture } = await import("@/lib/social/picture-networks");
+  const now = new Date();
+  const imageJobs = await db.job.findMany({
+    where: { name: "social.autoimage", state: { in: ["queued", "running"] }, refId: { in: due.map((p) => p.id) } },
+    select: { refId: true },
+  });
+  const picturing = new Set(imageJobs.map((j) => j.refId));
   let published = 0;
-  for (const { id } of due) {
+  for (const post of due) {
+    if (awaitingPicture(post, picturing.has(post.id), now)) continue;
+    const { id } = post;
     // Atomic claim: only proceed if it's still scheduled.
     const claim = await db.socialPost.updateMany({
       where: { id, status: "scheduled" },

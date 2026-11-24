@@ -5,7 +5,7 @@ import { writeAudit } from "@/lib/governance";
 import { notify } from "@/lib/notify";
 import { llm, resolveUsableModel } from "@/lib/llm";
 import { motifPromptFor, brandContextBlock } from "@/lib/motifs";
-import { networkFor } from "@/lib/social/networks";
+import { engineTargets, pictureWillCome } from "@/lib/social/picture-networks";
 import { claimNextFreeSlot } from "@/lib/social/slots";
 import { howManyTags, settleTagLine, tagInstruction } from "@/lib/social/hashtag-text";
 import { houseTags } from "@/lib/social/house-tags";
@@ -50,7 +50,8 @@ export async function generateSocialPostForWorkspace(workspaceId: string): Promi
   if (thisWeek >= target) return false;
 
   const accounts = await db.zernioAccount.findMany({ where: { workspaceId, status: "connected" } });
-  const targets = accounts.filter((a) => !networkFor(a.platform)?.requiresMedia);
+  // Text-capable accounts, plus Instagram and Pinterest when a picture is coming (lib/social/picture-networks.ts).
+  const targets = engineTargets(accounts, await pictureWillCome(workspaceId));
   if (targets.length === 0) return false;
 
   const topics = await db.topic.findMany({

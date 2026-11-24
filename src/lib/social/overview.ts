@@ -332,6 +332,13 @@ export async function getSocialOverview(workspaceId: string): Promise<SocialOver
   const unsent = posts.filter((p) => p.status === "draft" || p.status === "scheduled");
   const overLimit: { id: string; label: string; len: number; limit: number }[] = [];
   const needsImage: { id: string; label: string }[] = [];
+  // A post whose picture the auto-image job is still making isn't missing one (lib/social/picture-networks.ts).
+  const picturing = new Set(
+    (await db.job.findMany({
+      where: { name: "social.autoimage", state: { in: ["queued", "running"] }, refId: { in: unsent.map((p) => p.id) } },
+      select: { refId: true },
+    })).map((j) => j.refId),
+  );
   for (const p of unsent) {
     const baseKeys = readJson<string[]>(p.mediaKeys, []);
     for (const t of p.targets) {
@@ -343,7 +350,7 @@ export async function getSocialOverview(workspaceId: string): Promise<SocialOver
         overLimit.push({ id: p.id, label: net.label, len, limit: net.charLimit });
       }
       const keys = t.mediaKeys ? readJson<string[]>(t.mediaKeys, []) : baseKeys;
-      if (net.requiresMedia && keys.length === 0) {
+      if (net.requiresMedia && keys.length === 0 && !picturing.has(p.id)) {
         needsImage.push({ id: p.id, label: net.label });
       }
     }

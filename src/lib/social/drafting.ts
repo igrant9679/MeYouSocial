@@ -6,7 +6,7 @@ import { writeAudit, isGloballyPaused } from "@/lib/governance";
 import { notify } from "@/lib/notify";
 import { llm, resolveUsableModel } from "@/lib/llm";
 import { motifPromptFor, brandContextBlock } from "@/lib/motifs";
-import { networkFor } from "@/lib/social/networks";
+import { engineTargets, pictureWillCome } from "@/lib/social/picture-networks";
 import { claimNextFreeSlot } from "@/lib/social/slots";
 import { howManyTags, settleTagLine, tagInstruction } from "@/lib/social/hashtag-text";
 import { houseTags } from "@/lib/social/house-tags";
@@ -128,9 +128,11 @@ async function writePostFromIdea(
   },
 ): Promise<DraftResult> {
   const accounts = await db.zernioAccount.findMany({ where: { workspaceId, status: "connected" } });
-  const targets = accounts.filter((a) => !networkFor(a.platform)?.requiresMedia);
+  // Text-capable accounts, plus Instagram and Pinterest when the auto-image job will attach a picture
+  // (lib/social/picture-networks.ts) — the sweep holds the send until it has.
+  const targets = engineTargets(accounts, await pictureWillCome(workspaceId));
   if (targets.length === 0) {
-    return { ok: false, message: "No connected account takes a text-only post (Instagram and the like need an image) — connect one under Settings → Connections." };
+    return { ok: false, message: "No connected account can take this post: the others need a picture, and no picture will be made (auto-image is off or no image provider is set up). Connect another account, or set up images under Settings → Keys." };
   }
 
   const [org, motifs, guardrails, workspace, house] = await Promise.all([

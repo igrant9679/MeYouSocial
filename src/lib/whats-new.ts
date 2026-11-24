@@ -41,6 +41,14 @@ export const CARD_MAX = 5;
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    id: "2026-11-23-engine-instagram",
+    date: "2026-11-23",
+    title: "The app's own posts reach Instagram and Pinterest",
+    body: "Posts the app writes by itself, article shares included, now go to Instagram and Pinterest too when a picture is coming, and wait for the picture before they're sent. Before, they skipped those networks.",
+    href: "/social/queue",
+    cta: "Open the queue",
+  },
+  {
     id: "2026-11-23-article-share",
     date: "2026-11-23",
     title: "Share new articles on social automatically",

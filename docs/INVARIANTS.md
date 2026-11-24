@@ -3446,3 +3446,22 @@ posts LSI, CommunityForce and EDG make by hand.
 - **Being written**: an approved share idea with no post yet is `writing`; past 15 minutes (a killed container) it
   reads as skipped, so the engine leaves it and a person's Share it now replaces it.
 - The Ideas board shows a share as "shares the article: …"; `SOURCE_LABEL.share` names it in an idea's history.
+
+## The app's own posts reach Instagram and Pinterest when a picture is coming, and wait for it (2026-11-23, the owner's "Yes, build it")
+
+LSI has Instagram and Pinterest connected, yet no post the engine wrote ever went there: the writers kept only
+accounts that take text alone, because a written post starts with no picture — though the auto-image job attaches one
+a minute later.
+
+- **Who's included** (`engineTargets`, `lib/social/picture-networks.ts`): every text-capable account, plus Instagram and
+  Pinterest when `pictureWillCome` (auto-image not "false" AND the workspace's image provider isn't the mock — the job
+  never attaches the mock's picture). Both writers use it: `writePostFromIdea` (ideas, article shares) and the rotation
+  writer (`autogen.ts`); so does the Ideas board's blocker. ⚠ TikTok is never in an engine post: it needs a PERSON's
+  deliberate audience choice (`tiktokRefusal`), there's no default to pick. YouTube (video) and Snapchat stay out.
+- **The hold** (`awaitingPicture`, in `publishDueSocialPosts`): a due post with no picture, an unsent leg on a picture
+  network without its own picture, and a `social.autoimage` job still queued or running stays `scheduled` — at most
+  `PICTURE_HOLD_MS` (15 min) past its time. The claim is untouched, so nothing can send twice.
+- **No picture after all** (render failed, provider gone): the send's `legProblem` refuses those legs ("Instagram needs
+  an image…"), the other legs go out, and it's told like any failed send (SOC-13/14). Not a new status.
+- **The overview** doesn't list a post as "needs an image" while its auto-image job is live.
+- Posts a person composes are unchanged: Compose still refuses Instagram without a picture.
