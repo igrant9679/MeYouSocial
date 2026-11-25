@@ -11,7 +11,7 @@ import { parseScenes, scenesToNarration, scenesToSrt, scriptToNarration, snapSce
 import { getTtsProvider } from "@/lib/tts";
 import { isGloballyPaused, writeAudit } from "@/lib/governance";
 import { jobs } from "@/lib/jobs";
-import { registerVideoRenderJobs, VIDEO_RENDER_JOB } from "@/lib/jobs/video-render";
+import { registerVideoRenderJobs, VIDEO_EXTEND_JOB, VIDEO_RENDER_JOB } from "@/lib/jobs/video-render";
 
 /**
  * Phase 4 video actions. Packaging is cheap (one LLM call); rendering costs
@@ -88,14 +88,19 @@ export async function rerenderSceneAction(formData: FormData) {
   const scene = Number.isInteger(index) ? scenes[index] : undefined;
   const single = scenes.length <= 1;
   if (!single && !(scene && scene.status === "done" && scene.outputUrl)) return;
-  if (!single) scenes[index] = { ...scene!, outputUrl: null, status: "planned" };
+  // A scene rendered again starts from a scene's length again — an extension belonged to the old clip.
+  const reset = (s: StoryScene): StoryScene => ({ ...s, outputUrl: null, status: "planned", ref: null, extendError: null, ...(s.extended ? { extended: false, seconds: snapSceneSeconds(s.seconds, { framed: !!s.firstFrameKey }) } : {}) });
+  if (!single) scenes[index] = reset(scene!);
+  else if (scenes[0]) scenes[0] = reset(scenes[0]);
   // Conditional on the status read, so it can't re-queue a board that started rendering meanwhile.
   const r = await db.videoRender.updateMany({
     where: { id: render.id, status: render.status },
     data: {
       status: "queued",
       error: null,
-      ...(single ? { outputUrl: null, storedUrl: null } : { scenes: JSON.stringify(scenes) }),
+      ...(single ? { outputUrl: null, storedUrl: null } : {}),
+      scenes: JSON.stringify(scenes),
+      seconds: scenes.reduce((a, s) => a + s.seconds, 0) || render.seconds,
       assembledUrl: null,
       assemblyStatus: null,
       assemblyError: null,
@@ -325,6 +330,36 @@ export async function setSceneFrameAction(formData: FormData) {
   scenes[index] = { ...scene, outputUrl: null, status: "planned" };
   await persistScenes(render.id, scenes);
   revalidatePath(`/videos/${id}`);
+}
+
+/**
+ * "Extend" a finished clip (2026-11-24): ADMIN — it spends provider money. The first press shows what it adds and costs
+ * on the board (`?confirmExtend=`); only that confirmation queues the background job (lib/video/extend.ts).
+ */
+export async function extendSceneAction(formData: FormData) {
+  const id = String(formData.get("id"));
+  const index = parseInt(String(formData.get("index")), 10);
+  const { extendSeconds } = await import("@/lib/video/omni");
+  const seconds = extendSeconds(parseInt(String(formData.get("seconds")), 10));
+  const direction = String(formData.get("direction") ?? "").trim().slice(0, 300);
+  const { workspace, user } = await requireRole("ADMIN");
+  const render = await db.videoRender.findFirst({ where: { id, workspaceId: workspace.id } });
+  if (!render) back(id, "That video isn't here any more.");
+  const scenes = parseScenes(render.scenes);
+  const { extendRefusal } = await import("@/lib/video/extend");
+  const refused = extendRefusal(Number.isFinite(index) ? scenes[index] : undefined, render.status, seconds);
+  if (refused) back(id, refused);
+  if (String(formData.get("intent") ?? "") !== "confirmed") {
+    redirect(`/videos/${render.id}?confirmExtend=${index}&s=${seconds}${direction ? `&d=${encodeURIComponent(direction)}` : ""}#extend-confirm`);
+  }
+  if (await isGloballyPaused(workspace.id)) back(id, "Automation is paused for this workspace, so nothing renders until it's resumed.");
+  registerVideoRenderJobs();
+  const live = await jobs.latestFor(VIDEO_EXTEND_JOB, render.id);
+  if (live && (live.state === "queued" || live.state === "running")) back(id, "A clip on this board is being extended already.");
+  await jobs.enqueue(VIDEO_EXTEND_JOB, { workspaceId: workspace.id, renderId: render.id, index, seconds, direction: direction || null }, { refId: render.id, workspaceId: workspace.id, maxAttempts: 1 });
+  await writeAudit({ workspaceId: workspace.id, actorId: user.id, action: "video.scene_extend_started", entityType: "video_render", entityId: render.id, meta: { scene: index + 1, seconds } });
+  revalidatePath(`/videos/${render.id}`);
+  redirect(`/videos/${render.id}?flash=${encodeURIComponent(`Extending scene ${index + 1} by ${seconds} seconds in the background — this page updates when it's done.`)}`);
 }
 
 /** Keep the derived columns (prompt/seconds/cost) in sync with the board. */

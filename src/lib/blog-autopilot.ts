@@ -1376,7 +1376,7 @@ export async function processRenderCore(
         await meterVideoScene({ workspaceId, provider: out.provider, model: VIDEO_MODEL, seconds: out.seconds ?? scenes[i].seconds });
         const durable = await persistRenderOutput(out, workspaceId);
         if (i === 0) firstDurable = durable;
-        scenes[i] = { ...scenes[i], outputUrl: keepable(out, durable), status: "done" };
+        scenes[i] = { ...scenes[i], outputUrl: keepable(out, durable), status: "done", ref: out.ref ?? null, extended: false, extendError: null };
         await db.videoRender.update({ where: { id: render.id }, data: { scenes: JSON.stringify(scenes) } });
         await opts.onScene?.(scenes.filter((x) => x.status === "done" && x.outputUrl).length, scenes.length);
       }
@@ -1408,7 +1408,7 @@ export async function processRenderCore(
       await meterVideoScene({ workspaceId, provider: out.provider, model: VIDEO_MODEL, seconds: out.seconds ?? render.seconds });
       const durable = await persistRenderOutput(out, workspaceId);
       const playable = keepable(out, durable);
-      if (scenes.length === 1) scenes[0] = { ...scenes[0], status: "done", outputUrl: durable ?? playable };
+      if (scenes.length === 1) scenes[0] = { ...scenes[0], status: "done", outputUrl: durable ?? playable, ref: out.ref ?? null, extended: false, extendError: null };
       const finished = await db.videoRender.updateMany({
         where: { id: render.id, status: "rendering" },
         data: {

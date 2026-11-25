@@ -16,6 +16,8 @@ import { jobs } from "@/lib/jobs";
 let registered = false;
 
 export const VIDEO_RENDER_JOB = "video.render";
+/** Continue one finished clip (2026-11-24) — ONE attempt too: it pays Google for the seconds. */
+export const VIDEO_EXTEND_JOB = "video.extend";
 
 export function registerVideoRenderJobs() {
   if (registered) return;
@@ -26,6 +28,12 @@ export function registerVideoRenderJobs() {
     await processRenderCore(workspaceId, renderId, {
       onScene: (done, total) => ctx.progress(Math.min(0.98, done / Math.max(1, total))),
     });
+    await ctx.progress(1);
+  });
+  jobs.register<{ workspaceId: string; renderId: string; index: number; seconds: number; direction?: string | null }>(VIDEO_EXTEND_JOB, async (p, ctx) => {
+    await ctx.progress(0.05);
+    const { extendSceneCore } = await import("@/lib/video/extend");
+    await extendSceneCore(p);
     await ctx.progress(1);
   });
 }

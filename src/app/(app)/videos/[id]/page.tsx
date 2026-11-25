@@ -1,5 +1,5 @@
 import { AutoRefresh } from "@/components/AutoRefresh";
-import { FRAMED_MAX_SECONDS, SCENE_SECONDS } from "@/lib/captions";
+import { EXTENDED_MAX_SECONDS, FRAMED_MAX_SECONDS, SCENE_SECONDS } from "@/lib/captions";
 import { readJson } from "@/lib/db/json";
 import { storage } from "@/lib/storage";
 import Link from "next/link";
@@ -24,16 +24,17 @@ import {
   removeReferenceImageAction,
   setSceneFrameAction,
   updateSceneAction,
+  extendSceneAction,
 } from "@/app/actions/videos";
 import { AiAssist } from "@/components/AiAssist";
 import { Banner } from "@/components/SocialPostCard";
 import { jobs } from "@/lib/jobs";
-import { VIDEO_RENDER_JOB } from "@/lib/jobs/video-render";
+import { VIDEO_EXTEND_JOB, VIDEO_RENDER_JOB } from "@/lib/jobs/video-render";
 import { boardProgress, SCENE_STATE_LABEL, sceneState, type SceneState } from "@/lib/video-progress";
 import { estimate, monthSpend, perSecondUsd, scenesToPay, usd, videoPrices } from "@/lib/video-spend";
 import { PAID_VIDEO_PROVIDERS, VIDEO_MODEL } from "@/lib/video";
 
-const SCENE_STATE_COLOR: Record<SceneState, string> = { done: "var(--green-on)", rendering: "var(--blue-on)", next: "var(--amber-on)", waiting: "var(--mute)", interrupted: "var(--rose-on)" };
+const SCENE_STATE_COLOR: Record<SceneState, string> = { done: "var(--green-on)", rendering: "var(--blue-on)", extending: "var(--blue-on)", next: "var(--amber-on)", waiting: "var(--mute)", interrupted: "var(--rose-on)" };
 
 // The storyboard editor: scene-by-scene plan for one render. Scenes are
 // editable until rendering starts; after that the board becomes the record of
@@ -59,7 +60,7 @@ export default async function StoryboardPage({
   params, searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ flash?: string; flashErr?: string; confirmRender?: string }>;
+  searchParams: Promise<{ flash?: string; flashErr?: string; confirmRender?: string; confirmExtend?: string; s?: string; d?: string }>;
 }) {
   const { id } = await params;
   const sp = await searchParams;
@@ -79,6 +80,13 @@ export default async function StoryboardPage({
   const progress = boardProgress(render.status, scenes);
   const job = await jobs.latestFor(VIDEO_RENDER_JOB, render.id);
   const jobActive = job?.state === "queued" || job?.state === "running";
+  // Extend (2026-11-24): a clip being continued keeps the page refreshing until the longer one lands.
+  const extendJob = await jobs.latestFor(VIDEO_EXTEND_JOB, render.id);
+  const extending = scenes.some((s) => s.status === "extending") || extendJob?.state === "queued" || extendJob?.state === "running";
+  const confirmIndex = sp.confirmExtend != null ? parseInt(sp.confirmExtend, 10) : NaN;
+  const confirmScene = Number.isFinite(confirmIndex) ? scenes[confirmIndex] : undefined;
+  const confirmSeconds = Math.min(10, Math.max(3, parseInt(sp.s ?? "6", 10) || 6));
+  const extendChoices = (scene: (typeof scenes)[number]) => [4, 6, 8, 10].filter((n) => scene.seconds + n <= EXTENDED_MAX_SECONDS);
   const rerenderable = editor && (render.status === "done" || render.status === "failed");
   // E-VID-06: what a render would cost before it's spent — at the operator's price, or seconds and a dash.
   const [prices, spend] = await Promise.all([videoPrices(), monthSpend(workspace.id)]);
@@ -172,6 +180,35 @@ export default async function StoryboardPage({
         </div>
       )}
 
+      {/* Extend (2026-11-24): what it adds and costs, then Extend — the same rule as Render now. */}
+      {confirmScene && render.status === "done" && admin && !extending && (
+        <div id="extend-confirm" className="card mb-4 scroll-mt-20" style={{ borderColor: spend.budget != null && spend.seconds + confirmSeconds > spend.budget ? "var(--rose)" : "var(--amber)" }} data-extend-confirm>
+          <p className="text-sm m-0 mb-1">
+            Extend <b>scene {confirmIndex + 1}</b> by <b className="font-mono">{confirmSeconds} seconds</b> ({confirmScene.seconds} s → {confirmScene.seconds + confirmSeconds} s) with <span className="font-mono">{VIDEO_MODEL}</span>.{" "}
+            {perSecond != null
+              ? <>About <b className="font-mono" data-extend-total>{usd(confirmSeconds * perSecond)}</b> at {perSecondUsd(perSecond)} a second — the platform operator&apos;s price, an estimate, not a bill.</>
+              : <>No price per second is set for this model, so this can&apos;t say what it costs — the platform operator sets one on Usage.</>}
+          </p>
+          {sp.d && <p className="text-2xs m-0 mb-1">Direction: “{sp.d.slice(0, 300)}”</p>}
+          <p className="text-2xs text-[var(--mute)] m-0 mb-2">
+            This month so far: {spend.seconds} seconds{spend.usd != null ? ` (about ${usd(spend.usd)})` : ""}
+            {spend.budget != null ? <> of a {spend.budget}-second budget{spend.seconds + confirmSeconds > spend.budget ? <b style={{ color: "var(--rose-on)" }}> — this goes past it</b> : null}</> : " — no monthly budget set (Usage)"}.
+            {scenes.length > 1 ? " The full video is stitched again afterwards." : ""}
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <form action={extendSceneAction}>
+              <input type="hidden" name="id" value={render.id} />
+              <input type="hidden" name="index" value={confirmIndex} />
+              <input type="hidden" name="seconds" value={confirmSeconds} />
+              <input type="hidden" name="direction" value={sp.d ?? ""} />
+              <input type="hidden" name="intent" value="confirmed" />
+              <SubmitButton className="btn primary" pendingText="Starting…"><Plus className="w-4 h-4" /> Extend — {confirmSeconds} s{perSecond != null ? `, about ${usd(confirmSeconds * perSecond)}` : ""}</SubmitButton>
+            </form>
+            <Link href={`/videos/${render.id}`} className="btn">Not now</Link>
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-wrap items-center gap-2 mb-4">
         {render.status === "failed" && editor && (
           <form action={retryRenderAction}>
@@ -185,7 +222,7 @@ export default async function StoryboardPage({
             <SubmitButton className="btn" pendingText="Cancelling…">Cancel render</SubmitButton>
           </form>
         )}
-        {(render.status === "queued" || render.status === "rendering" || jobActive) && <AutoRefresh />}
+        {(render.status === "queued" || render.status === "rendering" || jobActive || extending) && <AutoRefresh />}
         {render.status === "queued" && admin && !jobActive && !sp.confirmRender && (
           <form action={processRenderNowAction}>
             <input type="hidden" name="id" value={render.id} />
@@ -368,6 +405,34 @@ export default async function StoryboardPage({
                         <RotateCcw className="w-3 h-3" /> Render this scene again
                       </SubmitButton>
                     </form>
+                  )}
+                  {/* Extend (2026-11-24): continue the clip Google made — a few seconds at a time, up to 30. */}
+                  {scene.extendError && scene.status !== "extending" && (
+                    <p className="text-micro px-2 py-1 rounded" style={{ background: "var(--rose-soft)", color: "var(--rose-on)" }} data-extend-error={i}>Couldn&apos;t extend: {scene.extendError}</p>
+                  )}
+                  {admin && render.status === "done" && PAID_VIDEO_PROVIDERS.has(render.provider) && scene.status === "done" && scene.outputUrl && !extending && (
+                    scene.ref && extendChoices(scene).length > 0 ? (
+                      <details className="text-2xs" data-extend={i}>
+                        <summary className="cursor-pointer text-[var(--mute)]">Extend this clip{scene.extended ? " again" : ""}</summary>
+                        <form action={extendSceneAction} className="flex flex-col gap-1 mt-1">
+                          <input type="hidden" name="id" value={render.id} />
+                          <input type="hidden" name="index" value={i} />
+                          <div className="flex items-center gap-1.5">
+                            <span>by</span>
+                            <select name="seconds" defaultValue={extendChoices(scene)[Math.min(1, extendChoices(scene).length - 1)]} className="w-16 font-mono text-2xs" aria-label="Seconds to add">
+                              {extendChoices(scene).map((n) => <option key={n} value={n}>{n}</option>)}
+                            </select>
+                            <span>s · up to {EXTENDED_MAX_SECONDS} s in all</span>
+                          </div>
+                          <input name="direction" maxLength={300} placeholder="What happens next (optional)" className="w-full text-2xs" />
+                          <div><SubmitButton className="btn sm" pendingText="…"><Plus className="w-3 h-3" /> Extend…</SubmitButton></div>
+                        </form>
+                      </details>
+                    ) : (
+                      <p className="text-micro text-[var(--mute)]" data-extend-unavailable={i}>
+                        {scene.ref ? `At ${EXTENDED_MAX_SECONDS} seconds — as long as a scene can be.` : "Made before clips could be continued — render it again to extend it."}
+                      </p>
+                    )
                   )}
                 </>
               )}

@@ -439,6 +439,7 @@ area, rather than loading all of them into every session.
 - The app's own posts reach Instagram and Pinterest when a picture is coming, and wait for it — 2026-11-23, the owner's "Yes, build it"
 - A send that got no answer is looked up in Zernio's list — and "not there" needs proof — 2026-11-23, the owner's "Yes, build it" (CommunityForce's 23 Oct post)
 - AI video is Gemini Omni Flash: Veo's previews are gone; references, start/end pictures, scenes to 15 s — 2026-11-24, the owner's "Yes, do it here" (Google Flow support)
+- A finished scene can be extended — continued by Google to 30 s, measured, joined if need be — 2026-11-25, the owner's "continue"
 - Scripts on pages run only with the page's nonce — `src/proxy.ts`; a proxy cuts bodies over `proxyClientMaxBodySize` — 2026-11-24, the owner's "Yes, build CSP"
 - Posts the engine writes end in whole sentences — rewritten once, else closing sentences dropped, else not stored (`lib/social/fit-post.ts`) — 2026-11-24, the owner's "Fix both"
 

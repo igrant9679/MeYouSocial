@@ -493,6 +493,12 @@ export const HELP_CATEGORIES: FaqCategory[] = [
         tags: ["video", "reference", "ingredients", "flow", "character", "product", "first frame", "last frame", "reels", "shorts"],
       },
       {
+        q: "Can I make a scene longer after it's rendered?",
+        a: "Yes, once the video has finished. Under a scene, an admin opens **Extend this clip**, picks how much to add (4, 6, 8 or 10 seconds; a scene can run 30 seconds in all) and can say what happens next. Like **Render now**, it first shows the seconds and the cost at the operator's price, and only the second press spends anything. Google continues the clip from where it ends, and the longer clip replaces the old one. The video's length and captions follow, and a video with several scenes is stitched again. A clip can be extended again until it reaches 30 seconds. Clips made before 25 November 2026 can't be continued: render the scene again first. If Google can't continue a clip, the scene keeps its clip and says why.",
+        links: [{ label: "Videos →", href: "/videos" }],
+        tags: ["video", "extend", "longer", "continue", "flow", "scene", "seconds"],
+      },
+      {
         q: "Can Publisher upload a video to YouTube for me?",
         a: "Yes, from a project's page (admins): **Upload to YouTube** sends one of the project's own video files — a teleprompter take, a video Asset linked to it, or a finished storyboard cut of its script — to the workspace's connected channel, with a title, description (the script's publishing package and chapters fill it in), tags, who can see it, an optional publish time and a thumbnail. It shows a summary to say yes to first, uploads in the background in pieces (it resumes if interrupted, and Retry carries on), and links the project to the new video.\n\nTwo things YouTube decides: uploads from a Google Cloud project YouTube hasn't audited stay **private** whatever you choose, until the project passes YouTube's API audit; and a custom thumbnail needs a verified channel. Captions aren't sent — that needs a wider YouTube permission — so add the SRT in Studio.",
         links: [{ label: "Production →", href: "/production" }],

@@ -41,6 +41,8 @@ export type VideoRenderResult = {
   mime?: string;
   provider: string;
   seconds: number;
+  /** The provider's handle on the clip, for continuing it later (Google: the interaction id). */
+  ref?: string;
 };
 
 export interface VideoProvider {
@@ -105,7 +107,7 @@ const googleProvider: VideoProvider = {
     // every member via the UI/DB). It expires in ~2 days and isn't publicly
     // readable, so `persistRenderOutput` downloads it with the key in an
     // `x-goog-api-key` header; `VideoRender.storedUrl` is the durable copy.
-    return { url: out.url, bytes: out.bytes, mime: out.mime, provider: "google", seconds: out.seconds };
+    return { url: out.url, bytes: out.bytes, mime: out.mime, provider: "google", seconds: out.seconds, ref: out.interactionId };
   },
 };
 

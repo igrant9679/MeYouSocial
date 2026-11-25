@@ -3645,3 +3645,31 @@ a minute later.
   `scenes[0]`, so its card read "not rendered yet" under a finished Output. It now marks the scene rendering, then done
   with the stored clip; `sceneState` reads any done one-scene board as done (boards rendered before), and the card's
   own player is for multi-scene boards only — a one-scene board plays under Output, once.
+
+## ⚠ A finished scene can be extended — continued by Google, measured, joined if need be (2026-11-25, the owner's "continue")
+- **The handle**: every clip Google renders keeps the interaction that made it on its scene (`scenes[].ref`, from
+  `OmniResult.interactionId` / `VideoRenderResult.ref`). Clips made before have none and say "render it again to
+  extend it". A scene rendered again loses its `ref` and its extension (`rerenderSceneAction`'s reset).
+- **The call** (`omni.ts` `omniExtendBody`, `extendWithOmni`): `previous_interaction_id` = the scene's ref, the input
+  "Extend this video by N seconds, continuing the same scene smoothly from its last frame." plus the person's direction,
+  `response_format` with `duration: "Ns"` (N = 3–10, `extendSeconds`), task `extend`. A 400/404 that names the
+  interaction becomes "Google no longer holds the history of this clip … render the scene again".
+- **⚠ Whole clip or tail?** Google's pages don't say whether the answer is the longer clip or only the new seconds, so
+  `extendSceneCore` (`lib/video/extend.ts`) MEASURES the answer (ffmpeg `probeVideo`): at least the old length plus half
+  the new → it is the new clip; else it is the tail and is joined onto the old clip (`assembleScenes`, each part
+  trimmed to its length). With no ffmpeg it is read as whole (Google: "up to 30 seconds total").
+- **What changes**: the scene's clip (one stored file), `seconds` = what that file runs (capped at
+  `EXTENDED_MAX_SECONDS` 30), `extended: true` (so `parseScenes` keeps the real length instead of snapping it to a
+  scene step), `ref` → the new interaction (it can be extended again); the board's `seconds` and SRT; a one-scene
+  board's `outputUrl`/`storedUrl`; a multi-scene board's stitched cut is cleared and made again. Metered as N seconds
+  under the Omni model; audited `video.scene_extended` (scene, added, seconds, joined) or `video.scene_extend_failed`.
+- **Rules**: ADMIN only; the first press shows the seconds, the cost at the operator's price, the month and the budget
+  (`?confirmExtend=`), only the confirmation queues the `video.extend` job (one attempt, one live per board); a board
+  that is done, a scene that is done with a clip and a ref, and ≤ 30 s after — `extendRefusal` says otherwise in words.
+  The scene is claimed (`status: "extending"`, conditional on the board's scenes as read) so two can't run at once; the
+  page refreshes while it runs; a failure leaves the clip as it was and the reason on the scene (`extendError`).
+- Checked: 16 cases with real MP4s made by ffmpeg — the request, lengths, a square clip refused, an extended scene's
+  length kept on read, the refusals; a render keeping its ref; a one-scene board extended with a whole clip back (10 s,
+  the board's output and captions follow, metered 4 then 6); a two-scene board extended with only the tail back (joined
+  to 10 s, the full video stitched again to 14 s, audited as joined); a forgotten conversation failing in words with
+  the clip kept; past 30 s not attempted.

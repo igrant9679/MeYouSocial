@@ -165,15 +165,15 @@ function refusal(r: Reply, model: string): Error {
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const WORKING = new Set(["in_progress", "queued", "pending", "running", "processing", "created"]);
 
-export type OmniResult = { url: string; bytes?: Buffer; mime?: string; seconds: number };
 
-/** Render one clip. Throws with Google's reason when it can't — a render never quietly becomes a placeholder. */
-export async function renderWithOmni(req: OmniInput & { workspaceId?: string }): Promise<OmniResult> {
-  const apiKey = await getApiKey("google", req.workspaceId);
-  if (!apiKey) throw new Error("No Google API key configured (Settings → Keys → Google)");
-  const body = omniRequestBody(req);
-  const seconds = omniSeconds(req.seconds, Boolean(req.firstFrame || req.lastFrame));
+/** A clip Google made: a link or the bytes, how long it was asked to be, and the interaction that made it. */
+export type OmniResult = { url: string; bytes?: Buffer; mime?: string; seconds: number; interactionId?: string };
 
+/**
+ * Send one interaction and wait for its video (shared by render and extend). Throws with Google's reason when it
+ * can't — a clip never quietly becomes a placeholder.
+ */
+async function runInteraction(apiKey: string, body: Record<string, unknown>, seconds: number): Promise<OmniResult> {
   const first = await callGemini("POST", "/v1beta/interactions", apiKey, body, CALL_TIMEOUT_MS);
   if (first.status < 200 || first.status >= 300) throw refusal(first, OMNI_MODEL);
   let interaction = first.json as { id?: unknown; status?: unknown } | null;
@@ -190,7 +190,9 @@ export async function renderWithOmni(req: OmniInput & { workspaceId?: string }):
     const status = typeof interaction?.status === "string" ? interaction.status : "no status";
     throw new Error(`Google returned no video (${status}) — the prompt or an image may have been blocked by Google's safety filters.`);
   }
-  if (found.data) return { url: "", bytes: Buffer.from(found.data, "base64"), mime: found.mime ?? "video/mp4", seconds };
+  // The interaction's id is what a later "continue this clip" points at (`previous_interaction_id`).
+  const interactionId = typeof interaction?.id === "string" ? interaction.id : undefined;
+  if (found.data) return { url: "", bytes: Buffer.from(found.data, "base64"), mime: found.mime ?? "video/mp4", seconds, interactionId };
 
   // A Files link: wait until Google says the file is ready, then hand back the bare link to download.
   const uri = bareFileUrl(found.uri!);
@@ -201,9 +203,66 @@ export async function renderWithOmni(req: OmniInput & { workspaceId?: string }):
       const f = await callGemini("GET", `/v1beta/files/${encodeURIComponent(id)}`, apiKey, undefined, 30_000).catch(() => null);
       const state = (f?.json as { state?: unknown } | null)?.state;
       if (!f || f.status !== 200 || state === "ACTIVE" || state === undefined) break;
-      if (state === "FAILED") throw new Error("Google made the video but its file failed to process — render the scene again.");
+      if (state === "FAILED") throw new Error("Google made the video but its file failed to process — try again.");
       await sleep(3_000);
     }
   }
-  return { url: uri, seconds };
+  return { url: uri, seconds, interactionId };
+}
+
+async function keyFor(workspaceId?: string): Promise<string> {
+  const apiKey = await getApiKey("google", workspaceId);
+  if (!apiKey) throw new Error("No Google API key configured (Settings → Keys → Google)");
+  return apiKey;
+}
+
+/** Render one clip. */
+export async function renderWithOmni(req: OmniInput & { workspaceId?: string }): Promise<OmniResult> {
+  const apiKey = await keyFor(req.workspaceId);
+  return runInteraction(apiKey, omniRequestBody(req), omniSeconds(req.seconds, Boolean(req.firstFrame || req.lastFrame)));
+}
+
+/** How much one extension adds: 3–10 seconds (Google's per-turn limit). */
+export const extendSeconds = (n: number): number => Math.min(10, Math.max(3, Math.round(Number.isFinite(n) ? n : 6)));
+
+/**
+ * "Continue this clip" (2026-11-24): a turn in the conversation that made it — `previous_interaction_id` — asking for
+ * `seconds` more at the end, optionally steered by a line of direction. Pure, for the checks.
+ */
+export function omniExtendBody(req: { previousId: string; seconds: number; aspect: "9:16" | "16:9" | "1:1"; direction?: string | null }, model = OMNI_MODEL): Record<string, unknown> {
+  if (req.aspect !== "9:16" && req.aspect !== "16:9") throw new Error(`Gemini Omni Flash extends 9:16 or 16:9 video, not ${req.aspect}.`);
+  const n = extendSeconds(req.seconds);
+  const direction = (req.direction ?? "").trim().slice(0, 300);
+  return {
+    model,
+    previous_interaction_id: req.previousId,
+    input: `Extend this video by ${n} seconds, continuing the same scene smoothly from its last frame.${direction ? ` ${direction}` : ""}`,
+    response_format: { type: "video", aspect_ratio: req.aspect, resolution: "720p", duration: `${n}s`, delivery: "uri" },
+    generation_config: { video_config: { task: "extend" } },
+  };
+}
+
+/** Continue a clip Google made. A conversation Google no longer holds comes back as a refusal, said in words. */
+export async function extendWithOmni(req: { workspaceId?: string; previousId: string; seconds: number; aspect: "9:16" | "16:9" | "1:1"; direction?: string | null }): Promise<OmniResult> {
+  const apiKey = await keyFor(req.workspaceId);
+  try {
+    return await runInteraction(apiKey, omniExtendBody(req), extendSeconds(req.seconds));
+  } catch (e) {
+    const m = e instanceof Error ? e.message : String(e);
+    if (/HTTP (404|400)/.test(m) && /interaction/i.test(m)) {
+      throw new Error(`Google no longer holds the history of this clip, so it can't be continued — render the scene again, then extend it. (${m.slice(0, 200)})`);
+    }
+    throw e;
+  }
+}
+
+/** The bytes of a Files link Google gave, fetched with the key in a header (never in the URL). */
+export async function downloadGeminiFile(uri: string, workspaceId?: string): Promise<Buffer> {
+  const apiKey = await keyFor(workspaceId);
+  let target = bareFileUrl(uri);
+  if (/\/files\/[^/:?]+$/.test(target)) target += ":download";
+  if (!/[?&]alt=media\b/.test(target)) target += (target.includes("?") ? "&" : "?") + "alt=media";
+  const res = await fetch(target, { headers: { "x-goog-api-key": apiKey }, signal: AbortSignal.timeout(120_000), redirect: "follow" });
+  if (!res.ok) throw new Error(`Couldn't download the clip from Google (HTTP ${res.status}).`);
+  return Buffer.from(await res.arrayBuffer());
 }

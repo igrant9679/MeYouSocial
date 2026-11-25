@@ -41,6 +41,15 @@ export const CARD_MAX = 5;
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    id: "2026-11-25-extend-clip",
+    date: "2026-11-25",
+    title: "Make a video scene longer with Extend",
+    body: "On a finished video, a scene's Extend this clip continues it by 4 to 10 seconds, up to 30 seconds in all, with an optional line about what happens next. It shows the seconds and cost first, like Render now.",
+    href: "/videos",
+    cta: "Open Videos",
+    admin: true,
+  },
+  {
     id: "2026-11-24-google-omni-video",
     date: "2026-11-24",
     title: "AI video now comes from Google's Gemini Omni Flash, the model behind Flow",

@@ -37,7 +37,16 @@ export type StoryScene = {
   /** The scene starts on this stored picture (2026-11-24) — and ends on `lastFrameKey` when there is one. */
   firstFrameKey?: string | null;
   lastFrameKey?: string | null;
+  /** The Google interaction that made the clip — what "Extend" continues (2026-11-24). Null for older clips. */
+  ref?: string | null;
+  /** The clip was continued: its seconds are what it really runs (up to EXTENDED_MAX_SECONDS), not a scene step. */
+  extended?: boolean;
+  /** Why the last Extend didn't happen, in words; cleared by the next one. */
+  extendError?: string | null;
 };
+
+/** The longest a scene can be by extending it (Google: up to 30 seconds in all). */
+export const EXTENDED_MAX_SECONDS = 30;
 
 export function parseScenes(json: string | null | undefined): StoryScene[] {
   if (!json) return [];
@@ -48,13 +57,19 @@ export function parseScenes(json: string | null | undefined): StoryScene[] {
       .filter((s): s is Record<string, unknown> => !!s && typeof s === "object")
       .map((s) => ({
         prompt: typeof s.prompt === "string" ? s.prompt : "",
-        seconds: snapSceneSeconds(Number.isFinite(Number(s.seconds)) && Number(s.seconds) > 0 ? Number(s.seconds) : 6, { framed: isFrameKey(s.firstFrameKey) || isFrameKey(s.lastFrameKey) }),
+        // An extended clip runs what it runs (to 30 s); every other scene is snapped to a length a render can make.
+        seconds: s.extended === true && Number.isFinite(Number(s.seconds)) && Number(s.seconds) > 0
+          ? Math.min(EXTENDED_MAX_SECONDS, Math.max(1, Math.round(Number(s.seconds))))
+          : snapSceneSeconds(Number.isFinite(Number(s.seconds)) && Number(s.seconds) > 0 ? Number(s.seconds) : 6, { framed: isFrameKey(s.firstFrameKey) || isFrameKey(s.lastFrameKey) }),
         text: typeof s.text === "string" ? s.text : null,
         outputUrl: typeof s.outputUrl === "string" ? s.outputUrl : null,
         status: typeof s.status === "string" ? s.status : "planned",
         // A last frame means nothing without a first: Google takes two images as start then end.
         firstFrameKey: isFrameKey(s.firstFrameKey) ? s.firstFrameKey : null,
         lastFrameKey: isFrameKey(s.firstFrameKey) && isFrameKey(s.lastFrameKey) ? s.lastFrameKey : null,
+        ref: typeof s.ref === "string" && s.ref.length > 0 && s.ref.length <= 200 ? s.ref : null,
+        extended: s.extended === true,
+        extendError: typeof s.extendError === "string" && s.extendError ? s.extendError.slice(0, 400) : null,
       }))
       .filter((s) => s.prompt.length > 0);
   } catch {

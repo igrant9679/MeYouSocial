@@ -1663,7 +1663,7 @@ export default async function BlogPostPage({
         <div className="card mt-4 flex flex-wrap items-center gap-2 text-sm">
           <b>Video:</b>
           <span className="text-xs text-[var(--mute)] flex-1">
-            Package this post into a short-form video (8s vertical) — queued on the <Link href="/videos" className="underline">Videos</Link> page.
+            Package this post into a short vertical video (Reels, Shorts, TikTok) — a storyboard queued on the <Link href="/videos" className="underline">Videos</Link> page.
           </span>
           <form action={createVideoPackageAction}>
             <input type="hidden" name="blogPostId" value={post.id} />
