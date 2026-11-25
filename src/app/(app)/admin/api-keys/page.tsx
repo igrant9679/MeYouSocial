@@ -48,7 +48,7 @@ const MEDIA_ROWS: Array<{ provider: "youtube" | "elevenlabs" | "heygen"; label: 
 
 const ROWS: Row[] = [
   { provider: "anthropic", label: "Anthropic (Claude)",  envVar: "ANTHROPIC_API_KEY",     envValue: env.ANTHROPIC_API_KEY,     helpUrl: "https://console.anthropic.com/settings/keys", helpText: "console.anthropic.com → API Keys", use: "Writing: drafts, scripts, posts, the assistant." },
-  { provider: "google",    label: "Google (Gemini)",     envVar: "GOOGLE_GENAI_API_KEY",  envValue: env.GOOGLE_GENAI_API_KEY,  helpUrl: "https://aistudio.google.com/apikey",          helpText: "aistudio.google.com/apikey", use: "Writing, images, Veo video and reading images." },
+  { provider: "google",    label: "Google (Gemini)",     envVar: "GOOGLE_GENAI_API_KEY",  envValue: env.GOOGLE_GENAI_API_KEY,  helpUrl: "https://aistudio.google.com/apikey",          helpText: "aistudio.google.com/apikey", use: "Writing, images, video (Gemini Omni Flash) and reading images." },
   { provider: "openai",    label: "OpenAI (GPT)",        envVar: "OPENAI_API_KEY",        envValue: env.OPENAI_API_KEY,        helpUrl: "https://platform.openai.com/api-keys",        helpText: "platform.openai.com → API keys", use: "Images (gpt-image-1) and reading images — not writing." },
   { provider: "deepseek",  label: "DeepSeek",            envVar: "DEEPSEEK_API_KEY",      envValue: env.DEEPSEEK_API_KEY,      helpUrl: "https://platform.deepseek.com/api_keys",      helpText: "platform.deepseek.com", use: "Light jobs only — and only after an admin allows DeepSeek and picks it under Settings → Workspace." },
   { provider: "xai",       label: "xAI (Grok)",          envVar: "XAI_API_KEY",           envValue: env.XAI_API_KEY,           helpUrl: "https://console.x.ai",                        helpText: "console.x.ai" },
@@ -483,11 +483,12 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
       <div className="card mb-3">
         <div className="font-mono font-bold text-sm mb-1">Video renderer</div>
         <p className="text-2xs text-[var(--mute)] mb-2">
-          <b>Auto</b> uses Veo when a Google key is set (renders cost money), otherwise the free mock.
-          <b> Mock</b> never spends. <b>Veo</b> forces the real provider and errors loudly without a key.
+          <b>Auto</b> uses Google video (Gemini Omni Flash, the model behind Google&apos;s Flow) when a Google key is
+          set (renders cost money), otherwise the free mock. <b>Mock</b> never spends. <b>Google</b> forces the real
+          provider and errors loudly without a key.
         </p>
         <div className="flex gap-2">
-          {(["auto", "mock", "veo"] as const).map((v) => (
+          {(["auto", "mock", "google"] as const).map((v) => (
             <form key={v} action={saveMediaSettingAction} className="flex-1">
               <input type="hidden" name="setting" value="video:provider" />
               <input type="hidden" name="value" value={v} />

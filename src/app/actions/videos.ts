@@ -5,8 +5,9 @@ import { redirect } from "next/navigation";
 import { requireRole } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { assembleRenderCore, packageVideoCore } from "@/lib/blog-autopilot";
-import { estimateRenderUsd } from "@/lib/video";
-import { parseScenes, scenesToNarration, scenesToSrt, scriptToNarration, snapSceneSeconds, wordsToSrt, type TimedWord } from "@/lib/captions";
+import { estimateRenderUsd, loadVideoImage } from "@/lib/video";
+import { readJson } from "@/lib/db/json";
+import { parseScenes, scenesToNarration, scenesToSrt, scriptToNarration, snapSceneSeconds, wordsToSrt, type StoryScene, type TimedWord } from "@/lib/captions";
 import { getTtsProvider } from "@/lib/tts";
 import { isGloballyPaused, writeAudit } from "@/lib/governance";
 import { jobs } from "@/lib/jobs";
@@ -184,7 +185,7 @@ export async function updateSceneAction(formData: FormData) {
   if (index < 0 || index >= scenes.length) return;
   const secondsRaw = parseInt(String(formData.get("seconds")), 10);
   const prompt = String(formData.get("prompt") ?? "").trim().slice(0, 2000) || scenes[index].prompt;
-  const seconds = Number.isFinite(secondsRaw) ? snapSceneSeconds(secondsRaw) : scenes[index].seconds;
+  const seconds = Number.isFinite(secondsRaw) ? snapSceneSeconds(secondsRaw, { framed: !!scenes[index].firstFrameKey }) : scenes[index].seconds;
   // A retry skips finished clips; a scene whose picture changed isn't finished.
   const changed = prompt !== scenes[index].prompt || seconds !== scenes[index].seconds;
   scenes[index] = {
@@ -225,6 +226,103 @@ export async function deleteSceneAction(formData: FormData) {
   const scenes = parseScenes(render.scenes);
   if (scenes.length <= 1 || index < 0 || index >= scenes.length) return;
   scenes.splice(index, 1);
+  await persistScenes(render.id, scenes);
+  revalidatePath(`/videos/${id}`);
+}
+
+// ---- Pictures a board is made from (2026-11-24, Gemini Omni Flash) ----------------
+
+const MAX_REFERENCES = 6;
+const PICTURE_MAX_BYTES = 15 * 1024 * 1024;
+
+/**
+ * A picture for a board, from the form: an uploaded file (checked by its bytes, stored as this workspace's) or a
+ * Media library image of this workspace. Returns its storage key, or what's wrong in words.
+ */
+async function pictureFromForm(formData: FormData, workspaceId: string): Promise<{ key: string } | { error: string }> {
+  const file = formData.get("file");
+  const mediaKey = String(formData.get("mediaKey") ?? "").trim();
+  if (file instanceof File && file.size > 0) {
+    if (file.size > PICTURE_MAX_BYTES) return { error: "That picture is over 15 MB — use a smaller copy." };
+    const bytes = Buffer.from(await file.arrayBuffer());
+    const sharp = (await import("sharp")).default;
+    const format = (await sharp(bytes).metadata().catch(() => null))?.format ?? "";
+    if (!["jpeg", "png", "webp", "heif", "avif", "tiff"].includes(format)) return { error: "Only pictures can be used (JPEG, PNG or WebP)." };
+    const { storage } = await import("@/lib/storage");
+    const stored = await storage.put(`video-picture.${format === "jpeg" ? "jpg" : format}`, bytes, `image/${format}`, workspaceId);
+    return { key: stored.key };
+  }
+  if (mediaKey) {
+    const { ownsStoredKey } = await import("@/lib/social/post-image");
+    if (!(await ownsStoredKey(workspaceId, mediaKey))) return { error: "That picture isn't in this workspace's Media library." };
+    if (!(await loadVideoImage(mediaKey))) return { error: "That Media item isn't a picture that can be read." };
+    return { key: mediaKey };
+  }
+  return { error: "Choose a picture to upload, or one from Media." };
+}
+
+function back(id: string, err?: string): never {
+  redirect(`/videos/${id}${err ? `?flashErr=${encodeURIComponent(err)}` : ""}`);
+}
+
+/** Add a reference image to a board: every scene rendered from now on keeps that person or product the same. */
+export async function addReferenceImageAction(formData: FormData) {
+  const id = String(formData.get("id"));
+  const { workspace, user } = await requireRole("EDITOR");
+  const render = await loadEditableRender(workspace.id, id);
+  if (!render) back(id, "This board can't be changed while it renders or once it's done.");
+  const keys = readJson<string[]>(render.referenceKeys, []);
+  if (keys.length >= MAX_REFERENCES) back(id, `A board takes up to ${MAX_REFERENCES} reference images — remove one first.`);
+  const got = await pictureFromForm(formData, workspace.id);
+  if ("error" in got) back(id, got.error);
+  if (!keys.includes(got.key)) keys.push(got.key);
+  await db.videoRender.update({ where: { id: render.id }, data: { referenceKeys: JSON.stringify(keys) } });
+  await writeAudit({ workspaceId: workspace.id, actorId: user.id, action: "video.references_changed", entityType: "video_render", entityId: render.id, meta: { added: got.key, count: keys.length } });
+  revalidatePath(`/videos/${id}`);
+}
+
+export async function removeReferenceImageAction(formData: FormData) {
+  const id = String(formData.get("id"));
+  const key = String(formData.get("key") ?? "");
+  const { workspace, user } = await requireRole("EDITOR");
+  const render = await loadEditableRender(workspace.id, id);
+  if (!render) back(id, "This board can't be changed while it renders or once it's done.");
+  const keys = readJson<string[]>(render.referenceKeys, []).filter((k) => k !== key);
+  await db.videoRender.update({ where: { id: render.id }, data: { referenceKeys: JSON.stringify(keys) } });
+  await writeAudit({ workspaceId: workspace.id, actorId: user.id, action: "video.references_changed", entityType: "video_render", entityId: render.id, meta: { removed: key, count: keys.length } });
+  revalidatePath(`/videos/${id}`);
+}
+
+/**
+ * A scene's start or end image (or `clear`): the scene is made to begin — and end — exactly on it, instead of from the
+ * board's reference images. A changed picture means a changed clip, so a finished scene goes back to planned. An end
+ * image needs a start image (Google reads two images as start then end); clearing the start clears both. Framed
+ * scenes are at most 10 seconds (Google's limit).
+ */
+export async function setSceneFrameAction(formData: FormData) {
+  const id = String(formData.get("id"));
+  const index = parseInt(String(formData.get("index")), 10);
+  const which = String(formData.get("which")) === "last" ? "last" : "first";
+  const { workspace } = await requireRole("EDITOR");
+  const render = await loadEditableRender(workspace.id, id);
+  if (!render) back(id, "This board can't be changed while it renders or once it's done.");
+  const scenes = parseScenes(render.scenes);
+  if (!Number.isFinite(index) || index < 0 || index >= scenes.length) back(id, "That scene isn't on the board any more.");
+  const scene: StoryScene = { ...scenes[index] };
+  if (String(formData.get("clear") ?? "") === "1") {
+    if (which === "first") {
+      scene.firstFrameKey = null;
+      scene.lastFrameKey = null;
+    } else scene.lastFrameKey = null;
+  } else {
+    if (which === "last" && !scene.firstFrameKey) back(id, "Give the scene a start image first — an end image needs one.");
+    const got = await pictureFromForm(formData, workspace.id);
+    if ("error" in got) back(id, got.error);
+    if (which === "first") scene.firstFrameKey = got.key;
+    else scene.lastFrameKey = got.key;
+  }
+  scene.seconds = snapSceneSeconds(scene.seconds, { framed: !!scene.firstFrameKey });
+  scenes[index] = { ...scene, outputUrl: null, status: "planned" };
   await persistScenes(render.id, scenes);
   revalidatePath(`/videos/${id}`);
 }

@@ -85,8 +85,9 @@ Three separate model ids have been advertised by the API and then 404'd when cal
 reason. **Probe a model against the live key before shipping it.** Known-good today:
 `gemini-flash-latest` / `gemini-pro-latest` (text + vision), `gemini-3.1-flash-image`
 (image output via `generateContent`), `gpt-image-1` (OpenAI images), `gpt-4o-mini` (OpenAI vision),
-`veo-3.1-fast-generate-preview` (video — proven by the first real render 2026-08-03; the key lists
-only `veo-3.1-*-preview` for `predictLongRunning`).
+~~`veo-3.1-fast-generate-preview`~~ — ⚠ **Google SHUT DOWN the Veo 3.1 preview models on 2026-10-22**; video is
+`gemini-omni-1.2-flash` through the Interactions API since 2026-11-24 (`lib/video/omni.ts`; not yet probed on the live
+key — the first real render is the probe; `VIDEO_MODEL` overrides the id).
 
 ## ⚠ Mock fallbacks are the #1 source of confusion
 
@@ -138,7 +139,9 @@ but it means **bad output can look like real output**. Rules learned the hard wa
 - **Vision** `src/lib/vision.ts` — `fetchReferenceImage()` (YouTube link → `i.ytimg.com`, direct
   image URLs, else null) + `describeImageStyle()`. Used by Thumbnail Studio's Clone so it actually
   looks at the reference instead of guessing from the URL string.
-- **Video** `src/lib/video/` — Google Veo, `video:provider` (`auto|mock|veo`). The provider returns
+- **Video** `src/lib/video/` — Google **Gemini Omni Flash** (`omni.ts`, `POST /v1beta/interactions`, since 2026-11-24 — Veo's
+  previews were shut down 22 Oct 2026; Google's Flow runs on Omni and has no API), `video:provider` (`auto|mock|google`; a
+  stored `veo` reads as google). Reference images per board, start/end pictures per scene. The provider returns
   a **bare** Gemini Files URI (never key-appended — that would leak the key through the UI and DB)
   which expires in ~2 days and isn't publicly readable, so `persistRenderOutput` re-fetches it with
   an `x-goog-api-key` header and writes the bytes into StorageProvider; `VideoRender.storedUrl` is
@@ -435,6 +438,7 @@ area, rather than loading all of them into every session.
 - Article Social Share: one post per article, when it goes live, as the dial says — 2026-11-23, the owner's "Article Social Share function"
 - The app's own posts reach Instagram and Pinterest when a picture is coming, and wait for it — 2026-11-23, the owner's "Yes, build it"
 - A send that got no answer is looked up in Zernio's list — and "not there" needs proof — 2026-11-23, the owner's "Yes, build it" (CommunityForce's 23 Oct post)
+- AI video is Gemini Omni Flash: Veo's previews are gone; references, start/end pictures, scenes to 15 s — 2026-11-24, the owner's "Yes, do it here" (Google Flow support)
 - Scripts on pages run only with the page's nonce — `src/proxy.ts`; a proxy cuts bodies over `proxyClientMaxBodySize` — 2026-11-24, the owner's "Yes, build CSP"
 - Posts the engine writes end in whole sentences — rewritten once, else closing sentences dropped, else not stored (`lib/social/fit-post.ts`) — 2026-11-24, the owner's "Fix both"
 

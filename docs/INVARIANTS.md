@@ -3602,3 +3602,41 @@ a minute later.
   database with a stand-in model — Draft now rewritten (the second call carries the long post as the assistant's turn
   and the exact length), one call when it fits, can't-fit storing nothing with the idea still approved, the weekly
   writer's sentence cut and its no-fit, every stored post ending a sentence before its tags.
+
+## ⚠ AI video is Google's Gemini Omni Flash — the model behind Flow (2026-11-24, the owner's "Yes, do it here")
+- **Why**: Google shut down the Veo 3.1 PREVIEW models in the Gemini API on **2026-10-22** (`veo-3.1-fast-generate-preview`
+  rendered here), naming Gemini Omni Flash as the replacement. The owner asked for "Google Flow support": **Flow has no
+  public API** (a website only; third-party "Flow APIs" drive a person's Google subscription — never). Omni is Flow's
+  engine, reached with the workspace's own Google key.
+- **`lib/video/omni.ts`**: `POST {GEMINI_API_BASE}/v1beta/interactions` (key in `x-goog-api-key`), body from
+  `omniRequestBody` (pure): `model` (`OMNI_MODEL` = env `VIDEO_MODEL` ?? `gemini-omni-1.2-flash`), `input` (the prompt, or
+  image parts `{type:"image", data, mime_type}` then a text part), `response_format` `{type:"video", aspect_ratio,
+  resolution:"720p", duration:"Ns", delivery:"uri"}`, and `generation_config.video_config.task` (`image_to_video` with
+  start/end pictures, `reference_to_video` with references). The call answers when the video is made — held open up to
+  10 minutes with node:http (fetch abandons a response that takes over five minutes to start); an unfinished answer is
+  read again (`GET /v1beta/interactions/{id}`). The video is read from `steps[].content[]` of type `video`: inline
+  `data` (stored as it is) or a Files `uri` — waited on until `ACTIVE`, stripped of any `key=`, downloaded by
+  `persistRenderOutput` with the key in a header (`isGeminiFileUrl`). A refusal throws Google's own words with a hint
+  (404 → set VIDEO_MODEL; 401/403 → the key; 429 → quota); no video in the answer → "Google returned no video … safety
+  filters". Never a placeholder.
+- **Lengths**: `SCENE_SECONDS` 4, 6, 8, 10, 12, 15 (Omni takes 3–15); `FRAMED_MAX_SECONDS` 10 for a scene with a
+  start picture (Google's limit), enforced on read (`parseScenes`), on save and in the request. `VIDEO_MAX_SECONDS`
+  defaults to 15; the single-prompt fallback board is 8 s. 9:16 or 16:9 only — a 1:1 board is refused in words.
+- **Reference images** (`VideoRender.referenceKeys`, JSON, migration `20261124130000_video_reference_images`): up to six
+  stored pictures (an upload checked by its bytes and stored as the workspace's, or a Media picture that
+  `ownsStoredKey` vouches for), sent with every scene so a person or product stays the same. Changes apply to scenes
+  not rendered yet. **Start / end picture** (`scenes[].firstFrameKey`, `lastFrameKey` — kept by `parseScenes` only
+  when they look like storage keys; an end needs a start): the scene begins (and ends) exactly on them, instead of the
+  references; changing one sends the scene back to planned. Pictures are made JPEG ≤1280px (`loadVideoImage`); one
+  that can't be read fails the board by name BEFORE anything is sent.
+- **Setting**: `video:provider` = auto | mock | google; a stored `veo` reads as google. Renders say provider `google`;
+  `PAID_VIDEO_PROVIDERS` (google, veo) decides the expiring-link warnings. Metered as `VIDEO_MODEL` — the operator's
+  price per second on Usage is keyed by that id, so a price set for the Veo id doesn't apply (Google's page: about
+  $0.07 a second at 720p).
+- Checked: 21 cases — the request for text, references (six at most) and start/end pictures, square refused, lengths,
+  reading the answer, keys stripped, scene parsing; and the real `processRenderCore` on a throwaway database against a
+  stand-in Gemini API: a two-scene board (references for one scene, start+end for the other; a Files link polled to
+  ACTIVE and downloaded with the key in a header; inline bytes stored as sent; metered under the Omni id), an
+  unfinished answer polled to completion, a 404 refusal and a blocked prompt failing in words, a missing reference
+  failing before any call. ⚠ **Not yet run against Google itself** — the first real render is the probe (CLAUDE.md's
+  rule); the Interactions API's background mode and error JSON aren't documented for Omni.

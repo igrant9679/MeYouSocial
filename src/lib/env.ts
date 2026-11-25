@@ -84,14 +84,14 @@ export const env = {
   // i.e. in-app configuration, not env flags. Don't reintroduce either without
   // wiring it, and if you do, default it FALSE — see USE_MOCK_IMAGES for why.
 
-  // Phase 4 — video. Mock by default like every other provider; Veo activates
-  // with USE_MOCK_VIDEO=false + a Google key (DB Setting or GOOGLE_GENAI_API_KEY).
+  // Phase 4 — video. Mock by default like every other provider; Google video (Gemini Omni Flash, lib/video/omni.ts)
+  // activates with USE_MOCK_VIDEO=false + a Google key (DB Setting or GOOGLE_GENAI_API_KEY).
   USE_MOCK_VIDEO: bool(process.env.USE_MOCK_VIDEO, true),
   YOUTUBE_API_KEY: str(process.env.YOUTUBE_API_KEY),
   // Branded shorts render on HeyGen's HyperFrames cloud. Key resolved DB-first
   // (Setting api_key:heygen) with these env fallbacks, same as every provider.
   HEYGEN_API_KEY: str(process.env.HEYGEN_API_KEY) || str(process.env.HYPERFRAMES_API_KEY),
-  VIDEO_MAX_SECONDS: num(process.env.VIDEO_MAX_SECONDS) ?? 8, // short-form first
+  VIDEO_MAX_SECONDS: num(process.env.VIDEO_MAX_SECONDS) ?? 15, // the longest scene: Gemini Omni Flash renders up to 15 s (Veo: 8, until 2026-11-24)
   VIDEO_DAILY_RENDER_CAP: num(process.env.VIDEO_DAILY_RENDER_CAP) ?? 3,
 
   STORAGE_BACKEND: str(process.env.STORAGE_BACKEND, "local") as "local" | "s3" | "gdrive",

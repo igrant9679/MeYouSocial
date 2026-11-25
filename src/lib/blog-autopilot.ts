@@ -28,7 +28,8 @@ import { storage } from "@/lib/storage";
 import { parseScenes, scenesToSrt, snapSceneSeconds } from "@/lib/captions";
 import { autoTaskForRenderFailure } from "@/lib/auto-tasks";
 import { getModes, isGloballyPaused, writeAudit } from "@/lib/governance";
-import { getVideoProvider, estimateRenderUsd, VIDEO_MODEL } from "@/lib/video";
+import { getVideoProvider, estimateRenderUsd, loadVideoImage, VIDEO_MODEL, type VideoImage, type VideoRenderResult } from "@/lib/video";
+import { isGeminiFileUrl } from "@/lib/video/omni";
 import { meterVideoScene } from "@/lib/video-spend";
 import { getApiKey } from "@/lib/llm/keys";
 import { templateGuidance, trackLabel, trackWordTarget } from "@/lib/blog-templates";
@@ -1163,7 +1164,7 @@ export async function packageVideoCore(workspaceId: string, blogPostId: string):
   }));
   // Back-compat: a single-prompt response still packages as a one-scene board.
   if (!scenes.length && typeof parsed.prompt === "string" && parsed.prompt.trim()) {
-    scenes.push({ prompt: parsed.prompt.trim(), seconds: snapSceneSeconds(env.VIDEO_MAX_SECONDS), text: null, outputUrl: null, status: "planned" });
+    scenes.push({ prompt: parsed.prompt.trim(), seconds: snapSceneSeconds(8), text: null, outputUrl: null, status: "planned" });
   }
   if (!scenes.length) return null;
 
@@ -1229,22 +1230,30 @@ async function rendersToday(workspaceId: string): Promise<number> {
  * files can be downloaded", so an uploaded test file cannot stand in for it.
  */
 async function persistRenderOutput(
-  url: string,
-  providerName: string,
+  out: Pick<VideoRenderResult, "url" | "bytes" | "mime" | "provider">,
   workspaceId: string,
 ): Promise<string | null> {
+  const { url, provider: providerName } = out;
   if (providerName === "mock") return null;
   try {
+    // Gemini Omni can hand the clip back in its answer (2026-11-24): store those bytes as they are.
+    if (out.bytes?.length) {
+      if (out.bytes.byteLength > 80 * 1024 * 1024) {
+        console.warn(`[video] not persisting ${providerName} output — ${out.bytes.byteLength} bytes is over the 80MB cap`);
+        return null;
+      }
+      return (await storage.put("render.mp4", out.bytes, out.mime ?? "video/mp4", workspaceId)).url;
+    }
     let target = url;
     const headers: Record<string, string> = {};
 
-    // Veo hands back a Gemini Files URI; HeyGen and friends hand back already
-    // signed URLs that a bare fetch can read.
-    const isGoogleFileUri = /generativelanguage\.googleapis\.com/.test(url);
+    // Google video hands back a Gemini Files URI; HeyGen and friends hand back
+    // already signed URLs that a bare fetch can read.
+    const isGoogleFileUri = isGeminiFileUrl(url);
     if (isGoogleFileUri) {
       const key = await getApiKey("google", workspaceId).catch(() => "");
       if (!key) {
-        console.warn("[video] cannot persist Veo output — no Google key resolved for this workspace");
+        console.warn("[video] cannot persist Google video output — no Google key resolved for this workspace");
         return null;
       }
       headers["x-goog-api-key"] = key;
@@ -1300,6 +1309,35 @@ export async function processRenderCore(
   });
   if (claim.count !== 1) return false;
   const scenes = parseScenes(render.scenes);
+  // Pictures a scene is made from (2026-11-24, Gemini Omni Flash): the board's reference images, read once, or a
+  // scene's own start and end images instead. A picture that has gone fails the board with its name — rendering
+  // without it would pay for a clip that ignores what the person chose.
+  const loadOrSay = async (key: string, what: string): Promise<VideoImage> => {
+    const img = await loadVideoImage(key);
+    if (!img) throw new Error(`The ${what} (${key}) can't be read any more — remove it or choose another, then render again.`);
+    return img;
+  };
+  let refs: VideoImage[] | null = null;
+  const picturesFor = async (scene: (typeof scenes)[number] | undefined, n: number) => {
+    if (scene?.firstFrameKey) {
+      return {
+        firstFrame: await loadOrSay(scene.firstFrameKey, `start image of scene ${n}`),
+        lastFrame: scene.lastFrameKey ? await loadOrSay(scene.lastFrameKey, `end image of scene ${n}`) : null,
+      };
+    }
+    if (refs === null) {
+      const keys = readJson<string[]>(render.referenceKeys, []).filter((k) => typeof k === "string").slice(0, 6);
+      refs = [];
+      for (const [j, k] of keys.entries()) refs.push(await loadOrSay(k, `reference image ${j + 1}`));
+    }
+    return refs.length ? { references: refs } : {};
+  };
+  // A clip that came back but couldn't be kept anywhere is a failure, not a silent empty link.
+  const keepable = (out: VideoRenderResult, durable: string | null): string => {
+    const where = durable ?? out.url;
+    if (!where) throw new Error("The clip was made but couldn't be stored — check the storage settings, then render it again.");
+    return where;
+  };
   try {
     if (scenes.length > 1) {
       // Storyboard: render scene by scene, recording progress as it happens so
@@ -1332,12 +1370,13 @@ export async function processRenderCore(
           seconds: scenes[i].seconds,
           aspect: render.aspect as "9:16" | "16:9" | "1:1",
           workspaceId,
+          ...(provider.name === "mock" ? {} : await picturesFor(scenes[i], i + 1)),
         });
         // Every paid scene is counted, in seconds, for the month's meter (E-VID-06).
         await meterVideoScene({ workspaceId, provider: out.provider, model: VIDEO_MODEL, seconds: out.seconds ?? scenes[i].seconds });
-        const durable = await persistRenderOutput(out.url, out.provider, workspaceId);
+        const durable = await persistRenderOutput(out, workspaceId);
         if (i === 0) firstDurable = durable;
-        scenes[i] = { ...scenes[i], outputUrl: durable ?? out.url, status: "done" };
+        scenes[i] = { ...scenes[i], outputUrl: keepable(out, durable), status: "done" };
         await db.videoRender.update({ where: { id: render.id }, data: { scenes: JSON.stringify(scenes) } });
         await opts.onScene?.(scenes.filter((x) => x.status === "done" && x.outputUrl).length, scenes.length);
       }
@@ -1359,14 +1398,17 @@ export async function processRenderCore(
         seconds: render.seconds,
         aspect: render.aspect as "9:16" | "16:9" | "1:1",
         workspaceId,
+        ...(provider.name === "mock" ? {} : await picturesFor(scenes[0], 1)),
       });
       await meterVideoScene({ workspaceId, provider: out.provider, model: VIDEO_MODEL, seconds: out.seconds ?? render.seconds });
-      const durable = await persistRenderOutput(out.url, out.provider, workspaceId);
+      const durable = await persistRenderOutput(out, workspaceId);
+      const playable = keepable(out, durable);
       const finished = await db.videoRender.updateMany({
         where: { id: render.id, status: "rendering" },
         data: {
           status: "done",
-          outputUrl: out.url,
+          // The provider's link when there is one (expires); the stored copy when the clip came back inline.
+          outputUrl: out.url || playable,
           storedUrl: durable,
           provider: out.provider,
           seconds: out.seconds,

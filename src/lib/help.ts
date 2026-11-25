@@ -475,16 +475,22 @@ export const HELP_CATEGORIES: FaqCategory[] = [
         tags: ["storyboard", "scenes", "video"],
       },
       {
-        q: "How do I switch from mock video to real (Veo)?",
-        a: "Settings → **Keys** → *Media & video*: paste a Google key and set the **Video renderer** to Auto or Veo. Auto uses Veo whenever a key is present; Mock never spends. Real renders count against the daily cap shown on the Videos page, and outputs are persisted to storage because Veo links expire in ~2 days.",
+        q: "How do I switch from mock video to real video?",
+        a: "Settings → **Keys** → *Media & video*: paste a Google key and set the **Video renderer** to Auto or Google. Real video is made by Google's **Gemini Omni Flash**, the model behind Google's Flow (Flow itself has no API, so this is how its engine reaches Publisher). Auto uses it whenever a key is present; Mock never spends. Real renders count against the daily cap shown on the Videos page, and outputs are kept in your storage because Google's links expire in ~2 days. Google retired the Veo models Publisher used before on 22 October 2026.",
         links: [{ label: "Settings → Keys →", href: "/admin/api-keys" }],
-        tags: ["veo", "provider", "mock", "cost"],
+        tags: ["veo", "omni", "flow", "google", "provider", "mock", "cost"],
       },
       {
         q: "What will a video cost before I render it?",
-        a: "Veo bills per second of video, and a scene here is 4, 6 or 8 seconds. **Render now** first shows the board's total — the scenes it would pay for (finished clips aren't paid for again), their seconds, and the cost at the price per second the platform operator set on **Usage** — with this month's seconds so far and the budget. Only the second press renders. Without a price it shows seconds and says so: Publisher never guesses a price.\n\nAn admin can set a **monthly video budget in seconds** on Usage. Past it the engine renders nothing on its own (the Inbox says so); Render now still can, after showing the total. Each scene a real provider renders is counted; placeholder renders cost nothing.",
+        a: "Google bills per second of video, and a scene here is 4 to 15 seconds (10 at most when it starts on a picture). **Render now** first shows the board's total — the scenes it would pay for (finished clips aren't paid for again), their seconds, and the cost at the price per second the platform operator set on **Usage** — with this month's seconds so far and the budget. Only the second press renders. Without a price it shows seconds and says so: Publisher never guesses a price.\n\nAn admin can set a **monthly video budget in seconds** on Usage. Past it the engine renders nothing on its own (the Inbox says so); Render now still can, after showing the total. Each scene a real provider renders is counted; placeholder renders cost nothing.",
         links: [{ label: "Usage →", href: "/admin/usage#video-budget" }],
         tags: ["veo", "cost", "price", "budget", "render", "seconds"],
+      },
+      {
+        q: "Can a video keep the same person or product in every scene, or start on a picture I choose?",
+        a: "Yes, both, on a video's storyboard page while it's queued or failed. **Reference images** (up to six pictures of a person, character or product, uploaded or picked from Media) are sent with every scene so they look the same throughout. Google's Flow calls these ingredients. Changes apply to scenes not rendered yet. A scene's **Start / end picture** makes it begin exactly on one picture, and end on another if you add one. Such a scene is at most 10 seconds and uses its pictures instead of the reference images. Changing a scene's picture means it's rendered again. Videos come out vertical (9:16) for Reels, Shorts and TikTok.",
+        links: [{ label: "Videos →", href: "/videos" }],
+        tags: ["video", "reference", "ingredients", "flow", "character", "product", "first frame", "last frame", "reels", "shorts"],
       },
       {
         q: "Can Publisher upload a video to YouTube for me?",
@@ -595,7 +601,7 @@ export const HELP_CATEGORIES: FaqCategory[] = [
       },
       {
         q: "What's a branded short, and how is it different from a video package?",
-        a: "A **branded short** is a 6-second vertical title card — your post's headline over this workspace's brand colours, name and footer — rendered on HeyGen's HyperFrames cloud (no Chrome/ffmpeg here; it's designed motion graphics, not generated footage). A **video package** is the Veo route: an AI-generated multi-scene storyboard. Use branded shorts for exact, on-brand promos; use packages for generated video. The **Render branded short** button is on a post's Distribute tab once it's approved/published.",
+        a: "A **branded short** is a 6-second vertical title card — your post's headline over this workspace's brand colours, name and footer — rendered on HeyGen's HyperFrames cloud (no Chrome/ffmpeg here; it's designed motion graphics, not generated footage). A **video package** is the AI-video route (Google's Gemini Omni Flash): an AI-generated multi-scene storyboard. Use branded shorts for exact, on-brand promos; use packages for generated video. The **Render branded short** button is on a post's Distribute tab once it's approved/published.",
         links: [{ label: "Settings → Keys →", href: "/admin/api-keys" }],
         tags: ["branded short", "hyperframes", "heygen", "title card"],
       },
@@ -1151,7 +1157,7 @@ export const HELP_CATEGORIES: FaqCategory[] = [
       },
       {
         q: "What is the video studio switch?",
-        a: "The **Video** stage — Scripts, Thumbnails, Renders and Production, the scripting studio — shows on the rail only when a YouTube channel exists and the **Video studio** switch on the Settings overview is on. Turning it off hides Video and the video-idea controls on the Ideas board; nothing is deleted, existing video cards stay, and direct links still work. Packaging an article into a short or a Veo render is not the studio and is never gated.",
+        a: "The **Video** stage — Scripts, Thumbnails, Renders and Production, the scripting studio — shows on the rail only when a YouTube channel exists and the **Video studio** switch on the Settings overview is on. Turning it off hides Video and the video-idea controls on the Ideas board; nothing is deleted, existing video cards stay, and direct links still work. Packaging an article into a short or an AI video render is not the studio and is never gated.",
         tags: ["studio", "scripts", "thumbnails", "videos", "production", "hide", "youtube channel"],
       },
       {

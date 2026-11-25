@@ -39,7 +39,8 @@ export async function saveMediaSettingAction(formData: FormData) {
   const setting = String(formData.get("setting") ?? "");
   const value = String(formData.get("value") ?? "");
   const ALLOWED: Record<string, string[]> = {
-    "video:provider": ["auto", "mock", "veo"],
+    // "veo" (until 2026-11-24) is still READ as google: Veo's preview models are gone; Gemini Omni Flash replaced them.
+    "video:provider": ["auto", "mock", "google"],
     "tts:provider": ["mock", "elevenlabs"],
     "image:provider": ["auto", "mock", "openai", "google"],
   };

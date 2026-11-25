@@ -6,7 +6,7 @@ import { env } from "@/lib/env";
 import { SubmitButton } from "@/components/SubmitButton";
 import { cancelRenderAction, deleteRenderAction, processRenderNowAction, retryRenderAction, setRenderTopicAction } from "@/app/actions/videos";
 import { AutoRefresh } from "@/components/AutoRefresh";
-import { getVideoProviderSetting } from "@/lib/video";
+import { getVideoProviderSetting, PAID_VIDEO_PROVIDERS } from "@/lib/video";
 import { renderStandaloneBrandedShortAction, deleteBrandedShortAction } from "@/app/actions/branded-video";
 import { brandedShortReadiness } from "@/lib/branded-video";
 import { HelpTip } from "@/components/HelpTip";
@@ -17,7 +17,7 @@ import { parseScenes } from "@/lib/captions";
 import { boardProgress } from "@/lib/video-progress";
 
 // Phase 4 — short-form video renders. Queue → render → play. Mock provider by
-// default; Veo activates via USE_MOCK_VIDEO=false + a Google key.
+// default; Google video (Gemini Omni Flash) activates via USE_MOCK_VIDEO=false + a Google key.
 
 const STATUS_HUE: Record<string, string> = {
   queued: "amber",
@@ -79,7 +79,7 @@ export default async function VideosPage({ searchParams }: { searchParams: Promi
           <h1 className="font-mono font-bold text-2xl leading-tight">Videos</h1>
           <p className="text-xs text-[var(--mute)]">
             Storyboards → scene renders → captions → voiceover. Provider:{" "}
-            <b>{providerSetting === "mock" ? "mock (no cost)" : providerSetting === "veo" ? "Veo" : "auto"}</b>
+            <b>{providerSetting === "mock" ? "mock (no cost)" : providerSetting === "google" ? "Google (Gemini Omni Flash)" : "auto"}</b>
             <HelpTip text={VIDEO_TIPS.provider} side="bottom" wide className="mx-1" />
             {" "}(<Link href="/admin/api-keys" className="underline">change in Settings → Keys</Link>) ·
             ≤{env.VIDEO_MAX_SECONDS}s per scene.
@@ -256,7 +256,7 @@ export default async function VideosPage({ searchParams }: { searchParams: Promi
               )}
               <p className="text-xs text-[var(--slate)] mb-2">{r.prompt}</p>
               {/* The assembled cut is the real deliverable; then our stored copy;
-                  `outputUrl` (scene 1 on a multi-scene board, and Veo's link
+                  `outputUrl` (scene 1 on a multi-scene board, and Google's link
                   expires in ~2 days) only when we hold nothing (VID-10). */}
               {r.status === "done" && (r.assembledUrl || r.storedUrl || r.outputUrl) && (
                 <video src={r.assembledUrl ?? r.storedUrl ?? r.outputUrl!} controls preload="metadata" className="rounded-lg max-h-72 border border-[var(--line)]" />
@@ -264,9 +264,9 @@ export default async function VideosPage({ searchParams }: { searchParams: Promi
               {r.status === "done" && r.assembledUrl && (
                 <p className="font-mono text-micro text-[var(--mute)] mt-1">full cut · all scenes assembled</p>
               )}
-              {r.status === "done" && r.provider === "veo" && !r.storedUrl && !r.assembledUrl && (
+              {r.status === "done" && PAID_VIDEO_PROVIDERS.has(r.provider) && !r.storedUrl && !r.assembledUrl && (
                 <p className="text-micro text-[var(--mute)] mt-1">
-                  Veo output links expire after ~2 days and need the Google key for retrieval — download promptly.
+                  Google&apos;s video links expire after ~2 days and need the Google key for retrieval — download promptly.
                 </p>
               )}
               {r.status === "failed" && r.error && (

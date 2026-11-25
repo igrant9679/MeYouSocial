@@ -41,6 +41,14 @@ export const CARD_MAX = 5;
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    id: "2026-11-24-google-omni-video",
+    date: "2026-11-24",
+    title: "AI video now comes from Google's Gemini Omni Flash, the model behind Flow",
+    body: "Google retired the Veo models Publisher used. Videos are now made by Gemini Omni Flash: scenes up to 15 seconds, reference images that keep a person or product the same in every scene, and scenes that start or end on a picture you choose.",
+    href: "/videos",
+    cta: "Open Videos",
+  },
+  {
     id: "2026-11-24-whole-sentences",
     date: "2026-11-24",
     title: "Posts the app writes never end mid-sentence",

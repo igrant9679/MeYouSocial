@@ -1066,6 +1066,9 @@ model VideoRender {
   voiceWords      String?  // JSON [{word,start,end}] — the narration's word timing, when the provider gave it
   voiceId         String?  // the voice that spoke the current voiceover
   narrationSource String?  // script | scenes — what the narrator read
+  // Up to six stored pictures of a person, character or product every scene keeps the same (2026-11-24, Gemini Omni
+  // Flash). JSON [key]. A scene with its own start/end image (scenes[].firstFrameKey) uses those instead.
+  referenceKeys   String   @default("[]")
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

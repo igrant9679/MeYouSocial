@@ -1,5 +1,7 @@
 import { AutoRefresh } from "@/components/AutoRefresh";
-import { SCENE_SECONDS } from "@/lib/captions";
+import { FRAMED_MAX_SECONDS, SCENE_SECONDS } from "@/lib/captions";
+import { readJson } from "@/lib/db/json";
+import { storage } from "@/lib/storage";
 import Link from "next/link";
 import { ArrowLeft, Captions, Clapperboard, Download, Film, Mic, Play, Plus, RotateCcw, Trash2 } from "lucide-react";
 import { requireMembership, canAdmin, canEdit } from "@/lib/acl";
@@ -9,6 +11,7 @@ import { env } from "@/lib/env";
 import { SubmitButton } from "@/components/SubmitButton";
 import { parseScenes } from "@/lib/captions";
 import {
+  addReferenceImageAction,
   addSceneAction,
   assembleRenderAction,
   deleteSceneAction,
@@ -18,6 +21,8 @@ import {
   rerenderSceneAction,
   retryRenderAction,
   cancelRenderAction,
+  removeReferenceImageAction,
+  setSceneFrameAction,
   updateSceneAction,
 } from "@/app/actions/videos";
 import { AiAssist } from "@/components/AiAssist";
@@ -26,7 +31,7 @@ import { jobs } from "@/lib/jobs";
 import { VIDEO_RENDER_JOB } from "@/lib/jobs/video-render";
 import { boardProgress, SCENE_STATE_LABEL, sceneState, type SceneState } from "@/lib/video-progress";
 import { estimate, monthSpend, perSecondUsd, scenesToPay, usd, videoPrices } from "@/lib/video-spend";
-import { VIDEO_MODEL } from "@/lib/video";
+import { PAID_VIDEO_PROVIDERS, VIDEO_MODEL } from "@/lib/video";
 
 const SCENE_STATE_COLOR: Record<SceneState, string> = { done: "var(--green-on)", rendering: "var(--blue-on)", next: "var(--amber-on)", waiting: "var(--mute)", interrupted: "var(--rose-on)" };
 
@@ -80,6 +85,23 @@ export default async function StoryboardPage({
   const perSecond = prices[VIDEO_MODEL] ?? null;
   const owed = estimate(scenes.length ? scenesToPay(scenes) : [{ seconds: render.seconds }], VIDEO_MODEL, prices);
   const boardUsd = render.costEstimate ?? (perSecond == null ? null : Math.round(render.seconds * perSecond * 100) / 100);
+  // Pictures the board is made from (2026-11-24, Gemini Omni Flash): its reference images, and Media's pictures to pick from.
+  const refKeys = readJson<string[]>(render.referenceKeys, []);
+  const mediaPictures = editable
+    ? await db.mediaItem.findMany({ where: { workspaceId: workspace.id, contentType: { startsWith: "image/" } }, orderBy: { createdAt: "desc" }, take: 40, select: { key: true, name: true } })
+    : [];
+  const maxSceneSeconds = (framed: boolean) => Math.min(Math.max(4, env.VIDEO_MAX_SECONDS), framed ? FRAMED_MAX_SECONDS : Infinity);
+  const pictureFields = (
+    <>
+      <input type="file" name="file" accept="image/png,image/jpeg,image/webp" className="text-2xs max-w-full" aria-label="Upload a picture" />
+      {mediaPictures.length > 0 && (
+        <select name="mediaKey" defaultValue="" className="text-2xs max-w-full" aria-label="Or pick a picture from Media">
+          <option value="">— or pick from Media —</option>
+          {mediaPictures.map((m) => <option key={m.key} value={m.key}>{m.name.slice(0, 60)}</option>)}
+        </select>
+      )}
+    </>
+  );
 
   return (
     <main className="w-full">
@@ -193,6 +215,41 @@ export default async function StoryboardPage({
         )}
       </div>
 
+      {/* Reference images (2026-11-24): what Google's Flow calls ingredients — kept the same in every scene. */}
+      {(editable || refKeys.length > 0) && (
+        <div className="card mb-3" data-video-references="">
+          <h2 className="font-mono text-sm font-bold mb-1">Reference images <span className="font-normal text-[var(--mute)]">· {refKeys.length} of 6</span></h2>
+          <p className="text-2xs text-[var(--mute)] mb-2">
+            Pictures of a person, character or product. Every scene is made to keep them looking the same. A scene with its own start image uses that instead.
+            {editable ? " Changes apply to scenes not rendered yet." : ""}
+          </p>
+          {refKeys.length > 0 && (
+            <div className="flex flex-wrap gap-2 mb-2">
+              {refKeys.map((k, j) => (
+                <div key={k} className="flex flex-col items-center gap-1" data-video-reference={k}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={storage.url(k)} alt={`Reference image ${j + 1}`} className="w-20 h-20 object-cover rounded-lg border border-[var(--line)]" />
+                  {editable && (
+                    <form action={removeReferenceImageAction}>
+                      <input type="hidden" name="id" value={render.id} />
+                      <input type="hidden" name="key" value={k} />
+                      <button className="btn sm" title={`Remove reference image ${j + 1}`}><Trash2 className="w-3 h-3" /> Remove</button>
+                    </form>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+          {editable && refKeys.length < 6 && (
+            <form action={addReferenceImageAction} encType="multipart/form-data" className="flex flex-wrap items-center gap-2" data-add-reference="">
+              <input type="hidden" name="id" value={render.id} />
+              {pictureFields}
+              <SubmitButton className="btn sm" pendingText="Adding…"><Plus className="w-3 h-3" /> Add reference</SubmitButton>
+            </form>
+          )}
+        </div>
+      )}
+
       {/* Scenes */}
       {/* Container-based columns: scene cards hold editable forms, which need
           ~280px each — viewport breakpoints overshot once the rail and the XL
@@ -210,7 +267,7 @@ export default async function StoryboardPage({
                 <p className="font-mono text-micro text-[var(--mute)]" data-scene-state={sceneState(render.status, scene, i, scenes)}>
                   <span style={{ color: SCENE_STATE_COLOR[sceneState(render.status, scene, i, scenes)] }}>{SCENE_STATE_LABEL[sceneState(render.status, scene, i, scenes)]}</span>
                   {scene.status === "done" && scene.outputUrl ? " · a new prompt or length renders it again" : ""}
-                  {/* E-VID-06: each clip's cost at Veo's own granularity (4, 6 or 8 seconds). */}
+                  {/* E-VID-06: each clip's cost — its seconds at the operator's price. */}
                   {perSecond != null ? ` · ${scene.seconds}s ≈ ${usd(scene.seconds * perSecond)}${scene.status === "done" && scene.outputUrl ? " (paid)" : ""}` : ""}
                 </p>
                 {scene.outputUrl && (
@@ -223,15 +280,46 @@ export default async function StoryboardPage({
                   <AiAssist field="scene.prompt" target="prompt" label="Draft" className="!mt-0" />
                   <input name="text" defaultValue={scene.text ?? ""} placeholder="on-screen text (≤8 words)" className="w-full text-2xs" />
                   <div className="flex items-center gap-2">
-                    {/* Veo renders 4, 6 or 8 seconds (VID-11). */}
+                    {/* Gemini Omni Flash renders 3–15 seconds, 10 at most when the scene starts on a picture (VID-11). */}
                     <select key={`seconds:${scene.seconds}`} name="seconds" defaultValue={scene.seconds} className="w-16 font-mono text-2xs" aria-label="Seconds">
-                      {SCENE_SECONDS.filter((s) => s <= Math.max(4, env.VIDEO_MAX_SECONDS)).map((s) => <option key={s} value={s}>{s}</option>)}
+                      {SCENE_SECONDS.filter((s) => s <= maxSceneSeconds(!!scene.firstFrameKey)).map((s) => <option key={s} value={s}>{s}</option>)}
                     </select>
                     <span className="text-micro text-[var(--mute)]">sec</span>
                     <span className="flex-1" />
                     <SubmitButton className="btn sm">Save</SubmitButton>
                   </div>
                 </form>
+                {/* Start / end picture (2026-11-24): the scene begins — and ends — exactly on these. */}
+                <details className="text-2xs" open={!!scene.firstFrameKey} data-scene-frames={i}>
+                  <summary className="cursor-pointer text-[var(--mute)]">Start / end picture{scene.firstFrameKey ? (scene.lastFrameKey ? " · both set" : " · start set") : ""}</summary>
+                  <p className="text-micro text-[var(--mute)] my-1">The scene starts exactly on the start picture, and ends on the end picture if you add one. Up to {FRAMED_MAX_SECONDS} seconds.</p>
+                  {(["first", "last"] as const).map((which) => {
+                    const key = which === "first" ? scene.firstFrameKey : scene.lastFrameKey;
+                    if (which === "last" && !scene.firstFrameKey) return null;
+                    return key ? (
+                      <div key={which} className="flex items-center gap-2 mb-1" data-scene-frame={which}>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={storage.url(key)} alt={`Scene ${i + 1} ${which === "first" ? "start" : "end"} picture`} className="w-12 h-12 object-cover rounded border border-[var(--line)]" />
+                        <span className="flex-1">{which === "first" ? "Start" : "End"}</span>
+                        <form action={setSceneFrameAction}>
+                          <input type="hidden" name="id" value={render.id} />
+                          <input type="hidden" name="index" value={i} />
+                          <input type="hidden" name="which" value={which} />
+                          <input type="hidden" name="clear" value="1" />
+                          <button className="btn sm" title={`Remove the ${which === "first" ? "start" : "end"} picture`}>Remove</button>
+                        </form>
+                      </div>
+                    ) : (
+                      <form key={which} action={setSceneFrameAction} encType="multipart/form-data" className="flex flex-col gap-1 mb-1" data-set-scene-frame={which}>
+                        <input type="hidden" name="id" value={render.id} />
+                        <input type="hidden" name="index" value={i} />
+                        <input type="hidden" name="which" value={which} />
+                        {pictureFields}
+                        <div><SubmitButton className="btn sm" pendingText="Saving…">{which === "first" ? "Set start picture" : "Set end picture"}</SubmitButton></div>
+                      </form>
+                    );
+                  })}
+                </details>
                 {rerenderable && scenes.length > 1 && scene.status === "done" && scene.outputUrl && (
                   <form action={rerenderSceneAction}>
                     <input type="hidden" name="id" value={render.id} />
@@ -246,6 +334,20 @@ export default async function StoryboardPage({
                 <>
                   <p className="text-2xs leading-snug flex-1">{scene.prompt}</p>
                   {scene.text && <p className="text-2xs font-semibold">“{scene.text}”</p>}
+                  {scene.firstFrameKey && (
+                    <div className="flex items-center gap-1.5 text-micro text-[var(--mute)]" data-scene-frame-view={i}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={storage.url(scene.firstFrameKey)} alt={`Scene ${i + 1} start picture`} className="w-10 h-10 object-cover rounded border border-[var(--line)]" />
+                      {scene.lastFrameKey && (
+                        <>
+                          →
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={storage.url(scene.lastFrameKey)} alt={`Scene ${i + 1} end picture`} className="w-10 h-10 object-cover rounded border border-[var(--line)]" />
+                        </>
+                      )}
+                      <span>{scene.lastFrameKey ? "starts and ends on these" : "starts on this"}</span>
+                    </div>
+                  )}
                   {(() => {
                     const st = sceneState(render.status, scene, i, scenes);
                     return (
@@ -373,8 +475,8 @@ export default async function StoryboardPage({
           <p className="text-2xs text-[var(--mute)] mt-1.5">
             {render.storedUrl
               ? "Persisted to storage — safe from provider URL expiry."
-              : render.provider === "veo"
-                ? "⚠ Provider URL only — Veo links expire in ~2 days and this one couldn't be persisted."
+              : PAID_VIDEO_PROVIDERS.has(render.provider)
+                ? "⚠ Provider URL only — Google's video links expire in ~2 days and this one couldn't be persisted."
                 : "Mock sample output (no cost)."}
           </p>
           {rerenderable && (

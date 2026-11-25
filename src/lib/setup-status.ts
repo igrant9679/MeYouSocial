@@ -135,7 +135,7 @@ export async function connectionRows(workspaceId: string): Promise<ConnRow[]> {
       detail: imageProvider === "mock" ? "resolving to the mock — drafts arrive without real images" : `resolving to ${imageProvider}`,
     },
     {
-      key: "video", label: "Video (Veo)", href: "/admin/api-keys",
+      key: "video", label: "Video (Google)", href: "/admin/api-keys",
       state: videoProvider === "mock" || (videoProvider === "auto" && !googleKey) ? "missing" : "ok",
       detail: videoProvider === "mock" ? "set to mock" : googleKey ? `${videoProvider} on the Google key` : "auto, but no Google key — renders would be placeholders",
     },

@@ -8,17 +8,25 @@
 import { env } from "@/lib/env";
 
 /**
- * Veo renders 4, 6 or 8 seconds (audit VID-11). No length was sent, so every
+ * The lengths a scene can be (audit VID-11: no length was sent once, so every
  * clip came back at the provider's default while the SRT and the cost used the
- * board's numbers. Scenes are snapped on read to the nearest valid length
- * within VIDEO_MAX_SECONDS (a tie rounds up), so the board, the request, the
- * captions and the estimate agree.
+ * board's numbers). Veo rendered 4, 6 or 8 seconds; since 2026-11-24 Gemini Omni
+ * Flash renders any 3–15, offered as these steps. Scenes are snapped on read to
+ * the nearest valid length within VIDEO_MAX_SECONDS (a tie rounds up), so the
+ * board, the request, the captions and the estimate agree. A scene that starts
+ * or ends on an image is at most `FRAMED_MAX_SECONDS` (Google's limit).
  */
-export const SCENE_SECONDS = [4, 6, 8] as const;
-export function snapSceneSeconds(n: number): number {
-  const allowed = SCENE_SECONDS.filter((s) => s <= Math.max(4, env.VIDEO_MAX_SECONDS));
+export const SCENE_SECONDS = [4, 6, 8, 10, 12, 15] as const;
+export const FRAMED_MAX_SECONDS = 10;
+export function snapSceneSeconds(n: number, opts: { framed?: boolean } = {}): number {
+  const cap = Math.min(Math.max(4, env.VIDEO_MAX_SECONDS), opts.framed ? FRAMED_MAX_SECONDS : Infinity);
+  const allowed = SCENE_SECONDS.filter((s) => s <= cap);
   return allowed.reduce((best, s) => (Math.abs(s - n) <= Math.abs(best - n) ? s : best), allowed[0]);
 }
+
+/** A stored file key a scene may point at (local nanoid+ext or a Drive key) — anything else is dropped on read. */
+const FRAME_KEY = /^(gdrive:[A-Za-z0-9_-]{10,200}|[A-Za-z0-9_-]{8,80}(\.[A-Za-z0-9]{1,8})?)$/;
+export const isFrameKey = (v: unknown): v is string => typeof v === "string" && FRAME_KEY.test(v);
 
 export type StoryScene = {
   prompt: string;
@@ -26,6 +34,9 @@ export type StoryScene = {
   text?: string | null;
   outputUrl?: string | null;
   status?: string;
+  /** The scene starts on this stored picture (2026-11-24) — and ends on `lastFrameKey` when there is one. */
+  firstFrameKey?: string | null;
+  lastFrameKey?: string | null;
 };
 
 export function parseScenes(json: string | null | undefined): StoryScene[] {
@@ -37,10 +48,13 @@ export function parseScenes(json: string | null | undefined): StoryScene[] {
       .filter((s): s is Record<string, unknown> => !!s && typeof s === "object")
       .map((s) => ({
         prompt: typeof s.prompt === "string" ? s.prompt : "",
-        seconds: snapSceneSeconds(Number.isFinite(Number(s.seconds)) && Number(s.seconds) > 0 ? Number(s.seconds) : 6),
+        seconds: snapSceneSeconds(Number.isFinite(Number(s.seconds)) && Number(s.seconds) > 0 ? Number(s.seconds) : 6, { framed: isFrameKey(s.firstFrameKey) || isFrameKey(s.lastFrameKey) }),
         text: typeof s.text === "string" ? s.text : null,
         outputUrl: typeof s.outputUrl === "string" ? s.outputUrl : null,
         status: typeof s.status === "string" ? s.status : "planned",
+        // A last frame means nothing without a first: Google takes two images as start then end.
+        firstFrameKey: isFrameKey(s.firstFrameKey) ? s.firstFrameKey : null,
+        lastFrameKey: isFrameKey(s.firstFrameKey) && isFrameKey(s.lastFrameKey) ? s.lastFrameKey : null,
       }))
       .filter((s) => s.prompt.length > 0);
   } catch {
