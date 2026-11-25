@@ -215,7 +215,7 @@ async function main() {
   say(`Pushed ${local.slice(0, 7)} to origin and deploy.`);
   if (!watch) return;
 
-  say("Watching Railway's deploy (it posts one status when the deploy ends, usually 3–5 minutes)…");
+  say("Watching Railway's deploy (the commit reads pending until the deploy ends, usually 3–5 minutes)…");
   while (Date.now() - pushedAt < MAX_BUILD_MS + 5 * 60_000) {
     await sleep(20_000);
     let status: DeployStatus = null;

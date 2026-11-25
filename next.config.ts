@@ -5,9 +5,9 @@ import { BASE_CSP, OWN_CSP_PATHS } from "./src/lib/csp";
  * Defence in depth on every response (E-SEC-02). Only the directives that can't
  * break a page here: no plugins, no <base> hijack, no framing by another site,
  * no MIME sniffing, no referrer path to other origins, no camera / microphone /
- * location / payment. script-src, style-src and connect-src stay open: Next's
- * own inline scripts would need a per-request nonce, which means rendering every
- * page dynamically — that strict policy is a separate step.
+ * location / payment. Scripts on pages are held to a per-request nonce by
+ * `src/proxy.ts` (2026-11-24, lib/csp.ts `pageCsp`) — a header a proxy sets
+ * can't be set here; style-src and connect-src stay open.
  *
  * ⚠ The CSP is NOT in this list. A header set here beats the same header set
  * by a route, so a general CSP on every path replaced the stored-file routes'
@@ -37,6 +37,11 @@ const nextConfig: NextConfig = {
     // (15 MB an image, 60 MB a video) never got a say. A little over the
     // largest of them.
     serverActions: { bodySizeLimit: "64mb" },
+    // ⚠ A proxy buffers the body of every request it sees and CUTS it at this
+    // size (default 10 MB) without an error. src/proxy.ts skips Server Action
+    // calls, but a form posted before its page hydrated goes through it — so
+    // the same limit as the actions themselves.
+    proxyClientMaxBodySize: "64mb",
   },
   // pdfkit reads its font metrics (.afm files) from disk at runtime — bundling
   // it breaks those reads, so it stays an external package (node_modules is

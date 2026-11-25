@@ -435,6 +435,7 @@ area, rather than loading all of them into every session.
 - Article Social Share: one post per article, when it goes live, as the dial says — 2026-11-23, the owner's "Article Social Share function"
 - The app's own posts reach Instagram and Pinterest when a picture is coming, and wait for it — 2026-11-23, the owner's "Yes, build it"
 - A send that got no answer is looked up in Zernio's list — and "not there" needs proof — 2026-11-23, the owner's "Yes, build it" (CommunityForce's 23 Oct post)
+- Scripts on pages run only with the page's nonce — `src/proxy.ts`; a proxy cuts bodies over `proxyClientMaxBodySize` — 2026-11-24, the owner's "Yes, build CSP"
 
 ## Open items / things the user still owns
 - **Analytics: APIs enabled 2026-08-03** (Search Console + GA Admin + GA Data, on project

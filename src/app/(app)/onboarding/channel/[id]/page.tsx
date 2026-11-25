@@ -8,6 +8,7 @@ import { StepHeader } from "@/components/onboarding/StepHeader";
 import { AiAssist } from "@/components/AiAssist";
 import { readJson } from "@/lib/db/json";
 import { OutlierChip } from "@/components/OutlierChip";
+import { RefreshWhileWorking } from "./RefreshWhileWorking";
 import {
   lookupYoutubeAction,
   customChannelAction,
@@ -254,7 +255,7 @@ async function StepFivePreview({ channelId }: { channelId: string }) {
 
       {/* Stop polling once everything either finished OR failed — refreshing at
           a job that has already given up is what made this look alive. */}
-      <RefreshScript ready={Object.values(ready).every(Boolean) || anyFailed} />
+      <RefreshWhileWorking ready={Object.values(ready).every(Boolean) || anyFailed} />
     </div>
   );
 }
@@ -272,31 +273,5 @@ function StatusCard({ label, ready, error }: { label: string; ready: boolean; er
         {error && <div className="text-2xs mt-0.5 leading-snug" style={{ color: "var(--rose-on)" }}>{error}</div>}
       </div>
     </div>
-  );
-}
-
-function RefreshScript({ ready }: { ready: boolean }) {
-  if (ready) return null;
-  // Auto-refresh the page while jobs are running, but cap at 90 seconds
-  // so a stuck job can never trap the user in a refresh loop.
-  return (
-    <script
-      dangerouslySetInnerHTML={{
-        __html: `
-          (function(){
-            try {
-              const KEY = 'meyousocial_onboard_refresh_start';
-              let start = sessionStorage.getItem(KEY);
-              if (!start) { start = String(Date.now()); sessionStorage.setItem(KEY, start); }
-              if (Date.now() - Number(start) < 90000) {
-                setTimeout(() => location.reload(), 3000);
-              } else {
-                sessionStorage.removeItem(KEY);
-              }
-            } catch { setTimeout(() => location.reload(), 3000); }
-          })();
-        `,
-      }}
-    />
   );
 }

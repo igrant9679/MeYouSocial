@@ -30,6 +30,8 @@ export const LIMITS = {
   linkCardsPerUser: { limit: 60, windowSec: 600 },
   // Hashtag suggestions (2026-11-21): each is a model call on the workspace's key.
   hashtagsPerUser: { limit: 40, windowSec: 600 },
+  // What the page policy blocked (2026-11-24): a browser's reports, logged — one page can send several.
+  cspReportsPerIp: { limit: 30, windowSec: 60 },
 } as const;
 export type LimitName = keyof typeof LIMITS;
 

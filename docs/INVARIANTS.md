@@ -694,8 +694,8 @@ before changing code in that area.
   or auth endpoint should take a limit too.
 - **Security headers on every response** (E-SEC-02, `next.config.ts` `headers()`): CSP `object-src 'none'; base-uri 'self';
   frame-ancestors 'self'`, X-Frame-Options SAMEORIGIN, nosniff, strict-origin-when-cross-origin, Permissions-Policy with
-  camera/microphone/geolocation/payment off. ⚠ script/style/connect are deliberately NOT restricted — Next's inline
-  scripts need a per-request nonce (every page dynamic); that strict CSP is its own step. ⚠ Corrected 2026-11-03
+  camera/microphone/geolocation/payment off. Scripts on pages are held to a per-request nonce by `src/proxy.ts` since
+  2026-11-24 (section "Scripts on pages run only with the page's nonce"); style/connect stay open. ⚠ Corrected 2026-11-03
   (growth part cg): "stored files keep their own sandbox CSP on top" was FALSE — a next.config header replaces the same
   header from a route, so the general CSP overwrote it. The CSP now skips `OWN_CSP_PATHS` and those routes send a
   complete policy (`lib/csp.ts`; see the cg section). Every raw-HTML render is a sanitised body or a fixed string; the brand colour is hex-checked.
@@ -3536,3 +3536,44 @@ a minute later.
   sends" card went. It HAD gone out, so Retry would have posted it twice. So the live list does return `_id`, the words,
   and per platform `accountId`, `status`, `platformPostUrl` and `publishedAt`. ⚠ Not observed: which request shape the
   live API accepted, whether the dated list or the walk-back found it, and a real "no record" or "unproven" answer.
+
+## ⚠ Scripts on pages run only with the page's nonce (2026-11-24, the audit's last security item; the owner's "Yes, build CSP")
+- **One policy per page, made per request** (`src/proxy.ts`, `lib/csp.ts` `pageCsp`): a fresh 18-byte nonce for every page,
+  put in the REQUEST's `Content-Security-Policy` (Next reads the nonce there and stamps it on every script it renders,
+  framework and page alike) and in the response's. The policy is `BASE_CSP` + `script-src 'nonce-…' 'strict-dynamic' 'self'
+  https: 'unsafe-inline'` + `report-uri /api/csp-report`. `'self' https: 'unsafe-inline'` are fallbacks for browsers too old
+  for nonces — a browser that knows nonces ignores them (CSP2) — and `'unsafe-eval'` is added in development only (React's
+  dev error stacks); the built chunks contain no eval. So an injected `<script>`, an `onclick=`/`onerror=` attribute or a
+  `javascript:` link does not run (checked in the browser: all three refused, `script-src-attr` / `script-src-elem`).
+  `'strict-dynamic'` lets a nonced script load more (Next's on-demand chunks carry no nonce and are allowed).
+- ⚠ **No inline `<script>` without the nonce.** The one there was (onboarding's auto-refresh) is now a client component
+  (`RefreshWhileWorking`) — an inline script added by React on a client-side visit never ran anyway. If one is ever
+  needed, read the nonce with `(await headers()).get("x-nonce")` (`NONCE_HEADER`). JSON-LD (`type="application/ld+json"`)
+  is data and needs nothing.
+- ⚠ **Styles stay open.** `style=""` attributes are everywhere and the brand's `<style>` is inline; a style can't run code.
+  Never add `style-src` with a nonce: a nonce switches `'unsafe-inline'` off and every style attribute would be dropped.
+- **No page became dynamic for this**: the root layout reads the theme cookie, so every page already rendered per request
+  (the only prerendered routes are the icons, the manifest and Next's `/_global-error`).
+- **What the proxy skips** (its `matcher`): `api/` and `uploads/` (route handlers; several send their own policy, and the
+  rest keep next.config's `BASE_CSP`), `_next/static`, `_next/image`, the icons and the manifest, **Server Action calls**
+  (the `next-action` header — they answer with data, not a page) and prefetches. ⚠ **A proxy buffers the request body it
+  sees and silently CUTS it at `proxyClientMaxBodySize` (default 10 MB)** — so actions are skipped, and next.config sets
+  the limit to the actions' own 64 MB for a form posted before its page hydrated (which has no `next-action` header).
+  Checked: a 14.5 MB image added through Media both ways (hydrated, and as a multipart post without JavaScript through
+  the proxy) was stored at its full 15,173,019 bytes.
+- **The proxy's header wins over next.config's on pages**: one `Content-Security-Policy` value arrives (with the nonce),
+  never next.config's beside it — unlike a route's own header, which next.config overwrites (growth part cg).
+- **Reports**: browsers POST what the policy blocked to `/api/csp-report` (`lib/csp-report.ts`): both the legacy
+  `application/csp-report` and the Reporting API shapes, at most 16 KB, 30 per minute per address
+  (`cspReportsPerIp`), query strings dropped and long path segments (share and approval tokens) shown as `:token`. Each
+  becomes one `[csp] {"directive","blocked","page","source","line","mode"}` line in the server log — nothing is stored.
+  After a deploy, search Railway's Deploy Logs for `[csp]`: a line from a real page is a page that broke.
+- **The switch**: `CSP_REPORT_ONLY=1` sends the policy as `Content-Security-Policy-Report-Only` (the nonce still goes to the
+  render, so reports show only real strays); `BASE_CSP` from next.config stays enforced either way.
+- Checked locally against `next start`: 22 scripted checks (the policy's parts, report parsing, one header per page, a fresh
+  nonce per request, `/`, the API's and stored files' policies unchanged, prefetches and actions skipped, reports accepted
+  and oversized ones dropped); 42 pages loaded in the browser as the operator — every rail stage, Settings and admin tabs,
+  an article's editor, a post and its editor, the teleprompter, onboarding, link-in-bio, the topic form, the invitation,
+  approval and report links, `/forbidden`, `/verify/sent` — each hydrated with every rendered script nonced and no report
+  logged. Not exercised: `/_global-error` (Next's static fallback, outside the proxy's reach — a crash page's Try again may
+  not work), and Safari before 15.4 (no `'strict-dynamic'`; the `'self' https:` fallback covers it on paper only).
