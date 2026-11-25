@@ -77,17 +77,52 @@ function shortenKeepingLink(text: string, max: number): string {
   return text.slice(0, max + 1).replace(/\s+\S*$/, "").replace(/\s+$/, "");
 }
 
+/** A sentence end: . ! ? or … (closing quotes and brackets kept with it), followed by a space or the end. */
+const SENTENCE_END = /[.!?…]["'”’)\]]*(?=\s|$)/g;
+
+/** The shortest a post may become by dropping sentences — less than this reads as a stub, not a post. */
+const MIN_BODY = 40;
+
 /**
- * Settle the closing hashtag line of a post the engine wrote (2026-11-21): the tags on its last line(s) are kept
- * valid, de-duplicated (also against any already in the sentences) and at most `count` all told; a tag the brand
- * saved keeps its saved spelling; and if the whole is over `limit` characters the BODY is shortened (keeping a link it
- * ends with), never a tag cut in half — tags are dropped from the end only when the body alone can't make room.
+ * Text cut back to `max` characters at the end of a sentence, keeping a link it ends with whole; null when no
+ * complete sentence of at least MIN_BODY characters fits (2026-11-24: a cut at a word sent half sentences out).
  */
-export function settleTagLine(raw: string, opts: { count: number; house?: string[]; limit: number }): string {
+export function cutAtSentence(text: string, max: number): string | null {
+  if (text.length <= max) return text;
+  const m = text.match(/(\s+)(https?:\/\/\S+)$/);
+  if (m && m.index != null) {
+    const head = cutAtSentence(text.slice(0, m.index).replace(/\s+$/, ""), max - m[1].length - m[2].length);
+    return head ? `${head}${m[1]}${m[2]}` : null;
+  }
+  let best = -1;
+  for (const hit of text.matchAll(SENTENCE_END)) {
+    const end = (hit.index ?? 0) + hit[0].length;
+    if (end > max) break;
+    best = end;
+  }
+  if (best < MIN_BODY) return null;
+  return text.slice(0, best).replace(/\s+$/, "");
+}
+
+/**
+ * How a post the engine wrote was made to fit: `whole` — every sentence kept; `sentence` — closing sentences (or, when
+ * the body couldn't make room, closing hashtags) dropped, so it still reads complete; `over` — it can't fit without
+ * cutting a sentence in half, and `text` is that cut: never store it unattended.
+ */
+export type SettledPost = { text: string; fit: "whole" | "sentence" | "over"; whole: string };
+
+/**
+ * Settle a post the engine wrote (2026-11-21, reworked 2026-11-24): the tags on its last line(s) are kept valid,
+ * de-duplicated (also against any already in the sentences) and at most `count` all told; a tag the brand saved keeps
+ * its saved spelling. If the whole is over `limit` characters, closing SENTENCES of the body are dropped (keeping a
+ * link it ends with) — never a tag cut in half, never a sentence; tags are dropped from the end only when no complete
+ * body fits with them. `whole` is the settled post before any cut, for asking the writer to shorten it.
+ */
+export function settlePost(raw: string, opts: { count: number; house?: string[]; limit: number }): SettledPost {
   const lines = raw.replace(/\r\n/g, "\n").trim().split("\n");
   let cut = lines.length;
   while (cut > 0 && (isTagLine(lines[cut - 1]) || !lines[cut - 1].trim())) cut--;
-  let body = lines.slice(0, cut).join("\n").replace(/\s+$/, "");
+  const body = lines.slice(0, cut).join("\n").replace(/\s+$/, "");
   const trailing = lines.slice(cut).join(" ");
   const inline = tagsIn(body);
   const houseBy = new Map((opts.house ?? []).map((h) => [h.toLowerCase(), h]));
@@ -99,20 +134,18 @@ export function settleTagLine(raw: string, opts: { count: number; house?: string
     seen.add(low);
     tags.push(houseBy.get(low) ?? t);
   }
-  let kept = tags.slice(0, Math.max(0, opts.count - inline.size));
+  const kept = tags.slice(0, Math.max(0, opts.count - inline.size));
   const join = (b: string, ts: string[]) => (ts.length ? (b ? `${b}\n\n${ts.join(" ")}` : ts.join(" ")) : b);
-  let out = join(body, kept);
-  if (out.length <= opts.limit) return out;
-  const tail = kept.length ? kept.join(" ").length + 2 : 0;
-  if (opts.limit - tail >= 40) {
-    body = shortenKeepingLink(body, opts.limit - tail);
-    out = join(body, kept);
+  const whole = join(body, kept);
+  if (whole.length <= opts.limit) return { text: whole, fit: "whole", whole };
+  // Fewer sentences before fewer tags: the count is what the networks read well.
+  for (let k = kept.length; k >= 0; k--) {
+    const ts = kept.slice(0, k);
+    const room = opts.limit - (ts.length ? ts.join(" ").length + 2 : 0);
+    const short = room > 0 ? cutAtSentence(body, room) : null;
+    if (short) return { text: join(short, ts), fit: "sentence", whole };
   }
-  while (out.length > opts.limit && kept.length) {
-    kept = kept.slice(0, -1);
-    out = join(body, kept);
-  }
-  return out.length > opts.limit ? shortenKeepingLink(out, opts.limit) : out;
+  return { text: shortenKeepingLink(join(body, kept), opts.limit), fit: "over", whole };
 }
 
 /**

@@ -7,7 +7,8 @@ import { llm, resolveUsableModel } from "@/lib/llm";
 import { motifPromptFor, brandContextBlock } from "@/lib/motifs";
 import { engineTargets, pictureWillCome } from "@/lib/social/picture-networks";
 import { claimNextFreeSlot } from "@/lib/social/slots";
-import { howManyTags, settleTagLine, tagInstruction } from "@/lib/social/hashtag-text";
+import { howManyTags, tagInstruction } from "@/lib/social/hashtag-text";
+import { fitPost, shortenRequest } from "@/lib/social/fit-post";
 import { houseTags } from "@/lib/social/house-tags";
 
 /**
@@ -88,25 +89,24 @@ export async function generateSocialPostForWorkspace(workspaceId: string): Promi
   ].filter(Boolean);
 
   const model = await resolveUsableModel("", workspaceId, "social.draft");
+  const system =
+    "You write ONE social media post for a real company's feed. " +
+    "Return ONLY the post text — no preamble, no quotation marks around it, no markdown. " +
+    `Hard limits: at most ${MAX_CHARS} characters, hashtags included; no links; no emojis unless the tone calls for one. ` +
+    `${tagInstruction(tagCount, house)} ` +
+    "⚠ Never invent facts, numbers, statistics, customer names or claims — if a specific isn't in the context, don't use one. " +
+    "Write something genuinely useful or thought-provoking about the topic, in the company's voice.";
+  const ask = [
+    `Context:\n${facts.join("\n")}`,
+    motifs ? `Tone:\n${motifs}` : "",
+    guardrails ?? "",
+    "Write the post.",
+  ].filter(Boolean).join("\n\n");
   const res = await llm.complete({
     purpose: "social.draft",
     model,
-    system:
-      "You write ONE social media post for a real company's feed. " +
-      "Return ONLY the post text — no preamble, no quotation marks around it, no markdown. " +
-      `Hard limits: at most ${MAX_CHARS} characters, hashtags included; no links; no emojis unless the tone calls for one. ` +
-      `${tagInstruction(tagCount, house)} ` +
-      "⚠ Never invent facts, numbers, statistics, customer names or claims — if a specific isn't in the context, don't use one. " +
-      "Write something genuinely useful or thought-provoking about the topic, in the company's voice.",
-    messages: [{
-      role: "user",
-      content: [
-        `Context:\n${facts.join("\n")}`,
-        motifs ? `Tone:\n${motifs}` : "",
-        guardrails ?? "",
-        "Write the post.",
-      ].filter(Boolean).join("\n\n"),
-    }],
+    system,
+    messages: [{ role: "user", content: ask }],
     workspaceId,
     temperature: 0.8,
   });
@@ -116,8 +116,30 @@ export async function generateSocialPostForWorkspace(workspaceId: string): Promi
     console.warn(`[social-autogen] ${workspaceId}: no real provider resolved (got ${res.provider}) — skipped`);
     return false;
   }
-  // The closing hashtag line settled and the whole kept within MAX_CHARS by shortening the body, never a tag.
-  const text = settleTagLine(res.content.trim().replace(/^["“]|["”]$/g, ""), { count: tagCount, house, limit: MAX_CHARS });
+  // The closing hashtag line settled and the whole kept within MAX_CHARS — rewritten once if it came back long, else
+  // closing sentences dropped; never a sentence or a tag cut in half (lib/social/fit-post.ts). No fit, no post.
+  const fitted = await fitPost({
+    raw: res.content,
+    count: tagCount,
+    house,
+    limit: MAX_CHARS,
+    rewrite: async (long, length) => {
+      const again = await llm.complete({
+        purpose: "social.draft",
+        model,
+        system,
+        messages: [{ role: "user", content: ask }, { role: "assistant", content: long }, { role: "user", content: shortenRequest(length, MAX_CHARS, false) }],
+        workspaceId,
+        temperature: 0.4,
+      });
+      return again.provider === "mock" || !again.content?.trim() ? null : again.content;
+    },
+  });
+  if (!fitted) {
+    console.warn(`[social-autogen] ${workspaceId}: the post for "${topic.name}" came back too long to fit without cutting a sentence, twice — skipped`);
+    return false;
+  }
+  const text = fitted.text;
 
   // Optional campaign; validated so a stale id degrades to none.
   const campaignRaw = (await getSetting("social:autogen_campaign", workspaceId).catch(() => "")).trim();
@@ -162,7 +184,7 @@ export async function generateSocialPostForWorkspace(workspaceId: string): Promi
     action: "social.post_generated",
     entityType: "social_post",
     entityId: post.id,
-    meta: { topic: topic.name, provider: res.provider, scheduled: Boolean(scheduledAt) },
+    meta: { topic: topic.name, provider: res.provider, scheduled: Boolean(scheduledAt), ...(fitted.fit !== "whole" || fitted.rewritten ? { fit: fitted.fit, rewritten: fitted.rewritten } : {}) },
   });
   if (requireApproval) {
     await notify({

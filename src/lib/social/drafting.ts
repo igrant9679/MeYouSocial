@@ -8,7 +8,8 @@ import { llm, resolveUsableModel } from "@/lib/llm";
 import { motifPromptFor, brandContextBlock } from "@/lib/motifs";
 import { engineTargets, pictureWillCome } from "@/lib/social/picture-networks";
 import { claimNextFreeSlot } from "@/lib/social/slots";
-import { howManyTags, settleTagLine, tagInstruction } from "@/lib/social/hashtag-text";
+import { howManyTags, tagInstruction } from "@/lib/social/hashtag-text";
+import { fitPost, shortenRequest } from "@/lib/social/fit-post";
 import { houseTags } from "@/lib/social/house-tags";
 
 /**
@@ -162,20 +163,19 @@ async function writePostFromIdea(
   ].filter(Boolean);
 
   const model = await resolveUsableModel("", workspaceId, "social.draft");
+  const system =
+    "You write ONE social media post for a real company's feed, from the idea you are given. " +
+    "Return ONLY the post text — no preamble, no quotation marks around it, no markdown. " +
+    `Hard limits: at most ${MAX_CHARS} characters${link ? " plus the link" : ""}, hashtags included; ${link ? "that one link only" : "no links"}; no emojis unless the tone calls for one. ` +
+    `${tagInstruction(tagCount, house)} ` +
+    "⚠ Never invent facts, numbers, statistics, customer names or claims — if a specific isn't in the context, don't use one. " +
+    "Say the idea well, in the company's voice.";
+  const ask = [`Context:\n${facts.join("\n")}`, motifs ? `Tone:\n${motifs}` : "", guardrails ?? "", "Write the post."].filter(Boolean).join("\n\n");
   const res = await llm.complete({
     purpose: "social.draft",
     model,
-    system:
-      "You write ONE social media post for a real company's feed, from the idea you are given. " +
-      "Return ONLY the post text — no preamble, no quotation marks around it, no markdown. " +
-      `Hard limits: at most ${MAX_CHARS} characters${link ? " plus the link" : ""}, hashtags included; ${link ? "that one link only" : "no links"}; no emojis unless the tone calls for one. ` +
-      `${tagInstruction(tagCount, house)} ` +
-      "⚠ Never invent facts, numbers, statistics, customer names or claims — if a specific isn't in the context, don't use one. " +
-      "Say the idea well, in the company's voice.",
-    messages: [{
-      role: "user",
-      content: [`Context:\n${facts.join("\n")}`, motifs ? `Tone:\n${motifs}` : "", guardrails ?? "", "Write the post."].filter(Boolean).join("\n\n"),
-    }],
+    system,
+    messages: [{ role: "user", content: ask }],
     workspaceId,
     temperature: 0.8,
   });
@@ -187,8 +187,30 @@ async function writePostFromIdea(
   }
   const limit = MAX_CHARS + (link ? link.length + 1 : 0);
   // The closing hashtag line settled (valid, no repeats, at most tagCount, saved spellings) and the whole kept within
-  // the limit by shortening the body — never a tag or the link cut in half.
-  const text = settleTagLine(res.content.trim().replace(/^["“]|["”]$/g, ""), { count: tagCount, house, limit });
+  // the limit — rewritten once if it came back long, else closing sentences dropped; never a sentence, a tag or the
+  // link cut in half (lib/social/fit-post.ts). A post that can't fit is not stored: the idea stays approved.
+  const fitted = await fitPost({
+    raw: res.content,
+    count: tagCount,
+    house,
+    limit,
+    rewrite: async (long, length) => {
+      const again = await llm.complete({
+        purpose: "social.draft",
+        model,
+        system,
+        messages: [{ role: "user", content: ask }, { role: "assistant", content: long }, { role: "user", content: shortenRequest(length, limit, Boolean(link)) }],
+        workspaceId,
+        temperature: 0.4,
+      });
+      return again.provider === "mock" || !again.content?.trim() ? null : again.content;
+    },
+  });
+  if (!fitted) {
+    console.warn(`[social-drafting] ${workspaceId}: idea ${idea.id} came back too long to fit without cutting a sentence, twice — skipped`);
+    return { ok: false, message: "The post came out too long to fit without cutting a sentence in half, even after asking for a shorter one. Nothing was saved — try again, or write it in Compose." };
+  }
+  const text = fitted.text;
 
   const campaignRaw = (await getSetting("social:autogen_campaign", workspaceId).catch(() => "")).trim();
   const campaign = campaignRaw && !who.share
@@ -259,7 +281,7 @@ async function writePostFromIdea(
     action: who.share ? "social.article_shared" : "social.post_generated",
     entityType: "social_post",
     entityId: post.id,
-    meta: { topic: idea.topic?.name ?? null, ideaId: idea.id, source: idea.source, provider: res.provider, scheduled: Boolean(scheduledAt), via: who.share ? (who.actorId ? "share now" : "article share") : who.actorId ? "draft now" : "sweep", ...(who.placement ? { placement: who.placement, status } : {}), ...(idea.sourceBlogPost ? { article: idea.sourceBlogPost.id } : {}) },
+    meta: { topic: idea.topic?.name ?? null, ideaId: idea.id, source: idea.source, provider: res.provider, scheduled: Boolean(scheduledAt), via: who.share ? (who.actorId ? "share now" : "article share") : who.actorId ? "draft now" : "sweep", ...(fitted.fit !== "whole" || fitted.rewritten ? { fit: fitted.fit, rewritten: fitted.rewritten } : {}), ...(who.placement ? { placement: who.placement, status } : {}), ...(idea.sourceBlogPost ? { article: idea.sourceBlogPost.id } : {}) },
   });
   if (approval === "pending") {
     await notify({

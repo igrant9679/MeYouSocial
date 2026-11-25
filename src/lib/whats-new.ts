@@ -41,6 +41,14 @@ export const CARD_MAX = 5;
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    id: "2026-11-24-whole-sentences",
+    date: "2026-11-24",
+    title: "Posts the app writes never end mid-sentence",
+    body: "When a post the app wrote came back too long, its last sentence was cut short to make room for the hashtags. Now it's rewritten shorter, or its closing sentence is left out, and a post that still can't fit isn't saved.",
+    href: "/social/queue",
+    cta: "Open the queue",
+  },
+  {
     id: "2026-11-24-frame-own-photos",
     date: "2026-11-24",
     title: "Put your branded frame on your own photos",

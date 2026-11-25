@@ -3179,11 +3179,11 @@ day" still took two looks. Now the default view shows both.
   `tagInstruction(count, houseTags)`: one closing line of exactly `howManyTags(targets)` hashtags (the same tightest-wins
   count as the composer's "Add top N"), none inside the sentences, the brand's saved hashtags first, spelled as saved
   (`lib/social/house-tags.ts`, shared with the composer's suggestions). The old "at most 2 hashtags" rule is gone. The
-  reply is settled by `settleTagLine` (pure, `hashtag-text.ts`): the closing tags are valid and de-duplicated (against
-  any in the sentences too), at most the count all told, house tags respelled as saved, and an over-long post is
-  shortened in the BODY at a word, keeping a link it ends with. A tag is never cut, and tags are dropped from the end
-  only when the body can't make room. The link instruction now says "at the end of the text, before the hashtags". It
-  is still one model call, and mock or empty output is still never stored. Checked end to end with the real writers, a
+  reply is settled by `settlePost` (pure, `hashtag-text.ts`; `settleTagLine` until 2026-11-24): the closing tags are
+  valid and de-duplicated (against any in the sentences too), at most the count all told, house tags respelled as
+  saved. ⚠ Until 2026-11-24 an over-long post was shortened in the BODY at a word, and half sentences went out —
+  see "Posts the engine writes end in whole sentences" for what replaced it. The link instruction now says "at the
+  end of the text, before the hashtags". Mock or empty output is still never stored. Checked end to end with the real writers, a
   throwaway database and a stand-in model: the prompt names the count and the house tags, and stored posts come out
   settled (10 cases). Caption Studio and RSS drafts keep their own rules.
 - **A saved post's own page has Preview as posted** (`/social/[id]`, `PostPreviewButton`, every member, 2026-11-22): one
@@ -3577,3 +3577,28 @@ a minute later.
   approval and report links, `/forbidden`, `/verify/sent` — each hydrated with every rendered script nonced and no report
   logged. Not exercised: `/_global-error` (Next's static fallback, outside the proxy's reach — a crash page's Try again may
   not work), and Safari before 15.4 (no `'strict-dynamic'`; the `'self' https:` fallback covers it on paper only).
+
+## ⚠ Posts the engine writes end in whole sentences (2026-11-24, the owner's "Fix both")
+- **Found by checking CommunityForce's first posts under the hashtag rule**: the writer is told "at most 240 characters,
+  hashtags included" but overshoots, and the old settling cut the body at a WORD to make room for the tags — "…reporting
+  deadlines and disbursement" went to Facebook, Instagram, LinkedIn and X on 24 Nov, and "…from pre-award" was queued
+  for 27 Nov (that one was trimmed by hand in the app to its last full sentence, on the owner's word).
+- **`settlePost`** (`lib/social/hashtag-text.ts`, pure) returns `{ text, fit, whole }`: `whole` — every sentence kept;
+  `sentence` — closing sentences dropped by `cutAtSentence` (an end is `. ! ? …` with closing quotes or brackets, then
+  a space or the end — a decimal like 3.5 isn't one; a link the body ends with is kept whole; nothing under 40
+  characters counts as a post), and only when no complete body fits with every tag are tags dropped, one at a time from
+  the end; `over` — it can't fit without cutting a sentence in half. `whole` is the settled post before any cut.
+- **`fitPost`** (`lib/social/fit-post.ts`), used by BOTH writers (`drafting.ts` — ideas, sweep, Draft now, article
+  shares — and `autogen.ts`, the weekly writer): a post that fits whole is stored after one call; otherwise the writer
+  is asked ONCE more, in the same conversation, with `shortenRequest` (the exact length and the limit); the better of
+  the two is kept (whole > sentence; a tie goes to the rewrite), and if both are `over`, NOTHING is stored — drafting
+  returns `{ ok: false }` with the reason (an idea stays approved for the next run; Draft now shows the message), the
+  weekly writer returns false. A failed or mock rewrite counts as no rewrite. The audit row of a post that needed it
+  carries `fit` and `rewritten`. The rewrite uses the same `social.draft` purpose and model, at temperature 0.4.
+- ⚠ Never shorten a post at a word again, anywhere a person won't read it before it goes out.
+- Checked: 25 cases — the 24 Nov text (closing sentence dropped, not cut), a whole post, a kept link, an uncuttable
+  sentence, decimals, stubs, tags dropped one at a time; `fitPost`'s choices (no extra call when it fits, the rewrite
+  kept, null when nothing fits, a failed rewrite falling back to the sentence cut); and the real writers on a throwaway
+  database with a stand-in model — Draft now rewritten (the second call carries the long post as the assistant's turn
+  and the exact length), one call when it fits, can't-fit storing nothing with the idea still approved, the weekly
+  writer's sentence cut and its no-fit, every stored post ending a sentence before its tags.

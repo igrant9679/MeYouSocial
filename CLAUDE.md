@@ -436,6 +436,7 @@ area, rather than loading all of them into every session.
 - The app's own posts reach Instagram and Pinterest when a picture is coming, and wait for it — 2026-11-23, the owner's "Yes, build it"
 - A send that got no answer is looked up in Zernio's list — and "not there" needs proof — 2026-11-23, the owner's "Yes, build it" (CommunityForce's 23 Oct post)
 - Scripts on pages run only with the page's nonce — `src/proxy.ts`; a proxy cuts bodies over `proxyClientMaxBodySize` — 2026-11-24, the owner's "Yes, build CSP"
+- Posts the engine writes end in whole sentences — rewritten once, else closing sentences dropped, else not stored (`lib/social/fit-post.ts`) — 2026-11-24, the owner's "Fix both"
 
 ## Open items / things the user still owns
 - **Analytics: APIs enabled 2026-08-03** (Search Console + GA Admin + GA Data, on project
