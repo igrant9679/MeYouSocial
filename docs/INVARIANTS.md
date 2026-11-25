@@ -3638,5 +3638,10 @@ a minute later.
   stand-in Gemini API: a two-scene board (references for one scene, start+end for the other; a Files link polled to
   ACTIVE and downloaded with the key in a header; inline bytes stored as sent; metered under the Omni id), an
   unfinished answer polled to completion, a 404 refusal and a blocked prompt failing in words, a missing reference
-  failing before any call. ⚠ **Not yet run against Google itself** — the first real render is the probe (CLAUDE.md's
-  rule); the Interactions API's background mode and error JSON aren't documented for Omni.
+  failing before any call. **Proven against Google the same night** (the owner's "Yes, one test clip"): LSI Media's
+  "Agency AI Audit" board cut to one 4 s scene rendered in about 35 s — an MP4 of 2.75 MB, 4.0 s, 720×1280, stored to
+  Drive ("Persisted to storage"). The Interactions API's background mode and error JSON aren't documented for Omni.
+- **A one-scene board's scene says it's done** (found on that test board): the one-clip render path never marked
+  `scenes[0]`, so its card read "not rendered yet" under a finished Output. It now marks the scene rendering, then done
+  with the stored clip; `sceneState` reads any done one-scene board as done (boards rendered before), and the card's
+  own player is for multi-scene boards only — a one-scene board plays under Output, once.

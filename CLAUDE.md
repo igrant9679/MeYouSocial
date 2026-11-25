@@ -86,8 +86,8 @@ reason. **Probe a model against the live key before shipping it.** Known-good to
 `gemini-flash-latest` / `gemini-pro-latest` (text + vision), `gemini-3.1-flash-image`
 (image output via `generateContent`), `gpt-image-1` (OpenAI images), `gpt-4o-mini` (OpenAI vision),
 ~~`veo-3.1-fast-generate-preview`~~ — ⚠ **Google SHUT DOWN the Veo 3.1 preview models on 2026-10-22**; video is
-`gemini-omni-1.2-flash` through the Interactions API since 2026-11-24 (`lib/video/omni.ts`; not yet probed on the live
-key — the first real render is the probe; `VIDEO_MODEL` overrides the id).
+`gemini-omni-1.2-flash` through the Interactions API since 2026-11-24 (`lib/video/omni.ts`; PROVEN the same night by
+a real render on LSI's key — 4 s, 720×1280 MP4 in ~35 s, stored to Drive; `VIDEO_MODEL` overrides the id).
 
 ## ⚠ Mock fallbacks are the #1 source of confusion
 

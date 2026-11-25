@@ -1393,6 +1393,11 @@ export async function processRenderCore(
       });
       if (!finished.count) return false;
     } else {
+      // The one scene says where it is too (2026-11-24): until then its card read "not rendered yet" on a done board.
+      if (scenes.length === 1) {
+        scenes[0] = { ...scenes[0], status: "rendering", outputUrl: null };
+        await db.videoRender.updateMany({ where: { id: render.id, status: "rendering" }, data: { scenes: JSON.stringify(scenes) } });
+      }
       const out = await provider.render({
         prompt: render.prompt,
         seconds: render.seconds,
@@ -1403,6 +1408,7 @@ export async function processRenderCore(
       await meterVideoScene({ workspaceId, provider: out.provider, model: VIDEO_MODEL, seconds: out.seconds ?? render.seconds });
       const durable = await persistRenderOutput(out, workspaceId);
       const playable = keepable(out, durable);
+      if (scenes.length === 1) scenes[0] = { ...scenes[0], status: "done", outputUrl: durable ?? playable };
       const finished = await db.videoRender.updateMany({
         where: { id: render.id, status: "rendering" },
         data: {
@@ -1413,6 +1419,7 @@ export async function processRenderCore(
           provider: out.provider,
           seconds: out.seconds,
           srt: scenes.length ? scenesToSrt(scenes) : null,
+          ...(scenes.length === 1 ? { scenes: JSON.stringify(scenes) } : {}),
         },
       });
       if (!finished.count) return false;

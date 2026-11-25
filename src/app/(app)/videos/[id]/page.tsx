@@ -270,7 +270,7 @@ export default async function StoryboardPage({
                   {/* E-VID-06: each clip's cost — its seconds at the operator's price. */}
                   {perSecond != null ? ` · ${scene.seconds}s ≈ ${usd(scene.seconds * perSecond)}${scene.status === "done" && scene.outputUrl ? " (paid)" : ""}` : ""}
                 </p>
-                {scene.outputUrl && (
+                {scenes.length > 1 && scene.outputUrl && (
                   <video src={scene.outputUrl} controls preload="none" className="w-full rounded-lg border border-[var(--line)]" />
                 )}
                 <form action={updateSceneAction} className="flex flex-col gap-2 flex-1">
@@ -357,7 +357,7 @@ export default async function StoryboardPage({
                       </p>
                     );
                   })()}
-                  {scene.outputUrl && (
+                  {scenes.length > 1 && scene.outputUrl && (
                     <video src={scene.outputUrl} controls preload="none" className="w-full rounded-lg border border-[var(--line)]" />
                   )}
                   {rerenderable && scenes.length > 1 && scene.status === "done" && scene.outputUrl && (

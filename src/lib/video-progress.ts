@@ -12,6 +12,9 @@ export type SceneState = "done" | "rendering" | "next" | "waiting" | "interrupte
 /** A scene left "rendering" on a board that isn't rendering any more was cut off mid-scene. */
 export function sceneState(boardStatus: string, scene: StoryScene, index: number, scenes: StoryScene[]): SceneState {
   if (scene.status === "done" && scene.outputUrl) return "done";
+  // A one-scene board's clip IS the board's output. Until 2026-11-24 the one-clip render never marked its scene, so a
+  // finished board's only card said "not rendered yet" — boards rendered before then are read as done here.
+  if (boardStatus === "done" && scenes.length <= 1) return "done";
   if (scene.status === "rendering" && boardStatus === "rendering") return "rendering";
   if (scene.status === "rendering" && boardStatus !== "queued") return "interrupted";
   // Queued again after a stop: the cut-off scene is simply the next one to render.
