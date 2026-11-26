@@ -238,7 +238,8 @@ export function omniExtendBody(req: { previousId: string; seconds: number; aspec
     previous_interaction_id: req.previousId,
     input: `Extend this video by ${n} seconds, continuing the same scene smoothly from its last frame.${direction ? ` ${direction}` : ""}`,
     response_format: { type: "video", aspect_ratio: req.aspect, resolution: "720p", duration: `${n}s`, delivery: "uri" },
-    generation_config: { video_config: { task: "extend" } },
+    // ⚠ No `generation_config.video_config.task` here: Google refuses it beside `previous_interaction_id` — "HTTP 400:
+    // previous_interaction_id is not allowed when video task is set" (the first real extension, 2026-11-25).
   };
 }
 
@@ -249,7 +250,9 @@ export async function extendWithOmni(req: { workspaceId?: string; previousId: st
     return await runInteraction(apiKey, omniExtendBody(req), extendSeconds(req.seconds));
   } catch (e) {
     const m = e instanceof Error ? e.message : String(e);
-    if (/HTTP (404|400)/.test(m) && /interaction/i.test(m)) {
+    // Only a conversation Google says it can't FIND is "forgotten" — any other 400 is passed on in Google's own words
+    // (a 400 that merely mentioned previous_interaction_id was once mislabelled as forgotten).
+    if (/HTTP (404|400)/.test(m) && /interaction/i.test(m) && /\b(not found|expired|no longer|does not exist)\b/i.test(m)) {
       throw new Error(`Google no longer holds the history of this clip, so it can't be continued — render the scene again, then extend it. (${m.slice(0, 200)})`);
     }
     throw e;

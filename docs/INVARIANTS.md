@@ -3652,8 +3652,11 @@ a minute later.
   extend it". A scene rendered again loses its `ref` and its extension (`rerenderSceneAction`'s reset).
 - **The call** (`omni.ts` `omniExtendBody`, `extendWithOmni`): `previous_interaction_id` = the scene's ref, the input
   "Extend this video by N seconds, continuing the same scene smoothly from its last frame." plus the person's direction,
-  `response_format` with `duration: "Ns"` (N = 3–10, `extendSeconds`), task `extend`. A 400/404 that names the
-  interaction becomes "Google no longer holds the history of this clip … render the scene again".
+  `response_format` with `duration: "Ns"` (N = 3–10, `extendSeconds`). ⚠ **NO `generation_config.video_config.task`**:
+  Google refuses one beside `previous_interaction_id` ("HTTP 400: previous_interaction_id is not allowed when video task
+  is set" — the first real extension, 2026-11-25; the stand-in check now enforces it). Only a 400/404 that names the
+  interaction AND says not found / expired becomes "Google no longer holds the history of this clip … render the scene
+  again"; any other refusal is shown in Google's words.
 - **⚠ Whole clip or tail?** Google's pages don't say whether the answer is the longer clip or only the new seconds, so
   `extendSceneCore` (`lib/video/extend.ts`) MEASURES the answer (ffmpeg `probeVideo`): at least the old length plus half
   the new → it is the new clip; else it is the tail and is joined onto the old clip (`assembleScenes`, each part
