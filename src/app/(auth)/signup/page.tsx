@@ -7,6 +7,8 @@ import { env } from "@/lib/env";
 import { signIn } from "@/auth";
 import { requestVerificationForUser } from "@/app/actions/auth-flows";
 import { claimInvitation, pendingInvitationsFor, sameEmail } from "@/lib/invitations";
+import { trialPolicy } from "@/lib/trial-policy";
+import { startTrialWorkspace, trialRefusal, TRIAL_REFUSAL_COPY } from "@/lib/workspace-signup";
 import { SubmitButton } from "@/components/SubmitButton";
 import { ValidatedInput } from "@/components/ValidatedInput";
 
@@ -14,6 +16,7 @@ const schema = z.object({
   name: z.string().min(1).max(80),
   email: z.string().email().transform((s) => s.toLowerCase()),
   password: z.string().min(8).max(120),
+  workspace: z.string().max(80).optional(),
 });
 
 // ── Who may create an account ───────────────────────────────────────────────
@@ -27,6 +30,15 @@ const schema = z.object({
 // "whoever registers an invited address first joins with its role" worked —
 // the token is the proof, or (open mode) a verified address, which
 // verifyEmailAction claims for. See lib/invitations.ts.
+//
+// ── The free trial (2026-11-26, the owner's "14-day trial") ─────────────────
+// With trials on (Settings → Sign-ups; OFF by default, 14 days suggested), the form is open
+// to anyone and makes a TRIAL workspace (lib/workspace-signup.ts): the platform's
+// keys, an AI allowance, an end date, one per person, a few per address a day,
+// a cap on trials running at once. When the trial ends or runs out the workspace
+// is held, never deleted (lib/workspace-hold.ts); a meyousocial.com membership
+// for the same address keeps it going (lib/membership/process.ts). Trials off →
+// back to invitations (or ALLOW_OPEN_SIGNUP's untimed workspace, as before).
 
 function errorUrl(code: string, invite: string) {
   return `/signup?error=${code}${invite ? `&invite=${encodeURIComponent(invite)}` : ""}`;
@@ -39,6 +51,7 @@ async function signupAction(formData: FormData) {
     name: formData.get("name"),
     email: formData.get("email"),
     password: formData.get("password"),
+    workspace: formData.get("workspace") ?? undefined,
   });
   if (!parsed.success) redirect(errorUrl("invalid", inviteToken));
   const data = parsed.data!;
@@ -51,8 +64,15 @@ async function signupAction(formData: FormData) {
   const isBootstrap = Boolean(env.BOOTSTRAP_ADMIN_EMAIL) && env.BOOTSTRAP_ADMIN_EMAIL === data.email;
 
   if (inviteLive && !sameEmail(invite!.email, data.email)) redirect(errorUrl("wrong-email", inviteToken));
-  if (!inviteLive && !isBootstrap && !env.ALLOW_OPEN_SIGNUP) {
+  // A trial is the door for everyone else, while trials are on.
+  const trialMode = !inviteLive && !isBootstrap && (await trialPolicy()).days > 0;
+  if (!inviteLive && !isBootstrap && !trialMode && !env.ALLOW_OPEN_SIGNUP) {
     redirect(errorUrl(inviteToken ? "invite-gone" : "invite-only", inviteToken));
+  }
+  if (trialMode) {
+    if (!(await hit("trialSignupPerIp", await requestIp())).ok) redirect(errorUrl("trial-slow", ""));
+    const refused = await trialRefusal({});
+    if (refused) redirect(errorUrl(`trial-${refused}`, ""));
   }
 
   const existing = await db.user.findUnique({ where: { email: data.email } });
@@ -80,10 +100,19 @@ async function signupAction(formData: FormData) {
   let joined = false;
   if (inviteLive) joined = await claimInvitation(user.id, invite!);
 
+  // A trial workspace, UNLESS invitations are waiting for this address (a
+  // meyousocial.com member who came here instead of through their link, a
+  // colleague's invitation): those wait for the link or a verified address, and
+  // the onboarding page says so. A refusal that raced in lands there too.
+  if (!joined && trialMode) {
+    const waiting = await pendingInvitationsFor(data.email);
+    if (waiting.length === 0) await startTrialWorkspace(user, data.workspace ?? "");
+  }
+
   // Open sign-up only: a personal workspace, UNLESS invitations are waiting
   // for this address. Those wait for the address to be verified (the
   // onboarding page says so) rather than handing the person a stray tenant.
-  if (!joined && !isBootstrap && env.ALLOW_OPEN_SIGNUP) {
+  if (!joined && !isBootstrap && !trialMode && env.ALLOW_OPEN_SIGNUP) {
     const waiting = await pendingInvitationsFor(data.email);
     if (waiting.length === 0) {
       const personal = await db.workspace.create({ data: { name: `${data.name}'s workspace` } });
@@ -104,6 +133,10 @@ const ERRORS: Record<string, string> = {
   "invite-gone": "That invitation has already been used or has expired. Ask whoever invited you for a new one.",
   "invite-only": "Accounts are created from an invitation link. Open the link your administrator sent you.",
   "slow-down": "Too many attempts from here — wait a minute and try again.",
+  "trial-slow": "Several free trials have already started from here today — try again tomorrow, or become a member at meyousocial.com.",
+  "trial-off": TRIAL_REFUSAL_COPY.off,
+  "trial-full": TRIAL_REFUSAL_COPY.full,
+  "trial-used": TRIAL_REFUSAL_COPY.used,
 };
 
 export default async function SignUpPage({ searchParams }: { searchParams: Promise<{ error?: string; invite?: string }> }) {
@@ -119,17 +152,43 @@ export default async function SignUpPage({ searchParams }: { searchParams: Promi
   // A fresh install has nobody to send an invitation, so the form stays open
   // for the bootstrap admin until the first account exists.
   const firstRun = !pendingInvite && !env.ALLOW_OPEN_SIGNUP ? (await db.user.count()) === 0 : false;
-  const showForm = Boolean(pendingInvite) || env.ALLOW_OPEN_SIGNUP || firstRun;
+  // The free trial (lib/trial-policy.ts): open to anyone while trials are on and not full.
+  const policy = await trialPolicy();
+  const trialOpen = !pendingInvite && !firstRun && policy.days > 0;
+  const trialRefused = trialOpen ? await trialRefusal({}, policy) : null;
+  const trial = trialOpen && !trialRefused;
+  const showForm = Boolean(pendingInvite) || trial || (!trialOpen && env.ALLOW_OPEN_SIGNUP) || firstRun;
   const message = error ? ERRORS[error] : null;
+  const allowance = [
+    policy.tokenCap > 0 ? `${policy.tokenCap.toLocaleString("en-GB")} tokens of AI writing` : null,
+    policy.imageCap > 0 ? `${policy.imageCap} generated pictures` : null,
+  ].filter(Boolean).join(" and ");
 
   return (
     <div className="flex-1 grid place-items-center p-6">
       <div className="card w-full max-w-md">
-        <h1 className="font-mono font-bold text-xl mb-1">{showForm ? "Create your account" : "Sign-up is by invitation"}</h1>
+        <h1 className="font-mono font-bold text-xl mb-1">
+          {trial ? "Start your free trial" : showForm ? "Create your account" : trialRefused ? "Free trials are paused" : "Sign-up is by invitation"}
+        </h1>
         {pendingInvite ? (
           <p className="text-sm mb-5">
             You&apos;re joining <b>{pendingInvite.workspace.name}</b> as {pendingInvite.role.toLowerCase()}.{" "}
             <span className="text-[var(--mute)]">Sign up with <b>{pendingInvite.email}</b> — the address the invite was sent to.</span>
+          </p>
+        ) : trial ? (
+          <div className="text-sm text-[var(--mute)] mb-5 space-y-2" data-trial-terms>
+            <p className="m-0">
+              A workspace of your own for <b className="text-[var(--ink)]">{policy.days} days</b>, running on MeYouSocial&apos;s AI
+              {allowance ? <> with an allowance of {allowance}</> : null}. No card needed. Video rendering starts with a membership.
+            </p>
+            <p className="m-0">
+              Keep it going with a membership at <a href={policy.membershipUrl} className="text-[var(--accent-on)] font-semibold">meyousocial.com</a> using
+              the same email. When a trial ends, the workspace is paused, never deleted.
+            </p>
+          </div>
+        ) : trialRefused ? (
+          <p className="text-sm text-[var(--mute)] mb-5">
+            {TRIAL_REFUSAL_COPY[trialRefused]} Already invited by your company? Open the link in your invitation email.
           </p>
         ) : showForm ? (
           <p className="text-sm text-[var(--mute)] mb-5">
@@ -148,7 +207,10 @@ export default async function SignUpPage({ searchParams }: { searchParams: Promi
             <ValidatedInput label="Your name" name="name" required maxLength={80} autoComplete="name" className="w-full border border-[var(--line-2)] rounded-lg px-3 py-2 text-sm" />
             <ValidatedInput label="Email" name="email" type="email" required autoComplete="email" defaultValue={pendingInvite?.email} className="w-full border border-[var(--line-2)] rounded-lg px-3 py-2 text-sm" />
             <ValidatedInput label="Password" name="password" type="password" required minLength={8} autoComplete="new-password" errorMessage="Use at least 8 characters." className="w-full border border-[var(--line-2)] rounded-lg px-3 py-2 text-sm" />
-            <SubmitButton className="btn primary mt-2" pendingText="Creating…">Create account</SubmitButton>
+            {trial && (
+              <ValidatedInput label="Company or workspace name" name="workspace" required minLength={2} maxLength={60} autoComplete="organization" placeholder="Acme Ltd" className="w-full border border-[var(--line-2)] rounded-lg px-3 py-2 text-sm" />
+            )}
+            <SubmitButton className="btn primary mt-2" pendingText="Creating…">{trial ? `Start my ${policy.days}-day trial` : "Create account"}</SubmitButton>
           </form>
         ) : (
           <Link href="/signin" className="btn primary">Sign in</Link>

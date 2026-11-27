@@ -74,6 +74,14 @@ export async function requireMembership(workspaceId?: string) {
     target = (chosen && memberships.find((m) => m.workspaceId === chosen)) || memberships[0];
   }
   if (!target) redirect("/forbidden?why=member");
+  // A workspace on hold (lib/workspace-hold.ts — a trial that ended or used its
+  // allowance, a lapsed membership) is kept whole but closed to its members: every
+  // page, action and route that lands here goes to /on-hold, which says why and
+  // offers their other workspaces. The operator is exempt — the way to look in.
+  if (!isPlatformOperator(user.email)) {
+    const { workspaceHold } = await import("@/lib/workspace-hold");
+    if (await workspaceHold(target.workspaceId)) redirect(`/on-hold?ws=${encodeURIComponent(target.workspaceId)}`);
+  }
   // A workspace that requires two-factor of its admins (E-SEC-07) sends an admin
   // without it to set it up — from every page, action and route that lands here.
   if (target.role === "ADMIN" && !user.totpEnabledAt) {

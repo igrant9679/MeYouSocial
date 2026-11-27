@@ -84,15 +84,21 @@ export async function createWorkspaceAction(formData: FormData) {
   const name = String(formData.get("name") ?? "").trim();
   const back = String(formData.get("returnTo") ?? "/settings");
 
-  if (!isPlatformOperator(user.email)) {
-    redirect(`${back}?error=${encodeURIComponent("Only the platform administrator can create workspaces. Ask them to set one up and invite you.")}`);
-  }
-
   if (name.length < 2) {
     redirect(`${back}?error=${encodeURIComponent("Give the workspace a name of at least 2 characters.")}`);
   }
   if (name.length > 60) {
     redirect(`${back}?error=${encodeURIComponent("That name is too long — 60 characters maximum.")}`);
+  }
+
+  // Everyone but the operator starts their one free trial here (2026-11-26,
+  // lib/workspace-signup.ts) — the same trial Publisher's sign-up page gives.
+  if (!isPlatformOperator(user.email)) {
+    const { startTrialWorkspace, TRIAL_REFUSAL_COPY } = await import("@/lib/workspace-signup");
+    const res = await startTrialWorkspace(user, name);
+    if (!res.ok) redirect(`${back}?error=${encodeURIComponent(TRIAL_REFUSAL_COPY[res.refusal])}`);
+    await setActive(res.workspaceId);
+    redirect("/inbox");
   }
   // Names aren't globally unique (two customers may both be "Acme"), but a
   // duplicate within the user's OWN list is almost always a double-submit.

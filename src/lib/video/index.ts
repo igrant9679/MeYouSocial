@@ -133,12 +133,22 @@ export async function getVideoProviderSetting(workspaceId?: string): Promise<Vid
   return env.USE_MOCK_VIDEO ? "mock" : "auto";
 }
 
+/** Whether the workspace is on a free trial (its trial end is set; a membership clears it). */
+export async function onFreeTrial(workspaceId: string): Promise<boolean> {
+  const { db } = await import("@/lib/db");
+  const ws = await db.workspace.findUnique({ where: { id: workspaceId }, select: { trialEndsAt: true } }).catch(() => null);
+  return Boolean(ws?.trialEndsAt);
+}
+
 /** Providers that bill for what they render (a stored render's `provider`; "veo" is the old name). */
 export const PAID_VIDEO_PROVIDERS = new Set(["google", "veo"]);
 
 export async function getVideoProvider(workspaceId?: string): Promise<VideoProvider> {
   const setting = await getVideoProviderSetting(workspaceId);
   if (setting === "mock") return mockProvider;
+  // A free trial (2026-11-26, lib/workspace-signup.ts) renders the named placeholder: paid video
+  // starts with a membership, and a trial runs on the platform's keys. The render says "mock".
+  if (workspaceId && (await onFreeTrial(workspaceId))) return mockProvider;
   const key = await getApiKey("google", workspaceId).catch(() => "");
   if (setting === "google") {
     if (!key) throw new Error("Video provider is set to Google but no Google key is configured (Settings → Keys)");

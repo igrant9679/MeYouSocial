@@ -6,7 +6,7 @@ import Link from "next/link";
 import { Bot, OctagonPause, Play, Search, Sparkles } from "lucide-react";
 import { requireMembership, canAdmin } from "@/lib/acl";
 import { db } from "@/lib/db";
-import { GOVERNED_FUNCTIONS, FUNCTION_LABELS, MODES, getModes, isGloballyPaused } from "@/lib/governance";
+import { GOVERNED_FUNCTIONS, FUNCTION_LABELS, MODES, getModes, isPauseSwitchOn } from "@/lib/governance";
 import { SubmitButton } from "@/components/SubmitButton";
 import { Banner } from "@/components/SocialPostCard";
 import { runAutopilotNowAction, setFunctionModeAction, toggleGlobalPauseAction, unscheduleAllSocialAction, saveWeeklyArticleTargetAction, toggleAutoSeoAction, toggleFullAutonomyAction } from "@/app/actions/blog-governance";
@@ -43,7 +43,7 @@ export default async function SetupAutomation({ searchParams }: { searchParams: 
   const admin = canAdmin(membership.role);
   const [modes, paused, lastCycle, weeklyArticles, publishDay, autoSeoRaw, autonomy, queue, campaigns, autoQueue, evergreenFill, autoImage, autogenOn, autogenWeekly, autogenCampaign, socialGate, socialSource, articleShare] = await Promise.all([
     getModes(workspace.id),
-    isGloballyPaused(workspace.id),
+    isPauseSwitchOn(workspace.id),
     db.auditLog.findFirst({ where: { workspaceId: workspace.id, action: { in: ["autopilot.cycle", "autopilot.manual_run"] } }, orderBy: { createdAt: "desc" } }),
     getSetting("autopilot:weekly_articles", workspace.id).catch(() => ""),
     getSetting("autopilot:publish_day", workspace.id).catch(() => ""),

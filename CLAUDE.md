@@ -145,8 +145,9 @@ but it means **bad output can look like real output**. Rules learned the hard wa
   a **bare** Gemini Files URI (never key-appended — that would leak the key through the UI and DB)
   which expires in ~2 days and isn't publicly readable, so `persistRenderOutput` re-fetches it with
   an `x-goog-api-key` header and writes the bytes into StorageProvider; `VideoRender.storedUrl` is
-  the durable copy the UI prefers. ⚠ Persistence is **code-verified only — no real render has ever
-  run**, and a failed persist leaves `storedUrl` null on purpose so the UI warns about expiry.
+  the durable copy the UI prefers. Proven by real renders (Veo 2026-08-03; Omni 2026-11-24 and an
+  Extend 2026-11-25, all stored to Drive); a failed persist leaves `storedUrl` null on purpose so the
+  UI warns about expiry. A free-trial workspace renders only the named mock (`onFreeTrial`).
 - **Social** `src/lib/zernio/` + `src/lib/social/` — Zernio publishes to 15 networks; one post fans
   out to N `SocialPostTarget`s, each with independent status. Slots are **wall clock** (weekday +
   minute) so 09:00 survives DST; only `social/slots.ts` converts. Since 2026-08-04 also:
@@ -442,6 +443,7 @@ area, rather than loading all of them into every session.
 - A finished scene can be extended — continued by Google to 30 s, measured, joined if need be — 2026-11-25, the owner's "continue"
 - Scripts on pages run only with the page's nonce — `src/proxy.ts`; a proxy cuts bodies over `proxyClientMaxBodySize` — 2026-11-24, the owner's "Yes, build CSP"
 - Posts the engine writes end in whole sentences — rewritten once, else closing sentences dropped, else not stored (`lib/social/fit-post.ts`) — 2026-11-24, the owner's "Fix both"
+- A workspace signs up two ways: a free trial in Publisher (`/signup`, Settings → New workspace; OFF until the operator sets days on Settings → Sign-ups, 14 suggested), a meyousocial.com membership (`POST /api/membership/events`, signed; contract `docs/WEBSITE-SIGNUP-INTEGRATION.md`); a trial that ends or runs out, or a lapsed membership, HOLDS the workspace (`lib/workspace-hold.ts`) — `isGloballyPaused` includes holds, `isPauseSwitchOn` is the switch alone — 2026-11-26, the owner's "sign up a new workspace from the website and from within the app itself"
 
 ## Open items / things the user still owns
 - **Analytics: APIs enabled 2026-08-03** (Search Console + GA Admin + GA Data, on project

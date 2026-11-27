@@ -40,6 +40,8 @@ import { getGuideState } from "@/app/actions/guide";
 import { relevantSteps, outstandingSetup, availableTracks, type SetupState } from "@/lib/guide/steps";
 import { BRAND, PRODUCT, PRODUCT_SHORT } from "@/lib/product";
 import { currentIncident } from "@/lib/incident";
+import { holdSentence, trialState, workspaceHold } from "@/lib/workspace-hold";
+import { trialPolicy } from "@/lib/trial-policy";
 import { formatZonedMoment } from "@/lib/zoned-dates";
 import { SUPPORT_MEMBERSHIP_ID, activeSupportView } from "@/lib/support-view";
 import { endSupportViewAction } from "@/app/actions/platform-workspaces";
@@ -138,6 +140,11 @@ html[data-theme="dark"] .ws-brand {
     // An incident the operator declared (E-SEC-06) — a 30s-cached platform setting.
     membership.role === "ADMIN" ? currentIncident() : Promise.resolve(null),
   ]);
+  // A free trial's standing (2026-11-26, lib/workspace-hold.ts) — its days and allowance, for the
+  // banner; and for the operator, who can look into a workspace on hold, why it is held.
+  const trial = workspace.trialEndsAt ? await trialState(workspace.id).catch(() => null) : null;
+  const operatorHold = canCreateWorkspace ? await workspaceHold(workspace.id) : null;
+  const membershipUrl = trial ? (await trialPolicy()).membershipUrl : null;
   // E-SET-10: a support view of this workspace — the operator's own (synthetic
   // membership) or, for its members, the operator looking in.
   const supportSelf = membership.id === SUPPORT_MEMBERSHIP_ID;
@@ -401,6 +408,26 @@ html[data-theme="dark"] .ws-brand {
         {!supportSelf && supportView && (
           <div role="status" className="px-4 py-2 text-xs flex items-center gap-2 flex-wrap" style={{ background: "var(--violet-soft)", color: "var(--violet-on)" }} data-support-visible>
             <span>The platform operator ({supportView.email}) is looking at this workspace read-only, for support, until {formatZonedMoment(new Date(supportView.until), tickerZone)}.</span>
+          </div>
+        )}
+
+        {/* A free trial's days and allowance (2026-11-26), for everyone in it. */}
+        {trial && !trial.hold && (
+          <div role="status" className="px-4 py-2 text-xs flex items-center gap-2 flex-wrap" style={{ background: "var(--amber-soft)", color: "var(--amber-on)" }} data-trial-banner>
+            <b>Free trial:</b>
+            <span>
+              {trial.daysLeft <= 1 ? "ends within a day" : `${trial.daysLeft} days left`} · {trial.usedPct}% of the AI allowance used. When it ends
+              the workspace is paused, never deleted.
+            </span>
+            {membershipUrl && <a href={membershipUrl} className="underline font-semibold">Become a member to keep it</a>}
+          </div>
+        )}
+        {/* The operator looking into a workspace on hold — its members see /on-hold instead. */}
+        {operatorHold && (
+          <div role="status" className="px-4 py-2 text-xs flex items-center gap-2 flex-wrap" style={{ background: "var(--rose-soft)", color: "var(--rose-on)" }} data-hold-banner>
+            <b>On hold:</b>
+            <span>{holdSentence(operatorHold.reason)} Its members see the on-hold page; the engine and AI are stopped. You can look in.</span>
+            <Link href="/admin/signups" className="underline">Sign-ups</Link>
           </div>
         )}
 

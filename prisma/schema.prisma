@@ -46,7 +46,18 @@ model Workspace {
   purgeStartedAt     DateTime?
   pausedBeforeDelete Boolean   @default(false)
 
+  // Sign-up (2026-11-26, lib/workspace-signup.ts): where the workspace came from
+  // ("app" = Publisher's own sign-up, a 14-day trial; "website" = a meyousocial.com
+  // membership), when its free trial ends (null = not on a trial), and a hold
+  // (lib/workspace-hold.ts) — set when the membership behind it lapsed. A held
+  // workspace is kept whole: its members see why, and the engine and AI stop.
+  signupSource    String?
+  trialEndsAt     DateTime?
+  heldAt          DateTime?
+  holdReason      String?
+
   memberships     Membership[]
+  membershipGrants MembershipGrant[]
   channels        Channel[]
   invitations     Invitation[]
   bookmarks       Bookmark[]
@@ -1323,6 +1334,9 @@ model User {
   // data removed, so authored work and the audit log keep their references.
   timeZone      String?
   deletedAt     DateTime?
+  // When this person started their one free trial workspace (2026-11-26) — kept
+  // after the workspace is deleted, so a trial can't be restarted by deleting it.
+  trialStartedAt DateTime?
 
   memberships   Membership[]
   accounts      Account[]
@@ -1359,6 +1373,63 @@ model Invitation {
   createdAt   DateTime  @default(now())
 
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+}
+
+// ── Website memberships (2026-11-26, lib/membership/) ───────────────────────
+// meyousocial.com (WordPress + MemberPress) tells Publisher, in signed calls to
+// /api/membership/events, when a member's plan starts and ends. One grant per
+// member and plan: what the operator mapped that plan to (Settings → Sign-ups),
+// the workspace it gave, the invitation that brings the member in.
+model MembershipGrant {
+  id               String    @id @default(cuid())
+  /// Who sent it — "meyousocial.com" today.
+  source           String    @default("meyousocial.com")
+  /// The website's own ids: the WordPress user and the MemberPress membership.
+  externalMemberId String
+  externalPlanId   String
+  planName         String?
+  email            String
+  name             String?
+  /// active | lapsed
+  status           String    @default("active")
+  /// What the plan gave when it was granted: "workspace" (their own) | "join" (a seat in another).
+  access           String
+  workspaceId      String?
+  role             Role      @default(ADMIN)
+  invitationId     String?
+  /// A "join" seat revoked when the plan lapsed — given back exactly when it returns.
+  revokedMembershipId String?
+  /// The newest event applied: an older one arriving late changes nothing.
+  lastEventAt      DateTime
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  workspace        Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+
+  @@unique([source, externalMemberId, externalPlanId])
+  @@index([email])
+  @@index([workspaceId])
+}
+
+/// Every signed call the website made, with what Publisher did — Settings → Sign-ups' log, and the replay guard:
+/// an event id is applied once, and a repeat gets the first answer.
+model MembershipEvent {
+  id               String    @id @default(cuid())
+  eventId          String    @unique
+  type             String
+  email            String?
+  externalMemberId String?
+  externalPlanId   String?
+  /// pong | invited | attached | reactivated | unchanged | lapsed | linked | stale | ignored | refused | failed
+  outcome          String?
+  detail           String?
+  payload          Json
+  response         Json?
+  grantId          String?
+  receivedAt       DateTime  @default(now())
+  processedAt      DateTime?
+
+  @@index([receivedAt])
 }
 
 // Auth.js core tables (Account / Session / VerificationToken)

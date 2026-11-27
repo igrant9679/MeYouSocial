@@ -32,6 +32,10 @@ export const LIMITS = {
   hashtagsPerUser: { limit: 40, windowSec: 600 },
   // What the page policy blocked (2026-11-24): a browser's reports, logged — one page can send several.
   cspReportsPerIp: { limit: 30, windowSec: 60 },
+  // The website's signed membership calls (2026-11-26): one server, bursts when a sale lands.
+  membershipPerIp: { limit: 120, windowSec: 60 },
+  // Free trials started from one address (2026-11-26): each is a workspace on the platform's keys.
+  trialSignupPerIp: { limit: 3, windowSec: 86_400 },
 } as const;
 export type LimitName = keyof typeof LIMITS;
 

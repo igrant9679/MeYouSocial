@@ -126,11 +126,14 @@ async function selectProvider(model: string, workspaceId?: string): Promise<LLMP
   return getProvider(descriptor.provider, workspaceId);
 }
 
-/** The global pause, enforced where every generation passes. */
+/**
+ * The global pause, enforced where every generation passes — and a hold (lib/workspace-hold.ts),
+ * which `allowWhilePaused` never lifts: a trial out of allowance stays out of it.
+ */
 async function refuseIfPaused(req: LLMRequest): Promise<void> {
-  if (!req.workspaceId || req.allowWhilePaused) return;
-  const { isGloballyPaused, GenerationPausedError } = await import("@/lib/governance");
-  if (await isGloballyPaused(req.workspaceId)) throw new GenerationPausedError();
+  if (!req.workspaceId) return;
+  const { refuseGenerationIfStopped } = await import("@/lib/governance");
+  await refuseGenerationIfStopped(req.workspaceId, { allowWhilePaused: req.allowWhilePaused });
 }
 
 export const llm = {

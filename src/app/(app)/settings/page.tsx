@@ -16,6 +16,7 @@ import { DeleteButton } from "@/components/DeleteButton";
 import { RESTORE_DAYS } from "@/lib/workspace-lifecycle";
 import { deletionImpact } from "@/lib/deletable";
 import { formatDay } from "@/lib/zoned-dates";
+import { trialPolicy } from "@/lib/trial-policy";
 
 // User-level settings (distinct from /admin/settings which is workspace-level).
 // Linked from the avatar button in the left rail.
@@ -66,6 +67,8 @@ export default async function UserSettingsPage({ searchParams }: { searchParams:
   // Standing up a whole tenant is the platform operator's job, not a workspace
   // admin's. Display only — createWorkspaceAction enforces the same check.
   const canCreateWorkspace = isPlatformOperator(user.email);
+  // Everyone else gets the button only while free trials are open (Settings → Sign-ups; off by default).
+  const trialsOpen = !canCreateWorkspace && (await trialPolicy()).days > 0;
   // Counted only for workspaces this user actually administers, so the
   // confirmation can say what a delete would cost.
   const workspaceImpacts = Object.fromEntries(
@@ -261,9 +264,12 @@ export default async function UserSettingsPage({ searchParams }: { searchParams:
           <p className="text-2xs text-[var(--mute)] flex-1 leading-relaxed">
             Each workspace is a separate company — its own brand, content, connected accounts and API keys. Switch
             between them from the name at the top of the page.
-            {!canCreateWorkspace && " New workspaces are set up by the platform administrator."}
+            {!canCreateWorkspace &&
+              (trialsOpen
+                ? " A new workspace of your own starts as a free trial, or with a membership at meyousocial.com."
+                : " A new workspace of your own comes with a membership at meyousocial.com.")}
           </p>
-          {canCreateWorkspace && (
+          {(canCreateWorkspace || trialsOpen) && (
             <Link href="/onboarding/workspace" className="btn primary sm">
               <Plus className="w-3.5 h-3.5" /> New workspace
             </Link>

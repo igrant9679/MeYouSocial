@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { isGloballyPaused } from "@/lib/governance";
+import { isPauseSwitchOn } from "@/lib/governance";
 import { getWorkspaceSettingRaw, getSetting, setPlatformSetting } from "@/lib/settings";
 import { env } from "@/lib/env";
 
@@ -31,7 +31,8 @@ export const PURGED_SETTING = "workspaces:purged";
 export async function softDeleteWorkspace(id: string, actorId: string): Promise<{ purgeAfter: Date } | null> {
   const now = new Date();
   const purgeAfter = new Date(now.getTime() + RESTORE_DAYS * 86_400_000);
-  const paused = await isGloballyPaused(id);
+  // The switch alone: a hold is not something restoring should turn into a pause.
+  const paused = await isPauseSwitchOn(id);
   const r = await db.workspace.updateMany({
     where: { id, deletedAt: null },
     data: { deletedAt: now, deletedById: actorId, purgeAfter, pausedBeforeDelete: paused },

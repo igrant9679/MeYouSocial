@@ -749,6 +749,11 @@ export const HELP_CATEGORIES: FaqCategory[] = [
         tags: ["multi-tenant", "companies", "workspaces", "teams"],
       },
       {
+        q: "How does a new workspace start — the free trial and membership?",
+        a: "Two ways. **A free trial**, while the platform has trials open (they start off): anyone can sign up at Publisher's sign-up page (or, signed in, from Settings → **New workspace**) and gets a workspace of their own for a set number of days, running on MeYouSocial's AI with an allowance of AI writing and pictures — one trial per person, no card. A banner shows the days left and how much of the allowance is used; video renders as a placeholder until there's a membership. **A membership** at meyousocial.com makes a member workspace — or, with the same email, turns your trial into one, so nothing is lost. When a trial ends, its allowance runs out, or a membership ends, the workspace is **paused**: kept whole, nobody can open it, nothing publishes and no AI runs — and it opens again as it was when a membership starts. The platform operator sets the trial's terms and what each membership gives on Settings → Sign-ups.",
+        tags: ["trial", "free trial", "membership", "sign up", "paused", "on hold", "new workspace"],
+      },
+      {
         q: "Whose API keys does my workspace use?",
         a: "Your own, when you've pasted them: everything under Settings → **Keys** (LLMs, search, ElevenLabs, image/video/TTS switches) is saved **per workspace**. If your workspace hasn't set a key, it falls back to the platform's shared key — the card shows which one is in effect. The one deliberate exception is the **YouTube Data API key**: it only reads public data, so a single platform-provided key serves every workspace and its card says so (there's nothing for you to set up). Same for **SMTP**: your notification and invitation emails go out through the server you configure under Settings → Email, visible only to your workspace.",
         links: [{ label: "Settings → Keys →", href: "/admin/api-keys" }, { label: "Settings → Email →", href: "/admin/email" }],

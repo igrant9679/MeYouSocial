@@ -47,14 +47,31 @@ export async function getModes(workspaceId: string): Promise<Record<GovernedFunc
   return out;
 }
 
+/**
+ * Whether nothing may generate or act for this workspace: the admin's pause (Settings → Automation)
+ * OR a hold (lib/workspace-hold.ts — a trial that ended or ran out, a membership that lapsed).
+ * Every engine path, sweep and router asks this, so a hold stops them all. ⚠ Pages that show the
+ * pause SWITCH, and anything that saves or restores it, ask `isPauseSwitchOn` instead — a hold is
+ * not something "Resume" can clear.
+ */
 export async function isGloballyPaused(workspaceId: string): Promise<boolean> {
+  if (await isPauseSwitchOn(workspaceId)) return true;
+  const { workspaceHold } = await import("@/lib/workspace-hold");
+  return Boolean(await workspaceHold(workspaceId));
+}
+
+/** The admin's pause switch alone (Settings → Automation), without holds. */
+export async function isPauseSwitchOn(workspaceId: string): Promise<boolean> {
   const s = await db.automationState.findUnique({ where: { workspaceId } });
   return s?.globalPause ?? false;
 }
 
-/** Every workspace with the global pause on — for sweeps that span workspaces. */
+/** Every workspace paused or on hold — for sweeps that span workspaces. */
 export async function pausedWorkspaceIds(): Promise<string[]> {
-  return (await db.automationState.findMany({ where: { globalPause: true }, select: { workspaceId: true } })).map((r) => r.workspaceId);
+  const switched = (await db.automationState.findMany({ where: { globalPause: true }, select: { workspaceId: true } })).map((r) => r.workspaceId);
+  const { heldWorkspaceIds } = await import("@/lib/workspace-hold");
+  const held = await heldWorkspaceIds().catch(() => [] as string[]);
+  return [...new Set([...switched, ...held])];
 }
 
 /**
@@ -67,6 +84,23 @@ export class GenerationPausedError extends Error {
     super("This workspace is paused (Settings → Automation), so no AI generation runs. Resume it there first.");
     this.name = "GenerationPausedError";
   }
+}
+
+/** The routers' refusal for a workspace on hold — a pause by another name, saying which (lib/workspace-hold.ts). */
+export class WorkspaceOnHoldError extends GenerationPausedError {
+  constructor(sentence: string) {
+    super();
+    this.message = `${sentence} AI, publishing and the engine are stopped until a membership starts — nothing has been deleted.`;
+    this.name = "WorkspaceOnHoldError";
+  }
+}
+
+/** Throws for a workspace on hold, then for the pause switch — what the LLM and image routers ask before every call. */
+export async function refuseGenerationIfStopped(workspaceId: string, opts: { allowWhilePaused?: boolean } = {}): Promise<void> {
+  const { workspaceHold, holdSentence } = await import("@/lib/workspace-hold");
+  const hold = await workspaceHold(workspaceId);
+  if (hold) throw new WorkspaceOnHoldError(holdSentence(hold.reason));
+  if (!opts.allowWhilePaused && (await isPauseSwitchOn(workspaceId))) throw new GenerationPausedError();
 }
 
 /** Append-only audit entry. actorId null = system/AI. Never throws. */

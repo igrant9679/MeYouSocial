@@ -10,6 +10,8 @@ import { signOut } from "@/auth";
 import { db } from "@/lib/db";
 import { formatDay } from "@/lib/zoned-dates";
 import { TEMPLATE_PART_LABEL, TEMPLATE_PARTS, templateSummary } from "@/lib/workspace-template";
+import { trialPolicy } from "@/lib/trial-policy";
+import { trialRefusal, TRIAL_REFUSAL_COPY } from "@/lib/workspace-signup";
 
 async function signOutAction() {
   "use server";
@@ -62,13 +64,64 @@ export default async function NewWorkspacePage({
           select: { workspace: { select: { name: true, deletedAt: true, purgeAfter: true } } },
         })
       : [];
+    // Their one free trial (2026-11-26, lib/workspace-signup.ts), when nothing above applies.
+    const policy = await trialPolicy();
+    const trialRefused = await trialRefusal({ userId: user.id }, policy);
+    if (waiting.length === 0 && gone.length === 0 && !trialRefused) {
+      return (
+        <main className="min-h-screen grid place-items-center p-6">
+          <div className="w-full max-w-lg">
+            <div className="flex items-center gap-3 mb-4">
+              <span className="w-11 h-11 rounded-2xl grid place-items-center" style={{ background: "var(--accent-soft)", color: "var(--accent-on)" }}>
+                <Building2 className="w-5 h-5" strokeWidth={2.25} />
+              </span>
+              <div>
+                <h1 className="font-mono font-bold text-xl leading-tight">Start a free trial</h1>
+                <p className="text-xs text-[var(--mute)] m-0">
+                  A workspace of your own for {policy.days}{" "}days, running on MeYouSocial&apos;s AI with a set allowance. No card needed.
+                </p>
+              </div>
+            </div>
+            {error && <p className="text-sm text-[var(--rose-on)] mb-3" role="alert">{error}</p>}
+            <form action={createWorkspaceAction} className="card flex flex-col gap-3" data-trial-form>
+              <input type="hidden" name="returnTo" value="/onboarding/workspace" />
+              <ValidatedInput
+                label="Company or workspace name"
+                labelClassName="text-micro font-mono uppercase tracking-wider text-[var(--mute)]"
+                name="name"
+                placeholder="Acme Ltd"
+                required
+                minLength={2}
+                maxLength={60}
+                autoComplete="organization"
+                className="border border-[var(--line-2)] rounded-lg p-2 text-sm"
+              />
+              <p className="text-2xs text-[var(--mute)] leading-relaxed m-0">
+                You&apos;ll be its admin and can invite your team. Video rendering starts with a membership. To keep the workspace
+                after the trial, become a member at <a href={policy.membershipUrl} className="text-[var(--accent-on)] font-semibold">meyousocial.com</a> with
+                this email ({user.email}); when a trial ends the workspace is paused, never deleted. One trial per person.
+              </p>
+              <div className="flex justify-end gap-2">
+                {!first && <Link href="/settings" className="btn sm">Cancel</Link>}
+                <SubmitButton className="btn primary sm" pendingText="Creating…">Start my {policy.days}-day trial</SubmitButton>
+              </div>
+            </form>
+            {first && (
+              <form action={signOutAction} className="mt-3 text-right">
+                <SubmitButton className="btn sm" pendingText="Signing out…">Sign out</SubmitButton>
+              </form>
+            )}
+          </div>
+        </main>
+      );
+    }
     return (
       <main className="min-h-screen grid place-items-center p-6">
         <div className="w-full max-w-lg card">
           <div className="flex items-center gap-2 mb-2">
             <AlertTriangle className="w-4 h-4 shrink-0" style={{ color: "var(--amber-on)" }} />
             <h1 className="font-mono font-bold text-base">
-              {waiting.length > 0 ? "Your invitation is waiting" : gone.length > 0 ? "Your workspace was deleted" : "Workspaces are set up by the administrator"}
+              {waiting.length > 0 ? "Your invitation is waiting" : gone.length > 0 ? "Your workspace was deleted" : trialRefused === "used" ? "You've had your free trial" : "No new workspace from here"}
             </h1>
           </div>
           {waiting.length > 0 ? (
@@ -96,8 +149,9 @@ export default async function NewWorkspacePage({
           ) : (
             <p className="text-sm text-[var(--mute)] leading-relaxed mb-3">
               {first
-                ? "You're signed in, but you're not a member of any workspace yet. Ask your platform administrator to invite you to one — the invitation link will bring you straight in."
-                : "Only the platform administrator can create new workspaces on this install. Ask them to set one up and invite you."}
+                ? "You're signed in, but you're not a member of any workspace yet. Ask your company's admin to invite you — the invitation link will bring you straight in."
+                : "You can't start another workspace from here."}{" "}
+              {trialRefused && TRIAL_REFUSAL_COPY[trialRefused]}
             </p>
           )}
           <div className="flex gap-2">

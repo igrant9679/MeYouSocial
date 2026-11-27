@@ -3676,3 +3676,68 @@ a minute later.
   the board's output and captions follow, metered 4 then 6); a two-scene board extended with only the tail back (joined
   to 10 s, the full video stitched again to 14 s, audited as joined); a forgotten conversation failing in words with
   the clip kept; past 30 s not attempted.
+
+## ⚠ A workspace signs up two ways: a free trial in Publisher, a membership on meyousocial.com (2026-11-26, the owner's "sign up a new workspace from the front-end website and from within the app itself"; they chose "14-day trial")
+- **One way a workspace is made** — `lib/workspace-signup.ts` `createWorkspace` (a free name — "Acme (2)" when taken — `signupSource`
+  "app" | "website", `trialEndsAt` for a trial, the operator's template parts; audited `workspace.created`). No member is added
+  there; each door decides who comes in.
+- **The free trial** (`startTrialWorkspace`): Publisher's `/signup` with no invitation (open to anyone while trials are on) and,
+  for someone signed in, `/onboarding/workspace` (Settings → New workspace; the operator still gets the plain form). The person is
+  the workspace's ADMIN at once. Terms are platform settings (`lib/trial-policy.ts`, Settings → Sign-ups): `signup:trial_days`
+  (**blank or 0 = trials off** — the shipped default, the owner's "push it with trials off"; 14 is the length they chose and
+  the page suggests it — off → sign-up is by invitation again, or ALLOW_OPEN_SIGNUP's untimed workspace as before, and Settings
+  shows non-operators no New workspace button; ⚠ the day trials open, add the What's new entry — it was held back because nobody
+  could see the trial yet),
+  `signup:trial_token_cap` (1,000,000), `signup:trial_image_cap` (30), `signup:trial_max_open` (25 at once; 0 = no cap),
+  `signup:membership_url`, `signup:template_id` / `_parts`. **One trial per person, ever**: `User.trialStartedAt` is claimed
+  atomically before the workspace is made and survives deleting it. `trialSignupPerIp` (3 a day). A sign-up whose address has
+  invitations waiting gets no trial (the invitation is theirs). A trial workspace renders video only as the named mock
+  (`getVideoProvider` → `onFreeTrial`) — paid video starts with a membership.
+- **The allowance** counts real AI rows since the workspace was made (`trialUsage`: `ai.text` tokens, plus 3,000 per text call that
+  reported no size — a stream — and `ai.image` rows; `provider` "mock" never counts). Usage still shows measured tokens only.
+- **A hold** (`lib/workspace-hold.ts` `workspaceHold`, 30 s cache, `forgetHold` after a change): `trial_ended` (`trialEndsAt` passed),
+  `trial_used_up` (either allowance reached; a cap of 0 is none), `membership_lapsed` (stamped `heldAt`/`holdReason` by a
+  deactivation). Nothing is deleted. While held: `requireMembership` sends every member — never the operator — to `/on-hold`
+  (outside `(app)`, like /onboarding/workspace, or it loops), which says why and offers their other workspaces; `isGloballyPaused`
+  answers true, so every engine path, sweep, job and router that honours the pause stops; `pausedWorkspaceIds` includes held ones;
+  the LLM and image routers throw `WorkspaceOnHoldError` (the hold's sentence — `allowWhilePaused` never lifts a hold).
+  ⚠ **`isPauseSwitchOn` is the Automation switch alone** — Settings → Automation's card and `softDeleteWorkspace`'s
+  `pausedBeforeDelete` read it, so a hold is never shown as a pause "Resume" could lift, nor restored as one.
+- **The shell**: a trial workspace shows a banner (days left, share of the allowance used, "Become a member"); the operator looking
+  into a held workspace sees why. Settings → New workspace is offered to everyone while trials are open (the operator always).
+- **The website's door** — `POST /api/membership/events` (`lib/membership/process.ts`; the contract for the website is
+  `docs/WEBSITE-SIGNUP-INTEGRATION.md`, keep the two in step): `X-MeYouSocial-Signature: t=…,v1=hex(HMAC-SHA256(secret, "t.body"))`
+  (`signature.ts`), ±300 s, the secret `membership:webhook_secret` (sealed by the keyring's `…:webhook_secret` rule; made on Settings
+  → Sign-ups, shown once; on replacement the previous one, `membership_previous:webhook_secret`, works for 24 h). 64 KB,
+  `membershipPerIp` 120/min, no secret → 503. Payload validated by `contract.ts` (an event can never name a workspace or a role).
+  **Each event id is applied once** (`MembershipEvent.eventId` unique, inserted with skipDuplicates): a repeat gets the stored
+  answer with `duplicate: true`; an `ignored` or `failed` one is applied again (the operator may have mapped the plan since); one
+  still running answers 409. An event older than the grant's `lastEventAt` is `stale`. Failures store no answer, so a retry with
+  the same id re-applies.
+- **What a plan gives is Publisher's** (`plans.ts`, `membership:plans`, keyed by the MemberPress membership id): `none` (logged as
+  ignored), `workspace` (their own, ADMIN), `join` (a seat in a named workspace with a role; `joinRefusal`'s domain rule applies).
+  An unlisted plan gives nothing and is logged `ignored`.
+- **activated**: the member and plan are CLAIMED first (`MembershipGrant`, unique per source/member/plan, skipDuplicates) — two events
+  at once make one grant and one workspace; a grant claimed under two minutes ago with no workspace yet answers "being made right
+  now". Own workspace: another active plan's workspace of theirs is kept (an upgrade), else their trial with the same email as
+  ADMIN (`trialEndsAt` and any hold cleared → `attached`), else a new workspace + a 30-day ADMIN invitation (`invited`). A lapsed
+  grant returning clears the `membership_lapsed` hold / restores the exact seat it revoked (`reactivated`). A grant whose workspace
+  is gone gets a new one, so a retry heals it.
+- **deactivated**: the grant lapses; an unused invitation is withdrawn; own workspace → held, unless another active grant keeps it;
+  seat → that membership revoked (never the operator's) and remembered for a return. **link**: where the member goes now, per grant
+  — `sign_in` when their account is an active member, else their invitation (`claim`, re-made when it expired unused; an accepted
+  one is never re-issued). Answers always carry `outcome`, a sentence, `workspace` (with `held`) and `link`.
+- Settings → **Sign-ups** (`/admin/signups`, operator only, an Operator tab): the trial's terms, the address and secret, the plan
+  mapping (with ids the website sent that aren't mapped), the workspaces that came through sign-up (+7 days / end the trial terms /
+  lift a hold — each audited `workspace.trial_<lever>`), the members, the last 50 calls with "Process again".
+- ⚠ **A JSX text that starts with a space after a tag or `{…}`, contains an entity (`&apos;`) and runs onto the next line loses
+  that space** in this build (found here: "free trialfrom"; older pages do the same, e.g. "Auto</b>uses" on Keys). Write `{" "}`
+  before such text.
+- Checked: 66 cases on a throwaway database (signature missing/malformed/stale/mismatch, rotation's grace day, payload errors naming
+  the field, unmapped → ignored → mapped → the same id applied, duplicate answers, link → claim → sign_in, lapse → held with
+  `isGloballyPaused` true, the switch untouched, the LLM refusing with the hold's sentence, stale and repeated deactivations,
+  return, upgrade keeping one workspace, a seat revoked and restored, a domain refusal, trials: one per person, unique names, the
+  open cap, the allowance with an unsized call and mock rows, trial video → mock, trial end, a membership taking a trial over, two
+  events at once making one workspace, Process again). In the browser: trial sign-up → Inbox with the banner; a held member →
+  /on-hold; the claim link → invited sign-up → the member workspace; a signed-in member starting their trial; the operator's page,
+  the secret shown once, the hold banner in a read-only look; real HTTP calls signed with openssl.

@@ -237,6 +237,8 @@ export const STAGES: Record<(typeof STAGE_HREFS)[number], StageDef> = {
             { href: "/admin/incident", label: "Incident", group: "Operator" },
             { href: "/admin/keyring", label: "Keyring", group: "Operator" },
             { href: "/admin/file-owners", label: "File owners", group: "Operator" },
+            // Free trials and meyousocial.com memberships — the two ways a workspace signs up (2026-11-26).
+            { href: "/admin/signups", label: "Sign-ups", group: "Operator" },
           ]
         : []),
     ],
