@@ -203,7 +203,7 @@ export default async function BrandPage({ searchParams }: { searchParams: Promis
           <label className="flex items-start gap-2 text-xs">
             <input type="checkbox" name="blockOnOpenComments" defaultChecked={brand.blockOnOpenComments} disabled={!admin} className="mt-0.5" data-block-open-comments />
             <span>
-              <b>Open review comments hold final approval.</b> An article with an unresolved comment can&apos;t move to
+              <b>Open review comments hold final approval.</b>{" "}An article with an unresolved comment can&apos;t move to
               final approval or publish — the engine&apos;s auto-review included — until someone resolves it. Off, open
               comments show as an advisory check.
             </span>

@@ -18,7 +18,7 @@ export default async function NewScriptPage() {
     <div className="card max-w-md mx-auto">
       <h1 className="font-mono font-bold text-lg mb-1">New script</h1>
       <p className="text-sm text-[var(--mute)] mb-4">
-        Starts in <b>{active.name}</b> with the channel&apos;s language, template and model defaults.
+        Starts in <b>{active.name}</b>{" "}with the channel&apos;s language, template and model defaults.
       </p>
       <form action={createScriptAction} className="flex flex-col gap-3">
         <input type="hidden" name="channelId" value={active.id} />

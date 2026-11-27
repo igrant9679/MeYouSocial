@@ -81,7 +81,7 @@ export default async function ThumbnailsPage({ searchParams }: { searchParams: P
         <form action={cloneThumbnailAction} className="card flex flex-col gap-3 max-w-2xl mb-6">
           <input type="hidden" name="channelId" value={active.id} />
           <h2 className="font-mono font-bold text-sm flex items-center gap-2">
-            <Copy className="w-4 h-4" style={{ color: "var(--pink-on)" }} /> Clone a thumbnail&apos;s style
+            <Copy className="w-4 h-4" style={{ color: "var(--pink-on)" }} />{" "}Clone a thumbnail&apos;s style
             <HelpTip text={IMAGE_TIPS.clone} side="bottom" wide />
           </h2>
           {/* Was: "We'll analyze palette, typography, composition, and render a
@@ -89,7 +89,7 @@ export default async function ThumbnailsPage({ searchParams }: { searchParams: P
               promising both oversold the half that doesn't work. */}
           <p className="text-xs text-[var(--mute)]">
             Paste a YouTube link or a direct image URL. We fetch that picture and actually look at it — palette,
-            the words on screen, the crop — then render your title in the same style. A bare <b>@handle</b> can&apos;t
+            the words on screen, the crop — then render your title in the same style. A bare <b>@handle</b>{" "}can&apos;t
             be opened; you&apos;ll be told plainly if it fell back to the title alone.
             {imageProviderName === "mock" && " The rendered image is a placeholder until a provider is turned on."}
           </p>

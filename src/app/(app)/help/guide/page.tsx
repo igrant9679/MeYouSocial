@@ -39,7 +39,7 @@ export default async function GuidePage() {
       </div>
       <p className="text-2xs text-[var(--mute)] mb-5">
         Fifteen-minute read. For step-by-step setup with the app pointing at things, use the compass button in the
-        top bar — this page is the map, not the tour. <RoleLink href="/assistant" role={role} className="underline">Elsie</RoleLink> knows
+        top bar — this page is the map, not the tour. <RoleLink href="/assistant" role={role} className="underline">Elsie</RoleLink>{" "}knows
         everything on this page too: ask her &ldquo;how do I…&rdquo; or &ldquo;why is … held&rdquo;.
       </p>
 
@@ -55,7 +55,7 @@ export default async function GuidePage() {
           approving, answering, adjusting, occasionally steering. The left rail reads{" "}
           <b>Research → Ideas → Articles · Social posts · Video → Measure</b>: research and ideas feed every format,
           each format has its own stage (Video only when the video studio is on), and Measure reads them all — with{" "}
-          <Link href="/inbox" className="underline">Inbox</Link> above it (exactly what&apos;s waiting on you —
+          <Link href="/inbox" className="underline">Inbox</Link>{" "}above it (exactly what&apos;s waiting on you —
           reviewing happens there, not in a stage of its own) and Setup below it (Settings, Channels, Brand —
           admins only).
         </p>
@@ -89,7 +89,7 @@ export default async function GuidePage() {
         </h2>
         <p className="text-xs text-[var(--mute)] mb-3">
           Every stage page has an Overview (its own rows, the verb on the row) and a strip along the top with its
-          tabs — the module pages, which kept their addresses. A <b>red badge</b> on the strip means a person must
+          tabs — the module pages, which kept their addresses. A <b>red badge</b>{" "}on the strip means a person must
           act; a muted one is news. Old links (Home, the old Blog and Social menus, Review) all redirect to the right
           place — /drafts opens Articles. The tab names below are read from the app&apos;s own navigation, so they&apos;re always current.
         </p>
@@ -207,7 +207,7 @@ export default async function GuidePage() {
           </li>
           <li>
             <b>Choose your gates.</b> <RoleLink href="/setup/people" role={role} className="underline">Settings → People</RoleLink>:{" "}
-            <i>require approval</i> holds every social post until an admin approves it (recommended with a team).
+            <i>require approval</i>{" "}holds every social post until an admin approves it (recommended with a team).
             Articles always park at review — that gate isn&apos;t optional. <i>Queue on approval</i> under{" "}
             <Link href="/setup/automation" className="underline">Automation</Link> makes approving the last act: with it
             off, an approved post still needs queueing.
@@ -253,10 +253,10 @@ export default async function GuidePage() {
           <Step icon={AlertTriangle} title="Answer people the day they write.">
             <RoleLink href="/social/engage" role={role} className="underline">Social posts → Engage</RoleLink> — comments, DMs and reviews.
             The one hard deadline in the whole app: Facebook and Instagram only accept a DM reply within{" "}
-            <b>24 hours</b> of the person&apos;s message.
+            <b>24 hours</b>{" "}of the person&apos;s message.
           </Step>
           <Step icon={Bot} title="Ask, if you'd rather not hunt.">
-            The <b>Ask</b> dock (top-right on every page) answers &ldquo;what should I do next?&rdquo; from the
+            The <b>Ask</b>{" "}dock (top-right on every page) answers &ldquo;what should I do next?&rdquo; from the
             same data, ranks the moves, and does them with you — draft the idea, fill the SEO, queue the post,
             publish — proposing anything outward-facing first and running it on your yes.
           </Step>
@@ -353,7 +353,7 @@ export default async function GuidePage() {
         <p className="text-xs text-[var(--mute)] mb-3">The same few sequences, every time. Each one ends at a gate you can see.</p>
         <ul className="m-0 p-0 text-sm space-y-2.5">
           <Step icon={ListChecks} title="An article, end to end.">
-            Ideas (approve) → the sweep drafts it, or <i>Send to draft</i> → auto-review fills SEO, renders images,
+            Ideas (approve) → the sweep drafts it, or <i>Send to draft</i>{" "}→ auto-review fills SEO, renders images,
             sources claims → the Inbox shows anything it couldn&apos;t fix → you answer, verify or approve → it
             advances to final approval → the publish day (or <i>Publish now</i>) → Articles shows the live link → social
             variants follow under the social mode.
@@ -388,7 +388,7 @@ export default async function GuidePage() {
             Settings → Schedule for the slots they go into. Under full autonomy nothing else is needed.
           </Step>
           <Step icon={ListChecks} title="A script through the studio.">
-            Ideas (video) → <i>Write</i> → the script canvas or builder → Thumbnails (Clone looks at your reference) →
+            Ideas (video) → <i>Write</i>{" "}→ the script canvas or builder → Thumbnails (Clone looks at your reference) →
             Production (Writer&apos;s Room → Film Queue → Edit Bay → Calendar) → Renders (a Veo render from a storyboard).
           </Step>
           <Step icon={ListChecks} title="Running the loop by hand.">

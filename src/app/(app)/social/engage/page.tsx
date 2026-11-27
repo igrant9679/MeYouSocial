@@ -343,7 +343,7 @@ export default async function EngagePage({ searchParams }: { searchParams: Promi
           {/* Visible, not just a tooltip: "Set aside" must never be mistaken
               for a delete. */}
           <p className="text-2xs text-[var(--mute)] mb-2 mt-0">
-            <b>Set aside</b> stops a review asking — it stays public on the network either way. A review can&apos;t be
+            <b>Set aside</b>{" "}stops a review asking — it stays public on the network either way. A review can&apos;t be
             deleted from here, or by anyone but the person who wrote it; the same goes for a direct message. A comment
             on your own post <i>can</i> be deleted, and shows a delete button where the network allows it.
           </p>

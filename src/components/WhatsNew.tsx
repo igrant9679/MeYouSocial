@@ -34,7 +34,7 @@ export async function WhatsNew({ userId, role, joinedAt }: { userId: string; rol
     <section className="card mb-4" data-whats-new={entries.length} aria-labelledby="whats-new-title">
       <div className="flex items-baseline gap-2 flex-wrap mb-2">
         <h2 id="whats-new-title" className="font-mono text-sm font-bold m-0 flex items-center gap-1.5">
-          <Sparkles className="w-4 h-4" style={{ color: "var(--violet-on)" }} aria-hidden /> What&apos;s new
+          <Sparkles className="w-4 h-4" style={{ color: "var(--violet-on)" }} aria-hidden />{" "}What&apos;s new
         </h2>
         <span className="text-xs text-[var(--mute)]">
           {entries.length === 1 ? "One change to the app" : `${entries.length} changes to the app`} since you last looked

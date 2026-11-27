@@ -3731,8 +3731,11 @@ a minute later.
   mapping (with ids the website sent that aren't mapped), the workspaces that came through sign-up (+7 days / end the trial terms /
   lift a hold — each audited `workspace.trial_<lever>`), the members, the last 50 calls with "Process again".
 - ⚠ **A JSX text that starts with a space after a tag or `{…}`, contains an entity (`&apos;`) and runs onto the next line loses
-  that space** in this build (found here: "free trialfrom"; older pages do the same, e.g. "Auto</b>uses" on Keys). Write `{" "}`
-  before such text.
+  that space** in this build (found here: "free trialfrom"; 29 older places did the same, e.g. "Auto</b>uses" on Keys — all
+  fixed the same day). Write `{" "}` before such text. **The build checks it**: `scripts/check-jsx-spaces.mts` (prebuild) reads
+  every `.tsx` in `src/` with TypeScript's parser and fails on that shape. The entity may sit on any line of the text, a
+  self-closing tag (`<Icon />`) counts as a tag, and a trailing space is kept. The rule was compared with Next's own compiler on
+  every candidate text in `src/` (388; the 29 it flagged lost the space, the other 359 kept it).
 - Checked: 66 cases on a throwaway database (signature missing/malformed/stale/mismatch, rotation's grace day, payload errors naming
   the field, unmapped → ignored → mapped → the same id applied, duplicate answers, link → claim → sign_in, lapse → held with
   `isGloballyPaused` true, the switch untouched, the LLM refusing with the hold's sentence, stale and repeated deactivations,

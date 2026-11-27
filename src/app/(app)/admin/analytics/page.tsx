@@ -139,7 +139,7 @@ export default async function AnalyticsConnectionsPage({
             </li>
             <li>
               <i>APIs &amp; Services → OAuth consent screen</i>: configure it once — User type <b>External</b>, fill in the app
-              name and your email, then <b>Publish</b> it to &ldquo;In production&rdquo;. Leaving it in Testing makes every
+              name and your email, then <b>Publish</b>{" "}it to &ldquo;In production&rdquo;. Leaving it in Testing makes every
               connection expire after 7 days.
             </li>
             <li>

@@ -146,7 +146,7 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
             LLM API keys <HelpTip text={ADMIN_TIPS.apiKeys} side="bottom" wide />
           </h1>
           <p className="text-xs text-[var(--mute)]">
-            Keys for <b>{workspace.name}</b> — saved per workspace, never visible to other companies on this
+            Keys for <b>{workspace.name}</b>{" "}— saved per workspace, never visible to other companies on this
             install. Without your own key, calls use one another workspace shares with this one, or else the
             platform&apos;s key where one exists.
           </p>
@@ -483,7 +483,7 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
       <div className="card mb-3">
         <div className="font-mono font-bold text-sm mb-1">Video renderer</div>
         <p className="text-2xs text-[var(--mute)] mb-2">
-          <b>Auto</b> uses Google video (Gemini Omni Flash, the model behind Google&apos;s Flow) when a Google key is
+          <b>Auto</b>{" "}uses Google video (Gemini Omni Flash, the model behind Google&apos;s Flow) when a Google key is
           set (renders cost money), otherwise the free mock. <b>Mock</b> never spends. <b>Google</b> forces the real
           provider and errors loudly without a key.
         </p>
@@ -648,7 +648,7 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
           that works on a personal <span className="font-mono">@gmail.com</span> account.
           <br />
           <b>Service account</b> — server-to-server, no human sign-in. Needs a <b>Shared Drive</b> (Google Workspace):
-          a service account has <b>zero</b> storage of its own and owns everything it uploads, so a My&nbsp;Drive folder
+          a service account has <b>zero</b>{" "}storage of its own and owns everything it uploads, so a My&nbsp;Drive folder
           can never work, however it is shared.
         </p>
         <div className="flex gap-2">
@@ -751,7 +751,7 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
         {gdriveSa && <div className="text-2xs font-mono text-[var(--mute)] mb-1 break-all">{gdriveSa.client_email}</div>}
         <p className="text-2xs text-[var(--mute)] mb-2">
           Google Cloud Console → IAM &amp; Admin → Service Accounts → create one (no roles needed) → Keys →
-          Add key → JSON. Enable the <b>Google Drive API</b> on the project. Paste the whole file here — it&apos;s
+          Add key → JSON. Enable the <b>Google Drive API</b>{" "}on the project. Paste the whole file here — it&apos;s
           stored in the database, never in git.
         </p>
         <div className="flex flex-col gap-2">

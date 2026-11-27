@@ -32,7 +32,7 @@ export default async function SetupPeople({ searchParams }: { searchParams: Prom
           <div className="text-xs text-[var(--mute)]">
             On: a post by a non-admin is held until an admin approves it — nothing unapproved can be sent, scheduled,
             queued or dragged onto the calendar, and under full autonomy the autopilot&apos;s own posts wait here too.
-            Off: approved and auto-generated posts take the next free slot. Publishing an <b>article</b> is an admin&apos;s act regardless.
+            Off: approved and auto-generated posts take the next free slot. Publishing an <b>article</b>{" "}is an admin&apos;s act regardless.
           </div>
         </div>
         <form action={setRequireApprovalAction}>

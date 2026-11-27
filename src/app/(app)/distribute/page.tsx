@@ -184,7 +184,7 @@ export default async function DistributeStage({ searchParams }: { searchParams: 
 
       {unread > 0 && (
         <p className="text-xs mb-4">
-          <b>{unread}</b> repl{unread === 1 ? "y is" : "ies are"} waiting under {canFollow("/social/engage", membership.role) ? <Link href="/social/engage" className="underline">Engage</Link> : "Engage"} — Facebook and Instagram DMs can only be answered within 24 hours of the person&apos;s message.
+          <b>{unread}</b> repl{unread === 1 ? "y is" : "ies are"} waiting under {canFollow("/social/engage", membership.role) ? <Link href="/social/engage" className="underline">Engage</Link> : "Engage"}{" "}— Facebook and Instagram DMs can only be answered within 24 hours of the person&apos;s message.
         </p>
       )}
 

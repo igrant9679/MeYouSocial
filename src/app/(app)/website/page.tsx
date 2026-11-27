@@ -311,7 +311,7 @@ export default async function WebsitePage({ searchParams }: { searchParams: Prom
           For sites that aren&apos;t WordPress: download any approved or published article as one complete HTML file —
           title, meta description, structured data and body, with images embedded so it renders anywhere. Paste the
           body into your CMS, or host the file as-is.{" "}
-          <b>Social-preview (og:image) tags need the destination site to host the image</b> — embedded images
+          <b>Social-preview (og:image) tags need the destination site to host the image</b>{" "}— embedded images
           can&apos;t serve that role, so set the preview image in your CMS after import.
         </p>
         {exportable.length === 0 ? (

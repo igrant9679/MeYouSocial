@@ -148,7 +148,7 @@ export default async function ConnectionsPage({ searchParams }: { searchParams: 
       {socialAccounts.length === 0 ? (
         <div className="card mb-3 text-xs text-[var(--mute)]">
           No social profile connected here — connect one below to publish from{" "}
-          <Link href="/distribute" className="underline">Social posts</Link> or an article&apos;s Distribute tab.
+          <Link href="/distribute" className="underline">Social posts</Link>{" "}or an article&apos;s Distribute tab.
           {socialReady && (
             <>
               {" "}
@@ -255,7 +255,7 @@ export default async function ConnectionsPage({ searchParams }: { searchParams: 
           {emailReady && (
             <>
               {" "}
-              <b>Already connected one in Unipile?</b> Use <b>Refresh from Unipile</b> above — a mailbox added from
+              <b>Already connected one in Unipile?</b> Use <b>Refresh from Unipile</b>{" "}above — a mailbox added from
               Unipile&apos;s own dashboard carries no workspace marker, so this list stays empty until you claim it.
             </>
           )}
@@ -306,7 +306,7 @@ export default async function ConnectionsPage({ searchParams }: { searchParams: 
         </span>
       </div>
       <div className="card mb-2 text-xs text-[var(--mute)] leading-relaxed">
-        Zernio serves the accounts of exactly <b>one Zernio user per API key</b> — two workspaces whose accounts were
+        Zernio serves the accounts of exactly <b>one Zernio user per API key</b>{" "}— two workspaces whose accounts were
         connected by different Zernio logins cannot share a key (whichever connected last works; the other fails with
         &ldquo;accounts do not belong to this user&rdquo;). Give each workspace a key created in <b>its own</b> Zernio
         account and the conflict disappears. Leave this empty to use the platform key.

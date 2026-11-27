@@ -27,7 +27,7 @@ export default async function ElsewherePage({ searchParams }: { searchParams: Pr
       <div className="card max-w-xl flex flex-col gap-3" data-record-elsewhere={hit.workspaceId}>
         <h1 className="font-mono font-bold text-xl m-0">This {hit.noun} is in another workspace</h1>
         <p className="text-sm m-0">
-          <b>“{hit.title}”</b> belongs to <b>{hit.workspaceName}</b>. You are in <b>{workspace.name}</b> now, so it can&apos;t open here.
+          <b>“{hit.title}”</b> belongs to <b>{hit.workspaceName}</b>. You are in <b>{workspace.name}</b>{" "}now, so it can&apos;t open here.
         </p>
         <p className="text-xs text-[var(--mute)] m-0">
           This usually happens when the workspace was switched in another tab and the page was reloaded, or when the link came from {hit.workspaceName} (an email, a notification, an old tab).

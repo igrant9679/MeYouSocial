@@ -133,7 +133,7 @@ export default async function YoutubeAuditPage({ searchParams }: { searchParams:
               <a href={a.channel.url} target="_blank" rel="noopener noreferrer" className="font-semibold hover:underline">{a.channel.title}</a>
               {a.channel.subscribers != null && <> · {fmt(a.channel.subscribers)} subscribers</>}
               {a.channel.videoCount != null && <> · {fmt(a.channel.videoCount)} videos</>}
-              {" · "}{day(a.start)} – {day(a.end)} (YouTube&apos;s figures lag about two days)
+              {" · "}{day(a.start)} – {day(a.end)}{" "}(YouTube&apos;s figures lag about two days)
               {" · "}pulled {formatZonedMoment(new Date(a.fetchedAt), tz)}{res.fromCache ? "" : " just now"}
             </p>
 
