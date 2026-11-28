@@ -3687,7 +3687,9 @@ a minute later.
   (**blank or 0 = trials off** — the shipped default, the owner's "push it with trials off"; 14 is the length they chose and
   the page suggests it — off → sign-up is by invitation again, or ALLOW_OPEN_SIGNUP's untimed workspace as before, and Settings
   shows non-operators no New workspace button; ⚠ the day trials open, add the What's new entry — it was held back because nobody
-  could see the trial yet),
+  could see the trial yet). With trials off, `/signup` without an invitation sends people to the membership page
+  (`signup:membership_url`, "See the memberships") instead of saying sign-up is by invitation — 2026-11-28, the owner's "Send
+  them to meyousocial.com": everyone signs up there for now; an invitation link still opens the form,
   `signup:trial_token_cap` (1,000,000), `signup:trial_image_cap` (30), `signup:trial_max_open` (25 at once; 0 = no cap),
   `signup:membership_url`, `signup:template_id` / `_parts`. **One trial per person, ever**: `User.trialStartedAt` is claimed
   atomically before the workspace is made and survives deleting it. `trialSignupPerIp` (3 a day). A sign-up whose address has

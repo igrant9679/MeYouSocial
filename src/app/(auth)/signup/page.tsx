@@ -38,7 +38,9 @@ const schema = z.object({
 // a cap on trials running at once. When the trial ends or runs out the workspace
 // is held, never deleted (lib/workspace-hold.ts); a meyousocial.com membership
 // for the same address keeps it going (lib/membership/process.ts). Trials off →
-// back to invitations (or ALLOW_OPEN_SIGNUP's untimed workspace, as before).
+// back to invitations (or ALLOW_OPEN_SIGNUP's untimed workspace, as before), and
+// the page sends everyone else to the membership page (signup:membership_url) —
+// the owner's "Send them to meyousocial.com", 2026-11-28.
 
 function errorUrl(code: string, invite: string) {
   return `/signup?error=${code}${invite ? `&invite=${encodeURIComponent(invite)}` : ""}`;
@@ -131,7 +133,7 @@ const ERRORS: Record<string, string> = {
   invalid: "Please check your details and try again.",
   "wrong-email": "Use the address this invitation was sent to.",
   "invite-gone": "That invitation has already been used or has expired. Ask whoever invited you for a new one.",
-  "invite-only": "Accounts are created from an invitation link. Open the link your administrator sent you.",
+  "invite-only": "New accounts start with a membership at meyousocial.com. If your company invited you, open the link in your invitation email.",
   "slow-down": "Too many attempts from here — wait a minute and try again.",
   "trial-slow": "Several free trials have already started from here today — try again tomorrow, or become a member at meyousocial.com.",
   "trial-off": TRIAL_REFUSAL_COPY.off,
@@ -168,7 +170,7 @@ export default async function SignUpPage({ searchParams }: { searchParams: Promi
     <div className="flex-1 grid place-items-center p-6">
       <div className="card w-full max-w-md">
         <h1 className="font-mono font-bold text-xl mb-1">
-          {trial ? "Start your free trial" : showForm ? "Create your account" : trialRefused ? "Free trials are paused" : "Sign-up is by invitation"}
+          {trial ? "Start your free trial" : showForm ? "Create your account" : trialRefused ? "Free trials are paused" : "Sign up at meyousocial.com"}
         </h1>
         {pendingInvite ? (
           <p className="text-sm mb-5">
@@ -195,10 +197,18 @@ export default async function SignUpPage({ searchParams }: { searchParams: Promi
             {firstRun ? "Set up the first account on this install." : "Your company's workspace is created automatically — invite your team from Settings → People once you're in."}
           </p>
         ) : (
-          <p className="text-sm text-[var(--mute)] mb-5">
-            Accounts on this install are created from an invitation. Open the link in your invitation email — if you
-            can&apos;t find it, an admin of your workspace can copy it for you from Settings → People.
-          </p>
+          // Everyone signs up through meyousocial.com for now (2026-11-28, the owner's "Send them to
+          // meyousocial.com"): a membership there makes the Publisher workspace and sends the set-up link.
+          <div className="text-sm text-[var(--mute)] mb-5 space-y-2" data-membership-door>
+            <p className="m-0">
+              A Publisher account comes with a MeYouSocial membership. Choose one at meyousocial.com; once it starts,
+              you get a link to set up your Publisher workspace.
+            </p>
+            <p className="m-0">
+              Invited to your company&apos;s workspace? Open the link in your invitation email. An admin of that workspace can
+              copy it for you from Settings → People.
+            </p>
+          </div>
         )}
         {message && <p className="text-sm text-[var(--brand-on)] mb-3" role="alert">{message}</p>}
         {showForm ? (
@@ -212,8 +222,10 @@ export default async function SignUpPage({ searchParams }: { searchParams: Promi
             )}
             <SubmitButton className="btn primary mt-2" pendingText="Creating…">{trial ? `Start my ${policy.days}-day trial` : "Create account"}</SubmitButton>
           </form>
-        ) : (
+        ) : trialRefused ? (
           <Link href="/signin" className="btn primary">Sign in</Link>
+        ) : (
+          <a href={policy.membershipUrl} className="btn primary" data-membership-link>See the memberships</a>
         )}
         <p className="text-xs text-[var(--mute)] mt-4 text-center">
           Already have an account? <Link href={invite ? `/signin?next=${encodeURIComponent(`/invitations/${invite}`)}` : "/signin"} className="text-[var(--accent-on)] font-semibold">Sign in</Link>

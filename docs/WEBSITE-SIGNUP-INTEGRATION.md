@@ -28,8 +28,10 @@ The website only reports what a member **has**. A call can never name a workspac
   operator has made the signing secret.
 - **Free-trial link:** `https://sparkweb-production.up.railway.app/signup`. The site's "Free trial"
   buttons, which go to the contact form today, can point here — **but only once the operator has
-  opened trials** on Settings → Sign-ups. Trials ship off; until then that page says sign-up is by
-  invitation, so keep the buttons on the contact form.
+  opened trials** on Settings → Sign-ups. Trials ship off, and since 28 Nov (the owner's "Send them to
+  meyousocial.com") that page sends anyone without an invitation to the membership page
+  (`https://www.meyousocial.com/membership/`, set on Sign-ups) — so for now everyone signs up on the
+  website, and the buttons stay there.
 
 ## One-time setup
 
