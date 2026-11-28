@@ -53,7 +53,7 @@ export default async function AdminUsagePage({ searchParams }: { searchParams: P
       by: ["action", "provider", "model"],
       where: { workspaceId: ws, action: { in: ["ai.text", "ai.image"] }, createdAt: month },
       _count: { _all: true },
-      _sum: { inputTokens: true, outputTokens: true },
+      _sum: { inputTokens: true, outputTokens: true, costMicros: true },
     }),
     db.usageLog.findFirst({ where: { workspaceId: ws, action: { in: ["ai.text", "ai.image"] } }, orderBy: { createdAt: "asc" }, select: { createdAt: true } }),
     // The metered rows are summed above, not listed one by one.
@@ -248,6 +248,7 @@ export default async function AdminUsagePage({ searchParams }: { searchParams: P
             ? <>Counted from {firstAiRow.createdAt.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })}; calls before then weren&apos;t recorded. </>
             : <>Nothing recorded yet — every AI call is counted from now on. </>}
           Tokens are what the providers bill by; their prices are on each provider&apos;s billing page. A streamed reply reports no tokens.
+          OpenRouter says what each call cost, so its rows show that figure (&ldquo;reported&rdquo;) instead of an estimate.
           {placeholders > 0 && <> <b style={{ color: "var(--rose-on)" }}>{placeholders} placeholder {placeholders === 1 ? "reply" : "replies"}</b> — no key resolved, or the provider failed and the stand-in answered.</>}
         </p>
         {ai.length === 0 ? (
@@ -270,7 +271,12 @@ export default async function AdminUsagePage({ searchParams }: { searchParams: P
                     <td className="py-1.5 pr-3 text-right font-mono">{r._count._all.toLocaleString("en-GB")}</td>
                     <td className="py-1.5 pr-3 text-right font-mono">{r._sum.inputTokens != null ? r._sum.inputTokens.toLocaleString("en-GB") : "—"}</td>
                     <td className="py-1.5 pr-3 text-right font-mono">{r._sum.outputTokens != null ? r._sum.outputTokens.toLocaleString("en-GB") : "—"}</td>
-                    <td className="py-1.5 text-right font-mono">{rowEstimate(r.action === "ai.text" ? prices[r.model ?? ""] : undefined, r._sum.inputTokens, r._sum.outputTokens)}</td>
+                    <td className="py-1.5 text-right font-mono">
+                      {/* OpenRouter reports what each call cost: its own figure, shown as such, never mixed with an estimate. */}
+                      {r._sum.costMicros != null
+                        ? <span title="What OpenRouter reported these calls cost — its own figure, not an estimate">${(r._sum.costMicros / 1_000_000).toFixed(r._sum.costMicros < 10_000 ? 4 : 2)} reported</span>
+                        : rowEstimate(r.action === "ai.text" ? prices[r.model ?? ""] : undefined, r._sum.inputTokens, r._sum.outputTokens)}
+                    </td>
                   </tr>
                 ))}
               </tbody>

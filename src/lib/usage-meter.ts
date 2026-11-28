@@ -16,9 +16,12 @@ export async function meterAi(row: {
   outputTokens?: number | null;
   /** What the call was for (E-ENG-07), text calls only. */
   purpose?: string | null;
+  /** USD the provider itself reported for the call (OpenRouter only) — stored as millionths, never computed here. */
+  costUsd?: number | null;
 }): Promise<void> {
   if (!row.workspaceId) return;
   const counted = row.inputTokens != null || row.outputTokens != null;
+  const costMicros = row.costUsd != null && Number.isFinite(row.costUsd) && row.costUsd >= 0 ? Math.round(row.costUsd * 1_000_000) : null;
   await db.usageLog
     .create({
       data: {
@@ -30,6 +33,7 @@ export async function meterAi(row: {
         outputTokens: row.outputTokens ?? null,
         tokens: counted ? (row.inputTokens ?? 0) + (row.outputTokens ?? 0) : null,
         purpose: row.purpose ?? null,
+        costMicros,
       },
     })
     .catch(() => {});

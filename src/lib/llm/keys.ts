@@ -8,14 +8,18 @@ import { getSetting, invalidateSettingsCache } from "@/lib/settings";
 // platform's key. Caching lives in src/lib/settings.ts (30s, workspace-aware).
 
 type Provider =
-  | "anthropic" | "openai" | "google" | "deepseek" | "xai" | "moonshot" | "minimax"
+  | "anthropic" | "openai" | "google" | "deepseek" | "openrouter" | "xai" | "moonshot" | "minimax"
   | "youtube" | "elevenlabs" | "heygen";
 
+// OpenRouter (2026-11-27): the same order as every other key — the workspace's own key, then one
+// another workspace shares with it, then the PLATFORM's shared key (the global row the operator
+// pastes on Settings → Keys, or OPENROUTER_API_KEY on Railway), which the owner pays for.
 const SETTING_KEY: Record<Provider, string> = {
   anthropic: "api_key:anthropic",
   openai:    "api_key:openai",
   google:    "api_key:google",
   deepseek:  "api_key:deepseek",
+  openrouter: "api_key:openrouter",
   xai:       "api_key:xai",
   moonshot:  "api_key:moonshot",
   minimax:   "api_key:minimax",
@@ -29,6 +33,7 @@ const ENV_KEY: Record<Provider, string> = {
   openai:    env.OPENAI_API_KEY,
   google:    env.GOOGLE_GENAI_API_KEY,
   deepseek:  env.DEEPSEEK_API_KEY,
+  openrouter: env.OPENROUTER_API_KEY,
   xai:       env.XAI_API_KEY,
   moonshot:  env.MOONSHOT_API_KEY,
   minimax:   env.MINIMAX_API_KEY,
@@ -46,16 +51,17 @@ export function invalidateKeyCache() {
   invalidateSettingsCache();
 }
 
-export const KEY_PROVIDERS: Provider[] = ["anthropic", "openai", "google", "deepseek", "xai", "moonshot", "minimax"];
+export const KEY_PROVIDERS: Provider[] = ["anthropic", "openai", "google", "deepseek", "openrouter", "xai", "moonshot", "minimax"];
 export type KeyProvider = Provider;
 
 /**
  * The key providers something in the app actually calls (audit SET-04):
  * Anthropic and Google write; OpenAI makes images and reads them; DeepSeek
- * writes a workspace's Light jobs once its admin allows it (lib/llm/tiers.ts).
+ * writes a workspace's Light jobs once its admin allows it (lib/llm/tiers.ts);
+ * OpenRouter writes with whichever of its models a workspace picks (2026-11-27).
  * xAI, Moonshot and MiniMax are in the catalogue for later and nothing calls
  * them, so the Keys page shows them only to remove a key saved earlier, and a
  * new key for one is refused — a saved key that does nothing reads as working.
  */
-export const USED_KEY_PROVIDERS: readonly Provider[] = ["anthropic", "google", "openai", "deepseek"];
+export const USED_KEY_PROVIDERS: readonly Provider[] = ["anthropic", "google", "openai", "deepseek", "openrouter"];
 export const isUsedKeyProvider = (p: string): boolean => (USED_KEY_PROVIDERS as readonly string[]).includes(p);

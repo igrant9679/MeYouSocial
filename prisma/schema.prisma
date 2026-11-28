@@ -1983,6 +1983,9 @@ model UsageLog {
   purpose     String?
   /// Seconds of video a real provider rendered (`video.scene` rows, E-VID-06).
   seconds     Int?
+  /// What the call cost in millionths of a USD, as the PROVIDER reported it (OpenRouter's `usage.cost`,
+  /// 2026-11-27). A measured figure, never an estimate; null for providers that report none.
+  costMicros  Int?
   createdAt   DateTime @default(now())
 
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)

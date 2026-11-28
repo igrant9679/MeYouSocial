@@ -32,6 +32,7 @@ const LABELS: Record<string, string> = {
   "api_key:anthropic": "Anthropic (Claude)",
   "api_key:google": "Google (Gemini)",
   "api_key:openai": "OpenAI",
+  "api_key:openrouter": "OpenRouter",
   "api_key:elevenlabs": "ElevenLabs",
   "api_key:heygen": "HeyGen",
   "api_key:tavily": "Tavily",

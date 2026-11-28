@@ -24,6 +24,7 @@ const EXPECTED_PREFIX: Record<string, { prefix: string; label: string }> = {
   anthropic:  { prefix: "sk-ant-", label: "Anthropic keys start with \"sk-ant-\"" },
   openai:     { prefix: "sk-",     label: "OpenAI keys start with \"sk-\"" },
   deepseek:   { prefix: "sk-",     label: "DeepSeek keys start with \"sk-\"" },
+  openrouter: { prefix: "sk-or-",  label: "OpenRouter keys start with \"sk-or-\"" },
   xai:        { prefix: "xai-",    label: "xAI keys start with \"xai-\"" },
   elevenlabs: { prefix: "sk_",     label: "ElevenLabs keys start with \"sk_\"" },
   tavily:     { prefix: "tvly-",   label: "Tavily keys start with \"tvly-\"" },

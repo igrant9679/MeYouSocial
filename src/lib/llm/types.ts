@@ -85,6 +85,12 @@ export type LLMResponse = {
   outputTokens?: number;
   /** Of `inputTokens`, how many were read from the provider's prompt cache (E-ENG-08). */
   cachedInputTokens?: number;
+  /**
+   * What the call cost in USD, as the PROVIDER reported it — only OpenRouter does (its
+   * `usage.cost`). A measured figure, kept apart from the operator-priced estimate (INVARIANTS
+   * "money only at the operator's prices"): never computed here, never guessed.
+   */
+  costUsd?: number;
 };
 
 export interface LLMProvider {

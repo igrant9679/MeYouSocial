@@ -47,6 +47,8 @@ export const env = {
   OPENAI_API_KEY: str(process.env.OPENAI_API_KEY),
   GOOGLE_GENAI_API_KEY: str(process.env.GOOGLE_GENAI_API_KEY),
   DEEPSEEK_API_KEY: str(process.env.DEEPSEEK_API_KEY),
+  // The platform's shared OpenRouter key, when the owner puts it on Railway instead of pasting it on Settings → Keys.
+  OPENROUTER_API_KEY: str(process.env.OPENROUTER_API_KEY),
   XAI_API_KEY: str(process.env.XAI_API_KEY),
   MOONSHOT_API_KEY: str(process.env.MOONSHOT_API_KEY),
   MINIMAX_API_KEY: str(process.env.MINIMAX_API_KEY),

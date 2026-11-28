@@ -755,7 +755,7 @@ export const HELP_CATEGORIES: FaqCategory[] = [
       },
       {
         q: "Whose API keys does my workspace use?",
-        a: "Your own, when you've pasted them: everything under Settings → **Keys** (LLMs, search, ElevenLabs, image/video/TTS switches) is saved **per workspace**. If your workspace hasn't set a key, it falls back to the platform's shared key — the card shows which one is in effect. The one deliberate exception is the **YouTube Data API key**: it only reads public data, so a single platform-provided key serves every workspace and its card says so (there's nothing for you to set up). Same for **SMTP**: your notification and invitation emails go out through the server you configure under Settings → Email, visible only to your workspace.",
+        a: "Your own, when you've pasted them: everything under Settings → **Keys** (LLMs, search, ElevenLabs, image/video/TTS switches) is saved **per workspace**. If your workspace hasn't set a key, it uses one another of your workspaces shares with it, then the platform's shared key — the card shows which one is in effect. OpenRouter works the same way: your own key first, then the platform's shared OpenRouter key. The one deliberate exception is the **YouTube Data API key**: it only reads public data, so a single platform-provided key serves every workspace and its card says so (there's nothing for you to set up). Same for **SMTP**: your notification and invitation emails go out through the server you configure under Settings → Email, visible only to your workspace.",
         links: [{ label: "Settings → Keys →", href: "/admin/api-keys" }, { label: "Settings → Email →", href: "/admin/email" }],
         tags: ["api keys", "smtp", "per-workspace", "tenant"],
       },
@@ -776,6 +776,12 @@ export const HELP_CATEGORIES: FaqCategory[] = [
         a: "Only as the Light model, and only when an admin allows it for the workspace. On the same card tick *Allow DeepSeek for this workspace*, save a DeepSeek key under Settings → **Keys**, then pick DeepSeek Flash as the Light model. Saving makes one short test call on your key and refuses the pick if DeepSeek doesn't answer. DeepSeek's privacy policy says it processes and stores what it is sent in China and may use it to improve its models, which is why nothing is sent to it until you choose it. What it receives is what Light jobs work on: your brand context, the text of the articles and posts involved, and your conversations with Elsie if she is set to Light. Unticking the box stops every call to it. It has no price until the platform operator enters one on Usage.",
         links: [{ label: "Settings → Workspace →", href: "/admin/settings#tiers" }, { label: "Settings → Keys →", href: "/admin/api-keys" }],
         tags: ["deepseek", "flash", "model", "light", "china", "cheaper"],
+      },
+      {
+        q: "Can I use OpenRouter — GPT, Llama, Mistral and other models?",
+        a: "Yes. OpenRouter is one key for hundreds of models from many companies. Once an OpenRouter key resolves for your workspace — your own, saved under Settings → **Keys** (it is checked with OpenRouter when you save it, and the page says how much credit is left on it), one another of your workspaces shares, or the platform's shared key — every model picker gains an **OpenRouter** group: Settings → Workspace's default model, the Light and Best tiers, and the model on a channel, article or script. The newest Claude Sonnet comes first, and each model shows OpenRouter's price per million tokens. Only models that can give structured answers are offered, because outlines, reviews and idea scoring need them. Your own key comes first; without one, the platform's shared key is used and its calls count against your monthly AI budget. Pictures, video and voice stay on their own providers. Settings → **Usage** shows what OpenRouter reported each call cost. If OpenRouter refuses your key, runs out of credit or rate-limits you, the Inbox says so in OpenRouter's own words.",
+        links: [{ label: "Settings → Keys →", href: "/admin/api-keys#key-openrouter" }, { label: "Settings → Workspace →", href: "/admin/settings" }],
+        tags: ["openrouter", "gpt", "llama", "mistral", "model", "models", "provider", "credit"],
       },
       {
         q: "How do I schedule social posts (like Buffer/Hootsuite)?",

@@ -443,6 +443,7 @@ area, rather than loading all of them into every session.
 - A finished scene can be extended — continued by Google to 30 s, measured, joined if need be — 2026-11-25, the owner's "continue"
 - Scripts on pages run only with the page's nonce — `src/proxy.ts`; a proxy cuts bodies over `proxyClientMaxBodySize` — 2026-11-24, the owner's "Yes, build CSP"
 - Posts the engine writes end in whole sentences — rewritten once, else closing sentences dropped, else not stored (`lib/social/fit-post.ts`) — 2026-11-24, the owner's "Fix both"
+- OpenRouter writes too: `openrouter:<id>` models, own key → share → the platform's shared key (operator pastes; never read it); pickers offer only structured-capable models; a platform default for workspaces with no model or key of their own; OpenRouter's reported cost in `UsageLog.costMicros` — 2026-11-27, the owner's OpenRouter decisions
 - A workspace signs up two ways: a free trial in Publisher (`/signup`, Settings → New workspace; OFF until the operator sets days on Settings → Sign-ups, 14 suggested), a meyousocial.com membership (`POST /api/membership/events`, signed; contract `docs/WEBSITE-SIGNUP-INTEGRATION.md`); a trial that ends or runs out, or a lapsed membership, HOLDS the workspace (`lib/workspace-hold.ts`) — `isGloballyPaused` includes holds, `isPauseSwitchOn` is the switch alone — 2026-11-26, the owner's "sign up a new workspace from the website and from within the app itself"
 
 ## Open items / things the user still owns

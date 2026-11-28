@@ -24,9 +24,9 @@ export type RefusalKind = "credits" | "quota" | "key" | "model";
 export type ProviderRefusal = { provider: string; kind: RefusalKind; message: string; since: string; at: string; model?: string };
 
 const KEY = (provider: string) => `llm:refusal:${provider}`;
-const PROVIDERS = ["anthropic", "google", "deepseek"] as const;
-/** The two that can be a workspace's whole AI — DeepSeek is only ever its Light model. */
-const WRITERS = ["anthropic", "google"] as const;
+const PROVIDERS = ["anthropic", "google", "deepseek", "openrouter"] as const;
+/** The ones that can be a workspace's whole AI — DeepSeek is only ever its Light model. */
+const WRITERS = ["anthropic", "google", "openrouter"] as const;
 
 export function refusalKind(message: string): RefusalKind | null {
   // First, because it is the most specific: Anthropic says `404 … not_found_error … model: <id>`,
@@ -102,8 +102,8 @@ export async function providerRefusals(workspaceId: string): Promise<ProviderRef
   return found.filter((_, i) => kept[i]);
 }
 
-const PROVIDER_NAME: Record<string, string> = { anthropic: "Anthropic", google: "Google", deepseek: "DeepSeek" };
-const PROVIDER_CONSOLE: Record<string, string> = { anthropic: "console.anthropic.com", google: "ai.studio/projects", deepseek: "platform.deepseek.com" };
+const PROVIDER_NAME: Record<string, string> = { anthropic: "Anthropic", google: "Google", deepseek: "DeepSeek", openrouter: "OpenRouter" };
+const PROVIDER_CONSOLE: Record<string, string> = { anthropic: "console.anthropic.com", google: "ai.studio/projects", deepseek: "platform.deepseek.com", openrouter: "openrouter.ai/settings/credits" };
 
 /** The first provider refusing this workspace, described — or null when none is (a plain timeout/error). */
 export async function refusalNote(workspaceId: string): Promise<string | null> {

@@ -4,7 +4,9 @@ import { mockProvider } from "./mock";
 import { createAnthropicProvider } from "./anthropic";
 import { createGoogleProvider } from "./google";
 import { createDeepSeekProvider } from "./deepseek";
-import { LIGHT_ONLY_MODELS, MODELS, PICKABLE_MODELS, PROVIDER_LABEL, TEXT_PROVIDERS, getModel, isLightOnlyModel } from "./models";
+import { createOpenRouterProvider, defaultOpenRouterSlug, getOpenRouterModels, lookupOpenRouterModel } from "./openrouter";
+import { canAnswerStructured, isOpenRouterModel, openrouterModelId, openrouterSlug, pickerModels } from "./openrouter-catalog";
+import { LIGHT_ONLY_MODELS, MODELS, PICKABLE_MODELS, PLATFORM_DEFAULT_MODEL_KEY, PROVIDER_LABEL, TEXT_PROVIDERS, getModel, isLightOnlyModel } from "./models";
 import { TIER_SETTING_KEYS, isTier, tierModel, tierOf, type Tier, type TierSettings } from "./tiers";
 import { getApiKey, invalidateKeyCache } from "./keys";
 import { getSetting } from "@/lib/settings";
@@ -23,7 +25,7 @@ import { clearProviderRefusal, recordProviderRefusal } from "./provider-health";
 const providerCache = new Map<string, LLMProvider>();
 
 /** The providers the router can call with a key. */
-const KEYED = ["anthropic", "google", "deepseek"] as const;
+const KEYED = ["anthropic", "google", "deepseek", "openrouter"] as const;
 type Keyed = (typeof KEYED)[number];
 const isKeyed = (p: string): p is Keyed => (KEYED as readonly string[]).includes(p);
 
@@ -45,6 +47,10 @@ async function getProvider(providerId: string, workspaceId?: string): Promise<LL
     case "deepseek":
       if (!key) { provider = mockProvider; break; }
       provider = wrapWithFallback(createDeepSeekProvider(key), "deepseek");
+      break;
+    case "openrouter":
+      if (!key) { provider = mockProvider; break; }
+      provider = wrapWithFallback(createOpenRouterProvider(key), "openrouter");
       break;
     // Other providers go here as we wire them up (openai, xai, moonshot, minimax).
     default:
@@ -151,7 +157,7 @@ export const llm = {
     // key is missing or USE_MOCK_LLM is on, so `p.id` is the truth in every case
     // the wrapper didn't already stamp.
     const provider = out.provider ?? p.id;
-    await meterAi({ workspaceId: req.workspaceId, action: "ai.text", provider, model: req.model, inputTokens: out.inputTokens, outputTokens: out.outputTokens, purpose: req.purpose });
+    await meterAi({ workspaceId: req.workspaceId, action: "ai.text", provider, model: req.model, inputTokens: out.inputTokens, outputTokens: out.outputTokens, purpose: req.purpose, costUsd: provider === "mock" ? null : out.costUsd });
     return { ...out, provider };
   },
   async *stream(req: LLMRequest): AsyncIterable<string> {
@@ -203,19 +209,83 @@ export async function resolveUsableModel(preferred: string, workspaceId?: string
   if (inherited) {
     const { db } = await import("@/lib/db");
     const ws = workspaceId ? await db.workspace.findUnique({ where: { id: workspaceId }, select: { defaultModel: true } }) : null;
-    preferred = ws?.defaultModel || env.DEFAULT_LLM_MODEL;
+    preferred = ws?.defaultModel || (await inheritedDefault(workspaceId));
     if (isLightOnlyModel(preferred)) preferred = env.DEFAULT_LLM_MODEL;
   }
   let base = preferred;
   if (!env.USE_MOCK_LLM && !(await modelReachable(preferred, workspaceId))) {
-    for (const m of PICKABLE_MODELS) {
-      if (await providerReachable(m.provider, workspaceId)) { base = m.id; break; }
-    }
+    base = (await firstReachable(workspaceId)) ?? preferred;
   }
   if (!inherited || !workspaceId || !purpose) return base;
   const s = await tierSettings(workspaceId);
   if (!s.on) return base;
   return tierRun(tierOf(purpose, s.elsie), s, base, workspaceId);
+}
+
+/**
+ * The platform's default model (Settings → Keys → OpenRouter, operator only): the global row,
+ * or "" while it stays on today's default. A stored value naming a light-only model is ignored.
+ */
+export async function platformDefaultSetting(): Promise<string> {
+  const v = (await getSetting(PLATFORM_DEFAULT_MODEL_KEY).catch(() => "")).trim();
+  return v && getModel(v) && !isLightOnlyModel(v) ? v : "";
+}
+
+/**
+ * What a workspace with no model of its own inherits (2026-11-27, the owner's "a platform
+ * setting chooses the default provider for workspaces with no AI choice or key"): the
+ * platform's default when the operator set one AND the workspace has no text key of its own —
+ * a workspace that brought its own Anthropic or Google key keeps writing on it, at its cost,
+ * never moved onto the shared key. Otherwise today's default (`DEFAULT_LLM_MODEL`).
+ */
+export async function inheritedDefault(workspaceId?: string): Promise<string> {
+  const platform = await platformDefaultSetting();
+  if (!platform || (workspaceId && (await hasOwnTextKey(workspaceId)))) return env.DEFAULT_LLM_MODEL;
+  return platform;
+}
+
+const OWN_KEY_TTL_MS = 30_000;
+const ownKeyCache = new Map<string, { own: boolean; expires: number }>();
+const WRITER_KEYS = ["api_key:anthropic", "api_key:google", "api_key:openrouter"];
+
+/**
+ * Does the workspace have one of these keys of its own — saved, or shared with it by another
+ * of its admins' workspaces? Never the platform's. Cached 30 s per workspace and key set.
+ */
+async function hasOwnKey(workspaceId: string, keys: readonly string[]): Promise<boolean> {
+  const ck = `${workspaceId}:${keys.join(",")}`;
+  const hit = ownKeyCache.get(ck);
+  if (hit && hit.expires > Date.now()) return hit.own;
+  const { db } = await import("@/lib/db");
+  const [rows, shares] = await Promise.all([
+    db.workspaceSetting.count({ where: { workspaceId, key: { in: [...keys] }, NOT: { value: "" } } }),
+    db.keyShare.count({ where: { toWorkspaceId: workspaceId, key: { in: [...keys] }, from: { deletedAt: null } } }),
+  ]).catch(() => [0, 0]);
+  const own = rows + shares > 0;
+  ownKeyCache.set(ck, { own, expires: Date.now() + OWN_KEY_TTL_MS });
+  return own;
+}
+
+/** A writing key of the workspace's own (Anthropic, Google or OpenRouter) — not the platform's. */
+const hasOwnTextKey = (workspaceId: string) => hasOwnKey(workspaceId, WRITER_KEYS);
+
+/**
+ * When the preferred model can't be reached here (no key for its provider): the platform's
+ * default first, then the first pickable model with a key, then OpenRouter's default model —
+ * ⚠ only on the workspace's OWN OpenRouter key (or one shared with it). The platform's shared
+ * OpenRouter key runs a workspace's AI only when the workspace picked an OpenRouter model or
+ * the operator switched the platform default: "it stays on today's default until the owner
+ * switches it". Null = nothing reachable (the caller keeps its preference, so the placeholder
+ * is labelled rather than hidden).
+ */
+async function firstReachable(workspaceId?: string): Promise<string | null> {
+  const platform = await platformDefaultSetting();
+  if (platform && (await modelReachable(platform, workspaceId))) return platform;
+  for (const m of PICKABLE_MODELS) {
+    if (await providerReachable(m.provider, workspaceId)) return m.id;
+  }
+  if (workspaceId && (await hasOwnKey(workspaceId, ["api_key:openrouter"]))) return openrouterModelId(await defaultOpenRouterSlug());
+  return null;
 }
 
 /** Can this workspace's calls reach the provider: a key — and, for a light-only one, its admin's say-so. */
@@ -283,7 +353,19 @@ export type ModelChoice = ModelDescriptor & { keyed: boolean };
 export async function modelChoices(workspaceId?: string): Promise<ModelChoice[]> {
   const keyed = new Map<string, boolean>();
   for (const p of TEXT_PROVIDERS) keyed.set(p, await providerKeyed(p, workspaceId));
-  return PICKABLE_MODELS.map((m) => ({ ...m, keyed: keyed.get(m.provider) ?? false }));
+  return [...PICKABLE_MODELS.map((m) => ({ ...m, keyed: keyed.get(m.provider) ?? false })), ...(await openRouterChoices(workspaceId))];
+}
+
+/**
+ * OpenRouter's models for a picker (2026-11-27): only while an OpenRouter key resolves here —
+ * the workspace's own, one shared with it, or the platform's shared key — and only those that
+ * can give a structured answer (lib/llm/openrouter-catalog.ts says why every picker needs that).
+ * The newest Claude Sonnet first, each with OpenRouter's listed price. An unreadable list = none.
+ */
+export async function openRouterChoices(workspaceId?: string): Promise<ModelChoice[]> {
+  if (!(await providerKeyed("openrouter", workspaceId))) return [];
+  const list = await getOpenRouterModels();
+  return pickerModels(list.models).map((m) => ({ ...getModel(openrouterModelId(m.slug))!, keyed: true }));
 }
 
 /** The Light tier's picker: every pickable model, plus the light-only ones (DeepSeek) with whether a key is saved. */
@@ -314,10 +396,29 @@ export async function tierModelProblem(tier: Exclude<Tier, "standard">, next: st
  */
 export async function modelChoiceProblem(next: string | null | undefined, workspaceId: string, current?: string | null): Promise<string | null> {
   if (!next || next === current) return null;
+  if (isOpenRouterModel(next)) return openRouterChoiceProblem(next, workspaceId);
   const m = PICKABLE_MODELS.find((x) => x.id === next);
-  if (!m) return `“${next}” isn't a model this app can write with — pick a Claude or Gemini model.`;
+  if (!m) return `“${next}” isn't a model this app can write with — pick a Claude, Gemini or OpenRouter model.`;
   if (!(await providerKeyed(m.provider, workspaceId))) {
     return `${m.label} can't run here: there's no ${PROVIDER_LABEL[m.provider] ?? m.provider} API key. Add one under Settings → Keys, or pick another model.`;
+  }
+  return null;
+}
+
+/**
+ * Why an OpenRouter model can't be saved here, or null: no OpenRouter key resolves, OpenRouter
+ * no longer lists it, or it can't give a structured answer. When the list can't be read nothing
+ * can be said about the model, so it is accepted and OpenRouter answers the first call.
+ */
+async function openRouterChoiceProblem(next: string, workspaceId: string): Promise<string | null> {
+  const label = getModel(next)?.label ?? next;
+  if (!(await providerKeyed("openrouter", workspaceId))) {
+    return `${label} can't run here: there's no OpenRouter key. Add one under Settings → Keys, or pick another model.`;
+  }
+  const { known, model } = await lookupOpenRouterModel(openrouterSlug(next));
+  if (known && !model) return `OpenRouter doesn't list “${openrouterSlug(next)}” any more — pick another model.`;
+  if (model && !canAnswerStructured(model)) {
+    return `${label} can't give the structured answers parts of Publisher need (it takes neither tools nor JSON output) — pick another model.`;
   }
   return null;
 }

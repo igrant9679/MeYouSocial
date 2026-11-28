@@ -4,7 +4,7 @@ import { SubmitButton } from "@/components/SubmitButton";
 import { requireRole } from "@/lib/acl";
 import { db } from "@/lib/db";
 import { storage } from "@/lib/storage";
-import { llm, modelChoices, resolveUsableModel } from "@/lib/llm";
+import { inheritedDefault, modelChoices, resolveUsableModel } from "@/lib/llm";
 import { modelLabel } from "@/lib/llm/models";
 import { ModelOptions, ModelChoiceNote } from "@/components/ModelOptions";
 import { updateWorkspaceSettingsAction } from "@/app/actions/admin";
@@ -38,7 +38,8 @@ export default async function AdminSettingsPage({ searchParams }: { searchParams
   const channels = await db.channel.findMany({ where: { workspaceId: workspace.id }, orderBy: { createdAt: "asc" } });
   const [choices, systemRuns, runs, channelCreators, timeZone] = await Promise.all([
     modelChoices(workspace.id),
-    resolveUsableModel(llm.defaultModel, workspace.id),
+    // "The system default" is what this workspace inherits: the platform's default when the operator set one and it has no key of its own.
+    inheritedDefault(workspace.id).then((m) => resolveUsableModel(m, workspace.id)),
     resolveUsableModel(workspace.defaultModel ?? "", workspace.id),
     getSetting(CHANNEL_CREATORS_SETTING, workspace.id).catch(() => ""),
     getPostingTimeZone(workspace.id),

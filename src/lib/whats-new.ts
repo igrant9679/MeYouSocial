@@ -41,6 +41,15 @@ export const CARD_MAX = 5;
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    id: "2026-11-28-openrouter",
+    date: "2026-11-28",
+    title: "Write with hundreds more models through OpenRouter",
+    body: "With an OpenRouter key — your own under Settings → Keys, or the platform's shared one — every model picker gains an OpenRouter group, newest Claude Sonnet first and each model with its price. Usage shows what OpenRouter reported each call cost.",
+    href: "/admin/api-keys#key-openrouter",
+    cta: "Open Keys",
+    admin: true,
+  },
+  {
     id: "2026-11-25-extend-clip",
     date: "2026-11-25",
     title: "Make a video scene longer with Extend",

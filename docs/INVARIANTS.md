@@ -3746,3 +3746,46 @@ a minute later.
   events at once making one workspace, Process again). In the browser: trial sign-up → Inbox with the banner; a held member →
   /on-hold; the claim link → invited sign-up → the member workspace; a signed-in member starting their trial; the operator's page,
   the secret shown once, the hold banner in a read-only look; real HTTP calls signed with openssl.
+
+## ⚠ OpenRouter writes too: own key first, then the platform's; pickers offer only models that answer in structure (2026-11-27, the owner's OpenRouter decisions, `meyousocial-knowledge/openrouter-spec.md`, relayed by the MeYouSocial Website session; built on the owner's "Do it here")
+- **A provider, not a replacement.** `lib/llm/openrouter.ts` (OpenAI request shape, plain `fetch`, `POST /api/v1/chat/completions`)
+  sits beside anthropic, google and deepseek in the router (`KEYED`, `getProvider`) and goes through the same
+  `wrapWithFallback`, pause/hold check, `meterAi` and budget. Text only: images, video and voice never route through it.
+- **Ids.** A Publisher id for one of its models is `openrouter:<OpenRouter's id>` (`openrouter-catalog.ts`
+  `isOpenRouterModel` / `openrouterModelId`); `getModel()` builds its descriptor from the last list this server read
+  (name + OpenRouter's listed price), or from the id alone. They are NOT in `MODELS`: OpenRouter's list is the catalogue.
+- **Keys.** `api_key:openrouter` resolves like every key: the workspace's own row → a share (it is in `SHAREABLE_KEYS`)
+  → the platform's global row (the operator pastes it on Settings → Keys → "OpenRouter for every workspace",
+  `savePlatformOpenRouterKeyAction`) → `OPENROUTER_API_KEY`. ⚠ The shared key is the owner's to paste: never read,
+  printed or shown — the page says only "saved" / "set on the server". A saved key is checked with `GET /api/v1/key`
+  first: a 401 is not saved (OpenRouter's words come back), anything else saves with what the check said.
+- **The list.** `GET /api/v1/models` (no key), cached 3 h per process, a failed read retried at most once a minute and
+  never replaced by a made-up list. Text-out models only, no `:batch` variants. ⚠ **Every picker offers only models
+  that can give a structured answer** (`canAnswerStructured`: tools, response_format or structured_outputs) — the
+  default and the tiers run JSON jobs, and an article's or channel's model runs those for it. The default is the
+  newest `anthropic/claude-sonnet…` that takes tools, read from the live list (`defaultOpenRouterModel`;
+  `OPENROUTER_FALLBACK_MODEL` only while it can't be read). Pickers show the group only while an OpenRouter key
+  resolves (`openRouterChoices`), the default first, each with its price.
+- **Requests.** One system message (systemCached + system); `max_tokens` = the answer's cap + 4096 for a model that
+  lists `reasoning`, with `reasoning: { effort, exclude: true }` — the effort is the Anthropic adapter's rule (low for a
+  cap ≤ 1,500, else medium) moved to the nearest the model lists (⚠ Claude Sonnet 5.5 on OpenRouter always reasons,
+  "high" unless told). `temperature` only to a model that lists it. 408/429/5xx retried twice (Retry-After, ≤ 5 s).
+  An empty answer, an error inside a 200, or one mid-stream is an error → the labelled mock.
+- **Errors in words.** `openrouterFailure` puts the status first so `refusalKind` reads it — 401 key, 402 credits, 429
+  quota, 404 model — and ends with OpenRouter's own message (the Inbox card's "Last reply"). ⚠ A 403 is moderation
+  refusing one prompt: its message carries no status number, or the Inbox would say the key was rejected.
+- **Cost.** OpenRouter reports what each call cost (`usage.cost`); `LLMResponse.costUsd` → `meterAi` →
+  `UsageLog.costMicros` (migration `20261127120000_usage_cost_micros`), never for a mock reply. Usage shows it as
+  "$… reported" in that row's Estimate cell — a measured figure, never mixed with the operator-priced estimate.
+- **The platform default** (`ai:platform_default_model`, global, operator only, `savePlatformDefaultModelAction`): ""
+  (today's `DEFAULT_LLM_MODEL`, where it stays until the owner switches it) or an OpenRouter model — which needs the
+  shared key and must be listed and structured. `inheritedDefault()` gives it ONLY to a workspace with no model of its
+  own AND no writing key of its own (own row or share of anthropic/google/openrouter, 30 s cache): a workspace that
+  brought a key keeps writing on it. When a preferred model can't be reached, `firstReachable()` tries the platform
+  default, then the pickable models, then OpenRouter's default — ⚠ that last one ONLY on the workspace's own (or a
+  shared-with-it) OpenRouter key. The platform's shared key never takes a keyless workspace over by itself: it runs a
+  workspace's AI only when the workspace picked an OpenRouter model or the operator switched the platform default
+  (found running it locally: a workspace with no keys at all fell straight onto the shared key). Removing the shared
+  key resets an OpenRouter default.
+- Checked by `scripts/openrouter-eval.mts` (key order on a throwaway database, the structured filter, the default,
+  request bodies, usage and cost metering, the error words and their refusal kinds, retries, streaming).

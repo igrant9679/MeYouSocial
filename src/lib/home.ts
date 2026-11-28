@@ -313,8 +313,8 @@ export async function getHomeData(workspaceId: string): Promise<HomeData> {
   // this the engine just goes quiet.
   {
     const { providerRefusals, refusedModelLabel } = await import("@/lib/llm/provider-health");
-    const NAME: Record<string, string> = { anthropic: "Anthropic", google: "Google" };
-    const WHERE: Record<string, string> = { anthropic: "console.anthropic.com", google: "ai.studio/projects" };
+    const NAME: Record<string, string> = { anthropic: "Anthropic", google: "Google", deepseek: "DeepSeek", openrouter: "OpenRouter" };
+    const WHERE: Record<string, string> = { anthropic: "console.anthropic.com", google: "ai.studio/projects", deepseek: "platform.deepseek.com", openrouter: "openrouter.ai/settings/credits" };
     for (const r of await providerRefusals(workspaceId).catch(() => [])) {
       if (r.kind === "model") {
         // A retired model is fixed by choosing another, not at the provider's console.

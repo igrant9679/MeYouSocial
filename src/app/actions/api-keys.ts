@@ -22,6 +22,7 @@ const SETTING_KEY: Record<KeyProvider, string> = {
   openai:    "api_key:openai",
   google:    "api_key:google",
   deepseek:  "api_key:deepseek",
+  openrouter: "api_key:openrouter",
   xai:       "api_key:xai",
   moonshot:  "api_key:moonshot",
   minimax:   "api_key:minimax",
@@ -283,6 +284,11 @@ export async function saveApiKeyAction(formData: FormData) {
   }
   const stored = removing ? "" : value;
 
+  // OpenRouter (2026-11-27): the key is checked with OpenRouter before it is saved — a refused
+  // key is not saved, and anything else is saved with what the check said (credit left, or why
+  // it couldn't be checked).
+  const checked = provider === "openrouter" && !removing ? await openRouterKeyCheck(value, "key-openrouter") : "";
+
   const settingKey = SETTING_KEY[provider];
   const { setWorkspaceSetting, setPlatformSetting, isPlatformManagedKey } = await import("@/lib/settings");
 
@@ -307,7 +313,109 @@ export async function saveApiKeyAction(formData: FormData) {
   const ended = removing && !isPlatformManagedKey(settingKey) ? await endShares(workspace.id, settingKey, user.id) : 0;
   revalidatePath("/admin/api-keys");
   if (removing) redirect(removedRedirect(provider, ended));
+  if (checked) redirect(`/admin/api-keys?ok=${provider}&flash=${encodeURIComponent(checked)}#key-${provider}`);
   redirect(`/admin/api-keys?ok=${provider}`);
+}
+
+/**
+ * Ask OpenRouter about a key before saving it (GET /api/v1/key). A key it refuses (401) is not
+ * saved — the admin is sent back with OpenRouter's own words. Out of credit, a network failure
+ * or any other answer still saves, and the sentence returned says so.
+ */
+async function openRouterKeyCheck(value: string, anchor: string): Promise<string> {
+  const { checkOpenRouterKey, describeKeyCheck } = await import("@/lib/llm/openrouter");
+  let refused = "";
+  let said = "";
+  try {
+    said = `OpenRouter key checked: ${describeKeyCheck(await checkOpenRouterKey(value))}`;
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    if ((e as { status?: number }).status === 401) refused = message.replace(/^openrouter 401: /, "");
+    else said = `Saved, but OpenRouter's check didn't pass: ${message.replace(/^openrouter /, "")}`;
+  }
+  if (refused) redirect(`/admin/api-keys?err=${encodeURIComponent(`Not saved: ${refused}`)}#${anchor}`);
+  return said;
+}
+
+/**
+ * The platform's shared OpenRouter key (2026-11-27, the owner's OpenRouter decisions): the
+ * global row, operator only. Any workspace with no OpenRouter key of its own uses it when it
+ * picks an OpenRouter model, billed to the platform; those calls count against each
+ * workspace's monthly AI budget like any other. ⚠ The owner pastes it; nobody else types or
+ * reads it, and the page never shows any part of it.
+ */
+export async function savePlatformOpenRouterKeyAction(formData: FormData) {
+  const { workspace, user } = await requireRole("ADMIN");
+  const back = "#platform-openrouter";
+  if (!isPlatformOperator(user.email)) {
+    redirect(`/admin/api-keys?err=${encodeURIComponent("The shared OpenRouter key is managed by the platform operator.")}${back}`);
+  }
+  const intent = String(formData.get("intent") ?? "");
+  if (intent === "remove") redirect(`/admin/api-keys?confirmRemove=platform-openrouter${back}`);
+  const removing = intent === "remove-confirmed";
+  const value = String(formData.get("value") ?? "").trim();
+  if (!removing && !value) redirect(`/admin/api-keys?err=${encodeURIComponent("The key field was empty, so nothing was saved. To take the shared key away, use Remove.")}${back}`);
+  const problem = removing ? null : checkKeyFormat("openrouter", value);
+  if (problem) redirect(`/admin/api-keys?err=${encodeURIComponent(keyFormatMessage("openrouter", problem))}${back}`);
+  const checked = removing ? "" : await openRouterKeyCheck(value, "platform-openrouter");
+
+  const { setPlatformSetting, getSetting } = await import("@/lib/settings");
+  await setPlatformSetting("api_key:openrouter", removing ? "" : value);
+  llm.invalidateKeyCache();
+  await auditKey(workspace.id, user.id, "openrouter", removing, value, true);
+
+  // Without a shared key the platform default can't run on OpenRouter: put it back on today's default.
+  let reset = "";
+  if (removing) {
+    const { env } = await import("@/lib/env");
+    const { PLATFORM_DEFAULT_MODEL_KEY } = await import("@/lib/llm/models");
+    const current = await getSetting(PLATFORM_DEFAULT_MODEL_KEY).catch(() => "");
+    if (current.startsWith("openrouter:") && !env.OPENROUTER_API_KEY) {
+      await setPlatformSetting(PLATFORM_DEFAULT_MODEL_KEY, "");
+      await writeAudit({ workspaceId: workspace.id, actorId: user.id, action: "ai.platform_default_set", entityType: "setting", entityId: PLATFORM_DEFAULT_MODEL_KEY, meta: { from: current, to: null, why: "shared OpenRouter key removed" } });
+      reset = " The platform default is back on today's default, since nothing could run it.";
+    }
+  }
+  revalidatePath("/admin/api-keys");
+  redirect(`/admin/api-keys?flash=${encodeURIComponent(removing ? `Removed the shared OpenRouter key. Workspaces without their own OpenRouter key can no longer use OpenRouter models.${reset}` : `Saved the shared OpenRouter key. ${checked}`)}${back}`);
+}
+
+/**
+ * The platform's default model for a workspace with no model or writing key of its own
+ * (2026-11-27): "" = today's default, or one of OpenRouter's models — which needs the shared
+ * OpenRouter key first, and must be listed and able to give structured answers. Operator only.
+ */
+export async function savePlatformDefaultModelAction(formData: FormData) {
+  const { workspace, user } = await requireRole("ADMIN");
+  const back = "#platform-openrouter";
+  if (!isPlatformOperator(user.email)) {
+    redirect(`/admin/api-keys?err=${encodeURIComponent("The platform default is managed by the platform operator.")}${back}`);
+  }
+  const value = String(formData.get("model") ?? "").trim();
+  const { getSetting, setPlatformSetting } = await import("@/lib/settings");
+  const { env } = await import("@/lib/env");
+  const { PLATFORM_DEFAULT_MODEL_KEY, getModel } = await import("@/lib/llm/models");
+  const { isOpenRouterModel, openrouterSlug, canAnswerStructured } = await import("@/lib/llm/openrouter-catalog");
+  const fail = (msg: string) => redirect(`/admin/api-keys?err=${encodeURIComponent(msg)}${back}`);
+  if (value) {
+    if (!isOpenRouterModel(value)) fail("The platform default is today's default or one of OpenRouter's models.");
+    const shared = (await getSetting("api_key:openrouter").catch(() => "")) || env.OPENROUTER_API_KEY;
+    if (!shared) fail("Paste the shared OpenRouter key first — without it, no workspace could run an OpenRouter default.");
+    const { lookupOpenRouterModel } = await import("@/lib/llm/openrouter");
+    const { known, model } = await lookupOpenRouterModel(openrouterSlug(value));
+    if (!known) fail("OpenRouter's model list can't be read just now, so the model can't be checked. Try again in a minute.");
+    if (!model) fail(`OpenRouter doesn't list “${openrouterSlug(value)}”.`);
+    if (model && !canAnswerStructured(model)) fail(`${getModel(value)?.label ?? value} can't give the structured answers parts of Publisher need.`);
+  }
+  const before = await getSetting(PLATFORM_DEFAULT_MODEL_KEY).catch(() => "");
+  if (before !== value) {
+    await setPlatformSetting(PLATFORM_DEFAULT_MODEL_KEY, value);
+    await writeAudit({ workspaceId: workspace.id, actorId: user.id, action: "ai.platform_default_set", entityType: "setting", entityId: PLATFORM_DEFAULT_MODEL_KEY, meta: { from: before || null, to: value || null } });
+  }
+  revalidatePath("/admin/api-keys");
+  redirect(`/admin/api-keys?flash=${encodeURIComponent(value
+    ? `Workspaces with no model or writing key of their own now write with ${getModel(value)?.label ?? value}, on the shared OpenRouter key.`
+    : "The platform default is today's default again.")}${back}`);
 }
 
 /**

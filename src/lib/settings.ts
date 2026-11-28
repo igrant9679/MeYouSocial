@@ -85,6 +85,7 @@ export const SHAREABLE_KEYS: ReadonlySet<string> = new Set([
   "api_key:anthropic",
   "api_key:google",
   "api_key:openai",
+  "api_key:openrouter",
   "api_key:elevenlabs",
   "api_key:heygen",
   "api_key:tavily",

@@ -6,7 +6,11 @@ import { env } from "@/lib/env";
 import {
   saveApiKeyAction, saveSearchKeyAction, saveMediaSettingAction, saveStorageSettingAction,
   saveGdriveOauthClientAction, connectGdriveAction, disconnectGdriveAction, saveReachDialAction,
+  savePlatformOpenRouterKeyAction, savePlatformDefaultModelAction,
 } from "@/app/actions/api-keys";
+import { getOpenRouterModels } from "@/lib/llm/openrouter";
+import { openrouterModelId, pickerModels } from "@/lib/llm/openrouter-catalog";
+import { PLATFORM_DEFAULT_MODEL_KEY, getModel, modelLabel } from "@/lib/llm/models";
 import { getVideoProviderSetting } from "@/lib/video";
 import { getImageProviderSetting, resolveImageProviderName } from "@/lib/images";
 import { getStorageBackendSetting } from "@/lib/storage";
@@ -30,7 +34,7 @@ import { requestNow } from "@/lib/request-time";
 // remain the fallback so existing deployments keep working.
 
 type Row = {
-  provider: "anthropic" | "openai" | "google" | "deepseek" | "xai" | "moonshot" | "minimax";
+  provider: "anthropic" | "openai" | "google" | "deepseek" | "openrouter" | "xai" | "moonshot" | "minimax";
   label: string;
   envVar: string;
   envValue: string;
@@ -51,6 +55,7 @@ const ROWS: Row[] = [
   { provider: "google",    label: "Google (Gemini)",     envVar: "GOOGLE_GENAI_API_KEY",  envValue: env.GOOGLE_GENAI_API_KEY,  helpUrl: "https://aistudio.google.com/apikey",          helpText: "aistudio.google.com/apikey", use: "Writing, images, video (Gemini Omni Flash) and reading images." },
   { provider: "openai",    label: "OpenAI (GPT)",        envVar: "OPENAI_API_KEY",        envValue: env.OPENAI_API_KEY,        helpUrl: "https://platform.openai.com/api-keys",        helpText: "platform.openai.com → API keys", use: "Images (gpt-image-1) and reading images — not writing." },
   { provider: "deepseek",  label: "DeepSeek",            envVar: "DEEPSEEK_API_KEY",      envValue: env.DEEPSEEK_API_KEY,      helpUrl: "https://platform.deepseek.com/api_keys",      helpText: "platform.deepseek.com", use: "Light jobs only — and only after an admin allows DeepSeek and picks it under Settings → Workspace." },
+  { provider: "openrouter", label: "OpenRouter",         envVar: "OPENROUTER_API_KEY",    envValue: env.OPENROUTER_API_KEY,    helpUrl: "https://openrouter.ai/settings/keys",         helpText: "openrouter.ai → Keys", use: "Writing with any of OpenRouter's models — pick one under Settings → Workspace, or on a channel, article or script. Checked with OpenRouter when you save it." },
   { provider: "xai",       label: "xAI (Grok)",          envVar: "XAI_API_KEY",           envValue: env.XAI_API_KEY,           helpUrl: "https://console.x.ai",                        helpText: "console.x.ai" },
   { provider: "moonshot",  label: "Moonshot (Kimi)",     envVar: "MOONSHOT_API_KEY",      envValue: env.MOONSHOT_API_KEY,      helpUrl: "https://platform.moonshot.ai",                helpText: "platform.moonshot.ai" },
   { provider: "minimax",   label: "MiniMax",             envVar: "MINIMAX_API_KEY",       envValue: env.MINIMAX_API_KEY,       helpUrl: "https://www.minimax.io",                      helpText: "minimax.io" },
@@ -89,7 +94,7 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
   const [wsRows, platformRows] = await Promise.all([
     db.workspaceSetting.findMany({ where: { workspaceId: workspace.id } }),
     db.setting.findMany({
-      where: { OR: [{ key: { startsWith: "api_key:" } }, { key: { in: ["video:provider", "tts:provider", "storage:backend", "gdrive:service_account", "gdrive:folder_id"] } }] },
+      where: { OR: [{ key: { startsWith: "api_key:" } }, { key: { in: ["video:provider", "tts:provider", "storage:backend", "gdrive:service_account", "gdrive:folder_id", PLATFORM_DEFAULT_MODEL_KEY] } }] },
     }),
   ]);
   const byKey = new Map(wsRows.map((s) => [s.key, s.value] as const));
@@ -134,6 +139,12 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
   const gdriveConfigured = driveMode === "oauth" ? driveOauth.connected : Boolean(gdriveSa && gdriveFolder);
   // Live check only when it can possibly succeed — keeps the page fast otherwise.
   const drive = isPlatformOperator && gdriveConfigured ? await gdriveStatus() : null;
+  // OpenRouter for every workspace (2026-11-27): the shared key's presence — never any of it —
+  // and the platform default, for the operator only.
+  const sharedOpenRouter = isPlatformOperator
+    ? { saved: Boolean(platformByKey.get("api_key:openrouter")), env: Boolean(env.OPENROUTER_API_KEY), current: platformByKey.get(PLATFORM_DEFAULT_MODEL_KEY) ?? "" }
+    : null;
+  const sharedOpenRouterModels = sharedOpenRouter && (sharedOpenRouter.saved || sharedOpenRouter.env) ? pickerModels((await getOpenRouterModels()).models) : [];
 
   return (
     <div className="w-full">
@@ -321,6 +332,74 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Prom
           </form>
         );
       })}
+
+      {/* OpenRouter for every workspace (2026-11-27, the owner's OpenRouter decisions): the shared
+          key and the platform default — the operator's alone. No part of the key is ever shown. */}
+      {sharedOpenRouter && (
+        <section id="platform-openrouter" className="card mb-3 scroll-mt-20 text-xs flex flex-col gap-3" data-platform-openrouter>
+          <div>
+            <div className="font-mono font-bold text-sm">OpenRouter for every workspace <span className="font-normal text-[var(--mute)]">— platform operator</span></div>
+            <p className="m-0 mt-0.5 text-[var(--mute)] leading-relaxed">
+              The shared OpenRouter key is used by any workspace that picks an OpenRouter model and has no OpenRouter key of
+              its own. Its calls are billed to the platform and count against each workspace&apos;s monthly AI budget like
+              any other.
+            </p>
+          </div>
+          <form action={savePlatformOpenRouterKeyAction} className="flex flex-col gap-1.5">
+            <div data-shared-openrouter-state>
+              <b>Shared key:</b>{" "}
+              {sharedOpenRouter.saved
+                ? <span style={{ color: "var(--green-on)" }}>saved on this page</span>
+                : sharedOpenRouter.env
+                  ? <span style={{ color: "var(--green-on)" }}>set on the server (OPENROUTER_API_KEY)</span>
+                  : <span className="text-[var(--mute)]">not set</span>}
+            </div>
+            {confirmRemove === "platform-openrouter" && sharedOpenRouter.saved ? (
+              <div className="rounded-lg p-2.5 text-sm" style={{ background: "var(--rose-soft)" }}>
+                <p className="mb-2">
+                  Remove the shared OpenRouter key? Workspaces without an OpenRouter key of their own can no longer use
+                  OpenRouter models{sharedOpenRouter.env ? " — except through the key set on the server" : ""}.
+                </p>
+                <div className="flex gap-2">
+                  <button name="intent" value="remove-confirmed" className="btn sm" style={{ color: "var(--rose-on)" }}>Yes, remove it</button>
+                  <Link href="/admin/api-keys#platform-openrouter" className="btn sm">Cancel</Link>
+                </div>
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <input name="value" type="password" autoComplete="off" placeholder={sharedOpenRouter.saved ? "Paste a new shared key to replace it" : "Paste the shared OpenRouter key"} className="flex-1 border border-[var(--line-2)] rounded-lg p-2 text-sm font-mono" />
+                <SubmitButton className="btn primary sm" pendingText="Checking…">Save</SubmitButton>
+                {sharedOpenRouter.saved && <button name="intent" value="remove" className="btn sm" style={{ color: "var(--rose-on)" }}>Remove</button>}
+              </div>
+            )}
+          </form>
+          <form action={savePlatformDefaultModelAction} className="flex items-end gap-2 flex-wrap" data-platform-default>
+            <label className="flex flex-col gap-0.5 min-w-0 flex-1">
+              <span className="text-[var(--mute)]">Default model for workspaces with no model or writing key of their own</span>
+              <select name="model" defaultValue={sharedOpenRouter.current} className="border border-[var(--line-2)] rounded-lg p-1.5 text-sm max-w-full">
+                <option value="">Today&apos;s default ({modelLabel(env.DEFAULT_LLM_MODEL)})</option>
+                {sharedOpenRouter.current && !sharedOpenRouterModels.some((m) => openrouterModelId(m.slug) === sharedOpenRouter.current) && (
+                  <option value={sharedOpenRouter.current}>{modelLabel(sharedOpenRouter.current)} (saved earlier)</option>
+                )}
+                {sharedOpenRouterModels.length > 0 && (
+                  <optgroup label="OpenRouter, on the shared key">
+                    {sharedOpenRouterModels.map((m) => {
+                      const d = getModel(openrouterModelId(m.slug))!;
+                      return <option key={m.slug} value={d.id}>{d.label} — {d.style}</option>;
+                    })}
+                  </optgroup>
+                )}
+              </select>
+            </label>
+            <SubmitButton className="btn sm" pendingText="Saving…">Save the platform default</SubmitButton>
+          </form>
+          <p className="m-0 text-[var(--mute)] leading-relaxed">
+            {sharedOpenRouter.saved || sharedOpenRouter.env
+              ? "A workspace with its own Claude, Gemini or OpenRouter key keeps using it; a workspace that picked its own model keeps that model."
+              : "Paste the shared key first: OpenRouter's models are offered here once it is in."}
+          </p>
+        </section>
+      )}
 
       {/* Providers nothing calls (SET-04): listed only while this workspace still
           stores a key for one, so it can be removed — never offered for a new key. */}

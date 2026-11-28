@@ -1,4 +1,5 @@
 import type { ModelDescriptor } from "./types";
+import { displayName, isOpenRouterModel, knownOpenRouterModel, nameFromSlug, openrouterSlug, priceLabel } from "./openrouter-catalog";
 
 // Canonical model registry. Surfaces selection guidance.
 // IDs are stable across the app; renaming an underlying provider model
@@ -23,8 +24,36 @@ export const MODELS: ModelDescriptor[] = [
 ];
 
 export function getModel(id: string): ModelDescriptor | undefined {
+  if (isOpenRouterModel(id)) return openRouterDescriptor(id);
   return MODELS.find((m) => m.id === id);
 }
+
+/**
+ * An OpenRouter model (2026-11-27) isn't in MODELS: OpenRouter's own list is the catalogue
+ * (lib/llm/openrouter-catalog.ts). Its descriptor is made from the last list this server read —
+ * the name and listed price — or, before any read, from the id alone.
+ */
+function openRouterDescriptor(id: string): ModelDescriptor {
+  const slug = openrouterSlug(id);
+  const m = knownOpenRouterModel(slug);
+  return {
+    id,
+    provider: "openrouter",
+    label: `${m ? displayName(m.name) : nameFromSlug(slug)} via OpenRouter`,
+    family: "openrouter",
+    speed: "balanced",
+    lengthAdherence: "medium",
+    style: m ? priceLabel(m) : "OpenRouter model",
+  };
+}
+
+/**
+ * The PLATFORM's default model for a workspace with no model or key of its own (2026-11-27,
+ * the owner's OpenRouter decisions): a global Setting only the operator writes (Settings → Keys
+ * → OpenRouter). Blank = today's default, `DEFAULT_LLM_MODEL`, which it stays on until the
+ * owner switches it, once the shared OpenRouter key is in.
+ */
+export const PLATFORM_DEFAULT_MODEL_KEY = "ai:platform_default_model";
 
 /** Providers whose models a person may pick anywhere — a default, a channel's,
  *  an article's (lib/llm/index.ts getProvider). The rest of MODELS are listed
@@ -41,6 +70,6 @@ export const isLightOnlyModel = (id: string): boolean => LIGHT_ONLY_MODELS.some(
  *  not the legacy alias (it still routes, for rows that stored it). */
 export const PICKABLE_MODELS = MODELS.filter((m) => TEXT_PROVIDERS.includes(m.provider) && m.id !== "gemini-1.5-pro");
 
-export const PROVIDER_LABEL: Record<string, string> = { anthropic: "Anthropic", google: "Google", deepseek: "DeepSeek" };
+export const PROVIDER_LABEL: Record<string, string> = { anthropic: "Anthropic", google: "Google", deepseek: "DeepSeek", openrouter: "OpenRouter" };
 
 export const modelLabel = (id: string) => getModel(id)?.label ?? id;
